@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
 
 interface Props {
@@ -13,7 +14,12 @@ export default function ModalShell({ onDismiss, children, zIndex = 'z-50' }: Pro
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  return (
+// ⚠️ PORTALLED TO `document.body`. See `CalcDrawer.tsx` for the full reason: on iOS WebKit a
+// `position: fixed` overlay rendered inside `main` — an `overflow-y: auto` scroller — resolves
+// against the SCROLLER rather than the viewport, so its scrim stops short of the screen edges and
+// leaves the status-bar strip undimmed. Desktop browsers do not reproduce it. z-index cannot fix
+// it, because z-index does not escape a containing block.
+  return createPortal((
     <div
       className={`modal-overlay ${zIndex} bg-background/85 backdrop-blur-sm`}
       onClick={onDismiss}
@@ -25,5 +31,5 @@ export default function ModalShell({ onDismiss, children, zIndex = 'z-50' }: Pro
         {children}
       </div>
     </div>
-  );
+  ), document.body);
 }

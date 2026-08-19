@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Info, X, ChevronRight } from 'lucide-react';
 
 /**
@@ -40,7 +41,22 @@ export default function CalcDrawer({
 }) {
   if (!open) return null;
 
-  return (
+/**
+ * ⚠️ RENDERED THROUGH A PORTAL TO `document.body`, and on iOS that is not a nicety.
+ *
+ * Tre, 2026-08-19, from TestFlight: *"the popup didnt darken like the top edge. it should dim the
+ * rest of the screen."* The overlay is `position: fixed; inset: 0` with an opaque scrim, so it
+ * should cover the viewport — but it was rendered deep inside `main`, which is an
+ * `overflow-y: auto` scrolling container. WebKit has long-standing trouble with fixed positioning
+ * inside a scroller: the element resolves against the SCROLLER rather than the viewport, so the
+ * scrim stopped at the top of the scrolling area and left the status-bar strip undimmed. It looks
+ * correct in a desktop browser, which is why it survived every check that was not on a phone.
+ *
+ * A portal makes the overlay a direct child of `body`, so there is no ancestor left to contain it,
+ * clip it, or start a stacking context in front of it. It is also the reason not to "fix" this
+ * with a bigger z-index: z-index cannot escape a containing block.
+ */
+  return createPortal((
     <div
       className="modal-overlay"
       style={{ background: 'rgba(0,0,0,0.85)', zIndex }}
@@ -86,5 +102,5 @@ export default function CalcDrawer({
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

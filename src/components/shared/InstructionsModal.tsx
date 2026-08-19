@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { BookOpen, X, Info, BarChart2 } from 'lucide-react';
 
@@ -11,7 +12,12 @@ type Props = {
 export default function InstructionsModal({ pageTitle, sections }: Props) {
   const [open, setOpen] = useState(false);
 
-  return (
+// ⚠️ PORTALLED TO `document.body`. See `CalcDrawer.tsx` for the full reason: on iOS WebKit a
+// `position: fixed` overlay rendered inside `main` — an `overflow-y: auto` scroller — resolves
+// against the SCROLLER rather than the viewport, so its scrim stops short of the screen edges and
+// leaves the status-bar strip undimmed. Desktop browsers do not reproduce it. z-index cannot fix
+// it, because z-index does not escape a containing block.
+  return createPortal((
     <>
       <button
         onClick={() => setOpen(true)}
@@ -78,5 +84,5 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
         </div>
       )}
     </>
-  );
+  ), document.body);
 }

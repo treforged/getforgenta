@@ -83,7 +83,9 @@ export default function MobileTopBar() {
           <img
             src="/logo-transparent.png"
             alt="Forgenta"
-            style={{ height: 22, width: 22, objectFit: 'contain' }}
+            // Sized against the 48px bar rather than the wordmark: 22 read as an afterthought
+            // next to FORGENTA. 30 fills the row and still clears it top and bottom.
+            style={{ height: 30, width: 30, objectFit: 'contain' }}
             draggable={false}
           />
           <span className="font-display font-bold text-sm tracking-tight text-primary">FORGENTA</span>

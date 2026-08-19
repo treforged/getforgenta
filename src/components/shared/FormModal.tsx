@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, type ReactNode } from 'react';
 import { X, Info, Check, Loader2, RotateCcw } from 'lucide-react';
 import DateScrollPicker from './DateScrollPicker';
@@ -38,7 +39,12 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  return (
+// ⚠️ PORTALLED TO `document.body`. See `CalcDrawer.tsx` for the full reason: on iOS WebKit a
+// `position: fixed` overlay rendered inside `main` — an `overflow-y: auto` scroller — resolves
+// against the SCROLLER rather than the viewport, so its scrim stops short of the screen edges and
+// leaves the status-bar strip undimmed. Desktop browsers do not reproduce it. z-index cannot fix
+// it, because z-index does not escape a containing block.
+  return createPortal((
     <div
       className="modal-overlay z-60"
       style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
@@ -169,5 +175,5 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

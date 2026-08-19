@@ -77,7 +77,8 @@ export default function Sidebar() {
             <img
               src="/logo-transparent.png"
               alt="Forgenta"
-              style={{ height: 28, width: 28, objectFit: 'contain' }}
+              // Kept in proportion with the mobile bar's mark, which went 22 -> 30.
+              style={{ height: 34, width: 34, objectFit: 'contain' }}
               draggable={false}
             />
             <span className="font-display font-bold text-sm tracking-tight text-primary">FORGENTA</span>
