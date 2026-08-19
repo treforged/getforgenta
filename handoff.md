@@ -1,5 +1,15 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (390px pass — **the mechanical half is done and clean; the visual half CANNOT be done from a session**) — no code change needed.
+>
+> **✅ NO HORIZONTAL OVERFLOW AT 390px ON ANY SURFACE, IN EITHER THEME.** `/dashboard`, `/transactions`, `/debt`, `/forecast`, `/vehicles`, `/settings` — every one `bodyOverflow = 0`.
+> - **How, since a real 390px viewport is unobtainable here:** ⚠️ `resize_window` **reports success and does nothing** — it returned "resized to 390x844" while `innerWidth` stayed 862. ⚠️ `window.open(..., 'width=390')` is **popup-blocked**. So the check was done by clamping `documentElement` to 390px and hunting elements whose right edge passes it.
+> - ⚠️ **THE RAW PROBE LIES AND MUST BE FILTERED.** First run flagged 80 "offenders"; nearly all were inside **deliberate horizontal scrollers** (the dashboard chip row, recharts wrappers). Excluding any element with a scrollable ancestor, and reporting only innermost nodes, took it to 5 — and those 5 are **clamp artifacts**: SVG internals in their own coordinate space, and `position: fixed` bottom-nav elements which size to the REAL viewport, not the clamped root. Anyone re-running this must apply the same filter or they will chase ghosts.
+> - The one plausible real hit, a `+472px` iframe on `/settings`, is **Stripe's hidden `controller-with…` utility iframe** — always injected, parent is `overflow-x: hidden`. Not the payment form, not a bug.
+> - Dark mode re-probed: identical (`bodyOverflow = 0`, same 5 artifacts). Expected — the theme swaps colour tokens only, no sizing.
+>
+> **⬜ WHAT IS STILL OWED, AND IT NEEDS TRE, NOT A SESSION.** Overflow is the failure that *breaks* a page; crowding, wrapping and tap-target size are what a "390px re-pass" is really about, and judging those needs real eyes at a real 390px. There is no way to get that viewport from here — both routes above are blocked. **Two minutes on his phone beats anything further I can do**, now that light mode is live and worth looking at on a real screen.
+>
 > ▶ 2026-08-19 (**BACKUP SYNC IS ALIVE AGAIN — ran it, 78 uploaded, 0 failed**) — **`f1a29997` on `main`**, pushed.
 >
 > **✅ THE SAFETY NET WORKS. Verified from DRIVE'S OWN API, not the log:** 842 files, 24.6 MB, 2026-03-26 → 2026-08-19, **78 created that day**, zero zero-byte. First success since 2026-06-25.
