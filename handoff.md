@@ -1,5 +1,52 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (**RANKED AUTOMATIC EXTRA PAYMENTS — (a), (b), the bridge, and month-0 of (c) are SHIPPED**) — **`d48aabc2` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1784 passed across 189 files** (was 1742/186), build exit 0.
+>
+> ## ⏭️ START HERE: FINISH IT — THE CALL SITE, THEN THE UI
+>
+> **The feature is built and proven but still INERT: nothing passes real rows into it.** `auto_extra` defaults to false and no caller supplies `autoExtraTargets`, so today it is a no-op by construction. Two things make it real, in this order:
+>
+> **1. The call site.** `buildCurrentMonthRecommendationSummary` (`credit-card-engine.ts:2539`) is the ONLY caller of `generateRecommendations`, and it does not receive `goals` or `carFunds`. Thread them in, call `buildRankedTargets` (`ranked-extra-payment-targets.ts`), pass the result as the new last positional arg. ⚠️ Its own callers (`getMonthlyDebtBreakdown`, and from there `useForecastEngineInputs`) need the same two arguments — that is the whole ripple, and it is plumbing, not design.
+>
+> **2. The drag-to-rank UI**, reusing the builds reorder pattern. ⚠️ **The list must contain a "Credit cards" row**, not just goals and funds — `cardsSortOrder` is a real position in the same list, and without a visible row for it the user cannot express "this goal matters more than my debt", which is the whole ask. Write `sort_order` for every row on drop, and pass the card row's index as `cardsSortOrder`.
+>
+> ## ⚠️ WHAT IS SHIPPED, AND THE ONE HONEST GAP
+>
+> **⬜ THE MULTI-MONTH PROJECTION DOES NOT MODEL THIS YET.** Month-0 recommendations divert to goals; the payoff-date forecast does not. An opted-in user's projected payoff date therefore reads OPTIMISTIC. Nobody is exposed today (nothing is opted in, no UI), **but this must be closed before or with the UI**, or the app shows a date it is not itself following. That is the convergence-loop slice the earlier handoff warned about — `credit-card-engine.ts`'s fixed-point loop, `maxPasses` 24, the Q1–Q12 history. **Recapture a fixture BEFORE touching it.**
+>
+> **✅ (b) THE PURE ALLOCATOR — `src/lib/ranked-surplus-allocation.ts`, `e4b8b5c4`.** `allocateRankedSurplus(deployable, targets)`. The rule that must never break is enforced STRUCTURALLY, not by convention: a mandatory pass over every target's `minimum` runs **before `sortOrder` is consulted at all**, so no ordering of the input can underpay a minimum while funding a goal. A pool too small reports `minimumShortfall` rather than dropping a payment. Capacity caps each target, so a full goal hands its share on within the same month. 22 tests.
+>
+> **✅ (a) THE MIGRATION — `20260819_ranked_automatic_extra_payments.sql`, `1b5391e8`. APPLIED to production and verified after: both tables still `rls = true` with 4 policies each.** `sort_order integer not null default 0` + `auto_extra boolean not null default false` on `savings_goals` and `car_funds`. Columns on existing tables, so the default-ACL trap that makes a NEW public table world-writable does not apply. ⚠️ **`auto_extra` defaults FALSE deliberately** — defaulting it true would divert surplus away from the cards for every existing user on deploy, silently moving their payoff date.
+>
+> **✅ THE BRIDGE — `src/lib/ranked-extra-payment-targets.ts`, `e524ef9e`.** `buildRankedTargets` derives minimums, capacities and ranks from real `CardData` / `CarFund` / `SavingsGoal` rows. ⚠️ **Cards rank as a BLOCK, not individually** — avalanche/snowball already order them on the marginal APR, so letting a user drag one card above another would silently override their chosen strategy and cost them interest. Also decided here: a loan-phase car fund is not a target; an autopay-in-full card takes no ranked surplus but keeps its minimum; goals and funds carry a zero minimum because their manual contribution is already a bill upstream.
+>
+> **✅ (c) MONTH 0 — the reserve wiring, `d48aabc2`.** The elaborate revolving cascade is **left completely alone**. The feature only decides a RESERVE out of the pool; the cascade then runs on the reduced pool exactly as before, which is why all 189 existing test files stayed green. The card block enters the allocator as ONE synthetic target carrying the combined minimum and balance, so slice (b)'s proof carries over intact.
+>
+> ⚠️ **An exact rank tie resolves in favour of the CARDS, explicitly** (`cardsSortOrder - 0.5`), not by comparing a uuid to a sentinel string. Arbitrary is not an acceptable way to decide whether debt or a goal gets the money. Consequence worth knowing: a goal left at the default rank 0 still gets whatever the cards physically cannot absorb (pool above their full balance) — that was idle surplus before, so it is a gain, not a diversion.
+>
+> ⚠️ **`computeAutoExtraReserve` lives in `ranked-surplus-allocation.ts`, which imports NOTHING.** Putting it in `ranked-extra-payment-targets.ts` closes a runtime cycle back into `credit-card-engine` via `debt-payoff-order`. Do not move it.
+>
+> **Where the tests are:** `ranked-surplus-allocation.test.ts` (22), `ranked-extra-payment-targets.test.ts` (13), `credit-card-engine.autoExtraTargets.test.ts` (7 — the byte-identical-when-opted-out proof, plus 20 pool/goal-size combinations where a greedy goal never makes the cards miss a minimum and never flips `cashWarning`).
+>
+> **⚠️ Adding a required field to `CarFund`/`SavingsGoal` costs eleven fixtures.** Both new columns are NOT NULL, so the TS types made them required and eleven test/demo fixtures needed them. Expect the same next time.
+>
+> ## Mechanics (unchanged, still true)
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep` / `git cat-file -e` against `origin/main`).
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS.** `resize_window` reports success and does nothing; popups are blocked; there is no way to get a real 390px viewport from a session. Treat "it looks right at localhost:8080" as no evidence for layout inside the native web view.
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** Any new overlay must portal to `document.body`.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper. Never re-add it to a child.
+>
+> **Versioning:** root `VERSION` (`6.1.0`) is the truth; `node scripts/next-version.mjs --write` classifies and applies the bump. `versionCode` stays `run_number + 100`. **Not bumped this session** — the feature is not user-visible until the UI lands.
+>
+> ## Still open (carried)
+> Dependabot #109/#110 · `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges) · no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate) · the `PageLoader` connection swap is tested but never seen in a browser · the visual 390px pass still needs Tre's phone.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 — **`ae806108` on `main`**, pushed. tsc 0, eslint clean, **1742 passed across 186 files**, build exit 0.
 >
 > # ⏭️ START HERE: BUILD RANKED AUTOMATIC EXTRA PAYMENTS
