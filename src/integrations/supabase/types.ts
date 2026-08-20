@@ -79,6 +79,7 @@ export type Database = {
           plaid_account_id: string | null
           plaid_item_id: string | null
           provider: string
+          sort_order: number
           statement_balance: number | null
           statement_balance_phase: boolean
           updated_at: string
@@ -112,6 +113,7 @@ export type Database = {
           plaid_account_id?: string | null
           plaid_item_id?: string | null
           provider?: string
+          sort_order?: number
           statement_balance?: number | null
           statement_balance_phase?: boolean
           updated_at?: string
@@ -145,6 +147,7 @@ export type Database = {
           plaid_account_id?: string | null
           plaid_item_id?: string | null
           provider?: string
+          sort_order?: number
           statement_balance?: number | null
           statement_balance_phase?: boolean
           updated_at?: string

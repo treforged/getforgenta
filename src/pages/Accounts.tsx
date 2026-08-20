@@ -1,6 +1,6 @@
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatCurrency } from '@/lib/calculations';
@@ -25,11 +25,13 @@ import BalanceTrancheEditor from '@/components/shared/BalanceTrancheEditor';
 import { tranchesToRows, rowsToTranches, type TrancheFormRow } from '@/lib/tranche-form';
 import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { useIsTouch } from '@/hooks/use-mobile';
+import { moveAccountTo, moveAccountBy, planAccountOrderWrites } from '@/lib/account-order';
 import { accountsTabFromSearch, isAccountsTab, ACCOUNTS_PANEL_PARAM, type AccountsTab } from '@/lib/accounts-tab';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
-  Link2, Unlink, Loader2, RefreshCw, type LucideIcon,
+  Link2, Unlink, Loader2, RefreshCw, GripVertical, ArrowUp, ArrowDown, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -141,7 +143,7 @@ const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savin
 export default function Accounts({ embedded = false }: { embedded?: boolean } = {}) {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const { data: accounts, add, update, remove, loading } = useAccounts();
+  const { data: accounts, add, update, remove, reorder, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { data: manualAssets, loading: assetsLoading } = useAssets();
   const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
@@ -304,6 +306,92 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     }
   }, [matchEntries, invalidatePlaid, qc]);
 
+  const isTouch = useIsTouch();
+
+  /**
+   * The user's own order of the Balances list, held locally while it is being changed.
+   *
+   * `null` means "whatever the server said", which is `sort_order` then `created_at` — so an
+   * account nobody has ever dragged still appears in date-added order, exactly as before this
+   * existed. A move fills it in so the row travels at once instead of waiting on the round trip;
+   * the moment the refetch confirms the new ranks it goes back to `null` and the server is the
+   * only source of order again.
+   *
+   * IDS, not rows: the list re-renders on every balance edit and sync, and holding whole rows
+   * here would have pinned stale numbers behind a fresh order.
+   */
+  const [orderIds, setOrderIds] = useState<string[] | null>(null);
+  const orderSignature = accounts.map(a => `${a.id}:${a.sort_order ?? ''}`).join('|');
+  const seenOrderRef = useRef(orderSignature);
+  useEffect(() => {
+    if (seenOrderRef.current === orderSignature) return;
+    seenOrderRef.current = orderSignature;
+    setOrderIds(null);
+  }, [orderSignature]);
+
+  const orderedAccounts = useMemo(() => {
+    if (!orderIds) return accounts;
+    const byId = new Map(accounts.map(a => [a.id, a]));
+    const drafted = orderIds.map(id => byId.get(id)).filter((a): a is AccountRow => !!a);
+    const seen = new Set(orderIds);
+    // Anything that arrived after the draft was taken (a Plaid sync mid-drag) still renders.
+    return [...drafted, ...accounts.filter(a => !seen.has(a.id))];
+  }, [accounts, orderIds]);
+
+  // Demo mode is in-memory and has no writer, so the handles are simply not offered there —
+  // the same call `SurplusRankingSection` makes with its `readOnly`.
+  const canReorder = !isDemo;
+
+  const applyOrder = useCallback((next: AccountRow[]) => {
+    setOrderIds(next.map(a => a.id));
+    const writes = planAccountOrderWrites(next);
+    if (writes.length) reorder.mutate(writes);
+  }, [reorder]);
+
+  // ── The reorder itself ───────────────────────────────────
+  //
+  // ⚠️ EVERY move is computed against the FULL list and only STEPPED against the visible one.
+  // The filter row (All / Assets / Liabilities) means the rendered rows are usually a slice, and
+  // a position worked out inside a slice looks scrambled the moment the filter changes. See
+  // `src/lib/account-order.ts`.
+  //
+  // ⚠️ `dragIdRef` is a ref on purpose, for the reason the Garage documents at its own drag
+  // handlers: promoting it to state re-renders the dragged node mid-drag, which cancels the
+  // native HTML5 drag outright.
+  const dragIdRef = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const onRowDragStart = useCallback((e: React.DragEvent, id: string) => {
+    dragIdRef.current = id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('account-id', id);
+    setDraggingId(id);
+  }, []);
+
+  const onRowDragOver = useCallback((e: React.DragEvent, id: string) => {
+    if (!dragIdRef.current || dragIdRef.current === id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverId(id);
+  }, []);
+
+  const onRowDragEnd = useCallback(() => {
+    dragIdRef.current = null;
+    setDraggingId(null);
+    setDragOverId(null);
+  }, []);
+
+  const onRowDrop = useCallback((e: React.DragEvent, toId: string) => {
+    e.preventDefault();
+    const fromId = e.dataTransfer.getData('account-id') || dragIdRef.current;
+    dragIdRef.current = null;
+    setDraggingId(null);
+    setDragOverId(null);
+    if (!fromId || fromId === toId) return;
+    applyOrder(moveAccountTo(orderedAccounts, fromId, toId));
+  }, [applyOrder, orderedAccounts]);
+
   const activeAccounts = useMemo(() => accounts.filter(a => a.active), [accounts]);
 
   // Amortized from car_funds, which stores no outstanding balance. Same call the
@@ -323,10 +411,18 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   }, [activeAccounts, manualAssets, manualLiabilities, vehicleLoans]);
 
   const filteredAccounts = useMemo(() => {
-    if (filterType === 'assets') return accounts.filter(a => ASSET_TYPES.includes(a.account_type));
-    if (filterType === 'liabilities') return accounts.filter(a => LIABILITY_TYPES.includes(a.account_type));
-    return accounts;
-  }, [accounts, filterType]);
+    if (filterType === 'assets') return orderedAccounts.filter(a => ASSET_TYPES.includes(a.account_type));
+    if (filterType === 'liabilities') return orderedAccounts.filter(a => LIABILITY_TYPES.includes(a.account_type));
+    return orderedAccounts;
+  }, [orderedAccounts, filterType]);
+
+  /**
+   * One tap moves the row past exactly one row the user can SEE — so the step is measured in the
+   * filtered list, while the position it lands on is written against the full one.
+   */
+  const moveRow = useCallback((id: string, delta: number) => {
+    applyOrder(moveAccountBy(orderedAccounts, filteredAccounts.map(a => a.id), id, delta));
+  }, [applyOrder, orderedAccounts, filteredAccounts]);
 
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
   const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
@@ -814,12 +910,50 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
         )}
-        {filteredAccounts.map(a => {
+        {filteredAccounts.map((a, i) => {
           const Icon = TYPE_ICONS[a.account_type] || Wallet;
           const liability = isLiability(a.account_type);
           return (
-            <div key={a.id} className={`card-forged p-4 transition-opacity ${!a.active ? 'opacity-40' : ''}`}>
+            <div
+              key={a.id}
+              onDragOver={e => canReorder && !isTouch && onRowDragOver(e, a.id)}
+              onDrop={e => canReorder && !isTouch && onRowDrop(e, a.id)}
+              className={[
+                'card-forged p-4 transition-[opacity,border-color,box-shadow] duration-150',
+                !a.active ? 'opacity-40' : '',
+                draggingId === a.id ? 'opacity-40' : '',
+                dragOverId === a.id ? 'border-primary shadow-[0_0_0_1px_hsl(var(--primary))]' : '',
+              ].filter(Boolean).join(' ')}
+            >
               <div className="flex items-start gap-3 min-w-0">
+                {canReorder && (isTouch ? (
+                  <div className="flex flex-col gap-2 shrink-0 mt-0.5">
+                    <button
+                      type="button"
+                      aria-label={`Move ${a.name} up`}
+                      disabled={i === 0}
+                      onClick={() => moveRow(a.id, -1)}
+                      className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                    ><ArrowUp size={16} /></button>
+                    <button
+                      type="button"
+                      aria-label={`Move ${a.name} down`}
+                      disabled={i === filteredAccounts.length - 1}
+                      onClick={() => moveRow(a.id, 1)}
+                      className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                    ><ArrowDown size={16} /></button>
+                  </div>
+                ) : (
+                  <div
+                    draggable
+                    onDragStart={e => onRowDragStart(e, a.id)}
+                    onDragEnd={onRowDragEnd}
+                    className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 shrink-0 mt-2"
+                    title="Drag to reorder"
+                  >
+                    <GripVertical size={16} />
+                  </div>
+                ))}
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${liability ? 'bg-destructive/10' : 'bg-primary/10'}`}>
                   <Icon size={16} className={liability ? 'text-destructive' : 'text-primary'} />
                 </div>

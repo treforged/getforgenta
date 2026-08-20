@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useRecordCrowdVote } from '@/hooks/useCrowdCategories';
 import { applyLinkedLoanBalances } from '@/lib/vehicle-loan-link';
 import { sanitizePayload } from '@/lib/sanitize';
+import { nextAccountSortOrder } from '@/lib/account-order';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
@@ -40,7 +41,12 @@ export function useAccounts() {
     enabled: isDemo || !!user,
     queryFn: async (): Promise<AccountRow[]> => {
       if (isDemo || !user) return demoAccounts;
-      const { data, error } = await supabase.from('accounts').select('*').eq('user_id', user.id).order('created_at');
+      // ⚠️ `sort_order` FIRST, `created_at` second, and both are load-bearing. `sort_order` is the
+      // user's own order (see `src/lib/account-order.ts`); `created_at` is what ordered this list
+      // before that column existed and is still the tiebreak, so two rows sharing a rank — a
+      // brand-new account at the default, say — can never render in a different order twice.
+      const { data, error } = await supabase.from('accounts').select('*').eq('user_id', user.id)
+        .order('sort_order').order('created_at');
       if (error) throw error;
       return data ?? [];
     },
@@ -48,7 +54,10 @@ export function useAccounts() {
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'accounts'>, 'user_id'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('accounts').insert(sanitizePayload({ ...item, user_id: user.id }));
+      // A new account goes to the END of the list. The column defaults to 0, which would put it
+      // at the top — the opposite of the date-added order it replaced.
+      const sort_order = item.sort_order ?? nextAccountSortOrder(query.data ?? []);
+      const { error } = await supabase.from('accounts').insert(sanitizePayload({ ...item, sort_order, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account added'); },
@@ -72,7 +81,29 @@ export function useAccounts() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account deleted'); },
     onError: (e: Error) => toast.error(e.message),
   });
-  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
+  /**
+   * Persist a whole new order. Mirrors `useCarBuildPhases().reorder`: one update per moved row,
+   * fired together, EVERY one carrying the `user_id` guard alongside the id.
+   */
+  const reorder = useMutation({
+    mutationFn: async (rows: { id: string; sort_order: number }[]) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      if (rows.length === 0) return;
+      const results = await Promise.all(
+        rows.map(r =>
+          supabase.from('accounts')
+            .update({ sort_order: r.sort_order })
+            .eq('id', r.id)
+            .eq('user_id', user.id)
+        )
+      );
+      const err = results.find(r => r.error);
+      if (err?.error) throw err.error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove, reorder };
 }
 
 
