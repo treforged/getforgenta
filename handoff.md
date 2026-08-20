@@ -1,5 +1,95 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (**THE CARDS HAVE A RANK — `profiles.cards_sort_order` is stored, applied and read**) — **`85de7050` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1817 passed across 195 files** (was 1807/193), build exit 0.
+>
+> ## ⏭️ START HERE: THE DRAG-TO-RANK UI (slice 5, the last one)
+>
+> Storage is closed. Everything below the UI now exists and is tested; what is missing is the only
+> thing the user can actually see.
+>
+> 5. **The drag-to-rank UI**, reusing the builds reorder pattern (`car_builds` / `car_build_phases`
+>    / `car_build_items` all use the same `sort_order integer not null default 0`).
+>    - ⚠️ The list **must contain a "Credit cards" row**. Without a visible row for the card block
+>      the user cannot express "this goal matters more than my debt", which is the whole ask — and
+>      that row now has somewhere to write to: `profiles.cards_sort_order`.
+>    - On drop, write `sort_order` for every goal / car-fund row **and** `cards_sort_order` on the
+>      profile, so the ranks stay dense and gap-free.
+>    - The `auto_extra` checkbox per row belongs here too: it is a real column on both tables,
+>      defaults FALSE, and there is still **no way for a user to turn the feature on at all**.
+>    - `updateProfile` (`useSupabaseData.ts:1210`) passes the payload straight through
+>      `sanitizePayload`, which has no allowlist, so no plumbing is needed to persist the new field.
+>
+> ## ✅ WHAT LANDED THIS ROUND (`85de7050`)
+>
+> **`profiles.cards_sort_order integer not null default 0`** — migration written to
+> `supabase/migrations/20260819_profiles_cards_sort_order.sql` AND applied to
+> `mdtosrbfkextcaezuclh`, verified against `information_schema.columns` (integer, NOT NULL,
+> default 0). An added column inherits the table's existing RLS and grants, so this opens nothing;
+> the 2026-06-15 enumeration lesson is about NEW tables and their `public` default ACLs.
+>
+> **`src/integrations/supabase/types.ts` was patched IN THE SAME COMMIT** (Row / Insert / Update,
+> alphabetically between `budget_start_day` and `cash_floor`). That is the trap from two rounds
+> ago, and it is now not repeated.
+>
+> **All three call sites read it** — `profile?.cards_sort_order ?? 0`:
+> 1. `useCardProjection.ts` (~:1814) — the converged month 0 every user-facing debt surface reads.
+>    Passed BOTH to `buildRankedTargets` and as `computeAutoExtraReserve`'s 5th argument.
+> 2. `useForecastEngineInputs.ts` (~:165) — into `buildRankedTargets` and onto the
+>    `AutoExtraContext` handed to `getMonthlyDebtBreakdown` (`{ targets, cardsSortOrder }`).
+> 3. `forecast-engine.ts` (~:1368) — the in-loop reserve for months 1+.
+>
+> **⚠️ WHY 0 IS STILL EXACTLY TODAY'S BEHAVIOUR.** `computeAutoExtraReserve` seats the card block
+> at `cardsSortOrder - 0.5`, so a goal tied at rank 0 still loses to the debt. Every one of the 193
+> pre-existing test files passes unchanged, including the goldenTierA payoff pins.
+>
+> **Evidence:** `useCardProjection.cardsSortOrder.test.ts` (5) and
+> `forecast-engine.cardsSortOrder.test.ts` (3) — cards-first reserves nothing while cards-last
+> funds the same goal from the same data; the card MINIMUM is paid in full at every cash position
+> even with the cards ranked last; an absent column is `toEqual`-identical to an explicit 0; an
+> opted-out goal is untouched by the rank. Plus 2 on `credit-card-engine.autoExtraCallSite`.
+> **Would-fail checks actually run:** dropping the argument at the hook site fails "cards LAST lets
+> a goal ranked above them take the surplus" while cards-first keeps passing; dropping it in the
+> forecast loop fails the multi-month equivalent.
+>
+> ## ⚠️ THE TRAP IN THE NEW ENGINE TEST HARNESS, WORTH KNOWING
+>
+> `forecast-engine.cardsSortOrder.test.ts` stubs `monthlyRevolvingBalances` / `perCardMinPayments`
+> as fixed-length arrays. **A stub array that runs out reads as a CLEARED card** — the card block
+> silently leaves the ranking in that month, and the goal then takes the whole pool. The first
+> version of the test used 37 entries and failed at month 37 for exactly that reason. The horizon
+> is longer than 36; the stub now runs 600 months deep.
+>
+> ## Mechanics (unchanged, still true)
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep` / `git cat-file -e` against `origin/main`).
+>
+> **Gates are `npx tsc --noEmit`, `npx eslint .`, `npx vitest run`, `npm run build`** — there is no `typecheck` npm script. Run them yourself before believing any handoff's numbers.
+>
+> **⚠️ AFTER ANY MIGRATION, PATCH `src/integrations/supabase/types.ts` IN THE SAME COMMIT.** An applied migration does not reach it, and the last one that skipped this left `main` with 13 tsc errors.
+>
+> **⚠️ THERE ARE TWO RESERVES AND ONLY ONE CREDITS SAVINGS.** `useCardProjection`'s month 0 credits; `generateRecommendations`' (fed by `useForecastEngineInputs`) stays the month-0 recommendation pin and credits nothing. Do not "fix" it by adding a second credit.
+>
+> **⚠️ `chain?.` with the optional chain at the month-0 subtraction is deliberate** — captured fixtures predate `Month0CashChain` and a hard `.chain.` breaks four fixture-driven tests at runtime.
+>
+> **⚠️ `carFundPools` seeds at ZERO on purpose** — a car fund's `current_saved` is modelled by `vehicleProjections`; seeding it would double-count.
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS.** `resize_window` reports success and does nothing; popups are blocked; there is no way to get a real 390px viewport from a session.
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** Any new overlay must portal to `document.body`.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper. Never re-add it to a child.
+>
+> **⚠️ Adding a required field to `CarFund`/`SavingsGoal` costs eleven fixtures.** Adding one to `Month0Result` costs two; adding one to `Month0CashChain` costs those two plus the two renderers.
+>
+> **Versioning:** root `VERSION` (`6.1.0`) is the truth; `node scripts/next-version.mjs --write` classifies and applies the bump. **Not bumped this session** — still nothing user-visible (`auto_extra` defaults FALSE, `cards_sort_order` defaults 0, and there is no UI to set either).
+>
+> **Backups:** `backups/2026-08-19_212134/` holds the four pre-edit originals.
+>
+> ## Still open (carried)
+> Dependabot #109/#110 · `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges) · no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate) · the `PageLoader` connection swap is tested but never seen in a browser · the visual 390px pass still needs Tre's phone · a goal's OWN `monthly_contribution` can still overshoot its target (contribution-cutoff granularity, unrelated to the reserve).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (**MULTI-MONTH — the forecast no longer promises a payoff date it is not following**) — **`62b26e01` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1807 passed across 193 files** (was 1802/192), build exit 0.
 >
 > ## ⏭️ START HERE: STORAGE, THEN THE UI
