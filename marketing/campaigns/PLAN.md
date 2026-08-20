@@ -23,6 +23,12 @@ Car enthusiasts, 18 to 26, in the US. Concretely:
 - They are hostile to anything that reads as an ad, and generous to anyone who does real math for
   them in public.
 
+> **Amended 2026-08-20 — say who built it.** The line below is right and it is only half the
+> claim. Tre: *"we need to advertise this more as a budgeting app made for car enthusiasts BY car
+> enthusiasts."* "For" is a market segment and any app can claim it; "by" is a credential and
+> cannot be bolted on. Lead with the second half everywhere there is a bio or a first line. Full
+> instruction and how it lands per campaign: `marketing/HANDOFF.md`.
+
 **The wedge is not budgeting. The wedge is the build.** Forgenta already has Vehicles, Builds with
 per-part costs against a budget, a maintenance log with next-due dates, a loan/debt engine and a
 forecast. That is a car-money app that happens to also do the rest of your money. Every campaign

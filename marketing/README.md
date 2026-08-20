@@ -4,6 +4,7 @@
 
 ```
 marketing/
+├── HANDOFF.md    ← Standing instructions and open threads. READ THIS FIRST.
 ├── campaigns/    ← The six free campaigns: PLAN.md, measurement.md, utm.md, week-01/
 ├── metrics/      ← counts.csv (gitignored, real figures) + counts.example.csv (the schema)
 ├── research/     ← FINDINGS.md (aggregate counts); raw/ is gitignored
