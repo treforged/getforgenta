@@ -8,6 +8,7 @@ import {
 import { getStrategyPayoffOrder, payoffOrderAsOf, utilizationComparisonOrder } from '@/lib/debt-payoff-order';
 import { cardStartMonthOffset, isSimCardOpenAsOf } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
+import PaydownPlanPanel from './PaydownPlanPanel';
 import DebtHero from './DebtHero';
 import AvalancheOrderList from './AvalancheOrderList';
 import CardRateLine from './CardRateLine';
@@ -1063,6 +1064,25 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     [perCardPaymentsScaled],
   );
 
+  /**
+   * Cash reaching the cards each month, straight from the engine's own per-card payment ledger.
+   *
+   * `PaydownPlanPanel` dates utilization milestones off this, so it must NOT be a number invented
+   * for the panel: a milestone computed from a guessed budget renders identically to a real one.
+   * `perCardPaymentsScaled` is preferred over `perCardPayments` for the same reason the accordion
+   * prefers it — it is the cash-floor-constrained version, i.e. what the plan can actually pay
+   * rather than what it would like to. When neither array is present the panel gets [] and says so
+   * instead of showing a date.
+   */
+  const paydownCapacityByMonth = useMemo(() => {
+    const source = perCardPaymentsScaled ?? perCardPayments;
+    if (!source || source.length === 0) return [];
+    const months = Math.max(...source.map(c => c.payments.length));
+    return Array.from({ length: months }, (_, m) =>
+      source.reduce((sum, c) => sum + (c.payments[m] ?? 0), 0),
+    );
+  }, [perCardPaymentsScaled, perCardPayments]);
+
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
     const now = new Date();
@@ -1437,6 +1457,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         </div>
 
         <UtilizationPanel cards={cards} avalancheOrder={avalancheOrder} />
+
+        <PaydownPlanPanel accounts={accounts} paymentPlans={paymentPlans ?? []} capacityByMonth={paydownCapacityByMonth} />
 
         {/* Strategy + Controls */}
         <div className="card-forged p-3 sm:p-4 space-y-3 sm:space-y-4">
