@@ -1,5 +1,98 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 night #2 (**Discover loan DENIED. Plan pivoted to self-funded paydown. Two live DB
+> writes made. Consolidation engine shipped `3c61686a`, SURFACE still not built.**)
+
+## 🚨 THE LOAN WAS DENIED — this supersedes every "take the loan" recommendation below
+Discover declined the $19,000 personal loan on 2026-08-20. Verbatim reasons:
+1. **PAYMENT RELATIVE TO BALANCE ON DISCOVER CARD ACCOUNT** — they see their own card: $249 min
+   against $10,422.03 at 94.7%. Biggest lever, and the fastest to move.
+2. **BUREAU REPORTS TOO MANY RECENTLY OPENED AND/OR DELINQUENT TRADES** — auto loan opened
+   2026-06-21, balance transfer same week. Recently-opened windows are 6-12 months.
+3. **LENGTH OF CREDIT HISTORY ON REVOLVING ACCOUNTS IS TOO SHORT** — young cards, pure time.
+
+Before the denial, Discover's own rep confirmed the direct-pay question (Capital One owns Discover
+since May 2025, so they will not refinance their own paper). Two sanctioned options were given:
+reduce the loan so 50% goes to payable creditors (cap **$16,793.80**, Chase Visa is the only one),
+or **structure as Personal rather than Debt Consolidation** and receive funds directly — "changing
+the loan type could change your APR." Moot until he is approvable.
+
+## ⚠️ THE NEW PLAN — self-funded, Discover FIRST (deliberately not avalanche)
+1. **Prequalify at Alliant and USAA** (soft pull). He has deposit relationships at both and the
+   auto loan at USAA. Reason 1 was Discover reading their OWN card; a credit union cannot.
+2. **Point ALL surplus at the Discover card, not the 27.49% Visa.** Avalanche says Visa (interest
+   $192/mo vs $74/mo), but Discover at 94.7% is both the top denial reason and the biggest score
+   drag. Under 50% (~$5,500) by **Feb 2027** with the bonus, under 30% ($3,300) by **Apr 2027**.
+3. **Reapply spring 2027**, when all three reason codes have improved at once.
+4. Watch for the adverse-action notice (30 days) — it states the REAL score and bureau. The ~690
+   figure is Tre's estimate, not a measured number.
+
+Free cash after living+car ($3,783.02) and payment plans, guaranteed income only:
+| Period | Available for cards |
+|---|---|
+| Sep - Oct 2026 | $447.62/mo |
+| Nov 2026 | $471.67 |
+| Dec 2026 - Feb 2027 | $927.50/mo + ~$1,397 Feb bonus |
+| Mar - Jun 2027 | $758.93 - $826.93/mo |
+| Jul - Aug 2027 | $1,111.93/mo |
+| **Sep 2027 onward (GF income GONE)** | **$11.93/mo** |
+
+## 🔴 UNRESOLVED FORK — cards vs the move. Do not decide this for him.
+Sep 2026 - Jun 2027 total capacity is **~$8,718** (incl. Feb bonus). The move alone is **$10,340**
+by 2027-07-01 and is now **entirely unfunded** with no loan. He cannot do both.
+**Asked and NOT yet answered: what is forcing the July 2027 date, and can they renew instead?**
+She is on the lease with him, so renewal may be live. Everything downstream depends on this.
+
+## ✅ LIVE DB WRITES MADE THIS SESSION (both at Tre's explicit request)
+1. `payment_plans` "payback for my half of downpayment to mom": `start_date` **2027-07-13 ->
+   2027-03-13**. $285 x 4 unchanged. Jul-Oct collided with the Sep 2027 income cliff.
+2. `accounts` "Venture X": `card_start_date` **2026-12-20 -> 2027-04-20**. Opening a card works
+   directly against denial reasons 2 and 3. ⚠️ **Apple Card is still dated 2028-02-28 — leave it.**
+   ⚠️ **SEQUENCING RISK, FLAGGED TO TRE, UNRESOLVED:** April 2027 is also the reapply window. If he
+   applies for the loan in April, Venture X must move again to ~June 2027, AFTER the loan funds.
+
+## ⚠️ FACTS THAT CORRECT EARLIER HANDOFFS
+- **Utilization is 74.1%, NOT 41.5%.** Venture X and Apple Card have future `card_start_date`;
+  their $20,000 is not drawable. Open limit $25,400. `summarizeUtilization` already gets this right.
+- **Plan on GUARANTEED income only.** `forecast_assumptions.promotions` holds $65,000 @ 2027-02-25
+  and $75,000 @ 2028-02-25 — Tre said 2026-08-20 those are EXPECTED, not guaranteed. Use the 3.1%
+  March raise + 3.1% Feb bonus. Net pay formula, verified exactly:
+  `net_weekly = gross_weekly * 0.793 - 17.86` ($1,093 -> $848.89). Do not re-derive.
+- **Break-even vs carrying the cards is ~16.7%, NOT ~23%.** At 18% consolidating everything COSTS
+  $593 more: avalanche kills the 27.49% Visa first, so the surviving balance drifts to the 7.99%
+  promo and the effective card rate FALLS while a flat loan rate does not. Pinned in tests.
+- **The rent is the real problem, not the loan.** With NO loan he has $11.93/mo from Sep 2027.
+  Any loan needs ~$355/mo of cuts. The Jul 2027 move must land **<= $1,560/mo** rent.
+- `$625/mo` of savings-goal contributions (Savings $500, Roth $100, Brokerage $25) are configured
+  but NOT happening (balance $106.44). Must stay paused.
+
+## ✅ SHIPPED `3c61686a` — `src/lib/consolidation.ts` + 30 tests
+Pure, no I/O. `solveMinimumPrincipal` / `evaluateConsolidation` / `breakEvenApr` /
+`simulateStatusQuo` / `buildPayoffBuckets`. Amortization pinned against **Discover's own printed
+payment table** (8 cells @ 11.99%) — external verification, do not re-derive.
+
+## ⏭️ START HERE — the consolidation SURFACE (engine done, nothing reads it)
+1. Adapter: `ConsolidationCard[]` from accounts (+`parseTranches`, `card_start_date`);
+   `ScheduledCardCharge[]` from `payment_plans` where payment_source is a card AND
+   `plan_type='monthly_charge'` (**`upfront` is ALREADY in the card balance — never double count**).
+2. Show BOTH answers, never blended: interest delta AND utilization delta. They disagree.
+3. ⚠️ Render `afterScheduledCharges`, not `after`. Funding-day is the flattering lie.
+4. Feed it a guaranteed-vs-expected income toggle — the whole analysis flipped on that distinction.
+5. **New, from the denial:** the engine should model "no loan, self-funded paydown" as a scenario
+   and should warn when a planned `card_start_date` collides with a planned credit application.
+
+## ⏭️ STILL OPEN (carried)
+1. `dated-commitments.ts` surfaces — adapter, per-goal shortfall, advisor one-tap proposal,
+   forecast floors. Scoped further down.
+2. **JOB 2 — Forecast hero aside** (`ForecastHero.tsx`), scoped, not started.
+3. Live-verify build<->loan strip on `/builds` with the real C5 (`9fc22c7c`).
+4. ~~390px account-arrow pass~~ **CLOSED — Tre confirmed mobile arrows look good. Stop raising it.**
+5. Confirm first post-move net-worth snapshot write (row dated 08-25+).
+6. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+7. A goal's OWN `monthly_contribution` can still overshoot its target.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 night (**consolidation engine SHIPPED `3c61686a`. Loan answer re-run on
 > GUARANTEED income only. One live DB write made. SURFACE still not built.**)
 
