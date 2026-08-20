@@ -1,5 +1,69 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (**THE CALL SITE IS WIRED — and it revealed that the previous handoff's plan was aimed at the wrong engine**) — **`976c849f` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1789 passed across 190 files** (was 1784/189), build exit 0.
+>
+> ## ⏭️ START HERE: THE RESERVE HAS TO GO INTO `useCardProjection`, NOT `generateRecommendations`
+>
+> **⚠️ CORRECTION TO THE PREVIOUS HANDOFF.** It said threading `goals`/`carFunds` into `buildCurrentMonthRecommendationSummary` would "make the feature real". It does not, and the reason is worth reading before any further work:
+>
+> **`generateRecommendations` no longer drives a single user-facing recommendation.** Dashboard, Budget Control and Savings Goals all read `useMonth0DebtBreakdown` (`src/hooks/useMonth0DebtBreakdown.ts`), and /debt reads `useCardProjection` directly — all of which derive from **`useCardProjection`'s converged pass-3 `month0`**, a completely separate ~2000-line cascade. `month0-debt-breakdown.ts`'s own header documents this: there used to be two debt engines, they disagreed, and every surface was moved onto the converged one. `generateRecommendations` survives as the **forecast month-0 pin** only (`forecast-engine.ts:816`, `:1471`).
+>
+> So the call site is wired and proven (below), but the feature still changes nothing a user can see. **The real integration point is one expression** — `availableForRevolving`, `useCardProjection.ts:1822`:
+>
+> ```ts
+> const availableForRevolving = liveRevolvingBal > 0
+>   ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))
+>   : 0;
+> ```
+>
+> That `Math.max(ccMinForMonth, ...)` is already the structural minimum-protection the allocator's proof relies on, so subtracting a reserve inside it is safe by the same argument.
+>
+> ### ⚠️ THE TRAP, AND THE DESIGN THAT AVOIDS IT
+>
+> **Do NOT just subtract the reserve from `availableForRevolving`.** `endCash = cashPreDebt − safeToPayTotal + carReserveHeld`. Reserve $400 for a goal that way and `safeToPayTotal` drops $400 while `endCash` RISES $400 — the app would claim the user has $400 more cash *and* that the goal grew. Double-counting, in a financial app.
+>
+> **The design that is consistent instead:** treat the reserve as what it conceptually is — an extra goal contribution — and make it a **new term in `Month0CashChain`**, a sibling of `goalContributions` and `carReserve`. Then `cashPreDebt` already carries it, `endCash` is correct by construction, and the drawer can label it truthfully. The chicken-and-egg (the reserve is computed from a pool that is itself net of the floor) resolves in one order: compute `pool = max(0, cashPreDebtBeforeAutoExtra − m0FloorAugmented − cyclingPayment)` → `computeAutoExtraReserve(pool, ccMinForMonth, liveRevolvingBal, targets, cardsSortOrder)` → subtract `reserved` from `cashPreDebt`.
+>
+> ⚠️ `debt-model-types.ts` carries a written-out identity for that chain and `monthEndCash.invariant.test.ts` pins it across surfaces. **Add the new term to the identity comment in the same edit**, and do not re-round the terms (exact cents, Tre 2026-08-06).
+>
+> ### The remaining slices, in order
+> 1. **`useCardProjection` month 0** — the chain term above. Thread `autoExtraTargets` in (the hook already has `goals` and `carFunds`). ⚠️ **Recapture a fixture BEFORE touching it** — Q1–Q12 history, `maxPasses` 24.
+> 2. **The forecast's savings side must grow by the same dollars**, or the money leaves checking and lands nowhere. `forecast-engine.ts` grows `savingsBalance` from `monthly_contribution`; the auto-extra amount has to be added there too, or the cash simply evaporates — strictly worse than not shipping it.
+> 3. **Multi-month.** Month 0 only, today. An opted-in user's projected payoff date reads OPTIMISTIC until the sim's future months model the same diversion.
+> 4. **Storage for `cardsSortOrder`.** There is nowhere to persist the card block's position — needs a `profiles.cards_sort_order integer not null default 0` migration. Until then every path passes the default 0 (cards first).
+> 5. **The drag-to-rank UI**, reusing the builds reorder pattern. ⚠️ The list must contain a **"Credit cards" row**; `cardsSortOrder` is a real position in the same list, and without a visible row for it the user cannot express "this goal matters more than my debt", which is the whole ask. Write `sort_order` for every row on drop. **Do not ship this before 1–3** — a UI over a projection that does not model the diversion shows the user a payoff date the app is not itself following.
+>
+> ## ✅ WHAT LANDED THIS ROUND (`976c849f`)
+>
+> `useForecastEngineInputs` → `getMonthlyDebtBreakdown` → `buildCurrentMonthRecommendationSummary` → `generateRecommendations` now carries an `AutoExtraContext` (`{ targets, cardsSortOrder? }`), and `generateRecommendations` gained `autoExtraCardsSortOrder` (it cannot be recovered from the targets — `computeAutoExtraReserve` filters the card rows back out and rebuilds the block as one synthetic target).
+>
+> ⚠️ **The targets are built by the CALLER, in the hook — not inside `credit-card-engine.ts`.** `buildRankedTargets` imports `getStrategyPayoffOrder`, which imports `credit-card-engine`, so deriving them there closes a runtime import cycle. Same reason `computeAutoExtraReserve` lives in `ranked-surplus-allocation.ts`, which imports nothing. **Any future call site must build its targets on its own side of that line.**
+>
+> ⚠️ **A missing `auto_extra` column now reads as opted OUT, and this was a live bug in the making.** `useSavingsGoals` returns `Partial<Tables<'savings_goals'>>[]`, and the allocator treats an **omitted** `autoExtra` as opted **IN** — so the bare `autoExtra: g.auto_extra` pass-through that was there would have diverted surplus away from the cards for every existing user the moment real rows arrived. The guard is `g.auto_extra === true`, and a test pins it.
+>
+> ⚠️ **`RankableGoal` is structural and all-optional**, listing only the columns the module reads. `Partial<SavingsGoal>` does not fit the real row (`target_date` is `string | null` in the DB, `string | undefined` in `lib/types`). Typing that boundary as the strict row only moves the lie one layer up.
+>
+> **Evidence:** `credit-card-engine.autoExtraCallSite.test.ts` (5) — an opted-in goal ranked ahead of the cards takes exactly its $400 capacity out of the recommendation while the card stays above its minimum and `cashWarning` stays false; the opted-out, partial-row, full-goal and no-context cases are each byte-identical to the baseline.
+>
+> ## Mechanics (unchanged, still true)
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep` / `git cat-file -e` against `origin/main`).
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS.** `resize_window` reports success and does nothing; popups are blocked; there is no way to get a real 390px viewport from a session.
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** Any new overlay must portal to `document.body`.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper. Never re-add it to a child.
+>
+> **⚠️ Adding a required field to `CarFund`/`SavingsGoal` costs eleven fixtures.** Both new columns are NOT NULL, so the TS types made them required.
+>
+> **Versioning:** root `VERSION` (`6.1.0`) is the truth; `node scripts/next-version.mjs --write` classifies and applies the bump. **Not bumped this session** — still nothing user-visible.
+>
+> ## Still open (carried)
+> Dependabot #109/#110 · `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges) · no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate) · the `PageLoader` connection swap is tested but never seen in a browser · the visual 390px pass still needs Tre's phone.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (**RANKED AUTOMATIC EXTRA PAYMENTS — (a), (b), the bridge, and month-0 of (c) are SHIPPED**) — **`d48aabc2` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1784 passed across 189 files** (was 1742/186), build exit 0.
 >
 > ## ⏭️ START HERE: FINISH IT — THE CALL SITE, THEN THE UI
