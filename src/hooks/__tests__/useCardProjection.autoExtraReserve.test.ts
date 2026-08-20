@@ -156,7 +156,12 @@ describe('useCardProjection — ranked automatic extra payments (month-0 reserve
       // when the floor itself could not cover that minimum.
       expect(optedIn.month0!.safeToPayTotal)
         .toBeGreaterThanOrEqual(Math.min(CARD_MIN, base.month0!.safeToPayTotal) - 0.5);
-      expect(optedIn.month0!.cashWarning).toBe(base.month0!.cashWarning);
+      // `Month0Result` carries no `cashWarning` flag — that lives on the recommendation summary
+      // (`credit-card-engine.ts`), not on the converged month 0 this hook returns. The engine-side
+      // equivalents are that the floor the plan is held to is untouched by opting in, and that the
+      // reserve can only ever move cash OUT of checking, never conjure it.
+      expect(optedIn.month0!.m0SafeFloor).toBe(base.month0!.m0SafeFloor);
+      expect(optedIn.month0!.endCash).toBeLessThanOrEqual(base.month0!.endCash + 0.5);
     }
   });
 

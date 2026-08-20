@@ -535,6 +535,7 @@ export type Database = {
       car_funds: {
         Row: {
           actual_monthly_payment: number
+          auto_extra: boolean
           created_at: string
           current_saved: number
           down_payment_goal: number
@@ -557,6 +558,7 @@ export type Database = {
           planned_purchase_date: string | null
           saved_percent: number
           saved_source: string
+          sort_order: number
           target_price: number
           tax_fees: number
           updated_at: string
@@ -565,6 +567,7 @@ export type Database = {
         }
         Insert: {
           actual_monthly_payment?: number
+          auto_extra?: boolean
           created_at?: string
           current_saved?: number
           down_payment_goal?: number
@@ -587,6 +590,7 @@ export type Database = {
           planned_purchase_date?: string | null
           saved_percent?: number
           saved_source?: string
+          sort_order?: number
           target_price?: number
           tax_fees?: number
           updated_at?: string
@@ -595,6 +599,7 @@ export type Database = {
         }
         Update: {
           actual_monthly_payment?: number
+          auto_extra?: boolean
           created_at?: string
           current_saved?: number
           down_payment_goal?: number
@@ -617,6 +622,7 @@ export type Database = {
           planned_purchase_date?: string | null
           saved_percent?: number
           saved_source?: string
+          sort_order?: number
           target_price?: number
           tax_fees?: number
           updated_at?: string
@@ -1429,6 +1435,7 @@ export type Database = {
         Row: {
           auto_end_contributions: boolean
           auto_end_stamped_rules: Json
+          auto_extra: boolean
           contribution_start_date: string | null
           created_at: string
           current_amount: number
@@ -1440,6 +1447,7 @@ export type Database = {
           lump_sum_payments: Json
           monthly_contribution: number
           name: string
+          sort_order: number
           target_amount: number
           target_date: string | null
           updated_at: string
@@ -1448,6 +1456,7 @@ export type Database = {
         Insert: {
           auto_end_contributions?: boolean
           auto_end_stamped_rules?: Json
+          auto_extra?: boolean
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
@@ -1459,6 +1468,7 @@ export type Database = {
           lump_sum_payments?: Json
           monthly_contribution?: number
           name: string
+          sort_order?: number
           target_amount?: number
           target_date?: string | null
           updated_at?: string
@@ -1467,6 +1477,7 @@ export type Database = {
         Update: {
           auto_end_contributions?: boolean
           auto_end_stamped_rules?: Json
+          auto_extra?: boolean
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
@@ -1478,6 +1489,7 @@ export type Database = {
           lump_sum_payments?: Json
           monthly_contribution?: number
           name?: string
+          sort_order?: number
           target_amount?: number
           target_date?: string | null
           updated_at?: string

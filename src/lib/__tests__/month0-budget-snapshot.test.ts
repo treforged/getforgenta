@@ -48,6 +48,7 @@ const month0 = (over: Partial<Month0Result> = {}): Month0Result => ({
   carReserve: 0,
   carReserveEvent: null,
   carReserveHeld: 0,
+  autoExtraPerTarget: [],
   endCash: chain().cashPreDebt - 1000,
   vehicleInsurance: 0,
   mortgagePayment: 0,

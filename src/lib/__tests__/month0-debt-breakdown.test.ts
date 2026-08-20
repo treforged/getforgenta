@@ -35,6 +35,7 @@ const month0 = (
   carReserve: 0,
   carReserveEvent: null,
   carReserveHeld: 0,
+  autoExtraPerTarget: [],
   endCash: 0,
   vehicleInsurance: 0,
   mortgagePayment: 0,

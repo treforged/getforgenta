@@ -2139,6 +2139,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           endCash: m0Chain.cashPreDebt - safeToPayTotalFinal + Math.round(carReserveHeld),
           vehicleInsurance: Math.round(m0VehicleInsurance),
           mortgagePayment: Math.round(m0MortgagePayment),
+          // The reserve, per target. `chain.autoExtraReserve` above only says how much cash left
+          // checking; this says which goal or car fund it left FOR, so forecast-engine.ts can grow
+          // that balance by the same dollars. Surfacing only the scalar is what made the money
+          // vanish — see Month0Result.autoExtraPerTarget.
+          autoExtraPerTarget: autoExtra.perTarget,
           chain: m0Chain,
         },
       };

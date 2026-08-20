@@ -43,6 +43,19 @@ export interface Month0Result {
    * total invisibly. */
   vehicleInsurance: number;
   mortgagePayment: number;
+  /** RANKED AUTOMATIC EXTRA PAYMENTS — `chain.autoExtraReserve` broken out per target, straight
+   * from `computeAutoExtraReserve`'s `perTarget`. The scalar says how many dollars left checking;
+   * this says WHICH goal or car fund they left for, which is what the forecast needs to grow the
+   * matching balance by the same dollars.
+   *
+   * ⚠️ Without this the feature is strictly worse than not shipping it: `cashPreDebt` already
+   * drops by `autoExtraReserve`, so a consumer that models the cash side and not the savings side
+   * simply makes the user's money disappear. `forecast-engine.ts` credits these at month 0 —
+   * linked savings account first, else the goal's / car fund's own pool.
+   *
+   * Empty for every user with nothing opted in, which `auto_extra`'s FALSE default makes the norm.
+   * Sums to `chain.autoExtraReserve` (the scalar is rounded to cents; the parts are not). */
+  autoExtraPerTarget: { id: string; kind: 'car_fund' | 'goal'; amount: number }[];
   /** The COMPLETE month-0 cash chain the engine used to derive safeToPayTotal, as integers.
    *
    * Findings §2.6/§2.3: Dashboard used to render `safeToPayTotal` (an engine output) as the "="

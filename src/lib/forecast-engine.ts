@@ -277,6 +277,28 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         })
         .map((g) => [g.id as string, { name: g.name as string, balance: Number(g.current_amount) }])
     );
+    // RANKED AUTOMATIC EXTRA PAYMENTS — car-fund pools, the exact analogue of goalPools above, for
+    // car funds whose down-payment savings are not already tracked as a real account. They seed at
+    // ZERO on purpose: a car fund's own `current_saved` is modelled by vehicleProjections (down
+    // payment, purchase month), so seeding the typed figure here would count the same dollars
+    // twice. All these pools ever hold is the auto-extra INCREMENT — cash that left checking this
+    // month and has to land somewhere, or the user's money would simply evaporate.
+    const carFundPools = new Map<string, { name: string; balance: number }>(
+      carFunds
+        .filter((c) => {
+          if (!c.linked_account) return true;
+          if (savingsAcctIdSet.has(c.linked_account) || retireAcctIdSet.has(c.linked_account) || investAcctIdSet.has(c.linked_account)) return false;
+          return true;
+        })
+        .map((c) => [c.id, { name: c.vehicle_name, balance: 0 }])
+    );
+    // Where an auto-extra target's money should land: its linked account when that account is one
+    // the projection tracks, otherwise its own pool above. Built once, keyed by goal / car-fund id
+    // exactly as `computeAutoExtraReserve`'s `perTarget` rows are.
+    const autoExtraLinkedAcct = new Map<string, string | null>([
+      ...goals.map((g) => [g.id as string, (g.linked_account as string | null) ?? null] as const),
+      ...carFunds.map((c) => [c.id, c.linked_account ?? null] as const),
+    ]);
     // Aggregate scalars derived from per-account Maps (fixes retire-linked goal double-counting)
     let retireBal = Array.from(perAcctRetire.values()).reduce((s, a) => s + a.balance, 0);
     let investBal = Array.from(perAcctInvest.values()).reduce((s, a) => s + a.balance, 0);
@@ -1241,7 +1263,20 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
       const transfersOut = b.monthTransfers;
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
+      // RANKED AUTOMATIC EXTRA PAYMENTS — surplus opted-in goals and car funds took ahead of the
+      // credit cards this month. `useCardProjection`'s month 0 is the ONE place the reserve is
+      // decided (every user-facing debt surface reads it), and its own `chain.cashPreDebt` already
+      // subtracts it — so this mirrors that subtraction to the cent and step 4c-ii below credits
+      // the same dollars to the matching balances. Month 0 only: the multi-month sim does not model
+      // the diversion yet, so an opted-in user's payoff date still reads optimistic.
+      //
+      // ⚠️ The forecast's OTHER reserve — `generateRecommendations`' (fed by useForecastEngineInputs
+      // for the month-0 recommendation pin) — deliberately credits nothing. Two reserves crediting
+      // savings would double-count the same dollars; this one wins because it is the one the cash
+      // chain and every debt surface already use.
+      const autoExtraThisMonth = i === 0 ? (cardProjectionData?.month0?.autoExtraPerTarget ?? []) : [];
+      const autoExtraOutThisMonth = i === 0 ? (cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0) : 0;
+      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth - autoExtraOutThisMonth + b.oneTimeNet;
 
       // Step 2: the sim is the single writer of debt-payment truth (unify-cycling-model Stage 3).
       // Its payment ledger already reflects a floor-aware, save-up-aware plan for whatever cash
@@ -1371,6 +1406,27 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         }
       }
 
+      // 4c-ii. RANKED AUTOMATIC EXTRA PAYMENTS → the same balance the cash left checking for.
+      // The cash side is subtracted from `cashPreDebt` above; without this credit the dollars would
+      // leave the funding account and land nowhere, which is strictly worse than not shipping the
+      // feature at all. Linked account first (so the account's own popup line moves), else the
+      // goal's / car fund's pool — between goalPools, carFundPools and the three per-account Maps
+      // every target has a home, so nothing is silently dropped.
+      for (const t of autoExtraThisMonth) {
+        if (!(t.amount > 0)) continue;
+        const linked = autoExtraLinkedAcct.get(t.id) ?? null;
+        const savA = linked ? perAcctSavings.get(linked) : undefined;
+        const invA = linked ? perAcctInvest.get(linked) : undefined;
+        const retA = linked ? perAcctRetire.get(linked) : undefined;
+        if (savA) savA.balance += t.amount;
+        else if (invA) invA.balance += t.amount;
+        else if (retA) retA.balance += t.amount;
+        else {
+          const pool = t.kind === 'goal' ? goalPools.get(t.id) : carFundPools.get(t.id);
+          if (pool) pool.balance += t.amount;
+        }
+      }
+
       // 4d. Lump sums → per-account or goal pool
       for (const [key, amt] of lumpTransferByMonth[i].perAccount) {
         const retA = perAcctRetire.get(key);
@@ -1403,12 +1459,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       for (const [, a] of perAcctInvest) a.balance = Math.round(a.balance * (1 + monthlyInvestGrowth) * 100) / 100;
       for (const [, a] of perAcctSavings) a.balance = Math.round(a.balance * (1 + monthlySavingsInterest) * 100) / 100;
       for (const [, p] of goalPools) p.balance = Math.round(p.balance * (1 + monthlySavingsInterest) * 100) / 100;
+      for (const [, p] of carFundPools) p.balance = Math.round(p.balance * (1 + monthlySavingsInterest) * 100) / 100;
 
       // 4f. Re-derive aggregate scalars from per-account Maps
       retireBal = Array.from(perAcctRetire.values()).reduce((s, a) => s + a.balance, 0);
       investBal = Array.from(perAcctInvest.values()).reduce((s, a) => s + a.balance, 0);
       savingsBal = Array.from(perAcctSavings.values()).reduce((s, a) => s + a.balance, 0)
-        + Array.from(goalPools.values()).reduce((s, p) => s + p.balance, 0);
+        + Array.from(goalPools.values()).reduce((s, p) => s + p.balance, 0)
+        + Array.from(carFundPools.values()).reduce((s, p) => s + p.balance, 0);
 
       const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers + lumpTransferThisMonth;
 
@@ -1547,6 +1605,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           ...Array.from(perAcctInvest.entries()).map(([id, a]) => ({ bucket: 'investment' as const, id, name: a.name, balance: a.balance })),
           ...Array.from(perAcctSavings.entries()).map(([id, a]) => ({ bucket: 'savings' as const, id, name: a.name, balance: a.balance })),
           ...Array.from(goalPools.entries()).map(([id, p]) => ({ bucket: 'savings' as const, id, name: p.name, balance: p.balance })),
+          // Only ever non-zero once an opted-in car fund has taken a ranked extra payment — an
+          // empty pool is not a real asset row and would just add noise to every popup.
+          ...Array.from(carFundPools.entries()).filter(([, p]) => p.balance > 0).map(([id, p]) => ({ bucket: 'savings' as const, id, name: p.name, balance: p.balance })),
         ],
         nonCCLiabBreakdown: nonCCLiabilities.rows.map(la => ({
           id: la.id,
