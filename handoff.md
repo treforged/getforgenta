@@ -1,5 +1,79 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 late (**consolidation engine SHIPPED + committed `3c61686a`. Tre's loan answer
+> delivered by hand. The SURFACE is not built. Context gate fired at 200k.**)
+
+## ✅ DONE THIS SESSION
+- `3c61686a` `src/lib/consolidation.ts` + 30 tests. Pure, no I/O. Answers "how much loan do I
+  need and at what rate is it worth it" as a CONSTRAINT problem.
+  - `solveMinimumPrincipal` works backwards from "every card under X% and interest free" to the
+    smallest principal. `evaluateConsolidation` prices a concrete offer. `breakEvenApr` bisects
+    against a real month-walk. `simulateStatusQuo` is the honest baseline.
+  - Amortization is **pinned against Discover's own printed payment table** (8 cells at 11.99%).
+    External verification, not self-consistency. Do not re-derive.
+
+## ⚠️ THREE FINDINGS THAT CORRECT EARLIER HANDOFFS — do not rebuild on the old numbers
+1. **Utilization is 74.1%, NOT 41.5%.** Venture X (`card_start_date` 2026-12-20) and Apple Card
+   (2028-02-28) are NOT OPEN. Their $20,000 is not drawable. Open limit is $25,400.
+   `summarizeUtilization` already handles this correctly — the 41.5% in the prior handoff was
+   hand-arithmetic, not the app.
+2. **The blended-rate comparison is a trap.** At 18%, consolidating all $18,818.93 COSTS $593
+   more interest than carrying the cards, despite 18% < the 19.16% blend. Avalanche kills the
+   27.49% Visa first, so the surviving balance drifts to the 7.99% promo and the effective card
+   rate FALLS while a flat loan rate does not. **Real break-even is ~16.7% (36mo) / ~17.7% (84mo)
+   for the full balance, ~20.5% if the promo tranche is excluded.** Pinned in tests.
+3. **Status quo at $699.79/mo is 34 months and $4,865 of interest**, not the 25mo/$3,741 an
+   earlier hand-calc produced (it ignored the Jan-2028 promo cliff).
+
+## ⏭️ START HERE — the SURFACE for consolidation (engine is done, nothing reads it)
+Same shape as the `dated-commitments.ts` situation: engine shipped, no UI. Needs:
+1. An adapter building `ConsolidationCard[]` from live accounts (balance, credit_limit, apr,
+   `parseTranches(balance_tranches)`, `card_start_date`) and `ScheduledCardCharge[]` from
+   `payment_plans` where `payment_source` resolves to a credit-card account and
+   `plan_type='monthly_charge'` (`upfront` is ALREADY in the card balance — do not double count).
+   `monthsRemaining` = `total_payments` minus installments already elapsed from `start_date`.
+2. A surface that shows **both** answers side by side and never blends them: interest delta AND
+   utilization delta. `ConsolidationResult` is built to keep them separate; a UI that shows one
+   is worse than no UI.
+3. ⚠️ Render `afterScheduledCharges`, not `after`. The funding-day number is the flattering lie.
+
+## 📌 TRE'S ACTUAL SITUATION (answered by hand this session, for reference)
+- Preapproved Discover personal loan: $2,500-$40,000, **36-84 months**, 6.99-24.99% APR,
+  **$0 origination, no prepayment penalty**, apply by **2026-09-12**. Score ~690 (was mid-750s).
+- Cards: Discover $10,422.03/$11,000 (94.7%, incl. $5,037.73 @ 7.99% to 2028-01-04),
+  Prime Visa $8,396.90/$14,400 (58.3%) @ 27.49%. Total $18,818.93 / $25,400 open = 74.1%.
+- **Sizing answers from the engine:** under-30% + interest-free + holding through the PayPal
+  charges = **$20,258.57**. Under-30% only = **$12,638.57**. Repointing the 3 PayPal Pay-in-4
+  plans off the Discover card is worth $1,439.64 of principal, for free.
+- **Cash flow.** Income $4,830.52 (paycheck $3,678.52 + GF $1,100 + GF cruise $52). Cash out
+  $3,903.02. Available for debt $927.50/mo, less $479.88/mo of PayPal charges still landing on
+  Discover through Nov = **$447.62/mo of real progress**.
+- ⚠️ **THE CLIFF. The $1,100/mo ends 2027-08-31 PERMANENTLY** — GF starts med school and stops
+  working. From Sep 2027 his solo position is **-$104.50/mo BEFORE any debt payment**
+  ($3,678.52 income vs $3,783.02 living+car). No loan term fixes this; he needs ~$500/mo of
+  structural change (the Jul-2027 move is the obvious lever, rent is $1,915).
+- ⚠️ **Move fund is unfundable alongside the loan.** $10,340 by 2027-07-01, currently $0 saved
+  with `monthly_contribution` $0. 12-month capacity is ~$11,130 total and the loan takes
+  $4,600-5,000 of it. Shortfall ~$4,200. **UNRESOLVED — asked Tre whether the move cost is
+  shared with the GF / covered by med-school loans. Do not assume.**
+- **Recommendation given:** $20,300 at 84 months, pay only the required payment, bank the
+  difference. Long term is free insurance (no prepayment penalty) and cash is worth more than
+  prepayment when income drops in 12 months. Take it at <=16.5% without hesitation; 16.5-20% is
+  a judgment call that buys the score; above 20% take the $12,700 version instead.
+
+## ⏭️ STILL OPEN (carried, unchanged)
+1. `dated-commitments.ts` surfaces — adapter, per-goal shortfall, advisor one-tap proposal,
+   forecast floors. Fully scoped in the section below.
+2. **JOB 2 — the Forecast hero aside** (`ForecastHero.tsx`), scoped, not started.
+3. Live-verify the build<->loan strip on `/builds` with the real C5 (`9fc22c7c`).
+4. ~~390px pass on the account arrows~~ — **Tre confirmed the mobile arrows look good. Closed.
+   Stop raising it.**
+5. Confirm the first post-move net-worth snapshot write (row dated 08-25 or later).
+6. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+7. A goal's OWN `monthly_contribution` can still overshoot its target.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 evening (**PUSHED. Advisor re-enabled for local dev. Two new feature ideas from
 > Tre's consolidation question — SCOPED, NOT STARTED; the context gate fired.**)
 >
