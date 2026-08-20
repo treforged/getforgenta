@@ -172,21 +172,21 @@ export default function SurplusRankingSection({ cardsSubtitle }: { cardsSubtitle
                   <GripVertical size={14} />
                 </div>
               ) : (
-                <div className="flex flex-col gap-0.5 shrink-0">
+                <div className="flex flex-col gap-2 shrink-0">
                   <button
                     type="button"
                     aria-label={`Move ${row.name} up`}
                     disabled={i === 0}
                     onClick={() => move(row.id, -1)}
-                    className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"
-                  ><ArrowUp size={12} /></button>
+                    className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                  ><ArrowUp size={16} /></button>
                   <button
                     type="button"
                     aria-label={`Move ${row.name} down`}
                     disabled={i === draft.length - 1}
                     onClick={() => move(row.id, 1)}
-                    className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"
-                  ><ArrowDown size={12} /></button>
+                    className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                  ><ArrowDown size={16} /></button>
                 </div>
               )}
 

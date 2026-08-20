@@ -313,9 +313,9 @@ export default function PhaseBlock({
             <GripVertical size={16} />
           </div>
         ) : (
-          <div className="flex flex-col gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-            <button disabled={isFirst} onClick={() => onMovePhase('up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowUp size={12} /></button>
-            <button disabled={isLast} onClick={() => onMovePhase('down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowDown size={12} /></button>
+          <div className="flex flex-col gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+            <button disabled={isFirst} onClick={() => onMovePhase('up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowUp size={16} /></button>
+            <button disabled={isLast} onClick={() => onMovePhase('down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowDown size={16} /></button>
           </div>
         )}
 
@@ -400,9 +400,9 @@ export default function PhaseBlock({
                       <GripVertical size={14} />
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowUp size={10} /></button>
-                      <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowDown size={10} /></button>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowUp size={14} /></button>
+                      <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowDown size={14} /></button>
                     </div>
                   )}
 
