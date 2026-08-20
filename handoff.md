@@ -1,5 +1,64 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**AUTO EXTRA NOW MOVES THE GOALS CHART — shipped, gated and live-verified**)
+>
+> ## ✅ DONE — commit `f4eb9580`, do not re-open
+>
+> The last handoff's #1 item ("the Auto-Extra → Goals-chart wiring") is **finished**, built to the
+> settled design exactly: the engine EMITS the per-goal ranked extra, the chart CONSUMES it.
+>
+> - `forecast-engine.ts` — new `ForecastMonthRow.autoExtraByTarget: Record<id, number>`, filled
+>   from the `autoExtraThisMonth` list step 4c-ii already credits. **Additive output only**; the
+>   allocation math and convergence are untouched. Summed, not assigned, so a target listed twice
+>   credits both dollars.
+> - `savings-growth.ts` — optional `extraByMonth?: number[]` on `GrowthGoalInput`, applied in
+>   `stepMonth` alongside the contribution. Sanitised at the boundary (a NaN adds 0, never poisons
+>   the line). **Deliberately NOT gated on the contribution cutoff** — the engine already decided
+>   when to stop diverting, and re-gating here would be second-guessing the allocation being quoted.
+> - `src/lib/auto-extra-projection.ts` (new) — `buildAutoExtraByTarget(rows)` re-keys the rows into
+>   one full-length array per target. Targets that never take anything are absent, so "no entry"
+>   and "all zeros" are the same thing.
+> - `SavingsGoals.tsx` — `toGrowthGoal(g, i, extraByGoal)` fills it from `useCardProjectionContext()
+>   .projections`, the engine run `DashboardLayout` already mounts. Zero extra compute. The
+>   "Est. completion" line reads the same map, so the ETA and the chart cannot disagree.
+>
+> **Evidence.** tsc 0 · eslint 0 · **1842 passed across 196 files** · `npm run build` exit 0.
+> New test file `src/lib/__tests__/auto-extra-chart-wiring.test.ts` (9 tests), including the safety
+> property (all-zero extras are byte-identical to omitting the field) and a would-fail check that
+> was actually run: stubbing the extra out of `stepMonth` fails 3 and passes 6.
+>
+> **Live on the real account** (ticked Savings, then unticked; `auto_extra` confirmed false on all
+> five goals in Postgres afterwards):
+>
+> | | Savings, month 60 | other four series |
+> |---|---|---|
+> | unticked | **$9,908.41** | 26,053.85 / 6,203.04 / 3,772.76 / 0 |
+> | ticked | **$25,764.96** ($19,393.56 over 16 months) | identical to the cent |
+> | unticked again | **$9,908.41** | identical |
+>
+> Zero console errors. Note the diversion is much larger than the last handoff's "~$106/mo"
+> expectation — that figure was *available after bills* for month 0 only; once the cards retire the
+> whole surplus ranks to Savings, up to $2,400 in a single month.
+>
+> ⚠️ **Trap: do not judge this chart by reading the recharts path `d` attribute.** Sampling
+> `path.recharts-line-curve` gave byte-identical `d` values before and after a change that
+> demonstrably moved the data. Read the component's own rows instead (a temporary
+> `window.__chartDbg` in the `useMemo` proved it in seconds, and was removed before commit).
+>
+> ## ⏭️ NEXT UP
+>
+> 1. A render test for `SurplusRankingSection` was started and NOT written. A layout animation
+>    cannot be asserted in jsdom (no layout), so the durable guard is that the row className
+>    **never contains `transition-all`** again. Mock `@/hooks/useSurplusRanking`;
+>    `BuildHeader.test.tsx` is the convention to copy.
+> 2. **The 390px visual pass on Tre's phone** — touch reorder buttons + the three-pill Dashboard
+>    row. A desktop browser cannot do it (`resize_window` reports success and does nothing).
+> 3. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 4. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**REORDER ANIMATION SHIPPED; THE AUTO-EXTRA CHART BUG IS ROOT-CAUSED, NOT FIXED**)
 >
 > ## ⏭️ START HERE
