@@ -1,89 +1,95 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-20 later (**JOB 1 SHIPPED + live-verified. NEW ASK from Tre answered and its ENGINE
-> SHIPPED; the surfaces that read it are scoped, NOT started — the context gate fired.**)
+> ▶ 2026-08-20 evening (**PUSHED. Advisor re-enabled for local dev. Two new feature ideas from
+> Tre's consolidation question — SCOPED, NOT STARTED; the context gate fired.**)
 >
-> ## ✅ JOB 1 DONE — reorderable accounts, `16b6158e`
+> ## ✅ DONE THIS SESSION, ALL PUSHED TO `origin/main`
+> - `16b6158e` reorderable accounts, live-verified (see below).
+> - `673e793f` `src/lib/dated-commitments.ts` — the deadline-floor engine. 20 tests. **Engine only,
+>   nothing reads it yet.**
+> - `73299fb8` `AI_ADVISOR_ENABLED = import.meta.env.DEV`. Advisor is ON at localhost:8080/ai and
+>   OFF in every build. Verified both directions (folded constant + unconditional fallback route in
+>   `dist`; live render on localhost). ⚠️ The AiAdvisor CHUNK is still emitted — `lazy()` is a
+>   top-level call — it is unreachable, not absent. Do not "fix" that by deleting the lazy import.
 >
-> Drag on pointer, two rank arrows on touch, persisted per user. `accounts.sort_order` migration
-> **APPLIED** to `mdtosrbfkextcaezuclh`; backfill seated every existing row at its `created_at`
-> rank so nobody's list moved. Query orders `sort_order, created_at` — the old ordering survives as
-> the tiebreak. New accounts insert at `max+1`, not the column default of 0, or they would land at
-> the TOP. `types.ts` patched in the same commit. Demo gets no handles (no writer).
-> **The filter trap is handled:** `src/lib/account-order.ts` takes the FULL list every time and
-> only STEPS through the visible one. Live-verified on real data both ways; test drags reverted.
+> ## ⏭️ START HERE — two features out of Tre's consolidation question
 >
-> ## ⏭️ START HERE — Tre's new ask, and what is already built for it
+> He asked whether a personal loan to clear the cards is wiser, and said the thing that matters:
+> ***"i cant let the credit cards hit their limits."*** Two distinct features fall out.
 >
-> Verbatim: *"we set up goal ordering and we can make extra payments. the moving fund needs to be
-> ready by the due date, however credit card still needs to be paid down as much as possible in the
-> mean time. whats the best way my app can solve this? is there a way a user could ask this question
-> and the app could auto sort it out for them? ... then apply this sort of thinking to other
-> scenarios."*
+> ### FEATURE A — available credit is a CONSTRAINT, not a display number
+> The app shows limits and utilization. It never treats headroom as something the allocator must
+> PRESERVE. Same shape as the deadline floors in `dated-commitments.ts`: a floor the plan may not
+> breach. This is what would have flagged the Discover sitting at **94.7% of its limit** on its own,
+> without anyone reading a table. Start here — it is smaller, and it is the thing he actually asked
+> for.
 >
-> ### The answer, and it is now code
+> ### FEATURE B — consolidation as a SCENARIO the engine answers
+> "What if I move $X to an installment loan at Y% over N months" is a `DatedCommitment` with a
+> `priced` consequence, plus a utilization projection. The engine shipped today already has the
+> right shape. The output must include the score effect (revolving → installment) AND the interest
+> effect, because on his numbers those point in OPPOSITE directions — see below.
 >
-> **A rank cannot answer it.** A rank says WHICH FIRST; the question is HOW MUCH EACH, and only
-> that one has a deadline in it. `src/lib/dated-commitments.ts` (**SHIPPED `673e793f`**, 20 tests,
-> engine only — nothing reads it yet) computes `remaining ÷ months left` as a **floor**: fund
-> exactly that and not a dollar more, because everything above it idles at ~0% while a card charges
-> 27%. What is left flows down the EXISTING ranked list (`surplus-ranking.ts`) to the priciest
-> balance. Two functions: `planDatedCommitments` and `allocateAgainstCommitments`.
+> ### The analysis, on his real figures (read from Postgres 2026-08-20)
+> | Card | Balance | Limit | Util | APR |
+> |---|---|---|---|---|
+> | Discover it | $10,422.03 | $11,000 | **94.7%** | 16.6%, incl. $5,037.73 @ 7.99% to 2028-01-04 |
+> | Prime Visa | $8,396.90 | $14,400 | 58.3% | 27.49% |
+> | Venture X | $0 | $10,000 | 0% | 22.99% |
+> | Apple Card | $0 | $10,000 | 0% | 22.99% |
+> | **Total** | **$18,818.93** | **$45,400** | **41.5%** | blended ≈ **19.2%** |
 >
-> **The idea that makes it judgement rather than division:** not every deadline is worth meeting.
-> `hard` = no dollar price (the deposit is due or the move does not happen) → binds absolutely.
-> `priced` = missing it costs a computable rate → binds ONLY when that rate beats the best
-> alternative use. Do not collapse these two; that distinction is the whole design.
+> - ⚠️ **Do NOT model consolidating the whole $18.8k.** The $5,037.73 at 7.99% is the cheapest money
+>   he has. The refinanceable part is **$13,781 at a blended ≈24.3%** — so a personal loan wins on
+>   interest only under ~24%. Any scenario tool that consolidates the promo tranche gives bad advice.
+> - The SCORE argument is much stronger than the rate argument: revolving utilization is ~30% of a
+>   FICO score and installment debt is not weighted the same, so the move is mostly about
+>   reclassifying $18.8k, not repricing it. These two answers disagree and the UI must show both.
+> - ⚠️ **The app's own advisor header reads income $4,892 vs expenses $4,999 — NEGATIVE $107/mo.**
+>   If that is real rather than goal contributions counted as expense, consolidation refills the
+>   cards and he owns both. **Establish what is in that expenses figure before building either
+>   feature** — it changes the recommendation. Do not ask him; the data can answer it.
+> - Auto loan must stay untouched ≥6 months (his constraint). A personal loan does not touch it but
+>   does add to DTI.
 >
-> ### On Tre's real numbers (read from Postgres this session)
-> - **Move fund (lease break + movers + deposit)** — $10,340 by **2027-07-01**, **$0 saved,
->   `monthly_contribution` set to $0**, `auto_extra` false. 11 months → **$940/month required**.
->   The app is currently projecting, silently, that it never funds. That is the live gap.
-> - **Discover it Card** — $10,422.03 @ 16.6%, carrying a **$5,037.73 balance-transfer tranche at
->   7.99% expiring 2028-01-04**.
-> - **Prime Visa** — $8,396.90 @ **27.49%**, no promo. The best alternative use.
-> - ⚠️ **The non-obvious result the engine produces:** the Discover promo is **non-binding**. It
->   reprices to 16.6%, the Visa charges 27.49%, so the right move is to LET THE CLIFF HAPPEN and
->   kill the Visa. A naive sort-by-date allocator gets this backwards. Pinned in the tests.
+> ## ⏭️ THEN — the dated-commitments surfaces (from earlier this session, unchanged)
+> 1. **An adapter** building `DatedCommitment[]` from live data. All three sources already carry the
+>    date: `savings_goals.target_date`, `car_funds.planned_purchase_date`,
+>    `balance_tranches[].promo_end_date`. `bestAlternativeApr` = highest APR carried. Everything
+>    else needs this first.
+> 2. **Surface it.** Minimum: per dated goal, what it needs monthly vs what is set, plus the
+>    `feasible: false` shortfall somewhere a person looks. ⚠️ Never render an infeasible plan as if
+>    it worked.
+> 3. **The "just ask" half.** `AiAdvisor.tsx` already receives `targetDate` (~line 753) and does
+>    nothing actionable with it. The advisor should call the SAME pure allocator and return **a
+>    proposal applied with one tap**, not prose. Prose is the manual work he is complaining about.
+>    **Now testable locally, since the advisor is back on in dev.**
+> 4. **Forecast engine** reserves binding floors before the ranked surplus. ⚠️ Riskiest piece —
+>    long convergence history. Last, behind tests, re-pin fixtures.
 >
-> ### ⏭️ NEXT — the surfaces. None started.
-> 1. **An adapter** that builds `DatedCommitment[]` from live data. All three sources already carry
->    the date: `savings_goals.target_date`, `car_funds.planned_purchase_date`,
->    `balance_tranches[].promo_end_date`. `bestAlternativeApr` = the highest APR carried. Do this
->    first; everything else needs it.
-> 2. **Surfacing it.** The honest minimum is a line on each dated goal saying what it needs per
->    month vs what is set, plus the `feasible: false` shortfall somewhere a person looks.
->    ⚠️ Never render an infeasible plan as if it worked — that is the failure mode the module was
->    written to prevent.
-> 3. **The "just ask" half.** `AiAdvisor.tsx` already receives `targetDate` (line ~753) and does
->    nothing actionable with it. The shape: the advisor recognises the intent, calls the SAME pure
->    allocator, and returns **a proposal the user applies with one tap** — writing
->    `monthly_contribution` on the goal and `auto_extra` on the card block. **Not prose.** Prose is
->    what it does today and prose is the manual work he is complaining about.
-> 4. **The forecast engine** should reserve the binding floors before the ranked surplus runs.
->    ⚠️ Biggest risk in the whole feature — that engine has a long convergence history
->    (see the cycling-debt notes). Do it last, behind tests, and re-pin the fixtures.
->
-> ### "Apply this thinking to other scenarios"
-> The general rule: **every number the user types by hand that could be derived from a date and an
-> amount.** Candidates, in rough order of value — insurance premium / registration due in N months;
-> a tax bill; the auto loan in his own sequence; a Garage build phase wanted done by a show date
-> (`car_build_phases` already has the ordering, not the date); any sinking fund. An Emergency Fund
-> with no date is the deliberate opposite case: no floor, pure residual.
+> ### On his live data, the engine already produces
+> - **Move fund** — $10,340 by 2027-07-01, $0 saved, `monthly_contribution` **$0** → needs
+>   **$940/month** over 11 months. The app currently projects, silently, that it never funds.
+> - **Discover promo NON-BINDING** — reprices to 16.6%, the Visa charges 27.49%, so let the cliff
+>   happen and kill the Visa. A sort-by-date allocator gets this backwards. Pinned in tests.
 >
 > ## ⏭️ STILL OPEN (carried)
-> 1. **JOB 2 — the Forecast hero aside.** Fully scoped in the section below, surface confirmed
+> 1. **JOB 2 — the Forecast hero aside.** Fully scoped further down, surface confirmed
 >    (`ForecastHero.tsx`), nothing blocked, not started. Build the fill as a SHARED component.
 > 2. Live-verify the build↔loan strip on `/builds` with the real C5 (`9fc22c7c`).
-> 3. The 390px pass on Tre's actual phone — including the new account rows, whose arrow controls
->    have never been seen on real hardware.
+> 3. The 390px pass on Tre's actual phone — including the new account arrow controls, never seen on
+>    real hardware.
 > 4. Confirm the first post-move net-worth snapshot write (a row dated 08-25 or later).
 > 5. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
 > 6. A goal's OWN `monthly_contribution` can still overshoot its target.
 >
-> ## ⚠️ NOTHING IS PUSHED
-> `dd35dcfb`, `1fa69bfd`, `16b6158e`, `673e793f` are committed on `main`, local only. A push to
-> `main` auto-deploys Android to Play **production**, so it waits for him.
+> ## ✅ JOB 1 detail — reorderable accounts, `16b6158e`
+> Drag on pointer, two rank arrows on touch, persisted per user. `accounts.sort_order` migration
+> **APPLIED** to `mdtosrbfkextcaezuclh`; backfill seated every row at its `created_at` rank so
+> nobody's list moved. Query orders `sort_order, created_at`. New accounts insert at `max+1`, not
+> the default 0, or they would land at the TOP. `types.ts` patched in the same commit. Demo gets no
+> handles. **The filter trap is handled:** `src/lib/account-order.ts` takes the FULL list every time
+> and only STEPS through the visible one. Live-verified both ways; test drags reverted.
 
 # Handoff — Forgenta
 
