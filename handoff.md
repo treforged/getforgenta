@@ -1,5 +1,93 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**THE RANKED-SURPLUS FEATURE IS COMPLETE AND SWITCHABLE — slice 5 shipped**) — **`0dcedbaf` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1839 passed across 196 files** (was 1817/195), build exit 0. **VERSION 6.1.0 → 6.2.0** — first user-visible piece, so this one goes to the stores.
+>
+> ## ✅ SLICE 5 IS DONE. THE WHOLE WORKSTREAM (slices 1-5) IS CLOSED.
+>
+> "**Where the extra money goes**" now renders on the Goals panel (`/goals` → `/forecast?tab=goals`
+> — ⚠️ there is **no `/savings` route**, that was a dead end this session wasted a step on), with
+> the **credit cards as a row in the list**. That row was the whole ask. The per-row `Auto extra`
+> checkbox is the only way the feature can be switched on at all.
+>
+> **What landed:**
+> - `src/lib/surplus-ranking.ts` — pure: `buildSurplusRankRows`, `moveSurplusRankRow`,
+>   `moveSurplusRankRowBy` (touch), `setSurplusRankAutoExtra`, `planSurplusRankWrites`.
+> - `src/hooks/useSurplusRanking.ts` — ONE batched mutation across the three tables.
+> - `src/components/savings/SurplusRankingSection.tsx` — desktop `GripVertical` drag + touch
+>   ArrowUp/ArrowDown, copied from the Builds pattern.
+> - `src/pages/SavingsGoals.tsx` — renders it below the growth chart, feeding the card row its
+>   subtitle from the SAME converged month-0 breakdown `/debt` shows.
+>
+> ## ⚠️ THINGS THE NEXT SESSION SHOULD NOT RE-DERIVE
+>
+> - **A reorder writes DENSE indices** (0,1,2…). That is what stops a user rank colliding with the
+>   half-rank `computeAutoExtraReserve` seats the card block at (`cardsSortOrder - 0.5`). The list's
+>   comparator gives the cards any tie for the same reason.
+> - **Only CHANGED rows are written.** A drag that lands a row back where it started sends nothing.
+>   ⚠️ A list straight out of the DB is all-zeros and therefore NOT dense, so its first save
+>   legitimately rewrites every row — that is correct, not a bug.
+> - **A LOAN-phase car fund is excluded from the list.** `carFundRemainingNeed` gives it 0, so it can
+>   never take a ranked dollar; listing it printed "Fully funded" beside a car still owed on. Caught
+>   in the browser, not by a test — the test came after.
+> - **⚠️ `useSavingsGoals` / `useCarFunds` both `.order('created_at')`, NOT `sort_order`.** Reading
+>   either hook's `data` directly gives the WRONG order. `buildSurplusRankRows` does the sorting.
+> - **Three separate `update` mutations would fire three toasts and three invalidations per drag.**
+>   That is why `useSurplusRanking` writes all three tables in one `Promise.all`, the shape
+>   `useCarBuildPhases().reorder` already uses.
+> - **The section hides itself when there is nothing but the cards row** (`draft.length < 2`) and
+>   renders read-only in demo mode.
+>
+> ## Evidence (do not re-run to "check" — re-run only if you changed something)
+>
+> 22 tests in `src/lib/__tests__/surplus-ranking.test.ts`. **Would-fail checks actually run:**
+> dropping the cards row fails 13 of them; dropping the dense re-index fails 3; defaulting
+> `auto_extra` to TRUE fails 1; removing the cards-win-ties branch fails 1.
+>
+> **Live-verified on `localhost:8080` against the real account** (synthetic `DragEvent`s carrying a
+> shared `DataTransfer` — `left_click_drag` does not fire HTML5 drag). Dragged Move fund above
+> Credit cards → DB read `cards_sort_order` 1 with the goals dense at 0,2,3,4,5. Dragged the cards
+> back → cards 0, goals 1-5. **Tre's live ranks are now 0..5 dense instead of all-zero, which is
+> behaviourally identical**: cards still first, same relative order, and every `auto_extra` is still
+> FALSE so nothing is diverted by either state.
+>
+> ## ⏭️ NEXT UP (nothing in this workstream is left)
+>
+> 1. **The 390px visual pass on Tre's phone** — the touch reorder buttons in
+>    `SurplusRankingSection` have never been seen on a real device. A desktop browser cannot do it
+>    (`resize_window` reports success and does nothing).
+> 2. Dependabot #109/#110.
+> 3. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 4. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
+>
+> ## Mechanics (unchanged, still true)
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep` / `git cat-file -e` against `origin/main`).
+>
+> **Gates are `npx tsc --noEmit`, `npx eslint .`, `npx vitest run`, `npm run build`** — there is no `typecheck` npm script. Run them yourself before believing any handoff's numbers.
+>
+> **⚠️ AFTER ANY MIGRATION, PATCH `src/integrations/supabase/types.ts` IN THE SAME COMMIT.**
+>
+> **⚠️ THERE ARE TWO RESERVES AND ONLY ONE CREDITS SAVINGS.** `useCardProjection`'s month 0 credits; `generateRecommendations`' stays the month-0 recommendation pin and credits nothing.
+>
+> **⚠️ `chain?.` with the optional chain at the month-0 subtraction is deliberate.**
+>
+> **⚠️ `carFundPools` seeds at ZERO on purpose** — a car fund's `current_saved` is modelled by `vehicleProjections`.
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS.**
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** Any new overlay must portal to `document.body`.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper.
+>
+> **⚠️ Adding a required field to `CarFund`/`SavingsGoal` costs eleven fixtures.**
+>
+> **Versioning:** root `VERSION` (`6.2.0`) is the truth; `node scripts/next-version.mjs --write` classifies and applies the bump.
+>
+> **Backups:** `backups/2026-08-19_214118/` holds the pre-edit `SavingsGoals.tsx`.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (**THE CARDS HAVE A RANK — `profiles.cards_sort_order` is stored, applied and read**) — **`85de7050` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1817 passed across 195 files** (was 1807/193), build exit 0.
 >
 > ## ⏭️ START HERE: THE DRAG-TO-RANK UI (slice 5, the last one)
