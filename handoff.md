@@ -1,5 +1,144 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**three new asks from Tre. 1 of 3 shipped; the other two are SCOPED, NOT STARTED
+> — the context gate fired.**)
+>
+> ## ⏭️ START HERE — Tre's three asks this session
+>
+> Verbatim:
+> 1. *"keep accounts in order of date added initially, but allow the user to reorder and it
+>    persists."*
+> 2. *"can we do something with all the empty space on the right side of the mile stone boxes.
+>    maybe like words of encoragement, or the friends progress when we add that feature. friends
+>    will be somewhat competitive and we will have events."*
+> 3. *"add to the marketing folders handoff, that we need to advertise this more as a budgeting app
+>    made for car enthusiasts by car enthusiasts."* — ✅ **SHIPPED, commit `1fa69bfd`.**
+>
+> ---
+>
+> ## ⏭️ JOB 1 — Reorderable accounts, persisted. NOT started, fully scoped.
+>
+> **Half of this already works.** `useAccounts` (`src/hooks/useSupabaseData.ts` line ~43) already
+> does `.order('created_at')`, so "in order of date added initially" is the CURRENT behaviour —
+> do not rebuild it, and do not lose it: it must remain the ordering for anyone who has never
+> reordered. What is missing is only the user reorder and its persistence.
+>
+> **The whole pattern already exists in this repo — copy it, do not invent it.** The Builds
+> feature does exactly this:
+> - **DB shape:** a `sort_order` column. `car_build_phases` and `car_build_items` both have one.
+>   `accounts` does NOT (schema confirmed in Postgres this session — 31 columns, no sort/order
+>   field). So this needs a migration adding `sort_order`.
+> - **Query:** `.order('sort_order')` — see `useCarBuildPhases` (~line 1458).
+> - **Mutation:** `useCarBuildPhases().reorder` (~line 1507) is the template: takes
+>   `{ id, sort_order }[]`, fires the updates via `Promise.all`, **every update carries
+>   `.eq('user_id', user.id)`**, then invalidates. Keep that user_id guard.
+> - **UI:** `src/components/builds/PhaseBlock.tsx` has the finished control pair — touch gets the
+>   two rank arrows, pointer gets the `GripVertical` drag handle, gated on `useIsTouch`. The
+>   sizing was tuned on real hardware on 2026-08-20 (icon 16, `p-1`, `gap-2`); match it.
+>   `SurplusRankingSection.tsx` is the other instance and has 10 tests worth reading first.
+>
+> ### The decisions to make, and my recommendations
+> - **Backfill.** A nullable `sort_order` with `NULLS LAST` lets untouched accounts keep falling
+>   back to `created_at` with no backfill at all — but then the first reorder has to write an
+>   order for EVERY row, not just the moved one. **Recommended:** backfill in the migration
+>   (`row_number() over (partition by user_id order by created_at)`) and make the column
+>   `not null default 0`, so ordering has exactly one rule forever. Order by
+>   `sort_order, created_at` so a tie can never render nondeterministically.
+> - ⚠️ **The filter row is a trap.** The Balances list is filtered by All / Assets / Liabilities.
+>   A reorder performed inside a filtered view must write positions that make sense in the
+>   UNFILTERED list, or the order looks scrambled the moment the filter changes.
+>   **Recommended:** compute new positions against the full list, not the rendered slice.
+> - **Inactive accounts** render at `opacity-40` in the same list. They should reorder like any
+>   other row; nothing special.
+> - **Demo mode** is in-memory (`demoAccounts`) with no writer. Either wire reorder to local state
+>   or make it read-only there — `SurplusRankingSection` already has the read-only-demo case and a
+>   test pinning it, so follow whatever it does.
+> - **Do not forget `src/integrations/supabase/types.ts`.** An applied migration does NOT reach it,
+>   and that trap has put 13 tsc errors on `main` before. Patch it in the SAME commit.
+>
+> ---
+>
+> ## ⏭️ JOB 2 — Fill the empty right side of the milestone boxes. BLOCKED on one answer.
+>
+> **The question is filed on the Conductor board (`2ed7d33e`) and is NOT answered yet.** Pick it up
+> with `conductor answers` before building. There are four plausible "milestone boxes" in the app
+> and they are on different pages, so guessing wastes the slice:
+> - `src/components/forecast/ForecastHero.tsx` — the "Next milestone" hero. **My guess is this
+>   one**: it is a wide single box, its content sits left, and it has obvious empty right-hand
+>   space. Renders over `selectNextMilestone` in `src/lib/next-milestone.ts`.
+> - `src/pages/Forecast.tsx` ~line 668 — the retirement 1yr/5yr/10yr/20yr milestone cells.
+> - `src/components/builds/PhaseBlock.tsx` — build phase milestones.
+> - The Garage/Vehicles loan milestones.
+>
+> ### What he actually asked for, and the shape of it
+> Two fills, one now and one later:
+> - **Now: words of encouragement.** ⚠️ Per his own standing rule, this must not become a
+>   confident-sounding zero. Encouragement has to be DERIVED from the real projection (e.g. "four
+>   months ahead of where this sat in June"), not a rotating fortune cookie — a generic "keep
+>   going!" next to a number that is getting worse is exactly the thing he has objected to before.
+>   If there is no real reading, say nothing rather than cheerlead.
+> - **Later: friends' progress.** He says *"friends will be somewhat competitive and we will have
+>   events."* That feature does not exist. **Build the space so it can hold it — a slot, not a
+>   stub.** Do not ship an empty "Friends" panel or a placeholder leaderboard; the empty state of a
+>   social feature nobody has joined is worse than the current empty space.
+> - **Privacy note for whoever builds the friends feature:** comparing balances between users is
+>   the most sensitive thing this app could do. Progress percentages and milestone dates compare
+>   fine; dollar figures do not. Do not design it as "share your net worth".
+>
+> ---
+>
+> ## ✅ SHIPPED THIS SESSION
+>
+> ### 1. Net-worth chart moved to the Overview — commit `dd35dcfb`
+>
+> The previous ask, completed and live-verified. Full detail in the section below this one; short
+> version:
+> - New `net_worth_trend` widget (`NetWorthTrendCard.tsx`) on the Overview, carrying the chart plus
+>   Total Liabilities and Monthly Change. Accounts keeps all seven current-value figures.
+> - `src/lib/net-worth-trend.ts` is the single derivation, EXTRACTED not copied.
+> - ⚠️ `useNetWorthSnapshotRecorder` — the SOLE writer of `net_worth_snapshots` — moved to
+>   `Dashboard.tsx` **above the panel switch**, with a structural test pinning it to exactly one
+>   call site. **Still unproven that it WRITES from there:** newest snapshot is 2026-08-18 so the
+>   7-day cadence correctly declines. **Check `net_worth_snapshots` for a row dated 08-25 or later
+>   during that week.**
+> - Second bug found and fixed: `parseLayout` appended unseen widgets, so the new card landed dead
+>   last on any account with a saved layout. Now `mergeSavedLayout` in `dashboard-widgets.ts`,
+>   inserting at the default position.
+> - Gates: **tsc 0 · eslint 0 · 1890 passed across 201 files · build exit 0.**
+>
+> ### 2. Marketing positioning — commit `1fa69bfd`
+>
+> New **`marketing/HANDOFF.md`** (the running marketing note; linked from `marketing/README.md`,
+> cross-referenced from `campaigns/PLAN.md` so the plan cannot contradict it).
+>
+> The point: `PLAN.md` already led with the car, but never said who built it. "For car
+> enthusiasts" is a market segment any app can claim, which is why it reads as an ad to an
+> audience `PLAN.md` itself describes as ad-hostile; "by car enthusiasts" is a credential that
+> cannot be bolted on. Applied per campaign in the handoff.
+>
+> **Left open on purpose:** the app store descriptions and the site meta copy have NOT been
+> rewritten against this — the highest-leverage unshipped piece. And whether the founder is named
+> or shown publicly is **Tre's call**, flagged not decided.
+>
+> ## ⚠️ NOTHING IS PUSHED
+>
+> `dd35dcfb` and `1fa69bfd` are committed on `main`, local only. A push to `main` auto-deploys
+> Android to Play **production**, so it waits for him.
+>
+> ## ⏭️ NEXT UP
+>
+> 1. **Job 1 above** — reorderable accounts. Unblocked, fully scoped, start here.
+> 2. **Job 2 above** — run `conductor answers` first; build only once the surface is known.
+> 3. Live-verify the build↔loan strip on `/builds` with the real C5 (carried over, `9fc22c7c`).
+> 4. The 390px pass on Tre's actual phone (a desktop browser cannot do it — `resize_window`
+>    reports success and does nothing).
+> 5. Confirm the first post-move net-worth snapshot write (see above).
+> 6. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 7. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**NET-WORTH CHART MOVED TO THE OVERVIEW — shipped, gated, live-verified**)
 >
 > ## ✅ SHIPPED — the net-worth chart move
