@@ -1363,9 +1363,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const targets: RankedTarget[] = Array.from(autoExtraCapacity, ([id, t]) => ({
           id, kind: t.kind, sortOrder: t.sortOrder, minimum: 0, capacity: t.remaining, autoExtra: true,
         }));
-        // ⚠️ `cardsSortOrder` defaults to 0 — cards first, today's behaviour — exactly as month 0
-        // does, until there is a `profiles.cards_sort_order` column to read a real rank from.
-        const reserve = computeAutoExtraReserve(autoExtraPool, ccMinForMonth, revBalTotal, targets);
+        // ⚠️ The card block's rank comes from `profiles.cards_sort_order`, exactly as month 0
+        // reads it. The column defaults to 0 — cards first, the pre-feature behaviour.
+        const reserve = computeAutoExtraReserve(
+          autoExtraPool, ccMinForMonth, revBalTotal, targets, profile?.cards_sort_order ?? 0,
+        );
         autoExtraThisMonth = reserve.perTarget;
         autoExtraOutThisMonth = reserve.reserved;
       }

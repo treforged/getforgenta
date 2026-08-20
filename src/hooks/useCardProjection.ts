@@ -1806,9 +1806,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // before it consults a rank at all, so `reserved` can never exceed `pool − ccMinForMonth` and
       // the `Math.max(ccMinForMonth, …)` in `availableForRevolving` below is untouched by it.
       //
-      // ⚠️ `cardsSortOrder` stays at its default of 0 — cards first, today's behaviour — until
-      // there is somewhere to persist the card block's position (a `profiles.cards_sort_order`
-      // migration). Passing anything else now would be inventing a rank the user never chose.
+      // ⚠️ `cardsSortOrder` is the card block's own rank, and it is the only place the user can
+      // say "this goal matters more than my debt". It reads `profiles.cards_sort_order`, which
+      // defaults to 0 in the database — cards first, the pre-feature behaviour — so a user who has
+      // ranked nothing is byte-identical to before the column existed.
+      const cardsSortOrder = profile?.cards_sort_order ?? 0;
       const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - m0FloorAugmented - cyclingPayment);
       const autoExtra = computeAutoExtraReserve(
         autoExtraPool,
@@ -1816,9 +1818,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         liveRevolvingBal,
         buildRankedTargets({
           cards, carFunds, goals, strategy: debtStrategy, asOf: payoffOrderAsOf(now),
+          cardsSortOrder,
           fundingAccountId: resolvedDebtFundingId ?? null,
           accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
         }),
+        cardsSortOrder,
       );
       // Reserved cash has LEFT checking, exactly like a goal contribution. Subtracting it here — a
       // chain term — rather than from `availableForRevolving` is what keeps

@@ -162,19 +162,21 @@ export function useForecastEngineInputs({
       // building them there would close a runtime import cycle. Every target arrives opted OUT
       // (`auto_extra` defaults false), so until a user opts one in this reserve is 0 and the
       // breakdown is byte-identical to before the feature existed.
-      // ⚠️ `cardsSortOrder` is deliberately left at its default of 0 — cards first — until the
-      // drag-to-rank UI has somewhere to persist the card block's position. Passing anything else
-      // today would be inventing a rank the user never chose.
+      // ⚠️ `cardsSortOrder` is the card block's own rank, read from `profiles.cards_sort_order`.
+      // The column defaults to 0 in the database — cards first, the pre-feature behaviour — so a
+      // user who has ranked nothing gets exactly the breakdown they got before it existed.
+      const cardsSortOrder = profile?.cards_sort_order ?? 0;
       const autoExtraTargets = buildRankedTargets({
         cards: buildCardData(accounts, allTxns, rules, debts),
         carFunds,
         goals,
         strategy: 'avalanche',
         asOf: payoffOrderAsOf(now0),
+        cardsSortOrder,
         fundingAccountId: forecastFundingAccountId,
         accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
       });
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses, confirmedOccurrences, { targets: autoExtraTargets });
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses, confirmedOccurrences, { targets: autoExtraTargets, cardsSortOrder });
       const safeToPayTotal = breakdown.totalRecommended;
       const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };

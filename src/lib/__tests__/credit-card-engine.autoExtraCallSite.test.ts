@@ -37,10 +37,10 @@ const card = { id: 'card', minPayment: 200, balance: 10000, autopayFullBalance: 
 const targetsFor = (goals: Parameters<typeof buildRankedTargets>[0]['goals']) =>
   buildRankedTargets({ cards: [card], carFunds: [], goals, strategy: 'avalanche', asOf: '2026-08-19' });
 
-const run = (targets?: ReturnType<typeof buildRankedTargets>) =>
+const run = (targets?: ReturnType<typeof buildRankedTargets>, cardsSortOrder?: number) =>
   getMonthlyDebtBreakdown(
     accounts, [], [], [], profile, 0, undefined, undefined, 0, undefined,
-    targets ? { targets } : undefined,
+    targets ? { targets, cardsSortOrder } : undefined,
   );
 
 describe('getMonthlyDebtBreakdown — ranked automatic extra payments reach the engine', () => {
@@ -83,5 +83,26 @@ describe('getMonthlyDebtBreakdown — ranked automatic extra payments reach the 
 
   it('omitting the context leaves the breakdown byte-identical', () => {
     expect(run()).toEqual(run(targetsFor([])));
+  });
+
+  it('honours the rank of the card block itself — `profiles.cards_sort_order`', () => {
+    // A goal at rank 0 against cards at rank 0: the card block is seated half a rank ahead so the
+    // tie goes to the debt, which is the pre-column behaviour and the conservative default.
+    const goals = [{ id: 'goal-1', sort_order: 0, auto_extra: true, target_amount: 900, current_amount: 500 }];
+    const base = run();
+    const cardsFirst = run(targetsFor(goals), 0);
+    expect(cardsFirst.totalRecommended).toBe(base.totalRecommended);
+
+    // Same data, one number different: the user has dragged the card row BELOW the goal.
+    const cardsLast = run(targetsFor(goals), 5);
+    expect(base.totalRecommended - cardsLast.totalRecommended).toBeCloseTo(400, 2);
+    // Rank moves the surplus, never the obligation.
+    expect(cardsLast.totalRecommended).toBeGreaterThanOrEqual(cardsLast.totalMinimumsDue);
+    expect(cardsLast.cashWarning).toBe(false);
+  });
+
+  it('an omitted cardsSortOrder is exactly a 0', () => {
+    const goals = [{ id: 'goal-1', sort_order: -1, auto_extra: true, target_amount: 900, current_amount: 500 }];
+    expect(run(targetsFor(goals))).toEqual(run(targetsFor(goals), 0));
   });
 });

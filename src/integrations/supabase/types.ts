@@ -1144,6 +1144,7 @@ export type Database = {
           ai_consent_version: string | null
           auto_generate_recurring: boolean | null
           budget_start_day: number | null
+          cards_sort_order: number
           cash_floor: number | null
           compact_mode: boolean | null
           created_at: string
@@ -1193,6 +1194,7 @@ export type Database = {
           ai_consent_version?: string | null
           auto_generate_recurring?: boolean | null
           budget_start_day?: number | null
+          cards_sort_order?: number
           cash_floor?: number | null
           compact_mode?: boolean | null
           created_at?: string
@@ -1242,6 +1244,7 @@ export type Database = {
           ai_consent_version?: string | null
           auto_generate_recurring?: boolean | null
           budget_start_day?: number | null
+          cards_sort_order?: number
           cash_floor?: number | null
           compact_mode?: boolean | null
           created_at?: string
