@@ -1,5 +1,92 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 night (**consolidation engine SHIPPED `3c61686a`. Loan answer re-run on
+> GUARANTEED income only. One live DB write made. SURFACE still not built.**)
+
+## ⚠️ READ THIS FIRST — the income assumption changed twice, use the LAST one
+`profiles.forecast_assumptions.promotions` holds $65,000 @ 2027-02-25 and $75,000 @ 2028-02-25.
+**Tre said 2026-08-20 those are EXPECTED, not guaranteed. Plan on the 3.1% March raise + 3.1%
+February bonus ONLY.** Any analysis that leans on the promotions is invalid. On guaranteed-only:
+
+| Period | Available after living+car ($3,783.02) |
+|---|---|
+| Sep 2026 - Feb 2027 | $1,047.50 |
+| Mar 2027 - Apr 2027 | $1,163.93 |
+| May 2027 - Aug 2027 | $1,111.93 |
+| **Sep 2027 - Feb 2028 (GF income GONE)** | **$11.93** |
+| Mar 2028 | $131.97 |
+| Mar 2029 | $255.74 |
+
+**$11.93/mo is the binding number.** Net pay formula, verified exactly against his real check:
+`net_weekly = gross_weekly * 0.793 - 17.86` ($1,093 -> $848.89). Do not re-derive.
+
+## 🚨 THE REAL FINDING — the loan is not what breaks him, the RENT is
+With NO loan at all he has $11.93/mo from Sep 2027, because the GF's $1,100 stops permanently
+(med school, not working) and rent is $1,915 against $3,794.95 of net pay. **Any loan needs
+~$355/mo of structural cuts by Sep 2027.** The July 2027 move is the lever:
+- $19,000 @ 15%/84mo -> the new place must be **<= $1,560/mo**
+- $19,000 @ 18%/84mo -> **<= $1,528/mo**
+- $15,600 @ 15%/84mo -> **<= $1,626/mo**
+
+## ✅ DONE THIS SESSION
+- `3c61686a` `src/lib/consolidation.ts` + 30 tests. Pure. `solveMinimumPrincipal` /
+  `evaluateConsolidation` / `breakEvenApr` / `simulateStatusQuo`. Amortization pinned against
+  **Discover's own printed payment table** (8 cells @ 11.99%). External verification.
+- **LIVE DB WRITE**: `payment_plans` "payback for my half of downpayment to mom"
+  `start_date` **2027-07-13 -> 2027-03-13** (at Tre's explicit request). $285 x 4, unchanged
+  otherwise. Old value recorded here in case it needs reverting. Reason: Jul-Oct 2027 collided
+  with the Sep 2027 income cliff ($285 + loan payment vs $11.93 available); Mar-Jun 2027 sits
+  inside the high-surplus window and finishes before the move.
+
+## 📌 THE LOAN ANSWER AS IT STANDS
+Discover preapproval: $2,500-$40,000, **36-84 months**, 6.99-24.99%, **$0 origination, no
+prepayment penalty**, apply by **2026-09-12**. Score ~690 (was mid-750s).
+Cards: Discover $10,422.03/$11,000 (94.7%, incl. $5,037.73 @ 7.99% to 2028-01-04) + Prime Visa
+$8,396.90/$14,400 @ 27.49%. **$18,818.93 / $25,400 open = 74.1%** (Venture X and Apple Card are
+NOT open - `card_start_date` future - their $20,000 must stay out).
+
+| Principal | Leaves | 15%/84 | 18%/84 | + card int | Cut needed by Sep 2027 |
+|---|---|---|---|---|---|
+| **$19,000** | nothing, 0% util, interest-free | $367 | $399 | $0 | $355 |
+| $15,600 | $3,288 promo @7.99% (29.9%) | $301 | $328 | $21.89 | $311 |
+| $13,800 | $5,038 promo @7.99% (45.8% - fails <30%) | $266 | $290 | $33.54 | $288 |
+| $11,200 | $3,300@7.99 + $4,320@27.49 | $216 | $235 | $120.94 | $325 - **worse than $15,600, rule out** |
+
+- **84 months is mandatory**, not preferred - no shorter term survives Sep 2027.
+- Rate rule: <=16% take $19,000. 17% break-even, take it for the score. 18-20% costs $600-$4,200
+  more, judgment. >20% take $15,600.
+- Break-even vs carrying the cards is **~16.7%**, NOT ~23%. At 18% consolidating everything COSTS
+  $593 more, because avalanche kills the 27.49% Visa first and the surviving balance drifts to the
+  7.99% promo, so the effective card rate FALLS while a flat loan rate does not. Pinned in tests.
+- **Move fund is short ~$4,150.** $10,340 needed by 2027-07-01, cash-flow runway Sep26-Jun27 is
+  $4,795 + ~$1,397 Feb bonus = $6,192 at 15%. Tre confirmed the move is ENTIRELY on him; the GF's
+  money was only ever covering current rent. ⚠️ At 8.1% federal withholding on $56.8k he may not
+  get a meaningful refund - do NOT assume one closes the gap.
+- Payment plans all repointing to CHECKING (his decision, confirmed). So no cash reserve is needed
+  in the loan and the principal is the card balance only.
+- `$625/mo` of savings-goal contributions (Savings $500, Roth $100, Brokerage $25) are configured
+  but NOT happening (balance $106.44). Must stay paused.
+
+## ⏭️ START HERE — the consolidation SURFACE (engine done, nothing reads it)
+1. Adapter: `ConsolidationCard[]` from accounts (+`parseTranches`, `card_start_date`);
+   `ScheduledCardCharge[]` from `payment_plans` where payment_source is a card AND
+   `plan_type='monthly_charge'` (**`upfront` is already in the card balance - never double count**).
+2. Show BOTH answers, never blended: interest delta AND utilization delta. They disagree.
+3. ⚠️ Render `afterScheduledCharges`, not `after`. Funding-day is the flattering lie.
+4. Feed it the guaranteed-vs-expected income toggle - this whole analysis flipped on it.
+
+## ⏭️ STILL OPEN (carried)
+1. `dated-commitments.ts` surfaces - adapter, per-goal shortfall, advisor one-tap proposal,
+   forecast floors. Scoped further down.
+2. **JOB 2 - Forecast hero aside** (`ForecastHero.tsx`), scoped, not started.
+3. Live-verify build<->loan strip on `/builds` with the real C5 (`9fc22c7c`).
+4. ~~390px account-arrow pass~~ **CLOSED - Tre confirmed the mobile arrows look good. Stop raising it.**
+5. Confirm first post-move net-worth snapshot write (row dated 08-25+).
+6. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+7. A goal's OWN `monthly_contribution` can still overshoot its target.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 late (**consolidation engine SHIPPED + committed `3c61686a`. Tre's loan answer
 > delivered by hand. The SURFACE is not built. Context gate fired at 200k.**)
 
