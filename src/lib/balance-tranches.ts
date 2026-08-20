@@ -131,8 +131,14 @@ export interface PromoExpiryWarning {
   monthsRemaining: number;
 }
 
-/** Whole months from `asOf` (YYYY-MM-DD) until `end`, floored at 1 so a division never explodes. */
-function monthsUntil(asOf: string, end: string): number {
+/**
+ * Whole months from `asOf` (YYYY-MM-DD) until `end`, floored at 1 so a division never explodes.
+ *
+ * Exported because `dated-commitments.ts` runs the same deadline arithmetic over savings goals and
+ * car funds, and two definitions of "how many months do I have left" would eventually disagree by
+ * one — which on a promo cliff is the difference between clearing it and not.
+ */
+export function monthsUntil(asOf: string, end: string): number {
   const [ay, am] = asOf.split('-').map(Number);
   const [by, bm] = end.split('-').map(Number);
   return Math.max(1, (by * 12 + bm) - (ay * 12 + am));
