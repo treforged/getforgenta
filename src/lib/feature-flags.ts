@@ -7,8 +7,9 @@
  */
 
 /**
- * Forgenta AI (the AI advisor) is switched OFF while the user-data-sharing
- * policy and account-level accessibility controls are being finished.
+ * Forgenta AI (the AI advisor) is OFF in every shipped build while the
+ * user-data-sharing policy and account-level accessibility controls are being
+ * finished, and ON in local development so the feature can be worked on.
  *
  * While this is `false`, `/ai` renders the "in development" screen and the
  * `AiAdvisor` page is never mounted. That matters: mounting it would read the
@@ -16,10 +17,25 @@
  * the `ai-advisor` edge function. Gating at the route keeps that data in place
  * instead of merely hiding the result.
  *
- * To re-enable: flip this to `true`. Nothing else needs to change — the nav
- * entries and the route both read this flag.
+ * ⚠️ `import.meta.env.DEV` rather than a hand-flipped `true`, ON PURPOSE (2026-08-20).
+ * The gate exists for a POLICY reason, so the thing that must never happen is it
+ * reaching customers because somebody flipped it to test and forgot to flip it
+ * back. `DEV` is true only under `vite dev`; every `vite build` — Vercel, the
+ * Play Store pipeline, a preview deploy — sets it false, so the unsafe state is
+ * unreachable from a build rather than merely unlikely.
+ *
+ * Verified on a real `npm run build` rather than assumed: the constant is folded
+ * away (the name does not survive minification) and the `/ai` route element in
+ * `dist` is UNCONDITIONALLY the "in development" screen. Note the `AiAdvisor`
+ * chunk is still EMITTED — `lazy(() => import(...))` in `App.tsx` is a top-level
+ * call, so the chunk exists whatever the flag says. It is simply unreachable:
+ * nothing renders it, so it is never fetched and never gathers anything.
+ *
+ * To ship it for real, replace this with `true` in the same commit that lands
+ * the policy and the controls. Nothing else needs to change — the nav entries
+ * and the route both read this flag.
  */
-export const AI_ADVISOR_ENABLED = false;
+export const AI_ADVISOR_ENABLED = import.meta.env.DEV;
 
 /**
  * `/__error-test` — a route that crashes on purpose, for proving the error
