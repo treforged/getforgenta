@@ -63,6 +63,7 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
       { title: 'What is this panel?', body: 'The Command Center gives you a real-time snapshot of your financial health — income, expenses, net worth, savings, debt, and upcoming bills for the current month.' },
       { title: 'The headline number', body: 'The top of the page shows the month your credit card debt clears, and how much cash sits above your safety floor. The curve under it is that same plan drawn out: where your balance is today and the shape of it falling to zero. If either number has no reading yet, the page says so rather than showing a zero.' },
       { title: 'Stat chips', body: 'The scrolling row of chips carries the supporting numbers. Tap any chip to see exactly how it is calculated, including which accounts and transactions are included.' },
+      { title: 'Net Worth Trend', body: 'Net worth now and net worth over time in one card: total assets, total liabilities, and the change since roughly a month ago, above the recorded history line. Snapshots are saved about once a week, so the line fills in over the first few weeks rather than appearing all at once. Until there is history to draw, the card says so instead of drawing a flat line at zero.' },
       { title: 'Projected Month-End Cash', body: 'Shows your expected cash position at month end: current liquid cash + remaining paychecks − remaining expenses − debt payments. Must stay above your cash floor.' },
       { title: 'Cash Flow Chart', body: 'Displays the last 6 months of income vs expenses with net cash flow trend line.' },
       { title: 'Customize Dashboard', body: 'Click the Customize button to show/hide widgets and use the up/down arrows to reorder them. Layout is saved to your account.' },
@@ -74,6 +75,7 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
     sections: [
       { title: 'What is this panel?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
       { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
+      { title: 'Where the net worth history went', body: 'The trend chart now lives on the Overview panel, next to the same net worth figure the chip row shows. This panel keeps the current totals and how they split across cash, investments, retirement and card debt.' },
       { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
       { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
     ],

@@ -4,27 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { DEFAULT_LAYOUT, WIDGET_META, type WidgetConfig, type WidgetId } from '@/lib/dashboard-widgets';
-
-function parseLayout(raw: unknown): WidgetConfig[] {
-  if (!Array.isArray(raw)) return DEFAULT_LAYOUT;
-
-  const validIds = new Set<WidgetId>(WIDGET_META.map(w => w.id));
-  const saved: WidgetConfig[] = raw
-    .filter((w): w is { id: WidgetId; visible: boolean } =>
-      typeof w === 'object' && w !== null &&
-      typeof (w as Record<string, unknown>).id === 'string' &&
-      validIds.has((w as Record<string, unknown>).id as WidgetId),
-    )
-    .map(w => ({ id: w.id, visible: Boolean(w.visible) }));
-
-  const savedIds = new Set(saved.map(w => w.id));
-  DEFAULT_LAYOUT.forEach(def => {
-    if (!savedIds.has(def.id)) saved.push({ ...def });
-  });
-
-  return saved;
-}
+import { DEFAULT_LAYOUT, mergeSavedLayout, type WidgetConfig } from '@/lib/dashboard-widgets';
 
 export function useDashboardLayout() {
   const { user } = useAuth();
@@ -39,7 +19,7 @@ export function useDashboardLayout() {
     if (loading || initialized.current) return;
     initialized.current = true;
     const raw = profile?.dashboard_layout;
-    setLayoutState(parseLayout(raw));
+    setLayoutState(mergeSavedLayout(raw));
   }, [profile, loading]);
 
   const persist = useCallback(

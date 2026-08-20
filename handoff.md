@@ -1,5 +1,80 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**NET-WORTH CHART MOVED TO THE OVERVIEW — shipped, gated, live-verified**)
+>
+> ## ✅ SHIPPED — the net-worth chart move
+>
+> Tre: *"move the data and net worth chart from the accounts section to the overview section. it
+> seems redundant and data is to spread out."*
+>
+> **What "redundant" turned out to mean, and the call I made.** The Overview chip row already
+> carried Net Worth and Total Assets, so the *number* was on both panels while its *history* was
+> only on one — the part you had to go hunting for was the only part that was not duplicated. So
+> the chart moved up, and the two readings the chip row does NOT cover came with it (Total
+> Liabilities, Monthly Change). **Nothing was deleted.** The Accounts panel keeps all seven
+> current-value figures (Net Worth / Assets / Liabilities, then Liquid Cash / Investments /
+> Retirement / CC Debt) — that split is the thing only that panel can answer. Its top row went
+> `sm:grid-cols-4` → `sm:grid-cols-3` where Monthly Change left.
+>
+> - **New widget `net_worth_trend`** in `src/lib/dashboard-widgets.ts`, rendered by
+>   `src/components/dashboard/NetWorthTrendCard.tsx`. Tapping the Net Worth figure opens the same
+>   breakdown drawer the chip opens (`openNetWorthCalc`).
+> - **`src/lib/net-worth-trend.ts`** is new and is the only place the trend rows and the
+>   month-over-month figure are derived — EXTRACTED from `Accounts.tsx`, not copied, so the two
+>   surfaces cannot drift the way `net-worth.ts` was written to stop. Note
+>   `MONTHLY_CHANGE_MIN_DAYS = 25`: the recorder writes WEEKLY, so a naive last-two-rows diff would
+>   be a weekly change wearing a monthly label.
+> - ⚠️ **THE TRAP WAS REAL AND IS CLOSED.** `useNetWorthSnapshotRecorder` — the SOLE writer of
+>   `net_worth_snapshots` — moved out of `Accounts.tsx` and into **`Dashboard.tsx`, above the panel
+>   switch**, so it runs on every Dashboard visit regardless of which pill is active. That is
+>   strictly wider coverage than before (Accounts only renders when its pill is on).
+>   `src/lib/__tests__/net-worth-snapshot-writer.test.ts` pins it: mounted from Dashboard, mounted
+>   from **exactly one** place, and NOT from Accounts. It strips comments first, because the
+>   would-fail check is "comment the call out" and a `//` must not defeat the guard. **That check
+>   was actually run — 2 of 3 go red.**
+>
+> ### The second bug this uncovered, and fixed
+>
+> The widget shipped and landed **dead last** on Tre's account. `parseLayout` APPENDED any widget a
+> saved layout had never seen, so a new user saw the intended page and every existing user got the
+> new card at the bottom — which is the exact "too spread out" complaint, re-created. It is now
+> `mergeSavedLayout` in `dashboard-widgets.ts` (moved out of the hook so the ordering rule sits
+> next to the order it reconciles against), and a new widget **inserts at its default position**,
+> anchored to the nearest earlier default neighbour the user actually has — so a deliberate
+> reorder still wins. 10 tests; the would-fail check was run (restoring `push` reds 3).
+>
+> ### Evidence
+>
+> Gates: **tsc 0 · eslint 0 · 1890 passed across 201 files · build exit 0.**
+> Live on the real account at `localhost:8080`:
+> - Overview widget order is now `… Advanced Analytics → **Net Worth History** → Cash Flow Overview
+>   → Goal Progress` — mid-stack, not last.
+> - Card reads Net Worth **-$25,478**, Assets **$9,596**, Liabilities **$35,073**, Monthly Change
+>   **-$26,373**, over a 42-point line. ⚠️ Do not judge the line from a screenshot — it animates in
+>   and looks like bare dots for the first second. `.recharts-line-curve` has 42 points to 42 dots.
+> - Accounts panel: `Net Worth History` and `Monthly Change` are **gone**, all seven current-value
+>   labels **present**, `.recharts-line-curve` count **0**.
+>
+> ⚠️ **One thing is asserted, not observed:** that the recorder actually WRITES from its new home.
+> The newest snapshot is 2026-08-18 (checked in Postgres), so `shouldRecordSnapshot` correctly
+> declines — there was nothing to observe without polluting real data. The call site is
+> tsc-verified and guard-tested; the first write on/after 2026-08-25 is the real proof. **Check
+> `net_worth_snapshots` for a row dated 08-25 or later at the start of a session that week.**
+>
+> ## ⏭️ NEXT UP
+>
+> 1. **Live-verify the build↔loan strip** on `/builds` with the real C5 connected (carried over,
+>    still not done — commit `9fc22c7c` is gated but nobody has looked at it).
+> 2. **The 390px pass on Tre's actual phone** — the reorder arrows are measured but have never been
+>    seen on real hardware, and a desktop browser cannot do it (`resize_window` reports success and
+>    does nothing).
+> 3. Confirm the first post-move snapshot write (see the warning above).
+> 4. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 5. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**BUILD → CAR LOAN PLAN CONNECTED, shipped. NET-WORTH-CHART MOVE IS THE NEXT JOB.**)
 >
 > ## ⏭️ START HERE — Tre's second ask this session, NOT started

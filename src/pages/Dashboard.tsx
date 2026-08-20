@@ -16,7 +16,7 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useSyncedTransactionReviews, type AccountRow } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useSyncedTransactionReviews, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
 import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
@@ -66,6 +66,8 @@ import { buildPayoffTrajectory } from '@/lib/payoff-trajectory';
 import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
+import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
+import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
@@ -187,6 +189,7 @@ export default function Dashboard() {
   const { data: transactions, loading: txnLoading } = useTransactions();
   const { data: accounts, loading: acctLoading } = useAccounts();
   const { data: profile, loading: profileLoading } = useProfile();
+  const { data: netWorthSnapshots, loading: netWorthSnapshotsLoading } = useNetWorthSnapshots();
 
   useRetirementAutoUpdate(profile as Parameters<typeof useRetirementAutoUpdate>[0], accounts, isDemo, isPremium);
   const { data: debts, loading: debtsLoading } = useDebts();
@@ -698,6 +701,19 @@ export default function Dashboard() {
     [cardProjection, heroPayoff],
   );
 
+  /**
+   * ⚠️ MOUNTED HERE, ABOVE THE PANEL SWITCH, ON PURPOSE.
+   *
+   * `useNetWorthSnapshotRecorder` is the SOLE writer of `net_worth_snapshots`, and it has already
+   * been orphaned once: it lived on `/net-worth`, that route became a redirect, and recording
+   * silently died on 2026-05-22 with the chart frozen behind it. It was re-hooked to the Accounts
+   * page on 2026-08-02, and on 2026-08-20 the chart it feeds moved up here to the Overview — so
+   * the writer moved with it, and to the level ABOVE the pills rather than into the Overview
+   * panel, so that it runs on every Dashboard visit no matter which panel the user lands on.
+   * Grep what a page WRITES before moving what it SHOWS.
+   */
+  useNetWorthSnapshotRecorder();
+
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
 
   const categoryData = useMemo(
@@ -1060,6 +1076,23 @@ export default function Dashboard() {
       case 'financial_health':
       case 'wealth_overview':
         return id === chipRowAnchor ? <StatChipRow key="stat_chips" chips={allChips} /> : null;
+
+      // Net worth now and net worth over time, together. Lived at the top of the Accounts
+      // panel until 2026-08-20 (Tre: "move the data and net worth chart from the accounts
+      // section to the overview section. it seems redundant and data is to spread out") —
+      // the chip row already carried the number, so only the history was a panel away.
+      case 'net_worth_trend':
+        return (
+          <NetWorthTrendCard
+            key="net_worth_trend"
+            snapshots={netWorthSnapshots}
+            snapshotsLoading={netWorthSnapshotsLoading}
+            netWorth={accountSummary.netWorth}
+            totalAssets={accountSummary.totalAssets}
+            totalLiabilities={accountSummary.totalLiabilities}
+            onNetWorthClick={openNetWorthCalc}
+          />
+        );
 
       case 'car_goal':
         if (!carGoalData) return null;

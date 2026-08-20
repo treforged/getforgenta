@@ -4,6 +4,7 @@ export type WidgetId =
   | 'schedule_cards'
   | 'financial_health'
   | 'wealth_overview'
+  | 'net_worth_trend'
   | 'car_goal'
   | 'cash_flow_chart'
   | 'transactions_spending'
@@ -49,6 +50,14 @@ export const WIDGET_META: WidgetMeta[] = [
     description: 'Net worth, savings rate, credit utilization, and total saved',
   },
   {
+    id: 'net_worth_trend',
+    label: 'Net Worth Trend',
+    // Moved up from the Accounts panel on 2026-08-20 — the chip row already carried
+    // Net Worth and Total Assets, so the number lived here while its history lived a
+    // panel away. Liabilities and Monthly Change came with it; nothing was dropped.
+    description: 'Net worth over time, with total assets, total liabilities, and the change over the last month',
+  },
+  {
     id: 'car_goal',
     label: 'Car Goal',
     description: 'Down payment progress and estimated monthly loan payment',
@@ -90,3 +99,50 @@ export const DEFAULT_LAYOUT: WidgetConfig[] = WIDGET_META.map(w => ({
   id: w.id,
   visible: true,
 }));
+
+/**
+ * The saved layout from a user's profile, reconciled against the current widget set.
+ *
+ * Unknown or malformed entries are dropped (a widget id that no longer exists must not survive as
+ * a hole in the stack), and every widget the saved layout has never seen is inserted at its
+ * DEFAULT position rather than appended.
+ *
+ * That last part used to be a plain `push`, and it quietly gave existing users a different page
+ * from new ones: the Net Worth Trend card was placed high in {@link DEFAULT_LAYOUT} on 2026-08-20
+ * precisely because Tre asked for the chart to stop being "spread out", and on an account with a
+ * saved layout it arrived dead last under everything else.
+ *
+ * A new widget anchors to the nearest EARLIER default neighbour the user actually has, so a
+ * deliberate reorder still wins — the card follows the widget it was designed to sit behind,
+ * wherever that has been moved to. With no earlier neighbour present it goes to the front, which
+ * is where the default would have put it.
+ *
+ * Lives here, next to `DEFAULT_LAYOUT`, so the ordering rule and the order it reconciles against
+ * cannot drift apart.
+ */
+export function mergeSavedLayout(raw: unknown): WidgetConfig[] {
+  if (!Array.isArray(raw)) return DEFAULT_LAYOUT.map(w => ({ ...w }));
+
+  const validIds = new Set<WidgetId>(WIDGET_META.map(w => w.id));
+  const merged: WidgetConfig[] = raw
+    .filter((w): w is { id: WidgetId; visible: boolean } =>
+      typeof w === 'object' && w !== null &&
+      typeof (w as Record<string, unknown>).id === 'string' &&
+      validIds.has((w as Record<string, unknown>).id as WidgetId),
+    )
+    .map(w => ({ id: w.id, visible: Boolean(w.visible) }));
+
+  const present = new Set(merged.map(w => w.id));
+  DEFAULT_LAYOUT.forEach((def, defIndex) => {
+    if (present.has(def.id)) return;
+
+    const earlierDefaults = DEFAULT_LAYOUT.slice(0, defIndex).map(w => w.id).reverse();
+    const anchorId = earlierDefaults.find(id => present.has(id));
+    const at = anchorId ? merged.findIndex(w => w.id === anchorId) + 1 : 0;
+
+    merged.splice(at, 0, { ...def });
+    present.add(def.id);
+  });
+
+  return merged;
+}

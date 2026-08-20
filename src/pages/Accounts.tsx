@@ -3,12 +3,11 @@ import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
-import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useCarFunds, type AccountRow } from '@/hooks/useSupabaseData';
+import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useCarFunds, type AccountRow } from '@/hooks/useSupabaseData';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { aggregateNetWorth, LIABILITY_ACCOUNT_TYPES } from '@/lib/net-worth';
-import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -34,26 +33,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
-} from 'recharts';
-import { ArrowUpRight } from 'lucide-react';
-
-interface NWTooltipProps {
-  active?: boolean;
-  payload?: { payload: { month: string }; value: number }[];
-}
-
-function NWTooltip({ active, payload }: NWTooltipProps) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-      <p className="font-medium">{payload[0].payload.month}</p>
-      <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
-    </div>
-  );
-}
-
 interface MatchEntry {
   plaidAccount: PlaidSyncedAccount & { plaid_account_id?: string };
   matchedAccountId: string | null; // null = keep as new
@@ -169,9 +148,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
-  const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
-  // Keeps the Net Worth History chart below fed with fresh points.
-  useNetWorthSnapshotRecorder();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   /**
@@ -345,30 +321,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     const { totalAssets, totalLiabilities, netWorth } = aggregateNetWorth(active, manualAssets, manualLiabilities, vehicleLoans);
     return { liquidCash, investments, retirement, ccDebt, totalLiabilities, totalAssets, netWorth };
   }, [activeAccounts, manualAssets, manualLiabilities, vehicleLoans]);
-
-  const netWorthTrend = useMemo(() => {
-    if (snapshots.length === 0) {
-      const now = new Date();
-      return [{ month: now.toLocaleString('en', { month: 'short' }), value: summary.netWorth }];
-    }
-    return snapshots.map(s => ({
-      month: new Date(s.snapshot_date).toLocaleString('en', { month: 'short', day: 'numeric' }),
-      value: Number(s.net_worth),
-    }));
-  }, [snapshots, summary.netWorth]);
-
-  const monthlyChange = useMemo((): number | null => {
-    if (snapshots.length < 2) return null;
-    const latest = snapshots[snapshots.length - 1];
-    for (let i = snapshots.length - 2; i >= 0; i--) {
-      const older = snapshots[i];
-      const daysBetween = Math.floor(
-        (new Date(latest.snapshot_date).getTime() - new Date(older.snapshot_date).getTime()) / 86400000,
-      );
-      if (daysBetween >= 25) return Number(latest.net_worth) - Number(older.net_worth);
-    }
-    return null;
-  }, [snapshots]);
 
   const filteredAccounts = useMemo(() => {
     if (filterType === 'assets') return accounts.filter(a => ASSET_TYPES.includes(a.account_type));
@@ -773,9 +725,18 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         </div>
       )}
 
-      {/* Summary Stats */}
+      {/*
+        Summary Stats — what these accounts add up to RIGHT NOW.
+
+        The history chart and the Monthly Change figure that used to sit in this card moved to the
+        Overview's "Net Worth Trend" widget on 2026-08-20 (Tre: "move the data and net worth chart
+        from the accounts section to the overview section. it seems redundant and data is to spread
+        out"). Nothing was deleted — the trend is one panel away and next to the same Net Worth
+        number the chip row already showed. What stays here is what only this page can answer: how
+        the total splits across cash, investments, retirement and card debt.
+      */}
       <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
           <div>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Net Worth</p>
             <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${summary.netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(summary.netWorth, false)}</p>
@@ -787,15 +748,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           <div>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Liabilities</p>
             <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.totalLiabilities, false)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium flex items-center justify-center gap-1">
-              <ArrowUpRight size={9} /> Monthly Change
-            </p>
-            <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange, false) : '—'}
-            </p>
-            {monthlyChange === null && <p className="text-[9px] text-muted-foreground">no history yet</p>}
           </div>
         </div>
         <div className="border-t border-border/40" />
@@ -818,65 +770,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           </div>
         </div>
 
-        {/*
-          ⚠️ THE CHART LIVES UP HERE WITH THE NUMBERS, NOT BEHIND A PILL (Tre, 2026-08-18: "leave
-          the net worth chart at the top with the other key numbers. just make it a little
-          smaller"). It is the same reading as the Net Worth figure directly above it — one over
-          time, one right now — and splitting them across a tab made the trend something you had to
-          go and look for. Height 220 -> 140 so it reads as the supporting line for those numbers
-          rather than as its own section; the empty and loading states shrank to match, and every
-          one of them still SAYS what is missing instead of drawing a flat line at zero.
-        */}
-        <div className="border-t border-border/40" />
-        <div>
-          <h3 className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            {snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}
-          </h3>
-          {snapshotsLoading ? (
-            <div className="h-[140px] flex items-end gap-2 px-2 pb-4 animate-pulse">
-              {[40, 55, 48, 62, 70, 58, 75, 80].map((h, i) => (
-                <div key={i} className="flex-1 bg-muted/40 rounded-sm" style={{ height: `${h}%` }} />
-              ))}
-            </div>
-          ) : netWorthTrend.length <= 1 ? (
-            <div className="flex flex-col items-center justify-center h-[140px] text-center">
-              <Wallet size={20} className="text-primary mb-2" />
-              <p className="text-xs text-muted-foreground max-w-md">
-                {snapshots.length > 0
-                  ? 'First snapshot saved — the trend line fills in over the coming weeks.'
-                  : 'The trend line appears once monthly snapshots are saved. See Forecast for projected trends.'}
-              </p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={140}>
-              <LineChart data={netWorthTrend} margin={{ left: 0, right: 8, top: 5, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 9, fill: 'hsl(240, 4%, 46%)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={Math.max(0, Math.ceil(netWorthTrend.length / 6) - 1)}
-                  height={18}
-                />
-                <YAxis
-                  width={44}
-                  tick={{ fontSize: 9, fill: 'hsl(240, 4%, 46%)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={formatYAxisTick}
-                />
-                <Tooltip content={<NWTooltip />} />
-                <Line
-                  dataKey="value"
-                  stroke="hsl(43, 56%, 52%)"
-                  strokeWidth={2}
-                  dot={{ r: 2.5, fill: 'hsl(43, 56%, 52%)', strokeWidth: 0 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
       </div>
 
       </div>
