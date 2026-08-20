@@ -1,5 +1,108 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 (**consolidation SURFACE built and shipped. Adapter + no-loan paydown engine +
+> credit-application collision check. `4243e395`, `43db5ce1`. Local only — NOT pushed.**)
+
+## ✅ DONE THIS SESSION
+Three files in, two commits, 1993 tests green, tsc clean, eslint clean.
+
+1. **`4243e395` — `src/lib/consolidation-adapter.ts` + 17 tests.** The bridge the engine never had.
+   `consolidationCards(accounts)` filters to active credit cards, coerces the string numerics
+   PostgREST hands back, parses `balance_tranches`, and passes `card_start_date` STRAIGHT THROUGH so
+   `summarizeUtilization` stays the single place that decides what is open.
+   `scheduledCardCharges(plans, cards, {asOf})` takes **only `plan_type='monthly_charge'`** — an
+   `upfront` plan is already in the card balance and counting it again would inflate every sizing
+   answer by its full remaining principal. Weekly/biweekly plans are converted to months with the
+   remaining TOTAL preserved exactly. `repointedPlanIds` marks a plan `landsOnCard:false`, which is
+   free in the solver; a test pins the $1,000 difference that makes.
+2. **`4243e395` — `src/lib/self-funded-paydown.ts` + 22 tests.** The answer to the denial.
+   `simulateSelfFundedPaydown` takes capacity as a **schedule whose last entry carries forward**
+   (so `[447.62, 447.62, 471.67, 927.50, 11.93]` expresses the whole two years and makes the
+   terminal $11.93 explicit), one-offs for the Feb bonus, `priorityCardIds` for Discover-first, and
+   `milestonesPct` for the dates that actually matter. Minimums are paid on EVERY card before any
+   priority spending. Order within a month is pessimistic on purpose: interest, then charges land,
+   then minimums, then surplus.
+   `creditApplicationCollisions` catches the Venture X / reapply clash — a test pins it, including
+   the suggested move to 2027-06.
+3. **`43db5ce1` — `src/components/debt/PaydownPlanPanel.tsx`**, mounted under `UtilizationPanel`
+   in `CreditCardEngine.tsx`. Capacity comes from `perCardPaymentsScaled` summed per month (new
+   `paydownCapacityByMonth` memo) — the cash-floor-constrained ledger, never a number the panel
+   invents. No payment arrays ⇒ honest empty state, not a fabricated milestone.
+
+## ⚠️ DESIGN DECISIONS WORTH NOT RE-LITIGATING
+- **`payoffMonth` is a month OFFSET (0 = this month); `simulateStatusQuo().months` is a COUNT of
+  payments.** They differ by exactly one and a test pins the relationship. The timeline array is
+  indexed by the offset, so it had to be the offset.
+- **The new sim costs ~$100 more interest than `simulateStatusQuo` at the same payment, and that is
+  correct.** `simulateStatusQuo` is a baseline that throws every dollar at the highest rate and
+  ignores that the other card still has a minimum due. This is a PLAN, so Discover's $249 gets paid
+  regardless. Do not "fix" the gap by dropping minimums.
+- **Minimum payments are allocated highest-rate-first within a card**, matching `simulateStatusQuo`.
+  Strict CARD Act would send the minimum to the LOWEST rate and only the excess to the highest.
+  That would be slightly more pessimistic and slightly more accurate; consistency with the sibling
+  engine won. Noted, not hidden.
+- Panel shows BOTH plans and picks neither, per the standing "never blended" rule.
+
+## ⏭️ START HERE
+1. **Live-verify the panel** at `http://localhost:8080` → Debt Payoff → Credit Card Payoff, signed
+   in as Tre (see the `dev-signin` skill). Nothing about this surface has been seen rendering. Check
+   specifically: the milestone dates are plausible against the handoff table below, the
+   Discover-first column shows a LATER payoff and MORE interest, and typing `2027-04` into
+   "Planning a loan or card application?" raises the Venture X collision.
+2. Feed it the **guaranteed-vs-expected income toggle** (carried from the last handoff, item 4).
+   The capacity currently comes from the engine, which reads `forecast_assumptions.promotions` —
+   and Tre said 2026-08-20 those are EXPECTED, not guaranteed. So the panel is currently optimistic
+   by exactly the amount those promotions add. **This is the highest-value next slice.**
+3. Surface `solveMinimumPrincipal` / `evaluateConsolidation` too — still nothing reads them. Lower
+   priority now the loan is declined, but the reapply window is spring 2027.
+4. Consider surfacing `repointedPlanIds` as a toggle: the panel already tells him repointing pulls
+   every date forward, and cannot yet show by how much.
+
+## 🚨 STILL TRUE — the loan was DENIED (2026-08-20), plan is self-funded paydown
+Discover declined the $19,000. Reasons: (1) payment relative to balance on their OWN card, $249
+against $10,422.03 at 94.7%; (2) too many recently opened trades (auto loan 2026-06-21); (3)
+revolving history too short. Plan: prequalify at Alliant/USAA (soft pull), point ALL surplus at
+Discover NOT the 27.49% Visa, reapply spring 2027. Watch for the adverse-action notice — it states
+the REAL score and bureau; ~690 is Tre's estimate, not a measurement.
+
+Free cash after living+car ($3,783.02), **guaranteed income only**:
+| Period | Available for cards |
+|---|---|
+| Sep - Oct 2026 | $447.62/mo |
+| Nov 2026 | $471.67 |
+| Dec 2026 - Feb 2027 | $927.50/mo + ~$1,397 Feb bonus |
+| Mar - Jun 2027 | $758.93 - $826.93/mo |
+| Jul - Aug 2027 | $1,111.93/mo |
+| **Sep 2027 onward (GF income GONE)** | **$11.93/mo** |
+
+## 🔴 UNRESOLVED FORK — cards vs the move. Do not decide this for him.
+Sep 2026 - Jun 2027 capacity is **~$8,718** (incl. Feb bonus). The move is **$10,340** by
+2027-07-01 and is entirely unfunded with no loan. He cannot do both.
+**Asked and NOT yet answered: what is forcing the July 2027 date, and can they renew instead?**
+
+## ⚠️ FACTS THAT CORRECT EARLIER HANDOFFS (unchanged, still load-bearing)
+- **Utilization is 74.1%, NOT 41.5%.** Venture X and Apple Card have future `card_start_date`;
+  their $20,000 is not drawable. Open limit $25,400.
+- **Plan on GUARANTEED income only.** `net_weekly = gross_weekly * 0.793 - 17.86`. Do not re-derive.
+- **Break-even vs carrying the cards is ~16.7%, NOT ~23%.** Pinned in tests.
+- **The rent is the real problem.** With NO loan he has $11.93/mo from Sep 2027. The Jul 2027 move
+  must land **<= $1,560/mo**.
+- `$625/mo` of savings-goal contributions are configured but NOT happening. Must stay paused.
+- ⚠️ **Apple Card is still dated 2028-02-28 — leave it.** Venture X is at 2027-04-20, which is the
+  reapply window; the new collision check now flags this, but the DB row has NOT been moved again.
+
+## ⏭️ STILL OPEN (carried)
+1. `dated-commitments.ts` surfaces — adapter, per-goal shortfall, advisor one-tap proposal,
+   forecast floors.
+2. **JOB 2 — Forecast hero aside** (`ForecastHero.tsx`), scoped, not started.
+3. Live-verify build<->loan strip on `/builds` with the real C5 (`9fc22c7c`).
+4. ~~390px account-arrow pass~~ **CLOSED — stop raising it.**
+5. Confirm first post-move net-worth snapshot write (row dated 08-25+).
+6. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+7. A goal's OWN `monthly_contribution` can still overshoot its target.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 night #2 (**Discover loan DENIED. Plan pivoted to self-funded paydown. Two live DB
 > writes made. Consolidation engine shipped `3c61686a`, SURFACE still not built.**)
 
