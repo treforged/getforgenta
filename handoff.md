@@ -50,14 +50,30 @@
 > - `npm audit` reports **3 moderate** — that is the SAME already-dismissed `uuid` → `xcode` →
 >   `@capacitor/cli` chain from alert #63. Pre-existing, build-time only, not introduced here.
 >
-> ## ⏭️ ACTION FOR TRE (the only thing outstanding)
+> ## ✅ THE LOCAL INSTALL IS ALSO REFRESHED — nothing is outstanding
 >
-> **The running dev server on :8080 is still on the OLD `node_modules`.** Local `main` is
-> fast-forwarded to `848f99eb`, but the install could not be refreshed while vite held the file
-> lock. Stop the dev server, run `npm ci`, restart via `node scripts/dev-session.mjs up`.
-> Nothing is broken; the local install is just behind `package-lock.json`.
+> Tre asked for this to be finished rather than handed back, so it was. The dev server was stopped
+> (it was the ONLY `node.exe` running and the sole listener on 8080 — checked with `netstat -ano`
+> before killing it, precisely because parallel sessions share this tree), `npm ci` then succeeded
+> with the lock released, and the server was restarted with `node scripts/dev-session.mjs up`.
 >
-> ## ⏭️ NEXT UP (unchanged, carried forward)
+> **Installed versions confirmed on disk, not just in the lockfile**: `lucide-react 1.31.0`,
+> `framer-motion 13.1.0`, `@supabase/supabase-js 2.112.3`, `sonner 2.0.8`,
+> `typescript-eslint 8.67.0`, `eslint 10.8.1`.
+>
+> ### Live-verified against the real account on the new dependency tree
+>
+> - `/dashboard` renders signed in, **Goals pill active as the third panel**, savings growth chart
+>   drawing. Every lucide icon paints — pills, bottom nav, the vehicle banner.
+> - `/forecast` renders with **no pill row** (as intended), hero "Jun 2028 / CC Debt Free!", and the
+>   Net Worth & Assets projection **completes its animation** — bars, all four series, full 60
+>   months. That was the `framer-motion` 13.1 risk and it is clear.
+> - **Zero console errors or warnings on either page.** A missing lucide export or a broken
+>   motion API would have surfaced here; nothing did.
+> - ⚠️ Charts screenshot as a tiny sliver at the left edge if captured immediately — that is
+>   recharts mid-animation, NOT a broken chart. Wait ~3s before judging one.
+>
+> ## ⏭️ NEXT UP (carried forward)
 >
 > 1. **The 390px visual pass on Tre's phone** — the touch reorder buttons in `SurplusRankingSection`
 >    have never been seen on a real device, and the three-pill Dashboard row wants a look too.
