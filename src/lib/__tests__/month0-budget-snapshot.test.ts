@@ -16,6 +16,7 @@ import type { Month0Result, Month0CashChain } from '../debt-model-types';
 const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
   const base = {
     fundingBalance: 2800, income: 5850, expenses: 1975, planExpenses: 0, goalContributions: 150,
+    autoExtraReserve: 0,
     carSavedEarmark: 0, carSavedShortfall: 0,
     carReserve: 0, carLoanPayment: 0, vehicleInsurance: 0, mortgagePayment: 0,
     transfers: 0, oneTimeNet: 0,
@@ -28,6 +29,7 @@ const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
     // `carSavedShortfall` is deliberately absent: it is not cash leaving the account, it is the part
     // of the earmark the account could not cover. Folding it would double-count (finding §2.9).
     cashPreDebt: base.fundingBalance + base.income - base.expenses - base.planExpenses - base.goalContributions
+      - base.autoExtraReserve
       - base.carSavedEarmark
       - base.carReserve - base.carLoanPayment - base.vehicleInsurance - base.mortgagePayment
       - base.transfers + base.oneTimeNet,

@@ -24,6 +24,9 @@ import { computeFloorProtection } from '@/lib/floor-protection';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { buildRankedTargets } from '@/lib/ranked-extra-payment-targets';
+import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
+import { computeAutoExtraReserve } from '@/lib/ranked-surplus-allocation';
 import type { Tables } from '@/integrations/supabase/types';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
@@ -1784,8 +1787,44 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cashPreDebt, so the cap authorized one month's installments more paydown than the Forecast
       // row actually had, and the chain below rendered a total the Forecast page never agreed with.
       const m0PlanExpenses = planCashExpensesEarly[0] ?? 0;
-      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
+      const cashPreDebtBeforeAutoExtra = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
         - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
+
+      // ── RANKED AUTOMATIC EXTRA PAYMENTS ───────────────────────────────────────
+      // Every user-facing debt surface (Dashboard, Budget Control, Savings Goals via
+      // useMonth0DebtBreakdown; /debt via this hook directly) reads the converged month0 below, so
+      // this is where an opted-in goal has to take its share for the feature to exist at all.
+      //
+      // ⚠️ The elaborate revolving cascade is left completely alone. This only decides a RESERVE
+      // out of the deployable pool; everything downstream then runs on the reduced pool exactly as
+      // before. `auto_extra` defaults FALSE, so `reserved` is 0 for every existing user and the
+      // whole cascade stays byte-identical.
+      //
+      // ⚠️ The chicken-and-egg — the reserve is decided from a pool that is itself net of the
+      // floor — resolves in exactly this order: pool from the PRE-reserve cash, then the reserve,
+      // then one subtraction. `computeAutoExtraReserve` settles the card block's combined minimum
+      // before it consults a rank at all, so `reserved` can never exceed `pool − ccMinForMonth` and
+      // the `Math.max(ccMinForMonth, …)` in `availableForRevolving` below is untouched by it.
+      //
+      // ⚠️ `cardsSortOrder` stays at its default of 0 — cards first, today's behaviour — until
+      // there is somewhere to persist the card block's position (a `profiles.cards_sort_order`
+      // migration). Passing anything else now would be inventing a rank the user never chose.
+      const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - m0FloorAugmented - cyclingPayment);
+      const autoExtra = computeAutoExtraReserve(
+        autoExtraPool,
+        ccMinForMonth,
+        liveRevolvingBal,
+        buildRankedTargets({
+          cards, carFunds, goals, strategy: debtStrategy, asOf: payoffOrderAsOf(now),
+          fundingAccountId: resolvedDebtFundingId ?? null,
+          accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+        }),
+      );
+      // Reserved cash has LEFT checking, exactly like a goal contribution. Subtracting it here — a
+      // chain term — rather than from `availableForRevolving` is what keeps
+      // `endCash = cashPreDebt − safeToPayTotal + carReserveHeld` honest; see Month0CashChain's
+      // `autoExtraReserve` doc for the double-count that the other placement produces.
+      const cashPreDebt = cashPreDebtBeforeAutoExtra - autoExtra.reserved;
 
       // Findings §2.6/§2.3: the same chain, term by term — so a UI can render the engine's own
       // derivation instead of re-deriving it from page-local sums. monthlySavingsAndCar is split
@@ -1809,6 +1848,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         expenses: m0Expenses,
         planExpenses: m0PlanExpenses,
         goalContributions: goalContrib,
+        autoExtraReserve: autoExtra.reserved,
         carSavedEarmark: carSaved.applied,
         carSavedShortfall: carSaved.shortfall,
         carReserve,

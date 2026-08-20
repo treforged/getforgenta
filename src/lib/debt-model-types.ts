@@ -58,8 +58,8 @@ export interface Month0Result {
    * with the decimals"). The identity holds in exact arithmetic:
    *
    *   cashPreDebt = fundingBalance + income − expenses − planExpenses − goalContributions
-   *                 − carSavedEarmark − carReserve − carLoanPayment − vehicleInsurance
-   *                 − mortgagePayment − transfers + oneTimeNet
+   *                 − autoExtraReserve − carSavedEarmark − carReserve − carLoanPayment
+   *                 − vehicleInsurance − mortgagePayment − transfers + oneTimeNet
    *
    * `carSavedShortfall` is NOT in that identity by design — see its own doc comment.
    *
@@ -97,6 +97,22 @@ export interface Month0CashChain {
   planExpenses: number;
   /** Monthly savings-goal contributions the engine reserved. */
   goalContributions: number;
+  /** RANKED AUTOMATIC EXTRA PAYMENTS — surplus this month that opted-in goals and car funds took
+   *  ahead of the credit cards (`computeAutoExtraReserve`, ranked-surplus-allocation.ts). Zero for
+   *  every user with nothing opted in, which `auto_extra`'s FALSE default makes the norm.
+   *
+   *  ⚠️ It is a term in THIS chain, and not a subtraction from `availableForRevolving`, on purpose.
+   *  `endCash = cashPreDebt − safeToPayTotal + carReserveHeld`, so shaving the reserve off the card
+   *  pool alone would drop `safeToPayTotal` while RAISING `endCash` by the same dollars — the app
+   *  would claim the user has that money still in checking *and* that the goal grew by it. As a
+   *  chain term it is what it conceptually is: an extra goal contribution, a sibling of
+   *  `goalContributions` and `carReserve`, and `endCash` is then correct by construction.
+   *
+   *  The reserve is decided from a pool that is itself net of the cash floor, which resolves in one
+   *  order: pool = cashPreDebt(before) − floor − cyclingPayment → reserve → subtract. The card
+   *  block's combined minimum is settled inside the allocator BEFORE any rank is consulted, so a
+   *  goal ranked above the cards can only ever take surplus, never a minimum payment. */
+  autoExtraReserve: number;
   /** Down-payment money ALREADY saved that is sitting in the funding account — still the user's
    *  cash, but spoken for, so it is not offered up for card paydown. Capped at the account balance
    *  (`resolveCarFundEarmark`), which is what makes it a legitimate chain term. */

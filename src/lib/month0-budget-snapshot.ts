@@ -132,6 +132,11 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
     // part of the fold and the rows read high by exactly one month's installments.
     term('planExpenses', 'Payment plans (from checking)', c.planExpenses, '−', 'negative'),
     term('goals', 'Savings goals', c.goalContributions, '−', 'muted'),
+    // Ranked automatic extra payments. Its own row rather than folded into 'Savings goals': the
+    // manual contribution is a fixed bill the user set, this is surplus the ranking diverted, and
+    // a user who sees their card paydown drop is owed the reason on the same screen.
+    term('autoExtra', 'Extra to goals & car funds', c.autoExtraReserve, '−', 'muted',
+      'Surplus automatically sent to the goals and car funds you ranked above your cards'),
     term('carSavedEarmark', 'Already saved toward a car', c.carSavedEarmark, '−', 'muted',
       shortfallNote
         ?? 'Down-payment cash already sitting in this account — still yours, just already spoken for'),
@@ -166,8 +171,8 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
       spentSoFar: Math.max(0, spentSoFar),
       // §2.9: `fundingBalance` is gross now, so the earmark must land in a segment or the donut
       // over-reports the whole pie by exactly the earmark.
-      billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.carSavedEarmark
-        + c.carReserve + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
+      billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.autoExtraReserve
+        + c.carSavedEarmark + c.carReserve + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
       locked: Math.max(0, cashFloor + heldForEvent + surplus),
       deployable: Math.max(0, availableToDeploy),
       shortfall: projectedRemaining < 0 ? -projectedRemaining : 0,
