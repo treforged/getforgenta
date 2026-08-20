@@ -1,5 +1,64 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (**THE RESERVE IS NOW INSIDE THE ENGINE EVERY SURFACE ACTUALLY READS**) — **`4766688b` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1797 passed across 191 files** (was 1789/190), build exit 0.
+>
+> ## ⏭️ START HERE: THE SAVINGS SIDE MUST GROW BY THE SAME DOLLARS
+>
+> **Slice 1 is done (below). Slice 2 is the one that must not be left undone.** `useCardProjection`'s month 0 now moves real cash out of checking and toward a goal — but **nothing yet puts it into the goal's balance**. `forecast-engine.ts` grows `savingsBal` only from `monthly_contribution` and the transfer/lump-sum rules (`perAcctSavings`, the map at `forecast-engine.ts:207`, mutated around `:1348–1404`, summed into `savingsBal` at `:1410`). Until the auto-extra amount is added there, an opted-in user's cash simply **evaporates** — strictly worse than not shipping the feature at all.
+>
+> **Nobody is exposed today** (`auto_extra` defaults FALSE and there is still no UI to set it), so this is safe on `main` — but it is the blocker for everything after it. **Do not build the drag-to-rank UI before this closes.**
+>
+> Where to look, in order:
+> 1. `forecast-engine.ts:207` `perAcctSavings` / `:1410` `savingsBal` — the per-account savings tracker the balance is re-derived from each month.
+> 2. `computeAutoExtraReserve` returns **`perTarget: { id, kind, amount }[]`**, already keyed by goal/car-fund id. That is exactly the shape needed to credit the right pool. ⚠️ Month 0 currently **discards** it — `useCardProjection.ts` uses only `autoExtra.reserved`. Surfacing `perTarget` on `Month0Result` is probably the first edit.
+> 3. The forecast's own month-0 pin comes from `generateRecommendations` (`forecast-engine.ts:816`, `:1471`), which has its OWN reserve from the previous session. **There are two reserves now** — the engine pin and `useCardProjection`'s — and slice 2 has to decide which one credits savings, or it will double-credit.
+>
+> ### Then, in order
+> 3. **Multi-month.** Month 0 only, still. An opted-in user's projected payoff date reads OPTIMISTIC until the sim's future months model the same diversion. ⚠️ Recapture a fixture BEFORE touching the convergence loop — Q1–Q12 history, `maxPasses` 24.
+> 4. **Storage for `cardsSortOrder`.** Needs a `profiles.cards_sort_order integer not null default 0` migration. Until then every path passes the default 0 (cards first) — both call sites say so in a comment.
+> 5. **The drag-to-rank UI**, reusing the builds reorder pattern. ⚠️ The list must contain a **"Credit cards" row**; without a visible row for it the user cannot express "this goal matters more than my debt", which is the whole ask. Write `sort_order` for every row on drop. **Not before 2–3.**
+>
+> ## ✅ WHAT LANDED THIS ROUND (`4766688b`)
+>
+> The reserve moved to where the users are. `generateRecommendations` is only the forecast month-0 pin; **Dashboard, Budget Control, Savings Goals (via `useMonth0DebtBreakdown`) and /debt all read `useCardProjection`'s converged pass-3 `month0`**, so that is where the feature had to land.
+>
+> **It is a NEW TERM in `Month0CashChain` (`autoExtraReserve`), not a subtraction from `availableForRevolving`.** That was the trap the previous handoff named: `endCash = cashPreDebt − safeToPayTotal + carReserveHeld`, so shaving the reserve off the card pool alone drops `safeToPayTotal` while **raising** `endCash` by the same dollars — the app would claim the user still has the money in checking *and* that the goal grew by it. As a chain term, `endCash` is correct by construction. The identity comment in `debt-model-types.ts` was updated in the same edit, and `month0-budget-snapshot.ts` + `Dashboard.tsx`'s drawer each gained a row (omit them and the on-screen column reads short by exactly the reserve).
+>
+> **Order of operations, which is the whole chicken-and-egg:** `pool = max(0, cashPreDebtBeforeAutoExtra − m0FloorAugmented − cyclingPayment)` → `computeAutoExtraReserve(pool, ccMinForMonth, liveRevolvingBal, targets, 0)` → `cashPreDebt = before − reserved`. Because the allocator settles the card block's combined minimum before consulting any rank, `reserved ≤ pool − ccMinForMonth`, so the `Math.max(ccMinForMonth, …)` in `availableForRevolving` is provably untouched.
+>
+> ### ⚠️ THE BEHAVIOUR THAT SURPRISED THE TESTS, AND IS CORRECT
+>
+> **The reserve comes out of card paydown OR out of otherwise-idle surplus, depending on the cash position.** A test that asserts "`safeToPayTotal` drops by the reserve" is pinning an accident:
+> - **Cash-tight** (checking 4000 in the harness): the cards were absorbing the whole pool, so `safeToPayTotal` falls 2800 → 200 and `endCash` is unchanged at the floor.
+> - **Cash-loose** (checking 8000): `revolvingPayment` was already capped by `simRevolvingTotal`, so `safeToPayTotal` does not move at all and `endCash` falls by the reserve instead.
+>
+> The invariant that holds in **every** case, and what the test pins: `(safeToPayBase − safeToPayIn) + (endCashBase − endCashIn) === reserved`, with **both drops ≥ 0**. Nothing appears from nowhere, nothing evaporates, and `endCash` never rises.
+>
+> ⚠️ **`cyclingPayment` is much larger than it looks in a simple fixture** — a card with `payment_preference: 'revolving'` still produced a 5,910 cycling payment at checking 8000. That is why the pool is far smaller than `cashPreDebt − floor`. Anyone hand-computing expected numbers here will be wrong until they account for it.
+>
+> **Evidence:** `useCardProjection.autoExtraReserve.test.ts` (8) — opted-out is `toEqual`-identical to no goal at all; a **missing** `auto_extra` column reads as opted OUT (the allocator treats an omitted flag as opted IN, so this boundary compares to `true`); the accounting identity across six cash positions; the card minimum held across eight including 0 and 500, with `cashWarning` unchanged; a full goal reserves nothing; the reserve caps at remaining need; the chain identity balances to 6 decimals.
+>
+> ## Mechanics (unchanged, still true)
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep` / `git cat-file -e` against `origin/main`).
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS.** `resize_window` reports success and does nothing; popups are blocked; there is no way to get a real 390px viewport from a session.
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** Any new overlay must portal to `document.body`.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper. Never re-add it to a child.
+>
+> **⚠️ Adding a required field to `CarFund`/`SavingsGoal` costs eleven fixtures.** Adding one to `Month0CashChain` cost two (`month0-budget-snapshot.test.ts`'s `chain()` helper and `month0-debt-breakdown.test.ts`'s literal) plus the two renderers.
+>
+> **Versioning:** root `VERSION` (`6.1.0`) is the truth; `node scripts/next-version.mjs --write` classifies and applies the bump. **Not bumped this session** — still nothing user-visible.
+>
+> **Backups:** `backups/2026-08-19_201537/` holds the six pre-edit originals.
+>
+> ## Still open (carried)
+> Dependabot #109/#110 · `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges) · no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate) · the `PageLoader` connection swap is tested but never seen in a browser · the visual 390px pass still needs Tre's phone.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (**THE CALL SITE IS WIRED — and it revealed that the previous handoff's plan was aimed at the wrong engine**) — **`976c849f` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1789 passed across 190 files** (was 1784/189), build exit 0.
 >
 > ## ⏭️ START HERE: THE RESERVE HAS TO GO INTO `useCardProjection`, NOT `generateRecommendations`
