@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
@@ -291,8 +293,19 @@ const toMonthly = (amount: number, freq: string) =>
   : freq === 'yearly' ? amount / 12
   : amount;
 
-/** Map an enriched goal onto the pure projection model's input shape. */
-const toGrowthGoal = (g: EnrichedGoal, index: number): GrowthGoalInput => ({
+/**
+ * Map an enriched goal onto the pure projection model's input shape.
+ *
+ * `extraByGoal` is the forecast engine's own ranked automatic extra, keyed by goal id (see
+ * `buildAutoExtraByTarget`). Passing it is what makes ticking "Auto Extra" move this chart, and
+ * reading it from the engine rather than re-deriving it is what stops the chart and the Forecast
+ * disagreeing. Omitted (or a goal with nothing diverted) leaves every number exactly as it was.
+ */
+const toGrowthGoal = (
+  g: EnrichedGoal,
+  index: number,
+  extraByGoal?: Map<string, number[]>,
+): GrowthGoalInput => ({
   id: g.id ?? String(index),
   name: g.name ?? '',
   currentAmount: Number(g.current_amount),
@@ -305,12 +318,13 @@ const toGrowthGoal = (g: EnrichedGoal, index: number): GrowthGoalInput => ({
   // Handoff 4b, completing it: the chart stops contributing once the goal is funded, exactly as
   // the Forecast, Dashboard and Debt engine already do. Interest keeps accruing after that.
   targetAmount: Number(g.target_amount),
+  extraByMonth: g.id ? extraByGoal?.get(g.id) : undefined,
 });
 
-function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
+function SavingsGrowthChart({ goals, extraByGoal }: { goals: EnrichedGoal[]; extraByGoal: Map<string, number[]> }) {
   const { rows: chartData, series } = useMemo(
-    () => buildSavingsGrowthData(goals.map(toGrowthGoal)),
-    [goals],
+    () => buildSavingsGrowthData(goals.map((g, i) => toGrowthGoal(g, i, extraByGoal))),
+    [goals, extraByGoal],
   );
   const isMobile = useIsViewportBelow(640);
   // 60 monthly points is far too many labels and dots to draw: thin the axis to
@@ -381,6 +395,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   // Payoff and Forecast read, instead of this page's own legacy engine pass. Linked-account
   // "remaining cash" now nets out the same payments /debt recommends.
   const { recommendations: debtRecs, totalRecommended: debtTotalRecommended } = useMonth0DebtBreakdown();
+  // Same authoritative engine run the Forecast panel draws; see `autoExtraByGoal` below.
+  const { projections } = useCardProjectionContext();
 
   const debtTxns = useMemo(() => {
     const fundId = profile?.default_deposit_account ||
@@ -452,6 +468,14 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       };
     });
   }, [goals, accountMap, rules, accounts, getLinkedAmount]);
+
+  // The ranked automatic extra the Forecast already diverts to each goal, month by month. Free:
+  // CardProjectionProvider (mounted by DashboardLayout) has already run the engine, so this is a
+  // re-key of rows the page is holding anyway, not a second forecast.
+  const autoExtraByGoal = useMemo(
+    () => buildAutoExtraByTarget(projections.data ?? []),
+    [projections],
+  );
 
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
@@ -604,7 +628,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   // date, and planned lump sums all count toward the date.
   function estimateCompletion(g: EnrichedGoal): string {
     if (Number(g.current_amount) >= Number(g.target_amount)) return 'Complete';
-    const months = estimateGoalCompletionMonths(toGrowthGoal(g, 0), Number(g.target_amount));
+    const months = estimateGoalCompletionMonths(toGrowthGoal(g, 0, autoExtraByGoal), Number(g.target_amount));
     if (months === null) {
       return Number(g.monthly_contribution) > 0 ? 'Beyond 50 yrs' : 'Set contribution';
     }
@@ -693,7 +717,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         </Link>
       )}
 
-      <SavingsGrowthChart goals={allGoals} />
+      <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} />
 
       <SurplusRankingSection cardsSubtitle={cardsRankSubtitle} />
 

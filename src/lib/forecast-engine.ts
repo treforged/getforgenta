@@ -74,6 +74,12 @@ export interface ForecastMonthRow {
   floorItems: { name: string; amount: number; dueDay: number }[];
   prePaycheckBillsTotal: number; settingsCashFloor: number;
   assetBreakdown: { bucket: 'retirement' | 'investment' | 'savings'; id: string; name: string; balance: number }[];
+  /** This month's RANKED AUTOMATIC EXTRA payment per target, keyed by goal id / car fund id and
+   * carrying only the targets that actually took money this month. Emitted so a surface that
+   * projects one target on its own (the Goals page's Savings Growth chart) can add the same
+   * dollars the engine already diverted, instead of modelling a second, disagreeing version of
+   * the allocation. Purely an OUTPUT of the allocation in step 4c-ii — nothing reads it back. */
+  autoExtraByTarget: Record<string, number>;
   nonCCLiabBreakdown: { id: string; name: string; account_type: string; balance: number }[];
   carLoanBreakdown: { name: string; balance: number }[];
   /** This month's revolving-debt-cash TARGET for the next convergence pass: the sim's own
@@ -1692,6 +1698,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         floorItems: b.floorItems ?? [],
         prePaycheckBillsTotal: b.prePaycheckBillsTotal ?? 0,
         settingsCashFloor: cashFloor,
+        autoExtraByTarget: autoExtraThisMonth.reduce<Record<string, number>>((acc, t) => {
+          // Summed rather than assigned: `perTarget` is a list, and a target listed twice must
+          // credit the chart with both dollars, never just the last one.
+          if (t.amount > 0) acc[t.id] = (acc[t.id] ?? 0) + t.amount;
+          return acc;
+        }, {}),
         // Per-account breakdown snapshots for popup display
         // Per-account balances stay unrounded: the popup and CSV export are their only readers,
         // and both now print exact cents (N8).

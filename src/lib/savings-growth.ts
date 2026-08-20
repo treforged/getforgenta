@@ -8,6 +8,8 @@
 //   - every later month:  balance = balance * (1 + monthlyRate)
 //                                 + monthly contribution (once contributions have started)
 //                                 + any planned lump sums dated in that month
+//                                 + the forecast engine's ranked automatic extra for that month,
+//                                   when the caller supplies `extraByMonth` (see that field)
 //   - interest accrues in EVERY month, including months before contributions begin
 //   - the monthly contribution STOPS after the month that first reaches
 //     `targetAmount` (see `contributionCutoffIdx`); interest and planned lump sums
@@ -41,6 +43,19 @@ export type GrowthGoalInput = {
    * already do via `goal-linkage.ts`. Omit it for a raw "contribute forever" projection.
    */
   targetAmount?: number | null;
+  /**
+   * The RANKED AUTOMATIC EXTRA the forecast engine diverts to this goal, month by month, index 0
+   * being the current month — i.e. `ForecastMonthRow.autoExtraByTarget[goalId]` lifted straight
+   * off the projection rows. Optional, and omitting it (or passing all zeros) leaves every number
+   * in this module exactly as it was.
+   *
+   * It is READ from the engine rather than re-derived here on purpose. The ranked surplus is not
+   * flat — it grows as cards retire and shrinks as goals fill — so any second model of it would
+   * put this chart a few months away from the Forecast, which is the §2.5 bug class this file's
+   * header exists to prevent. The engine also stops diverting once a goal is funded, so these
+   * values need no cutoff of their own.
+   */
+  extraByMonth?: number[];
 };
 
 /** One line on the chart. `key` is the recharts dataKey, `name` the label. */
@@ -89,6 +104,7 @@ type GoalState = {
   /** First month index at which the contribution stops, or null for "never stops". */
   cutoffOffset: number | null;
   lumpsByMonth: Map<number, number>;
+  extraByMonth: number[];
 };
 
 /**
@@ -128,6 +144,9 @@ function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, mont
     // null or it would be defining its own answer in terms of itself.
     cutoffOffset: null,
     lumpsByMonth,
+    // Sanitised at the boundary: a hole or a NaN in the engine's output must add nothing rather
+    // than turn the whole projected line into NaN.
+    extraByMonth: (g.extraByMonth ?? []).map(v => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0)),
   };
 }
 
@@ -137,6 +156,10 @@ function stepMonth(s: GoalState, monthIndex: number): number {
     && (s.cutoffOffset == null || monthIndex < s.cutoffOffset);
   s.balance = s.balance * (1 + s.rate)
     + (contributing ? s.pmt : 0)
+    // The engine's own ranked extra for this month. Deliberately NOT gated on `contributing`:
+    // the engine has already decided both whether this goal ranks and when it stops, so gating it
+    // again here would be this module second-guessing the allocation it is quoting.
+    + (s.extraByMonth[monthIndex] ?? 0)
     + (s.lumpsByMonth.get(monthIndex) ?? 0);
   return s.balance;
 }
@@ -201,7 +224,8 @@ export function estimateGoalCompletionMonths(
 
   if (s.balance >= target) return 0;
   // Nothing going in and nothing accruing: it will never get there.
-  if (s.pmt <= 0 && s.rate <= 0 && s.lumpsByMonth.size === 0) return null;
+  if (s.pmt <= 0 && s.rate <= 0 && s.lumpsByMonth.size === 0
+    && !s.extraByMonth.some(v => v > 0)) return null;
 
   for (let i = 1; i < maxMonths; i++) {
     if (stepMonth(s, i) >= target) return i;
