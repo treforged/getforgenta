@@ -1,5 +1,100 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**BUILD → CAR LOAN PLAN CONNECTED, shipped. NET-WORTH-CHART MOVE IS THE NEXT JOB.**)
+>
+> ## ⏭️ START HERE — Tre's second ask this session, NOT started
+>
+> Tre, mid-session: *"move the data and net worth chart from the accounts section to the overview
+> section. it seems redundant and data is to spread out."*
+>
+> Scoped but **not built** — the context gate fired mid-slice and a half-moved chart is worse than
+> an unmoved one. Everything below is what the scoping found, so the next session starts warm.
+>
+> - The Dashboard's **Accounts panel is the whole `Accounts` page rendered `embedded`**
+>   (`Dashboard.tsx` ~line 1529, inside `Suspense`). It is not a widget — it owns nine queries and
+>   is mounted only when its pill is active, deliberately.
+> - The net-worth chart is **inside `src/pages/Accounts.tsx` ~line 852** (`LineChart` over
+>   `netWorthTrend`, built ~line 356 from `useNetWorthSnapshots`). The Overview is a
+>   `useDashboardLayout` widget stack (`visibleWidgets.map` → `renderWidget`), so the move means
+>   **extracting the chart into a widget**, not relocating JSX.
+> - **Confirm what "redundant" means before moving anything.** The Overview already carries a net
+>   worth TILE (`buildNetWorthBreakdown` / `openNetWorthCalc`, `Dashboard.tsx` ~377-384, ~940).
+>   Tre may mean the tile and the chart duplicate each other. Decide whether the widget REPLACES
+>   the tile or sits under it — and per his own rule, do not take information away to tidy up:
+>   the page that had the answer should still have it.
+> - ⚠️ **THE TRAP THAT WILL BITE.** `Accounts.tsx` line 174 calls `useNetWorthSnapshotRecorder()`,
+>   and that hook is **the sole writer of net-worth history**. Snapshot recording already died once
+>   this way (2026-05-22, when `/net-worth` became a redirect and orphaned its only writer; fixed
+>   2026-08-02 by hooking it to Accounts). If the chart moves to a panel the user looks at and the
+>   RECORDER stays on a panel they stop visiting, the chart slowly stops having anything to draw.
+>   **Move the recorder with the chart, or mount it above both panels.** Grep what a page WRITES
+>   before moving what it SHOWS.
+> - Also grep `src/lib/page-guides.ts` — guides are keyed `surface:panel` and a panel move has
+>   silently dropped a guide before.
+>
+> ## ✅ SHIPPED THIS SESSION — 1. Build ↔ car loan plan, commit `9fc22c7c`
+>
+> Tre: *"on build page, allow users to connect car loan plan to the car."*
+>
+> The Build page could tell you the modifications came to $12,400 and the Vehicles page could tell
+> you $16,254 was still owed on the car, and **nothing put the two on one screen**.
+> `car_builds.car_fund_id` is that join.
+>
+> - **Migration `20260820_car_builds_car_fund_id`** — nullable FK, `on delete set null` so deleting
+>   a loan plan never deletes the build log. **Applied to the live DB and verified in Postgres**,
+>   and `src/integrations/supabase/types.ts` was patched **in the same commit** (an applied
+>   migration does not reach it — that trap has cost this repo 13 tsc errors on `main` before).
+> - **`src/lib/build-loan-link.ts`** is the only reader. ⚠️ **The FK cannot enforce that both rows
+>   share a `user_id`**, so `resolveBuildCarFund` resolves the id against the CALLER's own funds and
+>   anything else reads as unconnected. Same rule `vehicle-loan-link.ts` follows — read its header
+>   before relaxing this.
+> - Every figure comes from `vehicle-loan-engine`, so the Build page **cannot quote a payoff date
+>   the Vehicles page and the forecast disagree with** (the §2.5 bug class).
+> - `BuildCarSummary` is a union with **four** cases, not three: a `phase: 'loan'` fund can also be
+>   not-yet-started or already paid off, and **both come back from `getActiveCarLoanPayments` as
+>   simply absent**. Collapsing them would print a confident `$0` over two different truths, so
+>   those two states render words and no figures.
+> - `BuildCarStrip.tsx` renders above the build totals; `BuildFormModal` gained the connect select,
+>   hidden entirely when the user has no car funds.
+> - **Privacy, checked not assumed:** `supabase/functions/public-build` selects an **explicit column
+>   list**, so the new column is never served to a shared build page. No edge-function change, and
+>   that is deliberate rather than an oversight.
+> - Demo build left **unconnected on purpose** — the demo's only loan-phase fund is a RAV4 and
+>   wiring a Corvette build to it would read as a bug. A seeded demo pairing is a fair follow-up.
+>
+> 13 new pure tests against Tre's real C5 numbers.
+> Gates: **tsc 0 · eslint 0 · 1865 passed across 198 files · build exit 0.**
+>
+> ⚠️ **NOT live-verified in the browser yet.** The gates are green and the numbers are pinned to
+> the engine, but nobody has opened `/builds`, connected the C5, and looked at the strip. That is
+> the first five minutes of the next session.
+>
+> ## ✅ SHIPPED THIS SESSION — 2. The reorder-transition guard, commit `4ad6a4cc`
+>
+> Carried-forward item 2 from the last handoff, now closed.
+> `src/components/savings/__tests__/SurplusRankingSection.test.tsx`, 10 tests.
+>
+> A layout animation **cannot be asserted in jsdom** — no layout, so framer measures nothing and
+> writes no transform. The durable guard is therefore the **className string**: the row must never
+> carry `transition-all` again (it includes `transform`, which is what fought framer per-frame and
+> made the reorder judder). Also pins which control each input type gets — touch gets the two rank
+> buttons, pointer gets the drag handle, read-only demo gets neither — and that a tap commits.
+>
+> **The would-fail check was actually run**: reintroducing `transition-all` fails 3 of the 10.
+>
+> ## ⏭️ NEXT UP
+>
+> 1. **The net-worth chart move above.** Settle "redundant" first, and move the RECORDER too.
+> 2. **Live-verify the build↔loan strip** on `/builds` with the real C5 connected.
+> 3. **The 390px pass on Tre's actual phone** — the reorder arrows are measured but have never been
+>    seen on real hardware, and a desktop browser cannot do it (`resize_window` reports success and
+>    does nothing).
+> 4. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 5. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**TOUCH REORDER ARROWS ENLARGED — done, gated, measured live on both surfaces**)
 >
 > ## ✅ DONE — commit `04db199f`
