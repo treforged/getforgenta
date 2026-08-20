@@ -26,7 +26,7 @@ import type { RankedTarget } from './ranked-surplus-allocation';
 export type BuildRankedTargetsParams = {
   cards: readonly CardData[];
   carFunds: readonly CarFund[];
-  goals: readonly SavingsGoal[];
+  goals: readonly RankableGoal[];
   /** Payoff strategy in force — orders the cards WITHIN the card block. */
   strategy: 'avalanche' | 'snowball';
   /** Local YYYY-MM-DD, for the marginal-APR ranking. */
@@ -58,8 +58,25 @@ export function carFundRemainingNeed(
   return need < CENT ? 0 : need;
 }
 
+/**
+ * A savings goal as this module needs it.
+ *
+ * Structural and all-optional, listing only the columns this module reads. That is genuinely what
+ * the app's data layer hands back — `useSavingsGoals` returns `Partial<Tables<'savings_goals'>>[]`,
+ * whose nullable columns do not even fit `Partial<SavingsGoal>` — and pretending otherwise at this
+ * boundary would only move the lie one layer up. Every field is read defensively below, and a row
+ * with no `id` is not a target at all.
+ */
+export type RankableGoal = {
+  id?: string | null;
+  sort_order?: number | null;
+  auto_extra?: boolean | null;
+  target_amount?: number | null;
+  current_amount?: number | null;
+};
+
 /** A goal's remaining need. Negative (over-funded) reads as 0, never as a refund. */
-export function goalRemainingNeed(goal: SavingsGoal): number {
+export function goalRemainingNeed(goal: RankableGoal): number {
   const need = (Number(goal.target_amount) || 0) - (Number(goal.current_amount) || 0);
   return need < CENT ? 0 : need;
 }
@@ -107,14 +124,19 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
     autoExtra: f.auto_extra,
   }));
 
-  const goalTargets: RankedTarget[] = goals.map(g => ({
-    id: g.id,
-    kind: 'goal' as const,
-    sortOrder: g.sort_order,
-    minimum: 0,
-    capacity: goalRemainingNeed(g),
-    autoExtra: g.auto_extra,
-  }));
+  // ⚠️ `auto_extra` is compared to `true`, never passed through. The allocator reads an OMITTED
+  // `autoExtra` as opted IN, and a partial row can be missing the column entirely — so a bare
+  // pass-through would silently divert surplus away from the cards on a row that never opted in.
+  const goalTargets: RankedTarget[] = goals
+    .filter((g): g is RankableGoal & { id: string } => typeof g.id === 'string')
+    .map(g => ({
+      id: g.id,
+      kind: 'goal' as const,
+      sortOrder: Number(g.sort_order) || 0,
+      minimum: 0,
+      capacity: goalRemainingNeed(g),
+      autoExtra: g.auto_extra === true,
+    }));
 
   return [...cardTargets, ...carTargets, ...goalTargets];
 }

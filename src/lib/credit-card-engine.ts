@@ -2181,6 +2181,11 @@ export function generateRecommendations(
   // out -- leaves the recommendation byte-identical to before the feature existed, which is every
   // existing user, since `auto_extra` defaults to false.
   autoExtraTargets?: readonly RankedTarget[],
+  // Where the card BLOCK sits in the user's ranked list. Built by `buildRankedTargets` from the
+  // same value, but it cannot be recovered from `autoExtraTargets` here: the card rows are
+  // filtered out again inside `computeAutoExtraReserve`, which rebuilds the block as one synthetic
+  // target. Defaults to 0 -- cards first, today's behaviour.
+  autoExtraCardsSortOrder = 0,
 ): RecommendationSummary {
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
@@ -2297,6 +2302,7 @@ export function generateRecommendations(
   const autoExtra = computeAutoExtraReserve(
     preferencePool, totalMinDue, revolvingCards.reduce((s2, c) => s2 + Math.max(0, c.balance), 0),
     autoExtraTargets ?? [],
+    autoExtraCardsSortOrder,
   );
   const safeToPayTotal = preferencePool; // remaining for revolving cards, BEFORE the auto-extra reserve
 
@@ -2474,6 +2480,23 @@ export type MonthlyDebtBreakdown = {
   interestAvoided: number;
 };
 
+/**
+ * Ranked automatic extra payments, as seen by the current-month wrappers.
+ *
+ * ⚠️ The targets are built by the CALLER (`buildRankedTargets`, ranked-extra-payment-targets.ts)
+ * and handed in, rather than derived here from `accounts` / `goals` / `carFunds`. That is not
+ * ceremony: `buildRankedTargets` imports `getStrategyPayoffOrder`, which imports this module, so
+ * building them here would close a runtime import cycle. Same reason `computeAutoExtraReserve`
+ * lives in `ranked-surplus-allocation.ts`, which imports nothing at all.
+ *
+ * Omitted ⇒ no reserve, and the recommendation is byte-identical to before the feature existed.
+ */
+export type AutoExtraContext = {
+  targets: readonly RankedTarget[];
+  /** The card block's rank in the user's list. Omitted ⇒ 0, cards first. */
+  cardsSortOrder?: number;
+};
+
 function buildCurrentMonthRecommendationSummary(
   accounts: AccountRow[],
   transactions: EnrichedTransaction[],
@@ -2485,6 +2508,7 @@ function buildCurrentMonthRecommendationSummary(
   syncCutoffDate?: string,
   extraMonthlyExpenses = 0,
   confirmedOccurrences?: ConfirmedOccurrences,
+  autoExtra?: AutoExtraContext,
 ): RecommendationSummary | null {
   if (!accounts || !transactions || !rules || !debts) return null;
   const cards = buildCardData(accounts, transactions, rules, debts);
@@ -2541,6 +2565,7 @@ function buildCurrentMonthRecommendationSummary(
     'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? ppBills, fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
     syncCutoffDate, extraMonthlyExpenses, confirmedOccurrences,
+    autoExtra?.targets, autoExtra?.cardsSortOrder,
   );
 }
 
@@ -2555,8 +2580,9 @@ export function getMonthlyDebtBreakdown(
   syncCutoffDate?: string,
   extraMonthlyExpenses = 0,
   confirmedOccurrences?: ConfirmedOccurrences,
+  autoExtra?: AutoExtraContext,
 ): MonthlyDebtBreakdown {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride, syncCutoffDate, extraMonthlyExpenses, confirmedOccurrences);
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride, syncCutoffDate, extraMonthlyExpenses, confirmedOccurrences, autoExtra);
   if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({

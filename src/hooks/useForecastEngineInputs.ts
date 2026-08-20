@@ -5,7 +5,9 @@ import {
 } from '@/hooks/useSupabaseData';
 import { buildConfirmedOccurrences, isRuleOccurrenceConfirmed } from '@/lib/confirmed-capture';
 import { aggregateByMonth, type ScheduledEvent } from '@/lib/scheduling';
-import { getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { buildRankedTargets } from '@/lib/ranked-extra-payment-targets';
+import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
@@ -155,12 +157,29 @@ export function useForecastEngineInputs({
           .flatMap(a => [a.id, `account:${a.id}`]),
       );
       const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now0.getFullYear(), now0.getMonth(), ccIds);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses, confirmedOccurrences);
+      // Ranked automatic extra payments. The targets are built HERE, not inside the engine:
+      // `buildRankedTargets` reaches `getStrategyPayoffOrder`, which imports credit-card-engine, so
+      // building them there would close a runtime import cycle. Every target arrives opted OUT
+      // (`auto_extra` defaults false), so until a user opts one in this reserve is 0 and the
+      // breakdown is byte-identical to before the feature existed.
+      // ⚠️ `cardsSortOrder` is deliberately left at its default of 0 — cards first — until the
+      // drag-to-rank UI has somewhere to persist the card block's position. Passing anything else
+      // today would be inventing a rank the user never chose.
+      const autoExtraTargets = buildRankedTargets({
+        cards: buildCardData(accounts, allTxns, rules, debts),
+        carFunds,
+        goals,
+        strategy: 'avalanche',
+        asOf: payoffOrderAsOf(now0),
+        fundingAccountId: forecastFundingAccountId,
+        accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+      });
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses, confirmedOccurrences, { targets: autoExtraTargets });
       const safeToPayTotal = breakdown.totalRecommended;
       const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };
     } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans, confirmedOccurrences]);
+  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans, confirmedOccurrences, forecastFundingAccountId]);
 
   // ── Shared CC-filtered month events ─────────────────────────────────────────
   const forecastMonthEvents = useMemo((): { income: number; nonPaycheckIncome: number; expenses: number }[] => {
