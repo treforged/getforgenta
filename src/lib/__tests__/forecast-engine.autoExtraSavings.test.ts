@@ -154,7 +154,11 @@ describe('forecast-engine — ranked automatic extra payments reach the savings 
     }
   });
 
-  it('only ever takes the reserve ONCE — month 0, never compounding month after month', () => {
+  // Months 1+ read the ROW's `auto_extra`, not month 0's reserve. This goal's row is opted OUT
+  // (the harness's default), so the month-0 reserve handed in on the stub is a one-off and
+  // never repeats — the multi-month diversion for an opted-IN row is pinned separately in
+  // `forecast-engine.autoExtraMultiMonth.test.ts`.
+  it('does not repeat a month-0 reserve for a row that never opted in', () => {
     anchor();
     const base = calculateForecast(makeInputs([goal({})], []));
     anchor();

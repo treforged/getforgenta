@@ -26,6 +26,8 @@ import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
+import { computeAutoExtraReserve, type RankedTarget } from '@/lib/ranked-surplus-allocation';
+import { goalRemainingNeed, carFundRemainingNeed } from '@/lib/ranked-extra-payment-targets';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
 import type { AccountRow, RuleRow, DebtRow, TransactionRow } from '@/hooks/useSupabaseData';
@@ -299,6 +301,47 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       ...goals.map((g) => [g.id as string, (g.linked_account as string | null) ?? null] as const),
       ...carFunds.map((c) => [c.id, c.linked_account ?? null] as const),
     ]);
+    // RANKED AUTOMATIC EXTRA PAYMENTS — MULTI-MONTH. Month 0's reserve is decided by
+    // `useCardProjection` (the converged chain every user-facing debt surface reads) and arrives
+    // on `cardProjectionData.month0`. Every LATER month is decided here, in the loop below,
+    // because only this pass knows that month's cash — and until it did, an opted-in user's
+    // projected payoff date read OPTIMISTIC: the sim kept spending on cards the very dollars the
+    // user had said go to a goal.
+    //
+    // `autoExtraCapacity` is the remaining need per target, carried across the whole horizon. It
+    // is seeded from the same two helpers `buildRankedTargets` uses, then decremented each month
+    // by BOTH (a) whatever the target reserved and (b) the target's own monthly contribution,
+    // which fills the same need — so a goal that is projected full stops drawing extras instead
+    // of reserving against a need that no longer exists. A target that never opted in is absent
+    // from this map entirely and can therefore never appear in any month's reserve.
+    //
+    // ⚠️ Every entry here requires an explicit opt-in (`auto_extra`), which defaults FALSE, so for
+    // every existing user this map is EMPTY and the loop below takes a fast path that leaves the
+    // whole cascade byte-identical.
+    const autoExtraCapacity = new Map<string, { kind: 'goal' | 'car_fund'; sortOrder: number; remaining: number }>();
+    for (const g of goals) {
+      if (g.auto_extra !== true || typeof g.id !== 'string') continue;
+      const need = goalRemainingNeed(g);
+      if (need > 0) autoExtraCapacity.set(g.id, { kind: 'goal', sortOrder: Number(g.sort_order) || 0, remaining: need });
+    }
+    for (const c of carFunds) {
+      // Mirrors `buildRankedTargets`: a car fund's `auto_extra` is a real column on a full row, so
+      // only an explicit `false` opts it out. `carFundRemainingNeed` returns 0 for a loan-phase
+      // fund, which drops it here.
+      if (c.auto_extra === false) continue;
+      const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
+      const need = carFundRemainingNeed(c, forecastFundingAccountId, linkedAcct ? Number(linkedAcct.balance) : null);
+      if (need > 0) autoExtraCapacity.set(c.id, { kind: 'car_fund', sortOrder: c.sort_order, remaining: need });
+    }
+    /** Fill part of a target's remaining need. An exhausted target is deleted, which is also what
+     *  lets the loop's fast path fire again once every target is full. */
+    const decayAutoExtraCapacity = (id: string, amount: number) => {
+      const cap = autoExtraCapacity.get(id);
+      if (!cap || !(amount > 0)) return;
+      cap.remaining = Math.max(0, cap.remaining - amount);
+      if (cap.remaining <= 0) autoExtraCapacity.delete(id);
+    };
+
     // Aggregate scalars derived from per-account Maps (fixes retire-linked goal double-counting)
     let retireBal = Array.from(perAcctRetire.values()).reduce((s, a) => s + a.balance, 0);
     let investBal = Array.from(perAcctInvest.values()).reduce((s, a) => s + a.balance, 0);
@@ -514,7 +557,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           const isd = new Date(parts[0], parts[1] - 1, parts[2]);
           insuranceStartMonthIdx = Math.max(0, (isd.getFullYear() - nowDate.getFullYear()) * 12 + (isd.getMonth() - nowDate.getMonth()));
         }
-        return { contrib, purchaseMonthIdx, paymentStartMonthIdx, insuranceStartMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: effectiveTermMonths, lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
+        return { contrib, purchaseMonthIdx, paymentStartMonthIdx, insuranceStartMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: effectiveTermMonths, lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null, fundId: c.id };
       });
     // Per-vehicle lump sum breakdown for forecast popup (every car fund, any phase). Previously
     // filtered to phase === 'loan' only, plus a second pass over vehicleProjections (saving-phase
@@ -1263,6 +1306,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
       const transfersOut = b.monthTransfers;
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
+      // Hoisted above the cash line below: the auto-extra reserve needs this month's cycling
+      // spend and next-month-aware floor before `cashPreDebt` exists. Both are read again,
+      // unchanged, by steps 2 and 3 further down — one definition each.
+      const m0AllSettled = i === 0 && (cardProjectionData?.month0?.safeToPayTotal ?? 1) === 0;
+      const ledgerEntry = cardProjectionData?.paymentLedger?.[i];
+      // End-of-month cash IS next month's pre-paycheck cash, so neither the step-3 surplus branch
+      // nor a reserve may spend below NEXT month's monthMinSafe either (Q9).
+      const step3SpendFloor = Math.max(b.monthMinSafe, baseData[i + 1]?.monthMinSafe ?? b.monthMinSafe);
       // RANKED AUTOMATIC EXTRA PAYMENTS — surplus opted-in goals and car funds took ahead of the
       // credit cards this month. `useCardProjection`'s month 0 is the ONE place the reserve is
       // decided (every user-facing debt surface reads it), and its own `chain.cashPreDebt` already
@@ -1274,9 +1325,51 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // for the month-0 recommendation pin) — deliberately credits nothing. Two reserves crediting
       // savings would double-count the same dollars; this one wins because it is the one the cash
       // chain and every debt surface already use.
-      const autoExtraThisMonth = i === 0 ? (cardProjectionData?.month0?.autoExtraPerTarget ?? []) : [];
-      const autoExtraOutThisMonth = i === 0 ? (cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0) : 0;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth - autoExtraOutThisMonth + b.oneTimeNet;
+      //
+      // MULTI-MONTH: month 0 replays the hook's converged reserve to the cent; months 1+ decide
+      // their own from THIS month's cash, against the running `autoExtraCapacity` above. The
+      // subtraction is what makes the projection honest — `finalLiquid` falls by the reserve, so
+      // step 3's surplus branch feeds a correspondingly smaller revolving target back through
+      // convergence and the sim stops paying down cards with money the user diverted.
+      const cashPreDebtBeforeAutoExtra = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
+      // A target's own monthly contribution fills the same need the reserve would, and it is
+      // subtracted BEFORE this month's reserve is decided: decide the reserve against a need the
+      // contribution has already met and the target ends the month over-funded by exactly one
+      // contribution. Step 4c below is where these same dollars are actually credited.
+      for (const item of b.savingsGoalItems) decayAutoExtraCapacity(item.goalId, item.amount);
+      for (const v of vehicleProjections) {
+        if (i <= v.purchaseMonthIdx) decayAutoExtraCapacity(v.fundId, v.contrib);
+      }
+      let autoExtraThisMonth: { id: string; kind: 'car_fund' | 'goal'; amount: number }[] = [];
+      let autoExtraOutThisMonth = 0;
+      if (i === 0) {
+        autoExtraThisMonth = cardProjectionData?.month0?.autoExtraPerTarget ?? [];
+        autoExtraOutThisMonth = cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0;
+      } else if (autoExtraCapacity.size > 0) {
+        // The same three arguments month 0 builds, one month later: the card block's combined
+        // minimum and balance, and a pool that is already net of the floor and the cycling spend.
+        // `computeAutoExtraReserve` settles that combined minimum BEFORE it consults any rank, so
+        // no reserve here can push a month below its cards' minimums.
+        const simCards = cardProjectionData?.simCards ?? [];
+        const revBalAt = (id: string) => Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(id)?.[i] ?? 0);
+        const revBalTotal = simCards.reduce((sum, c) => sum + revBalAt(c.id), 0);
+        const ccMinForMonth = revBalTotal > 0
+          ? simCards.reduce((sum, c) => revBalAt(c.id) <= 0 ? sum
+              : sum + (cardProjectionData?.perCardMinPayments?.get(c.id)?.[i] ?? c.minPayment), 0)
+          : 0;
+        // Floor: the same next-month-aware floor step 3 drains to (Q9), so a reserve can never
+        // leave the FOLLOWING month starting below its own pre-paycheck floor.
+        const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - step3SpendFloor - (ledgerEntry?.cycling ?? 0));
+        const targets: RankedTarget[] = Array.from(autoExtraCapacity, ([id, t]) => ({
+          id, kind: t.kind, sortOrder: t.sortOrder, minimum: 0, capacity: t.remaining, autoExtra: true,
+        }));
+        // ⚠️ `cardsSortOrder` defaults to 0 — cards first, today's behaviour — exactly as month 0
+        // does, until there is a `profiles.cards_sort_order` column to read a real rank from.
+        const reserve = computeAutoExtraReserve(autoExtraPool, ccMinForMonth, revBalTotal, targets);
+        autoExtraThisMonth = reserve.perTarget;
+        autoExtraOutThisMonth = reserve.reserved;
+      }
+      const cashPreDebt = cashPreDebtBeforeAutoExtra - autoExtraOutThisMonth;
 
       // Step 2: the sim is the single writer of debt-payment truth (unify-cycling-model Stage 3).
       // Its payment ledger already reflects a floor-aware, save-up-aware plan for whatever cash
@@ -1289,8 +1382,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // (safeToPayTotal === 0), the sim's own month-0 plan would double-count payments already
       // reflected in the live Plaid balance — the sim has no syncCutoffDate concept, so PASS 3
       // must still zero this month out itself.
-      const m0AllSettled = i === 0 && (cardProjectionData?.month0?.safeToPayTotal ?? 1) === 0;
-      const ledgerEntry = cardProjectionData?.paymentLedger?.[i];
       monthDebtPayment = m0AllSettled ? 0 : (ledgerEntry ? ledgerEntry.total : monthDebtPayment);
       finalLiquid = cashPreDebt - monthDebtPayment;
 
@@ -1307,10 +1398,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
       let revolvingDebtCashTarget = m0AllSettled ? 0 : (ledgerEntry?.revolving ?? 0);
-      // End-of-month cash IS next month's pre-paycheck cash, so the surplus branch must not
-      // spend down below NEXT month's monthMinSafe either — otherwise every bill-timing
-      // step-up month's target leaves the following month starting below its own floor (Q9).
-      const step3SpendFloor = Math.max(b.monthMinSafe, baseData[i + 1]?.monthMinSafe ?? b.monthMinSafe);
       // Asymmetric cushion (FLOOR_CUSHION_DOLLARS): both branches push toward
       // floor + cushion, but the surplus branch only fires ABOVE floor + cushion and the
       // deficit branch only BELOW the floor itself. The dead zone [floor, floor + cushion]
@@ -1426,6 +1513,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           if (pool) pool.balance += t.amount;
         }
       }
+
+      // 4c-iii. The reserve just taken fills part of the target's need, so it comes off the
+      // remaining capacity the LATER months rank against. (The target's own monthly contribution
+      // was already taken off above, before this month's reserve was decided — that ordering is
+      // what stops a goal being over-funded by one month's contribution on the month it fills.)
+      for (const t of autoExtraThisMonth) decayAutoExtraCapacity(t.id, t.amount);
 
       // 4d. Lump sums → per-account or goal pool
       for (const [key, amt] of lumpTransferByMonth[i].perAccount) {
