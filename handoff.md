@@ -1,5 +1,51 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**POST-SHIP FOLLOW-UPS: Dependabot #63 dismissed; #109/#110 reviewed, NOT merged**)
+>
+> ## ⏭️ START HERE — the one thing left is verifying the two Dependabot PRs
+>
+> **Dependabot alert #63 (`uuid`) is CLOSED — dismissed, do not re-investigate.** Reason recorded
+> on GitHub as `not_used`, verified server-side via `gh api`. **The repo now has ZERO open alerts**,
+> so a push that prints a vulnerability warning again means something NEW.
+> Why it was safe: the only path is `@capacitor/cli` → `xcode` (a build-time tool that never
+> ships), every `uuid` call site in `xcode` is `uuid.v4()` with no `buf` (`pbxProject.js:90`), and
+> the flaw is `v3`/`v5`/`v6` **with a caller-supplied buffer** — `v4` throws `RangeError`. There is
+> also no in-range fix: `xcode` pins `uuid ^7.0.3` and the patch is `11.1.1`.
+>
+> ### PRs #109 / #110 — reviewed, green, and DELIBERATELY NOT MERGED
+>
+> ⚠️ **The prior handoff's warning about ERESOLVE-red Dependabot checks does NOT apply here.** Both
+> PRs are `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`, and all four checks pass (audit,
+> GitGuardian, Vercel, Vercel Preview Comments). Do not go looking for a failure that is not there.
+>
+> **Every bump is patch-or-minor. Nothing crosses a major boundary.**
+>
+> - **#109 production** — `@launchdarkly/observability` + `session-replay` 1.1.17→1.1.18,
+>   `@stripe/react-stripe-js` 6.8.0→6.8.1, `@supabase/supabase-js` 2.112.2→2.112.3,
+>   `framer-motion` 13.0.0→**13.1.0**, `lucide-react` 1.29.0→**1.31.0**, `sonner` 2.0.7→2.0.8.
+> - **#110 development** — `@testing-library/jest-dom` 7.0.0→7.0.1, `@types/node` 26.1.2→26.2.0,
+>   `eslint` 10.8.0→10.8.1, `eslint-plugin-react-refresh` 0.5.3→0.5.4, `globals` 17.9.0→17.11.0,
+>   `supabase` CLI 2.109.1→**2.114.0**, `typescript-eslint` 8.66.0→**8.67.0**.
+>
+> **THE VERIFICATION THAT HAS NOT BEEN DONE, and it is the whole remaining job.** Neither branch has
+> had the gates run against it. A green `audit` check says the tree installs and has no known CVE;
+> it says nothing about whether the app still compiles, renders or passes 1833 tests. Check out each
+> branch, `npm ci`, then `npx tsc --noEmit && npx eslint . && npx vitest run && npm run build`.
+>
+> Three bumps carry real (small) risk and are where to look first if a gate goes red:
+> 1. **`lucide-react` 1.29 → 1.31** — two minors of an ICON library. Icons get renamed and dropped.
+>    ⚠️ `PiggyBank` was added to `Dashboard.tsx` TODAY; if it vanished upstream the Goals pill loses
+>    its icon or the build fails. Check the icon imports across `src/` first.
+> 2. **`framer-motion` 13.0 → 13.1** — a minor on the animation library; watch the build, not tests.
+> 3. **`typescript-eslint` 8.66 → 8.67** — ⚠️ this is the package **blocking the TypeScript 7 hold**.
+>    Worth checking its release notes for TS7 support while you are in there: if 8.67 ships it, the
+>    TS7 workstream (app is already TS7-clean and ~9x faster) unblocks. Do NOT assume it does.
+>
+> **Merging these is Tre's call, not the session's** — and note the standing "no PRs, push to main"
+> rule does not mean closing Dependabot's PRs; they are the one PR flow this repo still uses.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**THE GOALS PANEL NOW LIVES ON THE DASHBOARD — done, gated and live-verified**)
 >
 > ## ✅ SHIPPED
