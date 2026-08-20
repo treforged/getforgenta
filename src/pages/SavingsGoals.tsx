@@ -9,6 +9,7 @@ import { GoalsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts, type AccountRow } from '@/hooks/useSupabaseData';
+import SurplusRankingSection from '@/components/savings/SurplusRankingSection';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -379,7 +380,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   // Card payments come from the converged month-0 projection (useCardProjection pass 3) that Debt
   // Payoff and Forecast read, instead of this page's own legacy engine pass. Linked-account
   // "remaining cash" now nets out the same payments /debt recommends.
-  const { recommendations: debtRecs } = useMonth0DebtBreakdown();
+  const { recommendations: debtRecs, totalRecommended: debtTotalRecommended } = useMonth0DebtBreakdown();
 
   const debtTxns = useMemo(() => {
     const fundId = profile?.default_deposit_account ||
@@ -387,6 +388,15 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     return createDebtPaymentTransactions(debtRecs, fundId);
   }, [debtRecs, profile, accounts]);
   const allTxns = useMemo(() => mergeDebtPaymentsIntoStream(baseTxns, debtTxns), [baseTxns, debtTxns]);
+
+  // What the ranked list says about the card row, from the SAME converged month-0 breakdown the
+  // Debt Payoff tab shows — never a second calculation of the same number.
+  const cardsRankSubtitle = useMemo(() => {
+    if (debtRecs.length === 0) return undefined;
+    const n = debtRecs.length;
+    return `${n} card${n > 1 ? 's' : ''} · ${formatCurrency(debtTotalRecommended, false)} this month`;
+  }, [debtRecs.length, debtTotalRecommended]);
+
 
   const accountMap = useMemo(() => {
     const map: Record<string, AccountRow> = {};
@@ -684,6 +694,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       )}
 
       <SavingsGrowthChart goals={allGoals} />
+
+      <SurplusRankingSection cardsSubtitle={cardsRankSubtitle} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved, false)}</p></div>
