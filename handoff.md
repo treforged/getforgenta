@@ -1,48 +1,70 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-20 (**POST-SHIP FOLLOW-UPS: Dependabot #63 dismissed; #109/#110 reviewed, NOT merged**)
+> ▶ 2026-08-20 (**DEPENDABOT #109 + #110 GATED AND MERGED — the dependency workstream is CLOSED**)
 >
-> ## ⏭️ START HERE — the one thing left is verifying the two Dependabot PRs
+> ## ✅ DONE — do not re-verify, and do not go looking for open Dependabot PRs
 >
-> **Dependabot alert #63 (`uuid`) is CLOSED — dismissed, do not re-investigate.** Reason recorded
-> on GitHub as `not_used`, verified server-side via `gh api`. **The repo now has ZERO open alerts**,
-> so a push that prints a vulnerability warning again means something NEW.
-> Why it was safe: the only path is `@capacitor/cli` → `xcode` (a build-time tool that never
-> ships), every `uuid` call site in `xcode` is `uuid.v4()` with no `buf` (`pbxProject.js:90`), and
-> the flaw is `v3`/`v5`/`v6` **with a caller-supplied buffer** — `v4` throws `RangeError`. There is
-> also no in-range fix: `xcode` pins `uuid ^7.0.3` and the patch is `11.1.1`.
+> Both PRs are **MERGED and squashed onto `main`**, matching the repo's prior Dependabot
+> convention (`#61`, `#63`, `#51` all landed the same way):
+> - `5bf94680` — `chore(deps): bump the production-dependencies group with 7 updates (#109)`
+> - `848f99eb` — `chore(deps-dev): bump the development-dependencies group with 7 updates (#110)`
 >
-> ### PRs #109 / #110 — reviewed, green, and DELIBERATELY NOT MERGED
+> **There are now ZERO open PRs on the repo**, and zero open Dependabot alerts. A new one appearing
+> is genuinely new.
 >
-> ⚠️ **The prior handoff's warning about ERESOLVE-red Dependabot checks does NOT apply here.** Both
-> PRs are `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`, and all four checks pass (audit,
-> GitGuardian, Vercel, Vercel Preview Comments). Do not go looking for a failure that is not there.
+> ## Evidence — all four gates, on a tree byte-identical to what shipped
 >
-> **Every bump is patch-or-minor. Nothing crosses a major boundary.**
+> The two branches were merged together locally FIRST and gated as one combined tree, because that
+> combined tree is what `main` actually becomes. Result on that tree:
 >
-> - **#109 production** — `@launchdarkly/observability` + `session-replay` 1.1.17→1.1.18,
->   `@stripe/react-stripe-js` 6.8.0→6.8.1, `@supabase/supabase-js` 2.112.2→2.112.3,
->   `framer-motion` 13.0.0→**13.1.0**, `lucide-react` 1.29.0→**1.31.0**, `sonner` 2.0.7→2.0.8.
-> - **#110 development** — `@testing-library/jest-dom` 7.0.0→7.0.1, `@types/node` 26.1.2→26.2.0,
->   `eslint` 10.8.0→10.8.1, `eslint-plugin-react-refresh` 0.5.3→0.5.4, `globals` 17.9.0→17.11.0,
->   `supabase` CLI 2.109.1→**2.114.0**, `typescript-eslint` 8.66.0→**8.67.0**.
+> **tsc 0 · eslint 0 · 1815 passed + 18 skipped across 184 files (1833 total) · `npm run build` exit 0.**
 >
-> **THE VERIFICATION THAT HAS NOT BEEN DONE, and it is the whole remaining job.** Neither branch has
-> had the gates run against it. A green `audit` check says the tree installs and has no known CVE;
-> it says nothing about whether the app still compiles, renders or passes 1833 tests. Check out each
-> branch, `npm ci`, then `npx tsc --noEmit && npx eslint . && npx vitest run && npm run build`.
+> Then verified BY CONTENTS, per the standing rule: `git diff deps-verify-20260820 origin/main`
+> returned **completely empty** — `main` is byte-identical to the gated tree, package-lock included.
+> `package.json` on `main` carries `lucide-react ^1.31.0`, `framer-motion ^13.1.0`,
+> `@supabase/supabase-js ^2.112.3`, `sonner ^2.0.8`, `typescript-eslint ^8.67.0`,
+> `supabase ^2.114.0`, `eslint ^10.8.1`, `globals ^17.11.0`, `@types/node ^26.2.0`.
 >
-> Three bumps carry real (small) risk and are where to look first if a gate goes red:
-> 1. **`lucide-react` 1.29 → 1.31** — two minors of an ICON library. Icons get renamed and dropped.
->    ⚠️ `PiggyBank` was added to `Dashboard.tsx` TODAY; if it vanished upstream the Goals pill loses
->    its icon or the build fails. Check the icon imports across `src/` first.
-> 2. **`framer-motion` 13.0 → 13.1** — a minor on the animation library; watch the build, not tests.
-> 3. **`typescript-eslint` 8.66 → 8.67** — ⚠️ this is the package **blocking the TypeScript 7 hold**.
->    Worth checking its release notes for TS7 support while you are in there: if 8.67 ships it, the
->    TS7 workstream (app is already TS7-clean and ~9x faster) unblocks. Do NOT assume it does.
+> ### The three flagged risks, all resolved by measurement
 >
-> **Merging these is Tre's call, not the session's** — and note the standing "no PRs, push to main"
-> rule does not mean closing Dependabot's PRs; they are the one PR flow this repo still uses.
+> 1. **`lucide-react` 1.29 → 1.31 (icon renames)** — **NOT AN ISSUE.** `tsc --noEmit` at exit 0 is
+>    the proof: lucide ships types, so a dropped named export across the 81 files importing it
+>    would be a type error. `PiggyBank` (added to `Dashboard.tsx` the same day) is still exported.
+> 2. **`framer-motion` 13.0 → 13.1** — build exit 0, `vendor-motion` chunk 133.89 kB. Fine.
+> 3. **`typescript-eslint` 8.66 → 8.67 and the TS7 hold** — ⚠️ **THE HOLD STANDS.** Measured, not
+>    assumed: `@typescript-eslint/typescript-estree@8.67.0` still declares
+>    `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TypeScript 7 is still outside the range, so
+>    the TS7 workstream stays blocked exactly where it was. Re-check this peer range on each bump —
+>    it is the single field that unblocks TS7.
+>
+> ## ⚠️ Two traps this session hit, worth not re-discovering
+>
+> - **`npm ci` in the repo root FAILS with `EPERM` while the dev server is up** — vite holds
+>   `node_modules/lightningcss-win32-x64-msvc/lightningcss.win32-x64-msvc.node` open. Because Tre
+>   runs parallel sessions on this same tree, the fix was NOT to kill his server: the whole
+>   verification ran in a throwaway `git worktree` under the temp dir, outside the repo (also keeping
+>   it out of vitest's `.claude/worktrees` scan). Worktree has been removed; branch deleted.
+> - **A fresh worktree has no `.env.local`, and 3 test files fail on `Missing environment variable:
+>   VITE_SUPABASE_URL`** — that is the missing env file, NOT a dependency regression. Copy
+>   `.env.local` in before reading anything into the result.
+> - `npm audit` reports **3 moderate** — that is the SAME already-dismissed `uuid` → `xcode` →
+>   `@capacitor/cli` chain from alert #63. Pre-existing, build-time only, not introduced here.
+>
+> ## ⏭️ ACTION FOR TRE (the only thing outstanding)
+>
+> **The running dev server on :8080 is still on the OLD `node_modules`.** Local `main` is
+> fast-forwarded to `848f99eb`, but the install could not be refreshed while vite held the file
+> lock. Stop the dev server, run `npm ci`, restart via `node scripts/dev-session.mjs up`.
+> Nothing is broken; the local install is just behind `package-lock.json`.
+>
+> ## ⏭️ NEXT UP (unchanged, carried forward)
+>
+> 1. **The 390px visual pass on Tre's phone** — the touch reorder buttons in `SurplusRankingSection`
+>    have never been seen on a real device, and the three-pill Dashboard row wants a look too.
+>    A desktop browser cannot do it (`resize_window` reports success and does nothing).
+> 2. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 3. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
 
 # Handoff — Forgenta
 
