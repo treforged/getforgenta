@@ -1,7 +1,56 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-21 (**consolidation SURFACE built and shipped. Adapter + no-loan paydown engine +
-> credit-application collision check. `4243e395`, `43db5ce1`. Local only — NOT pushed.**)
+> ▶ 2026-08-21 (**THE SEP-2027 INCOME CLIFF DOES NOT EXIST. Fork RESOLVED: cards, Discover first,
+> no move fund. Consolidation surface shipped and pushed to main.**)
+
+## 🚨 READ THIS FIRST — the $11.93/mo cliff was wrong, and it was load-bearing
+Tre, 2026-08-21: they **may or may not** have to move for the GF's med school, and **she keeps
+paying her normal $1,100 either way**. Every handoff before this one modelled that $1,100 stopping
+permanently in Sep 2027. It does not stop.
+
+`$11.93 + $1,100 = $1,111.93`, which is exactly the Jul–Aug 2027 figure. **The entire cliff was her
+contribution.** Corrected terminal capacity is **$1,111.93/mo from Sep 2027 onward, indefinitely.**
+
+What that single number changes, run through `simulateSelfFundedPaydown` on the real cards:
+
+| | with the cliff (WRONG) | without it (CORRECT) |
+|---|---|---|
+| Cards paid off | **never** — balance grows forever | **Jul 2028** (avalanche) / **Aug 2028** (Discover-first) |
+| Total interest | $1.96M / $5.67M (runaway) | **$3,585** / **$4,643** |
+| Discover under 30% | never | Apr 2028 (avalanche) / **Aug 2027** (Discover-first) |
+
+Every "the rent is the real problem", "any loan needs ~$355/mo of structural cuts by Sep 2027",
+"$11.93 is the binding number" line below this point is **superseded**. Do not plan against them.
+
+⚠️ **The one thing that would bring the cliff back**: if the $1,100 is really her share of rent
+rather than a fixed contribution, a move that raises rent above the current $1,915 eats into it.
+Tre said "still pay me **here** normal 1100" — read as a fixed $1,100 continuing. Worth one
+confirming question if a specific new place ever gets priced.
+
+## ✅ FORK RESOLVED — all surplus to the cards, Discover first, NO move fund
+The old fork was "~$8,718 of capacity vs a $10,340 move, he cannot do both". Both halves were off.
+
+1. **Banking a move fund does not even work.** Of the ~$8,582 of Sep26–Jun27 capacity, **$4,590 is
+   minimum payments he must make regardless**. Divertible cash is **$4,015**, not $8,718 — 39% of
+   the $10,340. He pays the whole price and still cannot fund the move.
+2. **The price is real**: diverting slips payoff Aug 2028 → **Jan 2029**, interest $4,643 →
+   **$6,110**, and Discover under 30% Aug 2027 → **Jan 2028**.
+3. **The move is conditional.** That is a certain cost for an uncertain benefit.
+4. **On a revolving card, paying down IS saving.** Every dollar to Discover restores a dollar of
+   available credit. Not a perfect substitute — drawing it back costs 16.6–27.49% and re-spikes
+   utilization — but strictly better than cash earning nothing while 27.49% runs. If the move
+   happens, the line is there, and from Jul 2027 he has $1,111.93/mo to rebuild from.
+
+**Discover-first vs avalanche**: Discover-first costs **$1,058 more interest and one extra month**,
+and gets Discover under 30% in **Aug 2027 instead of Apr 2028 — eight months earlier**. Take it.
+That is the post-denial plan, and the numbers now back it.
+
+⚠️ **REAPPLY IS AUGUST 2027, NOT SPRING 2027.** Discover crosses 50% in **May 2027** and 30% in
+**Aug 2027**. Every earlier handoff said "spring"; that was hand-arithmetic and it was optimistic.
+
+⚠️ **Two months cannot cover both minimums**: Sep and Oct 2026 have $447.62 against $459 of
+minimums — **short $11.38**. Small, but it is a missed-payment risk in the first two months of the
+plan, and a missed payment costs more score than the whole paydown gains.
 
 ## ✅ DONE THIS SESSION
 Three files in, two commits, 1993 tests green, tsc clean, eslint clean.
@@ -49,13 +98,16 @@ Three files in, two commits, 1993 tests green, tsc clean, eslint clean.
    specifically: the milestone dates are plausible against the handoff table below, the
    Discover-first column shows a LATER payoff and MORE interest, and typing `2027-04` into
    "Planning a loan or card application?" raises the Venture X collision.
-2. Feed it the **guaranteed-vs-expected income toggle** (carried from the last handoff, item 4).
-   The capacity currently comes from the engine, which reads `forecast_assumptions.promotions` —
-   and Tre said 2026-08-20 those are EXPECTED, not guaranteed. So the panel is currently optimistic
-   by exactly the amount those promotions add. **This is the highest-value next slice.**
-3. Surface `solveMinimumPrincipal` / `evaluateConsolidation` too — still nothing reads them. Lower
-   priority now the loan is declined, but the reapply window is spring 2027.
-4. Consider surfacing `repointedPlanIds` as a toggle: the panel already tells him repointing pulls
+2. **Check what the app thinks happens in Sep 2027.** The corrected $1,100 has NOT been verified
+   against the database. If a recurring income rule or `forecast_assumptions` entry ends the GF's
+   contribution in Sep 2027, the whole app is still modelling the cliff and the panel's milestone
+   dates are wrong in the same direction every handoff was. **Do this before anything else.**
+3. Feed the panel the **guaranteed-vs-expected income toggle** (carried, item 4). Capacity comes
+   from the engine, which reads `forecast_assumptions.promotions` — EXPECTED, not guaranteed — so
+   the panel is optimistic by exactly what those promotions add.
+4. Surface `solveMinimumPrincipal` / `evaluateConsolidation` too — still nothing reads them. Lower
+   priority now the loan is declined, but the reapply window is **Aug 2027**.
+5. Consider surfacing `repointedPlanIds` as a toggle: the panel already tells him repointing pulls
    every date forward, and cannot yet show by how much.
 
 ## 🚨 STILL TRUE — the loan was DENIED (2026-08-20), plan is self-funded paydown
@@ -73,20 +125,21 @@ Free cash after living+car ($3,783.02), **guaranteed income only**:
 | Dec 2026 - Feb 2027 | $927.50/mo + ~$1,397 Feb bonus |
 | Mar - Jun 2027 | $758.93 - $826.93/mo |
 | Jul - Aug 2027 | $1,111.93/mo |
-| **Sep 2027 onward (GF income GONE)** | **$11.93/mo** |
+| **Sep 2027 onward** | **$1,111.93/mo** — the GF income does NOT stop, see the top of this file |
 
-## 🔴 UNRESOLVED FORK — cards vs the move. Do not decide this for him.
-Sep 2026 - Jun 2027 capacity is **~$8,718** (incl. Feb bonus). The move is **$10,340** by
-2027-07-01 and is entirely unfunded with no loan. He cannot do both.
-**Asked and NOT yet answered: what is forcing the July 2027 date, and can they renew instead?**
+## ~~🔴 UNRESOLVED FORK~~ — **CLOSED 2026-08-21, see the top of this file.**
+Answer: all surplus to the cards, Discover first, no move fund. The move is conditional and a move
+fund only reaches 39% of what it needs. Do not reopen this.
 
 ## ⚠️ FACTS THAT CORRECT EARLIER HANDOFFS (unchanged, still load-bearing)
 - **Utilization is 74.1%, NOT 41.5%.** Venture X and Apple Card have future `card_start_date`;
   their $20,000 is not drawable. Open limit $25,400.
 - **Plan on GUARANTEED income only.** `net_weekly = gross_weekly * 0.793 - 17.86`. Do not re-derive.
 - **Break-even vs carrying the cards is ~16.7%, NOT ~23%.** Pinned in tests.
-- **The rent is the real problem.** With NO loan he has $11.93/mo from Sep 2027. The Jul 2027 move
-  must land **<= $1,560/mo**.
+- ~~**The rent is the real problem.** With NO loan he has $11.93/mo from Sep 2027.~~
+  **SUPERSEDED 2026-08-21** — the $1,100 continues, so it is $1,111.93/mo from Sep 2027. The
+  `<= $1,560/mo` rent ceiling was derived from the cliff plus a loan payment; with neither, it does
+  not apply. Do not quote it. Re-derive if and only if a real new place gets priced.
 - `$625/mo` of savings-goal contributions are configured but NOT happening. Must stay paused.
 - ⚠️ **Apple Card is still dated 2028-02-28 — leave it.** Venture X is at 2027-04-20, which is the
   reapply window; the new collision check now flags this, but the DB row has NOT been moved again.
