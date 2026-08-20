@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, CreditCard, Car, Target, GripVertical } from 'lucide-react';
 import { Link } from 'react-router';
 import { useIsTouch } from '@/hooks/use-mobile';
@@ -10,6 +11,23 @@ import {
 } from '@/lib/surplus-ranking';
 
 const KIND_ICON = { cards: CreditCard, car_fund: Car, goal: Target } as const;
+
+/**
+ * How a row travels when its rank changes.
+ *
+ * A spring rather than a fixed-duration tween because the distance varies: a tap on the touch
+ * arrows swaps two neighbours, while a drag can carry a row the length of the list, and one
+ * duration cannot flatter both — the short hop looks sluggish and the long one looks rushed.
+ *
+ * `layout="position"` (not plain `layout`) is deliberate. The rows are not all the same height —
+ * a long goal name wraps onto a second line — and full layout animation would interpolate WIDTH
+ * and HEIGHT too, so a tall row visibly squashed as it moved. Position-only leaves the box alone
+ * and animates just the travel.
+ *
+ * Motion-sensitive users never see any of it: `<MotionConfig reducedMotion="user">` in `App.tsx`
+ * neutralises layout animations wholesale, so the rows snap the way they did before.
+ */
+const ROW_SETTLE = { type: 'spring', stiffness: 520, damping: 40, mass: 0.7 } as const;
 
 function RowIcon({ kind }: { kind: SurplusRankRow['kind'] }) {
   const Icon = KIND_ICON[kind];
@@ -123,12 +141,19 @@ export default function SurplusRankingSection({ cardsSubtitle }: { cardsSubtitle
         {draft.map((row, i) => {
           const isCards = row.kind === 'cards';
           return (
-            <li
+            <motion.li
               key={row.id}
+              layout="position"
+              transition={ROW_SETTLE}
               onDragOver={e => !isTouch && !readOnly && onDragOver(e, row.id)}
               onDrop={e => !isTouch && !readOnly && onDrop(e, row.id)}
               className={[
-                'flex items-center gap-2.5 px-2.5 py-2 bg-secondary/40 border transition-all duration-150',
+                // ⚠️ NOT `transition-all`. That included `transform`, so the CSS transition and
+                // framer's own per-frame transform writes fought over the same property and the
+                // row juddered to its new rank instead of gliding. The tween is framer's job;
+                // CSS keeps only the properties framer never touches.
+                'flex items-center gap-2.5 px-2.5 py-2 bg-secondary/40 border',
+                'transition-[background-color,border-color,box-shadow,opacity] duration-150',
                 draggingId === row.id ? 'opacity-40' : '',
                 dragOverId === row.id ? 'border-primary shadow-[0_0_0_1px_hsl(var(--primary))]' : 'border-transparent',
               ].join(' ')}
@@ -194,7 +219,7 @@ export default function SurplusRankingSection({ cardsSubtitle }: { cardsSubtitle
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Auto extra</span>
                 </label>
               )}
-            </li>
+            </motion.li>
           );
         })}
       </ul>
