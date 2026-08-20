@@ -1,5 +1,92 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 later (**JOB 1 SHIPPED + live-verified. NEW ASK from Tre answered and its ENGINE
+> SHIPPED; the surfaces that read it are scoped, NOT started — the context gate fired.**)
+>
+> ## ✅ JOB 1 DONE — reorderable accounts, `16b6158e`
+>
+> Drag on pointer, two rank arrows on touch, persisted per user. `accounts.sort_order` migration
+> **APPLIED** to `mdtosrbfkextcaezuclh`; backfill seated every existing row at its `created_at`
+> rank so nobody's list moved. Query orders `sort_order, created_at` — the old ordering survives as
+> the tiebreak. New accounts insert at `max+1`, not the column default of 0, or they would land at
+> the TOP. `types.ts` patched in the same commit. Demo gets no handles (no writer).
+> **The filter trap is handled:** `src/lib/account-order.ts` takes the FULL list every time and
+> only STEPS through the visible one. Live-verified on real data both ways; test drags reverted.
+>
+> ## ⏭️ START HERE — Tre's new ask, and what is already built for it
+>
+> Verbatim: *"we set up goal ordering and we can make extra payments. the moving fund needs to be
+> ready by the due date, however credit card still needs to be paid down as much as possible in the
+> mean time. whats the best way my app can solve this? is there a way a user could ask this question
+> and the app could auto sort it out for them? ... then apply this sort of thinking to other
+> scenarios."*
+>
+> ### The answer, and it is now code
+>
+> **A rank cannot answer it.** A rank says WHICH FIRST; the question is HOW MUCH EACH, and only
+> that one has a deadline in it. `src/lib/dated-commitments.ts` (**SHIPPED `673e793f`**, 20 tests,
+> engine only — nothing reads it yet) computes `remaining ÷ months left` as a **floor**: fund
+> exactly that and not a dollar more, because everything above it idles at ~0% while a card charges
+> 27%. What is left flows down the EXISTING ranked list (`surplus-ranking.ts`) to the priciest
+> balance. Two functions: `planDatedCommitments` and `allocateAgainstCommitments`.
+>
+> **The idea that makes it judgement rather than division:** not every deadline is worth meeting.
+> `hard` = no dollar price (the deposit is due or the move does not happen) → binds absolutely.
+> `priced` = missing it costs a computable rate → binds ONLY when that rate beats the best
+> alternative use. Do not collapse these two; that distinction is the whole design.
+>
+> ### On Tre's real numbers (read from Postgres this session)
+> - **Move fund (lease break + movers + deposit)** — $10,340 by **2027-07-01**, **$0 saved,
+>   `monthly_contribution` set to $0**, `auto_extra` false. 11 months → **$940/month required**.
+>   The app is currently projecting, silently, that it never funds. That is the live gap.
+> - **Discover it Card** — $10,422.03 @ 16.6%, carrying a **$5,037.73 balance-transfer tranche at
+>   7.99% expiring 2028-01-04**.
+> - **Prime Visa** — $8,396.90 @ **27.49%**, no promo. The best alternative use.
+> - ⚠️ **The non-obvious result the engine produces:** the Discover promo is **non-binding**. It
+>   reprices to 16.6%, the Visa charges 27.49%, so the right move is to LET THE CLIFF HAPPEN and
+>   kill the Visa. A naive sort-by-date allocator gets this backwards. Pinned in the tests.
+>
+> ### ⏭️ NEXT — the surfaces. None started.
+> 1. **An adapter** that builds `DatedCommitment[]` from live data. All three sources already carry
+>    the date: `savings_goals.target_date`, `car_funds.planned_purchase_date`,
+>    `balance_tranches[].promo_end_date`. `bestAlternativeApr` = the highest APR carried. Do this
+>    first; everything else needs it.
+> 2. **Surfacing it.** The honest minimum is a line on each dated goal saying what it needs per
+>    month vs what is set, plus the `feasible: false` shortfall somewhere a person looks.
+>    ⚠️ Never render an infeasible plan as if it worked — that is the failure mode the module was
+>    written to prevent.
+> 3. **The "just ask" half.** `AiAdvisor.tsx` already receives `targetDate` (line ~753) and does
+>    nothing actionable with it. The shape: the advisor recognises the intent, calls the SAME pure
+>    allocator, and returns **a proposal the user applies with one tap** — writing
+>    `monthly_contribution` on the goal and `auto_extra` on the card block. **Not prose.** Prose is
+>    what it does today and prose is the manual work he is complaining about.
+> 4. **The forecast engine** should reserve the binding floors before the ranked surplus runs.
+>    ⚠️ Biggest risk in the whole feature — that engine has a long convergence history
+>    (see the cycling-debt notes). Do it last, behind tests, and re-pin the fixtures.
+>
+> ### "Apply this thinking to other scenarios"
+> The general rule: **every number the user types by hand that could be derived from a date and an
+> amount.** Candidates, in rough order of value — insurance premium / registration due in N months;
+> a tax bill; the auto loan in his own sequence; a Garage build phase wanted done by a show date
+> (`car_build_phases` already has the ordering, not the date); any sinking fund. An Emergency Fund
+> with no date is the deliberate opposite case: no floor, pure residual.
+>
+> ## ⏭️ STILL OPEN (carried)
+> 1. **JOB 2 — the Forecast hero aside.** Fully scoped in the section below, surface confirmed
+>    (`ForecastHero.tsx`), nothing blocked, not started. Build the fill as a SHARED component.
+> 2. Live-verify the build↔loan strip on `/builds` with the real C5 (`9fc22c7c`).
+> 3. The 390px pass on Tre's actual phone — including the new account rows, whose arrow controls
+>    have never been seen on real hardware.
+> 4. Confirm the first post-move net-worth snapshot write (a row dated 08-25 or later).
+> 5. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 6. A goal's OWN `monthly_contribution` can still overshoot its target.
+>
+> ## ⚠️ NOTHING IS PUSHED
+> `dd35dcfb`, `1fa69bfd`, `16b6158e`, `673e793f` are committed on `main`, local only. A push to
+> `main` auto-deploys Android to Play **production**, so it waits for him.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**three new asks from Tre. 1 of 3 shipped; the other two are SCOPED, NOT STARTED
 > — the context gate fired.**)
 >
