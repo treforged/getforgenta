@@ -486,6 +486,7 @@ export type Database = {
       }
       car_builds: {
         Row: {
+          car_fund_id: string | null
           created_at: string
           id: string
           maintenance_public: boolean
@@ -501,6 +502,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          car_fund_id?: string | null
           created_at?: string
           id?: string
           maintenance_public?: boolean
@@ -516,6 +518,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          car_fund_id?: string | null
           created_at?: string
           id?: string
           maintenance_public?: boolean
@@ -530,7 +533,15 @@ export type Database = {
           user_id?: string
           year?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "car_builds_car_fund_id_fkey"
+            columns: ["car_fund_id"]
+            isOneToOne: false
+            referencedRelation: "car_funds"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       car_funds: {
         Row: {

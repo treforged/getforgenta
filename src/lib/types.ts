@@ -217,6 +217,18 @@ export type CarBuild = {
   /** Per build. False hides item prices on the SHARED page only; the owner always sees them. */
   pricing_public: boolean;
   photos: string[] | null;
+  /** The `car_funds` row that is THIS car's saving plan or loan, when the user connected one.
+   * Null means unconnected, which is every pre-2026-08-20 build and stays the default.
+   *
+   * Never read it directly — go through `resolveBuildCarFund` (`build-loan-link.ts`), which
+   * resolves it against the caller's own car funds and returns null for anything it cannot
+   * find. The FK cannot enforce that the two rows share a `user_id`, and a resolver that
+   * trusted the id would be the seam where that mattered.
+   *
+   * Deliberately absent from the public share payload: `supabase/functions/public-build`
+   * selects an explicit column list, and a shared build must not carry a pointer to what
+   * the owner owes. */
+  car_fund_id: string | null;
   created_at: string;
 };
 

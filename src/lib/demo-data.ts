@@ -308,6 +308,9 @@ export const demoCarBuilds: CarBuild[] = [
     maintenance_public: false,
     pricing_public: true,
     photos: null,
+    // Unconnected on purpose: the demo's only loan-phase car fund is a RAV4, and wiring a
+    // Corvette build to it would read as a bug rather than a feature.
+    car_fund_id: null,
     created_at: '',
   },
 ];

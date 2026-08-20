@@ -3,19 +3,22 @@ import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
-import type { CarBuild } from '@/lib/types';
+import type { CarBuild, CarFund } from '@/lib/types';
 
 interface BuildFormModalProps {
   open: boolean;
   build?: CarBuild | null;
+  /** The user's own car funds, for the "car loan plan" connection. Only these are offered, which
+   * is also why `build-loan-link.ts` can resolve the saved id against the same list. */
+  carFunds?: readonly CarFund[];
   onClose: () => void;
-  onSave: (data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) => void;
+  onSave: (data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null; car_fund_id: string | null }) => void;
   saving?: boolean;
 }
 
-const empty = { name: '', year: '', make: '', model: '', notes: '' };
+const empty = { name: '', year: '', make: '', model: '', notes: '', carFundId: '' };
 
-export default function BuildFormModal({ open, build, onClose, onSave, saving }: BuildFormModalProps) {
+export default function BuildFormModal({ open, build, carFunds = [], onClose, onSave, saving }: BuildFormModalProps) {
   const [form, setForm] = useState(empty);
   // The form as the modal opened. A backdrop tap compares against THIS, so opening an
   // existing build and changing nothing still counts as pristine (`lib/form-dismiss.ts`).
@@ -36,6 +39,7 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
         make: build.make ?? '',
         model: build.model ?? '',
         notes: build.notes ?? '',
+        carFundId: build.car_fund_id ?? '',
       } : empty;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(loaded);
@@ -65,6 +69,9 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
       make: form.make.trim() || null,
       model: form.model.trim() || null,
       notes: notesResult.clean || null,
+      // '' is the "Not connected" option, and it must save as NULL rather than as an empty
+      // string — the column is a uuid FK and an empty string is not a uuid.
+      car_fund_id: form.carFundId || null,
     });
   }
 
@@ -129,6 +136,27 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
               />
             </div>
           </div>
+
+          {carFunds.length > 0 && (
+            <div>
+              <label className={labelCls}>Car Loan Plan</label>
+              <select
+                className={inputCls}
+                value={form.carFundId}
+                onChange={e => setForm(f => ({ ...f, carFundId: e.target.value }))}
+              >
+                <option value="">Not connected</option>
+                {carFunds.map(cf => (
+                  <option key={cf.id} value={cf.id}>
+                    {cf.vehicle_name}{cf.phase === 'saving' ? ' — saving' : ' — loan'}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Shows what the car itself costs above your build totals. Never appears on a shared link.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className={labelCls}>Notes</label>

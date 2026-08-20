@@ -32,6 +32,7 @@ const build: CarBuild = {
   maintenance_public: false,
   pricing_public: true,
   photos: null,
+  car_fund_id: null,
   created_at: '2026-01-01T00:00:00Z',
 };
 

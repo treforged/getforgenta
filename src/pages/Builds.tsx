@@ -6,10 +6,11 @@ import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useIsTouch } from '@/hooks/use-mobile';
-import { useCarBuilds, useCarBuildPhases, useCarBuildItems, useCarMaintenanceLogs, usePaymentPlans, useTransactions, useAccounts } from '@/hooks/useSupabaseData';
+import { useCarBuilds, useCarBuildPhases, useCarBuildItems, useCarMaintenanceLogs, usePaymentPlans, useTransactions, useAccounts, useCarFunds } from '@/hooks/useSupabaseData';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
+import BuildCarStrip from '@/components/builds/BuildCarStrip';
 import PhaseBlock from '@/components/builds/PhaseBlock';
 import BuildFormModal from '@/components/builds/BuildFormModal';
 import BuildPhotoUploader from '@/components/builds/BuildPhotoUploader';
@@ -17,6 +18,7 @@ import MaintenanceLog from '@/components/builds/MaintenanceLog';
 import MaintenanceFormModal, { type MaintenanceFormValues, type MaintenanceTransactionIntent } from '@/components/builds/MaintenanceFormModal';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { currentOdometer } from '@/lib/car-maintenance';
+import { resolveBuildCarFund, summarizeBuildCarFund } from '@/lib/build-loan-link';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from '@/lib/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { BuildsSkeleton, BuildPhasesSkeleton } from '@/components/shared/PageSkeleton';
@@ -32,6 +34,10 @@ export default function Builds() {
   const isTouch = useIsTouch();
 
   const { data: builds, loading: buildsLoading, add: addBuild, update: updateBuild, remove: removeBuild } = useCarBuilds();
+  // The car's own saving/loan plan, for the build that is connected to one. `useCarFunds` already
+  // resolves `current_balance_override` from a linked account (`applyLinkedLoanBalances`), so the
+  // strip inherits the re-anchored balance without this page knowing anything about it.
+  const { data: carFunds } = useCarFunds();
 
   // Track which build is selected; fall back to first when unset
   const [activeBuildId, setActiveBuildId] = useState<string | null>(null);
@@ -59,6 +65,20 @@ export default function Builds() {
   const { data: paymentPlans, add: addPaymentPlan } = usePaymentPlans();
   const { data: transactions, update: updateTransaction, add: addTransaction } = useTransactions();
   const { data: accounts } = useAccounts();
+
+  // The connected car's plan, resolved once. `resolveBuildCarFund` returns null for anything not
+  // in THIS user's funds, so an unconnected build and a build pointing somewhere it should not
+  // both render as no strip at all.
+  const buildCarSummary = useMemo(() => {
+    const fund = resolveBuildCarFund(activeBuild, carFunds);
+    if (!fund) return null;
+    const linked = fund.linked_account
+      ? (accounts ?? []).find(a => a.id === fund.linked_account)
+      : null;
+    return summarizeBuildCarFund(fund, {
+      linkedAccountBalance: linked ? Number(linked.balance) : null,
+    });
+  }, [activeBuild, carFunds, accounts]);
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
@@ -206,7 +226,7 @@ export default function Builds() {
   const lastOdometer = useMemo(() => currentOdometer(maintenanceLogs), [maintenanceLogs]);
 
   // ── Build CRUD ───────────────────────────────────────────
-  async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) {
+  async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null; car_fund_id: string | null }) {
     setFormSaving(true);
     try {
       if (editingBuild) {
@@ -896,6 +916,7 @@ export default function Builds() {
           ) : (
             <>
               <BuildHeader build={activeBuild} phases={displayPhases} items={displayItems} />
+              {buildCarSummary && <BuildCarStrip summary={buildCarSummary} />}
               {displayPhases.map((ph, i) => {
                 const isPhaseTarget = dragOverPhaseId === ph.id && !isTouch;
                 return (
@@ -991,6 +1012,7 @@ export default function Builds() {
         open={formOpen}
         build={editingBuild}
         onClose={() => { setFormOpen(false); setEditingBuild(null); }}
+        carFunds={carFunds}
         onSave={handleSaveBuild}
         saving={formSaving}
       />
