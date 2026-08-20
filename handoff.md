@@ -19,6 +19,15 @@
 >    - `updateProfile` (`useSupabaseData.ts:1210`) passes the payload straight through
 >      `sanitizePayload`, which has no allowlist, so no plumbing is needed to persist the new field.
 >
+> ### 🔎 SCOUTING ALREADY DONE FOR SLICE 5 (no code written)
+>
+> - **The reorder pattern to copy** is `src/pages/Builds.tsx` (~:502 `onPhaseDragStart` … :523 `onPhaseDrop`) plus `src/components/builds/PhaseBlock.tsx:304`. Desktop uses native HTML5 drag on a `GripVertical` handle; **touch gets ArrowUp/ArrowDown buttons instead** (`useIsTouch`), because there is no HTML5 drag on mobile. Copy both halves or the feature does not exist on the phone.
+> - ⚠️ `Builds.tsx` holds the drag ids in **refs, not state, on purpose** — promoting them to state re-renders the dragged node mid-drag and cancels the native drag. It carries an `eslint-disable react-hooks/immutability` with the reasoning written out; the same will be needed.
+> - **Drop writes dense indices** (`reordered.map((p, i) => ({ ...p, sort_order: i }))`) and mutates all rows at once. Same here, and the card row's index becomes `cards_sort_order`.
+> - **Every mutation needed already exists**: `useSavingsGoals().update`, `useCarFunds().update` (⚠️ it strips `current_balance_override`, which is resolved and not a column), `useProfile().update`. All three run the payload through `sanitizePayload`, which has **no allowlist**, so no plumbing is required for the new field.
+> - ⚠️ Both list queries `.order('created_at')`, **not** `sort_order` — the UI must sort by `sort_order` itself (ties on `created_at`) or the rows render in the wrong order the moment a rank is set.
+> - **Still to check before building:** whether `DEFAULT_PROFILE` (`useSupabaseData.ts`) needs `cards_sort_order: 0` added, and which page the list lives on. Nothing in the record decides the page; the goals, the car funds and the cards live on three different ones (`SavingsGoals.tsx`, `Vehicles.tsx`, `DebtPayoff.tsx`), and the list spans all three. **Recommendation: `SavingsGoals.tsx`**, as one "where the extra money goes" section — it is the page the ask was written about, and the only one whose users are already thinking in goals. The per-row `auto_extra` toggle belongs in the same section: it is still the ONLY thing standing between this feature and a user being able to switch it on.
+>
 > ## ✅ WHAT LANDED THIS ROUND (`85de7050`)
 >
 > **`profiles.cards_sort_order integer not null default 0`** — migration written to
