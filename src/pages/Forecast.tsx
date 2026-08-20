@@ -1,7 +1,6 @@
-﻿import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
-import PanelBar from '@/components/shared/PanelBar';
+﻿import { useState, useMemo, useCallback, useEffect } from 'react';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import { ForecastSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -21,7 +20,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { MOTION_DURATION, EASE_OUT } from '@/lib/motion';
-import { Settings2, List, BarChart3, TrendingUp, Info, X, FileDown, Crown, PiggyBank } from 'lucide-react';
+import { Settings2, List, BarChart3, TrendingUp, Info, X, FileDown, Crown } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { buildForecastMonthDetail, getAbsoluteMonthIndex } from '@/lib/forecast-export';
@@ -36,16 +35,6 @@ import ForecastHero from '@/components/forecast/ForecastHero';
 import ForecastAssumptionsPanel from '@/components/forecast/ForecastAssumptionsPanel';
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable';
 import ReceiptsDisclosure from '@/components/forecast/ReceiptsDisclosure';
-import { forecastTabFromSearch, effectiveForecastTab, FORECAST_TAB_FALLBACK, FORECAST_TAB_STORAGE_KEY, type ForecastTab } from '@/lib/forecast-tab';
-
-/**
- * ⚠️ RENDERED, NOT LINKED TO — and `SavingsGoals` is unchanged apart from an `embedded` prop that
- * drops its duplicate <h1>. It owns its own queries, its Add Goal button and every write it ever
- * made, so hosting it here is a change of shell and nothing else. Lazy and mounted only on its
- * own panel, so the Forecast does not pay for its queries while a user is looking at the
- * projection — the same trade the Dashboard makes for `Accounts`.
- */
-const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -136,26 +125,6 @@ export default function Forecast() {
   // Assumptions are settings, not the story, so the panel starts closed (DIRECTION.md: the
   // page leads with one number). Both disclosures persist through the same idiom the rest of
   // this page's view state already uses, so a reader who opens them keeps them open.
-  /**
-   * Which panel this surface shows. Goals is no longer a route — it is this page's second panel;
-   * `/goals` redirects here naming it. The panel persists so the page reopens where the user left
-   * it, and a `?tab=` link overrides it ONCE and is then stripped, exactly as the Dashboard does.
-   *
-   * ⚠️ Read through `effectiveForecastTab` rather than trusted raw: a stored value this page no
-   * longer recognises has to resolve to a panel, or the surface renders empty with no error.
-   */
-  const [storedTab, setStoredTab] = usePersistedState<ForecastTab>(FORECAST_TAB_STORAGE_KEY, FORECAST_TAB_FALLBACK);
-  const activeTab = effectiveForecastTab(storedTab);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const askedTab = forecastTabFromSearch(searchParams);
-  useEffect(() => {
-    if (!askedTab) return;
-    setStoredTab(askedTab);
-    const next = new URLSearchParams(searchParams);
-    next.delete('tab');
-    setSearchParams(next, { replace: true });
-  }, [askedTab, searchParams, setSearchParams, setStoredTab]);
-
   const [showAssumptions, setShowAssumptions] = usePersistedState('tre:forecast:showAssumptions', false);
   const [showReceipts, setShowReceipts] = usePersistedState('tre:forecast:showReceipts', false);
   const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
@@ -459,31 +428,6 @@ export default function Forecast() {
         </div>
       </div>
 
-      {/*
-        One oval segmented control, `seg-track`/`seg-item` from `index.css` — the same one every
-        other panelled surface uses. This is the FIRST segmented control on this page; the chart's
-        1Y/2Y/3Y range pickers stay square on purpose, because they pick a range, not a panel.
-      */}
-      <PanelBar>
-        <button onClick={() => setStoredTab('forecast')}
-          className={`seg-item btn-press ${activeTab === 'forecast' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <TrendingUp size={13} /> Forecast
-        </button>
-        <button onClick={() => setStoredTab('goals')}
-          className={`seg-item btn-press ${activeTab === 'goals' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <PiggyBank size={13} /> Goals
-        </button>
-      </PanelBar>
-
-      {activeTab === 'goals' && (
-        <Suspense fallback={<div className="h-64" />}>
-          <GoalsPanel embedded />
-        </Suspense>
-      )}
-
-      {activeTab === 'forecast' && (<>
       {/* The one thing this page leads with: the next milestone month. Rendered above the
           assumptions and the receipts because it is the story and they are the settings and
           the proof. `emptyReason` splits "nothing entered yet" from "the projection simply
@@ -742,8 +686,6 @@ export default function Forecast() {
           </div>
         </div>
       )}
-
-      </>)}
 
       <CalcDrawer
         open={!!calcDrawer}

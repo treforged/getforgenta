@@ -1,57 +1,70 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-20 (**NEXT TASK, FULLY SCOUTED, NO CODE WRITTEN: MOVE THE GOALS PANEL FROM FORECAST TO THE DASHBOARD**)
+> ▶ 2026-08-20 (**THE GOALS PANEL NOW LIVES ON THE DASHBOARD — done, gated and live-verified**)
 >
-> ## ⏭️ START HERE
+> ## ✅ SHIPPED
 >
-> **Tre, 2026-08-20:** *"move the goals section to the home/command center tab"* … *"it makes more
-> sense there."* That is the Goals PANEL in its entirety (`SavingsGoals` rendered `embedded`),
-> moving from the Forecast surface to the Dashboard. It supersedes the 2026-08-18 *"well add goals
-> to forecast then"* recorded at the top of `src/lib/forecast-tab.ts` — **update that comment, do
-> not leave it contradicting the code.**
+> Tre, 2026-08-20: *"move the goals section to the home/command center tab … it makes more sense
+> there."* Done. `SavingsGoals` renders `embedded` as the Dashboard's **third panel**; the Forecast
+> is back to a single, un-panelled surface. This supersedes the 2026-08-18 *"well add goals to
+> forecast then"* two-day stint, and every comment recording that reasoning was rewritten rather
+> than left contradicting the code.
 >
-> This is a routing-contract change across two surfaces. It was scouted at the end of a session that
-> had run out of context; every site below was READ, nothing was edited.
+> **What changed**
+> - `src/lib/dashboard-tab.ts` — `DASHBOARD_TABS` is `['overview', 'accounts', 'goals']`. The
+>   unknown/absent-returns-null contract is untouched.
+> - `src/lib/forecast-tab.ts` and its test — **DELETED**. One panel does not need a registry or a
+>   `PanelBar`. Stale `tre:forecast:tab` values in users' localStorage are simply never read.
+> - `src/pages/Forecast.tsx` — all tab machinery stripped (PanelBar, the `?tab=` strip effect, the
+>   persisted tab, the `GoalsPanel` lazy, the `PiggyBank` icon, `useSearchParams`, `lazy`/`Suspense`).
+> - `src/pages/Dashboard.tsx` — `GoalsPanel` lazy import, third pill, `activeTab === 'goals'` block.
+> - `src/App.tsx` — `GoalsRedirect` now sends `/goals` → `/dashboard?tab=goals`. **The in-app links
+>   still point at `/goals` on purpose** — repointing them would leave the redirect every bookmark
+>   lands on covered by nothing. Unchanged, deliberately.
+> - `src/components/layout/Sidebar.tsx` — the rail comment naming the destination.
+> - `src/lib/page-guides.ts` — ⚠️ **A SITE THE BRIEF MISSED.** Guides are keyed `surface:panel`, so
+>   `forecast:goals` had to become `dashboard:goals` in both `PAGE_GUIDES` and `SURFACE_PANELS`, or
+>   Home's combined guide would have silently dropped Goals while the Forecast guide advertised a
+>   panel that no longer exists. Grep `page-guides.ts` on any future panel move.
+> - Tests: `dashboard-tab.test.ts` re-pinned to three panels + a `?tab=goals` case;
+>   `page-guides.test.ts`'s "every surface owns a panel row" now excludes `forecast` **with the
+>   reason written down**, and pins it to exactly one entry.
 >
-> ### The sites, all of them
+> ## Evidence (do not re-run to "check")
 >
-> 1. **`src/lib/dashboard-tab.ts`** — `DASHBOARD_TABS` becomes `['overview', 'accounts', 'goals']`.
->    Render order is also pill order. ⚠️ Its doc comment says an unknown/absent value returns null,
->    never a default; keep that.
-> 2. **`src/lib/forecast-tab.ts`** — `FORECAST_TABS` drops `'goals'`, leaving ONE panel. A one-entry
->    registry plus a one-button `PanelBar` is not worth keeping: **delete the module and its test**
->    (`src/lib/__tests__/forecast-tab.test.ts`) and strip the tab machinery from `Forecast.tsx`.
->    Users' stale `tre:forecast:tab` localStorage values are then simply unread, which is harmless.
-> 3. **`src/pages/Forecast.tsx`** — remove the `PanelBar` (~:467), the `activeTab === 'goals'` block
->    (~:480), the `activeTab === 'forecast' && (<>` wrapper and its closing fragment, the
->    `GoalsPanel` lazy import (~:48), the `forecast-tab` import (~:39), the `usePersistedState` tab
->    line (~:147) and the `?tab=` strip effect (~:150). `PiggyBank`/`TrendingUp` icons may go unused.
-> 4. **`src/pages/Dashboard.tsx`** — mirror what `Accounts` already does there, it is the template:
->    `const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));` beside the `Accounts` lazy
->    (~:85, and keep the comment's reasoning — lazy so Overview does not pay for the panel's
->    queries), a third pill in the `PanelBar` (~:1496), and an `activeTab === 'goals' && (<Suspense
->    fallback={<div className="h-64" />}><GoalsPanel embedded /></Suspense>)` block beside the
->    Accounts one (~:1516). ⚠️ The pill-row comment says *"Two entries, so it stays one line even at
->    320px."* THREE entries may not — **check 320px and update or fix that comment.**
-> 5. **`src/App.tsx`** — `GoalsRedirect` (~:221) currently sends `/goals` to `/forecast?tab=goals`;
->    it must send `/dashboard?tab=goals`. ⚠️ `forecast-tab.ts` records that **the in-app links still
->    point at `/goals` on purpose** (Dashboard chips, goal cards, `OnboardingChecklist`) so the
->    redirect every bookmark lands on stays covered. Keep that — repoint the REDIRECT, not the links.
-> 6. **Tests** — `src/lib/__tests__/dashboard-tab.test.ts` pins the exact tab list and will fail;
->    update it. Delete `forecast-tab.test.ts` with its module. Grep for `forecast?tab=goals` across
->    `src/` and the tests before believing you are done.
+> Gates: **tsc 0, eslint clean, 1833 passed across 195 files** (was 1839/196 — `forecast-tab.test.ts`
+> took 7 with it, two were added), `npm run build` exit 0.
 >
-> ### Verify it, do not assert it
-> Gates (`npx tsc --noEmit`, `npx eslint .`, `npx vitest run`, `npm run build`), then the browser:
-> `/goals` must land on the Dashboard's Goals panel, `/dashboard?tab=goals` must open it directly and
-> strip the param, and the **"Where the extra money goes"** section shipped in `0dcedbaf` must still
-> render and still save (see below). Dev server: `node scripts/dev-session.mjs up`, origin
-> **`http://localhost:8080` only**.
+> Live on `localhost:8080` against the real account:
+> - `/goals` → lands on `/dashboard`, Goals pill active, `?tab=` stripped.
+> - `/dashboard?tab=goals&keep=1` → `/dashboard?keep=1`. It strips only its own param.
+> - The panel renders: growth chart, **"Where the extra money goes"** with the Credit cards row at
+>   rank 1 and five `Auto extra` boxes. **No context error** — `DashboardLayout` mounts
+>   `CardProjectionProvider`, so `useMonth0DebtBreakdown()` is covered here as it was on Forecast.
+> - **It still SAVES from the new host**: ticked Brokerage's `Auto extra`, read `auto_extra = true`
+>   straight out of Postgres, ticked it back, read `false`. Ranks untouched, DB back where it started.
+> - `/forecast` renders with **no pill row** — hero, chart and breakdown all intact.
+> - Home's guide is titled "Home Guide" and carries the Savings Goals sections; the Forecast guide
+>   no longer mentions them.
 >
-> ### ⚠️ One real risk
-> `SavingsGoals` calls `useMonth0DebtBreakdown()`, which **must be inside `CardProjectionProvider`**.
-> `DashboardLayout` mounts that provider, so both surfaces are covered — but confirm it rather than
-> assume, because the failure mode is a thrown context error on the panel, not a blank section.
+> ## ⚠️ The 320px question, answered by measurement
+>
+> Three pills no longer fit 320px, **and that is fine — the row does not wrap.** `seg-track` is a
+> horizontal scroller and `seg-item` is `shrink-0`, so it swipes. Measured, not assumed: the three
+> pills are **331px intrinsic**, and inside a 286px content box they still report **one row, 42px
+> high, `scrollWidth` 331 > `clientWidth` 286**. Debt Payoff has run five segments this way since
+> 2026-08-18. The old "Two entries, so it stays one line even at 320px" comment was replaced with
+> those numbers.
+>
+> ## ⏭️ NEXT UP
+>
+> 1. **The 390px visual pass on Tre's phone** — the touch reorder buttons in `SurplusRankingSection`
+>    have never been seen on a real device, and now the three-pill row wants a look too. A desktop
+>    browser cannot do it (`resize_window` reports success and does nothing).
+> 2. Dependabot #109/#110.
+> 3. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 4. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
 
 # Handoff — Forgenta
 

@@ -26,10 +26,11 @@ const navItems = [
   { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
   { to: '/vehicles', icon: Car, label: 'Garage' },
-  // Goals is a PANEL of the Forecast now, for the same reason and by the same route as Accounts and
-  // Budget Control (Tre, 2026-08-18: "well add goals to forecast then."). `/goals` still resolves —
-  // it redirects to `/forecast?tab=goals` — so every bookmark and every in-app link keeps landing;
-  // what it stopped being is a row of its own.
+  // Goals is a PANEL of the Dashboard now, for the same reason and by the same route as Accounts
+  // and Budget Control (Tre, 2026-08-20: "move the goals section to the home/command center tab …
+  // it makes more sense there."). `/goals` still resolves — it redirects to
+  // `/dashboard?tab=goals` — so every bookmark and every in-app link keeps landing; what it
+  // stopped being is a row of its own.
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/settings', icon: Settings, label: 'Settings' },

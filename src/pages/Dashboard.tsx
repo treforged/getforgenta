@@ -69,7 +69,7 @@ import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendation
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
-  X, Car, Shield, Check, FileDown, LayoutDashboard, Building2,
+  X, Car, Shield, Check, FileDown, LayoutDashboard, Building2, PiggyBank,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -83,6 +83,9 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 // folded ~40 kB of it into the Dashboard's chunk, i.e. every Overview paint paid for a panel most
 // visits never open. The split is what keeps the merge free.
 const Accounts = lazy(() => import('@/pages/Accounts'));
+// Lazy for the same reason: Goals owns its own queries, its growth chart and the ranked-surplus
+// section, and Overview should not pay for any of them on a visit that never opens the panel.
+const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 
@@ -1490,8 +1493,13 @@ export default function Dashboard() {
           belongs to the content below it, so it reads as that content's label instead of as a
           region of its own. See the vertical-rhythm block in `src/index.css`.
 
-          The panel row is styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
-          stays one line even at 320px. */}
+          The panel row is styled exactly like the Garage's (`Vehicles.tsx`). THREE entries since
+          Goals moved here (Tre, 2026-08-20), so it no longer fits 320px — and that is fine, it
+          does not wrap. `seg-track` is a horizontal scroller and `seg-item` is `shrink-0`, so the
+          row swipes to the third pill instead of breaking to a second line. MEASURED, not assumed:
+          the three pills are 331px intrinsic, and inside a 286px content box they still report one
+          row at 42px high with `scrollWidth` 331 > `clientWidth` 286. Debt Payoff has run five
+          segments this way since 2026-08-18. */}
       <div className="stack-row">
       <PanelBar>
         <button onClick={() => setActiveTab('overview')}
@@ -1503,6 +1511,11 @@ export default function Dashboard() {
           className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Building2 size={13} /> Accounts
+        </button>
+        <button onClick={() => setActiveTab('goals')}
+          className={`seg-item btn-press ${activeTab === 'goals' ? 'seg-item-active' : ''}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <PiggyBank size={13} /> Goals
         </button>
       </PanelBar>
 
@@ -1516,6 +1529,20 @@ export default function Dashboard() {
       {activeTab === 'accounts' && (
         <Suspense fallback={<div className="h-64" />}>
           <Accounts embedded />
+        </Suspense>
+      )}
+
+      {/*
+        ⚠️ RENDERED, NOT LINKED TO — `SavingsGoals` is unchanged apart from the `embedded` prop that
+        drops its duplicate <h1>. It owns its own queries, its Add Goal button, the growth chart and
+        the "Where the extra money goes" section, so hosting it here is a change of shell and
+        nothing else. It calls `useMonth0DebtBreakdown()`, which needs `CardProjectionProvider` —
+        `DashboardLayout` mounts that above this page, so the panel is covered here exactly as it
+        was on the Forecast.
+      */}
+      {activeTab === 'goals' && (
+        <Suspense fallback={<div className="h-64" />}>
+          <GoalsPanel embedded />
         </Suspense>
       )}
 

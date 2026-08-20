@@ -18,6 +18,10 @@ describe('resolveGuide', () => {
     // The two surfaces that rendered TWO buttons at once now each resolve to one.
     expect(resolveGuide('dashboard', 'overview').title).toBe('Dashboard Guide');
     expect(resolveGuide('dashboard', 'accounts').title).toBe('Accounts Guide');
+    // Goals is the Dashboard's third panel since 2026-08-20 — it must resolve to its OWN guide
+    // here, not fall back to the Dashboard Guide the way an unrecognised panel does.
+    expect(resolveGuide('dashboard', 'goals').title).toBe('Savings Goals Guide');
+    expect(resolveGuide('forecast', 'goals').title).toBe('Forecast Guide');
     expect(resolveGuide('transactions', 'budget').title).toBe('Budget Control Guide');
     expect(resolveGuide('transactions', 'bank').title).toBe('Bank Activity Guide');
   });
@@ -43,10 +47,15 @@ describe('resolveGuide', () => {
   });
 
   it('covers every surface that owns a panel row', () => {
-    for (const surface of SURFACES) {
+    // ⚠️ `forecast` is deliberately absent. Goals moved to the Dashboard on 2026-08-20, which left
+    // the Forecast with a single panel and therefore no panel row at all — its one guide entry is
+    // the whole surface, so asserting more than one here would be asserting a row that is gone.
+    const PANELLED = SURFACES.filter(s => s !== 'forecast');
+    for (const surface of PANELLED) {
       const keys = Object.keys(PAGE_GUIDES).filter(k => k.startsWith(`${surface}:`));
       expect(keys.length, surface).toBeGreaterThan(1);
     }
+    expect(Object.keys(PAGE_GUIDES).filter(k => k.startsWith('forecast:'))).toEqual(['forecast:forecast']);
   });
   it('combines a page into ONE guide carrying every panel under its own heading', () => {
     const debt = resolveSurfaceGuide('debt');

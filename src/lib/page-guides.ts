@@ -78,6 +78,15 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
       { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
     ],
   },
+  'dashboard:goals': {
+    title: 'Savings Goals Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or retirement. Link goals to real accounts for automatic balance sync.' },
+      { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
+      { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
+      { title: 'Vehicles', body: 'Tracking a car purchase? Use the Garage tab for down payment goals and full loan amortization.' },
+    ],
+  },
 
   // ── Accounts (its own panel row, hosted inside the Dashboard) ───────────────────────
   'accounts:balances': {
@@ -198,15 +207,6 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
       { title: 'Charts & legends', body: 'Click any legend item to toggle that data series on or off. Preferences are saved — no refresh needed.' },
     ],
   },
-  'forecast:goals': {
-    title: 'Savings Goals Guide',
-    sections: [
-      { title: 'What is this panel?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or retirement. Link goals to real accounts for automatic balance sync.' },
-      { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
-      { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
-      { title: 'Vehicles', body: 'Tracking a car purchase? Use the Garage tab for down payment goals and full loan amortization.' },
-    ],
-  },
 
   // ── Garage ──────────────────────────────────────────────────────────────────────────
   'garage:saving': {
@@ -309,12 +309,15 @@ export function resolveGuide(surface: GuideSurface, panel: string): PageGuide {
 const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> = {
   // WARNING: Home's guide reaches ACROSS surfaces on purpose. The Accounts page is hosted
   // here as a panel and brings its own two sub-panels with it, so a reader who opens Home's
-  // guide gets the whole page — including the parts that are another module's code.
+  // guide gets the whole page — including the parts that are another module's code. Goals is
+  // listed after them so the Accounts group stays contiguous; the order here is the guide's
+  // table of contents, not the pill row.
   dashboard: [
     { key: 'dashboard:overview', label: 'Overview' },
     { key: 'dashboard:accounts', label: 'Accounts' },
     { key: 'accounts:balances', label: 'Accounts · Balances' },
     { key: 'accounts:banks', label: 'Accounts · Bank connections' },
+    { key: 'dashboard:goals', label: 'Goals' },
   ],
   accounts: [
     { key: 'accounts:balances', label: 'Balances' },
@@ -334,7 +337,6 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
   ],
   forecast: [
     { key: 'forecast:forecast', label: 'Forecast' },
-    { key: 'forecast:goals', label: 'Goals' },
   ],
   garage: [
     { key: 'garage:saving', label: 'Saving for a car' },

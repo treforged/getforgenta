@@ -6,8 +6,15 @@ import { describe, it, expect } from 'vitest';
 import { DASHBOARD_TABS, dashboardTabFromSearch, isDashboardTab } from '@/lib/dashboard-tab';
 
 describe('dashboard-tab', () => {
-  it('names exactly the two panels the page renders', () => {
-    expect([...DASHBOARD_TABS]).toEqual(['overview', 'accounts']);
+  it('names exactly the three panels the page renders, in pill order', () => {
+    expect([...DASHBOARD_TABS]).toEqual(['overview', 'accounts', 'goals']);
+  });
+
+  it('reads the Goals panel a redirected /goals link asks for', () => {
+    // `/goals` is a redirect to `/dashboard?tab=goals` (Tre, 2026-08-20). Would-fail: dropping
+    // 'goals' from the list sends every bookmarked /goals visit to whatever panel was remembered.
+    expect(dashboardTabFromSearch('?tab=goals')).toBe('goals');
+    expect(isDashboardTab('goals')).toBe(true);
   });
 
   it('reads a panel a link asks for, from a string or a URLSearchParams', () => {
@@ -21,6 +28,7 @@ describe('dashboard-tab', () => {
     expect(dashboardTabFromSearch('')).toBeNull();
     expect(dashboardTabFromSearch('?tab=')).toBeNull();
     expect(dashboardTabFromSearch('?tab=networth')).toBeNull();
+    expect(dashboardTabFromSearch('?tab=savings')).toBeNull();
     expect(dashboardTabFromSearch('?other=accounts')).toBeNull();
   });
 

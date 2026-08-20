@@ -210,9 +210,10 @@ function BudgetRedirect() {
 }
 
 /**
- * `/goals` is no longer a page — it is the Forecast's second panel (Tre, 2026-08-18: "well add
- * goals to forecast then."). A component and not a bare <Navigate> so the whole query string rides
- * along, the same reason `AccountsRedirect` and `BudgetRedirect` are components.
+ * `/goals` is no longer a page — it is the Dashboard's third panel (Tre, 2026-08-20: "move the
+ * goals section to the home/command center tab … it makes more sense there.", superseding the
+ * two-day stint on the Forecast). A component and not a bare <Navigate> so the whole query string
+ * rides along, the same reason `AccountsRedirect` and `BudgetRedirect` are components.
  *
  * ⚠️ THE IN-APP LINKS STILL POINT AT `/goals` ON PURPOSE — the Dashboard chips, two goal cards
  * and `OnboardingChecklist` all do. Repointing them would leave this redirect, which is what every
@@ -222,7 +223,7 @@ function GoalsRedirect() {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   params.set('tab', 'goals');
-  return <Navigate to={`/forecast?${params.toString()}`} replace />;
+  return <Navigate to={`/dashboard?${params.toString()}`} replace />;
 }
 
 function ScrollToTop() {
