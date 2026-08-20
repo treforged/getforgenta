@@ -1,5 +1,100 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 (**REORDER ANIMATION SHIPPED; THE AUTO-EXTRA CHART BUG IS ROOT-CAUSED, NOT FIXED**)
+>
+> ## ⏭️ START HERE
+>
+> Tre, this session: *"it reorders but its choppy. can we give that app smooth animations? also
+> Auto Extra doesnt seem to affect anything yet. at least the chart on the goals tab doesnt change
+> at all."* Two separate items. **The first is DONE. The second is diagnosed and is the next job.**
+>
+> ## ✅ 1. Choppy reorder — FIXED, commit `5aeb69b8`
+>
+> `src/components/savings/SurplusRankingSection.tsx`. Two causes, both real:
+> 1. Rows were plain `<li>`s — **nothing animated position at all**, so a reorder teleported them.
+> 2. The className carried **`transition-all`, which includes `transform`**. Once framer started
+>    writing transforms per frame, the CSS transition fought it for the same property. That is the
+>    judder as opposed to the mere snap, and it would have bitten ANY animation added here.
+>
+> Now `motion.li` with `layout="position"` + a spring (`ROW_SETTLE`). **Position-only on purpose**:
+> the rows are not equal height (a long goal name wraps to two lines) and full `layout` interpolates
+> width/height too, visibly squashing a tall row in transit. CSS transition narrowed to
+> `background-color,border-color,box-shadow,opacity` — the properties framer never touches.
+>
+> Reduced motion needed no new code: `<MotionConfig reducedMotion="user">` in `App.tsx` neutralises
+> layout animations wholesale. `usePrefersReducedMotion` is for things framer cannot see (CountUp,
+> recharts) — read that hook's doc comment before adding a manual gate here.
+>
+> **Evidence.** Gates: tsc 0, eslint clean, **1833 passed across 195 files**, build exit 0. Live on
+> the real account via synthetic `DragEvent`s: 40ms after a drop the two swapped rows carried
+> `translateY` **+65 / -65** while the four untouched rows sat at **0**, all settling to 0 by 900ms.
+> Pre-fix every value would have been 0 instantly. Order was restored and **confirmed in Postgres**
+> (Move fund 1, Savings 2, Roth IRA 3, Brokerage 4, 401K Roth 5; `auto_extra` false on all).
+>
+> ⚠️ Sampling transforms in a `requestAnimationFrame` loop over ~250ms **times out the CDP
+> bridge** (`Runtime.evaluate` 45s). The drag still executed. Fire the drag, `await` a single
+> ~40ms sleep, then read — do not loop.
+>
+> ## ❌ 2. Auto Extra does not move the Goals chart — CONFIRMED REAL, root-caused, NOT fixed
+>
+> **Tre is right, and it is a wiring gap, not a misunderstanding.** Proven from the code, so it did
+> NOT need his real data mutated to demonstrate:
+>
+> - `src/lib/savings-growth.ts` — `GrowthGoalInput` has **no field for ranked/auto extra at all**.
+>   The model is `monthlyContribution` + APY + lump sums, full stop.
+> - `src/pages/SavingsGoals.tsx` → `toGrowthGoal` (~line 295) passes only
+>   `monthlyContribution: Number(g.monthly_contribution)`.
+> - So `SavingsGrowthChart` **cannot** respond to `auto_extra` under any value. Ticking it is
+>   correctly saved and correctly consumed by the engine — it is only this chart that is blind.
+>
+> **The engine side genuinely works** — do not "fix" it. `forecast-engine.autoExtraMultiMonth.test.ts`
+> pins the diversion in EVERY month, not just month 0, and `...autoExtraSavings.test.ts` pins the
+> money landing in savings. The Forecast page does change when you tick.
+>
+> ### The design fork that must be settled before writing code
+>
+> The obvious cheap fix — add a flat `extraMonthlyContribution` to `savings-growth.ts` — is
+> **wrong and should not be shipped**. The ranked surplus is not flat: it grows as cards retire and
+> shrinks as goals fill. A static figure would make the Goals chart disagree with the Forecast,
+> which is **exactly the §2.5 bug class this codebase already paid to fix** (Goals and Forecast
+> pricing one goal three months apart). `savings-growth.ts`'s own header says it is shared "so the
+> chart and the estimate can never disagree."
+>
+> **Recommended: source the chart from the forecast engine.** Cheaper than it sounds, because
+> `CardProjectionContext` (line ~258) **already calls `calculateForecast`**, and `DashboardLayout`
+> already mounts `CardProjectionProvider` — the Goals panel is inside it (that is why
+> `useMonth0DebtBreakdown()` works there). The projections are available at **zero extra compute**.
+>
+> ⚠️ **The one genuine obstacle, and the reason this stopped here rather than guessing.** Each
+> projection row carries `assetBreakdown` (forecast-engine ~line 1702) with per-goal balances from
+> `goalPools` — **but `goalPools` only holds goals NOT linked to a savings/retire/invest account**
+> (see ~line 273). **Every one of Tre's five goals IS account-linked** ("Auto-synced from account"),
+> so they live in `perAcctSavings` keyed by ACCOUNT id, and an account balance is not the same thing
+> as the goal's balance (one account can hold more than the goal, or back several). Deciding how a
+> linked goal claims its share of an account's projected balance is the actual design work.
+>
+> ### Set expectations before building
+>
+> Measured on the live page: **"Available after bills" is ~$106/mo** (Savings) and **$6** (401K Roth).
+> So even wired perfectly, ticking Auto Extra moves this chart **modestly, not dramatically**. Worth
+> telling Tre up front so a correct fix does not read as another broken one. All five boxes are
+> currently **unticked**, which matches the copy "Nothing is diverted until you do".
+>
+> ## ⏭️ NEXT UP
+>
+> 1. **The Auto-Extra → Goals-chart wiring above.** Settle the linked-goal attribution first.
+> 2. A render test for `SurplusRankingSection` was started and NOT written — the context gate hit.
+>    A layout animation cannot be asserted in jsdom (no layout), so the durable guard is that the
+>    row className **never contains `transition-all`** again. Mock `@/hooks/useSurplusRanking`;
+>    `BuildHeader.test.tsx` is the convention to copy.
+> 3. **The 390px visual pass on Tre's phone** — touch reorder buttons + the three-pill Dashboard row.
+>    A desktop browser cannot do it (`resize_window` reports success and does nothing).
+> 4. `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges).
+> 5. A goal's OWN `monthly_contribution` can still overshoot its target
+>    (`buildGoalOwnCompletionCutoffs` granularity, unrelated to the reserve).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 (**DEPENDABOT #109 + #110 GATED AND MERGED — the dependency workstream is CLOSED**)
 >
 > ## ✅ DONE — do not re-verify, and do not go looking for open Dependabot PRs
