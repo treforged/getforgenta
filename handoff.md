@@ -60,9 +60,11 @@
 >
 > ## ⏭️ JOB 2 — Fill the empty right side of the milestone boxes. BLOCKED on one answer.
 >
-> **The question is filed on the Conductor board (`2ed7d33e`) and is NOT answered yet.** Pick it up
-> with `conductor answers` before building. There are four plausible "milestone boxes" in the app
-> and they are on different pages, so guessing wastes the slice:
+> **Ask Tre IN CHAT which surface he means, in the "Your actions" list, then keep working.**
+> ⚠️ **Do NOT use `conductor ask`** — he withdrew that on 2026-08-20 ("stop filing stuff there
+> until i state otherwise. i will answer questions in the chat"). The card that was filed for this
+> question has been pulled off the board. There are four plausible "milestone boxes" in the app,
+> on different pages, so guessing wastes the slice:
 > - `src/components/forecast/ForecastHero.tsx` — the "Next milestone" hero. **My guess is this
 >   one**: it is a wide single box, its content sits left, and it has obvious empty right-hand
 >   space. Renders over `selectNextMilestone` in `src/lib/next-milestone.ts`.
@@ -128,7 +130,7 @@
 > ## ⏭️ NEXT UP
 >
 > 1. **Job 1 above** — reorderable accounts. Unblocked, fully scoped, start here.
-> 2. **Job 2 above** — run `conductor answers` first; build only once the surface is known.
+> 2. **Job 2 above** — ask him in chat which surface first; build only once it is known.
 > 3. Live-verify the build↔loan strip on `/builds` with the real C5 (carried over, `9fc22c7c`).
 > 4. The 390px pass on Tre's actual phone (a desktop browser cannot do it — `resize_window`
 >    reports success and does nothing).
