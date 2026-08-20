@@ -58,34 +58,70 @@
 >
 > ---
 >
-> ## ⏭️ JOB 2 — Fill the empty right side of the milestone boxes. BLOCKED on one answer.
+> ## ⏭️ JOB 2 — Fill the right side of the Forecast milestone hero. ANSWERED, scoped, NOT started.
 >
-> **Ask Tre IN CHAT which surface he means, in the "Your actions" list, then keep working.**
-> ⚠️ **Do NOT use `conductor ask`** — he withdrew that on 2026-08-20 ("stop filing stuff there
-> until i state otherwise. i will answer questions in the chat"). The card that was filed for this
-> question has been pulled off the board. There are four plausible "milestone boxes" in the app,
-> on different pages, so guessing wastes the slice:
-> - `src/components/forecast/ForecastHero.tsx` — the "Next milestone" hero. **My guess is this
->   one**: it is a wide single box, its content sits left, and it has obvious empty right-hand
->   space. Renders over `selectNextMilestone` in `src/lib/next-milestone.ts`.
-> - `src/pages/Forecast.tsx` ~line 668 — the retirement 1yr/5yr/10yr/20yr milestone cells.
-> - `src/components/builds/PhaseBlock.tsx` — build phase milestones.
-> - The Garage/Vehicles loan milestones.
+> Tre: *"can we do something with all the empty space on the right side of the mile stone boxes.
+> maybe like words of encoragement, or the friends progress when we add that feature. friends will
+> be somewhat competitive and we will have events."*
 >
-> ### What he actually asked for, and the shape of it
-> Two fills, one now and one later:
-> - **Now: words of encouragement.** ⚠️ Per his own standing rule, this must not become a
->   confident-sounding zero. Encouragement has to be DERIVED from the real projection (e.g. "four
->   months ahead of where this sat in June"), not a rotating fortune cookie — a generic "keep
->   going!" next to a number that is getting worse is exactly the thing he has objected to before.
->   If there is no real reading, say nothing rather than cheerlead.
-> - **Later: friends' progress.** He says *"friends will be somewhat competitive and we will have
->   events."* That feature does not exist. **Build the space so it can hold it — a slot, not a
->   stub.** Do not ship an empty "Friends" panel or a placeholder leaderboard; the empty state of a
->   social feature nobody has joined is worse than the current empty space.
-> - **Privacy note for whoever builds the friends feature:** comparing balances between users is
->   the most sensitive thing this app could do. Progress percentages and milestone dates compare
->   fine; dollar figures do not. Do not design it as "share your net worth".
+> **Surface confirmed (he answered in chat 2026-08-20): the FORECAST hero**,
+> `src/components/forecast/ForecastHero.tsx`. And: *"but i do want the one on dashboard updated
+> once we add the friends list"* — so `src/components/dashboard/DashboardHero.tsx` gets the same
+> treatment LATER, when friends ship. **Build the fill as a shared component from the start**, not
+> inlined into the Forecast hero, or that later ask becomes a second implementation.
+>
+> ### What the box looks like today
+> `ForecastHero` is a `card-forged` section, full width, everything stacked hard left:
+> `Next milestone` label → the month at `text-5xl font-display` → the event line with an icon →
+> a `RemainingMilestones` chip row under a divider. On a desktop width the entire right half is
+> empty. That is the space.
+>
+> ### The data actually available
+> The component takes only `milestones: readonly ForecastMilestone[]` and an `emptyReason`.
+> `ForecastMilestone` is `{ month: string; event: string }` — that is all. `next-milestone.ts`
+> already exports `selectNextMilestone` (returns `{ milestone, tone, rest }`) and
+> `classifyMilestoneTone`, which buckets an event as positive / negative / neutral by matching the
+> glyphs the engine prefixes (`🎉 🎯` positive, `⚠️ 💸` negative).
+>
+> **So the honest, derivable encouragement is a read of the road ahead**, e.g. how many wins are
+> coming, how many warnings, and how far out the next one is. That is real, comes from the
+> projection, and cannot say something false. ⚠️ **Do NOT ship a rotating list of generic
+> affirmations.** A "keep going!" pinned next to a number that is getting worse is precisely the
+> class of thing Tre has objected to before, and `ForecastHero`'s own header comment already
+> commits to "never skip the bad news" and "never fabricate a month".
+>
+> ### Recommended build
+> 1. **`src/lib/milestone-encouragement.ts`** — pure, tested. Input: the milestone list (plus the
+>    already-classified tones). Output: a small structured summary — wins ahead, warnings ahead,
+>    span covered — and **`null` when there is nothing truthful to say**, so the caller renders
+>    nothing rather than a zero. Reuse `classifyMilestoneTone`; do not re-derive tone.
+>    ⚠️ If you want "months until the next milestone", check how `month` is FORMATTED first
+>    (`forecast-engine.ts`, milestone construction ~line 1424-1438) — it is a display string, and
+>    parsing a display string is how a wrong number gets printed confidently. Prefer counting list
+>    positions over parsing dates.
+> 2. **A shared aside component** (e.g. `src/components/shared/HeroAside.tsx`) that renders that
+>    summary in the right-hand column, and takes an optional slot for future content. Both heroes
+>    import it; only the Forecast one is wired now.
+> 3. **Layout:** the hero becomes `grid sm:grid-cols-[1fr_auto]` (or similar) — month and event
+>    stay exactly as they are on the left at the same prominence, the aside sits right. **Must
+>    collapse to a single column on mobile**, and the 390px pass has never been done on real
+>    hardware. `RemainingMilestones` stays full width below the divider.
+> 4. **Warnings are never hidden to make the aside look nicer.** If there is 1 warning ahead, the
+>    aside says so, in `text-destructive`. Same rule as the rest of this component.
+> 5. **Tests:** `src/components/forecast/__tests__/ForecastHero.test.tsx` already exists — extend
+>    it. Pin: empty states still render with no aside, a warning-bearing projection still shows the
+>    warning count, and the `null` summary renders nothing rather than zeros.
+>
+> ### The friends half — a slot, not a stub
+> Friends do not exist yet. **Do not ship an empty "Friends" panel or a placeholder leaderboard**;
+> the empty state of a social feature nobody has joined is worse than the empty space it replaces.
+> Build the aside so friends' progress can be dropped in as an additional block later. He says
+> *"friends will be somewhat competitive and we will have events"*, so the eventual shape is
+> comparative and time-boxed.
+>
+> ⚠️ **Privacy, for whoever builds friends:** comparing balances between users is the most
+> sensitive thing this app could do. Progress percentages, milestone dates and event placements
+> compare fine; dollar figures do not. Do not design it as "share your net worth".
 >
 > ---
 >
@@ -130,7 +166,7 @@
 > ## ⏭️ NEXT UP
 >
 > 1. **Job 1 above** — reorderable accounts. Unblocked, fully scoped, start here.
-> 2. **Job 2 above** — ask him in chat which surface first; build only once it is known.
+> 2. **Job 2 above** — the Forecast hero aside. Surface is confirmed; nothing is blocked.
 > 3. Live-verify the build↔loan strip on `/builds` with the real C5 (carried over, `9fc22c7c`).
 > 4. The 390px pass on Tre's actual phone (a desktop browser cannot do it — `resize_window`
 >    reports success and does nothing).
