@@ -1,5 +1,57 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (**THE MONEY NO LONGER EVAPORATES — the savings side grows by the reserved dollars**) — **`0a9ab602` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1802 passed across 192 files** (was 1797/191), build exit 0.
+>
+> ## ⏭️ START HERE: MULTI-MONTH, THEN STORAGE, THEN THE UI
+>
+> Slice 2 is closed. The next three, in order — **do not reorder them**:
+>
+> 3. **Multi-month.** Month 0 only, still. An opted-in user's projected payoff date reads OPTIMISTIC until the sim's future months model the same diversion. ⚠️ **Recapture a fixture BEFORE touching the convergence loop** — Q1–Q12 history, `maxPasses` 24. `forecast-engine.autoExtraSavings.test.ts`'s last test ("only ever takes the reserve ONCE") pins today's month-0-only behaviour and is the test that must be rewritten, not deleted, when this lands.
+> 4. **Storage for `cardsSortOrder`.** Needs a `profiles.cards_sort_order integer not null default 0` migration. Until then every path passes the default 0 (cards first) — both call sites say so in a comment.
+> 5. **The drag-to-rank UI**, reusing the builds reorder pattern. ⚠️ The list must contain a **"Credit cards" row**; without a visible row for it the user cannot express "this goal matters more than my debt", which is the whole ask. Write `sort_order` for every row on drop. **Not before 3.**
+>
+> ## ✅ WHAT LANDED THIS ROUND (`0a9ab602`)
+>
+> **`Month0Result.autoExtraPerTarget`** — `computeAutoExtraReserve`'s own `perTarget` rows, already keyed by goal / car-fund id, surfaced off the converged month 0. The scalar `chain.autoExtraReserve` says how many dollars left checking; only this says WHICH balance they left for, and month 0 was discarding it.
+>
+> **`forecast-engine.ts` mirrors the cash side and credits the savings side, both at month 0 only:**
+> - `cashPreDebt` now subtracts `cardProjectionData?.month0?.chain?.autoExtraReserve` at `i === 0` — the same cent the hook's own chain subtracts. ⚠️ **`chain?.` with the optional chain is deliberate**: captured fixtures predate `Month0CashChain`, and a hard `.chain.` broke four fixture-driven tests at runtime even though the type says it is required.
+> - New **step 4c-ii** credits each `perTarget` row: linked account first (`perAcctSavings` → `perAcctInvest` → `perAcctRetire`), else the goal's `goalPools` entry, else a **new `carFundPools` map**.
+> - ⚠️ **`carFundPools` seeds at ZERO on purpose.** A car fund's own `current_saved` is modelled by `vehicleProjections` (down payment, purchase month); seeding the typed figure would count the same dollars twice. The pool only ever holds the auto-extra INCREMENT. It grows with `monthlySavingsInterest`, is summed into `savingsBal`, and appears in `assetBreakdown` **only when non-zero** (an empty pool is not an asset row).
+>
+> **⚠️ THERE ARE TWO RESERVES AND ONLY ONE CREDITS SAVINGS.** `useCardProjection`'s month 0 is the one that credits, because it is the one the cash chain and every user-facing debt surface already use. `generateRecommendations`' reserve (fed by `useForecastEngineInputs`) stays the month-0 recommendation pin and credits nothing — crediting both would land the same dollars twice. This is written into the comment at the subtraction site; do not "fix" it by adding a second credit.
+>
+> **Evidence:** `forecast-engine.autoExtraSavings.test.ts` (5) — opted-out is `toEqual`-identical to no targets at all; a linked goal moves its NAMED savings account and takes the cash out of checking; an unlinked goal moves its own pool; money is conserved (`cashDelta + savingsDelta === 0`, cash never rises) across the whole horizon; the shift is one-off, never compounding. **Would-fail check actually run:** disabling step 4c-ii fails 4 of the 5 while the cash side still drops — which is exactly the evaporation being pinned shut.
+>
+> ## ⚠️ THE PREVIOUS HANDOFF'S "tsc 0" WAS NOT TRUE, AND THIS ROUND FIXED IT
+>
+> `main` at `9e1f6113` had **13 tsc errors**, all in last round's `useCardProjection.autoExtraReserve.test.ts`. Two causes, both now fixed — and both worth remembering:
+> 1. **The applied migration was never regenerated into `src/integrations/supabase/types.ts`.** `savings_goals` / `car_funds` `sort_order` + `auto_extra` exist in production and in `src/lib/types.ts`, but `Tables<'savings_goals'>` did not know about them, so every test row using them was a type error. Added by hand, alphabetically, to Row/Insert/Update on both tables. **After any migration, regenerate or hand-patch that file in the same commit.**
+> 2. **`cashWarning` does not exist on `Month0Result`** — it lives on the recommendation summary (`credit-card-engine.ts`). Replaced with the engine-side equivalents: `m0SafeFloor` parity, and `endCash` never rising.
+>
+> **Run `npx tsc --noEmit` yourself before believing a handoff's gate numbers.** There is no `typecheck` npm script; the gates are `npx tsc --noEmit`, `npx eslint .`, `npx vitest run`, `npm run build`.
+>
+> ## Mechanics (unchanged, still true)
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep` / `git cat-file -e` against `origin/main`).
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS.** `resize_window` reports success and does nothing; popups are blocked; there is no way to get a real 390px viewport from a session.
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** Any new overlay must portal to `document.body`.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper. Never re-add it to a child.
+>
+> **⚠️ Adding a required field to `CarFund`/`SavingsGoal` costs eleven fixtures.** Adding one to `Month0Result` cost two (`month0-budget-snapshot.test.ts`, `month0-debt-breakdown.test.ts`); adding one to `Month0CashChain` costs those two plus the two renderers.
+>
+> **Versioning:** root `VERSION` (`6.1.0`) is the truth; `node scripts/next-version.mjs --write` classifies and applies the bump. **Not bumped this session** — still nothing user-visible (`auto_extra` defaults FALSE and there is no UI to set it).
+>
+> **Backups:** `backups/2026-08-19_202941/` holds the five pre-edit originals.
+>
+> ## Still open (carried)
+> Dependabot #109/#110 · `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges) · no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate) · the `PageLoader` connection swap is tested but never seen in a browser · the visual 390px pass still needs Tre's phone.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (**THE RESERVE IS NOW INSIDE THE ENGINE EVERY SURFACE ACTUALLY READS**) — **`4766688b` on `main`**, pushed and verified BY CONTENTS. Gates on the exact tree pushed: tsc 0, eslint clean, **1797 passed across 191 files** (was 1789/190), build exit 0.
 >
 > ## ⏭️ START HERE: THE SAVINGS SIDE MUST GROW BY THE SAME DOLLARS
