@@ -51,6 +51,44 @@
 > pins the diversion in EVERY month, not just month 0, and `...autoExtraSavings.test.ts` pins the
 > money landing in savings. The Forecast page does change when you tick.
 >
+> ### ✅ THE FORK IS SETTLED — Tre delegated it ("do whats best"), decided 2026-08-20
+>
+> **Decision: the engine EMITS the per-goal ranked extra; `savings-growth.ts` gains an optional
+> `extraByMonth` input and keeps owning everything else.** Do not substitute account balances, and
+> do not re-derive the allocation.
+>
+> **Why the obvious option was rejected, with the data that killed it.** The plan was to treat a
+> linked goal's projected balance as its linked ACCOUNT's projected balance, since the UI says
+> "Auto-synced from account". Checked against Postgres first, and the sync is NOT exact:
+>
+> | goal | goal `current_amount` | linked `accounts.balance` |
+> |---|---|---|
+> | Savings | 106.44 | 106.44 ✅ |
+> | Roth IRA | 991 | 991 ✅ |
+> | **Brokerage** | **1876.28** | **608.56** ❌ |
+> | **401K Roth** | **6323.26** | **6692.90** ❌ |
+>
+> Substituting the account balance would therefore **change two goals' numbers on the chart today**,
+> before anyone ticks anything — a silent restatement of Tre's balances. Unacceptable. (Also useful:
+> **"Move fund" is UNLINKED** — `linked_account` null — so it is the one goal the engine already
+> tracks directly in `goalPools`. And **no account is shared by two goals** today, but the
+> implementation must still guard for that case rather than assume it.)
+>
+> **The shape to build:**
+> 1. `forecast-engine.ts` — emit the ranked extra it ALREADY computes per target per month
+>    (it lands at ~line 1514) onto each projection row, e.g. `autoExtraByTarget: Record<id, number>`.
+>    **Additive output only — do not touch the allocation math or convergence.**
+> 2. `savings-growth.ts` — add an optional `extraByMonth?: number[]` to `GrowthGoalInput`, applied
+>    in the same step as the monthly contribution.
+> 3. `SavingsGoals.tsx` `toGrowthGoal` — fill it from the forecast projections already on the panel
+>    via `CardProjectionContext` (free — `DashboardLayout` mounts the provider).
+>
+> **The safety property that makes this reviewable:** `auto_extra` is false on all five goals today,
+> so every `extraByMonth` is zeros and **the chart must render byte-identical to today**. Pin that
+> as the first test, then a ticked-goal case. It also cannot disagree with the Forecast, because it
+> consumes the Forecast's own numbers rather than a second model of them.
+>
+> ### (superseded) The original fork
 > ### The design fork that must be settled before writing code
 >
 > The obvious cheap fix — add a flat `extraMonthlyContribution` to `savings-growth.ts` — is
