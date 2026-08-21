@@ -13,7 +13,7 @@ import {
   type SurplusRankRow,
 } from '@/lib/surplus-ranking';
 import {
-  assessReachability, assessSurplusCollision, type Reachability,
+  assessReachability, assessSurplusCollision, monthIndexOf, type Reachability,
 } from '@/lib/surplus-reachability';
 
 const KIND_ICON = {
@@ -153,21 +153,36 @@ export default function SurplusRankingSection({
     return out;
   }, [rows, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth, today]);
 
-  /** Total demand against total capacity — the collision, priced. */
+  /**
+   * Total demand against total capacity — the collision, priced.
+   *
+   * ⚠️ THE HORIZON IS THE LAST DATED TARGET, not the whole projection. Measured over sixty months
+   * almost nothing collides: the surplus eventually covers everything, so a shortfall that is real
+   * and dated — $10,340 wanted by Jul 2027 out of a pool that size — disappears into the years
+   * after it was needed. The window that answers the user's question is the one their own deadlines
+   * define, so demand and capacity are both measured to the furthest date they actually set.
+   */
   const collision = useMemo(() => {
     if (!capacityByMonth || capacityByMonth.length === 0) return null;
-    const c = assessSurplusCollision(
-      rows
-        .filter(r => r.remaining !== null)
-        .map(r => ({
-          id: r.id,
-          remaining: r.remaining as number,
-          targetDate: r.targetDate,
-          monthly: autoExtraByTarget?.get(r.id),
-        })),
-      capacityByMonth, today,
+    const targets = rows
+      .filter(r => r.remaining !== null)
+      .map(r => ({
+        id: r.id,
+        remaining: r.remaining as number,
+        targetDate: r.targetDate,
+        monthly: autoExtraByTarget?.get(r.id),
+      }));
+    const lastDated = targets.reduce(
+      (m, t) => (t.targetDate ? Math.max(m, monthIndexOf(today, t.targetDate) + 1) : m), 0,
     );
-    return c.shortfall > 0 ? c : null;
+    if (lastDated <= 0) return null;
+    const c = assessSurplusCollision(targets, capacityByMonth, today, lastDated);
+    // Fires on either failure, and they are NOT the same failure. `shortfall` is "there is not
+    // enough money in these months"; `unreachable` is "there is, and the ranking does not send it
+    // here" — which is the live case: the Move fund misses Jul 2027 by 22 months while capacity
+    // over the same window is larger than what it needs, because the cards are ranked above it.
+    // A banner that only fired on the first would stay silent on the one the user can actually fix.
+    return c.shortfall > 0 || c.unreachable.length > 0 ? c : null;
   }, [rows, autoExtraByTarget, capacityByMonth, today]);
 
   function apply(next: SurplusRankRow[]) {
@@ -229,6 +244,26 @@ export default function SurplusRankingSection({
     void index;
   }
 
+  /**
+   * The number printed beside each row: its POSITION in the list, counted by rank.
+   *
+   * ⚠️ Not `sortOrder + 1`. `sort_order` defaults to 0 on every table, so rows routinely share a
+   * stored rank without being a split — live on 2026-08-21 a car loan and a Roth IRA both printed
+   * "4". A split prints ONE number for its rows, which is the truth about where their money comes
+   * from; anything else counts up.
+   */
+  const displayRank = useMemo(() => {
+    const out = new Map<string, number>();
+    let n = 0;
+    draft.forEach((row, i) => {
+      const prev = draft[i - 1];
+      const joined = prev && prev.sortOrder === row.sortOrder && prev.share !== null && row.share !== null;
+      if (i > 0 && !joined) n += 1;
+      out.set(row.id, n + 1);
+    });
+    return out;
+  }, [draft]);
+
   // Cards still inside the block — the ones that can be pulled out and ranked on their own.
   const blockedCards = useMemo(() => {
     const solo = new Set(draft.filter(r => r.kind === 'card').map(r => r.id));
@@ -262,12 +297,14 @@ export default function SurplusRankingSection({
       {collision && (
         <div className="mb-3 px-3 py-2 border border-destructive/40 bg-destructive/5" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-xs font-medium text-destructive">
-            {formatCurrency(collision.demand, false)} wanted over the next {collision.horizonMonths} months,{' '}
-            {formatCurrency(collision.capacity, false)} available —{' '}
-            {formatCurrency(collision.shortfall, false)} short.
+            {collision.shortfall > 0
+              ? `${formatCurrency(collision.demand, false)} wanted over the next ${collision.horizonMonths} months, ${formatCurrency(collision.capacity, false)} available — ${formatCurrency(collision.shortfall, false)} short.`
+              : `${collision.unreachable.length} ${collision.unreachable.length === 1 ? 'target does' : 'targets do'} not reach ${collision.unreachable.length === 1 ? 'its' : 'their'} own date — ${formatCurrency(collision.unreachable.reduce((s, u) => s + u.shortfall, 0), false)} short in total.`}
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Something has to give: a target amount, a date, or the ranking below.
+            {collision.shortfall > 0
+              ? 'Something has to give: a target amount, a date, or the ranking below.'
+              : `There is ${formatCurrency(collision.capacity, false)} of surplus over those months — it is going somewhere higher in this list.`}
           </p>
         </div>
       )}
@@ -335,7 +372,7 @@ export default function SurplusRankingSection({
               {/* A split rank prints ONE number for both its rows. Printing 2 and 3 beside two rows
                   that share the money would say the opposite of what happens. */}
               <span className="font-mono text-xs text-muted-foreground w-4 text-right shrink-0">
-                {inSplit && !startsSplit ? '' : row.sortOrder + 1}
+                {inSplit && !startsSplit ? '' : displayRank.get(row.id)}
               </span>
               <RowIcon kind={row.kind} />
 
