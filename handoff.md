@@ -1,5 +1,66 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 session 3b (**Tre supplied the real Chase statement. The Prime Visa's promo tranches
+> are now REAL, not derived — four Equal Pay Promos, $5,587.75, three expiry dates. The statement
+> also PROVES the Visa's $0 interest is correct, not a bug. And it exposes a genuine gap: the stored
+> minimum payment is LOWER than the promo minimums alone.**)
+
+## ✅ PRIME VISA PROMOS ARE NOW REAL DATA — supersedes the derived single tranche below
+From the statement's QUALIFIED PROMOTIONAL FINANCING table, written to `balance_tranches`:
+
+| Label | Remaining | APR | `promo_end_date` | Promo Min Pay |
+|---|---|---|---|---|
+| Equal Pay Promo (exp Feb 2027) | $299.32 | 0% | 2027-02-07 | $49.89 |
+| Equal Pay Promo (exp Jul 2027) | $3,561.65 | 0% | 2027-07-07 | $323.79 |
+| Equal Pay Promo (exp Jul 2027, $980.90) | $899.15 | 0% | 2027-07-07 | $81.75 |
+| Equal Pay Promo (exp Aug 2027) | $827.63 | 0% | 2027-08-07 | $68.97 |
+| **Total** | **$5,587.75** | | | **$524.40** |
+
+Balance $8,396.90 − promos $5,587.75 = **$2,809.15 interest-bearing**. My earlier derived guess was
+$5,551.76 as ONE tranche expiring 2027-06-07 — within $36 on the money, wrong on the shape and the
+dates. **Live-verified after the write:** engine `INTEREST THIS MONTH` unchanged at $108.03, panel
+avalanche interest $1,652 (was $3,107 with no promos modelled, $1,687 with the guess), ETA Jun 2028,
+panel Apr 2028. All consistent.
+
+⚠️ **THE PROMO CLIFF IS NOW MODELLED AND IT LANDS INSIDE THE PLAN.** $4,460.80 reprices from 0% to
+27.49% across Jul–Aug 2027 — the same two months as the Aug 2027 reapply and the Sep 2027 income
+cliff. That stack of three deadlines in one quarter is new information and nothing has been
+re-planned around it yet.
+
+## ✅ RESOLVED — the Visa's $0 interest is CORRECT, delete the old item 3
+The statement's INTEREST CHARGES table reads, verbatim: Purchases **$0** balance subject to interest,
+Cash Advances **$0**, Balance Transfers **$0**, and each Equal Pay Promo at **0.00%** with **$0**
+charged. He pays the non-promo balance inside the grace period. The engine showing $0 for the Visa
+is right; the $34.01 on the 2026-07-10 statement was an earlier cycle when he was revolving. **This
+was listed as a suspected bug last session — it is not one. Do not chase it.**
+
+## 🔴 GENUINELY NOT ACCOUNTED FOR — the minimum payment is too low, and I could not fix it
+`accounts.min_payment` = **$450.79**. The four Promo Min Pay values alone total **$524.40**, and
+that is before any minimum on the $2,809.15 of purchases. A statement minimum cannot be lower than
+the promo minimums it contains, so the stored figure is understated by **at least $73.61/mo**.
+
+Flags are contradictory: `min_payment_plaid_synced: true` AND `min_payment_is_manual: true`.
+
+**Not corrected, deliberately.** The screenshot does not show the "Minimum Payment Due" figure, and
+replacing a manually-set number with arithmetic is inventing data. Ask Tre for the statement's
+Minimum Payment Due. This matters more than it looks: minimums drive `shortfallMonths`, the cash
+floors, and every "can he cover it" test — and Sep/Oct 2026 are already only $11.38 clear.
+
+## ❌ DELIBERATELY LEFT NULL — `installment_balance` / `installment_monthly_payment`
+Chase Equal Pay promos ARE instalments and the schema has columns for them, so filling them looks
+obviously right. **It would break the card.** `credit-card-engine.ts` subtracts `installmentBalance`
+from the card's revolving balance (and `contractRevMin = minPayment − installmentMonthlyPayment`),
+and tranches decompose that SAME revolving balance. Populating both clamps all four tranches down to
+$2,809.15 at 0% and zeroes the remainder — measured today with the single-tranche version, which is
+exactly why the Visa briefly showed no interest at all.
+
+**Tranches and the instalment columns are two representations of the same money. Pick one. Tranches
+are the one in use, because they carry the reprice cliff.** If the instalment columns are ever
+wanted here, that is a real slice: it has to remove the tranches in the same change, and it loses
+the promo expiry unless something else carries it.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 session 3 (**Net capacity SHIPPED and live-verified: the panel's payoff moved
 > Aug 2027 → Apr 2028 against the tile's Jun 2028, so the 5-month contradiction is now 2 months and
 > the shortfall line did NOT go false. Copy fix shipped. Prime Visa 0% promo tranche written to the
@@ -100,9 +161,10 @@ month as your planned credit application…"*. 2 tests pin both branches.
 ## ⏭️ START HERE
 1. **A capacity schedule that survives past the engine's payoff.** The whole diagnosis is in "THE
    LAST 2 MONTHS" above. Until then the panel is ~2 months optimistic, knowingly and in writing.
-2. **Get Tre's real Chase promo end date(s)** and correct the Prime Visa tranche. If he has several
-   plans, they are several tranches, and `BalanceTrancheEditor` already exists for exactly this.
-3. Why does the Visa contribute $0 to `INTEREST THIS MONTH` when it really charged $34.01?
+2. ~~Get Tre's real Chase promo end dates~~ — **DONE, he supplied the statement.** Four real
+   tranches written. The open item is now the MINIMUM PAYMENT: see session 3b above.
+3. ~~Why does the Visa contribute $0 to `INTEREST THIS MONTH`~~ — **RESOLVED, not a bug.** The
+   statement shows $0 balance subject to interest on every non-promo type. See session 3b above.
 4. Surface `solveMinimumPrincipal` / `evaluateConsolidation` — still nothing reads them.
 5. Consider surfacing `repointedPlanIds` as a toggle. NOTE: it is now inert for the panel's
    simulation, because `charges` no longer feeds it — repointing has to move where the purchases
