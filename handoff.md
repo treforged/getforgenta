@@ -4,6 +4,84 @@
 > re-litigate it. Part of it is ALREADY in effect for free; the rest needs a real feature, scoped
 > here. Nothing was built this session: context was at 256k and this is money-affecting code.**)
 
+---
+
+## 📥 SCOPED, NOT BUILT — `/calendar`, a home for the lead magnet
+
+*Small, self-contained, and **independent of the allocation thread below** — it touches no app code
+and blocks nothing. Scoped from the marketing repo on 2026-08-21. Half a session's work.*
+
+**The problem.** `tre-forged-marketing` has a lead magnet — the blank bill calendar, a month as
+empty boxes you write every recurring cost into. It is now hosted and verified live, in two
+editions, at
+`https://mdtosrbfkextcaezuclh.supabase.co/storage/v1/object/public/marketing-public/magnet/bill-calendar.pdf`
+(and `.png`, the dark screen edition for a phone). **Nothing links to it.** The Instagram bio's one
+link is `http://getforgenta.com` — the app — and that link is worth more than a free calendar at 14
+followers, so the magnet must not displace it. Until something on this domain serves it, no caption
+can honestly promise it, and none currently does.
+
+**The fix.** One static page at **`https://getforgenta.com/calendar/`**, and captions point at that
+URL directly. The bio keeps the app.
+
+### Where it goes, and why not a React route
+
+`public/calendar/` — a plain HTML page, exactly like `public/answers/`. No route in `App.tsx`, no
+bundle cost, no auth, nothing lazy-loaded. The precedent is already in this repo and already live.
+
+**The one gotcha, and it will bite silently.** `vercel.json` rewrites `/(.*)` → `/index.html`.
+Vercel serves the **filesystem first**, which is the only reason `/answers/` works at all. So this
+must be a directory with an `index.html`:
+
+- ✅ `/calendar/` → `public/calendar/index.html`
+- ❌ `/calendar` (extensionless, no directory) → falls through the rewrite into the SPA and renders
+  the app's 404 with a 200 status, which is the failure mode that is hardest to notice
+
+### The build
+
+1. **`public/calendar/index.html`.** Copy the head block and `/answers/answers.css` conventions from
+   `public/answers/index.html` — same fonts, same dark shell, same `<link rel="canonical">`,
+   `og:*` and favicon pattern. Content: what the calendar is, a preview image, **download the PDF**,
+   **save the PNG**, and one link into the app. Keep the promise the existing caption already makes
+   — *free, nothing to sign up for* — and do not add a form. The whole point of this magnet is that
+   it is not gated; `docs/CONTENT-ENGINE.md` in the marketing repo argues the no-DM, no-optin case.
+2. **Serve the files same-origin.** Commit `bill-calendar.pdf` and `bill-calendar.png` into
+   `public/calendar/`. Do **not** hotlink the Supabase URL from the page: the CSP in `vercel.json`
+   sets `object-src 'none'` and `frame-src` does not list `*.supabase.co`, so an inline
+   `<iframe>`/`<object>` preview of that PDF is blocked. Same-origin sidesteps it completely, and
+   `img-src 'self'` already covers a local preview PNG. (A plain `<a href>` out to Supabase would
+   work, but then the pretty URL is decoration over someone else's.)
+3. **`public/sitemap.xml`** — add `/calendar/`. Read that file's own header comment first: only URLs
+   that return real HTML belong in it, which this one does.
+
+### Where the files come from — they are generated, not authored
+
+Both editions are rendered by the marketing repo from `posts/bill_calendar_blank.json`. Regenerate
+and re-copy rather than editing the committed binaries:
+
+    cd ../tre-forged-marketing
+    python generate.py --post posts/bill_calendar_blank.json
+    python publish.py --magnet          # re-hosts and prints both permanent URLs
+
+The print PDF is US Letter at 300dpi, dark ink on white, laid out separately in
+`src/publish/magnet.py` — the screen render is near-black and printing it is most of an ink
+cartridge, which is the whole reason there are two editions.
+
+### When it is done
+
+Tell the marketing repo. `tre-forged-marketing/handoff.md` lists "set the bio link" as open on the
+strength of there being nowhere to point; this closes it differently and better, and captions can
+start naming `getforgenta.com/calendar` from that moment.
+
+### Do not chase this
+
+`getforgenta.com` fails local TLS verification from Tre's desktop with *"certificate has expired"*.
+**The site is fine.** The leaf is a Let's Encrypt cert valid `Jun 24 → Sep 22 2026`, issued by
+intermediate `YE1`; `example.com` verifies from the same machine, so it is that box's trust store
+missing the newer LE chain, not the certificate. Browsers are unaffected. Verified 2026-08-21 by
+reading the served cert's own `notBefore`/`notAfter`.
+
+---
+
 ## ✅ DECIDED BY TRE 2026-08-21 — DO NOT RE-EVALUATE
 Priority for surplus cash, in his words: **"chase card first. move fund split with discover. the
 savings split with extra car payments. extra car payments should be on the list."**
