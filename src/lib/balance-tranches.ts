@@ -29,6 +29,28 @@ export interface BalanceTranche {
   apr: number;
   /** `YYYY-MM-DD`, or null for a permanent rate (e.g. a fixed BT rate with no expiry). */
   promo_end_date: string | null;
+  /**
+   * The CONTRACTUAL instalment this tranche must receive each month while its promo is live, or
+   * null for a promo that carries no schedule of its own (an ordinary balance-transfer rate).
+   *
+   * ⚠️ WITHOUT THIS FIELD THE MODEL INVENTS A REPRICE CLIFF. Measured on Tre's Prime Visa
+   * 2026-08-20: four Chase Equal Pay promos totalling $5,587.75, each of which divides into a
+   * WHOLE number of payments landing exactly on its own `promo_end_date` (largest residual across
+   * all four: ten cents). They are equal-payment instalments sized to retire at expiry — that is
+   * the product definition, not a coincidence. But every allocator here sorts highest-APR-first,
+   * so a 0% tranche receives nothing, sits untouched until `trancheAprAsOf` flips it to the
+   * standard rate, and only then becomes the avalanche target. The panel therefore showed
+   * $4,460.80 repricing from 0% to 27.49% across Jul-Aug 2027 — money the statement shows will
+   * already have been paid off. Honouring this figure is what removes that phantom.
+   *
+   * Plaid never supplies it, and `shouldSeedTranches` only writes when `balance_tranches` is
+   * empty, so like `promo_end_date` this is a user-entered field a sync cannot clobber.
+   *
+   * Optional rather than required: most tranches genuinely have no instalment, and every stored
+   * row predating this field is absent rather than null. `parseTranches` always normalises it to
+   * a number or null, and `trancheMinimumAsOf` treats absent, null and 0 identically.
+   */
+  min_payment?: number | null;
 }
 
 /** Postgres numerics arrive as strings; jsonb from supabase-js arrives as unknown. */
@@ -48,9 +70,28 @@ export function parseTranches(raw: unknown): BalanceTranche[] {
       balance,
       apr,
       promo_end_date: typeof r.promo_end_date === 'string' && r.promo_end_date ? r.promo_end_date : null,
+      min_payment: minPaymentOf(r.min_payment),
     });
   }
   return out;
+}
+
+/** A tranche instalment is only meaningful as a positive number; anything else reads as absent. */
+function minPaymentOf(raw: unknown): number | null {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * The instalment this tranche must receive in the month containing `asOf`, or 0.
+ *
+ * Zero once the promo has ended: past `promo_end_date` the balance is ordinary money at the
+ * standard rate, with no schedule of its own left to protect.
+ */
+export function trancheMinimumAsOf(tranche: BalanceTranche, asOf: string): number {
+  if (!tranche.min_payment || tranche.min_payment <= 0) return 0;
+  if (tranche.promo_end_date && asOf > tranche.promo_end_date) return 0;
+  return tranche.min_payment;
 }
 
 /** A tranche's APR as of a date — promo rate until `promo_end_date`, the standard rate after. */
@@ -60,6 +101,9 @@ export function trancheAprAsOf(tranche: BalanceTranche, standardApr: number, asO
 }
 
 export interface TrancheInterestLine {
+  /** The source tranche's `id`. Carried so callers can map a line back without index arithmetic —
+   *  lines with no usable balance are SKIPPED, so a line's position is not its tranche's position. */
+  id: string;
   label: string;
   balance: number;
   apr: number;
@@ -100,6 +144,7 @@ export function trancheInterestBreakdown(
     const apr = trancheAprAsOf(t, standardApr, asOf);
     const stillPromo = apr === t.apr && t.promo_end_date !== null;
     lines.push({
+      id: t.id || t.label,
       label: t.label,
       balance: usable,
       apr,
@@ -188,21 +233,87 @@ export function allocatePaymentAcrossTranches(
   asOf: string,
 ): Map<string, number> {
   const breakdown = trancheInterestBreakdown(totalBalance, tranches, standardApr, asOf);
-  const buckets: { id: string; apr: number; balance: number }[] = breakdown.lines.map((l, i) => ({
-    id: tranches[i]?.id ?? l.label, apr: l.apr, balance: l.balance,
-  }));
+  const byId = new Map(tranches.map(t => [t.id || t.label, t]));
+  // ⚠️ Map lines back by ID, never by index. `trancheInterestBreakdown` SKIPS any tranche with no
+  // usable balance (tranches summing past the card balance are clamped in listed order), so
+  // `lines[i]` is not `tranches[i]` the moment one is clamped away, and the old index lookup
+  // silently paid the wrong tranche.
+  const buckets: TranchePayable[] = breakdown.lines.map(l => {
+    const t = byId.get(l.id);
+    return {
+      id: l.id,
+      apr: l.apr,
+      balance: l.balance,
+      minPayment: t ? trancheMinimumAsOf(t, asOf) : 0,
+      promoEndDate: l.promoEndDate,
+    };
+  });
   if (breakdown.remainderBalance > 0) {
-    buckets.push({ id: 'remainder', apr: standardApr, balance: breakdown.remainderBalance });
+    buckets.push({
+      id: 'remainder', apr: standardApr, balance: breakdown.remainderBalance,
+      minPayment: 0, promoEndDate: null,
+    });
   }
-  buckets.sort((a, b) => b.apr - a.apr);
+  return splitPaymentAcrossTranches(payment, buckets);
+}
 
+/** One payable sub-balance, as the splitter needs to see it. */
+export interface TranchePayable {
+  id: string;
+  balance: number;
+  /** The rate in force this month — already repriced if the promo has ended. */
+  apr: number;
+  /** The contractual instalment due this month, or 0. From `trancheMinimumAsOf`. */
+  minPayment: number;
+  /** Only for ordering the instalment pass; nulls sort last. */
+  promoEndDate: string | null;
+}
+
+/**
+ * Split one month's payment across a card's sub-balances.
+ *
+ * TWO PASSES, AND THE ORDER OF THEM IS THE WHOLE POINT.
+ *
+ * 1. **Contractual instalments first.** A promo with its own schedule (Chase Equal Pay, and every
+ *    "equal payments, no interest" plan) must receive its instalment or it falls behind its
+ *    amortization and the shortfall reprices at the standard rate. Nothing about being 0% makes
+ *    that money safe to skip — being 0% is exactly what an APR-ranked sweep uses to skip it.
+ *    Soonest expiry first, so a short-dated plan is never starved by a long-dated one when the
+ *    payment cannot cover both.
+ * 2. **Everything left, highest rate first.** The CARD Act rule for anything above the minimum,
+ *    and unchanged from the previous behaviour.
+ *
+ * A card whose tranches carry no `min_payment` therefore behaves EXACTLY as before — pass 1 is
+ * empty and pass 2 is the old sweep. That parity is deliberate and is pinned by tests.
+ */
+export function splitPaymentAcrossTranches(
+  payment: number,
+  buckets: readonly TranchePayable[],
+): Map<string, number> {
   const out = new Map<string, number>();
   let left = Math.max(0, payment);
-  for (const b of buckets) {
-    const applied = Math.min(left, b.balance);
-    if (applied > 0) out.set(b.id, applied);
-    left -= applied;
+  if (left <= 0) return out;
+
+  const apply = (id: string, amount: number) => {
+    if (amount <= 0) return;
+    out.set(id, (out.get(id) ?? 0) + amount);
+    left -= amount;
+  };
+
+  // Pass 1 — contractual instalments, soonest-expiring promo first.
+  const instalments = buckets
+    .filter(b => b.minPayment > 0 && b.balance > 0)
+    .sort((a, b) => (a.promoEndDate ?? '9999-12-31').localeCompare(b.promoEndDate ?? '9999-12-31'));
+  for (const b of instalments) {
     if (left <= 0) break;
+    apply(b.id, Math.min(left, b.minPayment, b.balance));
+  }
+
+  // Pass 2 — the surplus, highest rate first, net of whatever pass 1 already put on each bucket.
+  const bySurplus = [...buckets].sort((a, b) => b.apr - a.apr);
+  for (const b of bySurplus) {
+    if (left <= 0) break;
+    apply(b.id, Math.min(left, b.balance - (out.get(b.id) ?? 0)));
   }
   return out;
 }

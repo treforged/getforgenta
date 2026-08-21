@@ -128,7 +128,7 @@ describe('tranchesFromPlaidAprs', () => {
     const parsed = parseTranches(tranches);
 
     expect(parsed).toEqual([
-      { id: 'id-1', label: 'Balance transfer', balance: 5037.73, apr: 7.99, promo_end_date: null },
+      { id: 'id-1', label: 'Balance transfer', balance: 5037.73, apr: 7.99, promo_end_date: null, min_payment: null },
     ]);
   });
 

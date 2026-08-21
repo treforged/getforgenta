@@ -34,7 +34,9 @@
 // interest. The number such a caller wants is the NET paydown (payment minus that card's purchases
 // for the month), with nothing added back here. See `handoff.md`.
 
-import { trancheAprAsOf } from './balance-tranches';
+import {
+  trancheAprAsOf, trancheMinimumAsOf, splitPaymentAcrossTranches, type TranchePayable,
+} from './balance-tranches';
 import { addMonthsToDate } from './car-maintenance';
 import { summarizeUtilization, type UtilizationCard } from './credit-utilization';
 import { cardStartMonthOffset } from './card-start-date';
@@ -365,23 +367,27 @@ export function simulateSelfFundedPaydown(input: PaydownInput): PaydownResult {
     const payCard = (cardId: string, amount: number) => {
       if (amount <= 0) return 0;
       const inner = ledger.get(cardId)!;
-      // CARD Act: anything above the minimum goes to the highest rate first. Applying the whole
-      // payment that way is the standard simplification and matches `simulateStatusQuo`.
-      const ordered = [...inner.entries()]
+      const card = cards.find(c => c.id === cardId)!;
+      // Contractual promo instalments first, then the CARD Act sweep on what is left. The split
+      // itself lives in `splitPaymentAcrossTranches` so this and the engine's
+      // `allocatePaymentAcrossTranches` cannot drift — a tranche with no `min_payment` gets the
+      // identical highest-rate-first behaviour this used to do inline.
+      const payables: TranchePayable[] = [...inner.entries()]
         .filter(([, bal]) => bal > 0.005)
         .map(([trancheId, bal]) => {
-          const card = cards.find(c => c.id === cardId)!;
           const t = (card.tranches ?? []).find(x => (x.id || x.label) === trancheId);
-          return { trancheId, bal, apr: t ? trancheAprAsOf(t, card.apr, monthISO) : card.apr };
-        })
-        .sort((a, b) => b.apr - a.apr);
-      let remaining = amount;
+          return {
+            id: trancheId,
+            balance: bal,
+            apr: t ? trancheAprAsOf(t, card.apr, monthISO) : card.apr,
+            minPayment: t ? trancheMinimumAsOf(t, monthISO) : 0,
+            promoEndDate: t?.promo_end_date ?? null,
+          };
+        });
+      const split = splitPaymentAcrossTranches(amount, payables);
       let applied = 0;
-      for (const b of ordered) {
-        if (remaining <= 0) break;
-        const hit = Math.min(remaining, b.bal);
-        inner.set(b.trancheId, b.bal - hit);
-        remaining -= hit;
+      for (const [trancheId, hit] of split) {
+        inner.set(trancheId, (inner.get(trancheId) ?? 0) - hit);
         applied += hit;
       }
       return applied;
