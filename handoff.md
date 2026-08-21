@@ -1,5 +1,87 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 10 (**Ranking revised on Tre's instruction and the C5 placed on rate
+> arithmetic. No code changed — this is a config + investigation session. Two things worth reading:
+> the `SAFE TO PAY $0` scare that turned out to be pre-existing and correct, and the answer to his
+> planned-vs-actual transaction question, which has THREE different answers depending on the charge
+> type.**)
+
+## ✅ THE RANKING NOW IN FORCE (live, revised from session 9)
+| Rank | Row | Rate | Stored |
+|---|---|---|---|
+| 1 | **Prime Visa** | 27.49% marginal | `accounts.surplus_sort_order = 0` |
+| 2 | **Move fund** | dated Jul 2027 | `savings_goals.sort_order = 1` |
+| 3 | **Discover it Card** | 16.6% | `accounts.surplus_sort_order = 2` |
+| 4 | **2004 Chevorlet C5 loan** | 10.18% | `car_funds.sort_order = 3` |
+| 5 | **Savings** | **0% — no `apy_rate` on any of his accounts** | `savings_goals.sort_order = 4` |
+| 6-8 | Roth IRA / Brokerage / 401K Roth (`auto_extra` FALSE) | | 5, 6, 7 |
+| 9 | Credit cards block (Venture X + Apple Card, both **$0**) | | `profiles.cards_sort_order = 8` |
+**Every `surplus_share` is now NULL — there are no splits left.** `auto_extra` TRUE on Move fund,
+Savings and the C5 only.
+**Revert to pre-feature** = null every `surplus_sort_order`/`surplus_share`, `cards_sort_order = 0`,
+`auto_extra = false` on those three.
+
+### Why the C5 sits at 4, alone, and NOT split with Savings
+Tre said "do what's best for the c5". **None of his cash accounts carry an `apy_rate`**, so Savings
+earns 0% as modelled. Splitting the rank 50/50 sent half of every dollar to a 0% pot instead of a
+10.18% liability. Un-split, C5 above Savings, is a straight 10.18% pickup on those dollars. The
+order is now pure highest-rate-first (27.49 → 16.6 → 10.18 → 0) with ONE deliberate exception: the
+Move fund at rank 2, because Tre put it there and it has a hard dated deadline.
+
+### What it bought
+Move fund shortfall at Jul 2027: **$8,894 → $7,237 → $6,351**. Still **23 months late**. The Visa's
+$8,397 absorbs the surplus before rank 2 sees anything — **the only remaining lever is ranking the
+move fund above the Visa, cutting the $8,894, or moving the date.** Tre has not been asked yet.
+
+## 🟢 FALSE ALARM, INVESTIGATED AND CLOSED — `SAFE TO PAY $0`
+The card block subtitle changed from `$395 this month` to `$0 this month` and looked like a
+regression from the new ranking. **It is not.** Probe: `auto_extra` set FALSE on all three targets
+(the full pre-feature state) → `SAFE TO PAY` **stayed $0**. Settings restored immediately after.
+The real cause is month-0 settlement: `MINIMUMS DUE $0`, Prime Visa due 7th, Discover due 1st, both
+passed and both captured in the live balance, so `m0AllSettled` correctly zeroes safe-to-pay.
+Nothing more is owed on the cards this month. **Do not re-open this.**
+
+## 📌 ANSWER — "if a planned transaction occurs before schedule, does the actual replace the planned?"
+**Three different answers, by charge type. This is the map.**
+
+| Charge type | Early actual replaces the planned? | Mechanism |
+|---|---|---|
+| **Car-fund loan payment** | **YES, automatically** | `carChargeEvidence` → `isCapturedInBalance` |
+| **Recurring-rule bill** | **Only if he CONFIRMS the link** in Bank Activity | `buildConfirmedOccurrences`, status `linked_rule` |
+| **Payment plan** (`linked_plan`), **car-fund non-loan** (`linked_car`) | **NO — not built** | documented gap in `confirmed-capture.ts` |
+
+`isCapturedInBalance(dueDate, balanceAsOf, evidence)` is the whole rule, in three lines:
+1. `evidence.matched` → captured (**the actual replaces the planned**);
+2. else `evidence.hasTxnCoverage` → NOT captured (we can see that account's transactions and no
+   such payment is among them, so it has not happened);
+3. else → date heuristic, `dueDate < balanceAsOf − 3 days` (`SETTLEMENT_LAG_DAYS`).
+
+Auto-match tolerances (`transaction-matching.ts`): same account, same direction (hard gate),
+amount within **max($0.05, 1%)**, date within **±5 days** (`DATE_WINDOW_DAYS`), and there must be
+**exactly one** best candidate — two equally good candidates match NOTHING, because a coin flip
+presented as evidence is worse than silence.
+
+**The gap that matters to him:** a recurring bill due the 25th and actually paid on the 5th is
+**still charged against this month's remaining cash** unless he confirms the link. There is no
+auto-matcher on that path — `confirmed-capture.ts` says so in its own header ("the exact class of
+error §1A was built to remove, on the one charge type §1A never reached"). Extending
+`carChargeEvidence`-style auto-matching to recurring rules is a real, scoped next slice.
+⚠️ It errs UNSAFE (dropping an obligation raises projected cash), which is exactly why it was
+gated behind an explicit user confirmation in the first place. Any auto version needs the same
+three guards the header lists.
+
+## ⏭️ START HERE
+1. **Ask Tre which lever on the move fund** (above the Visa / cut the $8,894 / move the date).
+2. **Auto-match recurring-rule bills paid early**, per the answer above. Biggest real gap found.
+3. **Build `linked_plan` / `linked_car` suppression** — confirming those reviews currently records
+   the link and changes no number, which is the "correct and useless" state.
+4. Re-amortize after an extra principal payment so the C5 retires early rather than reaching zero
+   sooner (currently conservative by design).
+5. **`main` is 16 commits ahead of `origin/main` and has never been pushed this run.**
+6. Carried: Discover vs Visa with the Visa accruing; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 9 (**TRE'S RANKING IS APPLIED TO HIS LIVE DATA, AND THE LOAN NOW TAKES REAL
 > MONEY. All four slices are done. The headline finding: under HIS OWN ordering the move fund lands
 > 22 months late and $7,237 short at Jul 2027 — and the earlier, better-looking number was a bug.**)
