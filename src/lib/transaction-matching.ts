@@ -281,6 +281,23 @@ export interface ChargeToMatch {
   dueDate: string;
   /** Default false — outflow, which is what every capture gate asks about. */
   isInflow?: boolean;
+  /**
+   * `YYYY-MM-DD`. The earliest date a payment for THIS occurrence could have been made — the day
+   * after the previous occurrence. Absent ⇒ only the symmetric ±`DATE_WINDOW_DAYS` window applies,
+   * which is every pre-existing caller, byte for byte.
+   *
+   * ⚠️ THIS IS NOT A LOOSER TOLERANCE, it is a differently-SHAPED one, and the distinction is the
+   * reason it is a separate field rather than a bigger `DATE_WINDOW_DAYS`. A bill due the 25th and
+   * actually paid on the 5th is twenty days early — far outside a ±5 day window built to ask "did
+   * this post around when it was due". Widening that window globally would let a charge claim the
+   * NEIGHBOURING occurrence of the same rule, which is the harmful assertion this module's header
+   * refuses to trade silence for. Bounding the early side at the previous occurrence makes that
+   * structurally impossible: the window can never reach back far enough to touch it.
+   *
+   * The late side is unchanged. A payment made AFTER its due date is a late payment, and there is
+   * no reason to reach further forward than the settlement lag already allows.
+   */
+  earliestDate?: string;
 }
 
 /**
@@ -318,7 +335,12 @@ export function matchCharge(
     const delta = Math.abs(Math.abs(signed) - target);
     if (delta > tolerance) continue;
 
-    if (Math.abs(daysBetween(charge.dueDate, txn.date)) > DATE_WINDOW_DAYS) continue;
+    // Either the symmetric settle-around-the-due-date window, or — when the caller has told us
+    // where this occurrence's cycle begins — anywhere from that point up to the due date itself.
+    const withinSettleWindow = Math.abs(daysBetween(charge.dueDate, txn.date)) <= DATE_WINDOW_DAYS;
+    const paidEarlyThisCycle = charge.earliestDate !== undefined
+      && txn.date >= charge.earliestDate && txn.date <= charge.dueDate;
+    if (!withinSettleWindow && !paidEarlyThisCycle) continue;
 
     candidates.push({ txn, confidence: delta <= AMOUNT_EXACT_TOLERANCE ? 'exact' : 'strong' });
   }

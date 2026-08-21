@@ -133,25 +133,41 @@ export default function SurplusRankingSection({
   const today = asOf ?? new Date().toISOString().slice(0, 10);
 
   /**
-   * Each row's verdict. The schedule a target is measured on is the ranked extra it is projected
-   * to receive PLUS its own monthly contribution — they fill the same need, so leaving the
-   * contribution out would call a goal unreachable that its own standing transfer reaches.
+   * ONE schedule per target, built once and used by BOTH the per-row verdict and the banner.
+   *
+   * ⚠️ THIS IS DELIBERATELY NOT DUPLICATED, and it was a real defect for one build when it was:
+   * the banner built its own targets without `ownMonthlyByTarget`, so the panel printed
+   * "$3,720 short at Jul 2027" on the row and "$6,120 short in total" three inches above it, for
+   * the same single target. A total that disagrees with the row under it is the number nobody can
+   * stand behind — the same rule `non-cc-liabilities.ts` was written to enforce.
+   *
+   * The schedule is the ranked extra a target is projected to receive PLUS its own monthly
+   * contribution: they fill the same need, so leaving the contribution out calls a goal
+   * unreachable that its own standing transfer reaches.
    */
+  const inputsById = useMemo(() => {
+    const out = new Map<string, { id: string; remaining: number; targetDate: string | null; monthly?: number[] }>();
+    for (const row of rows) {
+      if (row.remaining === null) continue;
+      const extra = autoExtraByTarget?.get(row.id);
+      const own = ownMonthlyByTarget?.[row.id] ?? 0;
+      const months = extra ?? (capacityByMonth ? new Array(capacityByMonth.length).fill(0) : undefined);
+      out.set(row.id, {
+        id: row.id,
+        remaining: row.remaining,
+        targetDate: row.targetDate,
+        monthly: autoExtraByTarget ? months?.map(m => m + own) : undefined,
+      });
+    }
+    return out;
+  }, [rows, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth]);
+
   const verdicts = useMemo(() => {
     const out = new Map<string, Reachability>();
     if (!autoExtraByTarget) return out;
-    for (const row of rows) {
-      if (row.remaining === null) continue;
-      const extra = autoExtraByTarget.get(row.id);
-      const own = ownMonthlyByTarget?.[row.id] ?? 0;
-      const months = extra ?? (capacityByMonth ? new Array(capacityByMonth.length).fill(0) : undefined);
-      const monthly = months?.map(m => m + own);
-      out.set(row.id, assessReachability({
-        id: row.id, remaining: row.remaining, targetDate: row.targetDate, monthly,
-      }, today));
-    }
+    for (const input of inputsById.values()) out.set(input.id, assessReachability(input, today));
     return out;
-  }, [rows, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth, today]);
+  }, [inputsById, autoExtraByTarget, today]);
 
   /**
    * Total demand against total capacity — the collision, priced.
@@ -164,14 +180,7 @@ export default function SurplusRankingSection({
    */
   const collision = useMemo(() => {
     if (!capacityByMonth || capacityByMonth.length === 0) return null;
-    const targets = rows
-      .filter(r => r.remaining !== null)
-      .map(r => ({
-        id: r.id,
-        remaining: r.remaining as number,
-        targetDate: r.targetDate,
-        monthly: autoExtraByTarget?.get(r.id),
-      }));
+    const targets = [...inputsById.values()];
     const lastDated = targets.reduce(
       (m, t) => (t.targetDate ? Math.max(m, monthIndexOf(today, t.targetDate) + 1) : m), 0,
     );
@@ -183,7 +192,7 @@ export default function SurplusRankingSection({
     // over the same window is larger than what it needs, because the cards are ranked above it.
     // A banner that only fired on the first would stay silent on the one the user can actually fix.
     return c.shortfall > 0 || c.unreachable.length > 0 ? c : null;
-  }, [rows, autoExtraByTarget, capacityByMonth, today]);
+  }, [inputsById, capacityByMonth, today]);
 
   function apply(next: SurplusRankRow[]) {
     setDraft(next);

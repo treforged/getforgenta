@@ -6,6 +6,7 @@ import {
   useSyncedTransactionReviews,
 } from '@/hooks/useSupabaseData';
 import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
+import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/auto-matched-occurrences';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
@@ -171,9 +172,21 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   // therefore see identical contents, unlike `syncedTransactions` above (whose two fetches could
   // genuinely diverge, which is why that one is fetched here and handed to both).
   const { data: syncedReviews } = useSyncedTransactionReviews();
+  /**
+   * The manual confirmations, unioned with the ones the bank already proves.
+   *
+   * ⚠️ THE SAME UNION MUST HAPPEN IN `useForecastEngineInputs`, and it does. These two build their
+   * own sets from the same react-query cache entry, so they can only agree if they agree by
+   * construction — the §1.1-cause-C lesson about two surfaces gating the same charge. Both call
+   * `buildAutoMatchedOccurrences` over `syncedTransactions`, which is fetched once above precisely
+   * so the two cannot see different rows.
+   */
   const confirmedOccurrences = useMemo(
-    () => buildConfirmedOccurrences(syncedReviews ?? []),
-    [syncedReviews],
+    () => mergeConfirmedOccurrences(
+      buildConfirmedOccurrences(syncedReviews ?? []),
+      buildAutoMatchedOccurrences({ rules: rules ?? [], transactions: syncedTransactions, month: new Date() }),
+    ),
+    [syncedReviews, rules, syncedTransactions],
   );
 
   const scheduledEvents = useMemo(

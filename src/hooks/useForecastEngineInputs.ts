@@ -4,6 +4,7 @@ import {
   useProfile, useRecurringRules, useTransactions, usePaymentPlans, useSyncedTransactionReviews,
 } from '@/hooks/useSupabaseData';
 import { buildConfirmedOccurrences, isRuleOccurrenceConfirmed } from '@/lib/confirmed-capture';
+import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/auto-matched-occurrences';
 import { aggregateByMonth, type ScheduledEvent } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { buildRankedTargets } from '@/lib/ranked-extra-payment-targets';
@@ -70,7 +71,19 @@ export function useForecastEngineInputs({
   const { data: paymentPlans } = usePaymentPlans();
   // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
   const { data: syncedReviews } = useSyncedTransactionReviews();
-  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
+  /**
+   * Manual confirmations, plus the ones the bank already proves. A bill due the 25th and actually
+   * paid on the 5th was charged against this month's cash until `buildAutoMatchedOccurrences`
+   * existed — the one charge type §1A never reached. Both halves mean "already paid", so they union
+   * into one set and the existing Stage 4A suppression does the rest, unchanged.
+   *
+   * ⚠️ Empty for a user with no synced transactions, which is what keeps the pre-existing path
+   * byte-identical for anyone whose bank is not connected.
+   */
+  const confirmedOccurrences = useMemo(() => mergeConfirmedOccurrences(
+    buildConfirmedOccurrences(syncedReviews),
+    buildAutoMatchedOccurrences({ rules, transactions: syncedTransactions, month: new Date() }),
+  ), [syncedReviews, rules, syncedTransactions]);
 
   // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
   // Shared with the credit-card sim (useCardProjection) via computeAnnualFederalWithheld so both
