@@ -1,5 +1,80 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 5 (**`min_payment` per tranche SHIPPED `ef75f6d5` and live-verified. The
+> phantom reprice cliff is gone from the app. The real Promo Min Pay figures are written to the live
+> DB. Interest went UP, correctly — the old model was ALSO spending $524.40/mo of Equal Pay money on
+> the 27.49% balance. Discover-first now costs $264, not $146.**)
+
+## ✅ SHIPPED — `BalanceTranche.min_payment`, honoured by BOTH allocators
+- `balance-tranches.ts`: optional `min_payment`, `parseTranches` normalises it, new
+  `trancheMinimumAsOf` (zero once `promo_end_date` has PASSED — the expiry month still pays, that
+  last instalment is what retires it), new **`splitPaymentAcrossTranches`**: pass 1 pays contractual
+  instalments soonest-expiry-first, pass 2 is the old highest-rate sweep on what is left.
+- `allocatePaymentAcrossTranches` (engine) and `payCard` (panel) BOTH delegate to it, so the two
+  cannot drift. **A tranche with no `min_payment` behaves exactly as before, and that parity is
+  pinned by a test.**
+- Seeder needed NO change: `sync-handler.ts:23` seeds `balance_tranches` only when EMPTY, so a
+  user-typed `min_payment` cannot be clobbered — same protection `promo_end_date` already had.
+- 15 new tests in `src/lib/__tests__/balance-tranches.min-payment.test.ts`.
+
+### 🐛 ALSO FIXED — a live id-mapping bug in `allocatePaymentAcrossTranches`
+It matched breakdown lines back to tranches **by index** (`tranches[i]?.id ?? l.label`), but
+`trancheInterestBreakdown` SKIPS lines with no usable balance. Once a stale tranche was clamped
+away, every later allocation was credited to the WRONG tranche. `TrancheInterestLine` now carries
+`id` and the lookup is by id. Did not bite Tre yet (his tranches do not over-sum his balance) but
+would have as balances fell. Pinned by a test.
+
+## ✅ LIVE DB WRITE — the four Promo Min Pay figures, from his Chase statement
+`accounts.balance_tranches` on Prime Visa `9111bd9f-4704-4acb-97f7-cf1ab40bc764`: $49.89 / $323.79 /
+$81.75 / $68.97. Reconciles exactly — **$524.40 of promo minimums inside the $559.40 card minimum,
+leaving $35.00 revolving.** Revert = the same array minus every `min_payment` key.
+
+## 🔴 THE NUMBERS MOVED, AND UP IS THE CORRECT DIRECTION
+| On `/debt`, live | Before | **After** |
+|---|---|---|
+| Cheapest (avalanche) | Apr 2028, $1,625 | **Apr 2028, $2,095** |
+| Discover-first | +$83 | **+$264** ($2,359) |
+| `INTEREST THIS MONTH` | $108.03 | **$108.03** (parity holds) |
+| Shortfall months | 1 | **1** |
+
+**Interest rose $470 because the old bug ran in two directions at once, not one.** It invented a
+reprice, AND it swept $524.40/mo of Equal Pay money onto the 27.49% revolving balance as though that
+money were free to redirect. It is not — it is contractually owed to the promos. The app was
+understating interest. **Session 4's "+$146" was computed with the OLD allocator; the honest figure
+is +$264.** The recommendation is unchanged: $264 across 20 months to buy the Aug 2027 reapply.
+
+## ⚠️ DO NOT "FIX" THE INTEREST GOING UP
+The instinct on seeing $1,625 → $2,095 is that something regressed. Nothing did. Payoff dates,
+shortfall count and month-0 interest are all unchanged; only the allocation of the minimum moved,
+and it moved to match his contract. Re-check against the statement before touching this.
+
+## ⏭️ START HERE
+1. **Tre's open question: which payment plans to move off Discover.** `Exhaust` is the ONLY plan
+   funded by Discover — `$356.855/mo × 4 from 2026-08-10`, so **Sep/Oct/Nov 2026 remain, ~$1,070**,
+   landing on a card at 94.7% in the three thinnest-capacity months. Every other `monthly_charge`
+   plan already funds from TOTAL CHECKING `933cbc10`; the two Visa plans are `upfront` and are
+   already inside the balance. `Bucket Seats` is on Venture X but does not start until Feb 2029.
+   **Recommend repointing `Exhaust` to checking.** NOT yet done — needs his say-so, and note the
+   panel's `repointedPlanIds` is still inert (see 4).
+2. **Push.** `main` is **8 commits ahead of `origin/main`** and has never been pushed this run.
+3. **A capacity schedule that survives past the engine's payoff** — carried. Session 3's "THE LAST
+   2 MONTHS" has the full diagnosis; the measured array confirms net capacity is ~$0 from month 23.
+4. `repointedPlanIds` toggle — still inert for the panel; repointing must move where purchases are
+   BUILT (`augmentedCCPurchases`), not where they are re-added.
+5. `min_payment` $559.40 is right today, **wrong from Sep 2027** (~$35 once the promos clear). The
+   app still cannot model the step-down: `min_payment` is a scalar on the account. Now that tranches
+   carry instalments, deriving the card minimum as `revolving min + Σ live tranche minimums` is a
+   real and now-cheap slice.
+6. Surface `solveMinimumPrincipal` / `evaluateConsolidation` — still nothing reads them.
+
+## 📁 Files changed
+`src/lib/balance-tranches.ts`, `src/lib/self-funded-paydown.ts`,
+`src/lib/__tests__/balance-tranches.min-payment.test.ts` (new), plus two `toEqual` fixtures that
+gained `min_payment: null`. Backups `backups/2026-08-21_tranche-min/`.
+Gates: **tsc clean, eslint clean, 2022/2022 green.**
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 session 4 (**The Jul–Aug–Sep 2027 stack, re-planned as one event. The headline result
 > is that the promo reprice cliff IS NOT REAL — the four Equal Pay promos self-liquidate exactly on
 > their expiry dates. That removes the only argument against Discover-first, which is now the
