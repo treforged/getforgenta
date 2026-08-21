@@ -1,5 +1,99 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 8 (**THE RANKED-ALLOCATION SLICES ARE BUILT, LIVE-VERIFIED ON TRE'S REAL
+> ROWS, AND COMMITTED (`e3094c00` + `0a4df015`). Three of the four things the app could not express
+> now work. The fourth — extra car payments actually TAKING money — is deliberately withheld and
+> the reason is a correctness gate, not an oversight. Read "THE ONE THING STILL INERT" below before
+> touching it.**)
+
+## ✅ SHIPPED — the three gaps from session 7, closed
+| Session 7 said | Now |
+|---|---|
+| 1. Cards cannot be split apart | `accounts.surplus_sort_order` (nullable, NULL = stay in the block) pulls one card out and gives it its own rank. `computeAutoExtraReserve` passes it through as its own target and the BLOCK BECOMES THE REMAINDER, so the engine's minimum/balance aggregates are conserved to the cent. |
+| 2. There is no SPLIT | `allocateRankedSurplus` PASS 2 is group-aware. Rows sharing a `sortOrder` where at least one declares a `share` divide that rank by weight; the rank's leftovers cascade WITHIN the rank first (a full partner hands its half to the other partner, not downwards). |
+| 3. "Extra car payments" is not a target kind | `kind: 'loan'` exists, sourced from a `car_funds` row in its LOAN phase, capacity = outstanding principal (live linked-account balance preferred over the frozen `loan_amount`). |
+| 4. THE "TELL ME" SURFACE | New pure `src/lib/surplus-reachability.ts`. Per target: does it reach its own date, and by how much does it miss. Plus demand vs capacity across the list. |
+
+### What it looks like live (verified signed in as Tre, `localhost:8080/dashboard?tab=goals`)
+```
+1 target does not reach its own date — $8,894 short in total.
+There is $20,123 of surplus over those months — it is going somewhere higher in this list.
+1  Credit cards          2 cards · $395 this month                    ALWAYS
+2  Move fund             $8,894 to go
+   22 months late — $8,894 short at Jul 2027
+3  Savings               $19,894 to go
+4  2004 Chevorlet C5 loan  $16,254 owed · ranking only for now
+5  Roth IRA / 6 Brokerage / 7 401K Roth
+```
+Round-tripped live and **reverted**: pulling the Prime Visa out seats it at rank 2 and bumps every
+row below down one; splitting the Move fund onto its rank shows 50%/50% under one shared number;
+unsplit + re-block restore the list. `select ... where surplus_sort_order is not null or
+surplus_share is not null` returns NOTHING — his data is as found.
+⚠️ One residue: the pull-out bumped his goal/car `sort_order` from 1..6 to **2..7**. Relative order
+and the rendered list are identical (the panel counts positions, not stored ranks) and the next
+reorder densifies it. Nothing to fix, but do not be surprised by the gap at rank 1.
+
+## 🔴 THE ONE THING STILL INERT — and why that is the correct choice
+`buildRankedTargets({ includeLoanTargets })` **defaults FALSE and no caller passes true.** So the
+C5 loan is listed, ranked, and stored — and takes $0. The row says so: *"$16,254 owed · ranking
+only for now"*.
+
+**Why.** A reserve is cash LEAVING checking. Every consumer has to put those dollars somewhere or
+the user's money evaporates from the projection — `forecast-engine.ts` says exactly this at its
+crediting step (4c-ii), and it is why the ranked feature shipped with a credit in the first place.
+A goal has a pool to land in; a car fund has one. **A loan does not**: the balance that ought to
+fall lives inside a vehicle amortization built BEFORE the month loop that decides the reserve, so
+nothing downstream can reduce it. Turning the flag on today would make the forecast lose the money.
+
+**To finish it** (this is the next real slice): make the loan's monthly auto-extra reach the
+amortization. The existing `car_funds.lump_sum_payments` mechanism already models "extra principal
+on this vehicle loan on this date" and `buildAmortizationSchedule` honours it — the obstacle is
+purely ordering (`vehicleProjections` is built at forecast-engine.ts:487, the reserve is decided at
+~:1374). Either two-pass it, or step the loan balance inside the month loop. THEN flip the flag,
+and only then.
+
+## 📁 What changed
+- **Pure**: `ranked-surplus-allocation.ts` (kind `'loan'`, `share`, `rankedIndividually`, group-aware
+  PASS 2, block-as-remainder), `ranked-extra-payment-targets.ts` (`cardRanks`, `cardsShare`,
+  `carLoanRemainingNeed`, `includeLoanTargets`), `surplus-ranking.ts` (**rewritten** — the list is
+  GROUPS now), **new** `surplus-reachability.ts`.
+- **Wiring**: `useSurplusRanking.ts` (writes to four tables in one mutation), `useCardProjection.ts`
+  + `useForecastEngineInputs.ts` (pass `cardRanks` / `cardsShare`), `SavingsGoals.tsx` (feeds the
+  panel a measured schedule and a capacity array), `SurplusRankingSection.tsx`.
+- **DB**: `supabase/migrations/20260821_ranked_allocation_splits.sql`, **APPLIED LIVE**. Four
+  nullable columns: `accounts.surplus_sort_order`, `accounts/savings_goals/car_funds.surplus_share`,
+  `profiles.cards_surplus_share`. `types.ts` patched in the same commit (15 lines).
+- **Tests**: +27 (2053 → 2080), four new files. tsc clean, eslint clean, build green.
+
+## ⚠️ TRAPS THE NEXT SESSION WILL OTHERWISE STEP ON
+1. **A shared `sort_order` is NOT a split.** The column defaults to 0, so untouched rows share ranks
+   constantly. `toGroups` requires BOTH sides to carry a weight. Loosen that and every new user's
+   surplus is divided across everything they own.
+2. **The rank NUMBER is a position, not `sortOrder + 1`.** Two rows printed "4" live before this was
+   fixed (`0a4df015`).
+3. **The collision horizon is the LAST DATED TARGET, not the projection.** Over 60 months nothing
+   ever collides. And the banner must fire on *unreachable* as well as on *demand > capacity* — the
+   live failure is the second one: the money exists, the ranking sends it elsewhere.
+4. **An individual card rank does NOT reorder the payoff.** It moves the split point between debt
+   and goals; the revolving cascade still runs avalanche/snowball on marginal APR. Say this out
+   loud in any UI copy, or a user will think dragging a card changed which card gets paid.
+5. `savings_goals.auto_extra = true` on `Move fund` ONLY. Everything else is opted out, so the
+   panel's checkboxes are the on-switch.
+
+## ⏭️ START HERE
+1. **Credit the loan extra against the amortization, then flip `includeLoanTargets`.** See above.
+   Until then rank 3 of Tre's decision is half-real.
+2. **Tre's decided ranking is NOT applied to his data — deliberately.** He asked for the abilities,
+   not for the config change. To apply it: pull BOTH cards out (Visa rank 0, Discover rank 2), then
+   join Move fund to the Discover's rank at 50/50, then join Savings to the C5 loan's rank. All of
+   it is now doable from the panel in taps, and reversible in taps.
+3. **`main` is 12 commits ahead of `origin/main` and has never been pushed this run.**
+4. Re-run Discover vs Visa with the Visa ACCRUING (carried from session 7 item 5).
+5. Carried: capacity schedule past the engine payoff; `repointedPlanIds` inert; `min_payment`
+   $559.40 wrong from Sep 2027; surface `solveMinimumPrincipal` / `evaluateConsolidation`.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 7 (**TRE HAS DECIDED THE ALLOCATION. Recorded below verbatim — do not
 > re-litigate it. Part of it is ALREADY in effect for free; the rest needs a real feature, scoped
 > here. Nothing was built this session: context was at 256k and this is money-affecting code.**)
