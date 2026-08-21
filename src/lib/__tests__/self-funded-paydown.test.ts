@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   capacityAt,
+  chargesByMonthAt,
   simulateSelfFundedPaydown,
   creditApplicationCollisions,
   type PlannedCreditEvent,
@@ -52,6 +53,83 @@ describe('capacityAt', () => {
 
   it('is 0 for an empty schedule rather than undefined', () => {
     expect(capacityAt([], 0)).toBe(0);
+  });
+});
+
+describe('chargesByMonthAt', () => {
+  it('carries the LAST entry forward, the same way capacityAt does', () => {
+    const spend: Record<string, number>[] = [{}, { visa: 448 }, { visa: 448, discover: 95 }];
+    expect(chargesByMonthAt(spend, 0)).toEqual({});
+    expect(chargesByMonthAt(spend, 1)).toEqual({ visa: 448 });
+    // Past the horizon the plan keeps paying, so it must keep spending too.
+    expect(chargesByMonthAt(spend, 240)).toEqual({ visa: 448, discover: 95 });
+  });
+
+  it('is null when there is nothing to read, rather than an empty month', () => {
+    expect(chargesByMonthAt(undefined, 0)).toBeNull();
+    expect(chargesByMonthAt([], 0)).toBeNull();
+  });
+});
+
+describe('chargesByMonth — the gross-payment trap', () => {
+  /**
+   * The bug this exists to stop. A caller sourcing `capacity` from a projection's per-card PAYMENT
+   * ledger hands over a GROSS number: on the real cards the engine's payment covers that month's
+   * purchases before it touches the balance. Modelling only `payment_plans` instalments credited
+   * the plan with every ordinary purchase it was funding — enough to put the panel's payoff at
+   * Aug 2027 while the ETA tile on the same page said Jun 2028.
+   */
+  const CAPACITY = 2100;
+  const SPEND = Array.from({ length: 60 }, () => ({ visa: 448, discover: 95 }));
+
+  it('lands per-month spend on the right card, so the paydown is net not gross', () => {
+    const gross = simulateSelfFundedPaydown({ cards: CARDS, asOf: ASOF, capacity: CAPACITY });
+    const net = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: CAPACITY, chargesByMonth: SPEND,
+    });
+
+    expect(gross.payoffMonth).not.toBeNull();
+    expect(net.payoffMonth).not.toBeNull();
+    // $543/mo of spend against $2,100 of payment is a quarter of the plan's money.
+    expect(net.payoffMonth!).toBeGreaterThan(gross.payoffMonth!);
+    expect(net.totalInterest).toBeGreaterThan(gross.totalInterest);
+  });
+
+  it('reports the landed spend in chargesAdded so a month reconciles', () => {
+    const net = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: CAPACITY, chargesByMonth: SPEND,
+    });
+    expect(net.timeline[0].chargesAdded).toBeCloseTo(543, 2);
+  });
+
+  it('adds chargesByMonth ALONGSIDE charges — a caller must not pass the same instalments twice', () => {
+    const both = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: CAPACITY,
+      charges: [{ label: 'BNPL', cardId: 'visa', amountPerMonth: 100, monthsRemaining: 6 }],
+      chargesByMonth: SPEND,
+    });
+    expect(both.timeline[0].chargesAdded).toBeCloseTo(643, 2);
+    expect(both.timeline[6].chargesAdded).toBeCloseTo(543, 2);
+  });
+
+  it('ignores spend on a card the plan does not hold, rather than inventing a ledger for it', () => {
+    const net = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: CAPACITY,
+      chargesByMonth: [{ 'not-a-card': 500, visa: 448 }],
+    });
+    expect(net.timeline[0].chargesAdded).toBeCloseTo(448, 2);
+  });
+
+  it('milestones move LATER, never earlier, once real spend is modelled', () => {
+    const opts = { cards: CARDS, asOf: ASOF, capacity: CAPACITY, milestonesPct: [50, 30] } as const;
+    const gross = simulateSelfFundedPaydown(opts);
+    const net = simulateSelfFundedPaydown({ ...opts, chargesByMonth: SPEND });
+
+    for (const g of gross.milestones) {
+      const n = net.milestones.find(x => x.target === g.target && x.pct === g.pct);
+      // Either it is later, or the spend pushed it out of reach entirely. Never sooner.
+      expect(n == null || n.month == null || n.month >= g.month!).toBe(true);
+    }
   });
 });
 

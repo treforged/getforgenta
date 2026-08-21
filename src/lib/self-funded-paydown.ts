@@ -20,6 +20,19 @@
 // ⚠️ SCHEDULED CHARGES ARE ADDED BACK. A `monthly_charge` plan still landing on a card fights the
 // paydown every month it runs. Leaving them out would date every milestone early, in the direction
 // that flatters the plan. `consolidation-adapter.ts` supplies them from `payment_plans`.
+//
+// ⚠️ AND SO IS ORDINARY SPEND — see `chargesByMonth`. `payment_plans` instalments are the small
+// half of what lands on these cards; the recurring purchases are the big half.
+//
+// ⚠️ BUT `chargesByMonth` IS FOR A CALLER WHOSE `capacity` IS A TRUE SURPLUS. It is NOT the fix for
+// a caller sourcing capacity from a projection's per-card PAYMENT ledger, which is what
+// `CreditCardEngine` does. Those payments are endogenous to that projection's own balance path:
+// they shrink as its balances shrink. Add spend on top and the simulation's balances stay high
+// while its capacity still collapses on the projection's schedule, and the plan never converges.
+// Measured 2026-08-20 on the real cards: gross capacity alone dated payoff Aug 2027 against the
+// engine's own Jun 2028 ETA; gross capacity plus this array dated it "never" at $97,543 of
+// interest. The number such a caller wants is the NET paydown (payment minus that card's purchases
+// for the month), with nothing added back here. See `handoff.md`.
 
 import { trancheAprAsOf } from './balance-tranches';
 import { addMonthsToDate } from './car-maintenance';
@@ -55,6 +68,22 @@ export function capacityAt(schedule: CapacitySchedule, month: number): number {
   return schedule[Math.min(month, schedule.length - 1)];
 }
 
+/**
+ * The per-card spend landing in `month`, with the last entry carrying forward.
+ *
+ * Same carry-forward rule as `capacityAt`, and for the same reason: the arrays a caller can supply
+ * are as long as its projection horizon, while the simulation runs to `maxMonths`. Letting spend
+ * fall to zero past the horizon while capacity carries forward would make the tail of every plan
+ * silently optimistic.
+ */
+export function chargesByMonthAt(
+  schedule: readonly Readonly<Record<string, number>>[] | undefined,
+  month: number,
+): Readonly<Record<string, number>> | null {
+  if (!schedule || schedule.length === 0) return null;
+  return schedule[Math.min(month, schedule.length - 1)] ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Input / output
 // ---------------------------------------------------------------------------
@@ -62,6 +91,25 @@ export function capacityAt(schedule: CapacitySchedule, month: number): number {
 export interface PaydownInput {
   cards: readonly ConsolidationCard[];
   charges?: readonly ScheduledCardCharge[];
+  /**
+   * New spend landing on each card, per month, indexed from `asOf` — `[{ cardId: amount }]`.
+   *
+   * ⚠️ THIS IS NOT OPTIONAL POLISH, IT IS WHAT MAKES `capacity` MEAN ANYTHING. A caller sourcing
+   * `capacity` from a projection's per-card PAYMENT ledger is handing over a GROSS number: the
+   * engine's $687 payment on a card that also took $448 of purchases reduces the balance by $239,
+   * not $687. Feeding the gross payment as capacity while modelling only `charges` (which covers
+   * `payment_plans` instalments and nothing else) credits the plan with every ordinary purchase it
+   * was actually funding, and dates every milestone early by exactly that much.
+   *
+   * Like `capacity`, **the last entry carries forward** — the array runs out at the projection
+   * horizon and spending does not. Months past the end of the array reuse the final month rather
+   * than assuming the cards suddenly go unused.
+   *
+   * Charges supplied here land alongside `charges`, so a caller whose per-month array already
+   * includes its `payment_plans` instalments (the engine's `augmentedCCPurchases` does) must not
+   * also pass them as `charges`.
+   */
+  chargesByMonth?: readonly Readonly<Record<string, number>>[];
   /** `YYYY-MM-DD`. */
   asOf: string;
   capacity: CapacitySchedule;
@@ -260,6 +308,21 @@ export function simulateSelfFundedPaydown(input: PaydownInput): PaydownResult {
       if (!inner) continue;
       inner.set('remainder', (inner.get('remainder') ?? 0) + ch.amountPerMonth);
       chargesAdded += ch.amountPerMonth;
+    }
+
+    // 2b. Per-month spend, same posting rule. Last entry carries forward, matching `capacityAt`,
+    //     so a 60-month array does not quietly turn into "no purchases from year 6 onward" while
+    //     the capacity it was paired with keeps paying.
+    const monthCharges = chargesByMonthAt(input.chargesByMonth, m);
+    if (monthCharges) {
+      for (const cardId of Object.keys(monthCharges)) {
+        const amount = monthCharges[cardId];
+        if (!(amount > 0)) continue;
+        const inner = ledger.get(cardId);
+        if (!inner) continue;
+        inner.set('remainder', (inner.get('remainder') ?? 0) + amount);
+        chargesAdded += amount;
+      }
     }
 
     // 3. Minimums on every card that still owes anything, before any priority spending.
