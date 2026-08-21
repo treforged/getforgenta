@@ -1,5 +1,52 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 session 3c (**Prime Visa minimum corrected to Tre's real $559.40. It did NOT cause a
+> cash crisis, and it made Discover-first much cheaper to choose: the penalty for it collapsed from
+> +$574 to +$83. Discover clean under 30% by Jul 2027 — one month before the Aug 2027 reapply.**)
+
+## ✅ `min_payment` = $559.40 — supplied by Tre, written live
+Was $450.79, below the $524.40 of promo minimums it has to contain. The real figure is $559.40,
+which sits $35.00 above the promo minimums — the revolving portion. Consistent, so it reconciles.
+`min_payment_is_manual` stays true (that flag is what guards it from a Plaid overwrite —
+`sync-handler.ts:159`), and `min_payment_plaid_synced` set false since it is now user-supplied.
+
+## ✅ IT DID NOT BREAK THE CASH PLAN — and this validates the gross-capacity channel
+Combined card minimums are now Discover $249 + Visa $559.40 = **$808.40/mo**, against the handoff's
+"$447.62/mo available for cards" in Sep–Oct 2026. That reads like a $360.78/mo hole. **It is not
+one, and the panel correctly says so: still 1 shortfall month, unchanged.**
+
+The reason is worth writing down because it has been misread before: **$447.62 is surplus ABOVE the
+budgeted minimums, not the total going to the cards.** The engine's actual gross payments run
+$1,279–$2,527/mo (measured this session). The shortfall test reads gross precisely so it compares
+like with like — which is the `grossCapacity` channel added earlier today doing its job on real data.
+
+## 🎯 STRATEGIC CHANGE — Discover-first is now nearly free, and the dates moved
+| | Was (understated minimum) | **Now (real $559.40)** |
+|---|---|---|
+| Cheapest (avalanche) | Apr 2028, $1,652 | **Mar 2028, $1,625** |
+| Discover-first penalty | **+$574** (older) / +$411 | **+$83** |
+| Discover under 50% | Aug 2027 / Jun 2027 if first | **Aug 2027 / Jun 2027 if first** |
+| Discover under 30% | Dec 2027 / Jul 2027 if first | **Oct 2027 / Jul 2027 if first** |
+| Prime Visa under 30% | Apr 2027 | **Mar 2027** |
+| All open cards under 30% | May 2027 | **May 2027** |
+
+A higher forced minimum on the Visa means more payment is directed there regardless of strategy, so
+the ordering choice matters less in interest terms. **The fork the earlier handoffs agonised over
+now costs $83.** Discover-first still puts Discover under 30% in **Jul 2027**, one month before the
+**Aug 2027** reapply — which was denial reason 1, Discover reading their own card.
+
+⚠️ Note the collision: **$4,460.80 of Visa promo balance reprices to 27.49% in Jul–Aug 2027**, the
+same two months. Under Discover-first the Visa is the card still carrying balance then. The
+"$11.93/mo from Sep 2027" cliff has not moved. **This quarter now holds three deadlines at once and
+nobody has re-planned around the stack.** That is the highest-value open question in the file.
+
+## ⏭️ ADDED TO START HERE
+0. **Re-plan Jul–Aug–Sep 2027 as one event**, not three: the promo reprice, the reapply window, and
+   the income cliff. The paydown order that is right for the reapply may not be right for the
+   reprice, and the panel can now price both — the Discover-first penalty is only $83.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 session 3b (**Tre supplied the real Chase statement. The Prime Visa's promo tranches
 > are now REAL, not derived — four Equal Pay Promos, $5,587.75, three expiry dates. The statement
 > also PROVES the Visa's $0 interest is correct, not a bug. And it exposes a genuine gap: the stored
@@ -41,9 +88,8 @@ the promo minimums it contains, so the stored figure is understated by **at leas
 
 Flags are contradictory: `min_payment_plaid_synced: true` AND `min_payment_is_manual: true`.
 
-**Not corrected, deliberately.** The screenshot does not show the "Minimum Payment Due" figure, and
-replacing a manually-set number with arithmetic is inventing data. Ask Tre for the statement's
-Minimum Payment Due. This matters more than it looks: minimums drive `shortfallMonths`, the cash
+**RESOLVED in session 3c above — Tre supplied $559.40 and it is written.** Left here for the
+reasoning: the gap was found by arithmetic but NOT patched by arithmetic. This matters more than it looks: minimums drive `shortfallMonths`, the cash
 floors, and every "can he cover it" test — and Sep/Oct 2026 are already only $11.38 clear.
 
 ## ❌ DELIBERATELY LEFT NULL — `installment_balance` / `installment_monthly_payment`
