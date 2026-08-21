@@ -1,5 +1,117 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 session 4 (**The Jul–Aug–Sep 2027 stack, re-planned as one event. The headline result
+> is that the promo reprice cliff IS NOT REAL — the four Equal Pay promos self-liquidate exactly on
+> their expiry dates. That removes the only argument against Discover-first, which is now the
+> recommendation: it costs ~$146 and puts Discover at 8% utilization for the Aug 2027 reapply
+> instead of 37%.**)
+
+## 🔴 CORRECTION — "the promo cliff lands inside the plan" is WRONG. Delete that alarm.
+Session 3b wrote: *"$4,460.80 reprices from 0% to 27.49% across Jul–Aug 2027."* **It does not.**
+Chase Equal Pay promos are equal-payment instalments sized to retire at expiry. Every one of the
+four divides to a whole number of payments landing exactly on its own `promo_end_date`:
+
+| Tranche | Balance | Promo min | Payments | Lands |
+|---|---|---|---|---|
+| Equal Pay (exp Feb 2027) | $299.32 | $49.89 | **6.000** | 2027-02-07 ✓ |
+| Equal Pay (exp Jul 2027) | $3,561.65 | $323.79 | **11.000** | 2027-07-07 ✓ |
+| Equal Pay (exp Jul 2027, b) | $899.15 | $81.75 | **11.000** | 2027-07-07 ✓ |
+| Equal Pay (exp Aug 2027) | $827.63 | $68.97 | **12.000** | 2027-08-07 ✓ |
+
+Largest residual across all four is **10 cents**. That is not a coincidence, it is the product
+definition. **Nothing reprices, provided the $559.40 minimum is paid every month.**
+
+⚠️ **THE ONE CONDITION.** Pay the full $559.40 every month without exception. Under CARD Act
+allocation anything above the minimum goes to the highest APR — so extra payments never disturb the
+promo schedule — but paying *less* than the minimum puts a promo behind its amortization and the
+residual DOES reprice at 27.49%. The Visa minimum is sacred. It is the cheapest $559.40 in the plan.
+
+## 🧮 THE MODEL CANNOT SEE THIS — and it manufactures the phantom cliff
+`BalanceTranche` (`src/lib/balance-tranches.ts:25`) is `{id, label, balance, apr, promo_end_date}`.
+**There is no per-tranche minimum-payment field**, so `simulateSelfFundedPaydown` allocates the
+card's whole minimum highest-APR-first (`payCard`, `self-funded-paydown.ts:363`). The 0% tranches
+therefore receive nothing, sit untouched until `trancheAprAsOf` flips them to 27.49% in Jul/Aug
+2027, and only then become the avalanche target — a cliff that exists only in the model.
+
+Consequence for the numbers below: **every interest figure for a plan that still holds Visa balance
+past Jul 2027 is OVERSTATED.** Discover-first's measured +$146 penalty is an upper bound; the real
+penalty is smaller. This does not change the ranking, it strengthens it.
+
+## 🎯 RECOMMENDATION — Discover-first, starting now
+Measured this session by running the real `simulateSelfFundedPaydown` against the **live** capacity
+schedule read out of the running app (`window.__paydownDebug` on `/debt`, instrumentation since
+reverted), month 0 = Aug 2026. Calibration check: avalanche returns **Mar 2028 / $1,593** against
+the panel's Mar 2028 / $1,625, so the harness reproduces the app.
+
+| At **Aug 2027** — the reapply month | Avalanche | **Discover-first** |
+|---|---|---|
+| Discover balance | $4,051 | **$884** |
+| Discover utilization | 36.8% | **8.0%** |
+| Payment-to-balance on Discover (denial reason 1) | 6.1% | **28.2%** |
+| Prime Visa balance | $0 | $3,077 |
+| Total still owed | $4,051 | $3,960 |
+| Discover crosses under 30% | Oct 2027 (**2 mo late**) | **Jul 2027** (1 mo early) |
+| Total interest, whole plan | $1,593 | $1,739 (**+$146**, overstated) |
+| Payoff | Mar 2028 | **Mar 2028 — identical** |
+
+**Discover-first costs about $146 and buys the reapply.** Denial reason 1 was Discover reading their
+own card: $249 against $10,422 = 2.4%. Avalanche leaves that at 6.1% in Aug 2027 and does not clear
+30% utilization until **two months after** the window. Discover-first shows them 28.2% and 8%.
+No time is lost — both plans pay off Mar 2028.
+
+**Prime-Visa-first is byte-identical to avalanche** (the Visa is the highest standard rate anyway),
+so the real fork is two-way, not three.
+
+## ⚠️ AVALANCHE'S HIDDEN SHAPE — Discover stays near its limit for 10 more months
+Worth seeing, because it is invisible in a payoff date. Under avalanche the Discover balance walks
+**$10,281 → $9,171** between Aug 2026 and Apr 2027 and is still at **74%** in Jun 2027. Every
+utilization-sensitive event in that window — the reapply, any score pull, any other application —
+sees a card at 83-93%. Discover-first has it under 50% by **May 2027** and under 30% by **Jul 2027**.
+
+## ✅ SEP 2027 CLIFF — real, but smaller than "$11.93/mo", and for a concrete reason
+From Sep 2027 all four Equal Pay promos have expired, so **$524.40/mo of required minimum payment
+disappears** at almost exactly the moment the $1,100/mo GF income does. The net squeeze is nearer
+**$576/mo** than $1,100. Measured net capacity from the live engine, Sep 2027 – Jun 2028: baseline
+months ~$154, with periodic larger months, **averaging $857/mo**. Not $11.93.
+
+🔴 **DATED DATA ISSUE — fix before Sep 2027.** `accounts.min_payment` = $559.40 is correct *today*
+and is pinned by `min_payment_is_manual: true`, which is what stops Plaid overwriting it. From
+**Sep 2027** the true minimum is the revolving portion only — **$35.00/mo** plus whatever the
+revolving balance requires. Left as-is, the forecast over-states his required outflow by ~$524/mo
+across exactly the months where the margin is thinnest. Put a reminder on it.
+
+## 📋 SHORTFALL MONTHS — 1 real, and Discover-first's 2 extra are artifacts
+Both plans flag **2026-08-01** (minimums $808 vs gross $395) — that is the current month, already
+part-paid, and is the "1 shortfall month" the panel has always shown. Discover-first adds
+2027-09-01 and 2027-11-01, **both artifacts of the same missing field**: the harness holds the Visa
+minimum at $559.40 forever, when by then it is ~$35 + revolving. Real minimums in those months are
+roughly $350 against $348-$617 of gross. Not a reason to reject Discover-first.
+
+## ⏭️ START HERE
+0. **Tell Tre the recommendation and get the priority set: Discover-first.** The panel already
+   renders "if Discover it Card goes first" — nothing to build in order to *act* on this.
+1. **Per-tranche minimum payment.** `BalanceTranche` needs a `min_payment` field, `payCard` needs to
+   honour it before the highest-APR sweep, and the seeder must not clobber it (same rule as
+   `promo_end_date` in `balance-tranche-seed.ts`). This is what removes the phantom reprice cliff
+   from the app itself, and it is the highest-value modelling slice open.
+2. **A capacity schedule that survives past the engine's payoff** — carried, unchanged, full
+   diagnosis in session 3's "THE LAST 2 MONTHS". The measured array confirms it exactly: net
+   capacity is ~$0 from month 23 (Jul 2028) onward.
+3. Surface `solveMinimumPrincipal` / `evaluateConsolidation` — still nothing reads them.
+4. `repointedPlanIds` toggle — still inert for the panel; repointing must move where purchases are
+   BUILT (`augmentedCCPurchases`), not where they are re-added.
+
+## 🔬 HOW THIS WAS MEASURED (so it can be redone, not re-derived)
+Temporary `useEffect` in `CreditCardEngine.tsx` exposing `paydownCapacityByMonth`,
+`paydownGrossCapacityByMonth` and `augmentedCCPurchases` on `window.__paydownDebug`; read via
+Claude-in-Chrome on `http://localhost:8080/debt` signed in as Tre; scenarios run through the real
+`simulateSelfFundedPaydown` in a throwaway vitest file. **Both the instrumentation and the scratch
+test were reverted — the tree is clean and no source file changed this session.** The first attempt
+reconstructed capacity from the handoff's free-cash table instead and came out ~40% optimistic
+(payoff Sep 2027, $906 interest); it was discarded. Reconstructed capacity is not capacity.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 session 3c (**Prime Visa minimum corrected to Tre's real $559.40. It did NOT cause a
 > cash crisis, and it made Discover-first much cheaper to choose: the penalty for it collapsed from
 > +$574 to +$83. Discover clean under 30% by Jul 2027 — one month before the Aug 2027 reapply.**)
