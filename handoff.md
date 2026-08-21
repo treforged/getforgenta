@@ -1,5 +1,85 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 7 (**TRE HAS DECIDED THE ALLOCATION. Recorded below verbatim — do not
+> re-litigate it. Part of it is ALREADY in effect for free; the rest needs a real feature, scoped
+> here. Nothing was built this session: context was at 256k and this is money-affecting code.**)
+
+## ✅ DECIDED BY TRE 2026-08-21 — DO NOT RE-EVALUATE
+Priority for surplus cash, in his words: **"chase card first. move fund split with discover. the
+savings split with extra car payments. extra car payments should be on the list."**
+
+| Rank | Target | Share |
+|---|---|---|
+| 1 | **Prime Visa (Chase)** | all |
+| 2 | **Move fund** ↔ **Discover** | split |
+| 3 | **Savings** ↔ **extra car payments** | split |
+
+Plus: **"the app should tell me and have these abilities"** — the collision must be SURFACED, not
+just modelled, and the allocation must be SETTABLE.
+He also confirmed: **he will pay as much of the Visa as possible** but cannot clear the ISB.
+
+### Why Chase-first is right now, and why it reverses session 4
+Session 4 recommended Discover-first while the Visa was inside its grace period at $0 interest.
+**That premise is gone** — he cannot clear the $2,845.14 ISB (he has $1,130.20 liquid), so ~$2,809
+now accrues at **27.49%**, above Discover's 16.6%. Highest-rate-first and his decision agree.
+This is a premise change, not a reversal of judgement. Session 4's reasoning is still correct *for
+the world it was written in*; that world ended when the ISB went out of reach.
+
+## ✅ ALREADY IN EFFECT, FOR FREE — rank 1 needs no code
+`buildRankedTargets` orders cards WITHIN the card block by `getStrategyPayoffOrder(cards, strategy)`,
+and avalanche ranks on the **marginal** rate. The Visa's marginal rate is 27.49% (its 0% tranches
+are not the margin), Discover's is 16.6%. **So the Visa is already first under avalanche** — and
+session 4's harness confirmed it: scenarios "Avalanche" and "Prime Visa first" were byte-identical.
+**Verify the strategy is avalanche, then rank 1 of his decision is done with no change.**
+
+## 🔴 THE FEATURE GAP — three things the app cannot express
+Live on `/dashboard` → "Where the extra money goes": **`1 | Credit cards | 2 cards · $395 this
+month | ALWAYS`**. The cards are ONE OPAQUE BLOCK.
+
+1. **Cards cannot be split apart.** `cardTargets` all sit at
+   `cardsSortOrder + rankWithinBlock/(cards.length+1)` (`ranked-extra-payment-targets.ts:110`) —
+   deliberately fractional so the block stays contiguous. **Tre's rank 2 puts the Move fund BETWEEN
+   his two cards, which that formula makes impossible.** Cards need individually assignable ranks.
+2. **There is no SPLIT.** `sortOrder` is a strict sequence; `computeAutoExtraReserve` walks it and
+   fills each target before the next. Two targets sharing a rank with a share (50/50, or weighted)
+   is a new concept in this module.
+3. **"Extra car payments" is not a target kind at all.** `buildRankedTargets` takes
+   `{cards, carFunds, goals}`. `car_funds` is SAVING for a car — this is extra principal on the
+   EXISTING auto loan (`FIXED RATE LOAN`, USAA, **$16,254.49**). New kind, and it needs the vehicle
+   loan engine's payoff maths, not a goal's `target_amount`.
+
+## ⏭️ START HERE — build it in this order
+1. **Per-card ranks.** Give cards their own `sort_order` (accounts already has a `sort_order`
+   column — check whether it is free to use here or already means display order). Keep the current
+   contiguous-block behaviour as the DEFAULT so every existing user is byte-identical; the header
+   comments in `useCardProjection.ts:1793` explain exactly which invariants that protects.
+2. **`kind: 'loan'` targets.** Extra principal on the auto loan, sourced from the same place the
+   vehicle loan engine reads. Show remaining balance and what the extra buys (months saved), the
+   way the loan page already does.
+3. **Split shares at a rank.** Simplest honest model: an optional `share` (percent) on a target;
+   targets at the same integer rank divide that rank's allocation by share, then overflow cascades
+   down as today. Pin the no-share path as byte-identical.
+4. **THE "TELL ME" SURFACE — do not skip this, it is half the ask.** The panel must state the
+   collision in numbers: **~$29,000 of demand against $16,232 of capacity to Aug 2027, ~$13,000
+   short.** Per-target, show whether it reaches its target by its date. `Move fund` is $10,340 by
+   2027-07-01 with $0 saved and $0/mo — the panel currently shows "$10,340 to go" and says nothing
+   about it being unreachable. **A goal that cannot be met by its own date must say so.**
+5. Re-run Discover vs Visa with the Visa ACCRUING, and re-price the Aug 2027 reapply under the new
+   split. Session 4's dates all assumed the move fund took nothing.
+
+## ⚠️ STATE OF PLAY (carried, still true)
+- `savings_goals.auto_extra = true` on `Move fund` only; it currently diverts **$0** because cards
+  rank first and consume the pool. Correct behaviour, useless to him until 1-3 land.
+- `Exhaust` repointed to checking by Tre — verified. No `monthly_charge` plan funds Discover.
+- Liquid $1,130.20 vs Visa ISB $2,845.14. Grace period is being lost; ~$64/mo begins accruing.
+- `min_payment` $559.40 correct today, **wrong from Sep 2027** (~$35 once the promos clear).
+- `main` is **10 commits ahead of `origin/main`** and has never been pushed this run.
+
+## 📁 This session
+No source changes, no DB writes. Investigation and this decision record only.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 6 (**Exhaust repoint verified. Tre CANNOT clear the Visa ISB — confirmed by
 > arithmetic, not opinion. And the biggest finding of the last three sessions: the Move fund and the
 > Discover paydown want the same money and there is not enough of it. ~$13,000 short over 11 months.
