@@ -60,19 +60,18 @@ export type BuildRankedTargetsParams = {
   /** `profiles.cards_surplus_share` — the block's weight when it SHARES its rank with something. */
   cardsShare?: number | null;
   /**
-   * Whether LOAN targets (extra principal on a vehicle loan) may draw a reserve. **Defaults to
-   * false, and that default is a correctness gate, not a feature flag.**
+   * Whether LOAN targets (extra principal on a vehicle loan) may draw a reserve.
    *
-   * A reserve is cash LEAVING checking, and every consumer of one has to put those dollars
-   * somewhere or the user's money simply evaporates from the projection — `forecast-engine.ts`
-   * says so at its crediting step, and it is the reason the ranked feature was built with a credit
-   * in the first place. A goal has a pool to land in and a car fund has one too. A loan does not:
-   * the balance that ought to fall lives inside a vehicle amortization built BEFORE the month loop
-   * that decides the reserve, so nothing downstream can yet reduce it.
+   * Defaults to FALSE, and the default is about the CALLER, not about the feature. A reserve is
+   * cash leaving checking, and whoever asks for one has to be able to put those dollars somewhere
+   * or the user's money evaporates — `forecast-engine.ts` says exactly that at its crediting step.
+   * A goal has a pool to land in and a car fund has one; a loan's credit is a LIABILITY going
+   * down, which only a caller that projects the vehicle's amortized balance can perform.
    *
-   * So until that credit exists, a loan is a target the user can RANK — it is in the list, it is
-   * ordered, its rank is stored — and it takes no money. Turning this on before the amortization
-   * can absorb an extra principal payment would make the forecast lose the payment.
+   * `forecast-engine.ts` can (step 4c-ii-b reduces the amortized balance by the same dollars, from
+   * the paying month forward), so the two hooks that feed it pass `true`. Any future caller that
+   * cannot must leave this alone, and will then get a loan the user can rank but not fund — which
+   * is the honest half-feature, not a broken one.
    */
   includeLoanTargets?: boolean;
 };

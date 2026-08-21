@@ -1827,6 +1827,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cardsSortOrder,
           fundingAccountId: resolvedDebtFundingId ?? null,
           accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+          // Loan targets draw a reserve now that the forecast can credit one: `forecast-engine.ts`
+          // step 4c-ii-b reduces the vehicle's amortized balance by exactly the dollars that leave
+          // checking here, from the paying month forward.
+          includeLoanTargets: true,
           cardRanks,
           cardsShare: profile?.cards_surplus_share ?? null,
         }),

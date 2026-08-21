@@ -324,11 +324,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // ⚠️ Every entry here requires an explicit opt-in (`auto_extra`), which defaults FALSE, so for
     // every existing user this map is EMPTY and the loop below takes a fast path that leaves the
     // whole cascade byte-identical.
-    const autoExtraCapacity = new Map<string, { kind: 'goal' | 'car_fund'; sortOrder: number; remaining: number }>();
+    const autoExtraCapacity = new Map<string, { kind: 'goal' | 'car_fund'; sortOrder: number; remaining: number; share?: number }>();
+    /** A stored split weight, or undefined. Zero and negative are not weights. */
+    const shareOf = (raw: unknown): number | undefined => {
+      const n = Number(raw);
+      return raw == null || !Number.isFinite(n) || n <= 0 ? undefined : n;
+    };
     for (const g of goals) {
       if (g.auto_extra !== true || typeof g.id !== 'string') continue;
       const need = goalRemainingNeed(g);
-      if (need > 0) autoExtraCapacity.set(g.id, { kind: 'goal', sortOrder: Number(g.sort_order) || 0, remaining: need });
+      if (need > 0) autoExtraCapacity.set(g.id, { kind: 'goal', sortOrder: Number(g.sort_order) || 0, remaining: need, share: shareOf((g as { surplus_share?: number | null }).surplus_share) });
     }
     for (const c of carFunds) {
       // Mirrors `buildRankedTargets`: a car fund's `auto_extra` is a real column on a full row, so
@@ -337,7 +342,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       if (c.auto_extra === false) continue;
       const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
       const need = carFundRemainingNeed(c, forecastFundingAccountId, linkedAcct ? Number(linkedAcct.balance) : null);
-      if (need > 0) autoExtraCapacity.set(c.id, { kind: 'car_fund', sortOrder: c.sort_order, remaining: need });
+      if (need > 0) autoExtraCapacity.set(c.id, { kind: 'car_fund', sortOrder: c.sort_order, remaining: need, share: shareOf(c.surplus_share) });
     }
     /** Fill part of a target's remaining need. An exhausted target is deleted, which is also what
      *  lets the loop's fast path fire again once every target is full. */
@@ -617,6 +622,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(PROJECTION_MONTHS).fill(0);
     const carLoanPerFund: { name: string; balances: number[] }[] = [];
+    /**
+     * The same arrays as `carLoanPerFund`, keyed by car-fund id — SHARED REFERENCES, not copies.
+     *
+     * Extra principal is decided inside the month loop, hundreds of lines below where these are
+     * amortized, so the loop reduces them in place from the paying month forward. Sharing the
+     * reference is what makes the popup breakdown, the liability total and the target's remaining
+     * capacity all fall by the same dollars — three surfaces that would otherwise disagree, which
+     * is the §2.5 class of bug this codebase has already paid to fix once.
+     */
+    const loanBalancesByFundId = new Map<string, number[]>();
     for (const cf of carFunds) {
       const fundName = cf.vehicle_name ?? 'Vehicle';
       if (cf.phase === 'loan' && cf.loan_start_date && cf.payment_start_date) {
@@ -649,6 +664,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           }
         } catch {}
         if (fundBalances.some(b => b > 0)) carLoanPerFund.push({ name: fundName, balances: fundBalances });
+        loanBalancesByFundId.set(cf.id, fundBalances);
       } else if (cf.phase === 'saving') {
         const loanPrincipal = Math.max(0, Number(cf.target_price) + Number(cf.tax_fees) - Number(cf.down_payment_goal));
         if (loanPrincipal <= 0) continue;
@@ -693,6 +709,32 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         if (projFundBalances.some(b => b > 0)) carLoanPerFund.push({ name: fundName, balances: projFundBalances });
       }
     }
+
+    /**
+     * EXTRA PRINCIPAL ON A LIVE VEHICLE LOAN — the fourth target kind, and the only one whose
+     * capacity is NOT carried in `autoExtraCapacity`.
+     *
+     * A goal's remaining need only falls when something pays it, so a running total is the right
+     * model. A loan's falls every month whether or not anything extra is paid, because the
+     * scheduled payment is amortizing it — so the honest capacity is simply "what the schedule says
+     * is still owed in this month", read fresh from `loanBalancesByFundId` each time round the
+     * loop. Since the loop also SUBTRACTS each extra from those same arrays, that one figure
+     * already nets off both, and there is no second register to drift.
+     */
+    const autoExtraLoanFunds = carFunds
+      .filter(c => c.phase === 'loan' && c.auto_extra === true && loanBalancesByFundId.has(c.id))
+      .map(c => ({ id: c.id, sortOrder: Number(c.sort_order) || 0, share: shareOf(c.surplus_share) }));
+    // ⚠️ DECLARED HERE, NOT BESIDE `autoExtraCapacity` WHERE IT BELONGS BY SUBJECT. It reads
+    // `loanBalancesByFundId`, which the amortization loop directly above is what fills — putting it
+    // with its siblings ~280 lines earlier is a temporal dead zone, and it threw
+    // "Cannot access 'loanBalancesByFundId' before initialization" on the first live load. No test
+    // caught it because none ran `calculateForecast` with a loan-phase fund opted in; one does now.
+
+    // ⚠️ DECLARED HERE, NOT BESIDE `autoExtraCapacity` WHERE IT BELONGS BY SUBJECT. It reads
+    // `loanBalancesByFundId`, which the amortization loop directly above is what fills — declaring
+    // it with its siblings ~280 lines earlier is a temporal dead zone, and it threw
+    // "Cannot access 'loanBalancesByFundId' before initialization" on the first live load. No test
+    // caught it, because none ran `calculateForecast` with a loan-phase fund opted in. One does now.
 
     const getMonthCarContrib = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (i <= v.purchaseMonthIdx ? v.contrib : 0), 0);
@@ -1351,7 +1393,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       if (i === 0) {
         autoExtraThisMonth = cardProjectionData?.month0?.autoExtraPerTarget ?? [];
         autoExtraOutThisMonth = cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0;
-      } else if (autoExtraCapacity.size > 0) {
+      } else if (autoExtraCapacity.size > 0 || autoExtraLoanFunds.length > 0) {
         // The same three arguments month 0 builds, one month later: the card block's combined
         // minimum and balance, and a pool that is already net of the floor and the cycling spend.
         // `computeAutoExtraReserve` settles that combined minimum BEFORE it consults any rank, so
@@ -1368,7 +1410,36 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - step3SpendFloor - (ledgerEntry?.cycling ?? 0));
         const targets: RankedTarget[] = Array.from(autoExtraCapacity, ([id, t]) => ({
           id, kind: t.kind, sortOrder: t.sortOrder, minimum: 0, capacity: t.remaining, autoExtra: true,
+          ...(t.share === undefined ? {} : { share: t.share }),
         }));
+        // Extra principal, capacity read fresh from the (already-reduced) amortized balance.
+        for (const f of autoExtraLoanFunds) {
+          const owed = Math.max(0, loanBalancesByFundId.get(f.id)?.[i] ?? 0);
+          if (owed <= 0) continue;
+          targets.push({
+            id: f.id, kind: 'loan', sortOrder: f.sortOrder, minimum: 0, capacity: owed, autoExtra: true,
+            ...(f.share === undefined ? {} : { share: f.share }),
+          });
+        }
+        // ⚠️ CARDS THE USER PULLED OUT OF THE BLOCK MUST BE PULLED OUT HERE TOO. Month 0 builds
+        // them (useCardProjection → buildRankedTargets); if this month did not, every future month
+        // would seat the whole card set at `cards_sort_order` — which, once a user has moved the
+        // block to the bottom of their list, is the exact opposite of what month 0 decided. The
+        // forecast would then reserve for goals that month 0 says the cards outrank, and the two
+        // surfaces would print different payoff dates for the same plan.
+        for (const c of simCards) {
+          const acct = accountMap.get(c.id);
+          const own = acct?.surplus_sort_order;
+          if (own == null || !Number.isFinite(Number(own))) continue;
+          const owed = revBalAt(c.id);
+          if (owed <= 0) continue;
+          targets.push({
+            id: c.id, kind: 'card', sortOrder: Number(own), rankedIndividually: true,
+            minimum: cardProjectionData?.perCardMinPayments?.get(c.id)?.[i] ?? c.minPayment,
+            capacity: owed,
+            ...(shareOf(acct?.surplus_share) === undefined ? {} : { share: shareOf(acct?.surplus_share)! }),
+          });
+        }
         // ⚠️ The card block's rank comes from `profiles.cards_sort_order`, exactly as month 0
         // reads it. The column defaults to 0 — cards first, the pre-feature behaviour.
         const reserve = computeAutoExtraReserve(
@@ -1516,9 +1587,39 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         if (savA) savA.balance += t.amount;
         else if (invA) invA.balance += t.amount;
         else if (retA) retA.balance += t.amount;
-        else {
+        else if (t.kind !== 'loan') {
           const pool = t.kind === 'goal' ? goalPools.get(t.id) : carFundPools.get(t.id);
           if (pool) pool.balance += t.amount;
+        }
+      }
+
+      // 4c-ii-b. EXTRA PRINCIPAL → the vehicle loan balance, from THIS month forward.
+      //
+      // A loan is the one target whose credit is a liability going DOWN rather than an asset going
+      // up, and it is why loan targets were withheld from the allocator until this existed: cash
+      // leaves checking via `autoExtraOutThisMonth`, and without this the money would simply
+      // vanish from the projection — the same failure 4c-ii above was written to prevent.
+      //
+      // From `i`, not `i + 1`: a lump sum paid this month is already deducted from this month's own
+      // `projectedCarLoan` (`- projLumpThisMonth`), and extra principal is the same kind of event,
+      // so the two must land in the same month or the drawer contradicts itself.
+      //
+      // ⚠️ THE SCHEDULE IS NOT REBUILT, only reduced. Reducing the balance without shortening the
+      // term or re-pricing the interest UNDERSTATES what the extra payment buys — the loan retires
+      // early in reality and merely reaches zero sooner here. That is the conservative direction
+      // and it is deliberate: re-amortizing inside the loop would need the schedule rebuilt every
+      // month for every fund, and a projection that overstates the benefit of paying debt is the
+      // one that gets a user into trouble. The capacity the next month ranks against is read from
+      // these same arrays, so an over-payment can never reserve against principal already gone.
+      for (const t of autoExtraThisMonth) {
+        if (t.kind !== 'loan' || !(t.amount > 0)) continue;
+        const balances = loanBalancesByFundId.get(t.id);
+        if (!balances) continue;
+        for (let j = i; j < balances.length; j += 1) {
+          const before = balances[j];
+          const after = Math.max(0, before - t.amount);
+          balances[j] = after;
+          carLoanBalanceByMonth[j] -= before - after;
         }
       }
 
@@ -1526,7 +1627,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // remaining capacity the LATER months rank against. (The target's own monthly contribution
       // was already taken off above, before this month's reserve was decided — that ordering is
       // what stops a goal being over-funded by one month's contribution on the month it fills.)
-      for (const t of autoExtraThisMonth) decayAutoExtraCapacity(t.id, t.amount);
+      // Loans are excluded: their capacity is not carried here at all, it is read fresh from the
+      // amortized balance each month (which the block above has just reduced). Decaying a running
+      // total as well would take the same dollars off twice.
+      for (const t of autoExtraThisMonth) {
+        if (t.kind !== 'loan') decayAutoExtraCapacity(t.id, t.amount);
+      }
 
       // 4d. Lump sums → per-account or goal pool
       for (const [key, amt] of lumpTransferByMonth[i].perAccount) {

@@ -251,9 +251,36 @@ export function computeAutoExtraReserve(
   // Cards the user has pulled OUT of the block and ranked for themselves. They enter the allocator
   // as their own targets so a goal can sit BETWEEN two cards; everything still inside the block
   // enters as the one synthetic row below, exactly as it always has.
-  const individualCards = targets.filter(t => t.kind === 'card' && t.rankedIndividually === true);
-  const individualMinimums = individualCards.reduce((s, c) => s + Math.max(0, c.minimum), 0);
-  const individualCapacity = individualCards.reduce((s, c) => s + Math.max(0, c.capacity), 0);
+  const pulledOut = targets.filter(t => t.kind === 'card' && t.rankedIndividually === true);
+
+  /**
+   * Fit the pulled-out cards inside the engine's own aggregate, proportionally.
+   *
+   * ⚠️ THE TWO FIGURES ARE NOT THE SAME SUM, and assuming they were is how this would quietly
+   * over-reserve. `cardMinimumsTotal` is `min(ccMinTotalRevolving, simRevolvingTotal)` and drops a
+   * card whose month-0 minimum has already settled (Q11); `cardBalanceTotal` counts only cards the
+   * sim still has revolving. A card target, meanwhile, carries its own `minPayment` and `balance`
+   * straight off the row. So the individuals CAN sum to more than the engine will actually spend —
+   * and every dollar of that excess is a dollar of pool the cards absorb and the goals never see.
+   *
+   * Scaling rather than clipping the last card keeps the result independent of input order, which
+   * is the property `rankTargets` exists to guarantee. When the individuals fit (the ordinary case,
+   * and Tre's) the factor is 1 and nothing moves.
+   */
+  const fit = (values: readonly number[], aggregate: number) => {
+    const total = values.reduce((a, b) => a + b, 0);
+    const cap = Math.max(0, aggregate);
+    const factor = total > cap && total > 0 ? cap / total : 1;
+    return { scaled: values.map(v => v * factor), used: Math.min(total, cap) };
+  };
+
+  const mins = fit(pulledOut.map(c => Math.max(0, c.minimum)), cardMinimumsTotal);
+  const caps = fit(pulledOut.map(c => Math.max(0, c.capacity)), cardBalanceTotal);
+  const individualCards = pulledOut.map((c, i) => ({
+    ...c, minimum: mins.scaled[i], capacity: caps.scaled[i],
+  }));
+  const individualMinimums = mins.used;
+  const individualCapacity = caps.used;
 
   // ⚠️ THE BLOCK IS THE REMAINDER, NOT THE WHOLE. `cardMinimumsTotal` / `cardBalanceTotal` are the
   // engine's own aggregates for ALL cards, and they are the figures the cascade downstream will

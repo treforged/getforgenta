@@ -389,10 +389,10 @@ export default function SurplusRankingSection({
                   {isCards
                     ? (cardsSubtitle ?? 'Minimums always paid · surplus follows your strategy')
                     : row.kind === 'loan'
-                      // A loan is RANKABLE but not yet FUNDED by the engine — the projection has
-                      // nowhere to credit an extra principal payment, so it must not take one.
-                      // Saying so is the only honest option; see `includeLoanTargets`.
-                      ? `${formatCurrency(row.remaining ?? 0, false)} owed · ranking only for now`
+                      // Extra PRINCIPAL, not the scheduled payment — that is already a bill by the
+                      // time any of this runs, and saying "owed" rather than "to go" is what keeps
+                      // a debt being paid down from reading like a pot being filled.
+                      ? `${formatCurrency(row.remaining ?? 0, false)} owed · extra principal`
                       : isCard
                         ? `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
                         : row.remaining && row.remaining > 0

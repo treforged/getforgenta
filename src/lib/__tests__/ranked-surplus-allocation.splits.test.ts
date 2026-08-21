@@ -178,4 +178,36 @@ describe('computeAutoExtraReserve — cards ranked individually', () => {
     ], 2);
     expect(r.perTarget).toEqual([{ id: 'c5', kind: 'loan', amount: 1_650 }]);
   });
+  it('never lets pulled-out cards claim more minimum than the engine says is due', () => {
+    // Q11: a card whose month-0 minimum has already settled is dropped from `cardMinimumsTotal`,
+    // so the two solo cards below carry $350 of row-level minimum against an engine figure of
+    // $200. Un-scaled, PASS 1 would take $350 of pool the engine will only spend $200 of, and the
+    // goal ranked above them would be short by exactly that $150.
+    const r = computeAutoExtraReserve(1_000, 200, 15_000, [
+      g('move', -1, 1e9), solo('visa', 0, 200, 6_000), solo('disc', 1, 150, 9_000),
+    ], 9);
+    expect(r.reserved).toBeCloseTo(800, 2);
+  });
+
+  it('never lets pulled-out cards claim more capacity than the engine says is revolving', () => {
+    // Promo tranches are not paid down by surplus, so a card row balance can exceed the revolving
+    // figure the engine hands in — Tre's two cards are $18,819 of balance against far less that is
+    // actually revolving. With the goal ranked BETWEEN them, the scaling decides how much reaches
+    // it: the Visa absorbs its scaled share, not its whole row balance.
+    const scaledVisa = 8_397 * (8_000 / (8_397 + 10_422));
+    const r = computeAutoExtraReserve(20_000, 0, 8_000, [
+      solo('visa', 0, 0, 8_397), g('move', 1, 1e9), solo('disc', 2, 0, 10_422),
+    ], 9);
+    expect(r.reserved).toBeCloseTo(20_000 - scaledVisa, 2);
+  });
+
+  it('scales proportionally, so the result does not depend on the order the cards arrive in', () => {
+    const forwards = computeAutoExtraReserve(20_000, 0, 8_000, [
+      solo('visa', 0, 0, 8_397), g('move', 1, 1e9), solo('disc', 2, 0, 10_422),
+    ], 9);
+    const backwards = computeAutoExtraReserve(20_000, 0, 8_000, [
+      solo('disc', 2, 0, 10_422), g('move', 1, 1e9), solo('visa', 0, 0, 8_397),
+    ], 9);
+    expect(forwards.reserved).toBe(backwards.reserved);
+  });
 });
