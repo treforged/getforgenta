@@ -166,6 +166,12 @@ export function useForecastEngineInputs({
       // The column defaults to 0 in the database — cards first, the pre-feature behaviour — so a
       // user who has ranked nothing gets exactly the breakdown they got before it existed.
       const cardsSortOrder = profile?.cards_sort_order ?? 0;
+      // Per-card ranks (`accounts.surplus_sort_order`) and split weights. NULL on every card until
+      // the user pulls one out of the block, and `buildRankedTargets` reads null as "stay in the
+      // block", so this map changes nothing for anyone who has not used the feature.
+      const cardRanks = Object.fromEntries(accounts.map(a => [a.id, {
+        sortOrder: a.surplus_sort_order ?? null, share: a.surplus_share ?? null,
+      }]));
       const autoExtraTargets = buildRankedTargets({
         cards: buildCardData(accounts, allTxns, rules, debts),
         carFunds,
@@ -175,6 +181,8 @@ export function useForecastEngineInputs({
         cardsSortOrder,
         fundingAccountId: forecastFundingAccountId,
         accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+        cardRanks,
+        cardsShare: profile?.cards_surplus_share ?? null,
       });
       const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses, confirmedOccurrences, { targets: autoExtraTargets, cardsSortOrder });
       const safeToPayTotal = breakdown.totalRecommended;

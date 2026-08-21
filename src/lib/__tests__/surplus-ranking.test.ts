@@ -89,12 +89,19 @@ describe('buildSurplusRankRows', () => {
     expect(rows.find(r => r.id === CARDS_ROW_ID)?.autoExtra).toBe(true);
   });
 
-  it('leaves a LOAN-phase vehicle out — it can never take a ranked dollar', () => {
-    // It would otherwise render as "Fully funded" beside a car the user still owes on.
+  it('lists a LOAN-phase vehicle as a LOAN row — extra principal, not a down payment', () => {
+    // Before 2026-08-21 it was left out entirely: `carFundRemainingNeed` gives a loan-phase fund 0,
+    // so it could never take a ranked dollar and listing it would have printed "Fully funded"
+    // beside a car the user still owes on. It now has its own kind and its own capacity.
     const rows = buildSurplusRankRows({
       goals: [], carFunds: [carFund({ phase: 'loan', loan_amount: 24000 })],
     });
-    expect(rows.map(r => r.id)).toEqual([CARDS_ROW_ID]);
+    expect(rows.map(r => r.id)).toEqual([CARDS_ROW_ID, 'c1']);
+    const loan = rows.find(r => r.id === 'c1')!;
+    expect(loan.kind).toBe('loan');
+    expect(loan.remaining).toBe(24000);
+    expect(loan.targetAmount).toBeNull();
+    expect(loan.targetDate).toBeNull();
   });
 
   it('names an untitled row rather than rendering an empty line', () => {
@@ -197,7 +204,7 @@ describe('planSurplusRankWrites', () => {
   it('ignores a row that is not in both lists — this plans an edit, not a sync', () => {
     const after: SurplusRankRow[] = [
       ...before,
-      { id: 'new', kind: 'goal', name: 'New', sortOrder: 9, autoExtra: true, remaining: 1, createdAt: '' },
+      { id: 'new', kind: 'goal', name: 'New', sortOrder: 9, autoExtra: true, remaining: 1, share: null, targetAmount: null, targetDate: null, createdAt: '' },
     ];
     expect(isSurplusRankWritesEmpty(planSurplusRankWrites(before, after))).toBe(true);
   });
@@ -206,7 +213,8 @@ describe('planSurplusRankWrites', () => {
 describe('compareSurplusRankRows', () => {
   it('is a total order — equal rows compare equal', () => {
     const row: SurplusRankRow = {
-      id: 'g1', kind: 'goal', name: 'A', sortOrder: 0, autoExtra: false, remaining: 0, createdAt: '',
+      id: 'g1', kind: 'goal', name: 'A', sortOrder: 0, autoExtra: false, remaining: 0,
+      share: null, targetAmount: null, targetDate: null, createdAt: '',
     };
     expect(compareSurplusRankRows(row, { ...row })).toBe(0);
   });

@@ -82,6 +82,8 @@ export type Database = {
           sort_order: number
           statement_balance: number | null
           statement_balance_phase: boolean
+          surplus_share: number | null
+          surplus_sort_order: number | null
           updated_at: string
           user_id: string
         }
@@ -116,6 +118,8 @@ export type Database = {
           sort_order?: number
           statement_balance?: number | null
           statement_balance_phase?: boolean
+          surplus_share?: number | null
+          surplus_sort_order?: number | null
           updated_at?: string
           user_id: string
         }
@@ -150,6 +154,8 @@ export type Database = {
           sort_order?: number
           statement_balance?: number | null
           statement_balance_phase?: boolean
+          surplus_share?: number | null
+          surplus_sort_order?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -573,6 +579,7 @@ export type Database = {
           saved_percent: number
           saved_source: string
           sort_order: number
+          surplus_share: number | null
           target_price: number
           tax_fees: number
           updated_at: string
@@ -605,6 +612,7 @@ export type Database = {
           saved_percent?: number
           saved_source?: string
           sort_order?: number
+          surplus_share?: number | null
           target_price?: number
           tax_fees?: number
           updated_at?: string
@@ -637,6 +645,7 @@ export type Database = {
           saved_percent?: number
           saved_source?: string
           sort_order?: number
+          surplus_share?: number | null
           target_price?: number
           tax_fees?: number
           updated_at?: string
@@ -1159,6 +1168,7 @@ export type Database = {
           auto_generate_recurring: boolean | null
           budget_start_day: number | null
           cards_sort_order: number
+          cards_surplus_share: number | null
           cash_floor: number | null
           compact_mode: boolean | null
           created_at: string
@@ -1209,6 +1219,7 @@ export type Database = {
           auto_generate_recurring?: boolean | null
           budget_start_day?: number | null
           cards_sort_order?: number
+          cards_surplus_share?: number | null
           cash_floor?: number | null
           compact_mode?: boolean | null
           created_at?: string
@@ -1259,6 +1270,7 @@ export type Database = {
           auto_generate_recurring?: boolean | null
           budget_start_day?: number | null
           cards_sort_order?: number
+          cards_surplus_share?: number | null
           cash_floor?: number | null
           compact_mode?: boolean | null
           created_at?: string
@@ -1465,6 +1477,7 @@ export type Database = {
           monthly_contribution: number
           name: string
           sort_order: number
+          surplus_share: number | null
           target_amount: number
           target_date: string | null
           updated_at: string
@@ -1486,6 +1499,7 @@ export type Database = {
           monthly_contribution?: number
           name: string
           sort_order?: number
+          surplus_share?: number | null
           target_amount?: number
           target_date?: string | null
           updated_at?: string
@@ -1507,6 +1521,7 @@ export type Database = {
           monthly_contribution?: number
           name?: string
           sort_order?: number
+          surplus_share?: number | null
           target_amount?: number
           target_date?: string | null
           updated_at?: string

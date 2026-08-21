@@ -48,6 +48,11 @@ export type SavingsGoal = {
    * Defaults to false for every existing row -- turning it on is the user's decision, since
    * diverting surplus away from the cards moves their payoff date. */
   auto_extra: boolean;
+  /** Weight for a SPLIT rank -- when this row shares its `sort_order` with another target, the
+   * rank's money is divided in proportion to the two shares instead of this one filling first.
+   * Null/absent means no split, which is every pre-2026-08-21 row and is byte-identical to the
+   * strict sequence that came before. See `allocateRankedSurplus`. */
+  surplus_share?: number | null;
   created_at: string;
 };
 
@@ -119,6 +124,11 @@ export type CarFund = {
    * Defaults to false for every existing row -- turning it on is the user's decision, since
    * diverting surplus away from the cards moves their payoff date. */
   auto_extra: boolean;
+  /** Weight for a SPLIT rank -- when this row shares its `sort_order` with another target, the
+   * rank's money is divided in proportion to the two shares instead of this one filling first.
+   * Null/absent means no split, which is every pre-2026-08-21 row and is byte-identical to the
+   * strict sequence that came before. See `allocateRankedSurplus`. */
+  surplus_share?: number | null;
   created_at: string;
 };
 

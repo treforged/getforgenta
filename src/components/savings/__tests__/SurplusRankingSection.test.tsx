@@ -16,8 +16,10 @@ import { CARDS_ROW_ID, type SurplusRankRow } from '@/lib/surplus-ranking';
 
 const isTouch = vi.hoisted(() => ({ value: false }));
 const commit = vi.hoisted(() => vi.fn());
+const setCardSeparated = vi.hoisted(() => vi.fn());
 const ranking = vi.hoisted(() => ({
   rows: [] as SurplusRankRow[],
+  cards: [] as { id: string; name: string }[],
   saving: false,
   loading: false,
   readOnly: false,
@@ -28,7 +30,7 @@ vi.mock('@/hooks/use-mobile', () => ({
 }));
 
 vi.mock('@/hooks/useSurplusRanking', () => ({
-  useSurplusRanking: () => ({ ...ranking, commit }),
+  useSurplusRanking: () => ({ ...ranking, commit, setCardSeparated }),
 }));
 
 const row = (id: string, name: string, sortOrder: number, kind: SurplusRankRow['kind'] = 'goal'): SurplusRankRow => ({
@@ -38,6 +40,9 @@ const row = (id: string, name: string, sortOrder: number, kind: SurplusRankRow['
   sortOrder,
   autoExtra: false,
   remaining: kind === 'cards' ? null : 500,
+  share: null,
+  targetAmount: null,
+  targetDate: null,
   createdAt: '2026-01-01T00:00:00Z',
 });
 
@@ -48,7 +53,7 @@ const THREE = [
 ];
 
 function setup(rows: SurplusRankRow[] = THREE, patch: Partial<typeof ranking> = {}) {
-  Object.assign(ranking, { rows, saving: false, loading: false, readOnly: false }, patch);
+  Object.assign(ranking, { rows, cards: [], saving: false, loading: false, readOnly: false }, patch);
   return render(<MemoryRouter><SurplusRankingSection /></MemoryRouter>);
 }
 

@@ -477,6 +477,30 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     [projections],
   );
 
+  /**
+   * The whole deployable surplus per month, and each target's own standing contribution — the two
+   * things "Where the extra money goes" needs before it can say whether a plan actually works.
+   *
+   * Capacity is `debtPayment + everything the ranked allocator diverted`, which is the pool BEFORE
+   * it was split between the cards and the goals — the honest ceiling on what every target
+   * combined can receive in a month. Deriving it from the forecast rows the page already holds
+   * keeps it the same number the engine spent, rather than a second model of the same month.
+   */
+  const surplusCapacityByMonth = useMemo(
+    () => (projections.data ?? []).map(r =>
+      Math.max(0, Number(r.debtPayment) || 0)
+      + Object.values(r.autoExtraByTarget ?? {}).reduce((s, v) => s + (Number(v) || 0), 0)),
+    [projections],
+  );
+
+  // A goal's own monthly contribution fills the same need a ranked extra does, so a reachability
+  // verdict that ignored it would call a goal unreachable that its own standing transfer reaches.
+  const ownMonthlyByTarget = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const g of allGoals) map[g.id as string] = Math.max(0, Number(g.monthly_contribution) || 0);
+    return map;
+  }, [allGoals]);
+
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
 
@@ -719,7 +743,12 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
 
       <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} />
 
-      <SurplusRankingSection cardsSubtitle={cardsRankSubtitle} />
+      <SurplusRankingSection
+        cardsSubtitle={cardsRankSubtitle}
+        autoExtraByTarget={autoExtraByGoal}
+        ownMonthlyByTarget={ownMonthlyByTarget}
+        capacityByMonth={surplusCapacityByMonth}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved, false)}</p></div>

@@ -26,7 +26,7 @@ import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
-import { computeAutoExtraReserve, type RankedTarget } from '@/lib/ranked-surplus-allocation';
+import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from '@/lib/ranked-surplus-allocation';
 import { goalRemainingNeed, carFundRemainingNeed } from '@/lib/ranked-extra-payment-targets';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -1346,7 +1346,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       for (const v of vehicleProjections) {
         if (i <= v.purchaseMonthIdx) decayAutoExtraCapacity(v.fundId, v.contrib);
       }
-      let autoExtraThisMonth: { id: string; kind: 'car_fund' | 'goal'; amount: number }[] = [];
+      let autoExtraThisMonth: AutoExtraReserve['perTarget'] = [];
       let autoExtraOutThisMonth = 0;
       if (i === 0) {
         autoExtraThisMonth = cardProjectionData?.month0?.autoExtraPerTarget ?? [];

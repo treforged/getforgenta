@@ -1811,6 +1811,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // defaults to 0 in the database — cards first, the pre-feature behaviour — so a user who has
       // ranked nothing is byte-identical to before the column existed.
       const cardsSortOrder = profile?.cards_sort_order ?? 0;
+      // Per-card ranks (`accounts.surplus_sort_order`) and split weights. NULL on every card until
+      // the user pulls one out of the block, and `buildRankedTargets` reads null as "stay in the
+      // block", so this map changes nothing for anyone who has not used the feature.
+      const cardRanks = Object.fromEntries(accounts.map(a => [a.id, {
+        sortOrder: a.surplus_sort_order ?? null, share: a.surplus_share ?? null,
+      }]));
       const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - m0FloorAugmented - cyclingPayment);
       const autoExtra = computeAutoExtraReserve(
         autoExtraPool,
@@ -1821,6 +1827,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cardsSortOrder,
           fundingAccountId: resolvedDebtFundingId ?? null,
           accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+          cardRanks,
+          cardsShare: profile?.cards_surplus_share ?? null,
         }),
         cardsSortOrder,
       );

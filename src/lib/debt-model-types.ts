@@ -6,6 +6,7 @@
 // unaffected — this is a type-only relocation, not an API change.
 
 import type { CardData, PaymentLedgerEntry } from './credit-card-engine';
+import type { AutoExtraReserveKind } from './ranked-surplus-allocation';
 
 export interface Month0Result {
   safeToPayTotal: number;
@@ -54,8 +55,13 @@ export interface Month0Result {
    * linked savings account first, else the goal's / car fund's own pool.
    *
    * Empty for every user with nothing opted in, which `auto_extra`'s FALSE default makes the norm.
-   * Sums to `chain.autoExtraReserve` (the scalar is rounded to cents; the parts are not). */
-  autoExtraPerTarget: { id: string; kind: 'car_fund' | 'goal'; amount: number }[];
+   * Sums to `chain.autoExtraReserve` (the scalar is rounded to cents; the parts are not).
+   *
+   * `'loan'` is extra PRINCIPAL on a vehicle loan (a `car_funds` row in its loan phase). It leaves
+   * checking exactly as a goal contribution does, but it lands on a liability rather than in a
+   * pool, so a consumer that credits these must reduce the loan balance, never grow a savings
+   * balance — see `forecast-engine.ts`'s crediting step. */
+  autoExtraPerTarget: { id: string; kind: AutoExtraReserveKind; amount: number }[];
   /** The COMPLETE month-0 cash chain the engine used to derive safeToPayTotal, as integers.
    *
    * Findings §2.6/§2.3: Dashboard used to render `safeToPayTotal` (an engine output) as the "="
