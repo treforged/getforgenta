@@ -113,6 +113,21 @@ export interface PaydownInput {
   /** `YYYY-MM-DD`. */
   asOf: string;
   capacity: CapacitySchedule;
+  /**
+   * The cash actually LEAVING the bank for the cards each month, when that differs from `capacity`.
+   *
+   * ⚠️ THIS EXISTS FOR EXACTLY ONE REASON: `shortfallMonths`. A caller may legitimately hand over a
+   * NET `capacity` — payment minus that month's new spend — because net is what moves a balance,
+   * and it is the only way to reproduce a projection that charges purchases to the same cards (see
+   * `chargesByMonth` above for the measurement). But minimums are paid out of the GROSS payment.
+   * Testing a net number against gross minimums invents shortfall months that will not happen, and
+   * "you will miss a payment" is the single most damaging thing this simulation can say wrongly.
+   *
+   * So: `capacity` pays balances down, `grossCapacity` is what the minimum test is allowed to see.
+   * Omit it and the two are the same number, which is correct for every caller whose capacity is a
+   * true surplus. `oneOffs` count toward both — a bonus is real cash either way.
+   */
+  grossCapacity?: CapacitySchedule;
   oneOffs?: readonly CapacityOneOff[];
   /**
    * Card ids in the order surplus should attack them, most urgent first. Any card not named falls
@@ -331,11 +346,18 @@ export function simulateSelfFundedPaydown(input: PaydownInput): PaydownResult {
       (s, c) => s + Math.min(c.minPayment ?? 0, balanceOf(c.id)),
       0,
     );
-    const cash = capacityAt(input.capacity, m)
-      + (input.oneOffs ?? []).filter(o => o.month === m).reduce((s, o) => s + o.amount, 0);
+    const oneOffCash = (input.oneOffs ?? [])
+      .filter(o => o.month === m)
+      .reduce((s, o) => s + o.amount, 0);
+    const cash = capacityAt(input.capacity, m) + oneOffCash;
 
-    if (owing.length > 0 && cash < minimumsDue - 0.005) {
-      shortfallMonths.push({ month: m, date: monthISO, minimumsDue, capacity: cash });
+    // The minimum test reads GROSS cash — the money that actually leaves the bank — because that
+    // is what a minimum is paid out of. When `capacity` is net of new spend the two differ, and
+    // comparing net against gross minimums manufactures shortfalls. See `grossCapacity`.
+    const grossCash = capacityAt(input.grossCapacity ?? input.capacity, m) + oneOffCash;
+
+    if (owing.length > 0 && grossCash < minimumsDue - 0.005) {
+      shortfallMonths.push({ month: m, date: monthISO, minimumsDue, capacity: grossCash });
     }
 
     let left = cash;
@@ -517,9 +539,13 @@ export function creditApplicationCollisions(
         openingDate: open.date,
         monthsFromApplication: delta,
         reason:
-          delta <= 0
-            ? `${open.label} opens ${Math.abs(delta)} month${Math.abs(delta) === 1 ? '' : 's'} before ${app.label}, so it still reads as a recently opened trade.`
-            : `${open.label} opens while ${app.label} is still being underwritten, so its inquiry can land mid-decision.`,
+          delta === 0
+            // Not "0 months before" — a distance of zero is not a distance, and the sentence has to
+            // read like something a person would say out loud.
+            ? `${open.label} opens the same month as ${app.label}, so it still reads as a recently opened trade.`
+            : delta < 0
+              ? `${open.label} opens ${Math.abs(delta)} month${Math.abs(delta) === 1 ? '' : 's'} before ${app.label}, so it still reads as a recently opened trade.`
+              : `${open.label} opens while ${app.label} is still being underwritten, so its inquiry can land mid-decision.`,
         suggestedOpeningDate: addMonthsToDate(app.date, underwriting + 1),
       });
     }

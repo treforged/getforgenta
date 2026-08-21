@@ -1,5 +1,116 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-20 session 3 (**Net capacity SHIPPED and live-verified: the panel's payoff moved
+> Aug 2027 → Apr 2028 against the tile's Jun 2028, so the 5-month contradiction is now 2 months and
+> the shortfall line did NOT go false. Copy fix shipped. Prime Visa 0% promo tranche written to the
+> live DB from a measured statement. The exact-split fix for the last 2 months was BUILT, MEASURED
+> and REVERTED — read why before rebuilding it.**)
+
+## ✅ ITEM 1 DONE — the two payoff dates no longer contradict each other
+| On `/debt`, same data, same render | Before | Now |
+|---|---|---|
+| `PAYOFF ETA` summary tile | Jun 2028 | **Jun 2028** |
+| `PaydownPlanPanel` "Cheapest (avalanche)" | Aug 2027 | **Apr 2028** |
+| Shortfall line | 1 month | **1 month** (the whole risk was it going to 5) |
+
+`paydownCapacityByMonth` is now NET — `sum of max(0, payments[m][card] − augmentedCCPurchases[m][card])`
+— and the panel no longer passes `charges`, because the engine's `augmentedCCPurchases` already
+contains exactly the same `monthly_charge` plans and passing both double-counted every instalment.
+
+**The shortfall consequence was handled, not dodged.** `PaydownInput` gained `grossCapacity`, used
+for ONE thing: the minimums test. Minimums come out of the gross payment, so testing the net number
+against them invents "you will miss a payment". Omitted, it equals `capacity`, so every
+true-surplus caller is untouched. 6 new tests pin it. **Live-verified: still 1 shortfall month.**
+
+## ⚠️ THE LAST 2 MONTHS — the exact fix was built, measured, and is WORSE. Do not rebuild it.
+The residual gap is the `max(0, …)` clamp. Measured on the live page over 30 months of the real
+plan: gross payments **$43,743**, spend **$23,116**, true net **$20,627** — clamped positive side
+alone **$25,179**. So the panel is handed **$4,552 of paydown that does not exist**, concentrated
+rather than spread (month 19 alone swings **−$1,386 → +$1,052**). That is worth ~2 months.
+
+The obvious fix — capacity `= sum of max(0, net)` plus overspend `= sum of max(0, −net)` passed as
+`chargesByMonth`, which reconstructs the true net EXACTLY and keeps the overspend on its own card —
+was implemented and rendered **"never, $15,678 interest"** (Discover-first: "never, $52,860"). Two
+structural reasons, both recorded in the `paydownCapacityByMonth` header comment now:
+1. **Carry-forward.** The arrays are `PROJECTION_MONTHS` = 60; the sim runs to `maxMonths` = 240,
+   and BOTH carry their last entry forward. The engine's tail alternates (+$65, −$69, …) with
+   billing cycles, so whichever sign month 59 lands on is pinned for 180 months. An overspend tail
+   is a permanent charge against zero capacity: "never" by construction.
+2. **The schedule terminates at the engine's own payoff.** Past ~month 22 the engine's payments
+   fall to roughly its purchases, so net capacity is ~$0 from there. The array encodes *just enough*
+   money to clear the cards on the engine's exact schedule, and any reordering even slightly less
+   efficient runs out of road and reports "never" instead of "a bit later".
+
+**Closing the last 2 months needs a capacity schedule that does not die at the engine's payoff —
+not a better netting formula.** That is the next slice, and it is a real design question.
+
+## 💳 CC PROMO PERIODS — set up, from measured statements, one assumption flagged
+Tre asked for these directly. What the real interest charges prove:
+
+| Card | Statement | Charge | Implied balance at that rate |
+|---|---|---|---|
+| Discover | 2026-08-04 | purchases $72.92 @ 16.6% | ~$5,271 |
+| Discover | 2026-08-04 | balance transfers $33.20 @ 7.99% | **~$4,986** |
+| Prime Visa | 2026-07-10 | purchase interest $34.01 @ 27.49% | **~$1,485 only** |
+
+- **Discover was already correct.** Existing tranche $5,037.73 @ 7.99% → 2028-01-04, measured at
+  ~$4,986. Left alone. Discover has NO purchase promo — $72.92 was charged, so it is not 0%.
+- **Prime Visa was missing one and now has it.** `balance_tranches` written live:
+  **$5,551.76 @ 0%, `promo_end_date` 2027-06-07**, label "Amazon 0% promotional financing".
+  The balance is `balance $8,396.90 − ISB $2,845.14` — ISB is by definition the part that accrues,
+  so the remainder is promotional. Corroborated by the $34.01 charge.
+- ⚠️ **THE END DATE IS AN ASSUMPTION AND IS FLAGGED TO TRE.** Plaid never supplies a promo end date
+  (see `balance-tranche-seed.ts` — the key is deliberately OMITTED so a sync cannot clobber a typed
+  one). 2027-06-07 is derived from his own `payment_plans` row "Car Amazon Starter Pack", Amazon 12
+  Months from 2026-07-07. His real Chase plan list may hold several with different dates.
+- Apple Card and Venture X: $0 balance, not opened. Nothing to set up.
+- Reverting is one statement: `update accounts set balance_tranches = null where id =
+  '9111bd9f-4704-4acb-97f7-cf1ab40bc764'`. Prior value was null.
+
+### ⚠️ THE TWO CONSUMERS DECOMPOSE DIFFERENT BASES — this cost real time, do not re-derive it
+- `credit-card-engine.ts` decomposes the card's **REVOLVING balance** (`trancheInterestFor` →
+  `trancheInterestBreakdown(revBal, …)`).
+- `consolidation.ts` / `PaydownPlanPanel` decompose the **TOTAL balance**.
+
+Measured consequence, live, with and without the tranche: `INTEREST THIS MONTH` is **$108.03 either
+way** — the Visa contributes $0 to the engine's month-0 figure regardless, so the tranche does not
+disturb it. The panel's avalanche interest moves **$3,107 → $1,687**. So the tranche is safe for the
+engine and corrects the panel, which is why it was restored after being briefly reverted to test it.
+
+### 🔎 SEPARATE PRE-EXISTING DISCREPANCY, NOT INTRODUCED HERE
+The Visa contributes **$0** to `INTEREST THIS MONTH` while the real July statement charged
+**$34.01**. That is the engine's revolving-balance/grace-period treatment, not the tranches — it was
+true before this session's changes and is unrelated to them. Worth a look; not a regression.
+
+## ✅ ALSO SHIPPED — the copy wart (old item 2), live-verified
+`creditApplicationCollisions`: "opens **0 months before**" → "opens **the same month as**", with
+`delta === 0` split out from `delta < 0`. Confirmed on the live page: *"Venture X opens the same
+month as your planned credit application…"*. 2 tests pin both branches.
+
+## 📁 Files changed this session
+- `src/lib/self-funded-paydown.ts` — `grossCapacity` input; shortfall reads gross; same-month copy.
+- `src/components/debt/CreditCardEngine.tsx` — `paydownGrossCapacityByMonth` (new, gross) +
+  `paydownCapacityByMonth` (now net) with the full measurement and both failed fixes in its header.
+- `src/components/debt/PaydownPlanPanel.tsx` — takes `grossCapacityByMonth`; `charges` is now
+  DISPLAY ONLY and documented as such; both sims take net + gross.
+- `src/lib/__tests__/self-funded-paydown.test.ts` — +8 tests.
+- Backups: `backups/2026-08-20_netcapacity/`.
+- Gates: tsc clean, eslint clean, **2007/2007 tests green**.
+
+## ⏭️ START HERE
+1. **A capacity schedule that survives past the engine's payoff.** The whole diagnosis is in "THE
+   LAST 2 MONTHS" above. Until then the panel is ~2 months optimistic, knowingly and in writing.
+2. **Get Tre's real Chase promo end date(s)** and correct the Prime Visa tranche. If he has several
+   plans, they are several tranches, and `BalanceTrancheEditor` already exists for exactly this.
+3. Why does the Visa contribute $0 to `INTEREST THIS MONTH` when it really charged $34.01?
+4. Surface `solveMinimumPrincipal` / `evaluateConsolidation` — still nothing reads them.
+5. Consider surfacing `repointedPlanIds` as a toggle. NOTE: it is now inert for the panel's
+   simulation, because `charges` no longer feeds it — repointing has to move where the purchases
+   are BUILT (`augmentedCCPurchases` in the engine), not where they are re-added.
+6. ~~Guaranteed-vs-expected income toggle~~ — still re-scope first; the promotions are ~$780/yr.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-20 session 2 (**Panel LIVE-VERIFIED. Found a real bug: the panel's payoff date
 > contradicts the ETA tile above it. Root-caused and measured; the fix is a NET capacity number,
 > NOT the charges array I first tried. Lib capability shipped `5dedbcb5`; panel wiring deliberately

@@ -355,3 +355,80 @@ describe('creditApplicationCollisions', () => {
     expect(hits).toHaveLength(1);
   });
 });
+
+describe('grossCapacity — the shortfall line when capacity is net of spend', () => {
+  it('tests minimums against GROSS cash, not the net paydown', () => {
+    // $700 leaves the bank; $350 of new spend lands back on the cards, so $350 pays balances down.
+    // Minimums total $459. The gross payment covers them comfortably; the net number does not, and
+    // a false "you will miss a payment" is the worst thing this simulation can say.
+    const res = simulateSelfFundedPaydown({
+      cards: CARDS,
+      asOf: ASOF,
+      capacity: 350,
+      grossCapacity: 700,
+      maxMonths: 6,
+    });
+    expect(res.shortfallMonths).toEqual([]);
+  });
+
+  it('still spends the NET number — gross only ever answers the minimum question', () => {
+    const net = simulateSelfFundedPaydown({ cards: CARDS, asOf: ASOF, capacity: 350, maxMonths: 6 });
+    const withGross = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: 350, grossCapacity: 700, maxMonths: 6,
+    });
+    expect(withGross.totalPaid).toBeCloseTo(net.totalPaid, 2);
+    expect(withGross.totalInterest).toBeCloseTo(net.totalInterest, 2);
+  });
+
+  it('still fires when the gross payment genuinely misses the minimums', () => {
+    const res = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: 100, grossCapacity: 200, maxMonths: 3,
+    });
+    expect(res.shortfallMonths.length).toBe(3);
+    expect(res.shortfallMonths[0].capacity).toBe(200);
+    expect(res.shortfallMonths[0].minimumsDue).toBeCloseTo(459, 2);
+  });
+
+  it('omitted, it is the same number as capacity — every surplus caller is untouched', () => {
+    const a = simulateSelfFundedPaydown({ cards: CARDS, asOf: ASOF, capacity: 100, maxMonths: 6 });
+    const b = simulateSelfFundedPaydown({
+      cards: CARDS, asOf: ASOF, capacity: 100, grossCapacity: 100, maxMonths: 6,
+    });
+    expect(b.shortfallMonths).toEqual(a.shortfallMonths);
+  });
+
+  it('counts a one-off toward both — a bonus is real cash either way', () => {
+    const res = simulateSelfFundedPaydown({
+      cards: CARDS,
+      asOf: ASOF,
+      capacity: 100,
+      grossCapacity: 200,
+      oneOffs: [{ label: 'Feb bonus', month: 0, amount: 400 }],
+      maxMonths: 1,
+    });
+    // 200 gross + 400 one-off = 600, clears the $459 of minimums.
+    expect(res.shortfallMonths).toEqual([]);
+  });
+});
+
+describe('creditApplicationCollisions — same-month wording', () => {
+  const sameMonth: PlannedCreditEvent[] = [
+    { id: 'app', label: 'your planned credit application', date: '2027-04-01', kind: 'loan-application' },
+    { id: 'vx', label: 'Venture X', date: '2027-04-20', kind: 'card-opening' },
+  ];
+
+  it('says "the same month as", never "0 months before"', () => {
+    const [hit] = creditApplicationCollisions(sameMonth);
+    expect(hit.monthsFromApplication).toBe(0);
+    expect(hit.reason).toContain('opens the same month as your planned credit application');
+    expect(hit.reason).not.toContain('0 month');
+  });
+
+  it('still counts real months when there are some', () => {
+    const [hit] = creditApplicationCollisions([
+      { id: 'app', label: 'your planned credit application', date: '2027-06-01', kind: 'loan-application' },
+      { id: 'vx', label: 'Venture X', date: '2027-04-20', kind: 'card-opening' },
+    ]);
+    expect(hit.reason).toContain('opens 2 months before');
+  });
+});

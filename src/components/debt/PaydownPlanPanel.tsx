@@ -19,12 +19,23 @@ type Props = {
    */
   paymentPlans: ConsolidationPlanRow[];
   /**
-   * Cash going to cards each month, indexed from this month. Comes from the engine's own
-   * per-card payment ledger — NOT a number this panel invents. When it is empty the panel says so
-   * and shows nothing else, because a milestone date computed from a guessed budget is worse than
-   * no milestone date.
+   * NET cash paying the cards down each month, indexed from this month: the engine's per-card
+   * payment minus the spend the engine puts back on that card. NOT a number this panel invents —
+   * when it is empty the panel says so and shows nothing else, because a milestone date computed
+   * from a guessed budget is worse than no milestone date.
+   *
+   * Being net is what brings the panel's payoff month into line with the `PAYOFF ETA` tile above
+   * it — Aug 2027 against Jun 2028 before, Apr 2028 against Jun 2028 now. The residual two months
+   * is a known clamp overstatement of $4,552, measured; the memo that builds this array in
+   * `CreditCardEngine.tsx` carries the numbers and the two fixes that were tried and are worse.
    */
   capacityByMonth: number[];
+  /**
+   * The same ledger GROSS — before purchases land back on the cards. Used for one thing only:
+   * deciding whether a month covers every card's minimum. Minimums come out of the gross payment,
+   * so testing the net number against them would invent shortfall months.
+   */
+  grossCapacityByMonth: number[];
 };
 
 /** The utilization lines that actually change a lending decision. */
@@ -51,7 +62,12 @@ function todayISO(): string {
  * card are different plans and they disagree. The panel shows both, with the interest each costs,
  * and does not pick. Averaging them would produce a plan that is neither.
  */
-export default function PaydownPlanPanel({ accounts, paymentPlans, capacityByMonth }: Props) {
+export default function PaydownPlanPanel({
+  accounts,
+  paymentPlans,
+  capacityByMonth,
+  grossCapacityByMonth,
+}: Props) {
   const asOf = useMemo(() => todayISO(), []);
 
   /**
@@ -66,6 +82,18 @@ export default function PaydownPlanPanel({ accounts, paymentPlans, capacityByMon
 
   const cards = useMemo(() => consolidationCards(accounts ?? []), [accounts]);
 
+  /**
+   * The `payment_plans` instalments still to land on cards.
+   *
+   * ⚠️ DISPLAY ONLY — deliberately NOT passed to the simulation. `capacityByMonth` arrives net of
+   * everything the engine charges to the cards, and the engine's `augmentedCCPurchases` already
+   * includes exactly these `monthly_charge` plans. Adding them as `charges` as well would subtract
+   * each instalment from capacity and then post it to the balance a second time.
+   *
+   * The cost of that choice, stated rather than hidden: `landsOnCard: false` (the repointing
+   * toggle in `scheduledCardCharges`) can no longer change the simulation, because repointing a
+   * plan has to happen where the purchases are built. Nothing sets it today.
+   */
   const charges = useMemo(
     () => scheduledCardCharges(paymentPlans, cards, { asOf }),
     [paymentPlans, cards, asOf],
@@ -92,13 +120,13 @@ export default function PaydownPlanPanel({ accounts, paymentPlans, capacityByMon
       hasCapacity
         ? simulateSelfFundedPaydown({
             cards,
-            charges,
             asOf,
             capacity: capacityByMonth,
+            grossCapacity: grossCapacityByMonth,
             milestonesPct: MILESTONES,
           })
         : null,
-    [hasCapacity, cards, charges, asOf, capacityByMonth],
+    [hasCapacity, cards, asOf, capacityByMonth, grossCapacityByMonth],
   );
 
   const worstFirst = useMemo(
@@ -106,14 +134,14 @@ export default function PaydownPlanPanel({ accounts, paymentPlans, capacityByMon
       hasCapacity && worstCard
         ? simulateSelfFundedPaydown({
             cards,
-            charges,
             asOf,
             capacity: capacityByMonth,
+            grossCapacity: grossCapacityByMonth,
             priorityCardIds: [worstCard.card.id],
             milestonesPct: MILESTONES,
           })
         : null,
-    [hasCapacity, worstCard, cards, charges, asOf, capacityByMonth],
+    [hasCapacity, worstCard, cards, asOf, capacityByMonth, grossCapacityByMonth],
   );
 
   const collisions = useMemo(() => {
