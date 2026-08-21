@@ -1,5 +1,85 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 6 (**Exhaust repoint verified. Tre CANNOT clear the Visa ISB — confirmed by
+> arithmetic, not opinion. And the biggest finding of the last three sessions: the Move fund and the
+> Discover paydown want the same money and there is not enough of it. ~$13,000 short over 11 months.
+> Nobody has planned around that.**)
+
+## 🚨 THE COLLISION NOBODY HAS PRICED — Move fund vs Discover paydown
+| | |
+|---|---|
+| Net capacity Aug 2026 - Aug 2027 (measured live, session 4) | **$16,232** |
+| Card balances today | $18,819 + interest |
+| `Move fund` target, due **2027-07-01** | **$10,340** |
+| **Demand vs supply** | **~$29,000 wanted, $16,232 available — ~$13,000 short** |
+
+Every plan in this file assumed the surplus goes to cards. It cannot: **$10,340 of it is spoken for
+by a dated, non-optional move.** Something gives — the move budget, the Aug 2027 reapply, or the
+move date — and **it is Tre's call, not a session's.** Do not silently re-run the paydown as though
+the move fund were not there; that is what produced every optimistic date above.
+
+## 🔴 `Move fund` IS NOT ON TRACK — the target may be right, the plan is empty
+`savings_goals`: target **$10,340**, current **$0**, `monthly_contribution` **$0**, target_date
+**2027-07-01**, rank 1 behind cards. Eleven months out with nothing saved and nothing scheduled.
+Whether $10,340 is the right number depends on his real lease-break terms, which no tool here can
+check — **but as configured it reaches $0 of $10,340.** That is the honest read of "is my move fund
+accurate": the amount is plausible, the funding plan does not exist.
+
+## ✅ AUTO EXTRA ENABLED on `Move fund`, and verified to divert NOTHING (correctly)
+`savings_goals.auto_extra = true` for `Move fund` only. Revert: set it back to false.
+Live-verified on `/dashboard` → "Where the extra money goes": rank 1 **Credit cards — 2 cards ·
+$395 this month · ALWAYS**, rank 2 Move fund. The month-0 card figure is **unchanged at $395**
+(matches the measured net-capacity month 0 exactly), so the reserve took $0.
+
+**That is the feature behaving correctly and also being useless to him.** `cardsSortOrder` defaults
+to 0 = cards first, and the paydown consumes the whole pool through Aug 2027, so a goal ranked
+BELOW cards gets the remainder of nothing. **To actually fund the move he must rank `Move fund`
+ABOVE cards** (`profiles.cards_sort_order`), which is exactly the trade in the section above.
+⚠️ `auto_extra` is on `savings_goals` and `car_funds` ONLY. It is a goals feature that moves cash
+AWAY from cards — it is NOT "extra payments toward the cards". Surplus already goes to cards.
+
+## 🔴 HE CANNOT CLEAR THE VISA ISB — confirmed, and it ends the $0 interest
+| Liquid | |
+|---|---|
+| Chase TOTAL CHECKING | $967.68 |
+| Alliant savings / checking | $106.44 / $5.00 |
+| Amex General Operations | $51.08 |
+| **Total liquid** | **$1,130.20** |
+| **Prime Visa ISB** | **$2,845.14** |
+
+**Short by $1,714.94**, before the Discover $249 minimum. Brokerage ($608.56 + $173) does not close
+it either. His own read was right.
+
+**Consequence, and it is expensive:** the statement's $0-subject-to-interest ends. ~$2,809 begins
+accruing at **27.49% ≈ $64/mo**, and the grace period on NEW purchases is lost until the full
+balance is cleared again — on a card taking ~$850/mo of purchases. **Session 4's "the Visa costs
+$0/month, so send everything to Discover" no longer holds unconditionally.** The interest-bearing
+comparison is now Discover ~$108/mo vs Visa ~$64/mo, and 27.49% > 16.6%.
+⚠️ **Re-run the fork before repeating the Discover-first recommendation.** It is probably still
+right for the reapply, but it is no longer nearly free, and nobody has measured the new number.
+
+## ✅ VERIFIED — `Exhaust` repointed to checking (Tre did it)
+`payment_plans.Exhaust.payment_source` = `account:933cbc10…` (TOTAL CHECKING). **No `monthly_charge`
+plan funds Discover any more.** The two Visa plans are `upfront` (already inside the balance);
+`Bucket Seats` is on Venture X from Feb 2029. Note the trade: ~$1,070 no longer lands on Discover,
+but the same ~$1,070 now leaves checking, which is part of why the ISB is unreachable this month.
+
+## ⏭️ START HERE
+1. **Price the Move-fund/paydown fork properly.** Three orderings to measure, on the real capacity
+   array: (a) cards first, move underfunded; (b) move first, reapply slips; (c) a split that funds
+   the move by Jul 2027 and still gets Discover under 30% by Aug 2027, if one exists. This is the
+   top item in the whole file.
+2. **Re-run Discover-first vs avalanche with the Visa ACCRUING**, now that grace is lost.
+3. Ask Tre for the real lease-break figure so $10,340 can be confirmed or corrected.
+4. **Push.** `main` is ahead of `origin/main` and has never been pushed this run.
+5. Carried: capacity schedule past the engine payoff; `repointedPlanIds` inert; `min_payment`
+   $559.40 wrong from Sep 2027; surface `solveMinimumPrincipal` / `evaluateConsolidation`.
+
+## 📁 This session
+No source changes. Live DB: `savings_goals.auto_extra = true` on `Move fund` (revert = false).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 5 (**`min_payment` per tranche SHIPPED `ef75f6d5` and live-verified. The
 > phantom reprice cliff is gone from the app. The real Promo Min Pay figures are written to the live
 > DB. Interest went UP, correctly — the old model was ALSO spending $524.40/mo of Equal Pay money on
