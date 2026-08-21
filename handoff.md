@@ -1,5 +1,62 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 12 (**THE 4 MONTHS ARE CLOSEABLE, AND THE PRICE IS ONE MONTH OF PAYOFF DATE.
+> Measured both ways on his live data, not reasoned about. No code changed; one transaction
+> corrected. His decided order is RESTORED and untouched — the fix is his to approve.**)
+
+## 🎯 THE ANSWER — measured live, both states, like for like
+| | **Visa first** (his order, in force now) | **Move fund first** |
+|---|---|---|
+| Move fund at Jul 2027 | **4 months late, $3,689 short** | **ON TRACK — banner disappears** |
+| Cheapest (avalanche) payoff | **Oct 2028, $3,239 interest** | **Nov 2028** |
+| Overall payoff ETA | Aug 2029 | **Aug 2029 — unchanged** |
+
+**Ranking the move fund above the Prime Visa closes the gap completely, and costs ONE MONTH on the
+avalanche date.** The overall payoff ETA does not move at all. That is the cheapest lever on the
+board by a wide margin and it is the recommendation — but it reverses his stated "chase card first",
+so **it was measured and restored, not applied.** Awaiting his word.
+
+## ⚠️ WHY WINDFALLS BARELY HELP AT RANK 2 — the finding that reframes the crypto plan
+The $250 stock-sale proceeds moved the shortfall **$3,720 → $3,689. Thirty-one dollars.**
+At rank 2 the money lands on the Visa first and only the remainder reaches the goal.
+**The same is true of the ~$1,280 crypto recovery.** Do not model it as "$1,280 off the shortfall" —
+under the current ranking most of it pays the Visa. Fix the RANK and the windfalls start landing
+where he wants them; leave the rank and no realistic windfall closes this.
+
+## ✅ TRANSACTION CORRECTED, NOT ADDED — and this nearly double-counted
+Tre said "$250 is coming to my checking from stocks I sold, 4-5 days". There was **already** a
+manual row: `30429503-fd75-4a1a-b843-0ead13691e32`, **$200, dated 2026-08-24**, "Withdrawal from
+Robinhood individual", created 2026-08-20. **Robinhood individual holds $251.53** — so a second row
+would have counted the same money twice against an account that cannot fund both.
+**Updated in place** to $250 / **2026-08-26** (the far end of "4-5 days"; a later date never
+flatters the projection). **Undo** = set it back to $200 / 2026-08-24. **If they really are two
+separate withdrawals, insert the second one — but check the Robinhood balance first.**
+
+## 🟡 NOT MODELLED, ON PURPOSE — the ~$1,280 crypto recovery
+No date, so no dated transaction. Adding one would put a number on the screen that nobody can stand
+behind, and this app does not do that. It is recorded here instead. **When he knows the date**, add
+it the same way as the row above (income → TOTAL CHECKING `933cbc10…`) — and re-read the section
+above first, because at rank 2 it is worth far less than its face value.
+
+## ❓ "AGENTIC MONEY WILL BE LEFT ALONE" — UNRESOLVED, NOTHING TOUCHED
+No account, asset or holding named anything like "agentic" exists in the app. His active accounts
+are: 401k, USAA auto loan, Fidelity Go ($173), **Robinhood individual ($251.53)**, three checking,
+four cards, Roth IRA ($991), Savings ($106.44). **Nothing was excluded, added or changed on the
+strength of that sentence** — only the $250 and the (unmodelled) $1,280 were acted on. **Ask him
+which holding he means** before any future session counts brokerage money as available.
+
+## ⏭️ START HERE
+1. **Put the recommendation to Tre**: move fund above the Visa closes the 4 months for one month of
+   payoff date and no change to the overall ETA. One line to apply.
+2. Ask what "agentic money" names.
+3. Add the $1,280 when it has a date — after re-reading the windfall finding above.
+4. **After the move: raise the merged goal's target** to the emergency-fund figure. Nothing prompts this.
+5. Build `linked_plan` / `linked_car` suppression (still changes no number when confirmed).
+6. Re-amortize after extra principal so the C5 retires early rather than reaching zero sooner.
+7. **`main` is 19 commits ahead of `origin/main` and has never been pushed this run.**
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 11 (**Goals merged, and the EARLY-PAID-BILL AUTO-MATCH is built and live
 > (`6a306cb2`). The merged goal went from 23 months late to 4 months late, $3,720 short. Read the
 > safety argument on the auto-match before touching its window — it is the one gate in the app that
