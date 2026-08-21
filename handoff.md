@@ -1,5 +1,98 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 9 (**TRE'S RANKING IS APPLIED TO HIS LIVE DATA, AND THE LOAN NOW TAKES REAL
+> MONEY. All four slices are done. The headline finding: under HIS OWN ordering the move fund lands
+> 22 months late and $7,237 short at Jul 2027 — and the earlier, better-looking number was a bug.**)
+
+## ✅ HIS DECIDED RANKING IS LIVE (applied 2026-08-21, reversible from the panel in taps)
+| Rank | Row | Stored as |
+|---|---|---|
+| 1 | **Prime Visa** | `accounts.surplus_sort_order = 0` |
+| 2 | **Discover it Card** ↔ **Move fund**, 50/50 | `accounts.surplus_sort_order = 1, surplus_share = 50` / `savings_goals.sort_order = 1, surplus_share = 50` |
+| 3 | **Savings** ↔ **C5 loan**, 50/50 | `savings_goals.sort_order = 2, surplus_share = 50` / `car_funds.sort_order = 2, surplus_share = 50` |
+| 4-6 | Roth IRA, Brokerage, 401K Roth | `sort_order` 3, 4, 5, `surplus_share = null` |
+| 7 | Credit cards block (Venture X + Apple Card, **both $0**) | `profiles.cards_sort_order = 6` |
+`auto_extra` was turned ON for **Savings** and the **C5 fund** (it was already on for Move fund).
+**Revert** = null every `surplus_sort_order` / `surplus_share`, set `cards_sort_order = 0`, and set
+`auto_extra = false` on Savings and the C5.
+
+## 🔴 THE FINDING — his own ordering does not fund the move in time
+Live on `/dashboard?tab=goals`:
+```
+1 target does not reach its own date — $7,237 short in total.
+There is $21,355 of surplus over those months — it is going somewhere higher in this list.
+1  Prime Visa                 $8,397 balance · minimum always paid
+2  Discover it Card      50%  $10,422 balance
+   Move fund             50%  $8,894 to go
+   22 months late — $7,237 short at Jul 2027
+3  Savings               50%  $19,894 to go
+   2004 Chevorlet C5 loan 50% $16,254 owed · extra principal
+4-6 Roth IRA / Brokerage / 401K Roth      7  Credit cards
+```
+**The Visa's $8,397 absorbs the surplus before rank 2 sees a cent**, and the move fund then gets
+only half of what is left. Ranking it above the Visa, or cutting the $8,894, are the levers — but
+that is his call, not a session's.
+
+⚠️ **DO NOT QUOTE THE "3 MONTHS LATE / $1,044 SHORT" READING.** It existed for one reload between
+two commits and it was WRONG: the forecast's months 1+ were seating every card at
+`cards_sort_order` (= 6, the bottom) instead of honouring the per-card ranks month 0 had already
+applied. `bb7849f5` item 4 fixed it. 22 months is the honest number.
+
+## ✅ THE LOAN TAKES MONEY NOW — `includeLoanTargets` is ON at both call sites
+`forecast-engine.ts` **step 4c-ii-b** reduces the fund's amortized balance array by exactly the
+dollars that left checking, from the paying month forward. The array is SHARED BY REFERENCE with
+`carLoanPerFund` and `carLoanBalanceByMonth`, so the popup breakdown, the liability total and the
+target's own capacity all fall together.
+- **Capacity is READ, not carried.** A loan's balance falls every month anyway (the scheduled
+  payment amortizes it), so it is read fresh from the reduced array each month instead of decayed
+  from a running total. `decayAutoExtraCapacity` therefore SKIPS loans — decaying as well would
+  take the same dollars off twice.
+- **The schedule is reduced, NOT rebuilt.** No term shortening, no interest re-pricing, so this
+  UNDERSTATES what the extra payment buys. Deliberate: a projection that overstates the benefit of
+  paying debt is the one that gets a user into trouble. Re-amortizing in-loop is a real improvement
+  and a real piece of work; it is not a bug.
+
+## 🚨 THE BUG THAT SHIPPED PAST 2,083 GREEN TESTS
+`autoExtraLoanFunds` was declared beside its siblings ~280 lines ABOVE the amortization loop that
+fills `loanBalancesByFundId` — a temporal dead zone. The whole app threw
+`Cannot access 'loanBalancesByFundId' before initialization` on the first live load.
+**Nothing caught it because no test ran `calculateForecast` with a loan-phase car fund opted in.**
+`forecast-engine.autoExtraLoan.test.ts` now does, and its cheapest assertion ("runs at all") is the
+one that was missing. **A green suite is not a loaded page. Open the app.**
+
+## ✅ ALSO FIXED — pulled-out cards can no longer over-claim
+`computeAutoExtraReserve` fits them inside the engine's aggregates PROPORTIONALLY.
+`cardMinimumsTotal` drops a card whose month-0 minimum already settled (Q11) and `cardBalanceTotal`
+counts only cards the sim still has revolving, so the individuals CAN sum to more than the engine
+will spend — and every dollar of excess is pool the cards absorb and the goals never see. Scaling
+rather than clipping the last card keeps the result independent of input order.
+
+## ⚠️ TRAPS (carried from session 8, still true, plus two)
+1. **A shared `sort_order` is NOT a split.** The column defaults to 0. `toGroups` requires BOTH
+   sides to carry a weight. Loosen it and every new user's surplus divides across everything.
+2. **The rank NUMBER is a position, not `sortOrder + 1`.**
+3. **The collision horizon is the LAST DATED TARGET**, and the banner fires on *unreachable* as
+   well as *demand > capacity* — the live failure is the second kind.
+4. **An individual card rank does NOT reorder the payoff.** It moves the split point between debt
+   and goals; the cascade still runs the strategy on marginal APR.
+5. **NEW — month 0 and months 1+ must agree on the card ranks.** They are built in two different
+   places (`useCardProjection` and the forecast month loop). Change one, change both, or the two
+   surfaces print different payoff dates for the same plan.
+6. **NEW — a loan's credit is a liability going DOWN.** Never route a `'loan'` reserve into
+   `goalPools` / `carFundPools`; step 4c-ii explicitly excludes it.
+
+## ⏭️ START HERE
+1. **Tell Tre the move-fund finding and let him choose a lever** (rank it above the Visa / cut the
+   $8,894 / move the date). The app now states the problem; the decision is his.
+2. **Re-amortize after an extra principal payment**, so the C5 retires early instead of merely
+   reaching zero sooner. Currently conservative by design.
+3. **`main` is 16 commits ahead of `origin/main` and has never been pushed this run.**
+4. Re-run Discover vs Visa with the Visa ACCRUING (carried).
+5. Carried: capacity schedule past the engine payoff; `repointedPlanIds` inert; `min_payment`
+   $559.40 wrong from Sep 2027; surface `solveMinimumPrincipal` / `evaluateConsolidation`.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 8 (**THE RANKED-ALLOCATION SLICES ARE BUILT, LIVE-VERIFIED ON TRE'S REAL
 > ROWS, AND COMMITTED (`e3094c00` + `0a4df015`). Three of the four things the app could not express
 > now work. The fourth — extra car payments actually TAKING money — is deliberately withheld and
