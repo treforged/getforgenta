@@ -1,5 +1,88 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 11 (**Goals merged, and the EARLY-PAID-BILL AUTO-MATCH is built and live
+> (`6a306cb2`). The merged goal went from 23 months late to 4 months late, $3,720 short. Read the
+> safety argument on the auto-match before touching its window — it is the one gate in the app that
+> errs in the unsafe direction on machine evidence alone.**)
+
+## ✅ GOALS MERGED — one goal, one account (Tre, 2026-08-21)
+`Move fund` and `Savings` both read **$106.44** — the same Alliant savings account — so they were
+two goals claiming one balance. Merged into the surviving row:
+- **`a035a97e` → "Move fund, then emergency fund"**, `goal_type = 'Emergency Fund'`, target
+  **$9,000** by **2027-07-03**, linked to the savings account, `sort_order = 1`, `auto_extra` true.
+  It **inherited the HYS rule** (`73a5c998`) so the $200/mo credits this goal.
+- **`0d292528` ("Savings", $20,000) DELETED.** Backed up first:
+  **`backup.savings_goals_20260821_merge`** (both rows, `anon`/`authenticated` revoked). Restore =
+  re-insert from there.
+
+⚠️ **THE TARGET IS $9,000, NOT $29,000, AND THAT IS ON PURPOSE.** Tre: the emergency fund does not
+start building until after the move. Setting the combined $29,000 against the Jul 2027 date would
+print a false shortfall for money not needed then; clearing the date instead would throw away the
+one number he actually needs. **After the move, raise the target.** That is the follow-up, not a bug.
+
+## ✅ HYS RULE — ALREADY CORRECT, NO CHANGE MADE
+`73a5c998` starts **2027-11-21**, after the move, $200/mo into the same savings account. Tre asked
+for it moved-or-deleted; it was already moved. Left alone. **Do not re-open.**
+
+## ℹ️ 401K ROTH — CORRECTLY INERT, NOTHING TO DO
+Payroll-deducted, scales with raises, takes no extra by design. `auto_extra` is already FALSE and
+it sits at rank 7, so it draws $0. It stays in the list because it is still a thing money goes to;
+the unticked box is the accurate statement. A "payroll-deducted, cannot take extra" flag would be
+the tidier answer if this ever comes up again — there is no column for it today.
+
+## ✅ SHIPPED — EARLY-PAID-BILL AUTO-MATCH (`6a306cb2`)
+`src/lib/auto-matched-occurrences.ts`. Produces the SAME `ConfirmedOccurrences` set a manual
+confirmation produces, in the same key space, so **nothing downstream changed** — the Stage 4A
+suppression path, `isOccurrenceConfirmed` and their tests are untouched. Both hooks
+(`useForecastEngineInputs`, `CardProjectionContext`) union the manual and automatic sets.
+
+### 🔴 THE SAFETY ARGUMENT — read this before changing the window
+This gate **errs UNSAFE**: dropping an obligation RAISES projected cash. It is the reason Stage 4A
+demanded a human assertion. What replaces that assertion:
+1. **Settled only** (`matchCharge` skips pending — a pending debit can still reverse).
+2. **Four hard gates**: same account, same direction, amount within max($0.05, 1%), inside window.
+3. **Exactly one candidate** — two equally good matches claim nothing.
+4. **The window stops at the previous occurrence.** ⚠️ `ChargeToMatch.earliestDate` is a
+   differently-SHAPED window, **not a looser tolerance**. Widening `DATE_WINDOW_DAYS` globally
+   would let a charge claim the NEIGHBOURING occurrence of the same rule. Absent ⇒ every existing
+   caller byte-identical. The month's first occurrence opens 27 days back (< the 28-day minimum
+   month, so it can never reach a monthly rule's predecessor).
+5. **One transaction, one claim** — a claimed charge leaves the pool.
+6. **Outflows only.** Income is excluded: `deposit_account` vs `payment_source` means income rules
+   could never match anyway, and paycheck amounts vary past the 1% tolerance.
+**12 of the 19 new tests are refusals.** If you loosen anything here, add a refusal test first.
+
+## 🐛 ALSO FIXED — the banner disagreed with the row under it
+The reachability banner built its own targets WITHOUT each goal's own monthly contribution, so the
+panel printed **"$3,720 short at Jul 2027" on the row and "$6,120 short in total" three inches
+above it**, for the same single target. One schedule is now built once (`inputsById`) and used by
+both. Found by reading the live panel, not by a test. **A total that disagrees with the row under
+it is the number nobody can stand behind.**
+
+## 📊 WHERE HIS PLAN STANDS NOW (live-verified)
+```
+1 target does not reach its own date — $3,720 short in total.
+There is $19,272 of surplus over those months — it is going somewhere higher in this list.
+1 Prime Visa (27.49%)   2 Move fund, then emergency fund — 4 months late, $3,720 short at Jul 2027
+3 Discover (16.6%)      4 C5 loan (10.18%)   5 Roth IRA  6 Brokerage  7 401K Roth  8 card block
+```
+**23 months late → 4 months late** across this session's changes. The remaining lever is still the
+Visa at rank 1 absorbing $8,397 first.
+
+## ⏭️ START HERE
+1. **Ask Tre whether to close the last 4 months** — rank the goal above the Visa, trim the $9,000,
+   or accept a Nov 2027 move.
+2. **After the move: raise the merged goal's target** to the emergency-fund figure and clear/reset
+   the date. Nothing in the app will prompt this.
+3. **Build `linked_plan` / `linked_car` suppression.** Confirming those reviews still changes no
+   number — the "correct and useless" state the auto-match just fixed for rules.
+4. Re-amortize after an extra principal payment so the C5 retires early rather than reaching zero
+   sooner (conservative by design today).
+5. **`main` is 19 commits ahead of `origin/main` and has never been pushed this run.**
+6. Carried: Discover vs Visa with the Visa accruing; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 10 (**Ranking revised on Tre's instruction and the C5 placed on rate
 > arithmetic. No code changed — this is a config + investigation session. Two things worth reading:
 > the `SAFE TO PAY $0` scare that turned out to be pre-existing and correct, and the answer to his
