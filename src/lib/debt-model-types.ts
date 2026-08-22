@@ -90,9 +90,16 @@ export interface Month0Result {
    * `Dashboard.tsx`'s month-end calc drawer) print two decimals so the equation still visibly
    * balances. `monthEndCash.invariant.test.ts` pins the cross-surface gap at cents.
    *
-   * What remains — `cashPreDebt − m0SafeFloor − safeToPayTotal` — is a real residual (save-up
-   * holdback, or cash beyond what any revolving balance can absorb, or a negative when card
-   * minimums breach the floor). It must be DISPLAYED as a computed row, never absorbed silently.
+   * What remains — `cashPreDebt − m0SafeFloor − safeToPayTotal` — is a real residual, and it is a
+   * union of four distinct things: the save-up holdback; the FLOOR_CUSHION_DOLLARS margin the
+   * month-0 drain leaves above the floor on purpose (since 1eebd1f3, 2026-08-21; before that
+   * month 0 was the one uncushioned month and this residue was pennies); the cents month 0's TWO
+   * whole-dollar roundings leave behind (`m0SafeFloor` is a rounded floor and the per-card split is
+   * integers — measured 12c and 8c on the real fixture, 2026-08-22); cash beyond what any
+   * revolving balance can absorb; or a negative when card minimums breach the floor. It must be
+   * DISPLAYED as computed rows, never absorbed silently, and each part must carry its OWN reason,
+   * because a drawer built to explain itself is wrong the moment it attributes the engine's
+   * safety margin to the user's cards. `month0-budget-snapshot.ts` does that split.
    */
   chain: Month0CashChain;
 }
