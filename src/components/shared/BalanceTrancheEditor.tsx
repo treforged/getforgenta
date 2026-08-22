@@ -108,6 +108,25 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
                   </div>
                 )}
               </div>
+              {/* Paired with the expiry above on purpose: an instalment only exists while the promo
+                  is live (trancheMinimumAsOf), and a 0% plan sized to retire exactly at its end
+                  date is the case this field exists for. Without it the allocator sends nothing to
+                  a 0% tranche and the model invents a reprice cliff — see BalanceTranche.min_payment. */}
+              <div>
+                <label className="text-[9px] text-muted-foreground uppercase">Monthly Instalment (optional)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={row.min_payment}
+                  onChange={e => patch(row.id, 'min_payment', e.target.value)}
+                  placeholder="e.g. 49.89"
+                  className="w-full mt-1 px-2 py-1.5 bg-background border border-border rounded text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  For a fixed plan (Chase Equal Pay, Citi Flex). Leave blank for an ordinary promo rate.
+                </p>
+              </div>
             </div>
           </div>
         ))}

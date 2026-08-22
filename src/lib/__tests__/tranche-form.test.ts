@@ -17,7 +17,7 @@ const STORED = [{
 }];
 
 const row = (over: Partial<TrancheFormRow> = {}): TrancheFormRow => ({
-  id: 'row-1', label: 'Balance transfer', balance: '5000', apr: '8', promo_end_date: '', ...over,
+  id: 'row-1', label: 'Balance transfer', balance: '5000', apr: '8', promo_end_date: '', min_payment: '', ...over,
 });
 
 describe('tranchesToRows', () => {
@@ -29,6 +29,7 @@ describe('tranchesToRows', () => {
       balance: '5037.73',
       apr: '7.99',
       promo_end_date: '2028-01-04',
+      min_payment: '',
     }]);
   });
 

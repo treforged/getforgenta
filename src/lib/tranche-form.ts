@@ -16,11 +16,20 @@ export interface TrancheFormRow {
   apr: string;
   /** `YYYY-MM-DD`, or '' for a rate with no expiry. */
   promo_end_date: string;
+  /** The contractual instalment this tranche must receive monthly, or '' for none.
+   * See `BalanceTranche.min_payment` — absent, null and 0 all mean "no schedule". */
+  min_payment: string;
 }
 
 /**
- * What actually goes into the jsonb column. `promo_end_date` is ABSENT (not `''`, not `null`) when
- * there is no expiry — the stored shape stays the minimal one the SQL-seeded rows use.
+ * What actually goes into the jsonb column. `promo_end_date` and `min_payment` are ABSENT (not
+ * `''`, not `null`) when unset — the stored shape stays the minimal one the SQL-seeded rows use.
+ *
+ * ⚠️ EVERY FIELD `parseTranches` READS MUST APPEAR HERE, or the form silently destroys it.
+ * `min_payment` did not, from `ef75f6d5` until 2026-08-22: the reader parsed it, `tranchesToRows`
+ * dropped it one line later, and `rowsToTranches` could not write it back — so saving a card for
+ * ANY reason (a rename, a balance edit) binned its instalment schedule. Tre's Prime Visa carried
+ * $524.40/mo of Chase Equal Pay minimums through that whole window on luck alone.
  */
 // A `type`, not an `interface`, on purpose: only a type alias gets the implicit index signature
 // that makes it assignable to the generated `Json` column type in integrations/supabase/types.ts.
@@ -30,12 +39,13 @@ export type TranchePayload = {
   balance: number;
   apr: number;
   promo_end_date?: string;
+  min_payment?: number;
 };
 
 export const DEFAULT_TRANCHE_LABEL = 'Promo balance';
 
 export function newTrancheRow(): TrancheFormRow {
-  return { id: crypto.randomUUID(), label: '', balance: '', apr: '', promo_end_date: '' };
+  return { id: crypto.randomUUID(), label: '', balance: '', apr: '', promo_end_date: '', min_payment: '' };
 }
 
 /** Stored jsonb -> editable rows. Anything `parseTranches` rejects never reaches the form. */
@@ -46,6 +56,7 @@ export function tranchesToRows(raw: unknown): TrancheFormRow[] {
     balance: String(t.balance),
     apr: String(t.apr),
     promo_end_date: t.promo_end_date ?? '',
+    min_payment: t.min_payment != null && t.min_payment > 0 ? String(t.min_payment) : '',
   }));
 }
 
@@ -78,6 +89,7 @@ export function rowsToTranches(rows: readonly TrancheFormRow[]): TrancheRowsResu
       balance: row.balance,
       apr: row.apr,
       promo_end_date: row.promo_end_date.trim(),
+      min_payment: row.min_payment.trim(),
     }]);
     if (!parsed) { invalidRows.push(i + 1); return; }
     out.push({
@@ -87,6 +99,7 @@ export function rowsToTranches(rows: readonly TrancheFormRow[]): TrancheRowsResu
       apr: parsed.apr,
       // Absent, not null and not '' — see TranchePayload.
       ...(parsed.promo_end_date ? { promo_end_date: parsed.promo_end_date } : {}),
+      ...(parsed.min_payment != null && parsed.min_payment > 0 ? { min_payment: parsed.min_payment } : {}),
     });
   });
 

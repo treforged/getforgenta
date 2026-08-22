@@ -28,7 +28,7 @@ describe('BalanceTrancheEditor', () => {
     const { container } = render(
       <BalanceTrancheEditor rows={tranchesToRows(STORED)} onChange={() => {}} accountBalance="10316.73" />,
     );
-    expect(inputsOf(container).map(i => i.value)).toEqual(['Prime Visa transfer', '5037.73', '7.99']);
+    expect(inputsOf(container).map(i => i.value)).toEqual(['Prime Visa transfer', '5037.73', '7.99', '']);
     expect(screen.getByText('Tier 1')).toBeTruthy();
   });
 
@@ -53,14 +53,14 @@ describe('BalanceTrancheEditor', () => {
   it('edits one row without touching its neighbour', () => {
     const onChange = vi.fn<(rows: TrancheFormRow[]) => void>();
     const rows: TrancheFormRow[] = [
-      { id: 'a', label: 'BT', balance: '100', apr: '0', promo_end_date: '' },
-      { id: 'b', label: 'Purchases', balance: '200', apr: '16.6', promo_end_date: '' },
+      { id: 'a', label: 'BT', balance: '100', apr: '0', promo_end_date: '', min_payment: '' },
+      { id: 'b', label: 'Purchases', balance: '200', apr: '16.6', promo_end_date: '', min_payment: '' },
     ];
     const { container } = render(
       <BalanceTrancheEditor rows={rows} onChange={onChange} accountBalance="300" />,
     );
-    // Row 2's balance box: [label, balance, apr] per row.
-    fireEvent.change(inputsOf(container)[4], { target: { value: '250' } });
+    // Row 2's balance box: [label, balance, apr, min_payment] per row.
+    fireEvent.change(inputsOf(container)[5], { target: { value: '250' } });
     expect(onChange.mock.calls[0][0]).toEqual([
       rows[0], { ...rows[1], balance: '250' },
     ]);
