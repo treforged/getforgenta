@@ -1,8 +1,9 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-22 session 24 (**THE §1 ISB BUG IS FIXED, LIVE-VERIFIED AND COMMITTED (`6d39ea51`).
-> Tre then asked for TWO UI changes that are now the top of the queue — read §A. The session hit the
-> agent limit (resets 3pm ET), so everything below was done solo.**)
+> ▶ 2026-08-22 session 24 (**TWO FIXES SHIPPED AND PUSHED: the §1 ISB reserve (`6d39ea51`, live
+> before/after) and the §C tranche `min_payment` data loss (`653ca96f`). Tre's TWO UI asks are now
+> the whole queue — read §A, they are what he is waiting on. Session hit the agent limit, so all of
+> this was done solo.**)
 
 ## A. 🔴 TRE'S TWO ASKS, BOTH ABOUT THE SAME PANEL — DO THESE FIRST
 Both arrived after the fix landed, and both are about **"Recommended this month"** on `/debt`
@@ -64,13 +65,14 @@ Gate: tsc clean, **219 files / 2241 tests / 0 failed**.
 is driven by `netAtMin[1]`, which subtracts `ccMin(1)`. The old worry that `m0FloorPins` would make
 the fix inert was **wrong** — the number moved.
 
-🟡 **STILL OWED: a regression test.** Nothing in the suite caught this. The harness exists —
+🟡 **STILL OWED: a regression test for THIS fix** (the tranche one in §C now has its own). Nothing in
+the suite caught the ISB bug. The harness exists —
 `renderProjectionFromFixture` in `src/lib/__tests__/fixtures/projection-harness.ts`, used by
 `forecast-convergence.manualISB.test.ts` — and the real fixture IS on disk
 (`fixtures/forecast-inputs.real.json`, gitignored, so such tests self-skip in CI). Assert that with a
 pinned card the hook's `maxDebtPaymentByMonth[0]` drops to month 0's own minimum.
 
-## C. 🔴 §4.3 TRANCHE `min_payment` — CONFIRMED LIVE LANDMINE, NOT YET LOST
+## C. ✅ §4.3 TRANCHE `min_payment` — FIXED AND PUSHED (`653ca96f`)
 **Queried this session: Prime Visa's four Equal Pay minimums are STILL INTACT** — 49.89 + 323.79 +
 81.75 + 68.97 = **$524.40**. Nothing is lost *yet*. This is a race against his next account edit.
 
@@ -97,12 +99,20 @@ this cannot breach the floor. It corrupts *which* balance gets paid:
   collapses from Discover-first costing **+$264** to **+$83** — a 3.2x error in the direction that
   makes the worse strategy look cheap.
 
-FIX (recommended: a real input, not opaque carry — the value is currently invisible everywhere in the
-UI while silently steering the engine): add `min_payment` to `TrancheFormRow` + `TranchePayload`,
-round-trip it through `tranchesToRows` / `rowsToTranches` / `newTrancheRow`, and add an input to
-`BalanceTrancheEditor.tsx` immediately after the "Promo Ends (optional)" block in the same
-`space-y-2` div. `patch(row.id, field, value)` is already typed `keyof TrancheFormRow`, so it needs no
-change. Regression test: round-trip Prime's real 4-tranche shape and assert the minimums survive.
+**WHAT WAS BUILT (`653ca96f`).** `min_payment` added to `TrancheFormRow` (REQUIRED, not optional —
+optional is exactly how it went missing, since an absent key type-checks clean everywhere) and to
+`TranchePayload`, round-tripped through `tranchesToRows` / `rowsToTranches` / `newTrancheRow`, plus a
+real "Monthly Instalment (optional)" input in `BalanceTrancheEditor.tsx` after the Promo Ends block.
+A real input rather than an opaque carry because the value steers the allocator and was displayed
+NOWHERE — a user could not see, set, or correct the thing driving their payoff order.
+Making the field required turned three existing fixtures red; that is the mechanism working.
+New test `src/lib/__tests__/tranche-form.round-trip.test.ts` locks the general invariant (every field
+`parseTranches` reads survives a load/save cycle) over Prime's real 4-tranche shape, including
+idempotence across repeated saves and that a scheduleless promo still writes no key.
+Gate: tsc clean, 220 files / 2247 tests / 0 failed.
+🟡 NOT visually confirmed in the live Accounts modal — an attempt to open it via the browser did not
+land the click and was abandoned rather than rabbit-holed. The component test renders the editor and
+asserts all four inputs with correct values. **Worth one look when someone is next in that modal.**
 
 🔴 The save gate is a HARD block on the WHOLE account (`toast.error` then a bare `return` — nothing is
 written, not even the name): `Rate tier N needs a balance above $0 and an APR — fill it in or remove it`.
@@ -136,14 +146,20 @@ written, not even the name): `Rate tier N needs a balance above $0 and an APR �
 - `src/lib/__tests__/zz-tmp-diagnostic.test.ts` is an **untracked, gitignored scratch file** left by
   another session. It contributes 2 tsc errors and 1 test. Baseline tsc is otherwise clean. Not mine
   to delete.
-- Two commits from the prior session (`86845120`, `2d3cc6a2`) plus mine (`6d39ea51`) are **local and
-  unpushed**. Pushing triggers both store deploys (`src/**` paths), so it is a release decision.
+- **PUSHED on Tre's instruction**: `86845120`, `2d3cc6a2` (prior session), `6d39ea51`, `7d32c43c`,
+  `653ca96f`, and this handoff. That fires both store deploys (`src/**` paths) — a real release.
+- **Tre set Discover's minimum manually to `150`** (`min_payment_is_manual` is now true), not the
+  `$150.40` he said in chat — the stored value is `150`. `revolvingMinDue` honours a manual minimum
+  exactly and never re-inflates it with the 2% formula, so this lowers Discover's monthly floor and
+  frees cash toward Prime, which is the direction he wants. His Prime tranches survived that save
+  only because Discover's single tranche carries no `min_payment` to lose.
 
 ## ⏭️ START HERE
-1. **§A as ONE slice** — next-payment-and-due-date on every card row (A.2), then the reserve reason
-   naming the ISB (A.1). This is what Tre asked for, twice, in his own words.
-2. **§C tranche `min_payment` round-trip** — his minimums are intact TODAY; one account save loses them.
-3. **§B's owed regression test** for the ISB reserve.
+1. **§A as ONE slice, and it is the only thing Tre is waiting on** — next-payment-and-due-date on
+   every card row (A.2), then the reserve reason naming the ISB (A.1). He asked for both, in his own
+   words, and nothing has been built for either.
+2. **§B's owed regression test** for the ISB reserve (§C's fix already shipped with its own).
+3. **One look at the Accounts modal** to confirm the new instalment input renders properly (§C).
 4. Then the old queue: §4.1 + §4.2 loans first-class (mind the C5 double-count trap), §4.4
    card-payment labels, §4.5 the paycheck-rule end-date bypass, §6 the form/column sweep.
 5. **Do not ask Tre about the Aug 2027 cliff date, the move figures, or why July 2027 (med school).**
