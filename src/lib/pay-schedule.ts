@@ -777,9 +777,20 @@ export function getMinSafeCash(
   cashFloor: number,
   fundingAccountId: string | null,
   now = new Date(),
+  /**
+   * Committed outflows this month must ALSO cover — credit-card minimums and vehicle-loan payments
+   * (`auto-cash-floor.ts`). ADDED to the bills before the max, never maxed against them: a month
+   * owes its bills AND its minimums, so taking the larger of the two would under-reserve by
+   * whichever is smaller.
+   *
+   * Defaults to 0, which is every pre-2026-08-21 caller and every MANUAL-floor user, byte for byte.
+   * Only the automatic floor passes a non-zero value — it is the one mode with no user-chosen
+   * buffer to fall back on, and passing 0 there is what projected cash going negative.
+   */
+  committedOutflows = 0,
 ): number {
   const { total: prePaycheckBills } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
-  return Math.max(cashFloor, prePaycheckBills);
+  return Math.max(cashFloor, prePaycheckBills + Math.max(0, committedOutflows));
 }
 
 /** The subset of credit-card-engine.ts's CardData that getAugmentedMinSafeCash's floor

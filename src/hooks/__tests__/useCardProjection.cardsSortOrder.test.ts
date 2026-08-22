@@ -54,7 +54,10 @@ function run(cardsSortOrder: number | undefined, goals = [goal()], checkingBalan
     { id: 'income-1', name: 'Paycheck', amount: 4000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: CHECKING_ID, active: true, category: 'Other' },
     { id: 'bill-1', name: 'Rent', amount: 1200, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: CHECKING_ID, deposit_account: null, active: true, category: 'Bills' },
   ];
-  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
+  // Pinned to a MANUAL floor: these fixtures predate the automatic floor, and automatic adds
+  // card minimums and vehicle-loan payments to the floor (auto-cash-floor.ts), which is a
+  // different thing from what this file is testing.
+  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01, cash_floor_is_manual: true };
   if (cardsSortOrder !== undefined) profile.cards_sort_order = cardsSortOrder;
 
   const payConfig = buildPayConfig(profile);

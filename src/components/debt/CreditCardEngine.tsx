@@ -46,6 +46,7 @@ import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/g
 
 import type { Tables } from '@/integrations/supabase/types';
 import { displayedManualCashFloor, isManualCashFloor } from '@/lib/cash-floor';
+import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -734,7 +735,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Month 0 is already handled by month0SafeFloor in the sim call.
     const cashFloorByMonth: number[] = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      return getMinSafeCash(rules, payConfig, cashFloor, resolvedFundingId || null, d);
+      return getMinSafeCash(rules, payConfig, cashFloor, resolvedFundingId || null, d,
+        automaticFloorComponents(manualFloor, accounts, carFunds, d));
     });
 
     // ── Look-ahead pre-pass (mirrors Forecast PASS 2) ─────────────────────────────
@@ -826,7 +828,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
     return { ...sim, augmentedCCPurchases, runSim };
-  }, [cards, upfrontPayByMonth, fundingBalance, cashFloor, strategy, monthlyTakeHome,
+  }, [cards, upfrontPayByMonth, fundingBalance, cashFloor, manualFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,

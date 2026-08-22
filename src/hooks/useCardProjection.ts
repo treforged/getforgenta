@@ -36,6 +36,8 @@ import type { CarFund } from '@/lib/types';
 // can reference these shapes without importing from a hook. Re-exported here unchanged so
 // existing `from '@/hooks/useCardProjection'` imports keep working.
 import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
+import { automaticFloorComponents } from '@/lib/auto-cash-floor';
+import { isManualCashFloor } from '@/lib/cash-floor';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -339,10 +341,20 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       }
 
       // ── Month 0 floor ──────────────────────────────────────────────────────────
-      const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now);
+      // AUTOMATIC MODE DRAINS TO THE SAME YARDSTICK THE FORECAST MEASURES AGAINST. A manual floor
+      // contributes 0 here and is byte-identical to before. See auto-cash-floor.ts for why draining
+      // to bare pre-paycheck bills projected cash going negative.
+      const floorIsManual = isManualCashFloor(profile);
+      const m0SafeFloor = getMinSafeCash(
+        rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now,
+        automaticFloorComponents(floorIsManual, accounts, carFunds, now),
+      );
       const cashFloorByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-        return getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d);
+        return getMinSafeCash(
+          rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d,
+          automaticFloorComponents(floorIsManual, accounts, carFunds, d),
+        );
       });
 
       // ── forecastMonthEvents (mirrors Forecast.tsx useMemo exactly) ────────────

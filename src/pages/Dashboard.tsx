@@ -91,6 +91,8 @@ const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 import { resolveCashFloor } from '@/lib/cash-floor';
+import { automaticFloorComponents } from '@/lib/auto-cash-floor';
+import { isManualCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
 // straight in the map would execute the widget's data-mapping during the
@@ -557,8 +559,9 @@ export default function Dashboard() {
   }, [cardProjection]);
 
   const minSafeCash = useMemo(
-    () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId),
-    [rules, payConfig, cashFloor, fundingAccountId],
+    () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId, new Date(),
+      automaticFloorComponents(isManualCashFloor(profile), accounts, carFunds, new Date())),
+    [rules, payConfig, cashFloor, fundingAccountId, profile, accounts, carFunds],
   );
 
   const prePaycheckBills = useMemo(

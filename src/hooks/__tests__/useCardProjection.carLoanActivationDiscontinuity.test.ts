@@ -46,7 +46,9 @@ function run(carFunds: Partial<Tables<'car_funds'>>[]) {
     { id: 'income-1', name: 'Paycheck', amount: 4500, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
     { id: 'bill-1', name: 'Rent', amount: 1800, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
   ];
-  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
+  // Pinned to a MANUAL floor: this fixture predates the automatic floor, which adds card minimums
+  // and vehicle-loan payments (auto-cash-floor.ts) — a different thing from what this file tests.
+  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01, cash_floor_is_manual: true };
 
   const payConfig = buildPayConfig(profile);
   const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
