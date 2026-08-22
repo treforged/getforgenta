@@ -95,7 +95,15 @@ describe('useCardProjection — profiles.cards_sort_order ranks the card block',
     expect(reserved).toBeGreaterThan(0);
     // The dollars came out of card paydown — this run is cash-tight, so the diversion is visible
     // directly, and it is a diversion, not an invention.
-    expect(cardsFirst.month0!.safeToPayTotal - cardsLast.month0!.safeToPayTotal).toBeCloseTo(reserved, 0);
+    // The card is left with EXACTLY its contractual minimum — everything discretionary went to the
+    // goal. That is the diversion, stated directly.
+    expect(cardsLast.month0!.safeToPayTotal).toBeCloseTo(CARD_MIN, 0);
+    // ⚠️ The drop is `reserved` MINUS the minimum, not `reserved`. Since 2026-08-21 the floor
+    // includes each card's contractual minimum (auto-cash-floor.ts), so those dollars are protected
+    // in BOTH runs and were never available to divert. Asserting equality with `reserved` here would
+    // be asserting that a minimum payment can be diverted, which it cannot.
+    expect(cardsFirst.month0!.safeToPayTotal - cardsLast.month0!.safeToPayTotal)
+      .toBeCloseTo(reserved - CARD_MIN, 0);
     expect(cardsLast.month0!.endCash).toBeLessThanOrEqual(cardsFirst.month0!.endCash + 0.5);
   });
 

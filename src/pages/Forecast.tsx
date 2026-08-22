@@ -498,7 +498,12 @@ export default function Forecast() {
           <Info size={13} className="text-primary shrink-0 mt-0.5" />
           <div className="min-w-0">
             <p className="font-medium text-foreground">
-              Cash floor raised to {formatCurrency(m0Floor.monthMinSafe, false)} — monthly obligations exceed your {formatCurrency(m0Floor.settingsCashFloor, false)} floor setting.
+              {/* In AUTOMATIC mode there is no "your floor setting" to exceed — the floor IS the
+                  obligations. Saying "your $0 floor setting" reported an internal sentinel as if it
+                  were something the user had chosen, which is the one thing this app must not do. */}
+              {m0Floor.settingsCashFloor > 0
+                ? <>Cash floor raised to {formatCurrency(m0Floor.monthMinSafe, false)} — monthly obligations exceed your {formatCurrency(m0Floor.settingsCashFloor, false)} floor setting.</>
+                : <>Cash floor of {formatCurrency(m0Floor.monthMinSafe, false)}, calculated from this month&rsquo;s obligations.</>}
             </p>
             {m0Floor.floorItems.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">

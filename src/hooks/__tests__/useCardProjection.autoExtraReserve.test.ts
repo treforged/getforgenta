@@ -142,7 +142,11 @@ describe('useCardProjection — ranked automatic extra payments (month-0 reserve
 
     const reserved = optedIn.month0!.chain.autoExtraReserve;
     expect(reserved).toBeGreaterThan(0);
-    expect(base.month0!.safeToPayTotal - optedIn.month0!.safeToPayTotal).toBeCloseTo(reserved, 0);
+    // ⚠️ `reserved` MINUS the minimum. Since 2026-08-21 the floor includes each card's contractual
+    // minimum (auto-cash-floor.ts), so those dollars are protected in BOTH runs and were never
+    // available to divert — asserting equality with `reserved` would assert that a minimum payment
+    // can be diverted, which it cannot.
+    expect(base.month0!.safeToPayTotal - optedIn.month0!.safeToPayTotal).toBeCloseTo(reserved - CARD_MIN, 0);
     // The minimum is settled inside the allocator before any rank is read, so the card cannot be
     // pushed below it however greedy the goal is.
     expect(optedIn.month0!.safeToPayTotal).toBeGreaterThanOrEqual(CARD_MIN);

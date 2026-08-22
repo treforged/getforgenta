@@ -18,7 +18,7 @@
  *
  * So the automatic floor is the same shape as the yardstick: for each month,
  *
- *     bills due before the next paycheck  +  credit-card minimums  +  vehicle-loan payments
+ *     bills due before the next paycheck  +  credit-card minimums
  *
  * Every term is measured from the user's own rows. There is no buffer constant, no percentage and
  * no "one month of expenses" heuristic — a floor nobody can source is precisely the confident
@@ -29,14 +29,13 @@
  * effective/efficient at all times."* A single constant is wrong in both directions at once — too
  * high in a light month, where it strands cash that could be retiring 27% debt, and too low in a
  * heavy one, where it lets the plan overspend into a breach. Both terms below genuinely move month
- * to month: bills shift with the pay calendar, and a vehicle loan stops entirely once it is paid
- * off. Holding back exactly what a given month needs, and not a dollar more, is what makes the
- * surplus maximal without ever going negative.
+ * to month: the bills shift with the pay calendar, and a card's minimum falls as its balance does.
+ * Holding back exactly what a given month needs, and not a dollar more, is what makes the surplus
+ * maximal without ever going negative.
  *
  * Pure: no database, no clock. The month arrives as an argument.
  */
 
-import { getTotalCarLoanMonthly } from './vehicle-loan-engine';
 import type { CarFund } from './types';
 
 /** The `accounts` fields this reads. Structurally satisfied by an account row. */
@@ -68,19 +67,37 @@ export function committedMonthlyOutflows(
     return Number.isFinite(min) && min > 0 ? sum + min : sum;
   }, 0);
 
-  // Month-aware on purpose: a loan that has paid off by this month contributes nothing, so the
-  // floor falls away exactly when the obligation does.
-  const carLoans = getTotalCarLoanMonthly([...carFunds], monthDate);
-
-  return cardMinimums + Math.max(0, carLoans);
+  // ⚠️ VEHICLE-LOAN PAYMENTS ARE DELIBERATELY *NOT* HERE, and leaving them in was a real defect —
+  // `useCardProjection.carLoanActivationDiscontinuity` caught it, which is exactly what that test
+  // exists for. A live loan payment is ALREADY subtracted from `cashPreDebt` before the floor is
+  // ever consulted, so reserving it again holds back money that has already gone: the floor rose by
+  // one payment the moment a car fund activated, and activation is supposed to be a cash no-op.
+  //
+  // `getAugmentedMinSafeCash` does include them, but only behind `isCapturedInBalance` — it gates
+  // each payment on whether the balance already reflects it. Re-deriving that gating here would be
+  // a second copy of a rule this codebase has already paid to unify once (finding §1.1 cause C, the
+  // $537 payment). A card minimum has no such problem: it is paid OUT of the debt payment the floor
+  // is constraining, never before it.
+  void monthDate;
+  return cardMinimums;
 }
 
 /**
  * What to pass as `getMinSafeCash`'s `committedOutflows` for one month.
  *
- * Manual mode contributes **0**, which keeps every manual user byte-identical to before automatic
- * existed: their floor stays `max(their number, pre-paycheck bills)`. Only automatic mode opts into
- * the fuller figure, because only automatic mode has no user-chosen buffer to fall back on.
+ * ⚠️ THE MODE NO LONGER CHANGES THE ANSWER, and that is the point (Tre, 2026-08-21: *"i want manual
+ * users to get the same fix"*). A month owes its card minimums and its vehicle-loan payment whoever
+ * chose the floor, so leaving them out for manual users left the SAME drain-vs-yardstick asymmetry
+ * that made automatic project negative cash: the engine drained to `max(their floor, bills)` while
+ * the forecast judged them against `bills + minimums + loans`. A big enough manual floor hid it;
+ * Tre's $2,500 did not, and his projection showed three below-minimum months because of it.
+ *
+ * What the two modes still differ on is the FLOOR ITSELF, not these components: manual takes
+ * `max(their number, bills + committed)`, automatic takes `bills + committed` alone. The user's
+ * number is a floor under the calculation, never a replacement for it.
+ *
+ * `isManual` is kept in the signature so every call site reads as a deliberate decision rather than
+ * an omission, and so the two modes can diverge again without re-threading four call sites.
  */
 export function automaticFloorComponents(
   isManual: boolean,
@@ -88,5 +105,6 @@ export function automaticFloorComponents(
   carFunds: readonly CarFund[],
   monthDate: Date,
 ): number {
-  return isManual ? 0 : committedMonthlyOutflows(cards, carFunds, monthDate);
+  void isManual;
+  return committedMonthlyOutflows(cards, carFunds, monthDate);
 }

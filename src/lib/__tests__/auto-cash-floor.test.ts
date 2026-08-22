@@ -45,16 +45,13 @@ describe('committedMonthlyOutflows — every term traces to a row', () => {
     expect(committedMonthlyOutflows([card({ min_payment: 'abc' })], [], AUG)).toBe(0);
   });
 
-  it('adds the vehicle-loan payment for that month', () => {
-    const withLoan = committedMonthlyOutflows([], [loanFund()], AUG);
-    expect(withLoan).toBeGreaterThan(0);
-    expect(withLoan).toBeCloseTo(422.89, 2);
-  });
-
-  it('is PER MONTH — a loan that has paid off stops contributing', () => {
-    // Well past a 48-month term that began Aug 2026.
-    const later = committedMonthlyOutflows([], [loanFund()], new Date(2032, 0, 15));
-    expect(later).toBe(0);
+  it('does NOT add the vehicle-loan payment — it is already out of cash before the floor is read', () => {
+    // Including it made a car fund's ACTIVATION raise the floor by one payment, which
+    // `useCardProjection.carLoanActivationDiscontinuity` exists to forbid: activation must be a
+    // cash no-op. `getAugmentedMinSafeCash` counts loans only behind `isCapturedInBalance`, and
+    // re-deriving that gating here would be a second copy of a rule already unified once.
+    expect(committedMonthlyOutflows([], [loanFund()], AUG)).toBe(0);
+    expect(committedMonthlyOutflows([card({ min_payment: 300 })], [loanFund()], AUG)).toBe(300);
   });
 
   it('is zero for a user with no cards and no loans', () => {
@@ -62,14 +59,21 @@ describe('committedMonthlyOutflows — every term traces to a row', () => {
   });
 });
 
-describe('automaticFloorComponents — manual mode stays byte-identical', () => {
-  it('contributes NOTHING when the floor is manual', () => {
-    expect(automaticFloorComponents(true, [card()], [loanFund()], AUG)).toBe(0);
+describe('automaticFloorComponents — BOTH modes get the committed outflows', () => {
+  // Tre, 2026-08-21: "i want manual users to get the same fix". A month owes its minimums and its
+  // loan payment whoever chose the floor; leaving them out for manual users left them with the same
+  // drain-vs-yardstick asymmetry that made automatic project negative cash.
+  it('is the same figure in manual and automatic mode', () => {
+    const expected = committedMonthlyOutflows([card()], [], AUG);
+    expect(automaticFloorComponents(true, [card()], [], AUG)).toBeCloseTo(expected, 2);
+    expect(automaticFloorComponents(false, [card()], [], AUG)).toBeCloseTo(expected, 2);
   });
 
-  it('contributes the committed outflows when the floor is automatic', () => {
-    expect(automaticFloorComponents(false, [card()], [loanFund()], AUG))
-      .toBeCloseTo(committedMonthlyOutflows([card()], [loanFund()], AUG), 2);
+  it('leaves the MODES differing only on the floor itself, not on these components', () => {
+    // manual  => max(their number, bills + committed)
+    // automatic => bills + committed
+    // Pinned in getMinSafeCash below; here we only assert the components are mode-blind.
+    expect(automaticFloorComponents(true, [], [], AUG)).toBe(automaticFloorComponents(false, [], [], AUG));
   });
 });
 
