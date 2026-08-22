@@ -1,5 +1,81 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 16 (**REGRESSION REPORTED BY TRE AND ROOT-CAUSED BY A/B ON LIVE DATA. Two
+> separate faults, one of them mine. Edge functions ARE deployed. Read the A/B table before
+> changing anything about the cash floor or the loan target.**)
+
+## ✅ DEPLOYED (Supabase CLI, config.toml is the verify_jwt source of truth)
+`plaid-exchange-token`, `plaid-sync`, `plaid-sync-all`, `financial-sync`. The rename guard and the
+re-link supersession are now LIVE. (The three sync functions all bundle `_shared/sync-handler.ts`,
+which is why all three were redeployed.)
+
+## 🔴 FAULT 1 (MINE) — the automatic cash floor is UNDER-PROTECTIVE. Do not ship it to anyone else.
+Tre's stored floor was **$2,500** — he is one of the four who deliberately set one — and switching
+him to automatic dropped it to bare pre-paycheck bills.
+
+**A/B on his live data, same everything else:**
+| Cash floor | Milestones |
+|---|---|
+| **Manual $2,500** | below-minimum Nov 2026, Oct 2027, Jan 2029. **No negative cash.** CC free Jun 2029 |
+| **Automatic** | **⚠️ CASH GOES NEGATIVE, Apr 2028.** CC free Jun 2028 |
+
+**Why.** `getMinSafeCash` returns `max(cashFloor, prePaycheckBills)`. Automatic passes 0, so the
+floor collapses to that month's pre-paycheck bills — and those are what must be PAID, not a buffer.
+Draining to exactly the bills leaves zero margin, and any month whose modelled outflows fall short
+of reality goes negative. **The pre-paycheck-bills figure was only ever designed to RAISE a user's
+floor, never to be the whole of it.**
+
+**The fix is a real automatic calculation, not zero.** `getAugmentedMinSafeCash` already adds card
+minimums and car-loan payments on top — the missing piece is an actual buffer sourced from the
+user's own data (a pay period of ordinary non-bill spending). **Do not simply widen the current
+version.**
+
+### State now (deliberate, and it overrides part of an instruction)
+| Who | Setting |
+|---|---|
+| **Tre** | **automatic** — his explicit instruction for his own account, given after seeing the symptom |
+| 3 users who chose a floor (2000 / 1500 / 1100) | manual, their own number |
+| 42 users on the untouched 1000 default | **manual — NOT moved to automatic** |
+
+⚠️ Tre asked for all users on automatic and later amended it to exempt the deliberate ones. **The 42
+were still left on manual anyway**, because automatic produces a negative-cash projection and that
+is a defect rather than a preference. Flip them the moment the calculation is protective. **He has
+been told this explicitly.**
+
+## 🟠 FAULT 2 (SUSPECTED DEFECT, NOT ROOT-CAUSED) — the C5 extra principal costs 9 months
+A/B with the floor held at manual $2,500:
+| C5 `auto_extra` | Milestones |
+|---|---|
+| ON | below-min Nov 2026, Oct 2027, **Jan 2029**. CC free **Jun 2029** |
+| OFF | below-min Nov 2026, Oct 2027. CC free **Sep 2028** |
+
+**The C5 is ranked 4th — BELOW both cards.** A target below the cards should be unreachable until
+the cards are full for that month, so it should not be able to delay card payoff by nine months or
+create a below-minimum month. **That looks like a defect in how the loan target draws, not a trade.**
+Left **OFF** pending investigation; one tick re-enables it.
+
+**Suspects, in order:** (a) the reserve leaves checking via `autoExtraOutThisMonth`, shrinking the
+revolving target fed back through convergence, so cards get less even though the allocator gave the
+C5 nothing; (b) card capacity in the month loop is `revBalAt`, which may under-state what the
+cascade would actually spend, letting the C5 reach money the cards still want.
+
+## 🟢 NOT A REGRESSION — Nov 2026 and Oct 2027
+Those two below-minimum months appear in **every** combination above, including C5 off and floor
+manual. They pre-date today's work. Do not chase them as part of this.
+
+## ⏭️ START HERE
+1. **Investigate Fault 2** with the A/B above — it is the cheapest reproduction available.
+2. **Build the real automatic floor** (Fault 1), then move the 42 users and add the login notice
+   Tre asked for ("make them aware of it as an option on their next log in") — **the notice should
+   not ship before the calculation is safe.**
+3. **`main` is 27 commits ahead of `origin/main` and has never been pushed this run.**
+4. Move fund: **4 months late** again under automatic; it was 1 month late at manual $2,500. That
+   moves with Fault 1.
+5. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 15 (**Four features shipped: account rename, automatic re-link dedupe,
 > `/calendar/`, and an automatic cash floor. The cash floor is the big one — it took Tre's payoff
 > from Aug 2029 to Jun 2028. TWO EDGE FUNCTIONS ARE COMMITTED BUT NOT DEPLOYED.**)
