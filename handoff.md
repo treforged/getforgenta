@@ -1,5 +1,71 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 14 (**Move fund is down to $419 short / 1 month late, and that gap is INSIDE
+> his own estimating error. Also: my Robinhood account inference was WRONG and is corrected — the
+> $1,339.44 is the AGENTIC bot account, the money he explicitly wants left alone.**)
+
+## ✅ THE MOVE FUND, WITH HIS REAL NUMBERS
+Tre, 2026-08-21: lease break **$3,830**, deposit **one month's rent**, rent range **$1,300-1,900**
+in the target cities ("13 of the cities are less than $2,000"), budget **$1,900** for now. Movers
+deliberately EXCLUDED — they go on a card.
+
+**Target set to $5,730** ($3,830 + $1,900). Result, live:
+```
+Move fund, then emergency fund — $5,624 to go — 1 month late, $419 short at Jul 2027
+```
+**$3,689 short / 4 months late → $419 short / 1 month late**, with the Visa still ranked first.
+
+### 📐 THE DECIDING NUMBER — rent <= ~$1,480 and it is ON TRACK
+The pot reaches **$5,311 by Jul 2027** under this ranking (unchanged by the target edit — the
+ranking is what sets it). So:
+- **lease break $3,830 + deposit <= $1,481 => on track for Jul 2027.**
+- At the **$1,900** he budgeted, he is **$419 short and lands Aug 2027**.
+- He budgeted the TOP of his own $1,300-1,900 range. **A ~$1,480 place closes the gap outright.**
+- Aug 2027 is still before the GF-income cliff (**2027-08-31**), so even the miss is survivable —
+  but it is one month of margin, not a comfortable one.
+
+## 🔴 CORRECTED — the Robinhood accounts were the OTHER WAY ROUND
+Session 13 inferred that $1,339.44 was the personal investment account and $1.53 the cash sweep.
+**Wrong.** Tre: *"the $1.53 is the buying power in my personal account with the crypto... the
+agentic has the 1339, 134 of it in buying power."*
+
+| Account | id | What it is |
+|---|---|---|
+| **Robinhood individual (personal)** | `873b5623` | **$1.53** buying power. His. Holds the crypto position alongside `1e6f0b6a` Crypto **$768.69** |
+| **Robinhood agentic (bot-traded)** | `7820432e` | **$1,339.44** ($134 buying power). **LEAVE ALONE** |
+
+**"AGENTIC MONEY" IS NOW ANSWERED**: it is the Robinhood account traded by a **Claude MCP agent**
+at `C:\Users\tvonh\Desktop\claudecontext\trading`. It is his money and belongs in net worth, but it
+is **NOT available** for the move or any goal.
+
+**Fixed:** `savings_goals.Brokerage.linked_account` and
+`recurring_rules."Robinhood Contributions".deposit_account` re-pointed from `7820432e` to
+`873b5623`, and **both accounts renamed** so the app itself now says which is which. The agentic row
+carries a `notes` line naming the trading folder and the leave-alone instruction.
+⚠️ The exclusion is by LABEL, not by structure — brokerage never enters the liquid/funding pool, so
+nothing spends it today. If a future feature ever offers brokerage as fundable, exclude `7820432e`
+explicitly.
+
+## 📥 NEXT UP BY TRE'S OWN REQUEST — `/calendar/` (marketing)
+He asked for `getforgenta.com/calendar/` **right after this thread, or in any break**. The scope is
+already written up in this file — search **"SCOPED, NOT BUILT — `/calendar`"**. It is half a
+session, touches no app code, and blocks nothing.
+**The one gotcha, restated because it fails silently:** it must be `public/calendar/index.html` (a
+DIRECTORY). `vercel.json` rewrites `/(.*)` to `/index.html`, so `/calendar` without the directory
+falls into the SPA and renders the app's 404 **with a 200 status**.
+
+## ⏭️ START HERE
+1. **`/calendar/`** — Tre asked for it next. Scope is in this file already.
+2. Tell him the rent <= $1,480 threshold; it is the whole decision.
+3. Add the ~$1,280 crypto when it has a date (currently $768.69, so ~$511 of recovery to go).
+   ⚠️ Worth far less than face value at rank 2 — the $250 moved the shortfall by $31.
+4. **`main` is 21 commits ahead of `origin/main` and has never been pushed this run.**
+5. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; no `plaid-remove-item` function exists; `min_payment`
+   $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 13 (**ROBINHOOD DUPLICATE FIXED — his net worth was overstated by $251.53.
 > And a hard conflict surfaced: "movers on a credit card" and "Visa as interest-free as possible"
 > cannot both be true at Jul 2027, because the only card open then is the Visa.**)
