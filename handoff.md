@@ -1,5 +1,173 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 21 (**THE BREACH IS LOCALISED TO MONTH 0 AND SESSION 20'S FEAR WAS
+> OVERSTATED — the alignment it wanted is ALREADY DONE for months 1+. Two new `min_payment` defects
+> found. A verification workflow was in flight when context ran out; its run ID is below and it
+> resumes from cache.**)
+
+## 🎯 THE BIG CORRECTION — session 20 was too pessimistic about the fix
+Session 20 said "make the sim's `cashFloorByMonth` BE `getAugmentedMinSafeCash`", called it the
+highest-blast-radius change in the repo, and worried about a circularity (the augmented floor needs
+simulated card minimums, which the sim produces).
+
+**That circularity is already solved, and the alignment is already done for months 1+.**
+`src/hooks/useCardProjection.ts` ~1084-1145 runs an outer refinement loop: a bootstrap sim on the
+bare floor, then **3 passes** where `computeAugmentedFloor(sim)` (~line 987) calls
+`getAugmentedMinSafeCash` per month from the previous pass's sim, and the result
+(`augmentedCashFloorByMonth`) is passed straight back into `simulateVariablePayoff` as its
+`cashFloorByMonth` argument (~line 1141) with `ccMinInFloorByMonth` (~1142).
+
+**What is NOT aligned is exactly two places:**
+1. **`m0SafeFloor`** (`useCardProjection.ts` ~348-351) is still bare `getMinSafeCash`, and it is
+   passed as the separate `month0SafeFloor` argument (~line 1140) on **every** pass, including the
+   refined ones. **Month 0 never gets the augmented treatment.**
+2. **`src/components/debt/CreditCardEngine.tsx`** ~736-739 builds its OWN `cashFloorByMonth` from
+   bare `getMinSafeCash`, with **no refinement loop at all**.
+
+## 🔬 THE DECISIVE EXPERIMENT — run, and it points at month 0
+The golden fixture `src/lib/__tests__/fixtures/forecast-inputs.real.json` has
+`"capturedAt": "2026-07-20T21:59:45.497Z"`, so **month index 0 IS "Jul 2026"** — the very month the
+two golden tests report. That is not a coincidence.
+
+Baseline on a clean tree: both golden tests **green (4 passed)**.
+Applying the REPORTING FIX ALONE to `forecast-engine.ts` ~1721 produced, on both tests:
+- `floor-breach months: Jul 2026` — **month 0 and only month 0. Months 1+ do not breach.**
+- `CC Debt Free: Jul 2027` — **UNCHANGED** from the pinned expectation
+- `converged: true | passes: 1` — convergence unaffected
+
+That patch was **reverted**; the tree was clean at `76d3fd72` when the workflow started.
+
+### The reporting fix, verbatim
+`src/lib/forecast-engine.ts` ~1721, replace
+
+    } else if (endingCash >= 0 && endingCash < cashFloor && (data.length === 0 || data[data.length - 1]?.endingCash >= cashFloor)) {
+
+with
+
+    } else if (endingCash >= 0 && endingCash < b.monthMinSafe && (data.length === 0 || data[data.length - 1]?.endingCash >= (data[data.length - 1]?.rawMonthMinSafe ?? cashFloor))) {
+
+and replace the "🔴 KNOWN DEFECT" comment block above it. The setting is one INPUT to the floor, not
+the floor; automatic mode makes the setting 0, so comparing against it is structurally unreachable
+for any positive balance. `cash_floor_is_manual` defaults FALSE, so automatic is everyone's default.
+
+## 🚧 WORKFLOW IN FLIGHT WHEN CONTEXT RAN OUT
+A 7-agent workflow (diagnose ×3 → implement → adversarially verify ×3) was still running.
+- Run ID: **`wf_445d205f-e5d`**
+- Script: `.claude/projects/C--Users-tvonh-Desktop-getforgenta/41e0264a-dd8f-4ed8-848b-96a4d10e4af0/workflows/scripts/cash-floor-breach-close-wf_445d205f-e5d.js` (under `C:\Users\tvonh\`)
+- Transcript + `journal.jsonl`: same tree, `subagents/workflows/wf_445d205f-e5d`
+
+**Read `journal.jsonl` FIRST** — it holds each agent's actual return value, including the month-0
+gap arithmetic and the blast-radius map, which are the expensive parts. Do not re-run the diagnosis
+if the journal already has it. Resume with
+`Workflow({scriptPath: "<above>", resumeFromRunId: "wf_445d205f-e5d"})` — unchanged agents return
+cached results instantly.
+
+⚠️ **The workflow was authorised to COMMIT (locally, on `main`, no push).** Run `git log --oneline -5`
+and `git status` before anything else: the tree may no longer be at `76d3fd72`.
+
+⚠️ Its brief FORBADE re-pinning the golden expectations, weakening the breach assertion, and adding
+vehicle-loan payments back into `committedMonthlyOutflows`. Check the diff against all three.
+
+## 🐛 NEW DEFECT 1 — the automatic floor's card-minimum term is FROZEN
+`committedMonthlyOutflows` in `src/lib/auto-cash-floor.ts` sums raw `accounts.min_payment` for every
+active credit card. It takes `monthDate` and then does `void monthDate`. **There is no month
+awareness and no balance check**, so:
+- a card that pays off **keeps contributing its full stored minimum to the floor forever**;
+- Tre's floor reserves a flat **$808.40/mo** (Visa $559.40 + Discover $249) for all 60 projection
+  months, including every month after **CC Debt Free (Oct 2028)**.
+
+This contradicts that file's own doc comment, which argues at length that "per month is what makes
+it efficient". `getAugmentedMinSafeCash` — the yardstick — gets this right: it gates on `revBal > 0`
+and uses the simulated `perCardMinPayments[monthIdx]`.
+
+**Blast radius is limited to where the BARE floor is still used**: `m0SafeFloor` (month 0), the
+bootstrap pass, `CreditCardEngine.tsx`'s floor, and `Dashboard.tsx` ~562. Months 1+ of the real
+projection drain to the augmented floor and are unaffected. **Fix this alongside the month-0
+alignment — they are the same bug wearing two hats.**
+
+## 🐛 NEW DEFECT 2 — Prime Visa's $559.40 is a frozen snapshot that bundles installments
+Live rows, verified:
+- `Prime Visa.min_payment = 559.40`, **`min_payment_is_manual = true`** (so a Plaid sync will NEVER
+  correct it — it is pinned by hand), `installment_monthly_payment = NULL`.
+- `balance_tranches` holds **four Equal Pay promos totalling $5,587.75** with minimums
+  **$49.89 + $323.79 + $81.75 + $68.97 = $524.40**, ending **2027-02-07, 2027-07-07, 2027-07-07,
+  2027-08-07**. Revolving remainder = $8,396.90 − $5,587.75 = **$2,809.15**.
+
+In `revolvingMinDue` (`credit-card-engine.ts` ~200-207):
+`contractRevMin = max(0, minPayment − installmentMonthlyPayment)` = `max(0, 559.40 − 0)` = **$559.40**,
+and because `minPaymentIsManual` is true it returns `min(559.40, revOwed)` directly. **The engine
+therefore treats the whole $559.40 as a pure revolving minimum, forever** — it never falls as the
+four Equal Pay installments finish through 2027.
+
+**Why it matters, precisely:** all four promos are done by **2027-08-07**, the month before the GF
+income cliff. From Sep 2027 the true Visa minimum is roughly 2% of ~$2,809 (~$56), not $559.40.
+Under avalanche the money wants the 27.49% card anyway, so the harm before the cliff is small —
+**but the payment is non-reducible**, so the engine cannot pull back below $559.40 in a month whose
+cash floor demands it. That is a mechanism that can manufacture a below-floor month on its own, and
+it is the honest answer to "the CC should be pulling back".
+
+This is the carried `min_payment $559.40 wrong from Sep 2027` item, now fully mechanised.
+**Do not "fix" it by editing the live row** — `min_payment_is_manual = true` means Tre set it
+deliberately. The fix is either a tranche-aware minimum in `revolvingMinDue`, or splitting the
+stored figure into its installment and revolving parts.
+
+## 📉 THE AUG 2027 CLIFF, QUANTIFIED FROM LIVE ROWS (handoff item 2)
+Verified against `recurring_rules` + `car_funds` + `accounts`. Post-cliff monthly commitments:
+
+| Line | Amount |
+|---|---|
+| Rent | **$1,915** |
+| C5 loan $422.89 + insurance $173.23 | **$596.12** |
+| All other recurring monthly (utilities, food, fuel, subs, life ins.) | ~$1,128 |
+| Yearly bills amortised (pet ins. $583, Costco $130, Pettable $100, Chewy $79, Prime $69) | ~$80 |
+| Owners Contribution transfer | $130 |
+| CC minimums, true post-promo (Discover ~$249 + Visa ~$56) | ~$305 |
+| **Total** | **~$4,154** |
+| **Income Sep 2027 (app's own figure)** | **$4,179** |
+
+**He is at break-even on committed costs alone**, with zero debt principal progress, zero saving and
+zero buffer. It gets worse twice: the **HYS $200/mo transfer starts 2027-11-21**, and
+`Groceries $230` ends 2027-12-28 while `Groceries VentureX $240` starts 2028-01-03 (+$10). That
+matches the observed drain: Sep 2027 $1,799 → Oct 2027 $1,022.
+
+### The levers, in order of size
+1. **Confirm the GF end date is real.** `GF Half of Rent/Groceries` $1,100/mo, `end_date`
+   `2027-08-31`. This is a **data check, not a change**, and it is worth more than everything below
+   it combined. If the arrangement continues, editing one date removes the whole problem.
+2. **Rent — $1,915 is 46% of post-cliff income, alone.** Every $100/mo off is $100 to the bottom
+   line. Real headroom needs roughly $400-500/mo, i.e. a ~$1,450 place or a housemate.
+3. **The car — $596/mo for a 2004 C5.** The $16,254 loan runs at $422.89/mo to roughly Feb 2030, so
+   it is live through the entire danger window. The $173.23 insurance is separately shoppable today.
+4. **Retire Discover before Aug 2027.** $10,422 @ 16.6%, $249/mo minimum. Every dollar cleared
+   before the cliff is permanent post-cliff relief. (The Discover-first vs avalanche ORDERING is
+   settled — do not re-litigate it. The cliff makes the **deadline** the point.)
+5. **Income.** ~$780/yr of promotions is already modelled. Closing the gap properly needs several
+   thousand a year more, net.
+
+## ✅ ALSO RESOLVED — `main` is NOT unpushed
+`git ls-remote origin main` = `76d3fd72` = local HEAD. Sessions 16-20 each carried "N commits ahead,
+never pushed"; the item was stale. **Verify by contents, not by memory.**
+
+## 📊 LIVE STATE — unchanged
+Tre: floor **automatic** ($2,500 preserved) · C5 extra **OFF** · 45 others manual, own numbers.
+Baseline before the workflow: **2142 green, tsc clean, build green.**
+Backups for this session: `backups/2026-08-21_214605/`.
+
+## ⏭️ START HERE
+1. **`git log --oneline -5` and `git status`**, then read the workflow `journal.jsonl`. Finish or
+   redo the month-0 alignment + reporting fix as one commit. The golden tests are the oracle:
+   **CC Debt Free must stay Jul 2027 and floor breaches must be empty.** Never re-pin them.
+2. **New defect 1** (frozen card-minimum term in `auto-cash-floor.ts`) — same area, ship together.
+3. **New defect 2** (Prime Visa $559.40 bundles $524.40 of installments) — separate, and it needs a
+   decision on where the split lives.
+4. Fault 2 (C5 extra costing 9 months) — re-measure under the fixed floor first.
+5. The 42 default users → automatic + the login notice. **Still gated**: do not touch 42 real users'
+   settings while the floor calculation is mid-change.
+6. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 20 (**THE ENGINE BREACH IS FULLY MECHANISED — exact cause, exact fix, exact
 > reason it is risky. NOT SHIPPED: it is the highest-blast-radius change in the repo and the session
 > ran out of context to verify it. The Aug 2027 cliff is CONFIRMED as Tre's own data, and the CC IS

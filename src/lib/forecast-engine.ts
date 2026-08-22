@@ -56,6 +56,10 @@ export interface ForecastMonthRow {
   brokerageContrib: number; retireContrib: number; paycheckRetireContrib: number; fullMonth401kContrib: number;
   investGrowth: number; retireGrowth: number; oneTimeNet: number; ccOneTime: number;
   monthMinSafe: number; floorBreachedByOneTime: boolean; debtWasReduced: boolean;
+  /** True when this month ends below its OWN floor (rawEndingCash < rawMonthMinSafe), at cent
+   * resolution. The single source of truth for "below safe minimum": the milestone above the
+   * table and the red row in MonthlyBreakdownTable both read this, so they cannot disagree. */
+  belowSafeMinimum: boolean;
   baseExpenses: number; savingsContrib: number;
   savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
   carContrib: number;
@@ -1679,13 +1683,37 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       // Reserved-but-not-yet-spent vehicle savings are added back — see cumulativeCarReserveHeld.
-      const endingCash = Math.round(finalLiquid + cumulativeCarReserveHeld);
+      const rawEndingCash = finalLiquid + cumulativeCarReserveHeld;
+      const endingCash = Math.round(rawEndingCash);
 
-      // Flag: floor breached AND the one-time expense alone caused it
+      // THE ONE PLACE THIS MONTH IS JUDGED AGAINST ITS FLOOR (2026-08-21).
+      //
+      // `cashFloor` is the raw user SETTING. It is one INPUT to the floor, never the floor itself:
+      // getAugmentedMinSafeCash takes the higher of the setting and the month's real obligations
+      // (pre-paycheck bills, car-loan payments, car insurance, simulated card minimums), and
+      // b.monthMinSafe is that result. Judging a month against the setting was structurally broken
+      // in AUTOMATIC mode, where the setting is 0 by design, so no positive balance could ever be
+      // "below" it. cash_floor_is_manual defaults FALSE, so automatic is the default for everyone,
+      // and Tre's live forecast painted nine rows red while the summary above them reported none.
+      //
+      // Cents, not dollars, on both sides. endingCash and monthMinSafe are rounded for the chart
+      // and the table; comparing a rounded balance against an unrounded floor manufactures a
+      // breach out of a surplus, which is exactly what happened when this was first attempted
+      // (month 0 sat $0.08 ABOVE its floor and was reported as breaching by 12 cents). See the
+      // rawEndingCash/rawMonthMinSafe JSDoc at the top of this file: floor checks that care about
+      // cents must use those fields.
+      //
+      // Stored on the row so the summary and the table cannot drift apart again. Two places
+      // computing the same predicate differently is the defect being fixed here, not a detail of
+      // how it was computed, so MonthlyBreakdownTable reads this flag rather than re-deriving it.
+      const belowSafeMinimum = rawEndingCash < b.monthMinSafe;
+
+      // Flag: floor breached AND the one-time expense alone caused it. Same floor, same cents:
+      // against the setting this badge was as unreachable in automatic mode as the milestone was.
       const floorBreachedByOneTime =
-        endingCash < cashFloor &&
+        belowSafeMinimum &&
         b.oneTimeNet < 0 &&
-        (endingCash - b.oneTimeNet) >= cashFloor;
+        (rawEndingCash - b.oneTimeNet) >= b.monthMinSafe;
       const debtWasReduced = debtPayments[i] < b.rawDebtPayment;
 
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
@@ -1719,23 +1747,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' });
       } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash goes negative!' });
-      } else if (endingCash >= 0 && endingCash < cashFloor && (data.length === 0 || data[data.length - 1]?.endingCash >= cashFloor)) {
-        // 🔴 KNOWN DEFECT, DELIBERATELY LEFT IN PLACE FOR NOW (2026-08-21). This compares against
-        // the raw `cashFloor` SETTING, while the table colours each row against `b.monthMinSafe`
-        // — the month's REAL floor, which is what the drawer itemises. The two therefore disagree
-        // about the same fact: Tre's forecast showed NINE red months while the summary above it
-        // reported none, and in AUTOMATIC mode (setting = 0) the warning is structurally
-        // unreachable for any positive balance.
-        //
-        // ⚠️ DO NOT FIX THIS ALONE. Switching the comparison to `b.monthMinSafe` is a two-line
-        // change and it immediately turns TWO GOLDEN CONVERGENCE TESTS RED
-        // (forecast-convergence.manualISB, forecast-convergence.realData — both assert "no cash
-        // floor breach", both then report Jul 2026). That is not the fix breaking them: it is the
-        // fix REVEALING a real engine breach the old comparison had been hiding. The engine drains
-        // to `cashFloorByMonth` while it is judged against `getAugmentedMinSafeCash`, and those two
-        // still differ by the vehicle-loan term (see auto-cash-floor.ts on why the loan cannot
-        // simply be added to the drain side — it is already out of cash). Close the engine gap and
-        // the reporting fix together, or the suite goes red for the right reason and stays there.
+      } else if (endingCash >= 0 && belowSafeMinimum && (data.length === 0 || !data[data.length - 1].belowSafeMinimum)) {
+        // Fires on ENTRY into a breach, not every month of one, so a long stretch below the floor
+        // produces one warning rather than a wall of them. Each row is compared against its OWN
+        // floor on both sides of that test: the floor moves month to month as bills, car payments
+        // and card minimums come and go, so asking "was the previous month below the floor" has to
+        // mean the previous month's floor, which is what reading the stored flag guarantees. The
+        // old form compared both months against the single `cashFloor` setting and so could not
+        // tell a genuine entry from a floor that had simply stepped up underneath a flat balance.
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
       }
 
@@ -1762,7 +1781,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         oneTimeNet: b.oneTimeNet,
         ccOneTime: Math.round(ccOneTimeByMonth[b.monthKey] || 0),
         monthMinSafe: Math.round(b.monthMinSafe),
-        rawEndingCash: finalLiquid + cumulativeCarReserveHeld,
+        rawEndingCash,
         rawMonthMinSafe: b.monthMinSafe,
         rawNetWorth: netWorth,
         rawTotalAssets: totalAssets,
@@ -1770,6 +1789,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         rawCcDisplayBalance: adjCCLiab,
         rawTotalCCPurchases: (ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0),
         floorBreachedByOneTime,
+        belowSafeMinimum,
         debtWasReduced,
         // Popup breakdown fields.
         //

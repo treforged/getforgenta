@@ -142,11 +142,14 @@ describe('useCardProjection — ranked automatic extra payments (month-0 reserve
 
     const reserved = optedIn.month0!.chain.autoExtraReserve;
     expect(reserved).toBeGreaterThan(0);
-    // ⚠️ `reserved` MINUS the minimum. Since 2026-08-21 the floor includes each card's contractual
-    // minimum (auto-cash-floor.ts), so those dollars are protected in BOTH runs and were never
-    // available to divert — asserting equality with `reserved` would assert that a minimum payment
-    // can be diverted, which it cannot.
-    expect(base.month0!.safeToPayTotal - optedIn.month0!.safeToPayTotal).toBeCloseTo(reserved - CARD_MIN, 0);
+    // The WHOLE reserve is diverted. Earlier on 2026-08-21 this briefly read `reserved - CARD_MIN`,
+    // because the month-0 drain floor was the bare getMinSafeCash figure, which reserves every
+    // active card's contractual min_payment with no due-date gate. Month 0 now drains to
+    // getAugmentedMinSafeCash, the floor the forecast actually judges it against, and that floor
+    // gates each minimum: this card is due on the 11th, after next month's first paycheck on the
+    // 1st, so the paycheck funds it and nothing needs holding back. Those dollars were never
+    // stranded money, they were an over-reservation, and they now go wherever the rank points.
+    expect(base.month0!.safeToPayTotal - optedIn.month0!.safeToPayTotal).toBeCloseTo(reserved, 0);
     // The minimum is settled inside the allocator before any rank is read, so the card cannot be
     // pushed below it however greedy the goal is.
     expect(optedIn.month0!.safeToPayTotal).toBeGreaterThanOrEqual(CARD_MIN);

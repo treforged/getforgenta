@@ -1083,11 +1083,47 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // parity with Forecast's own floor instead of the narrower bare one.
       let augmentedCashFloorByMonth = cashFloorByMonth;
       let ccMinInFloorByMonth: number[] = Array(PROJECTION_MONTHS).fill(0);
+      // Month-0 floor handed to the SIM. The engine's `effectiveFloor` deliberately lets
+      // month0SafeFloor outrank cashFloorByMonth[0] (credit-card-engine.ts), so index 0 of the
+      // augmented array is dead unless this scalar carries the augmented value too. Starts as the
+      // bare floor because the bootstrap pass below runs before any sim exists to derive card
+      // minimums from, and is re-pointed at augmented[0] on every refined pass. See the block
+      // comment on m0SimFloor's first use inside the loop for why that matters.
+      let m0SimFloor = m0SafeFloor;
       let lookAhead = runLookAhead(cashFloorByMonth, Array(PROJECTION_MONTHS).fill(0));
       for (let outer = 0; outer < 3; outer++) {
         const augmented = computeAugmentedFloor(sim);
         augmentedCashFloorByMonth = augmented.floor;
         ccMinInFloorByMonth = augmented.ccMinInFloor;
+        // MONTH 0 NOW DRAINS TO THE SAME FLOOR THE FORECAST JUDGES IT AGAINST.
+        //
+        // Months 1+ have drained to the augmented floor ever since this refinement loop existed:
+        // augmentedCashFloorByMonth is passed straight back into the sim below. Month 0 was the
+        // exception, because the engine's m===0 branch prefers the month0SafeFloor scalar over
+        // cashFloorByMonth[0], and this hook was still handing it the BARE getMinSafeCash figure.
+        // A plan that spends down to one line while being measured against another breaches by
+        // construction, and month 0 is the one month whose payment the convergence loop can never
+        // walk back (it is pinned via m0FloorPins / month0PaymentLedger and carried through every
+        // resim unchanged).
+        //
+        // Two concrete things this corrects, neither of which is a pure raise:
+        //   1. ccMinAlreadyInFloorByMonth[0] is the AUGMENTED floor's CC-minimum content, and the
+        //      engine subtracts it from headroom measured against effectiveFloor. With a bare
+        //      effectiveFloor at m=0 that subtraction netted one floor's minimums out of a
+        //      different floor's headroom, inflating the mandatory cycling pool. Both sides now
+        //      refer to the same floor, exactly as they already do for months 1+.
+        //   2. The bare floor reserves every active card's contractual min_payment ungated, while
+        //      the augmented floor gates each card on dueSynced (payment already captured in the
+        //      Plaid balance) and duePostPaycheck (funded by next month's first paycheck). A card
+        //      whose month-0 minimum the engine already zeroes as settled (m0MinDueSettled) was
+        //      having those same dollars held back a second time in the drain floor. So on some
+        //      datasets the augmented figure is LOWER than the bare one and month 0 correctly
+        //      spends more, not less.
+        //
+        // The recommendation itself is capped separately against m0FloorAugmented further down,
+        // so this cannot authorise a month-0 payment above the floor; what it fixes is the
+        // uncapped term, the cycling pool, which is subtracted BEFORE that cap is applied.
+        m0SimFloor = augmentedCashFloorByMonth[0] ?? m0SafeFloor;
         const cyclingPaymentByMonth = computeCyclingPaymentByMonth(sim);
         // The save-up look-ahead's model of this month's UNAVOIDABLE debt outflow must reflect the
         // real contract minimum (revolvingMinDue), not the plain 2% formula that perCardMinPayments
@@ -1136,7 +1172,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           m0Income,
           m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0),
           oneTimeArrWithDP,
-          m0SafeFloor,
+          m0SimFloor,
           lookAhead.maxDebtPaymentByMonth,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
@@ -1473,7 +1509,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           m0Income,
           m0Expenses + m0ExtraOutflow,
           oneTimeArrWithDP,
-          m0SafeFloor,
+          m0SimFloor,
           cappedMaxDebt,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
@@ -1981,10 +2017,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .reduce((s, pca) => s + pca.payment, 0);
       const safeToPayTotalFinal = Math.round(cyclingPayment + revolvingPaymentFinal);
 
-      // Month-0 floor-capped ledger entry. The raw sim pays down to the BARE floor (m0SafeFloor),
-      // overshooting the AUGMENTED floor (CC-min/car/insurance buffers) by ~$176. perCardAdjustedFinal
-      // already scales month-0 payments back to availableForRevolving (the augmented-floor cap) — the
-      // value month0.safeToPayTotal displays. This entry carries that scaled split into the ledger the
+      // Month-0 floor-capped ledger entry. The sim now drains month 0 to the AUGMENTED floor too
+      // (m0SimFloor, set from augmentedCashFloorByMonth[0] in the refinement loop above), so the raw
+      // sim no longer overshoots it by the ~$176 of CC-min/car/insurance buffer it used to. This
+      // scaling stays regardless: perCardAdjustedFinal reconciles month-0 payments to
+      // availableForRevolving, the cent-exact cap computed from m0FloorAugmented against the same
+      // cashPreDebt the Forecast row ends on, which is the value month0.safeToPayTotal displays and
+      // the only figure a user acts on. This entry carries that scaled split into the ledger the
       // engine consumes so month-0 cash math (forecast-engine.ts:1121 ledgerEntry.total) lands on the
       // augmented floor, not below it. Threaded into BOTH the base hookResult ledger AND the resim ctx
       // (cardProjectionResim.ts rebuilds the ledger raw every convergence pass — the engine's final
@@ -2052,7 +2091,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         m0Income,
         activeSimM0Expenses,
         oneTimeArrWithDP,
-        m0SafeFloor,
+        m0SimFloor,
         // Forecast's own PASS-2 cap, when supplied, is authoritative for Step 2's cycling-pool
         // cap during convergence — the same number Step 5's revolving cascade already follows
         // via `target` below. Without this, cycling-only save-up months (no revolving debt left)

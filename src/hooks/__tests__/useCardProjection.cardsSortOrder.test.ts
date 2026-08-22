@@ -98,12 +98,16 @@ describe('useCardProjection — profiles.cards_sort_order ranks the card block',
     // The card is left with EXACTLY its contractual minimum — everything discretionary went to the
     // goal. That is the diversion, stated directly.
     expect(cardsLast.month0!.safeToPayTotal).toBeCloseTo(CARD_MIN, 0);
-    // ⚠️ The drop is `reserved` MINUS the minimum, not `reserved`. Since 2026-08-21 the floor
-    // includes each card's contractual minimum (auto-cash-floor.ts), so those dollars are protected
-    // in BOTH runs and were never available to divert. Asserting equality with `reserved` here would
-    // be asserting that a minimum payment can be diverted, which it cannot.
+    // The drop is the WHOLE reserve. Earlier on 2026-08-21 this briefly read `reserved - CARD_MIN`,
+    // because the month-0 drain floor was the bare getMinSafeCash figure, which reserves every
+    // active card's contractual min_payment with no due-date gate at all. Month 0 now drains to
+    // getAugmentedMinSafeCash, the same floor the forecast judges it against, and that floor gates
+    // each minimum: this card falls due on the 11th, after next month's first paycheck on the 1st,
+    // so the paycheck funds it and the floor correctly holds nothing back for it. Those dollars are
+    // therefore genuinely discretionary in both arms, and they follow the rank like any other
+    // surplus. Nothing is starved: the assertion above still pins the card at its full minimum.
     expect(cardsFirst.month0!.safeToPayTotal - cardsLast.month0!.safeToPayTotal)
-      .toBeCloseTo(reserved - CARD_MIN, 0);
+      .toBeCloseTo(reserved, 0);
     expect(cardsLast.month0!.endCash).toBeLessThanOrEqual(cardsFirst.month0!.endCash + 0.5);
   });
 

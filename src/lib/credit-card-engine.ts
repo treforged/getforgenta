@@ -1016,8 +1016,16 @@ export function simulateVariablePayoff(
    */
   oneTimeByMonth?: { income: number; expenses: number }[],
   /**
-   * Optional effective safe floor for month 0 only — overrides cashFloor for the current month.
-   * Should be max(cashFloor, prePaycheckBills) so month 0 payments match recommendations.
+   * Optional effective safe floor for month 0 only. At m===0 it outranks BOTH cashFloor and
+   * cashFloorByMonth[0], so index 0 of that array is unreachable whenever this is supplied.
+   *
+   * Pass the same floor month 0 will be JUDGED against, or the plan spends down to one line while
+   * being measured against another. useCardProjection's refinement passes supply
+   * getAugmentedMinSafeCash's monthMinSafe for month 0 (pre-paycheck bills + car loan + car
+   * insurance + simulated card minimums, each gated on dueSynced/duePostPaycheck), which is
+   * exactly what the forecast row's rawMonthMinSafe carries and what ccMinAlreadyInFloorByMonth[0]
+   * is measured against. Its bootstrap pass supplies the bare getMinSafeCash figure instead,
+   * because no simulation exists yet to derive card minimums from.
    */
   month0SafeFloor?: number,
   /**
@@ -1739,7 +1747,8 @@ export function simulateVariablePayoff(
 
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
     // mandatory installment payments, and one-time items for this month.
-    // Month 0 uses month0SafeFloor (= max(cashFloor, ppBills)) so the projection matches recommendations.
+    // Month 0 uses month0SafeFloor, which callers set to the same augmented floor the forecast
+    // judges month 0 against, so the projection matches the recommendation it is measured by.
     // effectiveFloor and oneTimeNet are computed at top of this iteration (before Step 2).
     // pinnedStep5Total: pinned cards' fixed Step-5 spend comes off the top — the cascade below
     // only allocates the remainder across unpinned cards.
