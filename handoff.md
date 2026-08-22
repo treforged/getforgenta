@@ -151,6 +151,8 @@ amount-change concept; two adjacent rules is the only expression, unlabelled and
 
 ## 5. 📦 THE MOVE — everything is recorded, one number is not
 **Do NOT ask him for these again. He was mildly annoyed once already.**
+- 🔴 **WHY JULY 2027: MED SCHOOL STARTS THEN.** Answered 2026-08-22, after being asked twice.
+  His words: "july 2027 is when school starts. remember and stop asking the same question."
 - **Move: July 2027** (`Move fund` target_date 2027-07-01→07-03). Corroborated independently by his
   OWN April-2026 budget spreadsheet, which has a row labelled **"MED SCHOOL" dated 7/1/2027**.
 - **Lease break $3,830. Deposit = one month's rent. Rent range $1,300-1,900, budget $1,900.**
@@ -163,7 +165,7 @@ amount-change concept; two adjacent rules is the only expression, unlabelled and
 - **NEW 2026-08-22: he wants VENTURE X for the movers, to hit the welcome-offer spend, card open
   BEGINNING OF JUNE (2027) preferably.**
   🔴 His live `accounts` row says Venture X `card_start_date = 2027-12-20` — **six months late and
-  it contradicts the plan.** Handoff elsewhere says 2027-04-20. Resolve and correct the row.
+  it contradicts the plan.** Handoff elsewhere says 2027-04-20. **FIXED 2026-08-22: updated to `2027-06-01` in Supabase.** Was six months late.
   🔗 This is the SAME feature as §4.3: a welcome offer with 0% intro APR is the canonical
   "promo rate with no balance".
 
@@ -235,7 +237,7 @@ From session 22, still open: `month0-budget-snapshot.ts` ~207 self-contradiction
 6. §3 Option B, after the race and the caps are settled.
 7. §6 the form/column sweep.
 8. **The Aug 2027 cliff date is SETTLED (`2027-08-31`). The move figures are RECORDED (§5). Do not
-   ask him for either again.** Still genuinely unanswered: what forces July 2027, and can they renew?
+   ask him for either again.** **ANSWERED 2026-08-22: July 2027 is when MED SCHOOL STARTS.** That is what forces it. Tre: "remember and stop asking the same question." Renewal is moot. Do not raise it again.
 
 ## 🗂️ Workflow journals
 `.claude/projects/C--Users-tvonh-Desktop-getforgenta/93f36b4b-9884-483c-8625-d157150b80a8/subagents/workflows/`
