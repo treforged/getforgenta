@@ -1,5 +1,82 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 15 (**Four features shipped: account rename, automatic re-link dedupe,
+> `/calendar/`, and an automatic cash floor. The cash floor is the big one — it took Tre's payoff
+> from Aug 2029 to Jun 2028. TWO EDGE FUNCTIONS ARE COMMITTED BUT NOT DEPLOYED.**)
+
+## 🚨 DEPLOY THESE TWO EDGE FUNCTIONS — the code is committed, the behaviour is NOT live
+1. **`_shared/sync-handler.ts`** — the `name_is_manual` guard. Until deployed, the next sync will
+   REVERT the two Robinhood renames.
+2. **`plaid-exchange-token`** — the supersede-on-re-link step. Until deployed, the next re-link
+   creates duplicates again.
+Both are pure additions with no config change. Nothing else in this session needs deploying.
+
+## ✅ SHIPPED — a user may rename a linked account (`d2d1b1be`)
+`persistAccount` wrote `name` from the provider on EVERY sync, so the form disabled the field.
+That left the app unable to tell two accounts apart when the provider gives them the same name —
+which is exactly what Robinhood did. **`accounts.name_is_manual`**, same shape as
+`min_payment_is_manual`: the form stamps it **on change, not on every save**, and the sync then
+deletes `name` from its payload while it is set.
+⚠️ **INSTITUTION STAYS PROVIDER-OWNED**, by explicit test. Tre: "still block institution change."
+The migration stamped the two Robinhood rows renamed by hand, so deploying does not undo them.
+
+## ✅ SHIPPED — re-linking a bank supersedes the old connection (`6eb1e9c5`)
+**The answer to "we won't have these issues again right?" was NO, and now it is yes.**
+Plaid issues new account ids on a re-link, so `persistAccount` recognises nothing, inserts
+duplicates, and both connections keep syncing. `plaid-exchange-token` now revokes prior
+connections to the same bank and deactivates their accounts.
+- **Matched on `institution_id`, never the name** — `institution_name` changes between links.
+- **Never the incoming item itself** — Plaid update mode reuses the item id when a user REPAIRS a
+  connection, and revoking it there would cut the link they just fixed. Pinned by test.
+- **Deactivated, never deleted.** References are deliberately NOT re-pointed: two accounts named
+  "Robinhood individual" are indistinguishable from what the provider sends, a session already
+  guessed wrong once, and an automatic remap would make that guess silently, on money.
+- Failures are logged and swallowed — the link succeeded; refusing it over a failed tidy-up trades
+  a cosmetic problem for a real one.
+
+## ✅ SHIPPED — `/calendar/` (`df9b16cd`)
+`public/calendar/index.html` + the PDF and PNG committed **same-origin** (the CSP's
+`object-src 'none'` blocks an inline preview of the Supabase copy). Styling is `answers.css` plus
+two scoped rules. Sitemap updated.
+⚠️ **It must stay a DIRECTORY.** `/calendar/` hits the file; `/calendar` falls through Vercel's
+rewrite into the SPA and renders the 404 **with a 200**.
+✅ **Verified honestly:** on the Vite dev server `/calendar/` serves the SPA — **and so does the
+already-live `/answers/`**, which proves it is a dev-vs-Vercel difference, not a fault.
+
+## ✅ SHIPPED — automatic cash floor, now the default (`39179416`)
+`profiles.cash_floor_is_manual` (default FALSE = automatic). **All 46 profiles are on automatic.**
+**Automatic invents nothing**: `getMinSafeCash` already took `max(cashFloor, prePaycheckBills)`, so
+automatic just stops adding a typed number on top. Every dollar traces to one of the user's own
+recurring rules. No buffer constant, no percentage.
+**Why default:** 42 of 46 profiles sat on `cash_floor = 1000` — the column default. The 4 who typed
+a figure **keep it stored**; automatic reads it as 0 rather than clearing it, so one tick restores
+it exactly. ⚠️ **NEVER clear `cash_floor` when switching to automatic** — it is the saved
+preference, and clearing it makes the toggle a one-way door.
+
+| Tre, live | Before (manual) | **After (automatic)** |
+|---|---|---|
+| Payoff ETA | Aug 2029 | **Jun 2028** |
+| Cheapest avalanche | Oct 2028, $3,239 | **Apr 2028, $2,433** |
+| Month-0 safe minimum | $2,767 | $2,767 (unchanged) |
+
+Month 0 does not move because his pre-paycheck bills already exceeded the manual floor there. The
+gain is in the LATER months where they do not, and the typed floor was idling cash.
+⚠️ **The honest trade:** in a month with few pre-paycheck bills the floor is genuinely lower, so
+there is less untargeted buffer. That is the point, and it is one tick to undo.
+⚠️ **`Number(null) === 0`** collapses "never set" and "deliberately zero". `readStoredFloor` checks
+emptiness BEFORE converting. A test caught this, not review.
+
+## ⏭️ START HERE
+1. **Deploy the two edge functions** (top of this file). Nothing else is blocking.
+2. **`main` is 26 commits ahead of `origin/main` and has never been pushed this run.**
+3. Move fund: **$419 short / 1 month late** at $5,730. Rent <= ~$1,480 makes it on track.
+4. Add the ~$1,280 crypto when it has a date (personal Robinhood holds $768.69 of it).
+5. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; no `plaid-remove-item` function exists (the old Plaid
+   authorisation survives a local disconnect); `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 14 (**Move fund is down to $419 short / 1 month late, and that gap is INSIDE
 > his own estimating error. Also: my Robinhood account inference was WRONG and is corrected — the
 > $1,339.44 is the AGENTIC bot account, the money he explicitly wants left alone.**)
