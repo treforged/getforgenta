@@ -1,5 +1,157 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 24 (**THE §1 ISB BUG IS FIXED, LIVE-VERIFIED AND COMMITTED (`6d39ea51`).
+> Tre then asked for TWO UI changes that are now the top of the queue — read §A. The session hit the
+> agent limit (resets 3pm ET), so everything below was done solo.**)
+
+## A. 🔴 TRE'S TWO ASKS, BOTH ABOUT THE SAME PANEL — DO THESE FIRST
+Both arrived after the fix landed, and both are about **"Recommended this month"** on `/debt`
+(not `SurplusRankingSection` — that is a different panel).
+
+### A.1 "Show that Discover pays min upcoming so Prime can pay more of ISB"
+His words. The reserve is now real, but **its reason line lies**:
+`Forecast is reserving $2,443 for $200 Pay sibling to watch dogs (September 2026)`.
+That string comes from `describeBreach` in `floor-protection.ts`, which only knows about car down
+payments, cycling excess, and the biggest one-time transaction that month. **It has no ISB case**,
+so when a pinned statement is what drives the reserve it credits an unrelated expense.
+
+FIX SHAPE: give `computeFloorProtection` an optional per-month reason for the mandatory CC term
+(card name + amount + due date) and have `describeBreach` prefer it. The data now exists in one
+place — `deriveIsbPins` returns `{cardId, month, amount, minPayment}` and `isbPinByCard` is already
+built in `useCardProjection`. Word it the way he said it: Discover is paying its minimum so Prime
+can cover its statement on the 7th.
+
+### A.2 Always show the NEXT payment and its due date, bigger
+His words, and he is right: *"when it only shows in the month its due and a card is due earlier in
+the month like the 1st, you technically wouldnt even see it or only see it for 1 day or less since
+it goes to 0 after its paid."*
+
+**Confirmed live this session.** Discover renders `$0` beside `saving / Saving for Sep 1st / Due Sep 1st`.
+A `$0` next to a due date is worse than useless — it reads as "nothing to pay".
+
+WANTED: every card row shows the **next** payment amount and **when it is due**, always, and more
+prominently — not the current month's figure. Prime should read like "$2,845 due Sep 7", Discover
+"$249 due Sep 1".
+
+🔴 The two asks interact: **A.2 is what makes A.1 legible. Build them as ONE slice.**
+
+## B. ✅ SHIPPED THIS SESSION — `6d39ea51` (local only, NOT pushed)
+`fix(debt): reserve for next month's pinned statement, not just its minimum`
+
+Root cause was NOT a missing array — it was **the same rule written twice**. `forecast-engine.ts`
+had the manual-ISB pin term; `useCardProjection.ts` did not; and the hook is what produces the live
+recommendation. September's Prime obligation was modelled at its $559.40 minimum instead of its
+$2,845.14 statement, and the freed ~$2.3k was recommended to Discover at 16.6% while Prime lost
+grace on $8,396.90 at 27.49%.
+
+`deriveIsbPins()` is now the single derivation, consumed by both. The pin **supersedes** the card's
+contract minimum (`revolvingMinDue` is already that card's contribution — adding would double-count)
+and is capped by the card's modelled revolving balance.
+
+**MEASURED live, real data, same session, before → after:**
+
+| | before | after |
+|---|---|---|
+| Safe to Pay | $1,468 | **$0** |
+| → Discover (16.6%) | $1,468 | **$0** |
+| Forecast reserve | $976 | **$2,443** |
+
+The reserve rose $1,467 — exactly the money that had been going to the 16.6% card.
+Gate: tsc clean, **219 files / 2241 tests / 0 failed**.
+
+**Reachability was proven, not hoped.** Month 0's cap reads `reserveNeeded[1]` directly
+(`requiredEndBal = nextFloor + reserveNeeded[m+1] + FLOOR_CUSHION_DOLLARS`), and `reserveNeeded[1]`
+is driven by `netAtMin[1]`, which subtracts `ccMin(1)`. The old worry that `m0FloorPins` would make
+the fix inert was **wrong** — the number moved.
+
+🟡 **STILL OWED: a regression test.** Nothing in the suite caught this. The harness exists —
+`renderProjectionFromFixture` in `src/lib/__tests__/fixtures/projection-harness.ts`, used by
+`forecast-convergence.manualISB.test.ts` — and the real fixture IS on disk
+(`fixtures/forecast-inputs.real.json`, gitignored, so such tests self-skip in CI). Assert that with a
+pinned card the hook's `maxDebtPaymentByMonth[0]` drops to month 0's own minimum.
+
+## C. 🔴 §4.3 TRANCHE `min_payment` — CONFIRMED LIVE LANDMINE, NOT YET LOST
+**Queried this session: Prime Visa's four Equal Pay minimums are STILL INTACT** — 49.89 + 323.79 +
+81.75 + 68.97 = **$524.40**. Nothing is lost *yet*. This is a race against his next account edit.
+
+`TrancheFormRow` and `TranchePayload` (`src/lib/tranche-form.ts`) have **no `min_payment` field at
+all**, while `parseTranches` reads and validates one. Provenance is exact: commit `ef75f6d5`
+("feat(tranches): per-tranche min_payment") touched `balance-tranches.ts`, `self-funded-paydown.ts`
+and 3 test files, and **never touched `tranche-form.ts` or `BalanceTrancheEditor.tsx`**. The form has
+never known about the field.
+
+So `tranchesToRows` parses `min_payment` correctly and throws it away one line later, and
+`rowsToTranches` cannot write it back. **Saving Prime Visa from the Accounts modal for ANY reason — a
+rename, a balance edit, a due-day change — silently destroys $524.40/mo of contractual Equal Pay
+instalments**, with no warning and no recovery outside SQL. There is exactly one client write path
+(`handleSave` in `Accounts.tsx`, `balance_tranches: tranches`).
+
+Blast radius is bounded but sharp: tranche minimums feed **allocation only**, never a cash floor, so
+this cannot breach the floor. It corrupts *which* balance gets paid:
+- **Phantom reprice** — the 0% plans never amortise in the model, so `trancheAprAsOf` flips $5,587.75
+  to 27.49% at expiry: +$6.86/mo from Feb 2027, +$102.19 from Jul 2027, +$18.96 from Aug 2027 =
+  **$128.02/mo from Aug 2027** — landing squarely on the income cliff, on money his statement shows
+  will already be paid.
+- **Misdirected principal** — $524.40/mo modelled as paying down the $2,809.15 revolving balance.
+- Measured in `ef75f6d5` itself: projected interest $2,095 → $1,625, and the strategy comparison
+  collapses from Discover-first costing **+$264** to **+$83** — a 3.2x error in the direction that
+  makes the worse strategy look cheap.
+
+FIX (recommended: a real input, not opaque carry — the value is currently invisible everywhere in the
+UI while silently steering the engine): add `min_payment` to `TrancheFormRow` + `TranchePayload`,
+round-trip it through `tranchesToRows` / `rowsToTranches` / `newTrancheRow`, and add an input to
+`BalanceTrancheEditor.tsx` immediately after the "Promo Ends (optional)" block in the same
+`space-y-2` div. `patch(row.id, field, value)` is already typed `keyof TrancheFormRow`, so it needs no
+change. Regression test: round-trip Prime's real 4-tranche shape and assert the minimums survive.
+
+🔴 The save gate is a HARD block on the WHOLE account (`toast.error` then a bare `return` — nothing is
+written, not even the name): `Rate tier N needs a balance above $0 and an APR — fill it in or remove it`.
+
+## D. ✅ CLOSED THIS SESSION
+- **Venture X `card_start_date` = `2027-06-01`** — verified in the DB. Old start-here item #3 is done.
+- **§3 patch/minor caps — MEASURED, not reasoned** (the handoff asked for exactly this):
+  `6.4.99 --patch--> 6.5.0`, `6.9.99 --patch--> 7.0.0`, `6.9.0 --minor--> 7.0.0`, and `violations()`
+  is empty at every roll. **`applyBump` ROLLS, it does not refuse — the release path does not brick.**
+  🟡 Worth knowing: a patch roll at `.99` produces `isCustomerRelease === true`, so the 100th
+  in-between build silently becomes a store release. Nobody had written that down.
+- **§3's OTHER blocker is not what the handoff says.** The store builds only READ `VERSION`
+  (`read-version.mjs`); neither writes it, so they cannot race on it and the per-workflow concurrency
+  group is a red herring. `version-bump.yml` is the sole writer, ALREADY serialised
+  (`group: version-bump`, `cancel-in-progress: false`) and already refuses non-main.
+  🔴 **The real problem: `VERSION` is absent from both store workflows' `paths:` filters**
+  (`src/**`, `android/**`/`ios/**`, `capacitor.config.ts`, `package.json`). Under Option B the bump
+  commit would therefore trigger **nothing**, while the original src push triggers a build that reads
+  the OLD VERSION. Adding `VERSION` to `paths:` fixes the trigger and stays loop-free (the builds
+  never write it) — but then the src push ALSO builds, at the stale version. That **duplicate**, not
+  a race, is what Option B has to solve.
+
+## E. ⚠️ SESSION NOTES
+- **The agent/session limit was hit** (resets 3pm ET). Six of seven investigation agents, and all four
+  of a concurrent session's agents, died on it. Everything above was done solo. Do not re-run those
+  workflows expecting cached results — read `journal.jsonl` first.
+- **A concurrent session (`93f36b4b`) was attempting the SAME §1 fix**, and its workflow died on the
+  same limit. One agent reported "an uncommitted fix is already in the working tree" — **that was
+  false**, verified: `forecast-engine.ts` was content-identical to HEAD (a stat-only touch). Do not
+  take a subagent's claim about the tree at face value; `git diff --quiet` settles it.
+- `src/lib/__tests__/zz-tmp-diagnostic.test.ts` is an **untracked, gitignored scratch file** left by
+  another session. It contributes 2 tsc errors and 1 test. Baseline tsc is otherwise clean. Not mine
+  to delete.
+- Two commits from the prior session (`86845120`, `2d3cc6a2`) plus mine (`6d39ea51`) are **local and
+  unpushed**. Pushing triggers both store deploys (`src/**` paths), so it is a release decision.
+
+## ⏭️ START HERE
+1. **§A as ONE slice** — next-payment-and-due-date on every card row (A.2), then the reserve reason
+   naming the ISB (A.1). This is what Tre asked for, twice, in his own words.
+2. **§C tranche `min_payment` round-trip** — his minimums are intact TODAY; one account save loses them.
+3. **§B's owed regression test** for the ISB reserve.
+4. Then the old queue: §4.1 + §4.2 loans first-class (mind the C5 double-count trap), §4.4
+   card-payment labels, §4.5 the paycheck-rule end-date bypass, §6 the form/column sweep.
+5. **Do not ask Tre about the Aug 2027 cliff date, the move figures, or why July 2027 (med school).**
+   All settled and recorded below.
+
+---
+
+
 > ▶ 2026-08-22 session 23 (**PUSHED. iOS 6.4 is away. Four commits landed. Then Tre asked for eight
 > things and a REAL ENGINE BUG fell out of one of them — read §1 first, it is costing him money this
 > month. Everything else is root-caused and ready to build.**)
