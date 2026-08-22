@@ -1,5 +1,254 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 23 (**PUSHED. iOS 6.4 is away. Four commits landed. Then Tre asked for eight
+> things and a REAL ENGINE BUG fell out of one of them — read §1 first, it is costing him money this
+> month. Everything else is root-caused and ready to build.**)
+
+## 1. 🔴 THE BUG — `useCardProjection.ts` does not reserve for next month's ISB
+**Found because Tre said "my discover payment seems high." He was right.**
+
+`computeFloorProtection` (`floor-protection.ts`) builds its next-month reserve from a `ccMinByMonth`
+array **supplied by the caller**. There are two callers and they DISAGREE:
+
+- `forecast-engine.ts` **adds the manual-ISB pin**, with a comment naming this exact failure mode.
+- `useCardProjection.ts` **does not.** Its `ccMinByMonth` uses `revolvingMinDue`, which never reads
+  `statementBalance`. And `useCardProjection` is what produces the live recommendation.
+
+So September's Prime Visa obligation is modelled at **$559.40** instead of **$2,845.14**:
+
+| | Reserve for Sept | Aug available for debt |
+|---|---|---|
+| ISB-blind (what he sees) | $547.66 | **$1,690.17** |
+| ISB-aware (correct) | $2,833.40 | **$0** |
+
+`$1,690.17` reproduces his screen **to the cent**. The gap is exactly the missing pin term,
+`2845.14 − 559.40 = 2285.74`. The Forecast page's correct answer is ALSO structurally blocked from
+reaching month 0, because `m0FloorPins` overrides month 0 on every convergence pass and
+`forecast-engine.ts` then reads `ledgerEntry.total` (the hook's ledger) for the cash walk anyway.
+
+**Cost:** paying $1,690 to Discover saves 16.6% for a month (~$23). Prime losing grace puts the full
+$8,396.90 at 27.49% (~$192/mo, compounding). **Roughly 8x, in the wrong direction.**
+
+**Honest caveat:** even a full August save-up leaves September ~$345-594 short, because the ISB
+($2,845.14) is essentially Prime's entire non-promo balance ($2,809.15). Covering it in full would
+end September BELOW the cash floor, which `isbTargetThisMonth` is explicitly written never to do. So
+the fix changes a ~$2,100 shortfall into a ~$400 one; it does not make the ISB reachable.
+
+**FIX:** give `useCardProjection.ts`'s `ccMinByMonth` the same pin term `forecast-engine.ts` already
+has. One array. Then re-check whether `m0FloorPins` still discards it.
+**Tre was told: pay Discover's $249 minimum this month and hold the rest for Prime on Sept 7.**
+
+## 2. ✅ SHIPPED AND PUSHED
+`origin/main` = `9e65bced`. Verified by contents. Both store deploys ran on `9561d87c`.
+
+| Commit | What |
+|---|---|
+| `dcb2e59e` | month-0 drawer: the $2 is the cushion, not unabsorbable surplus |
+| `8a376c8c` | three comments that asserted things the code does not do |
+| `d248e5e5` | the VERSION classifier finally has a caller |
+| `9561d87c` | handoff |
+| `9e65bced` | **customer release notes** (3 adversarial rounds, 2 blockers closed) |
+
+Gate on the last: tsc clean, **2240 passed / 0 failed**, VERSION 6.4.0, every `on:`/`paths:` block
+and deploy step proven byte-identical to HEAD by structural compare.
+
+**Found while wiring the release path:** in a shallow clone the VERSION anchor lookup does not come
+back empty, it comes back **WRONG** (the oldest visible commit is presented as parentless, so
+path-limited `git log` credits it with its whole tree). Reproduced at `--depth 2`. Every CI checkout
+is shallow. `--write` now refuses on truncated history.
+
+## 3. 🎯 DECIDED BY TRE, NOT BUILT — Option B auto-bump
+He chose **B**: push to main → bump runs → the `VERSION` commit triggers both store builds.
+Loop-free because the builds never touch `VERSION`. **He did NOT ask for a promotion gate, and said
+"its supposed to be automatic", so do not add one.**
+Two things MUST be solved first or it is unsafe:
+1. **The race.** Both build workflows fire on the same push and their concurrency groups are
+   PER-WORKFLOW (`store-deploy-${{ github.workflow }}-${{ github.ref }}`), so they do not serialise
+   against each other. Exactly ONE thing may compute and push a version per push.
+2. **The caps.** Scheme caps are 9/99. Confirm `applyBump` ROLLS at the patch cap rather than
+   refusing, or the release path bricks at bump N. MEASURE it from 6.4.0, do not reason about it.
+Also: `version-bump.yml` (dispatch-only) already exists and must keep working as the escape hatch.
+
+## 4. 🐛 ROOT-CAUSED, READY TO BUILD — the eight asks
+### 4.1 Loans cannot have a due date (and never reach forecast/floor/transactions)
+`accounts.payment_due_day` **already exists** (integer, nullable, no DB constraint). It is gated to
+credit cards in THREE places in `Accounts.tsx`: the field array only emits it for `credit_card`, the
+save path nulls it AND omits the key from a non-card payload, and the list row hides it. The modal
+even says "payment due day are always editable", which is false for a loan.
+**But the UI gate is only half.** A loan account has NO CONSUMER. A card's due day flows
+`payment_due_day` → `CardData.dueDay` → `MinSafeCashCard` → `floorItems`. Loans have no equivalent.
+The working reference is the vehicle loan, which derives its day as
+`new Date(cf.payment_start_date).getDate()` at FIVE call sites (cash floor `pay-schedule.ts`,
+`forecast-engine.ts`, `useCardProjection.ts`, `charge-obligations.ts` for transaction matching).
+🔴 **TRAP: Tre has NO student loan.** The four in the DB belong to another user. He has ONE
+`auto_loan`: `FIXED RATE LOAN`, USAA, **$16,254.49**, apr/due-day/min all null — and that is his C5,
+**already in the forecast at $422.89/mo via its `car_funds` row.** Naively wiring `auto_loan`
+accounts into the floor would **DOUBLE-COUNT it**. Reconcile the two representations first.
+Also: `mortgage` is in `LIABILITY_ACCOUNT_TYPES` (`net-worth.ts`) but MISSING from `liabilityTypes`
+(`forecast-engine.ts`), so mortgages take a special-cased path.
+
+### 4.2 Debts with no goals cannot be reordered / take extra payments
+**Much smaller than it sounds.** `SurplusRankingSection` ("Where the extra money goes") is ALREADY a
+unified ranked list containing cards and vehicle loans as first-class rows beside goals, with
+drag-and-drop (desktop), up/down buttons (touch, correctly gated on `useIsTouch` not
+`useIsViewportBelow`), split-a-rank, per-row `Auto extra`, and priced collision warnings.
+Three narrow defects:
+1. **It hides itself when the list has fewer than 2 rows** — a card-only user has exactly ONE row.
+2. **It only exists on `/savings`**, which tells that user "No savings goals yet."
+3. **"Loan" means a `car_funds` row in loan phase, nothing else.** ← meets 4.1 here.
+🔴 **TRAP:** `sort_order` defaults to `0`, so a user who never reordered has EVERY row at rank 0.
+The code refuses to treat a shared `sort_order` as a deliberate split unless BOTH rows carry a
+weight. Any new code inferring splits from `sort_order` alone divides his whole surplus across
+everything he owns.
+
+### 4.3 Promo rates should not require a balance (0% intro APR)
+A tranche is **a sub-balance carved out of the total**, with the remainder falling to `accounts.apr`.
+So relaxing `balance > 0` yields an accepted row that **does nothing** — a $0 tranche carves out $0.
+This needs a genuine SECOND CONCEPT (a rate over a period), not a loosened validator.
+The error he hit: `Rate tier N needs a balance above $0 and an APR` — a hard save block on the WHOLE
+account. **Seven independent gates**, including `liveTranches` in `credit-card-engine.ts` dropping
+any slot `<= 0.005`, so a form-only fix would be accepted and silently ignored downstream.
+🔴 **LIVE DATA-LOSS BUG, unrelated but found here:** `BalanceTranche` has an optional `min_payment`,
+but the write-path types `TranchePayload` and `TrancheFormRow` **do not have the field at all**. So
+editing a card's rate tiers through the UI **silently drops per-tranche minimums**. Prime Visa
+carries $524.40 of them. **Verify whether his are currently populated — one query — before anything
+else.**
+
+### 4.4 CC payments should categorize as Debt Payments
+**Half already works.** Checking-side legs are correct (Plaid `LOAN_PAYMENTS` → `Debt Payments`); all
+10 in the last 90 days ($5,701.46) are right.
+**Card-side legs are not.** 24 all-time, 10 in 90 days = **$10,316.30**. Plaid describes the same
+event three ways by issuer: `LOAN_DISBURSEMENTS`, `LOAN_PAYMENTS`, `INCOME` → `Other`,
+`Debt Payments`, `Income`. **He has pressed Ignore on 23 of 24, one at a time.**
+🔴 **Do NOT fix it in `PROVIDER_CATEGORY_MAP`** — that map is account-blind, so mapping
+`INCOME → Debt Payments` would **relabel his paychecks**.
+🔴 **There is a STANDING DECISION in the way:** `BankActivity.tsx` renders "a card payment is not
+spending, so it takes no category", and `planLedgerImport` refuses a ledger row for a transfer leg.
+That is the double-count guard and it is CORRECT (the purchases were counted when they posted).
+What he actually wants: the row should **say** "Debt Payments" in the list **without becoming a
+ledger expense**.
+FIX: `isCardPaymentLeg` beside `detectTransferPairs`, fed into `resolveCategorySuggestion` ranked
+BELOW `'you'` and above crowd/provider; extend the `planLedgerImport` refusal. A rules engine
+already exists (merchant memory → crowd → provider), so this is a rule, not a mechanism.
+
+### 4.5 Income end date — the ask is already shipped, but a REAL defect hides behind it
+**He can already set it, and did.** "End Date (optional)" is in the Rule form on `BudgetControl.tsx`,
+pushed for every rule type, since `7da59ba5` (2026-05-19). Proof it came through the app:
+`GF Part of Cruise Ultimate` was created 2026-07-24, never edited, and carries `end_date 2027-04-18`.
+🔴 **THE DEFECT: "my gf stops working" is covered. "I stop working" is NOT.** The designated
+paycheck rule BYPASSES rules entirely — `paycheckIncome` comes from `getMonthNetIncome`, which reads
+only `profile.weekly_gross_income` / `paycheck_frequency` / `paycheck_deductions` and is pure
+calendar arithmetic. It never sees `end_date` and emits a paycheck **forever**. Month 0 takes the
+rule-derived branch, so an end date bites for ONE month then silently stops — a discontinuity.
+`useCardProjection` and `credit-card-engine` do the same, so the sim is consistently wrong.
+🟡 **Nothing explains an income ending.** `MonthlyBreakdownTable` has `⬆ Raise applied` and
+`💼 Promotion applied` markers; there is no equivalent for a rule ENDING. And the drawer lumps all
+secondary income into one unnamed `Other Income` line — so in Sep 2027 he watches it shrink by
+$1,100 with **no rule name and no reason anywhere on the page**, in the most consequential month of
+his forecast.
+🟡 A pay RAISE is first-class for salary only (promotions, annual raise %). Other income has no
+amount-change concept; two adjacent rules is the only expression, unlabelled and unvalidated.
+
+## 5. 📦 THE MOVE — everything is recorded, one number is not
+**Do NOT ask him for these again. He was mildly annoyed once already.**
+- **Move: July 2027** (`Move fund` target_date 2027-07-01→07-03). Corroborated independently by his
+  OWN April-2026 budget spreadsheet, which has a row labelled **"MED SCHOOL" dated 7/1/2027**.
+- **Lease break $3,830. Deposit = one month's rent. Rent range $1,300-1,900, budget $1,900.**
+  (His words, 2026-08-21.) The `$5,730` goal is exactly `3,830 + 1,900`. NOT movers, NOT emergency.
+- **Movers deliberately EXCLUDED, they go on a card.**
+- **CONFIRMED 2026-08-22: they will most likely have to move for GF med school.** Two events, two
+  dates, causally linked: move Jul 2027, her $1,100 ends 2027-08-31 when school starts.
+- **The move is ENTIRELY on him.** Her money only ever covered current rent. Do not model her
+  contributing to the move or the new rent.
+- **NEW 2026-08-22: he wants VENTURE X for the movers, to hit the welcome-offer spend, card open
+  BEGINNING OF JUNE (2027) preferably.**
+  🔴 His live `accounts` row says Venture X `card_start_date = 2027-12-20` — **six months late and
+  it contradicts the plan.** Handoff elsewhere says 2027-04-20. Resolve and correct the row.
+  🔗 This is the SAME feature as §4.3: a welcome offer with 0% intro APR is the canonical
+  "promo rate with no balance".
+
+### 🎯 THE HIGHEST-LEVERAGE NUMBER IN HIS WHOLE PLAN
+The forecast models rent at **$1,915 forever**; his budgeted new rent is **$1,900**. A $15/mo delta,
+so the move does NOT materially reprice the cliff **at his budget**. But:
+
+| New rent | Move fund | Post-cliff margin |
+|---|---|---|
+| $1,900 (budgeted, top of his own range) | $419 short, lands Aug 2027 | ~$25/mo, break-even |
+| ~$1,480 | on time, Jul 2027 | ~$460/mo |
+
+**A ~$1,480 place fixes the move fund AND the cliff at once.** He noted 13 target cities are under
+$2,000. This is the single most valuable thing to tell him.
+
+### What the forecast currently assumes about the move: NOTHING
+Rent `end_date` NULL (runs to 2031, `expenseGrowth: 0`), no second rent rule, no lease-break outflow,
+no moving cost on any card. **Current-address utilities are also open-ended** (Electricity $170,
+Internet $85, Water/Sewer/Trash $30, Smart Home $40) so **$2,240/mo of the current apartment follows
+him to 2031**.
+**Three of four are expressible TODAY with no code:** `end_date` on rent+utilities, a second rent
+rule with a future `start_date` (he already does this — `Groceries` ends 2027-12-28 →
+`Groceries VentureX` starts 2028-01-03), and moving costs as a future-dated transaction on a card
+(he already does this too — `ring $2,000` 2027-01-20, `ESR Wheels $1,538` 2028-12-17).
+🔴 **ONE GENUINE CAPABILITY GAP: a savings goal can never be SPENT.** `target_date` appears ZERO
+times in `forecast-engine.ts`. Goals are inflow-only. `car_funds` CAN spend
+(`planned_purchase_date`); savings goals cannot. So the move fund fills and the money never leaves.
+
+## 6. 🧩 THE PATTERN — worth one dedicated sweep
+Three of his asks trace to the same shape: **a column exists, the engine handles it, the FORM gates
+it by type.** Forms build field arrays with type-conditional spreads and the save path
+INDEPENDENTLY re-applies the same condition, so the key never reaches the payload. The nastier
+variant is §4.3's tranche `min_payment`: not gated, just **absent from the write-path type**, so it
+is silently DROPPED on save.
+**Proposed: walk every form's field array against the table's real columns and the write-path types,
+and list every column that is unreachable or droppable.** Cheaper than one user complaint at a time.
+
+## 7. 🟡 KNOWN-ISSUE RESIDUE (shipped deliberately, none blocking)
+From the notes work, all nits, verifier-confirmed: two wrapped-trailer false positives; three
+internal-shaped subjects reaching GENERIC_NOTE; a hand-duplicated maintenance string in the CLI
+catch block that can drift from `MAINTENANCE_NOTE`; two small doc/code drifts; an em dash in the
+iOS step-summary heading; `truncateToBytes` comparing a UTF-16 index against a byte budget.
+From session 22, still open: `month0-budget-snapshot.ts` ~207 self-contradiction and ~223 unproven
+"three dollars at most"; `debt-model-types.ts:94` says "four" then lists five; `:27`/`:121` and
+`useCardProjection.ts` 700/1341/1920/1934/2128 are PRE-EXISTING stale citations.
+
+## 8. ⚠️ LESSONS THAT COST TIME TODAY
+- **Never write a `file.ts:1234` citation into a file under concurrent edit.** Round 2 wrote five
+  read from another agent's in-flight edit; four rotted before the round finished.
+  `useCardProjection.ts` moved +9 lines mid-session; `credit-card-engine.ts` moved between two tool
+  calls in ONE batch. Cite SYMBOLS.
+- **`--reporter=basic` DOES NOT EXIST in this repo's vitest.** It fails at startup having run zero
+  tests, and it is quoted in older handoff sections. Use `--reporter=dot`.
+- **`git add <file> && git commit` commits the WHOLE index on this shared tree.** Use
+  `git commit -F - -- <paths>`. All five commits today did.
+- **A green gate is not a correct change.** Every one of the three notes rounds gated GREEN and two
+  of them had blockers. Adversarial verification found: a CI notice that crashed and went green
+  because `tee` masked the exit code, an undelivered third of a slice, a "corrected" comment that
+  was itself false, and a documented example that did not work.
+
+## ⏭️ START HERE
+1. **§1, the ISB reserve bug.** Highest value, smallest diff, and it is costing him money now.
+2. **§4.3's tranche `min_payment` data loss** — one query to see if his Prime Visa minimums are
+   already gone.
+3. **Venture X `card_start_date`** — 2027-12-20 in the DB vs the June 2027 he needs.
+4. **§4.1 + §4.2 as ONE slice** (loans first-class → rankable → orderable), minding the C5
+   double-count trap.
+5. §4.3 intro APR, §4.4 card-payment labels, §4.5 the paycheck-rule end-date bypass.
+6. §3 Option B, after the race and the caps are settled.
+7. §6 the form/column sweep.
+8. **The Aug 2027 cliff date is SETTLED (`2027-08-31`). The move figures are RECORDED (§5). Do not
+   ask him for either again.** Still genuinely unanswered: what forces July 2027, and can they renew?
+
+## 🗂️ Workflow journals
+`.claude/projects/C--Users-tvonh-Desktop-getforgenta/93f36b4b-9884-483c-8625-d157150b80a8/subagents/workflows/`
+`wf_a346a363-047`, `wf_ed9678d4-4b4`, `wf_512d7b12-d24` (the 21c follow-ups, 3 rounds);
+`wf_68dbf675-900`, `wf_dbcfd224-66a` (release notes); `wf_ad847179-f6c` (bump+notes discovery, its
+build agent was blocked by a safety classifier for arming unreviewed production deploys);
+`wf_5ccc47dc-a6d` (loans), `wf_953a587b-b21` (goals), `wf_fbaaffd3-1f0` (intro APR),
+`wf_9a9c829b-f05` (move), `wf_7741f5b2-dd5` (ISB), `wf_cc575549-a34` (categories),
+`wf_a964c5e5-404` (income), `wf_e928a2cd-8a8` (move figures), `wf_9a984e70-dbd` (**the §1 bug**).
+~40 agents, ~5.5M tokens. Full proofs are in each `journal.jsonl` and are NOT all summarised here.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-22 session 22 (**THE FOUR 21c FOLLOW-UPS ARE CLOSED AND THE RELEASE PATH NOW HAS A
 > CALLER. Three commits, three adversarial rounds, gate GREEN: tsc clean, 2153/2153, VERSION still
 > 6.4.0. NOTHING IS PUSHED, and pushing now fires BOTH store deploys — see the warning below.**)
