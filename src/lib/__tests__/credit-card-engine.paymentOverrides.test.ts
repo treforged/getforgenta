@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { simulateVariablePayoff, type CardData } from '../credit-card-engine';
+import { FLOOR_CUSHION_DOLLARS } from '../floor-protection';
 
 // Q1 override-rebalance — paymentOverridesByMonth (positional param #21).
 //
@@ -37,6 +38,16 @@ const flatEvents = (n: number, income: number, expenses: number) =>
 const totalPaid = (sim: ReturnType<typeof simulateVariablePayoff>, m: number) =>
   [...sim.monthlyPayments.values()].reduce((s, arr) => s + (arr[m] ?? 0), 0);
 
+// Every fixture below is built as "a $1,000/mo natural surplus above the floor", and the engine
+// deploys FLOOR_CUSHION_DOLLARS less than that. Since 2026-08-21 Step 5 drains EVERY month,
+// month 0 included, to floor + cushion instead of to the floor exactly (step5Floor in
+// credit-card-engine.ts). Month 0 needs it most, being the only month whose payment is later
+// quantised to whole dollars against a cent-exact cap. None of the rebalancing behaviour these
+// tests exist to pin changed; only the size of the pool being rebalanced did. Writing that as an
+// expression rather than re-pinned literals keeps each comment's arithmetic checkable by eye and
+// keeps the fixtures honest if the cushion is ever retuned.
+const afterCushion = (uncushioned: number) => uncushioned - FLOOR_CUSHION_DOLLARS;
+
 describe('simulateVariablePayoff — paymentOverridesByMonth (param #21)', () => {
   // Shared fixture: 1000/mo natural surplus above the floor.
   // Natural avalanche month 0: hi gets min + all surplus, lo gets its min.
@@ -52,12 +63,12 @@ describe('simulateVariablePayoff — paymentOverridesByMonth (param #21)', () =>
 
   it('pin LOWER than natural → the freed cash flows to the next card by strategy; total conserved', () => {
     const base = runHiLo(1);
-    expect(base.monthlyPayments.get('hi')![0]).toBeCloseTo(975, 2);
+    expect(base.monthlyPayments.get('hi')![0]).toBeCloseTo(afterCushion(975), 2);
     expect(base.monthlyPayments.get('lo')![0]).toBeCloseTo(25, 2);
 
     const sim = runHiLo(1, { hi: { 0: 100 } });
     expect(sim.monthlyPayments.get('hi')![0]).toBeCloseTo(100, 2);
-    expect(sim.monthlyPayments.get('lo')![0]).toBeCloseTo(900, 2); // min 25 + freed 875
+    expect(sim.monthlyPayments.get('lo')![0]).toBeCloseTo(afterCushion(900), 2); // min 25 + freed 873
     expect(totalPaid(sim, 0)).toBeCloseTo(totalPaid(base, 0), 2);  // monthly total conserved
     expect(sim.cashFloorBreaches).toEqual([]);
     expect(sim.projectedCashByMonth[0]).toBeGreaterThanOrEqual(1000 - 0.01); // floor intact
@@ -66,9 +77,9 @@ describe('simulateVariablePayoff — paymentOverridesByMonth (param #21)', () =>
   it('pin HIGHER than natural → other cards shrink but never below their contract minimums', () => {
     const sim = runHiLo(1, { lo: { 0: 800 } });
     expect(sim.monthlyPayments.get('lo')![0]).toBeCloseTo(800, 2);
-    expect(sim.monthlyPayments.get('hi')![0]).toBeCloseTo(200, 2); // shrunk, still ≥ its 25 min
+    expect(sim.monthlyPayments.get('hi')![0]).toBeCloseTo(afterCushion(200), 2); // shrunk, still ≥ its 25 min
     expect(sim.monthlyPayments.get('hi')![0]).toBeGreaterThanOrEqual(25);
-    expect(totalPaid(sim, 0)).toBeCloseTo(1000, 2); // pool bounded by cash above floor
+    expect(totalPaid(sim, 0)).toBeCloseTo(afterCushion(1000), 2); // pool bounded by cash above floor
     expect(sim.cashFloorBreaches).toEqual([]);
   });
 
@@ -82,7 +93,7 @@ describe('simulateVariablePayoff — paymentOverridesByMonth (param #21)', () =>
       ...PAD, { a: { 0: 5 } },
     );
     expect(sim.monthlyPayments.get('a')![0]).toBeCloseTo(5, 2); // no min-enforcement backstop
-    expect(sim.monthlyPayments.get('b')![0]).toBeCloseTo(995, 2);
+    expect(sim.monthlyPayments.get('b')![0]).toBeCloseTo(afterCushion(995), 2);
   });
 
   it('clamp at owed: a pin above the full balance pays it off and spends nothing extra', () => {
@@ -127,7 +138,7 @@ describe('simulateVariablePayoff — paymentOverridesByMonth (param #21)', () =>
       ...PAD, { hi: { 0: 50 } },
     );
     expect(sim.monthlyPayments.get('hi')![0]).toBeCloseTo(50, 2);
-    expect(sim.monthlyPayments.get('mid')![0]).toBeCloseTo(925, 2); // min 25 + freed 900
+    expect(sim.monthlyPayments.get('mid')![0]).toBeCloseTo(afterCushion(925), 2); // min 25 + freed 898
     expect(sim.monthlyPayments.get('lo')![0]).toBeCloseTo(25, 2);   // min only
   });
 
@@ -142,7 +153,7 @@ describe('simulateVariablePayoff — paymentOverridesByMonth (param #21)', () =>
       ...PAD, { small: { 0: 25 } },
     );
     expect(sim.monthlyPayments.get('small')![0]).toBeCloseTo(25, 2);
-    expect(sim.monthlyPayments.get('mid')![0]).toBeCloseTo(950, 2); // next smallest gets the surplus
+    expect(sim.monthlyPayments.get('mid')![0]).toBeCloseTo(afterCushion(950), 2); // next smallest gets the surplus
     expect(sim.monthlyPayments.get('big')![0]).toBeCloseTo(25, 2);
   });
 

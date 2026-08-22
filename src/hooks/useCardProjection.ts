@@ -20,7 +20,7 @@ import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
-import { computeFloorProtection } from '@/lib/floor-protection';
+import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
@@ -1809,6 +1809,29 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0, syncCutoffDate,
       ).monthMinSafe;
 
+      // How far month 0 is actually allowed to drain: the augmented floor plus the shared cushion,
+      // which is the identical target credit-card-engine.ts's Step 5 uses for every month
+      // (step5Floor there is Math.max(effectiveFloor, nextMonthFloor) + FLOOR_CUSHION_DOLLARS).
+      // One expression with three readers below (the auto-extra pool, the revolving cap, and the
+      // max-capacity headroom), because all three answer the same question ("what is spendable
+      // above the floor this month?") and three separate `- m0FloorAugmented` terms are three
+      // chances to disagree.
+      //
+      // Month 0 needs the cushion MORE than the later months, not less. Every month's drain can
+      // settle cents under an exactly-pinned floor from sub-tolerance convergence residue (see
+      // floor-protection.ts), but month 0 is additionally the only month whose payment is quantised
+      // to whole dollars: perCardAdjusted below rounds each card's share, so the recommendation as
+      // a whole can land up to half a dollar per card away from this cent-exact cap in either
+      // direction. Against an uncushioned floor that put the golden fixture's month 0 just $0.08
+      // above its floor, one unlucky rounding away from ending $0.92 below it and being reported
+      // to the user as "cash below safe minimum" over what floor-protection.ts calls noise.
+      //
+      // The cost is real and was accepted deliberately (Tre, 2026-08-21): the month-0 recommended
+      // payment is about $2 lower than it would otherwise be. The alternative considered was
+      // flooring rather than rounding the per-card split, which buys the same safety by making the
+      // per-card numbers stop adding up to the total the user is shown.
+      const m0DrainFloor = m0FloorAugmented + FLOOR_CUSHION_DOLLARS;
+
       // Vehicle insurance/projected loan and mortgage for month 0 — reuses the per-month
       // helpers defined above (which pass3RevTotals also uses) so month 0 and every later
       // month are computed identically.
@@ -1865,7 +1888,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const cardRanks = Object.fromEntries(accounts.map(a => [a.id, {
         sortOrder: a.surplus_sort_order ?? null, share: a.surplus_share ?? null,
       }]));
-      const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - m0FloorAugmented - cyclingPayment);
+      const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - m0DrainFloor - cyclingPayment);
       const autoExtra = computeAutoExtraReserve(
         autoExtraPool,
         ccMinForMonth,
@@ -1924,7 +1947,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         cashPreDebt,
       };
       const availableForRevolving = liveRevolvingBal > 0
-        ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))
+        ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0DrainFloor - cyclingPayment))
         : 0;
       const revolvingPayment = liveRevolvingBal > 0 ? Math.min(simRevolvingTotal, availableForRevolving) : 0;
       const safeToPayTotal = cyclingPayment + revolvingPayment;
@@ -1933,7 +1956,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // (e.g. for a save-up event). Must be computed even when month 0 IS a save-up month —
       // that's exactly when revolvingPayment is capped below available cash and a holdback exists.
       const surplusIfFree = liveRevolvingBal > 0
-        ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0FloorAugmented, liveRevolvingBal))
+        ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0DrainFloor, liveRevolvingBal))
         : 0;
       const maxCapacity = safeToPayTotal + surplusIfFree;
       const holdback = Math.max(0, maxCapacity - safeToPayTotal);
@@ -2021,11 +2044,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // (m0SimFloor, set from augmentedCashFloorByMonth[0] in the refinement loop above), so the raw
       // sim no longer overshoots it by the ~$176 of CC-min/car/insurance buffer it used to. This
       // scaling stays regardless: perCardAdjustedFinal reconciles month-0 payments to
-      // availableForRevolving, the cent-exact cap computed from m0FloorAugmented against the same
+      // availableForRevolving, the cent-exact cap computed from m0DrainFloor against the same
       // cashPreDebt the Forecast row ends on, which is the value month0.safeToPayTotal displays and
       // the only figure a user acts on. This entry carries that scaled split into the ledger the
       // engine consumes so month-0 cash math (forecast-engine.ts:1121 ledgerEntry.total) lands on the
-      // augmented floor, not below it. Threaded into BOTH the base hookResult ledger AND the resim ctx
+      // augmented floor plus its cushion, not below it. The rounding this reconciliation performs is
+      // exactly why m0DrainFloor carries that cushion: the per-card payments here are integers, the
+      // cap they are being fitted to is not. Threaded into BOTH the base hookResult ledger AND the resim ctx
       // (cardProjectionResim.ts rebuilds the ledger raw every convergence pass — the engine's final
       // cardProjectionData comes from there, so the base override alone never reached it). Months 1+
       // stay raw-sim, leaving the tuned Q6-Q12 convergence untouched.

@@ -1757,10 +1757,24 @@ export function simulateVariablePayoff(
     // draining to only this month's floor makes every bill-timing step-up month start below its
     // own floor (Q9: Discover absorbed the difference as uncapped avalanche cash).
     const nextMonthFloor = m + 1 < months ? (cashFloorByMonth?.[m + 1] ?? cashFloor) : effectiveFloor;
-    // FLOOR_CUSHION_DOLLARS (months > 0 only): draining to EXACTLY the floor lets sub-tolerance
-    // convergence residue land cents below it (see floor-protection.ts). Month 0 stays uncushioned
-    // so the projection keeps matching the live safe-to-pay recommendation exactly.
-    const step5Floor = Math.max(effectiveFloor, nextMonthFloor) + (m > 0 ? FLOOR_CUSHION_DOLLARS : 0);
+    // FLOOR_CUSHION_DOLLARS, every month INCLUDING month 0: draining to EXACTLY the floor lets
+    // sub-tolerance residue land cents below it (see floor-protection.ts). Month 0 used to be
+    // exempted so the projection would match the live safe-to-pay recommendation exactly, and that
+    // trade had the risk backwards. Month 0 is the one month whose payment is quantised to WHOLE
+    // DOLLARS (useCardProjection reconciles the per-card month-0 split with Math.round) while the
+    // cap it is reconciled against and the floor test it is judged by are both cent-exact. Draining
+    // it to exactly the floor therefore parked it on a knife edge: +$0.08 of margin on the golden
+    // fixture, against +$1.07 to +$2.00 in every other month, and one dollar of aggregate rounding
+    // the other way would have ended month 0 $0.92 UNDER its floor. The "cash below safe minimum"
+    // milestone compares raw against raw at cent resolution, so it would have told the user their
+    // current month was unsafe over a rounding residue that floor-protection.ts itself defines as
+    // noise. Two dollars of recommended payment is the cheaper side of that trade.
+    //
+    // The month-0 match the old exemption protected is preserved rather than abandoned: the live
+    // recommendation subtracts the SAME constant at the same point (m0DrainFloor in
+    // useCardProjection.ts), so both sides moved together and month-0 ending cash still equals
+    // month0.safeToPayTotal to the cent. Cushioning only one of the two is what would break it.
+    const step5Floor = Math.max(effectiveFloor, nextMonthFloor) + FLOOR_CUSHION_DOLLARS;
     let availableCash = currentCash + monthIncome - monthExpenses - step5Floor - paidOffCashCost + oneTimeNet - installmentCashCost - pinnedStep5Total;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });

@@ -60,20 +60,38 @@ const PARITY_EVENTS = [
   { income: 3200, expenses: 2100 }, { income: 3200, expenses: 2100 },
 ];
 
-/** Captured from the PRE-TRANCHE engine (backups/2026-08-14_094540). Not one cent of this may move. */
+/** Captured from the PRE-TRANCHE engine (backups/2026-08-14_094540). Not one cent of this may
+ * move for anything to do with tranches, which is what this fixture is here to guard.
+ *
+ * ONE authorized movement since capture, 2026-08-21: month 0 now drains to its floor plus
+ * FLOOR_CUSHION_DOLLARS like every other month, instead of to the floor exactly
+ * (credit-card-engine.ts step5Floor). The whole delta is that $2 and one month of interest on it:
+ *   cash[0]           800    -> 802     the only cash cell that moves; every later month is
+ *                                       untouched, and 802 is what months 1 and 6-11 already read
+ *   payments.A[0]     1663.03 -> 1661.03  $2 deferred...
+ *   payments.A[1]      311.30 ->  313.30  ...into month 1, so the total paid is conserved
+ *   balances.A[0]     2740.99 -> 2742.99  the $2 that stayed on the card
+ *   balances.A[1..11]           +0.04     22.9%/12 on that $2, carried forward
+ *   interest.A[1]       52.31 ->   52.35  the same $0.04, where it is charged
+ *   mins.A[1]           55.87 ->   55.91  the minimum formula reading the $0.04 higher balance
+ *   mins.A[11]          63.52 ->   63.53  the last cent of that tail
+ *   debtCash.A[0,1]                       tracks payments.A exactly
+ * Cards C and D, every cycling series, projectedPayoffMonths (12), the flag count (12) and the
+ * CARD_AT_RISK set are byte-identical, and the no-tranche/empty-tranche parity this fixture
+ * exists to prove was verified identical before and after. */
 const PARITY_GOLDEN = {
   payments: {
-    A: [1663.03, 311.3, 75, 75, 75, 75, 76.13, 80.28, 352.69, 615.37, 615.62, 615.86],
+    A: [1661.03, 313.3, 75, 75, 75, 75, 76.13, 80.28, 352.69, 615.37, 615.62, 615.86],
     C: [0, 350, 50, 50, 68.96, 50.5, 824.85, 884.58, 612.42, 350, 350, 350],
     D: [136.97, 136.7, 136.43, 136.17, 135.91, 135.65, 135.4, 135.14, 134.89, 134.63, 134.38, 134.14],
   },
   balances: {
-    A: [2740.99, 2692, 2878.37, 3068.3, 3261.85, 3459.1, 3658.98, 3858.53, 3789.47, 3456.42, 3116.76, 2770.38],
+    A: [2742.99, 2692.04, 2878.41, 3068.34, 3261.89, 3459.14, 3659.02, 3858.57, 3789.51, 3456.46, 3116.8, 2770.42],
     C: [0, 0, 300, 606.75, 901.44, 1221.21, 773.83, 256.65, 0, 0, 0, 0],
     D: [2887.02, 2774.13, 2661.34, 2548.64, 2436.03, 2323.51, 2211.08, 2098.74, 1986.49, 1874.33, 1762.26, 1650.27],
   },
   interest: {
-    A: [82.47, 52.31, 51.37, 54.93, 58.55, 62.25, 66.01, 69.83, 73.63, 72.32, 65.96, 59.48],
+    A: [82.47, 52.35, 51.37, 54.93, 58.55, 62.25, 66.01, 69.83, 73.63, 72.32, 65.96, 59.48],
     C: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     D: [23.99, 23.81, 23.64, 23.47, 23.3, 23.13, 22.97, 22.8, 22.64, 22.47, 22.31, 22.15],
   },
@@ -93,16 +111,16 @@ const PARITY_GOLDEN = {
     D: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   },
   mins: {
-    A: [88.08, 55.87, 54.87, 58.67, 62.54, 66.48, 70.5, 74.58, 78.64, 77.24, 70.45, 63.52],
+    A: [88.08, 55.91, 54.87, 58.67, 62.54, 66.48, 70.5, 74.58, 78.64, 77.24, 70.45, 63.53],
     C: [0, 0, 0, 25, 25, 25, 25, 25, 25, 0, 0, 0],
     D: [136.48, 136.22, 135.96, 135.7, 135.44, 135.18, 134.93, 134.68, 134.43, 134.18, 133.93, 133.69],
   },
   debtCash: {
-    A: [1663.03, 311.3, 75, 75, 75, 75, 76.13, 80.28, 352.69, 615.37, 615.62, 615.86],
+    A: [1661.03, 313.3, 75, 75, 75, 75, 76.13, 80.28, 352.69, 615.37, 615.62, 615.86],
     C: [0, 0, 25, 25, 25, 25.5, 474.85, 534.58, 262.42, 0, 0, 0],
     D: [36.97, 36.7, 36.43, 36.17, 35.91, 35.65, 35.4, 35.14, 34.89, 34.63, 34.38, 34.14],
   },
-  cash: [800, 802, -859.43, -20.6, 799.53, 738.38, 802, 802, 802, 802, 802, 802],
+  cash: [802, 802, -859.43, -20.6, 799.53, 738.38, 802, 802, 802, 802, 802, 802],
   payoff: 12,
   flagCount: 12,
 };
@@ -278,14 +296,16 @@ describe('simulateVariablePayoff — avalanche ranks on the MARGINAL rate', () =
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 7, 14, 12, 0, 0));
 
-    // Pool: 3,000 cash + 2,000 income = 5,000 above a $0 floor. Minimums 100 + 100, surplus 4,800.
+    // Pool: 3,000 cash + 2,000 income = 5,000, drained not to the $0 floor but to the floor plus
+    // FLOOR_CUSHION_DOLLARS (2026-08-21: month 0 is cushioned like every other month, see
+    // step5Floor in credit-card-engine.ts). Minimums 100 + 100, so the surplus is 4,798, not 4,800.
     const flipped = run(makePair(true));
-    expect(flipped.monthlyPayments.get('LOW')![0]).toBe(4900);
+    expect(flipped.monthlyPayments.get('LOW')![0]).toBe(4898);
     expect(flipped.monthlyPayments.get('MID')![0]).toBe(100);
 
     // Control: the SAME cards without the tranche sort the other way round, 18% before 10%.
     const control = run(makePair(false));
-    expect(control.monthlyPayments.get('MID')![0]).toBe(4900);
+    expect(control.monthlyPayments.get('MID')![0]).toBe(4898);
     expect(control.monthlyPayments.get('LOW')![0]).toBe(100);
 
     // And the money lands where §164 says: m0 interest on LOW is
@@ -294,11 +314,11 @@ describe('simulateVariablePayoff — avalanche ranks on the MARGINAL rate', () =
     expect(flipped.monthlyInterest.get('LOW')![0]).toBe(103.30);
     expect(control.monthlyInterest.get('LOW')![0]).toBe(50);
 
-    // The 4,900 clears the 25.99% bucket first (4,086.63 = 4,000 + its 86.63 of interest), leaving
-    // 813.37 for the remainder, so month 1 accrues on the 10% money alone:
-    //   end balance 6,000 + 103.30 − 4,900 = 1,203.30 → × 10%/12 = 10.0275 → 10.03
-    expect(flipped.monthlyBalances.get('LOW')![0]).toBe(1203.30);
-    expect(flipped.monthlyInterest.get('LOW')![1]).toBe(10.03);
+    // The 4,898 clears the 25.99% bucket first (4,086.63 = 4,000 + its 86.63 of interest), leaving
+    // 811.37 for the remainder, so month 1 accrues on the 10% money alone:
+    //   end balance 6,000 + 103.30 − 4,898 = 1,205.30 → × 10%/12 = 10.0442 → 10.04
+    expect(flipped.monthlyBalances.get('LOW')![0]).toBe(1205.30);
+    expect(flipped.monthlyInterest.get('LOW')![1]).toBe(10.04);
   });
 });
 
