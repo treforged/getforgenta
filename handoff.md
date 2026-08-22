@@ -1,5 +1,77 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 17 (**THE AUTOMATIC CASH FLOOR IS FIXED AND LIVE-VERIFIED. It now produces a
+> strictly BETTER projection than his manual floor did — no negative cash and no below-minimum
+> months at all. Tre is back on automatic. The C5 extra stays OFF pending Fault 2.**)
+
+## ✅ FIXED — the automatic floor is a real per-month figure (`4978dd42`)
+**The defect:** automatic resolved the floor to 0, so the engine drained to
+`max(0, prePaycheckBills)` while the forecast judged each month against
+`getAugmentedMinSafeCash` = bills **+ card minimums + vehicle-loan payments**. **A plan that spends
+down to one line and is measured against a higher one breaches by construction.**
+The conceptual error: pre-paycheck bills are what must be **PAID**, not a buffer.
+
+**The rule now: DRAIN TO WHAT YOU MEASURE.** The automatic floor takes the yardstick's shape —
+per month, `bills before next paycheck + card minimums + vehicle-loan payments`. Every term is
+measured from the user's own rows: no buffer constant, no percentage, no heuristic.
+
+**Per month is what makes it efficient** (Tre's ask). A constant is wrong in both directions at
+once — too high in a light month, stranding cash that could retire 27% debt; too low in a heavy one.
+Both terms move: bills shift with the pay calendar, a vehicle loan stops the month it pays off.
+
+### Measured on his live data — three states
+| | Result |
+|---|---|
+| automatic (broken) | **⚠️ cash goes NEGATIVE Apr 2028** |
+| manual $2,500 | below-minimum Nov 2026, Oct 2027, Jan 2029 |
+| **automatic (fixed)** | **NO warnings at all.** CC free **Oct 2028**; move fund **1 month late, $709 short** |
+
+⚠️ **The fix also cleared the two PRE-EXISTING below-minimum months** (Nov 2026, Oct 2027) — they
+were the same drain-vs-yardstick asymmetry, not something today's work introduced.
+**MANUAL USERS STILL HAVE IT.** Their drain is `max(their floor, bills)` while they are judged
+against `+ minimums + loans`. Fixing it there changes their numbers and was not asked for — but it
+is the same one-line change (`committedOutflows`) and is the obvious next improvement.
+
+### How it is wired
+`getMinSafeCash` gained an optional **`committedOutflows`**, **ADDED** to the bills before the max,
+never maxed against them — a month owes its bills AND its minimums, so taking the larger
+under-reserves by whichever is smaller. **Defaults to 0**, so every pre-existing caller and every
+manual user is byte-identical. `src/lib/auto-cash-floor.ts` computes the term.
+⚠️ **Minimums come from `accounts.min_payment`, NOT the simulation.** The simulation is the thing
+the floor constrains; a sim-derived minimum would make the floor depend on the plan that depends on
+the floor, and the convergence loop has been round that circle before.
+⚠️ Three `useCardProjection` fixtures are now pinned to `cash_floor_is_manual: true` — they omitted
+the column, so they had silently fallen into automatic mode and were testing the floor instead of
+the ranking / loan-activation behaviour they were written for.
+
+## 📊 CURRENT LIVE STATE
+| Setting | Value |
+|---|---|
+| Tre's cash floor | **automatic** (his stored $2,500 preserved for one-tick revert) |
+| Other 45 users | **manual**, their own stored numbers |
+| C5 extra principal | **OFF** — confirmed by Tre, pending Fault 2 |
+
+## 🟠 STILL OPEN — FAULT 2, the C5 extra costs 9 months (unchanged, not investigated)
+A/B at manual $2,500: C5 ON → CC free Jun 2029 + a below-min month; C5 OFF → CC free Sep 2028.
+**The C5 is ranked 4th, BELOW both cards**, so it should be unreachable until they are full. That
+delay looks like a defect, not a trade. **Re-run this A/B under the FIXED floor before digging —
+the numbers above were taken with the broken one.**
+Suspects: (a) the reserve leaves checking via `autoExtraOutThisMonth`, shrinking the revolving
+target fed back through convergence; (b) month-loop card capacity uses `revBalAt`, which may
+understate what the cascade would spend.
+
+## ⏭️ START HERE
+1. **Fault 2** — re-measure under the fixed floor first.
+2. **Consider giving MANUAL users the `committedOutflows` term too** — it is the same one-liner and
+   would clear their below-minimum months.
+3. **Move the 42 default users to automatic + the login notice** Tre asked for. The calculation is
+   now safe, so this is unblocked.
+4. **`main` is 29 commits ahead of `origin/main` and has never been pushed this run.**
+5. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 16 (**REGRESSION REPORTED BY TRE AND ROOT-CAUSED BY A/B ON LIVE DATA. Two
 > separate faults, one of them mine. Edge functions ARE deployed. Read the A/B table before
 > changing anything about the cash floor or the loan target.**)
