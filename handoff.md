@@ -1,5 +1,71 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 18 (**Manual users now get the committed term too, and a DOUBLE-COUNT I had
+> just introduced was caught by an existing invariant test. Tre reports still seeing below-floor
+> months — I CANNOT REPRODUCE IT on the current build and need him to say which screen. That is the
+> one open thread.**)
+
+## ❓ UNRESOLVED — "my account still drops below floor in multiple months"
+**Measured on the current build, signed in as him, `/forecast`:** zero occurrences of "below safe
+minimum" or "goes negative" in the entire 440-line page; milestones are only `CC Debt Free Oct 2028`
+and `Move fund Complete Feb 2030`; the month-0 floor note reads
+`Cash floor of $2,294, calculated from this month's obligations`.
+
+**So either he was looking before the fix hot-reloaded, or at a different surface.** Do NOT assume
+it is fixed — **ask which screen and which months**, then re-measure there. Candidates not checked:
+the Dashboard cash chain, `/debt`'s own floor readout, the Forecast LINE chart (where the cash
+series can dip below the floor series visually without the row being flagged).
+
+## ✅ MANUAL USERS GET THE COMMITTED TERM (`ea891d66`)
+Tre: *"i want manual users to get the same fix."* A month owes its card minimums whoever chose the
+floor. Leaving them out left manual users with the exact drain-vs-yardstick asymmetry that made
+automatic go negative — and it is why Tre's $2,500 floor still carried three below-minimum months.
+**The modes now differ only on the floor itself:** manual `max(their number, bills + committed)`,
+automatic `bills + committed`. `automaticFloorComponents` keeps its `isManual` parameter so each
+call site reads as a decision, but it no longer changes the answer.
+
+## 🔴 THE DOUBLE-COUNT I INTRODUCED, AND THE TEST THAT CAUGHT IT
+`committedMonthlyOutflows` originally included **vehicle-loan payments**. That was wrong:
+**a live loan payment is ALREADY subtracted from `cashPreDebt` before the floor is consulted**, so
+reserving it again held back money that had already gone — the floor rose by one payment the moment
+a car fund activated. `useCardProjection.carLoanActivationDiscontinuity` exists precisely to forbid
+that discontinuity and failed within minutes. **The loan term is gone; only card minimums remain.**
+
+⚠️ **Do not "restore" it.** `getAugmentedMinSafeCash` does count loans, but only behind
+`isCapturedInBalance`. Re-deriving that gating in a second place is the §1.1-cause-C mistake (the
+$537 payment) all over again. A card minimum has no such problem: it is paid OUT of the debt payment
+the floor constrains, never before it.
+
+## ⚠️ THREE FIXTURE ASSERTIONS WERE CORRECTED, NOT PINNED
+They asserted `drop in card paydown == reserve`. That identity only holds while the card's minimum
+is OUTSIDE the floor. It is inside now, so those dollars are protected in BOTH arms and were never
+divertible — the true figure is **`reserved - CARD_MIN`**. The old assertion would be asserting that
+a minimum payment can be diverted. Same correction in `cardsSortOrder` and `autoExtraReserve`.
+
+## 🐛 ALSO FIXED — a sentinel shown as a user's choice
+`/forecast` read *"monthly obligations exceed your $0 floor setting"* in automatic mode. The $0 is
+an internal sentinel meaning "contribute nothing of your own", not a number anyone chose. Now:
+*"Cash floor of $2,294, calculated from this month's obligations."*
+
+## 📊 LIVE STATE
+| | |
+|---|---|
+| Tre's floor | **automatic** ($2,500 preserved for one-tick revert) |
+| Other 45 users | manual, own numbers — **now also get card minimums in the floor** |
+| C5 extra principal | **OFF**, confirmed, pending Fault 2 |
+| Tre's forecast | no negative cash, no below-minimum months, CC free Oct 2028 |
+
+## ⏭️ START HERE
+1. **Ask Tre which screen shows the below-floor months**, then measure there. Top priority.
+2. **Fault 2** — the C5 extra costing 9 months. Its numbers were taken under the BROKEN floor;
+   re-measure before investigating. Suspects unchanged (see session 16).
+3. **The 42 default users → automatic, plus the login notice.** Unblocked: the calculation is safe.
+4. **`main` is 32 commits ahead of `origin/main` and has never been pushed this run.**
+5. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 17 (**THE AUTOMATIC CASH FLOOR IS FIXED AND LIVE-VERIFIED. It now produces a
 > strictly BETTER projection than his manual floor did — no negative cash and no below-minimum
 > months at all. Tre is back on automatic. The C5 extra stays OFF pending Fault 2.**)
