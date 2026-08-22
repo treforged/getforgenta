@@ -1720,6 +1720,22 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash goes negative!' });
       } else if (endingCash >= 0 && endingCash < cashFloor && (data.length === 0 || data[data.length - 1]?.endingCash >= cashFloor)) {
+        // 🔴 KNOWN DEFECT, DELIBERATELY LEFT IN PLACE FOR NOW (2026-08-21). This compares against
+        // the raw `cashFloor` SETTING, while the table colours each row against `b.monthMinSafe`
+        // — the month's REAL floor, which is what the drawer itemises. The two therefore disagree
+        // about the same fact: Tre's forecast showed NINE red months while the summary above it
+        // reported none, and in AUTOMATIC mode (setting = 0) the warning is structurally
+        // unreachable for any positive balance.
+        //
+        // ⚠️ DO NOT FIX THIS ALONE. Switching the comparison to `b.monthMinSafe` is a two-line
+        // change and it immediately turns TWO GOLDEN CONVERGENCE TESTS RED
+        // (forecast-convergence.manualISB, forecast-convergence.realData — both assert "no cash
+        // floor breach", both then report Jul 2026). That is not the fix breaking them: it is the
+        // fix REVEALING a real engine breach the old comparison had been hiding. The engine drains
+        // to `cashFloorByMonth` while it is judged against `getAugmentedMinSafeCash`, and those two
+        // still differ by the vehicle-loan term (see auto-cash-floor.ts on why the loan cannot
+        // simply be added to the drain side — it is already out of cash). Close the engine gap and
+        // the reporting fix together, or the suite goes red for the right reason and stays there.
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
       }
 
