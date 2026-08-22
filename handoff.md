@@ -1,5 +1,78 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 21c (**THE MONTH-0 KNIFE EDGE IS CLOSED. `1eebd1f3`, 3/3 adversarial ship
+> votes, no blockers, no majors, 2147 green. The cash-floor thread is DONE. Four minor follow-ups
+> below, one of them user-visible. Nothing is pushed.**)
+
+## ✅ SHIPPED — month 0 gets the same $2 cushion (`1eebd1f3`)
+Tre, 2026-08-22: *"take the cushion."* Approved after being told it costs the recommended payment $2.
+
+| | Before | After |
+|---|---|---|
+| Month-0 margin above its floor | **+$0.08** | **+$2.08** |
+| Month-0 recommended payment | $1,454 | **$1,452** |
+| Projection vs live recommendation | match | **still match, to $0.0000** |
+| CC Debt Free | Jul 2027 | **Jul 2027** |
+| Suite | 2142 | **2147 passed / 0 failed** |
+
+**The hard part was that the cushion had to move BOTH sides at once.**
+`credit-card-engine.ts:1763` dropped its `(m > 0 ? FLOOR_CUSHION_DOLLARS : 0)` ternary, and the live
+safe-to-pay cap in `useCardProjection.ts` moved with it, reading **one shared constant** rather than
+two `+ 2` literals that could drift. The old comment said month 0 was uncushioned *so the projection
+keeps matching the live recommendation* — that invariant is preserved, and verified to the last
+float digit (`3147.2000000000007` on both sides).
+
+**Eight assertions in two SYNTHETIC engine unit tests were adjusted**, none weakened, none skipped,
+no tolerance loosened. They were proved 21/21 green on pristine HEAD first, so the failures were
+provably caused by the change. Expectations are expressed as `afterCushion(n)` importing the real
+constant, so they track it if it is ever retuned. **`PARITY_GOLDEN` ("Not one cent of this may
+move") was re-pinned only after a throwaway probe confirmed the parity property it guards is
+intact** — the moved cells are documented cell-by-cell in a 17-line fixture header, and `cash[0]
+800 → 802` turned out to be correcting an outlier, since months 1 and 6-11 already read 802.
+**The two golden convergence tests were not touched at all** and pass unmodified.
+
+## 🟡 FOUR MINOR FOLLOW-UPS from the verifiers — none blocked the ship
+1. **USER-VISIBLE, fix first.** The month-0 drawer now renders a **"Kept as surplus $2.20"** row
+   explained as *"more cash than the remaining card balances can absorb"*. That is not what the
+   $2.20 is — it is the cushion. The drawer's equation still balances exactly, so it is cosmetic,
+   but it is a number attributed to the wrong reason **on a surface built to explain itself**.
+2. `useCardProjection.ts:1812-1814` — the comment calls the two floors an *"identical target"* while
+   correctly quoting the engine's extra `Math.max(..., nextMonthFloor)` on the next line. In a
+   codebase whose scar tissue is entirely "two surfaces silently disagreed", a false equivalence
+   claim sitting on top of the agreement is the wrong comment to leave.
+3. `forecast-engine.ts:1484-1491` — month 0 is now the only month of 30 that falls **outside** the
+   step-3 "stable landing strip", so it trips the surplus branch every pass. Inert today (month 0's
+   payments are pinned twice over), but the comment now describes a strip month 0 is not in.
+4. A comment asserts ending cash equals `safeToPayTotal`; it is off by $1,695. The commit message
+   states the same invariant correctly, so it is a transcription slip.
+
+⚠️ **`node_modules` on this tree is in a partially-repaired state** — the builder ran
+`npm install --no-save @alloc/quick-lru@5.2.0` to get past a missing transitive dep. `package.json`
+and `package-lock.json` are **byte-identical** and nothing leaked into the commit, but **run a full
+`npm ci` before leaning on a build from this tree again.**
+
+## 🚢 STATE — nothing pushed
+`1eebd1f3` (cushion) · `1cc1718e` (handoff) · `3dc97033` (VERSION 6.4.0) · `34ccad88` + `b531ce99`
+(the reporting fix; **the diff is in `b531ce99` under a docs message** — see session 21b).
+`origin/main` is behind. Tre: *"it will rebuild ios on next push."*
+
+## ⏭️ START HERE
+1. **Follow-up 1** — relabel the drawer's cushion row. User-visible, small.
+2. **Follow-ups 2-4** — comment fixes, one pass.
+3. **Wire `classifyBump` into the release path.** It has **zero callers**, which is the actual root
+   cause of the failed iOS upload: `VERSION` sat at 6.3.0 across 72 commits and 18 `feat:`.
+4. New defect 1 (frozen card-minimum term in `auto-cash-floor.ts` — a paid-off card reserves its
+   minimum forever) and new defect 2 (Prime Visa's `$559.40` bundles `$524.40` of installments that
+   all end by Aug 2027). Both open, both written up in session 21 below.
+5. Fault 2 (C5 extra costing 9 months) — re-measure now the floor work is settled.
+6. `CreditCardEngine.tsx` is the only place left draining month 0 to a bare floor. **Zero test
+   coverage — live verification, not a blind edit.**
+7. The 42 default users → automatic + login notice. **Unblocked now**, the floor work is done.
+8. **The Aug 2027 cliff end date is SETTLED** (`2027-08-31`, confirmed by Tre twice). Do not ask him
+   again. The levers are priced in session 21 below.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 21b (**THE WHOLE PREMISE OF SESSIONS 19-21 WAS WRONG. There was never a
 > month-0 engine breach. "Jul 2026" was a UNIT MISMATCH inside the proposed reporting patch itself.
 > The fix is committed but 2 of 3 adversarial verifiers said DO NOT SHIP, on a real knife-edge.
