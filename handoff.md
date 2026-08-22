@@ -1,5 +1,83 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 20 (**THE ENGINE BREACH IS FULLY MECHANISED — exact cause, exact fix, exact
+> reason it is risky. NOT SHIPPED: it is the highest-blast-radius change in the repo and the session
+> ran out of context to verify it. The Aug 2027 cliff is CONFIRMED as Tre's own data, and the CC IS
+> already pulling back correctly.**)
+
+## ✅ ANSWERED — the Aug 2027 cliff is his numbers, not a modelling artefact
+`recurring_rules`, live:
+- **`GF Half of Rent/Groceries` $1,100/mo, `end_date` = 2027-08-31.**
+- `Weekly Paycheck` $848.89/wk (~$3,678/mo), no end date. `GF Part of Cruise` $52 ends 2027-04-18.
+
+The forecast agrees to the dollar: **Aug 2027 income $5,279 → Sep 2027 $4,179 = exactly $1,100.**
+After the cliff his rent (**$1,915**) is **~52% of a ~$3,678 base income**, alone. That is the whole
+of it. Nothing in the engine invented it.
+
+## ✅ ANSWERED — "cc should be pulling back": IT IS
+The CC chips in the red months are **$349 / $362 / $414 / $589** against a combined contractual
+minimum of **$808.40** (Visa $559.40 + Discover $249). The engine is already below the combined
+figure because cards retire progressively — **it has pulled back as far as a contract allows.**
+A minimum is not optional, so the remaining shortfall cannot be closed by paying less. **The lever
+is income, the move budget, or the move date — not the payment plan.**
+
+## 🔬 THE ENGINE BREACH — mechanism nailed, fix identified, NOT applied
+**Two floors exist and they disagree:**
+| | Floor used | Where |
+|---|---|---|
+| **The SIM** (`useCardProjection`, `CreditCardEngine`) | `getMinSafeCash` — pre-paycheck bills (+ my card-minimum term) | `cashFloorByMonth` |
+| **The FORECAST** | `getAugmentedMinSafeCash` → `monthMinSafe`, and it already drains to it (`step3SpendFloor`, Q9) | rows + milestones |
+
+**The mechanism:** the sim drains to the LOWER floor and therefore authorises a larger payment; PASS 3
+then TRUSTS the sim's ledger (the single-clamp rule — "the sim clamps, the engine trusts"), so the
+forecast reports an ending cash below its OWN `monthMinSafe`. The breach is manufactured at the
+hand-off between the two, not by either one alone.
+
+**⚠️ MY `committedMonthlyOutflows` IS ALIGNED TO THE WRONG MONTH.** Reading
+`getAugmentedMinSafeCash` in full shows it reserves **NEXT month's** obligations that fall due
+before next month's first paycheck (`duePostPaycheck`), with `dueSynced` gating month 0. I added
+**THIS month's** card minimums. That is why it narrowed the gap without closing it — and it is also
+why the vehicle-loan term double-counted: the yardstick reserves next month's loan payment, never
+the one already deducted from this month's cash.
+
+**THE FIX: make the sim's `cashFloorByMonth` BE `getAugmentedMinSafeCash`.** One function, both
+purposes — the same "one function, two callers, no room to disagree" rule `capture-evidence.ts` was
+created to enforce. `committedMonthlyOutflows` then disappears entirely rather than being tuned.
+
+### ⚠️ WHY IT WAS NOT SHIPPED — read before starting
+1. **Blast radius.** `cashFloorByMonth` feeds the payoff simulation. Changing it moves every payoff
+   date, every safe-to-pay figure and every recommendation, for every user. This is the Q1–Q12
+   convergence core with a documented history of two-cycle oscillations and penny-level floor
+   misses; it is not a change to make without room to verify.
+2. **A real circularity to solve.** `getAugmentedMinSafeCash` wants `cc` (simCards,
+   monthlyRevolvingBalances, perCardMinPayments) — which the sim PRODUCES. `cc` is nullable, so a
+   first pass can be made with `cc: null`, but that omits the CC-minimum term and leaves a smaller
+   version of the same gap. Either feed it the previous convergence pass's cards, or accept the
+   `null` gap deliberately and say so.
+3. **The reporting half is a two-line change** (`endingCash < b.monthMinSafe` instead of
+   `< cashFloor`, comparing the previous month against its own floor) and is written up in a comment
+   at `forecast-engine.ts` ~1722. **It must land WITH the engine fix**, or the two golden
+   convergence tests (`forecast-convergence.manualISB`, `.realData`) go red on Jul 2026 — correctly.
+
+**Verification is cheap and decisive:** those two golden tests either go green with both halves in,
+or they do not. Start there.
+
+## 📊 LIVE STATE — unchanged this session
+Tre: floor **automatic** ($2,500 preserved) · C5 extra **OFF** · 45 others manual, own numbers.
+**Suite 2142 green, tsc clean, build green.** No source changed in session 20.
+
+## ⏭️ START HERE
+1. **The engine fix above, with the reporting fix, in one change.** Everything needed is written
+   down; the golden tests are the oracle.
+2. Tell Tre the cliff is structural (done, this session) and help him pick a lever.
+3. Fault 2 (C5 extra costing 9 months) — re-measure under the fixed floor first.
+4. The 42 default users → automatic + the login notice.
+5. **`main` is 35 commits ahead of `origin/main` and has never been pushed this run.**
+6. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 19 (**THE BELOW-FLOOR MONTHS ARE REAL AND STRUCTURAL — not an engine fault
 > and not caused by today's edits. But the SUMMARY was lying by omission, and root-causing that
 > uncovered a genuine engine breach the old comparison had been hiding for as long as it existed.
