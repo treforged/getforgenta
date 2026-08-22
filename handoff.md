@@ -403,6 +403,23 @@ rewrite into the SPA and renders the 404 **with a 200**.
 ✅ **Verified honestly:** on the Vite dev server `/calendar/` serves the SPA — **and so does the
 already-live `/answers/`**, which proves it is a dev-vs-Vercel difference, not a fault.
 
+✅ **NOW VERIFIED IN PRODUCTION, 2026-08-21, after Tre pushed.** That dev-server caveat is closed —
+all three URLs fetched off the live domain and read by contents, not trusted from the deploy:
+
+| URL | status | Content-Type | bytes |
+|---|---|---|---|
+| `/calendar/` | 200 | `text/html; charset=utf-8` | 4,689 — `<h1>` is **"The bill calendar"** |
+| `/calendar/bill-calendar.pdf` | 200 | `application/pdf` | 319,793 — starts `%PDF-` |
+| `/calendar/bill-calendar.png` | 200 | `image/png` | 64,628 — starts `\x89PNG` |
+
+Both byte counts match what the marketing repo generated, so nothing was re-encoded or truncated.
+The static files beat the SPA rewrite in production, as designed.
+
+**The 200-not-404 warning above is not theoretical — it was observed.** An hour before the push that
+same URL returned the app's landing page with a 200 and an `<h1>` of "Forgenta — Personal Finance,
+Engineered". Nothing in the response said it was wrong. Any future check of this page must assert on
+the heading or the Content-Type, **never on the status code**.
+
 ## ✅ SHIPPED — automatic cash floor, now the default (`39179416`)
 `profiles.cash_floor_is_manual` (default FALSE = automatic). **All 46 profiles are on automatic.**
 **Automatic invents nothing**: `getMinSafeCash` already took `max(cashFloor, prePaycheckBills)`, so
@@ -483,16 +500,17 @@ carries a `notes` line naming the trading folder and the leave-alone instruction
 nothing spends it today. If a future feature ever offers brokerage as fundable, exclude `7820432e`
 explicitly.
 
-## 📥 NEXT UP BY TRE'S OWN REQUEST — `/calendar/` (marketing)
-He asked for `getforgenta.com/calendar/` **right after this thread, or in any break**. The scope is
-already written up in this file — search **"SCOPED, NOT BUILT — `/calendar`"**. It is half a
-session, touches no app code, and blocks nothing.
-**The one gotcha, restated because it fails silently:** it must be `public/calendar/index.html` (a
-DIRECTORY). `vercel.json` rewrites `/(.*)` to `/index.html`, so `/calendar` without the directory
-falls into the SPA and renders the app's 404 **with a 200 status**.
+## ✅ DONE — `/calendar/` (was "NEXT UP BY TRE'S OWN REQUEST")
+Built in `df9b16cd`, pushed 2026-08-21, and **verified live** — see the `✅ SHIPPED — /calendar/`
+section above for the response table. Nothing left to do here.
+
+This block pointed at a scope written as **"SCOPED, NOT BUILT — `/calendar`"**, which a later
+rewrite of this file removed once the work was done. That is correct, and the pointer was left
+dangling — noted rather than silently deleted, because a search that returns nothing reads like a
+lost section rather than a finished one.
 
 ## ⏭️ START HERE
-1. **`/calendar/`** — Tre asked for it next. Scope is in this file already.
+1. ~~**`/calendar/`**~~ — ✅ **DONE.** Shipped `df9b16cd`, pushed and verified live 2026-08-21.
 2. Tell him the rent <= $1,480 threshold; it is the whole decision.
 3. Add the ~$1,280 crypto when it has a date (currently $768.69, so ~$511 of recovery to go).
    ⚠️ Worth far less than face value at rank 2 — the $250 moved the shortfall by $31.
