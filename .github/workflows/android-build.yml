@@ -170,10 +170,25 @@ jobs:
           else
             RANGE="-6"
           fi
-          # Filtering, sentence-casing, dedup, the 500-char Play limit and
-          # word-boundary truncation all live in the script so they can be
-          # tested locally. See scripts/release-notes.sh.
-          bash scripts/release-notes.sh "$RANGE" > whatsnew/whatsnew-en-US
+          # HOW TO WRITE THE WORDING THAT LANDS HERE: docs/release-notes-template.md.
+          #
+          # The generator moved from bash to node on 2026-08-22 so it could be
+          # TESTED. See scripts/lib/__tests__/release-notes.test.mjs, which pins
+          # the output for the three releases that really shipped. The output
+          # contract is unchanged: notes on stdout, exit 0, and 20..480 bytes,
+          # which is the GENERATOR's own cap sitting inside the 20..500 the check
+          # below enforces (500 is Play's per-locale limit). Two numbers, and
+          # they are not the same number.
+          #
+          # What changed is what it PUBLISHES. It no longer echoes commit
+          # subjects at all. It prefers a `Release-Note:` trailer written by a
+          # person, falls back to pre-written themed sentences, and says
+          # "maintenance release" when nothing user-visible shipped.
+          #
+          # --why and any warnings go to stderr, so they land in the log without
+          # touching the file. A warning here means somebody wrapped a
+          # `Release-Note:` trailer onto a second line and lost half of it.
+          node scripts/release-notes.mjs "$RANGE" --why > whatsnew/whatsnew-en-US
           echo "--- Generated whatsnew-en-US ($(wc -c < whatsnew/whatsnew-en-US) chars) ---"
           cat whatsnew/whatsnew-en-US
           # Hard stop rather than let Play reject the upload or publish a stub.

@@ -282,6 +282,11 @@ to undo a change.
 - Use clear, descriptive commit messages:
   `[scope]: what changed and why`
   Example: `[auth]: fix token expiry check in middleware`
+- If the commit changes something a **customer** would notice, add a one-line
+  `Release-Note:` trailer to the body. It is published verbatim to the Play and
+  App Store listings; without one, the generator falls back to a themed sentence
+  and never publishes the subject. One line only, and see
+  `docs/release-notes-template.md` for how to word it.
 - Never push unless explicitly asked.
 - Never force push, amend history, or rebase unless explicitly asked.
 
