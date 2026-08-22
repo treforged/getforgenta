@@ -1809,9 +1809,87 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0, syncCutoffDate,
       ).monthMinSafe;
 
-      // How far month 0 is actually allowed to drain: the augmented floor plus the shared cushion,
-      // which is the identical target credit-card-engine.ts's Step 5 uses for every month
-      // (step5Floor there is Math.max(effectiveFloor, nextMonthFloor) + FLOOR_CUSHION_DOLLARS).
+      // How far month 0 is actually allowed to drain: the augmented floor plus the shared cushion.
+      // The CUSHION is the same one credit-card-engine.ts's Step 5 applies to every month; the
+      // TARGET is not the same expression. step5Floor there is
+      // Math.max(effectiveFloor, nextMonthFloor) + FLOOR_CUSHION_DOLLARS, and this site has no
+      // nextMonthFloor term at all.
+      //
+      // Which array is nextMonthFloor read from? credit-card-engine.ts's Step 5 reads
+      // cashFloorByMonth[m + 1], and cashFloorByMonth is THIS FILE'S augmentedCashFloorByMonth,
+      // which is what every simulateVariablePayoff call site in this file passes for that
+      // argument EXCEPT the bootstrap pass — the bootstrap runs before the augmented array
+      // exists, so it passes the bare cashFloorByMonth. The three augmented call sites are the
+      // refinement-loop `sim`, the capped-retry `sim2`, and the `replayActiveSim` closure; two
+      // are above this comment and one below, so locate them by name, not by direction. It is
+      // NOT forecast-engine.ts's baseData[].monthMinSafe, which is a separate
+      // getAugmentedMinSafeCash sweep that does not agree with this one to the cent (see the
+      // step-up figures further down). Every number quoted here is measured off the array the
+      // engine actually reads.
+      //
+      // The two targets coincide only when BOTH of the following hold. An earlier version of this
+      // comment named only the first and called it an exact iff, which is wrong in the unsafe
+      // direction: it tells the next reader that floor[1] <= floor[0] is proof the targets match.
+      //   1. augmentedCashFloorByMonth[1] <= augmentedCashFloorByMonth[0], so the Math.max over
+      //      there collapses to effectiveFloor. When it does not hold, the engine's target is
+      //      higher by exactly (augmented[1] − augmented[0]).
+      //   2. m0FloorAugmented (computed immediately above) equals augmentedCashFloorByMonth[0].
+      //      Both are getAugmentedMinSafeCash at month index 0, but they are two DIFFERENT CALLS
+      //      and two of their inputs can diverge:
+      //        (a) DIFFERENT asOf. This site passes `now`, the actual render instant. The array is
+      //            built by computeAugmentedFloor, which passes
+      //            new Date(now.getFullYear(), now.getMonth() + m, 1) — the FIRST of the month.
+      //            asOf is what getPrePaycheckNextMonthBills windows on (which bills fall between
+      //            asOf and the next paycheck), so on any month where that window differs between
+      //            the 1st and today, the two calls return different floors.
+      //        (b) DIFFERENT SIM. This site reads `activeSim`; the array was built from `sim`, by
+      //            computeAugmentedFloor(sim) inside the refinement loop, and is never recomputed
+      //            after `activeSim = sim2` below. The liveRevolvingBal comment just above already
+      //            records that those two can disagree about which cards are still revolving at
+      //            month 0 — and that set is a direct input to this function's CC-minimum term.
+      //      Neither mechanism is ruled out by the code; both are simply unobserved on the current
+      //      fixture, which is a weaker claim than safe.
+      //
+      // Coinciding is the normal shape rather than a coincidence: month 0's augmented floor adds
+      // this month's still-unsettled CC minimums and car-loan payment on top of the flat cash-floor
+      // setting, while month 1 usually falls back to the setting itself. Measured on the golden
+      // fixture (2026-07-20 capture): augmentedCashFloorByMonth[0] = 3145.12 against
+      // augmentedCashFloorByMonth[1] = 2800.00 (the setting exactly), so conjunct 1 holds and the
+      // Math.max collapses to effectiveFloor; m0FloorAugmented is 3145.12 too, so conjunct 2 holds
+      // as well (asOf 2026-07-20T21:59:45.497Z and asOf 2026-07-01 select the same bill window on
+      // this data — measured difference 0.0000), and both sides land on 3147.12 to the cent. The
+      // max() term is not decorative though: the 60-month array has 59 month-to-month transitions,
+      // month 0 -> month 1 is not one of the ones where floor[m + 1] exceeds floor[m], and of the
+      // other 58 it binds in 4 on this same fixture (re-measured 2026-08-22 off the array the
+      // engine actually reads: Mar 2027 -> Apr 2027 +532.07, then Nov 2027 -> Dec 2027,
+      // Feb 2028 -> Mar 2028 and May 2028 -> Jun 2028 at +298.12 each), so a dataset whose
+      // month 1 is one of those step-up months WOULD make the engine's month-0 target
+      // strictly higher than this one. forecast-engine.ts's own floor array puts that first
+      // step-up at +532.06 rather than +532.07 — a cent apart, which is the cheapest available
+      // proof that these are two arrays and not one, and the reason the figures above are sourced
+      // from augmentedCashFloorByMonth.
+      //
+      // Of the three readers below, only the revolving cap is protected against that divergence:
+      // `revolvingPayment` is Math.min(simRevolvingTotal, availableForRevolving), and a higher
+      // engine target means the sim already drained month 0 less, so the sim's own total becomes
+      // the binding bound and this looser cap cannot authorise a dollar the sim did not plan. The
+      // max-capacity headroom moves no cash — but "display-only" is not the same as harmless.
+      // holdback is a number the user reads and acts on: CreditCardEngine.tsx prints it at :1812
+      // ("Holdback: $X reserved for <event>"), at :1828 ("Forecast is reserving $X for <event>")
+      // and at :1869 as the reason a per-card max was capped, and Dashboard.tsx:555-556 surfaces
+      // the same pair. Under a divergence it would not misspend a dollar, it would MISSTATE one, in
+      // a sentence that tells the user how much they are being held back from paying. That is the
+      // wrong side of this repo's own standard for a number shown to a person. The AUTO-EXTRA POOL
+      // is nonetheless the worse one, because it is unguarded in cash as well as in display:
+      // a lower floor here lets `computeAutoExtraReserve` move up to that difference more cash out
+      // of checking, which is exactly the Q9 hazard nextMonthFloor exists to stop (month 1 starting
+      // below its own floor, since month 0 itself is still judged against floor[0], so no month-0
+      // breach). Unobserved rather than proven safe: on the fixture month 1's floor is $345.12
+      // BELOW month 0's and `chain.autoExtraReserve` is 0 (auto_extra defaults FALSE), so the path
+      // has never been exercised. If a step-up month 1 ever shows up with auto-extra on, the fix is
+      // to give this expression the same Math.max(..., augmentedCashFloorByMonth[1]) term, not to
+      // patch the pool.
+      //
       // One expression with three readers below (the auto-extra pool, the revolving cap, and the
       // max-capacity headroom), because all three answer the same question ("what is spendable
       // above the floor this month?") and three separate `- m0FloorAugmented` terms are three

@@ -1489,6 +1489,35 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // EXACTLY at the floor let that residue land cents below it (penny-level red months in
       // the Forecast table, 2026-07-16 live report). With the target a cushion above the
       // floor, sub-tolerance residue can never cross below the floor.
+      //
+      // MONTH 0 IS NOT ON THAT STRIP, and has not been since 1eebd1f3 (2026-08-22 03:28 -0400 —
+      // Tre's DECISION to spend the ~$2 was the day before, 2026-08-21, and is cited at that date
+      // on m0DrainFloor in useCardProjection.ts; the two are a day apart and pairing this hash with
+      // the decision's date is the drift this file's cite-the-commit style exists to stop). Month 0
+      // is the one month whose payment is quantised to whole dollars (useCardProjection rounds each
+      // card's month-0 share), so it lands wherever that rounding puts it rather than settling into
+      // the dead zone. Measured on the golden fixture (2026-07-20 capture): finalLiquid[0] = 3147.20
+      // against step3DrainTo = 3147.12, i.e. $0.08 ABOVE the strip, so the surplus branch below
+      // fires at month 0 on every pass. It is the only month with real revolving debt outstanding
+      // that does: of m1-m11, ten sit $0.00 to $0.92 BELOW step3DrainTo, and the eleventh
+      // (Mar 2027, $0.88 above) is a strictSaveUp month gated out by the condition itself.
+      // Months 12+ do trip it, on the $0.04 of sub-dollar revolving dust Q10 tolerates, for a
+      // $0.04 surplus.
+      //
+      // At month 0 that surplus is discarded three times over, which is why there is deliberately
+      // no `i > 0` guard here:
+      //   1. runDebtCashConvergence never reads month 0's answer. It substitutes NaN at m === 0
+      //      when it builds the feedback array ("month 0 stays live-anchored"), so
+      //      revolvingDebtCashTarget[0] is dropped before any resim can see it.
+      //   2. Fed in directly it would still change nothing: the sim's month 0 is pinned per card
+      //      (m0FloorPins in useCardProjection.ts) and Step 5's cascade skips pinned cards
+      //      entirely. Measured: base.resimulateWithDebtCash with a month-0 target of NaN, of
+      //      $12,000 and of $0 all return the identical paymentLedger[0]: total 1452, same
+      //      four-card split.
+      //   3. The ledger the engine reads back for month 0 is overwritten with month0PaymentLedger
+      //      regardless of what the sim paid.
+      // The $0.08 would not even survive the Math.round on revolvingDebtCash further down. A
+      // special case here would buy nothing and would hide all of the above from the next reader.
       const step3DrainTo = step3SpendFloor + FLOOR_CUSHION_DOLLARS;
       if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > step3DrainTo) {
         const surplus = Math.min(finalLiquid - step3DrainTo, ccEngRevBalEnd);

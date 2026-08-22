@@ -1772,8 +1772,23 @@ export function simulateVariablePayoff(
     //
     // The month-0 match the old exemption protected is preserved rather than abandoned: the live
     // recommendation subtracts the SAME constant at the same point (m0DrainFloor in
-    // useCardProjection.ts), so both sides moved together and month-0 ending cash still equals
-    // month0.safeToPayTotal to the cent. Cushioning only one of the two is what would break it.
+    // useCardProjection.ts), so both sides moved together and the engine and the hook still land on
+    // the SAME month-0 ending cash to the cent. That agreement is the invariant the shared cushion
+    // exists to keep, and it is recorded here as a measured invariant and nothing more: what
+    // cushioning only one of the two sides would do downstream is a counterfactual nobody ran,
+    // so nothing is claimed about it.
+    //
+    // Measured on the golden fixture (forecast-inputs.real.json, clock pinned to its capture
+    // instant 2026-07-20T21:59:45.497Z), both exact: the converged engine's rawEndingCash[0] is
+    // 3147.2000 and useCardProjection's month0.endCash is 3147.2000, a difference of 0.0000.
+    // Month-0 ending cash is `cashPreDebt - safeToPayTotal + carReserveHeld` (the one definition,
+    // at useCardProjection.ts's month0.endCash), which on that run is 4599.20 - 1452.00 + 0.00.
+    //
+    // An earlier draft of this comment stated the invariant as "month-0 ending cash still equals
+    // month0.safeToPayTotal to the cent". That is false, and was false at every cushion: on this
+    // fixture the two differ by 1695.20, because safeToPayTotal is the PAYMENT the user is
+    // recommended and endCash is what is left after making it. Do not restate this invariant in
+    // terms of safeToPayTotal; the thing being preserved is engine/hook agreement on ending cash.
     const step5Floor = Math.max(effectiveFloor, nextMonthFloor) + FLOOR_CUSHION_DOLLARS;
     let availableCash = currentCash + monthIncome - monthExpenses - step5Floor - paidOffCashCost + oneTimeNet - installmentCashCost - pinnedStep5Total;
     if (availableCash < 0) {
