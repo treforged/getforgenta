@@ -50,6 +50,12 @@ jobs:
           # Default shallow (depth 1) checkout wouldn't contain github.event.before, so the
           # release-notes step below could never resolve "commits in this push" and would always
           # fall back to "last 6 commits by HEAD" instead. 50 comfortably covers any normal push.
+          #
+          # The version staleness notice reads this same history, and it needs the commit that last
+          # touched VERSION to be inside it. On 2026-08-21 that gap was 72 commits, past this
+          # horizon, so the notice is written to report a FLOOR when it cannot see the anchor rather
+          # than print a smaller number confidently. Depth stays at 50: a store deploy should not
+          # pay for a full 121 MB history clone to sharpen an advisory count.
           fetch-depth: 50
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
@@ -101,6 +107,31 @@ jobs:
           # builds by it and it must only ever increase.
           node scripts/read-version.mjs >> "$GITHUB_ENV"
           node scripts/read-version.mjs
+
+      # NON-BLOCKING BY CONSTRUCTION, AND IT HAS TO STAY THAT WAY. This prints a reading to the run
+      # summary about whether VERSION has moved since the last time it did; it does not gate the
+      # deploy. `continue-on-error` is belt and braces on top of the script itself, which exits 0
+      # on every path including its own failures. The split is deliberate: an ILLEGAL version is a
+      # hard stop in the step above, because a build is the last place to discover a typo, while a
+      # STALE version still builds, still installs, and is still the right thing to ship if the
+      # person reading the summary decides so. See scripts/version-staleness.mjs.
+      #
+      # `if: always()` so a build that dies further down still leaves the reading behind. "Why did
+      # this ship 6.4 again" is a question asked about failed runs too.
+      #
+      # `set -o pipefail` because `tee` is the last command in the pipe and its exit status is the
+      # step's. Measured on 2026-08-22 against a checkout that made the script throw: the step exit
+      # code GitHub saw was 0 and the bytes appended to $GITHUB_STEP_SUMMARY were 0. A notice step
+      # that crashes and reports success is strictly worse than no notice step, because the empty
+      # summary reads as "nothing to say". With pipefail the crash shows as a red step. It still
+      # cannot take the deploy down: `continue-on-error: true` above is what guarantees that, and
+      # it is why making this louder is safe.
+      - name: Version staleness notice
+        if: always()
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node scripts/version-staleness.mjs | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Build release AAB
         env:

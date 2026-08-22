@@ -1,0 +1,170 @@
+name: Bump VERSION
+
+# THE THING THAT MOVES THE VERSION. Until this existed, nothing did.
+#
+# scripts/next-version.mjs has been able to classify the commits and write VERSION since
+# 2026-08-19, and it had zero callers. So VERSION sat at 6.3.0 across 72 commits, 18 of them
+# `feat:`, while both build workflows read that file and re-shipped the same number. On 2026-08-21
+# Apple rejected the upload: CFBundleShortVersionString 6.3 was not higher than the 6.3 already
+# approved. Somebody then hand-bumped VERSION to 6.4.0 in 3dc97033, which fixed that upload and
+# fixed nothing about the next one.
+#
+# WHY THIS IS `workflow_dispatch` ONLY, AND MUST STAY THAT WAY. The obvious version of this runs on
+# every push to main and commits the bump back, which is a workflow that pushes to the branch that
+# triggers it. Worse than the loop: android-build.yml deploys straight to Google Play PRODUCTION at
+# a 10% staged rollout that auto-promotes to 100% after 24 hours. An unattended bump plus that
+# pipeline is a release cut by a classifier and shipped to customers with nobody in the loop, and
+# that is not a decision to take on the repo owner's behalf. One tap, deliberately: Actions -> Bump
+# VERSION -> Run workflow.
+#
+# NOTE WHAT THIS RUN DOES NOT DO. It commits VERSION and stops. The build workflows filter on
+# `src/**`, `android/**`, `ios/**`, `capacitor.config.ts` and `package.json`, so a VERSION-only
+# commit starts no build and ships nothing. Adding VERSION to those filters would turn this into
+# the automatic pipeline the paragraph above refuses. Dispatch the build yourself once the number
+# is right.
+
+on:
+  workflow_dispatch:
+
+# Stated rather than inherited. The default GITHUB_TOKEN scope is a repository-wide setting, so a
+# workflow that relies on it can lose write access from a settings page it never mentions, and the
+# failure lands on the very last step after the classification everybody wanted is already done.
+#
+# `main`'s branch protection was checked on 2026-08-22: no required reviews, no required status
+# checks, enforce_admins off. So this push lands directly. If required reviews are ever turned on,
+# this step is where it will fail, and the fix is a pull request rather than a bigger token.
+permissions:
+  contents: write
+
+# Two dispatches racing would classify against the same HEAD and the second push would be rejected
+# as non-fast-forward. Queue rather than cancel: unlike the store deploys there is no harm in the
+# first one finishing, and a run cancelled between `git commit` and `git push` is the one outcome
+# worth avoiding.
+concurrency:
+  group: version-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # workflow_dispatch offers a branch picker, and the push below targets main unconditionally.
+      # Refusing loudly beats quietly writing a branch's classification onto main.
+      - name: Refuse to bump from anything but main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Dispatched from $GITHUB_REF. VERSION is only ever bumped on main."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # THE WHOLE HISTORY, and this is the one workflow that genuinely needs it. The classifier
+          # anchors on the commit that last touched VERSION, and at a shallow depth that commit is
+          # past the horizon: the lookup then returns the horizon commit itself, which touched no
+          # VERSION at all, and the classification silently covers a fraction of the range. On
+          # 2026-08-21 the gap was 72 commits, so the build workflows' depth of 50 would not have
+          # covered it either. next-version.mjs now refuses to --write from a truncated history
+          # rather than under-call a minor as a patch, and fetch-depth: 0 is what stops that
+          # refusal from being the normal outcome here.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # No `npm ci`. next-version.mjs imports nothing but node builtins and scripts/lib, so this
+      # run is a checkout and a few git commands. Installing the app's dependencies to move a
+      # three-digit string would be minutes spent for nothing.
+      - name: Classify the commits and write VERSION
+        run: |
+          set -euo pipefail
+          node scripts/next-version.mjs --write | tee "$RUNNER_TEMP/bump.txt"
+
+      - name: Commit and push, only if VERSION actually moved
+        env:
+          # Through the environment rather than interpolated into the script body. GitHub expands
+          # `${{ }}` before bash ever sees the text, so an expression in a shell line is a string
+          # pasted into source; the habit matters more than this particular value.
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+
+          # NO EMPTY COMMITS. `git diff --quiet` exits 0 when VERSION is untouched, and asking the
+          # file is the only safe test: it cannot be fooled by anything the classifier decided.
+          #
+          # Worth writing down what it does NOT catch, because it is a live footgun rather than a
+          # theoretical one. classifyBump returns "patch" even for an empty commit list, on purpose
+          # (scripts/lib/next-version.mjs: "a release cut with no commits since the last one is a
+          # rebuild, and the honest answer for a rebuild is the smallest possible bump"). So
+          # dispatching twice with nothing merged in between writes 6.4.1 and then 6.4.2, and both
+          # are genuine changes to the file that will genuinely be committed. Every dispatch spends
+          # a version number. Patch has 100 before it carries into the minor, so that is cheap, but
+          # this workflow is not idempotent and should not be re-run to "check".
+          if git diff --quiet -- VERSION; then
+            CURRENT="$(tr -d '[:space:]' < VERSION)"
+            echo "VERSION is still $CURRENT after --write. Nothing to commit."
+            {
+              echo "### VERSION was left at $CURRENT"
+              echo
+              echo "\`next-version.mjs --write\` produced the number already in the file, so this run"
+              echo "committed nothing. No empty commit was created."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          OLD="$(git show HEAD:VERSION | tr -d '[:space:]')"
+          NEW="$(tr -d '[:space:]' < VERSION)"
+
+          # The bot identity GitHub itself uses, including the numeric no-reply address, so the
+          # commit is attributed to github-actions[bot] in the UI rather than to a bare name that
+          # matches no account.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # The classifier's own REASONING goes in the body. A version bump nobody can explain is
+          # one nobody can check, and six months from now `git log VERSION` is the only place the
+          # question "why did this become a minor" gets answered. Built with printf and sed rather
+          # than a heredoc so the backticks in that output are never shell syntax.
+          #
+          # The reasoning, and not the receipt. `--write` ends its output with a line that a replay
+          # against a real full clone on 2026-08-22 confirmed lands in the body verbatim:
+          #
+          #     wrote     VERSION = 6.4.1
+          #
+          # That is the action, not the argument for it, and it is already stated three times over
+          # by the subject line, by the classifier's own `next` line, and by the one-line diff the
+          # commit contains. A commit message that ends in a line of tool output describing a
+          # filesystem write reads as a paste rather than a record, so it is filtered here. The
+          # step summary below still `cat`s the file whole: that IS a log, and the receipt belongs
+          # in it. The awk trims the blank line the deletion leaves behind, so the "Dispatched by"
+          # paragraph is separated by exactly one blank line rather than two.
+          {
+            printf 'chore(version): %s -> %s, cut by the Bump VERSION workflow\n\n' "$OLD" "$NEW"
+            sed '/^wrote  *VERSION = /d' "$RUNNER_TEMP/bump.txt" \
+              | awk 'NF { last = NR } { line[NR] = $0 } END { for (i = 1; i <= last; i++) print line[i] }'
+            printf '\nDispatched by @%s. This run declares the number and stops: the build\n' "$ACTOR"
+            printf 'workflows do not watch VERSION, so nothing was built or uploaded.\n'
+          } > "$RUNNER_TEMP/commit-msg.txt"
+
+          git add VERSION
+          git commit -F "$RUNNER_TEMP/commit-msg.txt"
+          git push origin HEAD:refs/heads/main
+
+          {
+            echo "### VERSION $OLD -> $NEW"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/bump.txt"
+            echo '```'
+            echo
+            echo "Committed to \`main\` as \`$(git rev-parse --short HEAD)\`."
+            echo
+            echo "**Nothing was built.** A VERSION-only commit matches no build trigger, so dispatch"
+            echo "**Android Build & Upload to Play Store** or **iOS Build & Upload to App Store**"
+            echo "when this number is the one you want in front of customers."
+          } >> "$GITHUB_STEP_SUMMARY"

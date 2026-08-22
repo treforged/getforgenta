@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "version:next": "node scripts/next-version.mjs",
+    "version:bump": "node scripts/next-version.mjs --write",
+    "version:staleness": "node scripts/version-staleness.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
