@@ -100,6 +100,48 @@ export interface UseCardProjectionParams {
   };
 }
 
+/** One card's manual interest-saving-balance pin: the month its statement comes due, and the
+ * amount the simulation pays UNCONDITIONALLY that month (credit-card-engine's
+ * `manualStatementByCard`), superseding that card's contract minimum. */
+interface IsbPin {
+  cardId: string;
+  month: number;
+  amount: number;
+  minPayment: number;
+}
+
+/**
+ * Cards carrying a pinned statement balance, and the month each pin lands.
+ *
+ * Mirrors credit-card-engine's `manualStatementByCard` eligibility + due-month derivation.
+ *
+ * ⚠️ DERIVED IN ONE PLACE ON PURPOSE. Two consumers need this — the `ccMinByMonth` the save-up
+ * look-ahead reserves against, and the `manualIsbPins` handed to forecast-engine — and they used
+ * to derive it separately. Only forecast-engine ever got it, so the LIVE recommendation (this
+ * hook) modelled a pinned card's next-month obligation at its contract minimum instead of its
+ * statement: real case 2026-08-22, Prime Visa's September obligation modelled at $559.40 against
+ * a $2,845.14 statement, which freed ~$2.3k that the page then recommended paying to a 16.6% card
+ * while the 27.49% card silently lost its grace period. Keep one derivation, or it happens again.
+ */
+function deriveIsbPins(cards: CardData[], now: Date): IsbPin[] {
+  return cards
+    .filter(c => {
+      if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) return false;
+      if (c.startDate) {
+        const startD = new Date(c.startDate + 'T00:00:00');
+        const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
+        if (diff > 0) return false;
+      }
+      return true;
+    })
+    .map(c => ({
+      cardId: c.id,
+      month: c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1,
+      amount: Math.max(0, c.statementBalance!),
+      minPayment: Number(c.minPayment || 0),
+    }));
+}
+
 export function useCardProjection(params: UseCardProjectionParams): CardProjectionResult | null {
   const {
     accounts, transactions, rules, debts, goals, carFunds, profile,
@@ -745,6 +787,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         + Object.values(upfrontPayByMonth[m] ?? {}).reduce((a, b) => a + b, 0)
       );
 
+      // Pinned statement balances, derived ONCE (see deriveIsbPins) and consumed twice: by the
+      // save-up look-ahead's ccMinByMonth below, and by the manualIsbPins handed to
+      // forecast-engine further down. Depends only on `cards` and `now`, so it is hoisted out of
+      // the convergence passes rather than rebuilt on each one.
+      const isbPins = deriveIsbPins(cards, now);
+      const isbPinByCard = new Map(isbPins.map(p => [p.cardId, p]));
+
       // ── Car down-payment amounts per month (for combined look-ahead) ──────────
       // effectiveDP = what must still come from checking in the purchase month after monthly
       // savings have accumulated. When monthly savings cover all of `rem`, this is 0 — no
@@ -1139,11 +1188,25 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           cards.reduce((s, c) => {
             const revBal = sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+            let due: number;
             // Q11: settled card has no month-0 revolving min outflow (cycle already paid).
-            if (revBal > 0) return s + (m === 0 && c.m0MinSettled ? 0 : revolvingMinDue(c, revBal));
-            const backlog = sim.monthlyCyclingBacklog.get(c.id)?.[m] ?? 0;
-            if (backlog > 0) return s + revolvingMinDue(c, backlog);
-            return s;
+            if (revBal > 0) due = (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
+            else {
+              const backlog = sim.monthlyCyclingBacklog.get(c.id)?.[m] ?? 0;
+              due = backlog > 0 ? revolvingMinDue(c, backlog) : 0;
+            }
+            // A PINNED STATEMENT SUPERSEDES THE CONTRACT MINIMUM IN ITS DUE MONTH. The sim pays it
+            // unconditionally (credit-card-engine's manualStatementByCard), so it is a mandatory
+            // outflow, and the reserve has to be banked the month BEFORE — which is what this array
+            // is for. Capped by the card's own modelled revolving balance for the same reason the
+            // sim caps it (min(statementBalance, remaining)): never reserve for more than is owed.
+            // Superseding rather than adding: revolvingMinDue is ALREADY this card's contribution,
+            // so adding the pin on top would count its minimum twice. (forecast-engine expresses
+            // the identical rule additively — `+ max(0, amount - minPayment)` — because ITS base is
+            // ccMinTotal, a sum of contract minimums. Same rule, different base.)
+            const pin = isbPinByCard.get(c.id);
+            if (pin && pin.month === m) due = Math.max(due, Math.min(pin.amount, revBal));
+            return s + due;
           }, 0) + installmentCostByMonth[m],
         );
         // Upper bound on the reducible debt payment: revolving + backlog outstanding entering
@@ -2234,26 +2297,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return { ...hookResult, ...resimFields, resimulateWithDebtCash: makeResimulate(pinnedPayments), withPaymentOverrides };
       };
 
-      // Mirrors credit-card-engine's manualStatementByCard eligibility + due-month derivation
-      // (synthetic ISB pin): a statement-preference card with a manual statement balance and a
-      // live balance, active from month 0, pays exactly the pinned amount at its due month.
+      // The synthetic ISB pins forecast-engine reserves against, from the SAME derivation the
+      // look-ahead's ccMinByMonth uses (see deriveIsbPins, and `isbPins` above). `cardId` is
+      // dropped because the engine only needs the per-month totals.
       // Only months > 0 matter here — month 0 is already excluded from convergence feedback.
-      const manualIsbPins = cards
-        .filter(c => {
-          if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) return false;
-          if (c.startDate) {
-            const startD = new Date(c.startDate + 'T00:00:00');
-            const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
-            if (diff > 0) return false;
-          }
-          return true;
-        })
-        .map(c => ({
-          month: c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1,
-          amount: Math.max(0, c.statementBalance!),
-          minPayment: Number(c.minPayment || 0),
-        }))
-        .filter(p => p.month > 0);
+      const manualIsbPins = isbPins
+        .filter(p => p.month > 0)
+        .map(({ month, amount, minPayment }) => ({ month, amount, minPayment }));
 
       const hookResult: CardProjectionResult = {
         data,
