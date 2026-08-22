@@ -73,6 +73,7 @@ export type Database = {
           min_payment_is_manual: boolean
           min_payment_plaid_synced: boolean | null
           name: string
+          name_is_manual: boolean
           notes: string | null
           payment_due_day: number | null
           payment_preference: string | null
@@ -109,6 +110,7 @@ export type Database = {
           min_payment_is_manual?: boolean
           min_payment_plaid_synced?: boolean | null
           name: string
+          name_is_manual?: boolean
           notes?: string | null
           payment_due_day?: number | null
           payment_preference?: string | null
@@ -145,6 +147,7 @@ export type Database = {
           min_payment_is_manual?: boolean
           min_payment_plaid_synced?: boolean | null
           name?: string
+          name_is_manual?: boolean
           notes?: string | null
           payment_due_day?: number | null
           payment_preference?: string | null

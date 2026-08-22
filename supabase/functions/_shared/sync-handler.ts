@@ -114,7 +114,7 @@ export async function persistAccount(
 ): Promise<void> {
   const { data: existing } = await db
     .from("accounts")
-    .select("id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, balance_tranches")
+    .select("id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, name_is_manual, balance_tranches")
     .eq("user_id", userId)
     .eq("plaid_account_id", account.providerAccountId)
     .maybeSingle();
@@ -170,6 +170,18 @@ export async function persistAccount(
     apr: effectiveApr,
     credit_limit: effectiveLimit,
   };
+
+  // A NAME THE USER CHOSE IS THEIRS, and this is the half that makes the rename stick. Without it
+  // `shared.name` overwrites the edit on the very next run and the user watches their label revert
+  // — which is exactly why the field used to be disabled in the form.
+  //
+  // ⚠️ `institution` is deliberately NOT covered. It is not a label, it is which connection this row
+  // belongs to, and it keeps being written from the provider on every sync. Tre, 2026-08-21:
+  // "allow user account rename... still block institution change."
+  //
+  // Delete rather than never-add, so the rule sits next to the other manual-override policies
+  // instead of being buried in how `shared` is built.
+  if (existing.name_is_manual === true) delete update.name;
 
   if (aprDecision.markPlaidSynced) update.apr_plaid_synced = true;
   if (aprDecision.keptManual) {

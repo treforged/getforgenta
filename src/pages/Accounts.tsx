@@ -551,6 +551,13 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
     if (!editingPlaidLinked) payload.balance = resolvedBalance;
+    // Claim the name for the user the moment they actually change it on a linked account. Stamped
+    // on CHANGE, not on every save: opening the form and saving something else should not quietly
+    // freeze a name the provider is still allowed to correct.
+    const editedAccount = editId ? accounts.find(a => a.id === editId) : undefined;
+    if (editingPlaidLinked && editedAccount && form.name.trim() && form.name.trim() !== editedAccount.name) {
+      (payload as Record<string, unknown>).name_is_manual = true;
+    }
     // Always write min_payment to the accounts row for credit cards so the
     // debt engine reads a consistent value from accounts (not the debts table).
     if (form.account_type === 'credit_card') {
@@ -1251,7 +1258,12 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         <FormModal
           title={editId ? 'Edit Account' : 'Add Account'}
           fields={[
-            { key: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g., Chase Checking', required: true, disabled: editingPlaidLinked },
+            // Editable even on a Plaid-linked account, and `name_is_manual` below is what stops the
+            // next sync reverting it. A provider can hand two accounts the SAME name — Robinhood
+            // gave both a personal and an agent-traded account the name "Robinhood individual" —
+            // and a name is the one field whose entire job is telling them apart.
+            { key: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g., Chase Checking', required: true,
+              hint: editingPlaidLinked ? 'Renaming keeps your name — Plaid sync will not overwrite it' : undefined },
             { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES, required: true, placeholder: 'Select account type…' },
             { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity', disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Managed by Plaid' : undefined },
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
@@ -1283,7 +1295,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           onClose={() => { setShowForm(false); setEditId(null); setTrancheRows([]); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
-          notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ` Credit limit is synced from Plaid.${editingPlaidAprSynced ? ' APR is synced from Plaid.' : ' APR was not returned by Plaid — you can edit it.'}${editingPlaidMinSynced ? ' Minimum payment is synced from Plaid.' : ' Minimum payment was not returned by Plaid — you can edit it.'}` : ''} Notes and payment due day are always editable.` : undefined}
+          notice={editingPlaidLinked ? `Balance and institution are managed by Plaid; the name is yours to change.${editingPlaidLiability ? ` Credit limit is synced from Plaid.${editingPlaidAprSynced ? ' APR is synced from Plaid.' : ' APR was not returned by Plaid — you can edit it.'}${editingPlaidMinSynced ? ' Minimum payment is synced from Plaid.' : ' Minimum payment was not returned by Plaid — you can edit it.'}` : ''} Notes and payment due day are always editable.` : undefined}
         >
           {form.account_type === 'credit_card' && (
             <BalanceTrancheEditor rows={trancheRows} onChange={setTrancheRows} accountBalance={form.balance} />

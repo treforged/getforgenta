@@ -140,3 +140,47 @@ describe('persistAccount — update path writes the policy decision, not the pro
     expect('min_payment' in writes.updated!).toBe(false);
   });
 });
+
+// A USER-CHOSEN NAME IS THEIRS (2026-08-21).
+//
+// The name used to be written from the provider on every single sync, which is why the edit form
+// disabled the field: letting a user rename an account only for the next sync to revert it is worse
+// than not offering the rename at all. The cost was that the app could not tell two accounts apart
+// when the provider gave them the SAME name — Robinhood handed back two rows both called
+// "Robinhood individual", one personal and one traded by an agent.
+//
+// Would-fail check: remove the `delete update.name` line and the first test here fails while every
+// other test in this file stays green.
+describe('persistAccount — a renamed account keeps its name', () => {
+  it('leaves `name` out of the update entirely once the user has renamed it', async () => {
+    const { db, writes } = fakeDb({ id: 'row-1', name_is_manual: true, min_payment_is_manual: false });
+    await persistAccount(db, 'user-1', connection, account({ name: 'Robinhood individual' }), NOW);
+    expect(writes.updated).toBeDefined();
+    expect('name' in writes.updated!).toBe(false);
+  });
+
+  it('still writes the provider name when the user has NOT renamed it', async () => {
+    const { db, writes } = fakeDb({ id: 'row-1', name_is_manual: false, min_payment_is_manual: false });
+    await persistAccount(db, 'user-1', connection, account({ name: 'Discover it Card' }), NOW);
+    expect(writes.updated?.name).toBe('Discover it Card');
+  });
+
+  it('treats a missing flag as not-manual — every pre-migration row is unaffected', async () => {
+    const { db, writes } = fakeDb({ id: 'row-1', min_payment_is_manual: false });
+    await persistAccount(db, 'user-1', connection, account({ name: 'Discover it Card' }), NOW);
+    expect(writes.updated?.name).toBe('Discover it Card');
+  });
+
+  it('NEVER lets the flag protect `institution` — that stays provider-owned', async () => {
+    // Tre, 2026-08-21: "allow user account rename... still block institution change."
+    const { db, writes } = fakeDb({ id: 'row-1', name_is_manual: true, min_payment_is_manual: false });
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect(writes.updated?.institution).toBe('Discover Bank');
+  });
+
+  it('does not stamp the flag itself — only the edit form may claim a name', async () => {
+    const { db, writes } = fakeDb({ id: 'row-1', name_is_manual: false, min_payment_is_manual: false });
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect('name_is_manual' in writes.updated!).toBe(false);
+  });
+});
