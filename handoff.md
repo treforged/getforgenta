@@ -1,5 +1,116 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 21b (**THE WHOLE PREMISE OF SESSIONS 19-21 WAS WRONG. There was never a
+> month-0 engine breach. "Jul 2026" was a UNIT MISMATCH inside the proposed reporting patch itself.
+> The fix is committed but 2 of 3 adversarial verifiers said DO NOT SHIP, on a real knife-edge.
+> Read the blocker before touching anything.**)
+
+## 🔴 READ FIRST — the fix is committed, and it has an open blocker
+`34ccad88` + the source half swept into `b531ce99` (see the commit-message mix-up below).
+**Ship votes: 1/3.** Nothing is pushed. `origin/main` is behind local.
+
+### The blocker, verbatim from the correctness verifier
+Month 0 (Jul 2026) ends at `rawEndingCash 3145.20` against `rawMonthMinSafe 3145.12` — a margin of
+**+$0.08**. Every other month in the 30-month horizon sits at **+$1.07 to +$2.00**
+(`FLOOR_CUSHION_DOLLARS`). The new predicate judges month 0 at **cent** resolution against a floor
+month 0 is deliberately drained to **exactly**, using a payment quantised to **whole dollars**:
+`availableForRevolving` is the cent-level cap (1454.08), per-card month-0 payments are
+`Math.round`ed (`useCardProjection.ts:1979`) and the total is `Math.round`ed again (`:2018`).
+
+**Had the aggregate rounding gone one dollar the other way, ending cash would be $0.92 BELOW the
+floor and the current month would paint itself red with "⚠️ Cash below safe minimum" over a rounding
+residue.** `credit-card-engine.ts:1763` makes this permanent:
+`+ (m > 0 ? FLOOR_CUSHION_DOLLARS : 0)`, commented "Month 0 stays uncushioned so the projection keeps
+matching the live safe-to-pay recommendation exactly". The repo's own convention is that sub-$2 is
+noise; the new comparison treats one cent as a breach. **The old comparison could not do this** — it
+was dollar-resolution against the setting, so a sub-dollar miss was structurally unreportable.
+
+**Two named fixes, either settles it:** give month 0 the same `$2` cushion (costs the recommended
+payment $2), or `Math.floor` rather than `Math.round` the month-0 per-card distribution at
+`useCardProjection.ts:1979`. **Decide one and land it before this is pushed.**
+
+## 💥 THE PREMISE WAS WRONG — sessions 19, 20 and my own session-21 section above are superseded
+**There is no month-0 drain-vs-yardstick gap, and there never was.**
+
+1. **Month 0 is not below its floor. It is 8 cents ABOVE it.** The table's own rule
+   (`MonthlyBreakdownTable.tsx:299`) is `row.endingCash < row.monthMinSafe` and **both are
+   whole-dollar rounded** (3145 vs 3145), so the UI never painted Jul 2026 red.
+2. **"Jul 2026" was manufactured by the patch.** The version I wrote and handed over compared the
+   **rounded** `endingCash` (3145, `forecast-engine.ts:1682`) against the **raw** `b.monthMinSafe`
+   (3145.12). 3145 < 3145.12 is true. That mixed-unit comparison turned a surplus into a breach, and
+   both golden tests dutifully reported it. **My "decisive experiment" was measuring my own bug.**
+3. **`augmentedCashFloorByMonth[0]` == `b.monthMinSafe`, to the cent.** No divergence.
+4. **Forcing `m0SafeFloor` to the augmented value produced BYTE-IDENTICAL output** — measured, not
+   inferred. Month 0 already drains to the augmented floor by another route:
+   `availableForRevolving = max(0, cashPreDebt - m0FloorAugmented - cyclingPayment)`
+   (`useCardProjection.ts:1891`), carried into the sim by `m0FloorPins` (~2010) and the engine by
+   `month0PaymentLedger` (~1992). **"`m0SafeFloor` is still bare" is true and irrelevant** — at
+   `m===0`, `month0SafeFloor` wins over `cashFloorByMonth[0]` (`credit-card-engine.ts:1269-1271`),
+   so the refinement loop's month-0 work is thrown away, and it does not matter because the pins
+   override it anyway.
+5. **The month-0 recommended payment did not move: $1,454 under every variant tested.** The engine
+   is not overspending month 0; it spends exactly to the augmented floor.
+
+### The bare-vs-augmented difference, priced (it exists, it just is not a breach)
+`bare $2,802.00` vs `augmented $3,145.12`, **$343.12**, three terms:
+`+$422.89` C5 loan and `+$173.23` C5 insurance (augmented only), `-$253.00` contractual CC minimums
+(bare only — the augmented floor counts **$0** of CC minimums at month 0 because `dueSynced` fires
+on both revolving cards against `syncCutoffDate 2026-07-20`).
+
+## 📌 THE REPORTING FIX ITSELF IS RIGHT, AND STANDS
+The milestone fired on `endingCash < cashFloor`, the raw **setting**, while rows are coloured
+against `monthMinSafe`. Automatic mode makes the setting `0`, so the warning was structurally
+unreachable for any positive balance. That is why Tre saw nine red rows and no summary warning.
+The committed fix uses the **raw vs raw** form the `rawEndingCash` / `rawMonthMinSafe` JSDoc
+(`forecast-engine.ts:91-95`) explicitly prescribes: *"floor-breach checks that care about cents must
+use these"*. Golden tests **4/4 green, CC Debt Free still Jul 2027, converged, nothing re-pinned.**
+A new test `src/lib/__tests__/forecast-engine.floorBreachReporting.test.ts` covers it.
+
+⚠️ The alternative considered and rejected was round-matching the milestone to the table. It is also
+green, but it silently tolerates breaches under $1. **If summary/row agreement matters, make the
+TABLE compare raw — do not make the milestone compare rounded.**
+
+## 🗂️ COMMIT-MESSAGE MIX-UP — the diff is not where the message says
+Two sessions ran on this tree at once. The builder had `git add`ed seven source files; I then ran
+`git add handoff.md && git commit`, which commits the **whole index**, so **`b531ce99` ("docs(handoff): …")
+carries all seven source files.** `34ccad88` is a message-only commit recording the real reasoning.
+**Read `b531ce99`'s `src/` diff against `34ccad88`'s message.** Nothing was lost and the tree is
+clean; only the messages are mismatched. Do not rewrite history to tidy it.
+**Lesson: on this shared tree, `git add <file> && git commit` is not scoped. Use
+`git commit -- <file>` or check `git diff --cached` first.**
+
+## 🚢 ALSO SHIPPED — iOS release unblocked (`3dc97033`)
+The App Store rejected the build: `CFBundleShortVersionString 6.3` is not higher than the approved
+`6.3`, and the `6.3` pre-release train is closed. **`VERSION` 6.3.0 → 6.4.0.** Not picked by hand:
+`classifyBump` over the 72 commits since `VERSION` last moved finds **18 `feat:` and no declared
+break** ⇒ minor ⇒ `6.4.0`, rendering as **`6.4`**, a customer release, no cap violations. 23/23
+version tests green. `versionCode` untouched (`run_number + 100`).
+🔴 **ROOT CAUSE, STILL OPEN: nothing bumps `VERSION`.** `classifyBump`/`applyBump` are written and
+tested but **have zero callers** — no workflow, no script. That is why the file sat at 6.3.0 across
+72 commits while CI rebuilt an already-approved version. **This recurs every release until the
+classifier is wired into the release path.**
+
+## ⏭️ START HERE
+1. **Settle the month-0 knife-edge blocker** (the $2 cushion, or floor-not-round at
+   `useCardProjection.ts:1979`). Nothing should be pushed before it.
+2. **Re-run the iOS build** — `VERSION` is 6.4.0 and the bump is committed but **not pushed**.
+3. **Wire `classifyBump` into the release path** so `VERSION` bumps itself.
+4. **Read the workflow journal before redoing any of this**:
+   `.claude/projects/C--Users-tvonh-Desktop-getforgenta/41e0264a-dd8f-4ed8-848b-96a4d10e4af0/subagents/workflows/wf_445d205f-e5d/journal.jsonl`
+   (7 agents, 1.16M tokens, run `wf_445d205f-e5d`). It holds the full blast-radius map, the
+   `CreditCardEngine.tsx` audit and the other two verifiers' findings, which are NOT summarised here.
+5. **`CreditCardEngine.tsx` is now the only place draining month 0 to a bare floor.** It cannot reach
+   the forecast (one-way data flow) and prefers the context prop for displays, but
+   `recommendedSafeMinimum` reads its local sim unconditionally. **It has zero test coverage — live
+   verification, not a blind edit.**
+6. New defect 1 (frozen card-minimum term in `auto-cash-floor.ts`) and new defect 2 (Prime Visa's
+   `$559.40` bundling `$524.40` of installments that all end by Aug 2027) — both still open, both
+   written up in the session-21 section below, both still real.
+7. The Aug 2027 cliff levers are priced in the section below. Still true, unaffected by any of this.
+8. The 42 default users → automatic + login notice. **Still gated.**
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 21 (**THE BREACH IS LOCALISED TO MONTH 0 AND SESSION 20'S FEAR WAS
 > OVERSTATED — the alignment it wanted is ALREADY DONE for months 1+. Two new `min_payment` defects
 > found. A verification workflow was in flight when context ran out; its run ID is below and it
