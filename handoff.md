@@ -1,5 +1,73 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 19 (**THE BELOW-FLOOR MONTHS ARE REAL AND STRUCTURAL — not an engine fault
+> and not caused by today's edits. But the SUMMARY was lying by omission, and root-causing that
+> uncovered a genuine engine breach the old comparison had been hiding for as long as it existed.
+> The reporting fix is written up but NOT shipped, on purpose. Read why before touching it.**)
+
+## 🔴 THE ANSWER TO "MY ACCOUNT STILL DROPS BELOW FLOOR" — it does, and it should
+Read off his live `/forecast` with Claude-in-Chrome (he invited it). Red END CASH months:
+`Nov 2026 $2,395 · Jun 2027 $2,202 · Sep 2027 $1,799 · Oct 2027 $1,022 · Nov 2027 $1,397 ·
+Dec 2027 $1,396 · Jan 2028 $1,573 · Feb 2028 $1,368 · Apr 2028 $2,416`
+
+**These are TRUE.** The CC payment chips in those months are **$349–$589 — at or near contractual
+minimums**, so the engine is not overspending on debt. His income drops **$1,100/mo at the Aug 2027
+GF-income cliff** and from Sep 2027 his committed costs exceed it. **No payment schedule fixes
+that**, and nothing today's sessions changed caused it.
+⚠️ Note the row colours are per-month, not a threshold: `Dec 2026 $2,510` is GREEN while
+`Jan 2027 $2,510` is AMBER and `Apr 2027 $3,729` is AMBER. Each row is judged against its OWN floor.
+
+## 🔴 THE REAL BUG FOUND — the summary compares against the wrong number
+`forecast-engine.ts` (~line 1722): the milestone fires on `endingCash < cashFloor`, the **raw
+SETTING**, while the table colours each row against **`b.monthMinSafe`**, the month's real floor and
+the figure the drawer itemises. **The setting is not the floor — it is one input to it.**
+In AUTOMATIC mode the setting is `0` by design, so the warning is **structurally unreachable for any
+positive balance**. That is why the summary went silent exactly when his rows went red.
+
+### ⚠️ THE FIX IS WRITTEN UP BUT NOT SHIPPED. Do not ship it alone.
+Switching the comparison to `b.monthMinSafe` is **two lines**, and it immediately turns **TWO GOLDEN
+CONVERGENCE TESTS RED** — `forecast-convergence.manualISB` and `forecast-convergence.realData`, both
+asserting "no cash-floor breach", both then reporting **Jul 2026**.
+
+**Those failures are not the fix breaking them. They are the fix REVEALING a real engine breach the
+old comparison has been hiding for as long as it has existed.** The engine drains to
+`cashFloorByMonth` and is judged against `getAugmentedMinSafeCash`; the two still differ by the
+**vehicle-loan term**, which cannot simply be added to the drain side — it is already out of cash
+before the floor is read (see `auto-cash-floor.ts`, and the double-count that
+`carLoanActivationDiscontinuity` caught earlier today).
+
+**Close the engine gap and the reporting fix TOGETHER.** The full diagnosis is now a comment at the
+call site so the next session starts from it. Shipping the reporting half alone leaves two golden
+regression tests red with nothing behind them.
+
+## ✅ WHAT DID SHIP THIS SESSION
+- **Manual users get the committed term too** (Tre's ask) — modes now differ only on the floor
+  itself: manual `max(their number, bills + committed)`, automatic `bills + committed`.
+- **The vehicle-loan term came OUT** of `committedMonthlyOutflows` — it double-counted a payment
+  already deducted from cash, and made a car fund's ACTIVATION raise the floor.
+  `carLoanActivationDiscontinuity` caught it. **Do not restore it.**
+- **Three fixture assertions corrected, not pinned**: "drop in card paydown == reserve" only holds
+  while a card's minimum sits OUTSIDE the floor. It is inside now, so the true figure is
+  `reserved - CARD_MIN`.
+- **Automatic-mode floor copy** no longer reports the internal `$0` sentinel as the user's setting.
+
+## 📊 LIVE STATE
+Tre: floor **automatic** ($2,500 preserved) · C5 extra **OFF** · 45 others manual, own numbers.
+Suite **2142 green**, tsc clean, build green.
+
+## ⏭️ START HERE
+1. **The engine breach + the reporting fix, together.** Jul 2026 on the golden fixture is the
+   cheapest reproduction. Everything needed is in the comment at `forecast-engine.ts` ~1722.
+2. **Tell Tre the Aug 2027 cliff is the real problem** — the red months after it are structural.
+   The levers are income, the move budget, or the move date, not the payment plan.
+3. **Fault 2** (C5 extra costing 9 months) — re-measure under the fixed floor first.
+4. **The 42 default users → automatic + the login notice.**
+5. **`main` is 34 commits ahead of `origin/main` and has never been pushed this run.**
+6. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 18 (**Manual users now get the committed term too, and a DOUBLE-COUNT I had
 > just introduced was caught by an existing invariant test. Tre reports still seeing below-floor
 > months — I CANNOT REPRODUCE IT on the current build and need him to say which screen. That is the
