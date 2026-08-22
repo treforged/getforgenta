@@ -1,5 +1,126 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 22 (**THE FOUR 21c FOLLOW-UPS ARE CLOSED AND THE RELEASE PATH NOW HAS A
+> CALLER. Three commits, three adversarial rounds, gate GREEN: tsc clean, 2153/2153, VERSION still
+> 6.4.0. NOTHING IS PUSHED, and pushing now fires BOTH store deploys — see the warning below.**)
+
+## 🔴 READ BEFORE PUSHING — the next push ships to both stores
+`package.json` is in the `paths:` filter of BOTH `android-build.yml` and `ios-build.yml`, and this
+session edits `package.json`. So the next push to `main` triggers:
+- **iOS Build & Upload to App Store** — which is the point: `origin/main` still carries `VERSION`
+  6.3.0, local is 6.4.0, and 6.3 is the version Apple rejected.
+- **Android Build & Upload to Play Store**, which **auto-deploys to PRODUCTION** at 10% staged and
+  auto-promotes to 100% after 24h.
+
+`origin/main` is now **10 commits behind**. This is expected, and Tre said *"it will rebuild ios on
+next push"* — but the Play production rollout rides along with it, so it is a decision, not a
+formality.
+
+## ✅ SHIPPED — three commits, all local
+| Commit | What |
+|---|---|
+| `dcb2e59e` | `fix(month0-drawer)` — the $2 above the floor is the cushion, not unabsorbable surplus |
+| `8a376c8c` | `docs(comments)` — three comments that asserted things the code does not do |
+| `d248e5e5` | `feat(release)` — the VERSION classifier finally has a caller |
+
+**Gate, over all three together:** `npx tsc --noEmit` exits 0 with zero bytes of output;
+`npx vitest run --reporter=dot` = **217 files / 2153 tests passed, 0 failed**; `git diff -- VERSION`
+empty at 6.4.0; no stray probe files left behind.
+
+⚠️ **`--reporter=basic` DOES NOT EXIST in this repo's vitest.** It fails at startup having run zero
+tests, and it is quoted in older handoff sections. Use `--reporter=dot` or `--reporter=verbose`.
+
+### `dcb2e59e` — the drawer now tells the truth about the cushion
+The only behaviour change in the session. `surplus` split into `floorCushion` + `surplus`, with
+`surplus` defined as the REMAINDER so the fold cannot drift, and the donut's `locked` term widened
+so the chart total is unchanged by the split. The discriminator is a SIZE test
+(`revolvingPayment > 0 && aboveFloor <= FLOOR_CUSHION_DOLLARS + SURPLUS_DUST_DOLLARS`), because
+gating on `revolvingPayment > 0` alone printed "Safety cushion $2.00" on a month ending thousands
+above its floor — the same defect this fixes, inverted. Six tests added.
+
+Measured decomposition of the $2.20 on the real fixture, since two earlier drafts got it wrong:
+**$2.00 cushion + $0.12 floor rounding** (`m0SafeFloor` is `Math.round(3145.12)` = 3145)
+**+ $0.08 per-card integer rounding** (cap 1452.08 → 1452). The cap is **$1,452.08**, not $1,452.20;
+the latter was back-derived from "residual minus $2" and reported as measured.
+
+### `8a376c8c` — comment-only, and provably so
+The gate verified this by stripping comment lines from `git diff -U0` and finding nothing left.
+Corrects the `$1,695.20` false invariant in `credit-card-engine.ts`, the "identical target" false
+equivalence in `useCardProjection.ts` (which named one of at least three divergence sources), and
+the "stable landing strip" that month 0 no longer lands in.
+
+### `d248e5e5` — and a real fault found on the way
+`version-bump.yml` is **`workflow_dispatch` only**, deliberately: a push-triggered bump that also
+auto-deploys to Play production is not a call to make unasked. Both build workflows print a
+non-blocking staleness notice to `$GITHUB_STEP_SUMMARY`. **`VERSION` is in no build workflow's
+`paths:` filter**, so the bump commit triggers nothing by itself — documented in the workflow header
+and in its own run summary, because otherwise someone bumps and watches nothing happen.
+
+🔬 **The shallow-clone fault is the real find.** In a shallow clone the anchor lookup does not come
+back empty, it comes back **WRONG** — the oldest visible commit is presented as parentless, so
+path-limited `git log` credits it with its entire tree. Reproduced at `git clone --depth 2`: it
+named a commit touching four `src/` files and no `VERSION` at all, and the reading came out three
+times smaller than the truth while looking exact. **Every CI checkout is a shallow clone.**
+`scripts/lib/version-history.mjs` now discards a horizon anchor and reports whether it could see
+everything; `--write` refuses on a truncated history, because a partial classification is a floor
+and a version that reaches a store must not be decided by `fetch-depth`.
+
+## 🟡 KNOWN-ISSUE RESIDUE — all minor, all documented, none ship-blocking
+Three adversarial rounds ran; the cap is three. What the round-3 verifiers left open:
+1. `month0-budget-snapshot.ts` ~207 — a self-contradiction 20 lines apart inside one comment block:
+   the prose says "the other three sites govern later months" while the table above it says
+   otherwise. One of the two is wrong. The code is not.
+2. `month0-budget-snapshot.ts` ~223 — "three dollars at the very most" is asserted, not derived, and
+   the per-card term is not bounded by the derivation above it. With n revolving cards each rounded
+   independently the split term grows with n.
+3. `debt-model-types.ts:94` — says "a union of four distinct things", then enumerates **five**.
+   One-word fix.
+4. `debt-model-types.ts:27` and `:121` — two **pre-existing** wrong `file:line` citations.
+5. `useCardProjection.ts` lines 700 / 1341 / 1920 / 1934 / 2128 — five **pre-existing** stale
+   citations into `forecast-engine.ts`, every one pointing at unrelated code.
+6. `version-staleness.mjs` ~152 — in a shallow clone where VERSION is on disk but in no commit, the
+   notice says it "last changed at or before this clone's horizon" when it is in no commit at all.
+
+## ⚠️ THE LESSON — never write a line number into a file under concurrent edit
+Round 2 wrote five `useCardProjection.ts:NNNN` citations read out of **another agent's in-flight
+edit**, and four had rotted before that round finished. `useCardProjection.ts` moved +9 lines
+mid-session; `credit-card-engine.ts` moved 1 line **between two tool calls in a single batch**. Cite
+a searchable **symbol** instead, in any file that is being edited. Items 4 and 5 above are the same
+rot, older.
+
+Still true from session 21b: on this shared tree `git add <file> && git commit` commits the **whole
+index**. Use `git commit -F - -- <paths>`, which is what all four of this session's commits used.
+
+## ⏭️ START HERE
+1. **Decide the push.** It ships iOS 6.4 (wanted) and an Android production rollout (rides along).
+2. **New defect 1 — the frozen card-minimum term in `auto-cash-floor.ts`.** `committedMonthlyOutflows`
+   sums raw `accounts.min_payment` for every active card with **no month awareness and no balance
+   check** (it takes `monthDate` and then `void`s it), so a paid-off card reserves its minimum
+   forever: a flat **$808.40/mo** for all 60 months, including every month after CC Debt Free.
+   `getAugmentedMinSafeCash` already gets this right (gates on `revBal > 0`, uses simulated
+   `perCardMinPayments`). Blast radius is the BARE floor only: `m0SafeFloor`, the bootstrap pass,
+   `CreditCardEngine.tsx`, `Dashboard.tsx` ~562.
+3. **New defect 2 — Prime Visa's `$559.40` bundles `$524.40` of installments** that all finish by
+   2027-08-07, the month before the cliff. `min_payment_is_manual = true`, so Plaid will never
+   correct it and **the live row must not be edited**. Fix is a tranche-aware `revolvingMinDue`, or
+   splitting the stored figure into its installment and revolving parts. It matters because the
+   payment is **non-reducible**, so it can manufacture a below-floor month on its own.
+4. **Give the bump an actual release habit.** The machinery exists now; nothing yet says when to
+   press it.
+5. Fault 2 (C5 extra costing 9 months) — re-measure now the floor work is settled.
+6. `CreditCardEngine.tsx` is still the only place draining month 0 to a bare floor. **Zero test
+   coverage — live verification, not a blind edit.**
+7. The 42 default users → automatic + login notice. **Unblocked.**
+8. **The Aug 2027 cliff end date is SETTLED (`2027-08-31`). Do not ask him again.**
+
+## 🗂️ Workflow journals, if anything above needs re-deriving
+`.claude/projects/C--Users-tvonh-Desktop-getforgenta/93f36b4b-9884-483c-8625-d157150b80a8/subagents/workflows/`
+runs `wf_a346a363-047` (round 1), `wf_ed9678d4-4b4` (round 2), `wf_512d7b12-d24` (round 3).
+21 agents, ~2.86M tokens. The verifiers' full proofs are in each run's `journal.jsonl` and are NOT
+all summarised here.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-22 session 21c (**THE MONTH-0 KNIFE EDGE IS CLOSED. `1eebd1f3`, 3/3 adversarial ship
 > votes, no blockers, no majors, 2147 green. The cash-floor thread is DONE. Four minor follow-ups
 > below, one of them user-visible. Nothing is pushed.**)
