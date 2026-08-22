@@ -1,5 +1,81 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-21 session 13 (**ROBINHOOD DUPLICATE FIXED — his net worth was overstated by $251.53.
+> And a hard conflict surfaced: "movers on a credit card" and "Visa as interest-free as possible"
+> cannot both be true at Jul 2027, because the only card open then is the Visa.**)
+
+## ✅ FIXED — the Robinhood re-link left a ghost account
+Re-linking created a SECOND live Plaid item. Both were `connection_status = 'active'`, so both kept
+syncing and the old account stayed on the books.
+
+| | Old item `QzekDx…` (conn `9d4ba6fd`, Apr 22) | New item `zJPwOB…` (conn `b28204e2`, Aug 22) |
+|---|---|---|
+| accounts | `5543a7d3` Robinhood individual **$251.53** | `7820432e` individual **$1,339.44**, `1e6f0b6a` Crypto **$768.69**, `873b5623` individual **$1.53** |
+
+**$251.53 was being double-counted.** Real Robinhood total: **$2,109.66**, not $2,361.19.
+
+**What was done** (backup: `backup.robinhood_dedupe_20260821`, access tokens stripped):
+1. `savings_goals.Brokerage.linked_account` → `7820432e` (was the stale row).
+2. `recurring_rules."Robinhood Contributions".deposit_account` → `7820432e` (was the stale row).
+3. `accounts.5543a7d3` → **`active = false`** (deactivated, NOT deleted — history kept, one flag undoes it).
+4. `financial_connections.9d4ba6fd` → **`connection_status = 'revoked'`**. Required:
+   `plaid-sync-all` skips only `revoked`, so without this the old item re-activates the row.
+
+⚠️ **THE `LIMIT` TRAP THAT NEARLY CAUSED A SILENT ORPHAN.** The first reference scan came back
+EMPTY because a trailing `limit 0` on the last branch of a `UNION ALL` applies to the WHOLE union in
+Postgres, not that branch. Two live references existed. **Parenthesise per-branch limits, or omit
+them.** This is the "grep what they WRITE before deleting" rule, one layer down.
+
+⚠️ **`7820432e` vs `873b5623` IS AN INFERENCE, NOT A FACT.** Two new accounts share the name
+"Robinhood individual" and nothing in the row (no mask, no subtype) distinguishes them. The reading
+taken: $1.53 is the cash sweep (old $251.53 − the $250 withdrawal = $1.53 exactly), $1,339.44 is the
+investment account, so the Brokerage goal and the contributions rule point at the latter.
+**If Tre says otherwise, re-point both to `873b5623`** — one update each, backup has the originals.
+
+⚠️ **THE PLAID ITEM IS STILL LIVE AT PLAID.** There is no `plaid-remove-item` edge function; the app
+never calls `item/remove`, so "delete account" only disconnects locally. Tre's old Robinhood
+authorisation still exists on Plaid's side. Worth building, not urgent.
+
+## 🔴 THE CONFLICT — "movers on a card" vs "Visa interest-free" cannot both hold at Jul 2027
+| Card | Opens | State at the move |
+|---|---|---|
+| **Prime Visa** | open | $8,397 / $14,400. **Grace period LOST** (the $2,845.14 ISB is out of reach), so a new charge accrues at **27.49% from day one** |
+| **Discover it Card** | open | $10,422 / $11,000 — **$578 of headroom today**. Projected under 30% by Aug 2027, so ~$7,100 free by then, at **16.6%**, also revolving |
+| Venture X | **2027-12-20** | not open at the move |
+| Apple Card | **2028-02-28** | not open at the move |
+
+**Putting the movers on a card in Jul 2027 means the Visa at 27.49% or the Discover at 16.6%.**
+The Visa option is the exact opposite of what he asked for. Neither is free money. Say this plainly
+before anyone plans around "the movers can go on a card".
+
+## 📐 THE THRESHOLD HE ACTUALLY NEEDS
+Under the CURRENT ranking (Visa first — the one that protects the Visa), the move pot reaches
+**≈ $5,311 by Jul 2027**: $8,894 still needed − $3,689 short + $106.44 already saved.
+- **Lease break + deposit ≤ ~$5,300 ⇒ ON TRACK, no re-ranking, Visa stays first.**
+- Above that, something else has to give.
+Lower targets cannot do better than this: once the goal fills, the surplus cascades onward.
+**We do not know his lease-break/deposit split — ASK before setting the new target.**
+
+## 💡 THE REAL VISA LEVER — it is $2,845, not $8,397
+"Interest-free" does not need the balance cleared. **$4,982 of the Visa is 0% Equal Pay tranches
+that never accrue.** What accrues is the interest-saving balance, **$2,845.14** — clear that and the
+grace period on new purchases returns. Interest-bearing Visa ≈ $3,415 of the $8,397.
+The Visa is already rank 1 and takes every spare dollar first, so the structure is right. **Point
+him at the $2,845 figure, not the $8,397 one.**
+
+## ⏭️ START HERE
+1. **Ask for the lease-break + deposit figures** and set the merged goal's target. Everything else
+   waits on that number.
+2. Tell him the movers-on-a-card finding — Venture X/Apple are not open until after the move.
+3. Ask what "agentic money" names (still unresolved; nothing has been excluded).
+4. Confirm the `7820432e` vs `873b5623` inference.
+5. Add the ~$1,280 crypto when it has a date — worth far less than face value at rank 2.
+6. **`main` is 19 commits ahead of `origin/main` and has never been pushed this run.**
+7. Carried: `linked_plan`/`linked_car` suppression; re-amortize after extra principal; raise the
+   merged goal's target after the move; `min_payment` $559.40 wrong from Sep 2027.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-21 session 12 (**THE 4 MONTHS ARE CLOSEABLE, AND THE PRICE IS ONE MONTH OF PAYOFF DATE.
 > Measured both ways on his live data, not reasoned about. No code changed; one transaction
 > corrected. His decided order is RESTORED and untouched — the fix is his to approve.**)
