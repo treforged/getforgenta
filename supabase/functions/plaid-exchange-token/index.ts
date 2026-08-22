@@ -11,6 +11,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
+import { planSupersededConnections } from "../_shared/supersede-connection.ts";
 
 const MAX_LINKED  = 10;
 const RATE_LIMIT  = { windowMs: 60_000, max: 10 };
@@ -160,6 +161,50 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to save linked bank" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── SUPERSEDE THE OLD LINK TO THIS SAME BANK ────────────────────────────────
+    // Plaid issues NEW account ids on a re-link, so `persistAccount` cannot recognise the accounts
+    // it already has and inserts duplicates instead. Both connections then keep syncing and the
+    // stale rows sit in net worth forever — which is exactly what happened to Robinhood on
+    // 2026-08-21 ($251.53 counted twice, two rows with the same name).
+    //
+    // Failures here are logged and swallowed on purpose: the link itself succeeded, the user's
+    // token is saved, and refusing a working connection because the tidy-up failed would trade a
+    // cosmetic problem for a real one. The duplicate is visible and fixable; a lost link is not.
+    if (institution_id) {
+      try {
+        const { data: priorConnections } = await supabase
+          .from("financial_connections")
+          .select("id, institution_id, provider_item_id, connection_status")
+          .eq("user_id", userId);
+
+        const superseded = planSupersededConnections(priorConnections ?? [], {
+          institution_id,
+          provider_item_id: item_id,
+        });
+
+        if (superseded.length > 0) {
+          const nowIso = new Date().toISOString();
+          // `revoked` is the one status `plaid-sync-all` skips. Without this the old item keeps
+          // syncing and re-activates the very rows deactivated below.
+          await supabase.from("financial_connections")
+            .update({ connection_status: "revoked", updated_at: nowIso })
+            .in("id", superseded);
+          // Deactivated, never deleted — the row, its history and its id all survive, and one flag
+          // undoes it. References are NOT re-pointed: see supersede-connection.ts on why an
+          // automatic remap would guess, on money.
+          await supabase.from("accounts")
+            .update({ active: false, updated_at: nowIso })
+            .eq("user_id", userId)
+            .in("connection_id", superseded);
+          console.log(
+            `Superseded ${superseded.length} prior connection(s) to ${institution_id} for user ${userId}`,
+          );
+        }
+      } catch (supersedeErr) {
+        console.error("plaid-exchange-token supersede step failed:", supersedeErr);
+      }
     }
 
     return new Response(JSON.stringify({ institution_name, plaid_item_id: item_id }), {
