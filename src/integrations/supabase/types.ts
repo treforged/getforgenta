@@ -1173,6 +1173,7 @@ export type Database = {
           cards_sort_order: number
           cards_surplus_share: number | null
           cash_floor: number | null
+          cash_floor_is_manual: boolean
           compact_mode: boolean | null
           created_at: string
           currency: string | null
@@ -1224,6 +1225,7 @@ export type Database = {
           cards_sort_order?: number
           cards_surplus_share?: number | null
           cash_floor?: number | null
+          cash_floor_is_manual?: boolean
           compact_mode?: boolean | null
           created_at?: string
           currency?: string | null
@@ -1275,6 +1277,7 @@ export type Database = {
           cards_sort_order?: number
           cards_surplus_share?: number | null
           cash_floor?: number | null
+          cash_floor_is_manual?: boolean
           compact_mode?: boolean | null
           created_at?: string
           currency?: string | null

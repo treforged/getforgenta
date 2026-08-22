@@ -45,6 +45,7 @@ import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 
 import type { Tables } from '@/integrations/supabase/types';
+import { displayedManualCashFloor, isManualCashFloor } from '@/lib/cash-floor';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -134,15 +135,25 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [paymentMode, setPaymentMode] = usePersistedState<'variable' | 'consistent'>('tre:debt:paymentMode', 'variable');
-  const [cashFloor, setCashFloorLocal] = useState(() => profile?.cash_floor != null ? Number(profile.cash_floor) : 1000);
+  // The user's SAVED figure, shown in the input whichever mode is in force — keeping it visible is
+  // what makes the toggle reversible rather than a one-way door (see cash-floor.ts).
+  const [manualFloorValue, setManualFloorValue] = useState(() => displayedManualCashFloor(profile));
+  const [manualFloor, setManualFloor] = useState(() => isManualCashFloor(profile));
+  // The floor the ENGINE uses. Automatic (the default) resolves to 0, and `getMinSafeCash` then
+  // takes the greater of it and the pre-paycheck bills — so the floor becomes the bills themselves.
+  const cashFloor = useMemo(() => (manualFloor ? manualFloorValue : 0), [manualFloor, manualFloorValue]);
   // Re-hydrates the locally editable cash floor when the server value arrives or
   // changes. The lazy initializer above covers the case where profile is already
   // cached; this covers the first load, where the query resolves after mount.
   // The value is user-editable, so it cannot simply be read from `profile`.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
-  }, [profile?.cash_floor]);
+    if (profile?.cash_floor != null) setManualFloorValue(displayedManualCashFloor(profile));
+  }, [profile?.cash_floor, profile]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setManualFloor(isManualCashFloor(profile));
+  }, [profile?.cash_floor_is_manual, profile]);
   // Only one card's accordion open at a time — prevents the page from getting overcrowded
   // when several cards' month-by-month projections are all expanded simultaneously.
   const [expandedCard, setExpandedCard] = usePersistedState<string | null>('tre:debt:expanded-card', null);
@@ -169,11 +180,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Auto-save cash floor to profile on change
   const cashFloorSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setCashFloor = (val: number) => {
-    setCashFloorLocal(val);
+    setManualFloorValue(val);
     if (cashFloorSaveTimer.current) clearTimeout(cashFloorSaveTimer.current);
     cashFloorSaveTimer.current = setTimeout(() => {
       updateProfile.mutate({ cash_floor: val });
     }, 1000);
+  };
+  /** ⚠️ Switching to automatic writes only the FLAG. `cash_floor` keeps the user's number so
+   *  switching back restores it exactly. */
+  const setManualFloorMode = (manual: boolean) => {
+    setManualFloor(manual);
+    updateProfile.mutate({ cash_floor_is_manual: manual });
   };
 
   // Pay config
@@ -1576,8 +1593,18 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     Never recommend payments that push liquid cash below this amount. Also reserves for early next-month bills.
                   </TooltipContent>
                 </Tooltip>
-                <input type="number" value={cashFloor} onChange={e => setCashFloor(Number(e.target.value) || 0)}
-                  className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
+                {/* Automatic is the default. The input stays VISIBLE but disabled in that mode, still
+                    showing the saved figure, so the toggle plainly reads as reversible. */}
+                <input type="number" value={manualFloorValue} onChange={e => setCashFloor(Number(e.target.value) || 0)}
+                  disabled={!manualFloor}
+                  aria-label="Manual cash floor"
+                  className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold disabled:opacity-40" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input type="checkbox" checked={manualFloor} className="accent-primary"
+                    onChange={e => setManualFloorMode(e.target.checked)}
+                    aria-label="Set the cash floor manually" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Set manually</span>
+                </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 text-[10px] font-medium text-primary cursor-help" style={{ borderRadius: 'var(--radius)' }}>
@@ -1600,7 +1627,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   </TooltipContent>
                 </Tooltip>
               </div>
-              {prePaycheckBills.total > cashFloor && (
+              {!manualFloor && (
+                <p className="text-[9px] text-muted-foreground flex items-center gap-1">
+                  <Info size={9} className="shrink-0" />
+                  Calculated automatically each month from the bills due before your next paycheck
+                  &mdash; {formatCurrency(recommendedSafeMinimum, false)} this month. Tick
+                  &ldquo;set manually&rdquo; to hold a floor of your own on top.
+                </p>
+              )}
+              {manualFloor && prePaycheckBills.total > cashFloor && (
                 <p className="text-[9px] text-primary flex items-center gap-1">
                   <Info size={9} className="shrink-0" />
                   Floor raised to {formatCurrency(recommendedSafeMinimum, false)} — pre-paycheck bills exceed your {formatCurrency(cashFloor, false)} floor.

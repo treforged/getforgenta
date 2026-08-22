@@ -20,6 +20,7 @@ import type { Tables } from '@/integrations/supabase/types';
 // `ranked-extra-payment-targets` instead would close a cycle back into this file via
 // `debt-payoff-order`.
 import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from './ranked-surplus-allocation';
+import { resolveCashFloor } from './cash-floor';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
 // debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
 // canonical source since it has zero internal dependencies, avoiding a circular import (this
@@ -2517,7 +2518,7 @@ function buildCurrentMonthRecommendationSummary(
   const liquidTypes = ['checking', 'business_checking', 'cash'];
   const liquidAccounts = accounts.filter(a => a.active && liquidTypes.includes(a.account_type));
   const liquidCash = liquidAccounts.reduce((s, a) => s + Number(a.balance), 0);
-  const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
+  const cashFloor = resolveCashFloor(profile);
   const pc = buildPayConfig(profile);
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
   const now0 = new Date();

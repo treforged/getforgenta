@@ -32,6 +32,7 @@ import { matchOccurrence } from '@/lib/transaction-matching';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
+import { resolveCashFloor } from '@/lib/cash-floor';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -670,7 +671,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
   const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;
 
-  const cashFloor = useMemo(() => { const v = Number(profile?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
+  const cashFloor = useMemo(() => resolveCashFloor(profile), [profile]);
   const prePaycheckBillsTotal = useMemo(() =>
     getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
     [rules, payConfig, fundingAccount]);

@@ -90,6 +90,7 @@ const Accounts = lazy(() => import('@/pages/Accounts'));
 const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
+import { resolveCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
 // straight in the map would execute the widget's data-mapping during the
@@ -545,7 +546,7 @@ export default function Dashboard() {
     return getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds, syncCutoffDate);
   }, [accounts, paymentPlans, syncCutoffDate]);
 
-  const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
+  const cashFloor = resolveCashFloor(profile);
 
 
   const month0SaveUpNote = useMemo(() => {

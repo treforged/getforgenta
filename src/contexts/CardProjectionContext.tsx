@@ -18,6 +18,7 @@ import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import { resolveFundingAccountId } from '@/lib/funding-account';
 import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
 import type { FilingStatus } from '@/lib/tax-estimator';
+import { resolveCashFloor } from '@/lib/cash-floor';
 
 const DEFAULT_ASSUMPTIONS = {
   incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
@@ -114,10 +115,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
 
-  const cashFloor = useMemo(() => {
-    const cf = profile?.cash_floor;
-    return cf != null ? Number(cf) : 1000;
-  }, [profile]);
+  // Automatic by default: `resolveCashFloor` returns 0, and `getMinSafeCash` then takes the
+  // greater of that and the pre-paycheck bills — so the floor IS the bills. See cash-floor.ts.
+  const cashFloor = useMemo(() => resolveCashFloor(profile), [profile]);
 
   const forecastFundingAccountId = useMemo((): string | null => {
     // Same validation rule the engine applies to the persisted debt-funding id — see
