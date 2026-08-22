@@ -23,7 +23,10 @@ import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMon
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { ordinal } from '@/lib/ordinal';
-import { type Month0Result } from '@/hooks/useCardProjection';
+import {
+  nextPaymentDueDate, formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN,
+} from '@/lib/next-card-payment';
+import { hasPinnedStatement, type Month0Result } from '@/hooks/useCardProjection';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -949,8 +952,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const month0Recs = useMemo(() => {
     const now = new Date();
     const todayDay = now.getDate();
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const nextMonthName = MONTHS[(now.getMonth() + 1) % 12];
+    // Next month's per-card payment. `perCardPaymentsScaled` first for the same reason the
+    // accordion and the paydown panel prefer it: it is the cash-floor-constrained figure, i.e.
+    // what the plan can actually send, not what it would like to. Month 0 is NOT read from here
+    // — it comes from month0.perCardAdjusted, the integers the engine itself was pinned to.
+    const nextMonthSource = perCardPaymentsScaled ?? perCardPayments;
     // A card whose card_start_date has not arrived cannot receive a payment this month.
     // Display layer only — the simulation still models it turning on (cardStartMonths), and
     // the Dashboard widget applies the same filter in `buildMonth0DebtBreakdown`.
@@ -975,6 +981,30 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const dueDay = card?.dueDay ?? null;
       // Due date already passed this month → payment is next month's, just save for it.
       const pastDue = !card?.autopayFullBalance && dueDay !== null && dueDay < todayDay;
+      // The month the NEXT payment lands in. Derived from the CALENDAR, not from `pastDue`:
+      // `pastDue` is forced false for every autopay/cycling card by its leading
+      // `!card?.autopayFullBalance` guard, because it gates the "saving" badge rather than the
+      // date. Reusing it would hand a cycling card whose due day has already gone by a date
+      // EARLIER THIS MONTH and present it as upcoming, which is the bug this panel is being
+      // fixed for, one card type over.
+      const dueDayPassed = dueDay !== null && dueDay < todayDay;
+      const nextPayMonth: 0 | 1 = dueDayPassed ? 1 : 0;
+      // The month a pinned statement lands in, `deriveIsbPins`' own rule verbatim. It differs
+      // from nextPayMonth for a card with NO recorded due day: the engine assumes month 1 there,
+      // this display refuses to name a month it does not know, so such a row is never labelled
+      // against a statement it cannot place.
+      const pinMonth: 0 | 1 = dueDay != null && dueDay >= todayDay ? 0 : 1;
+      const nextDueDate = nextPaymentDueDate(dueDay, nextPayMonth, now);
+      // NO `?? 0` ANYWHERE ON THIS PATH. A missing array must reach the render as null so it can
+      // say so; a zero here is the very bug this change exists to remove, moved one month over.
+      let nextPayment: number | null;
+      if (nextPayMonth === 0) {
+        nextPayment = item.payment;
+      } else {
+        const series = nextMonthSource?.find(p => p.id === item.id)?.payments;
+        const raw = series?.[1];
+        nextPayment = typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+      }
       let reason: string;
       let isMinimumOnly = false;
       if (card?.autopayFullBalance || (card && card.balance <= 0)) {
@@ -982,11 +1012,26 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         if (card?.paymentPreference === 'statement') reason = 'Statement balance';
         else if (card?.paymentPreference === 'full') reason = 'Full balance';
         else reason = 'Autopay Full Balance';
-      } else if (pastDue) {
-        reason = `Saving for ${nextMonthName} ${ordinal(dueDay)}`;
+      } else if (nextPayment == null) {
+        // The projection has not resolved a payment for that month, so nothing can be said about
+        // what it covers. Classifying an amount that does not exist is how "Not modelled" would
+        // otherwise end up sitting beside a confident "Avalanche priority" on the same line.
+        reason = '';
+      } else if (card && hasPinnedStatement(card, now) && pinMonth === nextPayMonth) {
+        // The engine pays this card's statement in its due month (deriveIsbPins →
+        // manualStatementByCard), but only as far as the cash above the floor reaches: the
+        // uncovered remainder breaks grace and accrues at the standard rate (credit-card-engine's
+        // partial-ISB model). So the label has to test COVERAGE, not just eligibility, or the row
+        // promises interest avoidance the plan does not deliver — live today on Prime Visa, whose
+        // row read "Statement balance" beside $2,217 of a $2,845 statement.
+        // `card.balance` is the outer cap for the same reason the engine caps at the modelled
+        // revolving balance: never claim a shortfall against more than is owed. It is the total
+        // balance rather than the revolving one, so the test errs toward "Partial statement".
+        const statementTarget = Math.min(card.statementBalance ?? 0, card.balance);
+        reason = nextPayment >= statementTarget - 0.01 ? 'Statement balance' : 'Partial statement';
       } else {
         const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
-        isMinimumOnly = item.payment <= min + 0.01;
+        isMinimumOnly = nextPayment <= min + 0.01;
         reason = isMinimumOnly
           ? 'Minimum payment'
           : strategy === 'avalanche'
@@ -1001,13 +1046,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         maxPayment: item.maxPayment,
         dueDay,
         pastDue,
-        nextMonthName,
+        nextPayment,
+        nextPayMonth,
+        nextDueDate,
         reason,
         isMinimumOnly,
       };
     });
     return { totalAvailableCash, totalMinimumsdue, cashWarning, strategyLabel, recs };
-  }, [month0, cards, strategy, syncCutoffDate]);
+  }, [month0, cards, strategy, syncCutoffDate, perCardPaymentsScaled, perCardPayments]);
 
   const projections: CardProjection[] = useMemo(() => {
     // Display the sim's OWN payments alongside the sim's OWN balances/interest — one consistent
@@ -1682,7 +1729,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-3 sm:mb-4">
             A recommended payment based on your current cash flow. Not adjusted for bills further
-            out than this month.
+            out than this month. Each card leads with its next payment and the date that payment is
+            due; where the due date has already passed, that is next month's payment and the amount
+            still owed this month is shown underneath it.
           </p>
 
           {month0Recs.cashWarning && (
@@ -1825,7 +1874,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
             <div className="flex items-start gap-2 bg-primary/10 border border-primary/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span>Forecast is reserving <strong>{formatCurrency(month0.holdback, false)}</strong> for <strong>{month0.holdbackEvent.eventName}</strong> ({month0.holdbackEvent.monthLabel}). Paying the full amounts below may reduce that reserve — see the per-card caps.</span>
+              <span>Forecast is reserving <strong>{formatCurrency(month0.holdback, false)}</strong> for <strong>{month0.holdbackEvent.eventName}</strong> ({month0.holdbackEvent.monthLabel}). Paying the full amounts below may reduce that reserve. See the per-card caps.</span>
             </div>
           )}
 
@@ -1843,19 +1892,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       </span>
                     ) : r.pastDue ? (
                       <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>saving</span>
+                    ) : r.nextPayment == null ? (
+                      // No badge: with no modelled payment there is nothing to classify, and
+                      // "priority" would be a confident claim about an amount the row itself
+                      // reports as unknown.
+                      null
                     ) : r.isMinimumOnly ? (
                       <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>min</span>
                     ) : (
                       <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>priority</span>
                     )}
                     <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">{r.reason}</span>
-                    {r.dueDay && (() => {
-                      return (
-                        <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                          <CalendarDays size={8} /> Due {r.pastDue ? `${r.nextMonthName} ` : ''}{ordinal(r.dueDay)}
-                        </span>
-                      );
-                    })()}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {hasHoldbackCap && month0?.holdbackEvent && (
@@ -1866,11 +1913,42 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[260px] text-xs">
-                          Forecast reserved {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}), capping this from {formatCurrency(r.maxPayment, false)} to {formatCurrency(r.payment, false)}.
+                          Forecast reserved {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}), capping this month's payment from {formatCurrency(r.maxPayment, false)} to {formatCurrency(r.payment, false)}.
                         </TooltipContent>
                       </Tooltip>
                     )}
-                    <span className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(r.payment, false)}</span>
+                    {/* The next payment and the date it is due, together, because apart they lied:
+                        a "$0" beside a left-hand "Due Sep 1st" chip read as "nothing to pay on the
+                        1st". This month's figure is DEMOTED rather than dropped whenever the next
+                        payment is next month's. */}
+                    <div className="flex flex-col items-end leading-tight">
+                      <span className="flex items-baseline gap-1">
+                        {r.nextPayMonth === 1 && (
+                          // The headline is NEXT month's payment on this row while the Safe to Pay
+                          // tile above sums this month's. Both months are named rather than left to
+                          // be inferred from the date underneath.
+                          <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-muted-foreground">next</span>
+                        )}
+                        {r.nextPayment != null ? (
+                          <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(r.nextPayment, false)}</span>
+                        ) : (
+                          <span className="text-[10px] sm:text-xs text-muted-foreground">{NEXT_PAYMENT_UNKNOWN}</span>
+                        )}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <CalendarDays size={8} /> {r.nextDueDate ? formatNextDue(r.nextDueDate) : NEXT_DUE_UNKNOWN}
+                      </span>
+                      {r.nextPayMonth === 1 && (
+                        // Demoted, not deleted. A this-month amount that is still owed is the
+                        // actionable number and stays legible; a $0 stays quiet, because there is
+                        // nothing to act on and the row above already carries the claim.
+                        <span className={r.payment > 0
+                          ? 'text-[10px] sm:text-xs text-foreground'
+                          : 'text-[9px] text-muted-foreground/70'}>
+                          {formatCurrency(r.payment, false)} due this month
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

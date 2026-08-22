@@ -1,5 +1,105 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 25 (**BOTH OF TRE'S UI ASKS ARE BUILT AND LIVE-VERIFIED on his real data,
+> plus the owed ISB regression test. Local commit only, NOT pushed — pushing fires both store
+> deploys, so that is his call.**)
+
+## A. ✅ §A SHIPPED — both asks, one slice, confirmed on screen
+
+### A.1 The reserve reason no longer lies
+`floor-protection.ts` gained ONE optional field, `ccMandatoryReasonByMonth?: (string | null)[]`,
+labelling-only (the dollars were already in `ccMinByMonth`), and `describeBreach` PREFERS it over its
+three spending heuristics. `useCardProjection.ts` builds it beside the `ccMinByMonth` reducer.
+
+**LIVE, before → after, same panel, same data:**
+- before: `Forecast is reserving $2,443 for $200 Pay sibling to watch dogs (September 2026).`
+- after: `Forecast is reserving $2,443 for Prime Visa's $2,845 statement, due the 7th (September 2026).`
+
+Two guards worth keeping:
+- **Only a pin that ACTUALLY SUPERSEDED gets named.** The reducer takes
+  `max(contractMinDue, min(pin.amount, revBal))`, so a statement at or below the card's own contract
+  minimum sized the reserve by nothing. Naming it anyway would be this same bug one term over.
+  Enforced by `added > 0.01`.
+- **The amount quoted is the CAPPED one** (`min(pin.amount, revBal)`), not the raw statement, because
+  quoting the raw figure names money the reserve is not holding.
+- `contractMinDue` was lifted verbatim out of the reducer so the reason builder and the reducer can
+  never disagree about whether a pin raised the month's mandatory total.
+- `forecast-engine.ts` passes nothing and is a **provable zero-diff** (`git diff --quiet` on it: yes).
+
+### A.2 Every row leads with the NEXT payment and its due date
+New `src/lib/next-card-payment.ts` (+ its own test) owns the date arithmetic, because the two things
+that can actually be wrong here are arithmetic, not layout: **December silently rolling to 'Jan' with
+no year**, and **a due day of 31 landing in a 30-day month**. Both are now clamped and tested.
+
+**LIVE on his four cards:**
+
+| Card | Row now reads |
+|---|---|
+| Prime Visa | `saving` · *Partial statement* · **NEXT $2,217 due Sep 7** · $0 due this month |
+| Discover it Card | `saving` · *Minimum payment* · **NEXT $150 due Sep 1** · $0 due this month |
+| Venture X / Apple Card | no row at all — `card_start_date` has not arrived |
+
+- The old left-hand `Due {ordinal}` chip is **moved, not deleted**, and this month's figure is
+  **demoted, not dropped** (`$0 due this month`, muted).
+- **No `?? 0` anywhere on the next-payment path.** A missing projection renders `Not modelled` and
+  drops the badge and the reason, because classifying an amount that does not exist is how
+  "Not modelled" ends up beside a confident "Avalanche priority".
+- `nextPayMonth` is derived from the CALENDAR (`dueDayPassed`), **not** from `pastDue` — `pastDue`
+  is forced false for every autopay/cycling card by its `!autopayFullBalance` guard, so reusing it
+  would hand a cycling card a date earlier this month and present it as upcoming.
+
+🟢 **A REAL FAULT FOUND ON THE WAY, and fixed: `Partial statement`.** Prime's row said
+`Statement balance` beside **$2,217 of a $2,845 statement**. The engine pays a pinned statement only
+as far as the cash above the floor reaches; the uncovered remainder breaks grace and accrues at
+27.49%. The label now tests COVERAGE, not eligibility, so the row stops promising interest avoidance
+the plan does not deliver. Nobody asked for this and it was wrong on screen today.
+
+## B. ✅ §B's OWED REGRESSION TEST — written, and it is a real one
+`src/hooks/__tests__/useCardProjection.isbReserve.test.ts`. **Synthetic on purpose, so it runs in CI**
+(the real fixture is gitignored and would self-skip, guarding nothing). Clock pinned to 2026-09-20.
+
+It asserts the MECHANISM, not a number that falls out of it. The third case is the one that matters:
+`run(PINNED_MIN)` **reconstructs the pre-fix arithmetic** — a pinned card whose statement equals its
+contract minimum adds nothing over `revolvingMinDue`, so month 0 stays `Infinity` — while
+`run(STATEMENT)` collapses month 0's cap onto its own combined contract minimum. The two runs differ
+in exactly one number. That is the differential the old suite never had.
+
+## C. 📋 GATE — run by me, not taken on report
+- `npm test` → **224 files / 2264 tests / 0 failed** (baseline 220/2247, so +4 files/+17 tests).
+- `npx tsc --noEmit` → **0 errors** (`tsconfig.json`, `include: ["src"]`, `strict: true`).
+- `git diff --stat` shows **no existing test file was modified** — no assertion was loosened to make
+  this pass.
+- 🔴 **TRAP, cost me a cycle: `npx vitest run --reporter=basic` EXITS 0 WITHOUT RUNNING ANYTHING.**
+  That reporter does not exist in this vitest; it fails to load the reporter module and still exits
+  clean. Use `npm test`. A false green here looks identical to a real one.
+
+## D. 🚢 STATE
+- Local commit only. **NOT pushed.** Pushing fires both store deploys (`src/**` paths) = a real
+  release, so it is Tre's call.
+- Backup of the three pre-change originals: `backups/2026-08-22_171912/`.
+- `src/lib/forecast-engine.ts` still shows as `M` — stat-only touch from a concurrent session,
+  content-identical to HEAD. Leave it.
+- `src/lib/__tests__/zz-tmp-diagnostic.test.ts` still untracked and not mine. It no longer produces
+  tsc errors (the handoff's "2 tsc errors" note is stale).
+- **Discover's manual minimum is `150.40`** and Tre confirmed 2026-08-22 the `.40` is deliberate.
+  An earlier note in this file said `150`; that was wrong.
+
+## ⏭️ START HERE
+1. **Ask Tre whether to push** (it is a store release). Nothing else is blocked on him.
+2. **One look at the Accounts modal** to confirm §C's "Monthly Instalment (optional)" tranche input
+   renders — still never seen live. Component test covers it; eyes have not.
+3. Then the old queue, unchanged: §4.1 + §4.2 loans first-class (mind the C5 double-count trap —
+   his ONE `auto_loan` is already in the forecast at $422.89/mo via `car_funds`), §4.4 card-payment
+   labels (do NOT touch `PROVIDER_CATEGORY_MAP`, it is account-blind and would relabel paychecks),
+   §4.5 the paycheck-rule end-date bypass, §6 the form/column sweep.
+4. **Do not ask Tre about the Aug 2027 cliff date, the move figures, or why July 2027 (med school).**
+   All settled and recorded below.
+
+---
+
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-22 session 24 (**TWO FIXES SHIPPED AND PUSHED: the §1 ISB reserve (`6d39ea51`, live
 > before/after) and the §C tranche `min_payment` data loss (`653ca96f`). Tre's TWO UI asks are now
 > the whole queue — read §A, they are what he is waiting on. Session hit the agent limit, so all of
@@ -148,8 +248,9 @@ written, not even the name): `Rate tier N needs a balance above $0 and an APR �
   to delete.
 - **PUSHED on Tre's instruction**: `86845120`, `2d3cc6a2` (prior session), `6d39ea51`, `7d32c43c`,
   `653ca96f`, and this handoff. That fires both store deploys (`src/**` paths) — a real release.
-- **Tre set Discover's minimum manually to `150`** (`min_payment_is_manual` is now true), not the
-  `$150.40` he said in chat — the stored value is `150`. `revolvingMinDue` honours a manual minimum
+- **Tre set Discover's minimum manually to `150.40`** (`min_payment_is_manual` is now true), and
+  confirmed 2026-08-22 that the `.40` is deliberate. An earlier note in this file read `150`; that
+  was wrong, and the DB is the truth. `revolvingMinDue` honours a manual minimum
   exactly and never re-inflates it with the 2% formula, so this lowers Discover's monthly floor and
   frees cash toward Prime, which is the direction he wants. His Prime tranches survived that save
   only because Discover's single tranche carries no `min_payment` to lose.

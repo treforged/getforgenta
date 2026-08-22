@@ -39,6 +39,14 @@ export interface FloorProtectionParams {
   /** Per-month CC minimum from simulation — when provided, overrides ccMinTotal per month so
    * post-payoff months use 0 instead of today's static live minimums. Falls back to ccMinTotal. */
   ccMinByMonth?: number[];
+  /** Per-month label for the MANDATORY credit-card term inside `ccMinByMonth` — a pinned
+   * statement balance the simulation pays unconditionally that month. Labeling only, like
+   * `cyclingExcessByMonth` / `carFunds` / `transactions` below: the dollars are already in
+   * `ccMinByMonth` and nothing here reaches the cash math. Indexed in ABSOLUTE month space
+   * (same as `carDownPaymentByMonth`), i.e. the month the statement LANDS, and read by
+   * `describeBreach` at the breach month. Sparse — null everywhere no pin lands.
+   * Omitted ⇒ today's heuristics, unchanged. */
+  ccMandatoryReasonByMonth?: (string | null)[];
   /** Per-month upper bound on the reducible (revolving + cycling-backlog) debt payment — the
    * debt actually outstanding entering month m, from the caller's simulation. Without it the
    * cash walks below assume every dollar above the floor goes to debt FOREVER, so the modeled
@@ -98,7 +106,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   const {
     incomeByMonth, expenseByMonth, oneTimeNetByMonth, carDownPaymentByMonth, floorByMonth,
     startingBalance, ccMinTotal, ccMinByMonth, cyclingExcessByMonth, carFunds, transactions,
-    ccSourceIds, now, formatCurrency, reducibleDebtCapByMonth,
+    ccSourceIds, now, formatCurrency, reducibleDebtCapByMonth, ccMandatoryReasonByMonth,
   } = params;
 
   const debtCap = (m: number) => reducibleDebtCapByMonth?.[m] ?? Infinity;
@@ -146,7 +154,16 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const carD = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const monthLabel = carD.toLocaleString('en', { month: 'long', year: 'numeric' });
     let eventName = 'upcoming expense';
-    if (carDownPaymentByMonth[i] > 0) {
+    const ccReason = ccMandatoryReasonByMonth?.[i];
+    if (ccReason) {
+      // PREFERRED over everything below. A pinned statement is the only term here whose cause is
+      // KNOWN: it is the mandatory outflow that raised this month's ccMin and therefore sized the
+      // reserve. The three branches below are heuristics that infer a cause from whatever else is
+      // happening that month, and the biggest-transaction fallback in particular has no causal
+      // link at all — it is how a $2,443 reserve for Prime Visa's September statement came to be
+      // reported as '$200 Pay sibling to watch dogs'.
+      eventName = ccReason;
+    } else if (carDownPaymentByMonth[i] > 0) {
       const car = carFunds.find(c => {
         if (c.phase !== 'saving') return false;
         const dp = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.gift_contribution || 0));

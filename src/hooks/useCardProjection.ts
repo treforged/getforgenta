@@ -13,6 +13,7 @@ import {
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { ordinal } from '@/lib/ordinal';
 import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
@@ -111,6 +112,24 @@ interface IsbPin {
 }
 
 /**
+ * True when this card carries a pinned interest-saving statement balance — the eligibility half of
+ * `deriveIsbPins`, exported so the /debt recommendation panel can label a pinned card without
+ * open-coding a FOURTH copy of the rule (see deriveIsbPins' warning below).
+ *
+ * The DUE-MONTH half is deliberately NOT exported: it treats a null dueDay as month 1, which is
+ * right for the engine's reserve and wrong for a display that must not invent a date.
+ */
+export function hasPinnedStatement(c: CardData, now: Date): boolean {
+  if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) return false;
+  if (c.startDate) {
+    const startD = new Date(c.startDate + 'T00:00:00');
+    const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
+    if (diff > 0) return false;
+  }
+  return true;
+}
+
+/**
  * Cards carrying a pinned statement balance, and the month each pin lands.
  *
  * Mirrors credit-card-engine's `manualStatementByCard` eligibility + due-month derivation.
@@ -125,15 +144,7 @@ interface IsbPin {
  */
 function deriveIsbPins(cards: CardData[], now: Date): IsbPin[] {
   return cards
-    .filter(c => {
-      if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) return false;
-      if (c.startDate) {
-        const startD = new Date(c.startDate + 'T00:00:00');
-        const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
-        if (diff > 0) return false;
-      }
-      return true;
-    })
+    .filter(c => hasPinnedStatement(c, now))
     .map(c => ({
       cardId: c.id,
       month: c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1,
@@ -986,7 +997,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cycling payment needs monthlyPayments) — see the iterative refinement below this
       // function for why it has to be callable more than once, each time against a fresher
       // simulation.
-      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[], reducibleDebtCapByMonth?: number[]) => {
+      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[], reducibleDebtCapByMonth?: number[], ccMandatoryReasonByMonth?: (string | null)[]) => {
         // Strip installment from ccMinByMonth so the save-up cap reflects only the revolving
         // minimum. Installment is modeled as an expense below — the engine pays it separately
         // via installmentCashCost, so the look-ahead must not also include it in the cascade cap.
@@ -1012,6 +1023,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ccMinByMonth: ccMinRevOnly,
           cyclingExcessByMonth,
           reducibleDebtCapByMonth,
+          ccMandatoryReasonByMonth,
           carFunds, transactions, ccSourceIds, now, formatCurrency,
         });
       };
@@ -1174,6 +1186,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // uncapped term, the cycling pool, which is subtracted BEFORE that cap is applied.
         m0SimFloor = augmentedCashFloorByMonth[0] ?? m0SafeFloor;
         const cyclingPaymentByMonth = computeCyclingPaymentByMonth(sim);
+        // One card's CONTRACT minimum outflow in month m, BEFORE any pinned statement supersedes
+        // it. Lifted verbatim out of the ccMinByMonth reducer below — not one dollar changed —
+        // so the reason builder beside it can ask the same question the reducer asks and the two
+        // can never disagree about whether a pin actually raised the month's mandatory total.
+        const contractMinDue = (c: CardData, m: number, revBal: number): number => {
+          // Q11: settled card has no month-0 revolving min outflow (cycle already paid).
+          if (revBal > 0) return (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
+          const backlog = sim.monthlyCyclingBacklog.get(c.id)?.[m] ?? 0;
+          return backlog > 0 ? revolvingMinDue(c, backlog) : 0;
+        };
         // The save-up look-ahead's model of this month's UNAVOIDABLE debt outflow must reflect the
         // real contract minimum (revolvingMinDue), not the plain 2% formula that perCardMinPayments
         // carries. computeFloorProtection banks reserveNeeded on the assumption that only ccMin(m)
@@ -1188,13 +1210,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           cards.reduce((s, c) => {
             const revBal = sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
-            let due: number;
-            // Q11: settled card has no month-0 revolving min outflow (cycle already paid).
-            if (revBal > 0) due = (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
-            else {
-              const backlog = sim.monthlyCyclingBacklog.get(c.id)?.[m] ?? 0;
-              due = backlog > 0 ? revolvingMinDue(c, backlog) : 0;
-            }
+            let due: number = contractMinDue(c, m, revBal);
             // A PINNED STATEMENT SUPERSEDES THE CONTRACT MINIMUM IN ITS DUE MONTH. The sim pays it
             // unconditionally (credit-card-engine's manualStatementByCard), so it is a mandatory
             // outflow, and the reserve has to be banked the month BEFORE — which is what this array
@@ -1209,6 +1225,40 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             return s + due;
           }, 0) + installmentCostByMonth[m],
         );
+        // Label for the mandatory pinned-statement term above, for the same month and the same
+        // CAPPED amount the reserve is actually sized on (`min(pin.amount, revBal)` — quoting the
+        // raw statement would name money the reserve is not holding). Rebuilt each refinement
+        // pass against the same `sim` ccMinByMonth used, so the two can never disagree.
+        // floor-protection PREFERS this over its spending heuristics (describeBreach).
+        const ccMandatoryReasonByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
+          // Only pins that ACTUALLY SUPERSEDED. The reducer above takes
+          // max(contractMinDue, min(pin.amount, revBal)), so a statement at or below the card's
+          // own contract minimum contributes nothing to ccMinByMonth and therefore did not size
+          // the reserve by a cent. Naming it anyway would be this same bug one term over: a
+          // $300 statement taking credit for a reserve a car down payment paid for.
+          const pinned = cards.flatMap(c => {
+            const pin = isbPinByCard.get(c.id);
+            if (!pin || pin.month !== m) return [];
+            const revBal = sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+            const reserved = Math.min(pin.amount, revBal);
+            const added = reserved - contractMinDue(c, m, revBal);
+            if (reserved <= 0 || added <= 0.01) return [];
+            return [{ name: c.name, dueDay: c.dueDay, reserved, added }];
+          }).sort((a, b) => b.added - a.added);
+          if (pinned.length === 0) return null;
+          // Largest contribution leads, because that is the statement that actually sized the
+          // reserve. Ordering by the `cards` array instead would make the sentence a function of
+          // the Accounts page's drag-and-drop row order.
+          const [lead, ...rest] = pinned;
+          const head = lead.dueDay != null
+            ? `${lead.name}'s ${formatCurrency(lead.reserved, false)} statement, due the ${ordinal(lead.dueDay)}`
+            : `${lead.name}'s ${formatCurrency(lead.reserved, false)} statement`;
+          // More than one statement can land in the same month, and the reserve holds for ALL of
+          // them. Saying so beats silently attributing the whole reserve to one card.
+          if (rest.length === 0) return head;
+          if (rest.length === 1) return `${head}, and ${rest[0].name}'s ${formatCurrency(rest[0].reserved, false)} statement`;
+          return `${head}, and ${rest.length} other card statements`;
+        }) as (string | null)[];
         // Upper bound on the reducible debt payment: revolving + backlog outstanding entering
         // month m, from the previous pass's sim (same fixed-point sourcing as ccMinByMonth
         // above). Keeps computeFloorProtection's cash walk from assuming surplus flows to debt
@@ -1220,7 +1270,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             s + Math.max(0, sim.monthlyRevolvingBalances.get(c.id)?.[m - 1] ?? 0)
               + Math.max(0, sim.monthlyCyclingBacklog.get(c.id)?.[m - 1] ?? 0), 0);
         });
-        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth, ccMinByMonth, reducibleDebtCapByMonth);
+        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth, ccMinByMonth, reducibleDebtCapByMonth, ccMandatoryReasonByMonth);
         sim = simulateVariablePayoff(
           cards,
           debtFundingBalance,
