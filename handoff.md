@@ -66,11 +66,28 @@ tsc --noEmit 0 errors; eslint clean on all 11 files. NOT independently re-run ye
    local-only, he was reminded).
 4. Session note per global CLAUDE.md when wrapping.
 
+## C2. 🔴 NEW ASK FROM TRE (mid-session, NOT STARTED — context gate fired)
+Verbatim: "move the overview data from the accounts tab to the top of the dashboard. condense and
+combine duplicate information. the dashboard is supposed to be a quick direct to the point for
+overall info relating to the users account."
+Do this AFTER the loan-rows slice is verified+committed. Scope: /accounts' overview data (totals /
+net-worth style summary at the top of Accounts.tsx) → top of Dashboard; merge with whatever
+Dashboard already shows (net worth tile etc.) rather than duplicating; dashboard = quick overall
+picture. Mind: net-worth math lives in src/lib/net-worth.ts (shared, don't fork it), and the
+Accounts page hook records net-worth snapshots — grep what Accounts' overview WRITES before moving
+anything (see project_net_worth_snapshots memory: a "dead" page's sole writer was orphaned once).
+
 ## D. ✅ ALSO DONE THIS SESSION
 - **Session-25 START-HERE item 2 CLOSED**: "Monthly Instalment (optional)" tranche input renders
   live on all four Prime Visa tranches, populated from DB (Tier 1 = 49.89, promo end Feb 2027).
   Modal dismissed without saving.
-- Established: Tre's dashboard hides the debt_recommendations widget (his saved layout, not a bug).
+- ~~Established: Tre's dashboard hides the debt_recommendations widget~~ **WRONG — Tre says the
+  widget IS enabled on his account.** My innerText probe found no "Recommended This Month" on his
+  /dashboard, so reconcile during live verification: if it is enabled yet absent, that is a real
+  rendering defect (check `hasRecs`, PremiumGate, widget-order merge), not a toggle.
+- **PUSHED to origin/main on Tre's explicit "push."** (session 25's work + handoff commits — fires
+  both store deploys). The loan-rows build is NOT in that push; when it commits after verification,
+  the next push is again Tre's call.
 
 ---
 
