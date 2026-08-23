@@ -22,25 +22,23 @@ function NWTooltip({ active, payload }: NWTooltipProps) {
 export interface NetWorthTrendCardProps {
   snapshots: readonly TrendSnapshotRow[];
   snapshotsLoading: boolean;
+  /** Today's net worth — the last point of the trend line, not a tile. */
   netWorth: number;
-  totalAssets: number;
-  totalLiabilities: number;
-  /** Opens the same net-worth breakdown drawer the stat chip opens, when the host has one. */
-  onNetWorthClick?: () => void;
 }
 
 /**
- * Net worth now, and net worth over time, in one card.
+ * Which way net worth is MOVING, and the recorded history behind that.
  *
- * This was the top of the Accounts panel until 2026-08-20, when Tre asked for it
- * on the Overview instead: *"move the data and net worth chart from the accounts
- * section to the overview section. it seems redundant and data is to spread
- * out."* The redundancy was real — the Overview's chip row already carried Net
- * Worth and Total Assets, so the same figures were being read on two panels and
- * the HISTORY, which existed on only one of them, was the part you had to go
- * hunting for. Bringing the chart up puts the trend next to the number it is the
- * trend OF, and the four figures here are the four the chip row does not fully
- * cover (Total Liabilities and Monthly Change were Accounts-only).
+ * The chart came up from the Accounts panel on 2026-08-20 (Tre: *"move the data
+ * and net worth chart from the accounts section to the overview section. it
+ * seems redundant and data is to spread out"*), leading with four tiles: Net
+ * Worth, Total Assets, Total Liabilities and Monthly Change. Three of those four
+ * now sit in the overview strip pinned above the panel switcher, permanently on
+ * screen, so this card was showing the same figures a few hundred pixels below
+ * them (Tre, 2026-08-22: *"condense and combine duplicate information"*). What
+ * is left here is the part only this card has: the change since roughly a month
+ * ago, and the line it came from. `netWorth` stays as an input because the trend
+ * line's final point is today's figure — it is no longer drawn as a tile.
  *
  * ⚠️ The writer that feeds this chart, `useNetWorthSnapshotRecorder`, moved to
  * `Dashboard.tsx` in the same change and is mounted OUTSIDE the panel switch on
@@ -55,43 +53,22 @@ export default function NetWorthTrendCard({
   snapshots,
   snapshotsLoading,
   netWorth,
-  totalAssets,
-  totalLiabilities,
-  onNetWorthClick,
 }: NetWorthTrendCardProps) {
   const trend = useMemo(() => buildNetWorthTrend(snapshots, netWorth), [snapshots, netWorth]);
   const monthlyChange = useMemo(() => monthlyNetWorthChange(snapshots), [snapshots]);
 
   return (
     <div key="net_worth_trend" className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
-        <div
-          className={onNetWorthClick ? 'cursor-pointer' : undefined}
-          onClick={onNetWorthClick}
-          role={onNetWorthClick ? 'button' : undefined}
-          tabIndex={onNetWorthClick ? 0 : undefined}
-          onKeyDown={onNetWorthClick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNetWorthClick(); } } : undefined}
-        >
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Net Worth</p>
-          <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(netWorth, false)}</p>
-        </div>
-        <div>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Assets</p>
-          <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-success">{formatCurrency(totalAssets, false)}</p>
-        </div>
-        <div>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Liabilities</p>
-          <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(totalLiabilities, false)}</p>
-        </div>
-        <div>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium flex items-center justify-center gap-1">
-            <ArrowUpRight size={9} /> Monthly Change
-          </p>
-          <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange, false) : '—'}
-          </p>
-          {monthlyChange === null && <p className="text-[9px] text-muted-foreground">no history yet</p>}
-        </div>
+      <div className="text-center sm:text-left">
+        <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium flex items-center justify-center sm:justify-start gap-1">
+          <ArrowUpRight size={9} /> Monthly Change
+        </p>
+        <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
+          {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange, false) : '—'}
+        </p>
+        <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+          {monthlyChange === null ? 'no history yet' : 'since roughly a month ago'}
+        </p>
       </div>
 
       <div className="border-t border-border/40" />

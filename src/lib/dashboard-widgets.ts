@@ -1,9 +1,6 @@
 export type WidgetId =
   | 'monthly_snapshot'
   | 'upcoming_week'
-  | 'schedule_cards'
-  | 'financial_health'
-  | 'wealth_overview'
   | 'net_worth_trend'
   | 'car_goal'
   | 'cash_flow_chart'
@@ -35,27 +32,12 @@ export const WIDGET_META: WidgetMeta[] = [
     description: 'Bills and expenses due in the next 7 days',
   },
   {
-    id: 'schedule_cards',
-    label: 'Schedule Cards',
-    description: 'Next paycheck date, bills this week and month, month-end cash projection',
-  },
-  {
-    id: 'financial_health',
-    label: 'Financial Health',
-    description: 'Liquid cash, monthly income, expenses, and debt payments',
-  },
-  {
-    id: 'wealth_overview',
-    label: 'Wealth Overview',
-    description: 'Net worth, savings rate, credit utilization, and total saved',
-  },
-  {
     id: 'net_worth_trend',
     label: 'Net Worth Trend',
-    // Moved up from the Accounts panel on 2026-08-20 — the chip row already carried
-    // Net Worth and Total Assets, so the number lived here while its history lived a
-    // panel away. Liabilities and Monthly Change came with it; nothing was dropped.
-    description: 'Net worth over time, with total assets, total liabilities, and the change over the last month',
+    // The current totals it used to lead with (net worth, assets, liabilities) moved to the
+    // fixed overview strip above the panel switcher on 2026-08-22, where they are on screen
+    // for every panel. What this widget owns is the direction of travel.
+    description: 'Net worth over time, and the change over the last month',
   },
   {
     id: 'car_goal',
@@ -106,6 +88,11 @@ export const DEFAULT_LAYOUT: WidgetConfig[] = WIDGET_META.map(w => ({
  * Unknown or malformed entries are dropped (a widget id that no longer exists must not survive as
  * a hole in the stack), and every widget the saved layout has never seen is inserted at its
  * DEFAULT position rather than appended.
+ *
+ * Dropping unknown ids is what retires a widget: `schedule_cards`, `financial_health` and
+ * `wealth_overview` were removed from the registry on 2026-08-22 and are still sitting in every
+ * saved `profiles.dashboard_layout` written before that date. They are filtered out here rather
+ * than migrated in the database.
  *
  * That last part used to be a plain `push`, and it quietly gave existing users a different page
  * from new ones: the Net Worth Trend card was placed high in {@link DEFAULT_LAYOUT} on 2026-08-20

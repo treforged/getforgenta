@@ -78,17 +78,38 @@ describe('mergeSavedLayout', () => {
   });
 
   it('follows the user reorder — the new card lands behind its neighbour wherever that was moved', () => {
-    // 'wealth_overview' is the default neighbour directly above 'net_worth_trend'. Here the user
+    // 'upcoming_week' is the default neighbour directly above 'net_worth_trend'. Here the user
     // has dragged it to the bottom, so the new card belongs at the bottom too, not high up.
     const saved = [
       cfg('goal_progress'),
       cfg('monthly_snapshot'),
-      cfg('schedule_cards'),
-      cfg('financial_health'),
-      cfg('wealth_overview'),
+      cfg('upcoming_week'),
     ];
     const merged = ids(mergeSavedLayout(saved));
-    expect(merged[merged.indexOf('wealth_overview') + 1]).toBe('net_worth_trend');
+    expect(merged[merged.indexOf('upcoming_week') + 1]).toBe('net_worth_trend');
+  });
+
+  // The three chip-row widgets were retired on 2026-08-22 when the overview strip took the
+  // top of the page. Nothing migrates `profiles.dashboard_layout`, so every account saved
+  // before that date still names them and this is the only thing standing between those rows
+  // and a dashboard that tries to render a widget that no longer exists.
+  it('drops the retired chip-row widgets a saved layout still names', () => {
+    const retired = ['schedule_cards', 'financial_health', 'wealth_overview'];
+    const saved = [
+      { id: 'monthly_snapshot', visible: true },
+      ...retired.map(id => ({ id, visible: true })),
+      { id: 'goal_progress', visible: false },
+    ];
+
+    const merged = mergeSavedLayout(saved);
+
+    retired.forEach(id => expect(ids(merged)).not.toContain(id as WidgetId));
+    // The surviving entries keep their saved order and visibility, and every current widget
+    // is present exactly once — a retired id must not leave a hole or a duplicate behind.
+    expect(ids(merged).indexOf('monthly_snapshot')).toBeLessThan(ids(merged).indexOf('goal_progress'));
+    expect(merged.find(w => w.id === 'goal_progress')?.visible).toBe(false);
+    expect(new Set(ids(merged))).toEqual(new Set(ids(DEFAULT_LAYOUT)));
+    expect(merged).toHaveLength(DEFAULT_LAYOUT.length);
   });
 
   it('puts a new widget at the front when it has no earlier neighbour in the saved layout', () => {

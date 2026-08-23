@@ -5,16 +5,14 @@ import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatCurrency } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
-import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useCarFunds, type AccountRow } from '@/hooks/useSupabaseData';
-import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
-import { aggregateNetWorth, LIABILITY_ACCOUNT_TYPES } from '@/lib/net-worth';
+import { useAccounts, useDebts, useAccountReconciliations, type AccountRow } from '@/hooks/useSupabaseData';
+import { LIABILITY_ACCOUNT_TYPES } from '@/lib/net-worth';
 import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Link } from 'react-router';
-import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
 import PlaidLinkButton, { PlaidSyncedAccount } from '@/components/shared/PlaidLinkButton';
 import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
@@ -64,9 +62,6 @@ const ASSET_TYPES = ['checking', 'savings', 'high_yield_savings', 'hsa', 'busine
 // Filters and form fields key off the same liability set the net-worth rollup uses.
 const LIABILITY_TYPES: readonly string[] = LIABILITY_ACCOUNT_TYPES;
 const LOAN_TYPES = ['mortgage', 'student_loan', 'auto_loan', 'other_liability'];
-const LIQUID_TYPES = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
-const INVESTMENT_TYPES = ['brokerage'];
-const RETIREMENT_TYPES = ['roth_ira', '401k'];
 
 const TYPE_LABELS: Record<string, string> = {};
 ACCOUNT_TYPES.forEach(t => { TYPE_LABELS[t.value] = t.label; });
@@ -145,9 +140,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, reorder, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
-  const { data: manualAssets, loading: assetsLoading } = useAssets();
-  const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
-  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const qc = useQueryClient();
@@ -393,22 +385,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   }, [applyOrder, orderedAccounts]);
 
   const activeAccounts = useMemo(() => accounts.filter(a => a.active), [accounts]);
-
-  // Amortized from car_funds, which stores no outstanding balance. Same call the
-  // Vehicles page uses, so the liability here matches what that page displays.
-  const vehicleLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
-
-  const summary = useMemo(() => {
-    const active = activeAccounts;
-    const liquidCash = active.filter(a => LIQUID_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
-    const investments = active.filter(a => INVESTMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
-    const retirement = active.filter(a => RETIREMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
-    const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance), 0);
-    // Same rollup as the Dashboard tile and the recorded snapshot, manual rows
-    // and amortized vehicle loans included.
-    const { totalAssets, totalLiabilities, netWorth } = aggregateNetWorth(active, manualAssets, manualLiabilities, vehicleLoans);
-    return { liquidCash, investments, retirement, ccDebt, totalLiabilities, totalAssets, netWorth };
-  }, [activeAccounts, manualAssets, manualLiabilities, vehicleLoans]);
 
   const filteredAccounts = useMemo(() => {
     if (filterType === 'assets') return orderedAccounts.filter(a => ASSET_TYPES.includes(a.account_type));
@@ -660,12 +636,13 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     }
   };
 
-  // Every figure in the summary block is an aggregate of accounts + manual assets +
-  // manual liabilities + vehicle loans. Gating on `accounts` alone used to paint
-  // eight confident $0.00 tiles and a "Current Net Worth $0.00" chart while the
-  // rest was still in flight. Wait for all four sources, or show none of them.
-  const summaryLoading = loading || assetsLoading || liabilitiesLoading || carFundsLoading;
-  if (summaryLoading) return <AccountsSkeleton />;
+  // `accounts` is now the only source this panel reads. The four-source gate that stood here
+  // belonged to the summary tiles — those aggregate manual assets, manual liabilities and
+  // amortized vehicle loans as well, and painting them from `accounts` alone showed eight
+  // confident $0.00s. They moved to the Dashboard's overview strip on 2026-08-22 and the gate
+  // went with them; holding the account LIST behind three queries it never reads was just a
+  // slower page.
+  if (loading) return <AccountsSkeleton />;
 
   return (
     <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
@@ -779,7 +756,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           <p className="text-xs text-muted-foreground">Exchanging token and syncing balances</p>
         </div>
       )}
-      {/* Group A — the action row and the summary card it sits above. `stack-row`, not a
+      {/* Group A — the action row and the demo explainer under it. `stack-row`, not a
           section gap: embedding this page dropped the <h1> but left the row's band, so two
           small controls were eating ~108px of the fold. A control row belongs to its content
           (vertical-rhythm block in `src/index.css`). */}
@@ -828,60 +805,13 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         </div>
       )}
 
-      {/*
-        Summary Stats — what these accounts add up to RIGHT NOW.
-
-        The history chart and the Monthly Change figure that used to sit in this card moved to the
-        Overview's "Net Worth Trend" widget on 2026-08-20 (Tre: "move the data and net worth chart
-        from the accounts section to the overview section. it seems redundant and data is to spread
-        out"). Nothing was deleted — the trend is one panel away and next to the same Net Worth
-        number the chip row already showed. What stays here is what only this page can answer: how
-        the total splits across cash, investments, retirement and card debt.
-      */}
-      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Net Worth</p>
-            <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${summary.netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(summary.netWorth, false)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Assets</p>
-            <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-success">{formatCurrency(summary.totalAssets, false)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Liabilities</p>
-            <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.totalLiabilities, false)}</p>
-          </div>
-        </div>
-        <div className="border-t border-border/40" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Liquid Cash</p>
-            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-success">{formatCurrency(summary.liquidCash, false)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Investments</p>
-            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-primary">{formatCurrency(summary.investments, false)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Retirement</p>
-            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-primary">{formatCurrency(summary.retirement, false)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">CC Debt</p>
-            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.ccDebt, false)}</p>
-          </div>
-        </div>
-
-      </div>
-
       </div>
 
       {/* Group B — the panel pills, the filter row and the list they govern. Same rule. */}
       <div className="stack-row">
-      {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
-          they are the page's hero and hiding them behind a tab would make the answer depend on
-          which tab you happened to be on. */}
+      {/* Panel switcher — Garage-style pills. What the accounts add up to is answered by the
+          Dashboard's overview strip, which sits above the panel switcher on every panel, so no
+          total here depends on which tab you happened to be on. */}
       <PanelBar>
         <button onClick={() => setActiveTab('balances')}
           className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}

@@ -61,10 +61,9 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
     title: 'Dashboard Guide',
     sections: [
       { title: 'What is this panel?', body: 'The Command Center gives you a real-time snapshot of your financial health — income, expenses, net worth, savings, debt, and upcoming bills for the current month.' },
+      { title: 'The strip at the top', body: 'Net worth, and what it is made of: total assets and total liabilities under the headline, then liquid cash, investments, retirement and credit card debt with your utilization. It sits above the panel switcher, so it stays on screen on Overview, Accounts and Goals alike. Tap Net Worth or Liquid Cash to see exactly which accounts went into it. Until every account has loaded the strip shows placeholders rather than zeros.' },
       { title: 'The headline number', body: 'The top of the page shows the month your credit card debt clears, and how much cash sits above your safety floor. The curve under it is that same plan drawn out: where your balance is today and the shape of it falling to zero. If either number has no reading yet, the page says so rather than showing a zero.' },
-      { title: 'Stat chips', body: 'The scrolling row of chips carries the supporting numbers. Tap any chip to see exactly how it is calculated, including which accounts and transactions are included.' },
-      { title: 'Net Worth Trend', body: 'Net worth now and net worth over time in one card: total assets, total liabilities, and the change since roughly a month ago, above the recorded history line. Snapshots are saved about once a week, so the line fills in over the first few weeks rather than appearing all at once. Until there is history to draw, the card says so instead of drawing a flat line at zero.' },
-      { title: 'Projected Month-End Cash', body: 'Shows your expected cash position at month end: current liquid cash + remaining paychecks − remaining expenses − debt payments. Must stay above your cash floor.' },
+      { title: 'Net Worth Trend', body: 'Which way net worth is moving: the change since roughly a month ago, above the recorded history line. The totals themselves are in the strip at the top of the page. Snapshots are saved about once a week, so the line fills in over the first few weeks rather than appearing all at once. Until there is history to draw, the card says so instead of drawing a flat line at zero.' },
       { title: 'Cash Flow Chart', body: 'Displays the last 6 months of income vs expenses with net cash flow trend line.' },
       { title: 'Customize Dashboard', body: 'Click the Customize button to show/hide widgets and use the up/down arrows to reorder them. Layout is saved to your account.' },
       { title: 'How edits affect this page', body: 'Changes to Accounts, Budget Control rules, or Debt Payoff recommendations instantly update all dashboard metrics.' },
@@ -75,7 +74,7 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
     sections: [
       { title: 'What is this panel?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
       { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
-      { title: 'Where the net worth history went', body: 'The trend chart now lives on the Overview panel, next to the same net worth figure the chip row shows. This panel keeps the current totals and how they split across cash, investments, retirement and card debt.' },
+      { title: 'Where the totals went', body: 'Net worth, assets, liabilities, and the split across cash, investments, retirement and card debt now live in the strip at the top of the page, above the panel switcher, so what these accounts add up to is on screen here too. The history chart is on the Overview panel. This panel is the accounts themselves.' },
       { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
       { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
     ],
@@ -94,7 +93,7 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
   'accounts:balances': {
     title: 'Balances Guide',
     sections: [
-      { title: 'What is this panel?', body: 'Every account you hold, with the balance each one currently reports. This is the source of truth the rest of the app reads — net worth, liquid cash, debt payoff and payment sources all come from here.' },
+      { title: 'What is this panel?', body: 'Every account you hold, with the balance each one currently reports. This is the source of truth the rest of the app reads — net worth, liquid cash, debt payoff and payment sources all come from here, and the strip at the top of the page is what these balances add up to.' },
       { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
       { title: 'Cards you have not opened yet', body: 'A card with a future start date is one you have PLANNED. It stays out of this month\'s payment recommendations, the debt tab count and the liabilities breakdown until that date arrives — but it is still listed here, because an account list is not a claim about what you owe.' },
       { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },

@@ -48,7 +48,10 @@ import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
-import { buildNetWorthBreakdown, totalsFromBreakdown, nonCardLiabilityTotal } from '@/lib/net-worth';
+import {
+  buildNetWorthBreakdown, totalsFromBreakdown, nonCardLiabilityTotal, sumBalanceByAccountType,
+  LIQUID_ACCOUNT_TYPES, INVESTMENT_ACCOUNT_TYPES, RETIREMENT_ACCOUNT_TYPES,
+} from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import {
@@ -58,8 +61,7 @@ import {
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
 import DashboardHero from '@/components/dashboard/DashboardHero';
-import StatChipRow from '@/components/dashboard/StatChipRow';
-import { buildDashboardChips, CHIP_WIDGET_IDS, type ChipWidgetId } from '@/lib/dashboard-chips';
+import DashboardOverviewStrip from '@/components/dashboard/DashboardOverviewStrip';
 import CalcDrawer from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
 import { buildPayoffTrajectory } from '@/lib/payoff-trajectory';
@@ -197,11 +199,11 @@ export default function Dashboard() {
   useRetirementAutoUpdate(profile as Parameters<typeof useRetirementAutoUpdate>[0], accounts, isDemo, isPremium);
   const { data: debts, loading: debtsLoading } = useDebts();
   const { data: goals, loading: goalsLoading } = useSavingsGoals();
-  const { data: carFunds } = useCarFunds();
+  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: rules, loading: rulesLoading } = useRecurringRules();
   const { items: plaidItems } = usePlaidItems();
-  const { data: manualAssets } = useAssets();
-  const { data: manualLiabilities } = useLiabilities();
+  const { data: manualAssets, loading: assetsLoading } = useAssets();
+  const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
   const { data: paymentPlans } = usePaymentPlans();
   // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
   const { data: syncedReviews } = useSyncedTransactionReviews();
@@ -393,9 +395,13 @@ export default function Dashboard() {
 
   const accountSummary = useMemo(() => {
     const active = accounts.filter(a => a.active);
-    const liquidTypes = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
 
-    const liquidCash = active.filter(a => liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
+    const liquidCash = sumBalanceByAccountType(active, LIQUID_ACCOUNT_TYPES);
+    // The asset split the overview strip carries, from the same lists the Accounts panel
+    // read before the tiles moved up here. See lib/net-worth.ts for why these are not
+    // ACCOUNT_TYPE_GROUP.
+    const investments = sumBalanceByAccountType(active, INVESTMENT_ACCOUNT_TYPES);
+    const retirement = sumBalanceByAccountType(active, RETIREMENT_ACCOUNT_TYPES);
     // A card with a future card_start_date has not been opened yet, so its limit is
     // not available credit and must not dilute utilization. Both sides of the ratio
     // use the same filter so the tile's "$debt / $limit" sub-line stays consistent.
@@ -403,8 +409,14 @@ export default function Dashboard() {
     const ccDebt = openCards.reduce((s, a) => s + Number(a.balance || 0), 0);
     const ccLimit = openCards.filter(a => a.credit_limit).reduce((s, a) => s + Number(a.credit_limit || 0), 0);
 
-    return { liquidCash, ...totalsFromBreakdown(netWorthBreakdown), ccDebt, ccLimit };
+    return { liquidCash, investments, retirement, ...totalsFromBreakdown(netWorthBreakdown), ccDebt, ccLimit };
   }, [accounts, netWorthBreakdown]);
+
+  // The strip's totals aggregate accounts + manual assets + manual liabilities + amortized
+  // vehicle loans. `essentialLoading` covers only the first, so a strip gated on it alone
+  // paints a confident net worth built from three empty arrays for as long as the other
+  // three queries are in flight — the same defect the Accounts panel closed on 2026-08-20.
+  const overviewStripLoading = acctLoading || assetsLoading || liabilitiesLoading || carFundsLoading;
 
   const allAssetsForBreakdown = netWorthBreakdown.assets;
   const allLiabilitiesForBreakdown = netWorthBreakdown.liabilities;
@@ -522,9 +534,12 @@ export default function Dashboard() {
   const upcomingWeek = useMemo(() => getUpcomingEvents(scheduledEvents, 7), [scheduledEvents]);
   const upcomingMonth = useMemo(() => getUpcomingEvents(scheduledEvents, 30), [scheduledEvents]);
   const upcomingBillsWeek = upcomingWeek.filter(e => e.type === 'expense');
+  // ⚠️ NO READER since the stat-chip row was retired (2026-08-22): `upcomingMonth`,
+  // `upcomingBillsMonth` and `nextPayday` above were chip values. Kept with the three
+  // orphaned drawer openers below rather than deleted piecemeal, so re-anchoring "bills this
+  // month" and "next paycheck" is one decision instead of a rebuild. `upcomingWeek` is live —
+  // the Upcoming This Week widget reads it.
   const upcomingBillsMonth = upcomingMonth.filter(e => e.type === 'expense');
-
-  const utilization = accountSummary.ccLimit > 0 ? (accountSummary.ccDebt / accountSummary.ccLimit) * 100 : 0;
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate, debtFundingSources, CC_DEFAULT_CATEGORIES, confirmedOccurrences), [allMonthTransactions, syncCutoffDate, debtFundingSources, confirmedOccurrences]);
@@ -830,6 +845,13 @@ export default function Dashboard() {
   }, [carFunds, goals, accountMap]);
 
   // ─── Calc drawer openers ──────────────────────────────────────────────────
+  //
+  // ⚠️ NO CALLER, as of 2026-08-22: `openMonthEndCalc`, `openIncomeCalc` and
+  // `openExpenseCalc` were opened from the stat-chip row, which was retired when the
+  // overview strip took the top of the page. Their derivations are left standing rather
+  // than deleted so the figures can be re-anchored to a surface that still shows them —
+  // rebuilding these chains from scratch is how a drawer stops matching its own tile.
+  // (`openDebtPaymentsCalc` below has had no caller since before this change.)
 
   const openMonthEndCalc = () => {
     const engineMinimums = debtBreakdown.totalMinimumsDue;
@@ -1002,42 +1024,6 @@ export default function Dashboard() {
     setCalcDrawer({ title: 'Cash Floor', lines });
   };
 
-  // ─── Stat chips (slice 2) ─────────────────────────────────────────────────
-  // The three 4-cell MetricCard grids demote to ONE horizontally scrollable chip row.
-  // Every figure those grids carried is still here, still taps through to the same drawer
-  // or page, and still respects `useDashboardLayout`: each of the three widget ids keeps
-  // owning its own chips, so hiding one drops exactly its four, and reordering them
-  // reorders the groups. The combined row renders at whichever of the three is visible
-  // FIRST, and the other two render nothing — one row on screen, three levers behind it.
-
-  const chipsByWidget = buildDashboardChips({
-    rulesLoading, goalsLoading,
-    paycheckNet, nextPayday,
-    billsThisWeek: { total: upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), count: upcomingBillsWeek.length },
-    billsThisMonth: { total: upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), count: upcomingBillsMonth.length },
-    monthEndCash,
-    liquidCash: accountSummary.liquidCash,
-    income: summary.income,
-    expenses: summary.expenses,
-    debtService: summary.debtService,
-    netWorth: accountSummary.netWorth,
-    totalAssets: accountSummary.totalAssets,
-    savingsRate: summary.savingsRate,
-    cashFlow: summary.cashFlow,
-    utilization,
-    ccDebt: accountSummary.ccDebt,
-    ccLimit: accountSummary.ccLimit,
-    totalSaved: summary.totalSaved,
-    goalCount: goals.length,
-    openMonthEndCalc, openLiquidCashCalc, openIncomeCalc, openExpenseCalc, openNetWorthCalc,
-  });
-
-  const isChipWidget = (id: WidgetId): id is ChipWidgetId =>
-    (CHIP_WIDGET_IDS as readonly WidgetId[]).includes(id);
-  const visibleChipWidgets = visibleWidgets.filter(isChipWidget);
-  const chipRowAnchor = visibleChipWidgets[0] ?? null;
-  const allChips = visibleChipWidgets.flatMap(id => chipsByWidget[id]);
-
   // ─── Widget renderer ──────────────────────────────────────────────────────
 
   const renderWidget = (id: WidgetId) => {
@@ -1074,17 +1060,9 @@ export default function Dashboard() {
           </div>
         );
 
-      // The three demoted grids. Only the first visible one paints the combined row; the
-      // other two are deliberately empty so the page shows ONE chip row, not three.
-      case 'schedule_cards':
-      case 'financial_health':
-      case 'wealth_overview':
-        return id === chipRowAnchor ? <StatChipRow key="stat_chips" chips={allChips} /> : null;
-
-      // Net worth now and net worth over time, together. Lived at the top of the Accounts
-      // panel until 2026-08-20 (Tre: "move the data and net worth chart from the accounts
-      // section to the overview section. it seems redundant and data is to spread out") —
-      // the chip row already carried the number, so only the history was a panel away.
+      // Net worth OVER TIME. The three current totals it used to lead with are in the
+      // overview strip above the panel switcher, permanently on screen, so repeating them
+      // one card lower was the same figure twice on one scroll.
       case 'net_worth_trend':
         return (
           <NetWorthTrendCard
@@ -1092,9 +1070,6 @@ export default function Dashboard() {
             snapshots={netWorthSnapshots}
             snapshotsLoading={netWorthSnapshotsLoading}
             netWorth={accountSummary.netWorth}
-            totalAssets={accountSummary.totalAssets}
-            totalLiabilities={accountSummary.totalLiabilities}
-            onNetWorthClick={openNetWorthCalc}
           />
         );
 
@@ -1525,6 +1500,24 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* What the accounts add up to, above the panel switcher so it is on screen for Overview,
+          Accounts AND Goals alike (Tre, 2026-08-22: "move the overview data from the accounts tab
+          to the top of the dashboard"). Fixed, like the hero: NOT a `useDashboardLayout` widget,
+          so it is neither reorderable nor hideable. */}
+      <DashboardOverviewStrip
+        loading={overviewStripLoading}
+        netWorth={accountSummary.netWorth}
+        totalAssets={accountSummary.totalAssets}
+        totalLiabilities={accountSummary.totalLiabilities}
+        liquidCash={accountSummary.liquidCash}
+        investments={accountSummary.investments}
+        retirement={accountSummary.retirement}
+        ccDebt={accountSummary.ccDebt}
+        ccLimit={accountSummary.ccLimit}
+        onNetWorthClick={openNetWorthCalc}
+        onLiquidCashClick={openLiquidCashCalc}
+      />
 
       {/* The panel row and the panel it switches are ONE group (`stack-row`): a control row
           belongs to the content below it, so it reads as that content's label instead of as a

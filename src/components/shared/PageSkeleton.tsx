@@ -155,20 +155,18 @@ export function PageSkeleton() {
  * nothing jumps when the data lands — and, critically, shows no numbers at all
  * rather than eight confident $0.00 tiles.
  */
+/**
+ * Accounts: header, the panel pills, then the account rows.
+ *
+ * No summary tiles and no chart, because the panel no longer has either — the trend chart
+ * moved to the Overview on 2026-08-20 and the totals to the Dashboard's overview strip on
+ * 2026-08-22. A skeleton promising a card that never arrives is a loading state that lies
+ * about the shape of what is coming.
+ */
 export function AccountsSkeleton() {
   return (
     <Page>
       <SkeletonHeader />
-      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} big />)}
-        </div>
-        <div className="border-t border-border/40" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
-        </div>
-      </div>
-      <SkeletonChartCard height={220} bars={8} />
       <SkeletonPills count={3} />
       <SkeletonCards count={5} />
     </Page>

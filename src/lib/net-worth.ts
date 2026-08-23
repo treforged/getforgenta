@@ -87,6 +87,21 @@ const LIABILITY_TYPE_SET: ReadonlySet<string> = new Set(LIABILITY_ACCOUNT_TYPES)
 export const isLiabilityAccountType = (accountType: string): boolean =>
   LIABILITY_TYPE_SET.has(accountType);
 
+/**
+ * How the asset side splits on the overview strip: cash you can spend today, taxable
+ * investments, retirement. These lists lived in `Accounts.tsx` until the strip moved to the
+ * top of the Dashboard, and they are here so two surfaces can never read the same tile off
+ * two different lists.
+ *
+ * Deliberately NOT derived from {@link ACCOUNT_TYPE_GROUP}: that map files `hsa` and `ira`
+ * under "Retirement" for the breakdown list, while these tiles have only ever counted
+ * `roth_ira` and `401k`. Keeping the historic sets means moving the tiles does not silently
+ * move the numbers on them.
+ */
+export const LIQUID_ACCOUNT_TYPES = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'] as const;
+export const INVESTMENT_ACCOUNT_TYPES = ['brokerage'] as const;
+export const RETIREMENT_ACCOUNT_TYPES = ['roth_ira', '401k'] as const;
+
 /** Display grouping for the breakdown list, shared with the Accounts labels. */
 export const ACCOUNT_TYPE_GROUP: Record<string, string> = {
   checking: 'Checking',
@@ -120,6 +135,25 @@ export interface NetWorthAccount {
    * Optional so callers that never carry cards (tests, snapshots of asset-only sets) still
    * satisfy the shape; when present and in the future the card is not a liability yet. */
   card_start_date?: string | null;
+}
+
+/**
+ * Balance summed over the accounts whose type is in `types`.
+ *
+ * Callers pass a list that is ALREADY filtered to active accounts — the rule every tile
+ * built on this has used since it existed. Unopened credit cards are not a concern here:
+ * none of {@link LIQUID_ACCOUNT_TYPES}, {@link INVESTMENT_ACCOUNT_TYPES} or
+ * {@link RETIREMENT_ACCOUNT_TYPES} contains a card.
+ */
+export function sumBalanceByAccountType(
+  accounts: readonly NetWorthAccount[],
+  types: readonly string[],
+): number {
+  const wanted: ReadonlySet<string> = new Set(types);
+  return accounts.reduce(
+    (sum, a) => (wanted.has(a.account_type) ? sum + Number(a.balance || 0) : sum),
+    0,
+  );
 }
 
 export interface NetWorthManualAsset {
