@@ -1,5 +1,84 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 28 (**C2 dashboard-overview-strip SHIPPED: workflow wf_43df8c20-969
+> collected (3 verifiers pass, ZERO blocking), em-dash copy fixed by manager, gates re-run
+> independently (tsc 0; npm test 228 files / 2291 tests / 0 failed), live-verified on Tre's real
+> data, committed `0398a4d4` LOCAL ONLY — NOT pushed, pushing fires both store deploys and is
+> Tre's call. Context gate honored at commit boundary; this is the /clear line.**)
+
+## A. 🔴 THE ASK (Tre, verbatim — C2, now DONE)
+"move the overview data from the accounts tab to the top of the dashboard. condense and combine
+duplicate information. the dashboard is supposed to be a quick direct to the point for overall
+info relating to the users account."
+
+## B. ✅ SHIPPED as `0398a4d4` (14 files, +509/-525)
+- **`DashboardOverviewStrip`** fixed ABOVE the Overview|Accounts|Goals switcher (all three
+  segments keep it on screen). Net Worth headline + assets/liabilities subs; Liquid Cash /
+  Investments / Retirement / CC Debt with utilization folded onto the CC Debt tile. All 7 old
+  Accounts-tile figures survive; Net Worth + Liquid Cash keep their calc-drawer tap-throughs.
+  NOT a widget (not hideable/reorderable) by design.
+- **Chip row RETIRED** (schedule_cards / financial_health / wealth_overview): ids out of the
+  WidgetId union, `mergeSavedLayout` drops them from saved layouts (named test), dashboard-chips.ts
+  + StatChipRow.tsx + their tests DELETED. NetWorthTrendCard leads with Monthly Change only.
+  Accounts panel lost the tile block + its 3 now-unread queries; AccountsSkeleton reshaped.
+- **Type lists single-sourced** in net-worth.ts (LIQUID/INVESTMENT/RETIREMENT_ACCOUNT_TYPES +
+  `sumBalanceByAccountType`), deliberately NOT ACCOUNT_TYPE_GROUP (hsa/ira stay out of
+  Retirement — pinned by test). Strip skeleton until ALL four sources resolve; ccLimit 0 renders
+  "no credit limits on file", never 0.0%. CC Debt = open cards (isCardOpenAsOf).
+- **Verified live** (signed-in tab, real data): strip on all 3 segments; totals reconcile against
+  the page's own data ($18,837 CC = 8,397 Prime + 10,440 Discover; 74.2% of $25,400 open-limit;
+  liabilities $35,092 = cards + $16,254 C5 loan; assets $13,137 = 3,015+2,283+7,840); Accounts
+  segment tile-less; Customizer "8 of 9" with the retired three GONE from his real saved layout;
+  Net Worth drawer opens from strip (10 assets itemized); console clean.
+- Backups: `backups/2026-08-22_203344/` (11 files). Builder journal:
+  `~/.claude/projects/C--Users-tvonh-Desktop-getforgenta/115f9b5e-91ba-44c4-8ddd-57ee05d26b71/subagents/workflows/wf_43df8c20-969/journal.jsonl`.
+
+## C. 🔴 OPEN — decisions for Tre (in chat, "Your actions" style)
+1. **Information drop (conscious, disclosed in the commit body):** retiring the chips removed
+   Next Paycheck date, Bills This Month, Month-End Cash and Debt Service from EVERY surface
+   (Bills This Week is covered by upcoming_week — which Tre keeps HIDDEN anyway; income/expenses
+   by cash_flow_chart; Total Saved by goal_progress). Their drawer derivations remain in
+   Dashboard.tsx under ⚠️ NO CALLER / NO READER markers (~:537, ~:849) so re-anchoring is cheap.
+   Recommendation given to Tre: fold Next Paycheck + Month-End Cash into the Monthly Snapshot
+   hero area as small sub-figures, drop Debt Service (Debt Recommendations widget covers the
+   real question), decide Bills This Month with it. If he says "drop them", DELETE the ~110
+   dead lines instead (one clean pass). Until he answers, tree stays as committed.
+2. **Push** is his call (fires Play + App Store deploys). `origin/main` = b236f2a0; local is
+   f062caa5 (docs) + 0398a4d4 + the handoff commit after this line.
+
+## D. 📋 NEXT UP (no answer needed)
+- **C3 minors from the loan-rows slice (session 27), still open, all cosmetic:**
+  (a) BudgetControl.tsx:526 debt-sync rule notes can read `''`/"Partial statement" — copy only;
+  (b) widget intro copy overclaims in loan-only state (hasRecs false, hasLoans true);
+  (c) loan-only user (zero cards) never sees the /debt panel loan row (CreditCardEngine returns
+  early) — widget covers them; decide panel shell vs accept;
+  (d) widget intro dropped the "Not adjusted for bills further out than this month" caveat.
+- **New from C2 verifiers (all minor):** AiAdvisor.tsx:698 has a THIRD investment-type list
+  (different concept — all invested assets — but "single source" is only ⅔ done while it
+  stands); `scripts/lib/__tests__/release-notes.test.mjs` is flaky under full-suite load
+  (5000ms subprocess timeout, passes isolated + on rerun — a red FIRST run at commit time is
+  probably it, rerun before blaming a slice; worth a testTimeout bump someday).
+- PDF export reads `accountSummary` by name — untouched, still fine (investments/retirement
+  were ADDED to the memo, nothing renamed).
+
+## E. ⚠️ Session mechanics worth knowing
+- **Context-gate hook misfires in this tree right now**: claimed ~176-194k while this session
+  and the cold workflow builder were both far below it. Treat its arithmetic as broken but its
+  boundary discipline as sound: finish the atomic slice, hand off at the next commit.
+- **`resize_window` does not take effect** in the Claude Chrome session (reports success,
+  viewport stays 868px) — mobile-width verification was structural (Tailwind grid + component
+  tests), not pixels. If a pixel check at 390px is ever load-bearing, fix the resize first.
+- `src/lib/forecast-engine.ts` (M, stat-only/empty diff) and
+  `src/lib/__tests__/zz-tmp-diagnostic.test.ts` (untracked TEMP diagnostic, self-labelled
+  "deleted before hand-off" but owner-session unknown) are ANOTHER session's — left untouched,
+  kept out of commits. Never `git add -A` here.
+- Demo mode not clicked through this session (strip is pure-props; loading honesty pinned by
+  test). The parked signed-in tab at localhost:8080/dashboard keeps the token fresh — leave it.
+
+---
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-22 session 27 (**loan-rows slice SHIPPED: verified, committed `fe2ea20f`, and PUSHED
 > to origin/main on Tre's explicit "push" — verified by CONTENTS (`git grep buildCardRecRows
 > origin/main` hits; origin/main contains fe2ea20f); both store deploys firing. §C2 build workflow
