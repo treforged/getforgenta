@@ -77,16 +77,42 @@ tsc --noEmit 0 errors; eslint clean on all 11 files. NOT independently re-run ye
 - Widget intro dropped the "Not adjusted for bills further out than this month" caveat the /debt
   panel retains. Cosmetic divergence.
 
-## C2. 🔴 ACTIVE SLICE (session 27: scout dispatched, build not started)
+## C2. 🔴 ACTIVE SLICE (session 27: BUILD WORKFLOW RUNNING — collect it first)
 Verbatim: "move the overview data from the accounts tab to the top of the dashboard. condense and
 combine duplicate information. the dashboard is supposed to be a quick direct to the point for
 overall info relating to the users account."
-Do this AFTER the loan-rows slice is verified+committed. Scope: /accounts' overview data (totals /
-net-worth style summary at the top of Accounts.tsx) → top of Dashboard; merge with whatever
-Dashboard already shows (net worth tile etc.) rather than duplicating; dashboard = quick overall
-picture. Mind: net-worth math lives in src/lib/net-worth.ts (shared, don't fork it), and the
-Accounts page hook records net-worth snapshots — grep what Accounts' overview WRITES before moving
-anything (see project_net_worth_snapshots memory: a "dead" page's sole writer was orphaned once).
+
+**Workflow run `wf_43df8c20-969` (task `ws08sr4mx`)** — 1 opus-executor builder + 3 verifiers
+(correctness / ux-consistency / independent gates) + fix round. Script:
+`...\115f9b5e-...\workflows\scripts\dashboard-overview-strip-wf_43df8c20-969.js` (resume with
+resumeFromRunId if it dies; journal.jsonl beside it has per-agent results). Backups land in
+`backups/2026-08-22_203344/`.
+
+**Scouted facts (verified, with line numbers):** tile block = Accounts.tsx:841-876, data from its
+local `summary` memo :401-411; Dashboard mounts `<Accounts embedded/>` at :1566-1570 behind the
+`seg-item` PanelBar :1541-1557; snapshot writer is `useNetWorthSnapshotRecorder()` at
+**Dashboard.tsx:719, OUTSIDE the tab switch, guarded by structural test
+net-worth-snapshot-writer.test.ts — do not move/touch**; duplication is **3-way** (Accounts tiles +
+chip row [ids schedule_cards/financial_health/wealth_overview → one StatChipRow, chips in
+dashboard-chips.ts] + NetWorthTrendCard totals); PDF export reads `accountSummary` by name; CC-DEBT
+definitions DIFFER (Dashboard filters isCardOpenAsOf = correct; Accounts counts all credit_card);
+Investments/Retirement type lists exist only in Accounts.tsx:63-69; /accounts + /net-worth are
+redirects into /dashboard?tab=accounts; page-guides dashboard:accounts copy will lie post-move.
+
+**Design decisions (manager, stated as assumptions, all reversible):**
+1. NEW fixed `DashboardOverviewStrip` ABOVE the segmented control — visible on all three segments,
+   not a widget, not hideable. Net Worth headline w/ Assets+Liabilities subs; Liquid Cash;
+   Investments; Retirement; CC Debt w/ utilization sub. Skeleton while loading, never $0.
+2. Accounts segment loses the tile block (moved not deleted); summaryLoading gate revisited.
+3. Chip-row widget RETIRED (all three ids — 100% duplicate of the strip); mergeSavedLayout must
+   drop retired ids from saved layouts, named test added. dashboard-chips.ts deleted if orphaned.
+4. NetWorthTrendCard keeps chart + Monthly Change (unique), drops its three duplicated totals.
+5. CC Debt/utilization = open-cards definition (isCardOpenAsOf), the card_start_date convention.
+6. INVESTMENT_TYPES/RETIREMENT_TYPES move to net-worth.ts as the single source.
+
+**After the workflow returns:** manager diff read → live-verify at localhost:8080 (strip on all 3
+segments incl. demo-honesty + mobile width, Accounts segment sans tiles, Customizer sans retired
+ids) → commit locally (NO PUSH). Then C3 minors and session note.
 
 ## D. ✅ ALSO DONE THIS SESSION
 - **Session-25 START-HERE item 2 CLOSED**: "Monthly Instalment (optional)" tranche input renders
