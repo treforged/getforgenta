@@ -3,8 +3,9 @@
 > ▶ 2026-08-22 session 28 (**C2 dashboard-overview-strip SHIPPED: workflow wf_43df8c20-969
 > collected (3 verifiers pass, ZERO blocking), em-dash copy fixed by manager, gates re-run
 > independently (tsc 0; npm test 228 files / 2291 tests / 0 failed), live-verified on Tre's real
-> data, committed `0398a4d4` LOCAL ONLY — NOT pushed, pushing fires both store deploys and is
-> Tre's call. Context gate honored at commit boundary; this is the /clear line.**)
+> data, committed `0398a4d4`, then PUSHED to origin/main on Tre's explicit "push" —
+> verified by CONTENTS (git grep DashboardOverviewStrip origin/main hits; origin/main =
+> 2a14ba44, 0 unpushed). Both store deploys firing. This is the /clear line.**)
 
 ## A. 🔴 THE ASK (Tre, verbatim — C2, now DONE)
 "move the overview data from the accounts tab to the top of the dashboard. condense and combine
