@@ -19,6 +19,7 @@ import { resolveFundingAccountId } from '@/lib/funding-account';
 import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { resolveCashFloor } from '@/lib/cash-floor';
+import type { CarFund } from '@/lib/types';
 
 const DEFAULT_ASSUMPTIONS = {
   incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
@@ -58,6 +59,9 @@ interface CardProjectionContextValue {
   syncCutoffDate: string;
   scheduledEvents: ScheduledEvent[];
   debtPayoffOptions: DebtPayoffOptions;
+  /** The car funds the projection above was fed — exposed so `useMonth0DebtBreakdown` can build
+   * the loan rows from the same list, instead of fetching a second copy. */
+  carFunds: CarFund[];
 }
 
 const CardProjectionContext = createContext<CardProjectionContextValue | null>(null);
@@ -317,10 +321,11 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     syncCutoffDate,
     scheduledEvents,
     debtPayoffOptions,
+    carFunds: carFunds ?? [],
   }), [
     convergence, engineInputs, forecastInputsBundle, assumptions, setAssumptions,
     pauseSavings, setPauseSavings, debtStrategy, payConfig, cashFloor,
-    forecastFundingAccountId, syncCutoffDate, scheduledEvents, debtPayoffOptions,
+    forecastFundingAccountId, syncCutoffDate, scheduledEvents, debtPayoffOptions, carFunds,
   ]);
 
   return (

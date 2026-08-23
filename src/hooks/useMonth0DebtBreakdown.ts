@@ -14,7 +14,7 @@ import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
  * Must be used inside `CardProjectionProvider` (mounted by DashboardLayout).
  */
 export function useMonth0DebtBreakdown(): MonthlyDebtBreakdown {
-  const { cardProjection, debtStrategy, syncCutoffDate } = useCardProjectionContext();
+  const { cardProjection, debtStrategy, syncCutoffDate, carFunds } = useCardProjectionContext();
 
   return useMemo(
     () => buildMonth0DebtBreakdown({
@@ -22,7 +22,12 @@ export function useMonth0DebtBreakdown(): MonthlyDebtBreakdown {
       simCards: cardProjection?.simCards ?? [],
       debtStrategy,
       syncCutoffDate,
+      // `perCardPaymentsScaled` first for the same reason /debt's month0Recs prefers it: it is
+      // the cash-floor-constrained figure — what the plan can actually send, not what it would
+      // like to. Absent series stay absent; the builder renders those as "Not modelled".
+      nextMonthSource: cardProjection?.perCardPaymentsScaled ?? cardProjection?.perCardPayments,
+      carFunds,
     }),
-    [cardProjection, debtStrategy, syncCutoffDate],
+    [cardProjection, debtStrategy, syncCutoffDate, carFunds],
   );
 }

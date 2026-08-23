@@ -2509,7 +2509,30 @@ export function generateRecommendations(
  * the same debt payment values that Debt Payoff displays.
  */
 export type MonthlyDebtBreakdown = {
-  recommendations: { cardId: string; cardName: string; color: string; payment: number; dueDay: number | null; reason: string; isMinimumOnly: boolean }[];
+  recommendations: {
+    cardId: string; cardName: string; color: string; payment: number; dueDay: number | null;
+    reason: string; isMinimumOnly: boolean;
+    // Next-payment fields (the /debt panel's A.2 layout), present when built from the converged
+    // projection (`buildMonth0DebtBreakdown`/`buildCardRecRows`). The deprecated one-shot path has
+    // no month-1 series to read, so they stay ABSENT there rather than being invented — a consumer
+    // treats `undefined` exactly like `null`: not modelled.
+    maxPayment?: number;
+    pastDue?: boolean;
+    nextPayment?: number | null;
+    nextPayMonth?: 0 | 1;
+    nextDueDate?: Date | null;
+  }[];
+  /** Active loan-phase vehicle loans, listed beside the card rows on both recommendation
+   * surfaces. A SEPARATE field on purpose: `recommendations` feeds
+   * `createDebtPaymentTransactions` (pay-schedule.ts), which injects a generated "Debt Payments"
+   * transaction per row — and the car loan is already modelled in the transaction stream via
+   * charge-obligations, so a loan row in `recommendations` would double-count it on four pages.
+   * Loans also stay out of every total below: the cash floor already holds the loan payment
+   * (`carLoanTotal`), so Safe to Pay excludes that money by construction. */
+  loanRecommendations?: {
+    carFundId: string; name: string; payment: number; dueDay: number | null;
+    nextPayment: number; nextPayMonth: 0 | 1; nextDueDate: Date | null; isFinalPayment: boolean;
+  }[];
   totalMinimumsDue: number;
   totalRecommended: number;
   totalAvailableCash: number;

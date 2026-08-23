@@ -190,6 +190,18 @@ export interface CarLoanPaymentInfo {
   interest: number;
   /** Principal portion of this month's regular payment (lump sums excluded, as with `payment`). */
   principal: number;
+  /** Day-of-month the payment lands, from `payment_start_date` — the SAME derivation the cash
+   * floor's loan items use (pay-schedule's `loanDueDay`), so a "Recommended This Month" row can
+   * never name a different day than the floor reserves for. Null only if the date fails to parse. */
+  dueDay: number | null;
+  /** NEXT month's regular payment (lump sums excluded, like `payment`), read off the same
+   * amortization schedule. Null when the schedule ends this month — the loan pays off, and a
+   * figure invented past the last row would be a number the schedule does not stand behind. */
+  nextMonthPayment: number | null;
+  /** True when THIS month's payment is the schedule's last row — the true-up final payment. */
+  isFinalPayment: boolean;
+  /** True when NEXT month's payment is the schedule's last row. */
+  nextIsFinalPayment: boolean;
 }
 
 /**
@@ -364,6 +376,15 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
     const currentInterest = currentRow ? Math.min(currentRow.interest, currentPayment) : 0;
     const currentPrincipal = Math.round((currentPayment - currentInterest) * 100) / 100;
 
+    // Day-of-month the payment lands — the same expression pay-schedule's loan items use
+    // (`new Date(cf.payment_start_date + 'T00:00:00').getDate()`), so this row and the cash floor
+    // that reserves for it cannot disagree about the date.
+    const dueDayRaw = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+    // Next month's row, for surfaces that lead with the NEXT payment. Same lump-sum exclusion as
+    // `currentPayment` above, for the same reason: callers add lump sums separately.
+    const nextRow = proj.schedule[proj.monthsElapsed + 1];
+    const lastRowIdx = proj.schedule.length - 1;
+
     results.push({
       carFundId: cf.id,
       vehicleName: cf.vehicle_name,
@@ -374,6 +395,10 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
       interest: currentInterest,
       principal: currentPrincipal,
       linkedLoanAccountId: cf.linked_loan_account_id ?? null,
+      dueDay: Number.isFinite(dueDayRaw) ? dueDayRaw : null,
+      nextMonthPayment: nextRow ? Math.round((nextRow.payment - nextRow.lumpSum) * 100) / 100 : null,
+      isFinalPayment: proj.monthsElapsed === lastRowIdx,
+      nextIsFinalPayment: proj.monthsElapsed + 1 === lastRowIdx,
     });
   }
 

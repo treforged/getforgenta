@@ -39,6 +39,7 @@ import type { CarFund } from '@/lib/types';
 import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { isManualCashFloor } from '@/lib/cash-floor';
+import { hasPinnedStatement } from '@/lib/statement-pin';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -111,23 +112,12 @@ interface IsbPin {
   minPayment: number;
 }
 
-/**
- * True when this card carries a pinned interest-saving statement balance — the eligibility half of
- * `deriveIsbPins`, exported so the /debt recommendation panel can label a pinned card without
- * open-coding a FOURTH copy of the rule (see deriveIsbPins' warning below).
- *
- * The DUE-MONTH half is deliberately NOT exported: it treats a null dueDay as month 1, which is
- * right for the engine's reserve and wrong for a display that must not invent a date.
- */
-export function hasPinnedStatement(c: CardData, now: Date): boolean {
-  if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) return false;
-  if (c.startDate) {
-    const startD = new Date(c.startDate + 'T00:00:00');
-    const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
-    if (diff > 0) return false;
-  }
-  return true;
-}
+// `hasPinnedStatement` — the eligibility half of `deriveIsbPins` below — moved to
+// lib/statement-pin.ts so the pure card-row builder shared with the Dashboard widget
+// (month0-debt-breakdown.ts) can label a pinned card without importing a hook module.
+// Re-exported unchanged so existing `from '@/hooks/useCardProjection'` imports keep working —
+// same pattern as the debt-model-types re-export above.
+export { hasPinnedStatement };
 
 /**
  * Cards carrying a pinned statement balance, and the month each pin lands.
