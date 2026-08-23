@@ -1,8 +1,10 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-22 session 27 (**loan-rows slice DONE — verify workflow collected (3 real verifier
-> passes), gates independently re-run green, live-verified on BOTH surfaces, COMMITTED `fe2ea20f`
-> local-only. §C2 dashboard-overview ask is the active slice: scout dispatched.**)
+> ▶ 2026-08-22 session 27 (**loan-rows slice SHIPPED: verified, committed `fe2ea20f`, and PUSHED
+> to origin/main on Tre's explicit "push" — verified by CONTENTS (`git grep buildCardRecRows
+> origin/main` hits; origin/main contains fe2ea20f); both store deploys firing. §C2 build workflow
+> `wf_43df8c20-969` is STILL RUNNING in the background — COLLECT IT FIRST, see §C2. Context gate
+> fired at ~187k; this handoff is the /clear boundary.**)
 
 ## A. 🔴 THE ASK (Tre, verbatim, this session)
 "the next debt payment needs to go in debt recommended this month section. btw, include loans in
