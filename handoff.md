@@ -1,8 +1,8 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-22 session 26 (**Tre's loan-rows ask is BUILT, gates green by the builder's own run,
-> but INDEPENDENT VERIFICATION + LIVE CHECK + COMMIT ARE STILL OPEN — a verify workflow is running
-> in the background, collect it before touching anything.**)
+> ▶ 2026-08-22 session 27 (**loan-rows slice DONE — verify workflow collected (3 real verifier
+> passes), gates independently re-run green, live-verified on BOTH surfaces, COMMITTED `fe2ea20f`
+> local-only. §C2 dashboard-overview ask is the active slice: scout dispatched.**)
 
 ## A. 🔴 THE ASK (Tre, verbatim, this session)
 "the next debt payment needs to go in debt recommended this month section. btw, include loans in
@@ -47,26 +47,37 @@ DebtRecommendationsWidget.tsx. **New:** src/lib/statement-pin.ts + 3 test files
 **Builder's gate:** npm test → 227 files / 2285 tests / 0 failed (baseline 224/2247→2264, +3/+21);
 tsc --noEmit 0 errors; eslint clean on all 11 files. NOT independently re-run yet.
 
-## C. 🔴 START HERE — in this order
-1. **Collect the verify workflow.** Run `wf_b01d5d25-f99` was resumed (task `wy0ws3a4p`) with the
-   build cached and 3 verifiers re-running (correctness auditor, consistency/UX, independent gate
-   runner) after round 1 died on the session limit — the run's earlier "outcome: clean" was HOLLOW
-   (zero verdicts survived `.filter(Boolean)`). Read
-   `...\809abd33-...\subagents\workflows\wf_b01d5d25-f99\journal.jsonl` result lines. Fix anything
-   blocking (fix-round agents in the same script handle it if resumed again).
-2. **Live-verify on his real data.** Dev server is UP (localhost:8080, `strictPort`), Claude-Chrome
-   tab 1527585487 is PARKED SIGNED-IN as tre@treforged.com — do not close it. /debt is the surface
-   (his dashboard layout has the widget toggled OFF — default layout has it on, his profile hides
-   it). Expect: USAA loan row w/ $422.89 + due date beside the card rows; cards unchanged from A.2.
-   Widget check needs the layout toggle re-enabled or a component-level look.
-3. **Manager diff read, then commit locally.** `git add` ONLY the 9 modified + 4 new files listed
-   in §B — NOT `src/lib/forecast-engine.ts` (M but empty diff, concurrent session's stat-only
-   touch), NOT `src/lib/__tests__/zz-tmp-diagnostic.test.ts` (other session's). NEVER `git add -A`.
-   NO PUSH — pushing fires both store deploys, Tre's call (session 25's commit is also still
-   local-only, he was reminded).
-4. Session note per global CLAUDE.md when wrapping.
+## C. ✅ CLOSED (session 27) — verification + commit of the loan-rows slice
+1. ✅ Verify workflow collected: `wf_b01d5d25-f99` completed with THREE REAL verdicts this time
+   (journal.jsonl result lines confirmed, not hollow): gate runner `pass` w/ zero issues,
+   correctness auditor `pass` + 2 minor, consistency/UX `pass` + 2 minor. All four minors are
+   cosmetic/follow-up (see §C3), zero blocking.
+2. ✅ Live-verified on his real data (fresh tab, same signed-in origin): /debt shows
+   `2004 Chevorlet C5 · loan · Scheduled payment · NEXT $423 due Sep 7` beside Prime
+   ($2,217 Sep 7) + Discover ($150 Sep 1) w/ the cash-floor sentence; Dashboard Overview segment
+   shows the same three rows under "DEBT — RECOMMENDED THIS MONTH".
+   **Widget-missing mystery RESOLVED — never a defect**: the old probe searched mixed-case
+   "Recommended This Month" but the widget heading renders uppercase w/ "DEBT — " prefix, AND
+   /dashboard can sit parked on its Accounts segment (it did for me too). Tre was right.
+3. ✅ Gates re-run independently: tsc exit 0; `npm test` summary line read directly —
+   227 files / 2285 tests / 0 failed. Manager diff read done (extraction faithful, guard test
+   pins loans out of `recommendations` byte-identically).
+4. ✅ Committed `fe2ea20f` (12 files, forecast-engine.ts + zz-tmp-diagnostic excluded). LOCAL
+   ONLY — NOT pushed; pushing fires both store deploys and is Tre's call.
 
-## C2. 🔴 NEW ASK FROM TRE (mid-session, NOT STARTED — context gate fired)
+## C3. Minor follow-ups from the verifiers (none blocking, not yet done)
+- BudgetControl.tsx:526 maps `recommendations`' `reason` into debt-sync rule notes — text can now
+  read `''` (unmodelled) or "Partial statement"; cosmetic, amounts/due_day untouched. Mentioned in
+  the fe2ea20f commit body.
+- Widget intro copy slightly overclaims in the loan-only state (hasRecs false, hasLoans true —
+  "recommended payment based on your cash flow" above a fixed obligation). Copy-only.
+- Loan-only user (car loan, zero cards) never sees the /debt loan row — CreditCardEngine returns
+  early ("No credit card accounts found") before the panel. Widget covers that user. Decide:
+  render panel shell for loans, or accept widget as the loan-only surface.
+- Widget intro dropped the "Not adjusted for bills further out than this month" caveat the /debt
+  panel retains. Cosmetic divergence.
+
+## C2. 🔴 ACTIVE SLICE (session 27: scout dispatched, build not started)
 Verbatim: "move the overview data from the accounts tab to the top of the dashboard. condense and
 combine duplicate information. the dashboard is supposed to be a quick direct to the point for
 overall info relating to the users account."
@@ -81,10 +92,9 @@ anything (see project_net_worth_snapshots memory: a "dead" page's sole writer wa
 - **Session-25 START-HERE item 2 CLOSED**: "Monthly Instalment (optional)" tranche input renders
   live on all four Prime Visa tranches, populated from DB (Tier 1 = 49.89, promo end Feb 2027).
   Modal dismissed without saving.
-- ~~Established: Tre's dashboard hides the debt_recommendations widget~~ **WRONG — Tre says the
-  widget IS enabled on his account.** My innerText probe found no "Recommended This Month" on his
-  /dashboard, so reconcile during live verification: if it is enabled yet absent, that is a real
-  rendering defect (check `hasRecs`, PremiumGate, widget-order merge), not a toggle.
+- ~~Established: Tre's dashboard hides the debt_recommendations widget~~ **RESOLVED session 27:
+  the widget IS enabled and renders fine** — the probe failed on case ("DEBT — RECOMMENDED THIS
+  MONTH" heading vs mixed-case needle) and the dashboard parking on its Accounts segment. See §C.2.
 - **PUSHED to origin/main on Tre's explicit "push."** (session 25's work + handoff commits — fires
   both store deploys). The loan-rows build is NOT in that push; when it commits after verification,
   the next push is again Tre's call.
