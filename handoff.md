@@ -35,7 +35,14 @@ info relating to the users account."
   `~/.claude/projects/C--Users-tvonh-Desktop-getforgenta/115f9b5e-91ba-44c4-8ddd-57ee05d26b71/subagents/workflows/wf_43df8c20-969/journal.jsonl`.
 
 ## C. 🔴 OPEN — decisions for Tre (in chat, "Your actions" style)
-1. **Information drop (conscious, disclosed in the commit body):** retiring the chips removed
+1. **✅ DECIDED by Tre 2026-08-23: RE-ANCHOR, per the manager's recommendation.** Scope as
+   recommended: fold **Next Paycheck (date)** and **Month-End Cash** into the Monthly Snapshot
+   hero area as small sub-figures (their derivations + `openMonthEndCalc` in Dashboard.tsx regain
+   callers — keep the drawer tap-through); **Debt Service stays dropped** (Debt Recommendations
+   widget answers the real question); **Bills This Month stays dropped**. Same pass DELETES what
+   stays caller-less: `openIncomeCalc`, `openExpenseCalc`, `upcomingMonth`/`upcomingBillsMonth`,
+   and the pre-existing dead `openDebtPaymentsCalc`. This is now a build slice in §D, not an open
+   question. Original context of the drop, for the record: retiring the chips removed
    Next Paycheck date, Bills This Month, Month-End Cash and Debt Service from EVERY surface
    (Bills This Week is covered by upcoming_week — which Tre keeps HIDDEN anyway; income/expenses
    by cash_flow_chart; Total Saved by goal_progress). Their drawer derivations remain in
