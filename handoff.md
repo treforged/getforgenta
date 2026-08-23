@@ -1,5 +1,81 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-22 session 26 (**Tre's loan-rows ask is BUILT, gates green by the builder's own run,
+> but INDEPENDENT VERIFICATION + LIVE CHECK + COMMIT ARE STILL OPEN — a verify workflow is running
+> in the background, collect it before touching anything.**)
+
+## A. 🔴 THE ASK (Tre, verbatim, this session)
+"the next debt payment needs to go in debt recommended this month section. btw, include loans in
+that section."
+
+Scoping established: A.2 (session 25) already made /debt's "Recommended This Month" rows lead with
+the NEXT payment. The deltas built here: (1) loan-phase vehicle-loan rows (his USAA auto,
+$422.89/mo via `car_funds`) in BOTH Recommended This Month surfaces with next payment + due date;
+(2) the Dashboard widget (`DebtRecommendationsWidget`) rebuilt to the A.2 layout so the two
+surfaces share one derivation. Loans ≠ `auto_loan`/`mortgage`/`student_loan` accounts (§4.1
+double-count trap — the USAA account IS the car_funds row).
+
+## B. ✅ BUILT (uncommitted, in the working tree NOW)
+One workflow builder produced it; design notes that matter:
+- **Shared builder**: A.2 row logic moved verbatim from CreditCardEngine's `month0Recs` into
+  exported `buildCardRecRows()` in `month0-debt-breakdown.ts`; both surfaces call it — drift now
+  structurally impossible. `hasPinnedStatement` moved to NEW `src/lib/statement-pin.ts`
+  (useCardProjection re-exports it unchanged, so old imports stand).
+- **Loans in a SEPARATE `loanRecommendations` field** on `MonthlyDebtBreakdown` — NEVER in
+  `recommendations`, because that array feeds `createDebtPaymentTransactions`
+  (pay-schedule.ts:1377; Dashboard 373 / BudgetControl 537 / SavingsGoals 404 / Transactions 182)
+  and loan rows there = phantom generated transactions + double-count. Pinned by a named test.
+- Card-only totals (totalMinimumsDue/totalRecommended/totalAvailableCash/autopayTotal/cashWarning)
+  unchanged by loans (loan money is already held by the cash floor; each surface says so in one
+  muted sentence).
+- `CarLoanPaymentInfo` gained `dueDay` (EXACT floor expression
+  `new Date(cf.payment_start_date + 'T00:00:00').getDate()`, pay-schedule.ts:876),
+  `nextMonthPayment` (null when schedule ends — never invented), `isFinalPayment`/`nextIsFinalPayment`.
+  Drop rule: nextPayMonth===1 && nextMonthPayment==null → no row.
+- `CardProjectionContext` now ACTUALLY exposes `carFunds` (my scouting claim that it already did
+  was wrong — line 235 was the hook param, builder added it to the context value).
+- Widget rows now judge reason/isMinimumOnly against the NEXT-payment figure (A.2 parity — a card
+  that read a confident month-0 "priority" can now honestly read "min"/"Not modelled"). Deliberate.
+- Loan rows render even when month0 is null (amortization schedule, not projection) — if Tre
+  prefers a fully-empty widget pre-resolution, gate on cardProjection != null in Dashboard.
+
+**Files changed (M):** vehicle-loan-engine.ts, credit-card-engine.ts, month0-debt-breakdown.ts,
+useCardProjection.ts, useMonth0DebtBreakdown.ts, CardProjectionContext.tsx, CreditCardEngine.tsx,
+DebtRecommendationsWidget.tsx. **New:** src/lib/statement-pin.ts + 3 test files
+(vehicle-loan-engine.nextPayment, month0-debt-breakdown.loanRecs, month0-debt-breakdown.nextPayment).
+**Backups:** `backups/2026-08-22_182753/` (8 pre-edit originals).
+**Builder's gate:** npm test → 227 files / 2285 tests / 0 failed (baseline 224/2247→2264, +3/+21);
+tsc --noEmit 0 errors; eslint clean on all 11 files. NOT independently re-run yet.
+
+## C. 🔴 START HERE — in this order
+1. **Collect the verify workflow.** Run `wf_b01d5d25-f99` was resumed (task `wy0ws3a4p`) with the
+   build cached and 3 verifiers re-running (correctness auditor, consistency/UX, independent gate
+   runner) after round 1 died on the session limit — the run's earlier "outcome: clean" was HOLLOW
+   (zero verdicts survived `.filter(Boolean)`). Read
+   `...\809abd33-...\subagents\workflows\wf_b01d5d25-f99\journal.jsonl` result lines. Fix anything
+   blocking (fix-round agents in the same script handle it if resumed again).
+2. **Live-verify on his real data.** Dev server is UP (localhost:8080, `strictPort`), Claude-Chrome
+   tab 1527585487 is PARKED SIGNED-IN as tre@treforged.com — do not close it. /debt is the surface
+   (his dashboard layout has the widget toggled OFF — default layout has it on, his profile hides
+   it). Expect: USAA loan row w/ $422.89 + due date beside the card rows; cards unchanged from A.2.
+   Widget check needs the layout toggle re-enabled or a component-level look.
+3. **Manager diff read, then commit locally.** `git add` ONLY the 9 modified + 4 new files listed
+   in §B — NOT `src/lib/forecast-engine.ts` (M but empty diff, concurrent session's stat-only
+   touch), NOT `src/lib/__tests__/zz-tmp-diagnostic.test.ts` (other session's). NEVER `git add -A`.
+   NO PUSH — pushing fires both store deploys, Tre's call (session 25's commit is also still
+   local-only, he was reminded).
+4. Session note per global CLAUDE.md when wrapping.
+
+## D. ✅ ALSO DONE THIS SESSION
+- **Session-25 START-HERE item 2 CLOSED**: "Monthly Instalment (optional)" tranche input renders
+  live on all four Prime Visa tranches, populated from DB (Tier 1 = 49.89, promo end Feb 2027).
+  Modal dismissed without saving.
+- Established: Tre's dashboard hides the debt_recommendations widget (his saved layout, not a bug).
+
+---
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-22 session 25 (**BOTH OF TRE'S UI ASKS ARE BUILT AND LIVE-VERIFIED on his real data,
 > plus the owed ISB regression test. Local commit only, NOT pushed — pushing fires both store
 > deploys, so that is his call.**)
