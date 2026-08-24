@@ -279,9 +279,17 @@ export default function SurplusRankingSection({
     return (cards ?? []).filter(c => !solo.has(c.id));
   }, [cards, draft]);
 
-  // One row is the cards, always. A list with nothing else in it cannot express a priority, so
-  // there is nothing to show yet.
-  if (loading || draft.length < 2) return null;
+  // Only the load is hidden. An empty list and an unread one are the same pixels, and this section
+  // used to stay dark below two rows, which meant a user with no goals yet never saw that the
+  // feature existed at all, and could not find the thing that would have populated it.
+  if (loading) return null;
+
+  // One row cannot be put in front of anything, so the sparse list drops the reorder affordances
+  // and says what the list is for instead of offering controls that do nothing.
+  //
+  // NOTE: a follow-up slice adds more debt row kinds to `buildSurplusRankRows`, so most users
+  // should pass two rows on their own and this state is expected to be short-lived.
+  const canReorder = draft.length >= 2;
 
   return (
     <div className="card-forged p-4 sm:p-5">
@@ -290,16 +298,26 @@ export default function SurplusRankingSection({
           <h2 className="text-sm font-semibold text-foreground">Where the extra money goes</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Left-over cash after the bills is offered to these in order. Card minimums are always
-            paid first — this ranks what happens to the surplus.
+            paid first; this ranks what happens to the surplus.
           </p>
         </div>
         {saving && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">Saving…</span>}
       </div>
 
-      <p className="text-xs text-muted-foreground mb-3">
-        Tick <span className="text-foreground font-medium">Auto extra</span> on anything that should
-        take a share. Nothing is diverted until you do.
-      </p>
+      {/* With one row there is nothing to tick, so the instruction to tick something would be
+          telling the user to look for a control that is not on screen. The sparse list says how it
+          grows instead. */}
+      {canReorder ? (
+        <p className="text-xs text-muted-foreground mb-3">
+          Tick <span className="text-foreground font-medium">Auto extra</span> on anything that should
+          take a share. Nothing is diverted until you do.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground mb-3">
+          Savings goals, car funds and loans you add will show up here, and you choose which one gets
+          the money first.
+        </p>
+      )}
 
       {/* THE COLLISION, PRICED. Session 6 worked this out by hand and put it in a handoff file;
           the app diverts the money, so the app is what has to say the money does not go round. */}
@@ -332,8 +350,8 @@ export default function SurplusRankingSection({
               key={row.id}
               layout="position"
               transition={ROW_SETTLE}
-              onDragOver={e => !isTouch && !readOnly && onDragOver(e, row.id)}
-              onDrop={e => !isTouch && !readOnly && onDrop(e, row.id)}
+              onDragOver={e => !isTouch && !readOnly && canReorder && onDragOver(e, row.id)}
+              onDrop={e => !isTouch && !readOnly && canReorder && onDrop(e, row.id)}
               className={[
                 // ⚠️ NOT `transition-all`. That included `transform`, so the CSS transition and
                 // framer's own per-frame transform writes fought over the same property and the
@@ -347,7 +365,9 @@ export default function SurplusRankingSection({
               ].join(' ')}
               style={{ borderRadius: 'var(--radius)' }}
             >
-              {readOnly ? (
+              {/* The same spacer read-only gets: a lone row keeps the columns lined up without
+                  offering a handle or an arrow that could not move it anywhere. */}
+              {readOnly || !canReorder ? (
                 <span className="w-4 shrink-0" />
               ) : !isTouch ? (
                 <div

@@ -130,14 +130,66 @@ describe('SurplusRankingSection — which reorder control each input type gets',
   });
 });
 
-describe('SurplusRankingSection — it stays hidden until there is a priority to express', () => {
+describe('SurplusRankingSection — the section is there before the list is worth ranking', () => {
+  // Tre, 2026-08-24: "dont require an initial goal to show 'Where the extra money goes'. it should
+  // always be there". It used to return null below two rows, so a user with no goals never saw the
+  // feature and had nothing to tell them what would populate it. Only the load hides it now.
+  const CARDS_ONLY = [row(CARDS_ROW_ID, 'Credit cards', 0, 'cards')];
+
   it('renders nothing while loading', () => {
     const { container } = setup(THREE, { loading: true });
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders nothing when the cards are the only row', () => {
-    const { container } = setup([row(CARDS_ROW_ID, 'Credit cards', 0, 'cards')]);
-    expect(container.firstChild).toBeNull();
+  it('shows the heading and the one row when the cards are all there is', () => {
+    const { container } = setup(CARDS_ONLY);
+    expect(screen.getByText('Where the extra money goes')).toBeTruthy();
+    expect(container.querySelectorAll('li')).toHaveLength(1);
+    expect(screen.getByText('Credit cards')).toBeTruthy();
+  });
+
+  it('says how the list grows instead of telling you to tick a box that is not there', () => {
+    setup(CARDS_ONLY);
+    expect(screen.getByText(/Savings goals, car funds and loans you add will show up here/)).toBeTruthy();
+    expect(screen.queryByText(/Tick/)).toBeNull();
+  });
+
+  // ⚠️ Both of these assert the ROW IS THERE first. "No drag handle" is vacuously true of a
+  // section that rendered nothing at all, so without that line these two passed against the very
+  // gate this change removes.
+  it('offers no drag handle on a single row, on a pointer device', () => {
+    const { container } = setup(CARDS_ONLY);
+    expect(container.querySelectorAll('li')).toHaveLength(1);
+    expect(document.querySelectorAll('[draggable="true"]')).toHaveLength(0);
+  });
+
+  it('offers no rank buttons on a single row, on touch', () => {
+    isTouch.value = true;
+    const { container } = setup(CARDS_ONLY);
+    expect(container.querySelectorAll('li')).toHaveLength(1);
+    expect(screen.queryByLabelText('Move Credit cards up')).toBeNull();
+    expect(screen.queryByLabelText('Move Credit cards down')).toBeNull();
+  });
+
+  it('still renders the section with no rows at all, minus the row', () => {
+    const { container } = setup([]);
+    expect(screen.getByText('Where the extra money goes')).toBeTruthy();
+    expect(screen.getByText(/Savings goals, car funds and loans you add will show up here/)).toBeTruthy();
+    expect(container.querySelectorAll('li')).toHaveLength(0);
+  });
+
+  it('keeps the demo read-only, rendered rather than hidden, on a single row', () => {
+    setup(CARDS_ONLY, { readOnly: true });
+    expect(screen.getByText('Where the extra money goes')).toBeTruthy();
+    expect(screen.getByText(/use it with your own data/)).toBeTruthy();
+  });
+
+  it('brings the reorder controls back as soon as there are two rows', () => {
+    isTouch.value = true;
+    setup(THREE);
+    expect(screen.getByText('Where the extra money goes')).toBeTruthy();
+    expect(screen.getByLabelText('Move Savings up')).toBeTruthy();
+    expect(screen.getByText(/Tick/)).toBeTruthy();
+    expect(screen.queryByText(/Savings goals, car funds and loans you add will show up here/)).toBeNull();
   });
 });
