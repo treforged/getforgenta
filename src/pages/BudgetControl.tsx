@@ -74,6 +74,21 @@ const biweeklyAnchorHint = (rule: { due_day?: number | null; start_date?: string
   return `Repeats every 14 days from ${pretty}. Set a date to pin your own cycle.`;
 };
 
+/**
+ * The note on a synthetic "from payoff" rule.
+ *
+ * A recommendation's `reason` is written for the /debt row, where it sits beside the amount it
+ * describes. Standing alone as a note it has to carry itself, and two of the values cannot: an
+ * unmodelled card has no reason at all (empty string, which reads as a missing note rather than
+ * a card the projection could not price), and a bare "Partial statement" names a balance without
+ * saying what is being done about it. Copy only, the amount and due day are untouched.
+ */
+const debtSyncNote = (reason: string): string => {
+  if (!reason) return 'From Debt Payoff. No payment modelled for this card yet.';
+  if (reason === 'Partial statement') return 'Covers part of the statement balance.';
+  return reason;
+};
+
 const DEFAULT_STARTER_RULES = [
   { name: 'Weekly Paycheck', amount: 1875, rule_type: 'income', frequency: 'weekly', due_day: 5, category: 'Other', notes: 'Friday deposits' },
   { name: 'Rent', amount: 1400, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Bills' },
@@ -523,7 +538,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       category: 'Debt Payments',
       payment_source: null,
       deposit_account: null,
-      notes: r.reason,
+      notes: debtSyncNote(r.reason),
       active: true,
       isDebtSync: true,
     })),

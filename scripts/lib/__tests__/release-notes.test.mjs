@@ -456,21 +456,26 @@ describe("reading git log output", () => {
   });
 });
 
+// Every test that spawns the CLI gets this instead of vitest's 5000ms default: booting a second
+// node and shelling out to git takes far longer under a full-suite run than it does in isolation,
+// which is what made this file flake red on the first run and green on the rerun.
+const SUBPROCESS_TIMEOUT_MS = 20_000;
+
 describe("the CLI, run for real against this repository", () => {
   const run = (...args) =>
     execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
 
   it("produces a store-safe note for the default range", () => {
     expectStoreSafe(run());
-  });
+  }, SUBPROCESS_TIMEOUT_MS);
 
   it("produces a store-safe note for a range with no commits in it", () => {
     expectStoreSafe(run("HEAD..HEAD"));
-  });
+  }, SUBPROCESS_TIMEOUT_MS);
 
   it("survives a range that does not exist, rather than failing the deploy", () => {
     expectStoreSafe(run("deadbeefdeadbeef..HEAD"));
-  });
+  }, SUBPROCESS_TIMEOUT_MS);
 
   it("reads subjects from stdin", () => {
     const out = execFileSync(process.execPath, [CLI, "--stdin"], {
@@ -478,7 +483,7 @@ describe("the CLI, run for real against this repository", () => {
       encoding: "utf8",
     });
     expect(out).toBe("- Improvements to linking and syncing your bank accounts.\n");
-  });
+  }, SUBPROCESS_TIMEOUT_MS);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -771,5 +776,5 @@ describe("stdout is never truncated when it is a pipe", () => {
     expect(proc.status).toBe(0);
     expect(proc.stdout).not.toContain("release-notes:");
     expectStoreSafe(proc.stdout);
-  });
+  }, SUBPROCESS_TIMEOUT_MS);
 });

@@ -52,9 +52,23 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
 
       {(hasRecs || hasLoans) && (
         <>
+          {/* Two intros, because the two states show different KINDS of number. With cards
+              present this is the /debt panel's claim, caveat included, so the two surfaces say
+              the same thing. With only loans, nothing here was recommended: a loan payment is
+              fixed by the loan, and the cash-flow caveat has nothing to qualify. */}
           <p className="text-[10px] text-muted-foreground mb-3">
-            A recommended payment based on your current cash flow. Each row leads with its next
-            payment and the date it is due.
+            {hasRecs ? (
+              <>
+                A recommended payment based on your current cash flow. Not adjusted for bills
+                further out than this month. Each row leads with its next payment and the date it
+                is due.
+              </>
+            ) : (
+              <>
+                Your scheduled loan payments. Each amount is fixed by the loan, not recommended
+                from your cash flow. Each row leads with its next payment and the date it is due.
+              </>
+            )}
           </p>
 
           {hasRecs && cashWarning && (
@@ -173,7 +187,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
 
           {hasLoans && (
             <p className="text-[9px] text-muted-foreground mt-2">
-              Loan payments are already reserved by your cash floor — not counted in the card totals.
+              Loan payments are already reserved by your cash floor, not counted in the card totals.
             </p>
           )}
 
