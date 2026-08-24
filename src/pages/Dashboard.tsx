@@ -29,7 +29,6 @@ import {
   getMonthlyNetIncome,
   getRemainingPaychecksThisMonth,
   getNextPaycheckDate,
-  getPaycheckNet,
   getMinSafeCash,
   getAugmentedMinSafeCash,
   getPrePaycheckNextMonthBills,
@@ -40,7 +39,6 @@ import {
   generateCurrentMonthTransactionsFromRules,
   createDebtPaymentTransactions,
   mergeDebtPaymentsIntoStream,
-  getPaychecksInMonth,
 } from '@/lib/pay-schedule';
 import { CC_DEFAULT_CATEGORIES } from "@/lib/credit-card-engine";
 import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/lib/payment-plan-generator';
@@ -263,7 +261,8 @@ export default function Dashboard() {
   const essentialLoading = txnLoading || acctLoading || profileLoading;
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
-  const paycheckNet = useMemo(() => getPaycheckNet(payConfig), [payConfig]);
+  // `paycheckNet` was here too: it was the retired Next Paycheck chip's VALUE and the income
+  // drawer's first line, and Tre re-anchored the chip's DATE only. Gone with its last reader.
   const remainingIncome = useMemo(() => getRemainingIncomeThisMonth(payConfig), [payConfig]);
   const remainingPaychecks = useMemo(() => getRemainingPaychecksThisMonth(payConfig), [payConfig]);
   const nextPayday = useMemo(() => getNextPaycheckDate(payConfig), [payConfig]);
@@ -531,15 +530,12 @@ export default function Dashboard() {
     ].sort((a, b) => a.date.localeCompare(b.date));
   }, [rules, accounts, debtPaymentTxns, carLoanTxns, planTxns, creditCardIds]);
 
+  // The 30-day window that fed the retired "Bills This Month" chip is gone with the chip: Tre
+  // took Next Paycheck and Month-End Cash into the Monthly Snapshot hero on 2026-08-23 and left
+  // Bills This Month and Debt Service dropped. `upcomingWeek` is live (the Upcoming This Week
+  // widget reads it), and `nextPayday` above is now read by the snapshot.
   const upcomingWeek = useMemo(() => getUpcomingEvents(scheduledEvents, 7), [scheduledEvents]);
-  const upcomingMonth = useMemo(() => getUpcomingEvents(scheduledEvents, 30), [scheduledEvents]);
   const upcomingBillsWeek = upcomingWeek.filter(e => e.type === 'expense');
-  // ⚠️ NO READER since the stat-chip row was retired (2026-08-22): `upcomingMonth`,
-  // `upcomingBillsMonth` and `nextPayday` above were chip values. Kept with the three
-  // orphaned drawer openers below rather than deleted piecemeal, so re-anchoring "bills this
-  // month" and "next paycheck" is one decision instead of a rebuild. `upcomingWeek` is live —
-  // the Upcoming This Week widget reads it.
-  const upcomingBillsMonth = upcomingMonth.filter(e => e.type === 'expense');
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate, debtFundingSources, CC_DEFAULT_CATEGORIES, confirmedOccurrences), [allMonthTransactions, syncCutoffDate, debtFundingSources, confirmedOccurrences]);
@@ -846,12 +842,10 @@ export default function Dashboard() {
 
   // ─── Calc drawer openers ──────────────────────────────────────────────────
   //
-  // ⚠️ NO CALLER, as of 2026-08-22: `openMonthEndCalc`, `openIncomeCalc` and
-  // `openExpenseCalc` were opened from the stat-chip row, which was retired when the
-  // overview strip took the top of the page. Their derivations are left standing rather
-  // than deleted so the figures can be re-anchored to a surface that still shows them —
-  // rebuilding these chains from scratch is how a drawer stops matching its own tile.
-  // (`openDebtPaymentsCalc` below has had no caller since before this change.)
+  // `openMonthEndCalc` regained its caller on 2026-08-23: the Monthly Snapshot's Month-End Cash
+  // sub-figure opens it, and prints the same `monthEndCash` this drawer derives its column to.
+  // The openers for the chips Tre did NOT re-anchor (income, expenses, debt payments) were
+  // deleted in the same pass rather than left standing as unreachable derivations.
 
   const openMonthEndCalc = () => {
     const engineMinimums = debtBreakdown.totalMinimumsDue;
@@ -926,59 +920,6 @@ export default function Dashboard() {
     setCalcDrawer({ title: 'Projected Month-End Cash', lines });
   };
 
-  const openIncomeCalc = () => {
-    const incomeItems = currentMonthTransactions.filter(t => t.type === 'income');
-    const paycheckCount = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
-    const lines: { label: string; value: string; op?: string }[] = [
-      { label: `Pay Schedule: ${payConfig.frequency}`, value: `${payConfig.paycheckDay === 5 ? 'Fri' : `Day ${payConfig.paycheckDay}`}` },
-      { label: 'Net per paycheck (post-tax)', value: formatCurrency(paycheckNet, false) },
-      { label: 'Paychecks this month', value: String(paycheckCount.length) },
-      { label: `${incomeItems.length} income transactions`, value: '' },
-    ];
-    incomeItems.slice(0, 8).forEach(t => {
-      lines.push({ label: `  ${t.note || t.category}`, value: formatCurrency(Number(t.amount), false), op: '+' });
-    });
-    lines.push({ label: 'Total Monthly Income', value: formatCurrency(summary.income, false), op: '=' });
-    setCalcDrawer({ title: 'Monthly Income', lines });
-  };
-
-  // Option B on screen: the categories sum to the tile, then the chain continues through debt
-  // service to cash flow — so income − expenses − debt = what's left is followable end to end
-  // and no figure appears that the drawer did not derive.
-  const openExpenseCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'What you spent this month (debt principal excluded):', value: '' },
-    ];
-    Object.entries(expenseBreakdown)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([cat, val]) => lines.push({ label: `  ${cat}`, value: formatCurrency(val, false), op: '+' }));
-    lines.push({ label: 'Monthly Expenses', value: formatCurrency(summary.expenses, false), op: '=' });
-    lines.push({ label: 'Debt service (principal repaid, not spent):', value: '' });
-    if (expenseModel.principal > 0) {
-      lines.push({ label: '  Auto loan principal', value: formatCurrency(expenseModel.principal, false), op: '+' });
-    }
-    debtPaymentBreakdown.forEach(({ cardName, amount }) => {
-      lines.push({ label: `  ${cardName}`, value: formatCurrency(amount, false), op: '+' });
-    });
-    lines.push({ label: 'Total Debt Service', value: formatCurrency(summary.debtService, false), op: '=' });
-    lines.push({ label: 'Total cash out', value: formatCurrency(summary.expenses + summary.debtService, false), op: '=' });
-    setCalcDrawer({ title: 'Monthly Expenses', lines });
-  };
-
-  const openDebtPaymentsCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'All current-month debt payment transactions:', value: '' },
-    ];
-    debtPaymentBreakdown.forEach(({ cardName, amount }) => {
-      lines.push({ label: `  ${cardName}`, value: formatCurrency(amount, false), op: '+' });
-    });
-    if (debtPaymentBreakdown.length === 0) {
-      lines.push({ label: '  No debt payments this month', value: '$0' });
-    }
-    lines.push({ label: 'Total Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '=' });
-    setCalcDrawer({ title: 'Debt Payments', lines });
-  };
-
   const openNetWorthCalc = () => {
     const active = accounts.filter(a => a.active);
     const lines: { label: string; value: string; op?: string }[] = [];
@@ -1037,6 +978,12 @@ export default function Dashboard() {
             key="monthly_snapshot"
             snapshot={month0Snapshot}
             onFloorClick={openFloorCalc}
+            // The two re-anchored chip figures, both passed already derived. `monthEndCash` is the
+            // page's one definition of it (line ~628), which `openMonthEndCalc` prints as the
+            // total of its own column, so the sub-figure and its drawer read the same number.
+            nextPayday={nextPayday}
+            monthEndCash={monthEndCash}
+            onMonthEndClick={openMonthEndCalc}
           />
         );
 

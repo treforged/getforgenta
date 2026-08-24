@@ -10,10 +10,21 @@ import type { Month0Snapshot, SnapshotRow, SnapshotRowTone } from '@/lib/month0-
  * so the rows did not sum to their own total. It now RENDERS a snapshot built by
  * `buildMonth0Snapshot`, which sources every row from the engine's own month-0 cash chain and
  * emits the leftover as a computed row. Keep it that way: no arithmetic belongs in here.
+ *
+ * `nextPayday` and `monthEndCash` are the two figures the retired stat-chip row carried, re-anchored
+ * here on 2026-08-23 (Tre). They arrive already derived, like everything else: `monthEndCash` is the
+ * page's single `monthEndCash` variable, the same one the month-end calc drawer prints as its total,
+ * so the sub-figure and the drawer cannot disagree.
  */
 type Props = {
   snapshot: Month0Snapshot;
   onFloorClick?: () => void;
+  /** Next payday. Absent, never a placeholder date, when the pay schedule has no reading. */
+  nextPayday?: Date | null;
+  /** Projected month-end cash. Same value `onMonthEndClick`'s drawer derives its column to. */
+  monthEndCash?: number | null;
+  /** Opens the month-end cash calculator drawer, so the sub-figure is auditable. */
+  onMonthEndClick?: () => void;
 };
 
 const C = {
@@ -39,7 +50,44 @@ function rowValueClass(row: SnapshotRow): string {
   return TONE_CLASS[row.tone];
 }
 
-export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props) {
+const SUB_LABEL = 'text-[9px] text-muted-foreground uppercase tracking-wider leading-none';
+const SUB_VALUE = 'text-sm font-display font-bold mt-1 leading-none';
+
+/**
+ * A secondary figure beside the card title: small uppercase label over a display-bold value,
+ * the same shape the donut centre and the overview strip use, so the three read as one family.
+ */
+function SubFigure({ label, value, tone, onClick }: {
+  label: string;
+  value: string;
+  tone: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <p className={SUB_LABEL}>{label}</p>
+      <p className={`${SUB_VALUE} ${tone}`}>{value}</p>
+    </>
+  );
+  if (!onClick) return <div className="text-right">{body}</div>;
+  return (
+    <button type="button" onClick={onClick} className="text-right transition-colors hover:text-primary">
+      {body}
+    </button>
+  );
+}
+
+/** 'Fri, Sep 5', the format the retired Next Paycheck chip printed. */
+const paydayLabel = (d: Date) =>
+  d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+export default function MonthlyBudgetSnapshot({
+  snapshot,
+  onFloorClick,
+  nextPayday,
+  monthEndCash,
+  onMonthEndClick,
+}: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const { rows, pie, projectedRemaining, availableToDeploy } = snapshot;
 
@@ -57,12 +105,33 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
 
   const activeSlice = activeIdx !== null ? pieData[activeIdx] : null;
 
+  // Both sub-figures are absent rather than fabricated when there is nothing to read: an
+  // Invalid Date prints "Invalid Date" and a non-finite cash figure prints "$NaN", and both
+  // look like a reading to whoever is looking at them.
+  const paydayText = nextPayday && !Number.isNaN(nextPayday.getTime()) ? paydayLabel(nextPayday) : null;
+  const monthEnd = monthEndCash != null && Number.isFinite(monthEndCash) ? monthEndCash : null;
+
   return (
     <div className="card-forged p-5">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 mb-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Monthly Budget Snapshot
         </h3>
+        {(paydayText || monthEnd !== null) && (
+          <div className="flex items-start gap-5">
+            {paydayText && (
+              <SubFigure label="Next Paycheck" value={paydayText} tone="text-foreground" />
+            )}
+            {monthEnd !== null && (
+              <SubFigure
+                label="Month-End Cash"
+                value={formatCurrency(monthEnd, false)}
+                tone={monthEnd >= 0 ? 'text-foreground' : 'text-destructive'}
+                onClick={onMonthEndClick}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
