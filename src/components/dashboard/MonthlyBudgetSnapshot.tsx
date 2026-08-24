@@ -21,6 +21,9 @@ type Props = {
   onFloorClick?: () => void;
   /** Next payday. Absent, never a placeholder date, when the pay schedule has no reading. */
   nextPayday?: Date | null;
+  /** Taps through to the page the pay schedule is set on, matching the retired chip's
+   * `to: '/budget'`. Omitted ⇒ the figure renders as plain text, not a dead button. */
+  onPaydayClick?: () => void;
   /** Projected month-end cash. Same value `onMonthEndClick`'s drawer derives its column to. */
   monthEndCash?: number | null;
   /** Opens the month-end cash calculator drawer, so the sub-figure is auditable. */
@@ -85,6 +88,7 @@ export default function MonthlyBudgetSnapshot({
   snapshot,
   onFloorClick,
   nextPayday,
+  onPaydayClick,
   monthEndCash,
   onMonthEndClick,
 }: Props) {
@@ -120,7 +124,12 @@ export default function MonthlyBudgetSnapshot({
         {(paydayText || monthEnd !== null) && (
           <div className="flex items-start gap-5">
             {paydayText && (
-              <SubFigure label="Next Paycheck" value={paydayText} tone="text-foreground" />
+              <SubFigure
+                label="Next Paycheck"
+                value={paydayText}
+                tone="text-foreground"
+                onClick={onPaydayClick}
+              />
             )}
             {monthEnd !== null && (
               <SubFigure

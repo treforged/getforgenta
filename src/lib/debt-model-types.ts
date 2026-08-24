@@ -43,7 +43,11 @@ export interface Month0Result {
    * from visible line items (Dashboard) can show them, instead of having them only affect the
    * total invisibly. */
   vehicleInsurance: number;
-  mortgagePayment: number;
+  /** Cash leaving for non-credit-card debt service — the `debts` rows paired to mortgage /
+   * student-loan / other-liability accounts. Renamed from `mortgagePayment` 2026-08-24, when the
+   * sum stopped being mortgage-only; `sumOtherDebtPayments` (non-cc-liabilities.ts) computes it
+   * and owns the rule that stops a bill the user ALSO keeps as an expense rule counting twice. */
+  otherDebtPayment: number;
   /** RANKED AUTOMATIC EXTRA PAYMENTS — `chain.autoExtraReserve` broken out per target, straight
    * from `computeAutoExtraReserve`'s `perTarget`. The scalar says how many dollars left checking;
    * this says WHICH goal or car fund they left for, which is what the forecast needs to grow the
@@ -78,7 +82,7 @@ export interface Month0Result {
    *
    *   cashPreDebt = fundingBalance + income − expenses − planExpenses − goalContributions
    *                 − autoExtraReserve − carSavedEarmark − carReserve − carLoanPayment
-   *                 − vehicleInsurance − mortgagePayment − transfers + oneTimeNet
+   *                 − vehicleInsurance − otherDebtPayment − transfers + oneTimeNet
    *
    * `carSavedShortfall` is NOT in that identity by design — see its own doc comment.
    *
@@ -153,7 +157,8 @@ export interface Month0CashChain {
   /** Active car-loan payments still due after the sync cutoff. */
   carLoanPayment: number;
   vehicleInsurance: number;
-  mortgagePayment: number;
+  /** Non-credit-card debt service leaving checking this month — see {@link Month0Result}. */
+  otherDebtPayment: number;
   /** Transfer/investment rules plus goal lump-sum transfers leaving checking this month. */
   transfers: number;
   /** Net one-time DB transactions (income − expenses); may be negative. */

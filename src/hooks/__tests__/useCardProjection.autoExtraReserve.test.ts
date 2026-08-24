@@ -88,7 +88,7 @@ function run(goals: Partial<Tables<'savings_goals'>>[], checkingBalance = 8000) 
 const chainSum = (c: import('@/lib/debt-model-types').Month0CashChain) =>
   c.fundingBalance + c.income - c.expenses - c.planExpenses - c.goalContributions
   - c.autoExtraReserve - c.carSavedEarmark - c.carReserve - c.carLoanPayment
-  - c.vehicleInsurance - c.mortgagePayment - c.transfers + c.oneTimeNet;
+  - c.vehicleInsurance - c.otherDebtPayment - c.transfers + c.oneTimeNet;
 
 describe('useCardProjection — ranked automatic extra payments (month-0 reserve)', () => {
   it('reserves nothing, and changes nothing, when the goal is opted out', () => {

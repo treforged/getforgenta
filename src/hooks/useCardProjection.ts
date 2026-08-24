@@ -17,6 +17,8 @@ import { ordinal } from '@/lib/ordinal';
 import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import { sumOtherDebtPayments, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
@@ -849,17 +851,23 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0);
       });
 
-      // Mortgage payment (mirrors Forecast.tsx's mortgageMonthlyPayment). vehicleForecastByMonth/
-      // getVehicleExtrasForMonth/carLoanLumpByMonth/carLoanInsuranceByMonth (the car-fund
-      // equivalents) moved up before simulationMonthEvents — see the block right after m0Expenses
-      // above — so simulationMonthEvents' own .expenses can include them directly instead of only
-      // the separate look-ahead's comprehensiveMExp seeing them.
-      const mortgageAccountNames = new Set(
-        accounts.filter(a => a.account_type === 'mortgage' && a.active !== false)
-          .map(a => (a.name as string).toLowerCase()),
-      );
-      const monthlyMortgagePayment = debts.filter(d => mortgageAccountNames.has((d.name as string).toLowerCase()))
-        .reduce((s, d) => s + Number(d.target_payment || d.min_payment || 0), 0);
+      // Non-CC debt service — mirrors forecast-engine.ts's `otherDebtPayment`, and mirrors it by
+      // CALLING THE SAME FUNCTION rather than by carrying a copy. This block used to be a
+      // hand-duplicated mortgage-only sum that had to be kept in lockstep with the engine's by eye;
+      // `sumOtherDebtPayments` owns the account/`debts` pairing, the vehicle-loan exclusion and the
+      // dedupe rule (an active expense rule with the same name is the cash side instead, because it
+      // is already inside this hook's `monthlyExpenses` and the engine's `baseExpenses`).
+      //
+      // vehicleForecastByMonth/getVehicleExtrasForMonth/carLoanLumpByMonth/carLoanInsuranceByMonth
+      // (the car-fund equivalents) moved up before simulationMonthEvents — see the block right
+      // after m0Expenses above — so simulationMonthEvents' own .expenses can include them directly
+      // instead of only the separate look-ahead's comprehensiveMExp seeing them.
+      const monthlyOtherDebtPayment = sumOtherDebtPayments({
+        accounts: accounts as unknown as DebtServiceAccountInput[],
+        debts: debts as unknown as LiabilityDebtInput[],
+        rules,
+        excludedAccountIds: linkedLoanAccountIds(carFunds ?? [], accounts),
+      });
 
       // ── Lump-sum goal transfers per month (mirrors Forecast.tsx's lumpTransferByMonth, the
       // .total figure only — per-account categorization is a display concern handled elsewhere).
@@ -878,7 +886,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── Month-0 non-debt outflows beyond m0Expenses ───────────────────────────
       // forecast-engine's PASS-3 month-0 cash step (cashPreDebt) subtracts savings contributions,
-      // transfers, car loan/vehicle costs, mortgage, and goal lump-sum transfers on top of
+      // transfers, car loan/vehicle costs, non-CC debt service, and goal lump-sum transfers on top of
       // baseExpenses — but the sim's month 0 is fed via the month0RemainingExpenses override
       // (m0Expenses + plan cash), and simulationMonthEvents deliberately short-circuits idx 0,
       // so none of those components ever reached the sim's month-0 cash model. Month 0 is also
@@ -887,7 +895,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // month-0 cash below its floor by exactly these dollars ("Cash below safe minimum" at m0).
       // Each component mirrors the engine's own month-0 treatment, including its syncCutoffDate
       // scoping where the engine scopes (transfers) and its full-amount treatment where it
-      // doesn't (savings, car loan, mortgage, lump transfers).
+      // doesn't (savings, car loan, non-CC debt service, lump transfers).
       const m0MonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const m0MonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const m0SyncDay = parseInt(m0SyncCutoff.split('-')[2], 10);
@@ -946,7 +954,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const m0ExtraOutflow = m0Transfers + m0Savings + m0CarSaving
         + getTotalCarLoanMonthly(carFunds ?? [], m0MonthStart)
         + getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0] + carLoanLumpByMonth[0]
-        + monthlyMortgagePayment + lumpTransferByMonth[0];
+        + monthlyOtherDebtPayment + lumpTransferByMonth[0];
 
       // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
@@ -960,16 +968,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // loan-phase insurance/lump sums — getVehicleExtrasForMonth/carLoanLumpByMonth/
       // carLoanInsuranceByMonth are deliberately NOT added again here; doing so would double-count
       // them on top of the look-ahead cap. Only the categories simulationMonthEvents still doesn't
-      // know about (mortgage, goal lump-sum transfers, cycling) need to be added here. Month 0
+      // know about (non-CC debt service, goal lump-sum transfers, cycling) need to be added here. Month 0
       // intentionally stays m0Expenses-only — its own minimum-protection path (cashPreDebt, further
-      // below) already accounts for monthlySavingsAndCar/vehicle/mortgage/cycling precisely;
+      // below) already accounts for monthlySavingsAndCar/vehicle/other-debt/cycling precisely;
       // duplicating that here would only affect maxDebtPaymentByMonth[0]'s cap, not the displayed
       // recommendation.
       const comprehensiveMExp = (m: number, cyclingPaymentByMonth: number[]): number =>
         m === 0
           ? m0Expenses
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses)
-            + monthlyMortgagePayment + lumpTransferByMonth[m] + cyclingPaymentByMonth[m];
+            + monthlyOtherDebtPayment + lumpTransferByMonth[m] + cyclingPaymentByMonth[m];
 
       // No longer gated behind a flagged "large event" — every month's floor breach must be
       // protected, not just ones traceable to a recorded one-time expense, car down payment, or
@@ -1523,7 +1531,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // double-count.
         const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0]
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-          + monthlyMortgagePayment + lumpTransferByMonth[m] + mOneTimeNet;
+          + monthlyOtherDebtPayment + lumpTransferByMonth[m] + mOneTimeNet;
         // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
         // the same month — otherwise pass3RevTotals (which scales the displayed per-card amounts
         // for months 1+) and Forecast's own Ending Cash walk cap debt payments differently.
@@ -1678,7 +1686,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // on mExp above) — m>0 already has it via simulationMonthEvents[m].expenses.
           const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0)
             : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-            + monthlyMortgagePayment + mOneTimeNet2;
+            + monthlyOtherDebtPayment + mOneTimeNet2;
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),
@@ -2013,11 +2021,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // per-card numbers stop adding up to the total the user is shown.
       const m0DrainFloor = m0FloorAugmented + FLOOR_CUSHION_DOLLARS;
 
-      // Vehicle insurance/projected loan and mortgage for month 0 — reuses the per-month
+      // Vehicle insurance/projected loan and non-CC debt service for month 0 — reuses the per-month
       // helpers defined above (which pass3RevTotals also uses) so month 0 and every later
       // month are computed identically.
       const m0VehicleInsurance = getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0];
-      const m0MortgagePayment = monthlyMortgagePayment;
+      const m0OtherDebtPayment = monthlyOtherDebtPayment;
 
       const ccMinForMonth = liveRevolvingBal > 0 ? Math.min(ccMinTotalRevolving, simRevolvingTotal) : 0;
       // Mirror forecast-engine.ts's PASS-3 month-0 cashPreDebt (forecast-engine.ts:1106) exactly so
@@ -2027,8 +2035,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // (lumpTransferByMonth[0]), and net one-time DB txns (+ oneTimeNet, engine adds income minus
       // expense). Missing them made cashPreDebt read higher than reality, so the cap authorized more
       // Discover paydown than the floor allowed and the current-month row landed below the augmented
-      // floor. Do NOT add all of m0ExtraOutflow (line ~797): its savings/car/vehicle/mortgage terms
-      // are already covered by monthlySavingsAndCar + m0VehicleInsurance + m0MortgagePayment above.
+      // floor. Do NOT add all of m0ExtraOutflow (line ~797): its savings/car/vehicle/other-debt terms
+      // are already covered by monthlySavingsAndCar + m0VehicleInsurance + m0OtherDebtPayment above.
       // oneTimeArr[0] holds the month-0 one-times dated AFTER the sync cutoff (it used to be
       // force-zeroed, which cost $172.50 against Forecast on real data — see its builder). This
       // term is the byte-for-byte counterpart of the engine's + b.oneTimeNet.
@@ -2039,7 +2047,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cashPreDebt, so the cap authorized one month's installments more paydown than the Forecast
       // row actually had, and the chain below rendered a total the Forecast page never agreed with.
       const m0PlanExpenses = planCashExpensesEarly[0] ?? 0;
-      const cashPreDebtBeforeAutoExtra = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
+      const cashPreDebtBeforeAutoExtra = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0OtherDebtPayment
         - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
 
       // ── RANKED AUTOMATIC EXTRA PAYMENTS ───────────────────────────────────────
@@ -2122,7 +2130,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         carReserve,
         carLoanPayment: carLoanTotal,
         vehicleInsurance: m0VehicleInsurance,
-        mortgagePayment: m0MortgagePayment,
+        otherDebtPayment: m0OtherDebtPayment,
         transfers: m0Transfers + lumpTransferByMonth[0],
         oneTimeNet: m0OneTimeNet,
         cashPreDebt,
@@ -2398,7 +2406,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // plus the reserved-but-unspent vehicle savings the engine adds back for display.
           endCash: m0Chain.cashPreDebt - safeToPayTotalFinal + Math.round(carReserveHeld),
           vehicleInsurance: Math.round(m0VehicleInsurance),
-          mortgagePayment: Math.round(m0MortgagePayment),
+          otherDebtPayment: Math.round(m0OtherDebtPayment),
           // The reserve, per target. `chain.autoExtraReserve` above only says how much cash left
           // checking; this says which goal or car fund it left FOR, so forecast-engine.ts can grow
           // that balance by the same dollars. Surfacing only the scalar is what made the money

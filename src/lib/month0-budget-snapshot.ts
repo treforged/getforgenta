@@ -302,7 +302,10 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
       month0.carReserveEvent ? `Reserved for ${month0.carReserveEvent.vehicleName} — still your cash, just not deployable this month` : undefined),
     term('carLoan', 'Auto loan payment', c.carLoanPayment, '−', 'muted'),
     term('vehicleInsurance', 'Vehicle insurance (est.)', c.vehicleInsurance, '−', 'muted'),
-    term('mortgage', 'Mortgage payment', c.mortgagePayment, '−', 'muted'),
+    // Sits directly under the auto loan because "other" means other than that one: a mortgage, a
+    // student loan or a manual liability, each paid at the amount on its own debt entry. Labelled
+    // for what it now is — it was 'Mortgage payment' while the sum could only ever be a mortgage.
+    term('otherDebt', 'Other loan payments', c.otherDebtPayment, '−', 'muted'),
     term('transfers', 'Transfers & lump sums', c.transfers, '−', 'muted'),
     term('oneTime', 'One-time transactions', c.oneTimeNet, '+', c.oneTimeNet >= 0 ? 'positive' : 'negative'),
     {
@@ -334,7 +337,7 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
       // §2.9: `fundingBalance` is gross now, so the earmark must land in a segment or the donut
       // over-reports the whole pie by exactly the earmark.
       billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.autoExtraReserve
-        + c.carSavedEarmark + c.carReserve + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
+        + c.carSavedEarmark + c.carReserve + c.carLoanPayment + c.vehicleInsurance + c.otherDebtPayment + c.transfers),
       // `floorCushion` belongs in the same segment as the floor it sits on: splitting the residue
       // into two rows must not change what the donut says, or the chart and the rows disagree
       // again. floorCushion + surplus === aboveFloor, so this total is unchanged by the split.

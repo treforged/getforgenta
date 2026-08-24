@@ -46,7 +46,7 @@ interface ForecastExportRow {
   savingsContrib?: number;
   carContribItems?: NamedAmountItem[];
   carContrib?: number;
-  mortgagePayment?: number;
+  otherDebtPayment?: number;
   carLoanPayment?: number;
   vehicleDownPayment?: number;
   vehicleInsurance?: number;
@@ -200,7 +200,7 @@ export function buildForecastMonthDetail(row: ForecastExportRow, absoluteI: numb
     expenses.push({ label: 'Car Fund Reserve', amount: row.carContrib ?? 0 });
   }
 
-  if ((row.mortgagePayment ?? 0) > 0) expenses.push({ label: 'Mortgage Payment', amount: row.mortgagePayment ?? 0 });
+  if ((row.otherDebtPayment ?? 0) > 0) expenses.push({ label: 'Other Loan Payments', amount: row.otherDebtPayment ?? 0 });
   if ((row.carLoanPayment ?? 0) > 0) expenses.push({ label: 'Car Loan Payment', amount: row.carLoanPayment ?? 0 });
   if ((row.vehicleDownPayment ?? 0) > 0) expenses.push({ label: 'Vehicle Down Payment', amount: row.vehicleDownPayment ?? 0 });
   if ((row.vehicleInsurance ?? 0) > 0) expenses.push({ label: 'Vehicle Insurance', amount: row.vehicleInsurance ?? 0 });

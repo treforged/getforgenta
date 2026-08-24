@@ -148,7 +148,7 @@ export default function MonthlyBreakdownTable({
                     : { label: `  Reserving for ${v.name} (still your cash)`, value: formatCurrency(v.amount, true) })
                 : (row.carContrib ?? 0) > 0 ? [{ label: '  Reserving for car fund (still your cash)', value: formatCurrency(row.carContrib, true) }] : []
               ),
-              ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, true), op: '−' }] : []),
+              ...((row.otherDebtPayment ?? 0) > 0 ? [{ label: '  Other Loan Payments', value: formatCurrency(row.otherDebtPayment, true), op: '−' }] : []),
               ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, true), op: '−' }] : []),
               ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment (cash)', value: formatCurrency(row.vehicleDownPayment, true), op: '−' }] : []),
               ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, true), op: '−' }] : []),

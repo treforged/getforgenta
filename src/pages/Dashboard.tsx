@@ -48,6 +48,7 @@ import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import {
   buildNetWorthBreakdown, totalsFromBreakdown, nonCardLiabilityTotal, sumBalanceByAccountType,
+  isLiabilityAccountType,
   LIQUID_ACCOUNT_TYPES, INVESTMENT_ACCOUNT_TYPES, RETIREMENT_ACCOUNT_TYPES,
 } from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
@@ -879,7 +880,7 @@ export default function Dashboard() {
           ...t('Car down payment reserve', m0.chain.carReserve, '−'),
           ...t('Auto loan payment', m0.chain.carLoanPayment, '−'),
           ...t('Vehicle insurance (est.)', m0.chain.vehicleInsurance, '−'),
-          ...t('Mortgage payment', m0.chain.mortgagePayment, '−'),
+          ...t('Other loan payments', m0.chain.otherDebtPayment, '−'),
           ...t('Transfers & lump sums', m0.chain.transfers, '−'),
           ...t('One-time transactions', m0.chain.oneTimeNet, '+'),
           { label: 'Cash before debt payments', value: money(m0.chain.cashPreDebt), op: '=' },
@@ -923,8 +924,12 @@ export default function Dashboard() {
   const openNetWorthCalc = () => {
     const active = accounts.filter(a => a.active);
     const lines: { label: string; value: string; op?: string }[] = [];
-    const assetAccts = active.filter(a => !['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
-    const liabAccts = active.filter(a => ['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
+    // Split by net-worth.ts's own predicate, not a list copied into this file. The copy had
+    // drifted: it omitted 'mortgage', so a mortgage was ITEMISED under Assets while the totals
+    // beneath it (accountSummary, built from net-worth.ts) correctly counted it as a liability —
+    // a drawer that exists to explain a number, contradicting it. Totals are untouched.
+    const assetAccts = active.filter(a => !isLiabilityAccountType(a.account_type));
+    const liabAccts = active.filter(a => isLiabilityAccountType(a.account_type));
     lines.push({ label: `Assets (${assetAccts.length} accounts)`, value: '' });
     assetAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '+' }));
     lines.push({ label: 'Total Assets', value: formatCurrency(accountSummary.totalAssets, false), op: '=' });
@@ -982,6 +987,9 @@ export default function Dashboard() {
             // page's one definition of it (line ~628), which `openMonthEndCalc` prints as the
             // total of its own column, so the sub-figure and its drawer read the same number.
             nextPayday={nextPayday}
+            // Taps through to the page the pay schedule lives on — the destination the retired
+            // Next Paycheck chip carried as `to: '/budget'`.
+            onPaydayClick={() => navigate('/budget')}
             monthEndCash={monthEndCash}
             onMonthEndClick={openMonthEndCalc}
           />

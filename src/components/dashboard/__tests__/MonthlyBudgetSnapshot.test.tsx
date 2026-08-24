@@ -86,6 +86,21 @@ describe('MonthlyBudgetSnapshot — Month-End Cash stays auditable', () => {
   });
 });
 
+describe('MonthlyBudgetSnapshot — Next Paycheck taps through', () => {
+  it('fires its handler when tapped, the way the retired chip linked to /budget', () => {
+    const onPaydayClick = vi.fn();
+    renderSnapshot({ onPaydayClick });
+
+    fireEvent.click(screen.getByText('Next Paycheck'));
+    expect(onPaydayClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('still prints the date with no handler, rather than a dead button', () => {
+    renderSnapshot();
+    expect(screen.getByText('Fri, Sep 4').closest('button')).toBeNull();
+  });
+});
+
 describe('MonthlyBudgetSnapshot — absent, never fabricated', () => {
   it('omits Next Paycheck entirely when there is no payday to read', () => {
     renderSnapshot({ nextPayday: null });

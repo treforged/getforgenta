@@ -19,7 +19,7 @@ const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
     fundingBalance: 2800, income: 5850, expenses: 1975, planExpenses: 0, goalContributions: 150,
     autoExtraReserve: 0,
     carSavedEarmark: 0, carSavedShortfall: 0,
-    carReserve: 0, carLoanPayment: 0, vehicleInsurance: 0, mortgagePayment: 0,
+    carReserve: 0, carLoanPayment: 0, vehicleInsurance: 0, otherDebtPayment: 0,
     transfers: 0, oneTimeNet: 0,
     ...over,
   };
@@ -32,7 +32,7 @@ const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
     cashPreDebt: base.fundingBalance + base.income - base.expenses - base.planExpenses - base.goalContributions
       - base.autoExtraReserve
       - base.carSavedEarmark
-      - base.carReserve - base.carLoanPayment - base.vehicleInsurance - base.mortgagePayment
+      - base.carReserve - base.carLoanPayment - base.vehicleInsurance - base.otherDebtPayment
       - base.transfers + base.oneTimeNet,
   };
 };
@@ -52,7 +52,7 @@ const month0 = (over: Partial<Month0Result> = {}): Month0Result => ({
   autoExtraPerTarget: [],
   endCash: chain().cashPreDebt - 1000,
   vehicleInsurance: 0,
-  mortgagePayment: 0,
+  otherDebtPayment: 0,
   chain: chain(),
   ...over,
 });
@@ -268,12 +268,12 @@ describe('buildMonth0Snapshot', () => {
     const snap = expectRowsToBalance(month0({
       chain: chain({
         planExpenses: 150, goalContributions: 150, carReserve: 267, carLoanPayment: 612,
-        vehicleInsurance: 187, mortgagePayment: 1850, transfers: 25, oneTimeNet: -40,
+        vehicleInsurance: 187, otherDebtPayment: 1850, transfers: 25, oneTimeNet: -40,
       }),
       carReserveEvent: { vehicleName: 'Toyota RAV4' },
       safeToPayTotal: 400,
     }));
-    for (const key of ['planExpenses', 'goals', 'carReserve', 'carLoan', 'vehicleInsurance', 'mortgage', 'transfers', 'oneTime']) {
+    for (const key of ['planExpenses', 'goals', 'carReserve', 'carLoan', 'vehicleInsurance', 'otherDebt', 'transfers', 'oneTime']) {
       expect(snap.rows.find(r => r.key === key), `missing row: ${key}`).toBeDefined();
     }
     expect(snap.rows.find(r => r.key === 'oneTime')?.sign).toBe('−');
@@ -385,7 +385,7 @@ describe('buildMonth0Snapshot', () => {
 
   it('omits zero terms so the chain stays readable', () => {
     const snap = buildMonth0Snapshot(month0());
-    expect(snap.rows.find(r => r.key === 'mortgage')).toBeUndefined();
+    expect(snap.rows.find(r => r.key === 'otherDebt')).toBeUndefined();
     expect(snap.rows.find(r => r.key === 'transfers')).toBeUndefined();
   });
 

@@ -19,7 +19,7 @@ import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-pr
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
-import { buildNonCCLiabilities, type LiabilityDebtInput } from '@/lib/non-cc-liabilities';
+import { buildNonCCLiabilities, sumOtherDebtPayments, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -67,7 +67,10 @@ export interface ForecastMonthRow {
   carReserveHeld: number; carLoanPayment: number; vehicleDownPayment: number; vehicleSavedPortion: number;
   vehicleInsurance: number; projectedCarLoan: number; carLoanExtraPayment: number;
   carLumpItems: { name: string; amount: number }[];
-  mortgagePayment: number; transfersTotal: number;
+  /** Cash leaving for non-credit-card debt service this month — the `debts` rows paired to
+   * mortgage / student-loan / other-liability accounts. See `sumOtherDebtPayments` for the rule
+   * that keeps this from double-counting a bill the user also has as an expense rule. */
+  otherDebtPayment: number; transfersTotal: number;
   transferBreakdown: { name: string; amount: number }[];
   nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
   otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[];
@@ -184,7 +187,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     const liquidTypes = ['checking', 'business_checking', 'cash'];
     const investTypes = ['brokerage'];
     const retireTypes = ['roth_ira', '401k', 'ira', 'hsa'];
-    const liabilityTypes = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
+    // `mortgage` added 2026-08-24. Its payment has been leaving projected cash since the mortgage
+    // block below existed, but the account itself was missing from this list, so the balance it was
+    // paying down never appeared in the forecast's liabilities at all. Now matches
+    // `net-worth.ts`'s LIABILITY_ACCOUNT_TYPES, which is the app's real liability set.
+    const liabilityTypes = ['credit_card', 'mortgage', 'student_loan', 'auto_loan', 'other_liability'];
 
     // Starting liquid cash = funding account only (the account that pays debt/expenses).
     // Using all liquid accounts inflates starting cash and masks real floor breaches.
@@ -482,15 +489,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       return { savings, brokerage, roth_ira, total: savings + brokerage + roth_ira, perAccount };
     });
 
-    // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
-    const mortgageAccountNames = new Set(
-      accounts.filter((a) => a.account_type === 'mortgage' && a.active !== false)
-        .map((a) => (a.name as string).toLowerCase())
-    );
-    const mortgageMonthlyPayment = debts
-      .filter((d) => mortgageAccountNames.has((d.name as string).toLowerCase()))
-      .reduce((s, d) => s + Number(d.target_payment || d.min_payment || 0), 0);
-
     // Month-aware projections for saving-phase vehicles: contrib stops at purchase month,
     // projected loan payment starts at purchase month
     const vehicleProjections = pauseSavings ? [] : (carFunds)
@@ -622,6 +620,26 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         account_type: a.account_type as string,
         balance: Number(a.balance),
       }));
+
+    // NON-CC DEBT SERVICE — a hard floor deduction before CC payoff, same priority as car loans.
+    //
+    // ⚠️ DECLARED HERE, NOT WHERE IT IS CONSUMED (PASS 2/3, ~700 lines below): it needs
+    // `linkedVehicleAccountIds` just above, so it cannot move earlier, and it must not move later
+    // than the accounts it reads. It replaces a mortgage-only sum that sat ~130 lines up.
+    //
+    // This is the CASH half of the same debts `buildNonCCLiabilities` amortizes below. Until
+    // 2026-08-24 only a mortgage's payment was subtracted, so a student loan's balance fell every
+    // month with nothing leaving checking — the forecast paid it with money it never spent.
+    // `sumOtherDebtPayments` owns the pairing AND the dedupe rule (an active expense rule wearing
+    // the same name is the cash side instead, since it is already inside `baseExpenses`), and it is
+    // the SAME function `useCardProjection.ts` calls — the two used to carry hand-copied versions
+    // of this block and had to be kept in lockstep by eye.
+    const otherDebtPayment = sumOtherDebtPayments({
+      accounts: accounts as unknown as DebtServiceAccountInput[],
+      debts: debts as unknown as LiabilityDebtInput[],
+      rules,
+      excludedAccountIds: linkedVehicleAccountIds,
+    });
 
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(PROJECTION_MONTHS).fill(0);
@@ -1196,7 +1214,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
-          + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment
+          + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + otherDebtPayment
           + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]),
       oneTimeNetByMonth: baseData.map(b => b.oneTimeNet),
       carDownPaymentByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, i) => getMonthEffectiveDP(i)),
@@ -1383,7 +1401,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // subtraction is what makes the projection honest — `finalLiquid` falls by the reserve, so
       // step 3's surplus branch feeds a correspondingly smaller revolving target back through
       // convergence and the sim stops paying down cards with money the user diverted.
-      const cashPreDebtBeforeAutoExtra = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
+      const cashPreDebtBeforeAutoExtra = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
       // A target's own monthly contribution fills the same need the reserve would, and it is
       // subtracted BEFORE this month's reserve is decided: decide the reserve against a need the
       // contribution has already met and the target ends the month over-funded by exactly one
@@ -1708,7 +1726,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         + Array.from(goalPools.values()).reduce((s, p) => s + p.balance, 0)
         + Array.from(carFundPools.values()).reduce((s, p) => s + p.balance, 0);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers + lumpTransferThisMonth;
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + otherDebtPayment + actualTransfers + lumpTransferThisMonth;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       // Reserved-but-not-yet-spent vehicle savings are added back — see cumulativeCarReserveHeld.
@@ -1844,7 +1862,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         projectedCarLoan: projLoanThisMonth - projLumpThisMonth,
         carLoanExtraPayment: carLoanLumpThisMonth,
         carLumpItems: carLumpItemsByMonth[i],
-        mortgagePayment: mortgageMonthlyPayment,
+        otherDebtPayment,
         transfersTotal: actualTransfers,
         transferBreakdown: b.transferBreakdown,
         nonCashTransferItems: [
