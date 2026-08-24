@@ -5,6 +5,10 @@ import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './veh
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
 import { getBiweeklyDatesInMonth, toLocalDateStr } from './scheduling';
+// The ledger's real-overrides-projected rule asks the bank matcher's own amount and date questions,
+// rather than growing a second tolerance here that could drift from it. Leaf module, no cycle:
+// `transaction-matching.ts` deliberately does not import this file.
+import { amountConfidence, daysBetween, DATE_WINDOW_DAYS } from './transaction-matching';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -1178,6 +1182,19 @@ export function getRuleOccurrenceDatesInMonth(
   // keeps the occurrences before the end and drops the ones after it.
   const notPastEnd = (iso: string) => !endDate || new Date(iso + 'T12:00:00') <= endDate;
 
+  // ⚠️ EVERY BRANCH BELOW FORMATS WITH `toLocalDateStr`, NOT `toISOString().split('T')[0]`.
+  //
+  // The dates here are built from local parts (`new Date(year, month, dueDay)`), so formatting them
+  // in UTC moved the calendar day BACK ONE for anyone east of Greenwich — every due day, not just
+  // the 1st. Measured under `TZ=Europe/Berlin`: a rule due 2026-09-01 emitted "2026-08-31", and one
+  // due the 15th emitted the 14th.
+  //
+  // And the `>= monthStart` guard did not catch it, because it compares the DATE OBJECT while the
+  // string is what gets pushed — so September's list contained an August date, which then keyed
+  // `gen:<rule>:2026-08-31` into the wrong month everywhere downstream. Only the biweekly branch was
+  // right, having already borrowed `scheduling.ts`'s helper. A no-op in US Eastern, where every
+  // existing date-pinned test runs, which is exactly why it survived this long.
+  // `transaction-matching.ts`'s `daysBetween` carries the same warning about the same trap.
   if (rule.frequency === 'biweekly') {
     return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
   } else if (rule.frequency === 'weekly') {
@@ -1185,20 +1202,20 @@ export function getRuleOccurrenceDatesInMonth(
     const dayOfWeek = rule.due_day ?? 5;
     while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
     while (d <= monthEnd) {
-      const iso = d.toISOString().split('T')[0];
+      const iso = toLocalDateStr(d);
       if (notPastEnd(iso)) dates.push(iso);
       d.setDate(d.getDate() + 7);
     }
   } else if (rule.frequency === 'monthly') {
     const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
     const d = new Date(year, month, dueDay);
-    const iso = d.toISOString().split('T')[0];
+    const iso = toLocalDateStr(d);
     if (d >= monthStart && d <= monthEnd && notPastEnd(iso)) dates.push(iso);
   } else if (rule.frequency === 'yearly') {
     const dueMonth = (rule.due_month ?? 1) - 1;
     if (dueMonth === month) {
       const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
-      const iso = new Date(year, dueMonth, dueDay).toISOString().split('T')[0];
+      const iso = toLocalDateStr(new Date(year, dueMonth, dueDay));
       if (notPastEnd(iso)) dates.push(iso);
     }
   }
@@ -1305,26 +1322,161 @@ export function generateCurrentMonthTransactionsFromRules(
 }
 
 /**
+ * The pre-existing substitution key: byte-identical date, note and amount.
+ *
+ * Kept exactly as it was written, template literal and all, because PASS 1 below must stay byte for
+ * byte what it has always been — `undefined` notes stringifying to `"undefined"` included.
+ */
+function exactSubstitutionKey(t: EnrichedTransaction): string {
+  return `${t.date}:${t.note}:${t.amount}`;
+}
+
+/** A note reduced to what two references to the same bill have in common. */
+function substitutionNote(note: string | null | undefined): string {
+  return (note ?? '').trim().toLowerCase();
+}
+
+/** The `accounts.id` a payment source names, or '' for unattributed. Both storage forms are live. */
+function substitutionAccountId(src: string | null | undefined): string {
+  if (!src) return '';
+  return src.startsWith('account:') ? src.slice(8) : src;
+}
+
+/**
+ * A real row that is not itself something the app generated.
+ *
+ * Only a row the USER put in the ledger can stand in for a projection. Every other flag here marks a
+ * row this pipeline synthesized somewhere else — a debt payment, a plan installment, a car-loan
+ * amortization row, a balance reconciliation — and letting one of those retire a rule occurrence
+ * would delete a real obligation on the strength of a row that is itself only a projection.
+ */
+function canSubstitute(t: EnrichedTransaction): boolean {
+  return !t.isGenerated && !t.isDebtPayment && !t.isPlanPayment && !t.isCarLoanPayment
+    && !t.isReconciliation;
+}
+
+/**
+ * Is this real ledger row the SAME OCCURRENCE as this generated one, paid for real?
+ *
+ * ⚠️ THIS IS THE POINT OF THE WHOLE CHANGE. Tre, 2026-08-24: "if a transaction matches a budget
+ * rule, the real transaction date and costs should auto override the transaction for that month.
+ * the real one should actually show." The rule this replaces compared `date:note:amount` byte for
+ * byte, so it fired only when the real row was IDENTICAL to the projection — that is, in exactly
+ * the case where nothing needed overriding. A rent projection of $1,200 on the 15th and the real
+ * $1,208 paid on the 17th are one event, and the ledger showed both.
+ *
+ * Five hard gates, and they are the matcher's own rather than a second set invented here:
+ *   1. The real row must be a real row (see `canSubstitute`).
+ *   2. Same direction. An income row never stands in for an expense.
+ *   3. Same name, trimmed and case-folded, and the generated side must actually have one. The
+ *      generated note IS the rule's name, and the override flow (`Transactions.tsx:389-397`) copies
+ *      it verbatim into the new row, so this is the closest thing to a rule link that a
+ *      `public.transactions` row carries — there is no `rule_id` column to read.
+ *   4. Same account WHEN BOTH NAME ONE, skipped when either is unattributed — the same shape
+ *      `duplicate-transaction-detection.ts` settled on, and for the same reason: hand-entered rows
+ *      routinely carry no `payment_source` and a required gate would miss the real cases.
+ *   5. Amount inside `amountConfidence` and date inside `DATE_WINDOW_DAYS`, both imported from
+ *      `transaction-matching.ts` so this cannot drift away from what the bank matcher calls a match.
+ *
+ * A malformed date makes `daysBetween` NaN and the comparison false, so a bad row substitutes
+ * nothing rather than everything.
+ */
+export function overridesGeneratedOccurrence(
+  generated: EnrichedTransaction,
+  real: EnrichedTransaction,
+): boolean {
+  if (!canSubstitute(real)) return false;
+  if (real.type !== generated.type) return false;
+  if (!real.date || !generated.date) return false;
+
+  const name = substitutionNote(generated.note);
+  if (!name || name !== substitutionNote(real.note)) return false;
+
+  const generatedAccount = substitutionAccountId(generated.payment_source);
+  const realAccount = substitutionAccountId(real.payment_source);
+  if (generatedAccount && realAccount && generatedAccount !== realAccount) return false;
+
+  if (amountConfidence(generated.amount, real.amount) === null) return false;
+  return Math.abs(daysBetween(generated.date, real.date)) <= DATE_WINDOW_DAYS;
+}
+
+/**
+ * The generated occurrences that survive substitution by a real ledger row.
+ *
+ * TWO PASSES, and the split is what makes this safe to land under ten existing callers.
+ *
+ * PASS 1 is the byte-identical rule, untouched. Every occurrence that was dropped before is still
+ * dropped, by the same key, in the same order, so nothing that passes today can change. Real rows
+ * that stood in during this pass are then marked spent, which the old code had no need to do and
+ * which pass 2 does need: without it one $1,200 debit could retire a Friday occurrence exactly and
+ * the following Monday's one tolerantly.
+ *
+ * PASS 2 is the new occurrence-identity rule, and it is deliberately EXACTLY-ONE-OR-NOTHING, the
+ * same standard `matchCharge` holds itself to. Two plausible real rows for one projection is a coin
+ * flip, and dropping a projection is the unsafe direction — it raises projected cash. Keeping both
+ * rows visible is merely untidy; retiring the wrong obligation is wrong about money.
+ *
+ * `claimed` is threaded in by the caller so one real row cannot be spent twice across months, and is
+ * the only thing here that is written to.
+ */
+function substituteRealForGenerated(
+  generated: readonly EnrichedTransaction[],
+  realPool: readonly EnrichedTransaction[],
+  claimed: Set<string>,
+): EnrichedTransaction[] {
+  const exactKeys = new Set(realPool.map(exactSubstitutionKey));
+
+  const survivors: EnrichedTransaction[] = [];
+  const spentKeys = new Set<string>();
+  for (const g of generated) {
+    const key = exactSubstitutionKey(g);
+    if (exactKeys.has(key)) { spentKeys.add(key); continue; }
+    survivors.push(g);
+  }
+  for (const t of realPool) if (spentKeys.has(exactSubstitutionKey(t))) claimed.add(t.id);
+
+  const kept: EnrichedTransaction[] = [];
+  for (const g of survivors) {
+    const candidates = realPool.filter(t => !claimed.has(t.id) && overridesGeneratedOccurrence(g, t));
+    if (candidates.length === 1) { claimed.add(candidates[0].id); continue; }
+    kept.push(g);
+  }
+  return kept;
+}
+
+/** `mergeWithGeneratedTransactions`, plus which real rows it spent. See that function. */
+function currentMonthMerge(
+  realTransactions: EnrichedTransaction[],
+  rules: RuleRow[],
+  accounts: AccountRow[],
+): { merged: EnrichedTransaction[]; claimed: Set<string> } {
+  const now = new Date();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const currentMonthReal = realTransactions.filter(t => t.date?.startsWith(monthStr));
+  const generated = generateCurrentMonthTransactionsFromRules(rules, accounts);
+
+  const claimed = new Set<string>();
+  const uniqueGenerated = substituteRealForGenerated(generated, currentMonthReal, claimed);
+
+  // Include non-current-month real transactions + current month real + unique generated
+  const nonCurrentMonth = realTransactions.filter(t => !t.date?.startsWith(monthStr));
+  return { merged: [...nonCurrentMonth, ...currentMonthReal, ...uniqueGenerated], claimed };
+}
+
+/**
  * Merge real DB transactions with generated recurring transactions for the current month.
- * Deduplicates by matching date + note + amount to avoid double-counting.
+ *
+ * A real row REPLACES the generated occurrence it answers — same bill, same account, the amount and
+ * the date the user actually paid rather than the ones the rule predicted. See
+ * {@link overridesGeneratedOccurrence} for the gates and {@link substituteRealForGenerated} for why
+ * the byte-identical rule this grew out of is still run first, unchanged.
  */
 export function mergeWithGeneratedTransactions(
   realTransactions: EnrichedTransaction[],
   rules: RuleRow[],
   accounts: AccountRow[],
 ): EnrichedTransaction[] {
-  const now = new Date();
-  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const currentMonthReal = realTransactions.filter(t => t.date?.startsWith(monthStr));
-  const generated = generateCurrentMonthTransactionsFromRules(rules, accounts);
-
-  // Deduplicate: if a real transaction matches a generated one (same date + note + amount), skip generated
-  const realSet = new Set(currentMonthReal.map(t => `${t.date}:${t.note}:${t.amount}`));
-  const uniqueGenerated = generated.filter(g => !realSet.has(`${g.date}:${g.note}:${g.amount}`));
-
-  // Include non-current-month real transactions + current month real + unique generated
-  const nonCurrentMonth = realTransactions.filter(t => !t.date?.startsWith(monthStr));
-  return [...nonCurrentMonth, ...currentMonthReal, ...uniqueGenerated];
+  return currentMonthMerge(realTransactions, rules, accounts).merged;
 }
 
 /**
@@ -1342,10 +1494,17 @@ export function mergeWithGeneratedTransactions(
  * future. same as the budget control plans."
  *
  * FUTURE months only, never past ones. A past month's real rows came from the bank; generating rule
- * occurrences beside them would double-count every bill that actually settled — the dedupe key
- * below is exact `date:note:amount` and a real bank row matches none of those. The past is what
- * happened; the future is what the rules say will happen; the current month is the seam and keeps
+ * occurrences beside them would double-count every bill that actually settled — the substitution
+ * below only ever removes a generated row, never a real one. The past is what happened; the future
+ * is what the rules say will happen; the current month is the seam and keeps
  * {@link mergeWithGeneratedTransactions}'s substitution rule unchanged.
+ *
+ * ⚠️ THE CLAIM SET IS SHARED WITH THE CURRENT-MONTH MERGE, which is why this reaches for the
+ * internal form rather than calling the public one. The occurrence-identity rule has a ±5 day reach,
+ * so a real row dated the 31st sits inside the window of both this month's last occurrence and next
+ * month's first; without one claim ledger spanning both, that single payment would retire two
+ * separate obligations. The byte-identical rule could not have this problem, because two dates that
+ * differ are never byte-identical.
  */
 export function mergeWithGeneratedTransactionsForHorizon(
   realTransactions: EnrichedTransaction[],
@@ -1353,19 +1512,16 @@ export function mergeWithGeneratedTransactionsForHorizon(
   accounts: AccountRow[],
   monthsAhead: number,
 ): EnrichedTransaction[] {
-  const merged = mergeWithGeneratedTransactions(realTransactions, rules, accounts);
+  const { merged, claimed } = currentMonthMerge(realTransactions, rules, accounts);
 
   const now = new Date();
-  // Real rows ANYWHERE forward may substitute a generated twin — a manual future entry is the user
-  // already describing that occurrence, and rendering both is the duplicate-warning bug again.
-  const realKeys = new Set(realTransactions.map(t => `${t.date}:${t.note}:${t.amount}`));
-
   const future: EnrichedTransaction[] = [];
   for (let offset = 1; offset < monthsAhead; offset++) {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    for (const g of generateMonthTransactionsFromRules(rules, accounts, d.getFullYear(), d.getMonth())) {
-      if (!realKeys.has(`${g.date}:${g.note}:${g.amount}`)) future.push(g);
-    }
+    const generated = generateMonthTransactionsFromRules(rules, accounts, d.getFullYear(), d.getMonth());
+    // Real rows ANYWHERE forward may substitute a generated twin — a manual future entry is the user
+    // already describing that occurrence, and rendering both is the duplicate-warning bug again.
+    future.push(...substituteRealForGenerated(generated, realTransactions, claimed));
   }
   return [...merged, ...future];
 }

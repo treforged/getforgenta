@@ -292,4 +292,19 @@ describe('the other generators', () => {
     });
     expect(found).toHaveLength(0);
   });
+
+  it('stays quiet when the substitution is tolerant, the same bill paid on a different day', () => {
+    // Since 2026-08-24 the merge also substitutes by occurrence identity (same note, amount inside
+    // the matcher's tolerance, date inside its window) via overridesGeneratedOccurrence. This scan
+    // reuses that predicate, so a bill paid three days late must not come back as a "duplicate"
+    // warning about the app's own working substitution. Before the reuse, this exact case warned:
+    // the byte-exact key missed on the date, the obligation stayed collected, and the real row
+    // collided with it.
+    const found = scanForDuplicateTransactions({
+      ...emptyScan,
+      rules: [rule],
+      transactions: [manual({ amount: 89.99, date: '2026-09-15', note: 'Internet', category: 'Bills' })],
+    });
+    expect(found).toHaveLength(0);
+  });
 });

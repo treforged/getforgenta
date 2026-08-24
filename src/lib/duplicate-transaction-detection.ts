@@ -27,7 +27,7 @@
  * not. What keeps it from crying wolf is the one-to-one pairing below, not a tight window.
  */
 
-import { generateMonthTransactionsFromRules, type EnrichedTransaction } from './pay-schedule';
+import { generateMonthTransactionsFromRules, overridesGeneratedOccurrence, type EnrichedTransaction } from './pay-schedule';
 import { generatePaymentPlanTransactions, type PaymentPlan } from './payment-plan-generator';
 import { generateCarLoanTransactions } from './vehicle-loan-engine';
 import type { CarFund } from './types';
@@ -182,9 +182,15 @@ export interface CollectObligationsInput {
  * Every generated obligation the three generators emit, in the months asked for.
  *
  * ⚠️ RULE OCCURRENCES ARE SUPPRESSED WHEN THE STREAM ALREADY SUBSTITUTES THEM. `pay-schedule`'s
- * `mergeWithGeneratedTransactions` drops a generated rule occurrence whose `date:note:amount`
- * exactly equals a real row's — the real row REPLACES it, so nothing is double-counted and there is
- * nothing to warn about. Warning there would flag the app's own working substitution as a bug.
+ * `mergeWithGeneratedTransactions` drops a generated rule occurrence a real row stands in for —
+ * byte-identical `date:note:amount`, or (since 2026-08-24) the same occurrence paid at a nearby
+ * date and amount, per the exported `overridesGeneratedOccurrence`. The real row REPLACES it, so
+ * nothing is double-counted and there is nothing to warn about; warning there would flag the app's
+ * own working substitution as a bug. Both halves of the merge's rule are reproduced here (the
+ * tolerant half by calling the SAME exported predicate, so the two cannot drift). The one corner
+ * where this over-suppresses relative to the merge: two plausible real rows for one projection
+ * makes the merge keep the projection (exactly-one-or-nothing) while this scan still skips it —
+ * a missed advisory warning in a rare corner, never a phantom one.
  * Car-loan and plan rows have no such rule: they are appended unconditionally, which is precisely
  * why the car case double-charges and the rule case usually does not.
  */
@@ -202,6 +208,10 @@ export function collectGeneratedObligations(input: CollectObligationsInput): Gen
     if (!Number.isFinite(year) || !Number.isFinite(month)) continue;
     for (const g of generateMonthTransactionsFromRules(rules, accounts, year, month - 1)) {
       if (substituted.has(`${g.date}:${g.note ?? ''}:${Number(g.amount)}`)) continue;
+      // ManualTransaction is a structural subset of what the predicate reads; the generator flags
+      // it checks (isGenerated, isDebtPayment, ...) are absent on a ledger row, which reads as
+      // false, exactly as the merge itself sees a hand-entered row.
+      if (realTransactions.some(t => overridesGeneratedOccurrence(g, t as EnrichedTransaction))) continue;
       out.push({
         id: g.id,
         kind: 'recurring_rule',

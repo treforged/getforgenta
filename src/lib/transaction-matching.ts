@@ -189,6 +189,27 @@ function strongTolerance(ruleAmount: number): number {
 }
 
 /**
+ * How closely two amounts agree, or null when they are too far apart to be the same payment.
+ *
+ * Both arguments are read as MAGNITUDES; direction stays the caller's gate, exactly as it is inside
+ * `matchCharge`. Zero and non-finite are refused rather than treated as a match — a missing amount
+ * is no information, and this file never turns no information into an assertion.
+ *
+ * Exported so the ledger's occurrence substitution (`pay-schedule.ts`'s
+ * `mergeWithGeneratedTransactions`) asks the SAME amount question the matcher asks. A second
+ * tolerance written out longhand over there is a second number to drift, and the two surfaces would
+ * then disagree about whether one real payment answers one projected bill.
+ */
+export function amountConfidence(target: number | string, actual: number | string): MatchConfidence | null {
+  const want = Math.abs(Number(target));
+  const got = Math.abs(Number(actual));
+  if (!Number.isFinite(want) || !Number.isFinite(got) || want === 0 || got === 0) return null;
+  const delta = Math.abs(got - want);
+  if (delta > strongTolerance(want)) return null;
+  return delta <= AMOUNT_EXACT_TOLERANCE ? 'exact' : 'strong';
+}
+
+/**
  * The settled transaction that corresponds to `rule`'s occurrence in `monthKey`, or null.
  *
  * Null means "no confident match" and must be presented as no information — never as evidence the
@@ -318,7 +339,6 @@ export function matchCharge(
   if (!Number.isFinite(target) || target === 0) return null;
 
   const wantsInflow = charge.isInflow === true;
-  const tolerance = strongTolerance(target);
 
   const candidates: OccurrenceMatch[] = [];
   for (const txn of txns) {
@@ -332,8 +352,8 @@ export function matchCharge(
     // payment must never satisfy a $1,000 expense.
     if (wantsInflow !== signed < 0) continue;
 
-    const delta = Math.abs(Math.abs(signed) - target);
-    if (delta > tolerance) continue;
+    const confidence = amountConfidence(target, signed);
+    if (confidence === null) continue;
 
     // Either the symmetric settle-around-the-due-date window, or — when the caller has told us
     // where this occurrence's cycle begins — anywhere from that point up to the due date itself.
@@ -342,7 +362,7 @@ export function matchCharge(
       && txn.date >= charge.earliestDate && txn.date <= charge.dueDate;
     if (!withinSettleWindow && !paidEarlyThisCycle) continue;
 
-    candidates.push({ txn, confidence: delta <= AMOUNT_EXACT_TOLERANCE ? 'exact' : 'strong' });
+    candidates.push({ txn, confidence });
   }
 
   // Exactly one candidate at the best available confidence, or nothing. Two equally good

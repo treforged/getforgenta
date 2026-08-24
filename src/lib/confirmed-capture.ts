@@ -42,6 +42,17 @@ export interface RuleOccurrenceReview {
    * with the old shape and keep exercising the legacy path on purpose.
    */
   occurrence_date?: string | null;
+  /**
+   * `synced_transactions.id` — WHICH bank row the user linked. NOT NULL in the table.
+   *
+   * Nothing in this file reads it: a suppression only needs to know THAT the occurrence is handled.
+   * It is declared here because it is the one thread back to the real date and the real amount, and
+   * `buildMatchedOccurrenceIndex` (`auto-matched-occurrences.ts`) follows it to answer "what
+   * actually got paid, and when" for a manually confirmed link. Optional for the same reason
+   * `occurrence_date` is — the existing test doubles predate it and must keep compiling, and a
+   * review without it simply yields a suppress-only index entry rather than invented figures.
+   */
+  synced_transaction_id?: string | null;
 }
 
 /** Opaque set of confirmed rule occurrences. Build it with `buildConfirmedOccurrences`. */
