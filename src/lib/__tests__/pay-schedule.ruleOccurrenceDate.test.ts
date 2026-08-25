@@ -64,6 +64,28 @@ describe('getRuleOccurrenceDatesInMonth', () => {
     expect(getRuleOccurrenceDatesInMonth(rule({ start_date: '2026-10-10' }), 2026, 7)).toEqual([]);
   });
 
+  // start_date is per OCCURRENCE, not per month. Until 2026-08-25 only the whole-month skip above
+  // existed, so a weekly rule created mid-month back-filled every earlier same-weekday date in its
+  // own first month - phantom spend from before the rule existed, straight into month 0. Found the
+  // day the Transactions dialog made mid-month weekly rules a one-tap flow.
+  it('starts a weekly rule at its start_date, not at the top of its first month', () => {
+    const weekly = rule({ frequency: 'weekly', start_date: '2026-08-17' });
+    expect(getRuleOccurrenceDatesInMonth(weekly, 2026, 7)).toEqual(['2026-08-17', '2026-08-24', '2026-08-31']);
+    // Months after the start month are unaffected.
+    expect(getRuleOccurrenceDatesInMonth(weekly, 2026, 8)).toEqual(['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
+  });
+
+  it('drops a monthly occurrence that falls before the rule starts in its own month', () => {
+    const monthly = rule({ frequency: 'monthly', due_day: 1, start_date: '2026-08-20' });
+    expect(getRuleOccurrenceDatesInMonth(monthly, 2026, 7)).toEqual([]);
+    expect(getRuleOccurrenceDatesInMonth(monthly, 2026, 8)).toEqual(['2026-09-01']);
+  });
+
+  it('keeps an occurrence exactly on start_date', () => {
+    const monthly = rule({ frequency: 'monthly', due_day: 20, start_date: '2026-08-20' });
+    expect(getRuleOccurrenceDatesInMonth(monthly, 2026, 7)).toEqual(['2026-08-20']);
+  });
+
   // The refactor's real risk: the generator used to own this arithmetic inline.
   it('agrees with generateMonthTransactionsFromRules, which now consumes it', () => {
     const generated = generateMonthTransactionsFromRules([rule()], [], 2026, 7);

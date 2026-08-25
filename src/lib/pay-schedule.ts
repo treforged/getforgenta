@@ -1159,10 +1159,8 @@ export function getRuleOccurrenceDatesInMonth(
   const monthEnd = new Date(year, month + 1, 0);
   const dates: string[] = [];
 
-  if (rule.start_date) {
-    const startDate = new Date(rule.start_date + 'T12:00:00');
-    if (startDate > monthEnd) return dates;
-  }
+  const startDate = rule.start_date ? new Date(rule.start_date + 'T12:00:00') : null;
+  if (startDate && startDate > monthEnd) return dates;
 
   // END_DATE, HONOURED FOR EVERY FREQUENCY AND NOT JUST BIWEEKLY.
   //
@@ -1181,6 +1179,15 @@ export function getRuleOccurrenceDatesInMonth(
   // Compared per occurrence rather than per month, so a rule ending mid-month
   // keeps the occurrences before the end and drops the ones after it.
   const notPastEnd = (iso: string) => !endDate || new Date(iso + 'T12:00:00') <= endDate;
+
+  // The mirror of `notPastEnd`, and it was missing until 2026-08-25. `start_date` was honoured
+  // only as the whole-month skip above, so a weekly rule started mid-month back-filled every
+  // earlier same-weekday date in its OWN first month: a "weekly groceries" created on Aug 25
+  // generated Aug 4, 11 and 18 too, three occurrences of spend from before the rule existed,
+  // landing straight in the month-0 forecast. Monthly and yearly had the same gap whenever
+  // due_day fell before start_date's day. Biweekly was never affected: its cycle is anchored
+  // ON start_date, so nothing can precede it.
+  const notBeforeStart = (iso: string) => !startDate || new Date(iso + 'T12:00:00') >= startDate;
 
   // ⚠️ EVERY BRANCH BELOW FORMATS WITH `toLocalDateStr`, NOT `toISOString().split('T')[0]`.
   //
@@ -1203,20 +1210,20 @@ export function getRuleOccurrenceDatesInMonth(
     while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
     while (d <= monthEnd) {
       const iso = toLocalDateStr(d);
-      if (notPastEnd(iso)) dates.push(iso);
+      if (notPastEnd(iso) && notBeforeStart(iso)) dates.push(iso);
       d.setDate(d.getDate() + 7);
     }
   } else if (rule.frequency === 'monthly') {
     const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
     const d = new Date(year, month, dueDay);
     const iso = toLocalDateStr(d);
-    if (d >= monthStart && d <= monthEnd && notPastEnd(iso)) dates.push(iso);
+    if (d >= monthStart && d <= monthEnd && notPastEnd(iso) && notBeforeStart(iso)) dates.push(iso);
   } else if (rule.frequency === 'yearly') {
     const dueMonth = (rule.due_month ?? 1) - 1;
     if (dueMonth === month) {
       const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
       const iso = toLocalDateStr(new Date(year, dueMonth, dueDay));
-      if (notPastEnd(iso)) dates.push(iso);
+      if (notPastEnd(iso) && notBeforeStart(iso)) dates.push(iso);
     }
   }
 
