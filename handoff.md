@@ -1,13 +1,16 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-24 session 29 (**FIVE slices SHIPPED as local commits, one mobile builder STILL
-> RUNNING — collect it first, see §B. Commits, in order: `8ddef2ad` re-anchor (Next Paycheck +
-> Month-End Cash into Monthly Snapshot hero, live-verified tap-through to drawer), `a14671b4`
-> always-visible "Where the extra money goes", `b60fb827` non-CC debt cash+balance unification,
-> `7aa783de` C3 copy minors + release-notes flake timeout, `47f6163f` txn-override lib layer.
-> NOT pushed - Tre's word "push" releases all of them (plus docs commits `24dd225e`,
-> `e286ca1d`). Context-gate hook misfired all session (claimed 150-277k; real budget showed
-> 14.9M); boundary honored at this handoff.**)
+> ▶ 2026-08-24 session 29 (**FIVE slices SHIPPED and PUSHED - origin/main = `a67a248d` on
+> Tre's explicit "push, then i will clear", verified by CONTENTS (git grep hits for
+> sumOtherDebtPayments / buildMatchedOccurrenceIndex / canReorder on origin/main). Both store
+> deploys firing. Commits: `8ddef2ad` re-anchor (Next Paycheck + Month-End Cash into Monthly
+> Snapshot hero), `a14671b4` always-visible "Where the extra money goes", `b60fb827` non-CC
+> debt cash+balance unification, `7aa783de` C3 copy minors, `47f6163f` txn-override lib
+> layer, plus docs. THE MOBILE BUILDER (asks 3-7, §B) WAS STILL RUNNING AT THE /clear
+> BOUNDARY - the next session's FIRST duty is to collect it: its tree changes appear as
+> uncommitted modifications, its report is at the §B output-file path if the task
+> notification was lost. Context-gate hook misfired all session (claimed 150-292k; real
+> budget ~14.9M); boundary honored here.**)
 
 ## A. THE ASKS (Tre, verbatim, this session)
 1. "other debts like student loans should operate like credit cards. they should also show in
