@@ -503,7 +503,9 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     const resolvedBalance = (form.balance === '' || isNaN(balance)) ? (hasStartDate ? 0 : NaN) : balance;
     if (isNaN(resolvedBalance)) { toast.error('A valid balance is required'); return; }
     const dueDayRaw = parseInt(form.payment_due_day);
-    const dueDayVal = form.account_type === 'credit_card' && !isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 28 ? dueDayRaw : null;
+    // Any liability, not just a card — the field above is offered for all of them, and a field
+    // that renders but never reaches the column is worse than no field at all.
+    const dueDayVal = LIABILITY_TYPES.includes(form.account_type) && !isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 28 ? dueDayRaw : null;
     // Rate tiers are credit-card only. A row the validator rejects blocks the save rather than
     // being dropped on the way to the column — a silently binned tier reads as a saved one.
     const { tranches, invalidRows } = rowsToTranches(form.account_type === 'credit_card' ? trancheRows : []);
@@ -516,8 +518,12 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
       notes: form.notes, active: true,
       apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
+      // Written for every liability type, so a student loan / mortgage due day actually lands in
+      // the column `listDebtServiceLiabilities` reads. Still nothing at all for an asset account:
+      // a checking row has no due day, and emitting a null on every save of one would be a write
+      // that says something about a concept that does not apply to it.
+      ...(LIABILITY_TYPES.includes(form.account_type) ? { payment_due_day: dueDayVal } : {}),
       ...(form.account_type === 'credit_card' ? {
-        payment_due_day: dueDayVal,
         card_start_date: form.card_start_date || null,
         // Null, not [], when there are no tiers — a single-APR card, which is what every reader
         // treats as "no tranches" (see balance-tranches.ts).
@@ -915,7 +921,10 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                     {a.apr_start_date ? ` · Since ${a.apr_start_date}` : ''}
                     {a.apy_rate != null ? ` · ${a.apy_rate}% APY` : ''}
                     {a.credit_limit ? ` · Limit ${formatCurrency(Number(a.credit_limit), false)}` : ''}
-                    {a.account_type === 'credit_card' && a.payment_due_day ? ` · Due ${ordinal(Number(a.payment_due_day))}` : ''}
+                    {/* Every liability, not just a card: the form now records a due day for a
+                        student loan or a mortgage too, and a value the user typed that the row it
+                        was typed on refuses to show reads as a save that did not happen. */}
+                    {LIABILITY_TYPES.includes(a.account_type) && a.payment_due_day ? ` · Due ${ordinal(Number(a.payment_due_day))}` : ''}
                   </p>
                   <div className="flex items-center gap-0.5 mt-2 -ml-1">
                     {a.plaid_account_id && (
@@ -1199,7 +1208,17 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
+            ] : []),
+            // Every LIABILITY has a due day, not just a card. It was card-gated here (and in
+            // `handleSave` below, which is the half that actually mattered), so a student loan or
+            // a mortgage had no way to record one and `listDebtServiceLiabilities` returned a null
+            // `dueDay` for every user — which "Recommended This Month" then correctly refused to
+            // invent a date from. The field is the source; keeping it hidden was the reason the
+            // row could never say when the payment was due.
+            ...(LIABILITY_TYPES.includes(form.account_type) ? [
               { key: 'payment_due_day', label: 'Payment Due Day (1–28)', type: 'number' as const, placeholder: 'e.g. 15', step: '1', hint: 'Day of month your payment is due. Max 28 — not all months have 29–31.' },
+            ] : []),
+            ...(form.account_type === 'credit_card' ? [
               { key: 'card_start_date', label: 'Start Date (future cards)', type: 'date' as const, hint: 'Leave blank for existing cards. Set a future date to begin purchases from that month.' },
             ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidAprSynced, hint: editingPlaidAprSynced ? 'Managed by Plaid' : undefined },

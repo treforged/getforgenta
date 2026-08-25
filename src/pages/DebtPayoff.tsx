@@ -507,7 +507,11 @@ export default function DebtPayoff() {
       {activeTab === 'mortgage' && (
         <div className="space-y-4">
           <div className="p-3 bg-primary/5 border border-primary/20 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
-            Mortgage payments are deducted from your cash floor before credit card payoff — they always take priority. Add your mortgage as a debt entry matching the name of your mortgage account in Accounts.
+            {/* Was mortgage-only, and so was the engine until 2026-08-24: `sumOtherDebtPayments`
+                now takes the cash for every debt-serviced liability (mortgage, student loan,
+                other liability), and any of them can be ranked for extra principal. Copy that
+                still named only the mortgage would have described a third of what happens. */}
+            Mortgage, student loan and other debt payments are taken out of your cash before any credit card payoff, so they always take priority. Add each one as a debt entry matching the name of its account in Accounts. A paired debt can also take extra principal from the ranking under "Where the extra money goes" on Goals.
           </div>
           {mortgageDebts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

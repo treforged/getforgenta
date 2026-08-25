@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight, Car } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight, Car, Landmark } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
 import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
@@ -21,9 +21,14 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
   // Optional on the type only because the deprecated one-shot path never builds it; this widget
   // is fed by useMonth0DebtBreakdown, which always does.
   const loanRecommendations = debtBreakdown.loanRecommendations ?? [];
+  const otherDebtRecommendations = debtBreakdown.otherDebtRecommendations ?? [];
 
   const hasRecs = recommendations.length > 0;
   const hasLoans = loanRecommendations.length > 0;
+  // ⚠️ PART OF THE EMPTY-STATE GATE BELOW, not just of the list. A user with a student loan and
+  // no cards and no vehicle is the entire population of the bug this closes: the rows were built,
+  // and "No active debt recommendations this month" printed above the payment that was due.
+  const hasOtherDebts = otherDebtRecommendations.length > 0;
 
   return (
     <div className="card-forged p-5">
@@ -46,16 +51,16 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
         </button>
       </div>
 
-      {!hasRecs && !hasLoans && (
+      {!hasRecs && !hasLoans && !hasOtherDebts && (
         <p className="text-xs text-muted-foreground py-4 text-center">No active debt recommendations this month.</p>
       )}
 
-      {(hasRecs || hasLoans) && (
+      {(hasRecs || hasLoans || hasOtherDebts) && (
         <>
           {/* Two intros, because the two states show different KINDS of number. With cards
               present this is the /debt panel's claim, caveat included, so the two surfaces say
-              the same thing. With only loans, nothing here was recommended: a loan payment is
-              fixed by the loan, and the cash-flow caveat has nothing to qualify. */}
+              the same thing. With only loans and other debts, nothing here was recommended: the
+              payment is fixed by the debt, and the cash-flow caveat has nothing to qualify. */}
           <p className="text-[10px] text-muted-foreground mb-3">
             {hasRecs ? (
               <>
@@ -65,8 +70,9 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
               </>
             ) : (
               <>
-                Your scheduled loan payments. Each amount is fixed by the loan, not recommended
-                from your cash flow. Each row leads with its next payment and the date it is due.
+                Your scheduled loan and debt payments. Each amount is fixed by the debt, not
+                recommended from your cash flow. Each row leads with its next payment and the date
+                it is due.
               </>
             )}
           </p>
@@ -183,11 +189,51 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                 </div>
               </div>
             ))}
+
+            {/* Non-CC debt rows — a student loan, a mortgage, an `other_liability` paired to a
+                `debts` row. A THIRD list rather than rows appended to the loans above, for the
+                reason `otherDebtRecommendations` gives: a student loan has no `carFundId`, and a
+                Car icon beside it would be a picture of the wrong thing. Same no-sub-line rule as
+                the loans: whether a past-due-day payment was already made is not knowable here. */}
+            {otherDebtRecommendations.map(o => (
+              <div
+                key={o.accountId}
+                className="flex items-center justify-between py-2 px-3 border border-border bg-muted/10 flex-wrap gap-1"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <Landmark size={13} className="text-muted-foreground shrink-0" />
+                  <span className="text-[10px] font-medium">{o.name}</span>
+                  <span className="text-[9px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
+                    {o.accountType.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground italic truncate">{o.isFinalPayment ? 'Final payment' : 'Scheduled payment'}</span>
+                  {/* Said out loud rather than hidden: the debt is real either way, and a row that
+                      vanished for users who set up an expense rule would look like the app had
+                      lost the loan. It also explains why this money is not in the card totals. */}
+                  {o.paidByExpenseRule && (
+                    <span className="text-[9px] text-muted-foreground italic truncate">Paid by your expense rule</span>
+                  )}
+                </div>
+                <div className="flex flex-col items-end leading-tight shrink-0">
+                  <span className="flex items-baseline gap-1">
+                    {o.nextPayMonth === 1 && (
+                      <span className="text-[8px] uppercase tracking-wider text-muted-foreground">next</span>
+                    )}
+                    <span className="text-sm font-display font-bold text-primary">{formatCurrency(o.nextPayment, false)}</span>
+                  </span>
+                  <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                    <CalendarDays size={8} /> {o.nextDueDate ? formatNextDue(o.nextDueDate) : NEXT_DUE_UNKNOWN}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {hasLoans && (
+          {(hasLoans || hasOtherDebts) && (
             <p className="text-[9px] text-muted-foreground mt-2">
-              Loan payments are already reserved by your cash floor, not counted in the card totals.
+              Loan and other debt payments are already taken out of your cash before Safe to Pay,
+              not counted in the card totals.
             </p>
           )}
 

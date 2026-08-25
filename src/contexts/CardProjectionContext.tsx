@@ -4,6 +4,7 @@ import {
   useAccounts, useTransactions, useRecurringRules, useDebts,
   useSavingsGoals, useCarFunds, useProfile, usePaymentPlans, useSyncedTransactions,
   useSyncedTransactionReviews,
+  type AccountRow, type DebtRow, type RuleRow,
 } from '@/hooks/useSupabaseData';
 import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/auto-matched-occurrences';
@@ -62,6 +63,15 @@ interface CardProjectionContextValue {
   /** The car funds the projection above was fed — exposed so `useMonth0DebtBreakdown` can build
    * the loan rows from the same list, instead of fetching a second copy. */
   carFunds: CarFund[];
+  /**
+   * The `accounts` / `debts` / `recurring_rules` rows the projection above was fed, exposed for
+   * exactly the reason `carFunds` is: `useMonth0DebtBreakdown` builds the non-CC liability rows
+   * (student loan, mortgage, other liability) from the SAME rows the projection took the cash out
+   * of. All three or none — the pairing rule that decides which liability is real reads all three.
+   */
+  accounts: AccountRow[];
+  debts: DebtRow[];
+  rules: RuleRow[];
 }
 
 const CardProjectionContext = createContext<CardProjectionContextValue | null>(null);
@@ -322,10 +332,14 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     scheduledEvents,
     debtPayoffOptions,
     carFunds: carFunds ?? [],
+    accounts: accounts ?? [],
+    debts: debts ?? [],
+    rules: rules ?? [],
   }), [
     convergence, engineInputs, forecastInputsBundle, assumptions, setAssumptions,
     pauseSavings, setPauseSavings, debtStrategy, payConfig, cashFloor,
     forecastFundingAccountId, syncCutoffDate, scheduledEvents, debtPayoffOptions, carFunds,
+    accounts, debts, rules,
   ]);
 
   return (

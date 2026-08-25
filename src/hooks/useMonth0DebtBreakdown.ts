@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { buildMonth0DebtBreakdown } from '@/lib/month0-debt-breakdown';
+import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 
 /**
@@ -14,7 +16,9 @@ import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
  * Must be used inside `CardProjectionProvider` (mounted by DashboardLayout).
  */
 export function useMonth0DebtBreakdown(): MonthlyDebtBreakdown {
-  const { cardProjection, debtStrategy, syncCutoffDate, carFunds } = useCardProjectionContext();
+  const {
+    cardProjection, debtStrategy, syncCutoffDate, carFunds, accounts, debts, rules,
+  } = useCardProjectionContext();
 
   return useMemo(
     () => buildMonth0DebtBreakdown({
@@ -27,7 +31,15 @@ export function useMonth0DebtBreakdown(): MonthlyDebtBreakdown {
       // like to. Absent series stay absent; the builder renders those as "Not modelled".
       nextMonthSource: cardProjection?.perCardPaymentsScaled ?? cardProjection?.perCardPayments,
       carFunds,
+      // The non-CC liability rows (student loan, mortgage, other liability). All three lists come
+      // from the SAME context the projection was built from, so the debt that shows a payment here
+      // is by construction the debt whose payment left projected cash. `excludedAccountIds` drops
+      // the accounts a `car_funds` loan is linked to — the loan rows above already carry those.
+      accounts,
+      debts: debts as unknown as LiabilityDebtInput[],
+      rules,
+      excludedAccountIds: linkedLoanAccountIds(carFunds, accounts),
     }),
-    [cardProjection, debtStrategy, syncCutoffDate, carFunds],
+    [cardProjection, debtStrategy, syncCutoffDate, carFunds, accounts, debts, rules],
   );
 }

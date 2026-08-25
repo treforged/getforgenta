@@ -17,9 +17,11 @@ import { CARDS_ROW_ID, type SurplusRankRow } from '@/lib/surplus-ranking';
 const isTouch = vi.hoisted(() => ({ value: false }));
 const commit = vi.hoisted(() => vi.fn());
 const setCardSeparated = vi.hoisted(() => vi.fn());
+const setLiabilityRanked = vi.hoisted(() => vi.fn());
 const ranking = vi.hoisted(() => ({
   rows: [] as SurplusRankRow[],
   cards: [] as { id: string; name: string }[],
+  liabilities: [] as { id: string; name: string; surplus_sort_order?: number | null }[],
   saving: false,
   loading: false,
   readOnly: false,
@@ -30,7 +32,7 @@ vi.mock('@/hooks/use-mobile', () => ({
 }));
 
 vi.mock('@/hooks/useSurplusRanking', () => ({
-  useSurplusRanking: () => ({ ...ranking, commit, setCardSeparated }),
+  useSurplusRanking: () => ({ ...ranking, commit, setCardSeparated, setLiabilityRanked }),
 }));
 
 const row = (id: string, name: string, sortOrder: number, kind: SurplusRankRow['kind'] = 'goal'): SurplusRankRow => ({
@@ -53,13 +55,14 @@ const THREE = [
 ];
 
 function setup(rows: SurplusRankRow[] = THREE, patch: Partial<typeof ranking> = {}) {
-  Object.assign(ranking, { rows, cards: [], saving: false, loading: false, readOnly: false }, patch);
+  Object.assign(ranking, { rows, cards: [], liabilities: [], saving: false, loading: false, readOnly: false }, patch);
   return render(<MemoryRouter><SurplusRankingSection /></MemoryRouter>);
 }
 
 beforeEach(() => {
   isTouch.value = false;
   commit.mockClear();
+  setLiabilityRanked.mockClear();
 });
 
 afterEach(() => {
@@ -191,5 +194,70 @@ describe('SurplusRankingSection — the section is there before the list is wort
     expect(screen.getByLabelText('Move Savings up')).toBeTruthy();
     expect(screen.getByText(/Tick/)).toBeTruthy();
     expect(screen.queryByText(/Savings goals, car funds and loans you add will show up here/)).toBeNull();
+  });
+});
+
+// ── NON-CC LIABILITIES ───────────────────────────────────────────────────────
+//
+// Tre, 2026-08-24: "other debts like student loans should operate like credit cards. they should
+// also show in the reorder section for goals." A student loan is rankable, draggable and splittable
+// exactly like everything else here — but it CANNOT carry an "Auto extra" checkbox, because
+// `accounts` has no `auto_extra` column to persist one. `setSurplusRankAutoExtra` refuses a
+// liability for that reason, so a checkbox rendered here would move on screen, write nothing, and
+// silently revert on the next refetch. Being on the list IS the opt-in; the way off it is Remove.
+describe('SurplusRankingSection — a student loan is a ranked row, not a checkbox', () => {
+  const WITH_LOAN = [
+    row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'),
+    row('acct-sl', 'Student Loan', 1, 'liability'),
+    row('g1', 'Savings', 2),
+  ];
+
+  it('renders the liability row with the reorder affordances the other rows get', () => {
+    isTouch.value = true;
+    const { container } = setup(WITH_LOAN);
+    expect(container.querySelectorAll('li')).toHaveLength(3);
+    expect(screen.getByText('Student Loan')).toBeTruthy();
+    expect(screen.getByLabelText('Move Student Loan up')).toBeTruthy();
+    expect(screen.getByLabelText('Move Student Loan down')).toBeTruthy();
+    expect(screen.getByLabelText('Split Student Loan with the row above')).toBeTruthy();
+  });
+
+  it('offers NO auto-extra toggle on the liability row, and still offers one on the goal', () => {
+    setup(WITH_LOAN);
+    expect(screen.queryByLabelText('Auto extra for Student Loan')).toBeNull();
+    expect(screen.getByLabelText('Auto extra for Savings')).toBeTruthy();
+  });
+
+  it('says the debt is paid DOWN, not filled', () => {
+    setup(WITH_LOAN);
+    expect(screen.getByText(/\$500 owed · extra principal/)).toBeTruthy();
+  });
+
+  it('takes the liability off the list with Remove, without touching the order', () => {
+    setup(WITH_LOAN);
+    fireEvent.click(screen.getByLabelText('Take Student Loan off the ranked list'));
+    expect(setLiabilityRanked).toHaveBeenCalledWith('acct-sl', false);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('offers an unranked liability as a button that puts it on the list', () => {
+    setup(THREE, { liabilities: [{ id: 'acct-sl', name: 'Student Loan', surplus_sort_order: null }] });
+    const add = screen.getByLabelText('Add Student Loan to the ranked list');
+    fireEvent.click(add);
+    expect(setLiabilityRanked).toHaveBeenCalledWith('acct-sl', true);
+  });
+
+  it('does not offer one that is already ranked', () => {
+    setup(WITH_LOAN, { liabilities: [{ id: 'acct-sl', name: 'Student Loan', surplus_sort_order: 1 }] });
+    expect(screen.queryByLabelText('Add Student Loan to the ranked list')).toBeNull();
+  });
+
+  it('offers nothing to click in read-only demo mode', () => {
+    setup(WITH_LOAN, {
+      readOnly: true,
+      liabilities: [{ id: 'acct-2', name: 'Mortgage', surplus_sort_order: null }],
+    });
+    expect(screen.queryByLabelText('Add Mortgage to the ranked list')).toBeNull();
+    expect(screen.queryByLabelText('Take Student Loan off the ranked list')).toBeNull();
   });
 });

@@ -25,9 +25,11 @@ import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-d
 import { ordinal } from '@/lib/ordinal';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
 import { type Month0Result } from '@/hooks/useCardProjection';
-import { buildCardRecRows, buildLoanRecommendations } from '@/lib/month0-debt-breakdown';
+import { buildCardRecRows, buildLoanRecommendations, buildOtherDebtRecommendations } from '@/lib/month0-debt-breakdown';
+import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
-import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X, Car } from 'lucide-react';
+import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X, Car, Landmark } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, useRecurringRules, useSyncedTransactionReviews, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
@@ -985,6 +987,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // createDebtPaymentTransactions, and the loan is already in the transaction stream.
   const loanRecs = useMemo(() => buildLoanRecommendations(carFunds, new Date()), [carFunds]);
 
+  // The other kind of debt — a student loan, a mortgage, an `other_liability` account paired to a
+  // `debts` row — under the same heading, from the same builder the Dashboard widget uses, so
+  // /debt and the widget cannot show a different payment for the same loan. Display-only for the
+  // same two reasons the loans above are: `sumOtherDebtPayments` has already taken this cash out
+  // before Safe to Pay is computed, so summing it into the totals would double-count; and it never
+  // joins `recommendations`, which feeds createDebtPaymentTransactions.
+  const otherDebtRecs = useMemo(() => buildOtherDebtRecommendations({
+    accounts,
+    debts: debts as unknown as LiabilityDebtInput[],
+    rules,
+    excludedAccountIds: linkedLoanAccountIds(carFunds, accounts),
+  }), [accounts, debts, rules, carFunds]);
+
   const projections: CardProjection[] = useMemo(() => {
     // Display the sim's OWN payments alongside the sim's OWN balances/interest — one consistent
     // model — so every projection row reconciles: End = Start + interest + purchases − payment.
@@ -1907,12 +1922,45 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 </div>
               </div>
             ))}
+            {/* Non-CC debts, in parallel with the vehicle loans above and rendered the same way the
+                Dashboard widget renders them. A separate list rather than more loan rows because a
+                student loan has no car fund, and a Car icon beside one is a picture of the wrong
+                thing. */}
+            {otherDebtRecs.map(o => (
+              <div key={o.accountId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 flex-wrap gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                  <Landmark size={13} className="text-muted-foreground shrink-0" />
+                  <span className="text-[10px] sm:text-xs font-medium">{o.name}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
+                    {o.accountType.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">{o.isFinalPayment ? 'Final payment' : 'Scheduled payment'}</span>
+                  {/* Said out loud rather than hidden: the debt is real either way, and a row that
+                      vanished for users who set up an expense rule would look like the app had
+                      lost the loan. */}
+                  {o.paidByExpenseRule && (
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">Paid by your expense rule</span>
+                  )}
+                </div>
+                <div className="flex flex-col items-end leading-tight shrink-0">
+                  <span className="flex items-baseline gap-1">
+                    {o.nextPayMonth === 1 && (
+                      <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-muted-foreground">next</span>
+                    )}
+                    <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(o.nextPayment, false)}</span>
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center gap-0.5">
+                    <CalendarDays size={8} /> {o.nextDueDate ? formatNextDue(o.nextDueDate) : NEXT_DUE_UNKNOWN}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {loanRecs.length > 0 && (
+          {(loanRecs.length > 0 || otherDebtRecs.length > 0) && (
             <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-2">
-              Loan payments are already reserved by the cash floor — they are not part of Safe to
-              Pay or the card totals above.
+              Loan and other debt payments are already taken out of your cash before Safe to Pay,
+              so they are not part of the card totals above.
             </p>
           )}
 

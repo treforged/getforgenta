@@ -114,7 +114,10 @@ function reachabilityNote(r: Reachability, targetDate: string | null): { text: s
 export default function SurplusRankingSection({
   cardsSubtitle, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth, asOf,
 }: SurplusRankingSectionProps) {
-  const { rows, cards, commit, setCardSeparated, saving, loading, readOnly } = useSurplusRanking();
+  const {
+    rows, cards, liabilities, commit, setCardSeparated, setLiabilityRanked, saving, loading,
+    readOnly,
+  } = useSurplusRanking();
   const isTouch = useIsTouch();
 
   // Local copy so a drag or a tap moves the list at once and does not wait on the round trip.
@@ -280,6 +283,15 @@ export default function SurplusRankingSection({
     return (cards ?? []).filter(c => !solo.has(c.id));
   }, [cards, draft]);
 
+  // Student loans / mortgages / other liabilities NOT yet on the list — the ones that can be added
+  // to it. Keyed off the DRAFT rather than off `surplus_sort_order` so a row that was just added
+  // stops being offered at once, the same way a card leaves `blockedCards` the moment it is
+  // pulled out.
+  const unrankedLiabilities = useMemo(() => {
+    const ranked = new Set(draft.filter(r => r.kind === 'liability').map(r => r.id));
+    return (liabilities ?? []).filter(l => !ranked.has(l.id));
+  }, [liabilities, draft]);
+
   // Only the load is hidden. An empty list and an unread one are the same pixels, and this section
   // used to stay dark below two rows, which meant a user with no goals yet never saw that the
   // feature existed at all, and could not find the thing that would have populated it.
@@ -288,8 +300,8 @@ export default function SurplusRankingSection({
   // One row cannot be put in front of anything, so the sparse list drops the reorder affordances
   // and says what the list is for instead of offering controls that do nothing.
   //
-  // NOTE: a follow-up slice adds more debt row kinds to `buildSurplusRankRows`, so most users
-  // should pass two rows on their own and this state is expected to be short-lived.
+  // NOTE: `buildSurplusRankRows` now covers cards, goals, car funds, vehicle loans and ranked
+  // non-CC liabilities, so most users pass two rows on their own and this state is short-lived.
   const canReorder = draft.length >= 2;
 
   return (
@@ -341,6 +353,7 @@ export default function SurplusRankingSection({
         {draft.map((row, i) => {
           const isCards = row.kind === 'cards';
           const isCard = row.kind === 'card';
+          const isLiability = row.kind === 'liability';
           const prev = draft[i - 1];
           const inSplit = draft.some(r => r.id !== row.id && r.sortOrder === row.sortOrder && r.share !== null && row.share !== null);
           const startsSplit = inSplit && (!prev || prev.sortOrder !== row.sortOrder);
@@ -418,10 +431,12 @@ export default function SurplusRankingSection({
                 <p className="text-[11px] font-mono text-muted-foreground">
                   {isCards
                     ? (cardsSubtitle ?? 'Minimums always paid · surplus follows your strategy')
-                    : row.kind === 'loan'
+                    : row.kind === 'loan' || isLiability
                       // Extra PRINCIPAL, not the scheduled payment — that is already a bill by the
                       // time any of this runs, and saying "owed" rather than "to go" is what keeps
-                      // a debt being paid down from reading like a pot being filled.
+                      // a debt being paid down from reading like a pot being filled. A student
+                      // loan and a vehicle loan read identically here because they ARE the same
+                      // thing to the user: a balance the surplus can attack.
                       ? `${formatCurrency(row.remaining ?? 0, false)} owed · extra principal`
                       : isCard
                         ? `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
@@ -446,6 +461,18 @@ export default function SurplusRankingSection({
 
               {isCards || isCard ? (
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">Always</span>
+              ) : isLiability ? (
+                // ⚠️ DELIBERATELY NOT A CHECKBOX. `accounts` has no `auto_extra` column, so there
+                // is nowhere to persist "on the list but switched off" — `setSurplusRankAutoExtra`
+                // refuses a liability for exactly that reason, and a tick that moved on screen,
+                // wrote nothing and reverted on the next refetch is the worst of both. Being on
+                // this list IS the opt-in, and Remove beside it is the way off.
+                <span
+                  className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0"
+                  title="On this list means it takes a share of the surplus"
+                >
+                  Ranked
+                </span>
               ) : (
                 <label className="flex items-center gap-1.5 shrink-0 cursor-pointer select-none">
                   <input
@@ -470,6 +497,20 @@ export default function SurplusRankingSection({
                   Re-block
                 </button>
               )}
+
+              {/* The liability's own "Re-block": a debt leaves the list by leaving the LIST, which
+                  is a write that exists (`planLiabilityRankWrites`). Its scheduled payment carries
+                  on regardless — this only stops the extra principal. */}
+              {isLiability && !readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setLiabilityRanked(row.id, false)}
+                  className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  aria-label={`Take ${row.name} off the ranked list`}
+                >
+                  Remove
+                </button>
+              )}
             </motion.li>
           );
         })}
@@ -492,6 +533,32 @@ export default function SurplusRankingSection({
               style={{ borderRadius: 'var(--radius)' }}
             >
               {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Putting a student loan or a mortgage on the list is explicit for a harder reason than the
+          card block is: `accounts` has no `auto_extra` column, so being listed IS being opted in.
+          A debt that appeared here already ranked would divert surplus every existing user never
+          asked to divert, and there would be no switch to turn it off — only this list to leave.
+          New arrivals join at the END (`planLiabilityRankWrites`), below the goals the user placed
+          on purpose. */}
+      {!readOnly && unrankedLiabilities.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Add a loan or mortgage
+          </span>
+          {unrankedLiabilities.map(l => (
+            <button
+              key={l.id}
+              type="button"
+              onClick={() => setLiabilityRanked(l.id, true)}
+              aria-label={`Add ${l.name} to the ranked list`}
+              className="text-[11px] px-2 py-0.5 border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {l.name}
             </button>
           ))}
         </div>
