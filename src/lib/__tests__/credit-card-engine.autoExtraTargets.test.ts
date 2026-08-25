@@ -45,14 +45,17 @@ describe('the pre-feature path is byte-identical', () => {
   });
 
   it('a goal left at the default rank never outranks the cards', () => {
-    // Rank 0 ties the card block, and the tie resolves in favour of the cards, so they fill to
-    // their whole balance first. Only what they physically cannot absorb -- $5,000 pool against a
-    // $4,000 balance -- reaches the goal, and that dollar was surplus before the feature existed.
+    // Rank 0 ties the card block, and the tie resolves in favour of the cards. Under the waterfall
+    // (2026-08-25) that now means the goal reserves NOTHING while the cards still owe anything:
+    // the $1,000 the cards physically cannot absorb -- $5,000 pool against a $4,000 balance -- is
+    // left in the pool as plain surplus, exactly where it sat before the feature existed, and the
+    // goal starts the month after the cards are clear.
     const r = run([goal('unranked', 0, 10_000)]);
     const base = run(undefined);
     const cardsPaid = r.recommendations.reduce((s2, x) => s2 + x.payment, 0);
     expect(cardsPaid).toBeCloseTo(base.recommendations.reduce((s2, x) => s2 + x.payment, 0), 2);
-    expect(r.autoExtra.reserved).toBe(1_000);
+    expect(r.autoExtra.reserved).toBe(0);
+    expect(r.extraCashAvailable).toBeCloseTo(base.extraCashAvailable, 2);
   });
 });
 

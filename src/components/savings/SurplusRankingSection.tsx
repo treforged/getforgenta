@@ -310,8 +310,8 @@ export default function SurplusRankingSection({
         <div>
           <h2 className="text-sm font-semibold text-foreground">Where the extra money goes</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Left-over cash after the bills is offered to these in order. Card minimums are always
-            paid first; this ranks what happens to the surplus.
+            Left-over cash after the bills goes to these one at a time, in order. Card minimums are
+            always paid first; this ranks what happens to the surplus.
           </p>
         </div>
         {saving && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">Saving…</span>}
@@ -323,7 +323,8 @@ export default function SurplusRankingSection({
       {canReorder ? (
         <p className="text-xs text-muted-foreground mb-3">
           Tick <span className="text-foreground font-medium">Auto extra</span> on anything that should
-          take a share. Nothing is diverted until you do.
+          take a share. Nothing is diverted until you do. Only the highest one that is not finished
+          gets the money; when it is done the tick comes off and the next one takes over.
         </p>
       ) : (
         <p className="text-xs text-muted-foreground mb-3">

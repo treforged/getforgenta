@@ -3,9 +3,23 @@
  *
  * Today every dollar of `availableToDeploy` (month0-budget-snapshot.ts) goes to credit cards via
  * the avalanche engine. This module turns that single destination into a RANKED LIST: cards, car
- * funds and savings goals in one user-ordered queue, each taking its fill before the remainder
- * flows to the next. Nothing here reads the database, the clock, or the engine — it is deliberately
- * a function of its arguments so the one rule that must never break can be proven in isolation.
+ * funds and savings goals in one user-ordered queue, ONE of which is being funded at a time.
+ * Nothing here reads the database, the clock, or the engine — it is deliberately a function of its
+ * arguments so the one rule that must never break can be proven in isolation.
+ *
+ * ── THE WATERFALL (2026-08-25) ───────────────────────────────────────────────
+ * Tre: "auto extra payments for the next item should only kick in after the previous payment goal
+ * is met." Before this, a rank filled to its capacity and the REMAINDER flowed on to the next rank
+ * in the SAME month — a waterfall in rank order but not in time, so the month a goal was completed
+ * the goal below it already started receiving. Now a rank that still had an unmet need when the
+ * month began takes its fill and CLOSES the gate: everything under it waits for a later month, by
+ * which point the finished target has no need left and no longer blocks anything.
+ *
+ * What that costs, said plainly: in the single month a target is completed, the surplus above its
+ * remaining need is not reserved at all. It is not lost — it stays in the pool the caller handed
+ * in, which for `computeAutoExtraReserve` means it stays with the credit cards — but it does sit
+ * one month before the next target sees it. That is the literal meaning of "only after the previous
+ * is met", and it is the behaviour that was asked for.
  *
  * THE RULE THAT MUST NEVER BREAK: a goal ranked above a card can never starve that card's minimum.
  * Rank orders the SURPLUS, never the obligations. That is enforced structurally rather than by
@@ -42,9 +56,10 @@ export type RankedTarget = {
   minimum: number;
   /**
    * The most this target can absorb this month, minimum included — a card's payoff balance, a
-   * goal's `target_amount - current_amount`, a car fund's remaining down payment. Allocation
-   * never exceeds it, which is what makes a FULL target hand its share on to the next rank
-   * instead of letting surplus evaporate against something that needs nothing.
+   * goal's `target_amount - current_amount`, a car fund's remaining down payment. Allocation never
+   * exceeds it, and it is also what the WATERFALL reads: a target whose capacity is already spent
+   * has met its goal, so it steps aside and the next rank starts. A target with capacity left has
+   * not, so it holds the queue for the rest of the month.
    */
   capacity: number;
   /**
@@ -93,7 +108,14 @@ export type RankedAllocation = {
 export type RankedSurplusResult = {
   /** One entry per input target, in the ranked order actually used. */
   allocations: RankedAllocation[];
-  /** Pool left after every target hit its cap — flows back to the caller's own surplus handling. */
+  /**
+   * Pool the ranking did not spend — flows back to the caller's own surplus handling.
+   *
+   * Two ways to land here now: every target hit its cap, or the WATERFALL held the money back
+   * because the target being funded this month was completed with room to spare and the next one
+   * does not start until the month after. Either way it is still the caller's money; nothing here
+   * ever destroys a dollar (`allocations + unallocated === deployable`, to the cent).
+   */
   unallocated: number;
   /**
    * How much of the combined minimums the pool could NOT cover. Non-zero means the month is
@@ -134,13 +156,16 @@ export function allocateRankedSurplus(
     return paid;
   });
 
-  // PASS 2 — ranked surplus. Each RANK fills to its remaining capacity, then the rest flows on.
+  // PASS 2 — ranked surplus, as a WATERFALL. The FIRST rank with an unmet need takes its fill and
+  // blocks every rank below it for the rest of the month; the ones above it, having nothing left to
+  // need, are already out of the way.
   //
-  // A rank is normally one target, in which case this is the plain sequential fill it has always
-  // been. Where several targets share a `sortOrder` AND at least one of them declares a `share`,
-  // the rank is a SPLIT: its money is divided in proportion to the shares instead of the first
-  // member filling before the second is offered anything. That is the only shape in which "the
-  // move fund and the Discover, half each" can be said at all.
+  // A rank is normally one target. Where several targets share a `sortOrder` AND at least one of
+  // them declares a `share`, the rank is a SPLIT: its money is divided in proportion to the shares
+  // instead of the first member filling before the second is offered anything. That is the only
+  // shape in which "the move fund and the Discover, half each" can be said at all, and the gate
+  // treats the split as ONE rank — both halves are funded together, and both must be met before
+  // anything under them starts.
   //
   // ⚠️ A rank whose members declare NO share is untouched — strict sequential fill, ties on `id`.
   // That is deliberate and load-bearing: `share` is a new nullable column, so every existing row
@@ -164,11 +189,30 @@ export function allocateRankedSurplus(
     }
   };
 
+  /**
+   * Is this target's own goal still unmet as the month begins?
+   *
+   * ⚠️ MEASURED ON THE NEED, NOT ON `headroomOf`. The two differ only for a `maxExtra` target,
+   * where the ceiling caps what it may TAKE this month without changing what it still OWES — and a
+   * target that is still owed something has not met its goal, whatever it was allowed to take. An
+   * opted-out target is never unmet for this purpose: it takes no extras by choice, so making the
+   * ranks below it wait on a need it has opted out of filling would strand them forever.
+   */
+  const unmetAtMonthStart = (t: RankedTarget, i: number) =>
+    t.autoExtra !== false && t.capacity - paidMinimum[i] >= CENT;
+
+  // The waterfall: closed as soon as a rank that still needed something has been offered the pool.
+  let gateOpen = true;
+
   for (let start = 0; start < ranked.length; ) {
     let end = start + 1;
     while (end < ranked.length && ranked[end].sortOrder === ranked[start].sortOrder) end += 1;
     const idxs = Array.from({ length: end - start }, (_, k) => start + k);
     start = end;
+    if (!gateOpen) continue;
+    // Decided BEFORE this rank is funded, and that is the whole point: a target completed by THIS
+    // month's own allocation still blocks the rank below it until the next month.
+    if (idxs.some(i => unmetAtMonthStart(ranked[i], i))) gateOpen = false;
     if (pool < CENT) continue;
 
     // Weights come only from members that can actually take a share; an opted-out target is not

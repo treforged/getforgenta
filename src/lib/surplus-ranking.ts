@@ -441,6 +441,64 @@ export function setSurplusRankAutoExtra(
   ));
 }
 
+/**
+ * A row whose `auto_extra` should be switched off because the thing it was saving for is done.
+ *
+ * `kind` is carried so the caller knows which TABLE to write — `goal` is `savings_goals`, and both
+ * `car_fund` and `loan` are the same `car_funds` row wearing different hats.
+ */
+export type AutoExtraDeselect = {
+  id: string;
+  kind: 'goal' | 'car_fund' | 'loan';
+  /** For the message. The user is told a switch of theirs moved; saying which one is the least
+   *  that owes them. */
+  name: string;
+};
+
+/**
+ * Which ranked rows have met their goal and should have `auto_extra` switched off.
+ *
+ * The second half of Tre's 2026-08-25 ask: "once it comes true it should auto deselect." The
+ * waterfall in `allocateRankedSurplus` already stops paying a target the month after it is met —
+ * this is what makes that visible on the switch the user actually looks at, so the list reads as
+ * "this one is next" rather than as five things all ticked and one of them silently receiving.
+ *
+ * ⚠️ THIS CAN NEVER MOVE A DOLLAR, and that is what makes it safe to run from an effect. A met
+ * target is already excluded from every allocation by its own capacity — `computeAutoExtraReserve`
+ * drops anything under half a cent, and the forecast's `autoExtraCapacity` never admits a need of
+ * zero — so the flag it clears was already inert. The write is presentational, and a pass that
+ * failed or never ran costs the user nothing but a stale tick.
+ *
+ * ⚠️ IT IS PLANNED FROM REAL ROWS, NEVER FROM THE PROJECTION. `remaining` on a `SurplusRankRow` is
+ * `goalRemainingNeed` / `carFundRemainingNeed` / `carLoanRemainingNeed` against live balances. A
+ * projection saying a goal WILL be met is a forecast; only the row says it HAS been.
+ *
+ * Idempotence is the flag itself: the write makes `autoExtra` false, so the very next plan is
+ * empty and there is nothing to loop on. `alreadyDeselected` is the second guard, for the one case
+ * the flag cannot cover — a user who deliberately re-ticks a finished row. Flipping it straight
+ * back off would be a fight, so a row named there is left alone.
+ *
+ * Cards, the card block and liabilities are never included: `accounts` has no `auto_extra` column,
+ * which is the same reason `setSurplusRankAutoExtra` refuses to move their switch by hand.
+ */
+export function planAutoExtraDeselect(
+  rows: readonly SurplusRankRow[],
+  alreadyDeselected: ReadonlySet<string> = new Set(),
+): AutoExtraDeselect[] {
+  const out: AutoExtraDeselect[] = [];
+  for (const row of rows) {
+    if (row.kind !== 'goal' && row.kind !== 'car_fund' && row.kind !== 'loan') continue;
+    if (!row.autoExtra || alreadyDeselected.has(row.id)) continue;
+    if (row.remaining === null || row.remaining > 0) continue;
+    // A goal or a car fund with nothing to reach is UNCONFIGURED, not finished, and its remaining
+    // need reads 0 for that reason alone. A debt being paid down has no target amount by design
+    // (`loanRows` above), so nothing outstanding there really is paid off.
+    if (row.kind !== 'loan' && !(row.targetAmount !== null && row.targetAmount > 0)) continue;
+    out.push({ id: row.id, kind: row.kind, name: row.name });
+  }
+  return out;
+}
+
 export type SurplusRankWrites = {
   goals: { id: string; sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }[];
   carFunds: { id: string; sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }[];

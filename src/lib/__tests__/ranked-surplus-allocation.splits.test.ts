@@ -44,13 +44,24 @@ describe('allocateRankedSurplus — split ranks', () => {
     expect(byId(sevenToThree, 'b').extra).toBe(300);
   });
 
-  it('splits the rank money once, so a rank below still sees the remainder', () => {
+  it('splits the rank money once, and the rank below still waits its turn', () => {
+    // The waterfall (2026-08-25) treats a split as ONE rank: both halves are funded together, and
+    // both had an unmet need this month, so `below` starts next month rather than taking the $600
+    // they could not use. Before the waterfall this reserved all three in one month.
     const r = allocateRankedSurplus(1_000, [
       shared('a', 1, 200, 50), shared('b', 1, 200, 50), goal('below', 2, 5_000),
     ]);
     expect(byId(r, 'a').extra).toBe(200);
     expect(byId(r, 'b').extra).toBe(200);
-    expect(byId(r, 'below').extra).toBe(600);
+    expect(byId(r, 'below').extra).toBe(0);
+    expect(r.unallocated).toBe(600);
+  });
+
+  it('a split rank that is ALREADY met does not hold the rank below it', () => {
+    const r = allocateRankedSurplus(1_000, [
+      shared('a', 1, 0, 50), shared('b', 1, 0, 50), goal('below', 2, 5_000),
+    ]);
+    expect(byId(r, 'below').extra).toBe(1_000);
   });
 
   it('a full split partner hands its half to the OTHER partner, not to the rank below', () => {
@@ -121,23 +132,33 @@ describe('computeAutoExtraReserve — cards ranked individually', () => {
   });
 
   it('lets a goal sit BETWEEN two cards: Visa, then the move fund, then the Discover', () => {
-    // Pool $2,000, minimums $350. The Visa clears its whole $600 balance first, the move fund takes
-    // what is left, and the Discover — ranked below it — gets nothing this month.
-    const r = computeAutoExtraReserve(2_000, 350, 6_600, [
+    // ONE RANK AT A TIME (waterfall, 2026-08-25). Pool $2,000, minimums $350. The Visa still owes
+    // $600 when the month begins, so this month is the Visa's and the move fund waits — where
+    // before it took the $1,250 the Visa could not use.
+    const thisMonth = computeAutoExtraReserve(2_000, 350, 6_600, [
       solo('visa', 0, 200, 600),
       g('move', 1, 10_000),
       solo('disc', 2, 150, 6_000),
     ], 0);
-    expect(r.perTarget).toEqual([{ id: 'move', kind: 'goal', amount: 1_250 }]);
-    expect(r.reserved).toBe(1_250);
+    expect(thisMonth.perTarget).toEqual([]);
+
+    // Next month the Visa is clear, so the move fund is the first unmet rank and takes the pool.
+    // The Discover, ranked below it, still gets nothing — which is the whole point of seating a
+    // goal between two cards.
+    const nextMonth = computeAutoExtraReserve(2_000, 150, 6_000, [
+      g('move', 1, 10_000), solo('disc', 2, 150, 6_000),
+    ], 0);
+    expect(nextMonth.perTarget).toEqual([{ id: 'move', kind: 'goal', amount: 1_850 }]);
   });
 
   it('a card ranked BELOW a goal no longer shields the pool from it', () => {
-    // Blocked: every card sits at rank 0 as one row, above the goal, and absorbs the lot.
+    // Blocked: every card sits at rank 0 as one row, above the goal, and absorbs the lot — a
+    // $15,000 block is never met, so the goal never starts.
     const blocked = computeAutoExtraReserve(2_000, 350, 15_000, [g('move', 1, 10_000)], 0);
-    // Opened: both cards are pulled out and the goal is ranked between them.
-    const opened = computeAutoExtraReserve(2_000, 350, 15_000, [
-      solo('visa', 0, 200, 600), g('move', 1, 10_000), solo('disc', 2, 150, 14_400),
+    // Opened: both cards are pulled out and the goal is ranked between them. The small Visa above
+    // it is cleared here, so the goal is the first unmet rank; the big Discover below it waits.
+    const opened = computeAutoExtraReserve(2_000, 150, 14_400, [
+      solo('visa', 0, 0, 0), g('move', 1, 10_000), solo('disc', 2, 150, 14_400),
     ], 0);
     expect(blocked.reserved).toBe(0);
     expect(opened.reserved).toBeGreaterThan(0);
@@ -163,12 +184,14 @@ describe('computeAutoExtraReserve — cards ranked individually', () => {
   });
 
   it('never double-counts a pulled-out card: the block is the remainder', () => {
-    // The same total minimum and the same total balance whether the cards are blocked or solo, so
-    // a goal ranked below them all sees exactly the same money either way.
-    const asBlock = computeAutoExtraReserve(20_000, 350, 15_000, [g('move', 9, 1e9)], 0);
+    // The same total minimum whether the cards are blocked or solo, so a goal sees exactly the same
+    // money either way. ⚠️ The goal is ranked ABOVE the cards on purpose: below them the waterfall
+    // reserves 0 in both arrangements and the comparison would pass without measuring anything.
+    const asBlock = computeAutoExtraReserve(20_000, 350, 15_000, [g('move', -1, 1e9)], 0);
     const asSolos = computeAutoExtraReserve(20_000, 350, 15_000, [
-      g('move', 9, 1e9), solo('visa', 0, 200, 6_000), solo('disc', 1, 150, 9_000),
+      g('move', -1, 1e9), solo('visa', 0, 200, 6_000), solo('disc', 1, 150, 9_000),
     ], 0);
+    expect(asBlock.reserved).toBeCloseTo(19_650, 2);
     expect(asSolos.reserved).toBeCloseTo(asBlock.reserved, 2);
   });
 
@@ -192,13 +215,20 @@ describe('computeAutoExtraReserve — cards ranked individually', () => {
   it('never lets pulled-out cards claim more capacity than the engine says is revolving', () => {
     // Promo tranches are not paid down by surplus, so a card row balance can exceed the revolving
     // figure the engine hands in — Tre's two cards are $18,819 of balance against far less that is
-    // actually revolving. With the goal ranked BETWEEN them, the scaling decides how much reaches
-    // it: the Visa absorbs its scaled share, not its whole row balance.
-    const scaledVisa = 8_397 * (8_000 / (8_397 + 10_422));
-    const r = computeAutoExtraReserve(20_000, 0, 8_000, [
+    // actually revolving. Under the waterfall the scaling decides WHEN the Visa stops holding the
+    // queue rather than how much leaks past it in the same month.
+    const stillRevolving = computeAutoExtraReserve(20_000, 0, 8_000, [
       solo('visa', 0, 0, 8_397), g('move', 1, 1e9), solo('disc', 2, 0, 10_422),
     ], 9);
-    expect(r.reserved).toBeCloseTo(20_000 - scaledVisa, 2);
+    expect(stillRevolving.reserved).toBe(0);
+
+    // Nothing revolving: both solo capacities scale to ZERO, not to their $18,819 of row balance,
+    // which is exactly the claim the scaling exists to refuse. Un-scaled, the Visa would still
+    // read as $8,397 unmet and the goal below it would be starved forever.
+    const cleared = computeAutoExtraReserve(20_000, 0, 0, [
+      solo('visa', 0, 0, 8_397), g('move', 1, 1e9), solo('disc', 2, 0, 10_422),
+    ], 9);
+    expect(cleared.reserved).toBe(20_000);
   });
 
   it('scales proportionally, so the result does not depend on the order the cards arrive in', () => {

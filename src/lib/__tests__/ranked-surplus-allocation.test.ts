@@ -89,17 +89,25 @@ describe('allocateRankedSurplus — minimums are never rankable', () => {
   });
 });
 
-describe('allocateRankedSurplus — a full target hands its share on', () => {
-  it('caps at capacity and flows the remainder to the next rank in the same month', () => {
+// ── THE WATERFALL (2026-08-25) ───────────────────────────────────────────────
+//
+// These four used to pin the opposite contract: a rank filled to its capacity and the REMAINDER
+// flowed to the next rank in the SAME month. Tre asked for the stricter reading — "auto extra
+// payments for the next item should only kick in after the previous payment goal is met" — so a
+// rank that still had a need when the month began now holds the queue for the whole month. See
+// `allocateRankedSurplus`'s header for what that costs.
+describe('allocateRankedSurplus — an unfinished target holds the queue', () => {
+  it('caps at capacity and HOLDS the remainder rather than passing it down the same month', () => {
     const r = allocateRankedSurplus(1_000, [
       goal('nearly-done', 0, 120),
       carFund('car', 1, 400),
       card('visa', 2, 0, 5_000),
     ]);
     expect(byId(r, 'nearly-done').total).toBe(120);
-    expect(byId(r, 'car').total).toBe(400);
-    expect(byId(r, 'visa').total).toBe(480);
-    expect(r.unallocated).toBe(0);
+    expect(byId(r, 'car').total).toBe(0);
+    expect(byId(r, 'visa').total).toBe(0);
+    // Not lost: still the caller's pool, and the car fund starts on it next month.
+    expect(r.unallocated).toBe(880);
   });
 
   it('gives a target with zero capacity nothing and loses none of the pool', () => {
@@ -108,11 +116,13 @@ describe('allocateRankedSurplus — a full target hands its share on', () => {
     expect(byId(r, 'next').total).toBe(300);
   });
 
-  it('returns the leftover as unallocated when every target is full', () => {
+  it('returns the leftover as unallocated when the queue cannot absorb it', () => {
     const r = allocateRankedSurplus(1_000, [goal('g1', 0, 100), card('c1', 1, 50, 200)]);
     expect(byId(r, 'g1').total).toBe(100);
-    expect(byId(r, 'c1').total).toBe(200);
-    expect(r.unallocated).toBe(700);
+    // The card still gets its MINIMUM — PASS 1 is ahead of the waterfall and untouched by it —
+    // but not its extra, because g1 had an unmet need when the month began.
+    expect(byId(r, 'c1').total).toBe(50);
+    expect(r.unallocated).toBe(850);
   });
 
   it('honours maxExtra without letting it cap the minimum', () => {
@@ -122,7 +132,9 @@ describe('allocateRankedSurplus — a full target hands its share on', () => {
     ]);
     expect(byId(r, 'c1').minimum).toBe(200);
     expect(byId(r, 'c1').extra).toBe(100);
-    expect(byId(r, 'g1').extra).toBe(700);
+    // `maxExtra` caps what c1 may TAKE, not what it still OWES: $4,800 of its balance is unpaid,
+    // so it has not met its goal and g1 waits. (No production caller sets `maxExtra` today.)
+    expect(byId(r, 'g1').extra).toBe(0);
   });
 });
 
@@ -198,12 +210,15 @@ describe('computeAutoExtraReserve', () => {
     }
   });
 
-  it('caps each goal at its remaining need and passes the rest down the ranking', () => {
+  it('caps a goal at its remaining need and holds the rest back for next month', () => {
+    // Pre-waterfall this reserved the whole $2,000 and funded both goals at once. `small` is
+    // finished by this month's own $150, and `big` starts the month after.
     const r = computeAutoExtraReserve(2_000, 0, 20_000, [g('small', 0, 150), g('big', 1, 10_000)], 5);
-    expect(r.perTarget).toEqual([
-      { id: 'small', kind: 'goal', amount: 150 },
-      { id: 'big', kind: 'goal', amount: 1_850 },
-    ]);
-    expect(r.reserved).toBe(2_000);
+    expect(r.perTarget).toEqual([{ id: 'small', kind: 'goal', amount: 150 }]);
+    expect(r.reserved).toBe(150);
+
+    // Next month, with `small` met and out of the list, `big` is the first unmet rank.
+    const after = computeAutoExtraReserve(2_000, 0, 20_000, [g('big', 1, 10_000)], 5);
+    expect(after.perTarget).toEqual([{ id: 'big', kind: 'goal', amount: 2_000 }]);
   });
 });

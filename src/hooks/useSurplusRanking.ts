@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,13 +6,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSavingsGoals, useCarFunds, useProfile, useAccounts, useDebts, useRecurringRules } from '@/hooks/useSupabaseData';
 import {
-  buildSurplusRankRows, isSurplusRankWritesEmpty, planCardSeparationWrites, planLiabilityRankWrites,
-  planSurplusRankWrites,
+  buildSurplusRankRows, isSurplusRankWritesEmpty, planAutoExtraDeselect, planCardSeparationWrites,
+  planLiabilityRankWrites, planSurplusRankWrites,
   type SurplusRankRow, type SurplusRankWrites,
 } from '@/lib/surplus-ranking';
 import { buildRankableLiabilities, type RankableLiability } from '@/lib/ranked-extra-payment-targets';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+
+/**
+ * Targets this app session has already switched `auto_extra` off for.
+ *
+ * ⚠️ MODULE SCOPE, NOT A REF, and the difference is the whole guard. The flag itself is the primary
+ * idempotence — once the write lands the row no longer plans — but it cannot cover the one case
+ * that would be a FIGHT: a user who deliberately re-ticks a finished row. A per-instance ref forgets
+ * that the moment they navigate away and back, so their tick would be undone on the next visit;
+ * held here it survives every remount for as long as the app is open.
+ *
+ * It is deliberately not persisted. There is no provenance column on `savings_goals` or `car_funds`
+ * to hold one, and a reload restoring the default — switch a finished target off — is the honest
+ * behaviour rather than the surprising one, since a finished target takes no money either way.
+ */
+const autoExtraDeselected = new Set<string>();
 
 /**
  * The ranked "where the extra money goes" list, wired to the four places it is stored.
@@ -32,10 +47,13 @@ export function useSurplusRanking() {
   const qc = useQueryClient();
   const { data: goals, loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
-  const { data: accounts } = useAccounts();
+  const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: profile } = useProfile();
   const { data: debts } = useDebts();
   const { data: rules } = useRecurringRules();
+
+  /** Demo mode has no database to write to; the list is shown read-only there. */
+  const readOnly = isDemo || !user;
 
   const accountBalances = useMemo(() => {
     const map: Record<string, number> = {};
@@ -144,6 +162,59 @@ export function useSurplusRanking() {
     saveMutate(planLiabilityRankWrites(rows, accountId, ranked));
   }, [rows, saveMutate]);
 
+  // ── AUTO-DESELECT ────────────────────────────────────────────────────────
+  //
+  // "once it comes true it should auto deselect" (Tre, 2026-08-25). A target that has met its goal
+  // has its `auto_extra` switched off, so the ranked list reads as "this one is next" instead of
+  // five ticked rows where only one is being funded.
+  //
+  // ⚠️ AN EFFECT, NOT A RENDER. A write issued from a render body would fire on every re-render and
+  // race its own refetch. This settles after exactly one pass: the write clears the flag, the plan
+  // is then empty, and nothing re-enters. `planAutoExtraDeselect` documents why it can never move a
+  // dollar — the flag it clears was already inert — which is what makes an automatic write here
+  // safe at all.
+  //
+  // ⚠️ IT ONLY RUNS WHERE THE LIST IS ON SCREEN, and that is enough. The flag is presentational, so
+  // a user who has not opened the ranked list has nothing to be shown a stale tick on. Mounting it
+  // app-wide would buy a write nobody could observe.
+  const deselectInFlight = useRef(false);
+  const dataReady = !goalsLoading && !carFundsLoading && !accountsLoading;
+
+  useEffect(() => {
+    if (readOnly || !user || !dataReady || deselectInFlight.current) return;
+    const plan = planAutoExtraDeselect(rows, autoExtraDeselected);
+    if (plan.length === 0) return;
+
+    deselectInFlight.current = true;
+    void (async () => {
+      try {
+        const results = await Promise.all(plan.map(t =>
+          supabase
+            .from(t.kind === 'goal' ? 'savings_goals' : 'car_funds')
+            .update({ auto_extra: false })
+            .eq('id', t.id)
+            .eq('user_id', user.id)));
+        const failed = results.find(r => r.error);
+        if (failed?.error) throw failed.error;
+        // Only marked once the write has actually landed, so a failed pass genuinely retries
+        // instead of quietly deciding it is already done.
+        for (const t of plan) autoExtraDeselected.add(t.id);
+        qc.invalidateQueries({ queryKey: ['savings_goals'] });
+        qc.invalidateQueries({ queryKey: ['car_funds'] });
+        toast.info(plan.length === 1
+          ? `${plan[0].name} is done. Auto extra moved to the next item.`
+          : `${plan.length} targets are done. Auto extra moved on.`);
+      } catch (err) {
+        // Not silent, and not a raw database error in the user's face for a pass they did not ask
+        // for. The next mount re-plans from scratch, so a failure costs a delay and nothing else.
+        // Same call the sibling background write (`useAutoEndReconcile`) makes.
+        console.error('auto-extra deselect failed:', err);
+      } finally {
+        deselectInFlight.current = false;
+      }
+    })();
+  }, [rows, readOnly, user, dataReady, qc]);
+
   return {
     rows,
     /** Every active credit card, so the UI can offer the ones still inside the block. */
@@ -156,7 +227,6 @@ export function useSurplusRanking() {
     setLiabilityRanked,
     saving: save.isPending,
     loading: goalsLoading || carFundsLoading,
-    /** Demo mode has no database to write to; the list is shown read-only there. */
-    readOnly: isDemo || !user,
+    readOnly,
   };
 }
