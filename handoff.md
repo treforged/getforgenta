@@ -1,5 +1,24 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 session 30 CONTINUED (big batch): **SHIPPED `71178296` native idle timeout
+> (+ refused-sign-out honesty), `885d2fdb` tabs merge/needs-decision/category-imports
+> (live-verified real data), `ebac8ecc` auto-extra waterfall + self-deselect ($0 live
+> delta at realistic surplus), `d02957bd` partner-linking design doc. LIVE DB (Tre's
+> account): moving txns inserted (lease break 3,830 / deposit 1,900 / movers 1,500 est on
+> Venture X), Rent rule end_date 2027-06-30, new "Rent (new place)" rule $1,480 (his call,
+> the lever figure). FORECAST QUESTION ANSWERED live: 2028 runs ~-$137/mo post-cliff,
+> below floor Dec 2027, negative Apr+Jul 2028, CC free Nov 2028 - real arithmetic, not
+> mainly calc; TWO real engine defects found+queued (floor-step under-reserve
+> floor-protection.ts:134-136; savings never back off + pauseSavings forecast no-op
+> forecast-engine.ts:1145 vs useCardProjection.ts:1414; probes in docs/analysis/, they add
+> +8 files to npm test counts - delete when the fixes ship). GLOBAL config: asks ledger
+> claudecontext/asks.md (scan at start + before clear), 3-layer memory, auto-effort,
+> Sonnet-executor/Opus-backup-manager/Ollama routing (~/.claude/ollama/playbook.md),
+> /council skill, brevity replies. RUNNING: logo-shimmer builder (Sonnet). Test count now
+> 268 files / 2622 tests. NEXT: shimmer collect, partner-linking Phase 0, two engine
+> fixes, auto_extra_auto_cleared migration, badge label copy, demo override gap.**)
+
+> (earlier session-30 header follows)
 > ▶ 2026-08-25 session 30 (**BOTH queued slices SHIPPED, D3 cleared, ALL LOCAL-ONLY - not
 > pushed, Tre has not said push. Commits ahead of origin/main (fe849fe9): b5c54fda docs,
 > `d15b7ab9` liability ranking UI wiring (D1), `46874f6f` donut copy, `36e66cfe` Monthly
