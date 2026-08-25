@@ -345,6 +345,64 @@
   }
 }
 
+/* ── Logo loading shimmer ─────────────────────────────────────────────────────────────────
+   A soft highlight sweeping across the Forgenta mark itself, for the handful of screens that
+   show the logo standing in for a spinner while something loads (today: AuthCallback's
+   "Confirming your email…" step — see AuthCallback.tsx). Reuses the `shimmer` keyframe defined
+   above for `skeleton-shimmer`; the only difference is WHAT the sweep is clipped to.
+
+   The gradient is masked to `/logo-transparent.png`'s own alpha channel via `mask-image`, so the
+   highlight travels across the mark's silhouette rather than sliding a rectangle over it. If a
+   future call site needs a different logo asset, the mask-image below needs updating to match —
+   this is deliberately a single hardcoded source rather than a CSS variable indirection, since
+   there is exactly one consumer today.
+
+   ⚠️ FIXED WHITE, NOT `--foreground`, AND BLENDED. `--foreground` flips from near-white in dark
+   mode to near-black in light mode — piped straight into the gradient it reads as a shine in one
+   theme and a smudge darkening the gold mark in the other. A fixed light band with
+   `mix-blend-mode: overlay` brightens the mark's highlights in both themes instead, the way light
+   actually glints off metal, which is also the more brand-appropriate read for an anvil mark.
+
+   ⚠️ OPT-IN, NOT OPT-OUT — unlike `skeleton-shimmer` above, which animates by default and turns
+   itself off for reduced motion. This sweep does not exist in the DOM at all until
+   `prefers-reduced-motion: no-preference` is confirmed true, so a motion-sensitive user gets the
+   plain static logo, never a paused animation still occupying the layout. */
+.logo-shimmer {
+  position: relative;
+}
+
+.logo-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  background-image: linear-gradient(
+    100deg,
+    transparent 35%,
+    hsl(0 0% 100% / 0.85) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  -webkit-mask-image: url('/logo-transparent.png');
+  mask-image: url('/logo-transparent.png');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logo-shimmer::after {
+    display: block;
+    animation: shimmer 2.2s ease-in-out infinite;
+  }
+}
+
 @utility pt-safe {
   padding-top: max(0.75rem, env(safe-area-inset-top));
 }

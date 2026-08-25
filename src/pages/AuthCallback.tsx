@@ -75,12 +75,16 @@ export default function AuthCallback() {
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
       }}
     >
-      <img
-        src="/logo-transparent.png"
-        alt="Forgenta"
-        style={{ height: 80, width: 80, objectFit: 'contain' }}
-        draggable={false}
-      />
+      {/* Shimmer only while genuinely loading (verifying the email link) — never on the
+          settled 'idle' or 'error' states, where the logo is just page branding. */}
+      <span className={`inline-flex ${verify.status === 'verifying' ? 'logo-shimmer' : ''}`}>
+        <img
+          src="/logo-transparent.png"
+          alt="Forgenta"
+          style={{ height: 80, width: 80, objectFit: 'contain' }}
+          draggable={false}
+        />
+      </span>
 
       {verify.status === 'verifying' && (
         <p className="text-sm text-muted-foreground text-center">Confirming your email…</p>
