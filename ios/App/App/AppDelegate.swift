@@ -51,6 +51,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// connection notice, an empty page) is more honest than a branded screen that never goes away.
     private static let coverHardCeiling: TimeInterval = 10.0
 
+    // The gleam swept across the cover's logo, held weakly because the cover's own view tree owns
+    // it: hideNativeCover's removeFromSuperview drops the last strong reference and this nils
+    // itself. Nothing in the shimmer path ever shows, hides, or schedules the cover.
+    private weak var coverLogoShimmer: CAGradientLayer?
+
+    /// One crossing of the gleam. Matched to the web half's `.logo-shimmer` (2.2 s, ease-in-out —
+    /// see the `shimmer` keyframe in src/index.css) so both loading surfaces read as one effect.
+    private static let logoShimmerDuration: CFTimeInterval = 2.2
+
+    private static let logoShimmerAnimationKey = "forgenta.cover.logoShimmer"
+
+    /// Warm, not white. The mark is gold, RGB(222, 171, 51). A white band desaturates it towards
+    /// grey on the way past, which reads as a wash rather than a glint off metal. Rendered both
+    /// ways before choosing: warm at 0.50 alpha and white at 0.42 land on the same luminance lift
+    /// (173 → 207) but only the warm one leaves the gold looking gold.
+    private static let logoGleamColor = UIColor(red: 1.0, green: 0.949, blue: 0.816, alpha: 0.5)
+
+    /// Upper bound, per 8-bit RGB channel, of the logo's background colour — see installLogoShimmer,
+    /// which keys everything below it out of the gleam so only the mark can catch the light.
+    ///
+    /// Measured rather than guessed: the asset's background is RGB(13, 10, 2) and the gold runs
+    /// (186, 132, 31) … (231, 167, 43), so the two are separated by a wide gap. Moving this cutoff
+    /// from 40 to 90 changes the kept area only 10.0% → 8.2% of the tile, i.e. there is no
+    /// ambiguous anti-aliased band for it to land in and the exact value is not load-bearing.
+    private static let logoMarkChromaCutoff: CGFloat = 70
+
     // Set by ViewController when WKWebView content process terminates.
     // Means the WebView needs a full network reload before we can reveal it.
     private var webViewProcessTerminated = false
@@ -136,6 +162,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // which of them to wait with.
         coverReloadAttempted = false
         armCoverDeadline(AppDelegate.coverReloadAfter)
+
+        // Presentation only, and deliberately above the branch chain rather than inside it: iOS
+        // strips the sweep off its layer during the background, so if a cover is still up it needs
+        // restarting whichever branch is about to run. It reads no cover state and schedules
+        // nothing, so it cannot influence which branch that is or when the cover comes off.
+        restartCoverShimmerIfNeeded()
 
         if oAuthSessionPending {
             oAuthSessionPending = false
@@ -227,6 +259,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             existing.layer.removeAllAnimations()
             existing.alpha = 1
             window.bringSubviewToFront(existing)
+            // removeAllAnimations above is scoped to the cover's own layer and does not reach the
+            // gleam nested under the logo view, so the sweep normally survives a re-show untouched.
+            // This call is what picks up a Reduce Motion change made since the cover went up; it
+            // re-adds nothing already running, so it never restarts a sweep mid-crossing.
+            restartCoverShimmerIfNeeded()
             return
         }
 
@@ -248,10 +285,123 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 .flexibleTopMargin,  .flexibleBottomMargin,
             ]
             cover.addSubview(logoView)
+            installLogoShimmer(on: logoView)
         }
 
         window.addSubview(cover)
         nativeCover = cover
+    }
+
+    // MARK: - Cover logo shimmer
+
+    /// Hangs the gleam on the cover's logo. Presentation only: it attaches sublayers to the logo
+    /// image view and reads no cover state, starts no timer and calls nothing that dismisses, so it
+    /// cannot move when the cover appears or disappears. It needs no teardown either — the layers
+    /// are owned by the cover's view tree and die with it in hideNativeCover's removeFromSuperview.
+    ///
+    /// Must be called after the logo view's frame is set; the geometry below is derived from it.
+    private func installLogoShimmer(on logoView: UIImageView) {
+        let bounds = logoView.bounds
+        guard bounds.width > 0, let markImage = logoView.image?.cgImage else {
+            debugLog("COVER_SHIMMER skipped=no_image")
+            return
+        }
+
+        // The gleam has to sit in a container that does NOT move, because the mask below is the
+        // mark's fixed silhouette. A mask travels with the layer it is attached to, so masking the
+        // sweeping band itself would drag a logo-shaped hole across the screen instead of holding
+        // it still and letting the light pass behind it.
+        let gate = CALayer()
+        gate.frame = bounds
+        gate.masksToBounds = true
+
+        // ⚠️ THE MASK IS LOAD-BEARING, NOT DECORATIVE — and it cannot be the usual alpha mask.
+        // "Logo" is the app icon: an OPAQUE square (PNG colour type 2, no alpha channel at all), a
+        // gold mark on RGB(13, 10, 2) of which only ~8% is the mark. There is therefore nothing for
+        // an image mask to clip to, and an unmasked band is actively wrong: source-over compositing
+        // lifts that near-black by 0.5 × 245 but the gold by only 0.5 × 82, so the sweep reveals the
+        // 88 pt icon tile as a bright rounded card and barely touches the mark. Backwards.
+        //
+        // So the silhouette is recovered by colour instead. masking(componentRange:) requires
+        // precisely what this asset is — an image with no alpha channel — and keys out every pixel
+        // darker than the cutoff on all three channels, leaving the mark. It returns nil rather than
+        // trapping if a future asset arrives with an alpha channel; the gleam then still runs,
+        // clipped to the rounded tile by masksToBounds, and the log below says which branch ran so
+        // a wrong-looking cover can be told apart from a missing one without a debugger.
+        let cutoff = AppDelegate.logoMarkChromaCutoff
+        if let markOnly = markImage.masking([0, cutoff, 0, cutoff, 0, cutoff]) {
+            let mask = CALayer()
+            mask.frame = gate.bounds
+            mask.contents = markOnly
+            mask.contentsGravity = .resizeAspect // mirrors the image view's .scaleAspectFit
+            gate.mask = mask
+            debugLog("COVER_SHIMMER mask=mark")
+        } else {
+            debugLog("COVER_SHIMMER mask=tile")
+        }
+
+        // A band one logo-width wide, parked just off the left edge. Translated two widths it ends
+        // just off the right edge, so it is fully outside `gate` at both ends of the loop and is
+        // only ever visible mid-crossing.
+        let band = CAGradientLayer()
+        band.frame = CGRect(x: -bounds.width, y: 0, width: bounds.width, height: bounds.height)
+        band.startPoint = CGPoint(x: 0, y: 0.35)
+        band.endPoint = CGPoint(x: 1, y: 0.65)
+        // The ends are the gleam colour at zero alpha, never UIColor.clear: clear is (0, 0, 0, 0),
+        // and interpolating towards it drags the band's edges through grey.
+        band.colors = [
+            AppDelegate.logoGleamColor.withAlphaComponent(0).cgColor,
+            AppDelegate.logoGleamColor.cgColor,
+            AppDelegate.logoGleamColor.withAlphaComponent(0).cgColor,
+        ]
+        band.locations = [0.0, 0.5, 1.0]
+        // Hidden until restartCoverShimmerIfNeeded decides — it is the single place that consults
+        // Reduce Motion, so there is one answer rather than two that can drift apart.
+        band.isHidden = true
+        gate.addSublayer(band)
+
+        logoView.layer.addSublayer(gate)
+        coverLogoShimmer = band
+        restartCoverShimmerIfNeeded()
+    }
+
+    /// Starts the sweep, or leaves the logo static under Reduce Motion.
+    ///
+    /// Safe to call from anywhere and as often as you like: it no-ops unless a cover is up with a
+    /// gleam on it, and it re-adds nothing that is already running.
+    ///
+    /// It HAS to be callable more than once. Core Animation strips animations off layers when the
+    /// app is backgrounded, and the cover is put up on resign and is still up on the way back — so
+    /// without the call from applicationDidBecomeActive the logo would return frozen, on exactly the
+    /// slow resume this shimmer exists to sit on top of.
+    private func restartCoverShimmerIfNeeded() {
+        // The weak gleam reference IS the "is a cover up" test, and deliberately not `nativeCover`:
+        // showNativeCover builds the logo before it assigns `nativeCover`, so checking that here
+        // would silently skip the very first call and leave a fresh cover's logo static. The weak
+        // reference is also the more accurate question — it goes nil exactly when the cover's view
+        // tree is released, which is the moment there is nothing left to shimmer.
+        guard let band = coverLogoShimmer else { return }
+
+        // Read fresh every time instead of caching at install: the setting can be changed while the
+        // app is in the background, and this is the moment we would find out.
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            band.removeAnimation(forKey: AppDelegate.logoShimmerAnimationKey)
+            // Hidden, not merely stopped. A halted sweep leaves a bright band frozen across the
+            // mark, which is a worse artefact than no shimmer at all.
+            band.isHidden = true
+            return
+        }
+
+        band.isHidden = false
+        guard band.animation(forKey: AppDelegate.logoShimmerAnimationKey) == nil else { return }
+
+        let sweep = CABasicAnimation(keyPath: "transform.translation.x")
+        sweep.fromValue = CGFloat(0)
+        sweep.toValue = band.bounds.width * 2
+        sweep.duration = AppDelegate.logoShimmerDuration
+        sweep.repeatCount = .infinity
+        sweep.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        band.add(sweep, forKey: AppDelegate.logoShimmerAnimationKey)
     }
 
     /// Arms the wall-clock ceiling on the cover.
