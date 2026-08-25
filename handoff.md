@@ -1,5 +1,17 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 POST-CLOSE FIX: **the iOS compile gate DID trip on 60771d8c - exactly one
+> error, AppDelegate.swift:332: the shimmer builder used a `masking([CGFloat])` overload
+> that does not exist. Fixed to `copy(maskingColorComponents:)` (Swift's
+> CGImageCreateWithMaskingColors), committed `393ffb10`, PUSHED, content-verified on
+> origin/main, iOS rebuild in_progress on 393ffb10 at exit. ⚠️ NEXT SESSION: verify that
+> run went GREEN (gh run list, workflow "iOS Build & Upload to App Store") before
+> anything else iOS-shaped. Android went green on 60771d8c. Unfinished asks all live in
+> claudecontext/asks.md ([ ]/[~] lines) + the FOURTH-block queue below - both current.
+> Lesson recorded in the commit: Swift-without-a-toolchain slices need the exact API
+> family quoted from docs, the self-review missed a nonexistent overload.**
+
+> (close block follows)
 > ▶ 2026-08-25 session 30 CLOSED: **ALL 21 COMMITS PUSHED on Tre's "push then update
 > handoff so i can exit" - origin/main = `60771d8c`, verified by CONTENTS
 > (requiredEndByMonth / ViewedProfileProvider / "Cover logo shimmer" /
