@@ -1,5 +1,21 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 session 30, FOURTH block: **SHIPPED `14b7dc7b` debt copy minors (badge
+> "matched" live-verified 2/0, DebtPayoff explainer on all three non-CC tabs, stale
+> comment) + `8f640a31` partner Phase 1 (read-only lens: 19 keys/22 filters through
+> viewedUserId fail-closed, every mutation guard extended, PartnerLink card in Settings
+> SECURITY panel (it is panel-gated - probe the right panel before calling it missing),
+> unlink = direct RLS update never the function, widget sync owner-pinned; manager call
+> folded in: switcher gates on ACTIVE LINK only, invitee rides along, isPremium removed
+> from the gate in Sidebar+MobileTopBar). Suite now 269 files / 2722 tests. 20 commits
+> LOCAL, push-hold agreed with the marketing session. REMAINING QUEUE: partner edge-fn
+> deploy (secrets PARTNER_INVITE_FROM/APP_URL + OAuth email_confirmed_at check + real
+> invite round-trip), getAugmentedMinSafeCash bistability slice, auto_extra_auto_cleared
+> migration, demo override gap (useSyncedTransactions [] in demo), iOS CI watch (2
+> uncompiled Swift commits), partner Phase 2 scope column / Phase 3 write access.
+> asks.md in claudecontext/ is CURRENT.**
+
+> (third block follows)
 > ▶ 2026-08-25 session 30, THIRD block: **SHIPPED `ed05e5ed` web logo shimmer (AuthCallback
 > verifying, the only web loading surface with a logo) + `c81f7252` iOS cover logo shimmer
 > (chroma-keyed gleam - the Logo asset has NO alpha channel; pure addition, cover timing
