@@ -14,10 +14,17 @@ import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
 import BankActivity from '@/components/transactions/BankActivity';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
-import FormModal from '@/components/shared/FormModal';
+import FormModal, { type Field } from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split } from 'lucide-react';
 import { planDraftFromTransaction } from '@/lib/payment-plan-from-transaction';
+import {
+  parseTransactionRepeat,
+  ruleFromTransactionForm,
+  transactionRepeatCadence,
+  transactionRepeatHint,
+  TRANSACTION_REPEAT_OPTIONS,
+} from '@/lib/transaction-to-rule';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
@@ -43,7 +50,16 @@ const BudgetControl = lazy(() => import('@/pages/BudgetControl'));
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
-const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '' };
+// `repeat` is the Repeats select, and it is the ONE field that changes what a save writes: anything
+// other than 'none' creates a recurring rule instead of this row. See `lib/transaction-to-rule.ts`.
+//
+// `overrides_rule` is not a field anyone can see. It carries the id of the rule whose occurrence
+// this form is standing in for, and it exists to HIDE the Repeats select on that one path:
+// "Edit This Occurrence Only" saves with `editId` null, a new row and so add mode, while the user is
+// plainly editing something that already repeats. Offering a repeat there would insert a SECOND
+// rule beside the first and bill the same money twice, forever. It lives in the form rather than in
+// its own state so a restored draft cannot come back without it.
+const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '', repeat: 'none', overrides_rule: '' };
 
 const emptyPlanForm = {
   name: '',
@@ -63,7 +79,7 @@ export default function Transactions() {
   const { isPremium } = useSubscription();
   const { data: transactions, add, update, remove, loading: transactionsLoading } = useTransactions();
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: rules, update: updateRule, loading: rulesLoading } = useRecurringRules();
+  const { data: rules, add: addRule, update: updateRule, loading: rulesLoading } = useRecurringRules();
   const { cardProjection, forecastFundingAccountId } = useCardProjectionContext();
   const { data: reconciliations } = useAccountReconciliations();
   const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan, loading: paymentPlansLoading } = usePaymentPlans();
@@ -372,7 +388,7 @@ export default function Transactions() {
   const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true); };
 
   const openEditDirect = (t: EnrichedTransaction) => {
-    setForm({ date: t.date, type: t.type, amount: String(t.amount), category: t.category, account: t.account || 'Checking', note: t.note || '', payment_source: normalizeSource(t.payment_source) || '' });
+    setForm({ date: t.date, type: t.type, amount: String(t.amount), category: t.category, account: t.account || 'Checking', note: t.note || '', payment_source: normalizeSource(t.payment_source) || '', repeat: 'none', overrides_rule: '' });
     setEditId(t.id); setShowForm(true);
   };
 
@@ -387,8 +403,10 @@ export default function Transactions() {
   };
 
   const handleEditOccurrence = (t: EnrichedTransaction) => {
-    // Create as a real transaction (overrides this generated occurrence)
-    setForm({ date: t.date, type: t.type, amount: String(t.amount), category: t.category, account: t.account || 'Checking', note: t.note || '', payment_source: normalizeSource(t.payment_source) || '' });
+    // Create as a real transaction (overrides this generated occurrence). `overrides_rule` keeps the
+    // Repeats select off this dialog: the rule this occurrence came from is already the repeat, and
+    // a second one beside it would bill the same money twice for good.
+    setForm({ date: t.date, type: t.type, amount: String(t.amount), category: t.category, account: t.account || 'Checking', note: t.note || '', payment_source: normalizeSource(t.payment_source) || '', repeat: 'none', overrides_rule: t.ruleId || t.id });
     setEditId(null); // null = new transaction (override)
     setShowForm(true);
     setEditChoiceId(null);
@@ -409,6 +427,8 @@ export default function Transactions() {
       account: 'Checking',
       note: r.name,
       payment_source: normalizeSource(r.payment_source || r.deposit_account) || '',
+      repeat: 'none',
+      overrides_rule: '',
     });
     // Store the rule ID for update
     setEditId(`rule:${r.id}`);
@@ -427,12 +447,24 @@ export default function Transactions() {
       account: t.account || 'Checking',
       note: t.note || '',
       payment_source: normalizeSource(t.payment_source) || '',
+      repeat: 'none',
+      // A duplicate is an ordinary new row, even when copied off a generated one, so the Repeats
+      // select stays available here.
+      overrides_rule: '',
     });
     setEditId(null);
     setShowForm(true);
   };
 
-  const handleSave = () => {
+  // Ask 12: the Repeats choice, and it is deliberately forced back to 'none' whenever the modal is
+  // editing something. Editing an existing row or overriding a generated occurrence keeps exactly
+  // today's behaviour; turning a saved one-off into a rule is a different action with its own
+  // consequences (which occurrences it replaces, what happens to the row it came from) and is not
+  // built here.
+  const canRepeat = !editId && !form.overrides_rule;
+  const repeatChoice = canRepeat ? parseTransactionRepeat(form.repeat) : 'none';
+
+  const handleSave = async () => {
     const amount = parseFloat(form.amount);
     if (!amount) return;
 
@@ -460,13 +492,39 @@ export default function Transactions() {
     } else {
       const violation = getCardStartDateViolation(form.date, form.payment_source, accounts ?? []);
       if (violation) { toast.error(violation); return; }
-      const payload = { date: form.date, type: form.type, amount, category: form.category, account: form.account, note: cleanNote || 'Transaction', payment_source: form.payment_source };
-      if (editId && !editId.startsWith('gen:')) {
-        update.mutate({ id: editId, ...payload });
-        toast.success('Transaction updated');
+      if (repeatChoice !== 'none') {
+        // ⚠️ THE RULE INSTEAD OF THE ROW, never both. The rule's own occurrence covers the entered
+        // date (`generateMonthTransactionsFromRules`), so writing the transaction as well would put
+        // two identical rows in that day and count the money twice.
+        const intent = ruleFromTransactionForm({
+          repeat: repeatChoice,
+          date: form.date,
+          type: form.type,
+          amount,
+          category: form.category,
+          name: cleanNote,
+          paymentSource: form.payment_source,
+        });
+        if (!intent.ok) { toast.error(intent.reason); return; }
+        // `mutateAsync`, so a rejected insert leaves the form open with what the user typed rather
+        // than closing on a rule that does not exist. `quiet` suppresses the hook's generic
+        // "Recurring rule added" in favour of the one below, which says where to find it.
+        try {
+          await addRule.mutateAsync({ ...intent.payload, quiet: true });
+        } catch {
+          // The hook's own onError already named the cause.
+          return;
+        }
+        toast.success(`Repeats ${transactionRepeatCadence(repeatChoice)}. Manage it under Budget Control.`);
       } else {
-        add.mutate(payload);
-        toast.success('Transaction added');
+        const payload = { date: form.date, type: form.type, amount, category: form.category, account: form.account, note: cleanNote || 'Transaction', payment_source: form.payment_source };
+        if (editId && !editId.startsWith('gen:')) {
+          update.mutate({ id: editId, ...payload });
+          toast.success('Transaction updated');
+        } else {
+          add.mutate(payload);
+          toast.success('Transaction added');
+        }
       }
     }
     setShowForm(false); setForm(emptyForm); setEditId(null);
@@ -595,14 +653,31 @@ export default function Transactions() {
     }
   };
 
-  const formFields = useMemo(() => [
-    { key: 'date', label: 'Date', type: 'date' as const },
-    { key: 'type', label: 'Type', type: 'select' as const, options: [{ value: 'expense', label: 'Expense' }, { value: 'income', label: 'Income' }] },
-    { key: 'amount', label: 'Amount', type: 'number' as const, placeholder: '0.00', step: '0.01' },
-    { key: 'category', label: 'Category', type: 'select' as const, options: ALL_CATEGORIES.map(c => ({ value: c, label: c })) },
-    { key: 'payment_source', label: editId?.startsWith('rule:') ? 'Account' : 'Payment Source', type: 'select' as const, options: paymentSourceOptions },
-    { key: 'note', label: 'Note', type: 'text' as const, placeholder: 'What was this for?' },
-  ], [paymentSourceOptions, editId]);
+  const formFields = useMemo(() => {
+    const fields: Field[] = [
+      { key: 'date', label: 'Date', type: 'date' },
+    ];
+    // ADD MODE ONLY, and it sits next to Date because it is what the date means: one day, or the
+    // first of a series. The hint spells out the resulting schedule AND that no single row is
+    // written, which is the half a user would otherwise have to discover by counting rows.
+    if (canRepeat) {
+      const hint = transactionRepeatHint(repeatChoice, form.date);
+      fields.push({
+        key: 'repeat', label: 'Repeats', type: 'select', options: TRANSACTION_REPEAT_OPTIONS,
+        ...(hint ? { hint } : {}),
+      });
+    }
+    fields.push(
+      { key: 'type', label: 'Type', type: 'select', options: [{ value: 'expense', label: 'Expense' }, { value: 'income', label: 'Income' }] },
+      { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01' },
+      { key: 'category', label: 'Category', type: 'select', options: ALL_CATEGORIES.map(c => ({ value: c, label: c })) },
+      { key: 'payment_source', label: editId?.startsWith('rule:') ? 'Account' : 'Payment Source', type: 'select', options: paymentSourceOptions },
+      { key: 'note', label: repeatChoice === 'none' ? 'Note' : 'Note (becomes the rule name)', type: 'text', placeholder: 'What was this for?' },
+    );
+    return fields;
+    // `repeatChoice` and `form.date` both feed the hint above. Omit either and the caption goes
+    // stale the moment the user changes the cadence or the date.
+  }, [paymentSourceOptions, editId, canRepeat, repeatChoice, form.date]);
 
   // The ledger is `transactions`; the Payment Plans panel is `paymentPlans`; the
   // scheduled rows are `rules`. None of those is `accounts`, which is all the
@@ -1052,8 +1127,8 @@ export default function Transactions() {
           draftRestored={draftRestored}
           onDiscardDraft={handleDiscardDraft}
           onClose={() => { setShowForm(false); setEditId(null); }}
-          saving={add.isPending || update.isPending || updateRule.isPending}
-          saveLabel={editId?.startsWith('rule:') ? 'Update Rule' : editId ? 'Update' : 'Add Transaction'}
+          saving={add.isPending || update.isPending || updateRule.isPending || addRule.isPending}
+          saveLabel={editId?.startsWith('rule:') ? 'Update Rule' : editId ? 'Update' : repeatChoice !== 'none' ? 'Schedule Repeat' : 'Add Transaction'}
         />
       )}
 
