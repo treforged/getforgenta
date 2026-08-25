@@ -87,7 +87,24 @@ A dangling commit `3cd29dac` "feat(builds): the service history rides the share 
 does not" was on NO branch - pinned as branch `rescue/service-history-3cd29dac` so GC cannot
 eat it; the other session should land or delete it. Stale .git/REBASE_HEAD left in place.
 
-**Liability-ranking lib builder** - section D1's lib layer (src/lib ranking/engine files +
+**✅ LIABILITY-RANKING COLLECTED and committed `13247199`** (lib layer): 'liability' rank
+kind (opt-in = accounts.surplus_sort_order non-null; NO auto_extra column on accounts, so
+the toggle refuses liabilities; setLiabilityRanked added), includeLiabilityTargets sibling
+gate, forecast step 4c-ii-c credits shared balance refs BEFORE step 4's total read (vehicle
+credit's pre-existing one-month total-vs-rows lag documented at forecast-engine ~:1541,
+deliberately untouched), otherDebtRecommendations sibling field (empty [] live until wired).
+Golden pins re-run by name, unchanged. Manager applied the KIND_ICON liability: Landmark
+line. **WIRING PASS (next slice, builder's precise list):** (1) SurplusRankingSection
+affordance to rank a liability via hook's new `liabilities`/`setLiabilityRanked` + a
+liability arm for the :420 'loan' subtitle branch; (2) useMonth0DebtBreakdown.ts:20-31 needs
+accounts/debts/rules/excludedAccountIds passed; (3) DebtRecommendationsWidget third .map
+beside loans (non-vehicle icon, accountType chip, hasLoans||hasOtherDebts empty-state gate
+:26); (4) CreditCardEngine.tsx:986 parallel buildOtherDebtRecommendations call for /debt
+parity. Also noted: accounts.payment_due_day is form-gated to credit cards
+(Accounts.tsx:1200-1203) so these rows render no due date until that is un-gated (one-line,
+Tre's call); DebtPayoff.tsx:510 copy still says mortgage-only (fold into wiring pass).
+
+**(superseded) Liability-ranking lib builder** - section D1's lib layer (src/lib ranking/engine files +
 useSurplusRanking/useCardProjection/useForecastEngineInputs + tests ONLY, no components):
 new 'liability' rank kind keyed accounts.surplus_sort_order, buildRankedTargets liability
 targets gated like includeLoanTargets, forecast 4c-ii-b analog crediting
