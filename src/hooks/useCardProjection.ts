@@ -1207,10 +1207,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         };
         // The save-up look-ahead's model of this month's UNAVOIDABLE debt outflow must reflect the
         // real contract minimum (revolvingMinDue), not the plain 2% formula that perCardMinPayments
-        // carries. computeFloorProtection banks reserveNeeded on the assumption that only ccMin(m)
-        // leaves for debt each month (netAtMin); if ccMin is under-stated the backward pass thinks
-        // it preserves more cash than the cascade actually will, under-saves, and breaches the floor
-        // in the shortfall month — shorting cycling cards (the cyclingFloor regression). Sourced
+        // carries. computeFloorProtection's requiredEndByMonth (floor-protection.ts) is computed on
+        // the assumption that only ccMin(m) leaves for debt each month (netAtMin); if ccMin is
+        // under-stated the backward pass thinks it preserves more cash than the cascade actually
+        // will, under-saves, and breaches the floor in the shortfall month — shorting cycling
+        // cards (the cyclingFloor regression). Sourced
         // here rather than by inflating perCardMinPayments precisely because ccMinByMonth is a
         // SEPARATE parameter from floorByMonth: it can carry the contract min without inflating the
         // pre-paycheck floor (getAugmentedMinSafeCash stays on the formula, keeping payoff fast).

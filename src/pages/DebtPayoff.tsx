@@ -178,6 +178,17 @@ export default function DebtPayoff() {
     return <DebtSkeleton />;
   }
 
+  // Since 2026-08-24 (`sumOtherDebtPayments`) this copy is true of all three non-CC debt tabs, not
+  // just Mortgage where it used to live — the engine takes cash for mortgage, student loan AND other
+  // liability payments alike before any credit card payoff. One shared element, rendered on Mortgage,
+  // Student Loans and Other Debts below, so the three copies can't drift apart the way one-per-tab
+  // duplicates would.
+  const nonCcDebtExplainer = (
+    <div className="p-3 bg-primary/5 border border-primary/20 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
+      Mortgage, student loan and other debt payments are taken out of your cash before any credit card payoff, so they always take priority. Add each one as a debt entry matching the name of its account in Accounts. A paired debt can also take extra principal from the ranking under "Where the extra money goes" on Goals.
+    </div>
+  );
+
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
@@ -423,6 +434,7 @@ export default function DebtPayoff() {
 
       {activeTab === 'other' && (
         <>
+          {nonCcDebtExplainer}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive">{formatCurrency(totalBalance, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment, false)}</p></div>
@@ -506,13 +518,7 @@ export default function DebtPayoff() {
 
       {activeTab === 'mortgage' && (
         <div className="space-y-4">
-          <div className="p-3 bg-primary/5 border border-primary/20 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
-            {/* Was mortgage-only, and so was the engine until 2026-08-24: `sumOtherDebtPayments`
-                now takes the cash for every debt-serviced liability (mortgage, student loan,
-                other liability), and any of them can be ranked for extra principal. Copy that
-                still named only the mortgage would have described a third of what happens. */}
-            Mortgage, student loan and other debt payments are taken out of your cash before any credit card payoff, so they always take priority. Add each one as a debt entry matching the name of its account in Accounts. A paired debt can also take extra principal from the ranking under "Where the extra money goes" on Goals.
-          </div>
+          {nonCcDebtExplainer}
           {mortgageDebts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="card-forged p-4 text-center">
@@ -564,6 +570,7 @@ export default function DebtPayoff() {
 
       {activeTab === 'student' && (
         <div className="space-y-4">
+          {nonCcDebtExplainer}
           {studentDebts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="card-forged p-4 text-center">

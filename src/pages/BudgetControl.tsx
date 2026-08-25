@@ -558,7 +558,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     [baseTxns, debtPaymentTxns],
   );
 
-  // §1A Stage B — "auto-matched" badge.
+  // §1A Stage B — "matched" badge.
   //
   // A rule lands here only when exactly one settled synced transaction confidently corresponds to
   // its occurrence THIS month. Absence means "no information" and is rendered as nothing at all:
@@ -574,6 +574,11 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   // `weekly` and `biweekly` outright — so those rules could never carry the badge however plainly
   // the bank showed them paid, while the forecast (which matches on real occurrence dates) had
   // already captured them. Both sides now read the one index. See `matchedRuleIdsInMonth`.
+  //
+  // ⚠️ LABEL CHANGED ON 2026-08-25 TOO: the same index (`useMatchedOccurrences`) also merges in
+  // USER-CONFIRMED matches, not only the automatic ones, so "auto-matched" overclaimed how a badged
+  // rule got here. The label now just says "matched" — true whether the system found the charge on
+  // its own or Tre confirmed it in a review.
   const { index: matchedOccurrences, occurrences: confirmedOccurrences, monthKey: currentMonthKey } = useMatchedOccurrences();
   const autoMatchedRuleIds = useMemo(
     () => matchedRuleIdsInMonth(matchedOccurrences, currentMonthKey),
@@ -1015,12 +1020,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         // Present tense and factual: a transaction matching this rule has settled this month. It
         // deliberately does NOT say "paid" — the matcher found a corresponding charge, which is
         // evidence, not an accounting assertion. There is no negative counterpart chip by design.
+        // Says "matched", not "auto-matched": the underlying index also includes matches Tre
+        // confirmed by hand, and the label should not claim the automatic path when it was a person.
         <span
           className="text-[9px] px-1 py-0.5 bg-success/20 text-success border border-success/30 shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
           title="A settled transaction on the linked account matches this rule's amount and due date this month."
         >
-          auto-matched
+          matched
         </span>
       )}
     </div>

@@ -51,11 +51,31 @@ const RENT_CHARGE = {
   pending: false, name: 'GREYSTAR RENT', merchant_name: 'Greystar',
 };
 
+// An INCOME rule. `isOutflowRule` (auto-matched-occurrences.ts) excludes income from the automatic
+// matcher on purpose, so the only way this rule can ever badge is a USER-CONFIRMED review — exactly
+// Tre's real two live badges (2026-08-25). This isolates the confirmed path from the auto path.
+const PAYCHECK = rule({
+  id: 'rule-paycheck', name: 'Paycheck', amount: 2100, rule_type: 'income',
+  frequency: 'monthly', due_day: 15, category: 'Income', payment_source: null, deposit_account: 'acc-1',
+});
+
+const PAYCHECK_DEPOSIT = {
+  id: 'stx-paycheck', account_id: 'acc-1', amount: 2100, date: '2026-08-15',
+  pending: false, name: 'EMPLOYER DIRECT DEP', merchant_name: 'Employer',
+};
+
+// The user linked the deposit to the rule by hand in Transactions — `status: 'linked_rule'` — so
+// this occurrence carries `source: 'confirmed'`, never `'auto'`.
+const PAYCHECK_REVIEW = {
+  status: 'linked_rule', rule_id: 'rule-paycheck', occurrence_month: '2026-08',
+  occurrence_date: '2026-08-15', synced_transaction_id: 'stx-paycheck',
+};
+
 vi.mock('@/hooks/useSupabaseData', () => ({
   useProfile: () => ({ data: { weekly_gross_income: 0, tax_rate: 0, paycheck_day: 5, paycheck_frequency: 'weekly' }, update: { mutate: vi.fn() }, loading: false }),
   useAccounts: () => ({ data: [ACCOUNT], loading: false }),
   useRecurringRules: () => ({
-    data: [FUEL, RENT], loading: false,
+    data: [FUEL, RENT, PAYCHECK], loading: false,
     add: { mutate: vi.fn() }, update: { mutate: vi.fn() }, remove: { mutate: vi.fn() },
   }),
   useSavingsGoals: () => ({ data: [], update: { mutate: vi.fn() } }),
@@ -63,8 +83,8 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useSubscriptions: () => ({ data: [] }),
   useDebts: () => ({ data: [] }),
   useTransactions: () => ({ data: [] }),
-  useSyncedTransactions: () => ({ data: [FUEL_CHARGE, RENT_CHARGE] }),
-  useSyncedTransactionReviewsQuery: () => ({ data: [] }),
+  useSyncedTransactions: () => ({ data: [FUEL_CHARGE, RENT_CHARGE, PAYCHECK_DEPOSIT] }),
+  useSyncedTransactionReviewsQuery: () => ({ data: [PAYCHECK_REVIEW] }),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
@@ -109,7 +129,7 @@ function openTab(name: RegExp) {
 beforeEach(() => { localStorage.clear(); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-describe('Budget Control, the auto-matched badge', () => {
+describe('Budget Control, the matched badge', () => {
   it('WOULD-FAIL PROOF: the old matcher finds nothing for this weekly rule', () => {
     // `matchOccurrence` is the call this surface used to make, over exactly the fixture below. It
     // refuses `weekly` outright, so no charge could ever badge the rule.
@@ -126,7 +146,9 @@ describe('Budget Control, the auto-matched badge', () => {
 
     const row = screen.getByText('Fuel').closest('div.flex.flex-col')?.parentElement;
     if (!row) throw new Error('no Fuel rule row');
-    expect(within(row as HTMLElement).getByText('auto-matched')).toBeTruthy();
+    // Label reads "matched", not "auto-matched" (2026-08-25): the merged index behind it also
+    // includes user-confirmed matches, so "auto" overclaimed how this rule got badged.
+    expect(within(row as HTMLElement).getByText('matched')).toBeTruthy();
   });
 
   it('badges the monthly rule too, so nothing that matched before stopped matching', () => {
@@ -135,7 +157,23 @@ describe('Budget Control, the auto-matched badge', () => {
 
     const row = screen.getByText('Rent').closest('div.flex.flex-col')?.parentElement;
     if (!row) throw new Error('no Rent rule row');
-    expect(within(row as HTMLElement).getByText('auto-matched')).toBeTruthy();
+    expect(within(row as HTMLElement).getByText('matched')).toBeTruthy();
+  });
+
+  it('badges a USER-CONFIRMED income rule "matched", not "auto-matched"', () => {
+    // Income is on the default tab, and the automatic matcher never touches income rules at all
+    // (isOutflowRule), so this row can only be badged by the confirmed review above — the same shape
+    // as both of Tre's real live badges.
+    renderInAugust();
+
+    // "Paycheck" also names an <option> in the Paycheck Deductions picker below (any income rule is
+    // offered there); the rule row itself is the <p> the RuleRow name renders into.
+    const nameEl = screen.getAllByText('Paycheck').find(el => el.tagName === 'P');
+    if (!nameEl) throw new Error('no Paycheck rule name element');
+    const row = nameEl.closest('div.flex.flex-col')?.parentElement;
+    if (!row) throw new Error('no Paycheck rule row');
+    expect(within(row as HTMLElement).getByText('matched')).toBeTruthy();
+    expect(within(row as HTMLElement).queryByText('auto-matched')).toBeNull();
   });
 });
 
