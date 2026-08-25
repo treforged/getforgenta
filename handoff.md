@@ -23,6 +23,12 @@
 > NEXT: partner Phase 1 (read-only partner view), getAugmentedMinSafeCash bistability,
 > auto_extra_auto_cleared migration, badge label copy, demo override gap, watch iOS CI.**
 
+> ⚠️ SHARED MAIN: the marketing session also commits to this repo's main (f24e8eb0, the 5th
+> /answers page, was THEIRS and rode out with an earlier push). A `git push` from EITHER
+> session carries the other's local commits and fires the store deploys - marketing agreed
+> 2026-08-25 to hold all getforgenta pushes until Tre's next explicit "push" is relayed.
+> Never force-push or reset here.
+
 > (second block follows)
 > ▶ 2026-08-25 session 30 CONTINUED (big batch): **SHIPPED `71178296` native idle timeout
 > (+ refused-sign-out honesty), `885d2fdb` tabs merge/needs-decision/category-imports
