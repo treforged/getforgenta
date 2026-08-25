@@ -1,5 +1,29 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 session 30, THIRD block: **SHIPPED `ed05e5ed` web logo shimmer (AuthCallback
+> verifying, the only web loading surface with a logo) + `c81f7252` iOS cover logo shimmer
+> (chroma-keyed gleam - the Logo asset has NO alpha channel; pure addition, cover timing
+> untouched; NOT compiled locally, next iOS CI = compile gate, then check COVER_SHIMMER
+> mask= in the debug panel) + `c0c44948` partner-linking Phase 0 (builder FOUND AND FIXED a
+> design consent hole: one-way revocation; 62 tests, 10/10 mutations caught) +
+> `809a95b8` types regen (migration partner_links_phase0 APPLIED to live DB, posture
+> content-verified: 19 partner policies inert until a link exists, hash unreadable, anon
+> locked out; edge fn WRITTEN NOT DEPLOYED - needs PARTNER_INVITE_FROM/APP_URL secrets +
+> OAuth email_confirmed_at check, deploy rides Phase 1) + `8c15ed1a` engine deficit fixes
+> (own-floor reserve, savings back-off w/ debt-gives-way-first + month-0 exempt,
+> pauseSavings forecast parity; convergence 3-cycle root-caused to PRE-EXISTING
+> getAugmentedMinSafeCash bistability = queued slice; docs/analysis probes deleted, test
+> count now 264 files / 2691). LIVE: rent (new place) set to $1,480 on Tre's word - CC
+> Debt Free moved Nov 2028 -> Jun 2028 on /forecast; remaining breaches Oct 2027 -$195,
+> Mar-May 2028 (structural post-cliff). ROUTING: Ollama = PRIMARY executor tier w/
+> scorecard (~/.claude/ollama/playbook.md, first real entry 3.3/5 commit-msg draft);
+> new agent types sonnet-executor / fable-executor so the footer names the model
+> (Tre's ask). Global rules propagated to all 4 live sessions; trading-e0 corrected on
+> reply format and acked. Asks ledger claudecontext/asks.md is CURRENT - scan it first.
+> NEXT: partner Phase 1 (read-only partner view), getAugmentedMinSafeCash bistability,
+> auto_extra_auto_cleared migration, badge label copy, demo override gap, watch iOS CI.**
+
+> (second block follows)
 > ▶ 2026-08-25 session 30 CONTINUED (big batch): **SHIPPED `71178296` native idle timeout
 > (+ refused-sign-out honesty), `885d2fdb` tabs merge/needs-decision/category-imports
 > (live-verified real data), `ebac8ecc` auto-extra waterfall + self-deselect ($0 live
