@@ -10,6 +10,8 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactionsForHorizon, type EnrichedTransaction } from '@/lib/pay-schedule';
+import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
+import { substituteMatchedLedgerRows } from '@/lib/matched-occurrence-display';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
 import BankActivity from '@/components/transactions/BankActivity';
@@ -163,10 +165,21 @@ export default function Transactions() {
   // offers. This page used the current-month-only merge until 2026-08-13, so every future month in
   // the dropdown showed only hand-entered rows — see mergeWithGeneratedTransactionsForHorizon for
   // why this is a separate function and the engines keep the current-month one.
+  //
+  // ⚠️ TWO DIFFERENT REAL PAYMENTS RETIRE A PROJECTION, AND THEY ARRIVE BY DIFFERENT ROUTES. A row
+  // the user typed into the ledger is substituted inside the merge itself (PASS 2,
+  // `overridesGeneratedOccurrence`). A settled BANK row never enters this stream at all, so its
+  // occurrence survives that merge still carrying the rule's predicted date and amount —
+  // `substituteMatchedLedgerRows` is what puts the real figures on it. Tre, 2026-08-24: "the real
+  // one should actually show."
+  const { index: matchedOccurrences } = useMatchedOccurrences();
   const baseTxns: EnrichedTransaction[] = useMemo(() => {
-    return mergeWithGeneratedTransactionsForHorizon(transactions, rules, accounts, PROJECTION_MONTHS)
-      .map(t => ({ ...t, isGenerated: Boolean(t.isGenerated), isDebtPayment: false }));
-  }, [transactions, rules, accounts]);
+    return substituteMatchedLedgerRows(
+      mergeWithGeneratedTransactionsForHorizon(transactions, rules, accounts, PROJECTION_MONTHS)
+        .map(t => ({ ...t, isGenerated: Boolean(t.isGenerated), isDebtPayment: false })),
+      matchedOccurrences,
+    );
+  }, [transactions, rules, accounts, matchedOccurrences]);
 
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
@@ -228,13 +241,19 @@ export default function Transactions() {
   const carLoanTransactions = useMemo(() => generateCarLoanTransactions(carFunds ?? []), [carFunds]);
 
   // Merge real + generated recurring + debt payments + reconciliations + plan payments + car loans
+  //
+  // Sorted by the date each row SHOWS, which is `matchedActualDate` wherever a real bank charge
+  // answered the occurrence. `date` is the month-filter key and stays pinned to the obligation's
+  // month (see `substituteMatchedLedgerRows`), so sorting on it would leave a row displaying the
+  // 28th sitting above one displaying the 30th on the one path where the two differ.
   const allTransactions = useMemo(() => {
+    const shownDate = (t: EnrichedTransaction) => t.matchedActualDate ?? t.date;
     return [
       ...mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTransactions),
       ...reconciliationTxns,
       ...planTransactions,
       ...carLoanTransactions,
-    ].sort((a, b) => b.date.localeCompare(a.date));
+    ].sort((a, b) => shownDate(b).localeCompare(shownDate(a)));
   }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions, carLoanTransactions]);
 
   const paymentSourceOptions = useMemo(() => {
@@ -1060,10 +1079,23 @@ export default function Transactions() {
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
                     {isRecon && <span className="text-[9px] text-adjusted bg-adjusted/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
+                    {/* The rule's projection, standing in for the settled bank charge that answered
+                        it. The date and the amount on this row are the real ones, so the chip says
+                        where they came from and the title says what they replaced. */}
+                    {t.matchedActualDate && (
+                      <span
+                        className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}
+                        title={t.matchedProjectedAmount !== undefined
+                          ? `A settled bank transaction paid this. Scheduled ${formatCurrency(t.matchedProjectedAmount, false)}.`
+                          : 'A settled bank transaction paid this.'}
+                      >
+                        real
+                      </span>
+                    )}
                     {sourceMissing && <span className="text-destructive" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t.date} · {t.category}{!isRecon && <> · {sourceMissing ? <span className="text-destructive">⚠ Missing account</span> : getSourceLabel(t.payment_source)}</>}
+                    {t.matchedActualDate ?? t.date} · {t.category}{!isRecon && <> · {sourceMissing ? <span className="text-destructive">⚠ Missing account</span> : getSourceLabel(t.payment_source)}</>}
                   </p>
                 </div>
               </div>

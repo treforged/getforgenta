@@ -21,7 +21,11 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useAccounts: () => ({ update: { mutate: vi.fn() } }),
   useProfile: () => ({ update: { mutate: vi.fn() } }),
   useRecurringRules: () => ({ data: [] }),
-  useSyncedTransactionReviews: () => ({ data: [] }),
+  // `useMatchedOccurrences` reads these two: the month-scoped bank rows and the read-only view of
+  // the reviews. Empty here, which is the no-bank-connection path — nothing in this file is about
+  // matching, and an empty index leaves every figure exactly as it was.
+  useSyncedTransactions: () => ({ data: [] }),
+  useSyncedTransactionReviewsQuery: () => ({ data: [] }),
 }));
 vi.mock('@/hooks/usePlaidItems', () => ({ usePlaidItems: () => ({ items: [] }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));

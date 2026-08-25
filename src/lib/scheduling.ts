@@ -358,8 +358,14 @@ export function countRuleOccurrencesInMonth(
   return 0;
 }
 
-// Get upcoming events within the next N days
-export function getUpcomingEvents(events: ScheduledEvent[], days: number = 7): ScheduledEvent[] {
+// Get upcoming events within the next N days.
+//
+// Generic over the event type so a caller that has ENRICHED its events — Dashboard substitutes the
+// real settled date and amount into the ones a bank charge already answered, see
+// `matched-occurrence-display.ts` — gets its own row type back rather than a widened
+// `ScheduledEvent[]` that has quietly dropped the extra fields. Filter only: nothing is read but
+// `date`, and no existing caller's behaviour changes.
+export function getUpcomingEvents<T extends ScheduledEvent>(events: readonly T[], days: number = 7): T[] {
   const now = new Date();
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() + days);

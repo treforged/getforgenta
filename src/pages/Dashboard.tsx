@@ -16,8 +16,9 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useSyncedTransactionReviews, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
-import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
+import { substituteSettledOccurrences } from '@/lib/matched-occurrence-display';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
 import { toScheduledObligations } from '@/lib/upcoming-obligations';
@@ -204,9 +205,10 @@ export default function Dashboard() {
   const { data: manualAssets, loading: assetsLoading } = useAssets();
   const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
   const { data: paymentPlans } = usePaymentPlans();
-  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
-  const { data: syncedReviews } = useSyncedTransactionReviews();
-  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
+  // §1B — rule occurrences a real payment has already answered: the ones the user confirmed AND the
+  // ones the bank proves on its own. This page took the confirmed half only until 2026-08-25, so a
+  // bill the forecast had already captured was still charged against remaining cash here.
+  const { index: matchedOccurrences, occurrences: confirmedOccurrences } = useMatchedOccurrences();
 
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
 
@@ -535,7 +537,19 @@ export default function Dashboard() {
   // took Next Paycheck and Month-End Cash into the Monthly Snapshot hero on 2026-08-23 and left
   // Bills This Month and Debt Service dropped. `upcomingWeek` is live (the Upcoming This Week
   // widget reads it), and `nextPayday` above is now read by the snapshot.
-  const upcomingWeek = useMemo(() => getUpcomingEvents(scheduledEvents, 7), [scheduledEvents]);
+  //
+  // ⚠️ THE SUBSTITUTION HAPPENS BEFORE THE WINDOW FILTER, and the order is the whole fix. This
+  // widget had no suppression at all: a bill paid on the 3rd went on being listed as upcoming until
+  // its DUE DATE passed. `substituteSettledOccurrences` gives a matched occurrence the date and the
+  // amount of the charge that actually paid it, so one paid early now falls outside the seven-day
+  // window on its own, and one settling later this week stays and shows what it really cost.
+  // Re-sorted, because a substitution MOVES a date: a bill due the 28th and settled on the 26th
+  // would otherwise sit wherever its due date had put it in the already-sorted list.
+  const upcomingWeek = useMemo(
+    () => getUpcomingEvents(substituteSettledOccurrences(scheduledEvents, matchedOccurrences), 7)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    [scheduledEvents, matchedOccurrences],
+  );
   const upcomingBillsWeek = upcomingWeek.filter(e => e.type === 'expense');
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
@@ -1006,6 +1020,19 @@ export default function Dashboard() {
                   <div>
                     <span className="font-medium">{e.name}</span>
                     <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
+                    {/* A settled row is the REAL charge standing in for the rule's prediction, so it
+                        says so: the amount beside it is what left the account, not what was due. */}
+                    {e.settledDate && (
+                      <span
+                        className="text-[9px] text-success bg-success/10 px-1 py-0.5 ml-2"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        title={e.projectedAmount !== undefined
+                          ? `A settled transaction paid this. Scheduled ${formatCurrency(e.projectedAmount, false)}.`
+                          : 'A settled transaction paid this.'}
+                      >
+                        paid
+                      </span>
+                    )}
                     {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
                   </div>
                   <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>

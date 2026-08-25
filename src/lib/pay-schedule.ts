@@ -54,6 +54,18 @@ export type EnrichedTransaction = {
    * `buildMonthlyExpenseModel` to keep a Roth contribution out of the expense view (§2.4 Phase 2).
    */
   isTransfer?: boolean;
+  /**
+   * `YYYY-MM-DD` the money ACTUALLY moved, on a generated occurrence a settled bank transaction
+   * answered. Set by `substituteMatchedLedgerRows` (`matched-occurrence-display.ts`), never here.
+   *
+   * The row's own `date` follows this WITHIN THE OCCURRENCE'S MONTH ONLY, so a charge five days the
+   * far side of a month boundary cannot move a bill out of the month it belongs to — which is why
+   * this is a field of its own rather than something a surface can infer from `date`. Absent means
+   * "the rule's prediction is still the only figure there is", never "paid on the due date".
+   */
+  matchedActualDate?: string;
+  /** What the rule predicted before the real charge replaced it. Present only alongside `matchedActualDate`. */
+  matchedProjectedAmount?: number;
 };
 
 export type PayFrequency = 'weekly' | 'biweekly' | 'monthly';

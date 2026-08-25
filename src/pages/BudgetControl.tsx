@@ -26,9 +26,9 @@ import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
-import { useTransactions, useSyncedTransactions, useSyncedTransactionReviews } from '@/hooks/useSupabaseData';
-import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
-import { matchOccurrence } from '@/lib/transaction-matching';
+import { useTransactions } from '@/hooks/useSupabaseData';
+import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
+import { matchedMonthAmountDelta, matchedRuleIdsInMonth } from '@/lib/matched-occurrence-display';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
@@ -565,31 +565,20 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   // most rules will be absent until every connection has backfilled, and a "not paid" state would
   // turn that gap into an accusation.
   //
-  // Built from `rules` (real recurring_rules rows) rather than the merged view, so the synthetic
+  // Built from real `recurring_rules` occurrences rather than the merged view, so the synthetic
   // subscription and debt-sync entries can never pick up a badge — they have no payment_source to
   // attribute and their ids do not refer to rules at all.
-  const currentMonthKey = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
-  const { data: syncedTxns } = useSyncedTransactions(currentMonthKey);
-  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
-  const { data: syncedReviews } = useSyncedTransactionReviews();
-  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
-  const autoMatchedRuleIds = useMemo(() => {
-    if (!syncedTxns?.length) return new Set<string>();
-    const matched = new Set<string>();
-    for (const r of rules) {
-      if (typeof r.due_day !== 'number') continue;
-      const m = matchOccurrence(
-        { ...r, due_day: r.due_day, payment_source: r.payment_source ?? null },
-        currentMonthKey,
-        syncedTxns,
-      );
-      if (m) matched.add(r.id);
-    }
-    return matched;
-  }, [rules, syncedTxns, currentMonthKey]);
+  //
+  // ⚠️ THE MATCHER CHANGED ON 2026-08-25, AND IT WIDENS WHAT CAN BE BADGED. This loop used to call
+  // `matchOccurrence`, which locates an occurrence from `due_day` alone and therefore refuses
+  // `weekly` and `biweekly` outright — so those rules could never carry the badge however plainly
+  // the bank showed them paid, while the forecast (which matches on real occurrence dates) had
+  // already captured them. Both sides now read the one index. See `matchedRuleIdsInMonth`.
+  const { index: matchedOccurrences, occurrences: confirmedOccurrences, monthKey: currentMonthKey } = useMatchedOccurrences();
+  const autoMatchedRuleIds = useMemo(
+    () => matchedRuleIdsInMonth(matchedOccurrences, currentMonthKey),
+    [matchedOccurrences, currentMonthKey],
+  );
 
   // Rules by category
   const incomeRules = useMemo(() => rules.filter(r => r.rule_type === 'income'), [rules]);
@@ -628,8 +617,19 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const nowYear = now.getFullYear();
   const nowMonth = now.getMonth();
 
+  /**
+   * What this rule costs in the CURRENT month.
+   *
+   * ⚠️ THE MATCHED DELTA IS ADDED ON TOP OF THE FREQUENCY ARITHMETIC, NEVER IN PLACE OF IT. Tre,
+   * 2026-08-24: "the real transaction date and costs should auto override the transaction for that
+   * month". An occurrence a real payment answered contributes what actually left the account, so
+   * `matchedMonthAmountDelta` supplies `real − projected` for exactly those occurrences and zero for
+   * every other rule. Rewriting the whole total from occurrence dates would have quietly moved the
+   * figures of rules nothing matched, which is not what was asked for and is not verifiable.
+   */
   const toCurrentMonthAmount = useCallback((r: BudgetRule) => {
     const amt = Number(r.amount);
+    const matched = matchedMonthAmountDelta(r, nowYear, nowMonth, matchedOccurrences);
     if (r.start_date) {
       const startDate = new Date(r.start_date + 'T12:00:00');
       if (startDate > new Date(nowYear, nowMonth + 1, 0)) return 0;
@@ -642,17 +642,17 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       const dayOfWeek = r.due_day ?? 5;
       while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
       while (d <= monthEnd) { count++; d.setDate(d.getDate() + 7); }
-      return amt * count;
+      return amt * count + matched;
     }
     if (r.frequency === 'biweekly') {
-      return amt * countRuleOccurrencesInMonth(r, nowYear, nowMonth);
+      return amt * countRuleOccurrencesInMonth(r, nowYear, nowMonth) + matched;
     }
     if (r.frequency === 'yearly') {
       const dueMonth = (r.due_month ?? 1) - 1;
-      return dueMonth === nowMonth ? amt : 0;
+      return dueMonth === nowMonth ? amt + matched : 0;
     }
-    return amt;
-  }, [nowYear, nowMonth]);
+    return amt + matched;
+  }, [nowYear, nowMonth, matchedOccurrences]);
 
   const totalRecurringIncome = useMemo(() => incomeRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [incomeRules, toCurrentMonthAmount]);
   const totalFixedExpenses = useMemo(() => fixedRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [fixedRules, toCurrentMonthAmount]);

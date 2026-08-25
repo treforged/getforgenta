@@ -10,8 +10,8 @@ import FormModal, { type Field } from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, getCarFundSaved, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
-import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, useSyncedTransactionReviews, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
-import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
+import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
+import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useDemo } from '@/contexts/DemoContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -870,9 +870,10 @@ export default function Vehicles() {
   const { data: transactions } = useTransactions();
   const { data: profile } = useProfile();
   const { isDemo } = useDemo();
-  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
-  const { data: syncedReviews } = useSyncedTransactionReviews();
-  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
+  // §1B — occurrences a real payment has already answered: the ones the user confirmed AND the ones
+  // the bank proves on its own. The confirmed half alone left this page charging remaining cash for
+  // bills the forecast had already captured.
+  const { occurrences: confirmedOccurrences } = useMatchedOccurrences();
 
   // ⚠️ THE KEY IS STILL `tre:vehicles:activeTab`. Builds joined this page as a third panel; renaming
   // the key would have silently reset the remembered tab for every existing user to buy nothing.
