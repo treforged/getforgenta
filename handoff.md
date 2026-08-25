@@ -64,6 +64,20 @@ dashes in Garage copy.
 other builder): stuck-cover-screen-after-backgrounding, root-cause required (dismiss gate +
 Supabase token refresh on resume), web visibilitychange fallback, refresh-failure lands on
 sign-in.
+**Liability-ranking lib builder** - section D1's lib layer (src/lib ranking/engine files +
+useSurplusRanking/useCardProjection/useForecastEngineInputs + tests ONLY, no components):
+new 'liability' rank kind keyed accounts.surplus_sort_order, buildRankedTargets liability
+targets gated like includeLoanTargets, forecast 4c-ii-b analog crediting
+nonCCLiabilities.rows[].balances, Recommended This Month rows via the loanRecommendations
+shape (never `recommendations`). Golden pins must stay byte-stable (Tre has no such debts).
+Component wiring is the NEXT slice; its report lists what that needs. Report file if
+notification lost:
+`C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\ad68fbaafc9c6fff4.output`
+(Mobile builder report: `...\tasks\a64df2ed09d2b7085.output`. All three were resumed/launched
+after Tre's usage limit reset; both mobile builders had made NO source edits when the limit
+killed them, resumed with context intact.)
+Note: ask 11 arrived after ask 10 - "also, make odometer an optional field if it wasnt
+already'" (Log Service form; relayed to the mobile builder, check-first semantics).
 Its report lands as a task notification; if this session was cleared, the report text is in
 `C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\a64df2ed09d2b7085.output`
 (JSONL; the final assistant message is the report - read just the tail). Manager duties on
