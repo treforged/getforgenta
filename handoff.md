@@ -15,8 +15,11 @@
 > phases refresh, 44px targets, placeholder, in-modal dropdown, text wrap; WKWebview keyboard
 > case unverified on a real phone), `ec387d75` start_date per-occurrence fix (weekly rules
 > back-filled their first month - money bug the repeat builder's probe caught), `2ec9a5f1`
-> Repeats in the add-transaction dialog (ask 12), plus docs commits. `git log
-> a67a248d..HEAD --oneline` enumerates everything awaiting Tre's next "push".
+> Repeats in the add-transaction dialog (ask 12), plus docs commits. **ALL PUSHED
+> 2026-08-25 on Tre's "push then ill clear" - origin/main = fe849fe9, content-verified
+> (coverDeadlineTimer / notBeforeStart / TRANSACTION_REPEAT_OPTIONS / flex-wrap /
+> buildRankableLiabilities all grep-hit on origin/main). Store deploys firing: WATCH the
+> iOS CI build (uncompiled Swift) and check the keyboard/dropdown on a real phone.**
 > Context-gate hook misfired all session (claimed 150k-416k; real budget ~14.9M);
 > boundaries honored at each commit. NEXT UP: §D wiring pass (liability ranking UI), then
 > the override-surfaces slice (§D2), then §D3 minors.**)
