@@ -64,6 +64,29 @@ dashes in Garage copy.
 other builder): stuck-cover-screen-after-backgrounding, root-cause required (dismiss gate +
 Supabase token refresh on resume), web visibilitychange fallback, refresh-failure lands on
 sign-in.
+**✅ RESUME-FIX COLLECTED and committed `6717e0f7`** (ask 9): iOS cover had NO wall clock -
+every dismissal path lived inside WKWebView JS completion handlers, so a jetsammed web
+process meant an immortal cover. coverDeadlineTimer (15s reload once, +10s force-hide) +
+ResumeRecovery.tsx/app-resume.ts (appStateChange native / visibilitychange web, 60s
+staleness gate, unrecoverable lands on /auth). Manager added the builder-flagged privacy
+guard (hideNativeCover completion on finished:false was tearing down the App Switcher
+privacy cover). ⚠️ Swift NOT compiled locally (no toolchain) - the next iOS CI build is the
+compile gate; watch it after push. Builder's outside-slice findings for §D3: AppLockProvider
+/AppLockScreen exported but never mounted (native has NO pin/biometric lock despite
+AuthContext:353 skipping idle timeout because of it - SECURITY-relevant); pollAppReady dead;
+useOnboardingStatus 'pending' unbounded (eternal "Loading your setup..." if profile query
+hangs); capacitor.config.ts configures an uninstalled SplashScreen plugin.
+
+**⚠️ PARALLEL-SESSION GIT INCIDENT (resolved, Tre must know):** mid-session, another session
+popped a MONTHS-OLD stash (WIP on 95d93a58, June-era) onto this tree - conflict markers +
+unmerged index entries on credit-card-engine.ts blocked all commits. Resolution here:
+stage 2 (ours) was byte-identical to HEAD (no builder had touched the file), so resolved to
+HEAD - nothing lost; the old stash SURVIVES as stash@{0} ("WIP on main: 95d93a58") and
+stash@{1} ("temp stash before rebase") - not mine, not dropped, Tre's other session decides.
+A dangling commit `3cd29dac` "feat(builds): the service history rides the share link, or it
+does not" was on NO branch - pinned as branch `rescue/service-history-3cd29dac` so GC cannot
+eat it; the other session should land or delete it. Stale .git/REBASE_HEAD left in place.
+
 **Liability-ranking lib builder** - section D1's lib layer (src/lib ranking/engine files +
 useSurplusRanking/useCardProjection/useForecastEngineInputs + tests ONLY, no components):
 new 'liability' rank kind keyed accounts.surplus_sort_order, buildRankedTargets liability
