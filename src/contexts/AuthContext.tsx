@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { useNavigate, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { resetActivityTabForSignIn } from '@/lib/activity-tab';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -304,7 +305,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     channel.close();
   }, []);
 
-  const signOutWithBroadcast = useCallback(async () => {
+  /**
+   * Signs this device out, and reports whether it actually happened.
+   *
+   * ⚠️ SUPABASE CAN REFUSE, AND USED TO DO SO SILENTLY. `auth.signOut()` calls `/logout` first and,
+   * when nothing answers, returns the error WITHOUT clearing the local session
+   * (`GoTrueClient._signOut` returns before `_removeSession`). Nothing emits SIGNED_OUT, so the app
+   * carries on exactly as it was — while the activity stamp had already been deleted, which handed
+   * the session a fresh ten minutes and left the user told they were signed out when they were not.
+   * That was survivable while this only ran from a button on a desktop. It is not now that the idle
+   * timeout runs on native, where "offline" is a tunnel rather than an outage. So: the stamp goes
+   * back, the caller is told, and the next idle check tries again.
+   */
+  const signOutWithBroadcast = useCallback(async (): Promise<boolean> => {
+    const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
     // Half-typed balances are that person's data. On a shared device they must
     // not be waiting in a form for whoever signs in next.
@@ -313,19 +327,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await resetReviewerAccount(user.id);
     }
     broadcastSignOut();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      if (lastActivity !== null) localStorage.setItem(LAST_ACTIVITY_KEY, lastActivity);
+      console.error('Sign-out was refused; this device is still signed in:', error);
+      return false;
+    }
     setIsDemo(false);
+    return true;
   }, [broadcastSignOut, user, resetReviewerAccount, setIsDemo]);
+
+  /**
+   * What the UI's Sign Out button calls. The boolean above is for the idle timeout, which words its
+   * own message; somebody who pressed a button and is still signed in has to be told here rather
+   * than left looking at a screen that did not change.
+   */
+  const signOutFromUi = useCallback(async () => {
+    const signedOut = await signOutWithBroadcast();
+    if (!signedOut) {
+      toast.error('We could not sign you out. Check your connection and try again.');
+    }
+  }, [signOutWithBroadcast]);
 
   // ── Idle session timeout ─────────────────────────────────────────────────
   // Last activity is stored in localStorage so it survives tab close/reopen.
   // On visibilitychange (user returns to the app) we check immediately — this
   // is how we enforce the timeout even when the app was backgrounded or closed.
   const warnedRef = useRef(false);
+  // Whether the last idle sign-out was refused. Stops a phone that is out of signal repeating the
+  // same message every 30 seconds while the retry loop quietly keeps trying.
+  const idleSignOutFailedRef = useRef(false);
 
   const resetActivity = useCallback(() => {
     localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
     warnedRef.current = false;
+    idleSignOutFailedRef.current = false;
   }, []);
 
   const getIdleMs = useCallback(() => {
@@ -349,8 +385,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, isDemo]);
 
   useEffect(() => {
-    // Native apps use PIN/biometric lock for security — no idle timeout needed.
-    if (!user || isDemo || Capacitor.isNativePlatform()) return;
+    // ⚠️ NATIVE IS NO LONGER EXEMPT (Tre, 2026-08-25). This used to read `|| Capacitor
+    // .isNativePlatform()`, on the stated grounds that "native apps use PIN/biometric lock for
+    // security". They do not. `AppLockProvider` and `AppLockScreen` are exported and mounted by
+    // nothing — `App.tsx` renders neither branch of them — so the exemption was not a trade of one
+    // control for another, it was the phone having no idle protection at all while the browser
+    // signed people out after ten minutes. Mounting the lock is a separate decision; until it is
+    // taken, native runs the same leash as web.
+    if (!user || isDemo) return;
 
     // Seed the key if not yet set so the timer starts from login
     if (!localStorage.getItem(LAST_ACTIVITY_KEY)) {
@@ -360,15 +402,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkIdle = () => {
       // Resolved per check rather than captured once: trust can finish resolving, or be revoked
       // in Settings, while this interval is already running.
-      const timeoutMs = trustedRef.current ? TRUSTED_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
-      const warningMs = trustedRef.current ? TRUSTED_IDLE_WARNING_MS : IDLE_WARNING_MS;
+      const trusted = trustedRef.current;
+      const timeoutMs = trusted ? TRUSTED_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
+      const warningMs = trusted ? TRUSTED_IDLE_WARNING_MS : IDLE_WARNING_MS;
       const idleMs = getIdleMs();
       if (idleMs >= timeoutMs) {
-        toast.info(trustedRef.current
-          ? 'You were signed out after 12 hours of inactivity.'
-          : 'You were signed out due to 10 minutes of inactivity.');
-        localStorage.removeItem(LAST_ACTIVITY_KEY);
-        signOutWithBroadcast();
+        // ⚠️ NO `removeItem` HERE ANY MORE, and no message yet. `signOutWithBroadcast` clears the
+        // stamp synchronously before its first await — which is still what stops a second signal
+        // arriving in the same turn from firing a second sign-out — but it also needs the old value
+        // in hand to put back if Supabase refuses. Clearing it here would take that away, and the
+        // timeout would silently give up on an offline device.
+        // Said once per idle episode, not once every 30 seconds while the retry loop keeps trying.
+        const reportRefusal = () => {
+          if (idleSignOutFailedRef.current) return;
+          idleSignOutFailedRef.current = true;
+          toast.error('Your session timed out but we could not sign you out. Check your connection.');
+        };
+        signOutWithBroadcast()
+          .then((signedOut) => {
+            if (!signedOut) return reportRefusal();
+            toast.info(trusted
+              ? 'You were signed out after 12 hours of inactivity.'
+              : 'You were signed out due to 10 minutes of inactivity.');
+          })
+          .catch((err) => {
+            console.error('The idle sign-out threw:', err);
+            reportRefusal();
+          });
       } else if (idleMs >= warningMs && !warnedRef.current) {
         warnedRef.current = true;
         toast.warning('Your session will expire in 2 minutes due to inactivity.');
@@ -388,16 +448,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const interval = setInterval(checkIdle, IDLE_CHECK_INTERVAL_MS);
 
+    // ⚠️ NATIVE CANNOT LEAN ON EITHER OF THE ABOVE. iOS suspends the web content process while the
+    // app is backgrounded, so the 30-second interval does not tick while the phone is in a pocket,
+    // and `visibilitychange` is not a signal that can be relied on to arrive on the way back — the
+    // same reasoning `app-resume.ts` is built on. `appStateChange` is, so the check that matters
+    // most, the one at the moment the app is picked up again, is driven from there. Nothing is lost
+    // while the timer is frozen because the leash is a wall-clock stamp rather than a countdown, so
+    // the time away is read back in full on resume. The web listeners stay registered on native as
+    // well: they are harmless (the first check to fire clears the stamp, so a second one in the same
+    // turn reads zero idle) and they are the fallback if the plugin subscription ever fails.
+    let appStateHandle: { remove: () => void } | null = null;
+    let unsubscribed = false;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) checkIdle();
+      }).then((handle) => {
+        if (unsubscribed) handle.remove(); else appStateHandle = handle;
+      }).catch((err) => {
+        // Not silent: without this listener the timeout still runs, but only from the interval once
+        // the WebView wakes up, so a resume can be up to 30 seconds late.
+        console.error('Subscribing to appStateChange for the idle timeout failed:', err);
+      });
+    }
+
     return () => {
       events.forEach(e => window.removeEventListener(e, resetActivity));
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleVisibility);
       clearInterval(interval);
+      unsubscribed = true;
+      appStateHandle?.remove();
     };
   }, [user, isDemo, resetActivity, getIdleMs, signOutWithBroadcast]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut: signOutWithBroadcast }}>
+    <AuthContext.Provider value={{ user, loading, signOut: signOutFromUi }}>
       {children}
     </AuthContext.Provider>
   );
