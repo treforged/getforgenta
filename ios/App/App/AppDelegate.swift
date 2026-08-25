@@ -322,14 +322,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // lifts that near-black by 0.5 × 245 but the gold by only 0.5 × 82, so the sweep reveals the
         // 88 pt icon tile as a bright rounded card and barely touches the mark. Backwards.
         //
-        // So the silhouette is recovered by colour instead. masking(componentRange:) requires
-        // precisely what this asset is — an image with no alpha channel — and keys out every pixel
-        // darker than the cutoff on all three channels, leaving the mark. It returns nil rather than
-        // trapping if a future asset arrives with an alpha channel; the gleam then still runs,
-        // clipped to the rounded tile by masksToBounds, and the log below says which branch ran so
-        // a wrong-looking cover can be told apart from a missing one without a debugger.
+        // So the silhouette is recovered by colour instead. copy(maskingColorComponents:) — Swift's
+        // spelling of CGImageCreateWithMaskingColors — requires precisely what this asset is: an
+        // image with no alpha channel. It keys out every pixel darker than the cutoff on all three
+        // channels, leaving the mark. It returns nil rather than trapping if a future asset arrives
+        // with an alpha channel; the gleam then still runs, clipped to the rounded tile by
+        // masksToBounds, and the log below says which branch ran so a wrong-looking cover can be
+        // told apart from a missing one without a debugger. (The first CI run failed here on a
+        // `masking([CGFloat])` overload that does not exist — the CGImage-mask overload is
+        // `masking(_:)`, the colour-range one is only ever `copy(maskingColorComponents:)`.)
         let cutoff = AppDelegate.logoMarkChromaCutoff
-        if let markOnly = markImage.masking([0, cutoff, 0, cutoff, 0, cutoff]) {
+        if let markOnly = markImage.copy(maskingColorComponents: [0, cutoff, 0, cutoff, 0, cutoff]) {
             let mask = CALayer()
             mask.frame = gate.bounds
             mask.contents = markOnly
