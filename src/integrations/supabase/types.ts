@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -58,8 +58,8 @@ export type Database = {
           apr_plaid_synced: boolean | null
           apr_start_date: string | null
           apy_rate: number | null
-          balance_tranches: Json | null
           balance: number
+          balance_tranches: Json | null
           card_start_date: string | null
           connection_id: string | null
           created_at: string
@@ -95,8 +95,8 @@ export type Database = {
           apr_plaid_synced?: boolean | null
           apr_start_date?: string | null
           apy_rate?: number | null
-          balance_tranches?: Json | null
           balance?: number
+          balance_tranches?: Json | null
           card_start_date?: string | null
           connection_id?: string | null
           created_at?: string
@@ -132,8 +132,8 @@ export type Database = {
           apr_plaid_synced?: boolean | null
           apr_start_date?: string | null
           apy_rate?: number | null
-          balance_tranches?: Json | null
           balance?: number
+          balance_tranches?: Json | null
           card_start_date?: string | null
           connection_id?: string | null
           created_at?: string
@@ -399,65 +399,6 @@ export type Database = {
           },
         ]
       }
-      car_maintenance_logs: {
-        Row: {
-          build_id: string
-          cost: number | null
-          created_at: string
-          id: string
-          interval_miles: number | null
-          interval_months: number | null
-          next_due_date: string | null
-          next_due_odometer: number | null
-          notes: string | null
-          odometer: number | null
-          service: string
-          service_date: string
-          user_id: string
-          vendor: string | null
-        }
-        Insert: {
-          build_id: string
-          cost?: number | null
-          created_at?: string
-          id?: string
-          interval_miles?: number | null
-          interval_months?: number | null
-          next_due_date?: string | null
-          next_due_odometer?: number | null
-          notes?: string | null
-          odometer?: number | null
-          service: string
-          service_date: string
-          user_id: string
-          vendor?: string | null
-        }
-        Update: {
-          build_id?: string
-          cost?: number | null
-          created_at?: string
-          id?: string
-          interval_miles?: number | null
-          interval_months?: number | null
-          next_due_date?: string | null
-          next_due_odometer?: number | null
-          notes?: string | null
-          odometer?: number | null
-          service?: string
-          service_date?: string
-          user_id?: string
-          vendor?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "car_maintenance_logs_build_id_fkey"
-            columns: ["build_id"]
-            isOneToOne: false
-            referencedRelation: "car_builds"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       car_build_phases: {
         Row: {
           build_id: string
@@ -502,12 +443,12 @@ export type Database = {
           created_at: string
           id: string
           maintenance_public: boolean
-          pricing_public: boolean
           make: string | null
           model: string | null
           name: string
           notes: string | null
           photos: Json | null
+          pricing_public: boolean
           share_token: string | null
           sort_order: number
           user_id: string
@@ -518,12 +459,12 @@ export type Database = {
           created_at?: string
           id?: string
           maintenance_public?: boolean
-          pricing_public?: boolean
           make?: string | null
           model?: string | null
           name: string
           notes?: string | null
           photos?: Json | null
+          pricing_public?: boolean
           share_token?: string | null
           sort_order?: number
           user_id: string
@@ -534,12 +475,12 @@ export type Database = {
           created_at?: string
           id?: string
           maintenance_public?: boolean
-          pricing_public?: boolean
           make?: string | null
           model?: string | null
           name?: string
           notes?: string | null
           photos?: Json | null
+          pricing_public?: boolean
           share_token?: string | null
           sort_order?: number
           user_id?: string
@@ -682,6 +623,65 @@ export type Database = {
             columns: ["loan_payment_account"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      car_maintenance_logs: {
+        Row: {
+          build_id: string
+          cost: number | null
+          created_at: string
+          id: string
+          interval_miles: number | null
+          interval_months: number | null
+          next_due_date: string | null
+          next_due_odometer: number | null
+          notes: string | null
+          odometer: number | null
+          service: string
+          service_date: string
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          build_id: string
+          cost?: number | null
+          created_at?: string
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          next_due_date?: string | null
+          next_due_odometer?: number | null
+          notes?: string | null
+          odometer?: number | null
+          service: string
+          service_date: string
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          build_id?: string
+          cost?: number | null
+          created_at?: string
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          next_due_date?: string | null
+          next_due_odometer?: number | null
+          notes?: string | null
+          odometer?: number | null
+          service?: string
+          service_date?: string
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_maintenance_logs_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "car_builds"
             referencedColumns: ["id"]
           },
         ]
@@ -1106,6 +1106,45 @@ export type Database = {
           redirect_uri?: string
           state?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      partner_links: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          invite_code_hash: string
+          invitee_email: string
+          inviter_id: string
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_code_hash: string
+          invitee_email: string
+          inviter_id: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_code_hash?: string
+          invitee_email?: string
+          inviter_id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
         }
         Relationships: []
       }
@@ -1678,7 +1717,7 @@ export type Database = {
           {
             foreignKeyName: "synced_transaction_reviews_synced_transaction_id_fkey"
             columns: ["synced_transaction_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "synced_transactions"
             referencedColumns: ["id"]
           },
@@ -1918,6 +1957,7 @@ export type Database = {
       }
     }
     Functions: {
+      active_partner_id: { Args: never; Returns: string }
       claim_marketing_slot: {
         Args: {
           p_by: string
@@ -1987,6 +2027,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      crowd_merchant_categories: {
+        Args: { p_min_voters?: number }
+        Returns: {
+          category: string
+          merchant_key: string
+          voters: number
+        }[]
+      }
       fail_marketing_slot: {
         Args: { p_day: string; p_error: string; p_kind: string; p_slot: string }
         Returns: {
@@ -2023,18 +2071,6 @@ export type Database = {
           user_id: string
         }[]
       }
-      crowd_merchant_categories: {
-        Args: { p_min_voters?: number }
-        Returns: {
-          merchant_key: string
-          category: string
-          voters: number
-        }[]
-      }
-      record_merchant_category_vote: {
-        Args: { p_merchant_key: string; p_category: string }
-        Returns: undefined
-      }
       rate_limit_check: {
         Args: { p_key: string; p_max: number; p_window_ms: number }
         Returns: {
@@ -2042,6 +2078,10 @@ export type Database = {
           remaining: number
           reset_at: string
         }[]
+      }
+      record_merchant_category_vote: {
+        Args: { p_category: string; p_merchant_key: string }
+        Returns: undefined
       }
       stage_marketing_slot: {
         Args: {
@@ -2212,4 +2252,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
