@@ -1,5 +1,93 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 session 30 (**BOTH queued slices SHIPPED, D3 cleared, ALL LOCAL-ONLY - not
+> pushed, Tre has not said push. Commits ahead of origin/main (fe849fe9): b5c54fda docs,
+> `d15b7ab9` liability ranking UI wiring (D1), `46874f6f` donut copy, `36e66cfe` Monthly
+> Snapshot guide section, `6da9b543` matched-occurrence override surfaces (D2), + docs.
+> iOS CI WATCH ITEM CLOSED: fe849f9's "iOS Build & Upload to App Store" completed SUCCESS,
+> so 6717e0f7's uncompiled Swift compiled and shipped. Android green too.**)
+
+## A. THE SESSION (no new asks; "continue" from session 29's handoff)
+Fable managed, one opus-executor per slice, sequential (shared CreditCardEngine.tsx fence).
+The D2 builder was KILLED by Tre's usage limit mid-verification and RESUMED after reset via
+SendMessage to the same agent id - context intact, tree untouched, this works.
+
+## B. ✅ SHIPPED (local commits, evidence in each body)
+- `d15b7ab9` D1 wiring: liabilities rankable in SurplusRankingSection (Ranked marker + Remove
+  instead of the auto-extra checkbox - accounts has NO auto_extra column, being listed IS the
+  opt-in; "Add a loan or mortgage" row, new arrivals join at the END); useMonth0DebtBreakdown
+  fed accounts/debts/rules/excludedAccountIds via CardProjectionContext (3 new fields, the
+  carFunds precedent); DebtRecommendationsWidget third list + hasLoans||hasOtherDebts gate (a
+  live student-loan payment no longer hides behind the empty state); CreditCardEngine parallel
+  buildOtherDebtRecommendations for /debt parity; payment_due_day un-gated to ALL liability
+  types in all three halves (field/validation/payload) + list line - field un-gate alone would
+  have silently failed, handleSave gated it too; DebtPayoff:514 copy. Liability rows ONLY in
+  otherDebtRecommendations, never `recommendations` (phantom-txn feeder), pinned by test.
+  tsc 0, 250 files/2523 tests, golden pins unchanged, RED on all 5 suites. Manager fixed an
+  em dash in the new /debt footnote + a stale "follow-up slice" comment pre-commit.
+- `6da9b543` D2 override surfaces: new matched-occurrence-display.ts (5 pure helpers; ONE
+  sign conversion, returns null on direction contradiction) + useMatchedOccurrences hook
+  (occurrences = index key set, suppression/values cannot drift). Ledger substitutes real
+  date/amount w/ "real" chip, sorts by SHOWN date while month filter stays on obligation
+  month; Upcoming This Week substitutes BEFORE the 7-day window then re-sorts (surface had
+  NO suppression at all before); T8: BudgetControl badge now matchedRuleIdsInMonth (weekly/
+  biweekly badgeable for the first time); totals + matchedMonthAmountDelta (zero without a
+  bank feed); T9 closed at Dashboard/BudgetControl/Vehicles/CreditCardEngine (merged set,
+  pages now AGREE with forecast month-0). Engines untouched - Sets only. tsc 0, 255 files/
+  2564 tests, RED by revert-restore, live-verified SIGNED IN AS TRE: 9 "real" chips w/ real
+  scheduled figures, badge on a WEEKLY income rule (impossible pre-T8), 0 console errors.
+  Upcoming This Week is HIDDEN in Tre's widget layout (his choice - verified via demo render
+  + jsdom instead; did NOT touch his saved layout).
+- `46874f6f` widget description bar→donut; `36e66cfe` dashboard guide gained a Monthly
+  Snapshot section (copy verified against MonthlyBudgetSnapshot.tsx: five slices, two
+  tap-throughs, honest-empty rule).
+- D3 scout, deliberate NO-ACTION: AiAdvisor:698 investment list is NOT a dedupe - all the
+  app's investment lists differ on purpose (retirement lacks crypto, projection non-cash
+  includes savings, net-worth is brokerage-only). Merging = the use-mobile mistake.
+
+## C. 🔴 OPEN - decisions for Tre (in chat)
+1. **AppLock (SECURITY, from the resume builder):** AppLockProvider/AppLockScreen exported
+   but NEVER mounted - native has no pin/biometric lock, yet AuthContext:353 SKIPS the idle
+   timeout because it assumes the lock exists. Recommendation: short-term stop skipping the
+   idle timeout on native until a lock ships; biometric lock itself is a feature decision.
+2. **On-phone check (post store deploy):** Builds → Log Service with keyboard up - dropdown
+   selectable? Tab bar clear of modal buttons? (asks 3/8, unverifiable from desk).
+
+## D. 📋 NEXT UP
+1. "auto-matched" badge label reads wrong for USER-CONFIRMED matches (both of Tre's live
+   badges are confirmed income: Weekly Paycheck, GF Half of Rent). Copy tweak: "matched".
+2. Demo cannot exercise the override feature at all (useSyncedTransactions returns [] when
+   isDemo, though demoSyncedTransactions exists and matches demo rules by design) - the
+   sales surface never shows the "real" chip/badge/suppression. Candidate slice.
+3. DebtPayoff explanatory box exists only on the mortgage tab; its copy now describes all
+   three debt types from a place two of them never see. Small UI slice.
+4. Resume-builder leftovers: pollAppReady dead; useOnboardingStatus 'pending' unbounded
+   (eternal "Loading your setup..." if profile query hangs); capacitor.config.ts configures
+   an uninstalled SplashScreen plugin.
+5. Session-29 mobile leftovers: Debt Credit Card Payoff truncating span (165px overflow at
+   390); Vehicles.tsx 7 pre-existing em dashes (:1300,:1301,:504,:582,:602,:787,:961);
+   useCarBuildPhases/Items demo-${buildId} vs ['car_build_phases', buildId] invalidation
+   key mismatch (useSupabaseData.ts:1479 vs :1506).
+6. Matcher window note (pre-existing, both sides agree, do not "fix" casually): a month's
+   first occurrence window reaches 27 days back; production fetch is month ±7 days which
+   bounds it. Now visible in BudgetControl totals as well as forecast suppression.
+7. Fixture JSON still carries `mortgagePayment` (inert, renames on next recapture).
+
+## E. ⚠️ Session mechanics
+- Context-gate hook still misfires (claimed 150k→196k; real budget ~14.96M). Arithmetic
+  broken, discipline sound: finish the atomic slice, hand off at commit.
+- Usage-limit kill of a running builder: SendMessage to the same agent id after reset
+  resumes it with context AND working tree intact. Builder had committed nothing (protocol).
+- Dev tab parked signed-in on /transactions (Budget Control tab), :8080 canonical.
+- Test count now 255 files / 2564 tests. graphify current (run twice this session).
+- Collect-step that keeps paying: grep the builder's ADDED lines for em dashes before
+  committing; D1's footnote had one, D2's copy was clean.
+- `src/lib/__tests__/zz-tmp-diagnostic.test.ts` still `??`, another session's, never commit.
+
+---
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-24 session 29 (**FIVE slices SHIPPED and PUSHED - origin/main = `a67a248d` on
 > Tre's explicit "push, then i will clear", verified by CONTENTS (git grep hits for
 > sumOtherDebtPayments / buildMatchedOccurrenceIndex / canReorder on origin/main). Both store
