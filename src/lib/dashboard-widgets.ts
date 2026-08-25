@@ -26,7 +26,7 @@ export const WIDGET_META: WidgetMeta[] = [
     label: 'Monthly Snapshot',
     // Next paycheck and month-end cash were added beside the title on 2026-08-23, when Tre
     // re-anchored those two figures out of the retired stat-chip row.
-    description: 'Budget bar showing funding balance, remaining income, and projected surplus, with your next paycheck and projected month-end cash',
+    description: 'Budget donut showing funding balance, remaining income, and projected surplus, with your next paycheck and projected month-end cash',
   },
   {
     id: 'upcoming_week',
