@@ -4,16 +4,20 @@
 // hand-entered rows merged with generated debt, payment-plan and car-loan rows — and the two are
 // deliberately never interleaved, so there is no ambiguity about which rows are projections.
 //
-// ⚠️ EXACTLY ONE CONTROL HERE WRITES MONEY: "Add to my ledger" (Stage 3). Every other action —
-// confirming a match, linking to a different rule, payment plan or entry, correcting a category,
-// ignoring — is an ANNOTATION and creates no `public.transactions` row. That table is read by twelve surfaces
-// including the forecast and card engines, so a row written there moves projected numbers app-wide
-// while `recurring_rules` already projects the same bill.
+// ⚠️ TWO CONTROLS HERE WRITE MONEY, AND THEY ARE THE SAME WRITE: "Add to my ledger" (Stage 3), and
+// — since 2026-08-25 — the row's CATEGORY SELECT. Tre: *"when categories for transactions are
+// selected, those should auto add to ledger."* Every other action — confirming a match, linking to a
+// different rule, payment plan or entry, ignoring — is an ANNOTATION and creates no
+// `public.transactions` row. That table is read by twelve surfaces including the forecast and card
+// engines, so a row written there moves projected numbers app-wide while `recurring_rules` already
+// projects the same bill.
 //
 // Import is therefore offered ONLY where nothing else in the app already describes the charge:
 // either the matcher found nothing, or the user pressed "Not this" and overruled it. That rule is
 // enforced in `planLedgerImport`, not in this file's conditionals — Tre's "otherwise it adds a
-// transaction if the user says it doesn't match anything" is load-bearing, not UX.
+// transaction if the user says it doesn't match anything" is load-bearing, not UX. The category
+// select is routed through the SAME plan for exactly that reason: labelling a charge the app already
+// tracks still only labels it, so the second control cannot become a looser way to create money.
 //
 // ⚠️ UNREVIEWED MEANS NOTHING AT ALL. All history is in scope (Tre, 2026-08-08) because history is
 // the input to discovering recurring rules at onboarding (§1C), so the vast majority of rows are
@@ -49,7 +53,7 @@ import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
   useTransactions, usePaymentPlans, useCarFunds, isHandledReview, planLedgerImport,
   isLinkStatus, findExclusiveReview,
-  type SyncedTransactionReviewRow,
+  type SyncedTransactionReviewRow, type BankActivityRow, type ImportPlan,
 } from '@/hooks/useSupabaseData';
 import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
 import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
@@ -93,7 +97,9 @@ export default function BankActivity() {
   } = useSyncedTransactionReviews();
   const { data: accounts } = useAccounts();
   const { data: rules } = useRecurringRules();
-  const { data: ledger } = useTransactions();
+  // `update` is here for ONE case: relabelling a charge that has already been imported has to
+  // relabel the ledger row it created, or the two disagree silently. See `chooseCategory`.
+  const { data: ledger, update: updateLedgerTxn } = useTransactions();
   const { data: buildItems } = useAllCarBuildItems();
 
   /**
@@ -366,6 +372,53 @@ export default function BankActivity() {
   };
 
   /**
+   * §1B — PICKING A CATEGORY IS ALSO "PUT THIS IN MY LEDGER". Tre, 2026-08-25: *"when categories for
+   * transactions are selected, those should auto add to ledger."*
+   *
+   * Until now choosing a category wrote `category_override` and stopped. `'categorized'` is
+   * deliberately NOT a handled status, so the charge stayed outside `public.transactions` and moved
+   * no number anywhere — the user had labelled the charge and the app had recorded a label, not a
+   * transaction. Pressing a second button afterwards was the missing step, and nothing on the row
+   * said so.
+   *
+   * ⚠️ THE DOUBLE-COUNT GUARD IS UNCHANGED AND UNMOVED. This does not decide importability;
+   * `planLedgerImport` already did, on the row, and the plan it produced is passed in. A charge that
+   * matches a rule, a plan, a vehicle charge or an entry the user already made — or that is one leg
+   * of a transfer — has no plan and is only LABELLED here, exactly as before. Routing the select
+   * through the same plan the button uses is what stops this becoming a second, looser way to create
+   * money.
+   *
+   * ⚠️ SEQUENTIAL, NOT PARALLEL, and the import only runs if the label landed. Both writes are
+   * find-then-write against the same charge's review rows (see `fetchChargeReviews`), so firing them
+   * together races the read half of one against the write half of the other and can leave a charge
+   * holding two exclusive rows.
+   */
+  const chooseCategory = async (
+    txn: BankActivityRow,
+    category: string,
+    merchantKey: string | null,
+    plan: ImportPlan | null,
+    importedTransactionId: string | null,
+  ) => {
+    try {
+      await setCategory.mutateAsync({ syncedTransactionId: txn.id, category, merchantKey });
+    } catch {
+      // `setCategory`'s own `onError` has already said what went wrong in the user's language.
+      // Nothing was labelled, so nothing may be imported on the strength of it.
+      return;
+    }
+    if (importedTransactionId) {
+      // ALREADY IN THE LEDGER, so the label has two homes and they must not disagree. Relabelling
+      // only the review row would leave the entry this charge created filed under the old category,
+      // still feeding that category's totals, with nothing on screen saying so.
+      updateLedgerTxn.mutate({ id: importedTransactionId, category });
+      return;
+    }
+    if (!plan?.ok) return;
+    importToLedger.mutate({ syncedTransactionId: txn.id, draft: { ...plan.draft, category } });
+  };
+
+  /**
    * The pre-checked batch, confirmed in one tap.
    *
    * Sequential and stop-at-first-failure, for the same two reasons `acceptAllSuggested` is: `save` is
@@ -571,7 +624,13 @@ export default function BankActivity() {
 
       {/* §1B MERCHANT MEMORY — the categories the user already decided, applied to the backlog.
           Above the transfer batch because it is the cheaper decision of the two: it labels rows and
-          nothing else, where recording a transfer takes a position on what a movement WAS. */}
+          nothing else, where recording a transfer takes a position on what a movement WAS.
+
+          ⚠️ THE RAW MUTATION, NOT `chooseCategory`, AND THAT IS THE DECISION. A row's own select
+          imports the one charge in front of the person who picked it; this panel labels a backlog in
+          one press, and routing it through the same path would insert dozens of ledger rows from a
+          button whose label promises a relabel. Those charges keep their "Add to my ledger" offer on
+          their own rows, one visible decision each. */}
       <MerchantMemoryPanel setCategory={setCategory} />
 
       {/* §1B TRANSFER PAIRS — the pre-checked batch.
@@ -677,8 +736,9 @@ export default function BankActivity() {
           : 'What your connected accounts actually reported, decided or not.'}
         {' '}
         Linking a charge to a bill, a payment plan or an entry you already made just labels it and
-        changes no projected number. Only "Add to my ledger" creates a new entry, and it is offered
-        only where nothing you already track covers the charge.
+        changes no projected number. Choosing a category records the charge in your ledger, and so
+        does "Add to my ledger". Both apply only where nothing you already track covers the charge,
+        and both are undoable from the row.
       </p>
 
       <div className="card-forged divide-y divide-border">
@@ -814,7 +874,13 @@ export default function BankActivity() {
                   <>
                     <select
                       value={category}
-                      onChange={e => setCategory.mutate({ syncedTransactionId: txn.id, category: e.target.value, merchantKey })}
+                      onChange={e => { void chooseCategory(
+                        txn,
+                        e.target.value,
+                        merchantKey,
+                        plan,
+                        exclusive?.status === 'imported' ? exclusive.transaction_id : null,
+                      ); }}
                       className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground"
                       style={{ borderRadius: 'var(--radius)' }}
                       aria-label="Category"
@@ -833,6 +899,17 @@ export default function BankActivity() {
                     {/* An unmapped provider category is uncategorized, not "Other". Saying "Other"
                         asserts the charge is miscellaneous; the honest claim is that we do not know. */}
                     {isGuess && <span className="text-[10px] text-muted-foreground">uncategorized — pick one</span>}
+
+                    {/* SAYS WHAT THE SELECT WILL DO BEFORE IT DOES IT. A dropdown that quietly
+                        creates a transaction is the kind of surprise this app does not get to
+                        spring on a person, so the one row where it will is the row that says so.
+                        Shown iff `planLedgerImport` said yes, so the sentence and the behaviour are
+                        the same answer rather than two that can drift. */}
+                    {plan?.ok && (
+                      <span className="text-[10px] text-muted-foreground">
+                        picking a category also adds this to your ledger
+                      </span>
+                    )}
                   </>
                 )}
 

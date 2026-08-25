@@ -15,7 +15,7 @@ import { substituteMatchedLedgerRows } from '@/lib/matched-occurrence-display';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
 import BankActivity from '@/components/transactions/BankActivity';
-import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
+import { useBankReviewQueue, reviewBadgeCount } from '@/hooks/useBankReviewQueue';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split } from 'lucide-react';
@@ -119,16 +119,18 @@ export default function Transactions() {
   // `tre:debt:expanded-card` and `tre:debtpayoff:pause-savings`.
   const [showPlans, setShowPlans] = usePersistedState<boolean>('tre:transactions:show-plans', true);
 
-  // §1B — Planning vs Bank Activity. The two streams are never interleaved: this page's rows are
-  // what WILL happen (hand-entered plus generated debt/plan/car-loan occurrences), bank activity is
-  // what DID. Persisted like the other view toggles above, for the same reason.
+  // §1B — the planning stream and bank activity are ONE panel since 2026-08-25 (Tre: "bank activity
+  // and planning should be one tab"). The two streams are still never interleaved into one list:
+  // this page's ledger rows are what WILL happen (hand-entered plus generated debt/plan/car-loan
+  // occurrences), bank activity is what DID, and they render as two stacked halves of the panel.
+  // Persisted like the other view toggles above, for the same reason.
   //
-  // ⚠️ AND SINCE 2026-08-18, Budget Control is the THIRD value of this same selector rather than a
-  // tab of its own (Tre: "we need to reduce how many separate tabs"). It is one row of three, not
-  // an outer row wrapping this one — see `activity-tab.ts` for why nesting was rejected. The key is
-  // unchanged, so every stored 'planning'/'bank' keeps working; `effectiveActivityTab` heals
-  // anything else rather than rendering an empty surface.
-  const [storedTab, setActiveTab] = usePersistedState<ActivityTab>('tre:transactions:tab', 'planning');
+  // ⚠️ Budget Control is the OTHER value of this same selector rather than a tab of its own (Tre,
+  // 2026-08-18: "we need to reduce how many separate tabs"). One row, not an outer row wrapping an
+  // inner one — see `activity-tab.ts` for why nesting was rejected. The storage key is unchanged, so
+  // every stored 'planning'/'bank' keeps working through the alias map there; `effectiveActivityTab`
+  // heals anything else rather than rendering an empty surface.
+  const [storedTab, setActiveTab] = usePersistedState<ActivityTab>('tre:transactions:tab', 'transactions');
   const activeTab = effectiveActivityTab(storedTab);
   // A link may name a panel — `/budget` redirects here saying `?tab=budget`. Honoured ONCE and then
   // stripped, after which the user's own remembered panel takes over again. Identical to Dashboard.
@@ -141,9 +143,21 @@ export default function Transactions() {
     next.delete('tab');
     setSearchParams(next, { replace: true });
   }, [askedTab, searchParams, setSearchParams, setActiveTab]);
-  // Null while loading and null at zero — the tab renders no badge in both cases, because a "0" and
-  // a badge that failed to compute are indistinguishable to a user.
-  const reviewQueueCount = useBankReviewQueueCount();
+  // ONE queue, read twice, and the two readings are different sets — see `bank-activity-queue.ts`.
+  //
+  // `reviewQueueCount` is the tab badge: SUGGESTIONS AWAITING A DECISION, null while loading and
+  // null at zero, because a "0" and a badge that failed to compute are indistinguishable to a user.
+  //
+  // `bankNeedsDecision` is the whole undecided set, which is what decides whether the bank half sits
+  // above the ledger (Tre, 2026-08-25: "if there are items for needs decision, it should show at the
+  // top of the one tab"). It is deliberately NOT badged anywhere — most bank rows are unreviewed by
+  // design and always will be — it only orders two blocks that both render either way.
+  //
+  // ⚠️ NEVER PIN WHILE LOADING. A queue built from half its inputs has a length that then changes,
+  // and the page would visibly reshuffle a beat after it painted.
+  const { queue: bankReviewQueue, isLoading: bankReviewQueueLoading } = useBankReviewQueue();
+  const reviewQueueCount = reviewBadgeCount(bankReviewQueue, bankReviewQueueLoading);
+  const bankNeedsDecision = !bankReviewQueueLoading && bankReviewQueue.needsDecision.length > 0;
 
   // Build account lookup map
   const accountMap = useMemo(() => {
@@ -719,22 +733,21 @@ export default function Transactions() {
     </div>
   </div>
 
-  {/* Tabs — planning stream vs what the bank reported.
-      The Bank Activity tab carries the review-queue count: charges the app already has an answer
+  {/* Tabs — the rules, then everything those rules and the bank produce.
+      The Transactions tab carries the review-queue count: charges the app already has an answer
       for and is waiting on. NOT a count of unreviewed rows — most rows are unreviewed by design and
-      always will be; see `@/lib/bank-activity-queue`. `useBankReviewQueueCount` returns null rather
-      than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
+      always will be; see `@/lib/bank-activity-queue`. `reviewBadgeCount` returns null rather than 0,
+      so a quiet queue and a queue that has not loaded both render nothing. */}
   <PanelBar>
     {([
       // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
       // transactions") — the rules are what every other number on this page derives from, so it
-      // reads left to right as cause then effect: the rules, what they project, what the bank did.
-      // A fresh SIGN-IN also lands here (`resetActivityTabForSignIn`, called from AuthContext);
-      // within a session the panel is remembered. Tre, 2026-08-18: "it should land in whatever page
-      // the user looked at last, on sign in it should be budget control though."
+      // reads left to right as cause then effect: the rules, then what actually happened against
+      // them. A fresh SIGN-IN also lands here (`resetActivityTabForSignIn`, called from
+      // AuthContext); within a session the panel is remembered. Tre, 2026-08-18: "it should land in
+      // whatever page the user looked at last, on sign in it should be budget control though."
       { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
-      { id: 'planning' as const, label: 'Planning', count: null as number | null },
-      { id: 'bank' as const, label: 'Bank Activity', count: reviewQueueCount },
+      { id: 'transactions' as const, label: 'Transactions', count: reviewQueueCount },
     ]).map(t => (
       <button
         key={t.id}
@@ -756,8 +769,12 @@ export default function Transactions() {
     ))}
   </PanelBar>
 
-  {/* Action Buttons — export and manual entry belong to the planning ledger only */}
-  <div className={`flex flex-col gap-2 sm:flex-row sm:flex-wrap ${activeTab === 'planning' ? '' : 'hidden'}`}>
+  {/* Action Buttons — export and manual entry belong to the ledger, not to Budget Control.
+      ⚠️ THEY STAY IN THE HEADER, above both halves of the merged panel. Inside the ledger half they
+      would sit below the bank queue whenever anything is waiting on a decision, which for a real
+      account is most of the time — "Add Transaction" is the page's primary action and must not move
+      down the page as a function of how many bank charges are undecided. */}
+  <div className={`flex flex-col gap-2 sm:flex-row sm:flex-wrap ${activeTab === 'transactions' ? '' : 'hidden'}`}>
     {(isPremium || isDemo) ? (
       <>
         <button
@@ -813,21 +830,44 @@ export default function Transactions() {
   </div>
 </div>
 
-      {activeTab === 'bank' && (
-        <ErrorBoundary variant="widget" label="Bank Activity"><BankActivity /></ErrorBoundary>
-      )}
-
       {/* ⚠️ RENDERED, NOT LINKED TO — and `BudgetControl` is unchanged apart from an `embedded` prop
           that suppresses only its own <h1>/subtitle and page padding, because this page already
           carries both. Mounted only while its own panel is selected, so its profile/rules/accounts
-          queries never run while the user is on the planning ledger. */}
+          queries never run while the user is on the ledger. */}
       {activeTab === 'budget' && (
         <Suspense fallback={<div className="h-64" />}>
           <ErrorBoundary variant="widget" label="Budget Control"><BudgetControl embedded /></ErrorBoundary>
         </Suspense>
       )}
 
-      {activeTab === 'planning' && (<>
+      {/* THE MERGED PANEL — what the bank reported, and the ledger those charges settle against.
+          Two halves, never interleaved into one list (a projection and a settled charge are
+          different kinds of fact and always were), stacked in the order the work demands.
+
+          ⚠️ THE ORDER IS CSS, NOT DOM ORDER, AND THAT IS DELIBERATE. Moving `<BankActivity/>` between
+          two positions in the tree unmounts it, so the moment the user decided their last waiting
+          charge — the exact instant the queue empties — the Decision Deck they were using would be
+          torn down mid-run and its summary screen would vanish. `order` reorders the paint and
+          leaves the tree alone. The cost is that keyboard order stays bank-then-ledger even when the
+          bank half paints second; that is the smaller of the two prices, and it is stated here so
+          nobody "fixes" it back into a remount.
+
+          ⚠️ `gap-6` rather than `stack-section`, for the same reason: `stack-section` is
+          `> * + *`, which is DOM order, so the visual gap would land above the wrong half. */}
+      {activeTab === 'transactions' && (
+        <div className="flex flex-col gap-6">
+          <div
+            data-testid="bank-half"
+            style={{ order: bankNeedsDecision ? 1 : 2 }}
+          >
+            <ErrorBoundary variant="widget" label="Bank Activity"><BankActivity /></ErrorBoundary>
+          </div>
+
+          <div
+            data-testid="ledger-half"
+            className="stack-section"
+            style={{ order: bankNeedsDecision ? 2 : 1 }}
+          >
 
       {!isPremium && !isDemo && (
         <div className="card-forged p-4 border-primary/20 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -875,7 +915,7 @@ export default function Transactions() {
               // lines used to cite a "$6,000 car purchase in June" and a "$3,000 gift in June" that had been
               // out of the fixture for months, so the guide described entries a visitor could not find.
               { label: 'One-time expenses', desc: 'A planned car down payment sits in a future month — it reduces available cash there, and the forecast pre-saves in the months before to cover it.' },
-              { label: 'Bank-imported history', desc: 'Rows that came from the bank feed rather than being typed — the same charges the Bank Activity tab decides on.' },
+              { label: 'Bank-imported history', desc: 'Rows that came from the bank feed rather than being typed — the same charges the bank half of this tab decides on.' },
               { label: 'Debt payments', desc: 'Auto-generated from the Debt Payoff engine each month — click to see the recommended amount per card.' },
             ].map((f, i) => (
               <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
@@ -1117,7 +1157,9 @@ export default function Transactions() {
         })}
       </div>
 
-      </>)}
+          </div>
+        </div>
+      )}
 
       {/* Edit Choice Dialog for Generated Transactions */}
       {editChoiceId && (

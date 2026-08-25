@@ -60,7 +60,20 @@ vi.mock('@/contexts/CardProjectionContext', () => ({
 }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));
-vi.mock('@/hooks/useBankReviewQueue', () => ({ useBankReviewQueueCount: () => null }));
+// The page reads the queue itself now — one build, badge and layout off the same object.
+vi.mock('@/hooks/useBankReviewQueue', () => ({
+  useBankReviewQueueCount: () => null,
+  reviewBadgeCount: () => null,
+  useBankReviewQueue: () => ({
+    queue: { needsDecision: [], suggestions: {}, suggestedCount: 0 },
+    reviewsByCharge: {},
+    isLoading: false,
+  }),
+}));
+// The bank half of the merged tab, stubbed. Nothing in this file is about it, and the real one
+// wants eight more data hooks mocked here; `Transactions.mergedTab` and the component's own tests
+// are where it renders for real.
+vi.mock('@/components/transactions/BankActivity', () => ({ default: () => <div data-testid="bank-activity" /> }));
 vi.mock('@/hooks/useFormDraft', () => ({ useFormDraft: () => ({ restored: false, discard: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() } }));
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));

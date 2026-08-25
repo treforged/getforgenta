@@ -125,7 +125,7 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
   'transactions:planning': {
     title: 'Planning Guide',
     sections: [
-      { title: 'What is this panel?', body: 'Planning shows your complete ledger — real transactions you enter plus auto-generated ones from your Budget Control recurring rules and debt payoff plan.' },
+      { title: 'What is this panel?', body: 'Your complete ledger: real transactions you enter plus auto-generated ones from your Budget Control recurring rules and debt payoff plan. It shares the Transactions tab with what your bank reported.' },
       { title: 'Generated vs Real', body: 'Entries with badges (recurring, debt payment) are auto-generated from rules. Edit the occurrence to override just that instance, or edit the rule to change all future occurrences.' },
       { title: 'Filters', body: 'Filter by type (income/expense), category, or payment source to find specific entries.' },
       { title: 'How it affects the rest', body: 'Transactions feed the Dashboard monthly totals, Forecast projections, and spending breakdowns.' },
@@ -325,10 +325,15 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
     { key: 'accounts:balances', label: 'Balances' },
     { key: 'accounts:banks', label: 'Bank connections' },
   ],
+  // ⚠️ THE KEYS OUTLIVE THE TABS. Planning and Bank Activity became one tab on 2026-08-25, and the
+  // two guides did NOT merge with them: they explain two different halves of that tab, and folding
+  // them into one entry would either drop copy or bury it. Only the LABELS move, so a reader sees
+  // the table of contents the page now reads as. Renaming the keys would orphan
+  // `SURFACE_FALLBACK.transactions` and every panel-scoped `resolveGuide` call for no gain.
   transactions: [
     { key: 'transactions:budget', label: 'Budget Control' },
-    { key: 'transactions:planning', label: 'Planning' },
-    { key: 'transactions:bank', label: 'Bank Activity' },
+    { key: 'transactions:planning', label: 'Transactions · Your ledger' },
+    { key: 'transactions:bank', label: 'Transactions · From your bank' },
   ],
   debt: [
     { key: 'debt:cards', label: 'Credit cards' },

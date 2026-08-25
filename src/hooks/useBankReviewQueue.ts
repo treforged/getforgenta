@@ -110,14 +110,24 @@ export function useBankReviewQueue(
 }
 
 /**
- * Just the badge number — how many charges the app has an answer for and is waiting on.
+ * The badge number, from a queue a caller already has.
  *
  * ⚠️ RETURNS NULL, NOT 0, UNTIL IT KNOWS. A badge reading 0 and a badge that failed to load look
  * identical to a user, so callers render nothing at all until there is a real reading. Also null
  * when the answer is genuinely zero, because there is nothing to say and an empty badge is noise.
+ *
+ * Pure, and exported, because two callers need this rule from ONE queue: `Transactions.tsx` reads
+ * the queue itself (it also asks whether anything is waiting, to decide where the bank half sits on
+ * the merged panel) and would otherwise mount a second `useBankReviewQueue` purely to get a number
+ * — a second full matcher run over every synced charge, on every render of the page.
  */
-export function useBankReviewQueueCount(): number | null {
-  const { queue, isLoading } = useBankReviewQueue();
+export function reviewBadgeCount(queue: BankReviewQueue, isLoading: boolean): number | null {
   if (isLoading || queue.suggestedCount === 0) return null;
   return queue.suggestedCount;
+}
+
+/** Just the badge number — how many charges the app has an answer for and is waiting on. */
+export function useBankReviewQueueCount(): number | null {
+  const { queue, isLoading } = useBankReviewQueue();
+  return reviewBadgeCount(queue, isLoading);
 }
