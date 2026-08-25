@@ -101,15 +101,19 @@ after Tre's usage limit reset; both mobile builders had made NO source edits whe
 killed them, resumed with context intact.)
 Note: ask 11 arrived after ask 10 - "also, make odometer an optional field if it wasnt
 already'" (Log Service form; relayed to the mobile builder, check-first semantics).
-Ask 12 OPEN, needs Tre's disambiguation: "also want to be able to schedule transactions by
-week". SCOUTED: weekly already exists everywhere obvious - rule editor offers
-Weekly/Biweekly/Monthly/Yearly with day-of-week (BudgetControl.tsx:830-831), payment plans
-offer Weekly/Every 2 Weeks/Monthly (Transactions.tsx:1131-1133), engine generates weekly
-occurrences. Likeliest readings: (a) RECOMMENDED - the Transactions add-transaction dialog
-gains a "repeats weekly/biweekly/monthly" option that creates the recurring rule behind the
-scenes (fewer taps, no Budget Control trip); (b) a week-granular view/filter on the
-Transactions list (today it filters by month); (c) something Builds-specific he saw. Asked
-in chat; do not build until answered.
+Ask 12 DECIDED by Tre 2026-08-24 ("what would you recommend" -> the recommendation): the
+Transactions add-transaction dialog gains a Repeats option (None/Weekly/Every 2 Weeks/
+Monthly) that creates the recurring rule behind the scenes; rule only (never also the
+one-off row), add-mode only, name required when repeating, biweekly anchor = entered date,
+frequency labels match the payment-plan select. A THIRD builder is running it, fenced to
+Transactions.tsx + new lib helper + tests (mobile builder explicitly re-fenced OFF
+Transactions.tsx). Report file if notification lost:
+`C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\aaaaaa5bbd8680168.output`
+FOLD-IN RESOLVED (Tre said "fold it in" for the rescued orphan): 3cd29dac turned out to be
+the pre-rebase draft of PR #94 "The service history rides the share link" (merged to main
+2026-08-12, maintenance_public present throughout HEAD incl. the same migration filename +
+the later 20260819 pricing_public built on it). Nothing to fold; rescue branch DELETED.
+The old stashes (stash@{0}/@{1}) remain untouched for the other session.
 Its report lands as a task notification; if this session was cleared, the report text is in
 `C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\a64df2ed09d2b7085.output`
 (JSONL; the final assistant message is the report - read just the tail). Manager duties on
