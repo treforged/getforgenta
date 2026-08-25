@@ -92,6 +92,9 @@ export default function MaintenanceFormModal({
   // would be the cascading render the lint rule objects to.
   const baseline = useRef<FormState>(emptyForm(lastOdometer));
   const [serviceError, setServiceError] = useState('');
+  // Whether the service suggestions are showing. See the list below for why they are not a
+  // `<datalist>` any more.
+  const [presetsOpen, setPresetsOpen] = useState(false);
 
   const linkedTx = useMemo(
     () => (log ? transactions.find(t => t.car_maintenance_log_id === log.id) ?? null : null),
@@ -123,6 +126,12 @@ export default function MaintenanceFormModal({
     setForm(loaded);
     baseline.current = loaded;
     setServiceError('');
+    // Open for a NEW entry, closed when editing one. The field is `autoFocus`ed, so on a new
+    // entry the suggestions are simply there, the same "make it visible by default" call as
+    // the panel selector, and it removes the one interaction a person cannot perform: tapping
+    // an input that already has focus fires no focus event, so without this the only way to
+    // summon the list on the first screen would have been to type something first.
+    setPresetsOpen(!log);
   }, [open, log, lastOdometer, linkedTx]);
 
   if (!open) return null;
@@ -221,6 +230,23 @@ export default function MaintenanceFormModal({
     onSave(values, tx);
   }
 
+  /**
+   * The presets the typed text still matches, or all of them while it is empty.
+   *
+   * Hidden entirely once the text IS a preset, so picking one closes the list rather than
+   * leaving a single redundant suggestion sitting under the field.
+   */
+  const typedService = form.service.trim().toLowerCase();
+  const matchingPresets = SERVICE_PRESETS.some(p => p.name.toLowerCase() === typedService)
+    ? []
+    : SERVICE_PRESETS.filter(p => p.name.toLowerCase().includes(typedService));
+
+  function choosePreset(name: string) {
+    setServiceError('');
+    applyPreset(name);
+    setPresetsOpen(false);
+  }
+
   const inputCls = 'w-full bg-secondary border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-hidden focus:border-primary font-mono';
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5';
   const modeBtnCls = (active: boolean) => cn(
@@ -246,24 +272,67 @@ export default function MaintenanceFormModal({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className={labelCls}>Service *</label>
+            <label className={labelCls} id="maintenance-service-label">Service *</label>
+            {/* ⚠️ NOT A `<datalist>` ANY MORE, and that is the whole point. Tre, 2026-08-24:
+                *"the dropdown for logging service isnt selectable if the keyboard is up."* A
+                datalist popup is drawn by the platform, not by the page, so it cannot be
+                positioned, sized or z-indexed from here: on a phone the software keyboard takes
+                the bottom half of the screen and the popup lands under it, unreachable, with no
+                CSS that could move it. This list is ordinary DOM inside the modal's own
+                scrollable body. It flows, so it can always be scrolled to, and it is tappable
+                wherever the keyboard happens to be.
+                `onMouseDown` preventDefault is load-bearing: without it the input blurs before
+                the click resolves and the option is never chosen. */}
             <input
-              list="maintenance-service-presets"
+              role="combobox"
+              aria-expanded={presetsOpen && matchingPresets.length > 0}
+              aria-controls="maintenance-service-presets"
+              aria-autocomplete="list"
               className={`${inputCls}${serviceError ? ' border-destructive' : ''}`}
               value={form.service}
               maxLength={80}
+              onFocus={() => setPresetsOpen(true)}
+              // `onClick` as well as `onFocus`: a tap on the already-focused field fires no
+              // focus event, and that is the exact state the modal opens in.
+              onClick={() => setPresetsOpen(true)}
               onChange={e => {
                 const v = e.target.value;
                 setServiceError('');
+                setPresetsOpen(true);
                 if (SERVICE_PRESETS.some(p => p.name === v)) applyPreset(v);
                 else set('service', v);
               }}
+              onKeyDown={e => { if (e.key === 'Escape' && presetsOpen) { e.stopPropagation(); setPresetsOpen(false); } }}
               placeholder="e.g. Oil Change"
               autoFocus
             />
-            <datalist id="maintenance-service-presets">
-              {SERVICE_PRESETS.map(p => <option key={p.name} value={p.name} />)}
-            </datalist>
+            {presetsOpen && matchingPresets.length > 0 && (
+              <ul
+                id="maintenance-service-presets"
+                role="listbox"
+                aria-labelledby="maintenance-service-label"
+                className="mt-1 max-h-52 overflow-y-auto border border-border rounded bg-secondary popup-scroll"
+              >
+                {matchingPresets.map(p => (
+                  <li key={p.name} role="option" aria-selected={false}>
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => choosePreset(p.name)}
+                      className="w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 text-left text-sm text-foreground hover:bg-accent transition-colors border-b border-border last:border-b-0"
+                    >
+                      <span className="wrap-break-word min-w-0">{p.name}</span>
+                      <span className="text-[11px] font-mono text-muted-foreground shrink-0">
+                        {[
+                          p.intervalMonths ? `${p.intervalMonths} mo` : null,
+                          p.intervalMiles ? `${p.intervalMiles.toLocaleString()} mi` : null,
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             {serviceError && <p className="text-xs text-destructive mt-1">{serviceError}</p>}
           </div>
 
@@ -376,7 +445,7 @@ export default function MaintenanceFormModal({
               />
             </div>
             <p className="text-[10px] font-mono text-muted-foreground">
-              Intervals fill these in — edit either one and it wins.
+              Intervals fill these in. Edit either one and it wins.
             </p>
           </div>
 

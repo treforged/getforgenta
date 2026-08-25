@@ -150,13 +150,19 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
               <div className="px-5 pt-3 pb-1 text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
                 Coming Due
               </div>
+              {/* ⚠️ WRAPS, IT DOES NOT TRUNCATE. Tre, 2026-08-24: *"the text in the maintenance
+                  log gets cut off instead of wrapping."* This row carried `truncate` on the
+                  service name AND `shrink-0` on the due summary, so at 390px the name lost every
+                  argument for space and "Transmission Fluid" read as "Transmi…", the one thing
+                  the row exists to say. Nothing is taken away to fix it: the row wraps to a
+                  second line instead. */}
               {dueNow.map(({ log, status }) => (
-                <div key={log.id} className="flex items-center justify-between px-5 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm text-foreground truncate">{log.service}</span>
+                <div key={log.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5 px-5 py-2">
+                  <div className="flex items-start gap-2 flex-wrap min-w-0">
+                    <span className="text-sm text-foreground wrap-break-word min-w-0">{log.service}</span>
                     <StatusBadge status={status} />
                   </div>
-                  <span className="font-mono text-[11px] text-muted-foreground shrink-0 ml-3">
+                  <span className="font-mono text-[11px] text-muted-foreground wrap-break-word">
                     {dueSummary(log)}
                   </span>
                 </div>
@@ -202,46 +208,53 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
                     className="px-5 py-3 border-b border-border last:border-b-0"
                   >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-foreground">{log.service}</span>
+                    {/* `flex-1` as well as `min-w-0`: without it the column is shrink-to-fit and a
+                        long service name or vendor is squeezed against the price instead of using
+                        the width that is there. `wrap-break-word` is what stops an unbroken token
+                        (a part number, a URL-ish vendor) from running under the price column and
+                        being clipped by the card's `overflow-hidden`. */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <span className="text-sm text-foreground wrap-break-word min-w-0">{log.service}</span>
                         <StatusBadge status={status} />
                       </div>
-                      <div className="font-mono text-[11px] text-muted-foreground mt-0.5">
+                      <div className="font-mono text-[11px] text-muted-foreground mt-0.5 wrap-break-word">
                         {log.service_date}
                         {log.odometer !== null && ` · ${log.odometer.toLocaleString()} mi`}
                         {log.vendor && ` · ${log.vendor}`}
                       </div>
                       {due && (
-                        <div className="font-mono text-[11px] mt-0.5" style={{ color: STATUS_COLORS[status] }}>
+                        <div className="font-mono text-[11px] mt-0.5 wrap-break-word" style={{ color: STATUS_COLORS[status] }}>
                           {due}
                         </div>
                       )}
                       {log.notes && (
-                        <div className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap">{log.notes}</div>
+                        <div className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap wrap-break-word">{log.notes}</div>
                       )}
                       {linked.length > 0 && (
-                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono" style={{ color: 'hsl(var(--success))' }}>
-                          <Receipt size={11} />
-                          {linked.map(t => `${money(Number(t.amount))} · ${t.date}`).join('  |  ')}
+                        <div className="flex items-start gap-1.5 mt-1 text-[11px] font-mono" style={{ color: 'hsl(var(--success))' }}>
+                          <Receipt size={11} className="shrink-0 mt-0.5" />
+                          <span className="min-w-0 wrap-break-word">
+                            {linked.map(t => `${money(Number(t.amount))} · ${t.date}`).join('  |  ')}
+                          </span>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 shrink-0 -my-1.5">
                       <span className="font-mono text-sm text-foreground mr-1">
                         {log.cost !== null ? money(log.cost) : '—'}
                       </span>
                       <button
                         onClick={() => onEdit(log)}
                         title="Edit service"
-                        className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                        className="icon-btn min-w-[36px] text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Pencil size={13} />
                       </button>
                       <button
                         onClick={() => onDelete(log)}
                         title="Delete service"
-                        className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                        className="icon-btn min-w-[36px] -mr-2 text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 size={13} />
                       </button>

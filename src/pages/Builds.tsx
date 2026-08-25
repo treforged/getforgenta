@@ -116,6 +116,21 @@ export default function Builds() {
     }
   }, [resolvedBuildId]);
 
+  // Sync dragPhaseOrder back to server truth whenever phases refresh and no drag is active.
+  //
+  // ⚠️ THIS IS THE PAIR OF THE ITEMS EFFECT BELOW, and it was missing until 2026-08-24. Tre:
+  // *"adding phases doesnt show immediately. it requires the user to go to another page and
+  // back."* `displayPhases` is `dragPhaseOrder ?? phases`, and `handleUpdatePhase` writes
+  // `dragPhaseOrder` on EVERY phase edit (renaming a phase, or the eye toggle), not only on a
+  // drag. From then on the optimistic snapshot shadowed the query permanently: the insert
+  // landed, react-query refetched, `phases` grew, and the page kept rendering the frozen list.
+  // Leaving the page unmounted `Builds` and dropped the snapshot, which is exactly why going
+  // away and coming back "fixed" it. Same defect the items effect was written for, same shape
+  // of fix. A delete or a reorder from another tab was invisible the same way.
+  useEffect(() => {
+    if (!dragPhaseIdRef.current) setDragPhaseOrder(null);
+  }, [phases]);
+
   // Sync dragItemOrder back to server truth whenever items refresh and no drag is active.
   // Without this, optimistic edits/toggles stay in dragItemOrder indefinitely, causing
   // deletes and adds to appear invisible until a page refresh.
@@ -699,11 +714,15 @@ export default function Builds() {
       {/* Build Switcher */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {builds.length > 0 ? (
-          <div className="relative flex-1 min-w-0">
+          // `basis-full` below `sm`: the row already had `flex-wrap`, but a `flex-1` child never
+          // wraps, it just shrinks. At 390px the build name was squeezed to "C5 Con…" beside
+          // four buttons. Taking a full row lets the buttons wrap underneath instead, which is
+          // the same "wrap each section directly below" rule the panel selector now follows.
+          <div className="relative flex-1 min-w-0 basis-full sm:basis-auto">
             <select
               value={activeBuild?.id ?? ''}
               onChange={e => { setActiveBuildId(e.target.value); setDragPhaseOrder(null); setDragItemOrder(null); }}
-              className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 py-2 pr-8 rounded focus:outline-hidden focus:border-primary cursor-pointer"
+              className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 min-h-[44px] pr-8 rounded focus:outline-hidden focus:border-primary cursor-pointer"
             >
               {builds.map((b: CarBuild) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -715,11 +734,13 @@ export default function Builds() {
           <div className="flex-1 text-sm text-muted-foreground font-mono">No builds yet</div>
         )}
 
+        {/* `icon-btn` (44px, `index.css`) rather than `p-2`, which measured 30x30, the same
+            too-small target Tre reported on the phase rows. */}
         {activeBuild && (
           <button
             onClick={() => { setEditingBuild(activeBuild); setFormOpen(true); }}
             title="Edit build"
-            className="p-2 text-muted-foreground hover:text-foreground border border-border rounded hover:border-muted-foreground transition-colors"
+            className="icon-btn text-muted-foreground hover:text-foreground border border-border rounded hover:border-muted-foreground transition-colors"
           >
             <Edit2 size={14} />
           </button>
@@ -728,7 +749,7 @@ export default function Builds() {
           <button
             onClick={() => setShareOpen(o => !o)}
             title="Share build"
-            className={`p-2 border rounded transition-colors ${shareOpen ? 'text-primary border-primary' : 'text-muted-foreground hover:text-primary border-border hover:border-primary'}`}
+            className={`icon-btn border rounded transition-colors ${shareOpen ? 'text-primary border-primary' : 'text-muted-foreground hover:text-primary border-border hover:border-primary'}`}
           >
             <Share2 size={14} />
           </button>
@@ -737,14 +758,14 @@ export default function Builds() {
           <button
             onClick={() => handleDeleteBuild(activeBuild)}
             title="Delete build"
-            className="p-2 text-muted-foreground hover:text-destructive border border-border rounded hover:border-destructive/50 transition-colors"
+            className="icon-btn text-muted-foreground hover:text-destructive border border-border rounded hover:border-destructive/50 transition-colors"
           >
             <Trash2 size={14} />
           </button>
         )}
         <button
           onClick={() => { setEditingBuild(null); setFormOpen(true); }}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors shrink-0"
+          className="flex items-center justify-center gap-1.5 px-3 min-h-[44px] text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors shrink-0"
           style={{ background: 'hsl(var(--primary))', color: '#000' }}
         >
           <Plus size={13} /> New Build

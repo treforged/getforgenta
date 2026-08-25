@@ -148,10 +148,24 @@
    which holds no content and exists to be pressed, goes fully round. Do not
    spread `rounded-full` outward from here.
 
-   ⚠️ THE TRACK SCROLLS, IT DOES NOT WRAP. Five segments (Debt Payoff) do not fit
-   390px, and a wrapped selector reads as two rows of unrelated buttons. It
-   scrolls horizontally inside its own box, so the PAGE never gains a scrollbar
-   — the same rule the wide tables follow. */
+   ⚠️ THE TRACK WRAPS. It used to scroll instead, on the reasoning that five
+   segments (Debt Payoff) do not fit 390px and a wrapped selector reads as two
+   rows of unrelated buttons. That traded a cosmetic problem for an
+   information one, and Tre found it on 2026-08-24: *"builds hidden on mobil,
+   you have to scroll but the user would have to be told it exists. make it
+   visble by default … just wrap each section directly below if viewport width
+   is too small."* Measured on the Garage at 390px before the change: the track
+   was 519px of content in a 361px box and the Builds segment started 152px
+   past the right edge, so the third panel of the surface was not merely small,
+   it was NOT ON THE PAGE, and a scroll container gives no cue that anything
+   is off it.
+
+   The wrap needs no breakpoint and no media query, because `width: fit-content`
+   already resolves to `min(max-content, available)`: while the row fits it is
+   max-content wide and stays a single centred row, and the moment it does not
+   it is clamped to the available width and the overflow falls to a second row.
+   `overflow-x: auto` stays only as the last resort for one segment wider than
+   the whole viewport. */
 /* Every full-screen popup sits inside this.
 
    The padding is symmetric and INCLUDES the safe areas, and the card inside is capped at
@@ -160,10 +174,25 @@
    up to more than the viewport, so the card was clipped instead of scrolled — and a
    one-sided `padding-top: max(1rem, env(safe-area-inset-top))` pushed it off centre on
    top of that. Here the card can never be taller than the box it is centred in, so the
-   gap above and below is always equal and its own body does the scrolling. */
+   gap above and below is always equal and its own body does the scrolling.
+
+   ⚠️ `100dvh` AND NOT `inset: 0` ALONE, and the pair is deliberate. `inset: 0` sizes a
+   fixed element against the LAYOUT viewport, which on a phone browser is the tall
+   URL-bar-hidden box, so the bottom of the overlay, and with it the bottom of the card
+   centred in it, resolves below the glass while the chrome is showing. `100dvh` tracks
+   the viewport that is actually on screen. `100vh` stays as the line above it for anything
+   that does not know the dynamic units; over-constrained box rules mean the height wins
+   and `bottom` is ignored, so the two lines together always resolve to one full screen.
+
+   The OTHER half of "not cut off at the bottom" is not here: it is `MobileNav`, which is
+   app chrome and sits at `z-40` precisely so that every overlay floor in the app (the
+   lowest any `modal-overlay` call site uses is `z-50`) paints over the tab bar instead of
+   under it. Do not raise the tab bar back to `z-50`. */
 @utility modal-overlay {
   position: fixed;
   inset: 0;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,17 +203,22 @@
 }
 
 @utility seg-track {
-  @apply flex items-center gap-1 p-1 border border-border bg-secondary/50;
+  @apply flex flex-wrap items-center gap-1 p-1 border border-border bg-secondary/50;
   @apply max-w-full overflow-x-auto;
   border-radius: 9999px;
   scrollbar-width: none;
   /* CENTRED IN ITS SURFACE — Tre, 2026-08-18: "center the section selectors in each tab."
-     ⚠️ Centred with `width: fit-content` + auto margins, NOT with `justify-content: center`.
-     This is a scroll container: with `justify-content: center` an overflowing track centres its
-     content and the browser then makes the START unreachable — the first segment is clipped off
-     the left edge with no way to scroll back to it. Auto margins centre the BOX and leave the
-     content flowing from its start, so a track wider than the page (Debt Payoff's five segments,
-     measured 772px at a 390px clamp) still scrolls from segment one. */
+     ⚠️ The BOX is centred by `width: fit-content` + auto margins; that is what keeps a single
+     row centred and it has not changed. What `justify-content` adds is the SECOND row, which
+     auto margins cannot reach. A wrapped remainder is left-aligned under a full row above it
+     and reads as a stray button rather than part of the control.
+     ⚠️ It must stay `safe center`. Plain `center` on a container that overflows anyway (one
+     segment wider than the whole viewport) centres the overflow and puts BOTH ends out of
+     reach. That is the failure the 2026-08-18 note recorded, and `safe` is the keyword that
+     answers it: the browser falls back to `start` exactly in that case. A browser that does not
+     understand `safe` drops the whole declaration and gets `flex-start`, which is that same
+     safe behaviour. */
+  justify-content: safe center;
   width: fit-content;
   margin-inline: auto;
 }

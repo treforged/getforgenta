@@ -296,9 +296,18 @@ export default function PhaseBlock({
         }
       }}
     >
-      {/* Phase Header */}
+      {/* Phase Header
+          ⚠️ IT WRAPS, and it has to. Once the icon-only controls became real 44px targets there
+          is no longer room for the drag column, the number, the title, the money and three
+          buttons on ONE 390px line: rendered at 390x844 mid-change, "INTERIOR & ELECTRONICS"
+          was squeezed into a column one character wide. The money and the three buttons are
+          grouped below so they wrap as a UNIT to a second line instead of the title losing its
+          width, which is the same "wrap each section directly below" rule the panel selector
+          follows. `min-w-[7rem]` on the title is what forces that break; without a minimum the
+          title is `flex-1` and simply shrinks to nothing again. Desktop is untouched: the row
+          is far wider than the sum of its parts and never reaches a second line. */}
       <div
-        className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
         onClick={() => onSetExpanded(!isExpanded)}
       >
         {!isTouch ? (
@@ -313,9 +322,15 @@ export default function PhaseBlock({
             <GripVertical size={16} />
           </div>
         ) : (
-          <div className="flex flex-col gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-            <button disabled={isFirst} onClick={() => onMovePhase('up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowUp size={16} /></button>
-            <button disabled={isLast} onClick={() => onMovePhase('down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowDown size={16} /></button>
+          // `icon-btn` is the app's 44px tap target (`index.css`), already worn by every
+          // icon-only button on Accounts, Budget, Debt, Goals and Activity. The Builds surface
+          // simply never adopted it: measured at 390x844 before 2026-08-24 these arrows were
+          // 24x24 and the phase header's own controls 12-14px square. `min-w-[32px]` narrows
+          // the stack back down because it is a VERTICAL pair: two 44px-wide cells would eat
+          // a quarter of a 390px row that also has to hold the phase title.
+          <div className="flex flex-col shrink-0" onClick={e => e.stopPropagation()}>
+            <button disabled={isFirst} onClick={() => onMovePhase('up')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowUp size={16} /></button>
+            <button disabled={isLast} onClick={() => onMovePhase('down')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowDown size={16} /></button>
           </div>
         )}
 
@@ -324,9 +339,9 @@ export default function PhaseBlock({
           {phaseIndex + 1}
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[7rem]">
           <div className="flex items-start gap-1.5 min-w-0">
-            <button onClick={openTitleEdit} className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-primary transition-all shrink-0 mt-0.5" title="Rename phase">
+            <button onClick={openTitleEdit} className="icon-btn min-w-[30px] -ml-2 -my-2.5 text-muted-foreground opacity-40 hover:opacity-100 hover:text-primary transition-all shrink-0" title="Rename phase">
               <Pencil size={12} />
             </button>
             <span className="text-sm font-semibold uppercase tracking-wide text-foreground wrap-break-word flex-1 min-w-0">{phase.title}</span>
@@ -339,19 +354,28 @@ export default function PhaseBlock({
           </div>
         </div>
 
-        <div className="font-mono text-base font-medium text-right shrink-0" style={{ color: 'hsl(var(--primary))' }}>
-          {phaseTotal > 0 ? `$${phaseTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
+        {/* The money and the three controls travel together, so a narrow screen moves the whole
+            group to a second line rather than starving the title of width. `ml-auto` keeps the
+            group right-aligned on both lines.
+            The eyeball and the trashcan are the two Tre could not hit: 14px and 13px squares
+            before 2026-08-24. `icon-btn` is the app's 44px target; `-my-2.5` lets the taller
+            hit area hang outside the header's own padding so the row height is unchanged, and
+            `min-w-[38px]` keeps the group narrow enough to sit beside the title on a tablet. */}
+        <div className="flex items-center gap-3 shrink-0 ml-auto">
+          <div className="font-mono text-base font-medium text-right" style={{ color: 'hsl(var(--primary))' }}>
+            {phaseTotal > 0 ? `$${phaseTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
+          </div>
+
+          <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned), tap to show' : 'Hide phase (mark as planned)'} className="icon-btn min-w-[38px] -my-2.5 shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+            {phase.hidden ? <EyeOff size={14} style={{ color: 'hsl(var(--primary))' }} /> : <Eye size={14} />}
+          </button>
+
+          <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="icon-btn min-w-[38px] -my-2.5 shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all">
+            <Trash2 size={13} />
+          </button>
+
+          <ChevronDown size={14} className={cn('shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')} />
         </div>
-
-        <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
-          {phase.hidden ? <EyeOff size={14} style={{ color: 'hsl(var(--primary))' }} /> : <Eye size={14} />}
-        </button>
-
-        <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all">
-          <Trash2 size={13} />
-        </button>
-
-        <ChevronDown size={14} className={cn('shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')} />
       </div>
 
       {/* Inline title edit */}
@@ -400,20 +424,30 @@ export default function PhaseBlock({
                       <GripVertical size={14} />
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowUp size={14} /></button>
-                      <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"><ArrowDown size={14} /></button>
+                    <div className="flex flex-col shrink-0">
+                      <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowUp size={14} /></button>
+                      <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowDown size={14} /></button>
                     </div>
                   )}
 
+                  {/* The RING stays 22px; the BUTTON around it is the 44px target. Putting
+                      `icon-btn` on the button itself would have inflated the tick to 44px, which
+                      is why the ring moved inside. `-my-2.5 -ml-1` hangs the extra target outside
+                      the row's padding so the row height is unchanged. */}
                   <button
                     onClick={() => onToggleItem(item.id, !item.completed)}
-                    className={cn(
-                      'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200 mt-0.5',
-                      item.completed ? 'border-success bg-success text-white' : 'border-border bg-transparent hover:border-success',
-                    )}
+                    aria-pressed={item.completed}
+                    title={item.completed ? 'Mark as not done' : 'Mark as done'}
+                    className="icon-btn min-w-[34px] -my-2.5 -ml-1 shrink-0"
                   >
-                    {item.completed && <Check size={11} strokeWidth={3} />}
+                    <span
+                      className={cn(
+                        'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center transition-all duration-200',
+                        item.completed ? 'border-success bg-success text-white' : 'border-border bg-transparent hover:border-success',
+                      )}
+                    >
+                      {item.completed && <Check size={11} strokeWidth={3} />}
+                    </span>
                   </button>
 
                   <div className="text-[13px] font-mono text-muted-foreground shrink-0 w-7 text-center mt-0.5">
@@ -453,12 +487,12 @@ export default function PhaseBlock({
                       ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
                       : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
                     }
-                    <button onClick={e => openItemEditPanel(item, e)} className="text-[11px] font-mono px-2 py-0.5 border border-border rounded text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                    <button onClick={e => openItemEditPanel(item, e)} className="text-[11px] font-mono px-2.5 py-1.5 min-h-[32px] border border-border rounded text-muted-foreground hover:border-primary hover:text-primary transition-colors">
                       EDIT
                     </button>
                   </div>
 
-                  <button onClick={() => onDeleteItem(item.id)} className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all ml-0.5">
+                  <button onClick={() => onDeleteItem(item.id)} title="Delete item" className="icon-btn min-w-[36px] -my-2.5 -mr-1.5 shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -471,9 +505,18 @@ export default function PhaseBlock({
                       <div className="space-y-2.5">
                         <div>
                           <label className={labelCls}>Item Name</label>
+                          {/* ⚠️ `placeholder={item.name}`, not a literal. Tre, 2026-08-24: *"when
+                              adding an item, dont make the 'New Item' text the actual tile, its
+                              just a place holder."* A freshly added row is stored as "New Item"
+                              (`Builds.handleAddItem`) and the panel used to open with that word
+                              as the VALUE, so every item began with a deletion. Blank now, and
+                              the placeholder is whatever the row would keep if it were saved
+                              blank (`saveItemEdit` falls back to `item.name`), so the hint can
+                              never promise something the save would not do. */}
                           <input
                             className={inputCls}
                             value={itemEdits[item.id].name}
+                            placeholder={item.name}
                             maxLength={LIMITS.itemName}
                             onChange={e => updateItemEdit(item.id, 'name', e.target.value)}
                             onKeyDown={e => { if (e.key === 'Escape') setOpenItemEdit(null); }}
@@ -737,7 +780,12 @@ export default function PhaseBlock({
               setItemEdits(prev => ({
                 ...prev,
                 [newId]: {
-                  name: 'New Item', brand: '', price: '', link: '',
+                  // Blank, so the field shows its placeholder rather than a word to delete.
+                  // The ROW is still stored as "New Item" by `handleAddItem` and that is what
+                  // saving blank keeps, so nothing is ever left nameless. `newPlanName` is a
+                  // different field (the payment plan's own name) and its validation requires
+                  // one, so it keeps the seeded value exactly as `openItemEditPanel` does.
+                  name: '', brand: '', price: '', link: '',
                   moveToPhaseId: phase.id,
                   linkMode: 'none',
                   linkedTransactionId: '', txDate: today, txAmount: '', txNote: '', isNewTransaction: false,

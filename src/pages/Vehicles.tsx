@@ -1275,7 +1275,7 @@ export default function Vehicles() {
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Garage</h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">Every vehicle from saving to payoff — and every build</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Every vehicle from saving to payoff, and every build</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SurfaceGuide surface="garage" />
