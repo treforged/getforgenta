@@ -78,6 +78,15 @@ after Tre's usage limit reset; both mobile builders had made NO source edits whe
 killed them, resumed with context intact.)
 Note: ask 11 arrived after ask 10 - "also, make odometer an optional field if it wasnt
 already'" (Log Service form; relayed to the mobile builder, check-first semantics).
+Ask 12 OPEN, needs Tre's disambiguation: "also want to be able to schedule transactions by
+week". SCOUTED: weekly already exists everywhere obvious - rule editor offers
+Weekly/Biweekly/Monthly/Yearly with day-of-week (BudgetControl.tsx:830-831), payment plans
+offer Weekly/Every 2 Weeks/Monthly (Transactions.tsx:1131-1133), engine generates weekly
+occurrences. Likeliest readings: (a) RECOMMENDED - the Transactions add-transaction dialog
+gains a "repeats weekly/biweekly/monthly" option that creates the recurring rule behind the
+scenes (fewer taps, no Budget Control trip); (b) a week-granular view/filter on the
+Transactions list (today it filters by month); (c) something Builds-specific he saw. Asked
+in chat; do not build until answered.
 Its report lands as a task notification; if this session was cleared, the report text is in
 `C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\a64df2ed09d2b7085.output`
 (JSONL; the final assistant message is the report - read just the tail). Manager duties on
