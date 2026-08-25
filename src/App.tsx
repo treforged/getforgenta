@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
 import Analytics from "@/components/shared/Analytics";
+import ResumeRecovery from "@/components/shared/ResumeRecovery";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
 import { AI_ADVISOR_ENABLED, ERROR_TEST_ENABLED } from "@/lib/feature-flags";
@@ -464,6 +465,7 @@ const App = () => (
           <AuthProvider>
             <SubscriptionProvider>
               <DeepLinkHandler />
+              <ResumeRecovery />
               <AppRoutes />
               <BlackScreenDebug />
             </SubscriptionProvider>
@@ -476,6 +478,7 @@ const App = () => (
           <AuthProvider>
             <SubscriptionProvider>
               <DeepLinkHandler />
+              <ResumeRecovery />
               <AppRoutes />
               <CookieBanner />
               <Analytics />

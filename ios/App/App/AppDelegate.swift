@@ -14,6 +14,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private var nativeCoverHideTimer: Timer?
     private var phoneLockTimer: Timer?
 
+    // Wall-clock ceiling on the cover, and whether this foreground has already spent its one reload.
+    //
+    // ⚠️ THE COVER USED TO HAVE NO DEADLINE AT ALL. Every dismissal path below advances only from
+    // inside a WKWebView JavaScript completion handler, so `attempt` only increments when the web
+    // content process answers. After a long background iOS suspends and routinely jetsams that
+    // process; when it never answers, `maxAttempts` is never reached, `hideNativeCover` is never
+    // called, and nothing else was scheduled that would remove the cover. That is the "stuck on the
+    // cover screen" Tre reported on 2026-08-24. This timer is the only thing in the class that does
+    // not depend on the WebView answering, so it is the only thing that can end that state.
+    private var coverDeadlineTimer: Timer?
+    private var coverReloadAttempted = false
+
     // True only between applicationWillEnterForeground and applicationDidBecomeActive.
     // applicationWillEnterForeground fires ONLY for user-initiated foreground transitions,
     // NOT for brief interruptions (Control Center, Face ID) or fresh process starts.
@@ -24,6 +36,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // True until the first applicationDidBecomeActive completes.
     // Identifies a fresh process start so the cover can poll instead of dismissing in 0.3s.
     private var isFirstLaunch = true
+
+    /// How long the cover may stay up before the app stops waiting for the WebView and reloads it.
+    ///
+    /// ⚠️ THIS MUST STAY LONGER THAN THE SLOWEST POLL CHAIN BELOW, or a launch that is merely slow
+    /// gets reloaded out from under itself. The longest is the fresh-start branch: 50 attempts at
+    /// 200 ms is 10 s, plus up to 1.6 s in waitForPaintThenDismiss, so 11.6 s. Anything still on
+    /// screen after 15 s is not slow, it is stuck. Re-check this if any maxAttempts changes.
+    private static let coverReloadAfter: TimeInterval = 15.0
+
+    /// How much longer the cover may stay up after that reload before it comes off regardless.
+    /// The reload polls for at most 20 attempts (4 s) plus the same 1.6 s paint wait, so 10 s leaves
+    /// room for it to finish honestly. Whatever is behind the cover at that point (the app, a
+    /// connection notice, an empty page) is more honest than a branded screen that never goes away.
+    private static let coverHardCeiling: TimeInterval = 10.0
 
     // Set by ViewController when WKWebView content process terminates.
     // Means the WebView needs a full network reload before we can reveal it.
@@ -75,6 +101,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         phoneLockTimer = nil
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = nil
+        // The deadline measures how long the app has been waiting while RUNNING. A timer left armed
+        // across a background would come due the instant the app resumes and reload a WebView that
+        // was about to answer perfectly well. applicationDidBecomeActive re-arms it.
+        cancelCoverDeadline()
         showNativeCover()
     }
 
@@ -101,6 +131,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             webViewProcessTerminated = false
             phoneLocked = false
         }
+
+        // Every branch below waits on the WebView. Arm the one clock that does not, before choosing
+        // which of them to wait with.
+        coverReloadAttempted = false
+        armCoverDeadline(AppDelegate.coverReloadAfter)
 
         if oAuthSessionPending {
             oAuthSessionPending = false
@@ -219,6 +254,49 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         nativeCover = cover
     }
 
+    /// Arms the wall-clock ceiling on the cover.
+    ///
+    /// This is the recovery path for a WebView that has stopped answering, so it deliberately shares
+    /// nothing with the polls: no `evaluateJavaScript`, no completion handler, no dependency on the
+    /// web content process being alive. It runs on the main run loop, which is running whenever the
+    /// app is foregrounded, and it is cancelled the moment the cover comes off for any other reason.
+    private func armCoverDeadline(_ delay: TimeInterval) {
+        coverDeadlineTimer?.invalidate()
+        coverDeadlineTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.handleCoverDeadline()
+        }
+    }
+
+    private func cancelCoverDeadline() {
+        coverDeadlineTimer?.invalidate()
+        coverDeadlineTimer = nil
+    }
+
+    /// The cover has been up too long and the WebView has not answered.
+    ///
+    /// First time: reload it. This is Tre's "it should auto refresh": the app is loaded from a
+    /// remote `server.url` (capacitor.config.ts), so after a long background the way back to a live
+    /// page is a fresh load, and by this point in-place recovery has demonstrably not happened.
+    /// Second time: take the cover off anyway. A blank page or a connection notice is a state the
+    /// user can act on; a branded screen that never goes away is not.
+    private func handleCoverDeadline() {
+        guard nativeCover != nil else { cancelCoverDeadline(); return }
+
+        if !coverReloadAttempted {
+            coverReloadAttempted = true
+            debugLog("COVER_DEADLINE → reload")
+            // isBgReload so the reload does not re-trigger the PIN/biometric lock check. This is the
+            // app recovering itself, not the user opening it.
+            reloadThenPoll(maxAttempts: 20, isBgReload: true)
+            armCoverDeadline(AppDelegate.coverHardCeiling)
+            return
+        }
+
+        debugLog("COVER_DEADLINE → force hide")
+        cancelCoverDeadline()
+        hideNativeCover()
+    }
+
     private func scheduleNativeCoverDismiss(after delay: TimeInterval) {
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
@@ -308,9 +386,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard let cover = nativeCover else { return }
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = nil
+        cancelCoverDeadline()
         UIView.animate(withDuration: 0.5, animations: {
             cover.alpha = 0
-        }, completion: { [weak self] _ in
+        }, completion: { [weak self] finished in
+            // finished is false when something interrupted this fade - notably showNativeCover's
+            // removeAllAnimations() on a background during the 0.5s dismiss. Tearing the view down
+            // anyway removed the privacy cover show had just put up, exposing balances in the App
+            // Switcher. An interrupted hide leaves the cover to whoever interrupted it; a stuck
+            // half-faded cover is ended by the deadline timer, never by this completion.
+            guard finished else { return }
             cover.removeFromSuperview()
             self?.nativeCover = nil
         })
