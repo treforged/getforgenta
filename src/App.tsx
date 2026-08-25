@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { ViewedProfileProvider } from "@/contexts/ViewedProfileContext";
 import BlackScreenDebug from "@/components/debug/BlackScreenDebug";
 import { captureReferral } from "@/lib/referral";
 import { App as CapApp } from '@capacitor/app';
@@ -464,10 +465,14 @@ const App = () => (
           <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>
-              <DeepLinkHandler />
-              <ResumeRecovery />
-              <AppRoutes />
-              <BlackScreenDebug />
+              {/* The partner-view lens. Session-scoped by design — inside Auth/Demo/
+                  Subscription so it can read all three, never persisted anywhere. */}
+              <ViewedProfileProvider>
+                <DeepLinkHandler />
+                <ResumeRecovery />
+                <AppRoutes />
+                <BlackScreenDebug />
+              </ViewedProfileProvider>
             </SubscriptionProvider>
           </AuthProvider>
           </DemoProvider>
@@ -477,11 +482,14 @@ const App = () => (
           <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>
-              <DeepLinkHandler />
-              <ResumeRecovery />
-              <AppRoutes />
-              <CookieBanner />
-              <Analytics />
+              {/* Same placement as the native branch — see the comment there. */}
+              <ViewedProfileProvider>
+                <DeepLinkHandler />
+                <ResumeRecovery />
+                <AppRoutes />
+                <CookieBanner />
+                <Analytics />
+              </ViewedProfileProvider>
             </SubscriptionProvider>
           </AuthProvider>
           </DemoProvider>

@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import MobileTopBar from './MobileTopBar';
 import DemoBanner from '@/components/shared/DemoBanner';
+import PartnerViewBanner from '@/components/shared/PartnerViewBanner';
 import { useDemo } from '@/contexts/DemoContext';
 import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
 import { useAutoEndSyncReconcile } from '@/hooks/useAutoEndReconcile';
@@ -31,6 +32,9 @@ export default function DashboardLayout() {
         <div className="sticky top-0 z-40 bg-background" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <MobileTopBar />
           <DemoBanner />
+          {/* The partner-view lens announces itself exactly the way demo does: a
+              persistent strip in the sticky header, on every route it applies to. */}
+          <PartnerViewBanner />
         </div>
 
         <main

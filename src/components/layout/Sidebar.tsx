@@ -2,11 +2,13 @@ import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  TrendingUp, Home, Sparkles, Zap, Car, ArrowLeft,
+  TrendingUp, Home, Sparkles, Zap, Car, ArrowLeft, Eye,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemoSession } from '@/hooks/useDemoSession';
+import { useViewedProfile } from '@/contexts/ViewedProfileContext';
+import { usePartnerLinkStatus } from '@/hooks/usePartnerLink';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
@@ -61,6 +63,18 @@ export default function Sidebar() {
    * badge that failed to compute look identical.
    */
   const reviewQueueCount = useBankReviewQueueCount();
+
+  /**
+   * The partner-view switcher (partner-linking design §4 Phase 1). Rendered only when
+   * there is genuinely somewhere to switch TO: not demo, and an ACTIVE link with the
+   * partner's id on it. Absent for everyone else — an entry that opens onto nothing
+   * would be a dead button. Deliberately NOT gated on the viewer's own premium:
+   * premium is enforced server-side at INVITE time and the invitee rides along
+   * (design §5, the household-plan promise), so an active link IS the entitlement.
+   */
+  const { isPartnerView, switchTo, switchBack } = useViewedProfile();
+  const { partnerUserId, partnerLabel } = usePartnerLinkStatus();
+  const showPartnerSwitch = !isDemo && !!partnerUserId;
 
   // Brand link: dashboard if logged in, landing if demo/auth
   const brandTo = isDemo ? '/' : '/dashboard';
@@ -150,6 +164,28 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-2 border-t border-sidebar-border space-y-1">
+        {showPartnerSwitch && (
+          <button
+            onClick={() => (isPartnerView ? switchBack() : switchTo(partnerUserId))}
+            title={isPartnerView
+              ? 'Stop viewing your partner and return to your own data'
+              : `View ${partnerLabel ?? 'your partner'}'s budget, read only`}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 text-xs font-medium transition-colors w-full btn-press',
+              isPartnerView
+                ? 'text-primary bg-primary/8 hover:bg-primary/12'
+                : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50',
+            )}
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <Eye size={16} className="shrink-0" />
+            {!collapsed && (
+              <span className="truncate">
+                {isPartnerView ? 'Back to my account' : `View ${partnerLabel ?? 'partner'}`}
+              </span>
+            )}
+          </button>
+        )}
         {/* A signed-in user looking at the reference account leaves it, they do not sign up for it
             — one predicate, `useDemoSession().isPreview`, shared with the banner and the mobile
             menu so the three cannot offer three different doors. */}

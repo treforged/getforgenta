@@ -18,6 +18,7 @@ interface TrustedDevice {
   last_seen: string;
 }
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
+import { PartnerLink } from '@/components/settings/PartnerLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -630,6 +631,11 @@ export default function SettingsPage() {
 
           {/* Linked Accounts */}
           <LinkedAccounts />
+
+          <div className="border-t border-border" />
+
+          {/* Partner Link (partner-linking design §4 Phase 1) */}
+          <PartnerLink />
 
           <div className="border-t border-border" />
 

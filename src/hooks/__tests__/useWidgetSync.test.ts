@@ -9,10 +9,23 @@ vi.mock('@/plugins/widget-bridge', () => ({
   WidgetBridge: { updateWidget: mockUpdateWidget },
 }));
 
+// Home-screen widgets only ever sync the OWNER's numbers (partner-linking design §5).
+// Default false so every pre-existing case runs exactly as before.
+let isPartnerView = false;
+vi.mock('@/contexts/ViewedProfileContext', () => ({
+  useViewedProfile: () => ({
+    viewedUserId: undefined,
+    isPartnerView,
+    switchTo: vi.fn(),
+    switchBack: vi.fn(),
+  }),
+}));
+
 describe('useWidgetSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    isPartnerView = false;
   });
 
   afterEach(() => {
@@ -60,6 +73,15 @@ describe('useWidgetSync', () => {
       { initialProps: { enabled: true } },
     );
     rerender({ enabled: false });
+    await act(() => vi.runAllTimersAsync());
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('never fires in partner view, even when enabled — widgets show the owner\'s money only', async () => {
+    isPartnerView = true;
+    renderHook(() =>
+      useWidgetSync({ monthEndCash: 999, netWorth: 9999, enabled: true }),
+    );
     await act(() => vi.runAllTimersAsync());
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });

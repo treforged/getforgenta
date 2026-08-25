@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'react-router';
-import { Menu, Settings, Crown, LogOut, Home, X, Sparkles } from 'lucide-react';
+import { Menu, Settings, Crown, LogOut, Home, X, Sparkles, Eye } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemoSession } from '@/hooks/useDemoSession';
+import { useViewedProfile } from '@/contexts/ViewedProfileContext';
+import { usePartnerLinkStatus } from '@/hooks/usePartnerLink';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 /**
@@ -34,6 +36,12 @@ export default function MobileTopBar() {
   const { signOut } = useAuth();
   const { isDemo, isPreview, leaveDemo } = useDemoSession();
   const { isPremium } = useSubscription();
+
+  // The partner-view switcher — same predicate as the sidebar's, so the two menus
+  // cannot disagree about whether there is a partner to view.
+  const { isPartnerView, switchTo, switchBack } = useViewedProfile();
+  const { partnerUserId, partnerLabel } = usePartnerLinkStatus();
+  const showPartnerSwitch = !isDemo && !!partnerUserId;
 
   // The drawer stores the route it was opened on rather than a bare boolean, so it closes itself
   // the moment the route changes — covering the links inside it, the bottom tabs, the back button
@@ -117,6 +125,24 @@ export default function MobileTopBar() {
             </div>
 
             <div className="p-2 space-y-1">
+              {showPartnerSwitch && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    if (isPartnerView) switchBack(); else switchTo(partnerUserId);
+                  }}
+                  className={cn(
+                    'flex items-center gap-2.5 px-3 py-3 text-sm font-medium transition-colors btn-press w-full',
+                    isPartnerView ? 'text-primary bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+                  )}
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  <Eye size={16} />
+                  <span className="truncate">
+                    {isPartnerView ? 'Back to my account' : `View ${partnerLabel ?? 'partner'}`}
+                  </span>
+                </button>
+              )}
               {menuItems.map(item => {
                 const active = pathname === item.to;
                 return (

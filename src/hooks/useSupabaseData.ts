@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
+import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { toast } from 'sonner';
 import { useRecordCrowdVote } from '@/hooks/useCrowdCategories';
 import { applyLinkedLoanBalances } from '@/lib/vehicle-loan-link';
@@ -25,6 +26,16 @@ import {
 } from '@/lib/synced-transaction-review';
 import type { LedgerDraft } from '@/lib/synced-transaction-import';
 
+// ─── Partner view (docs/partner-linking-design.md §2) ─────────────────────────
+//
+// READS in this file key and filter on `viewedUserId` — the lens from
+// ViewedProfileContext, which is the partner's id in partner view and the user's own id
+// (or undefined, hence the `?? user.id` fallback: FAILS CLOSED to self) everywhere else.
+// MUTATIONS never touch the lens: every write stays pinned to `user.id` AND refuses
+// outright while the lens is on the partner, by the same guard shape demo mode uses.
+// The server enforces the same split — partner RLS policies are SELECT-only.
+const PARTNER_VIEW_READ_ONLY = "Read only: you are viewing your partner's budget";
+
 // ─── Accounts (Centralized) ──────────────────────────────
 
 
@@ -35,9 +46,10 @@ export type AccountRow = Partial<Tables<'accounts'>> & {
 export function useAccounts() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['accounts', isDemo ? 'demo' : user?.id],
+    queryKey: ['accounts', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<AccountRow[]> => {
       if (isDemo || !user) return demoAccounts;
@@ -45,7 +57,7 @@ export function useAccounts() {
       // user's own order (see `src/lib/account-order.ts`); `created_at` is what ordered this list
       // before that column existed and is still the tiebreak, so two rows sharing a rank — a
       // brand-new account at the default, say — can never render in a different order twice.
-      const { data, error } = await supabase.from('accounts').select('*').eq('user_id', user.id)
+      const { data, error } = await supabase.from('accounts').select('*').eq('user_id', viewedUserId ?? user.id)
         .order('sort_order').order('created_at');
       if (error) throw error;
       return data ?? [];
@@ -53,7 +65,7 @@ export function useAccounts() {
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'accounts'>, 'user_id'>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       // A new account goes to the END of the list. The column defaults to 0, which would put it
       // at the top — the opposite of the date-added order it replaced.
       const sort_order = item.sort_order ?? nextAccountSortOrder(query.data ?? []);
@@ -65,7 +77,7 @@ export function useAccounts() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'accounts'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('accounts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -74,7 +86,7 @@ export function useAccounts() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('accounts').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -87,7 +99,7 @@ export function useAccounts() {
    */
   const reorder = useMutation({
     mutationFn: async (rows: { id: string; sort_order: number }[]) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       if (rows.length === 0) return;
       const results = await Promise.all(
         rows.map(r =>
@@ -115,13 +127,14 @@ export type RuleRow = Partial<Tables<'recurring_rules'>> & {
 export function useRecurringRules() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['recurring_rules', isDemo ? 'demo' : user?.id],
+    queryKey: ['recurring_rules', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<RuleRow[]> => {
       if (isDemo || !user) return demoRecurringRules;
-      const { data, error } = await supabase.from('recurring_rules').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('recurring_rules').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
@@ -136,7 +149,7 @@ export function useRecurringRules() {
      * existing caller ignores the return value and passes no flag, so both are additive.
      */
     mutationFn: async ({ quiet: _quiet, ...item }: Omit<TablesInsert<'recurring_rules'>, 'user_id'> & { quiet?: boolean }): Promise<string> => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
@@ -158,7 +171,7 @@ export function useRecurringRules() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'recurring_rules'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
@@ -170,7 +183,7 @@ export function useRecurringRules() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('recurring_rules').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
       // Deleting a rule must also scrub its id from savings_goals.linked_rule_ids /
@@ -205,20 +218,21 @@ export function useRecurringRules() {
 export function useAssets() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['assets', isDemo ? 'demo' : user?.id],
+    queryKey: ['assets', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoAssets.map((a, i) => ({ ...a, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('assets').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('assets').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; type: string; value: number; notes?: string }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('assets').insert(sanitizePayload({ ...item, user_id: user.id, notes: item.notes || '' }));
       if (error) throw error;
     },
@@ -227,7 +241,7 @@ export function useAssets() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; name?: string; type?: string; value?: number; notes?: string }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('assets').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -236,7 +250,7 @@ export function useAssets() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('assets').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -250,20 +264,21 @@ export function useAssets() {
 export function useLiabilities() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['liabilities', isDemo ? 'demo' : user?.id],
+    queryKey: ['liabilities', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoLiabilities.map((l, i) => ({ ...l, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('liabilities').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('liabilities').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; type: string; balance: number; apr?: number; notes?: string }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('liabilities').insert(sanitizePayload({ ...item, user_id: user.id, notes: item.notes || '', apr: item.apr || 0 }));
       if (error) throw error;
     },
@@ -272,7 +287,7 @@ export function useLiabilities() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'liabilities'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('liabilities').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -281,7 +296,7 @@ export function useLiabilities() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('liabilities').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -299,20 +314,21 @@ export type DebtRow = Partial<Tables<'debts'>> & {
 export function useDebts() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['debts', isDemo ? 'demo' : user?.id],
+    queryKey: ['debts', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<DebtRow[]> => {
       if (isDemo || !user) return demoDebts.map((d, i) => ({ ...d, id: String(i), user_id: 'demo', created_at: '', updated_at: '', credit_limit: d.credit_limit || 0 }));
-      const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('debts').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; balance: number; apr: number; min_payment: number; target_payment: number; credit_limit?: number }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('debts').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -321,7 +337,7 @@ export function useDebts() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'debts'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('debts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -330,7 +346,7 @@ export function useDebts() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('debts').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -344,13 +360,14 @@ export function useDebts() {
 export function useAccountReconciliations() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['account_reconciliations', isDemo ? 'demo' : user?.id],
+    queryKey: ['account_reconciliations', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: !isDemo && !!user,
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase.from('account_reconciliations').select('*').eq('user_id', user.id).order('effective_date', { ascending: false });
+      const { data, error } = await supabase.from('account_reconciliations').select('*').eq('user_id', viewedUserId ?? user.id).order('effective_date', { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -364,7 +381,7 @@ export function useAccountReconciliations() {
       actual_balance: number;
       projected_balance: number;
     }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('account_reconciliations').insert({ ...item, user_id: user.id });
       if (error) throw error;
     },
@@ -378,20 +395,21 @@ export function useAccountReconciliations() {
 export function useSavingsGoals() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['savings_goals', isDemo ? 'demo' : user?.id],
+    queryKey: ['savings_goals', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<Partial<Tables<'savings_goals'>>[]> => {
       if (isDemo || !user) return demoSavingsGoals.map((g, i) => ({ ...g, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('savings_goals').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('savings_goals').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; target_amount: number; current_amount: number; monthly_contribution: number; target_date?: string | null }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('savings_goals').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -400,7 +418,7 @@ export function useSavingsGoals() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'savings_goals'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('savings_goals').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -409,7 +427,7 @@ export function useSavingsGoals() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('savings_goals').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -423,6 +441,7 @@ export function useSavingsGoals() {
 export function useCarFunds() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   // A vehicle loan the user linked to a connected account is amortized from the BANK's
   // outstanding principal, not from the figure typed at activation, which nothing ever
@@ -432,18 +451,18 @@ export function useCarFunds() {
   // from its pure callers. See `vehicle-loan-link.ts`.
   const { data: accountsForLoanLink } = useAccounts();
   const query = useQuery({
-    queryKey: ['car_funds', isDemo ? 'demo' : user?.id],
+    queryKey: ['car_funds', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<CarFund[]> => {
       if (isDemo || !user) return demoCarFunds.map((c, i) => ({ ...c, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('car_funds').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('car_funds').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return (data ?? []) as unknown as CarFund[];
     },
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'car_funds'>, 'user_id'>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('car_funds').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -452,7 +471,7 @@ export function useCarFunds() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_funds'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       // `current_balance_override` is resolved, not stored — there is no such column. A caller
       // that spreads a whole CarFund into this mutation would otherwise send it and get a
       // schema error, so it is stripped here rather than depending on every call site.
@@ -466,7 +485,7 @@ export function useCarFunds() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('car_funds').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -484,19 +503,20 @@ export function useCarFunds() {
 export function useLumpSumTransfers() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['lump_sum_transfers', isDemo ? 'demo' : user?.id],
+    queryKey: ['lump_sum_transfers', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: !isDemo && !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from('lump_sum_transfers').select('*').eq('user_id', user!.id).order('date');
+      const { data, error } = await supabase.from('lump_sum_transfers').select('*').eq('user_id', viewedUserId ?? user!.id).order('date');
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: { date: string; amount: number; label?: string | null; destination_type: string }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('lump_sum_transfers').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -505,7 +525,7 @@ export function useLumpSumTransfers() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'lump_sum_transfers'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('lump_sum_transfers').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -514,7 +534,7 @@ export function useLumpSumTransfers() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('lump_sum_transfers').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -551,8 +571,9 @@ const SYNCED_TXN_FETCH_SLACK_DAYS = 7;
 export function useSyncedTransactions(monthKey: string) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   return useQuery({
-    queryKey: ['synced_transactions', isDemo ? 'demo' : user?.id, monthKey],
+    queryKey: ['synced_transactions', isDemo ? 'demo' : (viewedUserId ?? user?.id), monthKey],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<SyncedTransactionRow[]> => {
       if (isDemo || !user) return [];
@@ -564,7 +585,7 @@ export function useSyncedTransactions(monthKey: string) {
       const { data, error } = await supabase
         .from('synced_transactions')
         .select('id, account_id, amount, date, pending, name, merchant_name')
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .eq('pending', false)
         .gte('date', from)
         .lte('date', to);
@@ -618,8 +639,9 @@ const SYNCED_TXN_MAX_PAGES = 50;
 export function useAllSyncedTransactions() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   return useQuery({
-    queryKey: ['synced_transactions', 'all', isDemo ? 'demo' : user?.id],
+    queryKey: ['synced_transactions', 'all', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<BankActivityRow[]> => {
       if (isDemo) return demoSyncedTransactions;
@@ -630,7 +652,7 @@ export function useAllSyncedTransactions() {
         const { data, error } = await supabase
           .from('synced_transactions')
           .select('id, account_id, amount, date, pending, name, merchant_name, category')
-          .eq('user_id', user.id)
+          .eq('user_id', viewedUserId ?? user.id)
           .eq('pending', false)
           .order('date', { ascending: false })
           .order('id', { ascending: false })
@@ -725,15 +747,16 @@ const asReviewInput = (row: SyncedTransactionReviewRow): ReviewInput => ({
 export function useSyncedTransactionReviewsQuery() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   return useQuery({
-    queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : user?.id],
+    queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<SyncedTransactionReviewRow[]> => {
       if (isDemo || !user) return [];
       const { data, error } = await supabase
         .from('synced_transaction_reviews')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', viewedUserId ?? user.id);
       if (error) throw error;
       return data ?? [];
     },
@@ -743,17 +766,18 @@ export function useSyncedTransactionReviewsQuery() {
 export function useSyncedTransactionReviews() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const recordCrowdVote = useRecordCrowdVote();
   const query = useQuery({
-    queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : user?.id],
+    queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<SyncedTransactionReviewRow[]> => {
       if (isDemo || !user) return [];
       const { data, error } = await supabase
         .from('synced_transaction_reviews')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', viewedUserId ?? user.id);
       if (error) throw error;
       return data ?? [];
     },
@@ -772,7 +796,7 @@ export function useSyncedTransactionReviews() {
   // `rule_id` would read as linked to any query that checks the FK without the status.
   const save = useMutation({
     mutationFn: async (input: ReviewInput) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const problem = validateReviewInput(input);
       if (problem) throw new Error(problem);
       const existing = await fetchChargeReviews(user.id, input.synced_transaction_id);
@@ -819,7 +843,7 @@ export function useSyncedTransactionReviews() {
     // row and the `'imported'` decision in one act below. A caller that does not know the merchant
     // simply does not vote; nothing else changes.
     mutationFn: async ({ syncedTransactionId, category, merchantKey }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       // The lookup moved off the cached `query.data` and onto the database for the same reason the
       // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
       // fail silently or unactionably.
@@ -877,7 +901,7 @@ export function useSyncedTransactionReviews() {
   // that and hands back the exact row, precisely so the guard and the row cannot drift apart.
   const importToLedger = useMutation({
     mutationFn: async ({ syncedTransactionId, draft }: { syncedTransactionId: string; draft: LedgerDraft }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { data: inserted, error: insertError } = await supabase
         .from('transactions')
         .insert(sanitizePayload({ ...draft, user_id: user.id }))
@@ -950,7 +974,7 @@ export function useSyncedTransactionReviews() {
   // for free and returns the charge to unreviewed and re-importable.
   const undoImport = useMutation({
     mutationFn: async (transactionId: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('transactions').delete().eq('id', transactionId).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -965,7 +989,7 @@ export function useSyncedTransactionReviews() {
   // undoes a decision, and what makes an import re-importable after the ledger row is removed.
   const remove = useMutation({
     mutationFn: async (syncedTransactionId: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase
         .from('synced_transaction_reviews')
         .delete()
@@ -986,7 +1010,7 @@ export function useSyncedTransactionReviews() {
   // whose meaning changed under it when the constraint was dropped.
   const removeLink = useMutation({
     mutationFn: async (reviewId: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase
         .from('synced_transaction_reviews')
         .delete()
@@ -1009,20 +1033,21 @@ export type TransactionRow = Partial<Tables<'transactions'>> & {
 export function useTransactions() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['transactions', isDemo ? 'demo' : user?.id],
+    queryKey: ['transactions', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<TransactionRow[]> => {
       if (isDemo || !user) return demoTransactions.map((t, i) => ({ ...t, id: String(i), user_id: 'demo', created_at: '', updated_at: '', payment_source: t.payment_source || 'bank_account' }));
-      const { data, error } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false });
+      const { data, error } = await supabase.from('transactions').select('*').eq('user_id', viewedUserId ?? user.id).order('date', { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string | null; car_build_item_id?: string | null; car_maintenance_log_id?: string | null }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' })).select().single();
       if (error) throw error;
       return data;
@@ -1032,7 +1057,7 @@ export function useTransactions() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'transactions'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('transactions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1043,7 +1068,7 @@ export function useTransactions() {
     // Accepts a bare id, or `{ id, silentSuccess }` when the delete is one half of a larger action
     // (N7's convert-to-plan) whose caller owns the single success toast. Errors always toast.
     mutationFn: async (vars: string | { id: string; silentSuccess?: boolean }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const id = typeof vars === 'string' ? vars : vars.id;
       const { error } = await supabase.from('transactions').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -1084,6 +1109,10 @@ const demoSubs = [
 export function useSubscriptions() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  // ⚠️ READ PINNED TO OWN USER. `subscriptions` is explicitly OFF the partner allowlist
+  // (design §2) — there is no partner SELECT policy, so a lensed read would return
+  // nothing. In partner view this panel keeps showing the owner's own rows: fails closed.
+  const { isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['subscriptions', isDemo ? 'demo' : user?.id],
@@ -1097,7 +1126,7 @@ export function useSubscriptions() {
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'subscriptions'>, 'user_id'>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('subscriptions').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -1106,7 +1135,7 @@ export function useSubscriptions() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'subscriptions'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('subscriptions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1115,7 +1144,7 @@ export function useSubscriptions() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('subscriptions').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1142,20 +1171,21 @@ const demoBudgetItems = [
 export function useBudgetItems() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['budget_items', isDemo ? 'demo' : user?.id],
+    queryKey: ['budget_items', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoBudgetItems.map((b, i) => ({ ...b, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('budget_items').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('budget_items').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'budget_items'>, 'user_id'>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('budget_items').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -1164,7 +1194,7 @@ export function useBudgetItems() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'budget_items'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('budget_items').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1173,7 +1203,7 @@ export function useBudgetItems() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('budget_items').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1205,6 +1235,10 @@ const DEFAULT_PROFILE: Partial<Tables<'profiles'>> = {
 export function useProfile() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  // ⚠️ READ PINNED TO OWN USER. `profiles` is explicitly OFF the partner allowlist —
+  // it carries trusted_devices, tax detail and consent state (design §2). Phase 1
+  // renders the partner view without the partner's profile; the lens never reaches here.
+  const { isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['profile', isDemo ? 'demo' : user?.id],
@@ -1237,7 +1271,7 @@ export function useProfile() {
   });
   const update = useMutation({
     mutationFn: async (item: Partial<Tables<'profiles'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('profiles').update(sanitizePayload(item)).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1251,10 +1285,11 @@ export function useProfile() {
 export function useNetWorthSnapshots() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['net_worth_snapshots', isDemo ? 'demo' : user?.id],
+    queryKey: ['net_worth_snapshots', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo) {
@@ -1270,7 +1305,7 @@ export function useNetWorthSnapshots() {
       const { data, error } = await supabase
         .from('net_worth_snapshots')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .order('snapshot_date', { ascending: true });
       if (error) throw error;
       return data ?? [];
@@ -1284,7 +1319,10 @@ export function useNetWorthSnapshots() {
       total_liabilities: number;
       net_worth: number;
     }) => {
-      if (isDemo || !user) return; // silently skip in demo
+      // Silently skip in demo AND in partner view: the recorder computes totals from
+      // whatever the lens is showing, and the partner's net worth must never be written
+      // into the owner's snapshot history (design §5).
+      if (isDemo || isPartnerView || !user) return;
       const { error } = await supabase
         .from('net_worth_snapshots')
         .upsert(
@@ -1355,13 +1393,14 @@ const demoPaymentPlans: PaymentPlan[] = [
 export function usePaymentPlans() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['payment_plans', isDemo ? 'demo' : user?.id],
+    queryKey: ['payment_plans', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoPaymentPlans;
-      const { data, error } = await supabase.from('payment_plans').select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('payment_plans').select('*').eq('user_id', viewedUserId ?? user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
     },
@@ -1371,7 +1410,7 @@ export function usePaymentPlans() {
     // convert-to-plan pairs it with a transaction delete) show ONE toast for the whole action
     // instead of three. Errors always toast — only the success message is the caller's to own.
     mutationFn: async ({ silentSuccess: _, ...item }: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'> & { silentSuccess?: boolean }) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { data, error } = await supabase.from('payment_plans').insert(sanitizePayload({ ...item, user_id: user.id })).select().single();
       if (error) throw error;
       return data as unknown as PaymentPlan;
@@ -1381,7 +1420,7 @@ export function usePaymentPlans() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'payment_plans'>>) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('payment_plans').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1390,7 +1429,7 @@ export function usePaymentPlans() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       const { error } = await supabase.from('payment_plans').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1406,17 +1445,18 @@ const _EMPTY_ARR: CarBuild[] = [];
 export function useCarBuilds() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['car_builds', isDemo ? 'demo' : user?.id],
+    queryKey: ['car_builds', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<CarBuild[]> => {
       if (isDemo || !user) return demoCarBuilds as CarBuild[];
       const { data, error } = await supabase
         .from('car_builds')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .order('sort_order');
       if (error) throw error;
       return (data ?? []) as CarBuild[];
@@ -1425,7 +1465,7 @@ export function useCarBuilds() {
 
   const add = useMutation({
     mutationFn: async (item: { name: string; year?: number | null; make?: string | null; model?: string | null; notes?: string | null; sort_order?: number }) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_builds')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1440,7 +1480,7 @@ export function useCarBuilds() {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_builds'>>) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_builds')
         .update(sanitizePayload(item))
@@ -1454,7 +1494,7 @@ export function useCarBuilds() {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_builds')
         .delete()
@@ -1473,6 +1513,7 @@ export function useCarBuilds() {
 export function useCarBuildPhases(buildId: string | null) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -1485,7 +1526,7 @@ export function useCarBuildPhases(buildId: string | null) {
         .from('car_build_phases')
         .select('*')
         .eq('build_id', buildId)
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .order('sort_order');
       if (error) throw error;
       return data ?? [];
@@ -1494,7 +1535,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const add = useMutation({
     mutationFn: async (item: { title: string; build_id: string; sort_order?: number }) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_build_phases')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1509,7 +1550,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_build_phases'>>) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_phases')
         .update(sanitizePayload(item))
@@ -1523,7 +1564,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_phases')
         .delete()
@@ -1537,7 +1578,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const reorder = useMutation({
     mutationFn: async (rows: { id: string; sort_order: number }[]) => {
-      if (!user || !buildId) throw new Error('Not authenticated');
+      if (isPartnerView || !user || !buildId) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const results = await Promise.all(
         rows.map(r =>
           supabase.from('car_build_phases')
@@ -1569,16 +1610,17 @@ export function useCarBuildPhases(buildId: string | null) {
 export function useAllCarBuildItems() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
 
   const query = useQuery({
-    queryKey: ['car_build_items', 'all', isDemo ? 'demo' : user?.id],
+    queryKey: ['car_build_items', 'all', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoCarBuildItems;
       const { data, error } = await supabase
         .from('car_build_items')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .order('sort_order');
       if (error) throw error;
       return data ?? [];
@@ -1591,6 +1633,7 @@ export function useAllCarBuildItems() {
 export function useCarBuildItems(buildId: string | null) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -1603,7 +1646,7 @@ export function useCarBuildItems(buildId: string | null) {
         .from('car_build_items')
         .select('*')
         .eq('build_id', buildId)
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .order('sort_order');
       if (error) throw error;
       return data ?? [];
@@ -1612,7 +1655,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const add = useMutation({
     mutationFn: async (item: { name: string; phase_id: string; build_id: string; brand?: string | null; price?: number | null; link?: string | null; sort_order?: number }) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_build_items')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1627,7 +1670,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_build_items'>>) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_items')
         .update(sanitizePayload(item))
@@ -1641,7 +1684,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_items')
         .delete()
@@ -1655,7 +1698,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const reorder = useMutation({
     mutationFn: async (rows: { id: string; sort_order: number; phase_id: string }[]) => {
-      if (!user || !buildId) throw new Error('Not authenticated');
+      if (isPartnerView || !user || !buildId) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const results = await Promise.all(
         rows.map(r =>
           supabase.from('car_build_items')
@@ -1680,6 +1723,7 @@ const _EMPTY_MAINTENANCE: CarMaintenanceLog[] = [];
 export function useCarMaintenanceLogs(buildId: string | null) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const { viewedUserId, isPartnerView } = useViewedProfile();
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -1692,7 +1736,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
         .from('car_maintenance_logs')
         .select('*')
         .eq('build_id', buildId)
-        .eq('user_id', user.id)
+        .eq('user_id', viewedUserId ?? user.id)
         .order('service_date', { ascending: false });
       if (error) throw error;
       return (data ?? []) as CarMaintenanceLog[];
@@ -1701,7 +1745,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
 
   const add = useMutation({
     mutationFn: async (item: Omit<Tables<'car_maintenance_logs'>, 'id' | 'user_id' | 'created_at'>) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_maintenance_logs')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1716,7 +1760,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_maintenance_logs'>>) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_maintenance_logs')
         .update(sanitizePayload(item))
@@ -1730,7 +1774,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (!user) throw new Error('Not authenticated');
+      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
       const { error } = await supabase
         .from('car_maintenance_logs')
         .delete()
