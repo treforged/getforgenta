@@ -6,11 +6,12 @@
 > deploys firing. Commits: `8ddef2ad` re-anchor (Next Paycheck + Month-End Cash into Monthly
 > Snapshot hero), `a14671b4` always-visible "Where the extra money goes", `b60fb827` non-CC
 > debt cash+balance unification, `7aa783de` C3 copy minors, `47f6163f` txn-override lib
-> layer, plus docs. THE MOBILE BUILDER (asks 3-7, §B) WAS STILL RUNNING AT THE /clear
-> BOUNDARY - the next session's FIRST duty is to collect it: its tree changes appear as
-> uncommitted modifications, its report is at the §B output-file path if the task
-> notification was lost. Context-gate hook misfired all session (claimed 150-292k; real
-> budget ~14.9M); boundary honored here.**)
+> layer, plus docs. TWO BUILDERS (mobile-layout asks 3-8+10, resume-fix ask 9, §B) WERE
+> STILL RUNNING AT THE /clear BOUNDARY - the next session's FIRST duty is to collect BOTH:
+> their tree changes appear as uncommitted modifications (their file sets are
+> boundary-fenced and listed in §B), their reports are at the §B output-file paths if the
+> task notifications were lost. Commit each slice separately after review. Context-gate hook
+> misfired all session (claimed 150-292k; real budget ~14.9M); boundary honored here.**)
 
 ## A. THE ASKS (Tre, verbatim, this session)
 1. "other debts like student loans should operate like credit cards. they should also show in
@@ -35,16 +36,34 @@
 7. "also on build page, when adding a new item, dont make the 'New Item' text the actual
    tile, its just a place holder but it should force users to have to manually delete it."
    (prefilled value -> placeholder; empty-save path decided from sibling-form behavior)
+8. "for builds also, make it so the pop up menu for logging maintenace is always selectable."
+   (Log Service service-type dropdown vs soft keyboard: portal/z-index/visual-viewport fix,
+   relayed to the mobile builder)
+9. "in general. if a user leaves the app running in the background for too long, the app
+   stays stuck on the cover screen. it should auto refresh" (SEPARATE resume-fix builder
+   running - app lifecycle territory: cover-screen dismiss gate + Supabase token refresh on
+   Capacitor resume/visibilitychange; failure path must land on sign-in, never an infinite
+   cover. Report file if notification lost:
+   `C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\aae613c76d37686f3.output`)
+10. "also on the builds page, the text cut off is crazy. make it so text wraps cleanly if it
+    needs space" (Maintenance Log "Ca..." truncation -> wrap on narrow viewports, relayed to
+    the mobile builder)
 Also: "work on multiple things at the same time. you can delegate to more agents" - standing
 authorization for parallel builders this session.
 
-## B. 🔴 ACTIVE - mobile-layout builder RUNNING (collect before anything else)
-One opus-executor building asks 3-6 together (shared Garage/Builds files): dialog primitive
-fix (centered, dvh max-height, safe-area + tab-bar clearance, internal scroll, audited across
-modals); responsive stacking (Garage Builds directly below vehicle sections at narrow widths,
-same pattern audited on other main pages); phase-add refresh bug root-caused at the data
-layer (plus sibling mutations); 44px icon tap targets on Builds + audit. Also fixes two
-pre-existing em dashes in Garage copy.
+## B. 🔴 ACTIVE - TWO builders RUNNING (collect both before anything else)
+**Mobile-layout builder** - asks 3-8 and 10 (shared Garage/Builds/dialog files): dialog
+primitive fix (centered, dvh max-height, safe-area + tab-bar clearance, internal scroll,
+audited across modals); responsive stacking (Garage Builds directly below vehicle sections
+at narrow widths, same pattern audited on other main pages); phase-add refresh bug
+root-caused at the data layer (plus sibling mutations); 44px icon tap targets on Builds +
+audit; "New Item" prefill -> placeholder; Log Service dropdown selectable with keyboard up;
+Maintenance Log text wraps instead of "Ca..." truncation. Also fixes two pre-existing em
+dashes in Garage copy.
+**Resume-fix builder** - ask 9 (App.tsx/auth/lifecycle files only, boundary-fenced from the
+other builder): stuck-cover-screen-after-backgrounding, root-cause required (dismiss gate +
+Supabase token refresh on resume), web visibilitychange fallback, refresh-failure lands on
+sign-in.
 Its report lands as a task notification; if this session was cleared, the report text is in
 `C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\a64df2ed09d2b7085.output`
 (JSONL; the final assistant message is the report - read just the tail). Manager duties on
