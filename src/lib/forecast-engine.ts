@@ -1141,8 +1141,18 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
 
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
       // and goals whose linked account is funded by an active transfer rule this month (avoid double count)
+      //
+      // `pauseSavings` zeroes the whole term, matching the sim: useCardProjection.ts zeroes its own
+      // `goalContrib` (month 0) and drops `monthSavings` from every simulated month's expenses.
+      // Without this gate the toggle moved the Debt Payoff page's numbers and left the Forecast's
+      // savings line untouched — measured 2026-08-25 on the real capture, toggling it changed the
+      // forecast's total goal contribution by exactly $0.00 across all 36 months while the sim's
+      // cash walk had already dropped it. The two car-fund terms above (monthlyCarContrib,
+      // vehicleProjections) have always been gated the same way; goal contributions simply were
+      // not. Zeroing here also empties `savingsGoalItems`, so step 4c credits no goal pool and the
+      // month drawer shows no savings rows — a paused month must not grow a goal balance either.
       const savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[] = [];
-      const monthlySavingsContrib = goals.reduce((s, g) => {
+      const monthlySavingsContrib = pauseSavings ? 0 : goals.reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDestIds.has(g.linked_account)) return s;
@@ -1410,8 +1420,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;
 
-      // Step 1: savings + transfers + fixed car loan payments apply first as regular outflows
-      const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
+      // Step 1: savings + transfers + fixed car loan payments apply first as regular outflows.
+      // (`savingsOut` is defined below the affordability back-off — the goal half of it is no
+      // longer unconditional.)
       const transfersOut = b.monthTransfers;
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
       // Hoisted above the cash line below: the auto-extra reserve needs this month's cycling
@@ -1422,6 +1433,90 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // End-of-month cash IS next month's pre-paycheck cash, so neither the step-3 surplus branch
       // nor a reserve may spend below NEXT month's monthMinSafe either (Q9).
       const step3SpendFloor = Math.max(b.monthMinSafe, baseData[i + 1]?.monthMinSafe ?? b.monthMinSafe);
+
+      // This month's card block, hoisted out of the auto-extra branch below (which still reads all
+      // three, unchanged) because the affordability back-off needs the combined contract minimum
+      // BEFORE any cash line exists.
+      const simCards = cardProjectionData?.simCards ?? [];
+      const revBalAt = (id: string) => Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(id)?.[i] ?? 0);
+      const revBalTotal = simCards.reduce((sum, c) => sum + revBalAt(c.id), 0);
+      const ccMinForMonth = revBalTotal > 0
+        ? simCards.reduce((sum, c) => revBalAt(c.id) <= 0 ? sum
+            : sum + (cardProjectionData?.perCardMinPayments?.get(c.id)?.[i] ?? c.minPayment), 0)
+        : 0;
+
+      // ═══ AFFORDABILITY BACK-OFF: a goal contribution gives way before the floor does ═══
+      //
+      // PASS 1 sums every goal's `monthly_contribution` unconditionally, so a month with nowhere
+      // near the cash still "made" its transfers and simply ended below its own floor: measured
+      // 2026-08-25 on the real capture under an $8,000 April shock, Apr 2027 ended $2,232.54 UNDER
+      // its floor while still contributing the full $100. That is not what money does — the
+      // transfer that would overdraw the floor is the one that does not happen. The debt payment
+      // has always had this back-off (step 3's deficit branch feeds a lower target through
+      // convergence until the sim sits on its contract minimums); goal contributions did not.
+      //
+      // ⚠️ DEBT GIVES WAY FIRST, and that ordering is deliberate. The revolving payment is already
+      // the residual claimant on this month's cash, so the contribution is cut only for the
+      // shortfall that survives the payment falling to `ccMinForMonth` + this month's mandatory
+      // cycling statement. `pauseSavings` OFF is a standing instruction to keep saving — stopping
+      // a savings transfer while the cards are still taking three times their minimum would read
+      // as a bug, not a protection. It is also the smaller change: on the untouched fixture the
+      // back-off never fires at all (every month already ends above its floor).
+      //
+      // ⚠️ MONTH 0 IS EXEMPT. Its cash chain is live-anchored to useCardProjection's own month-0
+      // chain, which takes `goalContrib` whole, and runDebtCashConvergence substitutes NaN at
+      // m === 0 ("month 0 stays live-anchored") — so nothing decided here would ever be reconciled
+      // against the sim, and Dashboard and Forecast would print different month-0 ending cash for
+      // the same plan. Months 1+ ARE reconciled: a smaller outflow raises this month's cash, step 3
+      // feeds the difference back as a debt target, and the next pass's sim re-plans against it.
+      // A save-up month is exempt from the debt-headroom credit for the same kind of reason — step
+      // 3's deficit branch is gated off there, so that headroom would never actually be surrendered.
+      //
+      // ⚠️ SKIPPED IS SKIPPED, unless the goal opted into automatic extra. `decayAutoExtraCapacity`
+      // below is decayed by what was ACTUALLY contributed, so an opted-in goal's remaining need
+      // stays whole and the ranked waterfall refills it out of a later surplus month — that is the
+      // only catch-up mechanism this engine has, and no new one is invented here. A goal with
+      // `auto_extra` off loses the skipped month permanently, which the month drawer shows as a
+      // reduced (or absent) savings line rather than hiding.
+      const plannedDebtPayment = m0AllSettled ? 0 : (ledgerEntry ? ledgerEntry.total : debtPayments[i]);
+      const irreducibleDebt = Math.min(plannedDebtPayment, ccMinForMonth + (ledgerEntry?.cycling ?? 0));
+      const debtHeadroom = i > 0 && !strictSaveUpMonths.has(i)
+        ? Math.max(0, plannedDebtPayment - irreducibleDebt)
+        : 0;
+      // Ending cash if this month contributed nothing to goals. The CAR contribution is cash
+      // neutral to this test — it leaves `finalLiquid` and is added straight back by
+      // `cumulativeCarReserveHeld` (see rawEndingCash below), because that money has not actually
+      // been spent yet — so only the goal contribution can push a month under its floor here.
+      const endingCashWithoutGoalContrib = finalLiquid + b.netIncome - b.baseExpenses
+        - carContribThisMonth - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth
+        - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet
+        - plannedDebtPayment + cumulativeCarReserveHeld;
+      const goalContribApplied = i === 0 ? b.monthlySavingsContrib : Math.max(0, Math.min(
+        b.monthlySavingsContrib,
+        endingCashWithoutGoalContrib + debtHeadroom - b.monthMinSafe,
+      ));
+      // Pro-rata across the month's goals rather than by rank. The ranked waterfall
+      // (`computeAutoExtraReserve`) exists for allocating SURPLUS, where a priority order is the
+      // whole point; there is no recorded intent for which goal loses first when the base
+      // contributions themselves cannot all be made, so every goal takes the same proportional cut
+      // and no ordering is invented. Identity when nothing was cut, so an unaffected month keeps
+      // PASS 1's own array object.
+      // `amount > 0` mirrors PASS 1's own `if (contrib > 0)` gate on this array: a goal that put in
+      // nothing has never had a row here, and emitting a $0.00 line in the month drawer would read
+      // as a contribution that happened rather than one that did not. The row's `savingsContrib`
+      // total still reports the 0, so nothing is hidden — the drawer's savings section is simply
+      // empty for that month, exactly as it is for a month with no goals at all.
+      const goalContribCut = b.monthlySavingsContrib - goalContribApplied;
+      const savingsGoalItemsApplied = goalContribCut <= 0.005
+        ? b.savingsGoalItems
+        : b.savingsGoalItems
+            .map(item => ({
+              ...item,
+              amount: item.amount * (goalContribApplied / b.monthlySavingsContrib),
+            }))
+            .filter(item => item.amount > 0);
+      const savingsOut = goalContribApplied + carContribThisMonth;
+
       // RANKED AUTOMATIC EXTRA PAYMENTS — surplus opted-in goals and car funds took ahead of the
       // credit cards this month. `useCardProjection`'s month 0 is the ONE place the reserve is
       // decided (every user-facing debt surface reads it), and its own `chain.cashPreDebt` already
@@ -1444,7 +1539,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // subtracted BEFORE this month's reserve is decided: decide the reserve against a need the
       // contribution has already met and the target ends the month over-funded by exactly one
       // contribution. Step 4c below is where these same dollars are actually credited.
-      for (const item of b.savingsGoalItems) decayAutoExtraCapacity(item.goalId, item.amount);
+      //
+      // `savingsGoalItemsApplied`, not PASS 1's raw array: a month whose contribution was cut by
+      // the affordability back-off above must decay the capacity by what it ACTUALLY contributed,
+      // or the goal's remaining need would shrink by dollars that never moved — and the ranked
+      // waterfall (the only catch-up path there is) would never refill them.
+      for (const item of savingsGoalItemsApplied) decayAutoExtraCapacity(item.goalId, item.amount);
       for (const v of vehicleProjections) {
         if (i <= v.purchaseMonthIdx) decayAutoExtraCapacity(v.fundId, v.contrib);
       }
@@ -1457,14 +1557,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // The same three arguments month 0 builds, one month later: the card block's combined
         // minimum and balance, and a pool that is already net of the floor and the cycling spend.
         // `computeAutoExtraReserve` settles that combined minimum BEFORE it consults any rank, so
-        // no reserve here can push a month below its cards' minimums.
-        const simCards = cardProjectionData?.simCards ?? [];
-        const revBalAt = (id: string) => Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(id)?.[i] ?? 0);
-        const revBalTotal = simCards.reduce((sum, c) => sum + revBalAt(c.id), 0);
-        const ccMinForMonth = revBalTotal > 0
-          ? simCards.reduce((sum, c) => revBalAt(c.id) <= 0 ? sum
-              : sum + (cardProjectionData?.perCardMinPayments?.get(c.id)?.[i] ?? c.minPayment), 0)
-          : 0;
+        // no reserve here can push a month below its cards' minimums. (simCards / revBalAt /
+        // revBalTotal / ccMinForMonth are hoisted above the affordability back-off, which needs
+        // the same combined minimum — one definition each, read here unchanged.)
+        //
         // Floor: the same next-month-aware floor step 3 drains to (Q9), so a reserve can never
         // leave the FOLLOWING month starting below its own pre-paycheck floor.
         const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - step3SpendFloor - (ledgerEntry?.cycling ?? 0));
@@ -1665,7 +1761,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       totalLiabilityBal = adjCCLiab + nonCCDebtBalanceByMonth[i] + carLoanBalanceByMonth[i];
 
       // Step 4: per-account balance tracking
-      const actualGoalsSavings = b.monthlySavingsContrib;
+      const actualGoalsSavings = goalContribApplied;
       const actualCarSavings = carContribThisMonth;
       const actualTransfers = transfersOut;
       // Kept for existing popup display fields (brokerageContrib / retireContrib)
@@ -1702,8 +1798,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
       }
 
-      // 4c. Goal monthly contributions → linked savings account or goal pool
-      for (const item of b.savingsGoalItems) {
+      // 4c. Goal monthly contributions → linked savings account or goal pool. The APPLIED items,
+      // so a balance only grows by cash that actually left checking above (`savingsOut`).
+      for (const item of savingsGoalItemsApplied) {
         if (item.linkedAccount && perAcctSavings.has(item.linkedAccount)) {
           perAcctSavings.get(item.linkedAccount)!.balance += item.amount;
         } else {
@@ -1945,7 +2042,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // the earlier keep-balances-rounded call for that surface only.
         baseExpenses: b.baseExpenses,
         savingsContrib: actualGoalsSavings,
-        savingsGoalItems: b.savingsGoalItems,
+        savingsGoalItems: savingsGoalItemsApplied,
         carContrib: actualCarSavings,
         carContribItems: b.carContribItems,
         carReserveHeld: cumulativeCarReserveHeld,

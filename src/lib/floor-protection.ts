@@ -88,12 +88,10 @@ export interface FloorProtectionResult {
 /**
  * Reserve-based floor-breach protection.
  *
- * reserveNeeded[m] (backward pass) is the minimum cash required at the START of month m, beyond
- * that month's own bare floor, to guarantee no future floor breach through the last projected
- * month (PROJECTION_MONTHS - 1) — assuming
- * every month from m onward pays only as much above the minimum as it can truly spare. The
- * forward pass then caps each month's debt payment only enough to keep the ending balance at or
- * above what the following month's own reserveNeeded requires.
+ * requiredEndByMonth[m] (backward pass) is the minimum ENDING balance for month m that guarantees
+ * no month from m through the last projected month (PROJECTION_MONTHS - 1) ends below ITS OWN
+ * floor — assuming every month from m onward pays only as much above the minimum as it can truly
+ * spare. The forward pass then caps each month's debt payment only enough to reach it.
  *
  * This replaced an earlier all-or-nothing "is this month fully protected" flag, which required
  * an unbroken chain of fully-protected months reaching all the way back from any future breach —
@@ -129,16 +127,41 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - ccMin(m),
   );
 
-  const reserveNeeded: number[] = Array(PROJECTION_MONTHS + 1).fill(0);
+  // Minimum ENDING balance for each month, three requirements deep. The FIRST is the one this
+  // recurrence did not carry until 2026-08-25 and is the whole of the fix:
+  //
+  //   • floorByMonth[m]      — month m's OWN floor. `belowSafeMinimum` (forecast-engine.ts) judges
+  //                            every month against its own `monthMinSafe`, and the sim's cash walk
+  //                            does the same; this pass did not. It required only that month m end
+  //                            at the NEXT month's floor, so wherever a floor STEPS DOWN (the real
+  //                            2026-07-20 capture: Apr 2027's $3,332.12 against May's $2,800) the
+  //                            reserve demanded of every earlier month was short by exactly that
+  //                            step. Measured on the controlled probe (floor-protection.ownFloor
+  //                            test): $1,098 below the shock month's own floor, against $0 in the
+  //                            otherwise-identical flat-floor control.
+  //   • floorByMonth[m + 1]  — end-of-month cash IS next month's pre-paycheck cash, so month m + 1
+  //                            must start at or above its own floor (Q9, 2026-07-16).
+  //   • requiredEnd[m+1] − netAtMin[m+1]
+  //                          — the chain: whatever month m + 1 must end with, less what it can add
+  //                            on its own while paying only the minimum.
+  //
+  // The last two terms are algebraically what the previous `reserveNeeded` recurrence computed
+  // (reserveNeeded[m] + floorByMonth[m] was its implied required START balance, and
+  // nextFloor + reserveNeeded[m + 1] its implied required END balance). Restating it as an
+  // absolute ending balance — the same quantity the forward pass caps to, and the same quantity
+  // the engine's own floor test reads — is what made the missing term visible: the old form's
+  // "every month starts at its own floor" baseline silently assumed netAtMin[m] >= 0, which is
+  // false in precisely the month a large one-time expense lands.
+  const requiredEndByMonth: number[] = Array(PROJECTION_MONTHS).fill(0);
   for (let m = PROJECTION_MONTHS - 1; m >= 0; m--) {
     const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
-    const endBalAtMin = floorByMonth[m] + netAtMin[m];
-    reserveNeeded[m] = Math.max(0, nextFloor + reserveNeeded[m + 1] - endBalAtMin);
+    const fromChain = m + 1 < PROJECTION_MONTHS ? requiredEndByMonth[m + 1] - netAtMin[m + 1] : -Infinity;
+    requiredEndByMonth[m] = Math.max(floorByMonth[m], nextFloor, fromChain);
   }
 
   // Unprotected (no caps at all) trajectory, purely to identify which future months would
   // actually breach the floor and why — used only to label saveUpReason below, not to decide
-  // the caps themselves (reserveNeeded already does that more precisely).
+  // the caps themselves (requiredEndByMonth already does that more precisely).
   const rawBreachMonths: number[] = [];
   {
     let rawBal = startingBalance;
@@ -204,7 +227,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   };
 
   // Forward pass: the actual cash trajectory, capping each month's debt payment so the ending
-  // balance never dips below what reserveNeeded says the following month requires.
+  // balance never dips below what requiredEndByMonth says this month must end with.
   let bal = startingBalance;
   for (let m = 0; m < PROJECTION_MONTHS; m++) {
     const mInc = incomeByMonth[m];
@@ -215,17 +238,17 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const mCcMin = ccMin(m);
     const natural = Math.min(debtCap(m), Math.max(mCcMin, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor)));
 
-    // The cap must bind not only when a future at-minimum breach needs a reserve
-    // (reserveNeeded > 0) but also whenever next month's floor is simply HIGHER than this
-    // month's: `natural` drains cash to this month's own floor (mirroring PASS 3 / the sim's
-    // Step 5, which pin end cash to the current month's effectiveFloor), so a floor step-up
-    // between months left the next month starting below its own pre-paycheck floor with no cap
-    // ever emitted — reserveNeeded stays 0 because the at-minimum walk starts each month AT its
-    // floor and never models the drain (Q9: Discover's discretionary paydown drained months
-    // where the ISB-pinned month and later step-ups needed the cash).
-    const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
-    if (reserveNeeded[m + 1] > 0 || nextFloor > mFloor) {
-      const requiredEndBal = nextFloor + reserveNeeded[m + 1] + FLOOR_CUSHION_DOLLARS;
+    // `natural` drains cash to this month's OWN floor (mirroring PASS 3 / the sim's Step 5, which
+    // pin end cash to the current month's effectiveFloor), so a cap is needed exactly when this
+    // month must end HIGHER than that — whether because a future at-minimum breach needs a reserve
+    // banking here, or because next month's floor is simply higher than this one's (Q9: a floor
+    // step-up between months left the next month starting below its own pre-paycheck floor, since
+    // Discover's discretionary paydown drained the months the ISB-pinned month needed). Both are
+    // now single terms inside requiredEndByMonth[m], which is never below mFloor, so one
+    // comparison covers what two used to.
+    const requiredEnd = requiredEndByMonth[m];
+    if (requiredEnd > mFloor) {
+      const requiredEndBal = requiredEnd + FLOOR_CUSHION_DOLLARS;
       const availableForDebt = Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - requiredEndBal);
       const cap = Math.max(mCcMin, availableForDebt);
       maxDebtPaymentByMonth[m] = cap;
