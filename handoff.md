@@ -77,15 +77,28 @@ AuthContext:353 skipping idle timeout because of it - SECURITY-relevant); pollAp
 useOnboardingStatus 'pending' unbounded (eternal "Loading your setup..." if profile query
 hangs); capacitor.config.ts configures an uninstalled SplashScreen plugin.
 
-**⚠️ PARALLEL-SESSION GIT INCIDENT (resolved, Tre must know):** mid-session, another session
-popped a MONTHS-OLD stash (WIP on 95d93a58, June-era) onto this tree - conflict markers +
-unmerged index entries on credit-card-engine.ts blocked all commits. Resolution here:
-stage 2 (ours) was byte-identical to HEAD (no builder had touched the file), so resolved to
-HEAD - nothing lost; the old stash SURVIVES as stash@{0} ("WIP on main: 95d93a58") and
-stash@{1} ("temp stash before rebase") - not mine, not dropped, Tre's other session decides.
-A dangling commit `3cd29dac` "feat(builds): the service history rides the share link, or it
-does not" was on NO branch - pinned as branch `rescue/service-history-3cd29dac` so GC cannot
-eat it; the other session should land or delete it. Stale .git/REBASE_HEAD left in place.
+**⚠️ GIT INCIDENT - CORRECTED ATTRIBUTION (resolved):** the stash-pop conflict on
+credit-card-engine.ts was caused by THE MOBILE BUILDER's own `git stash push`/`pop` (its
+report owned it): its pop landed on a pre-existing MONTHS-OLD stash entry (WIP on 95d93a58)
+instead of its own. Resolution: stage 2 (ours) was byte-identical to HEAD, resolved to HEAD,
+nothing lost; the old stashes stash@{0}/@{1} remain untouched (pre-existing debris, some
+earlier session's). The dangling `3cd29dac` turned out to be PR #94's pre-rebase draft
+(merged 2026-08-12) - rescue branch deleted, nothing to fold. **NEW RULE for every builder
+brief: NO `git stash` in this tree, ever - parallel sessions share the stash stack.**
+Stale .git/REBASE_HEAD left in place.
+**✅ MOBILE SLICE COLLECTED and committed `ed89c7be`** (asks 3-8, 10, 11): tab bar z-50->z-40
+(was painting over every non-portalled modal - the root cause, two lines fix ALL modals) +
+modal-overlay 100dvh; seg-track wraps (REVERSED Tre's 2026-08-18 scroll-not-wrap decision on
+his explicit newer ask, comment records both sides; Garage/Debt/Activity fixed, Dashboard/
+Forecast pattern-free); phases-refresh bug = dragPhaseOrder snapshot shadowing the query
+after any edit, sync-back effect added, red/green proven; Builds adopts existing icon-btn
+(44px); New Item prefill -> placeholder={item.name}; platform datalist -> in-modal DOM;
+Maintenance Log wraps; odometer was already optional (pinned null-never-0). NOT verified on
+real WKWebView with live keyboard - check ask 8 on the phone after deploy. Leftovers for
+§D3: Debt's Credit Card Payoff panel still has a truncating span (165px overflow at 390);
+Vehicles.tsx demo copy carries 7 pre-existing em dashes (:1300,:1301,:504,:582,:602,:787,
+:961); useCarBuildPhases/Items key on demo-${buildId} but invalidate ['car_build_phases',
+buildId] - latent key mismatch (useSupabaseData.ts:1479 vs :1506).
 
 **✅ LIABILITY-RANKING COLLECTED and committed `13247199`** (lib layer): 'liability' rank
 kind (opt-in = accounts.surplus_sort_order non-null; NO auto_extra column on accounts, so
