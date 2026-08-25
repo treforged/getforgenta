@@ -28,7 +28,8 @@
  */
 
 import {
-  carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed, type RankableGoal,
+  carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed,
+  type RankableGoal, type RankableLiability,
 } from './ranked-extra-payment-targets';
 import type { CarFund } from './types';
 
@@ -42,7 +43,13 @@ export const CARDS_ROW_ID = '__cards__';
  *  "half each" and the number itself is arbitrary; 50 reads as a percentage to a human. */
 export const DEFAULT_SPLIT_SHARE = 50;
 
-export type SurplusRankKind = 'cards' | 'card' | 'goal' | 'car_fund' | 'loan';
+/**
+ * `loan` is the VEHICLE loan (a `car_funds` row in its loan phase); `liability` is any other
+ * non-credit-card debt the app can model — a student loan, a mortgage, an `other_liability`
+ * account paired to a `debts` row. Separate kinds because they are stored in different tables and
+ * credited from different projections; see `RankedTargetKind`.
+ */
+export type SurplusRankKind = 'cards' | 'card' | 'goal' | 'car_fund' | 'loan' | 'liability';
 
 export type SurplusRankRow = {
   /** A uuid for goals, car funds, loans and individually-ranked cards; `CARDS_ROW_ID` for the
@@ -98,6 +105,9 @@ export type BuildSurplusRankRowsParams = {
   /** Credit cards, so the ones the user has pulled out of the block get their own rows. Omitted ⇒
    *  no card is individually ranked, which is the pre-2026-08-21 list exactly. */
   cards?: readonly RankableCard[];
+  /** Debt-serviced non-CC liabilities. Only the ones the user has already RANKED become rows;
+   *  omitted ⇒ none, which is the pre-2026-08-24 list exactly. */
+  liabilities?: readonly RankableLiability[];
   /** `profiles.cards_sort_order`. Absent ⇒ 0, cards first, today's behaviour. */
   cardsSortOrder?: number;
   /** `profiles.cards_surplus_share`. */
@@ -139,7 +149,7 @@ export function compareSurplusRankRows(a: SurplusRankRow, b: SurplusRankRow): nu
  */
 export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRankRow[] {
   const {
-    goals, carFunds, cards = [], cardsSortOrder = 0, cardsShare = null,
+    goals, carFunds, cards = [], liabilities = [], cardsSortOrder = 0, cardsShare = null,
     fundingAccountId = null, accountBalances = {},
   } = p;
 
@@ -194,6 +204,31 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     createdAt: f.created_at ?? '',
   }));
 
+  // A student loan / mortgage is listed only once the user has RANKED it, and that is the whole
+  // opt-in: `accounts` has no `auto_extra` column, so unlike a goal or a car fund there is nowhere
+  // to record "in the list but switched off". Being here IS opted in, exactly as a card pulled out
+  // of the block is. It is also what keeps every existing user's list byte-identical — the column
+  // is null on every row until the feature is used — and it is why `autoExtra` below is a literal
+  // `true` rather than a column read that would silently be `undefined`.
+  //
+  // The rows the user has NOT ranked are not lost: `useSurplusRanking` returns them separately so
+  // the UI can offer them, the same shape it already uses for cards still inside the block.
+  const liabilityRows: SurplusRankRow[] = liabilities
+    .filter(l => l.surplus_sort_order != null && Number.isFinite(Number(l.surplus_sort_order)))
+    .map(l => ({
+      id: l.id,
+      kind: 'liability' as const,
+      name: (l.name ?? '').trim() || 'Loan',
+      sortOrder: Number(l.surplus_sort_order),
+      autoExtra: true,
+      remaining: Math.max(0, Number(l.balance) || 0),
+      share: readShare(l.surplus_share),
+      // Paid DOWN, not filled — the same reason the vehicle loan carries neither.
+      targetAmount: null,
+      targetDate: null,
+      createdAt: l.created_at ?? '',
+    }));
+
   const soloCards = cards.filter(c => c.surplus_sort_order != null && Number.isFinite(Number(c.surplus_sort_order)));
   const cardRows: SurplusRankRow[] = soloCards.map(c => ({
     id: c.id,
@@ -224,7 +259,8 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     createdAt: '',
   }];
 
-  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...goalRows].sort(compareSurplusRankRows);
+  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows]
+    .sort(compareSurplusRankRows);
 }
 
 // ── GROUPS ───────────────────────────────────────────────────────────────────
@@ -386,18 +422,38 @@ export function setSurplusRankShare(
   return rows.map(r => (r.id === id ? { ...r, share } : r));
 }
 
-/** Set one row's `auto_extra`. The cards row cannot be opted out and is returned unchanged. */
+/**
+ * Set one row's `auto_extra`. The cards row cannot be opted out and is returned unchanged.
+ *
+ * ⚠️ NEITHER CAN A LIABILITY, and for a different reason: there is no `accounts.auto_extra`
+ * column to write it to. Letting the toggle flip in memory would have produced the worst possible
+ * result — a switch that moves, a `planSurplusRankWrites` that emits nothing for it, and a state
+ * that silently reverts on the next refetch. A liability leaves the list by leaving the LIST
+ * (`planLiabilityRankWrites`), which is a write that exists.
+ */
 export function setSurplusRankAutoExtra(
   rows: readonly SurplusRankRow[], id: string, autoExtra: boolean,
 ): SurplusRankRow[] {
-  return rows.map(r => (r.id === id && r.kind !== 'cards' && r.kind !== 'card' ? { ...r, autoExtra } : r));
+  return rows.map(r => (
+    r.id === id && r.kind !== 'cards' && r.kind !== 'card' && r.kind !== 'liability'
+      ? { ...r, autoExtra }
+      : r
+  ));
 }
 
 export type SurplusRankWrites = {
   goals: { id: string; sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }[];
   carFunds: { id: string; sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }[];
-  /** `accounts` rows for cards that have been pulled out of the block, or put back into it —
-   *  `surplus_sort_order: null` is the "back in the block" write, not a no-op. */
+  /**
+   * `accounts` rows for cards that have been pulled out of the block, or put back into it —
+   * `surplus_sort_order: null` is the "back in the block" write, not a no-op.
+   *
+   * Ranked LIABILITIES ride this same list. The field keeps its name because it is the `accounts`
+   * write channel and a liability is an `accounts` row: one table, one `Promise.all` entry, and
+   * the caller does not have to learn a second one. `surplus_sort_order: null` there means "off
+   * the ranked list" rather than "back in the block", which is the only sense a debt with no
+   * block can make of it.
+   */
   cards: { id: string; surplus_sort_order?: number | null; surplus_share?: number | null }[];
   /** `profiles.cards_sort_order`, or `null` when the card block did not move. */
   cardsSortOrder: number | null;
@@ -427,7 +483,11 @@ export function planSurplusRankWrites(
       if (was.share !== row.share) writes.cardsShare = row.share;
       continue;
     }
-    if (row.kind === 'card') {
+    // Cards and liabilities are both `accounts` rows and both store their rank in
+    // `surplus_sort_order`, so they plan identically. Neither emits `auto_extra`: the column does
+    // not exist on `accounts`, and `setSurplusRankAutoExtra` refuses to move the flag for exactly
+    // that reason, so there is never one to write.
+    if (row.kind === 'card' || row.kind === 'liability') {
       const patch: SurplusRankWrites['cards'][number] = { id: row.id };
       if (was.sortOrder !== row.sortOrder) patch.surplus_sort_order = row.sortOrder;
       if (was.share !== row.share) patch.surplus_share = row.share;
@@ -484,9 +544,37 @@ export function planCardSeparationWrites(
     if (row.sortOrder < at) continue;
     const moved = row.sortOrder + 1;
     if (row.kind === 'cards') writes.cardsSortOrder = moved;
-    else if (row.kind === 'card') writes.cards.push({ id: row.id, surplus_sort_order: moved });
+    // A liability bumps through the `accounts` channel like a card, NOT through the trailing
+    // `car_funds` fallback — that fallback used to be "anything that is not a goal", and a
+    // liability landing there would have written a `sort_order` to a `car_funds` row that does
+    // not exist, silently losing the bump and leaving two rows sharing a rank.
+    else if (row.kind === 'card' || row.kind === 'liability') writes.cards.push({ id: row.id, surplus_sort_order: moved });
     else if (row.kind === 'goal') writes.goals.push({ id: row.id, sort_order: moved });
     else writes.carFunds.push({ id: row.id, sort_order: moved });
   }
+  return writes;
+}
+
+/**
+ * Put a non-CC liability ON the ranked list, or take it off.
+ *
+ * The debt half of `planCardSeparationWrites`, and separate from it because the SEAT differs. A
+ * card leaves the block and sits immediately below it, so everything at or below that rank has to
+ * be bumped; a liability is not in any block, so it joins at the END of the list — a rank of its
+ * own, below everything, bumping nothing. Last is also the conservative seat: a debt the user has
+ * only just added to the list should not silently outrank the goals they placed deliberately.
+ *
+ * Returns writes rather than a new list for the same reason its sibling does: the liability's row
+ * does not exist in `rows` until `accounts.surplus_sort_order` is non-null, so there is no "next
+ * list" to diff against.
+ */
+export function planLiabilityRankWrites(
+  rows: readonly SurplusRankRow[], accountId: string, ranked: boolean,
+): SurplusRankWrites {
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
+  // Off the list clears the weight too: a rank that is gone cannot be half of a split.
+  writes.cards.push(ranked
+    ? { id: accountId, surplus_sort_order: toGroups(rows).length, surplus_share: null }
+    : { id: accountId, surplus_sort_order: null, surplus_share: null });
   return writes;
 }

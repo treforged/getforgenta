@@ -18,7 +18,14 @@
 /** Half a cent. Below this a residual is rounding noise, not money. */
 const CENT = 0.005;
 
-export type RankedTargetKind = 'card' | 'car_fund' | 'goal' | 'loan';
+/**
+ * `loan` is extra principal on a VEHICLE loan (a `car_funds` row); `liability` is extra principal
+ * on any other non-credit-card debt the app can model — a student loan, a mortgage, an
+ * `other_liability` account paired to a `debts` row. They are separate kinds rather than one
+ * because the two are credited from different projections (`loanBalancesByFundId` vs
+ * `buildNonCCLiabilities`), and a caller can be able to credit one and not the other.
+ */
+export type RankedTargetKind = 'card' | 'car_fund' | 'goal' | 'loan' | 'liability';
 
 export type RankedTarget = {
   id: string;
@@ -213,7 +220,7 @@ export function allocateRankedSurplus(
 
 /** Everything the reserve can be held back FOR — every kind except a credit card, whose extra
  *  stays inside the card pool and is spent by the revolving cascade. */
-export type AutoExtraReserveKind = 'car_fund' | 'goal' | 'loan';
+export type AutoExtraReserveKind = 'car_fund' | 'goal' | 'loan' | 'liability';
 
 export type AutoExtraReserve = {
   /** Total to hold back from the card pool this month for goals, car funds and loan principal. */

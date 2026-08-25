@@ -52,12 +52,22 @@ export interface LiabilityDebtInput {
   min_payment?: number | null;
 }
 
-/** The `accounts` shape the cash half needs — no balance, since it only decides who pays. */
+/**
+ * The `accounts` shape the cash half needs.
+ *
+ * `balance`, `apr` and `payment_due_day` are read only by {@link listDebtServiceLiabilities}'s
+ * callers (the ranked-target capacity and the "Recommended This Month" row), never by
+ * {@link sumOtherDebtPayments}, which only decides who pays. They are optional so the existing
+ * callers, which cast raw `accounts` rows through this interface, keep compiling unchanged.
+ */
 export interface DebtServiceAccountInput {
   id: string;
   name: string;
   account_type: string;
   active?: boolean | null;
+  balance?: number | null;
+  apr?: number | null;
+  payment_due_day?: number | null;
 }
 
 /** The `recurring_rules` shape the dedupe rule below needs. */
@@ -177,9 +187,86 @@ export function buildNonCCLiabilities(params: {
  * revolving engine decides those) and `auto_loan` (a `car_funds` row carries the payment — see
  * the header note about vehicle loans staying out of both halves).
  */
-const DEBT_SERVICE_ACCOUNT_TYPES: ReadonlySet<string> = new Set(
+export const DEBT_SERVICE_ACCOUNT_TYPES: ReadonlySet<string> = new Set(
   LIABILITY_ACCOUNT_TYPES.filter(t => t !== 'credit_card' && t !== 'auto_loan'),
 );
+
+/** One debt-serviced non-CC liability: the ACCOUNT and the `debts` row paired to it. */
+export interface DebtServiceLiability {
+  /** The `accounts` row's id — the same id {@link buildNonCCLiabilities} keys its row on, so a
+   *  caller can look this liability's projected balances up without a second pairing pass. */
+  id: string;
+  name: string;
+  account_type: string;
+  /** The account's live balance. The connected account wins the balance over the `debts` row
+   *  (Tre, 2026-08-18), exactly as {@link buildNonCCLiabilities} decides it. */
+  balance: number;
+  /** From the `debts` row, which is the only side that has one. */
+  apr: number;
+  /** `target_payment`, falling back to `min_payment`. Zero when the row carries neither. */
+  payment: number;
+  /** `accounts.payment_due_day`, or null when the user has not recorded one. NEVER invented —
+   *  a liability with no recorded due day has no due date to show. */
+  dueDay: number | null;
+  /**
+   * True when an ACTIVE expense rule of the same name is the cash side of this debt, so
+   * {@link sumOtherDebtPayments} contributes nothing for it. See THE DEDUPE RULE below.
+   */
+  paidByExpenseRule: boolean;
+}
+
+/**
+ * Every non-credit-card liability this app can both describe and pay: an active
+ * mortgage / student-loan / other-liability ACCOUNT paired by name to a `debts` row.
+ *
+ * ⚠️ THE PAIRING IS REQUIRED, and that is a deliberate narrowing. An account with no `debts` row
+ * has no apr and no payment, so nothing amortizes it and no cash leaves for it — it is a balance
+ * the app can show but not model. {@link buildNonCCLiabilities} still projects such an account (as
+ * a flat line, which is the honest projection of a debt nobody is paying); it is simply not
+ * something extra principal can be RANKED against, because the app cannot say what the scheduled
+ * payment is. Requiring the pairing also means this list and the cash side agree by construction
+ * on which debts exist, which is the whole reason both now come from one function.
+ *
+ * Extracted from {@link sumOtherDebtPayments}, which is now a sum over it — the pairing, the
+ * exclusion and the dedupe rule live here once instead of being copied for each new reader.
+ */
+export function listDebtServiceLiabilities(params: {
+  accounts: readonly DebtServiceAccountInput[];
+  debts: readonly LiabilityDebtInput[];
+  rules: readonly DebtServiceRuleInput[];
+  excludedAccountIds?: ReadonlySet<string>;
+}): DebtServiceLiability[] {
+  const { accounts, debts, rules } = params;
+  const excludedIds = params.excludedAccountIds ?? new Set<string>();
+  const expenseRuleNames = new Set(
+    rules.filter(r => r.active && r.rule_type === 'expense').map(r => norm(r.name)),
+  );
+
+  const claimedDebts = new Set<LiabilityDebtInput>();
+  const out: DebtServiceLiability[] = [];
+  for (const a of accounts) {
+    if (a.active === false) continue;
+    if (!DEBT_SERVICE_ACCOUNT_TYPES.has(a.account_type)) continue;
+    if (excludedIds.has(a.id)) continue;
+    const n = norm(a.name);
+    const matched = debts.find(d => !claimedDebts.has(d) && norm(d.name) === n);
+    if (!matched) continue;
+    claimedDebts.add(matched);
+    out.push({
+      id: a.id,
+      name: a.name,
+      account_type: a.account_type,
+      balance: Math.max(0, Number(a.balance) || 0),
+      apr: Number(matched.apr) || 0,
+      payment: Number(matched.target_payment || matched.min_payment || 0),
+      dueDay: a.payment_due_day == null || !Number.isFinite(Number(a.payment_due_day))
+        ? null
+        : Number(a.payment_due_day),
+      paidByExpenseRule: expenseRuleNames.has(n),
+    });
+  }
+  return out;
+}
 
 /**
  * This month's cash going out to non-credit-card debt: the `debts` row paired to each active
@@ -215,24 +302,7 @@ export function sumOtherDebtPayments(params: {
   rules: readonly DebtServiceRuleInput[];
   excludedAccountIds?: ReadonlySet<string>;
 }): number {
-  const { accounts, debts, rules } = params;
-  const excludedIds = params.excludedAccountIds ?? new Set<string>();
-  const expenseRuleNames = new Set(
-    rules.filter(r => r.active && r.rule_type === 'expense').map(r => norm(r.name)),
-  );
-
-  const claimedDebts = new Set<LiabilityDebtInput>();
-  let total = 0;
-  for (const a of accounts) {
-    if (a.active === false) continue;
-    if (!DEBT_SERVICE_ACCOUNT_TYPES.has(a.account_type)) continue;
-    if (excludedIds.has(a.id)) continue;
-    const n = norm(a.name);
-    const matched = debts.find(d => !claimedDebts.has(d) && norm(d.name) === n);
-    if (!matched) continue;
-    claimedDebts.add(matched);
-    if (expenseRuleNames.has(n)) continue;
-    total += Number(matched.target_payment || matched.min_payment || 0);
-  }
-  return total;
+  return listDebtServiceLiabilities(params)
+    .filter(l => !l.paidByExpenseRule)
+    .reduce((total, l) => total + l.payment, 0);
 }

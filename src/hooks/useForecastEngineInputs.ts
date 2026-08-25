@@ -7,7 +7,9 @@ import { buildConfirmedOccurrences, isRuleOccurrenceConfirmed } from '@/lib/conf
 import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/auto-matched-occurrences';
 import { aggregateByMonth, type ScheduledEvent } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
-import { buildRankedTargets } from '@/lib/ranked-extra-payment-targets';
+import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
+import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
@@ -93,6 +95,19 @@ export function useForecastEngineInputs({
     const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null;
     return computeAnnualFederalWithheld(payConfig, jsonDeds);
   }, [payConfig, profile]);
+
+  /**
+   * Non-CC liabilities the user has ranked, as extra-principal targets. Built here rather than
+   * inside the month-0 memo below so it is one memo with its own dependencies, and built by the
+   * SAME helper `useSurplusRanking` and the forecast engine use — the list a user ranks, the list
+   * that takes a reserve and the list whose balance falls all have to be one list.
+   */
+  const rankableLiabilities = useMemo(() => buildRankableLiabilities({
+    accounts,
+    debts: debts as unknown as LiabilityDebtInput[],
+    rules,
+    excludedAccountIds: linkedLoanAccountIds(carFunds ?? [], accounts),
+  }), [accounts, debts, rules, carFunds]);
 
   const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId), [rules, payConfig, forecastFundingAccountId]);
   const monthlyAggregates = useMemo(() => aggregateByMonth(scheduledEvents), [scheduledEvents]);
@@ -198,6 +213,11 @@ export function useForecastEngineInputs({
         // step 4c-ii-b reduces the vehicle's amortized balance by exactly the dollars that leave
         // checking here, from the paying month forward.
         includeLoanTargets: true,
+        // The same statement for the other kind of debt, and step 4c-ii-c is the credit: a student
+        // loan / mortgage / other-liability balance falls by exactly these dollars from this month
+        // on. Kept in lockstep with `useCardProjection`'s call, which passes the identical pair.
+        liabilities: rankableLiabilities,
+        includeLiabilityTargets: true,
         cardRanks,
         cardsShare: profile?.cards_surplus_share ?? null,
       });
@@ -206,7 +226,7 @@ export function useForecastEngineInputs({
       const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };
     } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans, confirmedOccurrences, forecastFundingAccountId]);
+  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans, confirmedOccurrences, forecastFundingAccountId, rankableLiabilities]);
 
   // ── Shared CC-filtered month events ─────────────────────────────────────────
   const forecastMonthEvents = useMemo((): { income: number; nonPaycheckIncome: number; expenses: number }[] => {

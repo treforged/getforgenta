@@ -27,7 +27,7 @@ import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-prote
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
-import { buildRankedTargets } from '@/lib/ranked-extra-payment-targets';
+import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
 import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { computeAutoExtraReserve } from '@/lib/ranked-surplus-allocation';
 import type { Tables } from '@/integrations/supabase/types';
@@ -864,6 +864,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // instead of only the separate look-ahead's comprehensiveMExp seeing them.
       const monthlyOtherDebtPayment = sumOtherDebtPayments({
         accounts: accounts as unknown as DebtServiceAccountInput[],
+        debts: debts as unknown as LiabilityDebtInput[],
+        rules,
+        excludedAccountIds: linkedLoanAccountIds(carFunds ?? [], accounts),
+      });
+
+      // The same debts, as RANKABLE targets — the ones the user has put in "where the extra money
+      // goes" can take extra principal on top of the scheduled payment just summed above. Built
+      // from the identical arguments, and by a helper that wraps the very function that call uses,
+      // so the debt that takes a reserve is by construction one of the debts that takes cash.
+      const rankableLiabilities = buildRankableLiabilities({
+        accounts,
         debts: debts as unknown as LiabilityDebtInput[],
         rules,
         excludedAccountIds: linkedLoanAccountIds(carFunds ?? [], accounts),
@@ -2091,6 +2102,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // step 4c-ii-b reduces the vehicle's amortized balance by exactly the dollars that leave
           // checking here, from the paying month forward.
           includeLoanTargets: true,
+          // The same statement for the other kind of debt, and step 4c-ii-c is the credit. This
+          // hook decides MONTH 0 only; the engine reads that answer back off
+          // `cardProjectionData.month0.autoExtraPerTarget` and credits it there, so the reserve
+          // taken here lands on the same balance every later month's does.
+          liabilities: rankableLiabilities,
+          includeLiabilityTargets: true,
           cardRanks,
           cardsShare: profile?.cards_surplus_share ?? null,
         }),

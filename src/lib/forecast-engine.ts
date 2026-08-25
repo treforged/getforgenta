@@ -27,7 +27,7 @@ import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from '@/lib/ranked-surplus-allocation';
-import { goalRemainingNeed, carFundRemainingNeed } from '@/lib/ranked-extra-payment-targets';
+import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
 import type { AccountRow, RuleRow, DebtRow, TransactionRow } from '@/hooks/useSupabaseData';
@@ -845,6 +845,44 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     });
     const nonCCDebtBalanceByMonth = nonCCLiabilities.totalByMonth;
 
+    /**
+     * EXTRA PRINCIPAL ON A NON-VEHICLE LIABILITY — a student loan, a mortgage, an
+     * `other_liability`. The fifth target kind, and the sibling of `autoExtraLoanFunds` above in
+     * every respect that matters: its capacity is NOT carried in `autoExtraCapacity` either,
+     * because an amortizing balance falls every month whether or not anything extra is paid, so
+     * the honest capacity is simply what the projection says is still owed in this month.
+     *
+     * ⚠️ `balances` IS A SHARED REFERENCE into `nonCCLiabilities.rows`, not a copy — the same
+     * trick `loanBalancesByFundId` uses. Step 4c-ii-c reduces it in place, and because the month
+     * drawer's `nonCCLiabBreakdown`, the liability total and next month's capacity all read those
+     * very arrays, the three cannot disagree about what an extra payment bought.
+     *
+     * ⚠️ DECLARED HERE, NOT BESIDE `autoExtraCapacity`, for the same temporal-dead-zone reason its
+     * vehicle sibling is: it reads `nonCCLiabilities`, which is built directly above.
+     *
+     * Every entry requires the user to have RANKED the liability (`accounts.surplus_sort_order`
+     * non-null, the only opt-in `accounts` can store), and that column is null on every row until
+     * the feature is used — so this array is EMPTY for every existing user and the loop below
+     * takes exactly the path it took before this existed.
+     */
+    const autoExtraLiabilities = buildRankableLiabilities({
+      accounts: accounts as unknown as DebtServiceAccountInput[],
+      debts: debts as unknown as LiabilityDebtInput[],
+      rules,
+      excludedAccountIds: linkedVehicleAccountIds,
+    })
+      .filter(l => l.surplus_sort_order != null && Number.isFinite(Number(l.surplus_sort_order)))
+      .map(l => ({
+        id: l.id,
+        sortOrder: Number(l.surplus_sort_order),
+        share: shareOf(l.surplus_share),
+        balances: nonCCLiabilities.rows.find(r => r.id === l.id)?.balances,
+      }))
+      // No projected row means no balance this credit could reduce, and reserving cash against it
+      // would take the dollars out of checking with nowhere to put them. Dropped rather than
+      // credited to nothing.
+      .filter((l): l is typeof l & { balances: number[] } => l.balances !== undefined);
+
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const monthLabel = d.toLocaleString('en', { month: 'short', year: 'numeric' });
@@ -1415,7 +1453,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       if (i === 0) {
         autoExtraThisMonth = cardProjectionData?.month0?.autoExtraPerTarget ?? [];
         autoExtraOutThisMonth = cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0;
-      } else if (autoExtraCapacity.size > 0 || autoExtraLoanFunds.length > 0) {
+      } else if (autoExtraCapacity.size > 0 || autoExtraLoanFunds.length > 0 || autoExtraLiabilities.length > 0) {
         // The same three arguments month 0 builds, one month later: the card block's combined
         // minimum and balance, and a pool that is already net of the floor and the cycling spend.
         // `computeAutoExtraReserve` settles that combined minimum BEFORE it consults any rank, so
@@ -1441,6 +1479,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           targets.push({
             id: f.id, kind: 'loan', sortOrder: f.sortOrder, minimum: 0, capacity: owed, autoExtra: true,
             ...(f.share === undefined ? {} : { share: f.share }),
+          });
+        }
+        // Extra principal on a non-vehicle liability, capacity read fresh from the (already-
+        // reduced) amortized balance — the same read, and the same reasoning, as the loan block
+        // directly above.
+        for (const l of autoExtraLiabilities) {
+          const owed = Math.max(0, l.balances[i] ?? 0);
+          if (owed <= 0) continue;
+          targets.push({
+            id: l.id, kind: 'liability', sortOrder: l.sortOrder, minimum: 0, capacity: owed, autoExtra: true,
+            ...(l.share === undefined ? {} : { share: l.share }),
           });
         }
         // ⚠️ CARDS THE USER PULLED OUT OF THE BLOCK MUST BE PULLED OUT HERE TOO. Month 0 builds
@@ -1471,6 +1520,42 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         autoExtraOutThisMonth = reserve.reserved;
       }
       const cashPreDebt = cashPreDebtBeforeAutoExtra - autoExtraOutThisMonth;
+
+      // 4c-ii-c. EXTRA PRINCIPAL → a non-vehicle liability's balance, from THIS month forward.
+      //
+      // The sibling of 4c-ii-b (a few hundred lines below, with the other crediting steps), and it
+      // exists for the same reason: the cash has just left checking on the line above, so without
+      // this the money would simply vanish out of the projection — the failure 4c-ii was written to
+      // prevent. `nonCCDebtBalanceByMonth` is decremented alongside the row's own array because the
+      // two are ONE projection (`buildNonCCLiabilities` — the total IS the rows), and a total that
+      // stopped equalling the rows under it is exactly the divergence that file was written to end.
+      // The month drawer's `nonCCLiabBreakdown` reads `rows[].balances[i]` directly and so needs
+      // nothing here.
+      //
+      // ⚠️ IT RUNS HERE RATHER THAN BESIDE 4c-ii-b, and that is not a preference. Step 4's
+      // `totalLiabilityBal` sits BETWEEN the two, and it reads `nonCCDebtBalanceByMonth[i]` — so a
+      // credit applied down there would leave this month's liability TOTAL a month ahead of the
+      // rows the drawer itemises under it. (The vehicle-loan credit has that one-month lag today:
+      // `carLoanBalanceByMonth[i]` is read before 4c-ii-b reduces it, while `carLoanBreakdown` is
+      // emitted after. Left alone deliberately — moving it would change an existing user's
+      // projected numbers, which is not this change's business.)
+      //
+      // ⚠️ THE SCHEDULE IS NOT REBUILT, only reduced — the whole of 4c-ii-b's argument applies
+      // unchanged. Reducing the balance without re-amortizing UNDERSTATES what the extra payment
+      // buys, which is the conservative direction, and the capacity the next month ranks against is
+      // read back out of these same arrays so an over-payment can never reserve against principal
+      // that is already gone.
+      for (const t of autoExtraThisMonth) {
+        if (t.kind !== 'liability' || !(t.amount > 0)) continue;
+        const balances = autoExtraLiabilities.find(l => l.id === t.id)?.balances;
+        if (!balances) continue;
+        for (let j = i; j < balances.length; j += 1) {
+          const before = balances[j];
+          const after = Math.max(0, before - t.amount);
+          balances[j] = after;
+          nonCCDebtBalanceByMonth[j] -= before - after;
+        }
+      }
 
       // Step 2: the sim is the single writer of debt-payment truth (unify-cycling-model Stage 3).
       // Its payment ledger already reflects a floor-aware, save-up-aware plan for whatever cash
@@ -1573,7 +1658,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         return s + (trueBal - adjustedDisplayBalance(trueBal, hookCumSurplusByCard.get(c.id)?.[i] ?? 0));
       }, 0);
       const adjCCLiab = Math.max(0, ccLiabilityBalThisMonth - revolvingAdj);
-      totalLiabilityBal = adjCCLiab + b.otherDebtBalance + carLoanBalanceByMonth[i];
+      // ⚠️ `nonCCDebtBalanceByMonth[i]`, NOT `b.otherDebtBalance`. They are the same number until
+      // an extra principal payment lands: PASS 1 captured its copy before PASS 3 ran, so a balance
+      // 4c-ii-c reduces below is invisible to it. Reading the live array is the same choice
+      // `carLoanBalanceByMonth[i]` beside it already makes, and for the same reason.
+      totalLiabilityBal = adjCCLiab + nonCCDebtBalanceByMonth[i] + carLoanBalanceByMonth[i];
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = b.monthlySavingsContrib;
@@ -1638,7 +1727,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         if (savA) savA.balance += t.amount;
         else if (invA) invA.balance += t.amount;
         else if (retA) retA.balance += t.amount;
-        else if (t.kind !== 'loan') {
+        // A loan and a liability are credited as a DEBT going down (4c-ii-b / 4c-ii-c below), not
+        // as an asset going up, so neither may fall through to a pool here. The exclusion is
+        // explicit rather than relying on `carFundPools.get(anAccountId)` happening to miss: a
+        // silent miss is indistinguishable from a credit that did nothing.
+        else if (t.kind !== 'loan' && t.kind !== 'liability') {
           const pool = t.kind === 'goal' ? goalPools.get(t.id) : carFundPools.get(t.id);
           if (pool) pool.balance += t.amount;
         }
@@ -1678,11 +1771,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // remaining capacity the LATER months rank against. (The target's own monthly contribution
       // was already taken off above, before this month's reserve was decided — that ordering is
       // what stops a goal being over-funded by one month's contribution on the month it fills.)
-      // Loans are excluded: their capacity is not carried here at all, it is read fresh from the
-      // amortized balance each month (which the block above has just reduced). Decaying a running
-      // total as well would take the same dollars off twice.
+      // Loans and liabilities are excluded: their capacity is not carried here at all, it is read
+      // fresh from the amortized balance each month (which the two blocks above have just
+      // reduced). Decaying a running total as well would take the same dollars off twice.
       for (const t of autoExtraThisMonth) {
-        if (t.kind !== 'loan') decayAutoExtraCapacity(t.id, t.amount);
+        if (t.kind !== 'loan' && t.kind !== 'liability') decayAutoExtraCapacity(t.id, t.amount);
       }
 
       // 4d. Lump sums → per-account or goal pool
@@ -1807,7 +1900,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
 
       data.push({
         month: b.monthLabel, netWorth: Math.round(netWorth), totalAssets: Math.round(totalAssets),
-        totalLiabilities: Math.round(totalLiabilityBal), debtBalance: Math.round(adjCCLiab + b.otherDebtBalance),
+        // Live array, not PASS 1's captured copy — see the note on `totalLiabilityBal` above.
+        totalLiabilities: Math.round(totalLiabilityBal), debtBalance: Math.round(adjCCLiab + nonCCDebtBalanceByMonth[i]),
         savingsBalance: Math.round(savingsBal), investmentBalance: Math.round(investBal),
         retirementBalance: Math.round(retireBal), liquidCash: Math.round(finalLiquid),
         endingCash,

@@ -2533,6 +2533,29 @@ export type MonthlyDebtBreakdown = {
     carFundId: string; name: string; payment: number; dueDay: number | null;
     nextPayment: number; nextPayMonth: 0 | 1; nextDueDate: Date | null; isFinalPayment: boolean;
   }[];
+  /**
+   * Non-credit-card, non-vehicle debts with a scheduled payment this month — a student loan, a
+   * mortgage, an `other_liability` account paired to a `debts` row.
+   *
+   * A THIRD list rather than rows appended to `loanRecommendations`, and the reason is `carFundId`:
+   * a student loan has no car fund, and putting an account id in a field named for one is the kind
+   * of quiet lie the next reader pays for. The rendering is near-identical and the two lists sit
+   * side by side, but the row says what it is.
+   *
+   * Out of `recommendations` for the same hard reason loans are — that array feeds
+   * `createDebtPaymentTransactions`, which injects a generated transaction per row, and these
+   * payments are already in the cash model via `sumOtherDebtPayments` (or via the user's own
+   * expense rule). A row here is a thing to SHOW, never a thing to charge.
+   */
+  otherDebtRecommendations?: {
+    accountId: string; name: string; accountType: string; payment: number; dueDay: number | null;
+    nextPayment: number; nextPayMonth: 0 | 1; nextDueDate: Date | null; isFinalPayment: boolean;
+    /** True when an active expense RULE of the same name is what actually pays this bill, so the
+     *  same dollars are already listed elsewhere in the user's budget. Surfaced rather than
+     *  hidden: the debt is real either way, and a row that vanished for users who set up a rule
+     *  would look like the app had lost the loan. */
+    paidByExpenseRule: boolean;
+  }[];
   totalMinimumsDue: number;
   totalRecommended: number;
   totalAvailableCash: number;

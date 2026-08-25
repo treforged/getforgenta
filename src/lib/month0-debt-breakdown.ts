@@ -25,6 +25,10 @@ import { isSimCardOpenAsOf } from '@/lib/card-start-date';
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { nextPaymentDueDate } from '@/lib/next-card-payment';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import {
+  listDebtServiceLiabilities,
+  type DebtServiceAccountInput, type DebtServiceRuleInput, type LiabilityDebtInput,
+} from '@/lib/non-cc-liabilities';
 import type { CardData, MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 import type { Month0Result } from '@/lib/debt-model-types';
 import type { CarFund } from '@/lib/types';
@@ -43,6 +47,18 @@ export interface Month0DebtBreakdownInput {
   nextMonthSource?: { id: string; payments: number[] }[] | null;
   /** Car funds, for the loan rows. Absent ⇒ no loan rows, same as before loans joined. */
   carFunds?: CarFund[];
+  /**
+   * Raw `accounts` / `debts` / `recurring_rules`, for the non-CC liability rows (student loan,
+   * mortgage, other liability). All three are needed or none is: the pairing rule that decides
+   * which liability is real reads all three. Absent ⇒ no such rows, exactly as `carFunds` absent
+   * means no loan rows.
+   */
+  accounts?: readonly DebtServiceAccountInput[];
+  debts?: readonly LiabilityDebtInput[];
+  rules?: readonly DebtServiceRuleInput[];
+  /** Accounts a `car_funds` loan is linked to; the car fund carries those, and they already have
+   *  a loan row. */
+  excludedAccountIds?: ReadonlySet<string>;
   /** Injectable for tests; defaults to now. */
   now?: Date;
 }
@@ -205,12 +221,81 @@ export function buildLoanRecommendations(carFunds: CarFund[], now: Date = new Da
   return rows;
 }
 
+/** One non-CC liability row — see MonthlyDebtBreakdown.otherDebtRecommendations. */
+export type OtherDebtRecRow = NonNullable<MonthlyDebtBreakdown['otherDebtRecommendations']>[number];
+
+/**
+ * Non-credit-card, non-vehicle debts as recommendation rows: a student loan, a mortgage, an
+ * `other_liability` account paired to a `debts` row. Same calendar rule as the card and loan rows.
+ *
+ * ⚠️ WHAT THIS WILL NOT DO. It will not invent a due date — `accounts.payment_due_day` is the only
+ * source, it is null on most liability rows (the Accounts form offers that field for credit cards
+ * only), and a null reaches the render as null so the row can say it does not know. It will not
+ * print a $0 recommendation either: a `debts` row with neither a `target_payment` nor a
+ * `min_payment` describes a debt nobody has said how to pay, and the row is dropped rather than
+ * shown paying nothing.
+ *
+ * The payment is capped at the balance-with-interest, so a final payment shows the true-up rather
+ * than the nominal figure — the same courtesy `getActiveCarLoanPayments` does for a vehicle loan,
+ * and it is computed with the same one-month step `buildNonCCLiabilities.projectBalances` uses so
+ * the row and the projected balance cannot disagree about when the debt ends.
+ */
+export function buildOtherDebtRecommendations(params: {
+  accounts: readonly DebtServiceAccountInput[];
+  debts: readonly LiabilityDebtInput[];
+  rules: readonly DebtServiceRuleInput[];
+  excludedAccountIds?: ReadonlySet<string>;
+  now?: Date;
+}): OtherDebtRecRow[] {
+  const now = params.now ?? new Date();
+  const todayDay = now.getDate();
+  const rows: OtherDebtRecRow[] = [];
+  for (const l of listDebtServiceLiabilities(params)) {
+    if (!(l.payment > 0)) continue;
+    const monthlyRate = l.apr / 1200;
+    /** What one scheduled payment retires, given the interest that accrues first. */
+    const owedAfter = (balance: number) =>
+      Math.max(0, balance * (1 + monthlyRate) - l.payment);
+    const dueThisMonth = Math.min(l.payment, l.balance * (1 + monthlyRate));
+    if (dueThisMonth <= 0) continue;
+
+    // Same calendar rule as the card and loan rows: a due day already gone by means the next
+    // payment is next month's. A liability with NO recorded due day is not past due — nothing is
+    // known about it — so it reads as this month, which is the conservative half of the guess.
+    const dueDayPassed = l.dueDay !== null && l.dueDay < todayDay;
+    const nextPayMonth: 0 | 1 = dueDayPassed ? 1 : 0;
+    const balanceNextMonth = owedAfter(l.balance);
+    // Due day passed AND nothing left after this month's payment ⇒ that payment was the last one.
+    // Nothing upcoming to recommend, so the row is dropped rather than shown with an invented
+    // figure — the same rule the loan rows follow.
+    if (nextPayMonth === 1 && balanceNextMonth <= 0) continue;
+    const nextPayment = nextPayMonth === 0
+      ? dueThisMonth
+      : Math.min(l.payment, balanceNextMonth * (1 + monthlyRate));
+
+    rows.push({
+      accountId: l.id,
+      name: l.name,
+      accountType: l.account_type,
+      payment: dueThisMonth,
+      dueDay: l.dueDay,
+      nextPayment,
+      nextPayMonth,
+      nextDueDate: nextPaymentDueDate(l.dueDay, nextPayMonth, now),
+      isFinalPayment: nextPayMonth === 0 ? balanceNextMonth <= 0 : owedAfter(balanceNextMonth) <= 0,
+      paidByExpenseRule: l.paidByExpenseRule,
+    });
+  }
+  return rows;
+}
+
 export function emptyMonth0DebtBreakdown(
   debtStrategy: 'avalanche' | 'snowball',
 ): MonthlyDebtBreakdown {
   return {
     recommendations: [],
     loanRecommendations: [],
+    otherDebtRecommendations: [],
     totalMinimumsDue: 0,
     totalRecommended: 0,
     totalAvailableCash: 0,
@@ -228,14 +313,23 @@ export function buildMonth0DebtBreakdown({
   syncCutoffDate,
   nextMonthSource,
   carFunds,
+  accounts,
+  debts,
+  rules,
+  excludedAccountIds,
   now = new Date(),
 }: Month0DebtBreakdownInput): MonthlyDebtBreakdown {
   const strategyLabel = debtStrategy === 'avalanche' ? 'Avalanche' : 'Snowball';
   // Loans read the amortization schedule, not the projection, so they survive an unresolved
   // month0 — a real payment does not stop being due because the card sim has not settled.
   const loanRecommendations = buildLoanRecommendations(carFunds ?? [], now);
+  // Non-CC liabilities read the `accounts`/`debts` pairing, likewise not the projection, and
+  // survive an unresolved month0 for exactly the same reason.
+  const otherDebtRecommendations = buildOtherDebtRecommendations({
+    accounts: accounts ?? [], debts: debts ?? [], rules: rules ?? [], excludedAccountIds, now,
+  });
   if (!month0 || simCards.length === 0) {
-    return { ...emptyMonth0DebtBreakdown(debtStrategy), loanRecommendations };
+    return { ...emptyMonth0DebtBreakdown(debtStrategy), loanRecommendations, otherDebtRecommendations };
   }
 
   const totalAvailableCash = month0.safeToPayTotal;
@@ -269,13 +363,16 @@ export function buildMonth0DebtBreakdown({
 
   // Card-only, deliberately: the loan payment is already held by the cash floor (carLoanTotal in
   // the floor formula), so Safe to Pay never contained that money — summing loans in here would
-  // double-count it against the totals Dashboard reads.
+  // double-count it against the totals Dashboard reads. The non-CC liabilities stay out for the
+  // same reason one level along: `sumOtherDebtPayments` has already taken their cash out of
+  // `cashPreDebt` before Safe to Pay is computed at all.
   const totalRecommended = recommendations.reduce((s, r) => s + r.payment, 0);
   const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsDue) < 0;
 
   return {
     recommendations,
     loanRecommendations,
+    otherDebtRecommendations,
     totalMinimumsDue,
     totalRecommended,
     totalAvailableCash,
