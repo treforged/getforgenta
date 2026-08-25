@@ -29,6 +29,9 @@
 6. "make all icons, especially the trashcan and eyeball on the builds page, bigger. many
    icons are hard to click on mobile" (44px touch targets, Builds first, same pattern on the
    page audit)
+7. "also on build page, when adding a new item, dont make the 'New Item' text the actual
+   tile, its just a place holder but it should force users to have to manually delete it."
+   (prefilled value -> placeholder; empty-save path decided from sibling-form behavior)
 Also: "work on multiple things at the same time. you can delegate to more agents" - standing
 authorization for parallel builders this session.
 
