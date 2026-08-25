@@ -128,3 +128,12 @@ verify_jwt = true
 
 [functions.ai-advisor]
 verify_jwt = true
+
+# Partner linking (invite / accept / status). Both halves of the consent are
+# written from a verified JWT — the inviter's on invite, the invitee's on
+# accept — so there is no anonymous path into this function by design, and the
+# platform check is the outer guard for the auth.getUser() the function does
+# itself. The invite email carries a code, NOT a bearer link: clicking it lands
+# in the signed-in app, which then calls this function with its own JWT.
+[functions.partner-link]
+verify_jwt = true
