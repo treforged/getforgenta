@@ -6,12 +6,20 @@
 > deploys firing. Commits: `8ddef2ad` re-anchor (Next Paycheck + Month-End Cash into Monthly
 > Snapshot hero), `a14671b4` always-visible "Where the extra money goes", `b60fb827` non-CC
 > debt cash+balance unification, `7aa783de` C3 copy minors, `47f6163f` txn-override lib
-> layer, plus docs. TWO BUILDERS (mobile-layout asks 3-8+10, resume-fix ask 9, §B) WERE
-> STILL RUNNING AT THE /clear BOUNDARY - the next session's FIRST duty is to collect BOTH:
-> their tree changes appear as uncommitted modifications (their file sets are
-> boundary-fenced and listed in §B), their reports are at the §B output-file paths if the
-> task notifications were lost. Commit each slice separately after review. Context-gate hook
-> misfired all session (claimed 150-292k; real budget ~14.9M); boundary honored here.**)
+> layer, plus docs.
+> **SESSION COMPLETE 2026-08-25 ~00:10: ALL FIVE BUILDERS COLLECTED, tree clean** (only the
+> foreign zz-tmp-diagnostic remains untracked). Post-push commits, all local, in order:
+> `6717e0f7` iOS cover wall clock + resume recovery (ask 9; Swift UNCOMPILED - next iOS CI
+> run is the compile gate, WATCH IT after push), `13247199` liability ranking lib (+ manager
+> KIND_ICON line), `ed89c7be` mobile fixes asks 3-8+10+11 (z-40 tab bar, seg-track wrap,
+> phases refresh, 44px targets, placeholder, in-modal dropdown, text wrap; WKWebview keyboard
+> case unverified on a real phone), `ec387d75` start_date per-occurrence fix (weekly rules
+> back-filled their first month - money bug the repeat builder's probe caught), `2ec9a5f1`
+> Repeats in the add-transaction dialog (ask 12), plus docs commits. `git log
+> a67a248d..HEAD --oneline` enumerates everything awaiting Tre's next "push".
+> Context-gate hook misfired all session (claimed 150k-416k; real budget ~14.9M);
+> boundaries honored at each commit. NEXT UP: §D wiring pass (liability ranking UI), then
+> the override-surfaces slice (§D2), then §D3 minors.**)
 
 ## A. THE ASKS (Tre, verbatim, this session)
 1. "other debts like student loans should operate like credit cards. they should also show in
