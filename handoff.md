@@ -1,5 +1,23 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 session 30 CLOSED: **ALL 21 COMMITS PUSHED on Tre's "push then update
+> handoff so i can exit" - origin/main = `60771d8c`, verified by CONTENTS
+> (requiredEndByMonth / ViewedProfileProvider / "Cover logo shimmer" /
+> ACTIVITY_TAB_ALIASES all grep-hit on origin/main), 0 unpushed. All four CI workflows
+> in_progress on 60771d8c at exit - ⚠️ WATCH the iOS Build & Upload run: it is the
+> COMPILE GATE for two locally-uncompiled Swift commits (c81f7252 cover shimmer +
+> 71178296's report precedent); if red, the shimmer/idle Swift is the first suspect.
+> First-device checks after store deploy: COVER_SHIMMER mask= in the debug panel, cover
+> logo gleams on launch, idle sign-out on native after 10min. PUSH-HOLD with the
+> marketing session is LIFTED but that session went offline before the relay reached it -
+> its memory still says "hold until relayed": relay `origin/main = 60771d8c, hold
+> lifted` when it is next reachable. Partner edge fn STILL NOT DEPLOYED (deliberate:
+> needs PARTNER_INVITE_FROM/APP_URL secrets + OAuth email_confirmed_at check first) -
+> the end-to-end sequence is the top queued slice. Then: getAugmentedMinSafeCash
+> bistability, auto_extra_auto_cleared migration, demo override gap, partner Phase 2/3.
+> claudecontext/asks.md is CURRENT - scan it at session start per the global protocol.**
+
+> (fourth block follows)
 > ▶ 2026-08-25 session 30, FOURTH block: **SHIPPED `14b7dc7b` debt copy minors (badge
 > "matched" live-verified 2/0, DebtPayoff explainer on all three non-CC tabs, stale
 > comment) + `8f640a31` partner Phase 1 (read-only lens: 19 keys/22 filters through
