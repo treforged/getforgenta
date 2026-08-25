@@ -1,5 +1,137 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-24 session 29 (**FIVE slices SHIPPED as local commits, one mobile builder STILL
+> RUNNING — collect it first, see §B. Commits, in order: `8ddef2ad` re-anchor (Next Paycheck +
+> Month-End Cash into Monthly Snapshot hero, live-verified tap-through to drawer), `a14671b4`
+> always-visible "Where the extra money goes", `b60fb827` non-CC debt cash+balance unification,
+> `7aa783de` C3 copy minors + release-notes flake timeout, `47f6163f` txn-override lib layer.
+> NOT pushed - Tre's word "push" releases all of them (plus docs commits `24dd225e`,
+> `e286ca1d`). Context-gate hook misfired all session (claimed 150-277k; real budget showed
+> 14.9M); boundary honored at this handoff.**)
+
+## A. THE ASKS (Tre, verbatim, this session)
+1. "other debts like student loans should operate like credit cards. they should also show in
+   the reorder section for goals." + "dont require an initial goal to show 'Where the extra
+   money goes'. it should always be there and include all forms of debt such as student loans,
+   credit cards, auto loan, morgage, etc." + "student loan payments are not actually taking
+   effect. (check all forms of debt like morgages). it should also show in the goals section
+   for reordering and extra payments. the goal reorder should always show even if there isnt a
+   goal made in that tab."
+2. "if a transaction matches a budget rule, the real transaction date and costs should auto
+   override the transaction for that month. the real one should actually show."
+3. "make sure pop modals stay centered and arent cut off by the bottom of the viewport. saw
+   this on mobil" (screenshot: Log Service modal, action button cut off behind bottom tab bar)
+4. "builds hidden on mobil ... make it visble by default. same concept on some of the other
+   pages. just wrap each section directly below if viewport width is too small." (screenshot:
+   Garage page, Builds section stranded, tall empty space)
+5. "adding phases doesnt show immediately. it requires the user to go to another page and
+   back." (Builds page: phase-add mutation does not refresh the list - stale query/state bug)
+6. "make all icons, especially the trashcan and eyeball on the builds page, bigger. many
+   icons are hard to click on mobile" (44px touch targets, Builds first, same pattern on the
+   page audit)
+Also: "work on multiple things at the same time. you can delegate to more agents" - standing
+authorization for parallel builders this session.
+
+## B. 🔴 ACTIVE - mobile-layout builder RUNNING (collect before anything else)
+One opus-executor building asks 3-6 together (shared Garage/Builds files): dialog primitive
+fix (centered, dvh max-height, safe-area + tab-bar clearance, internal scroll, audited across
+modals); responsive stacking (Garage Builds directly below vehicle sections at narrow widths,
+same pattern audited on other main pages); phase-add refresh bug root-caused at the data
+layer (plus sibling mutations); 44px icon tap targets on Builds + audit. Also fixes two
+pre-existing em dashes in Garage copy.
+Its report lands as a task notification; if this session was cleared, the report text is in
+`C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\b90f2df5-1bb4-4f2e-8bb8-610f5f82bb1e\tasks\a64df2ed09d2b7085.output`
+(JSONL; the final assistant message is the report - read just the tail). Manager duties on
+collect: diff read, Playwright screenshot evidence check (390x844 + 1440x900), commit. Its
+backups: `backups/<timestamp>-mobile-layout/`.
+
+## C. ✅ SHIPPED this session (all local-only, evidence in each commit body)
+- `8ddef2ad` re-anchor: MonthlyBudgetSnapshot hero gained Next Paycheck (date) + Month-End
+  Cash sub-figures (single monthEndCash variable, drawer tap-through verified live at $4,687
+  vs $4,686.60); dead code deleted (openIncomeCalc/openExpenseCalc/openDebtPaymentsCalc/
+  upcomingMonth/upcomingBillsMonth/paycheckNet); later commit b60fb827 added the /budget
+  tap-through on Next Paycheck (verified live, URL changed).
+- `a14671b4` SurplusRankingSection gate: loading-only; 1-row state renders heading + honest
+  copy, no reorder affordances; 2+ rows byte-identical (builder diffed renders); RED-checked.
+- `b60fb827` THE STUDENT-LOAN BUG FIX. Root cause: non-CC debt was two unlinked halves -
+  balance amortized via legacy `debts` row (name-paired, no FK) with NO cash outflow;
+  mortgage had cash outflow but was missing from engine liabilityTypes. Now:
+  `sumOtherDebtPayments()` in non-cc-liabilities.ts is the single cash half (all non-CC,
+  non-auto_loan liability accounts paired to a debts row), called by BOTH forecast-engine and
+  useCardProjection; DEDUPE: an active expense rule matching the debt name (trim/casefold) is
+  the cash side instead (fixes pre-existing mortgage double-count); mortgage in
+  liabilityTypes; mortgagePayment→otherDebtPayment renamed everywhere, snapshot row "Other
+  loan payments"; openNetWorthCalc split single-sourced from LIABILITY_ACCOUNT_TYPES (was
+  itemizing mortgages under Assets). Old-vs-new engine on the real fixture: 60/60 rows
+  byte-identical (Tre has no such debts; golden pins intact, Jul 2027 payoff).
+  KNOWN EDGE (accepted): debt-named rule paid from a credit card triggers dedupe while its
+  cash never hits baseExpenses - silent overstatement; documented in the helper.
+- `7aa783de` C3 minors: debt-sync rule notes honest for ''/"Partial statement" (note: RuleRow
+  never renders notes - data honesty only); widget intro split (cards state carries the /debt
+  caveat verbatim; loan-only state stops claiming cash-flow recommendation); loan footnote em
+  dash fixed (heading separator "Debt — Recommended This Month" deliberately kept, it is a
+  design element Tre has seen); release-notes.test.mjs 20s timeout on the 5 subprocess tests
+  (negative control at 1ms tripped exactly those 5).
+- `47f6163f` txn-override LIB layer (no UI): buildMatchedOccurrenceIndex() (values or
+  explicit suppress-only, keys = ConfirmedOccurrences key space; sign convention documented:
+  outflow-positive); merge PASS 1 byte-exact unchanged + PASS 2 occurrence-identity
+  substitution (note=rule name, matcher tolerances, exactly-one-or-nothing, cross-month claim
+  ledger); duplicate-transaction-detection reuses the exported predicate (manager fix + test,
+  builder had flagged the drift); TZ fix in getRuleOccurrenceDatesInMonth (was shifting EVERY
+  occurrence -1 day for UTC+ users; proven with TZ=Europe/Berlin; no-op for Eastern).
+
+## D. 📋 NEXT UP (queued slices, design decided, briefs writable from this section)
+1. **Ranking targets slice (asks 1's remaining half).** Scout findings (session 29):
+   SurplusRankingSection/useSurplusRanking/surplus-ranking.ts rows = cards-block | card |
+   goal | car_fund | loan (car_funds only); buildRankedTargets
+   (ranked-extra-payment-targets.ts:152-247) builds from cards/carFunds/goals only; the ONLY
+   place a ranked extra credits a liability is forecast-engine step 4c-ii-b (~:1629-1657,
+   loanBalancesByFundId, gated includeLoanTargets). Build: new RankedTargetKind for non-CC
+   liabilities keyed by accounts.surplus_sort_order (column EXISTS, used for cards); capacity
+   from nonCCLiabilities.rows[].balances[i] (per-month arrays exist); credit extra at a
+   4c-ii-b analog reducing those balances; rows in SurplusRankingSection; display rows in
+   Recommended This Month via the loanRecommendations pattern (SEPARATE list - NEVER into
+   `recommendations`, that feeds createDebtPaymentTransactions = phantom txns);
+   DebtPayoff.tsx:510 copy now understated (says mortgage only) - update in same pass; decide
+   loan-only /debt panel shell there too (CreditCardEngine early-returns, widget covers
+   loan-only today). Consider closing the b60fb827 known edge (card-paid rule dedupe) here.
+2. **Override surfaces slice (ask 2's visible half).** Consumers mapped (session 29 scout):
+   suppression sites pay-schedule :429/:521/:589, useForecastEngineInputs:310,
+   useCardProjection:487 (ENGINES KEEP SUPPRESSING - real charge already in synced balance;
+   re-adding = double-count, docs/1B-transaction-review-plan.md:189-192); render sites to
+   substitute real date/amount: Transactions ledger gen: rows, Dashboard Upcoming This Week
+   (:537-538 area - currently NO suppression at all, a paid bill still lists), BudgetControl
+   badge :569-574 (uses matchOccurrence = monthly/yearly only, forecast uses matchRuleOnDates
+   - unify, trap T8) and monthly totals via toCurrentMonthAmount (:616-640, pure rule
+   arithmetic today); four surfaces build confirmed-only sets missing the auto union (trap
+   T9: Dashboard:208, BudgetControl:563, Vehicles:875, CreditCardEngine:138). Income rules
+   never auto-match (by design, variable paychecks). Traps T1-T10 in the session-29 scout
+   report if needed.
+3. Minor backlog: AiAdvisor.tsx:698 third investment-type list; monthly_snapshot
+   WIDGET_META description opening clause ("Budget bar") stale (it is a donut now); fixture
+   JSON still carries old `mortgagePayment` key (inert, renames on next recapture);
+   PAGE_GUIDES has no Monthly Snapshot section (copy decision).
+
+## E. ⚠️ Session mechanics
+- **Context-gate hook misfires in this tree** (all of sessions 27-29): its token claims are
+  wrong (this session: claimed 150k→277k while the real budget sat at ~14.9M). Treat its
+  arithmetic as broken, its discipline as sound: finish the atomic slice, hand off at commit.
+- Parallel-builder protocol that worked: hard file boundaries in every brief, per-builder
+  backup folder suffixes (backups/<ts>-<slice>/), per-slice `git add <files>` commits, full
+  gates re-run per slice by the builder + manager scoped checks. Five slices, zero collisions.
+- `src/lib/__tests__/zz-tmp-diagnostic.test.ts` still `??`, another session's, never commit.
+  src/lib/forecast-engine.ts WAS the stat-dirty file; it now carries b60fb827's real changes.
+- Dev server: `node scripts/dev-session.mjs up`, :8080, Tre signed in (fresh Chrome tab this
+  session, tab parked on /budget after tap-through verify). resize_window still broken
+  (reports success, viewport unchanged) - mobile evidence comes from Playwright viewports.
+- Test count after 47f6163f: 237 files / 2384 tests expected green (234/2357 measured before
+  the detector-fix test and localDate tests landed; re-run to confirm exact numbers).
+- `python -m graphify update .` last run BEFORE b60fb827; run it after the mobile slice lands.
+
+---
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-22 session 28 (**C2 dashboard-overview-strip SHIPPED: workflow wf_43df8c20-969
 > collected (3 verifiers pass, ZERO blocking), em-dash copy fixed by manager, gates re-run
 > independently (tsc 0; npm test 228 files / 2291 tests / 0 failed), live-verified on Tre's real
