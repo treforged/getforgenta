@@ -1,5 +1,88 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35b — **THE OSCILLATION IS A PERIOD-6 LIMIT CYCLE AT THE
+> PAYOFF BOUNDARY. NEXT SLICE IS A PAYOFF-REGIME LATCH, AND THE PATTERN TO COPY
+> IS ALREADY IN THE SAME FILE.** Read the 35 block below for the full evidence
+> chain; this block is what changed since.
+>
+> SHIPPED `bc7f3570` (tsc clean, npm test 276 files / 2854 tests): the debt-cash
+> convergence gap is now measured only over months that still carry revolving
+> debt (`maxDebtPaymentGap` + `REVOLVING_GAP_DUST = 1` in
+> `src/lib/forecast-convergence.ts`), with an explicit fallback to ALL months
+> when no month qualifies, because an empty measurement set would report gap 0
+> and the loop reads gap 0 as CONVERGED. Three new tests in
+> `forecast-convergence.dustGap.test.ts`; test 2 was MUTATION-CHECKED (flip the
+> filter back to all-months and it fails, restore and it passes).
+> **This does NOT yet change Tre's numbers** — still `converged:false`,
+> `usedFallback:true`, same five negative months. It removes one whole class of
+> false non-convergence (2030-2031 tail noise vetoing a settled run) and is
+> worth having on its own, but it is step 1 of 2.
+>
+> THE REMAINING DEFECT, measured, not guessed. With the tail silenced the worst
+> month moved INSIDE the debt window to months 25-26. Per-pass trace of
+> `rev25` (summed revolving balance at month 25) and the gap:
+>   p12 gap=841  rev25=2254.74   p18 gap=849  rev25=2254.30
+>   p13 gap=1128 rev25=2341.20   p19 gap=1127 rev25=2335.00
+>   p14 gap=558  rev25=0.04      p20 gap=562  rev25=0.04
+>   p15 gap=1913 rev25=1813.33   p21 gap=1912 rev25=1810.03
+>   p16 gap=906  rev25=2027.10   p22 gap=905  rev25=2024.95
+>   p17 gap=1075 rev25=0.04      p23 gap=1075 rev25=0.04
+> **Passes 18-24 reproduce passes 12-18 to the dollar. It is a stable period-6
+> orbit, so no pass budget will ever converge it** — do not raise `maxPasses`
+> again (it was already raised 18 -> 24 for this). Month 25 flips between owing
+> ~$2,250 and holding $0.04 of dust each orbit: in some passes the cards are
+> paid off by then and in others they are not, and `pay25` swings $2,269 <->
+> $4,320 in lockstep.
+>
+> THE FIX TO BUILD NEXT: a payoff-regime latch, exactly analogous to
+> `floor-min-latch.ts` which already lives in this loop and was written for the
+> same shape (a period-3 orbit where paying a card off RAISES that month's floor
+> and un-authorises the payment that paid it). Once a month's revolving balance
+> has crossed the dust boundary TWICE across passes, pin it to the LARGER regime
+> (still revolving) for the rest of the run — the same safe-side doctrine that
+> latch already uses, since assuming the debt is still there can only make the
+> plan more conservative. Note it must reach the SIM (`resimulateWithDebtCash`),
+> not just the engine, which is why it is a bigger slice than today's change.
+> PASS CONDITION, measure it, do not assert it: `window.__convergenceDebug` on
+> :8080 reads `converged: true`, and Oct 2027 / Mar 2028 ending cash go positive.
+> Apr/May/Jun 2028 stay negative and SHOULD — they are structural.
+>
+> HOW TO RE-MEASURE (this is what made the diagnosis possible, reuse it): drop a
+> temporary `if (import.meta.env.DEV)` block just after `maxGap` is computed in
+> `runDebtCashConvergence`, pushing `{pass, maxGap, worstMonth, rev25, pay25}`
+> onto `globalThis.__convTrace`; reload :8080/forecast, wait ~18s for the engine,
+> then read `globalThis.__convTrace`. REMOVE IT BEFORE COMMITTING — it was
+> removed from this commit.
+>
+> ALSO FIXED THIS SESSION, global harness (not committed anywhere, they are
+> ~/.claude files): (1) **`llm.py` crashed on every non-ASCII reply** — stdout
+> defaults to cp1252 on Windows, so a model answer containing a curly quote, en
+> dash or U+2011 raised UnicodeEncodeError and threw away work that had already
+> been generated. `sys.stdout/stderr.reconfigure(encoding='utf-8',
+> errors='replace')` added at import with the reasoning in a comment; verified by
+> round-tripping non-ASCII through groq. THIS IS WHY THE FIRST TWO `llm` CALLS
+> LOOKED LIKE TIMEOUTS. (2) Caps set to Tre's temporary 85: `DEFAULT_CAP_WEEKLY
+> = 85.0` in BOTH `usage_cap_hook.py` and `usage_resume_watch.py` (the watcher
+> had been left at 75 while the hook already said 80 — the exact divergence both
+> files' comments warn about, where one wakes a session the other re-pauses).
+> five_hour cap stays 80. **RESTORE BOTH TO 75.0 TOGETHER when the forecast fix
+> ships.**
+>
+> LLM EXECUTOR NOTES for the next brief: groq (`openai/gpt-oss-120b`) answers a
+> ~3.4KB brief in ~5s and its structure was sound, but it needed real review
+> every time — it ignored the file's prose-comment style and emitted JSDoc
+> `@param` blocks, invented inline structural types instead of importing the
+> real ones, and its test draft had FOUR defects including one test that would
+> have converged on a gap of exactly the $1 tolerance and two using a revolving
+> balance of `1` against a `> 1` threshold. Pass the brief on STDIN
+> (`cat brief.txt | llm "..." --provider groq`), not as an argv string. Tre's
+> real dollar figures were stripped before sending; keep doing that.
+>
+> Tre re-enabled the car-loan extra at 21:00 UTC — `car_funds.auto_extra` is now
+> TRUE (SQL-verified). It changed nothing in the forecast, exactly as predicted:
+> at rank 4 it sits behind the card block and the move fund, which absorb the
+> surplus. That is the ranking conversation in the 35 block, not a bug.
+
 > ▶ 2026-08-26 SESSION 35 — **TRE'S FORECAST BUG IS ROOT-CAUSED. THE DEBT-CASH
 > CONVERGENCE LOOP DOES NOT CONVERGE ON HIS LIVE DATA, AND THE APP IS SHOWING
 > HIM THE UNCONVERGED FALLBACK.** Read this whole block before touching the
