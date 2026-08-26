@@ -1,4 +1,53 @@
-# Handoff — "extra payments" follow-up build (paused on usage cap)
+# Handoff — "extra payments" follow-up build (paused on usage cap, SECOND pause)
+
+## ▶ 2026-08-26 RE-PAUSE (this session, cap hit again at 85% five_hour, resets 05:10 ET)
+
+State when the cap tripped:
+- A **fable-executor builder was IN FLIGHT** on this slice (dispatched from this session,
+  brief = this file verbatim + process rules). It had already made real edits: peer session
+  getforgenta-35 snapshot-verified `npx tsc --noEmit` clean and a new
+  `extrasPayoffReadout` test file 3/3 green mid-flight. **NOT committed. The builder was
+  presumably killed/blocked by the same cap — check `git status` on resume; its
+  uncommitted edits are the slice's work-in-progress, do NOT discard them.**
+- Peer session getforgenta-35 also resumed this slice after the reset, spotted the
+  collision, stood its builder down with ZERO edits (verified by them), did a read-only
+  review of OUR in-flight diff, and reported **two findings to fold in BEFORE commit**:
+  1. **REAL GAP:** the second-line gate in DebtPayoff.tsx is "ranked
+     (surplus_sort_order != null) + engine payoff strictly earlier than scheduled", not
+     "actually received waterfall money". Engine amortizes the ACCOUNT balance while the
+     on-screen scheduled months amortize the debts-row balance; if those diverge, a ranked
+     debt receiving $0 extras can still show the line. Close: additionally gate on the
+     debt actually receiving extras via `buildAutoExtraByTarget(projections.data)`
+     (src/lib/auto-extra-projection.ts).
+  2. **COSMETIC:** `withExtrasPayoffMonths` pairs accounts with
+     `account_type !== 'credit_card'`, looser than the engine's liability-type set; worst
+     case the line hides (undefined lookup), not a wrong number. Tighten if cheap.
+  Peer said it will NOT touch the tree; the slice is ours. Peer offered to update asks.md
+  and delete this file once we commit — **we are handling both ourselves; on resume,
+  message getforgenta-35 (SendMessage) that this session owns asks.md + file deletion.**
+- **Tre's new directives this turn (2026-08-26, verbatim intent):** (a) "start local host
+  8080 if you need it" — DONE, `node scripts/dev-session.mjs up` completed exit 0, dev
+  server should be at http://localhost:8080 (the only canonical origin); (b) "start
+  having fable plan then give it to an ollama executor to do the work, the[n] review.
+  why are we not operating like the workflow i said before." — ANSWER GIVEN IN THE PAUSE
+  LINE, and the standing routing still holds per his own 2026-08-25 ladder: THIS slice is
+  engine/money-tier so it correctly went to the strongest executor (Ollama never gets
+  engine/money work). But the message means Ollama-primary is UNDER-USED: on resume,
+  route the next mechanical/cheap-to-verify slices Fable-plan → Ollama-draft →
+  Fable-review-and-apply, and SCORE each into ~/.claude/ollama/playbook.md. Candidates:
+  copy/doc slices, useOnboardingStatus 'pending' unbounded (small, verifiable), NOT
+  DebtPayoff 390px truncation (collides with this slice) and NOT pollAppReady (it lives
+  in ios/App/App/AppDelegate.swift — Swift w/o toolchain, wrong shape for Ollama).
+
+RESUME ORDER: 1) git status — inspect builder's uncommitted diff; 2) fold in peer finding
+1 (the buildAutoExtraByTarget gate) + finding 2 if cheap; 3) finish the original brief
+below (tests, gates, backup-before-further-edits, local commit w/ Release-Note trailer,
+NEVER push); 4) message getforgenta-35; 5) flip asks.md line and delete this file; 6)
+start the Ollama-workflow slices.
+
+---
+
+(original brief + first pause's investigation below — still the build spec)
 
 Status: **PAUSED, no code edited yet.** Hit the 85% five_hour usage cap mid-investigation,
 before any Write/Edit to a repo source file. Repo is clean — only the pre-existing foreign
