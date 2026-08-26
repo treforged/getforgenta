@@ -111,6 +111,8 @@ const anchor = () => {
 
 const OPTED_IN = goal({ id: 'g-2', linked_account: 'sav-1', auto_extra: true });
 const RESERVE = 400;
+/** Half a cent, matching the engine's own clamp epsilon. */
+const AUTO_EXTRA_CENT = 0.005;
 const reserveOf = (amount: number): Month0Result['autoExtraPerTarget'] =>
   [{ id: 'g-2', kind: 'goal', amount }];
 
@@ -153,6 +155,34 @@ describe('forecast-engine — the ranked reserve gives way before the month goes
     for (let m = 1; m < opted.data.length; m += 1) {
       expect(gapAt(m)).toBeCloseTo(gapAt(0), 2);
     }
+  });
+
+  it('splits the shortfall evenly between two targets the user ranked EQUALLY', () => {
+    // ⚠️ READ THIS BEFORE CHANGING THE CLAMP'S SHEDDING ORDER. The waterfall funds ONE rank per
+    // month ("only the highest one that is not finished gets the money"), so two targets at
+    // DIFFERENT ranks are never in the money in the same month and the clamp is never asked to
+    // choose between them. Measured 2026-08-26: with a $500 goal ranked above a $5,000 one, month 1
+    // pays the first $500 and month 2 pays the second $2,498. Reverse-rank shedding and pro rata
+    // are therefore identical everywhere EXCEPT a tie, which is the one case this can pin and the
+    // one Tre asked about by name (2026-08-26, the 50/50 split).
+    //
+    // A tie must shed proportionally rather than in array order, or which goal loses its money
+    // depends on the order the rows happened to load out of the database.
+    const a = goal({ id: 'g-a', target_amount: 5000, auto_extra: true, sort_order: 3, surplus_share: 1 });
+    const b = goal({ id: 'g-b', target_amount: 5000, auto_extra: true, sort_order: 3, surplus_share: 1 });
+
+    anchor();
+    const opted = calculateForecast(makeInputs([a, b], [], 3000, 0));
+    const took = (m: number, id: string) => opted.data[m].autoExtraByTarget?.[id] ?? 0;
+
+    // Month 1 is the first month the clamp can act in, month 0 being exempt.
+    const aTook = took(1, 'g-a');
+    const bTook = took(1, 'g-b');
+
+    expect(aTook).toBeGreaterThan(AUTO_EXTRA_CENT);
+    expect(aTook).toBeCloseTo(bTook, 2);
+    // And the month stayed solvent, which is the clamp doing its job around the even split.
+    expect(opted.data[1].endingCash).toBeGreaterThanOrEqual(0);
   });
 
   it('conserves the money when it clamps, month by month', () => {

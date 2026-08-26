@@ -1607,6 +1607,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       }
       let autoExtraThisMonth: AutoExtraReserve['perTarget'] = [];
       let autoExtraOutThisMonth = 0;
+      /** Target id to its rank in the user's list, lower being higher priority.
+       *  Populated alongside `targets` below, and read by the floor clamp so it
+       *  can take money back in the reverse of the order the waterfall gave it. */
+      const autoExtraRankById = new Map<string, number>();
       if (i === 0) {
         autoExtraThisMonth = cardProjectionData?.month0?.autoExtraPerTarget ?? [];
         autoExtraOutThisMonth = cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0;
@@ -1666,6 +1670,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         }
         // ⚠️ The card block's rank comes from `profiles.cards_sort_order`, exactly as month 0
         // reads it. The column defaults to 0 — cards first, the pre-feature behaviour.
+        for (const t of targets) autoExtraRankById.set(t.id, t.sortOrder);
         const reserve = computeAutoExtraReserve(
           autoExtraPool, ccMinForMonth, revBalTotal, targets, profile?.cards_sort_order ?? 0,
         );
@@ -1728,13 +1733,56 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           cashPreDebtBeforeAutoExtra - plannedDebtPayment - step3SpendFloor - FLOOR_CUSHION_DOLLARS,
         );
         if (autoExtraOutThisMonth - affordableReserve > AUTO_EXTRA_CLAMP_CENT) {
-          // One shared factor, so the itemised lines still sum to the total. The
-          // drawer prints those lines and steps 4c-ii-b and 4c-ii-c credit them
-          // to goal and loan balances, so a total that no longer matched its
-          // parts would put dollars on a balance that never left checking.
-          const factor = affordableReserve / autoExtraOutThisMonth;
-          autoExtraThisMonth = autoExtraThisMonth.map(t => ({ ...t, amount: t.amount * factor }));
-          autoExtraOutThisMonth = affordableReserve;
+          // ⚠️ THE LOWEST-RANKED TARGET GIVES UP ITS MONEY FIRST. This is the
+          // waterfall running backwards, and it is the whole point: the user put
+          // these in an order, so a shortfall has to come off the bottom of that
+          // order, not off everything at once. Scaling every target by one
+          // shared factor was the first version of this clamp and it was wrong
+          // in exactly the way a user would notice, taking from their top
+          // priority and their last priority in equal proportion (Tre,
+          // 2026-08-26: "the lowest priority item ... should pull back first").
+          const ranked = autoExtraThisMonth.map(t => ({
+            ...t,
+            // An unranked target is one this month could not place in the list
+            // at all. It sheds first, because guessing that it outranks
+            // something the user ranked deliberately is the worse of the two
+            // possible errors.
+            rank: autoExtraRankById.get(t.id) ?? Number.POSITIVE_INFINITY,
+          }));
+          const amountById = new Map(ranked.map(t => [t.id, t.amount]));
+          const tiers = [...new Set(ranked.map(t => t.rank))].sort((a, b) => b - a);
+
+          let excess = autoExtraOutThisMonth - affordableReserve;
+          for (const rank of tiers) {
+            if (excess <= 0) break;
+            const tier = ranked.filter(t => t.rank === rank);
+            const tierTotal = tier.reduce((s, t) => s + (amountById.get(t.id) ?? 0), 0);
+            if (tierTotal <= 0) continue;
+            // Within one tier, proportionally. Two targets the user ranked
+            // EQUALLY have no order between them, so shedding them in array
+            // order would make the answer depend on how the rows happened to be
+            // loaded.
+            const take = Math.min(excess, tierTotal);
+            for (const t of tier) {
+              amountById.set(t.id, (amountById.get(t.id) ?? 0) * (1 - take / tierTotal));
+            }
+            excess -= take;
+          }
+
+          // A line that survived at less than a cent did not happen, and the
+          // drawer printing "$0.00" next to a goal reads as a contribution that
+          // was made rather than one that was cancelled.
+          autoExtraThisMonth = ranked
+            .map(t => ({ id: t.id, kind: t.kind, amount: amountById.get(t.id) ?? 0 }))
+            .filter(t => t.amount > AUTO_EXTRA_CLAMP_CENT);
+          // DERIVED from the survivors rather than set to `affordableReserve`,
+          // so the itemised parts always sum to the total exactly. Steps
+          // 4c-ii-b and 4c-ii-c credit those per-target amounts to real goal and
+          // loan balances, so a total that ran ahead of its parts would put
+          // dollars on a balance that never left checking. Dropping the sub-cent
+          // lines makes this very slightly SMALLER than the ceiling, which is
+          // the safe direction.
+          autoExtraOutThisMonth = autoExtraThisMonth.reduce((s, t) => s + t.amount, 0);
         }
       }
       const cashPreDebt = cashPreDebtBeforeAutoExtra - autoExtraOutThisMonth;

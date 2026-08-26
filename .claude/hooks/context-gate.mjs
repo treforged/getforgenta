@@ -15,8 +15,41 @@ import { join } from "node:path";
 // request of the new session. 25k of headroom is still comfortable for a handoff write (~8-12k).
 // Do not push past ~180k: overrunning means auto-compact, which flattens exactly the
 // "do not re-litigate" decisions and live-verification debt these handoffs exist to carry.
-const THRESHOLD = 175_000;
+const DEFAULT_WINDOW = 200_000;
+const GATE_FRACTION = 0.875; // 175k of a 200k window, the tuned figure above.
 const THROTTLE_MS = 3 * 60 * 1000;
+
+// Windows this harness actually ships, smallest first. Used only to turn an
+// observed context size into the smallest window that could possibly contain it.
+const WINDOW_LADDER = [200_000, 1_000_000, 15_000_000];
+
+/**
+ * The context window this session is really running in.
+ *
+ * Hooks are not told the window size, and hard-coding 200k made this gate fire
+ * continuously on a large-window session: on 2026-08-26 it interrupted roughly
+ * a dozen times in one session that was using 2.5% of its budget, demanding a
+ * handoff and a /clear that would have thrown away a working session for
+ * nothing. A gate that cries wolf is worse than no gate, because the real
+ * warning stops being read.
+ *
+ * The inference is a deduction rather than a guess: auto-compact fires near the
+ * window limit, so a session sitting healthily at 385k tokens PROVES its window
+ * is larger than 200k. Take the smallest shipped window that still comfortably
+ * contains what we have already observed. Set CLAUDE_CONTEXT_WINDOW_TOKENS to
+ * override, or CLAUDE_CONTEXT_GATE_THRESHOLD to pin the trigger outright.
+ */
+function windowFor(tokens) {
+  const override = Number(process.env.CLAUDE_CONTEXT_WINDOW_TOKENS);
+  if (Number.isFinite(override) && override > 0) return override;
+  return WINDOW_LADDER.find((w) => tokens < w * 0.95) ?? WINDOW_LADDER[WINDOW_LADDER.length - 1];
+}
+
+function thresholdFor(tokens) {
+  const pinned = Number(process.env.CLAUDE_CONTEXT_GATE_THRESHOLD);
+  if (Number.isFinite(pinned) && pinned > 0) return pinned;
+  return Math.round(windowFor(tokens) * GATE_FRACTION) || DEFAULT_WINDOW * GATE_FRACTION;
+}
 
 function readStdin() {
   try {
@@ -72,16 +105,21 @@ try {
   if (!transcriptPath || !existsSync(transcriptPath)) process.exit(0);
 
   const tokens = contextTokens(transcriptPath);
-  if (tokens < THRESHOLD) process.exit(0);
+  const threshold = thresholdFor(tokens);
+  if (tokens < threshold) process.exit(0);
   if (throttled(input.session_id)) process.exit(0);
 
   const kTokens = Math.round(tokens / 1000);
+  // Interpolated, never a literal. It used to say "threshold 150k" while the
+  // constant was 175k, so the reminder misreported its own trigger to the one
+  // reader who might have questioned it.
+  const kThreshold = Math.round(threshold / 1000);
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "PostToolUse",
         additionalContext:
-          `CONTEXT GATE: context is at ~${kTokens}k tokens (threshold 150k). ` +
+          `CONTEXT GATE: context is at ~${kTokens}k tokens (threshold ${kThreshold}k). ` +
           `STOP starting new work. Run the context-handoff skill NOW: update handoff.md ` +
           `(goals, current state, active files, changes made, failed attempts, next steps), ` +
           `commit it, then tell the user to run /clear so the next agent can resume from handoff.md.`,
