@@ -12,11 +12,6 @@ const config: CapacitorConfig = {
   ios: {
     backgroundColor: '#09090b', // zinc-950 — prevents black WKWebView flash on reload
   },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 0,
-    },
-  },
 };
 
 export default config;

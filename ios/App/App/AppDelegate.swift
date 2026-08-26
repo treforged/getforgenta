@@ -484,33 +484,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    /// Polls window.__forgenta_app_ready every 200 ms.
-    /// Set by AppReadySignal in App.tsx on first React mount — fires after the full
-    /// component tree has rendered, not just when the HTML document is parsed.
-    /// This prevents cover dismissal on the bare black WebView skeleton on fresh launch.
-    private func pollAppReady(maxAttempts: Int, attempt: Int = 0) {
-        guard nativeCover != nil else { return }
-        guard attempt < maxAttempts else { hideNativeCover(); return }
-        guard let webView = webViewForPolling() else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.pollAppReady(maxAttempts: maxAttempts, attempt: attempt + 1)
-            }
-            return
-        }
-        webView.evaluateJavaScript("window.__forgenta_app_ready === true") { [weak self] result, _ in
-            DispatchQueue.main.async {
-                if (result as? Bool) == true {
-                    self?.debugLog("APP_READY flag=true")
-                    self?.waitForPaintThenDismiss(webView)
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        self?.pollAppReady(maxAttempts: maxAttempts, attempt: attempt + 1)
-                    }
-                }
-            }
-        }
-    }
-
     /// Polls document.readyState every 200 ms.
     /// Dismisses cover 0.4 s after the first 'complete' result, or after maxAttempts.
     private func pollWebViewReady(maxAttempts: Int, attempt: Int = 0) {
