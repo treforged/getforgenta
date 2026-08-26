@@ -1,5 +1,24 @@
 # Handoff — "extra payments" follow-up build (BUILT + COMMITTED, one gate rerun pending)
 
+## ▶ 2026-08-26 MANAGER ADDENDUM (second cap pause, resets 05:10 ET)
+
+Tre's new standing rule, applied globally this turn: **Fable NEVER executes - manager
+only.** `fable-executor` is RETIRED (global CLAUDE.md routing bullets edited, memory
+file `feedback_fable_never_executes.md` written). The running fable-executor needed no
+kill - it completed the slice (see builder block below) before the cap stalled tools.
+Executor ladder now: Ollama primary / Sonnet for agentic shapes / Opus for the hardest
+slices + backup manager. Hard slices may draft on cheaper tiers when Tre says so; the
+Fable review gate is the safety, not the executor tier.
+
+RESUME ORDER (supersedes the one lower down): 1) `npx tsc --noEmit` + `npm test` - the
+gate rerun the builder's commit 2 (peer-findings fold-in) is waiting on; if red, delta
+is isolated in that commit, fix or revert to `d4a12d4b`. 2) Live-verify /debt non-CC
+tabs on localhost:8080 (dev server was started, signed-in tab may need the dev-signin
+skill). 3) Message getforgenta-35: this session owns asks.md + this file's deletion.
+4) Flip the asks.md extra-payments line to [x] with evidence, delete this file (fold
+the close line into handoff.md). 5) Start the Ollama-workflow slices (candidates in
+the block below; useOnboardingStatus 'pending' unbounded first).
+
 ## ▶ 2026-08-26 BUILDER COMPLETION (written by the in-flight builder at cap time)
 
 The slice is BUILT and COMMITTED locally on main in TWO commits. NOT pushed.
