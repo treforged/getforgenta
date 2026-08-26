@@ -83,6 +83,21 @@ export interface FloorProtectionResult {
    * surplus-redirect step on this name specifically, in case the two ever need to diverge again. */
   strictSaveUpMonths: Set<number>;
   saveUpReason: Map<number, { eventName: string; monthLabel: string }>;
+  /**
+   * The backward pass itself: the minimum ENDING balance for each month that
+   * guarantees no LATER month ends below its own floor.
+   *
+   * Returned because the debt-payment cap above is not the only lever on a
+   * month's ending cash, and on real data it is often not the effective one. A
+   * caller holding back a DISCRETIONARY reserve should clamp against this rather
+   * than against a one-month-ahead floor, or it will drain a month to that
+   * floor and strand a spike two or three months out. Measured 2026-08-26:
+   * December 2028's requiredEnd is 2883, the month actually ended at 2011
+   * because a ranked reserve took the difference, and January 2029 then landed
+   * at 1246 against a floor of 1955. The payment cap could not help, because by
+   * then no reducible debt remained for it to reduce.
+   */
+  requiredEndByMonth: number[];
 }
 
 /**
@@ -118,7 +133,14 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
 
   if (ccMinTotal <= 0) {
-    return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason };
+    // Zeroes, not the floors: this return happens BEFORE the backward pass runs,
+    // and zero demands nothing of any month. A caller clamping a reserve against
+    // it is therefore unconstrained, which is exactly what this early return
+    // already means everywhere else - no protection is configured.
+    return {
+      maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason,
+      requiredEndByMonth: Array(PROJECTION_MONTHS).fill(0),
+    };
   }
 
   // Per-month net cash flow if only the minimum is ever sent to debt — the most that could
@@ -158,6 +180,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const fromChain = m + 1 < PROJECTION_MONTHS ? requiredEndByMonth[m + 1] - netAtMin[m + 1] : -Infinity;
     requiredEndByMonth[m] = Math.max(floorByMonth[m], nextFloor, fromChain);
   }
+
 
   // Unprotected (no caps at all) trajectory, purely to identify which future months would
   // actually breach the floor and why — used only to label saveUpReason below, not to decide
@@ -267,5 +290,5 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     }
   }
 
-  return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason };
+  return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason, requiredEndByMonth };
 }

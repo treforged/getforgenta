@@ -1315,7 +1315,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           return owed;
         })
       : undefined;
-    const { maxDebtPaymentByMonth, strictSaveUpMonths } = computeFloorProtection({
+    const { maxDebtPaymentByMonth, strictSaveUpMonths, requiredEndByMonth } = computeFloorProtection({
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
@@ -1728,9 +1728,22 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // `step3SpendFloor + FLOOR_CUSHION_DOLLARS` that step 3 drains to puts
         // the month in the established dead zone instead, and costs two dollars
         // of contribution to do it.
+        // ⚠️ THE LARGER OF THE TWO FLOORS, and the second one is why Jan 2029
+        // was still breaching after the clamp shipped. `step3SpendFloor` knows
+        // about this month and the next, so a reserve taken now can drain a
+        // month to its floor and strand a spike two or three months out.
+        // `requiredEndByMonth` is the backward pass in floor-protection.ts and
+        // it already knows the whole tail. Measured 2026-08-26: Dec 2028's
+        // requiredEnd is 2883, it was ending at 2011 because the ranked reserve
+        // took the difference, and Jan 2029 then landed at 1246 against a 1955
+        // floor. The debt-payment cap could not fix it either -- by then no
+        // reducible debt remained for that cap to reduce, so this reserve is
+        // the only lever the month still has.
+        const lookaheadEnd = requiredEndByMonth[i] ?? 0;
         const affordableReserve = Math.max(
           0,
-          cashPreDebtBeforeAutoExtra - plannedDebtPayment - step3SpendFloor - FLOOR_CUSHION_DOLLARS,
+          cashPreDebtBeforeAutoExtra - plannedDebtPayment
+            - Math.max(step3SpendFloor + FLOOR_CUSHION_DOLLARS, lookaheadEnd),
         );
         if (autoExtraOutThisMonth - affordableReserve > AUTO_EXTRA_CLAMP_CENT) {
           // ⚠️ THE LOWEST-RANKED TARGET GIVES UP ITS MONEY FIRST. This is the
