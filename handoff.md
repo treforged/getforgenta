@@ -1,5 +1,68 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35e — **DO NOT PUSH AND DO NOT RESTORE THE CAPS YET.**
+> Tre gave five follow-ups and gated the push on them (2026-08-26). Two are done,
+> three are not started. Caps stay at five_hour 80 / seven_day **85** until the
+> whole list clears; restore BOTH to 75.0 together.
+>
+> DONE: (1) context gate is window-relative, `791ad355` — it was absolute at 175k
+> and fired ~12 times in a session using 2.5% of its budget. It now deduces the
+> window (a session healthily at 385k proves its window exceeds 200k) via a
+> 200k/1M/15M ladder, overridable with `CLAUDE_CONTEXT_WINDOW_TOKENS` /
+> `CLAUDE_CONTEXT_GATE_THRESHOLD`; a 200k session still fires at exactly 175k.
+> (2) the floor clamp now sheds the LOWEST-ranked target first, `791ad355`.
+>
+> ⚠️ READ BEFORE TOUCHING THE SHEDDING ORDER AGAIN: it is currently a NO-OP
+> except at a tie. The waterfall funds ONE rank per month, so two targets at
+> different ranks are never in the money together. Probed: a $500 goal ranked
+> above a $5,000 one gets month 1 = $500, month 2 = $2,498. The new test pins the
+> TIE case (Tre's 50/50 split) because that is the only reachable one. An earlier
+> version of that test passed against a mutant and was rewritten; do not trust an
+> ordering test here that has not been mutation-checked.
+>
+> ⚠️⚠️ JAN + FEB 2029 ARE STILL BELOW FLOOR AND THIS IS THE NEXT SLICE.
+> ROOT-CAUSED, not yet fixed. Live, on the converged run:
+>   Sep 2028 end 2605 floor 2009 pay 1281 (cap INF)
+>   Oct 2028 end 2011 floor 2009 pay  589 (cap INF)   rev 254
+>   Nov 2028 end 2011 floor 1955 pay  589 (cap 10081) rev 254
+>   Dec 2028 end 2011 floor 2009 pay  589 (cap 12332) rev 254
+>   **Jan 2029 end 1246 floor 1955 pay 2822 (cap INF) rev 0  <- BREACH**
+>   **Feb 2029 end 1295 floor 1955 pay  384            rev 0  <- BREACH**
+> The auto-extra reserve is ALREADY $0 in both months, so the new clamp has
+> nothing left to give and this is NOT a reserve problem. Jan's $2,822 is entirely
+> CYCLING (rev 0) — the statement payment for a planned purchase, exactly as Tre
+> described ("spike in cc payments due to a purchase").
+>
+> THE DEFECT: `computeFloorProtection`'s backward pass (`floor-protection.ts`
+> `requiredEndByMonth`) is supposed to make earlier months bank a buffer for a
+> future breach, and it is NOT doing so here — the caps for Nov/Dec 2028 come back
+> at $10,081 and $12,332 against payments of $589, i.e. not binding at all, and
+> `saveUpMonths` stops at month 21. Meanwhile step 3 drains every month to
+> `step3SpendFloor + cushion`, which looks only ONE month ahead, so Oct/Nov/Dec
+> 2028 all sit at exactly $2,011 with no buffer for January.
+> FIRST THING TO CHECK: whether Jan's $2,822 cycling is actually inside
+> `expenseByMonth` when `computeFloorProtection` is called. Its own doc says
+> cycling is "already folded into expenseByMonth by the caller", but if only the
+> EXCESS over baseline is folded in, `netAtMin[Jan]` is far too optimistic and the
+> chain term `requiredEnd[m+1] - netAtMin[m+1]` never demands anything of December.
+> THE PRIZE IS SIZED AND IT FITS: the discretionary lever is `rev` = $254/month in
+> Oct, Nov and Dec = $762, against a January shortfall of 1955 - 1246 = **$709**.
+> Holding that back across three months clears the breach almost exactly, which is
+> precisely what Tre asked for.
+>
+> NOT STARTED (his words): "on the garage tab under active loans, the auto
+> generated extra payments should show and the chart should update"; "make sure
+> student loans also show their payments and changes in the loans tab"; and two
+> asks that arrived mid-turn — "Where the extra money goes" on goals should
+> reorder the way the Builds tab does, and credit cards need a toggle to show
+> EITHER per-card (including planned cards/loans) OR cards-in-general, never both,
+> because his own account shows the confusion, worst on a 50/50 split. All four
+> are in `claudecontext/asks.md`.
+>
+> STILL TRUE: `dcf421ab` (the reserve floor clamp) is the win — five negative
+> months to zero and the debt-cash loop converges for the first time
+> (`converged:true`, 9 passes, no fallback). Do not re-litigate it.
+
 > ▶ 2026-08-26 SESSION 35d — **FIXED AND LIVE-VERIFIED. `dcf421ab`.** Tre's bug
 > is closed: zero negative months, and the debt-cash loop CONVERGES on his data
 > for the first time (`converged:true`, 9 passes, `usedFallback:false`).
