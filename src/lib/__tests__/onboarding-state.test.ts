@@ -35,6 +35,7 @@ import {
   resolveOnboardingState,
   fetchOnboardingCompleted,
   markOnboardingComplete,
+  ONBOARDING_FETCH_TIMEOUT_MS,
 } from '../onboarding-state';
 
 const USER = 'user-abc';
@@ -140,6 +141,30 @@ describe('fetchOnboardingCompleted', () => {
   it('returns null when the client throws', async () => {
     selectMaybeSingle.mockRejectedValue(new Error('offline'));
     await expect(fetchOnboardingCompleted(USER)).resolves.toBeNull();
+  });
+
+  it('resolves null — unknown — instead of hanging when the read never settles', async () => {
+    // A request that neither responds nor errors used to leave the route gate pending forever.
+    // The bound resolves it to "could not read", which never gates and never claims completion.
+    vi.useFakeTimers();
+    try {
+      selectMaybeSingle.mockReturnValue(new Promise(() => {}));
+      const result = fetchOnboardingCompleted(USER);
+      await vi.advanceTimersByTimeAsync(ONBOARDING_FETCH_TIMEOUT_MS + 1);
+      await expect(result).resolves.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not time out a read that answers in time', async () => {
+    vi.useFakeTimers();
+    try {
+      selectMaybeSingle.mockResolvedValue({ data: { onboarding_completed: true }, error: null });
+      await expect(fetchOnboardingCompleted(USER)).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

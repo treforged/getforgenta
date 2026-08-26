@@ -93,24 +93,46 @@ export function resolveOnboardingState(
 }
 
 /**
+ * Ceiling on how long the route gate waits for the profile read. A request that hangs (no response,
+ * no error) otherwise leaves the query pending forever and a fresh device parked on the gate's
+ * spinner — the one state `resolveOnboardingState` can never rescue, because it is never asked.
+ */
+export const ONBOARDING_FETCH_TIMEOUT_MS = 10_000;
+
+/**
  * `profiles.onboarding_completed`, or `null` when it could not be read.
  *
  * A missing row reads as `false`: a signed-in user with no profile is a brand-new account and must
  * still see the wizard. Only an actual error is unknown — supabase-js RETURNS errors rather than
  * throwing them, and collapsing that branch into `false` is exactly what would re-gate a finished
  * user on a flaky connection.
+ *
+ * The read is raced against `ONBOARDING_FETCH_TIMEOUT_MS` and a hung request resolves `null`: a
+ * bounded unknown lets the user through (see the honesty rule above), an unbounded spinner helps
+ * no one.
  */
 export async function fetchOnboardingCompleted(userId: string): Promise<boolean | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ONBOARDING_FETCH_TIMEOUT_MS);
+  });
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const result = await Promise.race([
+      supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      timedOut,
+    ]);
+    if (result === null) return null;
+    const { data, error } = result;
     if (error) return null;
     return data?.onboarding_completed === true;
   } catch {
     return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 
