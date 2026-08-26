@@ -156,6 +156,38 @@ describe('setSurplusRankAutoExtra', () => {
     const next = setSurplusRankAutoExtra(rows, CARDS_ROW_ID, false);
     expect(next.find(r => r.id === CARDS_ROW_ID)?.autoExtra).toBe(true);
   });
+
+  // 20260826_auto_extra_auto_cleared.sql: `autoExtraAutoCleared` records whether the CURRENT
+  // `autoExtra` value was placed there by the waterfall's auto-deselect rather than by the user.
+  // The moment a person touches the switch by hand, that stops being true.
+  it('clears autoExtraAutoCleared on a manual re-select, whatever it was before', () => {
+    const cleared = buildSurplusRankRows({
+      goals: [goal({ auto_extra: false, auto_extra_auto_cleared: true })], carFunds: [],
+    });
+    const next = setSurplusRankAutoExtra(cleared, 'g1', true);
+    expect(next.find(r => r.id === 'g1')).toMatchObject({ autoExtra: true, autoExtraAutoCleared: false });
+  });
+
+  it('clears autoExtraAutoCleared on a manual deselect too — the false is now the user\'s, not the guard\'s', () => {
+    const cleared = buildSurplusRankRows({
+      goals: [goal({ auto_extra: true, auto_extra_auto_cleared: true })], carFunds: [],
+    });
+    const next = setSurplusRankAutoExtra(cleared, 'g1', false);
+    expect(next.find(r => r.id === 'g1')).toMatchObject({ autoExtra: false, autoExtraAutoCleared: false });
+  });
+
+  it('never touches anything else on the row — the ranks and targets a dollar figure depends on', () => {
+    const goalRows = buildSurplusRankRows({
+      goals: [goal({ sort_order: 3, target_amount: 9000, current_amount: 1000, surplus_share: 40 })],
+      carFunds: [],
+    });
+    const before = goalRows.find(r => r.id === 'g1')!;
+    const after = setSurplusRankAutoExtra(goalRows, 'g1', true).find(r => r.id === 'g1')!;
+    expect(after.sortOrder).toBe(before.sortOrder);
+    expect(after.remaining).toBe(before.remaining);
+    expect(after.targetAmount).toBe(before.targetAmount);
+    expect(after.share).toBe(before.share);
+  });
 });
 
 describe('planSurplusRankWrites', () => {
@@ -199,6 +231,42 @@ describe('planSurplusRankWrites', () => {
     expect(writes.goals).toEqual([{ id: 'g1', auto_extra: true }]);
     expect(writes.carFunds).toEqual([]);
     expect(writes.cardsSortOrder).toBeNull();
+  });
+
+  // 20260826_auto_extra_auto_cleared.sql, brief bullet 2: "clear it when the user manually
+  // re-selects". `g1` here stands in for a row the waterfall already switched off — its LIVE
+  // `auto_extra_auto_cleared` reads true, exactly what a reload would hand back from the DB.
+  it('clears the persisted auto_extra_auto_cleared flag when the user manually re-selects a row the waterfall had switched off', () => {
+    const waterfallCleared = buildSurplusRankRows({
+      goals: [
+        goal({ id: 'g1', sort_order: 1, auto_extra: false, auto_extra_auto_cleared: true }),
+        goal({ id: 'g2', sort_order: 3, created_at: '2026-04-01T00:00:00Z' }),
+      ],
+      carFunds: [carFund({ sort_order: 2 })],
+      cardsSortOrder: 0,
+    });
+    const reselected = setSurplusRankAutoExtra(waterfallCleared, 'g1', true);
+    const writes = planSurplusRankWrites(waterfallCleared, reselected);
+    expect(writes.goals).toEqual([{ id: 'g1', auto_extra: true, auto_extra_auto_cleared: false }]);
+    // No other row moved, and nothing here is an amount — the write can only ever change WHICH
+    // switch is on, never a dollar figure. `auto_extra_auto_cleared` is presentational provenance
+    // for the same reason `auto_extra` itself carries no money: see planAutoExtraDeselect's own
+    // "THIS CAN NEVER MOVE A DOLLAR" note, which this write shares.
+    expect(writes.carFunds).toEqual([]);
+    expect(writes.cardsSortOrder).toBeNull();
+    expect(Object.keys(writes.goals[0]).sort()).toEqual(['auto_extra', 'auto_extra_auto_cleared', 'id'].sort());
+  });
+
+  it('does NOT re-clear the flag on a no-op resend of the same auto_extra value', () => {
+    // A row already re-selected (auto_extra_auto_cleared already false) that gets the SAME
+    // `setSurplusRankAutoExtra(true)` call again diffs to nothing — proof this is a real diff,
+    // not a blind "always include the field" write.
+    const already = buildSurplusRankRows({
+      goals: [goal({ id: 'g1', auto_extra: true, auto_extra_auto_cleared: false })],
+      carFunds: [],
+    });
+    const after = setSurplusRankAutoExtra(already, 'g1', true);
+    expect(isSurplusRankWritesEmpty(planSurplusRankWrites(already, after))).toBe(true);
   });
 
   it('ignores a row that is not in both lists — this plans an edit, not a sync', () => {
