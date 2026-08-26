@@ -1,5 +1,29 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 CAP-RESUME #2 COMPLETE, both in-flight slices SHIPPED + committed
+> (local, not pushed): **(1) auto_extra_auto_cleared migration `5ea3e08f` -
+> APPLIED via MCP (success), advisors clean (pre-accepted items only), types
+> regenerated same commit (exactly the 6 expected insertions), the staged
+> `as any` workaround removed, planAutoExtraDeselect now honors the persisted
+> flag (reload-survival CLOSED - the ebac8ecc known limit). (2) Friends Phase 1
+> `e18d9af2` - friend-link edge fn DEPLOYED ACTIVE v1 verify_jwt=true
+> (unauth probe 401), reuses partner-link secrets, invite/accept/status with
+> all four partner disciplines + free cap 5 + supersede; useFriendLink hook +
+> FriendLink Settings card wired. Manager review found+fixed 2 executor gaps:
+> missing afterEach(cleanup) in the test file (3 rendered tests failed on DOM
+> leakage - this repo has NO RTL auto-cleanup, siblings all call it) and dead
+> `maskEmail` in invite-code.ts (abandoned draft, leaked the domain,
+> partner-link never had it). Gates AFTER both commits: tsc clean, npm test
+> 275 files / 2846 tests green (summary read, not exit code). NOT
+> browser-verified: real invite round-trip needs a second confirmed-email
+> account (same standing item as partner-link - Tre inviting from Settings IS
+> the test). Foreign zz-tmp-diagnostic.test.ts still not ours - leave. Edit
+> tool permission-blocked again this session; edits went through Bash python.
+> NEXT: friends Phase 2 (leaderboard_snapshots publisher edge fn, week = UTC
+> ISO Monday, opt-in derived metrics only) per docs/friends-leaderboard-plan.md,
+> demo override gap, `window.__forgenta_app_ready` orphaned writer follow-up,
+> forgenta-AI planned transactions ("at somepoint").**
+
 > ▶ 2026-08-26 CAP-RESUME COMPLETE, both in-flight slices SHIPPED (local, not
 > pushed): **(1) Friends Phase 0 LIVE + committed `d4a0003d` - migration
 > 20260826_friend_links.sql applied via MCP apply_migration (success) to
