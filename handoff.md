@@ -1,5 +1,72 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35g — **THE FORECAST FLOOR WORK IS DONE AND LIVE-VERIFIED.
+> `afbff446`. ZERO of the 60 months end below floor; none go negative.** The
+> milestone list carries no cash warning at all now: "Sep 2028: CC Debt Free" and
+> "Feb 2030: Move fund complete". Converged, 12 passes, no fallback. STILL NOT
+> PUSHED - Tre gated the push on the four UI items below, which are NOT started.
+>
+> WHAT THE LAST FIX WAS, because the probe overturned two of my own guesses.
+> `computeFloorProtection`'s backward pass was RIGHT all along - it already
+> demanded Dec 2028 end at **2883** to carry January's purchase. Two things kept
+> that from reaching the user: `requiredEndByMonth` was computed and never
+> RETURNED, and the reserve clamp targeted `step3SpendFloor`, which only knows
+> this month and the next. So the ranked reserve drained December to 2011 and
+> stranded the spike. The debt-payment cap could not compensate: `debtCap` is 0
+> by then, every dollar of that month's payment is CYCLING, and cycling is not
+> reducible. The discretionary reserve was the only lever left.
+> Fix: return `requiredEndByMonth`, and clamp against
+> `max(step3SpendFloor + FLOOR_CUSHION_DOLLARS, requiredEndByMonth[i])`.
+>
+> ⚠️ TWO CORRECTIONS TO EARLIER BLOCKS, do not act on the old figures. (1) I sized
+> the lever at "$254/month of revolving across Oct-Dec". That was a step-3
+> TARGET, not reducible spend, and `debtCap = 0` proves there was none. The real
+> gap was Dec's 2883 - 2011 = 872 against a January shortfall of 709. (2) The
+> "cycling is missing from expenseByMonth" theory in 35f is dead - it IS there
+> (`forecast-engine.ts:1323`), and `netAtMin[Jan] = -742` confirms the look-ahead
+> saw the spike perfectly well.
+>
+> ⚠️ TEST DEBT, stated plainly: `afbff446` has NO new unit test. It is pinned only
+> by 2858 existing tests staying green and by the live 60-month check. The reason
+> was budget, not principle, and this is money math - the next session should add
+> one to `forecast-engine.autoExtraFloorClamp.test.ts`: a spike in a later month
+> must make an earlier month hold back, and it should be mutation-checked by
+> forcing `lookaheadEnd` to 0.
+>
+> THE FOUR UI ITEMS, scoped this session so the next one does not re-explore:
+> 1. **Garage active loans: show the auto-generated extra payments, update the
+>    chart.** `src/pages/Vehicles.tsx` (1499 lines). The loan card builds its own
+>    amortization at ~line 554 (`effective.schedule` -> `chartData`) from the car
+>    fund's OWN lump sums, and knows nothing about ranked auto-extra. The
+>    extra-aware series already exists: `projections.carLoanBalancesByFundId`
+>    (ForecastResult, forecast-engine.ts:200). Vehicles.tsx does NOT currently
+>    consume CardProjectionContext at all - that is the whole plumb. Copy the
+>    proven pattern from `src/pages/DebtPayoff.tsx:144`, which already does
+>    `projections.carLoanBalancesByFundId.get(fundId)`. Render as a SECOND line
+>    beside the existing balance line, and gate it on the fund actually receiving
+>    extra (5a5deaba's rule: no line when nothing is received).
+> 2. **Student loans: show payments and changes in the Loans tab.** Start from
+>    `src/pages/DebtPayoff.tsx:130`, `projections.nonCCLiabilityBalancesById`,
+>    which is the same shape and already wired.
+> 3. **"Where the extra money goes" should reorder like the Builds tab.**
+>    `src/components/savings/SurplusRankingSection.tsx` already has drag handlers
+>    (`onDragStart`/`draggable`, `dragOverId`/`draggingId` around line 126). Look
+>    at how the Builds tab does it and match the interaction, not the code.
+> 4. **Credit cards: one toggle for per-card OR cards-in-general, never both.**
+>    Today it is a per-card opt-out: `setCardSeparated(id, bool)` writes
+>    `accounts.surplus_sort_order` (non-null pulls a card OUT of the block), at
+>    SurplusRankingSection.tsx:494 and :532. That is what lets BOTH
+>    representations exist at once. Tre's own account is the reference and the
+>    50/50 `surplus_share` split is the worst case. Needs one explicit mode
+>    toggle plus plain-language copy, and read `ranked-extra-payment-targets.ts`'s
+>    header first - it explains why cards rank as a BLOCK by default and why an
+>    individual rank moves the split point rather than overriding the strategy.
+>
+> CAPS: five_hour is at **90** (Tre raised 80 -> 85 -> 90 tonight to finish this),
+> seven_day at 85. RESTORE BOTH TO 75 when the UI items ship and main is pushed.
+> Pushing also sends **VERSION 6.5.0** to Apple, which is the iOS fix from
+> `73e99483` - 6.4's train is closed, see that commit body.
+
 > ▶ 2026-08-26 SESSION 35f — **PAUSED ON THE FIVE-HOUR USAGE CAP (81% >= 80%),
 > resets 20:10 ET.** Tree is clean at `6b695255` plus this block. Nothing is
 > pushed and the caps stay at five_hour 80 / seven_day 85, per Tre's gate.
