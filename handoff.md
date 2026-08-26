@@ -1,5 +1,56 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35d — **FIXED AND LIVE-VERIFIED. `dcf421ab`.** Tre's bug
+> is closed: zero negative months, and the debt-cash loop CONVERGES on his data
+> for the first time (`converged:true`, 9 passes, `usedFallback:false`).
+>
+> THE DEFECT, one sentence: the ranked auto-extra reserve and the card cascade
+> were each sized against the cash floor independently and neither was told about
+> the other, so together they spent the same dollars twice.
+>
+> THE FIX: `forecast-engine.ts`, right after `computeAutoExtraReserve` and before
+> `cashPreDebt` — scale the reserve down so the month cannot end below
+> `step3SpendFloor + FLOOR_CUSHION_DOLLARS` once `ledgerEntry.total` is taken.
+> All per-target amounts scale by ONE shared factor (steps 4c-ii-b/c credit those
+> amounts to balances, so the parts must keep summing to the total). Month 0 is
+> exempt — its reserve is replayed from the hook's already-reconciled chain, and
+> clamping a pre-reconciled figure would re-open the popup-vs-accordion
+> divergence. `AUTO_EXTRA_CLAMP_CENT = 0.005` guards against rewriting an
+> itemised list on floating-point noise.
+>
+> ⚠️ IT IS A PHYSICAL-POSSIBILITY CLAMP, NOT A RE-RANKING, and keep it that way.
+> Subtracting `ledgerEntry.total` from `autoExtraPool` instead would let the cards
+> outrank the goals the user deliberately ranked ABOVE them. This fires only when
+> the alternative is an amount of cash that cannot exist, and the golden fixtures
+> prove it inert where the money is really there (2857 tests green, captures
+> unchanged).
+>
+> LIVE BEFORE -> AFTER on Tre's account: Oct 2027 -195 -> +2,009; Mar 2028 -332
+> -> +2,656; Apr 2028 -952 -> +2,011; May and Jun 2028 likewise; five negative
+> months -> ZERO. The Oct 2027 and Apr 2028 "cash below safe minimum" warnings
+> cleared; Jan 2029 still warns and that is honest. Lead milestone is now
+> "Sep 2028: CC Debt Free" instead of a warning. MONEY IS CONSERVED, verified in
+> the drawer: Oct 2027's reserve clamps to $0.00 while the Discover payment rises
+> $1,490 -> $2,032, so the dollars went to the cards rather than vanishing.
+>
+> ⚠️ CC DEBT FREE MOVED Jul 2028 -> Sep 2028 and that is NOT a regression. The
+> old date came from the unconverged base pair, a projection that spent the same
+> dollars twice. The new date comes from an arithmetically consistent plan. If
+> Tre asks why his payoff slipped, that is the answer.
+>
+> WHY CONVERGENCE ALSO FIXED ITSELF: the double-spend WAS the discontinuity
+> driving the period-6 orbit. Remove it and the map is well behaved. This means
+> session 35b's payoff-regime latch is not needed and stays reverted, and 35c's
+> "chain of boundary months" conclusion is superseded — there was one root cause,
+> not two.
+>
+> ALSO STILL OPEN: restore `DEFAULT_CAP_WEEKLY` to 75.0 in BOTH
+> `usage_cap_hook.py` and `usage_resume_watch.py` (temporarily 85 for this work,
+> five_hour stays 80). The context-gate hook fires from ~150k against a 15M
+> window and interrupted this session a dozen times — worth raising or making it
+> window-relative. `zz-tmp-diagnostic.test.ts` is still foreign, still leave it.
+> MEMORY.md index needs compacting (<17KB).
+
 > ▶ 2026-08-26 SESSION 35c — **THE PAYOFF-REGIME LATCH WAS BUILT, MEASURED AND
 > REVERTED. AND THE HEADLINE FROM 35/35b IS NOW PARTLY WRONG — READ THE
 > CORRECTION BEFORE ACTING ON EITHER BLOCK BELOW.**
