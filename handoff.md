@@ -1,5 +1,42 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35f — **PAUSED ON THE FIVE-HOUR USAGE CAP (81% >= 80%),
+> resets 20:10 ET.** Tree is clean at `6b695255` plus this block. Nothing is
+> pushed and the caps stay at five_hour 80 / seven_day 85, per Tre's gate.
+>
+> WHERE I GOT TO ON JAN/FEB 2029. One hypothesis KILLED, cheaply, so the next
+> session does not repeat it: **cycling IS already inside `expenseByMonth`** at
+> the `computeFloorProtection` call site — `forecast-engine.ts:1323` adds
+> `cyclingByMonth[i]` explicitly. So "January's purchase is invisible to the
+> look-ahead" is WRONG and should not be re-investigated.
+>
+> THE ARITHMETIC THAT SHOULD WORK BUT DOES NOT, worth reading before touching
+> anything. With cycling in the expenses, `netAtMin[Jan 2029]` ought to be about
+> -709, and then
+>   requiredEnd[Dec] = max(floorDec 2009, floorJan 1955, requiredEnd[Jan] - netAtMin[Jan])
+>                    = max(2009, 1955, 1955 + 709) = 2664
+> which would force December to end at 2664 rather than the 2011 it actually
+> ends at. Instead the forward pass hands back a cap of $12,332 for December
+> against an actual payment of $589 — not binding at all — and `saveUpMonths`
+> stops at month 21. So the break is somewhere between `requiredEndByMonth` and
+> `maxDebtPaymentByMonth`, NOT in the inputs.
+>
+> NEXT ACTION, exactly: instrument the backward pass and read it. Add a
+> `if (import.meta.env?.DEV)` block right after `requiredEndByMonth[m] = ...` in
+> `src/lib/floor-protection.ts` that writes `globalThis.__floorProbe` with
+> `{m, floor, netAtMin, requiredEnd, ccMin, cap, inc, exp}` for m = 25..32, load
+> :8080/forecast, wait ~18s, read `globalThis.__floorProbe`. That exact block was
+> written and then reverted unrun when the cap hit — rewrite it, do not go
+> looking for it in git. The question it answers in one shot: is
+> `requiredEnd[Dec]` about 2664 (so the forward pass is the bug) or about 2009
+> (so `netAtMin[Jan]` is not negative and the inputs still lie somewhere else)?
+> Sanity figures from the live converged run are in the 35e block below.
+>
+> METHOD NOTE THAT KEEPS PAYING OFF: every real finding this session came from
+> instrumenting and reading actual numbers, never from reasoning about the code.
+> Two confident hypotheses died that way (the undamped-reserve theory in 35b, the
+> expenseByMonth theory here). Instrument first.
+
 > ▶ 2026-08-26 SESSION 35e — **DO NOT PUSH AND DO NOT RESTORE THE CAPS YET.**
 > Tre gave five follow-ups and gated the push on them (2026-08-26). Two are done,
 > three are not started. Caps stay at five_hour 80 / seven_day **85** until the
