@@ -1,5 +1,116 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35 — **TRE'S FORECAST BUG IS ROOT-CAUSED. THE DEBT-CASH
+> CONVERGENCE LOOP DOES NOT CONVERGE ON HIS LIVE DATA, AND THE APP IS SHOWING
+> HIM THE UNCONVERGED FALLBACK.** Read this whole block before touching the
+> engine; the diagnosis is finished, the FIX is the next session's first action.
+>
+> THE HARD EVIDENCE (live :8080, signed in as Tre, dev build, this session):
+> `window.__convergenceDebug` (already exposed by CardProjectionContext.tsx:295
+> in DEV — no instrumentation needed, just read it) returns
+> **`{converged: false, passes: 24, usedFallback: true}`**. `usedFallback: true`
+> means `wasConverging` was FALSE in forecast-convergence.ts:156, so the loop
+> did not even publish `lastResim` — it published BASE, the pre-feedback pair.
+> The loop is oscillating or making no progress, not merely running out of
+> passes. (Memory records maxPasses being raised 18→24 for this same symptom;
+> raising it again is NOT the fix.)
+>
+> WHAT THAT DOES TO THE NUMBERS. In the base pair the auto-extra reserve is
+> subtracted from the cash chain but the sim's card payment was never reduced to
+> compensate, so the same dollars are spent twice. Measured from the /forecast
+> Oct 2027 drawer's own itemised walk (screenshot-level evidence, numbers copied
+> verbatim):
+>   Starting Cash 2,436.25 + Paycheck 5,223.20
+>   − Bills 2,119.00 − Prime Visa 865.00 − Discover 1,490.00 − Brokerage 25.00
+>   − Car Loan 422.89 − Vehicle Insurance 173.23
+>   − "Move fund, then emergency fund — Extra Contribution" **2,629.48**
+>   − Business Contributions 130.00  = **Ending Cash −195.23**, Cash Floor 2,009.40
+> Reconstructed against the engine: cashPreDebtBeforeAutoExtra = 4,789.33;
+> reserve 2,629.48 leaves cashPreDebt 2,159.85; monthDebtPayment (ledger total)
+> = 865 + 1,490 = 2,355.00; 2,159.85 − 2,355.00 = **−195.15 ✓ matches to the
+> cent**. The month overspends its own floor by $2,204. DELETE THE RESERVE AND
+> THE MONTH ENDS ≈ +$2,434, comfortably ABOVE its $2,009.40 floor.
+>
+> WHICH RED MONTHS ARE THE BUG AND WHICH ARE REAL — do not conflate them again
+> (three prior sessions called the whole band "structural"):
+>   • 11 months end below the floor: Oct 2027 −195, Nov 477, Dec 500, Jan 2028
+>     198, Feb 552, Mar −332, Apr −952, May −280, Jun −257, Jul 827, Aug 1,755.
+>   • Months carrying a `+extra` chip = Oct 2027 ($2,629), Mar 2028 ($881),
+>     Aug 2028 ($515), Sep 2028 ($1,598). **Oct 2027 and Mar 2028 are the two
+>     negatives the reserve CAUSES** — both flip positive without it.
+>   • Apr/May/Jun 2028 carry NO extra chip and are genuinely STRUCTURAL
+>     (post-cliff income ~4,972 vs outgo ~5,003+). Those stay red after the fix.
+>     Say so to Tre; do not promise the fix clears them.
+>
+> PRIME SUSPECT FOR THE OSCILLATION (untested hypothesis, stated as such).
+> forecast-convergence.ts damps exactly TWO feedback quantities — `target`
+> (line 108) and `cap` (line 130) — and the comments say each was added to kill
+> a two-cycle (the 4620ea4f undamped PASS-2 cap two-cycle is the precedent, same
+> shape). The ranked auto-extra reserve is a **THIRD** feedback quantity,
+> introduced later (ebac8ecc, 2026-08-25) and **UNDAMPED**: forecast-engine.ts
+> :1616 recomputes `autoExtraPool` every pass from `cashPreDebtBeforeAutoExtra −
+> step3SpendFloor − cycling`, the reserve moves the cash chain, step 3
+> (:1771/:1774 surplus and deficit branches) moves the target the other way, and
+> nothing damps the round trip. FIRST THING TO TRY: damp the reserve like the
+> other two, or hold it fixed across passes after pass 1. VERIFY BY MEASUREMENT
+> — read `converged`/`passes`/`usedFallback` off `window.__convergenceDebug` on
+> :8080 before and after; converged:true is the pass condition, and Oct 2027 /
+> Mar 2028 ending cash going positive is the second.
+>
+> ⚠️ DO NOT "FIX" THIS BY SUBTRACTING `ledgerEntry.total` FROM `autoExtraPool`.
+> I designed that change and rejected it: it makes the card cascade take
+> precedence over the goals the user deliberately ranked ABOVE the cards, which
+> silently inverts the whole ranked-surplus feature. The priority order in the
+> engine is already correct — reserve first, cards get what is left. The defect
+> is that the loop never reaches the fixed point that order implies.
+>
+> THE SECOND HALF OF HIS SENTENCE — "auto payments for car loan are not showing
+> affect in car loan or in forecast" — IS ANSWERED AND IS NOT (mostly) A BUG:
+>   • `car_funds.auto_extra` for "2004 Chevorlet C5" is **FALSE** in the live DB
+>     (verified by SQL; `auto_extra_auto_cleared` false too). The row IS in the
+>     ranked list — Dashboard → Goals → "Where the extra money goes", rank 4,
+>     "2004 Chevorlet C5 loan · $16,254 owed · extra principal" — with its AUTO
+>     EXTRA box UNTICKED. Nothing is diverted, so nothing shows. The write path
+>     is sound (setSurplusRankAutoExtra → planSurplusRankWrites → car_funds), so
+>     this is state, not a broken toggle.
+>   • EVEN TICKED IT WOULD RECEIVE $0 for years. His live ranking is 1 Prime
+>     Visa (block) / 2 Move fund $5,624 to go (ticked) / 3 Discover / 4 the car
+>     loan / 5 Roth IRA. The waterfall pays only the highest unfinished row, and
+>     the page itself says "There is $14,251 of surplus over those months — it is
+>     going somewhere higher in this list." Move fund completes Feb 2030; the
+>     48-month loan is nearly done by then. If he wants the loan funded he must
+>     DRAG IT ABOVE the move fund, or give the rows a `surplus_share` split.
+>     Worth telling him plainly — it is a ranking decision, not a defect.
+>   • PLAUSIBLE OLD GRIEVANCE, unprovable from the data: the fund's ONE
+>     `auto_extra` column is shared by its saving-phase and loan-phase rows. When
+>     the down payment was met in saving phase, `planAutoExtraDeselect` would
+>     have auto-cleared the tick; the fund then moved to loan phase already
+>     switched off, and `auto_extra_auto_cleared` did not exist until TODAY
+>     (5ea3e08f) so no trace survives. If he says "I know I ticked that", this is
+>     why. Consider a UX slice: a loan-phase row should not silently inherit the
+>     saving-phase row's auto-cleared state.
+>   • A REAL secondary defect, admitted in the code itself
+>     (forecast-engine.ts:1574): "Month 0 only: the multi-month sim does not
+>     model the diversion yet, so an opted-in user's payoff date still reads
+>     optimistic." That is the same non-convergence wearing a different hat.
+>
+> ALSO DONE THIS SESSION (global harness, committed separately):
+> `~/.claude/bin/llm.py` provider registry finished — the killed executor's
+> file py_compiles clean; OpenRouter default slug moved to the LIVE free
+> `cohere/north-mini-code:free` (the old qwen-2.5-coder went PAID, confirmed by
+> the API's own 404 text) and Cerebras marked **retired**: every model 402
+> payment_required on Tre's real key, catalog down to gemma-4-31b + gpt-oss-120b,
+> so it is skipped rather than burning a probe. `llm --probe` now: ollama OK,
+> OVH OK, groq OK, gemini OK (gemini-3.6-flash), mistral OK, openrouter OK —
+> **6 live free executors**, github + cerebras retired.
+>
+> STILL OPEN / WATCH: weekly cap is still TEMP 80 (Tre's own bump) — restore
+> `DEFAULT_CAP_WEEKLY=75.0` in usage_cap_hook.py and keep the watcher MUST-MATCH
+> in sync once the forecast fix lands. MEMORY.md index needs compacting (<17KB).
+> His key-signup Chrome tabs + Notepad are still open on his screen — leave them.
+> The Claude-controlled Chrome tab is parked signed-in on :8080 /forecast; leave
+> it open so the token keeps refreshing.
+
 > ▶ 2026-08-26 SESSION 34b (context gate ~194k). **LIVE TASK FOR THE NEXT
 > SESSION — Tre's bug, wants it ASAP: "forecast, multiple months drop below
 > cash floor, auto payments for car loan are not showing affect in car loan or
