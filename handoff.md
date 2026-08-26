@@ -1,5 +1,20 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 iOS WATCH ITEM CLOSED + SESSION DEFAULTS SET: **the rebuild on
+> `393ffb10` went GREEN - "iOS Build & Upload to App Store" completed SUCCESS
+> (CodeQL iOS + Actions/JS-TS green on the same sha), so both uncompiled Swift
+> commits (c81f7252 cover shimmer, 71178296 idle timeout) are compiled and
+> uploaded. Nothing iOS-shaped is blocked any more; first-device checks after the
+> store deploy still stand (COVER_SHIMMER mask= in the debug panel, cover logo
+> gleams on launch, idle sign-out after 10min). Tree is clean at 099a36e5, 0
+> unpushed, one foreign untracked file (`src/lib/__tests__/zz-tmp-diagnostic.test.ts`)
+> that belongs to another live session - leave it alone.
+> HARNESS: session defaults are now pinned in `~/.claude/settings.json` -
+> manager = **fable**, effort **high** (per-model high for fable/opus/sonnet), and
+> the `handoff` skill carries a "Session defaults" table naming the model+effort
+> for the manager, the backup manager and each executor type, plus the
+> getforgenta no-PR exception. NEXT: partner edge-fn deploy end-to-end.**
+
 > ▶ 2026-08-25 POST-CLOSE FIX: **the iOS compile gate DID trip on 60771d8c - exactly one
 > error, AppDelegate.swift:332: the shimmer builder used a `masking([CGFloat])` overload
 > that does not exist. Fixed to `copy(maskingColorComponents:)` (Swift's
