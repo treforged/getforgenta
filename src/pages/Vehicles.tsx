@@ -71,7 +71,7 @@ function LumpSumModal({
 }) {
   const [date, setDate] = useState(initialDate);
   const [amount, setAmount] = useState(initialAmount);
-  // Editable in both modes — lets the user grow/shrink a range or turn a single month into one.
+  // Editable in both modes - lets the user grow/shrink a range or turn a single month into one.
   const [repeatMonths, setRepeatMonths] = useState(initialCount ?? '1');
 
   useEffect(() => {
@@ -335,7 +335,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     }
     return Math.min(rem / monthsToGoal, rem);
   })();
-  // For linked-account cars, live balance is the truth — don't layer checking surplus on top.
+  // For linked-account cars, live balance is the truth - don't layer checking surplus on top.
   // For non-linked cars, add availableAboveFloor (end-of-month surplus projection) or simMonthlyContrib.
   const simulatedSaved = linkedAccountName
     ? Math.min(personalGoal, cf.current_saved)
@@ -358,7 +358,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
 
   // Project the future loan so lump sums can be planned against it.
   // Use the stored payment_start_date when available so the projected schedule matches
-  // Forecast/useCardProjection — falls back to purchase_date + 1 month for existing records.
+  // Forecast/useCardProjection - falls back to purchase_date + 1 month for existing records.
   const projectedBase = useMemo(() => {
     if (!cf.planned_purchase_date) return null;
     const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
@@ -478,7 +478,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         </p>
       )}
 
-      {/* projectedBase needs a planned purchase date + computable loan amount/term — when not yet
+      {/* projectedBase needs a planned purchase date + computable loan amount/term - when not yet
           set, the panel below still works (list + add), it just can't show payoff-date/interest-
           saved impact figures yet. Without the fallbacks here, the whole panel (including "Add")
           used to disappear entirely until those fields were filled in. */}
@@ -501,7 +501,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press"
         style={{ borderRadius: 'var(--radius)' }}
       >
-        <Car size={12} /> I bought it — start loan tracking
+        <Car size={12} /> I bought it - start loan tracking
       </button>
     </div>
   );
@@ -545,7 +545,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
 
   if (!proj) return null;
 
-  // projWithLumps reflects extra payments — use it for everything the user actually sees.
+  // projWithLumps reflects extra payments - use it for everything the user actually sees.
   // proj (base, no lumps) is kept only for the LumpSumPanel's "impact of extra payments" comparison below.
   const effective = projWithLumps ?? proj;
 
@@ -579,7 +579,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
           <button
             onClick={onUndo}
             className={`icon-btn text-sm flex items-center gap-1 px-2 ${undoConfirm ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
-            title={undoConfirm ? 'Click again to confirm undo' : 'Undo purchase — revert to saving phase'}
+            title={undoConfirm ? 'Click again to confirm undo' : 'Undo purchase - revert to saving phase'}
           >
             <Undo2 size={16} />
             {undoConfirm && <span className="text-xs font-medium">Confirm?</span>}
@@ -599,7 +599,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
       {effective.isNegativeAmortization && (
         <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={12} />
-          <span>Payment is below interest-only — balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment, false)}/mo.</span>
+          <span>Payment is below interest-only - balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment, false)}/mo.</span>
         </div>
       )}
 
@@ -720,7 +720,7 @@ function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions, onConfirm, on
   }) {
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0];
-  // getLoanPrincipal — same formula the saving-phase projection uses (Forecast.tsx/
+  // getLoanPrincipal - same formula the saving-phase projection uses (Forecast.tsx/
   // useCardProjection.ts), so accepting this default with no edits doesn't change the payment.
   const loanAmountDefault = getLoanPrincipal(cf);
   const [form, setForm] = useState({
@@ -784,7 +784,7 @@ function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions, onConfirm, on
         onClick={e => e.stopPropagation()}
       >
         <div className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0 space-y-1">
-          <h2 className="text-sm font-semibold">Start Loan Tracking — {cf.vehicle_name}</h2>
+          <h2 className="text-sm font-semibold">Start Loan Tracking - {cf.vehicle_name}</h2>
           <p className="text-xs text-muted-foreground">Enter your actual loan details. Payments will flow into Forecast and Debt Payoff.</p>
         </div>
 
@@ -870,7 +870,7 @@ export default function Vehicles() {
   const { data: transactions } = useTransactions();
   const { data: profile } = useProfile();
   const { isDemo } = useDemo();
-  // §1B — occurrences a real payment has already answered: the ones the user confirmed AND the ones
+  // §1B - occurrences a real payment has already answered: the ones the user confirmed AND the ones
   // the bank proves on its own. The confirmed half alone left this page charging remaining cash for
   // bills the forecast had already captured.
   const { occurrences: confirmedOccurrences } = useMatchedOccurrences();
@@ -924,7 +924,7 @@ export default function Vehicles() {
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
-  // Available cash above floor today→EOM — mirrors Forecast month 0 surplus.
+  // Available cash above floor today→EOM - mirrors Forecast month 0 surplus.
   const availableAboveFloor = useMemo(() =>
     Math.max(0, liquidCash + remainingTxIncome - remainingTxExpenses - remainingTxDebt - cashFloor),
     [liquidCash, remainingTxIncome, remainingTxExpenses, remainingTxDebt, cashFloor],
@@ -959,7 +959,7 @@ export default function Vehicles() {
     { value: '', label: 'None (manual)' },
     ...rules
       .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map(r => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
+      .map(r => ({ value: r.id, label: `${r.name} - ${formatCurrency(r.amount, false)}/${r.frequency}` })),
   ], [rules]);
 
   const savingFormFields = useMemo(() => {
@@ -1125,12 +1125,12 @@ export default function Vehicles() {
       linked_rule_id: linkedRule?.id ?? null,
       planned_purchase_date: savingForm.planned_purchase_date || null,
       phase: 'saving' as const,
-      // Pre-planned, ahead of activation — BuyItDialog prefills payment_start_date from this
+      // Pre-planned, ahead of activation - BuyItDialog prefills payment_start_date from this
       // instead of always defaulting to next-month. loan_start_date is intentionally left null
-      // here — planned_purchase_date IS the loan's start date while saving (no separate field;
+      // here - planned_purchase_date IS the loan's start date while saving (no separate field;
       // they're the same real-world date), and BuyItDialog/generateCarLoanTransactions both fall
       // back to planned_purchase_date when loan_start_date isn't set. Populating payment_start_date
-      // here has no effect until the user actually hits "I bought it" — every loan-payment/
+      // here has no effect until the user actually hits "I bought it" - every loan-payment/
       // insurance calculation gates on phase === 'loan' first.
       loan_amount: 0, loan_start_date: null,
       payment_start_date: savingForm.payment_start_date || null,
@@ -1169,8 +1169,8 @@ export default function Vehicles() {
       phase: 'loan' as const,
     };
     // Only zero out saving-phase identity fields when creating a brand-new direct loan (no
-    // saving-phase history exists to preserve). Editing an EXISTING loan — even just to tweak the
-    // APR or term — must NOT touch these: this record may have come from a saving-phase car fund,
+    // saving-phase history exists to preserve). Editing an EXISTING loan - even just to tweak the
+    // APR or term - must NOT touch these: this record may have come from a saving-phase car fund,
     // and overwriting them here destroyed that history permanently (Undo had no way to recover
     // it, since it assumes these fields were never touched). Supabase's .update() is a partial
     // PATCH, so omitting them on edit preserves whatever is already there.
@@ -1203,7 +1203,7 @@ export default function Vehicles() {
         phase: 'saving',
         loan_amount: 0,
         loan_start_date: null,
-        // payment_start_date is preserved, not nulled — it's a required saving-phase field now
+        // payment_start_date is preserved, not nulled - it's a required saving-phase field now
         // (planned first-payment date), and the user already had a real planned value here.
         // Nulling it lost their plan on every undo and violated the "always required" invariant.
         interest_start_date: null,
@@ -1298,8 +1298,8 @@ export default function Vehicles() {
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-foreground">Vehicles — save for the down payment, then track the loan to payoff</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Jordan has a planned purchase date set for the Civic — the Forecast shows the down payment outflow that month and projected loan payments starting the following month.</p>
+              <p className="text-xs font-semibold text-foreground">Vehicles - save for the down payment, then track the loan to payoff</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Jordan has a planned purchase date set for the Civic - the Forecast shows the down payment outflow that month and projected loan payments starting the following month.</p>
             </div>
           </div>
           <div className="mt-2 flex justify-end">
@@ -1345,7 +1345,7 @@ export default function Vehicles() {
       </PanelBar>
 
       {/*
-        ⚠️ RENDERED, NOT LINKED TO — and `Builds` is unchanged from when it was its own route. It
+        ⚠️ RENDERED, NOT LINKED TO - and `Builds` is unchanged from when it was its own route. It
         owns its build switcher, its own "New Build" button and every write it ever made, so hosting
         it here is a change of shell and nothing else. It is mounted only on its own tab, so the
         page does not pay for its four queries while a user is looking at a loan.
@@ -1454,7 +1454,7 @@ export default function Vehicles() {
           values={savingForm}
           onChange={(k, v) => setSavingForm(prev => {
             const next = { ...prev, [k]: v };
-            // Auto-suggest a first-payment date one month after purchase — matches the
+            // Auto-suggest a first-payment date one month after purchase - matches the
             // purchaseMonthIdx + 1 relationship the saving-phase projection already assumes.
             // Only fills it in if it's not already set, so it never overwrites a manual edit.
             if (k === 'planned_purchase_date' && v && !prev.payment_start_date) {
