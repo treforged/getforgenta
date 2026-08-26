@@ -1,6 +1,37 @@
-# Handoff — "extra payments" follow-up build (paused on usage cap, SECOND pause)
+# Handoff — "extra payments" follow-up build (BUILT + COMMITTED, one gate rerun pending)
 
-## ▶ 2026-08-26 RE-PAUSE (this session, cap hit again at 85% five_hour, resets 05:10 ET)
+## ▶ 2026-08-26 BUILDER COMPLETION (written by the in-flight builder at cap time)
+
+The slice is BUILT and COMMITTED locally on main in TWO commits. NOT pushed.
+
+- **Commit 1 `d4a12d4b`** - the full feature, GATED GREEN before commit:
+  `npx tsc --noEmit` exit 0 (clean); `npm test` -> `Test Files  272 passed (272)` /
+  `Tests  2734 passed (2734)` (baseline 271/2731 + new
+  `src/lib/__tests__/forecast-engine.extrasPayoffReadout.test.ts`, 3 tests).
+  ForecastResult exposes `nonCCLiabilityBalancesById` + `carLoanBalancesByFundId`
+  (shared references, zero new math); DebtPayoff reads them off
+  `useCardProjectionContext().projections` (engine already runs in the provider -
+  plumbing option (a), no new hook); secondary line on all four non-CC tabs;
+  explainer reworded (keeps the phrase the explainer test pins). Release-Note
+  trailer included.
+- **Commit 2 (this commit)** - peer findings 1+2 folded in per the manager's resume
+  order: `buildAutoExtraByTarget(projections.data)` gate (line renders only when the
+  waterfall ACTUALLY paid the target - ranked-but-$0 can no longer show a phantom
+  line off the account-vs-debts-row balance divergence) and the pairing tightened to
+  the engine's liability-type set (`NON_CC_LIABILITY_TYPES`). Mock in
+  `DebtPayoff.nonCcExplainer.test.tsx` gained `data: []`.
+  **GATES COULD NOT RERUN for commit 2** - the usage cap blocked tsc/vitest after the
+  edits. The delta is small and type-checked by eye (`buildAutoExtraByTarget:
+  (rows: readonly ForecastMonthRow[]) => Map<string, number[]>` verified by reading
+  the source). **FIRST ACTION ON RESUME: `npx tsc --noEmit` + `npm test`; if red,
+  the delta is isolated in this commit and cheap to fix or revert to `d4a12d4b`.**
+- Backups (originals, pre-session): `backups/2026-08-26_001821/` (gitignored).
+- Not verified visually in a live browser; UI gate logic has no rendering test
+  (engine wiring is pinned by the 3 new tests).
+- Manager resume items 4-6 below (message getforgenta-35, asks.md, delete this
+  file, Ollama slices) remain THE MANAGER'S - the builder did not touch them.
+
+## ▶ 2026-08-26 RE-PAUSE (manager session, cap hit again at 85% five_hour, resets 05:10 ET)
 
 State when the cap tripped:
 - A **fable-executor builder was IN FLIGHT** on this slice (dispatched from this session,

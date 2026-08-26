@@ -24,9 +24,10 @@ vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) })
 vi.mock('@/contexts/CardProjectionContext', () => ({
   useCardProjectionContext: () => ({
     cardProjection: null, assumptions: {}, pauseSavings: false, setPauseSavings: vi.fn(),
-    // The "with extra payments" readouts read these maps off the engine result; empty maps mean
-    // no debt has an extra-aware projection, so only the scheduled lines render.
-    projections: { nonCCLiabilityBalancesById: new Map(), carLoanBalancesByFundId: new Map() },
+    // The "with extra payments" readouts read these maps (and buildAutoExtraByTarget over the
+    // rows) off the engine result; empty means nothing received extras, so only the scheduled
+    // lines render.
+    projections: { data: [], nonCCLiabilityBalancesById: new Map(), carLoanBalancesByFundId: new Map() },
   }),
 }));
 vi.mock('@/hooks/useFormDraft', () => ({ useFormDraft: () => ({ restored: false, discard: vi.fn() }) }));

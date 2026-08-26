@@ -11,12 +11,17 @@ import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
+import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
+
+// Mirrors the engine's nonCCLiabAccts filter (its liabilityTypes minus credit_card), so the
+// "with extra payments" pairing below can only land on an account the engine actually projected.
+const NON_CC_LIABILITY_TYPES = ['mortgage', 'student_loan', 'auto_loan', 'other_liability'];
 
 export default function DebtPayoff() {
   const { data: debts, update, remove, loading: debtsLoading } = useDebts();
@@ -104,16 +109,24 @@ export default function DebtPayoff() {
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
+  // Targets the ranked waterfall ACTUALLY paid, keyed by target id (account id for a non-CC
+  // liability, car_funds.id for a vehicle loan). No entry means no extra dollars ever reached the
+  // debt, and the readouts below stay hidden - being ranked is not enough, because the engine
+  // amortizes the ACCOUNT balance while the on-screen schedule amortizes the debts row's, and a
+  // ranked debt receiving $0 must not turn that divergence into a phantom "with extras" line.
+  const autoExtraTargets = useMemo(() => buildAutoExtraByTarget(projections.data), [projections.data]);
+
   // "With extra payments" payoff for a non-CC debt row: the first month the forecast engine's
   // extra-aware balance array opens at zero - the SAME shared-reference array the Forecast month
-  // drawer itemises, so this readout cannot disagree with it. Only a RANKED liability (paired
-  // account with accounts.surplus_sort_order set, under "Where the extra money goes" on Goals)
-  // ever receives waterfall money, so unranked debts keep the scheduled line alone. The engine's
+  // drawer itemises, so this readout cannot disagree with it. Shown only when the paired account
+  // is RANKED (accounts.surplus_sort_order, under "Where the extra money goes" on Goals), the
+  // waterfall actually paid it, and the payoff beats the scheduled readout. The engine's
   // reducers use Math.max(0, before - amount) - exact zero, no dust tolerance to invent here.
   const withExtrasPayoffMonths = (d: { name: string; balance: unknown; apr: unknown; target_payment: unknown }): number | null => {
     const paired = accounts?.find(a =>
-      a.active && a.account_type !== 'credit_card' && a.name.trim().toLowerCase() === d.name.trim().toLowerCase());
+      a.active && NON_CC_LIABILITY_TYPES.includes(a.account_type) && a.name.trim().toLowerCase() === d.name.trim().toLowerCase());
     if (paired?.surplus_sort_order == null) return null;
+    if (!autoExtraTargets.has(paired.id)) return null;
     const balances = projections.nonCCLiabilityBalancesById.get(paired.id);
     if (!balances) return null;
     const firstZero = balances.findIndex(b => b <= 0);
@@ -127,6 +140,7 @@ export default function DebtPayoff() {
   // firstZero - 1 - the same month payoffDate names when no extra money reaches the loan, which
   // is what keeps this line hidden until the ranked waterfall actually accelerates the payoff.
   const withExtrasAutoPayoff = (fundId: string, scheduledPayoffDate: string): string | null => {
+    if (!autoExtraTargets.has(fundId)) return null;
     const balances = projections.carLoanBalancesByFundId.get(fundId);
     if (!balances) return null;
     const firstZero = balances.findIndex(b => b <= 0);
