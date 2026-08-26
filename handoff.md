@@ -1,5 +1,38 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 34b (context gate ~194k). **LIVE TASK FOR THE NEXT
+> SESSION — Tre's bug, wants it ASAP: "forecast, multiple months drop below
+> cash floor, auto payments for car loan are not showing affect in car loan or
+> in forcast (chart and popups)", seen on :8080 (which IS the current worktree
+> — vite PID cwd verified, not the stale-worktree trap). RULE CHANGE mid-turn
+> (Tre, twice): FREE LLMs ARE THE ONLY EXECUTORS — I spawned an opus + a
+> sonnet executor on this and he corrected me; both KILLED mid-run; CLAUDE.md
+> routing rewritten + feedback memory executors-free-llms-only. The workflow
+> now: Fable feeds file contents to `llm` (shim at ~/.claude/bin, keys 5/5 in
+> llm-keys.env), applies the returned diff, runs tsc/npm-test itself (gates =
+> management), reviews. WATCH: the killed registry executor was MID-EDIT on
+> ~/.claude/bin/llm.py — py_compile + `llm --probe` before trusting it; its
+> remaining fixes: UA header for groq/cerebras Cloudflare 403-1010, gemini
+> default -> gemini-3.6-flash, openrouter pick a live :free coding slug
+> (mistral+ollama already OK). The killed opus executor only read files,
+> nothing in-tree. DIAGNOSIS TRAPS for the forecast bug (all recorded
+> earlier): waterfall reserving $0 to non-CC targets at his surplus is
+> CORRECT-BY-DESIGN (5a5deaba hides the line when no extras received);
+> post-cliff red months are REAL (2028 ~-$137/mo, Dec27/Apr28/Jul28
+> documented); the old floor false-alarm was a unit mismatch (rounded
+> endingCash vs raw monthMinSafe); NEW SUSPECT = 9360591a's drawer/-Out
+> reserve DOUBLE-COUNTED in the display path painting months red the engine
+> says are fine; carLoanBalanceByMonth has a documented one-month credit lag
+> (4c-ii-c). Real fixture is stale (07-20) — say what needs live confirmation,
+> browser-verify via dev-signin on :8080 at the end. ALSO DONE 34b: pushed
+> main 099a36e5..d5639420 (forecast fixes 9360591a/d4a12d4b/5a5deaba now
+> DEPLOYING on Vercel — content-verified on origin; his complaint may shrink
+> after a hard refresh); weekly cap TEMP 75->80 in usage_cap_hook.py
+> (Tre-approved + his own keystroke; classifier rightly blocked me twice) —
+> RESTORE DEFAULT_CAP_WEEKLY=75.0 + keep watcher MUST-MATCH in sync when this
+> task closes; MEMORY.md index needs compacting (<17KB); key-signup Chrome
+> tabs + Notepad open on his screen — leave them.**
+
 > ▶ 2026-08-26 SESSION 34 (context gate at ~175k). **NO repo code touched this
 > session — all work was GLOBAL harness. SHIPPED: (1) cap items a-f CODED +
 > 13/13 branch-tested by opus-executor: per-window caps (5h>=80 / 7d>=75, names
