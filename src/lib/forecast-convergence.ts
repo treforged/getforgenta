@@ -32,6 +32,70 @@ export interface DebtCashConvergenceResult {
   passes: number;
 }
 
+/**
+ * The revolving balance below which a month is not worth converging.
+ *
+ * A sibling of `revolving-payoff.ts`'s `REVOLVING_DUST_DOLLARS` and the same
+ * dollar, for the same reason: the sim deliberately leaves sub-dollar revolving
+ * dust rather than letting a rounding residue retire a card, so "this month
+ * still has revolving debt" has to mean real debt or every month to the horizon
+ * qualifies forever.
+ */
+export const REVOLVING_GAP_DUST = 1;
+
+/**
+ * How far apart two successive passes' monthly debt payments are, measured over
+ * the months the loop is actually solving.
+ *
+ * ⚠️ WHY THIS IS NOT SIMPLY THE MAX OVER EVERY MONTH, which is what it was until
+ * 2026-08-26. Traced over a full 24-pass run on real data: every month still
+ * carrying revolving debt SETTLED by pass 9 and then sat frozen and correct for
+ * the remaining fifteen passes, while months far past the debt-free date — where
+ * nothing revolves and the only moving quantity is the all-cycling payment
+ * bound to its own cap by a slope of about -1, the two-cycle the `cap` damping
+ * above exists to fight and does not always win — kept swinging by thousands of
+ * dollars. Taking the max over all sixty months let that tail noise speak for
+ * the whole run: the loop never crossed tolerance, the final gap never fell
+ * under `exhaustionPublishBound`, and a run whose debt months were all correct
+ * was discarded in favour of the un-accelerated base pair. On the live account
+ * that turned a month ending safely above its cash floor into one ending below
+ * zero, purely because of arithmetic five years further out than the answer.
+ *
+ * So the gap now speaks only for the months the target feedback can actually
+ * move. A month past debt-free has no revolving target to converge, and its
+ * cycling wobble is not evidence about whether the debt plan has settled.
+ *
+ * ⚠️ THE EMPTY CASE FALLS BACK TO EVERY MONTH, and that is the important half.
+ * A user with no revolving debt at all, or a projection whose balance map never
+ * arrived, would otherwise reduce over nothing and report a gap of zero, which
+ * this loop reads as CONVERGED. A false convergence publishes a wrong plan
+ * silently, which is far worse than the tail noise this function exists to
+ * ignore, so the absence of a qualifying month means measure everything exactly
+ * as before rather than trust an empty set.
+ */
+function maxDebtPaymentGap(
+  resim: CardProjectionResult,
+  resimProj: ForecastResult,
+  currentProj: ForecastResult,
+): number {
+  const monthCount = resimProj.data.length;
+  const gapAt = (m: number) =>
+    Math.abs(resimProj.data[m].debtPayment - currentProj.data[m].debtPayment);
+
+  const balances = resim.monthlyRevolvingBalances;
+  const solving: number[] = [];
+  if (balances) {
+    for (let m = 0; m < monthCount; m += 1) {
+      let owed = 0;
+      for (const perMonth of balances.values()) owed += perMonth[m] ?? 0;
+      if (owed > REVOLVING_GAP_DUST) solving.push(m);
+    }
+  }
+
+  const months = solving.length > 0 ? solving : Array.from({ length: monthCount }, (_, m) => m);
+  return months.reduce((max, m) => Math.max(max, gapAt(m)), 0);
+}
+
 export function runDebtCashConvergence(
   base: CardProjectionResult,
   engineInputs: ForecastInputs,
@@ -134,10 +198,8 @@ export function runDebtCashConvergence(
     const resim = base.resimulateWithDebtCash(target, cap);
     const resimProj = engine({ ...engineInputs, cardProjectionData: resim, floorMinLatch });
 
-    const maxGap = resimProj.data.reduce((max, row, m) => {
-      const gap = Math.abs(row.debtPayment - currentProj.data[m].debtPayment);
-      return gap > max ? gap : max;
-    }, 0);
+    const maxGap = maxDebtPaymentGap(resim, resimProj, currentProj);
+
 
     if (maxGap <= toleranceDollars) {
       return { cardProjection: resim, projections: resimProj, converged: true, passes: pass };
