@@ -87,7 +87,11 @@ describe('useSurplusRanking — auto extra switches itself off when the goal is 
     goals = [goalRow({ id: 'g-funded' })];
     renderHook(() => useSurplusRanking(), { wrapper });
     await waitFor(() => expect(updates).toHaveLength(1));
-    expect(updates[0]).toEqual({ table: 'savings_goals', patch: { auto_extra: false }, id: 'g-funded' });
+    expect(updates[0]).toEqual({
+      table: 'savings_goals',
+      patch: { auto_extra: false, auto_extra_auto_cleared: true },
+      id: 'g-funded',
+    });
     expect(toasts).toEqual(['Emergency Fund is done. Auto extra moved to the next item.']);
   });
 
@@ -128,6 +132,16 @@ describe('useSurplusRanking — auto extra switches itself off when the goal is 
     expect(updates).toEqual([]);
   });
 
+  it('leaves a goal already marked auto_extra_auto_cleared alone, even freshly mounted', async () => {
+    // A fresh id, so the in-session Set (module-scoped, see useSurplusRanking.ts) is empty for it
+    // -- the ONLY thing standing between a re-fight and leaving it alone is the persisted column
+    // read off the row itself. This is the reload case: a page load rebuilds the Set from nothing.
+    goals = [goalRow({ id: 'g-persisted', auto_extra_auto_cleared: true })];
+    renderHook(() => useSurplusRanking(), { wrapper });
+    await new Promise(r => setTimeout(r, 20));
+    expect(updates).toEqual([]);
+  });
+
   it('never writes in demo mode, which has no database behind it', async () => {
     isDemo = true;
     goals = [goalRow({ id: 'g-demo' })];
@@ -145,7 +159,11 @@ describe('useSurplusRanking — auto extra switches itself off when the goal is 
     }];
     renderHook(() => useSurplusRanking(), { wrapper });
     await waitFor(() => expect(updates).toHaveLength(1));
-    expect(updates[0]).toEqual({ table: 'car_funds', patch: { auto_extra: false }, id: 'cf-1' });
+    expect(updates[0]).toEqual({
+      table: 'car_funds',
+      patch: { auto_extra: false, auto_extra_auto_cleared: true },
+      id: 'cf-1',
+    });
   });
 
   it('does not mark a failed write as done, so the next pass retries it', async () => {

@@ -66,6 +66,11 @@ export type SurplusRankRow = {
    * ABOVE them, not so the debt can be switched off.
    */
   autoExtra: boolean;
+  /** True once `planAutoExtraDeselect` has already switched `autoExtra` off for this row because it
+   * was met -- read from `savings_goals.auto_extra_auto_cleared` / `car_funds.auto_extra_auto_cleared`.
+   * Always false for the cards, the block and liabilities, which carry no such column. Persists the
+   * guard's exactly-once decision across a page reload; see `planAutoExtraDeselect` below. */
+  autoExtraAutoCleared?: boolean;
   /** Remaining need in dollars, display only. `null` for the card block, whose figure comes from
    * the converged month-0 breakdown rather than from a row. */
   remaining: number | null;
@@ -100,6 +105,10 @@ export type RankableCard = {
 export type BuildSurplusRankRowsParams = {
   goals: readonly (RankableGoal & {
     name?: string | null; created_at?: string | null; target_date?: string | null;
+    /** `savings_goals.auto_extra_auto_cleared` (20260826_auto_extra_auto_cleared.sql). Optional
+     * (unlike `CarFund`'s copy) so pre-existing test fixtures and callers that never auto-cleared
+     * anything stay valid: absent reads the same as `false`. */
+    auto_extra_auto_cleared?: boolean | null;
   })[];
   carFunds: readonly CarFund[];
   /** Credit cards, so the ones the user has pulled out of the block get their own rows. Omitted ⇒
@@ -164,6 +173,7 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
       name: (g.name ?? '').trim() || 'Untitled goal',
       sortOrder: Number(g.sort_order) || 0,
       autoExtra: g.auto_extra === true,
+      autoExtraAutoCleared: g.auto_extra_auto_cleared === true,
       remaining: goalRemainingNeed(g),
       share: readShare(g.surplus_share),
       targetAmount: Number(g.target_amount) || null,
@@ -182,6 +192,7 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     name: (f.vehicle_name ?? '').trim() || 'Vehicle',
     sortOrder: Number(f.sort_order) || 0,
     autoExtra: f.auto_extra === true,
+    autoExtraAutoCleared: f.auto_extra_auto_cleared === true,
     remaining: carFundRemainingNeed(f, fundingAccountId, balanceOf(f.linked_account)),
     share: readShare(f.surplus_share),
     targetAmount: Number(f.down_payment_goal) || null,
@@ -195,6 +206,7 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     name: `${(f.vehicle_name ?? '').trim() || 'Vehicle'} loan`,
     sortOrder: Number(f.sort_order) || 0,
     autoExtra: f.auto_extra === true,
+    autoExtraAutoCleared: f.auto_extra_auto_cleared === true,
     remaining: carLoanRemainingNeed(f),
     share: readShare(f.surplus_share),
     // A loan is paid DOWN, not filled: there is no amount it is trying to reach and no date it is
@@ -430,13 +442,20 @@ export function setSurplusRankShare(
  * result — a switch that moves, a `planSurplusRankWrites` that emits nothing for it, and a state
  * that silently reverts on the next refetch. A liability leaves the list by leaving the LIST
  * (`planLiabilityRankWrites`), which is a write that exists.
+ *
+ * ⚠️ ALSO CLEARS `autoExtraAutoCleared`, in either direction. `auto_extra_auto_cleared` means
+ * "this row's `auto_extra` currently reads what it does because automation put it there" — the
+ * moment a person touches the switch by hand, that stops being true, whichever way they moved it.
+ * `planSurplusRankWrites` below turns this into the DB write; the in-session guard `Set`
+ * (`useSurplusRanking.ts`) is untouched by it and keeps a re-ticked row safe from an immediate
+ * re-fight for the rest of the tab's life either way — see `planAutoExtraDeselect`.
  */
 export function setSurplusRankAutoExtra(
   rows: readonly SurplusRankRow[], id: string, autoExtra: boolean,
 ): SurplusRankRow[] {
   return rows.map(r => (
     r.id === id && r.kind !== 'cards' && r.kind !== 'card' && r.kind !== 'liability'
-      ? { ...r, autoExtra }
+      ? { ...r, autoExtra, autoExtraAutoCleared: false }
       : r
   ));
 }
@@ -474,9 +493,25 @@ export type AutoExtraDeselect = {
  * projection saying a goal WILL be met is a forecast; only the row says it HAS been.
  *
  * Idempotence is the flag itself: the write makes `autoExtra` false, so the very next plan is
- * empty and there is nothing to loop on. `alreadyDeselected` is the second guard, for the one case
- * the flag cannot cover — a user who deliberately re-ticks a finished row. Flipping it straight
- * back off would be a fight, so a row named there is left alone.
+ * empty and there is nothing to loop on. `alreadyDeselected` and `row.autoExtraAutoCleared` are
+ * the second guard, for the one case the flag cannot cover — a user who deliberately re-ticks a
+ * finished row. Flipping it straight back off would be a fight, so a row named there is left alone.
+ *
+ * ⚠️ TWO LAYERS OF THAT SECOND GUARD, not one, and they age differently on purpose.
+ * `alreadyDeselected` is the in-session `Set` (`useSurplusRanking.ts`) — fast, current before a
+ * refetch has landed, and NEVER cleared for the life of the tab, so a re-tick is safe from an
+ * immediate re-fight for as long as the user stays on the page, whatever they do to the row after.
+ * `row.autoExtraAutoCleared` is `savings_goals.auto_extra_auto_cleared` /
+ * `car_funds.auto_extra_auto_cleared` (`20260826_auto_extra_auto_cleared.sql`) — the same fact,
+ * persisted so a reload does not rebuild an empty `Set` and re-fight a re-tick the user made
+ * moments before reloading, but it is NOT permanent: `setSurplusRankAutoExtra` clears it back to
+ * `false` the instant a person touches the switch by hand, because at that point the column would
+ * otherwise keep asserting "automation put this here" about a value the user just chose themselves.
+ * The practical edge this leaves: re-tick a finished row, then reload a SECOND time (nothing else
+ * in between), and the rule reasserts itself — "once it comes true it should auto deselect" wins
+ * rather than a manual override becoming permanent across every future reload. That is the
+ * intentional reading; the in-session `Set` is what keeps the common case (reload once, or never)
+ * from ever seeing it.
  *
  * Cards, the card block and liabilities are never included: `accounts` has no `auto_extra` column,
  * which is the same reason `setSurplusRankAutoExtra` refuses to move their switch by hand.
@@ -488,7 +523,7 @@ export function planAutoExtraDeselect(
   const out: AutoExtraDeselect[] = [];
   for (const row of rows) {
     if (row.kind !== 'goal' && row.kind !== 'car_fund' && row.kind !== 'loan') continue;
-    if (!row.autoExtra || alreadyDeselected.has(row.id)) continue;
+    if (!row.autoExtra || alreadyDeselected.has(row.id) || row.autoExtraAutoCleared) continue;
     if (row.remaining === null || row.remaining > 0) continue;
     // A goal or a car fund with nothing to reach is UNCONFIGURED, not finished, and its remaining
     // need reads 0 for that reason alone. A debt being paid down has no target amount by design
@@ -500,8 +535,20 @@ export function planAutoExtraDeselect(
 }
 
 export type SurplusRankWrites = {
-  goals: { id: string; sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }[];
-  carFunds: { id: string; sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }[];
+  goals: {
+    id: string; sort_order?: number; auto_extra?: boolean;
+    /** Cleared to `false` alongside a manual `auto_extra` write — see `setSurplusRankAutoExtra`.
+     *  Not yet in the generated `Update` type as of `20260826_auto_extra_auto_cleared.sql`
+     *  (unapplied); the destructured `patch` this rides on is a variable, not a literal, so it
+     *  compiles today without a cast and needs no change once the migration lands and types
+     *  regenerate — see `useSurplusRanking.ts`'s `save` mutation, which is where this is written. */
+    auto_extra_auto_cleared?: boolean;
+    surplus_share?: number | null;
+  }[];
+  carFunds: {
+    id: string; sort_order?: number; auto_extra?: boolean; auto_extra_auto_cleared?: boolean;
+    surplus_share?: number | null;
+  }[];
   /**
    * `accounts` rows for cards that have been pulled out of the block, or put back into it —
    * `surplus_sort_order: null` is the "back in the block" write, not a no-op.
@@ -556,8 +603,14 @@ export function planSurplusRankWrites(
     const patch: SurplusRankWrites['goals'][number] = { id: row.id };
     if (was.sortOrder !== row.sortOrder) patch.sort_order = row.sortOrder;
     if (was.autoExtra !== row.autoExtra) patch.auto_extra = row.autoExtra;
+    // `setSurplusRankAutoExtra` always resets `autoExtraAutoCleared` to `false` on a manual
+    // toggle, so this only ever fires a real write when the row's CURRENT value is `true` --
+    // i.e. exactly the row a manual re-select is correcting the provenance of. A row that was
+    // never auto-cleared diffs to nothing here, same as `auto_extra` on an untouched row.
+    if (was.autoExtraAutoCleared !== row.autoExtraAutoCleared) patch.auto_extra_auto_cleared = row.autoExtraAutoCleared;
     if (was.share !== row.share) patch.surplus_share = row.share;
-    if (patch.sort_order === undefined && patch.auto_extra === undefined && patch.surplus_share === undefined) continue;
+    if (patch.sort_order === undefined && patch.auto_extra === undefined
+      && patch.auto_extra_auto_cleared === undefined && patch.surplus_share === undefined) continue;
     // A loan row and a saving row are the same `car_funds` row wearing different hats — both write
     // to `car_funds`, which is why they can share one `sort_order` without ever colliding.
     (row.kind === 'goal' ? writes.goals : writes.carFunds).push(patch);

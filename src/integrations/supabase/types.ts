@@ -500,6 +500,7 @@ export type Database = {
         Row: {
           actual_monthly_payment: number
           auto_extra: boolean
+          auto_extra_auto_cleared: boolean
           created_at: string
           current_saved: number
           down_payment_goal: number
@@ -533,6 +534,7 @@ export type Database = {
         Insert: {
           actual_monthly_payment?: number
           auto_extra?: boolean
+          auto_extra_auto_cleared?: boolean
           created_at?: string
           current_saved?: number
           down_payment_goal?: number
@@ -566,6 +568,7 @@ export type Database = {
         Update: {
           actual_monthly_payment?: number
           auto_extra?: boolean
+          auto_extra_auto_cleared?: boolean
           created_at?: string
           current_saved?: number
           down_payment_goal?: number
@@ -1606,6 +1609,7 @@ export type Database = {
           auto_end_contributions: boolean
           auto_end_stamped_rules: Json
           auto_extra: boolean
+          auto_extra_auto_cleared: boolean
           contribution_start_date: string | null
           created_at: string
           current_amount: number
@@ -1628,6 +1632,7 @@ export type Database = {
           auto_end_contributions?: boolean
           auto_end_stamped_rules?: Json
           auto_extra?: boolean
+          auto_extra_auto_cleared?: boolean
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
@@ -1650,6 +1655,7 @@ export type Database = {
           auto_end_contributions?: boolean
           auto_end_stamped_rules?: Json
           auto_extra?: boolean
+          auto_extra_auto_cleared?: boolean
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number

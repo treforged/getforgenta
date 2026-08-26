@@ -53,6 +53,12 @@ export type SavingsGoal = {
    * Null/absent means no split, which is every pre-2026-08-21 row and is byte-identical to the
    * strict sequence that came before. See `allocateRankedSurplus`. */
   surplus_share?: number | null;
+  /** True once `planAutoExtraDeselect` has switched `auto_extra` off for this goal because it was
+   * met. Persists that exactly-once decision across a page reload -- see
+   * `supabase/migrations/20260826_auto_extra_auto_cleared.sql` and `surplus-ranking.ts`. Optional,
+   * like `surplus_share` above it: the column is new, and every row before it (and every test
+   * fixture) has never been auto-cleared, which is what "absent" already means. */
+  auto_extra_auto_cleared?: boolean;
   created_at: string;
 };
 
@@ -129,6 +135,12 @@ export type CarFund = {
    * Null/absent means no split, which is every pre-2026-08-21 row and is byte-identical to the
    * strict sequence that came before. See `allocateRankedSurplus`. */
   surplus_share?: number | null;
+  /** True once `planAutoExtraDeselect` has switched `auto_extra` off for this fund (or loan)
+   * because it was met. Persists that exactly-once decision across a page reload -- see
+   * `supabase/migrations/20260826_auto_extra_auto_cleared.sql` and `surplus-ranking.ts`. Optional,
+   * like `surplus_share` above it: the column is new, and every row before it (and every test
+   * fixture) has never been auto-cleared, which is what "absent" already means. */
+  auto_extra_auto_cleared?: boolean;
   created_at: string;
 };
 

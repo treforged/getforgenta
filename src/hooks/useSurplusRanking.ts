@@ -23,9 +23,11 @@ import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
  * that the moment they navigate away and back, so their tick would be undone on the next visit;
  * held here it survives every remount for as long as the app is open.
  *
- * It is deliberately not persisted. There is no provenance column on `savings_goals` or `car_funds`
- * to hold one, and a reload restoring the default — switch a finished target off — is the honest
- * behaviour rather than the surprising one, since a finished target takes no money either way.
+ * It used to be the ONLY memory of this decision, with a documented known limit: no provenance
+ * column on `savings_goals` or `car_funds`, so a page reload rebuilt this `Set` empty and re-fought
+ * a deliberate re-tick. `20260826_auto_extra_auto_cleared.sql` closes that: `planAutoExtraDeselect`
+ * now also skips a row whose live `auto_extra_auto_cleared` is already true. This `Set` stays, as
+ * the fast, same-tick guard before a refetch has landed the persisted value.
  */
 const autoExtraDeselected = new Set<string>();
 
@@ -191,7 +193,9 @@ export function useSurplusRanking() {
         const results = await Promise.all(plan.map(t =>
           supabase
             .from(t.kind === 'goal' ? 'savings_goals' : 'car_funds')
-            .update({ auto_extra: false })
+            // `auto_extra_auto_cleared` (20260826_auto_extra_auto_cleared.sql) is what makes this
+            // decision survive a reload -- see the module-scoped Set above.
+            .update({ auto_extra: false, auto_extra_auto_cleared: true })
             .eq('id', t.id)
             .eq('user_id', user.id)));
         const failed = results.find(r => r.error);

@@ -213,6 +213,7 @@ describe('forecast-engine — the waterfall steps on the month AFTER the first t
 describe('planAutoExtraDeselect', () => {
   const row = (over: Partial<SurplusRankRow>): SurplusRankRow => ({
     id: 'g-1', kind: 'goal', name: 'Emergency Fund', sortOrder: 0, autoExtra: true,
+    autoExtraAutoCleared: false,
     remaining: 0, share: null, targetAmount: 20000, targetDate: null, createdAt: '2026-01-01',
     ...over,
   });
@@ -234,6 +235,15 @@ describe('planAutoExtraDeselect', () => {
     // Idempotence is the flag itself; this is the second guard, for the one session where the
     // user re-ticks a fully funded row on purpose. Flipping it straight back off would be a fight.
     expect(planAutoExtraDeselect([row({})], new Set(['g-1']))).toEqual([]);
+  });
+
+  it('leaves a target alone whose PERSISTED auto_extra_auto_cleared is already true — the guard'
+    + "'s decision surviving a reload, not just this session's Set", () => {
+    // 20260826_auto_extra_auto_cleared.sql: the in-session Set is what the row helper's second
+    // argument stands in for above; this is the same guard read off the row itself instead, which
+    // is what still applies after a reload rebuilds the Set from nothing. An EMPTY Set here is the
+    // point -- the row's own field is doing all the work.
+    expect(planAutoExtraDeselect([row({ autoExtraAutoCleared: true })])).toEqual([]);
   });
 
   it('leaves an unmet target alone', () => {
