@@ -1,5 +1,42 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-25 SESSION 31 CLOSE (usage cap + context gate together): **4 local
+> commits ahead of origin/main, NOT pushed (Tre has not said push): `a41cbbb7`
+> docs (iOS CI green verified on 393ffb10 - watch item CLOSED), `5b65f627`
+> Vehicles.tsx em-dash cleanup (first Ollama-routed slice, scored 3.7 in
+> ~/.claude/ollama/playbook.md - lesson: let Ollama decide wording, apply
+> deterministically), `616f9275` ENGINE floor-regime flicker latch (the
+> getAugmentedMinSafeCash bistability slice SHIPPED - period-3 orbit killed by
+> a per-run monotone latch in src/lib/floor-min-latch.ts; tests 271/2731,
+> 15/16 shock sizes byte-identical, fixture deltas none), `a9b6f468` this doc.
+> DEPLOYED LIVE: partner-link edge fn ACTIVE verify_jwt=true with secrets
+> APP_URL=https://getforgenta.com + PARTNER_INVITE_FROM=Forgenta
+> <noreply@treforged.com> (values proven from the live send path); OAuth
+> email_confirmed_at check was already in the fn and live-verified (0 OAuth
+> users unconfirmed of 31); the ONLY remaining partner step is Tre's real
+> invite round-trip from Settings. RED MONTHS ANSWERED live on his account
+> (current engine): Sep 2027-Feb 2029 band is STRUCTURAL (GF cliff + move
+> costs), negatives Oct 2027 -$195 / Mar 2028 -$332 / Apr 2028 -$952 / May
+> 2028 -$280, CC Debt Free Jun 2028, recovery crosses the floor ~Mar 2029 -
+> the engine edits made it honest, they were never going to make it green;
+> offered (not built) a model of easing CC extras through the trough.
+> HARNESS: session defaults pinned (manager=fable, effort high, per-model
+> high) + handoff skill carries the defaults table. NEXT: the extra-payments
+> follow-up below (top item), then auto_extra_auto_cleared migration, demo
+> override gap, partner Phase 2/3. Dev tab parked signed-in on
+> localhost:8080/forecast - leave it open.**
+
+> ▶ 2026-08-25 PAUSED ON USAGE CAP mid-slice, no repo files edited: **the
+> "extra payments" follow-up build (secondary with-extras payoff line on
+> /debt's Auto Loans/Mortgage/Student/Other tabs) was stopped by the 85%
+> five_hour cap during read-only investigation — see
+> `handoff-debt-extras-followup.md` at repo root for full state (what's
+> traced, what's decided, exact next command queued). Part 1 (the audit)
+> is DONE and was accepted by the manager; Part 2 (the build) has not
+> started editing anything. Tree is clean, nothing to commit for this
+> slice. Delete the followup file once folded in here or once the slice
+> ships. Resumes automatically after 00:00 ET.**
+
 > ▶ 2026-08-25 iOS WATCH ITEM CLOSED + SESSION DEFAULTS SET: **the rebuild on
 > `393ffb10` went GREEN - "iOS Build & Upload to App Store" completed SUCCESS
 > (CodeQL iOS + Actions/JS-TS green on the same sha), so both uncompiled Swift
