@@ -1,5 +1,37 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 PAUSED ON 80% USAGE CAP mid-apply, auto-resumes after 10:10 ET:
+> **THREE slices in flight when the cap hit. (1) Friends Phase 0 BUILT +
+> manager-reviewed, NOT APPLIED: `supabase/migrations/20260826_friend_links.sql`
+> (411 lines) + `src/hooks/__tests__/friendLinks.rls.test.ts` (539 lines, 48
+> tests, 5/5 mutation checks) sit UNTRACKED and UNCOMMITTED because the rule is
+> applied-migration + types-regen in the SAME commit and the cap blocked
+> `apply_migration` at the exact moment of apply (nothing reached the DB - the
+> error arrived BEFORE execution). RESUME SEQUENCE: apply via Supabase MCP
+> (project mdtosrbfkextcaezuclh, name `friend_links`, query = the file
+> verbatim), then get_advisors both types, then generate_typescript_types ->
+> overwrite src/integrations/supabase/types.ts, then tsc + the friendLinks
+> test, then ONE commit of migration+test+types. Manager review PASSED: full
+> read done; watch items on apply are the parenthesised least/greatest index
+> exprs (:100) and the week-Monday CHECK (:329). Phase 2 brief note: publisher
+> must compute `week` as the UTC ISO Monday (policy compares in DB UTC).
+> (2) Forecast/extra-payments executor (Tre mid-turn: "fix the forecast and
+> extra payment issue at the same time by delegating to the appropriate sub
+> agent") was STILL RUNNING at cap - it had modified src/lib/forecast-engine.ts
+> and left scratch src/lib/__tests__/zz-scratch-extras-walk.test.ts; its edits
+> are UNREVIEWED, treat the working tree's forecast-engine.ts diff as its
+> in-flight work, wait for/collect its report before touching. Brief: root-cause
+> which /forecast surfaces (chart + month popups) ignore extras, wire existing
+> ForecastResult extras-aware outputs, no second math path, no engine-math
+> changes, no commit. (3) Onboarding unbounded-'pending' SHIPPED `be6135a8`
+> (10s fail-open race, 2 pinned tests, suite 274/2785 green including it) -
+> first Ollama code slice, scored 2.7 in ~/.claude/ollama/playbook.md (new
+> shape row). Foreign file zz-tmp-diagnostic.test.ts still not ours - leave.
+> NEXT after resume: finish Phase 0 apply sequence above -> review forecast
+> executor report -> then queue: Phase 1 friend-link edge fn brief,
+> auto_extra_auto_cleared migration, demo override gap, pollAppReady +
+> SplashScreen leftovers, forgenta-AI planned transactions.**
+
 > ▶ 2026-08-26 EXTRAS SLICE CLOSED + NEW RULES: **the with-extras payoff line
 > SHIPPED on /debt's four non-CC tabs: `d4a12d4b` (feature, plumbing option (a) -
 > engine already runs in CardProjectionContext, ForecastResult gained
