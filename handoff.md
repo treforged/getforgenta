@@ -1,5 +1,65 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35c — **THE PAYOFF-REGIME LATCH WAS BUILT, MEASURED AND
+> REVERTED. AND THE HEADLINE FROM 35/35b IS NOW PARTLY WRONG — READ THE
+> CORRECTION BEFORE ACTING ON EITHER BLOCK BELOW.**
+>
+> WHAT WAS BUILT (reverted, not committed; HEAD is `217da7c4`): a
+> `payoff-regime-latch.ts` modelled on `floor-min-latch.ts`, keying its regime on
+> the summed revolving balance crossing `REVOLVING_GAP_DUST` rather than on
+> `revBal > 0` (which is exactly why the existing floor latch cannot see this
+> flicker: the sim leaves $0.04 of dust, and $0.04 is still greater than zero).
+> A month flickering twice was dropped from the target feedback with NaN, the
+> remedy this loop already applies to month 0 and the manual ISB pins.
+>
+> IT WORKED MECHANICALLY AND STILL DID NOT CONVERGE, which is the useful result.
+> Traced: months 25, 26, 29, 30 latch by pass 4 and 28 by pass 11, the set then
+> stays [25,26,28,29,30] for the rest of the run, and the flicker at those months
+> genuinely stops. **A NEW period-6 orbit immediately appears on months 19, 20
+> and 23** (gaps 1077/675/589/558/294/589 repeating exactly from pass 11). The
+> payoff tail is a CHAIN of boundary months, so latching them one at a time is
+> whack-a-mole: silence one and the next takes over. Do not re-attempt this as a
+> per-month latch. If it is attempted again the shape has to be global — latch
+> every month once ANY month flickers twice, or attack the discontinuity itself
+> rather than the months it lands on.
+>
+> ⚠️ THE CORRECTION, and it reverses part of session 35's headline. That block
+> says the discarded converged run had Oct 2027 ending at +$2,011 while the
+> published base pair had it at -$195, and concluded the red month was a
+> convergence artifact. **That measurement was taken BEFORE Tre re-enabled the
+> car-loan auto-extra.** Measured again after: `m14end` (Oct 2027) is **-$195.23
+> on EVERY ONE of the 24 passes**, including pass 1 with the latch set still
+> empty, so it is latch-independent and data-driven. Under the CURRENT data
+> convergence would not rescue that month, because there is no longer a better
+> answer for it to converge to. Do not tell Tre a convergence fix will clear
+> Oct 2027 without re-measuring first.
+>
+> NOTE FOR HIS PEACE OF MIND: he saw -$195 both before and after his re-enable,
+> so his change caused no user-visible regression. The Oct 2027 drawer is
+> byte-identical across it ($2,629.48 to the move fund, no car-loan line at all),
+> which independently CONFIRMS the ranking answer in the 35 block: at rank 4,
+> behind the card block and the move fund, the car loan draws nothing.
+>
+> SO WHAT IS ACTUALLY LEFT. The arithmetic in the 35 block still stands and is
+> still the defect: the auto-extra reserve and the credit-card cascade are each
+> independently floor-aware and NEITHER accounts for the other. `autoExtraPool`
+> (forecast-engine.ts ~1616) keeps back `step3SpendFloor` and the cycling spend,
+> `computeAutoExtraReserve` settles only the card MINIMUMS, and then
+> `monthDebtPayment` spends the cascade's full amount on top. Oct 2027: pre-debt
+> cash $4,789.33, reserve $2,629.48, card payments $2,355.00, so the month
+> overspends its own $2,009.40 floor by $2,204 and lands at -$195.23. The
+> drawer even shows the cascade believing itself safe, with "Adjusted to keep
+> cash safely above your floor" printed under the Discover line. THAT is the
+> thing to fix, and the constraint from the 35 block still binds: the fix must
+> NOT simply subtract `ledgerEntry.total` from the pool, because that hands the
+> cards priority over the goals the user deliberately ranked above them. The
+> engine's deficit branch (forecast-engine.ts ~1774) is the mechanism that is
+> supposed to make the cards give way and it is not winning; start there.
+>
+> STILL TRUE AND STILL SHIPPED: `bc7f3570` (gap measured only over months that
+> still revolve, 3 tests, one mutation-checked). It changes no user-visible
+> number and is worth keeping on its own.
+
 > ▶ 2026-08-26 SESSION 35b — **THE OSCILLATION IS A PERIOD-6 LIMIT CYCLE AT THE
 > PAYOFF BOUNDARY. NEXT SLICE IS A PAYOFF-REGIME LATCH, AND THE PATTERN TO COPY
 > IS ALREADY IN THE SAME FILE.** Read the 35 block below for the full evidence
