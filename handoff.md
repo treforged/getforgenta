@@ -1,5 +1,71 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 33 (context gate at ~182k). **SHIPPED THIS SESSION:
+> `7cbedd06` (dead pollAppReady poller + orphan SplashScreen config removed,
+> native-only, proof-of-deadness in the commit) and `c72748bc` (5 additive
+> tests pinning manual re-select clears auto_extra_auto_cleared - the one
+> lifecycle edge 5ea3e08f shipped untested; 75 tests green). NOTE: friends
+> Phase 1 `e18d9af2` (fn DEPLOYED ACTIVE v1 verify_jwt=true) and provenance
+> `5ea3e08f` were committed by the PEER session from THIS session's two
+> executors' in-tree files after the usage cap killed them mid-slice; both
+> executors later reconciled - no divergence, config.toml duplicate-key
+> collision resolved by the opus builder (exactly one [functions.friend-link]
+> entry remains, line 148). WATCH ITEM from that collision: an intermediate
+> peer edit briefly added a second domain-revealing maskEmail to
+> friend-link/invite-code.ts - gone now, but if two masking impls ever
+> reappear there, kill the domain-revealing one.
+>
+> IN FLIGHT - Tre's three new asks (ledgered 08-26, all [~]):
+> (1) GLOBAL subagents must pause at the usage cap too (marketing missed 2
+> routine runs). ROOT CAUSE ESTABLISHED: usage_cap_hook.py's save-state
+> carve-out (Read/Write/Edit/Grep/Glob/TodoWrite + git Bash) is identity-blind
+> and unlimited in time, and a mid-build subagent lives almost entirely inside
+> that set - so it builds straight through the cap until the hard API limit
+> (proven today: both executors died at the API "session limit", not the cap).
+> (2) GLOBAL weekly cap reserving routine headroom. DATA PULLED, estimate
+> DERIVED: weekly budget ~11x the five-hour budget (measured 15:13->15:28
+> today: five_hour +34pts vs seven_day +3pts on the same work); one trading
+> routine ~2.7-4% of a 5h window (08-25 incident: 8% reserve covered r3+r4,
+> died partway r5); ~100 cloud routine runs/wk (6 trading/day, 6 conductor/day,
+> 1-2 marketing/day, 1 blog/day, weekly scout+backup) => routines need
+> ~24-27% of the weekly window => WEEKLY CAP 75 (reserve 25%).
+> (3) "update handoff" - this block.
+>
+> DESIGN SETTLED, NOT YET CODED (backups already at
+> ~/.claude/backups/*.bak-20260826-weeklycap for usage_cap_hook.py,
+> usage_resume_watch.py, claudecontext/statusline.py):
+> a. usage_cap_hook.py: per-window caps - five_hour vs CAP_5H=80
+>    (CLAUDE_USAGE_CAP), seven_day vs CAP_WEEKLY=75 (CLAUDE_USAGE_CAP_WEEKLY),
+>    block if EITHER trips, name the tripping window in the message.
+> b. usage_cap_hook.py: save-state GRACE WINDOW - on a session's first block
+>    in a rate window, record first_blocked_at in a NEW separate file
+>    ~/.claude/cap-grace.json keyed session_id+":"+int(resets_at) (fallback
+>    cwd), prune entries >8d; HANDOFF_TOOLS + safe Bash allowed only within
+>    600s of that mark, then EVERYTHING blocks exit 2. Subagents share the
+>    session, so this is what actually stops them. Do NOT put grace in
+>    paused-sessions.json - the watcher iterates that dict as cwd->entry and
+>    a grace key would be treated as a paused dir.
+> c. usage_resume_watch.py: mirror per-window caps (resume only when 5h<80
+>    AND 7d<75); keep the MUST-MATCH comments on both DEFAULT constants.
+> d. claudecontext/statusline.py _publish_usage: append a throttled history
+>    line (ts,five,seven) to ~/.claude/usage-history.csv when the csv mtime
+>    is >900s old - makes the next estimate measured, not inferred.
+> e. Update ~/.claude/bin/USAGE-CAP.md (new caps, grace, history file,
+>    derivation) + flip the two [~] GLOBAL ledger lines to [x] with evidence
+>    + append asks-completed rows.
+> f. TEST each branch with USAGE_STATE_OVERRIDE + synthetic payloads before
+>    trusting: below-caps allow / 7d=76 blocks non-handoff / handoff tool in
+>    grace allows / grace expired blocks / stale allows / watcher dryrun
+>    respects both caps. NOTE 7d is at 76% NOW, so the moment the new hook
+>    lands the resuming session pauses at the weekly cap - write the pause
+>    line to Tre and stop; that is the system working, not a bug.
+>
+> NEXT after cap work: friends Phase 2 (leaderboard-metrics lib + publisher,
+> plan section 4), live invite round-trip needs a second confirmed account
+> (Tre), demo override gap, forgenta-AI planned transactions ("at somepoint"),
+> src/App.tsx window.__forgenta_app_ready writer now reader-less (follow-up
+> from 7cbedd06).**
+
 > ▶ 2026-08-26 CAP-RESUME #2 COMPLETE, both in-flight slices SHIPPED + committed
 > (local, not pushed): **(1) auto_extra_auto_cleared migration `5ea3e08f` -
 > APPLIED via MCP (success), advisors clean (pre-accepted items only), types
