@@ -172,6 +172,16 @@ export interface ForecastResult {
    * runDebtCashConvergence → resimulateWithDebtCash so cycling-only save-up months agree with
    * Forecast instead of the sim recomputing its own, narrower version. */
   maxDebtPaymentByMonth: number[];
+  /** Per-liability monthly OPENING balances, keyed by the same id `nonCCLiabBreakdown` rows carry
+   * (the accounts row's id, or `debt:<id>` for an unpaired debts row). SHARED REFERENCES into
+   * `nonCCLiabilities.rows` - the arrays step 4c-ii-c reduces in place - so they are extra-aware
+   * by construction. Exposed so /debt's non-CC tabs can read the "with extra payments" payoff
+   * month off the projection the drawer already shows, instead of running a second math path. */
+  nonCCLiabilityBalancesById: Map<string, number[]>;
+  /** Per-vehicle-loan monthly opening balances keyed by `car_funds.id` - the SAME shared-reference
+   * arrays step 4c-ii-b reduces in place (see `loanBalancesByFundId` below). Loan-phase funds
+   * only; a saving-phase projected loan has no id-keyed array and is not carried here. */
+  carLoanBalancesByFundId: Map<string, number[]>;
 }
 
 export function calculateForecast(inputs: ForecastInputs): ForecastResult {
@@ -2119,5 +2129,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       });
     }
 
-    return { data, milestones, maxDebtPaymentByMonth };
+    return {
+      data, milestones, maxDebtPaymentByMonth,
+      // Pure exposure of the arrays the loop above already maintains - shared references, zero new
+      // math. Both stay id-keyed so a reader never has to name-match across months (fragile once a
+      // fund pays off and `carLoanPerFund` stops carrying it).
+      nonCCLiabilityBalancesById: new Map(nonCCLiabilities.rows.map(r => [r.id, r.balances])),
+      carLoanBalancesByFundId: loanBalancesByFundId,
+    };
 }

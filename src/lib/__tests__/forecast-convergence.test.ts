@@ -31,6 +31,8 @@ function fakeEngine(plans: { debtPayment: number[]; revolvingDebtCash: number[] 
       })) as unknown as ForecastResult['data'],
       milestones: [],
       maxDebtPaymentByMonth: [],
+      nonCCLiabilityBalancesById: new Map(),
+      carLoanBalancesByFundId: new Map(),
     };
   }) as unknown as ConvergenceEngine;
 }
@@ -107,6 +109,8 @@ describe('runDebtCashConvergence', () => {
           })) as unknown as ForecastResult['data'],
           milestones: [],
           maxDebtPaymentByMonth: [],
+          nonCCLiabilityBalancesById: new Map(),
+          carLoanBalancesByFundId: new Map(),
         };
       }) as unknown as ConvergenceEngine;
       return { base, engine };

@@ -32,6 +32,7 @@ export default function DebtPayoff() {
 
   const {
     cardProjection,
+    projections,
     assumptions,
     pauseSavings,
     setPauseSavings,
@@ -101,6 +102,40 @@ export default function DebtPayoff() {
     const d = new Date();
     d.setMonth(d.getMonth() + months);
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+
+  // "With extra payments" payoff for a non-CC debt row: the first month the forecast engine's
+  // extra-aware balance array opens at zero - the SAME shared-reference array the Forecast month
+  // drawer itemises, so this readout cannot disagree with it. Only a RANKED liability (paired
+  // account with accounts.surplus_sort_order set, under "Where the extra money goes" on Goals)
+  // ever receives waterfall money, so unranked debts keep the scheduled line alone. The engine's
+  // reducers use Math.max(0, before - amount) - exact zero, no dust tolerance to invent here.
+  const withExtrasPayoffMonths = (d: { name: string; balance: unknown; apr: unknown; target_payment: unknown }): number | null => {
+    const paired = accounts?.find(a =>
+      a.active && a.account_type !== 'credit_card' && a.name.trim().toLowerCase() === d.name.trim().toLowerCase());
+    if (paired?.surplus_sort_order == null) return null;
+    const balances = projections.nonCCLiabilityBalancesById.get(paired.id);
+    if (!balances) return null;
+    const firstZero = balances.findIndex(b => b <= 0);
+    if (firstZero <= 0) return null;
+    const scheduled = calculatePayoffMonths(Number(d.balance), Number(d.apr), Number(d.target_payment));
+    return firstZero < scheduled ? firstZero : null;
+  };
+
+  // Same readout for a live vehicle loan, from the engine's id-keyed loan balance arrays.
+  // balances[i] is the balance month i OPENS at, so the final payment lands in month
+  // firstZero - 1 - the same month payoffDate names when no extra money reaches the loan, which
+  // is what keeps this line hidden until the ranked waterfall actually accelerates the payoff.
+  const withExtrasAutoPayoff = (fundId: string, scheduledPayoffDate: string): string | null => {
+    const balances = projections.carLoanBalancesByFundId.get(fundId);
+    if (!balances) return null;
+    const firstZero = balances.findIndex(b => b <= 0);
+    if (firstZero <= 0) return null;
+    const now = new Date();
+    const extras = new Date(now.getFullYear(), now.getMonth() + firstZero - 1, 1);
+    const sched = new Date(scheduledPayoffDate + 'T00:00:00');
+    if (extras.getFullYear() * 12 + extras.getMonth() >= sched.getFullYear() * 12 + sched.getMonth()) return null;
+    return extras.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
   const { restored: draftRestored, discard: discardDraft } = useFormDraft({
@@ -185,7 +220,7 @@ export default function DebtPayoff() {
   // duplicates would.
   const nonCcDebtExplainer = (
     <div className="p-3 bg-primary/5 border border-primary/20 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
-      Mortgage, student loan and other debt payments are taken out of your cash before any credit card payoff, so they always take priority. Add each one as a debt entry matching the name of its account in Accounts. A paired debt can also take extra principal from the ranking under "Where the extra money goes" on Goals.
+      Mortgage, student loan and other debt payments are taken out of your cash before any credit card payoff, so they always take priority. Add each one as a debt entry matching the name of its account in Accounts. Payoff In shows the schedule at your target payment alone; when a debt is ranked under "Where the extra money goes" on Goals and receives extra money, a second "with extra payments" line shows how much sooner the forecast projects it clearing.
     </div>
   );
 
@@ -322,6 +357,7 @@ export default function DebtPayoff() {
                 currentBalance: cf.current_balance_override ?? null,
               });
               const payoffFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+              const extrasPayoff = withExtrasAutoPayoff(cf.id, proj.payoffDate);
               return (
                 <div key={cf.id} className="card-forged p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -336,7 +372,7 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Monthly Pmt</p><p className="text-xs font-semibold text-primary">{formatCurrency(proj.effectivePayment, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff</p><p className="text-xs font-semibold">{payoffFmt}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Payoff</p><p className="text-xs font-semibold">{payoffFmt}</p>{extrasPayoff && <p className="text-[10px] text-primary font-medium">{extrasPayoff} with extra payments</p>}</div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
                   </div>
                   <Link to="/vehicles" className="mt-3 text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline block">
@@ -445,6 +481,7 @@ export default function DebtPayoff() {
               const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
               const months = calculatePayoffMonths(bal, apr, tp);
               const interest = calculateTotalInterest(bal, apr, tp);
+              const extrasMonths = withExtrasPayoffMonths(d);
               return (
                 <div key={d.id} className="card-forged p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -460,7 +497,7 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>{extrasMonths != null && <p className="text-[10px] text-primary font-medium">{extrasMonths} mo with extra payments</p>}</div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
@@ -536,6 +573,7 @@ export default function DebtPayoff() {
               const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
               const months = calculatePayoffMonths(bal, apr, tp);
               const interest = calculateTotalInterest(bal, apr, tp);
+              const extrasMonths = withExtrasPayoffMonths(d);
               return (
                 <div key={d.id} className="card-forged p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -551,7 +589,7 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Monthly Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>{extrasMonths != null && <p className="text-[10px] text-primary font-medium">{extrasMonths} mo with extra payments</p>}</div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
@@ -588,6 +626,7 @@ export default function DebtPayoff() {
               const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
               const months = calculatePayoffMonths(bal, apr, tp);
               const interest = calculateTotalInterest(bal, apr, tp);
+              const extrasMonths = withExtrasPayoffMonths(d);
               return (
                 <div key={d.id} className="card-forged p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -603,7 +642,7 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>{extrasMonths != null && <p className="text-[10px] text-primary font-medium">{extrasMonths} mo with extra payments</p>}</div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
