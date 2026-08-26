@@ -17,13 +17,26 @@
 > must compute `week` as the UTC ISO Monday (policy compares in DB UTC).
 > (2) Forecast/extra-payments executor (Tre mid-turn: "fix the forecast and
 > extra payment issue at the same time by delegating to the appropriate sub
-> agent") was STILL RUNNING at cap - it had modified src/lib/forecast-engine.ts
-> and left scratch src/lib/__tests__/zz-scratch-extras-walk.test.ts; its edits
-> are UNREVIEWED, treat the working tree's forecast-engine.ts diff as its
-> in-flight work, wait for/collect its report before touching. Brief: root-cause
-> which /forecast surfaces (chart + month popups) ignore extras, wire existing
-> ForecastResult extras-aware outputs, no second math path, no engine-math
-> changes, no commit. (3) Onboarding unbounded-'pending' SHIPPED `be6135a8`
+> agent") REPORTED COMPLETE at cap, code in working tree UNCOMMITTED +
+> UNREVIEWED by manager. Root cause it proved with a before/after harness: the
+> /forecast CHART already reflects extras, the RECEIPTS did not - (Gap A) month
+> drawer omitted the ranked auto-extra reserve (engine emitted it only as
+> nameless autoExtraByTarget) so its cash walk claimed $22,600 for a month the
+> engine ended at $10,780; (Gap B) totalMonthlyOut omitted autoExtraOutThisMonth
+> so the "-Out" column + PDF/CSV said $1,300 for a $13,120 month. Fix: new
+> named autoExtraItems row field (forecast-engine.ts:85-99, 912-934, 1959-66,
+> 2129-40), autoExtraFlowLabel in forecast-export.ts, drawer lines + "+extra"
+> chip in MonthlyBreakdownTable.tsx, new forecast-extras-monthDrawer.test.ts
+> (3 tests, UNRUN), one relational assertion update in
+> forecast-engine.autoExtraLiability.test.ts:168. tsc 0 after every source
+> edit; harness gap $11,820 -> $0, control byte-identical. npm test NEVER RAN
+> (cap). Backups backups/2026-08-26_091649/. RESUME: run tsc + npm test
+> (expect ~273 files/2737 over old 272/2734 baseline; watch
+> forecast-engine.otherDebtService.test.ts:112,138 totalExpenses===1300),
+> manager-review the diff (its stated judgment call: totalExpenses now
+> includes the reserve - agreed direction, verify once), browser-look at a
+> ranked month's drawer, then commit. Manual extras were already covered;
+> allocation/convergence untouched. (3) Onboarding unbounded-'pending' SHIPPED `be6135a8`
 > (10s fail-open race, 2 pinned tests, suite 274/2785 green including it) -
 > first Ollama code slice, scored 2.7 in ~/.claude/ollama/playbook.md (new
 > shape row). Foreign file zz-tmp-diagnostic.test.ts still not ours - leave.
