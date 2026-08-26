@@ -19,6 +19,7 @@ interface TrustedDevice {
 }
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
 import { PartnerLink } from '@/components/settings/PartnerLink';
+import { FriendLink } from '@/components/settings/FriendLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -636,6 +637,12 @@ export default function SettingsPage() {
 
           {/* Partner Link (partner-linking design §4 Phase 1) */}
           <PartnerLink />
+
+          <div className="border-t border-border" />
+
+          {/* Friends (friends-leaderboard plan §4 Phase 1) — free tier, no view
+              lens: a friend can never see a budget, only shared progress. */}
+          <FriendLink />
 
           <div className="border-t border-border" />
 
