@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -893,6 +893,102 @@ export type Database = {
           token_expires_at?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      friend_links: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          invite_code_hash: string
+          invitee_email: string
+          inviter_id: string
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_code_hash: string
+          invitee_email: string
+          inviter_id: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_code_hash?: string
+          invitee_email?: string
+          inviter_id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: []
+      }
+      leaderboard_shares: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          metric: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          metric: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          metric?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      leaderboard_snapshots: {
+        Row: {
+          bucket_value: number
+          created_at: string
+          id: string
+          metric: string
+          updated_at: string
+          user_id: string
+          week: string
+        }
+        Insert: {
+          bucket_value: number
+          created_at?: string
+          id?: string
+          metric: string
+          updated_at?: string
+          user_id: string
+          week: string
+        }
+        Update: {
+          bucket_value?: number
+          created_at?: string
+          id?: string
+          metric?: string
+          updated_at?: string
+          user_id?: string
+          week?: string
         }
         Relationships: []
       }
@@ -1957,6 +2053,7 @@ export type Database = {
       }
     }
     Functions: {
+      active_friend_ids: { Args: never; Returns: string[] }
       active_partner_id: { Args: never; Returns: string }
       claim_marketing_slot: {
         Args: {
@@ -2071,6 +2168,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      is_metric_shared: {
+        Args: { p_metric: string; p_user_id: string }
+        Returns: boolean
+      }
       rate_limit_check: {
         Args: { p_key: string; p_max: number; p_window_ms: number }
         Returns: {
@@ -2094,6 +2195,34 @@ export type Database = {
           p_post_id: string
           p_slot: string
         }
+        Returns: {
+          attempts: number
+          caption: string
+          claimed_at: string | null
+          claimed_by: string | null
+          day: string
+          fb_message: string | null
+          fb_post_id: string | null
+          ig_media_id: string | null
+          ig_permalink: string | null
+          image_urls: string[]
+          kind: string
+          last_error: string | null
+          object_paths: string[]
+          post_id: string
+          published_at: string | null
+          slot: string
+          staged_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "marketing_slots"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      unstage_marketing_slot: {
+        Args: { p_day: string; p_kind: string; p_slot: string }
         Returns: {
           attempts: number
           caption: string
