@@ -1,5 +1,6 @@
 import type { CardProjectionResult } from '@/hooks/useCardProjection';
 import { calculateForecast, type ForecastInputs, type ForecastResult } from './forecast-engine';
+import { createFloorMinLatch } from './floor-min-latch';
 
 // Phase 2 Option C, step 5 — the provider's debt-cash convergence loop as a pure function.
 // engine(base) → target = rows.revolvingDebtCash (target[0] = NaN, month 0 is live-anchored)
@@ -67,7 +68,18 @@ export function runDebtCashConvergence(
   // the budget into the base-pair fallback and the 36-vs-12 payoff divergence).
   const pinnedMonths = new Set((base.manualIsbPins ?? []).map(p => p.month));
 
-  const baseProj = engine({ ...engineInputs, cardProjectionData: base });
+  // One flicker latch per run, observing every engine call in sequence (base + each pass). A
+  // (month, card) floor minimum whose reservation regime changes twice across those calls — a
+  // payoff tail sitting exactly on the revolving↔cycling boundary, where paying the card off
+  // RAISES that month's floor and un-authorises the very payment that paid it — is pinned at the
+  // larger regime's amount for the rest of the run. Without this the loop has no fixed point to
+  // find on such data (a genuine period-3 cycle on the 2026-08-25 $8,000-shock capture) and no
+  // pass budget or damping schedule can converge it. See floor-min-latch.ts; regression pinned in
+  // forecast-convergence.floorFlicker.test.ts. Inert by construction for 1-pass convergence: two
+  // regime changes need three engine calls.
+  const floorMinLatch = createFloorMinLatch();
+
+  const baseProj = engine({ ...engineInputs, cardProjectionData: base, floorMinLatch });
   let currentProj = baseProj;
   let prevTarget: number[] | null = null;
   let prevRaw: number[] | null = null;
@@ -120,7 +132,7 @@ export function runDebtCashConvergence(
       : rawCap;
     prevCap = cap;
     const resim = base.resimulateWithDebtCash(target, cap);
-    const resimProj = engine({ ...engineInputs, cardProjectionData: resim });
+    const resimProj = engine({ ...engineInputs, cardProjectionData: resim, floorMinLatch });
 
     const maxGap = resimProj.data.reduce((max, row, m) => {
       const gap = Math.abs(row.debtPayment - currentProj.data[m].debtPayment);

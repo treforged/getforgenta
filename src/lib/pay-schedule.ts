@@ -9,6 +9,7 @@ import { getBiweeklyDatesInMonth, toLocalDateStr } from './scheduling';
 // rather than growing a second tolerance here that could drift from it. Leaf module, no cycle:
 // `transaction-matching.ts` deliberately does not import this file.
 import { amountConfidence, daysBetween, DATE_WINDOW_DAYS } from './transaction-matching';
+import type { FloorMinLatch, FloorMinRegime } from './floor-min-latch';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -841,6 +842,13 @@ export function getAugmentedMinSafeCash(
      * this floor already covers. Omit (or omit this map entirely) for callers that don't carry
      * a CardProjectionResult with backlog data — behavior is identical to before backlog existed. */
     monthlyCyclingBacklog?: Map<string, number[]>;
+    /** Optional — cross-pass flicker hysteresis, created and owned by runDebtCashConvergence
+     * (one per convergence run). A (month, card) minimum whose reservation regime changes twice
+     * within a run — the payoff-boundary flicker that turns the engine↔resim loop into a limit
+     * cycle — is pinned at the larger regime's amount for the rest of the run. See
+     * floor-min-latch.ts for the mechanism. Omit everywhere else: without it this function is
+     * pure and byte-identical to before the latch existed. */
+    floorMinLatch?: FloorMinLatch;
   } | null,
   monthIdx: number,
   syncCutoffDate?: string,
@@ -951,38 +959,54 @@ export function getAugmentedMinSafeCash(
   if (cc) {
     for (const card of cc.simCards) {
       const revBal = cc.monthlyRevolvingBalances?.get(card.id)?.[monthIdx] ?? 1;
-      if (revBal > 0) {
-        const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
-        if (minPay > 0 && card.dueDay) {
-          if (dueSynced(card.dueDay)) continue;
-          if (duePostPaycheck(card.dueDay)) continue;
-          prePaycheckBillsTotal += minPay;
-          ccRevolvingMinIncluded += minPay;
-          floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
+      // The natural (latch-free) reservation for this card, computed before anything lands in the
+      // floor so cc.floorMinLatch (when a convergence run supplies one) can compare the REGIME
+      // across passes: 'rev' and 'cyc' reserve different amounts for the same card, the step
+      // between them is discontinuous in revBal at 0, and a payoff tail sitting on that boundary
+      // is what makes the engine↔resim loop cycle instead of converge (floor-min-latch.ts).
+      // Every gate below except revBal's sign is pass-stable, so 'none' regimes can never flicker.
+      const none = { regime: 'none' as FloorMinRegime, amount: 0, revMinIncluded: 0 };
+      const natural = (): { regime: FloorMinRegime; amount: number; revMinIncluded: number } => {
+        if (revBal > 0) {
+          const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
+          if (!(minPay > 0 && card.dueDay)) return none;
+          if (dueSynced(card.dueDay)) return none;
+          if (duePostPaycheck(card.dueDay)) return none;
+          return { regime: 'rev', amount: minPay, revMinIncluded: minPay };
         }
-      } else {
         // Paid off / cycling — floor for statement or full-balance preference cards only.
-        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
+        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) return none;
         // Use the card's configured minimum payment, not the full monthly purchases — the floor
         // represents the minimum cash that must remain; the full cycling payment is a planned
         // outflow on top of the floor, not part of it.
-        if (!card.dueDay || card.minPayment <= 0) continue;
+        if (!card.dueDay || card.minPayment <= 0) return none;
         // A card with a future card_start_date has a $0 simulated balance for an unrelated reason
         // (simulateVariablePayoff hasn't activated it yet, see cardStartMonths) — without this
         // check it looked identical to a genuinely paid-off cycling card and reserved its minimum
         // in the floor every month from today, even though the card won't have its first real
         // payment due until that start month.
-        if (card.startDate && monthsBetween(card.startDate, now.toISOString().split('T')[0]) < 0) continue;
-        if (dueSynced(card.dueDay)) continue;
-        if (duePostPaycheck(card.dueDay)) continue;
-        prePaycheckBillsTotal += card.minPayment;
-        floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
+        if (card.startDate && monthsBetween(card.startDate, now.toISOString().split('T')[0]) < 0) return none;
+        if (dueSynced(card.dueDay)) return none;
+        if (duePostPaycheck(card.dueDay)) return none;
         // A backlog-carrying cycling card's minimum is ALSO reserved by simulateVariablePayoff's
         // reservedForRevolving (see its own comment) — count it here so that reservation doesn't
         // double-charge dollars this floor just covered. A cycling card with NO backlog is
         // unaffected (reservedForRevolving never reserves for it in the first place).
         const backlog = cc.monthlyCyclingBacklog?.get(card.id)?.[monthIdx] ?? 0;
-        if (backlog > 0) ccRevolvingMinIncluded += card.minPayment;
+        return { regime: 'cyc', amount: card.minPayment, revMinIncluded: backlog > 0 ? card.minPayment : 0 };
+      };
+      const { regime, amount, revMinIncluded } = natural();
+      // Latched pairs are forced up to the largest amount any regime produced for them this run —
+      // never down, so the latch can only raise the floor (reads cash LOW, the safe direction).
+      // revMinIncluded stays the NATURAL figure: the forced excess is floor-only reservation, not
+      // coverage of simulateVariablePayoff's separate revolving reservation.
+      const applied = cc.floorMinLatch
+        ? cc.floorMinLatch.observe(monthIdx, card.id, regime, amount)
+        : amount;
+      if (applied > 0 && card.dueDay) {
+        prePaycheckBillsTotal += applied;
+        ccRevolvingMinIncluded += revMinIncluded;
+        floorItems.push({ name: card.name + ' min', amount: applied, dueDay: card.dueDay });
       }
     }
   }

@@ -15,6 +15,7 @@ import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTI
 import { getMonthlyPlanCashExpenses, type PaymentPlan } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
+import type { FloorMinLatch } from '@/lib/floor-min-latch';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
@@ -155,6 +156,12 @@ export interface ForecastInputs {
    * Optional so the captured fixture (`forecast-inputs.real.json`) replays identically and so an
    * omitting caller gets exactly the pre-Stage-C date heuristic. */
   syncedTransactions?: readonly MatchableTransaction[];
+  /** Cross-pass hysteresis for the floor's card-minimum term, created and owned by
+   * runDebtCashConvergence (one per convergence run) and threaded through to
+   * getAugmentedMinSafeCash. Breaks the payoff-boundary regime flicker that otherwise turns the
+   * engine↔resim loop into a limit cycle — see floor-min-latch.ts. Omitted by every direct
+   * caller: without it the floor is byte-identical to before the latch existed. */
+  floorMinLatch?: FloorMinLatch;
 }
 
 export interface ForecastResult {
@@ -1135,6 +1142,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           monthlyRevolvingBalances: cardProjectionData.monthlyRevolvingBalances,
           perCardMinPayments: cardProjectionData.perCardMinPayments,
           monthlyCyclingBacklog: cardProjectionData.monthlyCyclingBacklog,
+          floorMinLatch: inputs.floorMinLatch,
         } : null,
         i, syncCutoffDate,
       );
