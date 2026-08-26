@@ -36,6 +36,13 @@ import type { CardProjectionResult } from '@/hooks/useCardProjection';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
 import type { Tables } from '@/integrations/supabase/types';
 
+/**
+ * Half a cent, the point below which an over-reserve is rounding residue rather
+ * than money. The auto-extra floor clamp rewrites an itemised list of
+ * contributions when it fires, so it must not fire on floating-point noise.
+ */
+const AUTO_EXTRA_CLAMP_CENT = 0.005;
+
 const toMonthly = (amount: number, freq: string) =>
   freq === 'weekly' ? amount * 52 / 12
   : freq === 'biweekly' ? amount * 26 / 12
@@ -1664,6 +1671,71 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         );
         autoExtraThisMonth = reserve.perTarget;
         autoExtraOutThisMonth = reserve.reserved;
+      }
+
+      // ═══ THE RESERVE CANNOT SPEND WHAT THE CARD PAYMENT IS ABOUT TO SPEND ═══
+      //
+      // Both halves of this month's discretionary spending were sized against
+      // the floor INDEPENDENTLY, and neither was told about the other. The pool
+      // above keeps back `step3SpendFloor` and the cycling spend, and
+      // `computeAutoExtraReserve` settles only the card MINIMUMS out of what is
+      // left — but `monthDebtPayment` below is the sim's FULL cascade payment,
+      // which is far above those minimums. Measured on live data 2026-08-26,
+      // Oct 2027: cash before the reserve $4,789.33, reserve $2,629.48, card
+      // payment $2,355.00, floor $2,009.40, ending cash MINUS $195.15. The month
+      // spent $2,204 it did not have, and the drawer printed "Adjusted to keep
+      // cash safely above your floor" under the card line while it happened,
+      // because from the cascade's side that was true.
+      //
+      // ⚠️ THIS IS A PHYSICAL-POSSIBILITY CLAMP, NOT A RE-RANKING, and the
+      // distinction is the whole reason it is written here rather than inside
+      // the pool. Subtracting the sim's payment from `autoExtraPool` would let
+      // the cards outrank the goals the user deliberately ranked ABOVE them,
+      // silently inverting the feature. This fires only when the alternative is
+      // a month that ends on an amount of cash that cannot exist, and in any
+      // month where the money is actually there it changes nothing at all.
+      //
+      // The principled reconciliation — cards giving way to the floor before a
+      // ranked goal does — is step 3's deficit branch a few hundred lines below,
+      // and it still runs. But it only reaches the user through the cross-pass
+      // convergence loop, and on this account that loop does not converge and
+      // its answer is discarded (`forecast-convergence.ts`, and the handoff's
+      // period-6 orbit). So this is the reconciliation of last resort: it makes
+      // the SINGLE-PASS chain self-consistent, which the published fallback pair
+      // otherwise is not.
+      //
+      // MONTH 0 IS DELIBERATELY EXEMPT. Its reserve is not decided here at all,
+      // it is replayed from `cardProjectionData.month0.chain`, which the hook
+      // already converged against month 0's own cash. Clamping a figure that
+      // arrived pre-reconciled would contradict the hook and re-open exactly the
+      // popup-versus-accordion divergence Phase 2 Option C exists to have closed.
+      if (i > 0 && autoExtraOutThisMonth > 0) {
+        // No ledger entry means nobody has planned a payment for this month yet,
+        // and reading that as a payment of zero is the deliberate choice: it
+        // makes the clamp WEAKER, and a clamp that fires on a payment nobody
+        // planned would cut a real contribution for no reason.
+        const plannedDebtPayment = m0AllSettled ? 0 : (ledgerEntry?.total ?? 0);
+        // The cushion, not the bare floor, and for the reason the cushion was
+        // added in the first place (see step 3's asymmetric-cushion note): a
+        // month landing EXACTLY on its floor sits on a knife edge, where
+        // sub-tolerance residue decides whether it reads as safe or as breached
+        // and the user gets a warning about a dollar. Clamping to the same
+        // `step3SpendFloor + FLOOR_CUSHION_DOLLARS` that step 3 drains to puts
+        // the month in the established dead zone instead, and costs two dollars
+        // of contribution to do it.
+        const affordableReserve = Math.max(
+          0,
+          cashPreDebtBeforeAutoExtra - plannedDebtPayment - step3SpendFloor - FLOOR_CUSHION_DOLLARS,
+        );
+        if (autoExtraOutThisMonth - affordableReserve > AUTO_EXTRA_CLAMP_CENT) {
+          // One shared factor, so the itemised lines still sum to the total. The
+          // drawer prints those lines and steps 4c-ii-b and 4c-ii-c credit them
+          // to goal and loan balances, so a total that no longer matched its
+          // parts would put dollars on a balance that never left checking.
+          const factor = affordableReserve / autoExtraOutThisMonth;
+          autoExtraThisMonth = autoExtraThisMonth.map(t => ({ ...t, amount: t.amount * factor }));
+          autoExtraOutThisMonth = affordableReserve;
+        }
       }
       const cashPreDebt = cashPreDebtBeforeAutoExtra - autoExtraOutThisMonth;
 
