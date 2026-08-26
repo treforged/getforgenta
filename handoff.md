@@ -1,5 +1,38 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 34 (context gate at ~175k). **NO repo code touched this
+> session — all work was GLOBAL harness. SHIPPED: (1) cap items a-f CODED +
+> 13/13 branch-tested by opus-executor: per-window caps (5h>=80 / 7d>=75, names
+> the tripping window), 600s save-state grace wall in NEW ~/.claude/cap-grace.json
+> keyed session_id:int(resets_at) (cwd fallback, 8d prune), watcher resumes only
+> when BOTH clear, statusline appends ts,five,seven to ~/.claude/usage-history.csv
+> (throttle 900s — already wrote a REAL row: 7d=77). Live swap of
+> usage_cap_hook_new.py -> usage_cap_hook.py was HELD mid-session on my order
+> (Tre's ASAP ask arrived; a swap at 7d=77 pauses the session instantly) and is
+> THIS SESSION'S FINAL ACTION — if you are reading this cold, CHECK whether
+> usage_cap_hook.py sha matches usage_cap_hook_new.py (33ee9ffb629e6bb5); if
+> not, the swap never landed: `cp ~/.claude/bin/usage_cap_hook_new.py
+> ~/.claude/bin/usage_cap_hook.py` and expect the very next tool call to pause
+> at the weekly cap — that is the system WORKING; write Tre the pause line and
+> stop. Watcher + statusline were edited LIVE (safe direction). (2) Free-LLM
+> executor tier SHIPPED per Tre's IG-reel ask (reel repo cheahjs/... deleted;
+> reviewed mnfst/awesome-free-llm-apis): ~/.claude/bin/llm.py + llm/llm.cmd
+> shims, chain ollama -> keyless OVH Qwen3-Coder -> keyed cloud; keys env >
+> ~/.claude/llm-keys.env (placeholders, open in his Notepad; 5 provider key
+> pages open in his Chrome, Groq+AIStudio already signed in); privacy guard
+> exit-3 on secret shapes, --force-local -> Ollama only; GitHub Models verified
+> RETIRED live (do not re-propose); CLAUDE.md routing bullet updated (llm shim
+> = primary draft tier, Sonnet agency, Opus hardest, Fable applies+reviews);
+> docs ~/.claude/bin/FREE-LLM-EXECUTORS.md; provider scorecard rows in
+> ollama/playbook.md; memory file project_free_llm_executor_tier.md written.
+> Ledger: 4 lines flipped [x] w/ evidence + 4 asks-completed rows (2 by the cap
+> executor, 2 by me). WATCH: once Tre pastes keys, run `llm --probe` (he can run
+> it himself in any terminal while sessions are paused — it is not a Claude
+> tool). NEXT (unchanged from session 33): friends Phase 2 leaderboard publisher
+> (plan section 4), live invite round-trip needs Tre's second account, demo
+> override gap, forgenta-AI planned transactions ("at somepoint"),
+> window.__forgenta_app_ready orphaned writer.**
+
 > ▶ 2026-08-26 SESSION 33 (context gate at ~182k). **SHIPPED THIS SESSION:
 > `7cbedd06` (dead pollAppReady poller + orphan SplashScreen config removed,
 > native-only, proof-of-deadness in the commit) and `c72748bc` (5 additive
