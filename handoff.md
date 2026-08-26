@@ -28,7 +28,15 @@
 > plan, brief Phase 0 (schema+RLS, Opus-tier - security), Ollama slices
 > (useOnboardingStatus 'pending' unbounded first), auto_extra_auto_cleared
 > migration, demo override gap, partner Phase 2/3, forgenta-AI planned
-> transactions (queued "at somepoint").**
+> transactions (queued "at somepoint"). If the in-flight Plan agent's
+> friends/leaderboard plan never landed in a file (likely lost to /clear),
+> RE-DISPATCH a read-only Plan agent from the constraints in this block plus:
+> study partner_links migration/edge-fn/UI as the template, leaderboard metrics
+> derived + opt-in per metric (goal-progress %, streaks, debt-payoff %,
+> budget-adherence % - coarse-bucketed against inference attacks), friends
+> likely free-tier as the 18-26 growth feature (gating a one-line change),
+> phased slices each one executor brief, Phase 0 = schema+RLS+tests (Opus
+> tier). Context gate tripped at ~175k right after the close commit.**
 
 > ▶ 2026-08-25 SESSION 31 CLOSE (usage cap + context gate together): **4 local
 > commits ahead of origin/main, NOT pushed (Tre has not said push): `a41cbbb7`
