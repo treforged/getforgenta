@@ -2,6 +2,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { getCalendarYearMonthRange } from '@/lib/scheduling';
 import { getPaychecksInMonth, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { adjustedDisplayBalance } from '@/lib/step3-display';
+import { autoExtraFlowLabel } from '@/lib/forecast-export';
 import { GENERATOR_LABEL, type DuplicateCollision } from '@/lib/duplicate-transaction-detection';
 import type { CalcDrawerLine } from '@/components/shared/CalcDrawer';
 import type { ForecastMonthRow } from '@/lib/forecast-engine';
@@ -157,6 +158,15 @@ export default function MonthlyBreakdownTable({
                 ? (row.carLumpItems as { name: string; amount: number }[]).map(v => ({ label: `  ${v.name} — Extra Payment`, value: formatCurrency(v.amount, true), op: '−' as const }))
                 : (row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, true), op: '−' as const }] : []
               ),
+              // RANKED AUTOMATIC EXTRA PAYMENTS. Straight off the engine's own per-month reserve
+              // (`autoExtraItems` — the named twin of `autoExtraByTarget`), never re-derived here:
+              // the same dollars it subtracted from this month's cash, named. Until these lines
+              // existed the walk below could not reach its own Ending Cash — on the ranked-liability
+              // fixture it printed $22,600 where the engine had $10,780, with $11,820 of extra
+              // payment nowhere on screen.
+              ...((row.autoExtraItems ?? [])
+                .filter(x => x.amount > 0)
+                .map(x => ({ label: `  ${autoExtraFlowLabel(x)}`, value: formatCurrency(x.amount, true), op: '−' as const }))),
               ...((row.lumpSumSavings ?? 0) > 0 ? [{ label: '  Lump Sum → Savings', value: formatCurrency(row.lumpSumSavings, true), op: '−' }] : []),
               ...((row.lumpSumBrokerage ?? 0) > 0 ? [{ label: '  Lump Sum → Brokerage', value: formatCurrency(row.lumpSumBrokerage, true), op: '−' }] : []),
               ...((row.lumpSumRothIra ?? 0) > 0 ? [{ label: '  Lump Sum → Roth IRA', value: formatCurrency(row.lumpSumRothIra, true), op: '−' }] : []),
@@ -277,6 +287,11 @@ export default function MonthlyBreakdownTable({
         const hasCC = (row.totalCCPurchases ?? 0) > 0;
         const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
         const hasCarLump = (row.carLoanExtraPayment ?? 0) > 0;
+        // A month whose surplus was diverted by the ranked waterfall reads, in these four columns,
+        // exactly like a month that simply earned less — the extra is in −Out and in End Cash and
+        // named nowhere. The chip is the row's own answer to "where did it go", and it sums the
+        // engine's items rather than re-deriving a total.
+        const autoExtraTotal = (row.autoExtraItems ?? []).reduce((s, x) => s + (x.amount > 0 ? x.amount : 0), 0);
         // Current-month +Income is the paychecks REMAINING after the last sync — paychecks
         // already received this month are folded into Current Cash, not shown here. Without a
         // hint the reduced income reads like a missing paycheck (Tre, 2026-07-21). Count the
@@ -306,7 +321,7 @@ export default function MonthlyBreakdownTable({
                 {row.floorBreachedByOneTime && <div className="text-[8px] text-gold leading-tight font-normal">one-time</div>}
               </div>
             </div>
-            {(hasCC || hasOneTime || hasCarLump || showRemainingHint || rowDuplicates.length > 0) && (
+            {(hasCC || hasOneTime || hasCarLump || autoExtraTotal > 0 || showRemainingHint || rowDuplicates.length > 0) && (
               <div className="px-1 pb-1.5 flex flex-wrap gap-1">
                 {rowDuplicates.length > 0 && (
                   <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gold/10 text-gold border border-gold/30 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }} title="A transaction you entered by hand duplicates a payment this app already generates, so this month is counted twice.">
@@ -331,6 +346,15 @@ export default function MonthlyBreakdownTable({
                 {hasCarLump && (
                   <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
                     +pmt {formatCurrency(row.carLoanExtraPayment, false)}
+                  </span>
+                )}
+                {autoExtraTotal > 0 && (
+                  <span
+                    className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 whitespace-nowrap"
+                    style={{ borderRadius: 'var(--radius)' }}
+                    title={(row.autoExtraItems ?? []).filter(x => x.amount > 0).map(x => `${autoExtraFlowLabel(x)}: ${formatCurrency(x.amount, true)}`).join(' · ')}
+                  >
+                    +extra {formatCurrency(autoExtraTotal, false)}
                   </span>
                 )}
               </div>

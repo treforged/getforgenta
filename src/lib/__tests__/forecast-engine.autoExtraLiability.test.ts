@@ -165,6 +165,11 @@ describe('forecast-engine — ranked extra principal on a non-CC liability', () 
     // The reserve is its own cash term (`autoExtraOutThisMonth`). Folding it into this one would
     // double-count it against `totalExpenses`, which already carries the scheduled $300.
     expect(data[1].otherDebtPayment).toBeCloseTo(300, 6);
-    expect(data[1].totalExpenses).toBeCloseTo(1000 + 300, 6);
+    // `totalExpenses` carries the reserve ONCE, as that separate term (2026-08-26): it is money
+    // that left checking, and the table's "−Out" column reporting $1,300 for a month that spent
+    // $13,120 disagreed with the End Cash cell beside it. Written against the reserve rather than
+    // a literal so it still pins "exactly once" — the scheduled 300 plus the extra, never 300
+    // inflated by it.
+    expect(data[1].totalExpenses).toBeCloseTo(1000 + 300 + data[1].autoExtraByTarget['sl-1'], 6);
   });
 });

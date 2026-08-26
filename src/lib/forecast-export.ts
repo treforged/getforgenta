@@ -23,6 +23,28 @@ interface NamedBalanceItem {
   balance: number;
 }
 
+/** One target's ranked automatic extra payment for a month — `ForecastMonthRow.autoExtraItems`. */
+export interface AutoExtraFlowItem {
+  name: string;
+  kind: 'goal' | 'car_fund' | 'loan' | 'liability';
+  amount: number;
+}
+
+/**
+ * What a ranked automatic extra payment is CALLED, on the drawer and in the export alike.
+ *
+ * Defined once and imported by `MonthlyBreakdownTable` because those two surfaces are required to
+ * print the same line for the same month (see this file's header) — two copies of a label is how
+ * that promise quietly stops being true. A debt target's extra is a PAYMENT (it retires principal);
+ * a goal's or a saving car fund's is a CONTRIBUTION (it lands in an account the user still owns).
+ * Both leave checking, so both are an outflow either way.
+ */
+export function autoExtraFlowLabel(item: AutoExtraFlowItem): string {
+  return item.kind === 'loan' || item.kind === 'liability'
+    ? `${item.name} — Extra Payment`
+    : `${item.name} — Extra Contribution`;
+}
+
 /** Only the fields this module reads off a Forecast.tsx projection row — not the row's full
  * (much larger) shape, which lives in Forecast.tsx itself. Every field optional/loose on purpose:
  * this is a read-only structural subset, not the canonical row type. */
@@ -53,6 +75,7 @@ interface ForecastExportRow {
   projectedCarLoan?: number;
   carLumpItems?: NamedAmountItem[];
   carLoanExtraPayment?: number;
+  autoExtraItems?: AutoExtraFlowItem[];
   lumpSumSavings?: number;
   lumpSumBrokerage?: number;
   lumpSumRothIra?: number;
@@ -210,6 +233,14 @@ export function buildForecastMonthDetail(row: ForecastExportRow, absoluteI: numb
     for (const v of row.carLumpItems ?? []) if (v.amount > 0) expenses.push({ label: `${v.name} — Extra Payment`, amount: v.amount });
   } else if ((row.carLoanExtraPayment ?? 0) > 0) {
     expenses.push({ label: 'Car Loan Extra Payment', amount: row.carLoanExtraPayment ?? 0 });
+  }
+
+  // The ranked automatic extras, beside the hand-entered lump sums directly above because they are
+  // the same event to the reader: money that left checking this month on top of the schedule. The
+  // engine already subtracted them from the month's cash — itemising them here is what makes this
+  // list of terms reach the Ending Cash printed under it.
+  for (const x of row.autoExtraItems ?? []) {
+    if (x.amount > 0) expenses.push({ label: autoExtraFlowLabel(x), amount: x.amount });
   }
 
   if ((row.lumpSumSavings ?? 0) > 0) expenses.push({ label: 'Lump Sum → Savings', amount: row.lumpSumSavings ?? 0 });

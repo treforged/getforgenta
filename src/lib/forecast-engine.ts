@@ -27,7 +27,7 @@ import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
-import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from '@/lib/ranked-surplus-allocation';
+import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
 import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -88,6 +88,15 @@ export interface ForecastMonthRow {
    * dollars the engine already diverted, instead of modelling a second, disagreeing version of
    * the allocation. Purely an OUTPUT of the allocation in step 4c-ii — nothing reads it back. */
   autoExtraByTarget: Record<string, number>;
+  /** The SAME dollars as `autoExtraByTarget`, named and kinded, for the surfaces that itemise a
+   * month's cash rather than project one target: the Forecast month drawer and the PDF/CSV export
+   * it mirrors. It is the id-keyed record plus a name lookup — no second allocation, no second
+   * total — and it exists because a reserve that is subtracted from `cashPreDebt` and shown
+   * NOWHERE makes the drawer's walk stop reaching its own Ending Cash (measured 2026-08-26 on the
+   * ranked-liability fixture: the walk printed $22,600 against a real $10,780, the $11,820 extra
+   * simply missing). Empty for every month that reserves nothing, which is every month for a user
+   * who has ranked nothing. */
+  autoExtraItems: { id: string; name: string; kind: AutoExtraReserveKind; amount: number }[];
   nonCCLiabBreakdown: { id: string; name: string; account_type: string; balance: number }[];
   carLoanBreakdown: { name: string; balance: number }[];
   /** This month's revolving-debt-cash TARGET for the next convergence pass: the sim's own
@@ -899,6 +908,29 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // would take the dollars out of checking with nowhere to put them. Dropped rather than
       // credited to nothing.
       .filter((l): l is typeof l & { balances: number[] } => l.balances !== undefined);
+
+    /**
+     * What to CALL each auto-extra target on screen, keyed exactly as `perTarget` rows are.
+     *
+     * Built from the same three sources the targets themselves come from — `goals`, `carFunds`
+     * (both the saving-phase funds and their loan-phase selves) and the liability rows — so a name
+     * here can never belong to a different row than the dollars beside it. Purely a lookup: no
+     * amount, no ordering, nothing the allocation reads back.
+     *
+     * ⚠️ Declared here rather than beside `autoExtraCapacity` for the same reason its two
+     * neighbours are: it reads `nonCCLiabilities`, which is built directly above.
+     */
+    const autoExtraNameById = new Map<string, string>([
+      ...goals.flatMap((g) => (typeof g.id === 'string' ? [[g.id, String(g.name ?? '')] as const] : [])),
+      ...carFunds.map((c) => [c.id, String(c.vehicle_name ?? '')] as const),
+      ...nonCCLiabilities.rows.map((r) => [r.id, r.name] as const),
+    ].filter(([, name]) => name.length > 0));
+    /** A target whose row has since gone (month 0's reserve is decided in `useCardProjection`, off
+     *  a set this pass can filter differently) still has to show its dollars — a money line that
+     *  disappears because a name lookup missed is the failure this whole change is about. */
+    const AUTO_EXTRA_FALLBACK_NAME: Record<AutoExtraReserveKind, string> = {
+      goal: 'Savings goal', car_fund: 'Vehicle fund', loan: 'Vehicle loan', liability: 'Loan',
+    };
 
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
@@ -1934,7 +1966,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         + Array.from(goalPools.values()).reduce((s, p) => s + p.balance, 0)
         + Array.from(carFundPools.values()).reduce((s, p) => s + p.balance, 0);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + otherDebtPayment + actualTransfers + lumpTransferThisMonth;
+      // `autoExtraOutThisMonth` is a term of this sum because it is a term of the cash chain: it is
+      // subtracted from `cashPreDebtBeforeAutoExtra` above, so those dollars left checking exactly
+      // as a savings contribution or a loan payment does. Without it the table's "−Out" column
+      // reported $1,300 for a month that spent $13,120 (ranked-liability fixture, 2026-08-26) while
+      // the End Cash cell beside it had already fallen by the difference — two cells of one row
+      // disagreeing about the same month. It is NOT double-counted: the reserve is its own cash
+      // term, never folded into `otherDebtPayment` or `savingsOut` (see the
+      // forecast-engine.autoExtraLiability test that pins that separation).
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + otherDebtPayment + actualTransfers + lumpTransferThisMonth + autoExtraOutThisMonth;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       // Reserved-but-not-yet-spent vehicle savings are added back — see cumulativeCarReserveHeld.
@@ -2102,6 +2142,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           if (t.amount > 0) acc[t.id] = (acc[t.id] ?? 0) + t.amount;
           return acc;
         }, {}),
+        // The itemised twin of the record above — same list, same amounts, one name each. Not
+        // summed per id like `autoExtraByTarget` is: the drawer walks the reserve line by line, and
+        // two lines for one target still add up to the same cash.
+        autoExtraItems: autoExtraThisMonth
+          .filter(t => t.amount > 0)
+          .map(t => ({
+            id: t.id,
+            name: autoExtraNameById.get(t.id) ?? AUTO_EXTRA_FALLBACK_NAME[t.kind],
+            kind: t.kind,
+            amount: t.amount,
+          })),
         // Per-account breakdown snapshots for popup display
         // Per-account balances stay unrounded: the popup and CSV export are their only readers,
         // and both now print exact cents (N8).
