@@ -1,5 +1,35 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 EXTRAS SLICE CLOSED + NEW RULES: **the with-extras payoff line
+> SHIPPED on /debt's four non-CC tabs: `d4a12d4b` (feature, plumbing option (a) -
+> engine already runs in CardProjectionContext, ForecastResult gained
+> `nonCCLiabilityBalancesById` + `carLoanBalancesByFundId` as pure exposure of the
+> extra-aware shared-reference arrays, 3 new tests in
+> forecast-engine.extrasPayoffReadout.test.ts) + `5a5deaba` (peer-review findings:
+> line gates on buildAutoExtraByTarget actually paying the target + liability-type
+> set tightened). Gates green AFTER both commits: tsc clean, npm test 272 files /
+> 2734 tests. NOT pushed. handoff-debt-extras-followup.md deleted (folded here).
+> NOT live-verified in a browser - the secondary line needs a ranked non-CC
+> liability actually receiving waterfall extra; wiring is test-pinned. Peer
+> getforgenta-35 (reviewed the diff mid-flight) went offline before the close
+> relay - nothing owed to it. RULES (Tre, today): fable-executor RETIRED - Fable
+> manages only, never builds; ladder = Ollama primary / Sonnet agency / Opus
+> hardest + backup manager (global CLAUDE.md + memory updated). Usage cap now 80%.
+> NEW: claudecontext/asks-completed.md = completed-asks backlog (how/evidence/
+> speed/cost per finished ask - append a row on every [x], scan before briefing
+> similar work). Prime-agent repo reviewed: adopt (1) goals file separate from
+> asks ledger (claudecontext/goals.md, DONE), (2) evidence-stated + snapshotted
+> memory edits, (3) gate auto-resume on tests-green not just cap-clear (queued
+> hook change), (4) promote 2x-recurring executor patterns to real scripts; SKIP
+> peer-to-peer subagent messaging (breaks manager-isolation design). IN FLIGHT:
+> Plan agent producing the friends+leaderboard implementation plan (Tre: build
+> ASAP, security-first, partner-links as the consent/RLS template; leaderboard =
+> opt-in derived %/streak metrics only, never raw dollars). NEXT: review that
+> plan, brief Phase 0 (schema+RLS, Opus-tier - security), Ollama slices
+> (useOnboardingStatus 'pending' unbounded first), auto_extra_auto_cleared
+> migration, demo override gap, partner Phase 2/3, forgenta-AI planned
+> transactions (queued "at somepoint").**
+
 > ▶ 2026-08-25 SESSION 31 CLOSE (usage cap + context gate together): **4 local
 > commits ahead of origin/main, NOT pushed (Tre has not said push): `a41cbbb7`
 > docs (iOS CI green verified on 393ffb10 - watch item CLOSED), `5b65f627`
