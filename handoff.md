@@ -28,9 +28,11 @@
 > plan, brief Phase 0 (schema+RLS, Opus-tier - security), Ollama slices
 > (useOnboardingStatus 'pending' unbounded first), auto_extra_auto_cleared
 > migration, demo override gap, partner Phase 2/3, forgenta-AI planned
-> transactions (queued "at somepoint"). If the in-flight Plan agent's
-> friends/leaderboard plan never landed in a file (likely lost to /clear),
-> RE-DISPATCH a read-only Plan agent from the constraints in this block plus:
+> transactions (queued "at somepoint"). UPDATE: the friends/leaderboard plan
+> LANDED and is manager-accepted at docs/friends-leaderboard-plan.md (commit
+> ea7f8b20) - do NOT re-dispatch; next step is briefing Phase 0
+> (schema+RLS+tests, Opus tier) straight from that file. Fallback re-brief
+> spec kept below only in case that file is ever lost:
 > study partner_links migration/edge-fn/UI as the template, leaderboard metrics
 > derived + opt-in per metric (goal-progress %, streaks, debt-payoff %,
 > budget-adherence % - coarse-bucketed against inference attacks), friends
