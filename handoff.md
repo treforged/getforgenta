@@ -7,9 +7,24 @@
 > statement balance like groceries, supplements, and fuel". So essential monthly
 > = bills + the CYCLING card spend, EXCLUDING revolving paydown. Derived from his
 > own converged rows:
->   baseExpenses 1,889 + carLoanPayment 423 + vehicleInsurance 173
->   + recurring card spend ~384  =  **~$2,869/mo**
->   → 3 months ≈ **$8,607**, 6 months ≈ **$17,214**
+>   ⚠️ MY FIRST FIGURE WAS WRONG AND IS CORRECTED HERE. I wrote ~$2,869/mo
+>   (3mo $8,607 / 6mo $17,214) from `baseExpenses` 1,889 + car loan 423 +
+>   insurance 173 + an OBSERVED 384 of cycling. `baseExpenses` counts only rules
+>   paid from CHECKING, and 384 was one month's observed cycling, not the card
+>   spend actually scheduled. Summing his ACTIVE RULES instead (which is literally
+>   "bills + recurring statement balances"):
+>     checking-paid bills ~2,090 (incl. Rent-new-place 1,480, Groceries 230)
+>     + card-charged recurring ~700 (Groceries VentureX 240, Fuel 141,
+>       Supplements 106, Pet Insurance 49, subs/Costco/Chewy/Prime/iCloud/
+>       Spotify/Pettable, Eating Out 50, Dog food 45)
+>     + car loan 423 + vehicle insurance 173
+>     = **~$3,386/mo**  → 3 months ≈ **$10,160**, 6 months ≈ **$20,320**
+>   EXCLUDE the business-account rules (Google Workspace 7, QUO 22, Claude 100 on
+>   63b8e559) - the drawer already treats those as "no cash impact".
+>   TWO THINGS THAT STILL MOVE IT: this uses the POST-MOVE rent 1,480 (today's
+>   Rent rule is 1,915), and GF income covers half of rent+groceries until Aug
+>   2027. Both are why the multiplier-not-dollars decision below is the right one:
+>   DO NOT hard-code any of these numbers.
 > The 384 is isolated from months where revolving paydown is ~0 (Feb 2029
 > debtPayment 384 / revolvingDebtCash 18; Feb 2030 384 / 0), which is what
 > separates recurring statement spend from debt payoff. Note the car loan is
