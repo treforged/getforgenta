@@ -34,6 +34,18 @@
 >     donut still divides the same totals (Fixed 54 / Variable 12 / Debt 9 /
 >     Transfers 20 / Remaining 5).
 >
+> - **`5a9e28a2` - CARDS CARRY THEIR ANNUAL FEE.** `accounts.annual_fee` +
+>   `annual_fee_date` (migration applied, types patched same commit, two CHECKs);
+>   `src/lib/annual-fee.ts` is the one recurrence rule (recurs on the anniversary,
+>   walks a past date forward, never bills before `card_start_date`), 10 tests.
+>   ⚠️ THE FEE IS A CARD PURCHASE, NOT A CASH EXPENSE, and BOTH tallies had to
+>   learn it from that module: `cardPurchasesPerMonth` (useCardProjection, the
+>   sim) and `ccScheduledByMonth` (useForecastEngineInputs, the CASH WALK).
+>   Wiring only the first was measured live and showed nothing on /forecast.
+>   Applied to his Venture X ($395, 2027-06-01): CC line Jun 2027 $254 -> $649,
+>   Jun 2028 $494 -> $889, July untouched both years; cash still pins at the
+>   floor, so the fee costs payoff SPEED, not cash - ETA still Dec 2028.
+>
 > === QUEUE, IN PRIORITY ORDER ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
 >    truncating span at 390px; the "not open yet" note + payoff-method ordering on
