@@ -1,5 +1,81 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35z — **`82076865`. tsc 0, 286 files / 3035 tests, eslint
+> clean. 27 commits unpushed.** Queue item 1 is SHIPPED. Manager wrote the engine
+> money math itself, as the queue required; no executor was spawned.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - `82076865` **a student loan or mortgage stops taking cash when it is paid
+>   off.** `otherDebtPayment` was a SINGLE SCALAR for all 60 months, so an $1,800
+>   debt at $300/mo cleared in month 6 and kept charging for 54 more — $16,200 of
+>   cash removed for a debt the drawer showed as gone.
+>   - `isOtherDebtPaymentOwed` (non-cc-liabilities.ts) is the ONE rule. The engine
+>     applies it to the live `nonCCLiabilities.rows[].balances` INSIDE the month
+>     loop, so a ranked extra that clears a debt early stops its payment early
+>     too. `useCardProjection` gets the extra-blind schedule from
+>     `buildOtherDebtPaymentSchedule` (the renamed `sumOtherDebtPayments`, now
+>     returning an array; the rename touched 8 files' comments).
+>   - TWO GUARDS keep it from deleting a real bill: an unknown (`null`) account
+>     balance keeps paying, and a missing array entry keeps paying. The seed is
+>     read from `l.balance`, NOT `balances[0]` — the engine rewrites `balances[0]`
+>     when a month-0 extra lands, and the guard would then pay forever.
+>   - The gate reads `target_payment` alone (`amortizingPayment`), because that is
+>     what `buildNonCCLiabilities` amortizes the DISPLAYED balance with. A
+>     min_payment-only row projects a FLAT balance, so its cash never stops while
+>     the balance on screen is still standing.
+>   - PASS 2's floor protection reads the pre-loop snapshot
+>     `otherDebtPaymentByMonth` (materialised before the arrays mutate) — same
+>     choice `activeCarLoanByMonth` makes there, and the safe direction.
+>
+> ⚠️ **NO CHANGE ON TRE'S OWN DATA, measured not assumed.** Every real-data
+> convergence test and `goldenTierA` green and unmoved: his only non-CC liability
+> is an auto loan, which `car_funds` owns and this half excludes. This lands for
+> users with a mortgage or student loan. **So there was nothing to live-verify in
+> the browser** — the change is invisible on his account by construction.
+>
+> ⚠️ The change surfaced a REAL regression in an existing test rather than a
+> cosmetic one: `forecast-engine.autoExtraLiability`'s "cash falls exactly once"
+> identity compared against a control that is STILL paying the cleared debt, and
+> failed by exactly $300 in the month after payoff. It now nets the unpaid
+> scheduled payments out and still fails if a reserve is double-counted.
+>
+> ⬜ **NEW, OPENED BY THIS COMMIT (low priority, safe direction):** the FINAL
+> payment is not trued up. A debt opening a month owing $250 against a $300
+> payment is charged the full $300. One-month overcharge in the payoff month only;
+> needs the cash and balance halves to agree on ONE payment figure first
+> (`payment` = target||min vs `amortizingPayment` = target).
+>
+> ═══ ⬜ QUEUE, UNCHANGED AND STILL IN PRIORITY ORDER (item 1 now done) ═══
+> 1. **Budget Control → Transfers tab** must list a goal's `monthly_contribution`
+>    (a real standing transfer, invisible today because the tab only reads
+>    `recurring_rules`), and "Recommended this month" must show upcoming
+>    transfers/extras. His exact wording: `$510/mo + $1,107 extra this month`, and
+>    NEVER `$0 extra this month`. Drafts at `scratchpad/out/transfers_*.md`.
+> 2. **Budget Control de-duplication vs the Dashboard** — move, don't delete.
+>    ⚠️ DO THE SUSPICIOUS ONES FIRST: **Debt Payments reads $0** and the donut says
+>    Debt 0% while he has real card + loan payments, and **Remaining Cash reads
+>    $0**. Those look WRONG, not duplicated; moving a broken number moves the bug.
+> 3. `vehicle-loan-engine.ts:110/:166` — for a loan whose FIRST PAYMENT IS IN THE
+>    FUTURE, `Math.max(0, …)` makes `schedule[monthsElapsed + i]` a month early on
+>    EVERY surface. The seed that was ring-fenced by `160803bc`. Its own slice.
+> 4. Charts for student loans / mortgage / other debts (the CC tab has one).
+>    `nonCCLiabilityBalancesById` already holds the series.
+> 5. "Only take exactly what it needs to reach the goal on time" — generalise
+>    `levelMonthlyToDate` (retirement-contribution-cap.ts) to any dated target.
+> 6. Two items BLOCKED ON HIS GF'S ACCOUNT: student-loan payments in the loans
+>    tab, and setting the end date on her biweekly income. **Ask which account
+>    before investigating anything GF-related.**
+> 7. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; the Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck fix `b83698e5`
+>    is NOT device-verified.
+> 8. The Garage card's big date and the amortization table under it are TWO MODELS
+>    (measured 4 months apart on a fixture). Product call.
+>
+> ⚠️ USAGE: the previous session stopped at 87% of the weekly cap (90) with ~3
+> points left; the window resets **2026-08-31 18:00** and the cap comment carries
+> a dated RESTORE TO 75.0. This session ran on his explicit "continue".
+
+
 > ▶ 2026-08-27 SESSION 35y — **26 commits unpushed. tsc 0, 286 files / 3032
 > tests.** ⛔ **STOPPED AT 87% OF THE WEEKLY CAP (90), ~3 points left.** Work is
 > queued and drafted, deliberately not started. Weekly window resets
