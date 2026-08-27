@@ -87,7 +87,9 @@ describe('forecast-engine — ranked extra principal on a non-CC liability', () 
     anchor();
     const { data } = run([CHK, loanAcct()]);
     expect(data.every(r => Object.keys(r.autoExtraByTarget).length === 0)).toBe(true);
-    expect(balanceOf(data[1])).toBeCloseTo(11820, 6);
+    // `nonCCLiabBreakdown` is what the month CLOSES at (2026-08-27), so month 1 is two payments
+    // in: 12000 → 11820 → 11638.20.
+    expect(balanceOf(data[1])).toBeCloseTo(11638.2, 6);
   });
 
   it('credits the ranked extra to the liability from this month forward, and cash falls once', () => {
@@ -103,7 +105,9 @@ describe('forecast-engine — ranked extra principal on a non-CC liability', () 
     // no re-amortization, so the reduction is dollar-for-dollar plus the interest no longer
     // charged on the principal that is gone.
     expect(balanceOf(ranked.data[1])!).toBeLessThan(balanceOf(control.data[1])!);
-    expect(balanceOf(ranked.data[1])).toBeCloseTo(11820 - reserve(1), 6);
+    // 11638.20, not 11820: the row is month 1's CLOSING balance (12000 → 11820 → 11638.20), and
+    // the month's own reserve comes off it.
+    expect(balanceOf(ranked.data[1])).toBeCloseTo(11638.2 - reserve(1), 6);
 
     // THE CASH, EXACTLY ONCE. Every month's ending cash is the control's less the reserves taken
     // up to and including that month — never twice, never zero.
@@ -129,13 +133,16 @@ describe('forecast-engine — ranked extra principal on a non-CC liability', () 
     const reserve = (i: number) => ranked.data[i].autoExtraByTarget['sl-1'] ?? 0;
 
     // Month 0's reserve is `useCardProjection`'s to decide and this fixture has no projection, so
-    // nothing is reserved there — the balance opens at the full 9000.
+    // nothing is reserved there — the month simply closes at 9000 * 1.01 − 300 = 8790.
     expect(reserve(0)).toBe(0);
-    expect(balanceOf(ranked.data[0])).toBeCloseTo(9000, 6);
+    expect(balanceOf(ranked.data[0])).toBeCloseTo(8790, 6);
 
-    // Month 1: 9000 * 1.01 − 300 = 8790 still owed, and THAT is what caps the reserve, not the
-    // several thousand dollars of surplus sitting next to it. The debt is cleared outright.
-    expect(reserve(1)).toBeCloseTo(8790, 6);
+    // Month 1: the cap is what the debt can still ABSORB after its own scheduled payment, i.e.
+    // what it closes at — 8790 * 1.01 − 300 = 8577.90 — not the 8790 it opened owing. Offering the
+    // opening balance sent $212.10 of cash into principal the $300 payment was already retiring
+    // that same month (2026-08-27). The two together now reconcile exactly: 300 + 8577.90 =
+    // 8877.90 = the 8790 owed plus its 87.90 of interest. The debt is still cleared outright.
+    expect(reserve(1)).toBeCloseTo(8577.9, 6);
     expect(balanceOf(ranked.data[1])).toBeCloseTo(0, 6);
 
     // Cleared stays cleared, and takes nothing further — a reserve against a zero balance would be
@@ -146,7 +153,7 @@ describe('forecast-engine — ranked extra principal on a non-CC liability', () 
     }
     // Total reserved over the whole horizon is one payoff, never more.
     const totalReserved = ranked.data.reduce((s, _, i) => s + reserve(i), 0);
-    expect(totalReserved).toBeCloseTo(8790, 6);
+    expect(totalReserved).toBeCloseTo(8577.9, 6);
   });
 
   it('keeps the liability TOTAL equal to the rows under it after a credit', () => {

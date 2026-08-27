@@ -1,10 +1,16 @@
-// MEASUREMENT ONLY — no engine or UI behaviour is changed by this file.
+// MEASUREMENT FIRST, THEN THE REGRESSIONS THE MEASUREMENTS EARNED.
 //
 // `carLoanBalancesByFundId` / `nonCCLiabilityBalancesById` are SEEDED as the balance a month OPENS
 // at and REDUCED from index `i` INCLUSIVE by the ranked extras. A previous session proposed
-// "seed endBalance instead". This file measures, per consuming surface, what index `i` actually
-// holds today and what that surface's own on-screen label asks for, so the question can be settled
+// "seed endBalance instead". This file measured, per consuming surface, what index `i` actually
+// holds and what that surface's own on-screen label asks for, so the question could be settled
 // with numbers rather than with a reading of the comments.
+//
+// The verdict (2026-08-27): the SEED is right — `balances[0]` is the bank's own figure and the
+// Garage card, /accounts and the exposed arrays all need it. What was wrong was three EMISSION
+// sites reading that opening balance where the surface around them is end-of-month, plus a
+// scheduled payment that outlived the balance it was paying. Both are fixed; the tests below
+// that say FIXED carry the before/after numbers.
 //
 // Every number these tests print was produced by running the real `calculateForecast` and the real
 // `buildAmortizationSchedule` against the C5 fixture the sibling tests already use.
@@ -188,9 +194,9 @@ describe('balance-array convention — what each consumer actually gets at index
     }
   });
 
-  it('THE FORECAST DRAWER: its liability line is month-OPENING while the cash and asset lines '
-    + 'beside it are month-END, so month i\'s Net Worth subtracts the loan payment from cash and '
-    + 'still carries the balance it paid down', () => {
+  it('THE FORECAST DRAWER: FIXED 2026-08-27 — its liability line is now month-END, the same '
+    + 'convention as the cash and asset lines it sits between, so Net Worth no longer subtracts '
+    + 'the loan payment from cash AND carries the balance that payment retired', () => {
     const fund = c5({});
     anchor();
     const res = calculateForecast(loanInputs(fund, 30_000));
@@ -202,20 +208,60 @@ describe('balance-array convention — what each consumer actually gets at index
       const schedRow = proj.schedule[proj.monthsElapsed + i];
       console.log(`[M3] month ${i}  drawer="${drawer.balance}"  sched.start=${schedRow.startBalance}`
         + `  sched.end=${schedRow.endBalance}  principalPaidThisMonth=${schedRow.principal}`);
-      expect(drawer.balance).toBeCloseTo(schedRow.startBalance, 2);
+      // WAS `schedRow.startBalance` — the defect. The drawer row is printed between "Total Assets"
+      // and "Net Worth", both of which are end-of-month, so it prints the end-of-month balance.
+      expect(drawer.balance).toBeCloseTo(schedRow.endBalance, 2);
+      expect(drawer.balance).toBeLessThan(schedRow.startBalance);
     }
-    // The drawer's own cash line for the same month is END-of-month: month 0's ending cash is
-    // already 422.89 lighter than the 30,000 it started with (the loan payment left), while its
-    // loan line has not moved. Net Worth therefore double-counts the principal.
+    // The proof that the pairing is now consistent: month 0's ending cash is 422.89 lighter than
+    // the 30,000 it opened at (the loan payment left), and its loan line has fallen by that
+    // payment's principal in the same row. Net Worth is one principal HIGHER than it used to be,
+    // which is the understatement being corrected.
+    const principal0 = proj.schedule[proj.monthsElapsed].principal;
     console.log('[M3] month 0 endingCash =', rows[0].endingCash, ' (opened at 30,000; payment 422.89 has left)');
-    console.log('[M3] month 0 netWorth   =', rows[0].netWorth,
-      ' | with an end-of-month loan line it would be', Math.round(rows[0].netWorth + proj.schedule[proj.monthsElapsed].principal));
+    console.log('[M3] month 0 netWorth   =', rows[0].netWorth, ' | month-0 principal =', principal0);
     expect(rows[0].endingCash).toBeLessThan(30_000);
+    // Net worth reconciles by hand: cash + every asset − every liability, all end-of-month.
+    expect(rows[0].rawNetWorth).toBeCloseTo(
+      rows[0].rawTotalAssets - proj.schedule[proj.monthsElapsed].endBalance, 2,
+    );
+    // The total equals the rows the drawer prints under it — the invariant that forces the
+    // itemised lines to move with `totalLiabilities` rather than lag it by a month.
+    expect(rows[0].rawTotalLiabilities).toBeCloseTo(
+      rows[0].carLoanBreakdown.reduce((s, r) => s + r.balance, 0)
+        + rows[0].nonCCLiabBreakdown.reduce((s, r) => s + r.balance, 0)
+        + (rows[0].rawCcDisplayBalance ?? 0), 2,
+    );
   });
 
-  it('THE RANKED CAPACITY READ: `capacity = balances[i]` offers the OPENING balance, so in the '
-    + 'clearing month the waterfall can send more principal than the loan can absorb after its '
-    + 'own scheduled payment — cash leaves checking for the whole amount', () => {
+  it('MONTH 0 IS STILL THE LIVE FIGURE WHERE IT HAS TO BE: the seed, and therefore the Garage '
+    + "card, /accounts and the exposed array, are untouched by the drawer's end-of-month move", () => {
+    const fund = c5({ current_balance_override: 15_900 });
+    anchor();
+    const res = calculateForecast(loanInputs(fund, 30_000));
+    const proj = buildAmortizationSchedule(scheduleInput(fund));
+    const balances = res.carLoanBalancesByFundId.get('c5')!;
+    const drawer = res.data[0].carLoanBreakdown.find(r => r.name === '2004 Chevrolet C5')!;
+
+    console.log('[M3b] balances[0]      =', balances[0], ' <- bank / Garage card / /accounts');
+    console.log('[M3b] drawer month 0   =', drawer.balance, ' <- end of October');
+    console.log('[M3b] startingCash     =', res.data[0].startingCash, ' <- the live bank cash');
+    console.log('[M3b] array length     =', balances.length);
+    expect(balances[0]).toBeCloseTo(15_900, 2);
+    expect(balances[0]).toBeCloseTo(proj.remainingBalance, 2);
+    // Cash: month 0 still opens on the live bank balance, to the cent.
+    expect(res.data[0].startingCash).toBeCloseTo(30_000, 2);
+    // The drawer is one month's principal below it, and that is the whole of the change.
+    expect(drawer.balance).toBeCloseTo(proj.schedule[proj.monthsElapsed].endBalance, 2);
+    // One entry past the horizon, so the last projected month has a closing balance to read
+    // rather than an invented one. `closingBalanceAt` depends on this.
+    expect(balances.length).toBe(PROJECTION_MONTHS + 1);
+    expect(res.nonCCLiabilityBalancesById.size).toBe(0);
+  });
+
+  it('THE RANKED CAPACITY READ: FIXED 2026-08-27 — capacity is what the loan can still ABSORB '
+    + 'after its own scheduled payment (its closing balance), not what it opened owing, so the '
+    + 'clearing month no longer sends principal the scheduled payment was already retiring', () => {
     const fund = c5({ auto_extra: true });
     anchor();
     const off = calculateForecast(loanInputs(c5({ auto_extra: false }), 300_000));
@@ -245,11 +291,21 @@ describe('balance-array convention — what each consumer actually gets at index
     const cashGap = off.data[lastExtraMonth].endingCash - on.data[lastExtraMonth].endingCash;
     console.log('[M4] endingCash off - on     =', cashGap, '(vs extras sent so far',
       extras.slice(0, lastExtraMonth + 1).reduce((s, v) => s + v, 0).toFixed(2), ')');
-    // And the scheduled payment keeps being charged after the array reads zero, because the
-    // amortization schedule — not the reduced array — is what prices the monthly expense.
-    console.log('[M4] carLoanPayment at idx', lastExtraMonth + 1, '=', on.data[lastExtraMonth + 1].carLoanPayment,
+    console.log('[M4] carLoanPayment at idx', lastExtraMonth, '=', on.data[lastExtraMonth].carLoanPayment,
+      '| at idx', lastExtraMonth + 1, '=', on.data[lastExtraMonth + 1].carLoanPayment,
       '| at idx', lastExtraMonth + 6, '=', on.data[lastExtraMonth + 6].carLoanPayment);
-    expect(sent).toBeLessThanOrEqual(openingAtM + 0.01);
+
+    // WAS `sent <= openingAtM` and measured $289.92 of over-allocation inside that bound. The
+    // capacity is now the closing balance, so the extra is exactly what is left after the month's
+    // own $422.89 goes out — no dollar leaves checking for principal that was already retiring.
+    expect(sent).toBeCloseTo(absorbableAtM, 2);
+    expect(Math.max(0, sent - absorbableAtM)).toBeLessThan(0.01);
+    expect(sent).toBeLessThan(openingAtM);
+    // The loan is genuinely cleared by the end of that month, and stays cleared.
+    expect(after[lastExtraMonth + 1]).toBeCloseTo(0, 2);
+    // Cash still falls by every dollar sent — the fix reduces what is SENT, it does not lose track
+    // of it. (Compared loosely: the two runs' floors and card blocks differ slightly by month.)
+    expect(cashGap).toBeGreaterThan(0);
   });
 
   it('THE NON-CC LIABILITY ARRAY: index 0 is the account balance the user can see on /accounts, '
@@ -326,5 +382,107 @@ describe('balance-array convention — what each consumer actually gets at index
       // its date can only ever be the same or LATER than the re-amortized table's.
       expect(labelKey >= tableKey).toBe(true);
     }
+  });
+});
+
+// ── DEFECT 1: THE FORECAST KEPT PAYING A LOAN IT SAID WAS ALREADY GONE ───────
+//
+// Verified on Tre's live data 2026-08-27: the /forecast drawer for Oct 2029 — two months after the
+// C5's own projected Aug 2029 payoff — still listed "Car Loan Payments $422.89", and kept listing
+// it for the ~10 months to the schedule's original end. About $4,200 of cash removed for a debt
+// the same screen said was cleared. `carLoanPayment` is priced off the amortization schedule while
+// `carLoanBalancesByFundId` is reduced by the ranked extras; both cannot be true.
+//
+// WOULD-FAIL CHECK (run it before trusting this file): in `forecast-engine.ts`, change
+// `const carLoanThisMonth = activeCarLoanByMonth[i] - clearedLoanPaymentThisMonth;`
+// back to `= activeCarLoanByMonth[i];` and "stops charging" below fails on the very first
+// post-payoff month, reporting 422.89 where it wants 0.
+
+describe('a cleared vehicle loan stops being charged', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** Enough cash that the ranked waterfall clears the C5 within a handful of months, so the
+   *  post-payoff tail is long and unambiguous — the fixture's stand-in for Oct 2029. */
+  const clearEarly = () => {
+    anchor();
+    return calculateForecast(loanInputs(c5({ auto_extra: true }), 300_000));
+  };
+
+  it('stops charging the scheduled payment from the first month the balance reads zero, and '
+    + 'keeps charging it in every month the loan still owes something', () => {
+    const on = clearEarly();
+    const balances = on.carLoanBalancesByFundId.get('c5')!;
+    const clearedFrom = firstZero(balances);   // first month that OPENS owing nothing
+    expect(clearedFrom).toBeGreaterThan(0);
+
+    console.log('[D1] first month opening at zero  =', clearedFrom);
+    for (const i of [clearedFrom - 1, clearedFrom, clearedFrom + 1, clearedFrom + 6, clearedFrom + 10]) {
+      console.log(`[D1] idx ${i}: opening=${balances[i]?.toFixed(2)}  carLoanPayment=${on.data[i].carLoanPayment}`);
+    }
+
+    // Still owed → still charged, at the schedule's own figure.
+    expect(on.data[clearedFrom - 1].carLoanPayment).toBeCloseTo(422.89, 2);
+    // Nothing owed → nothing charged, that month and every month after, for the whole of what
+    // would have been the remaining term.
+    for (let i = clearedFrom; i < PROJECTION_MONTHS; i++) {
+      expect(on.data[i].carLoanPayment).toBe(0);
+    }
+    // And it is not just the drawer line: the cash actually stays in checking. Against the same
+    // fixture with the loan untouched, the post-payoff months no longer differ by the payment.
+    anchor();
+    const off = calculateForecast(loanInputs(c5({ auto_extra: false }), 300_000));
+    const stillCharged = off.data[clearedFrom + 6].carLoanPayment;
+    console.log('[D1] unaccelerated control still pays at idx', clearedFrom + 6, '=', stillCharged);
+    expect(stillCharged).toBeCloseTo(422.89, 2);
+  });
+
+  it('leaves the payment alone while the loan has any balance at all — the suppression is keyed '
+    + 'to the balance, not to a payoff flag that could go stale', () => {
+    anchor();
+    // No auto-extra: the loan runs its full 48-month schedule, so every month inside the term is
+    // charged and every month past it is not, exactly as before this fix existed.
+    const off = calculateForecast(loanInputs(c5({ auto_extra: false }), 30_000));
+    const balances = off.carLoanBalancesByFundId.get('c5')!;
+    const scheduleEnds = firstZero(balances);
+    expect(scheduleEnds).toBeGreaterThan(30);
+    console.log('[D1b] unaccelerated schedule opens at zero from idx', scheduleEnds);
+    for (let i = 0; i < scheduleEnds - 1; i++) {
+      expect(off.data[i].carLoanPayment).toBeGreaterThan(0);
+    }
+    // The final row is the schedule's own true-up, which is smaller than 422.89 and must survive.
+    expect(off.data[scheduleEnds - 1].carLoanPayment).toBeGreaterThan(0);
+    expect(off.data[scheduleEnds - 1].carLoanPayment).toBeLessThanOrEqual(422.89);
+    expect(off.data[scheduleEnds].carLoanPayment).toBe(0);
+  });
+
+  it('does NOT cancel a real final payment on a loan whose first payment is still in the future '
+    + '— there the balance array is the half that is a month out, not the schedule', () => {
+    // THE CASE THIS GUARDS, measured on the real captured fixture (2026-07-20 capture, C5's first
+    // payment 2026-08-07). `buildAmortizationSchedule` clamps monthsElapsedRaw with Math.max(0,…),
+    // so for a not-yet-started loan `schedule[monthsElapsed + i]` gives month i the row belonging
+    // to month i + 1 and the whole array runs a month ahead of the payments. Its last entry
+    // therefore reads zero while a real final payment is still owed that month. An ungated
+    // "zero balance ⇒ no payment" rule deleted $422.89 of a genuine bill.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T12:00:00'));   // BEFORE the 2026-08-07 first payment
+    const fund = c5({ auto_extra: false });
+    const res = calculateForecast(loanInputs(fund, 30_000));
+    const balances = res.carLoanBalancesByFundId.get('c5')!;
+    const proj = buildAmortizationSchedule(scheduleInput(fund));
+
+    expect(proj.monthsElapsed).toBe(0);
+    // Row 0 is dated in the month AFTER forecast month 0 — that is the shift, stated as a number.
+    expect(proj.schedule[0].date.substring(0, 7)).toBe('2026-08');
+    const arrayZeroFrom = firstZero(balances);
+    console.log('[D1c] schedule.length =', proj.schedule.length, ' array first zero =', arrayZeroFrom,
+      ' payment at that idx =', res.data[arrayZeroFrom].carLoanPayment,
+      ' schedule row at that idx =', JSON.stringify(proj.schedule[arrayZeroFrom] ?? null));
+    expect(arrayZeroFrom).toBe(proj.schedule.length);
+    // The array says nothing is owed; the schedule has a row for that month and it is real. The
+    // payment survives, because nothing ranked this loan and no extra ever touched it.
+    expect(res.data[arrayZeroFrom].carLoanPayment).toBeGreaterThan(0);
+    expect(Object.keys(res.data[arrayZeroFrom].autoExtraByTarget)).not.toContain('c5');
+    // One month later there is no row at all and nothing is charged, as always.
+    expect(res.data[arrayZeroFrom + 1].carLoanPayment).toBe(0);
   });
 });

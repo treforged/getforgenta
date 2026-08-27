@@ -118,15 +118,25 @@ describe('forecast-engine — a linked vehicle loan is itemised once, at the ban
       [carFund({ linked_loan_account_id: LOAN_ACCOUNT_ID })],
       [{ id: LOAN_ACCOUNT_ID, balance: LIVE_BALANCE, active: true }],
     );
-    const { data } = calculateForecast(makeInputs(linked));
-    expect(rowsFor(data, 0)[0].balance).toBeCloseTo(LIVE_BALANCE, 2);
+    const result = calculateForecast(makeInputs(linked));
+    const { data } = result;
+    // THE SEED IS THE LIVE FIGURE, and that is what "opens at the live balance" means: index 0 of
+    // the engine's own array is the bank's number to the cent — the same one /accounts and the
+    // Garage card print.
+    expect(result.carLoanBalancesByFundId.get('car-1')![0]).toBeCloseTo(LIVE_BALANCE, 2);
+    // The DRAWER row is one payment further on, deliberately (2026-08-27): it sits beside
+    // end-of-month cash and end-of-month assets, so it prints what the loan closes October owing.
+    // 285.00 is October's principal.
+    expect(rowsFor(data, 0)[0].balance).toBeCloseTo(LIVE_BALANCE - 285, 2);
 
     // Unlinked, the car fund's own row still amortizes from the typed figure — the account row
     // beside it is what carries the bank's balance, and that is the double-count.
     const unlinked = calculateForecast(makeInputs([carFund()]));
     const unlinkedVehicleRow = rowsFor(unlinked.data, 0).find(r => r.name === '2004 Chevorlet C5')!;
-    expect(unlinkedVehicleRow.balance).not.toBeCloseTo(LIVE_BALANCE, 2);
-    expect(unlinkedVehicleRow.balance).toBeCloseTo(15962.28, 2); // Oct opens where Sep closed, off loan_amount
+    expect(unlinked.carLoanBalancesByFundId.get('car-1')![0]).not.toBeCloseTo(LIVE_BALANCE, 2);
+    // Oct OPENS at 15962.28 off loan_amount (where Sep closed) and CLOSES at 15674.80.
+    expect(unlinked.carLoanBalancesByFundId.get('car-1')![0]).toBeCloseTo(15962.28, 2);
+    expect(unlinkedVehicleRow.balance).toBeCloseTo(15674.80, 2);
   });
 
   it('emits TWO rows when the loan is not linked — an unrelated auto loan is still real debt', () => {

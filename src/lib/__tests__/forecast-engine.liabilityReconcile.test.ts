@@ -89,9 +89,11 @@ describe('forecast-engine — Total Liabilities equals the rows the drawer print
       [CHK],
       [{ id: 'd1', name: 'Medical bill', balance: 4000, apr: 0, target_payment: 500 } as unknown as DebtRow],
     ));
-    expect(shownRows(data[0])).toEqual([{ name: 'Medical bill', balance: 4000 }]);
-    expect(data[0].rawTotalLiabilities).toBeCloseTo(4000, 6);
-    expect(shownRows(data[2])).toEqual([{ name: 'Medical bill', balance: 3000 }]);
+    // END-of-month, like every other line in the drawer section these rows sit in (2026-08-27):
+    // 0% and $500 a month, so month 0 closes at 3500 and month 2 at 2500.
+    expect(shownRows(data[0])).toEqual([{ name: 'Medical bill', balance: 3500 }]);
+    expect(data[0].rawTotalLiabilities).toBeCloseTo(3500, 6);
+    expect(shownRows(data[2])).toEqual([{ name: 'Medical bill', balance: 2500 }]);
   });
 
   it('reconciles month after month for a matched pair carrying real interest', () => {
@@ -100,12 +102,14 @@ describe('forecast-engine — Total Liabilities equals the rows the drawer print
       [CHK, acct({ id: 'sl-1', name: 'Student Loan', account_type: 'student_loan', balance: 12000 })],
       [{ id: 'd2', name: 'Student Loan', balance: 9999, apr: 12, target_payment: 300 } as unknown as DebtRow],
     ));
-    // The connected account's balance wins over the stale manual 9999 (Tre, 2026-08-18).
-    expect(shownRows(data[0])).toEqual([{ name: 'Student Loan', balance: 12000 }]);
+    // The connected account's balance wins over the stale manual 9999 (Tre, 2026-08-18) — and the
+    // row is what the month CLOSES at, so 1%/mo on 12000 less the 300 payment: 11820.
+    expect(shownRows(data[0])).toEqual([{ name: 'Student Loan', balance: 11820 }]);
     for (const i of [0, 1, 6, 12, 24]) {
       expect(data[i].rawTotalLiabilities).toBeCloseTo(shownTotal(data[i]), 6);
     }
-    // 1%/mo: 12000 → 12000 * 1.01 − 300 = 11820, and the row charges the interest the total does.
-    expect(shownRows(data[1])[0].balance).toBeCloseTo(11820, 6);
+    // Month 1 closes one payment further on: 11820 * 1.01 − 300 = 11638.20, and the row charges
+    // the interest the total does.
+    expect(shownRows(data[1])[0].balance).toBeCloseTo(11638.2, 6);
   });
 });

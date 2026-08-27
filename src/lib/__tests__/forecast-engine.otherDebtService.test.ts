@@ -116,9 +116,15 @@ describe('forecast-engine — non-CC debt service leaves cash and reduces the ba
     }
 
     // Balance half, same run: the account's balance wins over the stale manual 9999.
-    expect(loanRow(paid.data[0], 'Student Loan')?.balance).toBeCloseTo(12000, 6);
-    expect(loanRow(paid.data[1], 'Student Loan')?.balance).toBeCloseTo(11820, 6);
-    expect(loanRow(paid.data[2], 'Student Loan')!.balance).toBeLessThan(11820);
+    //
+    // ⚠️ THESE ARE END-OF-MONTH BALANCES (2026-08-27). The drawer row for month i sits between
+    // Total Assets and Net Worth, both of which are month-END, so it prints what the liability
+    // CLOSES the month at, not what it opened at. Month 0 therefore reads 12000 * 1.01 − 300 =
+    // 11820, one payment in; the 12000 the user sees on /accounts is still `balances[0]`, and
+    // `forecast-engine.balanceArrayConvention.test.ts` pins that separately.
+    expect(loanRow(paid.data[0], 'Student Loan')?.balance).toBeCloseTo(11820, 6);
+    expect(loanRow(paid.data[1], 'Student Loan')?.balance).toBeCloseTo(11638.2, 6);
+    expect(loanRow(paid.data[2], 'Student Loan')!.balance).toBeLessThan(11638.2);
   });
 
   it('lets a matching expense rule be the cash side, so the payment is not taken twice', () => {
@@ -140,8 +146,9 @@ describe('forecast-engine — non-CC debt service leaves cash and reduces the ba
     for (const i of [0, 1, 6, 12]) {
       expect(withRule.data[i].rawEndingCash).toBeCloseTo(withoutRule.data[i].rawEndingCash, 6);
     }
-    // The balance still amortizes — the dedupe drops the cash term, not the debt.
-    expect(loanRow(withRule.data[1], 'Student Loan')?.balance).toBeCloseTo(11820, 6);
+    // The balance still amortizes — the dedupe drops the cash term, not the debt. End of month 1,
+    // i.e. two payments in: 12000 → 11820 → 11638.20.
+    expect(loanRow(withRule.data[1], 'Student Loan')?.balance).toBeCloseTo(11638.2, 6);
     expect(withRule.data[1].rawTotalLiabilities)
       .toBeCloseTo(withoutRule.data[1].rawTotalLiabilities, 6);
   });
@@ -169,13 +176,18 @@ describe('forecast-engine — non-CC debt service leaves cash and reduces the ba
 
     // ONE row, carried by the ACCOUNT (250000 wins over the manual 999), and the unpaired-debt
     // fallback in non-cc-liabilities.ts adds no second `debt:`-prefixed copy of it.
-    expect(data[0].nonCCLiabBreakdown.map(r => ({ id: r.id, name: r.name, account_type: r.account_type, balance: r.balance })))
-      .toEqual([{ id: 'mtg-1', name: 'Home Loan', account_type: 'mortgage', balance: 250000 }]);
-    expect(data[0].rawTotalLiabilities).toBeCloseTo(250000, 6);
+    // 0.5%/mo, so month 0 CLOSES at 250000 * 1.005 − 1800 = 249450 — see the end-of-month note in
+    // the first case above. The row and the total move together, which is the point of this file.
+    // Identity asserted exactly, balance to the cent: an amortized closing figure carries float
+    // residue (249449.99999999997) that a deep-equal would fail on for no reason a user could see.
+    expect(data[0].nonCCLiabBreakdown.map(r => ({ id: r.id, name: r.name, account_type: r.account_type })))
+      .toEqual([{ id: 'mtg-1', name: 'Home Loan', account_type: 'mortgage' }]);
+    expect(data[0].nonCCLiabBreakdown[0].balance).toBeCloseTo(249450, 6);
+    expect(data[0].rawTotalLiabilities).toBeCloseTo(249450, 6);
     // Cash half of the same pairing.
     expect(data[0].otherDebtPayment).toBeCloseTo(1800, 6);
-    // 0.5%/mo: 250000 * 1.005 − 1800 = 249450.
-    expect(loanRow(data[1], 'Home Loan')?.balance).toBeCloseTo(249450, 6);
+    // End of month 1, two payments in: 249450 * 1.005 − 1800 = 248897.25.
+    expect(loanRow(data[1], 'Home Loan')?.balance).toBeCloseTo(248897.25, 6);
   });
 
   it('leaves an auto loan to car_funds — no debt-service cash on this side', () => {
@@ -188,6 +200,15 @@ describe('forecast-engine — non-CC debt service leaves cash and reduces the ba
       [], 1000,
     ));
     expect(data[1].otherDebtPayment).toBe(0);
-    expect(loanRow(data[0], 'FIXED RATE LOAN')?.balance).toBeCloseTo(20000, 6);
+    // End of month 0, 5%/12 on 20000 less the paired row's 450 target: 19633.33 — see the
+    // end-of-month note in the first case above.
+    //
+    // ⚠️ NOT A CLAIM THAT THIS IS RIGHT, only what it does. `buildNonCCLiabilities` amortizes this
+    // account at the paired debts row's target payment while `sumOtherDebtPayments` deliberately
+    // charges no cash for it (an `auto_loan` belongs to `car_funds`) — so with no car fund linked,
+    // the balance falls with nothing leaving checking. That is the same defect this file's header
+    // records for student loans, on the one account type the cash half excludes, and it predates
+    // the end-of-month change: it simply becomes visible one month earlier. Out of scope here.
+    expect(loanRow(data[0], 'FIXED RATE LOAN')?.balance).toBeCloseTo(19633.333333, 5);
   });
 });

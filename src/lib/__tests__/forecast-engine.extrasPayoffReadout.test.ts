@@ -14,6 +14,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { calculatePayoffMonths } from '@/lib/calculations';
+import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
+import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
 import type { AccountRow, DebtRow, RuleRow } from '@/hooks/useSupabaseData';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
 import type { CardProjectionResult } from '@/lib/debt-model-types';
@@ -133,9 +135,19 @@ describe('forecast-engine - the exposed with-extras payoff arrays', () => {
 
     // No second math path: the exposed array is the very data the month drawer itemises, extras
     // included - a copy taken before the waterfall ran would break this at the first credit.
+    //
+    // ⚠️ `balances[i + 1] + extras[i + 1]`, NOT `balances[i]` (2026-08-27), and both halves of that
+    // matter. The array is indexed by the balance a month OPENS at while the drawer row prints what
+    // month i CLOSES at - one index apart, which is why the array runs one entry past the horizon.
+    // And the reducer takes each month's extra off its OWN entry, so an array read AFTER the loop
+    // has finished (which is all any consumer can do) has month i + 1's extra already subtracted
+    // from entry i + 1 and has to add it back. `Vehicles.tsx`'s chart does exactly this, for
+    // exactly this reason.
     const balances = ranked.nonCCLiabilityBalancesById.get('sl-1')!;
+    const extras = buildAutoExtraByTarget(ranked.data).get('sl-1') ?? [];
     for (const i of [0, 1, 3, clearedAt]) {
-      expect(balances[i]).toBe(ranked.data[i].nonCCLiabBreakdown.find(r => r.id === 'sl-1')!.balance);
+      expect(balances[i + 1] + (extras[i + 1] ?? 0))
+        .toBeCloseTo(ranked.data[i].nonCCLiabBreakdown.find(r => r.id === 'sl-1')!.balance, 6);
     }
   });
 
@@ -150,9 +162,13 @@ describe('forecast-engine - the exposed with-extras payoff arrays', () => {
     expect(balances![1]).toBeCloseTo(11820, 6);
     expect(firstZero(balances)).toBe(calculatePayoffMonths(12000, 12, 300));
     expect(data.every(r => Object.keys(r.autoExtraByTarget).length === 0)).toBe(true);
+    // Opening at i, closing at i + 1 - see the note in the first case.
     for (const i of [0, 1, 12, 40]) {
-      expect(balances![i]).toBe(data[i].nonCCLiabBreakdown.find(r => r.id === 'sl-1')!.balance);
+      expect(balances![i + 1]).toBe(data[i].nonCCLiabBreakdown.find(r => r.id === 'sl-1')!.balance);
     }
+    // And the array runs one entry PAST the horizon so the last projected month has a closing
+    // balance to print - without it that one row would have to invent a number.
+    expect(balances!.length).toBe(PROJECTION_MONTHS + 1);
   });
 
   it('exposes the vehicle-loan arrays by fund id, reduced by the ranked extra', () => {
@@ -180,11 +196,17 @@ describe('forecast-engine - the exposed with-extras payoff arrays', () => {
     // Same shared-reference pin as the liability case, against `carLoanBreakdown` (which drops a
     // fund once its balance is flat zero - the reason the id-keyed map, not the name-keyed rows,
     // is what got exposed).
+    // Opening at i, closing at i + 1, extra at i + 1 added back - see the note in the first case.
     const balances = on.carLoanBalancesByFundId.get('c5')!;
+    const extras = buildAutoExtraByTarget(on.data).get('c5') ?? [];
     for (const i of [0, 1, onZero - 1]) {
-      expect(balances[i]).toBe(on.data[i].carLoanBreakdown.find(r => r.name === '2004 Chevrolet C5')?.balance ?? 0);
+      expect(balances[i + 1] + (extras[i + 1] ?? 0))
+        .toBeCloseTo(on.data[i].carLoanBreakdown.find(r => r.name === '2004 Chevrolet C5')?.balance ?? 0, 6);
     }
-    expect(on.data[onZero].carLoanBreakdown.find(r => r.name === '2004 Chevrolet C5')).toBeUndefined();
+    // `carLoanBreakdown` drops a fund at zero, and the closing convention is what decides WHICH
+    // month that first is: the loan is gone at the END of `onZero - 1`, so that is the first row
+    // it disappears from - one month earlier than when the row printed opening balances.
+    expect(on.data[onZero - 1].carLoanBreakdown.find(r => r.name === '2004 Chevrolet C5')).toBeUndefined();
   });
 });
 
@@ -237,8 +259,9 @@ describe('carLoanBalancesByFundId — what index the first zero actually is', ()
     expect(before[firstExtraMonth - 1]).toBeCloseTo(after[firstExtraMonth - 1], 2);
   });
 
-  it('therefore names the CLEARING month at `firstZero`, not `firstZero - 1`, whenever the extras '
-    + 'are what clear it — which is what put "Jul 2029" on a card whose final payment is in Aug', () => {
+  it('lands the zero at `firstZero - 1` once the capacity is what the loan can ABSORB: the extra '
+    + 'is capped at the closing balance, so the clearing month keeps its own scheduled principal '
+    + 'and it is the NEXT entry that reads zero', () => {
     // A loan small enough that the ranked extra finishes it, so the zero is caused by an EXTRA
     // rather than by the amortization running out.
     const loanInputs = (fund: CarFund) => makeInputs(
@@ -257,8 +280,24 @@ describe('carLoanBalancesByFundId — what index the first zero actually is', ()
       (last, r, i) => (Number(r.autoExtraByTarget?.['c5'] ?? 0) > 0 ? i : last),
       -1,
     );
-    // The final extra is sent IN the month the array first reads zero. A label that subtracts one
-    // from that names a month the loan was still being paid down in.
-    expect(lastExtraMonth).toBe(zeroAt);
+    // ⚠️ THIS MEASUREMENT MOVED ON 2026-08-27, and the move is the fix. The ranked capacity used
+    // to be the loan's OPENING balance, so the clearing month's extra could take that month's own
+    // entry to zero — the array read zero in the very month money was still going in, and
+    // `firstZero - 1` therefore named a month too early. Capacity is now what the loan can still
+    // ABSORB after its own scheduled payment (its closing balance), so the clearing month keeps
+    // exactly that month's principal and the zero lands on the entry AFTER it.
+    //
+    // The rendered payoff month is unchanged: `extraAwarePayoffMonthIndex` previously took the
+    // `extras[firstZero] > 0` branch and returned `firstZero`; it now takes `firstZero - 1` with
+    // firstZero one higher. Same month, arrived at from the other side.
+    expect(zeroAt).toBe(lastExtraMonth + 1);
+    expect(Number(on.data[zeroAt].autoExtraByTarget?.['c5'] ?? 0)).toBe(0);
+    expect(extraAwarePayoffMonthIndex(balances, buildAutoExtraByTarget(on.data).get('c5')))
+      .toBe(lastExtraMonth);
+    // And the scheduled payment stops with the balance: the amortization schedule still runs, but
+    // a loan with nothing left to owe is not charged for it (defect fixed 2026-08-27).
+    expect(on.data[zeroAt].carLoanPayment).toBe(0);
+    expect(on.data[zeroAt + 6].carLoanPayment).toBe(0);
+    expect(on.data[lastExtraMonth].carLoanPayment).toBeCloseTo(422.89, 2);
   });
 });

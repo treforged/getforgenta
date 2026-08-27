@@ -18,7 +18,7 @@ import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, ge
 import type { FloorMinLatch } from '@/lib/floor-min-latch';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, getActiveCarLoanPayments, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import { buildNonCCLiabilities, sumOtherDebtPayments, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
@@ -46,6 +46,46 @@ import type { Tables } from '@/integrations/supabase/types';
  * contributions when it fires, so it must not fire on floating-point noise.
  */
 const AUTO_EXTRA_CLAMP_CENT = 0.005;
+
+/**
+ * How long an amortizing-liability balance array is: ONE ENTRY PAST THE HORIZON.
+ *
+ * Every such array (`loanBalancesByFundId`, `carLoanBalanceByMonth`, `nonCCLiabilities.rows[].balances`)
+ * holds, at index `i`, the balance month `i` OPENS at. A month's CLOSING balance is therefore the
+ * NEXT index — and the last projected month, `PROJECTION_MONTHS - 1`, has no next index unless the
+ * arrays run one entry long. Without it {@link closingBalanceAt} would have to invent a value for
+ * that one row (the opening balance re-read, or a zero), and an invented liability is exactly the
+ * "confident number you cannot stand behind" this file refuses to print.
+ *
+ * The trailing entry is not a 61st forecast month: nothing indexes `data`, the cash walk or the
+ * card projection with it. It is only ever read as month `PROJECTION_MONTHS - 1`'s closing balance.
+ * Steps 4c-ii-b / 4c-ii-c reduce from `i` to `balances.length`, so an extra paid in the final month
+ * reaches it for free and the closing balance stays exact.
+ */
+const LIABILITY_MONTHS = PROJECTION_MONTHS + 1;
+
+/**
+ * WHAT A LIABILITY CLOSES MONTH `i` OWING — the figure that belongs beside END-of-month cash.
+ *
+ * The defect this prevents (measured 2026-08-27): Net Worth paired month `i`'s OPENING liabilities
+ * with its CLOSING cash and assets, so the month-0 row subtracted a $422.89 car payment from cash
+ * and still carried the balance that payment had just reduced. On the C5 fixture that read
+ * netWorth 13,615 where an end-of-month loan line gives 13,902 — understated by one month's
+ * principal, on every liability, in every month.
+ *
+ * ⚠️ CALL THIS INSIDE THE MONTH LOOP, AFTER 4c-ii-b / 4c-ii-c HAVE RUN FOR MONTH `i`, AND NOWHERE
+ * ELSE. The reducers subtract each month's extra from its own entry FORWARD, so while month `i` is
+ * being built, entry `i + 1` carries every extra up to and including month `i`'s and none after it
+ * — which is precisely month `i`'s closing balance, with no add-back needed. A caller reading the
+ * SAME arrays after the loop has finished sees month `i + 1`'s extra already subtracted too and
+ * must add it back; `Vehicles.tsx`'s chart does exactly that, and its comment is the sibling of
+ * this one.
+ *
+ * Index `i + 1` always exists: every array passed here is built to {@link LIABILITY_MONTHS}, and
+ * `forecast-engine.balanceArrayConvention.test.ts` pins that length so the invariant cannot rot.
+ */
+const closingBalanceAt = (balances: readonly number[], i: number): number =>
+  Math.max(0, balances[i + 1] ?? 0);
 
 const toMonthly = (amount: number, freq: string) =>
   freq === 'weekly' ? amount * 52 / 12
@@ -196,11 +236,16 @@ export interface ForecastResult {
    * (the accounts row's id, or `debt:<id>` for an unpaired debts row). SHARED REFERENCES into
    * `nonCCLiabilities.rows` - the arrays step 4c-ii-c reduces in place - so they are extra-aware
    * by construction. Exposed so /debt's non-CC tabs can read the "with extra payments" payoff
-   * month off the projection the drawer already shows, instead of running a second math path. */
+   * month off the projection the drawer already shows, instead of running a second math path.
+   *
+   * LENGTH IS `LIABILITY_MONTHS` (= PROJECTION_MONTHS + 1), not PROJECTION_MONTHS - see that
+   * constant. Index i still means "what month i opens owing" for every forecast month; the one
+   * trailing entry is the horizon month's closing balance and is not a 61st forecast month. */
   nonCCLiabilityBalancesById: Map<string, number[]>;
   /** Per-vehicle-loan monthly opening balances keyed by `car_funds.id` - the SAME shared-reference
    * arrays step 4c-ii-b reduces in place (see `loanBalancesByFundId` below). Loan-phase funds
-   * only; a saving-phase projected loan has no id-keyed array and is not carried here. */
+   * only; a saving-phase projected loan has no id-keyed array and is not carried here.
+   * Same `LIABILITY_MONTHS` length and same reason as `nonCCLiabilityBalancesById` above. */
   carLoanBalancesByFundId: Map<string, number[]>;
 }
 
@@ -563,6 +608,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
+    /**
+     * The SAME scheduled payments `activeCarLoanByMonth` totals, split out per car fund.
+     *
+     * Filled by the builder directly below from the very `getActiveCarLoanPayments` rows
+     * `getTotalCarLoanMonthly` sums, so the parts always add up to the total — no second pricing
+     * path to drift. Read once, in PASS 3, to answer "is THIS fund's payment still owed in month
+     * i", which the aggregate cannot answer at all. Lump sums are deliberately excluded, exactly
+     * as `getTotalCarLoanMonthly` excludes them: `activeCarLoanLumpSumByMonth` carries those.
+     */
+    const carLoanScheduledByFundId = new Map<string, number[]>();
     // Active loan payments per month — stops when each loan pays off within the projection window
     const activeCarLoanByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
@@ -587,7 +642,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
             return !isCapturedInBalance(dueDate, syncCutoffDate, evidence);
           })
         : carFunds;
-      const regular = getTotalCarLoanMonthly(eligible, md);
+      // `getActiveCarLoanPayments` rather than `getTotalCarLoanMonthly`, purely so the per-fund
+      // split above can be recorded — `getTotalCarLoanMonthly` IS this list, summed.
+      const perFund = getActiveCarLoanPayments(eligible, md);
+      let regular = 0;
+      for (const p of perFund) {
+        regular += p.payment;
+        let arr = carLoanScheduledByFundId.get(p.carFundId);
+        if (!arr) {
+          arr = new Array(PROJECTION_MONTHS).fill(0);
+          carLoanScheduledByFundId.set(p.carFundId, arr);
+        }
+        arr[i] = p.payment;
+      }
       const lumpTotal = (carFunds)
         .filter((cf) => cf.phase === 'loan')
         .flatMap((cf) => (cf.lump_sum_payments ?? []).filter((ls) => ls.date.substring(0, 7) === mk))
@@ -818,7 +885,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     });
 
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
-    const carLoanBalanceByMonth = new Array(PROJECTION_MONTHS).fill(0);
+    // — LIABILITY_MONTHS long, so the final projected month has a closing balance to read.
+    const carLoanBalanceByMonth = new Array(LIABILITY_MONTHS).fill(0);
     const carLoanPerFund: { name: string; balances: number[] }[] = [];
     /**
      * The same arrays as `carLoanPerFund`, keyed by car-fund id — SHARED REFERENCES, not copies.
@@ -830,10 +898,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
      * is the §2.5 class of bug this codebase has already paid to fix once.
      */
     const loanBalancesByFundId = new Map<string, number[]>();
+    /**
+     * Running total of ranked extra principal 4c-ii-b has credited to each fund so far.
+     *
+     * Read by ONE thing: the gate on suppressing a cleared loan's scheduled payment (PASS 3,
+     * ~700 lines below). A fund the waterfall has never paid keeps its schedule-priced payment
+     * whatever its balance array says, because in that case the array is the half that can be
+     * wrong — see the long note at the suppression itself.
+     */
+    const carLoanExtraPaidByFundId = new Map<string, number>();
     for (const cf of carFunds) {
       const fundName = cf.vehicle_name ?? 'Vehicle';
       if (cf.phase === 'loan' && cf.loan_start_date && cf.payment_start_date) {
-        const fundBalances = new Array(PROJECTION_MONTHS).fill(0);
+        const fundBalances = new Array(LIABILITY_MONTHS).fill(0);
         try {
           const proj = buildAmortizationSchedule({
             loanAmount: Number(cf.loan_amount),
@@ -846,7 +923,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
             lumpSumPayments: cf.lump_sum_payments ?? [],
             currentBalance: cf.current_balance_override ?? null,
           }, nowDate);
-          for (let i = 0; i < PROJECTION_MONTHS; i++) {
+          // `< LIABILITY_MONTHS`, not `< PROJECTION_MONTHS`: the entry one past the horizon is the
+          // final projected month's CLOSING balance, and it is seeded the same way as every other
+          // — the start balance of the month after it, which is the same number.
+          for (let i = 0; i < LIABILITY_MONTHS; i++) {
             // Forecast month i owes the balance the month OPENS at, which is the start balance of
             // its own row — previously read as the end balance of the row before it. The two are
             // equal by construction for an unamortized-elsewhere loan, but not for a linked one:
@@ -892,8 +972,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           ? (loanPrincipal * r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1)
           : loanPrincipal / termMonths;
         let bal = loanPrincipal;
-        const projFundBalances = new Array(PROJECTION_MONTHS).fill(0);
-        for (let i = purchaseMonthIdx; i < PROJECTION_MONTHS && bal > 0; i++) {
+        // LIABILITY_MONTHS on both the array and the walk, for the same reason the active-loan
+        // block above uses it: a projected loan still running at the horizon must contribute a
+        // closing balance to the final month, not drop out of it.
+        const projFundBalances = new Array(LIABILITY_MONTHS).fill(0);
+        for (let i = purchaseMonthIdx; i < LIABILITY_MONTHS && bal > 0; i++) {
           projFundBalances[i] = Math.round(bal);
           carLoanBalanceByMonth[i] += Math.round(bal);
           const interest = r > 0 ? bal * r : 0;
@@ -1017,7 +1100,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         .filter(a => a.account_type === 'credit_card')
         .map(a => a.name as string),
       excludedAccountIds: linkedVehicleAccountIds,
-      months: PROJECTION_MONTHS,
+      // LIABILITY_MONTHS, not PROJECTION_MONTHS — see the constant: the extra entry is the final
+      // projected month's closing balance, which the liability total and the drawer both read.
+      months: LIABILITY_MONTHS,
     });
     const nonCCDebtBalanceByMonth = nonCCLiabilities.totalByMonth;
 
@@ -1604,7 +1689,59 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           cumulativeCarReserveHeld = Math.max(0, cumulativeCarReserveHeld - v.contrib * (v.purchaseMonthIdx + 1));
         }
       }
-      const carLoanThisMonth = activeCarLoanByMonth[i];
+      // ═══ A LOAN WITH NO BALANCE LEFT CANNOT TAKE A PAYMENT ═══
+      //
+      // `activeCarLoanByMonth` is priced off the AMORTIZATION SCHEDULE, which knows nothing about
+      // the ranked extras — while `loanBalancesByFundId` is reduced by them. Both cannot be true,
+      // and until 2026-08-27 the forecast printed both: verified on Tre's live data, the Oct 2029
+      // month drawer listed "Car Loan Payments $422.89" two months AFTER the same C5's own
+      // projected Aug 2029 payoff, and kept listing it for the ten months to the schedule's
+      // original end — roughly $4,200 of cash removed for a debt the app said was gone.
+      //
+      // Reading the fund's OPENING balance for month i is what makes this exact: steps 4c-ii-b
+      // reduce from `i` inclusive, so by the time month i's body runs, every earlier month's extra
+      // is already in that entry and this month's is not — which is precisely "does this loan still
+      // owe anything as the month begins".
+      //
+      // ⚠️ SUPPRESSION, NOT RE-AMORTIZATION. The engine deliberately never rebuilds the schedule
+      // (see 4c-ii-b), so a loan whose balance an extra ran out keeps its original term and simply
+      // stops being charged. "Do not shorten the term" and "keep charging a cleared loan" are
+      // different claims and only the first is defended.
+      //
+      // ⚠️ GATED ON AN EXTRA HAVING ACTUALLY LANDED, and that gate is not belt-and-braces — it is
+      // the difference between fixing this defect and creating a worse one. The balance array and
+      // the payment do NOT agree about which forecast month a schedule row belongs to when
+      // `payment_start_date` is still in the FUTURE: `buildAmortizationSchedule` clamps
+      // `monthsElapsedRaw` with `Math.max(0, …)`, so `schedule[monthsElapsed + i]` hands month i
+      // the row of month i + 1 and the array runs a month ahead of the payments. Measured on the
+      // real captured fixture (2026-07-20, first payment 2026-08-07): the array reads zero from
+      // index 36 while schedule row 36 — dated 2029-07-07, $495.39 less a $72.50 lump sum — is a
+      // real final payment that is genuinely owed. An ungated "zero balance ⇒ no payment" rule
+      // silently deleted it. Only the ranked waterfall can make the balance and the schedule
+      // disagree in a way the SCHEDULE is wrong about, so only a fund the waterfall has actually
+      // paid may have its payment suppressed. A fund nobody ranked behaves exactly as before.
+      //
+      // (The future-start shift itself is a real defect in the seed, and it is left alone here on
+      // purpose: the seed is out of this change's scope, and it is `vehicle-loan-engine.ts`'s
+      // `monthsElapsed` clamp that owns it.)
+      //
+      // ⚠️ LUMP SUMS ARE NOT SUPPRESSED, deliberately. `activeCarLoanLumpSumByMonth` is a dated
+      // instruction the user typed in, not a figure the engine derived, and silently deleting one
+      // is a product decision rather than a correctness fix. PASS 2's floor protection is likewise
+      // left reading the unsuppressed array: it runs before any extra is known, so it can only
+      // over-reserve, which is the safe direction.
+      const clearedLoanPaymentThisMonth = Array.from(carLoanScheduledByFundId).reduce(
+        (s, [fundId, payments]) => {
+          if (!((carLoanExtraPaidByFundId.get(fundId) ?? 0) > 0)) return s;
+          const owed = loanBalancesByFundId.get(fundId)?.[i];
+          // `undefined` means this fund has no projected balance array at all (the schedule threw),
+          // which is not the same claim as "it owes nothing" — leave its payment alone rather than
+          // cancel a real bill on the strength of a missing number.
+          return owed !== undefined && owed <= 0 ? s + payments[i] : s;
+        },
+        0,
+      );
+      const carLoanThisMonth = activeCarLoanByMonth[i] - clearedLoanPaymentThisMonth;
       const projLumpThisMonth = getMonthProjLumpSum(i);
       const projLoanThisMonth = getMonthProjLoan(i);
       const carLoanLumpThisMonth = activeCarLoanLumpSumByMonth[i] + projLumpThisMonth;
@@ -1795,8 +1932,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           ...(t.share === undefined ? {} : { share: t.share }),
         }));
         // Extra principal, capacity read fresh from the (already-reduced) amortized balance.
+        //
+        // ⚠️ CLOSING, NOT OPENING. What extra principal a loan can absorb this month is what is
+        // left AFTER its own scheduled payment, not what it owed before it — the payment is going
+        // out of the same month's cash either way. Offering the opening balance let the waterfall
+        // send principal into a balance that was about to disappear on its own: measured on the C5
+        // fixture, $289.92 over-allocated in the clearing month, and `endingCash off - on` confirms
+        // the whole amount really did leave checking. `closingBalanceAt` explains why entry i + 1
+        // is exactly that number at this point in the loop.
         for (const f of autoExtraLoanFunds) {
-          const owed = Math.max(0, loanBalancesByFundId.get(f.id)?.[i] ?? 0);
+          const balances = loanBalancesByFundId.get(f.id);
+          const owed = balances ? closingBalanceAt(balances, i) : 0;
           if (owed <= 0) continue;
           targets.push({
             id: f.id, kind: 'loan', sortOrder: f.sortOrder, minimum: 0, capacity: owed, autoExtra: true,
@@ -1805,9 +1951,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         }
         // Extra principal on a non-vehicle liability, capacity read fresh from the (already-
         // reduced) amortized balance — the same read, and the same reasoning, as the loan block
-        // directly above.
+        // directly above, closing balance included. `sumOtherDebtPayments` takes this liability's
+        // own payment out of the same month's cash, so offering the opening balance over-allocates
+        // by exactly that payment's principal, just as it did for the loan.
         for (const l of autoExtraLiabilities) {
-          const owed = Math.max(0, l.balances[i] ?? 0);
+          const owed = closingBalanceAt(l.balances, i);
           if (owed <= 0) continue;
           targets.push({
             id: l.id, kind: 'liability', sortOrder: l.sortOrder, minimum: 0, capacity: owed, autoExtra: true,
@@ -1973,16 +2121,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // prevent. `nonCCDebtBalanceByMonth` is decremented alongside the row's own array because the
       // two are ONE projection (`buildNonCCLiabilities` — the total IS the rows), and a total that
       // stopped equalling the rows under it is exactly the divergence that file was written to end.
-      // The month drawer's `nonCCLiabBreakdown` reads `rows[].balances[i]` directly and so needs
-      // nothing here.
+      // The month drawer's `nonCCLiabBreakdown` reads the same shared array and so needs nothing
+      // here.
       //
-      // ⚠️ IT RUNS HERE RATHER THAN BESIDE 4c-ii-b, and that is not a preference. Step 4's
-      // `totalLiabilityBal` sits BETWEEN the two, and it reads `nonCCDebtBalanceByMonth[i]` — so a
-      // credit applied down there would leave this month's liability TOTAL a month ahead of the
-      // rows the drawer itemises under it. (The vehicle-loan credit has that one-month lag today:
-      // `carLoanBalanceByMonth[i]` is read before 4c-ii-b reduces it, while `carLoanBreakdown` is
-      // emitted after. Left alone deliberately — moving it would change an existing user's
-      // projected numbers, which is not this change's business.)
+      // ⚠️ IT RUNS HERE RATHER THAN BESIDE 4c-ii-b only because the reserve is decided here; the
+      // ordering hazard it used to carry is gone. `totalLiabilityBal` no longer sits between the
+      // two reducers — it is computed immediately AFTER 4c-ii-b (2026-08-27), so the total and the
+      // itemised rows both see every credit this month made, vehicle and non-vehicle alike. The
+      // one-month lag on the vehicle half that this note used to record as deliberate was the
+      // liability half of the opening-vs-closing defect and is fixed.
       //
       // ⚠️ THE SCHEDULE IS NOT REBUILT, only reduced — the whole of 4c-ii-b's argument applies
       // unchanged. Reducing the balance without re-amortizing UNDERSTATES what the extra payment
@@ -2102,11 +2249,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         return s + (trueBal - adjustedDisplayBalance(trueBal, hookCumSurplusByCard.get(c.id)?.[i] ?? 0));
       }, 0);
       const adjCCLiab = Math.max(0, ccLiabilityBalThisMonth - revolvingAdj);
-      // ⚠️ `nonCCDebtBalanceByMonth[i]`, NOT `b.otherDebtBalance`. They are the same number until
-      // an extra principal payment lands: PASS 1 captured its copy before PASS 3 ran, so a balance
-      // 4c-ii-c reduces below is invisible to it. Reading the live array is the same choice
-      // `carLoanBalanceByMonth[i]` beside it already makes, and for the same reason.
-      totalLiabilityBal = adjCCLiab + nonCCDebtBalanceByMonth[i] + carLoanBalanceByMonth[i];
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = goalContribApplied;
@@ -2207,6 +2349,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         if (t.kind !== 'loan' || !(t.amount > 0)) continue;
         const balances = loanBalancesByFundId.get(t.id);
         if (!balances) continue;
+        // Recorded BEFORE the reduction and from the amount actually sent, so "has the waterfall
+        // ever paid this loan" is answered by the money, not by whether a balance moved.
+        carLoanExtraPaidByFundId.set(t.id, (carLoanExtraPaidByFundId.get(t.id) ?? 0) + t.amount);
         for (let j = i; j < balances.length; j += 1) {
           const before = balances[j];
           const after = Math.max(0, before - t.amount);
@@ -2214,6 +2359,32 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           carLoanBalanceByMonth[j] -= before - after;
         }
       }
+
+      // ═══ THIS MONTH'S LIABILITY TOTAL — END OF MONTH, LIKE THE CASH AND THE ASSETS BESIDE IT ═══
+      //
+      // ⚠️ IT LIVES HERE, IMMEDIATELY AFTER 4c-ii-b, AND THAT IS NOT A PREFERENCE. It used to sit
+      // ~90 lines above, between 4c-ii-c and 4c-ii-b, which left the liability total a month ahead
+      // of the `carLoanBreakdown` rows the drawer itemises under it — a total that does not equal
+      // its own rows, which this codebase refuses to print. Read after BOTH reducers and both
+      // agree by construction.
+      //
+      // ⚠️ CLOSING BALANCES, NOT OPENING ONES — the defect `closingBalanceAt` documents. Net Worth
+      // subtracts these from `finalLiquid`, which is END-of-month cash: month 0's ending cash is
+      // already $422.89 lighter because the car payment has left, so pairing it with the balance
+      // that payment just reduced counted the same principal twice. Measured on the C5 fixture:
+      // netWorth 13,615 against 13,902 with an end-of-month loan line, understated by exactly one
+      // month's principal — in every month, on every liability.
+      //
+      // `adjCCLiab` keeps its own convention: the card sim's `displayCCBalance` is already the
+      // balance month i ends on, so it needs no shifting and would be wrong if it got one.
+      //
+      // ⚠️ `nonCCDebtBalanceByMonth`, NOT `b.otherDebtBalance`. They are the same number until an
+      // extra principal payment lands: PASS 1 captured its copy before PASS 3 ran, so a balance
+      // 4c-ii-c reduced is invisible to it. Reading the live array is the same choice
+      // `carLoanBalanceByMonth` beside it makes, and for the same reason.
+      totalLiabilityBal = adjCCLiab
+        + closingBalanceAt(nonCCDebtBalanceByMonth, i)
+        + closingBalanceAt(carLoanBalanceByMonth, i);
 
       // 4c-iii. The reserve just taken fills part of the target's need, so it comes off the
       // remaining capacity the LATER months rank against. (The target's own monthly contribution
@@ -2362,8 +2533,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
 
       data.push({
         month: b.monthLabel, netWorth: Math.round(netWorth), totalAssets: Math.round(totalAssets),
-        // Live array, not PASS 1's captured copy — see the note on `totalLiabilityBal` above.
-        totalLiabilities: Math.round(totalLiabilityBal), debtBalance: Math.round(adjCCLiab + nonCCDebtBalanceByMonth[i]),
+        // Live array and END-of-month, not PASS 1's captured copy and not the opening balance —
+        // see the note on `totalLiabilityBal` above. This is that same total minus its vehicle
+        // half, so the two must read the array the same way or they stop reconciling.
+        totalLiabilities: Math.round(totalLiabilityBal),
+        debtBalance: Math.round(adjCCLiab + closingBalanceAt(nonCCDebtBalanceByMonth, i)),
         savingsBalance: Math.round(savingsBal), investmentBalance: Math.round(investBal),
         retirementBalance: Math.round(retireBal), liquidCash: Math.round(finalLiquid),
         endingCash,
@@ -2472,14 +2646,21 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           // empty pool is not a real asset row and would just add noise to every popup.
           ...Array.from(carFundPools.entries()).filter(([, p]) => p.balance > 0).map(([id, p]) => ({ bucket: 'savings' as const, id, name: p.name, balance: p.balance })),
         ],
+        // The two itemised liability lists the drawer prints between "Total CC Balance" and
+        // "Total Liabilities", so they must read the SAME end-of-month convention
+        // `totalLiabilityBal` above does or the total stops equalling its own rows. Month 0's loan
+        // line therefore reads one month's principal BELOW the Garage card's "X remaining" — the
+        // two answer different questions ("what you owe at the end of this month" against "what you
+        // owe today"), and it is the drawer, whose every other line is end-of-month, that has to
+        // move. The seed itself is untouched: `balances[0]` is still the live bank figure.
         nonCCLiabBreakdown: nonCCLiabilities.rows.map(la => ({
           id: la.id,
           name: la.name,
           account_type: la.account_type,
-          balance: la.balances[i],
+          balance: closingBalanceAt(la.balances, i),
         })),
         carLoanBreakdown: carLoanPerFund
-          .map(cf => ({ name: cf.name, balance: cf.balances[i] ?? 0 }))
+          .map(cf => ({ name: cf.name, balance: closingBalanceAt(cf.balances, i) }))
           .filter(cf => cf.balance > 0),
         // See Step 3 above: the sim's own revolving share (ledgerEntry.revolving) plus any
         // not-yet-routed surplus — the target fed to the next convergence pass.
