@@ -1,5 +1,64 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35w — **`ec97789f`. tsc 0, 284 files / 2985 tests.
+> 15 commits unpushed.**
+>
+> ═══ HIS MOVE FUND NOW HITS ITS DATE, AND IT COSTS NOTHING ═══
+> Set `monthly_contribution` to **$510** ($5,730 - $106 = $5,624 over 11 months).
+> Measured on his own engine: the ranked row went from "14 months late, $5,624
+> short" to **"On track for Jul 2027"**, and the card side did not move at all —
+> payoff ETA still Sep 2028, monthly interest still $108.28. Why it is free:
+> $5,588 of Prime Visa's $8,539 is 0% Equal Pay promo (the app itself calls
+> $4,982 "utilization-only"), its payment is capped by the statement reserve
+> anyway, and the $510 comes out of cash the cascade was not sending at
+> interest-bearing debt.
+>
+> ═══ THE CHART WAS RIGHT. TWO OTHER THINGS WERE NOT ═══
+> **1. A defect I shipped an hour earlier** (`ec97789f`): withdrawals were
+> feeding `estimateGoalCompletionMonths`, so a goal that reached its target and
+> spent it read "Est. completion Jul 2028" — it had to save the whole amount
+> again to "complete". Worse, that same number drives the chart's contribution
+> CUTOFF, so the projection kept contributing to a finished goal for a year.
+> A spend is the goal SUCCEEDING, not un-completing.
+>
+> **2. His data:** `contribution_start_date` was **2027-11-21**, four months
+> AFTER the move. That is why the line was flat. Cleared to null.
+>
+> NOW LIVE: "Est. completion **Jul 2027**", and the chart line rises and drops
+> **33px at index 11** — Jul 2027, the month the money goes. That is the picture
+> he asked about at the start of the thread.
+>
+> ⚠️ MY FIRST TWO SVG READINGS WERE MY OWN MEASUREMENT ERROR, not chart bugs:
+> a bad `slice` around a `-1` index, then assuming recharts renders legend items
+> and `.recharts-line-curve` nodes in the same order. THEY DO NOT. Match a series
+> by its shape, not by legend position.
+>
+> ═══ ⛔ NEW BUG, NOT FIXED ═══
+> **The ranked list's reachability verdict ignores `contribution_start_date`.**
+> It said "On track for Jul 2027" while the contribution was dated to start Nov
+> 2027 — it counts `ownMonthlyByTarget` as flowing from month 0. The growth model
+> respects the start date; the verdict does not. That is two surfaces disagreeing
+> about the same goal, which is the bug class this repo keeps closing.
+>
+> ═══ ALSO SHIPPED ═══
+> `32b05f86` — the payoff date WITH extra payments is now the headline on all 5
+> loan surfaces, the scheduled one small underneath. Only where an extras date
+> exists. Live: "Payoff Date | Aug 2029 | Jun 2030 without extra".
+>
+> ⬜ STILL QUEUED:
+> 1. The reachability-verdict bug above.
+> 2. The seed-vs-reducer measurement. ⛔ DO NOT act on session 35u's claim that
+>    "the reducer is right and the seed is wrong" — `startBalance` at index 0 is
+>    what makes month 0 show what he owes TODAY. Measure per surface first.
+> 3. "auto apply to all users" for manual CONTRIBUTIONS (`585aacdc` covers LUMP
+>    SUMS only). Must be VISIBLE and confirmed — it deletes real user rows.
+> 4. The Feb 2031 $48.86 breach. ⛔ `scratchpad/llm/floor_out.md` IS WRONG.
+> 5. Student loans — his GF's account.
+> 6. The mobile deck fix (`b83698e5`) is NOT device-verified.
+>
+> ⚠️ CAP: weekly is **90** with a dated RESTORE TO 75.0 AFTER 2026-08-31 18:00.
+> The window is over-subscribed — 16 points existed against 17-25 of routines.
+
 > ▶ 2026-08-27 SESSION 35v — **`069bf084`. tsc 0, 284 files / 2982 tests.
 > 12 commits unpushed.**
 >
