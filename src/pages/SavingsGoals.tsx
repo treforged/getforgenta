@@ -22,13 +22,18 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
+import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
+import { goalStages } from '@/lib/ranked-extra-payment-targets';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
 const ROTH_IRA_LIMIT = 7000;
-const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '' };
+const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', emergency_months_stage1: '', emergency_months_stage2: '' };
+
+/** What "3 months and then 6" defaults to when the user first switches sizing-from-expenses on. */
+const DEFAULT_STAGE_MONTHS = { stage1: '3', stage2: '6' };
 
 // allGoals' shape: a real savings_goals row enriched with values computed from
 // the linked account/rule (not DB columns themselves).
@@ -403,6 +408,26 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       accounts.find(a => a.account_type === 'checking' && a.active)?.id || null;
     return createDebtPaymentTransactions(debtRecs, fundId);
   }, [debtRecs, profile, accounts]);
+
+  /**
+   * One month of keeping the lights on — bills, card-charged recurring spend, the vehicle loan and
+   * its insurance. The multiplicand behind a STAGED goal's two thresholds.
+   *
+   * ⚠️ SHOWN, NEVER SILENTLY STORED. The goal stores the multiplier (3 months, 6 months) and the
+   * engine recomputes the dollars every read, so the target tracks real spending instead of going
+   * stale when the car loan ends or the rent changes. But a user picking "3 months" without seeing
+   * what three months COSTS is picking a number they cannot see, so the form prints the figure and
+   * both derived targets live. Zero means we could not read one, and the form says so rather than
+   * multiplying nothing.
+   */
+  const essentialMonthlyExpenses = useMemo(() => computeEssentialMonthlyExpenses({
+    rules,
+    accounts,
+    carFunds,
+    fundingAccountId: profile?.default_deposit_account
+      || accounts.find(a => a.account_type === 'checking' && a.active)?.id
+      || null,
+  }), [rules, accounts, carFunds, profile?.default_deposit_account]);
   const allTxns = useMemo(() => mergeDebtPaymentsIntoStream(baseTxns, debtTxns), [baseTxns, debtTxns]);
 
   // What the ranked list says about the card row, from the SAME converged month-0 breakdown the
@@ -561,6 +586,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
       goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
       contribution_start_date: g.contribution_start_date || '',
+      emergency_months_stage1: g.emergency_months_stage1 == null ? '' : String(g.emergency_months_stage1),
+      emergency_months_stage2: g.emergency_months_stage2 == null ? '' : String(g.emergency_months_stage2),
     });
     // Populate from linked_rule_ids, falling back to legacy single linked_rule_id
     const ids = (g.linked_rule_ids ?? []).length > 0
@@ -578,6 +605,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
       goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
       contribution_start_date: g.contribution_start_date || '',
+      emergency_months_stage1: g.emergency_months_stage1 == null ? '' : String(g.emergency_months_stage1),
+      emergency_months_stage2: g.emergency_months_stage2 == null ? '' : String(g.emergency_months_stage2),
     });
     const ids = (g.linked_rule_ids ?? []).length > 0
       ? (g.linked_rule_ids ?? [])
@@ -589,6 +618,34 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     setEditId(null); setShowForm(true);
     toast.info('Goal duplicated — edit and save');
   };
+
+  /**
+   * The two month multipliers as the database wants them: a positive number, or null.
+   *
+   * Blank, zero and unparseable all read as null — the same rule `goalStages` applies — so there is
+   * exactly one definition of "this goal is not staged" and the form cannot store a state the
+   * engine would ignore.
+   */
+  const stageMonths = useMemo(() => {
+    const positiveOrNull = (raw: string): number | null => {
+      const n = Number(raw);
+      return raw.trim() === '' || !Number.isFinite(n) || n <= 0 ? null : n;
+    };
+    return {
+      m1: positiveOrNull(form.emergency_months_stage1),
+      m2: positiveOrNull(form.emergency_months_stage2),
+    };
+  }, [form.emergency_months_stage1, form.emergency_months_stage2]);
+
+  /** What the two thresholds come to in dollars, right now, on the numbers in the form. */
+  const stagePreview = useMemo(() => goalStages(
+    {
+      target_amount: parseFloat(form.target_amount) || 0,
+      emergency_months_stage1: stageMonths.m1,
+      emergency_months_stage2: stageMonths.m2,
+    },
+    essentialMonthlyExpenses,
+  ), [form.target_amount, stageMonths, essentialMonthlyExpenses]);
 
   const handleSave = () => {
     const target_amount = parseFloat(form.target_amount);
@@ -607,6 +664,12 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       linked_rule_ids: selectedRuleIds,
       linked_rule_id: selectedRuleIds.length === 1 ? selectedRuleIds[0] : null,
       auto_end_contributions: autoEnd,
+      // ⚠️ NULL, NOT 0, WHEN SIZING IS OFF. Null is the opt-out the whole feature hangs on —
+      // `goalStages` reads it as "not staged" and the goal chases `target_amount` exactly as it did
+      // before this existed. And stage 2 is nulled with stage 1 rather than left behind: a stage 2
+      // with no stage 1 is ignored by the engine, and the database now refuses to store one.
+      emergency_months_stage1: stageMonths.m1,
+      emergency_months_stage2: stageMonths.m1 == null ? null : stageMonths.m2,
     };
 
     // 97.3 — the ONLY place auto-end writes are issued: an explicit save, never a render path.
@@ -845,6 +908,87 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Goal' : 'Add Goal'}
         >
+          {/* ── EMERGENCY RUNWAY, SIZED FROM REAL EXPENSES ───────────────────────────
+              One goal, two thresholds, one balance. Not two goals: a goal linked to a savings
+              account resolves its balance FROM that account, so two goals on one account both read
+              as funded and the savings get double-counted. */}
+          <div className="space-y-2">
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Emergency Runway (optional)</label>
+            <button
+              type="button"
+              onClick={() => setForm(prev => ({
+                ...prev,
+                emergency_months_stage1: stageMonths.m1 == null ? DEFAULT_STAGE_MONTHS.stage1 : '',
+                emergency_months_stage2: stageMonths.m1 == null ? DEFAULT_STAGE_MONTHS.stage2 : '',
+              }))}
+              className="w-full flex items-start gap-2.5 text-left p-2.5 bg-secondary/30 border border-border/50 hover:border-primary/30 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+              aria-pressed={stageMonths.m1 != null}
+            >
+              <span
+                className={`shrink-0 mt-0.5 w-4 h-4 border flex items-center justify-center ${stageMonths.m1 != null ? 'bg-primary border-primary text-primary-foreground' : 'border-border'}`}
+                style={{ borderRadius: 'calc(var(--radius) / 2)' }}
+              >
+                {stageMonths.m1 != null && <Check size={11} />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs text-foreground">Add months of expenses on top of this target</span>
+                <span className="block text-[10px] text-muted-foreground mt-0.5">
+                  Stored as months, not dollars, so the target follows what you actually spend instead of going stale.
+                </span>
+              </span>
+            </button>
+
+            {stageMonths.m1 != null && (
+              essentialMonthlyExpenses <= 0 ? (
+                <p className="text-[10px] text-amber-500">
+                  We cannot read a monthly expense figure from your recurring rules yet, so there is
+                  nothing to multiply. Add your bills first and this will size itself.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block">
+                      <span className="block text-[10px] text-muted-foreground uppercase tracking-wider mb-1">First stop (months)</span>
+                      <input
+                        type="number" min="0" step="1" inputMode="decimal"
+                        value={form.emergency_months_stage1}
+                        onChange={e => setForm(prev => ({ ...prev, emergency_months_stage1: e.target.value }))}
+                        className="w-full bg-secondary/30 border border-border/50 px-2 py-1.5 text-xs"
+                        style={{ borderRadius: 'var(--radius)' }}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="block text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Then (months)</span>
+                      <input
+                        type="number" min="0" step="1" inputMode="decimal"
+                        value={form.emergency_months_stage2}
+                        onChange={e => setForm(prev => ({ ...prev, emergency_months_stage2: e.target.value }))}
+                        className="w-full bg-secondary/30 border border-border/50 px-2 py-1.5 text-xs"
+                        style={{ borderRadius: 'var(--radius)' }}
+                      />
+                    </label>
+                  </div>
+                  {/* The whole reason this section exists rather than two bare number inputs: nobody
+                      can pick "3 months" without being shown what three months costs. */}
+                  <p className="text-[10px] text-muted-foreground">
+                    One month of essentials is {formatCurrency(essentialMonthlyExpenses, false)} — your bills,
+                    the ones charged to a card, and the car payment and its insurance.
+                  </p>
+                  <p className="text-[11px] text-foreground">
+                    First stop {formatCurrency(stagePreview.stage1, false)}
+                    {stagePreview.stage2 > stagePreview.stage1 && <> · then {formatCurrency(stagePreview.stage2, false)}</>}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {stagePreview.stage2 > stagePreview.stage1
+                      ? 'Extra funding pauses at the first stop while your cards still carry a balance, then resumes to the second once they are clear.'
+                      : 'Funding stops at the first stop — set a second number to keep going once your cards are clear.'}
+                  </p>
+                </div>
+              )
+            )}
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Transfer Rules (auto-sync contributions)</label>
             {transferRuleOptions.filter(o => o.value).length === 0 ? (
