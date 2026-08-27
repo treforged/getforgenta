@@ -1,5 +1,37 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35k — **BOTH PIECES OF KNOWN DEBT CLEARED, and clearing
+> the first one found a real bug.** `7aa10e61`, pushed. Caps 85/85.
+>
+> THE BUG: `computeFloorProtection` early-returned on `ccMinTotal <= 0` and
+> handed back ZEROES for `requiredEndByMonth`, so **the look-ahead did not exist
+> for any user with no credit-card debt** - they still have goals, a cash floor,
+> and can still be walked into a spike months out by a ranked reserve. My own
+> comment defending those zeroes was reasoning about `maxDebtPaymentByMonth`,
+> which genuinely has nothing to cap without card debt; it never applied to
+> requiredEndByMonth. The early return now sits AFTER the backward pass. It
+> surfaced only because the new test's fixture has no cards - i.e. writing the
+> test for the debt is what found it.
+>
+> BOTH DEBTS NOW PINNED: `makeInputs` takes `oneTimeByMonth`, so the harness can
+> express a spike four months out; the look-ahead test is MUTATION-CHECKED
+> (forcing `lookaheadEnd` to 0 fails it). And 791ad355's "one rank per month"
+> claim - the thing that makes reverse-rank shedding a tie-only rule - is now a
+> test rather than a measurement in a commit body.
+>
+> ⚠️ ONE TEST WAS PASSING ON LUCK and is fixed: autoExtraLoan's "never one
+> without the other" compared a cumulative loan cut against month 3's cumulative
+> CASH gap, which includes second-order effects (a smaller loan balance moves the
+> augmented floor, moving later cash by cents). Measured: in the month the reserve
+> lands both sides are exactly 10,677.73, while month 3's cash gap had drifted to
+> 10,677.00 - the 0.01 tolerance was luck. It now measures against the dollars
+> actually reserved. If another cumulative-vs-cumulative assertion shows up in
+> this area, suspect the same thing.
+>
+> NOTHING IS OUTSTANDING. Live after all of it: converged in 12 passes, zero of
+> 60 months below floor, no negatives, milestones read "Sep 2028: CC Debt Free"
+> and "Feb 2030: Move fund complete".
+
 > ▶ 2026-08-26 SESSION 35j — **ALL FOUR UI ITEMS DONE. PUSHED. Caps at 85/85
 > (Tre's call - he judged 75 too generous a reserve given the workflow).**
 >
