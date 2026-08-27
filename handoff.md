@@ -1,5 +1,89 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35y — **26 commits unpushed. tsc 0, 286 files / 3032
+> tests.** ⛔ **STOPPED AT 87% OF THE WEEKLY CAP (90), ~3 points left.** Work is
+> queued and drafted, deliberately not started. Weekly window resets
+> **2026-08-31 18:00**; the cap comment carries a dated RESTORE TO 75.0.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - `160803bc` **the forecast no longer pays a loan it says is gone** (Oct 2029
+>   charged $422.89 two months after payoff) AND **net worth stopped lagging a
+>   month** on every liability. Plus a $289.92 ranked-capacity over-allocation.
+>   LIVE BOTH WAYS with a control: Oct 2027 still charges $422.89, Oct 2029 has
+>   no line. ⚠️ The fix is GATED on an extra having landed — the ungated version
+>   deleted a REAL payment, because `buildAmortizationSchedule` clamps
+>   `monthsElapsed` for a loan whose first payment is still in the future.
+> - `ad365859` **income can stop on a date, and the final earned paycheck still
+>   lands.** Four disagreeing code paths, incl. a UTC-vs-noon bug that deleted a
+>   payday landing on its own end date. Gate now compares YYYY-MM-DD strings.
+> - `1f27d557` the reachability verdict counts a contribution only from when it
+>   STARTS (it read "On track for Jul 2027" on money starting Nov 2027).
+> - `359f42e8` the Garage "with auto extra" line was drawn ABOVE the normal one.
+> - `e482313c` the split control says what it does to the money.
+> - `31ac3c1a` the drawer's liability rows labelled "after this month's payments".
+>
+> ═══ HIS DATA, AS LEFT ═══
+> Move fund `monthly_contribution` = **$510/mo**, no start date, split 50/50 with
+> Prime Visa at rank 0. He chose this KNOWING the measured cost: floor breaches
+> Nov 2026 / Jun 2027 / Jul 2027 and CC-free slips Sep→Oct 2028. **He still has
+> to create the transfer at his bank.**
+>
+> ⚠️ THE MOVE MATH, MEASURED, so nobody re-derives it: his move costs are ALREADY
+> one-time transactions — **2027-06-01 $3,830 lease break** and **2027-07-01
+> $1,900 deposit**, both from the savings account the goal is linked to (which
+> holds $106). Real deadline is **Jun 1 2027, not Jul**. $510 breaks the floor,
+> $300 breaks it AND misses, splitting is free but closes only $730 of $5,624.
+> The binding constraint is the move COST vs his cash flow, not the funding
+> method. ⚠️ Nov 2026 goes red at BOTH $300 and $510 but not at $0 — something is
+> tight in that specific month and nobody has looked at it.
+>
+> ⚠️ CREDIT-CARD INTEREST, MEASURED: **all $108.28/mo is on DISCOVER.** Prime
+> Visa is $0 (0% promos + statement paid), yet it sits at RANK 0. Discover =
+> $5,403 @16.6% + a $5,038 balance transfer @7.99% that **ends 2028-01-04** and
+> steps to 16.6%. That date is a real deadline.
+>
+> ═══ ⬜ QUEUED, IN PRIORITY ORDER ═══
+> 1. ⛔ **`otherDebtPayment` is a SINGLE SCALAR for all 60 months** — a student
+>    loan or mortgage NEVER stops taking cash when its balance hits zero. Same
+>    class as the fix above, non-vehicle side, arguably bigger. Free-LLM drafts
+>    at `scratchpad/out/otherdebt_*.md`: shape right
+>    (`otherDebtPaymentForMonth(i)`, guard `balances===undefined ||
+>    closingBalanceAt(...)>0` so absence keeps paying), but every field invented —
+>    `debt.payment` does not exist, and the map is keyed by ACCOUNT id.
+>    **MANAGER WRITES THE REAL CODE; engine money math is out of the LLM lane.**
+> 2. **Budget Control → Transfers tab** must list a goal's `monthly_contribution`
+>    (a real standing transfer, invisible today because the tab only reads
+>    `recurring_rules`), and "Recommended this month" must show upcoming
+>    transfers/extras. His exact wording: `$510/mo + $1,107 extra this month`,
+>    and NEVER `$0 extra this month`. Drafts landing at
+>    `scratchpad/out/transfers_*.md`.
+> 3. **Budget Control de-duplication vs the Dashboard** — move, don't delete.
+>    ⚠️ DO THE SUSPICIOUS ONES FIRST: **Debt Payments reads $0** and the donut
+>    says Debt 0% while he has real card + loan payments, and **Remaining Cash
+>    reads $0**. Those look WRONG, not duplicated, and moving a broken number
+>    just moves the bug.
+> 4. `vehicle-loan-engine.ts:110/:166` — for a loan whose FIRST PAYMENT IS IN THE
+>    FUTURE, `Math.max(0, …)` makes `schedule[monthsElapsed + i]` a month early on
+>    EVERY surface. This is the seed that was ring-fenced. Its own slice.
+> 5. Charts for student loans / mortgage / other debts (the CC tab has one).
+>    `nonCCLiabilityBalancesById` already holds the series.
+> 6. "Only take exactly what it needs to reach the goal on time" — generalise
+>    `levelMonthlyToDate` (retirement-contribution-cap.ts) to any dated target
+>    rather than writing a second model.
+> 7. Two items BLOCKED ON HIS GF'S ACCOUNT: student-loan payments in the loans
+>    tab, and setting the end date on her biweekly income. **Ask which account
+>    before investigating anything GF-related** — that caught me twice today.
+> 8. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; the Feb
+>    2031 breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck fix
+>    `b83698e5` is NOT device-verified.
+>
+> ⚠️ ROUTING: two opus-executors ran today on his EXPLICIT per-case approval and
+> both were excellent — accurate reports, honest about their own gaps, one gated
+> in a detached worktree to isolate from the other. That approval was per-case,
+> NOT standing. Default remains free-LLM executors, whose measured pattern is
+> now well established: reliable for STRUCTURE, unreliable for any field name not
+> handed to them verbatim.
+
 > ▶ 2026-08-27 SESSION 35x — **`359f42e8`. tsc 0, 285 files / 3003 tests.
 > 18 commits unpushed.** Two opus-executors ran on Tre's explicit per-case
 > approval; both reports were accurate and both named their own gaps.
