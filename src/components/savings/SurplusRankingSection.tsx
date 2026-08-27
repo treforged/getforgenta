@@ -115,7 +115,7 @@ export default function SurplusRankingSection({
   cardsSubtitle, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth, asOf,
 }: SurplusRankingSectionProps) {
   const {
-    rows, cards, liabilities, commit, setCardSeparated, setLiabilityRanked, saving, loading,
+    rows, cards, liabilities, commit, setCardRankMode, setLiabilityRanked, saving, loading,
     readOnly,
   } = useSurplusRanking();
   const isTouch = useIsTouch();
@@ -278,6 +278,11 @@ export default function SurplusRankingSection({
   }, [draft]);
 
   // Cards still inside the block — the ones that can be pulled out and ranked on their own.
+  // Which mode the list is CURRENTLY in, derived rather than stored: a card row exists only when
+  // that card carries its own `accounts.surplus_sort_order`, so the presence of one is the fact.
+  // Nothing new to persist, and no way for a stored mode flag to disagree with the rows on screen.
+  const cardsAreIndividual = rows.some(r => r.kind === 'card');
+
   const blockedCards = useMemo(() => {
     const solo = new Set(draft.filter(r => r.kind === 'card').map(r => r.id));
     return (cards ?? []).filter(c => !solo.has(c.id));
@@ -488,16 +493,6 @@ export default function SurplusRankingSection({
                 </label>
               )}
 
-              {isCard && !readOnly && (
-                <button
-                  type="button"
-                  onClick={() => setCardSeparated(row.id, false)}
-                  className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  aria-label={`Put ${row.name} back in the card block`}
-                >
-                  Re-block
-                </button>
-              )}
 
               {/* The liability's own "Re-block": a debt leaves the list by leaving the LIST, which
                   is a write that exists (`planLiabilityRankWrites`). Its scheduled payment carries
@@ -517,25 +512,50 @@ export default function SurplusRankingSection({
         })}
       </ul>
 
-      {/* Pulling a card out of the block is deliberately an explicit act, and deliberately not a
-          drag: the default — one block, ordered by the payoff strategy — is the only arrangement
-          that cannot cost the user interest, so leaving it should take a decision. */}
-      {!readOnly && blockedCards.length > 1 && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      {/* ONE ANSWER AT A TIME. This used to be a per-card "rank this one on its own" button, which
+          let the list show a Credit Cards block AND individual card rows together - two different
+          answers to "how are my cards ranked" on one screen, and genuinely misleading on a split
+          rank, where the block's weight and a pulled-out card's weight are partly about the same
+          debt (Tre, 2026-08-26: "or just credit cards in general, never both"). It is a mode now.
+          Either way the payoff strategy still decides which card the money actually hits. */}
+      {!readOnly && (cardsAreIndividual ? true : blockedCards.length > 1) && (
+        <div className="mt-3 space-y-1.5">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            Rank a card on its own
+            Rank credit cards
           </span>
-          {blockedCards.map(c => (
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
-              key={c.id}
               type="button"
-              onClick={() => setCardSeparated(c.id, true)}
-              className="text-[11px] px-2 py-0.5 border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+              onClick={() => setCardRankMode('block')}
+              aria-pressed={!cardsAreIndividual}
+              className={`text-[11px] px-2 py-0.5 border transition-colors ${
+                cardsAreIndividual
+                  ? 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
+                  : 'border-primary text-primary'
+              }`}
               style={{ borderRadius: 'var(--radius)' }}
             >
-              {c.name}
+              As one group
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setCardRankMode('individual')}
+              aria-pressed={cardsAreIndividual}
+              className={`text-[11px] px-2 py-0.5 border transition-colors ${
+                cardsAreIndividual
+                  ? 'border-primary text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
+              }`}
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              One row each
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {cardsAreIndividual
+              ? 'Each card sits in the list on its own, so you can fund a goal between two of them. Which card the money actually pays is still decided by your payoff strategy.'
+              : 'All your cards share one spot in the list, ordered by your payoff strategy. That is the arrangement that cannot cost you extra interest.'}
+          </p>
         </div>
       )}
 

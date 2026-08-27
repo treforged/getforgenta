@@ -656,6 +656,58 @@ export function isSurplusRankWritesEmpty(w: SurplusRankWrites): boolean {
  * The card's own row does not exist in `rows` until the write lands, which is why this returns
  * writes instead of a new list.
  */
+/**
+ * Put EVERY card on its own row, or put every card back in the block.
+ *
+ * ⚠️ WHY A MODE AND NOT A PER-CARD CHOICE. Pulling cards out one at a time let the
+ * list show a "Credit Cards" block row AND individual card rows at the same time,
+ * which is two different answers to "how are my cards ranked" on one screen. Tre,
+ * 2026-08-26: "add a toggle to separate by card ... or just credit cards in
+ * general, never both". It is worst on a split rank, where the block carries one
+ * weight and a pulled-out card carries another, and the two weights are partly
+ * about the same debt - so a 50/50 split does not mean what it says.
+ *
+ * Going INDIVIDUAL seats each card at consecutive ranks starting where the block
+ * sat, so the list the user was looking at does not reorder underneath them, and
+ * clears each card's own share: a weight set while the card was sharing a rank
+ * with something else is not a weight it should keep once it has a rank to itself.
+ *
+ * Going BLOCK clears `surplus_sort_order` on every card, which is the one and only
+ * thing that decides membership, and clears their shares for the same reason.
+ * The block's own rank and weight live on `profiles` and are untouched by both.
+ *
+ * The payoff STRATEGY still orders the cards inside the block, and still decides
+ * which card the surviving pool actually pays even when they are ranked
+ * individually. See `ranked-extra-payment-targets.ts` - an individual rank moves
+ * the SPLIT POINT between debt and goals, it does not override avalanche.
+ */
+export function planCardRankModeWrites(
+  rows: readonly SurplusRankRow[],
+  blockedCards: readonly { id: string }[],
+  mode: 'block' | 'individual',
+): SurplusRankWrites {
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
+
+  if (mode === 'block') {
+    for (const row of rows) {
+      if (row.kind !== 'card') continue;
+      writes.cards.push({ id: row.id, surplus_sort_order: null, surplus_share: null });
+    }
+    return writes;
+  }
+
+  const block = rows.find(r => r.kind === 'cards');
+  const at = block ? block.sortOrder : toGroups(rows).length;
+  // Cards already on their own keep their relative order; the ones still inside the
+  // block follow, in the order the block itself was showing them.
+  const already = rows.filter(r => r.kind === 'card').sort((a, b) => a.sortOrder - b.sortOrder);
+  const seating = [...already.map(r => r.id), ...blockedCards.map(c => c.id)];
+  seating.forEach((id, i) => {
+    writes.cards.push({ id, surplus_sort_order: at + i, surplus_share: null });
+  });
+  return writes;
+}
+
 export function planCardSeparationWrites(
   rows: readonly SurplusRankRow[], cardId: string, separate: boolean,
 ): SurplusRankWrites {

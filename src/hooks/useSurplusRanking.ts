@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSavingsGoals, useCarFunds, useProfile, useAccounts, useDebts, useRecurringRules } from '@/hooks/useSupabaseData';
 import {
-  buildSurplusRankRows, isSurplusRankWritesEmpty, planAutoExtraDeselect, planCardSeparationWrites,
+  buildSurplusRankRows, isSurplusRankWritesEmpty, planAutoExtraDeselect, planCardRankModeWrites,
+  planCardSeparationWrites,
   planLiabilityRankWrites, planSurplusRankWrites,
   type SurplusRankRow, type SurplusRankWrites,
 } from '@/lib/surplus-ranking';
@@ -160,6 +161,17 @@ export function useSurplusRanking() {
    * reason `setCardSeparated` is: until `accounts.surplus_sort_order` is non-null the liability has
    * no row in `rows` to diff.
    */
+  /**
+   * Switch the WHOLE card set between one block and one row each.
+   *
+   * The per-card `setCardSeparated` above still exists because the planner still
+   * supports it, but the UI no longer offers it: a half-separated list is two
+   * answers to the same question on one screen. See `planCardRankModeWrites`.
+   */
+  const setCardRankMode = useCallback((mode: 'block' | 'individual') => {
+    saveMutate(planCardRankModeWrites(rows, cards, mode));
+  }, [rows, cards, saveMutate]);
+
   const setLiabilityRanked = useCallback((accountId: string, ranked: boolean) => {
     saveMutate(planLiabilityRankWrites(rows, accountId, ranked));
   }, [rows, saveMutate]);
@@ -228,6 +240,7 @@ export function useSurplusRanking() {
     liabilities,
     commit,
     setCardSeparated,
+    setCardRankMode,
     setLiabilityRanked,
     saving: save.isPending,
     loading: goalsLoading || carFundsLoading,
