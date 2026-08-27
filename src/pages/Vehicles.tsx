@@ -577,6 +577,43 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
   // hitting zero in early 2029 next to a "Payoff Date" stat reading Jun 2030, and
   // a user is left to decide which of the two the app means. balances[i] is the
   // balance month i OPENS at, so the final payment lands in month firstZero - 1.
+  /**
+   * The same ranked extras, keyed by CALENDAR month, for the amortization schedule.
+   *
+   * ⚠️ THE JOIN IS A DATE, NOT A POSITION, and it is the same join the chart below already makes.
+   * `autoExtraMonths` is indexed from THIS month; the schedule's rows are dated from
+   * `payment_start_date`, which for a loan already running is in the past. Lining them up by index
+   * would credit a payment made next year to a row from last year.
+   */
+  const autoExtraByMonth = useMemo(() => {
+    if (!autoExtraMonths) return undefined;
+    const out: Record<string, number> = {};
+    const n = new Date();
+    autoExtraMonths.forEach((amount, i) => {
+      if (!(amount > 0)) return;
+      const d = new Date(n.getFullYear(), n.getMonth() + i, 1);
+      out[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = amount;
+    });
+    return Object.keys(out).length > 0 ? out : undefined;
+  }, [autoExtraMonths]);
+
+  /**
+   * The schedule as the money ACTUALLY goes: the fund's own lump sums AND the ranked extras.
+   *
+   * Tre, 2026-08-26: "for auto loan, the amortization schedule should be updated with the extra
+   * payments." The chart gained its extra-aware line in `6e676601`; the table underneath was still
+   * built from lump sums alone, so a user who ranked this loan read a table that contradicted the
+   * line directly above it.
+   */
+  const projWithExtras = useMemo(() => {
+    if (!baseInput || !autoExtraByMonth) return null;
+    return buildAmortizationSchedule({
+      ...baseInput,
+      ...(lumpSums.length > 0 ? { lumpSumPayments: lumpSums } : {}),
+      autoExtraByMonth,
+    });
+  }, [baseInput, lumpSums, autoExtraByMonth]);
+
   const autoPayoffLabel = useMemo(() => {
     if (!receivesAutoExtra || !extraBalances) return null;
     const firstZero = extraBalances.findIndex(b => b <= 0);
@@ -764,34 +801,58 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
         {showSchedule ? 'Hide' : 'Show'} full amortization schedule
       </button>
 
-      {showSchedule && (
-        <div className="overflow-x-auto max-h-64 overflow-y-auto">
-          <table className="w-full text-[10px]">
-            <thead className="sticky top-0 bg-background">
-              <tr className="text-muted-foreground">
-                <th className="text-left py-1 px-1">#</th>
-                <th className="text-left py-1 px-1">Month</th>
-                <th className="text-right py-1 px-1">Payment</th>
-                <th className="text-right py-1 px-1">Principal</th>
-                <th className="text-right py-1 px-1">Interest</th>
-                <th className="text-right py-1 px-1">Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {effective.schedule.map(r => (
-                <tr key={r.month} className={`border-t border-border/20 ${r.month === effective.monthsElapsed ? 'bg-primary/5' : ''}`}>
-                  <td className="py-1 px-1 text-muted-foreground">{r.month}</td>
-                  <td className="py-1 px-1 text-muted-foreground">{new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
-                  <td className="py-1 px-1 text-right">{formatCurrency(r.payment, false)}</td>
-                  <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal, false)}</td>
-                  <td className="py-1 px-1 text-right text-destructive">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
-                  <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance, false)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {showSchedule && (() => {
+        // The schedule the extras are in, when there are any. `scheduled` is what the table draws.
+        const shown = projWithExtras ?? effective;
+        return (
+          <div className="space-y-1.5">
+            {projWithExtras && (
+              // Never let a number move without saying why. The rows below are shorter and the
+              // balances fall faster than the loan's own terms, and without this line that reads
+              // as the app getting the arithmetic wrong.
+              <p className="text-[10px] text-muted-foreground">
+                Includes the automatic extra payments your ranked list sends this loan, so the
+                balances below are what you would actually owe.
+              </p>
+            )}
+            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+              <table className="w-full text-[10px]">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="text-muted-foreground">
+                    <th className="text-left py-1 px-1">#</th>
+                    <th className="text-left py-1 px-1">Month</th>
+                    <th className="text-right py-1 px-1">Payment</th>
+                    {projWithExtras && <th className="text-right py-1 px-1">Auto extra</th>}
+                    <th className="text-right py-1 px-1">Principal</th>
+                    <th className="text-right py-1 px-1">Interest</th>
+                    <th className="text-right py-1 px-1">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.schedule.map(r => (
+                    <tr key={r.month} className={`border-t border-border/20 ${r.month === shown.monthsElapsed ? 'bg-primary/5' : ''}`}>
+                      <td className="py-1 px-1 text-muted-foreground">{r.month}</td>
+                      <td className="py-1 px-1 text-muted-foreground">{new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
+                      <td className="py-1 px-1 text-right">{formatCurrency(r.payment, false)}</td>
+                      {projWithExtras && (
+                        // A dash, not $0: a month the waterfall did not reach and a month it sent
+                        // nothing are the same thing, and printing $0 down a whole column reads as
+                        // a broken feature rather than as "not this month".
+                        <td className="py-1 px-1 text-right text-primary">
+                          {r.autoExtra > 0 ? formatCurrency(r.autoExtra, false) : '—'}
+                        </td>
+                      )}
+                      <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal, false)}</td>
+                      <td className="py-1 px-1 text-right text-destructive">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
+                      <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance, false)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -29,6 +29,16 @@ export interface LoanInput {
    * instead, which is taking information away. Undefined/null means "no reading": amortize from
    * `loanAmount` exactly as before. */
   currentBalance?: number | null;
+  /**
+   * The RANKED automatic extra payments this loan is projected to receive, keyed by CALENDAR month
+   * (`"YYYY-MM"`) to dollars.
+   *
+   * ⚠️ A MAP AND NOT AN ARRAY, and the reason is that the two things being joined are indexed
+   * differently: this schedule's rows are dated from `paymentStartDate` (row 1 is the first
+   * payment, whenever that was), while the app's ranked extras are indexed from TODAY. Position
+   * cannot line those up — only a date can. Omitted ⇒ this is the schedule it always was.
+   */
+  autoExtraByMonth?: Record<string, number>;
 }
 
 export interface LoanMonthRow {
@@ -41,6 +51,9 @@ export interface LoanMonthRow {
   endBalance: number;
   deferred: boolean;
   lumpSum: number;
+  /** The RANKED automatic extra applied in this row, from `LoanInput.autoExtraByMonth`. Always a
+   *  number, 0 when none — a column that renders `undefined` reads as broken rather than as zero. */
+  autoExtra: number;
 }
 
 export interface LoanProjection {
@@ -79,7 +92,7 @@ export function calculateScheduledPayment(loanAmount: number, apr: number, termM
 }
 
 export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanProjection {
-  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments, currentBalance } = input;
+  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments, currentBalance, autoExtraByMonth } = input;
   const r = apr / 100 / 12;
   const scheduled = calculateScheduledPayment(loanAmount, apr, termMonths);
   const effectivePmt = actualMonthlyPayment > 0 ? actualMonthlyPayment : scheduled;
@@ -116,6 +129,8 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
     const lumpSumThisMonth = (lumpSumPayments ?? [])
       .filter(ls => ls.date.substring(0, 7) === rowMonth)
       .reduce((s, ls) => s + ls.amount, 0);
+    // ...and from the ranked waterfall, if this loan is one of the things it feeds.
+    const autoExtraThisMonth = (autoExtraByMonth ?? {})[rowMonth] ?? 0;
 
     let payment = effectivePmt;
     const maxPmt = balance + interest;
@@ -123,7 +138,11 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
 
     // Lump sum is additional principal; cap so balance never goes below 0
     const lumpSum = Math.round(Math.min(lumpSumThisMonth, Math.max(0, maxPmt - payment)) * 100) / 100;
-    const totalPayment = Math.round((payment + lumpSum) * 100) / 100;
+    // The ranked extra takes what is left AFTER both the payment and the lump sum, for the same
+    // reason the lump sum is capped: three sources of principal against one balance, and any of
+    // them alone could overshoot it.
+    const autoExtra = Math.round(Math.min(autoExtraThisMonth, Math.max(0, maxPmt - payment - lumpSum)) * 100) / 100;
+    const totalPayment = Math.round((payment + lumpSum + autoExtra) * 100) / 100;
 
     const principal = Math.round((totalPayment - interest) * 100) / 100;
     if (principal < 0) {
@@ -134,7 +153,7 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
 
     const endBalance = Math.max(0, Math.round((balance - principal) * 100) / 100);
 
-    schedule.push({ month, date: rowDate, startBalance: balance, interest, payment: totalPayment, principal, endBalance, deferred, lumpSum });
+    schedule.push({ month, date: rowDate, startBalance: balance, interest, payment: totalPayment, principal, endBalance, deferred, lumpSum, autoExtra });
     balance = endBalance;
   }
 
