@@ -1,5 +1,60 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36c — **`ff451b68`. tsc 0, 289 files / 3049 tests, eslint
+> clean. 30 commits unpushed.** Session 36b's A + B + C are SHIPPED and
+> LIVE-VERIFIED on his own data. Manager built it; no executor spawned.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **A. The loan half of Debt Payments reaches the page.**
+>   `liabilityPaymentRules` (BudgetControl.tsx) synthesises a row per vehicle
+>   loan (`loan:${carFundId}`) and per non-CC liability (`liab:${accountId}`),
+>   folded through the SAME `manualNames` dedupe as the card rows. A
+>   `paidByExpenseRule` liability is skipped (already under Bills).
+>   `debtPaymentTxns` untouched — the engine's floor already holds the loan.
+> - **B. The Remaining Cash drawer quotes `buildMonth0Snapshot`** instead of its
+>   own second derivation, so the $0 comes with its reason instead of one
+>   $3,956 lump. The old lump line is the fallback when `month0` is null.
+> - **C.** `src/pages/__tests__/BudgetControl.liabilityDebtRows.test.tsx`, 4
+>   tests: loan listed + counted, `paidByExpenseRule` produces no row, manual
+>   rule not duplicated.
+>
+> ⚠️ **LIVE, ON HIS DATA, MEASURED:** Debt Payments tile **$0 → $423**, tab
+> **"Debt (2)" → "Debt (3)"** listing "2004 Chevorlet C5 Payment $423/mo", donut
+> **Debt 0% → 9%**. Drawer now reads: Balance 2,765 + Income 1,949 − Bills 50 −
+> Payment plans 24 − Savings goals 510 − Vehicle insurance 173 = **Projected
+> remaining 3,956** − Cash floor 2,294 − **Held for Prime Visa's $2,845
+> statement, due the 7th (saving ahead for September 2026) 1,660** − surplus 2 =
+> **Available to deploy $0**. The two CARD rows stay $0 and that is correct.
+> ⚠️ Measured `chain.carLoanPayment: 0` and `otherDebtPayment: 0` for month 0 —
+> his loan's 7th is behind us — so the drawer has no auto-loan row this month
+> and Remaining Cash is unchanged by the new rows. **That gap is by design**:
+> the TILE states the month's planned cost, the DRAWER states cash still to
+> move. Do not "fix" one to match the other.
+>
+> ⬜ **LEFT UNDONE, deliberately:** MONTHLY SPEND / ANNUAL SPEND are still
+> `fixed + variable` only and so still exclude every debt payment and transfer.
+> That is the tiles' existing definition ("planned, from rules"), not a bug this
+> slice introduced — changing it is a product call, so it is queue item 2 now.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. "Next upcoming extra" row on the Transfers tab ("next: $168 in Aug 2027")
+>    instead of silence in a month with no extra.
+> 2. **Product call:** should MONTHLY/ANNUAL SPEND include debt payments and
+>    transfers? Today they are fixed+variable only, so his $423 loan and $877 of
+>    transfers are outside "monthly spend".
+> 3. `SavingsGoals.tsx` ~:329 `toGrowthGoal`'s bare `extraByGoal?.get(g.id)` —
+>    same staged-goal blind spot `autoExtraForGoalAtMonth` fixed elsewhere.
+> 4. `vehicle-loan-engine.ts:110/:166` `Math.max(0, …)` a month early for a loan
+>    whose FIRST payment is in the future. Its own slice.
+> 5. Charts for student loans / mortgage / other debts.
+> 6. Generalise `levelMonthlyToDate` to any dated target.
+> 7. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 8. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 9. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 10. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+
 > ▶ 2026-08-27 SESSION 36b — **NO CODE SHIPPED. Diagnosis only, and it is
 > COMPLETE and MEASURED LIVE on his own data.** Queue item 1's two "suspicious"
 > numbers are now explained, one is a REAL bug with a written fix, the other is
