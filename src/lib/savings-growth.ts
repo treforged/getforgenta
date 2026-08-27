@@ -238,6 +238,13 @@ export function buildSavingsGrowthData(
  * Months from now until the goal first reaches `targetAmount`, using the exact
  * same accrual as the chart (so interest and lump sums both count). Returns 0 if
  * already there, or null if it never gets there inside `maxMonths`.
+ *
+ * ⚠️ WITHDRAWALS ARE DELIBERATELY IGNORED HERE, and the first cut of the spend-down feature got
+ * this wrong within the hour. A goal is COMPLETE when it first reaches its target — spending the
+ * money afterwards is the goal succeeding, not the goal un-completing. Counting the outflow made
+ * Tre's move fund read "Est. completion Jul 2028": it reached $5,730 in Jul 2027, spent it that
+ * same month, and then had to save the whole thing over again to "complete". It also pushed the
+ * contribution cutoff a year out, so the chart kept contributing to a goal that was already done.
  */
 export function estimateGoalCompletionMonths(
   goal: GrowthGoalInput,
@@ -247,7 +254,7 @@ export function estimateGoalCompletionMonths(
   const target = Number(targetAmount) || 0;
   const today = opts.today ?? new Date();
   const maxMonths = opts.maxMonths ?? MAX_COMPLETION_MONTHS;
-  const s = initState(goal, today.getFullYear(), today.getMonth(), maxMonths);
+  const s = initState({ ...goal, withdrawals: [] }, today.getFullYear(), today.getMonth(), maxMonths);
 
   if (s.balance >= target) return 0;
   // Nothing going in and nothing accruing: it will never get there.

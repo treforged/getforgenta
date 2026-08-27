@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import {
   goalStages, goalWithdrawals, goalSavedIncludingSpent, type RankableGoal,
 } from '../ranked-extra-payment-targets';
-import { buildSavingsGrowthData } from '../savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths } from '../savings-growth';
 
 const MONTHLY = 1_000;
 
@@ -121,5 +121,44 @@ describe('buildSavingsGrowthData — the line goes DOWN when the money is spent'
     + 'rule the lump sums use', () => {
     const past = run([{ date: '2026-08-01', amount: 5_000 }]).rows.map(r => r.s0);
     expect(past).toEqual(run([]).rows.map(r => r.s0));
+  });
+});
+
+// ── A SPEND IS NOT AN UN-COMPLETION ──────────────────────────────────────────
+//
+// The first cut of this feature got it wrong within the hour, on Tre's own data: his move fund
+// read "Est. completion Jul 2028". It reached $5,730 in Jul 2027, spent it that same month, and
+// then had to save the whole amount AGAIN before `estimateGoalCompletionMonths` would call it
+// done — which also pushed the chart's contribution cutoff a year out, so it kept contributing to
+// a goal that was already achieved.
+
+describe('estimateGoalCompletionMonths ignores withdrawals', () => {
+  const TODAY = new Date('2026-08-01T12:00:00');
+  const base = {
+    id: 'g-1', name: 'Move fund', currentAmount: 0, monthlyContribution: 1_000,
+    annualApyPercent: 0, contributionStartDate: null, lumpSums: [],
+  };
+
+  it('reports the month the target is first REACHED, not the month it is re-reached after the '
+    + 'money has been spent', () => {
+    const withSpend = estimateGoalCompletionMonths(
+      { ...base, withdrawals: [{ date: '2027-02-01', amount: 5_000 }] }, 5_000, { today: TODAY },
+    );
+    const withoutSpend = estimateGoalCompletionMonths(base, 5_000, { today: TODAY });
+    expect(withSpend).toBe(withoutSpend);
+    expect(withoutSpend).toBe(5);
+  });
+
+  it('is identical with a real spend dated the month the goal completes', () => {
+    // $1,000/mo hits $5,000 at month 5; the spend lands the same month.
+    const spendMonth = { ...base, withdrawals: [{ date: '2027-01-05', amount: 5_000 }] };
+    expect(estimateGoalCompletionMonths(spendMonth, 5_000, { today: TODAY })).toBe(5);
+  });
+
+  it('still returns null for a goal nothing is going into, spend or no spend', () => {
+    expect(estimateGoalCompletionMonths(
+      { ...base, monthlyContribution: 0, withdrawals: [{ date: '2027-01-05', amount: 100 }] },
+      5_000, { today: TODAY },
+    )).toBeNull();
   });
 });
