@@ -1,5 +1,111 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36b — **NO CODE SHIPPED. Diagnosis only, and it is
+> COMPLETE and MEASURED LIVE on his own data.** Queue item 1's two "suspicious"
+> numbers are now explained, one is a REAL bug with a written fix, the other is
+> CORRECT. Context gate fired at 177k before the edits; everything below is
+> ready to type. Head is still `f539f253`, 29 commits unpushed.
+>
+> ═══ ⛔ VERDICT ON THE TWO $0s (live, /transactions?tab=budget, 2026-08-27) ═══
+> Screen reads: MONTHLY INCOME $4,474 · FIXED $2,433 · VARIABLE $515 ·
+> **DEBT PAYMENTS $0** · TRANSFERS $877 · MONTHLY SPEND $2,948 "planned (from
+> rules)" · **REMAINING CASH $0** · donut Fixed 54% / Variable 12% / **Debt 0%**
+> / Transfers 20% / Remaining 15% · tab counts "Debt (2)".
+>
+> **1. REMAINING CASH $0 IS CORRECT. Do not "fix" the number.** Straight from
+> `window.__convergenceDebug.convergedProjection.month0`:
+> `chain` = fundingBalance 2,764.62 + income 1,948.89 − expenses 50 −
+> planExpenses 24.05 − vehicleInsurance 173.23 − goalContributions 510 =
+> **cashPreDebt 3,956.23**; then `m0SafeFloor 2,294` and `holdback 1,660` whose
+> `holdbackEvent` is **"Prime Visa's $2,845 statement, due the 7th" (September
+> 2026)** ⇒ `safeToPayTotal` **0**. Every spare dollar is saving ahead for next
+> month's statement. `remainingCash = debtSafeToPay` (BudgetControl.tsx:775), so
+> the tile is quoting the engine faithfully. **The defect is the DRAWER**, which
+> lumps all of it into one line: "Bills, cash floor, savings and vehicle
+> reserves held back by the Debt Payoff engine" (`openCashCalc`, ~:978).
+>
+> **2. DEBT PAYMENTS $0 IS HALF CORRECT AND HALF A REAL BUG.**
+> - The CARD half is genuinely $0 today and that is right: `perCardAdjusted` is
+>   `[Prime Visa 0, Discover 0, Venture X 0, Apple 0]` because it is the 27th,
+>   both due days (Prime 7th, Discover 1st) are behind us and the month-0
+>   minimums are settled (`m0MinDueSettled`, the Q11 rule). Month 1 pays Prime
+>   $829 / Discover $150, so the plan is fine.
+> - ⛔ **The LOAN half never reaches this page at all, in ANY month.**
+>   `debtPaymentRules` (BudgetControl.tsx:543) maps `debtRecommendations` ONLY —
+>   `useMonth0DebtBreakdown` also returns `loanRecommendations` and
+>   `otherDebtRecommendations` and both are DROPPED on the floor. Verified from
+>   `engineInputs.rules`: he has **31 rules, ZERO of `rule_type:'debt_payment'`,
+>   and none named for a car/loan**, so his **C5 auto loan ($16,254 balance,
+>   ~$422.89/mo)** is missing from the Debt Payments tile, the tab total, the
+>   donut, MONTHLY SPEND ($2,948 = fixed+variable only) and ANNUAL SPEND
+>   ($35,377, understated ~$5,075/yr). This is the "donut says Debt 0% while I
+>   have real card + loan payments" complaint, exactly.
+>
+> ═══ ⬜ THE FIX, WRITTEN OUT — just type it (BudgetControl.tsx only) ═══
+> **A. Loan + other-debt rows join the Debt Payments tile.**
+> 1. `:541` widen the destructure to also take `loanRecommendations` and
+>    `otherDebtRecommendations`.
+> 2. New `liabilityPaymentRules` memo beside `debtPaymentRules`, same synthetic
+>    `BudgetRule` shape (`isDebtSync: true`, `category: 'Debt Payments'`,
+>    `rule_type: 'debt_payment'`, `frequency: 'monthly'`, `due_day: row.dueDay`):
+>    ids `loan:${l.carFundId}` / `liab:${o.accountId}`, amount = `row.payment`
+>    (THIS month's scheduled payment, paid or not — every other tile in that KPI
+>    row shows the full month's planned cost, which is the whole point).
+>    ⚠️ **SKIP `otherDebtRecommendations` rows with `paidByExpenseRule`** — that
+>    liability is already listed and counted under Bills, and a second row would
+>    double it on screen AND in the total. The field exists for exactly this.
+>    ⚠️ Both builders already drop a debt whose final payment is behind us, so
+>    no "$0 payment on a dead loan" row can appear.
+> 3. `debtRules` (:621) folds `[...debtPaymentRules, ...liabilityPaymentRules]`
+>    through the SAME `manualNames` filter — that name dedupe is the only guard
+>    against a user's own "Car Payment" rule doubling with the synthetic one
+>    (LoanRecRow has no `paidByExpenseRule` equivalent). Say so in the comment.
+> 4. Footnote at :1773 currently gates on `debtPaymentRules.length > 0` and says
+>    "from payoff … avalanche recommendations" — widen the gate and the wording
+>    to name the Vehicles page and liability accounts too.
+> ⚠️ **DO NOT touch `debtPaymentTxns` (:563).** It feeds Remaining Cash On Hand
+> via `remainingTxDebt`, and the engine's floor ALREADY holds the loan payment
+> (`chain.carLoanPayment`); adding loans there double-counts.
+>
+> **B. The Remaining Cash drawer explains the $0 instead of lumping it.**
+> `buildMonth0Snapshot(month0)` (`src/lib/month0-budget-snapshot.ts`) ALREADY
+> renders this exact chain as a signed row list — balance / income still coming
+> / bills still coming / payment plans / savings goals / extra to goals / auto
+> loan / vehicle insurance / other loans / = Projected remaining / − Cash floor
+> / − Safety cushion / **− "Held for Prime Visa's $2,845 statement, due the 7th"
+> (note: "Saving ahead for September 2026")** / = Available to deploy. The
+> Dashboard already shows it (`MonthlyBudgetSnapshot`). So `openCashCalc` maps
+> those rows to drawer lines (`sign` → `op`, ' ' → undefined) and Budget Control
+> stops having its own second derivation. **This IS queue item 1's "de-duplicate
+> vs the Dashboard — move, don't delete", done the right way round.**
+> Needs `cardProjection` added to the `useCardProjectionContext()` destructure
+> at :633; keep the current lump line as the fallback when `month0` is null
+> (the existing page tests mock the context WITHOUT `cardProjection`).
+>
+> **C. Test.** Copy the harness in
+> `src/pages/__tests__/BudgetControl.goalTransfers.test.tsx` verbatim — it
+> already mocks `useMonth0DebtBreakdown` (returning `{recommendations: [],
+> totalAvailableCash: 0}`, so widen that mock). Pin: (1) a loan row is listed
+> and counted in the tab total; (2) a `paidByExpenseRule` liability produces NO
+> row; (3) a manual rule of the same name is not duplicated.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER (unchanged apart from item 1's detail) ═══
+> 1. The A/B/C above.
+> 2. "Next upcoming extra" row on the Transfers tab ("next: $168 in Aug 2027")
+>    instead of silence in a month with no extra.
+> 3. `SavingsGoals.tsx` ~:329 `toGrowthGoal`'s bare `extraByGoal?.get(g.id)` —
+>    same staged-goal blind spot `autoExtraForGoalAtMonth` fixed elsewhere.
+> 4. `vehicle-loan-engine.ts:110/:166` `Math.max(0, …)` a month early for a loan
+>    whose FIRST payment is in the future. Its own slice.
+> 5. Charts for student loans / mortgage / other debts.
+> 6. Generalise `levelMonthlyToDate` to any dated target.
+> 7. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 8. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 9. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 10. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+
 > ▶ 2026-08-27 SESSION 36a — **`4920e5c0`. tsc 0, 288 files / 3045 tests, eslint
 > clean. 29 commits unpushed.** Queue item 1 (Transfers tab) is SHIPPED and
 > LIVE-VERIFIED on his own data. No executor spawned; manager built it.
