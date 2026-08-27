@@ -420,7 +420,22 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Monthly Pmt</p><p className="text-xs font-semibold text-primary">{formatCurrency(proj.effectivePayment, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff</p><p className="text-xs font-semibold">{payoffFmt}</p>{extrasPayoff && <p className="text-[10px] text-primary font-medium">{extrasPayoff} with extra payments</p>}</div>
+                    <div>
+                      {/* ⚠️ THE EXTRA-AWARE DATE LEADS (Tre, 2026-08-27: "the payoff date with extra
+                          payments should be the default big number shown. the original without
+                          should be small below it"). It is the date the money he has actually
+                          ranked will produce; the scheduled one is what would happen if he stopped,
+                          and leading with that made the plan he set up read as the footnote. */}
+                      <p className="text-xs text-muted-foreground">Payoff</p>
+                      {extrasPayoff ? (
+                        <>
+                          <p className="text-xs font-semibold text-primary">{extrasPayoff}</p>
+                          <p className="text-[10px] text-muted-foreground">{payoffFmt} without extra payments</p>
+                        </>
+                      ) : (
+                        <p className="text-xs font-semibold">{payoffFmt}</p>
+                      )}
+                    </div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
                   </div>
                   <Link to="/vehicles" className="mt-3 text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline block">
@@ -545,7 +560,20 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>{extrasMonths != null && <p className="text-[10px] text-primary font-medium">{extrasMonths} mo with extra payments</p>}</div>
+                    <div>
+                      {/* Same inversion as the vehicle card above, and for the same reason. */}
+                      <p className="text-xs text-muted-foreground">Payoff In</p>
+                      {extrasMonths != null ? (
+                        <>
+                          <p className="text-xs font-semibold text-primary">{extrasMonths} months</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {months === Infinity ? '—' : `${months} mo`} without extra payments
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
+                      )}
+                    </div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
@@ -637,7 +665,20 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Monthly Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>{extrasMonths != null && <p className="text-[10px] text-primary font-medium">{extrasMonths} mo with extra payments</p>}</div>
+                    <div>
+                      {/* Same inversion as the vehicle card above, and for the same reason. */}
+                      <p className="text-xs text-muted-foreground">Payoff In</p>
+                      {extrasMonths != null ? (
+                        <>
+                          <p className="text-xs font-semibold text-primary">{extrasMonths} months</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {months === Infinity ? '—' : `${months} mo`} without extra payments
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
+                      )}
+                    </div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
@@ -690,7 +731,20 @@ export default function DebtPayoff() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>{extrasMonths != null && <p className="text-[10px] text-primary font-medium">{extrasMonths} mo with extra payments</p>}</div>
+                    <div>
+                      {/* Same inversion as the vehicle card above, and for the same reason. */}
+                      <p className="text-xs text-muted-foreground">Payoff In</p>
+                      {extrasMonths != null ? (
+                        <>
+                          <p className="text-xs font-semibold text-primary">{extrasMonths} months</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {months === Infinity ? '—' : `${months} mo`} without extra payments
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
+                      )}
+                    </div>
                     <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>

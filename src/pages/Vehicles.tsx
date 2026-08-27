@@ -723,8 +723,19 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
           <p className="text-xs font-semibold text-primary">{formatCurrency(effective.effectivePayment, false)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
+          {/* ⚠️ THE EXTRA-AWARE DATE LEADS (Tre, 2026-08-27: "the payoff date with extra payments
+              should be the default big number shown. the original without should be small below
+              it"). This stat used to read Jun 2030 while the chart beneath it drew a line hitting
+              zero in 2029 — the plan he actually set up was the small print on his own card. */}
           <p className="text-[10px] text-muted-foreground">Payoff Date</p>
-          <p className="text-xs font-semibold">{payoffDateFmt}</p>
+          {autoPayoffLabel ? (
+            <>
+              <p className="text-xs font-semibold text-primary">{autoPayoffLabel}</p>
+              <p className="text-[10px] text-muted-foreground">{payoffDateFmt} without extra</p>
+            </>
+          ) : (
+            <p className="text-xs font-semibold">{payoffDateFmt}</p>
+          )}
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Interest Paid</p>
