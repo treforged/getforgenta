@@ -78,7 +78,30 @@ export default function DebtPayoff() {
     !studentAccountNames.has(d.name.toLowerCase())
   ) ?? [], [debts, ccAccountNames, mortgageAccountNames, studentAccountNames]);
 
-  const totalBalance = otherDebts.reduce((s, d) => s + Number(d.balance), 0);
+  // The `debts` row and the ACCOUNT are two descriptions of one liability, paired by name. This is
+  // the pairing, in one place, because two readers below need it for different reasons.
+  const pairedLiabilityAccount = (name: string) => accounts?.find(a =>
+    a.active && NON_CC_LIABILITY_TYPES.includes(a.account_type)
+    && a.name.trim().toLowerCase() === name.trim().toLowerCase());
+
+  /**
+   * What this liability actually owes.
+   *
+   * ⚠️ THE ACCOUNT WINS WHENEVER THERE IS ONE, and the `debts` row is only the fallback. That is
+   * Tre's own rule (2026-08-18, "if an account is connected the manual amount should be
+   * disregarded") and, more importantly, it is what the ENGINE already does:
+   * `listDebtServiceLiabilities` reads `Number(a.balance)` off the account. Until this landed these
+   * tabs read the hand-typed `debts.balance` instead, so a connected student loan or mortgage
+   * showed a figure that stopped moving the day it was typed while the Forecast used the live one -
+   * and "Payoff In" and "Total Interest" here were computed from the stale number, which is how a
+   * wrong payoff date reaches a customer who did everything right.
+   */
+  const liabilityBalance = (d: { name: string; balance: unknown }): number => {
+    const paired = pairedLiabilityAccount(d.name);
+    return paired ? Math.max(0, Number(paired.balance) || 0) : Number(d.balance);
+  };
+
+  const totalBalance = otherDebts.reduce((s, d) => s + liabilityBalance(d), 0);
   const totalMinPayment = otherDebts.reduce((s, d) => s + Number(d.min_payment), 0);
   const totalTargetPayment = otherDebts.reduce((s, d) => s + Number(d.target_payment), 0);
 
@@ -123,15 +146,16 @@ export default function DebtPayoff() {
   // waterfall actually paid it, and the payoff beats the scheduled readout. The engine's
   // reducers use Math.max(0, before - amount) - exact zero, no dust tolerance to invent here.
   const withExtrasPayoffMonths = (d: { name: string; balance: unknown; apr: unknown; target_payment: unknown }): number | null => {
-    const paired = accounts?.find(a =>
-      a.active && NON_CC_LIABILITY_TYPES.includes(a.account_type) && a.name.trim().toLowerCase() === d.name.trim().toLowerCase());
+    const paired = pairedLiabilityAccount(d.name);
     if (paired?.surplus_sort_order == null) return null;
     if (!autoExtraTargets.has(paired.id)) return null;
     const balances = projections.nonCCLiabilityBalancesById.get(paired.id);
     if (!balances) return null;
     const firstZero = balances.findIndex(b => b <= 0);
     if (firstZero <= 0) return null;
-    const scheduled = calculatePayoffMonths(Number(d.balance), Number(d.apr), Number(d.target_payment));
+    // The SAME balance the row displays, or the comparison that decides whether to show the
+    // "with extra payments" line would be against a number the user cannot see.
+    const scheduled = calculatePayoffMonths(liabilityBalance(d), Number(d.apr), Number(d.target_payment));
     return firstZero < scheduled ? firstZero : null;
   };
 
@@ -492,7 +516,7 @@ export default function DebtPayoff() {
           </div>
           <div className="space-y-3">
             {otherDebts.map(d => {
-              const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
+              const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
               const months = calculatePayoffMonths(bal, apr, tp);
               const interest = calculateTotalInterest(bal, apr, tp);
               const extrasMonths = withExtrasPayoffMonths(d);
@@ -574,7 +598,7 @@ export default function DebtPayoff() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
-                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(mortgageDebts.reduce((s, d) => s + Number(d.balance), 0), false)}</p>
+                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(mortgageDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
               </div>
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
@@ -584,7 +608,7 @@ export default function DebtPayoff() {
           )}
           <div className="space-y-3">
             {mortgageDebts.map(d => {
-              const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
+              const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
               const months = calculatePayoffMonths(bal, apr, tp);
               const interest = calculateTotalInterest(bal, apr, tp);
               const extrasMonths = withExtrasPayoffMonths(d);
@@ -627,7 +651,7 @@ export default function DebtPayoff() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
-                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(studentDebts.reduce((s, d) => s + Number(d.balance), 0), false)}</p>
+                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(studentDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
               </div>
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
@@ -637,7 +661,7 @@ export default function DebtPayoff() {
           )}
           <div className="space-y-3">
             {studentDebts.map(d => {
-              const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
+              const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
               const months = calculatePayoffMonths(bal, apr, tp);
               const interest = calculateTotalInterest(bal, apr, tp);
               const extrasMonths = withExtrasPayoffMonths(d);
