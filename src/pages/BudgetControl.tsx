@@ -26,6 +26,7 @@ import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { buildAutoExtraByTarget, autoExtraForGoalAtMonth } from '@/lib/auto-extra-projection';
+import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
@@ -538,7 +539,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   // Debt Payoff and Forecast read, replacing this page's own legacy engine pass. That second pass
   // computed its own cash floor, save-up reserves and income timing, which is why Budget's
   // "matches Debt tab Safe to Pay" label was showing a different number than the Debt tab.
-  const { recommendations: debtRecommendations, totalAvailableCash: debtSafeToPay } = useMonth0DebtBreakdown();
+  const {
+    recommendations: debtRecommendations,
+    loanRecommendations,
+    otherDebtRecommendations,
+    totalAvailableCash: debtSafeToPay,
+  } = useMonth0DebtBreakdown();
 
   const debtPaymentRules = useMemo(() =>
     debtRecommendations.map(r => ({
@@ -559,7 +565,67 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     [debtRecommendations],
   );
 
+  /**
+   * The NON-CARD half of "Debt Payments": a vehicle loan from the Vehicles page, a student loan,
+   * a mortgage, a liability account paired to a `debts` row.
+   *
+   * `useMonth0DebtBreakdown` has always returned these two lists and this page dropped both on the
+   * floor, so Tre's auto loan (~$422.89/mo) was missing from the Debt Payments tile, the tab total
+   * and the allocation donut — which is why the donut read "Debt 0%" against real monthly debt.
+   * Measured live 2026-08-27: he has 31 recurring rules and NOT ONE of `rule_type: 'debt_payment'`,
+   * so nothing else on this page was covering the loan either.
+   *
+   * `row.payment` is THIS month's scheduled payment, listed whether or not it has already left the
+   * account — every other tile in that KPI row states the full month's planned cost, and a payment
+   * that vanished on the day it cleared would make the month look cheaper than it is.
+   *
+   * ⚠️ A liability with `paidByExpenseRule` is SKIPPED. The user's own expense rule of that name is
+   * already listed under Bills and already counted, so a second row would double the debt both on
+   * screen and in the total. That flag exists for exactly this decision.
+   *
+   * ⚠️ Both builders already drop a debt whose final payment is behind us, so no "$0 payment on a
+   * dead loan" row can reach this list.
+   */
+  const liabilityPaymentRules = useMemo((): BudgetRule[] => [
+    ...(loanRecommendations ?? []).map(l => ({
+      id: `loan:${l.carFundId}`,
+      name: `${l.name} Payment`,
+      amount: Math.round(l.payment * 100) / 100,
+      rule_type: 'debt_payment',
+      frequency: 'monthly',
+      due_day: l.dueDay,
+      due_month: null,
+      category: 'Debt Payments',
+      payment_source: null,
+      deposit_account: null,
+      notes: l.isFinalPayment ? 'From Vehicles. Final payment on this loan.' : 'From Vehicles. Auto loan payment.',
+      active: true,
+      isDebtSync: true,
+    })),
+    ...(otherDebtRecommendations ?? [])
+      .filter(o => !o.paidByExpenseRule)
+      .map(o => ({
+        id: `liab:${o.accountId}`,
+        name: `${o.name} Payment`,
+        amount: Math.round(o.payment * 100) / 100,
+        rule_type: 'debt_payment',
+        frequency: 'monthly',
+        due_day: o.dueDay,
+        due_month: null,
+        category: 'Debt Payments',
+        payment_source: null,
+        deposit_account: null,
+        notes: o.isFinalPayment ? 'From Accounts. Final payment on this debt.' : 'From Accounts. Scheduled payment on this debt.',
+        active: true,
+        isDebtSync: true,
+      })),
+  ], [loanRecommendations, otherDebtRecommendations]);
+
   // Inject debt payment transactions into the stream
+  // ⚠️ CARD ROWS ONLY, deliberately. This feeds Remaining Cash On Hand through `remainingTxDebt`,
+  // and the engine's cash floor ALREADY holds the loan payment (`chain.carLoanPayment`) and the
+  // other-debt payment (`chain.otherDebtPayment`). Adding `liabilityPaymentRules` here would
+  // subtract that money a second time.
   const debtPaymentTxns = useMemo(() => {
     const fundId = profile?.default_deposit_account ||
       accounts.find(a => a.account_type === 'checking' && a.active)?.id || null;
@@ -620,9 +686,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const manualDebtRules = useMemo(() => rules.filter(r => r.rule_type === 'debt_payment' || (r.rule_type === 'expense' && r.category === 'Debt Payments')), [rules]);
   const debtRules = useMemo((): BudgetRule[] => {
     const manualNames = new Set(manualDebtRules.map(r => r.name.toLowerCase()));
-    const uniqueDebtSync = debtPaymentRules.filter(d => !manualNames.has(d.name.toLowerCase()));
+    // The loan and liability rows go through the SAME name filter as the card rows, and for them it
+    // is the only guard there is: a card row can be matched to an account, but `LoanRecRow` has no
+    // `paidByExpenseRule` equivalent, so a user who typed their own "C5 Payment" rule would
+    // otherwise see the loan twice and pay it twice in the total.
+    const uniqueDebtSync = [...debtPaymentRules, ...liabilityPaymentRules]
+      .filter(d => !manualNames.has(d.name.toLowerCase()));
     return [...manualDebtRules, ...uniqueDebtSync];
-  }, [manualDebtRules, debtPaymentRules]);
+  }, [manualDebtRules, debtPaymentRules, liabilityPaymentRules]);
 
   /**
    * The ranked automatic extra the forecast already diverts to each goal, month by month, keyed by
@@ -630,7 +701,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
    * engine, so this re-keys rows the app is holding anyway rather than forecasting a second time.
    * Same call `SavingsGoals` makes, so both pages quote one number.
    */
-  const { projections } = useCardProjectionContext();
+  const { projections, cardProjection } = useCardProjectionContext();
   const autoExtraByGoal = useMemo(() => buildAutoExtraByTarget(projections.data ?? []), [projections]);
 
   /**
@@ -967,7 +1038,35 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   };
 
   // Calc detail openers
+  /**
+   * Remaining Cash IS the engine's `safeToPayTotal`, so its drawer now shows the engine's OWN chain
+   * term by term instead of this page's second derivation.
+   *
+   * The old drawer had three lines and the middle one lumped everything the engine held back into
+   * "Bills, cash floor, savings and vehicle reserves held back by the Debt Payoff engine". On Tre's
+   * live data 2026-08-27 that single line was $3,956 and the answer was $0, which reads as a broken
+   * tile — when the truth is specific and defensible: every spare dollar is being saved ahead for
+   * Prime Visa's $2,845 statement due on the 7th. `buildMonth0Snapshot` already renders exactly
+   * that chain for the Dashboard's Monthly Budget Snapshot, down to naming the holdback event, so
+   * this quotes it rather than growing a third version of the same arithmetic.
+   *
+   * The lump line survives as the fallback for when no converged month-0 exists (the projection is
+   * still running, or a test mounts this page without `cardProjection`) — a drawer that renders
+   * nothing would be worse than the coarse answer.
+   */
   const openCashCalc = () => {
+    const month0 = cardProjection?.month0;
+    if (month0) {
+      setCalcDrawer({
+        title: 'Remaining Cash',
+        lines: buildMonth0Snapshot(month0).rows.map(row => ({
+          label: row.note ? `${row.label} — ${row.note}` : row.label,
+          value: formatCurrency(row.value, false),
+          ...(row.sign === ' ' ? {} : { op: row.sign }),
+        })),
+      });
+      return;
+    }
     const now2 = new Date();
     const monthEndLabel = new Date(now2.getFullYear(), now2.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     setCalcDrawer({
@@ -1770,9 +1869,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             </div>
             {debtRules.length === 0 && <p className="text-sm text-muted-foreground">No debt payments. Add credit card accounts and visit Debt Payoff to generate recommendations.</p>}
             {debtRules.map(r => <RuleRow key={r.id} r={r} />)}
-            {debtPaymentRules.length > 0 && (
+            {(debtPaymentRules.length > 0 || liabilityPaymentRules.length > 0) && (
               <p className="text-[9px] text-muted-foreground pt-2 border-t border-border/30">
-                Items tagged "from payoff" are auto-synced from the Debt Payoff Planner's avalanche recommendations.
+                Items tagged "from payoff" are auto-synced: cards from the Debt Payoff Planner's recommendations,
+                vehicle loans from the Vehicles page, and other loans from their liability accounts.
               </p>
             )}
           </div>
