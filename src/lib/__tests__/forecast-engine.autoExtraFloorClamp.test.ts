@@ -185,6 +185,49 @@ describe('forecast-engine — the ranked reserve gives way before the month goes
     expect(opted.data[1].endingCash).toBeGreaterThanOrEqual(0);
   });
 
+  it('holds reserve back for a later month instead of draining to this month floor', () => {
+    // The invariant a discretionary reserve owes: it may never leave a month holding cash that
+    // cannot exist.
+    //
+    // ⚠️ HONEST SCOPE. This pins the CLAMP, not the LOOK-AHEAD half of it. Mutation-checked
+    // 2026-08-26: forcing `lookaheadEnd` to 0 in forecast-engine.ts leaves all of these passing,
+    // because this fixture has no future spike, so `requiredEndByMonth` never rises above the
+    // month's own floor and the two targets coincide. Pinning the look-ahead needs a fixture with a
+    // large one-time expense several months out, which `makeInputs` cannot express today
+    // (`oneTimeByMonth` is hard-coded empty). The look-ahead itself is currently evidenced only by
+    // the live 60-month check recorded on afbff446: Dec 2028's requiredEnd was 2883, the month was
+    // ending at 2011 because the ranked reserve took the difference, and Jan 2029 landed at 1246
+    // against a floor of 1955; after the fix none of the 60 months ends below its floor. Anyone
+    // extending `makeInputs` to take one-time expenses should come back and finish this.
+    //
+    // The planned payment is deliberately ZERO here. With a mandatory payment the account drains
+    // on its own and the month goes negative for a reason the clamp is not allowed to fix, which
+    // would make the first assertion fail for the wrong reason. Zero leaves the reserve as the only
+    // thing moving, which is exactly what is under test.
+    const g = goal({ id: 'g-look', target_amount: 50000, auto_extra: true, sort_order: 1 });
+
+    anchor();
+    const control = calculateForecast(makeInputs([g], [], 3000, 0));
+    anchor();
+    const opted = calculateForecast(
+      makeInputs([g], [{ id: 'g-look', kind: 'goal', amount: 2500 }], 3000, 0),
+    );
+
+    // THE INVARIANT: a discretionary reserve may never leave a month holding cash that cannot
+    // exist. This is the assertion the look-ahead earns.
+    for (const row of opted.data) expect(row.endingCash).toBeGreaterThanOrEqual(0);
+
+    // The clamp did not achieve that by simply refusing to reserve anything - month 0 is exempt
+    // and takes its full seeded amount, so the two runs must actually differ.
+    expect(control.data[0].endingCash - opted.data[0].endingCash).toBeGreaterThan(AUTO_EXTRA_CENT);
+
+    // And it never invents cash: the opted run can never end a month ABOVE the control, because a
+    // reserve only ever takes money out.
+    for (let m = 0; m < opted.data.length; m += 1) {
+      expect(opted.data[m].endingCash).toBeLessThanOrEqual(control.data[m].endingCash + AUTO_EXTRA_CENT);
+    }
+  });
+
   it('conserves the money when it clamps, month by month', () => {
     // Whatever the clamp decides, the cash that left checking and the savings that arrived have to
     // be the same dollars. A clamp that scaled the total without scaling the itemised parts would

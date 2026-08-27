@@ -537,6 +537,9 @@ export function planAutoExtraDeselect(
 export type SurplusRankWrites = {
   goals: {
     id: string; sort_order?: number; auto_extra?: boolean;
+    /** Emptied when `auto_extra` is switched ON, never otherwise. See
+     *  `planSurplusRankWrites`. */
+    lump_sum_payments?: [];
     /** Cleared to `false` alongside a manual `auto_extra` write — see `setSurplusRankAutoExtra`.
      *  Not yet in the generated `Update` type as of `20260826_auto_extra_auto_cleared.sql`
      *  (unapplied); the destructured `patch` this rides on is a variable, not a literal, so it
@@ -547,6 +550,9 @@ export type SurplusRankWrites = {
   }[];
   carFunds: {
     id: string; sort_order?: number; auto_extra?: boolean; auto_extra_auto_cleared?: boolean;
+    /** Emptied when `auto_extra` is switched ON, never otherwise. See
+     *  `planSurplusRankWrites`. */
+    lump_sum_payments?: [];
     surplus_share?: number | null;
   }[];
   /**
@@ -602,7 +608,18 @@ export function planSurplusRankWrites(
     }
     const patch: SurplusRankWrites['goals'][number] = { id: row.id };
     if (was.sortOrder !== row.sortOrder) patch.sort_order = row.sortOrder;
-    if (was.autoExtra !== row.autoExtra) patch.auto_extra = row.autoExtra;
+    if (was.autoExtra !== row.autoExtra) {
+      patch.auto_extra = row.autoExtra;
+      // ⚠️ TURNING IT ON CLEARS THE HAND-TYPED EXTRAS, and only that edge does.
+      // Automatic and manual extra against ONE target are two answers to the same
+      // question, and leaving both standing funds it twice (Tre, 2026-08-26: "if
+      // auto extra payments are enabled, dont allow manual entry and remove
+      // current manual payments"). Turning the switch OFF deliberately does
+      // NOTHING here: the user is most likely switching to manual precisely so
+      // they can type their own, and wiping the list at that moment would delete
+      // what they came to write.
+      if (!was.autoExtra && row.autoExtra) patch.lump_sum_payments = [];
+    }
     // `setSurplusRankAutoExtra` always resets `autoExtraAutoCleared` to `false` on a manual
     // toggle, so this only ever fires a real write when the row's CURRENT value is `true` --
     // i.e. exactly the row a manual re-select is correcting the provenance of. A row that was
@@ -610,7 +627,8 @@ export function planSurplusRankWrites(
     if (was.autoExtraAutoCleared !== row.autoExtraAutoCleared) patch.auto_extra_auto_cleared = row.autoExtraAutoCleared;
     if (was.share !== row.share) patch.surplus_share = row.share;
     if (patch.sort_order === undefined && patch.auto_extra === undefined
-      && patch.auto_extra_auto_cleared === undefined && patch.surplus_share === undefined) continue;
+      && patch.auto_extra_auto_cleared === undefined && patch.surplus_share === undefined
+      && patch.lump_sum_payments === undefined) continue;
     // A loan row and a saving row are the same `car_funds` row wearing different hats — both write
     // to `car_funds`, which is why they can share one `sort_order` without ever colliding.
     (row.kind === 'goal' ? writes.goals : writes.carFunds).push(patch);

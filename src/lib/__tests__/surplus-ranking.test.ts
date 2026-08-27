@@ -228,7 +228,10 @@ describe('planSurplusRankWrites', () => {
   it('carries an auto_extra toggle without touching the ranks', () => {
     const after = setSurplusRankAutoExtra(before, 'g1', true);
     const writes = planSurplusRankWrites(before, after);
-    expect(writes.goals).toEqual([{ id: 'g1', auto_extra: true }]);
+    // `lump_sum_payments: []` rides along on the turning-ON edge from 2026-08-26: automatic and
+    // manual extra against one target are two answers to the same question, so opting in clears the
+    // hand-typed ones (Tre's instruction, and he confirmed the removal is intended).
+    expect(writes.goals).toEqual([{ id: 'g1', auto_extra: true, lump_sum_payments: [] }]);
     expect(writes.carFunds).toEqual([]);
     expect(writes.cardsSortOrder).toBeNull();
   });
@@ -247,14 +250,19 @@ describe('planSurplusRankWrites', () => {
     });
     const reselected = setSurplusRankAutoExtra(waterfallCleared, 'g1', true);
     const writes = planSurplusRankWrites(waterfallCleared, reselected);
-    expect(writes.goals).toEqual([{ id: 'g1', auto_extra: true, auto_extra_auto_cleared: false }]);
-    // No other row moved, and nothing here is an amount — the write can only ever change WHICH
-    // switch is on, never a dollar figure. `auto_extra_auto_cleared` is presentational provenance
-    // for the same reason `auto_extra` itself carries no money: see planAutoExtraDeselect's own
-    // "THIS CAN NEVER MOVE A DOLLAR" note, which this write shares.
+    expect(writes.goals).toEqual([
+      { id: 'g1', auto_extra: true, auto_extra_auto_cleared: false, lump_sum_payments: [] },
+    ]);
+    // ⚠️ THE OLD INVARIANT HERE WAS "nothing in this write is an amount", and it was deliberate.
+    // It changed on 2026-08-26 on Tre's explicit instruction: turning auto extra ON now also clears
+    // the target's hand-typed lump sums, because automatic and manual extra against one target
+    // fund it twice. That is still not a dollar FIGURE moving, but it does remove planned money,
+    // so the key-set assertion below is kept precisely to make any FURTHER field added to this
+    // path a deliberate decision rather than an accident.
     expect(writes.carFunds).toEqual([]);
     expect(writes.cardsSortOrder).toBeNull();
-    expect(Object.keys(writes.goals[0]).sort()).toEqual(['auto_extra', 'auto_extra_auto_cleared', 'id'].sort());
+    expect(Object.keys(writes.goals[0]).sort())
+      .toEqual(['auto_extra', 'auto_extra_auto_cleared', 'id', 'lump_sum_payments'].sort());
   });
 
   it('does NOT re-clear the flag on a no-op resend of the same auto_extra value', () => {

@@ -205,6 +205,7 @@ function LumpSumPanel({
   onReplace,
   label = 'Planned Extra Payments',
   liquidCash,
+  autoExtraOn,
 }: {
   schedule: { date: string; startBalance: number }[];
   lumpSums: LumpSumPayment[];
@@ -217,6 +218,10 @@ function LumpSumPanel({
   onReplace: (oldIds: string[], entries: { date: string; amount: number }[]) => void;
   label?: string;
   liquidCash?: number;
+  /** The ranked auto-extra SWITCH for this target, not whether the waterfall currently
+   *  reaches it. A user who opted in should not be typing manual extras even in a month
+   *  the surplus never arrives, because the two are two answers to the same question. */
+  autoExtraOn?: boolean;
 }) {
   const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; ids: string[]; date: string; amount: string; count: string }>(null);
 
@@ -235,12 +240,23 @@ function LumpSumPanel({
     <div className="space-y-2 border-t border-border/30 pt-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">{label}</span>
-        <button onClick={() => setModal({ mode: 'add' })} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
+        <button
+          onClick={() => setModal({ mode: 'add' })}
+          disabled={!!autoExtraOn}
+          className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <Plus size={10} /> Add
         </button>
       </div>
 
-      {!hasLumps && (
+      {autoExtraOn && (
+        <p className="text-[10px] text-muted-foreground">
+          Extra payments here are handled automatically from your left-over cash, so manual ones are
+          turned off. Change that under "Where the extra money goes".
+        </p>
+      )}
+
+      {!autoExtraOn && !hasLumps && (
         <p className="text-[10px] text-muted-foreground">No extra payments planned. Add one to see how it shortens your payoff.</p>
       )}
 
@@ -485,6 +501,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
           saved impact figures yet. Without the fallbacks here, the whole panel (including "Add")
           used to disappear entirely until those fields were filled in. */}
       <LumpSumPanel
+        autoExtraOn={cf.auto_extra === true}
         schedule={projectedWithLumps?.schedule ?? projectedBase?.schedule ?? []}
         lumpSums={lumpSums}
         baseTotalInterest={projectedBase?.totalInterest ?? 0}
@@ -727,6 +744,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
       )}
 
       <LumpSumPanel
+        autoExtraOn={cf.auto_extra === true}
         schedule={projWithLumps?.schedule ?? proj.schedule}
         lumpSums={lumpSums}
         baseTotalInterest={proj.totalInterest}
