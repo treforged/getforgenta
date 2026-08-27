@@ -11,22 +11,23 @@ import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 // Garage took it, LAST, because he asked for exactly that the same day: "make Garage the last tab
 // for lower width viewports." ⚠️ Scoped to this nav. `Sidebar.tsx` keeps its own order.
 //
-// Labels are deliberately SHORT. Measured at the real computed font (Inter 500 13.5px):
-// five columns leave 66.8px of text width on a 390px phone (63.8px at 375, 52.8px at 320),
-// and "Transactions" renders 83.3px — it would truncate to "Transacti…" on EVERY phone.
-// "Activity" is 49.1px and fits even a 320px SE; it is also the label Apple Card, Venmo
-// and Robinhood use for the same surface.
-// ⚠️ 2026-08-18: "Activity" is now the surface's name EVERYWHERE — the desktop rail and the page's
-// own <h1> say it too (Tre: "why does transactions change to activity with smaller width. just keep
-// it as activity all the time"). The old trade kept the long name on desktop for discoverability
-// and bought a label that renamed itself on a resize, which reads as two different pages.
+// ⚠️ 2026-08-27: THE SURFACE IS NAMED "Transactions" AGAIN, at every width (Tre: "rename activity
+// in the tab section to Transactions"). That reverses the label — NOT the one-name rule, which
+// still holds: the desktop rail and the page's own <h1> say "Transactions" too, so nothing renames
+// itself on a resize (Tre, 2026-08-18: "just keep it as [one name] all the time").
 //
-// Accounts, Budget Control and Goals are all PANELS of tabs already in this row (of Dashboard,
-// Activity and Forecast respectively) rather than entries of their own — the "reduce how many
+// ⚠️ AND IT DOES NOT FIT THE PHONE BAR. Measured at the real computed font (Inter 500 13.5px):
+// five columns leave 66.8px of text width on a 390px phone (63.8px at 375, 52.8px at 320), and
+// "Transactions" renders 83.3px, so it truncates to "Transactio…" on every phone. "Activity" was
+// 49.1px and fit a 320px SE. The rename was asked for with that trade named; keeping the old label
+// here alone would bring back the label that renames itself on a resize, which is worse.
+//
+// Accounts, Plan and Goals are all PANELS of tabs already in this row (of Dashboard,
+// Transactions and Forecast respectively) rather than entries of their own — the "reduce how many
 // separate tabs, especially on mobile" ask. Their old routes still resolve as redirects.
 const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   { to: '/vehicles', icon: Car, label: 'Garage' },
@@ -70,9 +71,9 @@ export default function MobileNav() {
                 {item.highlight && !active && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
                 )}
-                {/* A NUMBER, not a dot, and it goes over the Activity icon. The labels here are
-                    pinned short for 320px phones (see the block above), so the count cannot ride
-                    the label — and unlike the Debt dot, this one says how much is waiting. */}
+                {/* A NUMBER, not a dot, and it goes over the Transactions icon. The label has no
+                    room to carry it at these widths (see the block above), so the count rides the
+                    icon — and unlike the Debt dot, this one says how much is waiting. */}
                 {item.to === '/transactions' && reviewQueueCount !== null && (
                   <span
                     className="absolute -top-1.5 -right-2.5 min-w-[16px] px-1 text-[9px] font-bold leading-[16px] text-primary-foreground bg-primary rounded-full text-center"

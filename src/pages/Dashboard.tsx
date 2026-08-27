@@ -1519,15 +1519,17 @@ export default function Dashboard() {
           style={{ borderRadius: 'var(--radius)' }}>
           <LayoutDashboard size={13} /> Overview
         </button>
-        <button onClick={() => setActiveTab('accounts')}
-          className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <Building2 size={13} /> Accounts
-        </button>
+        {/* Goals sits ahead of Accounts (Tre, 2026-08-27: "move goals before accounts on the
+            dashboard"). Pill order only — each panel still owns its own content below. */}
         <button onClick={() => setActiveTab('goals')}
           className={`seg-item btn-press ${activeTab === 'goals' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <PiggyBank size={13} /> Goals
+        </button>
+        <button onClick={() => setActiveTab('accounts')}
+          className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Building2 size={13} /> Accounts
         </button>
       </PanelBar>
 
@@ -1581,10 +1583,10 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { label: 'Budget Control', desc: 'Recurring rules define income, bills, and transfers — this is the engine behind every projection.', path: '/budget' },
+              { label: 'Plan', desc: 'Recurring rules define income, bills, and transfers — this is the engine behind every projection.', path: '/budget' },
               { label: 'Debt Payoff', desc: 'Avalanche engine computes how fast each card gets paid using every dollar above the cash floor.', path: '/debt' },
               { label: 'Forecast', desc: '60-month sim. Debt payoff adjusts monthly so end cash never sits idle — it goes straight to debt.', path: '/forecast' },
-              { label: 'Activity', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
+              { label: 'Transactions', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
               { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/goals' },
               { label: 'Accounts', desc: 'Net worth history, assets/liabilities breakdown, and all account balances in one place.', path: '/dashboard?tab=accounts' },
             ].map(f => (

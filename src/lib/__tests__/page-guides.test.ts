@@ -22,7 +22,7 @@ describe('resolveGuide', () => {
     // here, not fall back to the Dashboard Guide the way an unrecognised panel does.
     expect(resolveGuide('dashboard', 'goals').title).toBe('Savings Goals Guide');
     expect(resolveGuide('forecast', 'goals').title).toBe('Forecast Guide');
-    expect(resolveGuide('transactions', 'budget').title).toBe('Budget Control Guide');
+    expect(resolveGuide('transactions', 'budget').title).toBe('Plan Guide');
     expect(resolveGuide('transactions', 'bank').title).toBe('Bank Activity Guide');
   });
 

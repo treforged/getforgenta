@@ -131,11 +131,13 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-describe('Activity — Planning and Bank Activity as one tab', () => {
+describe('Transactions — Planning and Bank Activity as one tab', () => {
   it('offers two panels, not four', () => {
     renderAt();
     const tabs = screen.getAllByRole('tab').map(t => t.textContent);
-    expect(tabs).toEqual(['Budget Control', 'Transactions']);
+    // 'Plan' since 2026-08-27 (Tre: "rename Budget Control to Plan"). The tab ID is still
+    // `budget` — only the label moved, so every persisted tab and deep link keeps working.
+    expect(tabs).toEqual(['Plan', 'Transactions']);
   });
 
   it('renders both halves on the one panel', () => {

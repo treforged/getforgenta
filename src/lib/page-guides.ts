@@ -112,9 +112,9 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
 
   // ── Activity ────────────────────────────────────────────────────────────────────────
   'transactions:budget': {
-    title: 'Budget Control Guide',
+    title: 'Plan Guide',
     sections: [
-      { title: 'What is this panel?', body: 'Budget Control is your hub for managing all recurring financial rules — income, fixed expenses, variable spending, debt payments, and transfers. It feeds the Dashboard, Forecast, and Transactions.' },
+      { title: 'What is this panel?', body: 'Plan is your hub for managing all recurring financial rules — income, fixed expenses, variable spending, debt payments, and transfers. It feeds the Dashboard, Forecast, and your ledger.' },
       { title: 'Income & Taxes', body: 'Set your gross income, pay frequency, tax rate, and payday at the top. Changes auto-save and automatically sync your income rule to match.' },
       { title: 'Budget Allocation Bar', body: 'Shows how your take-home is distributed across categories for the current month only. Colors: Red=Fixed, Orange=Variable, Blue=Debt, Purple=Transfers, Green=Remaining.' },
       { title: 'Remaining Cash On Hand', body: 'Uses only the selected funding account\'s live balance plus remaining income minus remaining expenses and remaining debt payments for the rest of the current month. All values come from Transactions as the single source of truth — no double counting with Budget Control rules.' },
@@ -331,7 +331,7 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
   // the table of contents the page now reads as. Renaming the keys would orphan
   // `SURFACE_FALLBACK.transactions` and every panel-scoped `resolveGuide` call for no gain.
   transactions: [
-    { key: 'transactions:budget', label: 'Budget Control' },
+    { key: 'transactions:budget', label: 'Plan' },
     { key: 'transactions:planning', label: 'Transactions · Your ledger' },
     { key: 'transactions:bank', label: 'Transactions · From your bank' },
   ],

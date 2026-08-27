@@ -26,8 +26,8 @@ export const NEW_USER_STEPS: TourStep[] = [
   },
   {
     emoji: '\u{2699}\u{FE0F}',
-    title: 'Start in Budget Control',
-    body: 'Activity \u2192 Budget Control. Add your income and the bills that repeat. Every projection in the app is built from these, so this is the one screen worth doing first.',
+    title: 'Start in Plan',
+    body: 'Transactions \u2192 Plan. Add your income and the bills that repeat. Every projection in the app is built from these, so this is the one screen worth doing first.',
   },
   {
     emoji: '\u{1F3E6}',

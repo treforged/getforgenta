@@ -18,14 +18,13 @@ const navItems = [
   // Accounts is a PANEL of the Dashboard now, not a row here — Tre, 2026-08-18: "we need to reduce
   // how many separate tabs". The rail lost the row; the surface lost nothing.
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  // Budget Control is a PANEL of Activity now, for the same reason and on the same day. `/budget`
-  // still resolves — it redirects to `/transactions?tab=budget` — so every bookmark and every
-  // in-app link keeps landing; what it stopped being is a row of its own.
-  // 'Activity', not 'Transactions' — one name for the surface at every width (Tre, 2026-08-18:
-  // "why does transactions change to activity with smaller width. just keep it as activity all the
-  // time"). The rail used to keep the long name so the vocabulary stayed discoverable; a label that
-  // renames itself on a resize is worse than a short one.
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },
+  // Plan (formerly "Budget Control") is a PANEL of this surface now, for the same reason and on the
+  // same day. `/budget` still resolves — it redirects to `/transactions?tab=budget` — so every
+  // bookmark and every in-app link keeps landing; what it stopped being is a row of its own.
+  // 'Transactions' since 2026-08-27 (Tre: "rename activity in the tab section to Transactions").
+  // Still ONE name at every width — `MobileNav` says the same thing, and its header carries the
+  // width trade that comes with the longer word.
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
   { to: '/vehicles', icon: Car, label: 'Garage' },
   // Goals is a PANEL of the Dashboard now, for the same reason and by the same route as Accounts

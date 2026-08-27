@@ -725,8 +725,10 @@ export default function Transactions() {
 <div className="space-y-3">
   {/* Title Row */}
   <div className="flex items-center gap-3">
+    {/* "Transactions", not "Activity" (Tre, 2026-08-27). One name for the surface at every
+        width — the rail and the phone bar say the same thing. */}
     <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">
-      Activity
+      Transactions
     </h1>
     <div className="ml-auto">
       <SurfaceGuide surface="transactions" />
@@ -746,7 +748,9 @@ export default function Transactions() {
       // them. A fresh SIGN-IN also lands here (`resetActivityTabForSignIn`, called from
       // AuthContext); within a session the panel is remembered. Tre, 2026-08-18: "it should land in
       // whatever page the user looked at last, on sign in it should be budget control though."
-      { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
+      // "Plan", not "Budget Control" (Tre, 2026-08-27: "rename Budget Control to Plan") — and it
+      // also stops the pill row from repeating the surface's own new name back at it.
+      { id: 'budget' as const, label: 'Plan', count: null as number | null },
       { id: 'transactions' as const, label: 'Transactions', count: reviewQueueCount },
     ]).map(t => (
       <button
@@ -836,7 +840,7 @@ export default function Transactions() {
           queries never run while the user is on the ledger. */}
       {activeTab === 'budget' && (
         <Suspense fallback={<div className="h-64" />}>
-          <ErrorBoundary variant="widget" label="Budget Control"><BudgetControl embedded /></ErrorBoundary>
+          <ErrorBoundary variant="widget" label="Plan"><BudgetControl embedded /></ErrorBoundary>
         </Suspense>
       )}
 

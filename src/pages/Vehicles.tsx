@@ -1497,6 +1497,14 @@ export default function Vehicles() {
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
       <PanelBar>
+        {/* Builds leads the row (Tre, 2026-08-27: "put builds first on garage page"). Pill order
+            only — the default panel and every persisted `activeTab` are untouched, so a user who
+            was last on a loan still lands on the loan. */}
+        <button onClick={() => setActiveTab('builds')}
+          className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Wrench size={13} /> Builds
+        </button>
         <button onClick={() => setActiveTab('saving')}
           className={`seg-item btn-press ${activeTab === 'saving' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -1508,11 +1516,6 @@ export default function Vehicles() {
           style={{ borderRadius: 'var(--radius)' }}>
           <TrendingDown size={13} /> Active Loans
           {loanVehicles.length > 0 && <span className={`seg-badge ${activeTab === 'loan' ? 'seg-badge-active' : ''}`}>{loanVehicles.length}</span>}
-        </button>
-        <button onClick={() => setActiveTab('builds')}
-          className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <Wrench size={13} /> Builds
         </button>
       </PanelBar>
 

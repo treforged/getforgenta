@@ -1344,7 +1344,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3">
         {!embedded && (
           <div className="min-w-0">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Budget Control</h1>
+            {/* "Plan", not "Budget Control" (Tre, 2026-08-27). The file, the route alias and the
+                guide key keep their old names — renaming those orphans bookmarks and saved
+                guide keys for nothing; only what a user reads changes. */}
+            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Plan</h1>
             <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">Your single source of truth for income, expenses, and automation</p>
           </div>
         )}
