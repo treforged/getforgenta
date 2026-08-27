@@ -20,7 +20,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { MOTION_DURATION, EASE_OUT } from '@/lib/motion';
-import { Settings2, List, BarChart3, TrendingUp, Info, X, FileDown, Crown } from 'lucide-react';
+import { Settings2, List, BarChart3, TrendingUp, Info, X, FileDown, Crown, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { buildForecastMonthDetail, getAbsoluteMonthIndex } from '@/lib/forecast-export';
@@ -126,6 +126,12 @@ export default function Forecast() {
   // page leads with one number). Both disclosures persist through the same idiom the rest of
   // this page's view state already uses, so a reader who opens them keeps them open.
   const [showAssumptions, setShowAssumptions] = usePersistedState('tre:forecast:showAssumptions', false);
+  // PHONE ONLY (Tre, 2026-08-27: "make the top controls of forecast 'Line / Detail / Assumptions /
+  // PDF / CSV' collapsable. they take up a lot of space on mobile screens"). Five full-width
+  // buttons stacked one per row pushed the chart most of a screen down. Closed by default and
+  // remembered, so a user who wants them open pays the taps once. From `sm` up the row is
+  // unchanged and this state is not consulted — the controls are never hidden on a desktop.
+  const [showControls, setShowControls] = usePersistedState('tre:forecast:showControls', false);
   const [showReceipts, setShowReceipts] = usePersistedState('tre:forecast:showReceipts', false);
   const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
   const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3' | '4' | '5'>('tre:forecast:filterYear', 'all');
@@ -353,7 +359,25 @@ export default function Forecast() {
             <SurfaceGuide surface="forecast" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+        <div className="w-full sm:w-auto">
+          {/* The disclosure itself is `sm:hidden`: it exists only where the controls cost a screen.
+              It is a DISCLOSURE, not a hide — every control below is still reachable, one tap in,
+              and the count says how many are waiting so an empty-looking toolbar is never a
+              mystery. */}
+          <button
+            onClick={() => setShowControls(!showControls)}
+            aria-expanded={showControls}
+            aria-controls="forecast-controls"
+            className="sm:hidden w-full flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 py-1.5 text-xs font-medium btn-press"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <SlidersHorizontal size={12} /> Controls
+            {showControls ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          <div
+            id="forecast-controls"
+            className={`${showControls ? 'grid' : 'hidden'} grid-cols-2 gap-2 mt-2 sm:mt-0 sm:flex sm:items-center`}
+          >
           <button onClick={() => setChartMode(chartMode === 'combo' ? 'line' : 'combo')}
             className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             <TrendingUp size={12} /> {chartMode === 'combo' ? 'Line' : 'Bars'}
@@ -425,6 +449,7 @@ export default function Forecast() {
               </Link>
             </>
           )}
+          </div>
         </div>
       </div>
 
