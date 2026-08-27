@@ -278,15 +278,30 @@ export default function SurplusRankingSection({
   }, [draft]);
 
   // Cards still inside the block — the ones that can be pulled out and ranked on their own.
-  // Which mode the list is CURRENTLY in, derived rather than stored: a card row exists only when
-  // that card carries its own `accounts.surplus_sort_order`, so the presence of one is the fact.
-  // Nothing new to persist, and no way for a stored mode flag to disagree with the rows on screen.
-  const cardsAreIndividual = rows.some(r => r.kind === 'card');
-
   const blockedCards = useMemo(() => {
     const solo = new Set(draft.filter(r => r.kind === 'card').map(r => r.id));
     return (cards ?? []).filter(c => !solo.has(c.id));
   }, [cards, draft]);
+
+  /**
+   * Which mode the list is CURRENTLY in. Derived rather than stored, so no flag can disagree with
+   * the rows on screen.
+   *
+   * ⚠️ THREE STATES, NOT TWO, and the third is the whole point. A first version of this asked only
+   * whether ANY card had been pulled out, which reported "One row each" while two of Tre's four
+   * cards were still inside the block - the toggle claiming the exact arrangement it exists to
+   * prevent (Tre, 2026-08-26: "why does it show both credit cards, and the individual cards
+   * still?"). A list can be MIXED because that is what the old per-card control left behind, so
+   * the honest reading is: individual only when NOTHING is left in the block, block only when
+   * nothing has been pulled out, and mixed otherwise - in which case neither button is pressed and
+   * the user is told what they are looking at.
+   */
+  const soloCardCount = rows.filter(r => r.kind === 'card').length;
+  const cardMode: 'block' | 'individual' | 'mixed' =
+    soloCardCount === 0 ? 'block'
+      : blockedCards.length === 0 ? 'individual'
+        : 'mixed';
+
 
   // Student loans / mortgages / other liabilities NOT yet on the list — the ones that can be added
   // to it. Keyed off the DRAFT rather than off `surplus_sort_order` so a row that was just added
@@ -351,6 +366,58 @@ export default function SurplusRankingSection({
             {collision.shortfall > 0
               ? 'Something has to give: a target amount, a date, or the ranking below.'
               : `There is ${formatCurrency(collision.capacity, false)} of surplus over those months — it is going somewhere higher in this list.`}
+          </p>
+        </div>
+      )}
+
+      {/* ABOVE the list, not below it: this decides how every card row underneath is
+          arranged, and it spent one session sitting under eight rows where Tre could not find it
+          and reported the feature missing. A control that governs a list belongs before it.
+          ONE ANSWER AT A TIME. This used to be a per-card "rank this one on its own" button, which
+          let the list show a Credit Cards block AND individual card rows together - two different
+          answers to "how are my cards ranked" on one screen, and genuinely misleading on a split
+          rank, where the block's weight and a pulled-out card's weight are partly about the same
+          debt (Tre, 2026-08-26: "or just credit cards in general, never both"). It is a mode now.
+          Either way the payoff strategy still decides which card the money actually hits. */}
+      {!readOnly && (cardMode !== 'block' || blockedCards.length > 1) && (
+        <div className="mt-3 space-y-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Rank credit cards
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCardRankMode('block')}
+              aria-pressed={cardMode === 'block'}
+              className={`text-[11px] px-2 py-0.5 border transition-colors ${
+                cardMode === 'block'
+                  ? 'border-primary text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
+              }`}
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              As one group
+            </button>
+            <button
+              type="button"
+              onClick={() => setCardRankMode('individual')}
+              aria-pressed={cardMode === 'individual'}
+              className={`text-[11px] px-2 py-0.5 border transition-colors ${
+                cardMode === 'individual'
+                  ? 'border-primary text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
+              }`}
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              One row each
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {cardMode === 'mixed'
+              ? `Right now it is both: ${soloCardCount} on their own and ${blockedCards.length} sharing one spot. Pick one above and the list will tidy itself.`
+              : cardMode === 'individual'
+                ? 'Each card sits in the list on its own, so you can fund a goal between two of them. Which card the money actually pays is still decided by your payoff strategy.'
+                : 'All your cards share one spot in the list, ordered by your payoff strategy. That is the arrangement that cannot cost you extra interest.'}
           </p>
         </div>
       )}
@@ -519,53 +586,6 @@ export default function SurplusRankingSection({
           );
         })}
       </ul>
-
-      {/* ONE ANSWER AT A TIME. This used to be a per-card "rank this one on its own" button, which
-          let the list show a Credit Cards block AND individual card rows together - two different
-          answers to "how are my cards ranked" on one screen, and genuinely misleading on a split
-          rank, where the block's weight and a pulled-out card's weight are partly about the same
-          debt (Tre, 2026-08-26: "or just credit cards in general, never both"). It is a mode now.
-          Either way the payoff strategy still decides which card the money actually hits. */}
-      {!readOnly && (cardsAreIndividual ? true : blockedCards.length > 1) && (
-        <div className="mt-3 space-y-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            Rank credit cards
-          </span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setCardRankMode('block')}
-              aria-pressed={!cardsAreIndividual}
-              className={`text-[11px] px-2 py-0.5 border transition-colors ${
-                cardsAreIndividual
-                  ? 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
-                  : 'border-primary text-primary'
-              }`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              As one group
-            </button>
-            <button
-              type="button"
-              onClick={() => setCardRankMode('individual')}
-              aria-pressed={cardsAreIndividual}
-              className={`text-[11px] px-2 py-0.5 border transition-colors ${
-                cardsAreIndividual
-                  ? 'border-primary text-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
-              }`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              One row each
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            {cardsAreIndividual
-              ? 'Each card sits in the list on its own, so you can fund a goal between two of them. Which card the money actually pays is still decided by your payoff strategy.'
-              : 'All your cards share one spot in the list, ordered by your payoff strategy. That is the arrangement that cannot cost you extra interest.'}
-          </p>
-        </div>
-      )}
 
       {/* Putting a student loan or a mortgage on the list is explicit for a harder reason than the
           card block is: `accounts` has no `auto_extra` column, so being listed IS being opted in.
