@@ -1,5 +1,63 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35h — **TWO OF THE FOUR UI ITEMS SHIPPED. STILL NOT
+> PUSHED.** `6e676601` (Garage) and `111a158a` (Loans tabs). Everything from 35g
+> below still stands.
+>
+> SHIPPED 1 - Garage active loans, `6e676601`, LIVE-VERIFIED by looking at the
+> page. `LoanCard` in `src/pages/Vehicles.tsx` now reads the same extra-aware
+> arrays the /debt tabs use (`projections.carLoanBalancesByFundId` +
+> `buildAutoExtraByTarget`), draws a dashed second line, and prints the monthly
+> figure AND the accelerated payoff date. On Tre's data: **$2,062/mo of extra
+> principal, payoff Mar 2029 against a scheduled Jun 2030.** The payoff date is
+> not decoration - without it the card showed a chart hitting zero in early 2029
+> beside a "Payoff Date" stat reading Jun 2030. NOTE the car loan DOES receive
+> extra after all (the waterfall reaches rank 4 once the move fund completes), so
+> the 35 block's "it draws nothing" is true only for the near years.
+>
+> SHIPPED 2 - Loans tabs, `111a158a`. Tre has NO student loan, so this was
+> feature correctness, not his data. Objective defect: the engine uses the
+> ACCOUNT balance (`listDebtServiceLiabilities` reads `Number(a.balance)`) while
+> the tabs displayed the hand-typed `debts.balance`, so a connected loan showed a
+> figure frozen at typing time while the Forecast moved - and Payoff In / Total
+> Interest were computed from the stale one. New `pairedLiabilityAccount` +
+> `liabilityBalance` (account wins, debts row is the fallback), applied to the
+> row balances, the Total Owed tiles and the extras comparison.
+>
+> ⚠️ DEV-SERVER TRAP THAT COST ME THREE ROUND TRIPS, worth knowing: after the
+> payoff-latch revert, :8080 kept throwing `ReferenceError:
+> createPayoffRegimeLatch is not defined` from a STALE Vite transform, with the
+> source clean and tsc/2858 tests green. The page rendered EMPTY. Killing the
+> port is blocked by the permission classifier; what worked was rewriting
+> `forecast-convergence.ts` byte-identically to force a re-transform. If a live
+> check disagrees with a green gate, suspect the server before the code.
+>
+> NOT STARTED, in the order I would take them:
+> - **Goals reorder parity with the Builds tab** (item 3). Drag handlers already
+>   exist in `SurplusRankingSection.tsx` (~line 126, `dragOverId`/`draggingId`);
+>   match the Builds tab's INTERACTION, not its code.
+> - **Credit cards: one toggle, per-card OR cards-in-general, never both**
+>   (item 4). Today it is a per-card opt-out, `setCardSeparated(id, bool)` writing
+>   `accounts.surplus_sort_order`, at SurplusRankingSection.tsx:494 and :532 -
+>   that is what lets both representations coexist. Read
+>   `ranked-extra-payment-targets.ts`'s header first: it explains why cards rank
+>   as a BLOCK and why an individual rank moves the SPLIT POINT rather than
+>   overriding the payoff strategy. Tre's account is the reference; worst on a
+>   50/50 `surplus_share` split.
+> - **NEW (arrived mid-turn 2026-08-26): "if auto extra payments are enabled,
+>   dont allow manual entry and remove current manual payments. apply that same
+>   logic to other loans and other goals including savings and investing."**
+>   ⚠️ DESTRUCTIVE - it deletes real rows (`car_funds.lump_sum_payments`, goal
+>   lump sums). Design it as a VISIBLE, confirmed action ("turning auto extra on
+>   will clear your N planned manual payments"), never a silent wipe, and make
+>   the disabled state say WHY. Applies to vehicle loans, other loans, savings
+>   goals and investing goals.
+>
+> TEST DEBT still open from `afbff446` (the look-ahead clamp): no unit test, only
+> the live 60-month check and 2858 green. Add one to
+> `forecast-engine.autoExtraFloorClamp.test.ts` and mutation-check it by forcing
+> `lookaheadEnd` to 0.
+
 > ▶ 2026-08-26 SESSION 35g — **THE FORECAST FLOOR WORK IS DONE AND LIVE-VERIFIED.
 > `afbff446`. ZERO of the 60 months end below floor; none go negative.** The
 > milestone list carries no cash warning at all now: "Sep 2028: CC Debt Free" and
