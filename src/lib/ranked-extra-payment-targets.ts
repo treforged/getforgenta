@@ -36,6 +36,9 @@ import {
   type DebtServiceAccountInput, type DebtServiceRuleInput, type LiabilityDebtInput,
 } from './non-cc-liabilities';
 import { getCarFundSaved } from './vehicle-loan-engine';
+import {
+  IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate, monthsUntilTargetDate,
+} from './retirement-contribution-cap';
 import type { RankedTarget } from './ranked-surplus-allocation';
 
 export type BuildRankedTargetsParams = {
@@ -110,6 +113,15 @@ export type BuildRankedTargetsParams = {
    * caller and every user until the feature is switched on. See {@link goalStages}.
    */
   essentialMonthlyExpenses?: number;
+  /**
+   * `accounts.account_type` per account id.
+   *
+   * Read for ONE purpose: deciding whether a goal's linked account makes its contributions subject
+   * to the IRA annual limit ({@link goalMonthlyCeiling}). Omitted ⇒ no goal is IRA-capped, which is
+   * how this module behaved before it paced anything — the DATE half of the pacing still applies,
+   * because that is read off the target itself and needs no account at all.
+   */
+  accountTypes?: Readonly<Record<string, string | null | undefined>>;
 };
 
 /**
@@ -253,6 +265,9 @@ export type RankableGoal = {
   /** The goal's single date. Superseded by a per-stop `target_date` once stops exist; carried here
    *  so an UNSTAGED goal's one stop can still report the date the user set. */
   target_date?: string | null;
+  /** The account this goal saves into. Read only to find its type, and only for the IRA ceiling;
+   *  see {@link goalMonthlyCeiling}. */
+  linked_account?: string | null;
   current_amount?: number | null;
   /** Weight for a SPLIT rank. Null/absent ⇒ no split; see `allocateRankedSurplus`. */
   surplus_share?: number | null;
@@ -574,6 +589,65 @@ export function currentStopOf(goal: RankableGoal, essentialMonthlyExpenses: numb
 }
 
 /**
+ * THE MOST THIS GOAL MAY TAKE IN RANKED EXTRA THIS MONTH — month 0's copy of the forecast engine's
+ * `monthlyCeilingFor`.
+ *
+ * ⚠️ WITHOUT THIS THE TWO SURFACES DISAGREE ABOUT THE FIRST MONTH. Months 1+ are paced inside
+ * `forecast-engine.ts`; month 0 is decided here (`useCardProjection` → {@link buildRankedTargets}),
+ * and until 2026-08-27 it was not paced at all — so a dated goal could reserve its WHOLE remaining
+ * need in the month the user is actually standing in, while every later month took only that
+ * month's figure. Same two limits, same smaller-wins rule, same `maxExtra`-beside-`capacity` shape,
+ * so `holdsQueueBelow` can tell "on pace for this month" from "met entirely" here too.
+ *
+ * TWO LIMITS, AND THE SMALLER WINS. A statutory ceiling ("how much may go in this year") and a
+ * deadline ("how much does this need per month to arrive on time") answer different questions, and
+ * a target that has both is bound by both.
+ *
+ * ⚠️ THE YEAR IS ASSUMED UNUSED (`alreadyContributed: 0`), because nothing in this app records what
+ * a person put into their IRA before today — no transaction feed is attributed to a statutory
+ * allowance, and the forecast makes exactly the same assumption at the start of its own horizon.
+ * Inventing a figure here would be worse: too high denies a real allowance, too low invents one.
+ * The pacing this does give is the levelling, which is the half Tre asked for by name.
+ *
+ * Returns `{}` — no field at all, rather than an infinite one — when nothing limits the goal, which
+ * is every undated goal not linked to an IRA.
+ */
+export function goalMonthlyCeiling(params: {
+  goal: RankableGoal;
+  /** The need being paced: what this goal still owes, as {@link goalRemainingNeed} reports it. */
+  remainingNeed: number;
+  /** Local `YYYY-MM-DD` — the month whose ceiling is being decided. */
+  asOf: string;
+  /** One month of essential cost, for resolving a staged plan's stops. */
+  essentialMonthlyExpenses?: number;
+  /** `accounts.account_type` per id. Absent ⇒ no statutory ceiling. */
+  accountTypes?: Readonly<Record<string, string | null | undefined>>;
+}): { maxExtra?: number } {
+  const from = new Date(`${String(params.asOf ?? '').slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(from.getTime())) return {};
+
+  // ⚠️ THE STOP'S OWN DATE, with the GOAL's date as the fallback for stop 1 ONLY — the same rule
+  // `forecast-engine.ts` applies when it fills `targetDateByRowId`. A later stop with no date of
+  // its own is genuinely undated, and inheriting the goal's date would invent a deadline.
+  const stop = currentStopOf(params.goal, Number(params.essentialMonthlyExpenses) || 0);
+  const targetDate = stop.targetDate ?? (stop.index === 1 ? params.goal.target_date ?? null : null);
+
+  const linkedType = params.goal.linked_account != null
+    ? params.accountTypes?.[params.goal.linked_account]
+    : null;
+  const statutory = isIraCapped(linkedType)
+    ? levelMonthlyAllowance({ annualCap: IRA_ANNUAL_LIMIT, alreadyContributed: 0, month: from.getMonth() })
+    : Number.POSITIVE_INFINITY;
+  const onTime = levelMonthlyToDate({
+    remainingNeed: params.remainingNeed,
+    monthsUntilDate: monthsUntilTargetDate(targetDate, from),
+  });
+
+  const allowance = Math.min(statutory, onTime);
+  return Number.isFinite(allowance) ? { maxExtra: allowance } : {};
+}
+
+/**
  * The least this needs of a card. `CardData` satisfies it, and so does a raw credit-card `accounts`
  * row — which is deliberate: the ranked LIST holds account rows and the ALLOCATOR holds `CardData`,
  * and both have to compute this gate the same way or the two surfaces would disagree about whether
@@ -616,7 +690,7 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
     cardsSortOrder = 0, fundingAccountId = null, accountBalances = {},
     cardRanks = {}, cardsShare = null, includeLoanTargets = false,
     liabilities = [], includeLiabilityTargets = false,
-    essentialMonthlyExpenses = 0,
+    essentialMonthlyExpenses = 0, accountTypes,
   } = p;
 
   // Built from the SAME `cards` the block is built from, so the gate that holds a staged goal at
@@ -724,15 +798,26 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
   // pass-through would silently divert surplus away from the cards on a row that never opted in.
   const goalTargets: RankedTarget[] = goals
     .filter((g): g is RankableGoal & { id: string } => typeof g.id === 'string')
-    .map(g => ({
-      id: g.id,
-      kind: 'goal' as const,
-      sortOrder: Number(g.sort_order) || 0,
-      minimum: 0,
-      capacity: goalRemainingNeed(g, stageCtx),
-      autoExtra: g.auto_extra === true,
-      ...(shareOf(g.surplus_share) === undefined ? {} : { share: shareOf(g.surplus_share)! }),
-    }));
+    .map(g => {
+      const capacity = goalRemainingNeed(g, stageCtx);
+      return {
+        id: g.id,
+        kind: 'goal' as const,
+        sortOrder: Number(g.sort_order) || 0,
+        minimum: 0,
+        // ⚠️ THE WHOLE REMAINING NEED, and the month's allowance BESIDE it as `maxExtra`. Folding
+        // the allowance into the capacity caps the month correctly but tells the waterfall the need
+        // itself is that small, so a paced goal looks unmet for ever and holds every rank below it
+        // for the whole pace (Tre, 2026-08-27: "pass the rest down to the next rank instead").
+        capacity,
+        autoExtra: g.auto_extra === true,
+        ...(shareOf(g.surplus_share) === undefined ? {} : { share: shareOf(g.surplus_share)! }),
+        // Month 0's half of the pacing the forecast engine applies to months 1+.
+        ...goalMonthlyCeiling({
+          goal: g, remainingNeed: capacity, asOf, essentialMonthlyExpenses, accountTypes,
+        }),
+      };
+    });
 
   return [...cardTargets, ...carTargets, ...loanTargets, ...liabilityTargets, ...goalTargets];
 }

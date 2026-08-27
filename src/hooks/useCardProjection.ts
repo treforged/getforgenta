@@ -2107,6 +2107,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cardsSortOrder,
           fundingAccountId: resolvedDebtFundingId ?? null,
           accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+          // ⚠️ THE SAME REASON `essentialMonthlyExpenses` is passed here: this hook decides MONTH 0
+          // and the engine decides months 1+, so a limit the engine applies and this call does not
+          // is the two surfaces disagreeing about the first month. A goal linked to an IRA is
+          // capped to that month's share of the year's allowance here exactly as it is there.
+          accountTypes: Object.fromEntries(accounts.map(a => [a.id, a.account_type])),
           // A STAGED emergency goal's thresholds are multiples of this. ⚠️ It must be passed here
           // and not only inside the engine: this hook decides MONTH 0, the engine decides months
           // 1+, and a month 0 built without it would chase the goal's base `target_amount` while

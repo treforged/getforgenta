@@ -3,6 +3,7 @@ import {
   buildRankedTargets, carFundRemainingNeed, goalRemainingNeed,
 } from '../ranked-extra-payment-targets';
 import { allocateRankedSurplus, rankTargets } from '../ranked-surplus-allocation';
+import type { RankedTarget } from '../ranked-surplus-allocation';
 import type { CardData } from '../credit-card-engine';
 import type { CarFund, SavingsGoal } from '../types';
 
@@ -137,5 +138,104 @@ describe('end to end — a goal ranked first still cannot starve a card minimum'
     expect(r.allocations.find(a => a.id === 'done')!.total).toBe(0);
     expect(r.allocations.find(a => a.id === 'hi')!.total).toBe(1_000);
     expect(r.unallocated).toBe(0);
+  });
+});
+
+// ── MONTH 0 IS PACED TOO ──────────────────────────────────────────────────────
+//
+// The forecast engine paces months 1+ (`monthlyCeilingFor`); this is the same two limits applied to
+// the month the user is standing in, which `useCardProjection` builds here. Until 2026-08-27 month 0
+// was not paced at all, so a dated goal could reserve its whole remaining need in the first month
+// and take exactly one month's figure in every month after it.
+describe('buildRankedTargets — the month-0 ceiling', () => {
+  const goalOf = (t: readonly RankedTarget[]) => t.find(x => x.kind === 'goal')!;
+
+  it('paces a dated goal over the months until its date, the date\'s own month included', () => {
+    // Aug 2026 → Jan 2027 is five months away, so the need is spread over six payments.
+    const t = buildRankedTargets({ ...base, cards: [], carFunds: [], goals: [makeGoal()] });
+    expect(goalOf(t).capacity).toBe(2_500);
+    expect(goalOf(t).maxExtra).toBeCloseTo(2_500 / 6, 6);
+  });
+
+  it('leaves an undated goal uncapped — no date, no question to answer', () => {
+    const t = buildRankedTargets({
+      ...base, cards: [], carFunds: [], goals: [makeGoal({ target_date: undefined })],
+    });
+    expect(goalOf(t).maxExtra).toBeUndefined();
+  });
+
+  it('gives a goal due this month its whole need — it is due in full now', () => {
+    const t = buildRankedTargets({
+      ...base, cards: [], carFunds: [], goals: [makeGoal({ target_date: '2026-08-31' })],
+    });
+    expect(goalOf(t).maxExtra).toBe(2_500);
+  });
+
+  it('caps an IRA-linked goal at this month\'s share of the year\'s allowance', () => {
+    // August: five months left, so 7000 / 5.
+    const t = buildRankedTargets({
+      ...base, cards: [], carFunds: [],
+      goals: [makeGoal({ target_date: undefined, linked_account: 'roth', target_amount: 50_000, current_amount: 0 })],
+      accountTypes: { roth: 'roth_ira' },
+    });
+    expect(goalOf(t).maxExtra).toBeCloseTo(7_000 / 5, 6);
+  });
+
+  it('takes the SMALLER of the two limits when a goal has both', () => {
+    const dated = { linked_account: 'roth', target_amount: 3_000, current_amount: 500, target_date: '2027-01-01' };
+    // Needs 2500/6 ≈ 417 a month to be there on time, which is less than the 1400 the year permits.
+    const t = buildRankedTargets({
+      ...base, cards: [], carFunds: [], goals: [makeGoal(dated)], accountTypes: { roth: 'roth_ira' },
+    });
+    expect(goalOf(t).maxExtra).toBeCloseTo(2_500 / 6, 6);
+  });
+
+  it('applies no statutory ceiling when the caller passes no account types', () => {
+    const t = buildRankedTargets({
+      ...base, cards: [], carFunds: [],
+      goals: [makeGoal({ target_date: undefined, linked_account: 'roth' })],
+    });
+    expect(goalOf(t).maxExtra).toBeUndefined();
+  });
+
+  it('is not confused by a savings account — only an IRA carries the statutory limit', () => {
+    const t = buildRankedTargets({
+      ...base, cards: [], carFunds: [],
+      goals: [makeGoal({ target_date: undefined, linked_account: 'hys' })],
+      accountTypes: { hys: 'savings' },
+    });
+    expect(goalOf(t).maxExtra).toBeUndefined();
+  });
+});
+
+describe('month 0 — an on-pace goal passes the rest down in the same month', () => {
+  // Sep/Oct/Nov: three months out, spread over four payments ⇒ $600 of a $2,400 need.
+  const paced = (o: Partial<SavingsGoal> = {}) => buildRankedTargets({
+    ...base, cardsSortOrder: 9,
+    cards: [makeCard({ id: 'hi', minPayment: 100, balance: 5_000 })],
+    carFunds: [],
+    goals: [makeGoal({
+      id: 'g', sort_order: 0, target_amount: 2_400, current_amount: 0, target_date: '2026-11-30', ...o,
+    })],
+  });
+
+  it('gives the goal its month and the card the remainder', () => {
+    const r = allocateRankedSurplus(1_000, paced());
+    expect(r.allocations.find(a => a.id === 'g')!.extra).toBeCloseTo(600, 6);
+    // 1000 − 100 minimum − 600 paced = 300, and the card is ranked BELOW the goal.
+    expect(r.allocations.find(a => a.id === 'hi')!.extra).toBeCloseTo(300, 6);
+    expect(r.unallocated).toBe(0);
+  });
+
+  it('still holds the queue when the pool cannot even meet the pace', () => {
+    const r = allocateRankedSurplus(400, paced());
+    expect(r.allocations.find(a => a.id === 'g')!.extra).toBeCloseTo(300, 6);
+    expect(r.allocations.find(a => a.id === 'hi')!.extra).toBe(0);
+  });
+
+  it('an undated goal is unchanged — it may still take the whole pool', () => {
+    const r = allocateRankedSurplus(1_000, paced({ target_date: undefined }));
+    expect(r.allocations.find(a => a.id === 'g')!.extra).toBe(900);
+    expect(r.allocations.find(a => a.id === 'hi')!.extra).toBe(0);
   });
 });

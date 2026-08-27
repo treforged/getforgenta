@@ -59,6 +59,11 @@ export type SavingsGoal = {
    * like `surplus_share` above it: the column is new, and every row before it (and every test
    * fixture) has never been auto-cleared, which is what "absent" already means. */
   auto_extra_auto_cleared?: boolean;
+  /** `savings_goals.linked_account` -- the account this goal saves into. Optional here because this
+   * type is a hand-kept subset and the column is null on an unlinked goal. Read by the engine and
+   * by `goalMonthlyCeiling`, which needs the account's TYPE to know whether the goal's
+   * contributions are governed by the IRA annual limit. */
+  linked_account?: string | null;
   created_at: string;
 };
 

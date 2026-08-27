@@ -210,6 +210,10 @@ export function useForecastEngineInputs({
         cardsSortOrder,
         fundingAccountId: forecastFundingAccountId,
         accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+        // Kept in lockstep with `useCardProjection`'s call: the IRA ceiling on a month-0 goal
+        // target is read off its linked account's type, and a call without this would pace that
+        // goal by its date alone while the engine paced it by both.
+        accountTypes: Object.fromEntries(accounts.map(a => [a.id, a.account_type])),
         // A STAGED emergency goal's thresholds are multiples of this. ⚠️ It must be passed here and
         // not only inside the engine: this hook decides MONTH 0, the engine decides months 1+, and
         // a month 0 built without it would chase the goal's base `target_amount` while every later
