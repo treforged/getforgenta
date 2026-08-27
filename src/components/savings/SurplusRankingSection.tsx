@@ -397,23 +397,31 @@ export default function SurplusRankingSection({
                   className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 shrink-0"
                   title="Drag to reorder"
                 >
-                  <GripVertical size={14} />
+                  <GripVertical size={16} />
                 </div>
               ) : (
-                <div className="flex flex-col gap-2 shrink-0">
+                // PARITY WITH THE BUILDS TAB (Tre, 2026-08-26: "have it reorder the same way the
+                // builds tab does"). Builds adopted `icon-btn`, the app's 44px tap target from
+                // index.css, on 2026-08-24 after its 24x24 arrows measured unhittable at 390x844;
+                // this list still had bare `p-1` arrows, which is the same defect one surface
+                // later. `min-w-[32px]` narrows the pair back down because it is a VERTICAL stack
+                // and two 44px-wide cells would eat a quarter of a 390px row. The `gap-2` goes:
+                // `icon-btn` already carries its own height, and keeping the gap on top pushed the
+                // pair taller than the row it sits in.
+                <div className="flex flex-col shrink-0">
                   <button
                     type="button"
                     aria-label={`Move ${row.name} up`}
                     disabled={i === 0}
                     onClick={() => move(row.id, -1)}
-                    className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                    className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
                   ><ArrowUp size={16} /></button>
                   <button
                     type="button"
                     aria-label={`Move ${row.name} down`}
                     disabled={i === draft.length - 1}
                     onClick={() => move(row.id, 1)}
-                    className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                    className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
                   ><ArrowDown size={16} /></button>
                 </div>
               )}
