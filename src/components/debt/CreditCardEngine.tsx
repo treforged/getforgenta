@@ -5,10 +5,9 @@ import {
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
   openCreditLimitAtMonth, getPlanInterestNextMonth,
 } from '@/lib/credit-card-engine';
-import { getStrategyPayoffOrder, payoffOrderAsOf, utilizationComparisonOrder } from '@/lib/debt-payoff-order';
+import { getStrategyPayoffOrder, payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { cardStartMonthOffset, isSimCardOpenAsOf } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
-import PaydownPlanPanel from './PaydownPlanPanel';
 import DebtHero from './DebtHero';
 import AvalancheOrderList from './AvalancheOrderList';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
@@ -1081,81 +1080,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     [perCardPaymentsScaled],
   );
 
-  /**
-   * Cash reaching the cards each month, straight from the engine's own per-card payment ledger.
-   *
-   * `PaydownPlanPanel` dates utilization milestones off this, so it must NOT be a number invented
-   * for the panel: a milestone computed from a guessed budget renders identically to a real one.
-   * `perCardPaymentsScaled` is preferred over `perCardPayments` for the same reason the accordion
-   * prefers it — it is the cash-floor-constrained version, i.e. what the plan can actually pay
-   * rather than what it would like to. When neither array is present the panel gets [] and says so
-   * instead of showing a date.
-   *
-   * This is the GROSS payment: what leaves the bank, before that month's purchases land back on
-   * the card. It is what a minimum is paid out of, and it is NOT what moves a balance.
-   */
-  const paydownGrossCapacityByMonth = useMemo(() => {
-    const source = perCardPaymentsScaled ?? perCardPayments;
-    if (!source || source.length === 0) return [];
-    const months = Math.max(...source.map(c => c.payments.length));
-    return Array.from({ length: months }, (_, m) =>
-      source.reduce((sum, c) => sum + (c.payments[m] ?? 0), 0),
-    );
-  }, [perCardPaymentsScaled, perCardPayments]);
-
-  /**
-   * The same ledger, NET of the spend the engine puts back on each card that month. This is the
-   * number that actually pays a balance down, and the one the panel simulates on.
-   *
-   * ⚠️ WHY, MEASURED. Read straight off the live projection table: Prime Visa Sep 2026 — start
-   * $8,397, +$448 purchases, payment −$687, end $8,158. That $687 payment moved the balance by
-   * $239. Handing the panel the gross $687 while it modelled only `payment_plans` instalments as
-   * competing spend credited the plan with every ordinary purchase the payment was really funding
-   * — about $850/mo — and dated the whole plan early: the panel said Aug 2027 while the PAYOFF ETA
-   * tile above it said Jun 2028, both stated flatly, on the same page, from the same data.
-   *
-   * Netting here rather than passing the spend into the simulation is deliberate and was measured
-   * too. `balance + interest − (payment − purchases)` is arithmetically the engine's own walk, so
-   * the panel lands on the engine's date. Feeding gross capacity plus a purchases array does NOT:
-   * the engine's payments are endogenous to its own balance path and shrink as its balances clear,
-   * so spend stacked on top never converges — that experiment produced "never, $97,543 interest".
-   *
-   * ⚠️ THE `max(0, …)` CLAMP IS A KNOWN, MEASURED OVERSTATEMENT — AND THE OBVIOUS FIX IS WORSE.
-   * A card whose spend exceeds its payment that month GROWS, and a scalar capacity cannot say so.
-   * Instrumented live over 30 months of the real plan: gross payments $43,743, spend $23,116, true
-   * net $20,627 — while the clamped positive side alone is $25,179. **$4,552 of paydown that does
-   * not exist**, concentrated rather than spread (month 19 alone swings −$1,386 → +$1,052). It is
-   * worth about two months: the panel lands on Apr 2028 against the tile's Jun 2028.
-   *
-   * The exact split was built and measured: capacity = Σ max(0, net), overspend = Σ max(0, −net)
-   * passed as `chargesByMonth`, which reconstructs Σ net precisely AND keeps the overspend on the
-   * card it happened on. **It renders "never, $52,860 interest". Do not rebuild it.** Two reasons,
-   * both structural rather than fixable by tuning:
-   *   1. These arrays are `PROJECTION_MONTHS` (60) long; the simulation runs to `maxMonths` (240),
-   *      and BOTH carry their last entry forward. The engine's tail alternates (+$65, −$69, …) as
-   *      billing cycles land, so whichever sign month 59 happens to be is pinned for 180 months.
-   *      An overspend tail means a permanent charge against zero capacity — payoff "never" by
-   *      construction, with an interest total that is pure carry-forward artifact.
-   *   2. Past the engine's own payoff (~month 22) its payments fall to roughly its purchases, so
-   *      net capacity is ~$0 from there on. The schedule therefore encodes *just enough* money to
-   *      clear the cards on the engine's exact schedule, and any reordering that is even slightly
-   *      less efficient runs out of road and reports "never" rather than "a bit later".
-   * Closing the last two months needs a horizon the panel can honestly answer within — capacity
-   * that does not terminate at the engine's payoff — not a better netting formula.
-   */
-  const paydownCapacityByMonth = useMemo(() => {
-    const source = perCardPaymentsScaled ?? perCardPayments;
-    if (!source || source.length === 0) return [];
-    const months = Math.max(...source.map(c => c.payments.length));
-    const purchases = variableSim.augmentedCCPurchases;
-    return Array.from({ length: months }, (_, m) =>
-      source.reduce(
-        (sum, c) => sum + Math.max(0, (c.payments[m] ?? 0) - (purchases[m]?.[c.id] ?? 0)),
-        0,
-      ),
-    );
-  }, [perCardPaymentsScaled, perCardPayments, variableSim.augmentedCCPurchases]);
-
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
     const now = new Date();
@@ -1262,13 +1186,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const totalBalance = openCardsNow.reduce((s, c) => s + c.balance, 0);
   const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
-
-  // Read-only comparison order for UtilizationPanel — ranked on the MARGINAL rate, the same
-  // expression generateRecommendations sorts avalanche on. A flat `card.apr` sort here
-  // printed a different order than the engine pays whenever a tranche card's marginal rate
-  // crossed another card's headline rate — the 88d8ac6d bug class. Population and ranking
-  // are pinned by utilizationComparisonOrder's own tests (debt-payoff-order.test.ts).
-  const avalancheOrder = useMemo(() => utilizationComparisonOrder(cards, payoffOrderAsOf()), [cards]);
 
   const syncDebtAndAccount = (card: CardData, updates: { min_payment?: number; target_payment?: number }) => {
     const matchDebt = debts.find(d => d.name.toLowerCase() === card.name.toLowerCase());
@@ -1529,14 +1446,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
         </div>
 
-        <UtilizationPanel cards={cards} avalancheOrder={avalancheOrder} />
-
-        <PaydownPlanPanel
-          accounts={accounts}
-          paymentPlans={paymentPlans ?? []}
-          capacityByMonth={paydownCapacityByMonth}
-          grossCapacityByMonth={paydownGrossCapacityByMonth}
-        />
+        <UtilizationPanel cards={cards} />
 
         {/* Strategy + Controls */}
         <div className="card-forged p-3 sm:p-4 space-y-3 sm:space-y-4">

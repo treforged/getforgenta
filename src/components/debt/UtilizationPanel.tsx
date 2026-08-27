@@ -1,30 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { CardData } from '@/lib/credit-card-engine';
-import {
-  summarizeUtilization, rankByUtilizationImpact, previewCardPaymentImpact,
-} from '@/lib/credit-utilization';
+import { summarizeUtilization } from '@/lib/credit-utilization';
 
 type Props = {
   cards: CardData[];
-  /** Card ids sorted highest-APR-first — the same order the avalanche strategy pays in
-   * (credit-card-engine.ts generateRecommendations), shown here read-only for comparison. */
-  avalancheOrder: string[];
 };
 
 /**
- * Utilization is a second goal alongside interest cost: the avalanche order minimizes
- * interest, this ranks cards by fastest score impact per dollar. Read-only — it never
- * changes what generateRecommendations actually pays; the user picks which order to
- * follow themselves.
+ * Where the card debt stands right now: overall utilization, how much of it is actually charging
+ * interest, and the open limit behind it.
+ *
+ * ⚠️ THE "PAY-DOWN ORDER FOR SCORE" TABLE WAS DELETED ON 2026-08-27, along with `PaydownPlanPanel`.
+ * Tre: *"delete these from the credit card section. its complicated and not easy to understand for
+ * users."* A score-order ranking that disagrees with the interest order the engine actually pays,
+ * with a per-dollar point preview beside it, asked the user to arbitrate between two plans — the
+ * page already states one plan and its date. The four figures below are kept because each is a
+ * plain fact about the accounts rather than a second opinion about them.
  */
-export default function UtilizationPanel({ cards, avalancheOrder }: Props) {
+export default function UtilizationPanel({ cards }: Props) {
   const now = useMemo(() => new Date(), []);
-  const [previewAmount, setPreviewAmount] = useState(100);
 
   const summary = useMemo(() => summarizeUtilization(cards, now), [cards, now]);
-  const ranked = useMemo(() => rankByUtilizationImpact(cards, now), [cards, now]);
 
   if (cards.length === 0) return null;
 
@@ -79,60 +77,6 @@ export default function UtilizationPanel({ cards, avalancheOrder }: Props) {
               </span>
             ))}
           </span>
-        </div>
-      )}
-
-      {ranked.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">
-              Pay-down order for score (lowest utilization per dollar)
-            </p>
-            <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
-              Preview payment
-              <input
-                type="number" min={0} step={25} value={previewAmount}
-                onChange={e => setPreviewAmount(Math.max(0, Number(e.target.value) || 0))}
-                className="w-16 border border-border bg-background px-1.5 py-0.5 text-[10px] sm:text-[11px]"
-                style={{ borderRadius: 'var(--radius)' }}
-              />
-            </label>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[10px] sm:text-[11px]">
-              <thead>
-                <tr className="text-muted-foreground uppercase tracking-wider text-left">
-                  <th className="py-1 pr-2 font-medium">Score order</th>
-                  <th className="py-1 pr-2 font-medium">Card</th>
-                  <th className="py-1 pr-2 font-medium text-right">Utilization</th>
-                  <th className="py-1 pr-2 font-medium text-right">Interest order</th>
-                  <th className="py-1 pr-2 font-medium text-right">{formatCurrency(previewAmount, false)} pays down</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranked.map((row, i) => {
-                  const avalanchePos = avalancheOrder.indexOf(row.id);
-                  const card = cards.find(c => c.id === row.id);
-                  const preview = card ? previewCardPaymentImpact(card, previewAmount, now) : null;
-                  return (
-                    <tr key={row.id} className="border-t border-border/50">
-                      <td className="py-1 pr-2">#{i + 1}</td>
-                      <td className="py-1 pr-2">{row.name}</td>
-                      <td className="py-1 pr-2 text-right">
-                        {row.utilizationPct != null ? `${row.utilizationPct.toFixed(1)}%` : '—'}
-                      </td>
-                      <td className="py-1 pr-2 text-right text-muted-foreground">
-                        {avalanchePos >= 0 ? `#${avalanchePos + 1}` : '—'}
-                      </td>
-                      <td className="py-1 pr-2 text-right">
-                        {preview?.deltaPoints != null ? `-${preview.deltaPoints.toFixed(1)}pt` : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
     </div>

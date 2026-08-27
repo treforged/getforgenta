@@ -64,7 +64,11 @@ export function getStrategyPayoffOrder(
 }
 
 /**
- * Comparison order for UtilizationPanel: every card carrying a balance — cycling
+ * ⚠️ NO UI READS THIS SINCE 2026-08-27 — the score-order table it ranked for was deleted from
+ * `UtilizationPanel` on Tre's ask. Kept, with its tests, as the one statement of the marginal-rate
+ * comparison order; it is not dead arithmetic, it is arithmetic with no screen at the moment.
+ *
+ * Comparison order: every card carrying a balance — cycling
  * (autopay-full) cards included, because the panel positions rows via `indexOf` and a
  * missing id would silently drop a card from the comparison. Ranked on the marginal rate
  * exactly as avalanche pays; the population is deliberately WIDER than

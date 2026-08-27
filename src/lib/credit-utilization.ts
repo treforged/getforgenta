@@ -99,6 +99,10 @@ export interface UtilizationRankRow {
 }
 
 /**
+ * ⚠️ NO UI READS THIS OR `previewCardPaymentImpact` SINCE 2026-08-27 — the "pay-down order for
+ * score" table was deleted from `UtilizationPanel` (Tre: too complicated for users). The summary
+ * figures above it are still on screen. Kept with their tests.
+ *
  * Open cards that still carry a balance, ranked by fastest-moving own-utilization per
  * dollar (smallest limit first). A future card or a $0 balance has no utilization to
  * move, so both are excluded rather than sorted in at an arbitrary position.
