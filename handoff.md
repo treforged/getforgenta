@@ -49,10 +49,47 @@
 >   "the account fell" cases while the cash side stays put.
 >
 > ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
-> 1. ⭐ **"the budget control section move" (Tre, in chat) — ASK HIM WHICH SECTION
->    AND WHERE.** Nothing in `claudecontext/asks.md` matches the phrase; the two
->    recent Budget Control items (`4920e5c0` transfers tab, `ff451b68` debt rows)
->    are both shipped and closed. Do not guess a layout change.
+> 1. ⭐ **MOVE BUDGET CONTROL'S KPI TILES TO THE DASHBOARD — ANSWERED AND SCOPED,
+>    READY TO BUILD.** Tre (2026-08-27, with a screenshot): *"i wanted these moved
+>    to dashboard. some are actually already answered on the dashboard so they
+>    could be deleted instead of duplicating. otherwise just move appropriately to
+>    dashboard."*
+>
+>    **THE DECISION TABLE — measured on the live Dashboard, do not re-derive:**
+>    | Budget Control tile | Verdict | Why |
+>    |---|---|---|
+>    | Monthly Income $4,474 | MOVE | Dashboard has no monthly-income figure. Its "Income still coming" ($1,948.89) is REMAINING-this-month, a different question |
+>    | Fixed Expenses $2,433 | MOVE | nothing equivalent |
+>    | Variable $515 | MOVE | nothing equivalent |
+>    | Debt Payments $423 | MOVE | Dashboard's MINIMUMS DUE / SAFE TO PAY answer "what should I pay", not "what does the budget commit" |
+>    | Transfers $877 | MOVE | nothing equivalent |
+>    | Monthly Spend $4,248 | MOVE — **keep the `planned (from rules)` sub** | Dashboard's AVG MONTHLY SPEND $1,090 is a 5-month ACTUAL. The existing code comment already warns these two get confused; side by side the sub-label is load-bearing |
+>    | Annual Spend $50,973 | MOVE | Dashboard's ANNUAL SAVINGS (projected) is income − spend, not spend |
+>    | **Remaining Cash $0** | **DELETE** | **DUPLICATE, verified: Dashboard SAFE TO PAY = $0, the same number, and this card's own subtitle says "the Debt tab's Safe to Pay". Its drawer renders `buildMonth0Snapshot`, which the Dashboard's MONTHLY BUDGET SNAPSHOT already renders INLINE — nothing is lost by deleting it** |
+>
+>    **PLAN:**
+>    a. Extract to a new `src/lib/budget-month-totals.ts`: `toCurrentMonthAmount`
+>       (BudgetControl.tsx:799) and the five buckets (`incomeRules` :684,
+>       `fixedRules` :693, `variableRules` :699, `debtRules` :702,
+>       `transferRules` :771), plus a `budgetMonthTotals()` returning the five
+>       totals + `charges`/`expenses`/`remaining`. ⚠️ BudgetControl KEEPS using
+>       them — its Budget Allocation donut reads income/fixed/variable/debt/
+>       transfers/remaining — so this is an extraction to ONE definition, not a
+>       move, and the tiles on both pages must be provably the same numbers.
+>    b. New `src/components/dashboard/BudgetTotalsCard.tsx` — the 7 tiles and
+>       their calc drawers (the openers are BudgetControl.tsx:1104-1200; the
+>       Income one is the long paycheck derivation, take it whole).
+>    c. New widget id `budget_totals` in `src/lib/dashboard-widgets.ts`, seated
+>       directly after `monthly_snapshot` in `DEFAULT_LAYOUT` with a label +
+>       description. `mergeSavedLayout` already inserts a new widget at its
+>       default position for users who have a saved layout — no migration.
+>    d. Delete from BudgetControl.tsx: both tile grids (:1702-1745), the Monthly/
+>       Annual Spend pair, the Remaining Cash card, and every drawer opener that
+>       becomes unused (`openCashCalc` included).
+>    e. Tests: the extraction is byte-identical (pin all five totals against a
+>       rule fixture) + the widget merges into a saved layout at its default spot.
+>    f. Live-verify BOTH pages: the seven values must read identically to the
+>       screenshot ($4,474 / $2,433 / $515 / $423 / $877 / $4,248 / $50,973).
 > 2. His "smaller quick things i had mentioned that i cant recall" — the open
 >    ledger items that read like his own asks: Debt Payoff truncating span at
 >    390px; the "not open yet" note + payoff-method ordering on Venture X / Apple
