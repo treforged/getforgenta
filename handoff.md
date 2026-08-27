@@ -1,5 +1,52 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35m — **STAGED EMERGENCY GOAL: BASIS CONFIRMED, NUMBERS
+> DERIVED, DESIGN SETTLED. Build is the next action.**
+>
+> Tre's basis, in his words: "bills and the debt payments which are recurring
+> statement balance like groceries, supplements, and fuel". So essential monthly
+> = bills + the CYCLING card spend, EXCLUDING revolving paydown. Derived from his
+> own converged rows:
+>   baseExpenses 1,889 + carLoanPayment 423 + vehicleInsurance 173
+>   + recurring card spend ~384  =  **~$2,869/mo**
+>   → 3 months ≈ **$8,607**, 6 months ≈ **$17,214**
+> The 384 is isolated from months where revolving paydown is ~0 (Feb 2029
+> debtPayment 384 / revolvingDebtCash 18; Feb 2030 384 / 0), which is what
+> separates recurring statement spend from debt payoff. Note the car loan is
+> included and DISAPPEARS once paid, so the figure is not constant for ever -
+> whatever computes it must recompute, not freeze.
+>
+> ⚠️ DO NOT SPLIT THE GOAL IN THE DATA (repeat of 35l, because it is tempting and
+> wrong): his goal resolves `current_amount` FROM `linked_account`
+> 36997c1c-..., so two goals on one account both report the same balance and both
+> look funded.
+>
+> THE DESIGN, and the good news is where the hook already exists. The sequence is
+> move fund -> 3x -> hand off to the cards -> 6x -> the rest. Expressed as ONE
+> goal whose CAPACITY depends on stage:
+>     saved < stage1            -> capacity = stage1 - saved
+>     saved >= stage1 AND cards still owe revolving -> capacity = 0
+>     otherwise                 -> capacity = stage2 - saved
+> Capacity 0 is already how a target yields to the next rank, so the hand-off to
+> the cards needs no new mechanism at all. And `buildRankedTargets`
+> (ranked-extra-payment-targets.ts) ALREADY receives `cards`, so it can see
+> whether revolving debt remains - that is the whole reason this is a contained
+> change rather than a new subsystem. The per-month twin is
+> forecast-engine.ts's `autoExtraCapacity` map, which must apply the same rule as
+> balances move month to month.
+> Schema: savings_goals needs the two thresholds (or a months-multiplier plus the
+> derived figure). Prefer storing the MULTIPLIER (3 and 6) and computing dollars
+> from live expenses, so the target tracks his spending instead of going stale -
+> that is also what makes the same feature work for any customer.
+>
+> STILL QUEUED from the same run: not-yet-live cards shown individually with a
+> note and ordered by the payoff method, seated after Discover and before the
+> car-loan extras; "always require a selection" for the card mode with default
+> "as one group" following the /debt method; Roth IRA annual cap with LEVEL
+> monthly amounts; investing auto-transfer uncapped; Garage amortization SCHEDULE
+> (not just the chart) reflecting ranked auto-extra; and the Feb 2031 $48.86
+> breach whose root cause is written up in 35l.
+
 > ▶ 2026-08-26 SESSION 35l — **CARD TOGGLE FIXED TWICE MORE (`07986184`). FEB
 > 2031 BREACH ROOT-CAUSED. MOVE/EMERGENCY SPLIT DESIGNED, NOT BUILT - and there
 > is a reason not to hack it into the data, below.**
