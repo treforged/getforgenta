@@ -15,6 +15,7 @@ import {
 import {
   assessReachability, assessSurplusCollision, monthIndexOf, type Reachability,
 } from '@/lib/surplus-reachability';
+import { contributionStartIdx } from '@/lib/savings-growth';
 
 const KIND_ICON = {
   cards: CreditCard, card: CreditCard, car_fund: Car, goal: Target, loan: Banknote,
@@ -43,6 +44,21 @@ function RowIcon({ kind }: { kind: SurplusRankRow['kind'] }) {
   return <Icon size={14} className="text-primary shrink-0" />;
 }
 
+/**
+ * A target's own standing transfer: how much a month, and the month it starts.
+ *
+ * ⚠️ THE DATE TRAVELS WITH THE AMOUNT, in one value rather than a second parallel record. A
+ * contribution that has not begun yet funds nothing, and while this was a bare number the ranked
+ * list read "On track for Jul 2027" for a goal whose transfer was dated to start Nov 2027 — the
+ * verdict counting money the savings-growth chart, reading the same goal, correctly did not.
+ */
+export type OwnContribution = {
+  /** Dollars a month once it is running. */
+  monthly: number;
+  /** `contribution_start_date`, `YYYY-MM-DD`. Null means "already running". */
+  startDate: string | null;
+};
+
 export type SurplusRankingSectionProps = {
   cardsSubtitle?: string;
   /**
@@ -57,7 +73,7 @@ export type SurplusRankingSectionProps = {
   autoExtraByTarget?: ReadonlyMap<string, number[]>;
   /** Each target's own scheduled monthly contribution, which fills the same need the reserve does
    *  and so belongs in the same schedule. Keyed by goal / car-fund id. */
-  ownMonthlyByTarget?: Readonly<Record<string, number>>;
+  ownMonthlyByTarget?: Readonly<Record<string, OwnContribution>>;
   /** The whole deployable surplus per month, before it is split between debt and everything else.
    *  The honest ceiling on what every target combined can receive. */
   capacityByMonth?: readonly number[];
@@ -146,10 +162,15 @@ export default function SurplusRankingSection({
    * stand behind — the same rule `non-cc-liabilities.ts` was written to enforce.
    *
    * The schedule is the ranked extra a target is projected to receive PLUS its own monthly
-   * contribution: they fill the same need, so leaving the contribution out calls a goal
-   * unreachable that its own standing transfer reaches.
+   * contribution from the month that contribution starts: they fill the same need, so leaving the
+   * contribution out calls a goal unreachable that its own standing transfer reaches — and
+   * starting it early calls a goal reachable that its transfer has not begun funding. Both the row
+   * verdict and the banner read this one map, so neither can hold the other's answer.
    */
   const inputsById = useMemo(() => {
+    // The month `today` falls in, parsed exactly the way `savings-growth.ts` parses its own base
+    // month, so the two models measure the same offsets from the same origin.
+    const base = new Date(`${today}T00:00:00`);
     const out = new Map<string, { id: string; remaining: number; targetDate: string | null; monthly?: number[] }>();
     for (const row of rows) {
       if (row.remaining === null) continue;
@@ -158,17 +179,27 @@ export default function SurplusRankingSection({
       // transfer into one account, and the thresholds are cumulative, so it fills stop 1 and only
       // reaches stop 2 through it. Crediting it to every stop would call a three-stop plan reachable
       // on three times the money that actually arrives.
-      const own = row.stage != null && row.stage > 1 ? 0 : (ownMonthlyByTarget?.[row.goalId ?? row.id] ?? 0);
+      const contribution = row.stage != null && row.stage > 1
+        ? undefined
+        : ownMonthlyByTarget?.[row.goalId ?? row.id];
+      const own = Math.max(0, Number(contribution?.monthly) || 0);
+      // ⚠️ AND IT ONLY COUNTS FROM THE MONTH IT STARTS. Live on 2026-08-27 a goal whose
+      // `contribution_start_date` was 2027-11-21 read "On track for Jul 2027" — four months before
+      // the first dollar was scheduled to move — because this credited it from month 0. The start
+      // month is READ from `savings-growth.ts` rather than re-derived here, so the verdict and the
+      // growth chart above it can never disagree about the same goal. A goal with no start date, or
+      // one already past, resolves to 0 and lands on exactly the schedule it had before.
+      const startsAt = contributionStartIdx(contribution?.startDate, base.getFullYear(), base.getMonth());
       const months = extra ?? (capacityByMonth ? new Array(capacityByMonth.length).fill(0) : undefined);
       out.set(row.id, {
         id: row.id,
         remaining: row.remaining,
         targetDate: row.targetDate,
-        monthly: autoExtraByTarget ? months?.map(m => m + own) : undefined,
+        monthly: autoExtraByTarget ? months?.map((m, i) => m + (i >= startsAt ? own : 0)) : undefined,
       });
     }
     return out;
-  }, [rows, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth]);
+  }, [rows, autoExtraByTarget, ownMonthlyByTarget, capacityByMonth, today]);
 
   const verdicts = useMemo(() => {
     const out = new Map<string, Reachability>();

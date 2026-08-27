@@ -11,7 +11,7 @@ import { GoalsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts, type AccountRow } from '@/hooks/useSupabaseData';
-import SurplusRankingSection from '@/components/savings/SurplusRankingSection';
+import SurplusRankingSection, { type OwnContribution } from '@/components/savings/SurplusRankingSection';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -531,9 +531,20 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
 
   // A goal's own monthly contribution fills the same need a ranked extra does, so a reachability
   // verdict that ignored it would call a goal unreachable that its own standing transfer reaches.
+  //
+  // ⚠️ THE START DATE RIDES ALONG, and it is the SAME enriched value the growth chart is handed
+  // (`toGrowthGoal`) — a linked rule's earliest start where there is one, the goal's own column
+  // otherwise. Without it the ranked list read "On track for Jul 2027" for a goal whose transfer
+  // was dated to begin Nov 2027, while the chart three inches above it showed a flat line until
+  // then.
   const ownMonthlyByTarget = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const g of allGoals) map[g.id as string] = Math.max(0, Number(g.monthly_contribution) || 0);
+    const map: Record<string, OwnContribution> = {};
+    for (const g of allGoals) {
+      map[g.id as string] = {
+        monthly: Math.max(0, Number(g.monthly_contribution) || 0),
+        startDate: g.contribution_start_date ?? null,
+      };
+    }
     return map;
   }, [allGoals]);
 

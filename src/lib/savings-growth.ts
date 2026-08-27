@@ -133,6 +133,30 @@ export function contributionCutoffIdx(completionIdx: number | null): number | nu
   return completionIdx === 0 ? 0 : completionIdx + 1;
 }
 
+/**
+ * The month index at which a goal's monthly contribution BEGINS, 0 being the month of
+ * (`baseYear`, `baseMonth`) — `baseMonth` 0-based, exactly as `Date.getMonth()` gives it.
+ * No start date, or one already past, means "already running": index 0.
+ *
+ * Exported for the same reason `contributionCutoffIdx` is — the rule lives in exactly ONE place.
+ * Live on 2026-08-27 the ranked list's reachability verdict printed "On track for Jul 2027" for a
+ * goal whose `contribution_start_date` was 2027-11-21, four months AFTER the date it claimed to
+ * hit, because it counted that contribution from month 0 while this module's chart did not. Two
+ * surfaces disagreeing about one goal is the §2.5 bug class this file's header exists to prevent.
+ *
+ * An unparseable date falls back to 0 rather than to NaN. NaN would propagate into every `>=`
+ * comparison as `false` and silently withhold a contribution the user really has scheduled, which
+ * is a worse lie than the status quo it otherwise reproduces.
+ */
+export function contributionStartIdx(
+  contributionStartDate: string | null | undefined,
+  baseYear: number,
+  baseMonth: number,
+): number {
+  const raw = contributionStartDate ? monthOffset(contributionStartDate, baseYear, baseMonth) : null;
+  return Number.isFinite(raw) ? Math.max(0, raw as number) : 0;
+}
+
 function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, months: number): GoalState {
   // Lump sums dated in the current month or earlier are assumed to already be
   // part of the balance, so only future months are scheduled.
@@ -151,15 +175,13 @@ function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, mont
     if (offset == null || offset < 1 || offset > months - 1) continue;
     withdrawalsByMonth.set(offset, (withdrawalsByMonth.get(offset) ?? 0) + Math.max(0, Number(w.amount || 0)));
   }
-  const startOffsetRaw = g.contributionStartDate
-    ? monthOffset(g.contributionStartDate, baseYear, baseMonth)
-    : null;
   return {
     balance: Number(g.currentAmount) || 0,
     rate: (Number(g.annualApyPercent) || 0) / 12 / 100,
     pmt: Number(g.monthlyContribution) || 0,
-    // A start date in the past (or none) means contributions are already running.
-    startOffset: Math.max(0, startOffsetRaw ?? 0),
+    // A start date in the past (or none) means contributions are already running — the rule itself
+    // lives in `contributionStartIdx`, shared with the ranked list's reachability verdict.
+    startOffset: contributionStartIdx(g.contributionStartDate, baseYear, baseMonth),
     // Set by the caller that knows the target; `estimateGoalCompletionMonths` must leave it
     // null or it would be defining its own answer in terms of itself.
     cutoffOffset: null,

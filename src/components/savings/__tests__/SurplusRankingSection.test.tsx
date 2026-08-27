@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import SurplusRankingSection from '../SurplusRankingSection';
+import SurplusRankingSection, { type SurplusRankingSectionProps } from '../SurplusRankingSection';
 import { CARDS_ROW_ID, type SurplusRankRow } from '@/lib/surplus-ranking';
 
 // The reorder animation itself cannot be asserted here — jsdom has no layout, so framer's
@@ -54,9 +54,13 @@ const THREE = [
   row('g2', 'Roth IRA', 2),
 ];
 
-function setup(rows: SurplusRankRow[] = THREE, patch: Partial<typeof ranking> = {}) {
+function setup(
+  rows: SurplusRankRow[] = THREE,
+  patch: Partial<typeof ranking> = {},
+  props: SurplusRankingSectionProps = {},
+) {
   Object.assign(ranking, { rows, cards: [], liabilities: [], saving: false, loading: false, readOnly: false }, patch);
-  return render(<MemoryRouter><SurplusRankingSection /></MemoryRouter>);
+  return render(<MemoryRouter><SurplusRankingSection {...props} /></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -327,5 +331,71 @@ describe('SurplusRankingSection — the card-rank mode always asks', () => {
     for (const label of ['As one group', 'One row each']) {
       expect(screen.getByText(label).className).toContain('min-h-[36px]');
     }
+  });
+});
+
+// ── A CONTRIBUTION THAT HAS NOT STARTED FUNDS NOTHING ────────────────────────
+//
+// Found on live data 2026-08-27: a goal read "On track for Jul 2027" while its
+// `contribution_start_date` was 2027-11-21 — four months AFTER the date it was claiming to hit —
+// because the schedule credited its monthly contribution from month 0. The savings-growth chart on
+// the same page had it right, so the panel and the chart said different things about one goal.
+//
+// Every case below is the SAME goal and the SAME money; only the start date moves.
+describe('SurplusRankingSection — the verdict respects the contribution start date', () => {
+  // Aug 2026. Jul 2027 is month index 11 from here, and Nov 2027 is month index 15.
+  const ASOF = '2026-08-27';
+  const MOVE_FUND = [
+    row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'),
+    { ...row('g1', 'Move fund', 1), targetDate: '2027-07-01' },
+  ];
+  // Nothing ranked to this goal at all, so the ONLY money in the schedule is its own contribution
+  // and the verdict turns purely on when that starts.
+  const NO_RANKED_EXTRA = new Map([['g1', new Array(60).fill(0)]]);
+  const CAPACITY = new Array(60).fill(200);
+
+  const forStart = (startDate: string | null): SurplusRankingSectionProps => ({
+    asOf: ASOF,
+    autoExtraByTarget: NO_RANKED_EXTRA,
+    ownMonthlyByTarget: { g1: { monthly: 100, startDate } },
+    capacityByMonth: CAPACITY,
+  });
+
+  it('reads "on track" when the contribution is already running — the inert case, unchanged', () => {
+    setup(MOVE_FUND, {}, forStart(null));
+    // $100/mo from month 0 puts $1,200 in by Jul 2027 against $500 needed.
+    expect(screen.getByText('On track for Jul 2027')).toBeTruthy();
+  });
+
+  it('reads exactly the same for a start date already passed', () => {
+    setup(MOVE_FUND, {}, forStart('2020-01-01'));
+    expect(screen.getByText('On track for Jul 2027')).toBeTruthy();
+  });
+
+  it('does NOT read "on track" when the contribution starts after the target date', () => {
+    setup(MOVE_FUND, {}, forStart('2027-11-21'));
+    expect(screen.queryByText('On track for Jul 2027')).toBeNull();
+    // Nothing lands before Nov 2027 (index 15), so $500 is reached at index 19 — eight months past
+    // the Jul 2027 deadline, with the whole $500 still missing on the day it was wanted.
+    expect(screen.getByText('8 months late — $500 short at Jul 2027')).toBeTruthy();
+  });
+
+  it('withholds only the months BEFORE the start, not the contribution itself', () => {
+    // Same goal, start date one month out. It still lands well before Jul 2027, so a fix that
+    // simply dropped the contribution whenever a start date existed would fail here.
+    setup(MOVE_FUND, {}, forStart('2026-09-01'));
+    expect(screen.getByText('On track for Jul 2027')).toBeTruthy();
+  });
+
+  // The banner and the rows share ONE schedule (`inputsById`) precisely so they cannot disagree;
+  // these two pin that the start date reaches both of them and not just the row.
+  it('stays silent in the banner while the goal is genuinely on track', () => {
+    setup(MOVE_FUND, {}, forStart(null));
+    expect(screen.queryByText(/does not reach its own date/)).toBeNull();
+  });
+
+  it('prices the same shortfall in the banner as the row it sits above', () => {
+    setup(MOVE_FUND, {}, forStart('2027-11-21'));
+    expect(screen.getByText('1 target does not reach its own date — $500 short in total.')).toBeTruthy();
   });
 });

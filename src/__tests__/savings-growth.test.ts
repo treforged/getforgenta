@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSavingsGrowthData, contributionCutoffIdx, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, contributionCutoffIdx, contributionStartIdx, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
 
 const TODAY = new Date(2026, 0, 15); // Jan 2026, fixed so the suite is date-independent
 
@@ -181,6 +181,53 @@ describe('contributionCutoffIdx', () => {
 
   it('returns null when the goal never completes', () => {
     expect(contributionCutoffIdx(null)).toBeNull();
+  });
+});
+
+// The other half of the same discipline: `contributionCutoffIdx` says when a contribution STOPS,
+// this says when it STARTS. It is exported because a second copy of the rule is what let the
+// ranked list print "On track for Jul 2027" for a goal whose transfer began Nov 2027.
+describe('contributionStartIdx', () => {
+  // Jan 2026, matching TODAY above.
+  const BASE_Y = 2026;
+  const BASE_M = 0;
+
+  it('starts at month 0 with no start date at all — the inert case, and nearly every goal', () => {
+    expect(contributionStartIdx(null, BASE_Y, BASE_M)).toBe(0);
+    expect(contributionStartIdx(undefined, BASE_Y, BASE_M)).toBe(0);
+    expect(contributionStartIdx('', BASE_Y, BASE_M)).toBe(0);
+  });
+
+  it('starts at month 0 for a date already passed — clamped, never negative', () => {
+    expect(contributionStartIdx('2025-03-04', BASE_Y, BASE_M)).toBe(0);
+    expect(contributionStartIdx('2026-01-31', BASE_Y, BASE_M)).toBe(0);
+  });
+
+  it('counts whole calendar months to a future start, day-of-month ignored', () => {
+    expect(contributionStartIdx('2026-02-01', BASE_Y, BASE_M)).toBe(1);
+    expect(contributionStartIdx('2026-02-28', BASE_Y, BASE_M)).toBe(1);
+    expect(contributionStartIdx('2027-11-21', BASE_Y, BASE_M)).toBe(22);
+  });
+
+  it('agrees with the chart it shares the rule with', () => {
+    // 22 months out from Jan 2026 is Nov 2027: the chart must be flat until index 22 and step by
+    // the contribution at 22. If these two ever disagree the whole point of exporting is gone.
+    const idx = contributionStartIdx('2027-11-21', BASE_Y, BASE_M);
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 0, contributionStartDate: '2027-11-21' })],
+      { months: idx + 2, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows[idx - 1][k]).toBe(0);
+    expect(rows[idx][k]).toBe(100);
+    expect(rows[idx + 1][k]).toBe(200);
+  });
+
+  it('falls back to month 0 on an unparseable date rather than to NaN', () => {
+    // NaN would compare false against every `>=` downstream and silently withhold a contribution
+    // the user really has scheduled — a worse answer than the "already running" status quo.
+    expect(contributionStartIdx('not-a-date', BASE_Y, BASE_M)).toBe(0);
+    expect(contributionStartIdx('2026-02-01', Number.NaN, BASE_M)).toBe(0);
   });
 });
 
