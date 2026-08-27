@@ -1,5 +1,64 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35s — **FOUR QUEUED ASKS SHIPPED, ALL GATED, MOST
+> LIVE-VERIFIED.** `26fd1bce` · `1256ab06` · `79031965`. tsc 0, 282 files /
+> 2960 tests. Local only, unpushed (6 commits ahead now).
+>
+> 1. **Not-yet-open cards say so** — "Not open yet · opens Jun 2027".
+>    `orderNotOpenCards` also puts them in payoff order within the slots they
+>    already hold, so nothing the user dragged moves.
+> 2. **The card-rank mode always asks** — it was HIDDEN in the state a user most
+>    needs it (one block, one card). A mixed list now reads as an unanswered
+>    question: amber frame, "Choose one", neither button pressed.
+> 3. **The annual IRA cap, paid LEVEL** — `retirement-contribution-cap.ts` +
+>    an engine clamp, mutation-checked. Same levelling, no ceiling, for a
+>    brokerage-linked goal.
+> 4. **The Garage amortization schedule shows the ranked extras** — new
+>    `autoExtraByMonth` on `buildAmortizationSchedule`, plus an "Auto extra"
+>    column. Live on his C5: ends Aug 2029 instead of Jun 2030.
+>
+> ⚠️ **A FINDING, NOT FIXED, MEASURE BEFORE TOUCHING.** The Garage card now shows
+> TWO payoff dates for one loan: the dashed-line copy says "paying this loan off
+> by **Jul 2029**" while the schedule's final payment lands **Aug 2029** — and the
+> engine itself sends $2,343 of extra principal in Aug, which it would not send
+> into a loan it had already cleared. `autoPayoffLabel` reads `firstZero - 1` off
+> `carLoanBalanceByMonth`, which carries a documented one-month credit lag. That
+> is money math; it needs measuring, not a guess.
+>
+> ⚠️ **THE IRA CAP IS NOT LIVE-OBSERVABLE ON HIS DATA** and that is not a gap in
+> the work: his Roth sits at rank 9, behind the cards, the loan and all three
+> move-fund stops, so it draws nothing in the near horizon and there is no capped
+> month to look at. The proof is the harness, mutation-checked. His suspicion
+> that the cap caused the Feb 2031 breach is NOT supported — the cap did not
+> exist when that breach was measured.
+>
+> ═══ THE FREE-LLM TIER, MEASURED ═══
+> Nine calls fanned out in parallel across six providers this session. The result
+> that matters is that **the BRIEF, not the model, is the quality lever**: groq
+> scored **2.3** on a brief that described a goal and **shipped correct code** an
+> hour later on one that pasted the exact block and ended in a numbered MUST
+> checklist. ovh scored **4.7**, the best free-tier output to date, on that same
+> format. Full write-up + the format itself is in `~/.claude/ollama/playbook.md`.
+>
+> ⚠️ TWO INDEPENDENT MODELS MADE THE SAME WRONG CALL: both reached for
+> `isCardOpenAsOf`, which short-circuits on an `account_type` the shape does not
+> carry, so the feature would never have fired. **Two models agreeing is not
+> verification** — they share the same wrong prior about which helper looks right.
+> Next brief names the WRONG look-alike and says why.
+> Gemini timed out; OpenRouter returned an empty body twice (likely its 50/day
+> free cap). Neither is a quality signal.
+>
+> ⬜ STILL QUEUED:
+> 1. The Feb 2031 $48.86 breach. ⛔ the free-LLM diagnosis at
+>    `scratchpad/llm/floor_out.md` IS WRONG — start from 35l.
+> 2. The Jul-vs-Aug 2029 payoff-label finding above.
+> 3. "make sure student loans also show their payments and changes in the loans
+>    tab" — never started.
+> 4. Friends + leaderboard Phase 2 (leaderboard publisher).
+>
+> ⚠️ COMMIT-MESSAGE TRAP, hit once: a wrapped `Release-Note:` publishes only its
+> first line. `2ab63346`'s was truncated. Keep it on ONE line.
+
 > ▶ 2026-08-27 SESSION 35r — **EVERY STOP IS NOW A REAL ROW: ITS OWN RANK, ITS
 > OWN AUTO-EXTRA TICK, ARROWS ON EVERY DEVICE (`b1ac699b`).** tsc 0, 279 files /
 > 2921 tests. Live-verified on Tre's data. Local only, unpushed.
