@@ -7,6 +7,7 @@ import { buildConfirmedOccurrences, isRuleOccurrenceConfirmed } from '@/lib/conf
 import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/auto-matched-occurrences';
 import { aggregateByMonth, type ScheduledEvent } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { annualFeeAmount, annualFeeMonthIndexes } from '@/lib/annual-fee';
 import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
@@ -451,7 +452,7 @@ export function useForecastEngineInputs({
     );
     const now = new Date();
     const todayStr = syncCutoffDate;
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
+    const months = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       return scheduledEvents
@@ -463,6 +464,23 @@ export function useForecastEngineInputs({
         )
         .reduce((s, e) => s + e.amount, 0);
     });
+
+    // ⚠️ AN ANNUAL FEE IS A CC PURCHASE, AND IT HAS TO BE TALLIED IN BOTH PLACES. The card
+    // simulation adds it to `cardPurchasesPerMonth` (useCardProjection); this is the forecast's own
+    // count of the same charges, and the cash walk reads THIS one. Added here from the same
+    // `annual-fee` module rather than a second rule, so the two cannot disagree about the month or
+    // the amount — a fee in one and not the other is precisely the §2.5 bug class.
+    // Month 0 is skipped for the same reason every other purchase skips it: the live card balance
+    // already includes whatever has posted.
+    for (const a of accounts) {
+      if (!a.active || a.account_type !== 'credit_card') continue;
+      const fee = annualFeeAmount(a);
+      if (fee === 0) continue;
+      for (const mi of annualFeeMonthIndexes(a, now, PROJECTION_MONTHS)) {
+        if (mi > 0) months[mi] += fee;
+      }
+    }
+    return months;
   }, [accounts, rules, scheduledEvents, syncCutoffDate]);
 
   const engineInputs = useMemo<ForecastInputs>(() => ({

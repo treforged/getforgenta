@@ -57,6 +57,8 @@ export type Database = {
           apr: number | null
           apr_plaid_synced: boolean | null
           apr_start_date: string | null
+          annual_fee: number | null
+          annual_fee_date: string | null
           apy_rate: number | null
           balance: number
           balance_tranches: Json | null
@@ -94,6 +96,8 @@ export type Database = {
           apr?: number | null
           apr_plaid_synced?: boolean | null
           apr_start_date?: string | null
+          annual_fee?: number | null
+          annual_fee_date?: string | null
           apy_rate?: number | null
           balance?: number
           balance_tranches?: Json | null
@@ -131,6 +135,8 @@ export type Database = {
           apr?: number | null
           apr_plaid_synced?: boolean | null
           apr_start_date?: string | null
+          annual_fee?: number | null
+          annual_fee_date?: string | null
           apy_rate?: number | null
           balance?: number
           balance_tranches?: Json | null

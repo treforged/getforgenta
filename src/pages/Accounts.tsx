@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatCurrency } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
+import { annualFeeAmount, nextAnnualFeeLabel } from '@/lib/annual-fee';
 import { useAccounts, useDebts, useAccountReconciliations, type AccountRow } from '@/hooks/useSupabaseData';
 import { LIABILITY_ACCOUNT_TYPES } from '@/lib/net-worth';
 import type { Tables } from '@/integrations/supabase/types';
@@ -121,7 +122,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
+const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '', annual_fee: '', annual_fee_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 /**
@@ -486,6 +487,8 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
       apr_start_date: a.apr_start_date || '',
       card_start_date: a.card_start_date || '',
+      annual_fee: a.annual_fee != null ? String(a.annual_fee) : '',
+      annual_fee_date: a.annual_fee_date || '',
     });
     setTrancheRows(tranchesToRows(a.balance_tranches));
     setEditingPlaidLinked(!!a.plaid_account_id);
@@ -525,6 +528,10 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       ...(LIABILITY_TYPES.includes(form.account_type) ? { payment_due_day: dueDayVal } : {}),
       ...(form.account_type === 'credit_card' ? {
         card_start_date: form.card_start_date || null,
+        // A fee with no date has no month to land in, and the DB check rejects the pair - so an
+        // amount typed without a date is stored as no fee at all rather than failing the save.
+        annual_fee: form.annual_fee !== '' && form.annual_fee_date ? parseFloat(form.annual_fee) || 0 : 0,
+        annual_fee_date: form.annual_fee !== '' && form.annual_fee_date ? form.annual_fee_date : null,
         // Null, not [], when there are no tiers — a single-APR card, which is what every reader
         // treats as "no tranches" (see balance-tranches.ts).
         balance_tranches: tranches,
@@ -925,6 +932,11 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                         student loan or a mortgage too, and a value the user typed that the row it
                         was typed on refuses to show reads as a save that did not happen. */}
                     {LIABILITY_TYPES.includes(a.account_type) && a.payment_due_day ? ` · Due ${ordinal(Number(a.payment_due_day))}` : ''}
+                    {/* The fee AND the month it next lands in. An amount on its own invites the
+                        question the row can already answer. */}
+                    {annualFeeAmount(a) > 0
+                      ? ` · ${formatCurrency(annualFeeAmount(a), false)}/yr fee${nextAnnualFeeLabel(a, new Date()) ? ` · next ${nextAnnualFeeLabel(a, new Date())}` : ''}`
+                      : ''}
                   </p>
                   <div className="flex items-center gap-0.5 mt-2 -ml-1">
                     {a.plaid_account_id && (
@@ -1220,6 +1232,8 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             ] : []),
             ...(form.account_type === 'credit_card' ? [
               { key: 'card_start_date', label: 'Start Date (future cards)', type: 'date' as const, hint: 'Leave blank for existing cards. Set a future date to begin purchases from that month.' },
+              { key: 'annual_fee', label: 'Annual Fee', type: 'number' as const, placeholder: '0', step: '0.01', hint: 'Charged to this card every year, so the forecast stops reading better than the card costs. Leave blank if it has none.' },
+              { key: 'annual_fee_date', label: 'First Annual Fee Date', type: 'date' as const, hint: 'The date of the first charge. It repeats on that month every year. Required if a fee is set.' },
             ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidAprSynced, hint: editingPlaidAprSynced ? 'Managed by Plaid' : undefined },
             ...(APY_TYPES.includes(form.account_type) ? [

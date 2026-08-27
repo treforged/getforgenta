@@ -24,6 +24,7 @@ import { carChargeEvidence } from '@/lib/capture-evidence';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
+import { annualFeeAmount, annualFeeMonthIndexes } from '@/lib/annual-fee';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
@@ -351,6 +352,25 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
               }
             }
           }
+        }
+      }
+
+      // ── Annual fees per card ──────────────────────────────────────────────────
+      // A card's own annual fee, charged TO THE CARD in its anniversary month, the way a real one
+      // posts. Nothing else knew about them, so a fee-carrying card read $0 cheaper than it is
+      // every year (Tre's Venture X: $395 in Jun 2027, the tightest month in his plan).
+      //
+      // ⚠️ Month 0 is skipped, for the same reason every other purchase skips it: the live card
+      // balance already includes whatever has posted this month, and adding the fee on top would
+      // charge it twice for a user whose fee has already hit.
+      for (const card of cards) {
+        const account = accountMap.get(card.id);
+        if (!account) continue;
+        const fee = annualFeeAmount(account);
+        if (fee === 0) continue;
+        for (const mi of annualFeeMonthIndexes(account, now, PROJECTION_MONTHS)) {
+          if (mi === 0) continue;
+          cardPurchasesPerMonth[mi][card.id] = (cardPurchasesPerMonth[mi][card.id] ?? 0) + fee;
         }
       }
 
