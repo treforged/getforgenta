@@ -1,5 +1,63 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36l — **`2673ddb4`. 46 commits unpushed. ⚠️ PAUSED ON THE
+> WEEKLY USAGE CAP (92%, resets 18:00 ET).** Tre's second ask of the session,
+> built. Manager built it; no executor spawned.
+>
+> ═══ ⚠️ FIRST THING THE NEXT SESSION MUST DO ═══
+> **Run the full gate.** `npx tsc --noEmit` and `npm test` were LAST GREEN at
+> **3118 tests**, taken AFTER every source change of `2673ddb4` but BEFORE its two
+> new test files were added (`forecast-engine.otherAccountCash.test.ts` 13 green
+> on their own, `other-account-lines.test.ts` 5 green on their own). So the total
+> should be **3136** and tsc should still be 0 — the cap hit before that could be
+> confirmed. Then LIVE-VERIFY June 2027 (below).
+>
+> ═══ SHIPPED ═══
+> - **`2673ddb4` — THE MONTH POPUP'S CASH WALK IS ONE ACCOUNT.** Tre: *"the net
+>   cash coming out of savings should NOT be taken out in that top section and
+>   affect ending balance. that top section is a reflection of only the checking
+>   account (the debt payment account). make a new section that shows the change in
+>   other accounts when there is one."* + *"top section = the account used for debt
+>   payments, others in other section."* Confirmed on his data by SQL FIRST:
+>   **June 2027 = a $3,830 "Lease break fee" whose `payment_source` is his SAVINGS
+>   ACCOUNT**, July 2027 = a $1,900 deposit from the same account. Both were being
+>   subtracted from CHECKING's ending cash and neither ever left savings — wrong on
+>   both sides of the same dollar. (The $1,500 movers on Venture X was already
+>   excluded; a card is a liability, not a withdrawal.)
+>   1. New **`other-account-cash.ts`** answers "which asset account did this really
+>      come out of", and **all THREE one-time builders** now ask it
+>      (`useForecastEngineInputs.oneTimeByMonth`, `useCardProjection`'s month-0
+>      array, `CreditCardEngine`'s sim array) — they feed the same month's cash on
+>      different surfaces. CC filter untouched and still ahead of it at each site.
+>      Returns null with no funding account: without one there is no "checking" to
+>      be other than.
+>   2. **Step 4b-iii debits the source account**, which closes an OLDER defect than
+>      the ask: expense RULES paid from another account were excluded from
+>      `baseExpenses` and then debited from NOTHING, so a savings balance carried
+>      already-spent dollars and Net Worth was overstated for the whole horizon.
+>      `otherAccountExpenseItems` gained `fromAcctId` (a label cannot be debited).
+>   3. New **`other-account-lines.ts`** groups every movement BY ACCOUNT and closes
+>      each group with that group's net change. Replaces the two "(no cash impact)"
+>      lists — nothing dropped, grouped. `nonCashTransferItems` gained
+>      `toAcctId`/`toAcctName` so a savings → brokerage transfer shows BOTH ENDS.
+>   18 new tests. 4b-iii proven to bite: stubbing the loop fails exactly the three
+>   "the account fell" cases while the cash side stays put.
+>
+> ═══ NOT LIVE-VERIFIED, AND WHY ═══
+> - ⚠️ **NOT OPENED IN A BROWSER — the cap hit first.** Open **Forecast → June
+>   2027** on `http://localhost:8080`: Ending Cash should be **$3,830 HIGHER** than
+>   before this commit, and a new **"Other Accounts"** section should name the
+>   lease-break fee under Savings Account with a −$3,830 net. July 2027 the same
+>   with the $1,900 deposit.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. **Gate + live-verify `2673ddb4`** (above).
+> 2. Then session 36k's queue, unchanged, below.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36k — **`99b4f63e`. tsc 0, 291 files / 3118 tests, eslint
 > clean. 44 commits unpushed.** Tre's own ask, built and gated. Manager built it;
 > no executor spawned. Context gate fired at 176k mid-edit.
