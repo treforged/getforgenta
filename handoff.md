@@ -1,5 +1,63 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35v — **`069bf084`. tsc 0, 284 files / 2982 tests.
+> 12 commits unpushed.**
+>
+> ═══ SHIPPED: A SAVINGS GOAL CAN BE SPENT ═══
+> The gap Tre spotted was real. Nothing in the app ever spent a plain savings
+> goal — a car fund is spent at its purchase month, a goal only ever grew. A stop
+> can now be marked `spends` and its money leaves on that stop's own
+> `target_date`. Per-stop, because that is the shape his plan has: the move fund
+> is stop 1 of three and only stop 1 is money that goes.
+>
+> ⚠️ **`goalSavedIncludingSpent` IS THE LOAD-BEARING HALF.** Thresholds are
+> cumulative against the LIVE balance, so the month the $5,730 leaves, the plan
+> reads "stop 1 unfilled" and starts saving for a move that already happened.
+> Progress through a plan is not the balance in the account. The goal card reads
+> progress through that helper while still printing the real balance as the
+> headline.
+>
+> ⚠️ NOT VISUALLY CONFIRMABLE ON HIS CHART, and the reason is not a defect: his
+> move fund balance is **$106**, so the Jul 2027 drop is sub-pixel on a line
+> sitting on the axis. Pinned in the harness instead (exact before/during/after,
+> an inertness pin, a never-negative clamp). The card does show "1. First target
+> · spent by Jul 2027".
+>
+> ═══ ⚠️ A CONSEQUENCE OF THIS SESSION'S DATA CHANGE, TELL HIM ═══
+> Deleting his manual contributions (which he asked for) took the move fund from
+> **"11 months late — $3,224 short at Jul 2027"** to **"14 months late — $5,624
+> short"**. With the $200/mo gone it depends entirely on ranked surplus that
+> Prime Visa outranks, so it now receives NOTHING before the move. Backups are at
+> `backup.manual_contributions_20260827` / `backup.recurring_rules_20260827`;
+> the two rules are DEACTIVATED, not destroyed.
+>
+> ═══ ⛔ THE "PROPER FIX" HE APPROVED IS NOT DONE, ON PURPOSE ═══
+> He approved the seed-vs-reducer change. **DO NOT ACT ON SESSION 35u's CLAIM.**
+> That handoff said "the reducer is right and the seed is wrong"; on re-reading,
+> `startBalance` at index 0 is exactly what makes month 0 show what he owes
+> TODAY, and seeding `endBalance` would understate it by one payment. So which
+> convention each surface actually wants is an open question and has to be
+> MEASURED per surface — the month drawer, `carLoanBreakdown`, the liability
+> itemisation — before a change that moves numbers for every user. The
+> reading-side fix that shipped (`extra-aware-payoff.ts`) is provably inert for
+> anyone with no extras, so nothing is broken while this waits.
+>
+> ═══ CAP ═══
+> Weekly cap is **90** in both files with a dated **RESTORE TO 75.0 AFTER
+> 2026-08-31 18:00** and the full derivation in the comment. The measurement says
+> the window is over-subscribed: 16 points left, routines still need 17-25 before
+> the reset. Expect routine rejections.
+>
+> ⬜ STILL QUEUED:
+> 1. "the same rule needs to auto apply to all users" for manual CONTRIBUTIONS.
+>    `585aacdc` covers LUMP SUMS only. Must be VISIBLE and confirmed, never a
+>    silent wipe — it deletes real user rows.
+> 2. The seed-vs-reducer measurement above.
+> 3. The Feb 2031 $48.86 breach. ⛔ `scratchpad/llm/floor_out.md` IS WRONG.
+> 4. Student loans — his GF's account; he has not logged into it yet.
+> 5. Friends + leaderboard Phase 2.
+> 6. The mobile deck fix (`b83698e5`) is NOT device-verified.
+
 > ▶ 2026-08-27 SESSION 35u — **`b83698e5`. tsc 0, 283 files / 2970 tests.
 > 10 commits unpushed.**
 >
