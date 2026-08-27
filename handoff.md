@@ -1,5 +1,62 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35r — **EVERY STOP IS NOW A REAL ROW: ITS OWN RANK, ITS
+> OWN AUTO-EXTRA TICK, ARROWS ON EVERY DEVICE (`b1ac699b`).** tsc 0, 279 files /
+> 2921 tests. Live-verified on Tre's data. Local only, unpushed.
+>
+> **`after_cards` IS RETIRED.** A stop said "wait for the cards" with a flag only
+> because it had nowhere to sit. It now says it by SITTING there, and the flag
+> could never have said "behind the LOAN", which Tre asked for by name. The key
+> is still READ to seed a default rank for an unmigrated row and is never written
+> again. `stagedTail`'s park-and-unlock in `forecast-engine.ts` went with it:
+> rank position IS the gate, and the ordinary waterfall already honours it.
+>
+> **WHERE THE STATE LIVES.** `savings_goals.stages[i].sort_order` and
+> `.auto_extra`. NOT the goal's own columns — those are for an UNSTAGED goal
+> only. `planSurplusRankWrites` emits a `goalStages` channel and the hook folds
+> every stop of one goal into ONE jsonb update; two concurrent patches of the
+> same array would each keep only their own change.
+>
+> ⚠️ `goalIdByTargetId` IN THE ENGINE IS LOAD-BEARING. A stop is ranked under
+> `<goalId>::stopN`, which is a key in neither `autoExtraLinkedAcct` nor
+> `goalPools` — without the map the cash leaves checking at step 4c-ii and lands
+> nowhere, which is the exact failure that step's own comment warns about.
+>
+> `enforceStopOrder` is the ONE constraint on a drag: a goal keeps the SET of
+> positions its stops occupy and only WHICH stop sits in which is corrected, so a
+> drag moves as far as it legally can rather than snapping back.
+>
+> **LIVE, exactly the order he described:** 1 Prime Visa · 2 FIRST TARGET 1/3
+> ($5,624 to go) · 3 Discover · 4 Venture X · 5 Apple Card · 6 EMERGENCY RUNWAY
+> 2/3 · 7 C5 loan · 8 FULL RUNWAY 3/3 · 9 Roth IRA · 10 Brokerage · 11 401K.
+> Moving a stop down and back wrote `sort_order` into the jsonb both times.
+> 22 arrows, 0 drag handles, min-height 44px measured.
+>
+> **DATA CHANGES MADE ON HIS LIVE ROWS, both asked for:** Roth IRA and Brokerage
+> `auto_extra` true (`auto_extra_auto_cleared` cleared too — they had been
+> auto-deselected); his three stops placed at 1 / 5.5 / 6.5.
+>
+> ⚠️ **A FINDING HE HAS NOT SEEN YET.** His first stop's Jul 2027 date now drives
+> a real verdict on the row: **"11 months late — $3,224 short at Jul 2027"**.
+> Per-stop due dates were already built in `2ab63346`; this is the first time the
+> app has said out loud that the move money does not arrive in time.
+>
+> ⬜ STILL QUEUED, untouched:
+> 1. Not-yet-live cards (Venture X, Apple Card) shown with a "not open yet" note
+>    and ordered by the payoff method.
+> 2. The card mode always requiring a selection (default "as one group").
+> 3. Roth IRA annual cap with LEVEL monthly amounts — usable DRAFT helper at
+>    `scratchpad/llm/roth_out.md`; take the helper, write the wiring yourself.
+> 4. Investing auto-transfer uncapped.
+> 5. Garage amortization SCHEDULE reflecting ranked auto-extra — unreviewed draft
+>    at `scratchpad/llm/garage_out.md`.
+> 6. The Feb 2031 $48.86 breach. ⛔ THE FREE-LLM DIAGNOSIS AT
+>    `scratchpad/llm/floor_out.md` IS WRONG — do not apply it; start from 35l.
+>
+> ⚠️ COMMIT-MESSAGE TRAP HIT ONCE: a wrapped `Release-Note:` publishes only its
+> first line. `2ab63346`'s note was truncated at "...as many planned stops as
+> you". Keep it on ONE line.
+
 > ▶ 2026-08-26 SESSION 35q — **THE N-STAGE REDESIGN IS BUILT, APPLIED AND
 > LIVE-VERIFIED ON TRE'S OWN DATA (`2ab63346`).** tsc 0, 279 files / 2912 tests.
 > Local only, unpushed. Every one of the six changes in 35p's spec is done.
