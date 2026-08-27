@@ -1,5 +1,74 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36k — **`99b4f63e`. tsc 0, 291 files / 3118 tests, eslint
+> clean. 44 commits unpushed.** Tre's own ask, built and gated. Manager built it;
+> no executor spawned. Context gate fired at 176k mid-edit.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **`99b4f63e` — A SAVINGS STOP CAN SHARE A RANK, AND MONTH 0 RANKS PER STOP.**
+>   Tre, in chat: *"split stage 2 of savings with car loan."* He could drag stage 2
+>   anywhere and tick it on its own, but never SHARE a rank with it — a split
+>   weight lived in `savings_goals.surplus_share`, ONE column, which is stop 1's.
+>   Three parts, and the third was a real defect found by building the first two:
+>   1. **Per-stop `surplus_share`** inside each `stages` entry, resolved by
+>      `goalStages` onto `GoalStop.share`, goal column as stop 1's fallback (the
+>      same inheritance the tick has). **No migration** — the
+>      `savings_goal_stages_valid` CHECK is silent about extra keys. ⚠️ A stored
+>      `null` is a REAL VALUE (it is how a stop LEAVES a split), so the fallback
+>      keys on the key being ABSENT and every writer spreads on `!== undefined`.
+>      The Share/Split button is no longer hidden on a later stop.
+>   2. **Month 0 builds ONE TARGET PER STOP** (`buildRankedTargets`), the shape
+>      the engine has always used for months 1+. **This closes 36j queue item 4.**
+>      One row per GOAL disagreed with every later month three ways: the RANK (a
+>      filled stop 1 meant the current stop was funded at the goal's rank, so a
+>      runway dragged below the cards was funded ahead of them in month 0), the
+>      TICK (`auto_extra` on the goal row is stop 1's), and the SPLIT. Ids are
+>      `stopRowId`, which `goalIdByTargetId` already maps back before the engine
+>      credits a pool. `goalMonthlyCeiling` now paces the stop it is HANDED.
+>   3. **A split member with no room left no longer claims a weight**
+>      (`allocateRankedSurplus`). A LOAN-phase car fund puts TWO rows on one rank
+>      (a `car_fund` at capacity 0 and the `loan`), so 50/50 divided three ways and
+>      the within-rank cascade paid the loan $400 to the stop's $200. Two-member
+>      splits are unaffected — they already cascaded a full partner's share.
+> - 19 new tests. Both new rules proven to bite (see the commit body).
+>
+> ═══ NOT LIVE-VERIFIED, AND WHY ═══
+> - ⚠️ **NOTHING ON HIS SCREEN MOVES YET.** His stop 1 (move fund) is UNFILLED, so
+>   month 0's current stop is stop 1 — same rank, same tick, same weight under both
+>   the old shape and the new one — and nothing is split until he presses Share.
+>   The arrangement he asked for is now POSSIBLE; applying it to his rows is his
+>   call (Savings Goals → "Where the extra money goes" → Share on stage 2, which
+>   must be sitting at the car loan's rank).
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. ⭐ **NEW, HIS ASK, TOP OF THE LIST — FORECAST MONTH POPUPS.** *"in forecast pop
+>    ups, the net cash coming out of savings should NOT be taken out in that top
+>    section and affect ending balance. that top section is a reflection of only the
+>    checking account (the debt payment account). make a new section that shows the
+>    change in other accounts when there is one."* His example month: **June 2027**
+>    (the move-fund spend-down). ⚠️ He said "should be" and corrected it to "should
+>    NOT be" one minute later — the corrected reading is the one above. Likely
+>    source: `goalWithdrawals` / the spend-down landing in the month-0/month chain
+>    instead of a separate other-accounts block.
+> 2. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 3. ⚠️ Same defect class as `b6d7382f`: a `debts` row with **NO account**
+>    amortizes with no cash leaving. `buildNonCCLiabilities`' second loop gives it a
+>    `debt:<id>` row, but `listDebtServiceLiabilities` iterates ACCOUNTS only. That
+>    is the ordinary manual-entry shape. Left alone deliberately: fixing it relaxes
+>    the "PAIRING IS REQUIRED" doctrine and makes such rows RANKABLE, a product call.
+> 4. **Feb 2031 breach** (⛔ `scratchpad/llm/floor_out.md` IS WRONG); **mobile deck
+>    `b83698e5` NOT device-verified.**
+> 5. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 6. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 7. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36j — **`b6d7382f`. tsc 0, 290 files / 3102 tests, eslint
 > clean. 42 commits unpushed.** Session 36i's queue item 2 (the auto_loan half) is
 > SHIPPED. Manager built it; no executor spawned. Context gate fired at 179k.
