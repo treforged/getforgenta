@@ -2544,7 +2544,7 @@ export type MonthlyDebtBreakdown = {
    *
    * Out of `recommendations` for the same hard reason loans are — that array feeds
    * `createDebtPaymentTransactions`, which injects a generated transaction per row, and these
-   * payments are already in the cash model via `sumOtherDebtPayments` (or via the user's own
+   * payments are already in the cash model via `buildOtherDebtPaymentSchedule` (or via the user's own
    * expense rule). A row here is a thing to SHOW, never a thing to charge.
    */
   otherDebtRecommendations?: {

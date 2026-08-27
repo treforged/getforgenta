@@ -364,7 +364,7 @@ export function buildMonth0DebtBreakdown({
   // Card-only, deliberately: the loan payment is already held by the cash floor (carLoanTotal in
   // the floor formula), so Safe to Pay never contained that money — summing loans in here would
   // double-count it against the totals Dashboard reads. The non-CC liabilities stay out for the
-  // same reason one level along: `sumOtherDebtPayments` has already taken their cash out of
+  // same reason one level along: `buildOtherDebtPaymentSchedule` has already taken their cash out of
   // `cashPreDebt` before Safe to Pay is computed at all.
   const totalRecommended = recommendations.reduce((s, r) => s + r.payment, 0);
   const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsDue) < 0;

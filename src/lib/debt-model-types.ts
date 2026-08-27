@@ -45,7 +45,7 @@ export interface Month0Result {
   vehicleInsurance: number;
   /** Cash leaving for non-credit-card debt service — the `debts` rows paired to mortgage /
    * student-loan / other-liability accounts. Renamed from `mortgagePayment` 2026-08-24, when the
-   * sum stopped being mortgage-only; `sumOtherDebtPayments` (non-cc-liabilities.ts) computes it
+   * sum stopped being mortgage-only; `buildOtherDebtPaymentSchedule` (non-cc-liabilities.ts) computes it
    * and owns the rule that stops a bill the user ALSO keeps as an expense rule counting twice. */
   otherDebtPayment: number;
   /** RANKED AUTOMATIC EXTRA PAYMENTS — `chain.autoExtraReserve` broken out per target, straight

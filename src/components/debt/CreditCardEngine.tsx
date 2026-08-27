@@ -991,7 +991,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // The other kind of debt — a student loan, a mortgage, an `other_liability` account paired to a
   // `debts` row — under the same heading, from the same builder the Dashboard widget uses, so
   // /debt and the widget cannot show a different payment for the same loan. Display-only for the
-  // same two reasons the loans above are: `sumOtherDebtPayments` has already taken this cash out
+  // same two reasons the loans above are: `buildOtherDebtPaymentSchedule` has already taken this cash out
   // before Safe to Pay is computed, so summing it into the totals would double-count; and it never
   // joins `recommendations`, which feeds createDebtPaymentTransactions.
   const otherDebtRecs = useMemo(() => buildOtherDebtRecommendations({

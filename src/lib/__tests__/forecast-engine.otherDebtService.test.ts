@@ -204,11 +204,82 @@ describe('forecast-engine — non-CC debt service leaves cash and reduces the ba
     // end-of-month note in the first case above.
     //
     // ⚠️ NOT A CLAIM THAT THIS IS RIGHT, only what it does. `buildNonCCLiabilities` amortizes this
-    // account at the paired debts row's target payment while `sumOtherDebtPayments` deliberately
+    // account at the paired debts row's target payment while `buildOtherDebtPaymentSchedule` deliberately
     // charges no cash for it (an `auto_loan` belongs to `car_funds`) — so with no car fund linked,
     // the balance falls with nothing leaving checking. That is the same defect this file's header
     // records for student loans, on the one account type the cash half excludes, and it predates
     // the end-of-month change: it simply becomes visible one month earlier. Out of scope here.
     expect(loanRow(data[0], 'FIXED RATE LOAN')?.balance).toBeCloseTo(19633.333333, 5);
+  });
+});
+
+// ── The payment stops when the debt does (2026-08-27) ───────────────────────────────────────────
+//
+// `otherDebtPayment` was a SINGLE SCALAR reused for all 60 months, so a debt whose own projected
+// balance cleared inside the horizon went on taking cash for every month after it. The non-vehicle
+// twin of `160803bc`.
+//
+// Would-fail check: make `otherDebtPaymentForMonth` return the unconditional sum (drop the
+// `isOtherDebtPaymentOwed` test) and case 1 charges $300 in month 59 for a debt that ended in
+// month 5, with ending cash $16,200 lower. Drop guard 1 (`liability.balance > 0`) and case 2's
+// unsynced account stops paying a bill that is genuinely owed.
+describe('forecast-engine — a cleared non-CC debt stops taking cash', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** 0% and a round payment, so the payoff month is arithmetic rather than an amortization guess. */
+  const SHORT_LOAN = acct({ id: 'sl-1', name: 'Student Loan', account_type: 'student_loan', balance: 1800 });
+  const SHORT_DEBT = { id: 'd1', name: 'Student Loan', balance: 1800, apr: 0, target_payment: 300 } as unknown as DebtRow;
+
+  it('pays exactly six $300 payments on an $1,800 debt, then nothing', () => {
+    anchor();
+    const { data } = calculateForecast(makeInputs([CHK, SHORT_LOAN], [SHORT_DEBT], [], 1000));
+
+    // Six payments: months 0-5 open owing 1800, 1500, 1200, 900, 600, 300. Month 6 opens at zero.
+    for (const i of [0, 1, 2, 3, 4, 5]) expect(data[i].otherDebtPayment).toBeCloseTo(300, 6);
+    for (const i of [6, 7, 12, 59]) expect(data[i].otherDebtPayment).toBe(0);
+    // Total cash out over the horizon is the debt, not 60 x 300.
+    expect(data.reduce((s, r) => s + r.otherDebtPayment, 0)).toBeCloseTo(1800, 6);
+
+    // And the money really stays in checking. Control: the SAME debt at a balance that cannot
+    // clear inside the horizon, so it pays all 60 months. The gap is the 54 payments this fix
+    // stopped inventing — $16,200 of cash the forecast used to spend on a debt that was gone.
+    const control = calculateForecast(makeInputs(
+      [CHK, acct({ id: 'sl-1', name: 'Student Loan', account_type: 'student_loan', balance: 100000 })],
+      [{ ...SHORT_DEBT, balance: 100000 } as unknown as DebtRow], [], 1000,
+    ));
+    expect(control.data[59].otherDebtPayment).toBeCloseTo(300, 6);
+    expect(data[5].rawEndingCash).toBeCloseTo(control.data[5].rawEndingCash, 6);
+    expect(data[59].rawEndingCash - control.data[59].rawEndingCash).toBeCloseTo(300 * 54, 6);
+
+    // The row it is gated on is the row the drawer shows: month 5 CLOSES at zero.
+    expect(loanRow(data[5], 'Student Loan')?.balance).toBeCloseTo(0, 6);
+    expect(loanRow(data[4], 'Student Loan')?.balance).toBeCloseTo(300, 6);
+  });
+
+  it('keeps paying a debt whose account balance is unknown, rather than cancelling a real bill', () => {
+    anchor();
+    // `accounts.balance` is null on an account nobody has synced or typed a figure into, and
+    // `Number(null) || 0` makes that indistinguishable from a real $0. Suppressing here would
+    // delete a bill the user genuinely owes on the strength of a missing number.
+    const { data } = calculateForecast(makeInputs(
+      [CHK, acct({ id: 'sl-1', name: 'Student Loan', account_type: 'student_loan', balance: null })],
+      [SHORT_DEBT], [], 1000,
+    ));
+    for (const i of [0, 6, 59]) expect(data[i].otherDebtPayment).toBeCloseTo(300, 6);
+  });
+
+  it('keeps paying a min_payment-only debt, whose displayed balance never clears', () => {
+    anchor();
+    // `buildNonCCLiabilities` amortizes with `target_payment` alone, so a row carrying only a
+    // `min_payment` projects a FLAT balance. The cash side pays the minimum. Stopping that cash
+    // while the drawer still shows the balance standing would be the worse half of this defect —
+    // so the gate reads the same `target_payment` the balance does, and never fires here.
+    const { data } = calculateForecast(makeInputs(
+      [CHK, acct({ id: 'sl-1', name: 'Student Loan', account_type: 'student_loan', balance: 1000 })],
+      [{ id: 'd1', name: 'Student Loan', balance: 1000, apr: 0, target_payment: null, min_payment: 250 } as unknown as DebtRow],
+      [], 1000,
+    ));
+    for (const i of [0, 6, 59]) expect(data[i].otherDebtPayment).toBeCloseTo(250, 6);
+    expect(loanRow(data[59], 'Student Loan')?.balance).toBeCloseTo(1000, 6);
   });
 });

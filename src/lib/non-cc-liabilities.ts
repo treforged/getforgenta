@@ -29,9 +29,17 @@
 // as if a payment were being made, but until now the only non-CC payment that actually LEFT
 // projected cash was a mortgage's, hard-coded in two places. A student loan therefore paid itself
 // down out of thin air: the balance fell every month and the cash never did.
-// {@link sumOtherDebtPayments} is the cash half, and it is ONE function called from both the
-// forecast engine and `useCardProjection` precisely because the two previously carried copies of
-// the mortgage-only version that had to be kept in lockstep by hand.
+// {@link buildOtherDebtPaymentSchedule} is the cash half, and the pairing/dedupe rule it runs on
+// lives here ONCE — in `listDebtServiceLiabilities` — precisely because the forecast engine and
+// `useCardProjection` previously carried copies of the mortgage-only version that had to be kept
+// in lockstep by hand.
+//
+// 2026-08-27 — the cash half stops when the balance does. Until today it was a single scalar
+// applied to all 60 months, so a debt whose own projected balance cleared in month 6 went on
+// taking cash for another 54. {@link isOtherDebtPaymentOwed} is that rule, and it is the one
+// function both callers share: the engine applies it to its live extra-reduced arrays inside the
+// month loop, `useCardProjection` gets the ranked-extra-blind schedule from
+// {@link buildOtherDebtPaymentSchedule}.
 
 import { LIABILITY_ACCOUNT_TYPES } from './net-worth';
 
@@ -48,17 +56,20 @@ export interface LiabilityDebtInput {
   balance: number | null;
   apr?: number | null;
   target_payment?: number | null;
-  /** Read only by {@link sumOtherDebtPayments}, as the fallback when no target is set. */
+  /** Read only by {@link buildOtherDebtPaymentSchedule}, as the fallback when no target is set. */
   min_payment?: number | null;
 }
 
 /**
  * The `accounts` shape the cash half needs.
  *
- * `balance`, `apr` and `payment_due_day` are read only by {@link listDebtServiceLiabilities}'s
- * callers (the ranked-target capacity and the "Recommended This Month" row), never by
- * {@link sumOtherDebtPayments}, which only decides who pays. They are optional so the existing
- * callers, which cast raw `accounts` rows through this interface, keep compiling unchanged.
+ * `payment_due_day` is read only by {@link listDebtServiceLiabilities}'s callers (the ranked-target
+ * capacity and the "Recommended This Month" row). `balance` and `apr` were in the same position
+ * until 2026-08-27; they are now also read by {@link buildOtherDebtPaymentSchedule}, which projects
+ * the balance forward to know which months the payment is still owed in. They stay optional so the
+ * existing callers, which cast raw `accounts` rows through this interface, keep compiling
+ * unchanged — and a caller that omits `balance` gets the pre-2026-08-27 behaviour (a liability with
+ * no known balance is never suppressed; see {@link isOtherDebtPaymentOwed}'s first guard).
  */
 export interface DebtServiceAccountInput {
   id: string;
@@ -205,12 +216,23 @@ export interface DebtServiceLiability {
   apr: number;
   /** `target_payment`, falling back to `min_payment`. Zero when the row carries neither. */
   payment: number;
+  /**
+   * `target_payment` ALONE — the payment {@link buildNonCCLiabilities} amortizes the DISPLAYED
+   * balance with, and therefore the only payment that can say when that balance reaches zero.
+   *
+   * It differs from {@link payment} in exactly one case: a `debts` row with a `min_payment` and no
+   * `target_payment`. The cash side pays the minimum; the balance side amortizes with nothing, so
+   * the projected balance is a flat line that never clears. {@link isOtherDebtPaymentOwed} reads
+   * THIS number precisely so the cash never stops while the balance the user is looking at is
+   * still standing — the two halves say the same thing or the cash keeps flowing.
+   */
+  amortizingPayment: number;
   /** `accounts.payment_due_day`, or null when the user has not recorded one. NEVER invented —
    *  a liability with no recorded due day has no due date to show. */
   dueDay: number | null;
   /**
    * True when an ACTIVE expense rule of the same name is the cash side of this debt, so
-   * {@link sumOtherDebtPayments} contributes nothing for it. See THE DEDUPE RULE below.
+   * {@link buildOtherDebtPaymentSchedule} contributes nothing for it. See THE DEDUPE RULE below.
    */
   paidByExpenseRule: boolean;
 }
@@ -227,7 +249,7 @@ export interface DebtServiceLiability {
  * payment is. Requiring the pairing also means this list and the cash side agree by construction
  * on which debts exist, which is the whole reason both now come from one function.
  *
- * Extracted from {@link sumOtherDebtPayments}, which is now a sum over it — the pairing, the
+ * Extracted from {@link buildOtherDebtPaymentSchedule}, which is now a sum over it — the pairing, the
  * exclusion and the dedupe rule live here once instead of being copied for each new reader.
  */
 export function listDebtServiceLiabilities(params: {
@@ -259,6 +281,7 @@ export function listDebtServiceLiabilities(params: {
       balance: Math.max(0, Number(a.balance) || 0),
       apr: Number(matched.apr) || 0,
       payment: Number(matched.target_payment || matched.min_payment || 0),
+      amortizingPayment: Number(matched.target_payment) || 0,
       dueDay: a.payment_due_day == null || !Number.isFinite(Number(a.payment_due_day))
         ? null
         : Number(a.payment_due_day),
@@ -269,9 +292,63 @@ export function listDebtServiceLiabilities(params: {
 }
 
 /**
- * This month's cash going out to non-credit-card debt: the `debts` row paired to each active
- * mortgage / student-loan / other-liability ACCOUNT, at `target_payment` (falling back to
- * `min_payment`).
+ * ═══ IS THIS LIABILITY'S SCHEDULED PAYMENT STILL OWED IN MONTH `month`? ═══
+ *
+ * THE DEFECT THIS ENDS (2026-08-27). The non-CC debt-service payment was a SINGLE SCALAR applied
+ * to all 60 forecast months. A student loan with a $300 payment and an $1,800 balance had its
+ * balance reach zero in month 6 — in the very projection the month drawer itemises — and went on
+ * taking $300 out of projected cash for the remaining 54 months. Roughly $16,000 of cash removed
+ * for a debt the app's own rows showed as gone. Its vehicle-side twin was fixed the same day
+ * (`160803bc`); this is the non-vehicle half, and it is the larger one because a mortgage or a
+ * student loan is the debt most likely to actually clear inside the horizon.
+ *
+ * The rule is the balance the app is SHOWING, not a second model: `balances` is the very array
+ * {@link buildNonCCLiabilities} built for this liability, index `month` being what that month
+ * OPENS owing. A month that opens owing nothing cannot be charged.
+ *
+ * ⚠️ TWO GUARDS, AND BOTH EXIST TO AVOID DELETING A REAL BILL. Suppression is the dangerous
+ * direction — an over-charged forecast is pessimistic, an under-charged one tells the user they
+ * have money they do not have — so anything ambiguous keeps paying, exactly as it did before:
+ *
+ *   1. `balance <= 0` at the seed. `accounts.balance` is `null` for an account nobody has synced
+ *      or typed a figure into, and `Number(null) || 0` makes that indistinguishable from a real
+ *      $0. A liability that never had a positive balance to amortize is left alone: "we do not
+ *      know what it owes" is not the same claim as "it owes nothing".
+ *   2. No entry at `month` (a missing array, or one shorter than the horizon). Absence of a
+ *      number is not a zero. This mirrors the loan gate's `owed !== undefined` note verbatim.
+ *
+ * The seed is read from {@link DebtServiceLiability.balance} rather than `balances[0]` on purpose:
+ * the engine REDUCES those arrays in place from index `i` inclusive when a ranked extra lands, so
+ * an extra big enough to clear the debt in month 0 would rewrite `balances[0]` to zero and guard 1
+ * would then read "never had a balance" and keep paying forever. `l.balance` is the untouched
+ * opening figure and cannot be rewritten underneath this test.
+ */
+export function isOtherDebtPaymentOwed(
+  liability: Pick<DebtServiceLiability, 'balance'>,
+  balances: readonly number[] | undefined,
+  month: number,
+): boolean {
+  if (!(liability.balance > 0)) return true;
+  const owed = balances?.[month];
+  return owed === undefined ? true : owed > 0;
+}
+
+/**
+ * Cash going out to non-credit-card debt in EACH of `months` months: the `debts` row paired to
+ * each active mortgage / student-loan / other-liability ACCOUNT, at `target_payment` (falling back
+ * to `min_payment`), for as long as {@link isOtherDebtPaymentOwed} says that debt still owes
+ * anything.
+ *
+ * The balances it tests against are projected here, with the same {@link projectBalances} walk and
+ * the same `target_payment` {@link buildNonCCLiabilities} uses, so this schedule stops in the month
+ * the drawer's own row reaches zero. It is the RANKED-EXTRA-BLIND version: nothing here knows about
+ * extra principal, so a debt an extra clears early keeps being charged to its scheduled end. The
+ * forecast engine therefore does NOT use this function inside its month loop — it holds the live,
+ * extra-reduced arrays and applies {@link isOtherDebtPaymentOwed} to those directly. Callers with
+ * no such arrays (`useCardProjection`) get the scheduled truth, which is what they modelled before
+ * this existed, only no longer extended past the payoff.
+ *
+ * @param months How many months to return. One entry per forecast month.
  *
  * ══ THE DEDUPE RULE ══
  * A debt can be described twice in this app: as a `debts` row (which carries the apr and the
@@ -296,13 +373,23 @@ export function listDebtServiceLiabilities(params: {
  * @param rules    Raw `recurring_rules` rows; only active `expense` ones are consulted.
  * @param excludedAccountIds Accounts a `car_funds` loan is linked to; the car fund pays them.
  */
-export function sumOtherDebtPayments(params: {
+export function buildOtherDebtPaymentSchedule(params: {
   accounts: readonly DebtServiceAccountInput[];
   debts: readonly LiabilityDebtInput[];
   rules: readonly DebtServiceRuleInput[];
   excludedAccountIds?: ReadonlySet<string>;
-}): number {
-  return listDebtServiceLiabilities(params)
-    .filter(l => !l.paidByExpenseRule)
-    .reduce((total, l) => total + l.payment, 0);
+  months: number;
+}): number[] {
+  const { months } = params;
+  const out = new Array<number>(months).fill(0);
+  for (const l of listDebtServiceLiabilities(params)) {
+    if (l.paidByExpenseRule || !(l.payment > 0)) continue;
+    // `months + 1`, so the last month has an entry to test and the walk matches the engine's
+    // LIABILITY_MONTHS arrays entry for entry.
+    const balances = projectBalances(l.balance, l.apr, l.amortizingPayment, months + 1);
+    for (let m = 0; m < months; m++) {
+      if (isOtherDebtPaymentOwed(l, balances, m)) out[m] += l.payment;
+    }
+  }
+  return out;
 }

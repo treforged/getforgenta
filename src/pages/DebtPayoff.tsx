@@ -261,7 +261,7 @@ export default function DebtPayoff() {
     return <DebtSkeleton />;
   }
 
-  // Since 2026-08-24 (`sumOtherDebtPayments`) this copy is true of all three non-CC debt tabs, not
+  // Since 2026-08-24 (`buildOtherDebtPaymentSchedule`) this copy is true of all three non-CC debt tabs, not
   // just Mortgage where it used to live — the engine takes cash for mortgage, student loan AND other
   // liability payments alike before any credit card payoff. One shared element, rendered on Mortgage,
   // Student Loans and Other Debts below, so the three copies can't drift apart the way one-per-tab

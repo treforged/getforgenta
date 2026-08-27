@@ -18,7 +18,7 @@ import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-m
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
-import { sumOtherDebtPayments, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
+import { buildOtherDebtPaymentSchedule, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
@@ -855,19 +855,26 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Non-CC debt service — mirrors forecast-engine.ts's `otherDebtPayment`, and mirrors it by
       // CALLING THE SAME FUNCTION rather than by carrying a copy. This block used to be a
       // hand-duplicated mortgage-only sum that had to be kept in lockstep with the engine's by eye;
-      // `sumOtherDebtPayments` owns the account/`debts` pairing, the vehicle-loan exclusion and the
+      // `buildOtherDebtPaymentSchedule` owns the account/`debts` pairing, the vehicle-loan exclusion and the
       // dedupe rule (an active expense rule with the same name is the cash side instead, because it
       // is already inside this hook's `monthlyExpenses` and the engine's `baseExpenses`).
+      //
+      // PER MONTH since 2026-08-27, where it used to be one scalar reused for all of them: a debt
+      // stops taking cash the month its own projected balance reaches zero. This is the
+      // ranked-extra-BLIND schedule — the engine holds the live arrays an extra reduces and applies
+      // the same `isOtherDebtPaymentOwed` rule to those; here a debt is charged to its scheduled
+      // payoff, which is what this hook modelled before, only no longer past the end of the debt.
       //
       // vehicleForecastByMonth/getVehicleExtrasForMonth/carLoanLumpByMonth/carLoanInsuranceByMonth
       // (the car-fund equivalents) moved up before simulationMonthEvents — see the block right
       // after m0Expenses above — so simulationMonthEvents' own .expenses can include them directly
       // instead of only the separate look-ahead's comprehensiveMExp seeing them.
-      const monthlyOtherDebtPayment = sumOtherDebtPayments({
+      const otherDebtPaymentByMonth = buildOtherDebtPaymentSchedule({
         accounts: accounts as unknown as DebtServiceAccountInput[],
         debts: debts as unknown as LiabilityDebtInput[],
         rules,
         excludedAccountIds: linkedLoanAccountIds(carFunds ?? [], accounts),
+        months: PROJECTION_MONTHS,
       });
 
       // The same debts, as RANKABLE targets — the ones the user has put in "where the extra money
@@ -966,7 +973,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const m0ExtraOutflow = m0Transfers + m0Savings + m0CarSaving
         + getTotalCarLoanMonthly(carFunds ?? [], m0MonthStart)
         + getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0] + carLoanLumpByMonth[0]
-        + monthlyOtherDebtPayment + lumpTransferByMonth[0];
+        + otherDebtPaymentByMonth[0] + lumpTransferByMonth[0];
 
       // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
@@ -989,7 +996,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         m === 0
           ? m0Expenses
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses)
-            + monthlyOtherDebtPayment + lumpTransferByMonth[m] + cyclingPaymentByMonth[m];
+            + otherDebtPaymentByMonth[m] + lumpTransferByMonth[m] + cyclingPaymentByMonth[m];
 
       // No longer gated behind a flagged "large event" — every month's floor breach must be
       // protected, not just ones traceable to a recorded one-time expense, car down payment, or
@@ -1544,7 +1551,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // double-count.
         const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0]
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-          + monthlyOtherDebtPayment + lumpTransferByMonth[m] + mOneTimeNet;
+          + otherDebtPaymentByMonth[m] + lumpTransferByMonth[m] + mOneTimeNet;
         // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
         // the same month — otherwise pass3RevTotals (which scales the displayed per-card amounts
         // for months 1+) and Forecast's own Ending Cash walk cap debt payments differently.
@@ -1699,7 +1706,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // on mExp above) — m>0 already has it via simulationMonthEvents[m].expenses.
           const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0)
             : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-            + monthlyOtherDebtPayment + mOneTimeNet2;
+            + otherDebtPaymentByMonth[m] + mOneTimeNet2;
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),
@@ -2038,7 +2045,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // helpers defined above (which pass3RevTotals also uses) so month 0 and every later
       // month are computed identically.
       const m0VehicleInsurance = getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0];
-      const m0OtherDebtPayment = monthlyOtherDebtPayment;
+      const m0OtherDebtPayment = otherDebtPaymentByMonth[0];
 
       const ccMinForMonth = liveRevolvingBal > 0 ? Math.min(ccMinTotalRevolving, simRevolvingTotal) : 0;
       // Mirror forecast-engine.ts's PASS-3 month-0 cashPreDebt (forecast-engine.ts:1106) exactly so

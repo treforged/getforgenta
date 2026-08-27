@@ -111,11 +111,23 @@ describe('forecast-engine — ranked extra principal on a non-CC liability', () 
 
     // THE CASH, EXACTLY ONCE. Every month's ending cash is the control's less the reserves taken
     // up to and including that month — never twice, never zero.
+    //
+    // ⚠️ PLUS THE SCHEDULED PAYMENTS THE RANKED RUN NO LONGER OWES (2026-08-27). Paying the debt
+    // off early does two things to cash, not one: the reserve leaves, and then the $300 scheduled
+    // payment STOPS, because a debt with no balance left cannot take a payment. The control is
+    // still paying it in those months. Written as the control's own `otherDebtPayment` minus the
+    // ranked run's, so it stays exact if the fixture's payoff month moves — and so the identity
+    // still fails the moment a reserve is counted twice, which is what this loop is for.
     let cumulative = 0;
+    let cumulativeUnpaid = 0;
     for (let i = 0; i < 12; i++) {
       cumulative += reserve(i);
-      expect(ranked.data[i].rawEndingCash).toBeCloseTo(control.data[i].rawEndingCash - cumulative, 4);
+      cumulativeUnpaid += control.data[i].otherDebtPayment - ranked.data[i].otherDebtPayment;
+      expect(ranked.data[i].rawEndingCash)
+        .toBeCloseTo(control.data[i].rawEndingCash - cumulative + cumulativeUnpaid, 4);
     }
+    // The fixture really does exercise that: the ranked run stops paying inside the window.
+    expect(cumulativeUnpaid).toBeGreaterThan(0);
 
     // And the debt genuinely retires early rather than the money vanishing: the control still owes
     // something in the month the ranked run has cleared it.

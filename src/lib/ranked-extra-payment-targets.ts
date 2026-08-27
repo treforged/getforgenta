@@ -710,7 +710,7 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
       kind: 'liability' as const,
       sortOrder: Number(l.surplus_sort_order),
       // ZERO, like a goal and like a vehicle loan. The liability's scheduled payment is already a
-      // bill by the time surplus is computed (`sumOtherDebtPayments` is subtracted upstream in
+      // bill by the time surplus is computed (`buildOtherDebtPaymentSchedule` is subtracted upstream in
       // both the hook and the forecast), so charging it again here would take the same dollars
       // twice.
       minimum: 0,

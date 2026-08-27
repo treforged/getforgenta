@@ -20,7 +20,7 @@ import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-pr
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
-import { buildNonCCLiabilities, sumOtherDebtPayments, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
+import { buildNonCCLiabilities, listDebtServiceLiabilities, isOtherDebtPaymentOwed, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -120,7 +120,7 @@ export interface ForecastMonthRow {
   vehicleInsurance: number; projectedCarLoan: number; carLoanExtraPayment: number;
   carLumpItems: { name: string; amount: number }[];
   /** Cash leaving for non-credit-card debt service this month — the `debts` rows paired to
-   * mortgage / student-loan / other-liability accounts. See `sumOtherDebtPayments` for the rule
+   * mortgage / student-loan / other-liability accounts. See `buildOtherDebtPaymentSchedule` for the rule
    * that keeps this from double-counting a bill the user also has as an expense rule. */
   otherDebtPayment: number; transfersTotal: number;
   transferBreakdown: { name: string; amount: number }[];
@@ -873,16 +873,20 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // This is the CASH half of the same debts `buildNonCCLiabilities` amortizes below. Until
     // 2026-08-24 only a mortgage's payment was subtracted, so a student loan's balance fell every
     // month with nothing leaving checking — the forecast paid it with money it never spent.
-    // `sumOtherDebtPayments` owns the pairing AND the dedupe rule (an active expense rule wearing
-    // the same name is the cash side instead, since it is already inside `baseExpenses`), and it is
-    // the SAME function `useCardProjection.ts` calls — the two used to carry hand-copied versions
-    // of this block and had to be kept in lockstep by eye.
-    const otherDebtPayment = sumOtherDebtPayments({
+    // `listDebtServiceLiabilities` owns the pairing AND the dedupe rule (an active expense rule
+    // wearing the same name is the cash side instead, since it is already inside `baseExpenses`),
+    // and it is the SAME function `useCardProjection.ts` reaches through — the two used to carry
+    // hand-copied versions of this block and had to be kept in lockstep by eye.
+    //
+    // WHO pays is settled here; WHICH MONTHS they pay in is settled by `otherDebtPaymentForMonth`
+    // below, which needs `nonCCLiabilities`' balance arrays and so cannot be written until they
+    // exist. The two used to be one scalar covering all 60 months — see that function.
+    const debtServiceLiabilities = listDebtServiceLiabilities({
       accounts: accounts as unknown as DebtServiceAccountInput[],
       debts: debts as unknown as LiabilityDebtInput[],
       rules,
       excludedAccountIds: linkedVehicleAccountIds,
-    });
+    }).filter(l => !l.paidByExpenseRule && l.payment > 0);
 
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     // — LIABILITY_MONTHS long, so the final projected month has a closing balance to read.
@@ -1105,6 +1109,46 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       months: LIABILITY_MONTHS,
     });
     const nonCCDebtBalanceByMonth = nonCCLiabilities.totalByMonth;
+
+    // ═══ A NON-VEHICLE DEBT WITH NO BALANCE LEFT CANNOT TAKE A PAYMENT ═══
+    //
+    // The non-vehicle twin of the cleared-loan suppression in PASS 3 (`160803bc`, 2026-08-27), and
+    // the bigger half: `otherDebtPayment` was a SINGLE SCALAR reused for all 60 months, so a
+    // student loan whose own projected balance — the one the month drawer itemises — reached zero
+    // in month 6 kept taking its payment out of projected cash for the remaining 54. The balance
+    // read cleared while the cash line kept charging; both cannot be true.
+    //
+    // `balances` is the row's SHARED array, so reading entry `i` inside the month loop is
+    // extra-aware for free: step 4c-ii-c reduces from `i` inclusive, so by the time month `i`'s
+    // body runs every EARLIER month's extra is in that entry and this month's is not — precisely
+    // "does this debt still owe anything as the month begins". A ranked extra that clears a student
+    // loan early therefore stops its payment early too, on the same array the drawer shows.
+    //
+    // ⚠️ SUPPRESSION, NOT RE-AMORTIZATION, exactly as on the vehicle side: the term is never
+    // shortened, the payment simply stops being charged once nothing is owed.
+    //
+    // ⚠️ The two guards that keep this from deleting a real bill (an unknown balance, and a missing
+    // array entry) live in `isOtherDebtPaymentOwed`, with the reasoning. Nothing about WHO pays
+    // changes: `debtServiceLiabilities` is the same set, filtered the same way.
+    const otherDebtBalancesById = new Map(nonCCLiabilities.rows.map(r => [r.id, r.balances] as const));
+    const otherDebtPaymentForMonth = (month: number): number =>
+      debtServiceLiabilities.reduce(
+        (sum, l) => sum + (isOtherDebtPaymentOwed(l, otherDebtBalancesById.get(l.id), month) ? l.payment : 0),
+        0,
+      );
+    /**
+     * The same schedule, SNAPSHOT BEFORE THE MONTH LOOP — the ranked-extra-blind version.
+     *
+     * Read by PASS 2's floor protection, which runs before any extra is known and so cannot see the
+     * reductions. That is the safe direction and the same choice `activeCarLoanByMonth` makes
+     * there: an extra can only clear a debt EARLIER than the schedule says, so a floor computed
+     * against the un-reduced schedule can only over-reserve, never under.
+     *
+     * ⚠️ IT MUST BE MATERIALISED HERE, not called lazily from inside PASS 2's callback — these are
+     * the same shared arrays step 4c-ii-c mutates, and `Array.from` freezes the pre-extra numbers
+     * while they still say what they say.
+     */
+    const otherDebtPaymentByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => otherDebtPaymentForMonth(m));
 
     /**
      * EXTRA PRINCIPAL ON A NON-VEHICLE LIABILITY — a student loan, a mortgage, an
@@ -1547,7 +1591,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
-          + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + otherDebtPayment
+          + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + otherDebtPaymentByMonth[i]
           + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]),
       oneTimeNetByMonth: baseData.map(b => b.oneTimeNet),
       carDownPaymentByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, i) => getMonthEffectiveDP(i)),
@@ -1742,6 +1786,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         0,
       );
       const carLoanThisMonth = activeCarLoanByMonth[i] - clearedLoanPaymentThisMonth;
+      // Non-vehicle debt service for THIS month, off the live (extra-reduced) balance arrays — see
+      // `otherDebtPaymentForMonth`. It was a loop-invariant scalar until 2026-08-27.
+      const otherDebtPayment = otherDebtPaymentForMonth(i);
       const projLumpThisMonth = getMonthProjLumpSum(i);
       const projLoanThisMonth = getMonthProjLoan(i);
       const carLoanLumpThisMonth = activeCarLoanLumpSumByMonth[i] + projLumpThisMonth;
@@ -1951,7 +1998,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         }
         // Extra principal on a non-vehicle liability, capacity read fresh from the (already-
         // reduced) amortized balance — the same read, and the same reasoning, as the loan block
-        // directly above, closing balance included. `sumOtherDebtPayments` takes this liability's
+        // directly above, closing balance included. `buildOtherDebtPaymentSchedule` takes this liability's
         // own payment out of the same month's cash, so offering the opening balance over-allocates
         // by exactly that payment's principal, just as it did for the loan.
         for (const l of autoExtraLiabilities) {
