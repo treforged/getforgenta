@@ -1,5 +1,75 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36h — **`49276579`. tsc 0, 290 files / 3089 tests, eslint
+> clean. 39 commits unpushed.** Session 36g's queue items 1 AND 2 are both done:
+> the decision is built and it is LIVE-VERIFIED on his own data. Manager built
+> it; no executor spawned. Context gate fired at 175k.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **`eaf88f3d` — an on-pace target passes the rest down to the next rank.**
+>   Tre's decision, built. The allowance no longer clamps `capacity`; it rides
+>   beside the true remaining need as **`maxExtra`**, and the gate reads both.
+>   `unmetAtMonthStart` is replaced by **`holdsQueueBelow`**:
+>   - **no ceiling → unchanged.** The target may take its whole need, so it is
+>     met-entirely-or-not-at-all and one completed by THIS month's own allocation
+>     still holds the queue until next month (the 2026-08-25 waterfall, still
+>     pinned by its own test).
+>   - **ceiling below the need → holds only while this month's pace is unspent.**
+>     Once the pace is taken the obligation for the month is discharged.
+>   - **ceiling 0** (an IRA that has used up its year) → steps aside at once,
+>     exactly as `capacity` 0 used to make it. That is the property the 36g
+>     handoff warned had to survive, and it does.
+> - ⚠️ **THE GATE IS NOW DECIDED AFTER THE RANK IS FUNDED**, because "on pace"
+>   depends on what was actually taken. The unceilinged answer never reads
+>   `paidExtra`, so moving the decision does not touch that case.
+> - **`49276579`** — the ranking panel's copy said "only the highest one that is
+>   not finished gets the money", which is no longer the whole truth. It now says
+>   a dated goal or a capped retirement account takes only that month's figure
+>   and passes the rest down. Carries a `Release-Note:`.
+> - 9 new allocator tests (paced pass-down, short-of-pace hold, zero pace,
+>   unpaced unchanged, non-binding ceiling, both split-rank cases) + the staged
+>   engine test flipped from `toBe(0)` to the pass-down, plus a new short-of-pace
+>   engine test. **No production caller set `maxExtra` before this**, so the only
+>   behaviour that moved is the one asked for.
+>
+> ═══ ✅ LIVE ON HIS OWN DATA (looked at it, `__convergenceDebug`) ═══
+> - **Jan 2030 is the proof:** `autoExtraItems` = **Roth IRA (rank 8) $583** and
+>   **Brokerage (rank 9) $2,736 in the SAME month**. $583 is exactly 7000/12, the
+>   statutory monthly allowance; before this the Roth's $99,009 unmet need held
+>   rank 9 for years. The Brokerage's whole $8,124 now clears by May 2030.
+>   (`autoExtraItems` is in ranked order, which is how the ranks were read off.)
+> - **Feb 2030 is the other half:** Roth took only **$102** (pool short of the
+>   pace) and the Brokerage got **$0** — short of pace still holds the queue.
+> - **Move fund stop 1 reserves $0/mo through Jul 2027**, exactly as the 36g SQL
+>   predicted: his standing **$510/mo** already beats the **~$469/mo** pace, so
+>   the ranked surplus goes to the cards instead. Panel reads "On track for Jul
+>   2027". **CC payoff Dec 2028**, converged true / 20 passes.
+> - ⚠️ **Nothing changes for him before Jan 2030.** Months 0-11 behaved
+>   identically under the old code (allowance 0 either way), so the CC payoff date
+>   is untouched. Low-risk change, and that is why.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. ⚠️ **MONTH 0 DOES NOT PACE AT ALL** — found while verifying, NOT yet fixed.
+>    `monthlyAllowanceFor` lives in forecast-engine and only runs for month ≥ 1;
+>    month 0's reserve comes from `useCardProjection` → `buildRankedTargets`,
+>    which knows nothing about `levelMonthlyToDate` or the IRA cap. So month 0 can
+>    reserve a dated goal's WHOLE need. It is invisible on his data (his month-0
+>    reserve is 0) but it is a real inconsistency between the two surfaces.
+> 2. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 3. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 4. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 5. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 6. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36g — **tsc 0, 290 files / 3081 tests, eslint clean. 37
 > commits unpushed.** Session 36f's queue item 1 is SHIPPED. Manager built it; no
 > executor spawned. ⚠️ NOT live-verified on his data — see the top of the queue.
