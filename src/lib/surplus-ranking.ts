@@ -28,7 +28,7 @@
  */
 
 import {
-  carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed, revolvingRemainingOf,
+  carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed, goalStages, revolvingRemainingOf,
   type GoalStageContext, type RankableGoal, type RankableLiability,
 } from './ranked-extra-payment-targets';
 import type { CarFund } from './types';
@@ -89,6 +89,24 @@ export type SurplusRankRow = {
   /** Tie-break for rows that share a `sortOrder` — matches the `.order('created_at')` both list
    * queries actually use. */
   createdAt: string;
+  /**
+   * A row the list DERIVES from another row rather than one the user owns.
+   *
+   * ⚠️ NEVER WRITTEN, NEVER DRAGGED, NEVER AUTO-DESELECTED. Its id is synthetic (`<goalId>::stage2`)
+   * and no table has a row under it, so every planner below skips it: a write would `.eq('id', …)`
+   * a uuid that does not exist, and a drag would let the user place something whose position is
+   * derived, not chosen. Its rank comes from where the engine actually funds it.
+   */
+  derived?: boolean;
+  /**
+   * Which stop of a STAGED emergency goal this row stands for. Absent on every ordinary row.
+   *
+   * The list shows the two stops SEPARATELY because that is what actually happens to the money:
+   * the first stop fills, the cards then take everything, and the second stop resumes once they are
+   * clear. One row printing one number could not say that, and a user reading it would think the
+   * goal simply stopped.
+   */
+  stage?: 1 | 2;
 };
 
 /** The least this module needs of a credit-card `accounts` row. */
@@ -185,21 +203,32 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     revolvingRemaining: revolvingRemainingOf(cards),
   };
 
-  const goalRows: SurplusRankRow[] = goals
-    .filter((g): g is typeof g & { id: string } => typeof g.id === 'string')
-    .map(g => ({
+  const rankableGoals = goals.filter((g): g is typeof g & { id: string } => typeof g.id === 'string');
+
+  const goalRows: SurplusRankRow[] = rankableGoals.map(g => {
+    const stages = goalStages(g, essentialMonthlyExpenses);
+    const saved = Number(g.current_amount) || 0;
+    return {
       id: g.id,
       kind: 'goal' as const,
       name: (g.name ?? '').trim() || 'Untitled goal',
       sortOrder: Number(g.sort_order) || 0,
       autoExtra: g.auto_extra === true,
       autoExtraAutoCleared: g.auto_extra_auto_cleared === true,
-      remaining: goalRemainingNeed(g, stageCtx),
+      // A staged goal's own row is the FIRST stop only. Its remaining need is measured against
+      // stage 1 whatever the cards are doing, so the row does not blink to "Fully funded" the
+      // moment the hand-off starts -- `goalRemainingNeed` would report 0 there, which is right for
+      // the ALLOCATOR (capacity 0 is how a rank yields) and wrong for a person reading a list.
+      remaining: stages.staged
+        ? Math.max(0, stages.stage1 - saved)
+        : goalRemainingNeed(g, stageCtx),
       share: readShare(g.surplus_share),
       targetAmount: Number(g.target_amount) || null,
       targetDate: g.target_date ?? null,
       createdAt: g.created_at ?? '',
-    }));
+      ...(stages.staged ? { stage: 1 as const } : {}),
+    };
+  });
 
   // A SAVING-phase car fund is a thing being filled; a LOAN-phase one is a debt being paid down.
   // Both are rankable and they are mutually exclusive, so the same row appears exactly once, with
@@ -291,7 +320,46 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     createdAt: '',
   }];
 
-  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows]
+  // ── THE SECOND STOP OF A STAGED GOAL, AS ITS OWN ROW ───────────────────────
+  //
+  // Tre, 2026-08-26: "the staggered sections should separate in the goals ordering." They have to,
+  // because the ORDER is the feature. The money goes: first stop, then every card, then the second
+  // stop. One row printing one number cannot say that, and the row going quiet at the hand-off
+  // reads as a bug rather than as the plan working.
+  //
+  // Seated immediately AFTER the last card, because that is where the engine actually funds it --
+  // `stagedTargetFor` holds the goal at stage 1 until `revolvingRemaining` hits zero. Half a rank
+  // past the cards so it can never collide with a rank the user chose, the same fractional trick
+  // that keeps the card block contiguous.
+  const lastCardRank = [...cardsRow, ...cardRows].reduce(
+    (max, r) => Math.max(max, r.sortOrder), Number.NEGATIVE_INFINITY,
+  );
+  const stage2Rows: SurplusRankRow[] = rankableGoals.flatMap(g => {
+    const stages = goalStages(g, essentialMonthlyExpenses);
+    if (!stages.staged || stages.stage2 <= stages.stage1) return [];
+    const saved = Number(g.current_amount) || 0;
+    const ownRank = Number(g.sort_order) || 0;
+    return [{
+      id: `${g.id}::stage2`,
+      kind: 'goal' as const,
+      name: (g.name ?? '').trim() || 'Untitled goal',
+      // With no cards at all there is nothing to wait for, so it sits straight after its own first
+      // stop rather than at minus infinity.
+      sortOrder: (Number.isFinite(lastCardRank) ? lastCardRank : ownRank) + 0.5,
+      autoExtra: g.auto_extra === true,
+      autoExtraAutoCleared: false,
+      remaining: Math.max(0, stages.stage2 - Math.max(saved, stages.stage1)),
+      // A derived row never carries a split weight: it has no row to store one on.
+      share: null,
+      targetAmount: Number(g.target_amount) || null,
+      targetDate: g.target_date ?? null,
+      createdAt: g.created_at ?? '',
+      derived: true,
+      stage: 2 as const,
+    }];
+  });
+
+  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows, ...stage2Rows]
     .sort(compareSurplusRankRows);
 }
 
@@ -360,6 +428,9 @@ export function moveSurplusRankRow(
   rows: readonly SurplusRankRow[], fromId: string, toId: string,
 ): SurplusRankRow[] {
   if (fromId === toId) return densify(rows);
+  // A DERIVED row has no rank of its own to move: it is seated where the engine actually funds it,
+  // half a rank past the last card. Letting it be dragged would offer a choice that changes nothing.
+  if (rows.some(r => r.id === fromId && r.derived)) return densify(rows);
   const groups = toGroups(rows).map(g => [...g]);
   const fromGroupIdx = groups.findIndex(g => g.some(r => r.id === fromId));
   const toGroupIdx = groups.findIndex(g => g.some(r => r.id === toId));
@@ -474,7 +545,7 @@ export function setSurplusRankAutoExtra(
   rows: readonly SurplusRankRow[], id: string, autoExtra: boolean,
 ): SurplusRankRow[] {
   return rows.map(r => (
-    r.id === id && r.kind !== 'cards' && r.kind !== 'card' && r.kind !== 'liability'
+    r.id === id && !r.derived && r.kind !== 'cards' && r.kind !== 'card' && r.kind !== 'liability'
       ? { ...r, autoExtra, autoExtraAutoCleared: false }
       : r
   ));
@@ -542,6 +613,9 @@ export function planAutoExtraDeselect(
 ): AutoExtraDeselect[] {
   const out: AutoExtraDeselect[] = [];
   for (const row of rows) {
+    // A DERIVED row has no table row behind it, so there is no `auto_extra` to switch off and the
+    // write would target an id that does not exist. Its own goal is already in this loop.
+    if (row.derived) continue;
     if (row.kind !== 'goal' && row.kind !== 'car_fund' && row.kind !== 'loan') continue;
     if (!row.autoExtra || alreadyDeselected.has(row.id) || row.autoExtraAutoCleared) continue;
     if (row.remaining === null || row.remaining > 0) continue;
@@ -607,6 +681,10 @@ export function planSurplusRankWrites(
   const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
 
   for (const row of after) {
+    // ⚠️ A DERIVED row is a projection of another row, not a row anyone owns. `<goalId>::stage2` is
+    // not a uuid in any table, so a patch planned here would `.eq('id', …)` nothing at best and
+    // throw at worst. Its position is computed from where the engine funds it, never stored.
+    if (row.derived) continue;
     const was = prev.get(row.id);
     if (!was) continue;
     if (row.kind === 'cards') {

@@ -23,7 +23,7 @@ import {
 import {
   computeEssentialMonthlyExpenses, isEssentialExpenseRule, type EssentialRule,
 } from '../essential-monthly-expenses';
-import { buildSurplusRankRows } from '../surplus-ranking';
+import { buildSurplusRankRows, planAutoExtraDeselect, planSurplusRankWrites } from '../surplus-ranking';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import type { AccountRow } from '@/hooks/useSupabaseData';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
@@ -214,20 +214,70 @@ describe('buildSurplusRankRows — a staged goal shows the stage it is actually 
     }).remaining).toBe(8_730);
   });
 
-  it('shows ZERO remaining while the cards still owe — the same hold the engine applies', () => {
-    expect(goalRow1({
+  it("keeps the FIRST STOP's own row at zero once it is filled, rather than reopening it", () => {
+    // The goal's own row is the first stop and nothing else. Rolling stage 2 into it would print
+    // one number for two stops that happen at different times, either side of the whole card block.
+    const row = goalRow1({
       goals: [goalRowFor({ current_amount: 8_730 })],
       carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
       essentialMonthlyExpenses: 1_000,
-    }).remaining).toBe(0);
+    });
+    expect(row.remaining).toBe(0);
+    expect(row.stage).toBe(1);
   });
 
-  it('reopens to stage 2 once the cards are clear', () => {
-    expect(goalRow1({
+  it('SEPARATES the second stop into its own row, seated after the last card', () => {
+    // Tre, 2026-08-26: "the staggered sections should separate in the goals ordering." The order IS
+    // the feature: first stop, then every card, then the second stop.
+    const rows = buildSurplusRankRows({
       goals: [goalRowFor({ current_amount: 8_730 })],
+      carFunds: [],
+      cards: [{ id: 'card-1', balance: 2_000, surplus_sort_order: 4 }],
+      cardsSortOrder: 4,
+      essentialMonthlyExpenses: 1_000,
+    });
+    const stage2 = rows.find(r => r.id === 'g-1::stage2')!;
+    expect(stage2.stage).toBe(2);
+    expect(stage2.remaining).toBe(3_000);
+    // After the card, never before it, because that is when the engine actually funds it.
+    expect(rows.findIndex(r => r.id === 'g-1::stage2'))
+      .toBeGreaterThan(rows.findIndex(r => r.id === 'card-1'));
+    expect(rows.findIndex(r => r.id === 'g-1::stage2'))
+      .toBeGreaterThan(rows.findIndex(r => r.id === 'g-1'));
+  });
+
+  it('never emits a second-stop row for an UNSTAGED goal, or for one that stops at stage 1', () => {
+    const plain = buildSurplusRankRows({
+      goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],
+      carFunds: [], essentialMonthlyExpenses: 1_000,
+    });
+    expect(plain.some(r => r.derived)).toBe(false);
+    const stopsAtOne = buildSurplusRankRows({
+      goals: [goalRowFor({ emergency_months_stage2: null })],
+      carFunds: [], essentialMonthlyExpenses: 1_000,
+    });
+    expect(stopsAtOne.some(r => r.derived)).toBe(false);
+  });
+
+  it('plans NO write for the derived row — its id is not a uuid in any table', () => {
+    const rows = buildSurplusRankRows({
+      goals: [goalRowFor({ current_amount: 8_730 })],
+      carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
+      essentialMonthlyExpenses: 1_000,
+    });
+    // Same list, every rank shifted: the derived row must still plan nothing.
+    const moved = rows.map(r => ({ ...r, sortOrder: r.sortOrder + 10 }));
+    const writes = planSurplusRankWrites(rows, moved);
+    expect(writes.goals.some(w => w.id.includes('::stage2'))).toBe(false);
+  });
+
+  it('never auto-deselects the derived row', () => {
+    const rows = buildSurplusRankRows({
+      goals: [goalRowFor({ current_amount: 26_000 })],
       carFunds: [], cards: [{ id: 'card-1', balance: 0 }],
       essentialMonthlyExpenses: 1_000,
-    }).remaining).toBe(3_000);
+    });
+    expect(planAutoExtraDeselect(rows).some(d => d.id.includes('::stage2'))).toBe(false);
   });
 
   it('is byte-identical to the old list for an UNSTAGED goal', () => {

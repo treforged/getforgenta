@@ -153,6 +153,10 @@ export default function SurplusRankingSection({
     const out = new Map<string, { id: string; remaining: number; targetDate: string | null; monthly?: number[] }>();
     for (const row of rows) {
       if (row.remaining === null) continue;
+      // A DERIVED row has no schedule of its own: the engine reports the whole staged goal under
+      // the real goal id, so looking one up here would find nothing and call a target that IS being
+      // funded unreachable. The goal's own row already carries the verdict.
+      if (row.derived) continue;
       const extra = autoExtraByTarget?.get(row.id);
       const own = ownMonthlyByTarget?.[row.id] ?? 0;
       const months = extra ?? (capacityByMonth ? new Array(capacityByMonth.length).fill(0) : undefined);
@@ -427,6 +431,10 @@ export default function SurplusRankingSection({
           const isCards = row.kind === 'cards';
           const isCard = row.kind === 'card';
           const isLiability = row.kind === 'liability';
+          // The SECOND STOP of a staged emergency goal. It is a projection of the goal above, not a
+          // row anyone owns: no handle, no split, no tick, because its position is decided by when
+          // the cards clear rather than by where a person drags it.
+          const isStage2 = row.derived === true && row.stage === 2;
           const prev = draft[i - 1];
           const inSplit = draft.some(r => r.id !== row.id && r.sortOrder === row.sortOrder && r.share !== null && row.share !== null);
           const startsSplit = inSplit && (!prev || prev.sortOrder !== row.sortOrder);
@@ -437,8 +445,8 @@ export default function SurplusRankingSection({
               key={row.id}
               layout="position"
               transition={ROW_SETTLE}
-              onDragOver={e => !isTouch && !readOnly && canReorder && onDragOver(e, row.id)}
-              onDrop={e => !isTouch && !readOnly && canReorder && onDrop(e, row.id)}
+              onDragOver={e => !isTouch && !readOnly && canReorder && !isStage2 && onDragOver(e, row.id)}
+              onDrop={e => !isTouch && !readOnly && canReorder && !isStage2 && onDrop(e, row.id)}
               className={[
                 // ⚠️ NOT `transition-all`. That included `transform`, so the CSS transition and
                 // framer's own per-frame transform writes fought over the same property and the
@@ -454,7 +462,7 @@ export default function SurplusRankingSection({
             >
               {/* The same spacer read-only gets: a lone row keeps the columns lined up without
                   offering a handle or an arrow that could not move it anywhere. */}
-              {readOnly || !canReorder ? (
+              {readOnly || !canReorder || isStage2 ? (
                 <span className="w-4 shrink-0" />
               ) : !isTouch ? (
                 <div
@@ -503,6 +511,14 @@ export default function SurplusRankingSection({
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground wrap-break-word">
                   {row.name}
+                  {/* Which stop this row is. Without it two rows carrying the same goal name read
+                      as a duplicate rather than as a sequence. */}
+                  {row.stage === 1 && (
+                    <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">First stop</span>
+                  )}
+                  {isStage2 && (
+                    <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider text-primary">Then</span>
+                  )}
                   {inSplit && row.share !== null && (
                     <span className="ml-1.5 text-[10px] font-mono text-primary">
                       {Math.round(row.share)}%
@@ -522,13 +538,18 @@ export default function SurplusRankingSection({
                       : isCard
                         ? `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
                         : row.remaining && row.remaining > 0
-                          ? `${formatCurrency(row.remaining, false)} to go`
+                          ? isStage2
+                            // It is not "to go" yet: nothing is going there until the cards clear,
+                            // and printing the same phrase as an active row would say it is being
+                            // funded right now when it is deliberately not.
+                            ? `${formatCurrency(row.remaining, false)} more, once the cards are clear`
+                            : `${formatCurrency(row.remaining, false)} to go`
                           : 'Fully funded'}
                 </p>
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}
               </div>
 
-              {!readOnly && i > 0 && (
+              {!readOnly && i > 0 && !isStage2 && (
                 <button
                   type="button"
                   onClick={() => toggleSplit(row, i)}
@@ -540,7 +561,18 @@ export default function SurplusRankingSection({
                 </button>
               )}
 
-              {isCards || isCard ? (
+              {isStage2 ? (
+                // ⚠️ DELIBERATELY NOT A CHECKBOX, for the same reason a liability has none: the
+                // switch belongs to the GOAL, which is already ticked on its own row above. A second
+                // tick here would move on screen, plan no write (the id is synthetic) and revert on
+                // the next refetch, which is the worst of both.
+                <span
+                  className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0"
+                  title="Follows the goal's own setting, once your cards are clear"
+                >
+                  Waiting
+                </span>
+              ) : isCards || isCard ? (
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">Always</span>
               ) : isLiability ? (
                 // ⚠️ DELIBERATELY NOT A CHECKBOX. `accounts` has no `auto_extra` column, so there
