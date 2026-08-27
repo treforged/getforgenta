@@ -29,6 +29,9 @@ import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/g
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
 import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId } from '@/lib/ranked-extra-payment-targets';
+import {
+  IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate,
+} from '@/lib/retirement-contribution-cap';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -409,6 +412,44 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     /** Every stop id that belongs to one goal, in plan order — what a contribution into the goal's
      *  own account decays, and what a reserve spills into. */
     const stopIdsByGoal = new Map<string, string[]>();
+    /** How much a goal may take in a given month, when something limits it. See the block below. */
+    const goalContributionRule = new Map<string, { kind: 'ira'; annualCap: number } | { kind: 'invest'; targetDate: string | null }>();
+    /**
+     * Dollars already contributed to a capped goal, per CALENDAR year.
+     *
+     * ⚠️ EVERY SOURCE COUNTS. The goal's own standing transfer and any ranked extra fill the same
+     * statutory allowance, so counting only one of them would let the pair breach the limit together
+     * while each looked compliant on its own.
+     */
+    const contributedByYear = new Map<string, Map<number, number>>();
+    const noteContribution = (goalId: string, year: number, amount: number) => {
+      if (!(amount > 0) || !goalContributionRule.has(goalId)) return;
+      const perYear = contributedByYear.get(goalId) ?? new Map<number, number>();
+      perYear.set(year, (perYear.get(year) ?? 0) + amount);
+      contributedByYear.set(goalId, perYear);
+    };
+    /**
+     * The most this goal may take THIS month — `Infinity` when nothing limits it, which is every
+     * goal that is not linked to an IRA or a brokerage.
+     */
+    const monthlyAllowanceFor = (goalId: string, monthDate: Date, remaining: number): number => {
+      const rule = goalContributionRule.get(goalId);
+      if (!rule) return Number.POSITIVE_INFINITY;
+      if (rule.kind === 'ira') {
+        return levelMonthlyAllowance({
+          annualCap: rule.annualCap,
+          alreadyContributed: contributedByYear.get(goalId)?.get(monthDate.getFullYear()) ?? 0,
+          month: monthDate.getMonth(),
+        });
+      }
+      const until = rule.targetDate
+        ? (() => {
+          const t = new Date(`${rule.targetDate.slice(0, 10)}T00:00:00`);
+          return (t.getFullYear() - monthDate.getFullYear()) * 12 + (t.getMonth() - monthDate.getMonth());
+        })()
+        : null;
+      return levelMonthlyToDate({ remainingNeed: remaining, monthsUntilDate: until });
+    };
     for (const g of goals) {
       if (typeof g.id !== 'string') continue;
       const stages = goalStages(g, essentialMonthlyExpenses);
@@ -437,6 +478,24 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         });
       }
       stopIdsByGoal.set(g.id, ids);
+
+      // ── THE ANNUAL IRA CAP, AND LEVEL MONTHLY CONTRIBUTIONS ────────────────
+      //
+      // Tre, 2026-08-26: "roth IRA has a max contribution per year, that should be auto capped each
+      // year between the legal time frame ... but make the payments consistent so users can set up
+      // auto transfer and forget about it", and for investing "same auto transfer concept ... but
+      // dont cap it".
+      //
+      // Both are the same shape and only the ceiling differs: an IRA levels what is left of the
+      // YEAR'S allowance over the months left in the year, an investing goal levels its own
+      // remaining need over the months until its own date. A goal that is neither is untouched,
+      // which is every goal of every user who has not linked one of these account types.
+      const linkedType = g.linked_account ? accountMap.get(g.linked_account)?.account_type : null;
+      if (isIraCapped(linkedType)) {
+        goalContributionRule.set(g.id, { kind: 'ira', annualCap: IRA_ANNUAL_LIMIT });
+      } else if (linkedType === 'brokerage') {
+        goalContributionRule.set(g.id, { kind: 'invest', targetDate: g.target_date ?? null });
+      }
     }
     for (const c of carFunds) {
       // Mirrors `buildRankedTargets`: a car fund's `auto_extra` is a real column on a full row, so
@@ -1530,6 +1589,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
 
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const b = baseData[i];
+      /** This month's first day. Only the YEAR and the MONTH are read, by the contribution
+       *  allowances — an IRA's cap is a calendar-year thing and levelling needs to know how many
+       *  months of that year are left. Same construction the base pass uses. */
+      const monthDate = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       let monthDebtPayment = debtPayments[i];
       // Exact cents — it is the drawer's opening term and must reconcile against the prior
       // month's Ending Cash to the cent. See the "EXACT CENTS" note on the popup fields below.
@@ -1685,7 +1748,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // the affordability back-off above must decay the capacity by what it ACTUALLY contributed,
       // or the goal's remaining need would shrink by dollars that never moved — and the ranked
       // waterfall (the only catch-up path there is) would never refill them.
-      for (const item of savingsGoalItemsApplied) decayGoalCapacity(item.goalId, item.amount);
+      for (const item of savingsGoalItemsApplied) {
+        decayGoalCapacity(item.goalId, item.amount);
+        // A standing transfer fills the same allowance a ranked extra does. Counting only one of
+        // them is how a pair breaches a limit while each half looks compliant.
+        noteContribution(item.goalId, monthDate.getFullYear(), item.amount);
+      }
       for (const v of vehicleProjections) {
         if (i <= v.purchaseMonthIdx) decayAutoExtraCapacity(v.fundId, v.contrib);
       }
@@ -1715,7 +1783,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // leave the FOLLOWING month starting below its own pre-paycheck floor.
         const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - step3SpendFloor - (ledgerEntry?.cycling ?? 0));
         const targets: RankedTarget[] = Array.from(autoExtraCapacity, ([id, t]) => ({
-          id, kind: t.kind, sortOrder: t.sortOrder, minimum: 0, capacity: t.remaining, autoExtra: true,
+          id, kind: t.kind, sortOrder: t.sortOrder, minimum: 0,
+          // ⚠️ THE ALLOWANCE CLAMPS THE CAPACITY, IT DOES NOT REPLACE IT. A target may never be
+          // offered more than it still needs; the allowance only ever takes that number DOWN. And
+          // capacity 0 is already how a rank yields its dollars to the next one, so an IRA that has
+          // used up its year simply passes the surplus on rather than needing a rule of its own.
+          capacity: t.kind === 'goal' && t.goalId != null
+            ? Math.min(t.remaining, monthlyAllowanceFor(t.goalId, monthDate, t.remaining))
+            : t.remaining,
+          autoExtra: true,
           ...(t.share === undefined ? {} : { share: t.share }),
         }));
         // Extra principal, capacity read fresh from the (already-reduced) amortized balance.
@@ -2148,6 +2224,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // reduced). Decaying a running total as well would take the same dollars off twice.
       for (const t of autoExtraThisMonth) {
         if (t.kind !== 'loan' && t.kind !== 'liability') decayAutoExtraCapacity(t.id, t.amount);
+        // The same dollars, counted against the statutory allowance. Recorded from the RESERVE
+        // actually taken rather than from the capacity offered, because the waterfall may hand a
+        // target less than it asked for and an allowance spent on money that never moved would
+        // shrink next month's for nothing.
+        const cappedGoal = goalIdByTargetId.get(t.id);
+        if (cappedGoal != null) noteContribution(cappedGoal, monthDate.getFullYear(), t.amount);
       }
 
       // 4d. Lump sums → per-account or goal pool

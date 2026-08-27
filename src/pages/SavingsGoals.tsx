@@ -24,13 +24,17 @@ import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { goalStages } from '@/lib/ranked-extra-payment-targets';
+import { IRA_ANNUAL_LIMIT } from '@/lib/retirement-contribution-cap';
 import GoalStopsEditor, { newStopDraft, stopDraftsFrom, stopsToStages, type StopDraft } from '@/components/savings/GoalStopsEditor';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
-const ROTH_IRA_LIMIT = 7000;
+// ⚠️ ONE DEFINITION OF A STATUTORY NUMBER. This used to be its own `7000` here while the forecast
+// engine capped against another copy; two spellings of a legal limit is the shape that goes stale in
+// one place and not the other, and the two surfaces then disagree about whether a year is full.
+const ROTH_IRA_LIMIT = IRA_ANNUAL_LIMIT;
 const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '' };
 
 // allGoals' shape: a real savings_goals row enriched with values computed from

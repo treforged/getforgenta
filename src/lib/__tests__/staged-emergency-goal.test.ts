@@ -13,12 +13,11 @@
 //   (a) what a month of essential cost is, one rule source at a time (`isEssentialExpenseRule`);
 //   (b) where the stops land, cumulatively (`goalStages`, `openThresholdOf`);
 //   (c) which one the goal is chasing right now (`stagedTargetFor`), including the hand-off;
-//   (d) the engine actually stopping at stage 1 while a card owes revolving, and RESUMING at
-//       stage 2 the month that debt clears.
+//   (d) the engine funding a stop when its RANK comes up rather than when a flag opens, and
+//       drawing nothing for a stop the user has not ticked;
+//   (e) the annual IRA cap actually binding the waterfall, and paying level.
 //
-// Would-fail check for (d): force `stagedTail` to 0 where `autoExtraCapacity` is seeded in
-// `forecast-engine.ts`, or delete the `revBalTotal <= 0` unlock above the month's reserve, and the
-// reopening test funds $3,000 instead of $5,000.
+// Would-fail check for (b): make `openThresholdOf` return `stages.total` and five tests fail.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
@@ -33,6 +32,7 @@ import {
   planSurplusRankWrites, setSurplusRankAutoExtra, type SurplusRankRow,
 } from '../surplus-ranking';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
+import { IRA_ANNUAL_LIMIT } from '../retirement-contribution-cap';
 import type { AccountRow } from '@/hooks/useSupabaseData';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
 import type { CardProjectionResult, Month0Result } from '@/lib/debt-model-types';
@@ -592,12 +592,13 @@ function cardProjection(
   } as unknown as CardProjectionResult;
 }
 
-function makeInputs(goals: GoalRow[], revolvingByMonth: number[] = []): ForecastInputs {
+function makeInputs(goals: GoalRow[], revolvingByMonth: number[] = [], extraAccounts: AccountRow[] = []): ForecastInputs {
   return {
     debts: [], goals, carFunds: [],
     accounts: [
       acct({ id: 'chk-1', name: 'Checking', account_type: 'checking', balance: 200_000 }),
       acct({ id: 'sav-1', name: 'Savings', account_type: 'savings', balance: 1_000 }),
+      ...extraAccounts,
     ],
     budgetItems: [],
     // ⚠️ `cards_sort_order` 5 puts the goal (sort_order 0) ABOVE the card block, which is the
@@ -709,5 +710,83 @@ describe('forecast-engine — a stop is funded when its RANK comes up, not when 
       makeInputs([goalRow({})], new Array(120).fill(5_000)),
     ).data;
     expect(totalFor(rows, 'g-1')).toBeCloseTo(2_000, 2);
+  });
+});
+
+// ── THE ANNUAL IRA CAP, IN THE ENGINE ────────────────────────────────────────
+//
+// The unit tests next door pin the arithmetic. What is pinned HERE is that the arithmetic actually
+// binds the waterfall: an IRA goal with a $99,000 need and a big surplus must take the year's limit
+// and no more, spread level rather than in one January lump.
+
+describe('forecast-engine — a Roth IRA goal is capped per year and paid level', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const rothAcct = acct({ id: 'roth-1', name: 'Roth IRA', account_type: 'roth_ira', balance: 0 });
+  const brokerAcct = acct({ id: 'brk-1', name: 'Brokerage', account_type: 'brokerage', balance: 0 });
+
+  const perMonth = (rows: ReturnType<typeof calculateForecast>['data'], id: string) =>
+    rows.map(r => Number(r.autoExtraByTarget?.[id] ?? 0));
+
+  it('never lets one CALENDAR year exceed the limit, however much surplus there is', () => {
+    anchor(); // Oct 2026, so month 0..2 are 2026 and month 3.. are 2027
+    const goal = goalRow({
+      id: 'g-1', target_amount: 200_000, current_amount: 0, auto_extra: true,
+      linked_account: 'roth-1', sort_order: 0,
+    });
+    const rows = calculateForecast(
+      makeInputs([goal], new Array(120).fill(0), [rothAcct]),
+    ).data;
+    const months = perMonth(rows, 'g-1');
+    // The fixture anchors at 15 Oct 2026: three months of 2026, then twelve of 2027.
+    const y2026 = months.slice(0, 3).reduce((a, b) => a + b, 0);
+    const y2027 = months.slice(3, 15).reduce((a, b) => a + b, 0);
+    expect(y2026).toBeLessThanOrEqual(IRA_ANNUAL_LIMIT + 0.005);
+    expect(y2027).toBeLessThanOrEqual(IRA_ANNUAL_LIMIT + 0.005);
+    // And it is genuinely being funded, so the assertion above is not passing on zero.
+    expect(y2027).toBeGreaterThan(0);
+  });
+
+  it('pays a LEVEL amount across a full year rather than filling in January and stopping — '
+    + '"make the payments consistent so users can set up auto transfer and forget about it"', () => {
+    anchor();
+    const goal = goalRow({
+      id: 'g-1', target_amount: 200_000, current_amount: 0, auto_extra: true,
+      linked_account: 'roth-1', sort_order: 0,
+    });
+    const rows = calculateForecast(
+      makeInputs([goal], new Array(120).fill(0), [rothAcct]),
+    ).data;
+    // Months 3..14 are the whole of 2027.
+    const y2027 = perMonth(rows, 'g-1').slice(3, 15);
+    const level = IRA_ANNUAL_LIMIT / 12;
+    // Precision 1, not 2: the reserve rounds to cents, so a level $583.33 lands as $583.34 in some
+    // months. Level to within a penny is the requirement; level to within a thousandth is an
+    // assertion about rounding, not about the feature.
+    for (const m of y2027) expect(m).toBeCloseTo(level, 1);
+  });
+
+  it('leaves a BROKERAGE goal with no date uncapped — "same auto transfer concept for investing '
+    + 'but dont cap it"', () => {
+    anchor();
+    const goal = goalRow({
+      id: 'g-1', target_amount: 20_000, current_amount: 0, auto_extra: true,
+      linked_account: 'brk-1', target_date: null, sort_order: 0,
+    });
+    const rows = calculateForecast(
+      makeInputs([goal], new Array(120).fill(0), [brokerAcct]),
+    ).data;
+    // No ceiling and no date, so the surplus fills it as fast as it can - exactly as before.
+    expect(perMonth(rows, 'g-1')[1]).toBeGreaterThan(IRA_ANNUAL_LIMIT / 12);
+  });
+
+  it('leaves a goal linked to NOTHING exactly as it was — the whole feature is opt-in by account '
+    + 'type, so no existing user moves', () => {
+    anchor();
+    const capped = calculateForecast(
+      makeInputs([goalRow({ id: 'g-1', target_amount: 20_000, auto_extra: true, sort_order: 0 })],
+        new Array(120).fill(0)),
+    ).data;
+    expect(perMonth(capped, 'g-1')[1]).toBeGreaterThan(IRA_ANNUAL_LIMIT / 12);
   });
 });
