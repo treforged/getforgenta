@@ -10,6 +10,7 @@ import FormModal, { type Field } from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, getCarFundSaved, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
+import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
 import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
@@ -614,14 +615,18 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
     });
   }, [baseInput, lumpSums, autoExtraByMonth]);
 
+  // ⚠️ IT USED TO SUBTRACT ONE UNCONDITIONALLY, and on Tre's own C5 that printed "Jul 2029" above
+  // a schedule whose final payment lands in Aug - while the engine sent $2,343 of extra principal
+  // that August, into a loan the label claimed was already gone. The array carries two conventions;
+  // `extraAwarePayoffMonthIndex` is now the one place that reads them, shared with /debt.
   const autoPayoffLabel = useMemo(() => {
-    if (!receivesAutoExtra || !extraBalances) return null;
-    const firstZero = extraBalances.findIndex(b => b <= 0);
-    if (firstZero <= 0) return null;
+    if (!receivesAutoExtra) return null;
+    const idx = extraAwarePayoffMonthIndex(extraBalances, autoExtraMonths);
+    if (idx == null) return null;
     const n = new Date();
-    return new Date(n.getFullYear(), n.getMonth() + firstZero - 1, 1)
+    return new Date(n.getFullYear(), n.getMonth() + idx, 1)
       .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  }, [receivesAutoExtra, extraBalances]);
+  }, [receivesAutoExtra, extraBalances, autoExtraMonths]);
 
   const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
   const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));

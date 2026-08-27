@@ -187,3 +187,78 @@ describe('forecast-engine - the exposed with-extras payoff arrays', () => {
     expect(on.data[onZero].carLoanBreakdown.find(r => r.name === '2004 Chevrolet C5')).toBeUndefined();
   });
 });
+
+// ── WHICH MONTH DOES `firstZero` ACTUALLY NAME? ──────────────────────────────
+//
+// MEASUREMENT, 2026-08-27. The Garage card printed two payoff dates for one loan: the dashed line's
+// copy said "paying this loan off by Jul 2029" while the amortization table's final payment landed
+// in Aug 2029 — and the engine itself sent $2,343 of extra principal that August, which it would
+// not send into a loan it had already cleared.
+//
+// The two readings come from one array with TWO conventions in it. It is SEEDED as the balance a
+// month OPENS at (`schedule[monthsElapsed + i].startBalance`), but step 4c-ii-b reduces it from
+// index `i` INCLUSIVE — deliberately, so a lump sum and a ranked extra land in the same month the
+// drawer shows them. Once an extra has been applied, therefore, `balances[i]` is the balance AFTER
+// month i's extra, and the first zero is the month the loan was CLEARED, not the month after it.
+//
+// So `firstZero - 1`, which is right for an untouched array, is one month early for a touched one.
+// This test measures that rather than asserting it from reading the code.
+
+describe('carLoanBalancesByFundId — what index the first zero actually is', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("reduces the balance from the extra's OWN month, index i INCLUSIVE - so once an extra has "
+    + "landed the array stops being 'the balance the month opens at' and becomes 'the balance "
+    + "after this month's extra'", () => {
+    const loanInputs = (fund: CarFund) => makeInputs(
+      [acct({ id: 'chk-1', name: 'Checking', account_type: 'checking', balance: 30_000 })], [], 0,
+      {
+        carFunds: [fund], cardProjectionData: CARD_PROJECTION,
+        payConfig: { weeklyGross: 0, taxRate: 0, paycheckDay: 1, frequency: 'monthly' },
+        forecastMonthEvents: [],
+      },
+    );
+    anchor();
+    const off = calculateForecast(loanInputs(c5({ auto_extra: false })));
+    anchor();
+    const on = calculateForecast(loanInputs(c5({ auto_extra: true })));
+    const before = off.carLoanBalancesByFundId.get('c5')!;
+    const after = on.carLoanBalancesByFundId.get('c5')!;
+
+    // The first month the waterfall actually sends this loan money.
+    const firstExtraMonth = on.data.findIndex(r => Number(r.autoExtraByTarget?.['c5'] ?? 0) > 0);
+    expect(firstExtraMonth).toBeGreaterThan(0);
+    const extra = Number(on.data[firstExtraMonth].autoExtraByTarget!['c5']);
+
+    // THE MEASUREMENT, and it is the whole finding: that month's OWN entry already carries the
+    // deduction. An array whose index i means "what month i opens owing" could not — the money is
+    // paid during month i, after it opened.
+    expect(before[firstExtraMonth] - after[firstExtraMonth]).toBeCloseTo(extra, 2);
+    expect(before[firstExtraMonth - 1]).toBeCloseTo(after[firstExtraMonth - 1], 2);
+  });
+
+  it('therefore names the CLEARING month at `firstZero`, not `firstZero - 1`, whenever the extras '
+    + 'are what clear it — which is what put "Jul 2029" on a card whose final payment is in Aug', () => {
+    // A loan small enough that the ranked extra finishes it, so the zero is caused by an EXTRA
+    // rather than by the amortization running out.
+    const loanInputs = (fund: CarFund) => makeInputs(
+      [acct({ id: 'chk-1', name: 'Checking', account_type: 'checking', balance: 300_000 })], [], 0,
+      {
+        carFunds: [fund], cardProjectionData: CARD_PROJECTION,
+        payConfig: { weeklyGross: 0, taxRate: 0, paycheckDay: 1, frequency: 'monthly' },
+        forecastMonthEvents: [],
+      },
+    );
+    anchor();
+    const on = calculateForecast(loanInputs(c5({ auto_extra: true })));
+    const balances = on.carLoanBalancesByFundId.get('c5')!;
+    const zeroAt = firstZero(balances);
+    const lastExtraMonth = on.data.reduce(
+      (last, r, i) => (Number(r.autoExtraByTarget?.['c5'] ?? 0) > 0 ? i : last),
+      -1,
+    );
+    // The final extra is sent IN the month the array first reads zero. A label that subtracts one
+    // from that names a month the loan was still being paid down in.
+    expect(lastExtraMonth).toBe(zeroAt);
+  });
+});

@@ -12,6 +12,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
+import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
@@ -163,14 +164,18 @@ export default function DebtPayoff() {
   // balances[i] is the balance month i OPENS at, so the final payment lands in month
   // firstZero - 1 - the same month payoffDate names when no extra money reaches the loan, which
   // is what keeps this line hidden until the ranked waterfall actually accelerates the payoff.
+  // ⚠️ THE MONTH IS NOT ALWAYS `firstZero - 1`. That array carries two conventions - seeded as the
+  // balance a month OPENS at, then reduced from index i INCLUSIVE by the extras - so subtracting
+  // one is right when amortization runs it out and a month EARLY when an extra is what finished it.
+  // `extraAwarePayoffMonthIndex` is the one place that reads them, shared with the Garage card so
+  // the two surfaces cannot print different dates for the same loan (they did, 2026-08-27).
   const withExtrasAutoPayoff = (fundId: string, scheduledPayoffDate: string): string | null => {
     if (!autoExtraTargets.has(fundId)) return null;
     const balances = projections.carLoanBalancesByFundId.get(fundId);
-    if (!balances) return null;
-    const firstZero = balances.findIndex(b => b <= 0);
-    if (firstZero <= 0) return null;
+    const idx = extraAwarePayoffMonthIndex(balances, autoExtraTargets.get(fundId));
+    if (idx == null) return null;
     const now = new Date();
-    const extras = new Date(now.getFullYear(), now.getMonth() + firstZero - 1, 1);
+    const extras = new Date(now.getFullYear(), now.getMonth() + idx, 1);
     const sched = new Date(scheduledPayoffDate + 'T00:00:00');
     if (extras.getFullYear() * 12 + extras.getMonth() >= sched.getFullYear() * 12 + sched.getMonth()) return null;
     return extras.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
