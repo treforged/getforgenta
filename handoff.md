@@ -30,9 +30,27 @@
 >   being paced (pinned by a test now). That is the pre-existing, deliberate
 >   "only after the previous is met" rule, and the IRA cap has behaved this way
 >   since it shipped. The surplus the paced target did not take is NOT reserved
->   elsewhere — it stays in the pool as cash for the debt cascade. **If Tre wants
->   an on-pace target to pass the REST down to the next rank, that is a separate
->   product decision** and it moves IRA money too.
+>   elsewhere — it stays in the pool as cash for the debt cascade.
+>
+> ═══ ✅ TRE DECIDED, 2026-08-27, NOT YET BUILT ═══
+> **"pass the rest down to the next rank instead."** An on-pace target has met
+> its obligation for THIS month, so the ranks below it get the remaining surplus
+> in the same month rather than waiting for the whole need to be filled. This is
+> queue item 1 and it is a DECISION, not an open question — do not re-ask it.
+>
+> What it takes, and the trap: the gate is `unmetAtMonthStart` in
+> `ranked-surplus-allocation.ts`, and it reads **`capacity`**. Today the
+> allowance IS the capacity, so an on-pace target still looks unmet. Passing the
+> rest down means separating "met for this month" from "met entirely" — capacity
+> back to the true remaining need, the allowance moved to **`maxExtra`**, and the
+> gate opened when this month's headroom is spent rather than when the need is.
+> ⚠️ Read the `maxExtra` warning above before touching it: `maxExtra` targets
+> deliberately do NOT open the gate today, and capacity 0 is how an IRA that has
+> used up its year steps aside — whatever replaces the gate has to keep that
+> working. ⚠️ **THIS MOVES IRA MONEY TOO** (a Roth taking its $583 would stop
+> blocking the ranks below it for the rest of the month), which is consistent
+> with what he asked for, but say so when it ships. Existing tests pin the old
+> behaviour and will need rewriting — that is expected, not a regression.
 >
 > ═══ ⚠️ WHAT THIS DOES TO HIS OWN DATA (measured by SQL, NOT yet rendered) ═══
 > His goal `a035a97e` stop 1 "First target" is **$5,730, dated 2027-07-03,
@@ -44,16 +62,18 @@
 > carry NO date and are unpaced. **Nobody has looked at the rendered forecast.**
 >
 > ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
-> 1. ⚠️ **LIVE-VERIFY THE ABOVE** on /forecast + /savings-goals: the move-fund
->    reserve per month, and that the freed surplus actually lands on the cards
->    rather than vanishing. One navigate + one scripted extraction.
-> 2. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
-> 3. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+> 1. **Build the decision above: an on-pace target passes the rest down.**
+> 2. ⚠️ **LIVE-VERIFY** on /forecast + /savings-goals: the move-fund reserve per
+>    month, and that the freed surplus actually lands on the cards rather than
+>    vanishing. One navigate + one scripted extraction. Do it AFTER item 1 so it
+>    is one verification pass, not two.
+> 3. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 4. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
 >    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
 >    NOT device-verified.
-> 4. Final-payment true-up on non-CC debts (opened by `82076865`).
-> 5. Garage card's big date vs its amortization table = TWO MODELS. Product call.
-> 6. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+> 5. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 6. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 7. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
 >    unapplied), garage amortization vs ranked extra (`garage_out.md`,
 >    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
 >    Apple Card.
