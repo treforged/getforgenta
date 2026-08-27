@@ -1,5 +1,61 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35n — **STAGED EMERGENCY GOAL: THE ENGINE HALF IS BUILT
+> AND COMMITTED (`974c6fff`, local only, unpushed). tsc 0, 2113/2113 lib tests.
+> IT IS INERT UNTIL THE MIGRATION LANDS - that is the next action.**
+>
+> WHAT SHIPPED, exactly the design 35m settled:
+> - NEW `src/lib/essential-monthly-expenses.ts` -
+>   `computeEssentialMonthlyExpenses({rules, accounts, carFunds, fundingAccountId,
+>   asOf, months=12})`. Active expense rules paid from the funding account OR
+>   CHARGED TO A CARD, plus the vehicle loan payment, plus vehicle insurance;
+>   rules sourced from ANOTHER bank account are excluded (the same "no cash
+>   impact" rule forecast-engine.ts:1145-1155 applies). Averaged over 12 months so
+>   weekly/biweekly month-shape and annual rules normalise, and so a car loan
+>   paid off inside the window is honestly tapered. `isEssentialExpenseRule` is
+>   exported separately so the DECISION can be pinned one row at a time.
+> - `ranked-extra-payment-targets.ts` gained `goalStages`, `stagedTargetFor`,
+>   `revolvingRemainingOf`, `GoalStageContext`, and `goalRemainingNeed(goal, ctx?)`.
+>   Both thresholds are measured UPWARDS FROM `target_amount` - on Tre's row that
+>   base is $5,730 (lease break + deposit, the MOVE half), so stage1 = 5,730 + 3E
+>   and stage2 = 5,730 + 6E. `buildRankedTargets` takes an optional
+>   `essentialMonthlyExpenses` and builds the stage context from the SAME `cards`
+>   the block is built from.
+> - `forecast-engine.ts`: `autoExtraCapacity` entries gained `stagedTail`. The map
+>   could not express a capacity that REOPENS (`remaining` only ever falls), so
+>   stage 2's dollars are parked and the month loop moves them across when
+>   `revBalTotal <= 0` (the unlock sits at the top of the `else if` at ~1617).
+>   `decayAutoExtraCapacity` spills past stage 1 INTO the tail and never deletes an
+>   entry whose tail is still pending.
+>
+> ⬜ NEXT, in this order:
+> 1. **MIGRATION** - `savings_goals.emergency_months_stage1 numeric null` +
+>    `emergency_months_stage2 numeric null`. ⚠️ AN APPLIED MIGRATION DOES NOT REACH
+>    `src/integrations/supabase/types.ts` - patch the Row/Insert/Update blocks
+>    (~line 1607) in the SAME commit or `main` goes red.
+> 2. **UI** - `src/pages/SavingsGoals.tsx`. `emptyForm` is line 31, the field list
+>    is ~line 665, `handleSave` ~593. Needs: a "size this from my expenses" mode
+>    with two month multipliers, and it MUST SHOW THE DERIVED DOLLARS live
+>    (~$3,386/mo -> 3mo $10,160 / 6mo $20,320 on his current rows) or the user is
+>    picking a number they cannot see. Say plainly that funding pauses at stage 1
+>    while cards are being paid off.
+> 3. **`surplus-ranking.ts:177`** still calls `goalRemainingNeed(g)` with NO ctx,
+>    so the ranked LIST will show a staged goal's base target while the ENGINE
+>    chases stage 1. Thread `essentialMonthlyExpenses` + cards through
+>    `buildSurplusRankRows` before anyone looks at the list, or the two surfaces
+>    disagree. Same for `useCardProjection.ts:2097` and
+>    `useForecastEngineInputs.ts:203` - neither passes `essentialMonthlyExpenses`
+>    yet, so MONTH 0 is unstaged while months 1+ are staged.
+> 4. **TESTS OWED** (none written yet, and this is money math): stage 1 -> 0 while
+>    revolving > 0 -> stage 2 reopens at zero revolving; the decay spill; the
+>    no-delete-with-pending-tail rule; `isEssentialExpenseRule` per source kind;
+>    and a mutation check that forcing `stagedTail` to 0 fails a test.
+>
+> ROUTING NOTE: built inline by the manager, not delegated. The free-`llm` tier is
+> the standing executor, but its only code sample scored 2.7 in the Ollama
+> playbook and this is convergence-adjacent money math; Claude executors need
+> Tre's per-case yes. Recorded so the next session does not re-litigate it.
+
 > ▶ 2026-08-26 SESSION 35m — **STAGED EMERGENCY GOAL: BASIS CONFIRMED, NUMBERS
 > DERIVED, DESIGN SETTLED. Build is the next action.**
 >
