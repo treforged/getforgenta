@@ -1,5 +1,97 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36n — **`6d0c25e3`. tsc 0, 292 files / 3100 tests, eslint
+> clean. 51 commits unpushed.** SIX of Tre's asks arrived mid-session and SIX are
+> shipped; two more arrived after the context gate and are UNSTARTED and scoped
+> below. Manager built everything; no executor spawned. Gate fired at 176k.
+>
+> ═══ ✅ SHIPPED ═══
+> - **`1becc8d6` — `src/hooks/useBudgetMonthTotals.ts`, step (b) of the tiles
+>   move.** Assembles the five buckets around `35af9cb3`'s pure module, including
+>   the four merged from OTHER tables (Subscriptions, Debt Payoff, Vehicles,
+>   Savings Goals) that the Dashboard has never built. Re-exports
+>   `useMonth0DebtBreakdown` and `useMatchedOccurrences` so Budget Control does not
+>   call either twice. **Still INERT — nothing imports it yet.**
+> - **`3080ccc9` — four label/order asks, no behaviour, no routes, no state.**
+>   1. Dashboard panel row: **Goals ahead of Accounts**.
+>   2. Garage panel row: **Builds first** (default panel and persisted `activeTab`
+>      untouched — a user last on a loan still lands on the loan).
+>   3. **The Activity surface is "Transactions" again, at every width** — rail,
+>      phone bar and page `<h1>`. Reverses the 2026-08-18 label, NOT its one-name
+>      rule. ⚠️ **MEASURED TRADE, and he should know it:** "Transactions" is 83.3px
+>      against 66.8px of bottom-bar column on a 390px phone (63.8 at 375, 52.8 at
+>      320), so the phone label truncates where "Activity" fit a 320px SE. Reverting
+>      just the phone label is a one-line change — and brings back the label that
+>      renames itself on a resize, which is what he complained about in the first
+>      place.
+>   4. **Budget Control → "Plan"**: the pill, the page `<h1>`, `page-guides`' title
+>      and its table-of-contents entry, the tour step, the demo card. The FILE, the
+>      `/budget` alias and the `transactions:budget` guide KEY keep their old names
+>      — renaming those orphans bookmarks and saved keys for nothing.
+> - **`6d0c25e3` — Add Account pinned right on /debt, Forecast ahead of Garage.**
+>   The /debt header row was `flex-wrap`, so at phone widths Add Account and the
+>   guide dropped to a second line where `justify-between` pushed them to OPPOSITE
+>   ends — reading as left-aligned. Wrap gone, the two controls are one `shrink-0`
+>   group, title takes the slack (`flex-1`, subtitle already truncates). Verified
+>   right-pinned at 1391px (9px from the row's right edge, same line as the title);
+>   **the 390px case is reasoned from the CSS, not measured** — the page's JS eval
+>   timed out mid-check. One phone-width look would close it.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. ⭐ **MOVE THE VEHICLE MONEY OUT OF THE GARAGE AND INTO /debt's AUTO LOANS.**
+>    Tre, 2026-08-27: *"move saving for down payment and active loans to the auto
+>    loans section inside the debt payoff tab. it makes more since there. garage
+>    will just be the list of cars, the builds page, and maintenance"*.
+>    **NOT STARTED. Nothing measured yet — do not trust this sketch over the code.**
+>    - The two panels are `Vehicles.tsx`'s `activeTab === 'saving'` and
+>      `'loan'` (pill row at ~:1499, panels below it). `Builds` is already a
+>      mounted-on-its-own-tab component and now leads the row.
+>    - /debt's Auto Loans tab already reads the SAME loans through
+>      `useMonth0DebtBreakdown().loanRecommendations` and now draws
+>      `LiabilityTrajectoryChart` there (`28ebdb5b`), so the destination already
+>      owns the arithmetic — this is a move of SHELL, like `Accounts`/`Builds`
+>      before it, not a second derivation. Look for the `embedded` prop pattern.
+>    - ⚠️ "Garage will just be the list of cars, the builds page, and maintenance"
+>      — MAINTENANCE. Check whether a maintenance surface exists at all before
+>      assuming this is only a move; the Log Service sheet does.
+>    - The two Garage stat cards above the pill row (`savingVehicles.length` /
+>      `loanVehicles.length`) belong to the panels that are leaving.
+> 2. **Forecast's top controls collapse on mobile.** Tre: *"make the top controls
+>    of forecast 'Line / Detail / Assumptions / PDF / CSV' collapsable. they take
+>    up a lot of space on mobile screens"*. NOT STARTED. Not a hide — a disclosure
+>    that keeps every control reachable; the app already has a pattern for this
+>    (`ChevronDown`/`ChevronUp` sections in `BudgetControl`).
+> 3. **FINISH THE TILES MOVE.** Steps (a) `35af9cb3` and (b) `1becc8d6` are done.
+>    Left, unchanged from session 36m's block below — the decision table and plan
+>    are there, do not re-derive them:
+>    - (c) `src/components/dashboard/BudgetTotalsCard.tsx` — the 7 tiles and their
+>      calc drawers. Own the `CalcDrawer` state INSIDE the card; the openers to
+>      lift are `BudgetControl.tsx:1104-1209`. For the Income drawer, derive the
+>      paycheck figures from `profile` with `buildPayConfig()` (pay-schedule.ts:190)
+>      — `preTaxDeductions`/`postTaxDeductions` come off the config and
+>      `hasTaxDeductions` is `payConfig.taxRate === 0`.
+>    - (d) widget id `budget_totals` in `dashboard-widgets.ts` seated straight after
+>      `monthly_snapshot`, plus its `renderWidget` case in `Dashboard.tsx:989`.
+>    - (e) delete from BudgetControl: the tile grids (:1702-1745 pre-rename), the
+>      Monthly/Annual pair, the Remaining Cash card, ALL EIGHT drawer openers
+>      (`openCashCalc` included) — and then the now-unused `calcDrawer` state and
+>      its `<CalcDrawer>` at the bottom of the file, plus whatever
+>      `remainingTx*`/`safeMinimum` locals fall out. Point BudgetControl's own
+>      buckets/totals at `useBudgetMonthTotals()` in the same commit.
+>    - (f) tests + live-verify BOTH pages against
+>      $4,474 / $2,433 / $515 / $423 / $877 / $4,248 / $50,973.
+> 4. His "smaller quick things i had mentioned that i cant recall" — Debt Payoff
+>    truncating span at 390px; the "not open yet" note + payoff-method ordering on
+>    Venture X / Apple Card; the Garage card's TWO payoff dates for one loan
+>    (`autoPayoffLabel` reads `firstZero - 1` off a balance array with a one-month
+>    credit lag — MEASURE first, money math).
+> 5. Then session 36k's queue, unchanged, below.
+>
+> ⚠️ Weekly usage cap override is at **94** (Tre, 2026-08-27) in both
+> `~/.claude/bin/usage_cap_hook.py` and `usage_resume_watch.py` —
+> **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36m — **`35af9cb3`. tsc 0, 292 files / 3100 tests, eslint
 > clean. 48 commits unpushed.** Tre's new ask (delete two credit-card panels) is
 > SHIPPED; the Budget-tiles move is STARTED (its pure module is committed,
