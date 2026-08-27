@@ -60,6 +60,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
+import BudgetTotalsCard from '@/components/dashboard/BudgetTotalsCard';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardOverviewStrip from '@/components/dashboard/DashboardOverviewStrip';
 import CalcDrawer from '@/components/shared/CalcDrawer';
@@ -1008,6 +1009,11 @@ export default function Dashboard() {
             onMonthEndClick={openMonthEndCalc}
           />
         );
+
+      case 'budget_totals':
+        // Budget Control's KPI row, moved here on 2026-08-27. It reads `useBudgetMonthTotals` and
+        // derives nothing of its own, so this page and that one cannot disagree about the month.
+        return <BudgetTotalsCard key="budget_totals" />;
 
       case 'upcoming_week':
         if (rulesLoading || upcomingBillsWeek.length === 0) return null;

@@ -109,6 +109,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 import { MemoryRouter } from 'react-router';
 import { matchOccurrence } from '@/lib/transaction-matching';
 import BudgetControl from '../BudgetControl';
+import BudgetTotalsCard from '@/components/dashboard/BudgetTotalsCard';
 
 function renderInAugust() {
   vi.useFakeTimers();
@@ -182,9 +183,19 @@ describe('Budget Control, the matched badge', () => {
   });
 });
 
-describe('Budget Control, monthly totals', () => {
+// The tiles these two assert on MOVED TO THE DASHBOARD on 2026-08-27 (Tre: "i wanted these moved
+// to dashboard"), so they now render `BudgetTotalsCard` over the same fixture. What is being pinned
+// has not changed: a matched occurrence still has to reach the month's totals at what really left
+// the account, and both surfaces read the one `useBudgetMonthTotals` that produces them.
+describe('the budget totals card, monthly totals', () => {
+  function renderCardInAugust() {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 25, 9, 0, 0));
+    return render(<MemoryRouter><BudgetTotalsCard /></MemoryRouter>);
+  }
+
   it('counts the matched occurrence at what really left the account', () => {
-    renderInAugust();
+    renderCardInAugust();
 
     // Rent: the rule says $1,600, the bank says $1,608.
     expect(tile('Fixed Expenses')).toContain('$1,608');
@@ -200,7 +211,7 @@ describe('Budget Control, monthly totals', () => {
     // agree with it rather than inventing a second rule.)
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 25, 9, 0, 0));
-    render(<MemoryRouter><BudgetControl /></MemoryRouter>);
+    render(<MemoryRouter><BudgetTotalsCard /></MemoryRouter>);
 
     expect(tile('Fixed Expenses')).toContain('$1,600');
     // October 2026 has five Fridays: the 2nd, 9th, 16th, 23rd and 30th.

@@ -1,5 +1,6 @@
 export type WidgetId =
   | 'monthly_snapshot'
+  | 'budget_totals'
   | 'upcoming_week'
   | 'net_worth_trend'
   | 'car_goal'
@@ -27,6 +28,15 @@ export const WIDGET_META: WidgetMeta[] = [
     // Next paycheck and month-end cash were added beside the title on 2026-08-23, when Tre
     // re-anchored those two figures out of the retired stat-chip row.
     description: 'Budget donut showing funding balance, remaining income, and projected surplus, with your next paycheck and projected month-end cash',
+  },
+  {
+    // Seated directly behind the snapshot on 2026-08-27, when Tre moved Budget Control's KPI row
+    // here. Its neighbour is the donut that divides the same month up, so the figures and the
+    // shares of them read as one block — and `mergeSavedLayout` anchors it there for users whose
+    // layout predates it.
+    id: 'budget_totals',
+    label: "This Month's Budget",
+    description: 'Income, fixed, variable, debt and transfers for the current month, plus planned monthly and annual spend — each one taps through to its own breakdown',
   },
   {
     id: 'upcoming_week',

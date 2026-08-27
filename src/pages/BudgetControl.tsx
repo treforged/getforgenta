@@ -6,8 +6,6 @@ import { Link } from 'react-router';
 import { BudgetSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency } from '@/lib/calculations';
-import MetricCard from '@/components/shared/MetricCard';
-import CalcDrawer from '@/components/shared/CalcDrawer';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
@@ -17,21 +15,19 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  Wallet, TrendingDown, DollarSign, PiggyBank, Plus, Edit2, Trash2, Copy,
-  CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, Info, X, ChevronDown, ChevronUp,
+  Plus, Edit2, Trash2, Copy,
+  CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { getDayName, countRuleOccurrencesInMonth, describeBiweeklyAnchor } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
 import { generateRecommendations } from '@/lib/credit-card-engine';
-import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
+import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
+import { isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { buildAutoExtraByTarget, autoExtraForGoalAtMonth, nextAutoExtraForGoal } from '@/lib/auto-extra-projection';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
-import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
-import { matchedMonthAmountDelta, matchedRuleIdsInMonth } from '@/lib/matched-occurrence-display';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
@@ -112,12 +108,6 @@ const biweeklyAnchorHint = (rule: { due_day?: number | null; start_date?: string
 const nextExtraMonthLabel = (monthIndex: number, now: Date): string =>
   new Date(now.getFullYear(), now.getMonth() + monthIndex, 1)
     .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
-const debtSyncNote = (reason: string): string => {
-  if (!reason) return 'From Debt Payoff. No payment modelled for this card yet.';
-  if (reason === 'Partial statement') return 'Covers part of the statement balance.';
-  return reason;
-};
 
 const DEFAULT_STARTER_RULES = [
   { name: 'Weekly Paycheck', amount: 1875, rule_type: 'income', frequency: 'weekly', due_day: 5, category: 'Other', notes: 'Friday deposits' },
@@ -260,7 +250,6 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const [paycheckRuleId, setPaycheckRuleId] = useState<string | null>(null);
 
   // Calc drawer
-  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
 
   // Rule form state
   const [showForm, setShowForm] = useState(false);
@@ -524,22 +513,22 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const paychecksPerYear = payFrequency === 'biweekly' ? 26 : payFrequency === 'monthly' ? 12 : 52;
   const annualTakeHome = paycheckNet * paychecksPerYear;
 
-  // Merge subscriptions into fixed rules view
-  const subsAsRules = useMemo(() => subs.filter(s => s.active).map(s => ({
-    id: `sub:${s.id}`,
-    name: s.name,
-    amount: s.billing === 'yearly' ? Number(s.cost) : Number(s.cost),
-    rule_type: 'expense',
-    frequency: s.billing === 'yearly' ? 'yearly' : 'monthly',
-    due_day: s.renewal_date ? new Date(s.renewal_date + 'T12:00:00').getDate() : 1,
-    due_month: s.billing === 'yearly' && s.renewal_date ? new Date(s.renewal_date + 'T12:00:00').getMonth() + 1 : null,
-    category: 'Subscriptions',
-    payment_source: null,
-    deposit_account: null,
-    notes: 'From Subscriptions',
-    active: s.active,
-    isSub: true,
-  })), [subs]);
+  /**
+   * THE MONTH, DERIVED ONCE. The five buckets, the per-rule month amount and the totals all come
+   * from `useBudgetMonthTotals`, which the Dashboard's `BudgetTotalsCard` reads too -- the two
+   * surfaces agree by construction rather than by inspection. This page used to build all of it
+   * inline (subscriptions, card payments, loan and liability payments, goal transfers), and that
+   * assembly is exactly what would have drifted the moment either page changed.
+   *
+   * The debt breakdown and the matched-occurrence index come BACK OUT of the hook rather than
+   * being fetched again: both re-run per call site.
+   */
+  const {
+    buckets: { incomeRules, fixedRules, variableRules, debtRules, transferRules },
+    totals, toCurrentMonthAmount, subsAsRules, debtPaymentRules, liabilityPaymentRules,
+    goalTransferRules, debtBreakdown, matched, autoMatchedRuleIds,
+  } = useBudgetMonthTotals();
+  const { index: matchedOccurrences, occurrences: confirmedOccurrences } = matched;
 
   // Auto-pull debt payments from Debt Payoff recommendations (with full params)
   const { data: txns } = useTransactions();
@@ -550,91 +539,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     [txns, rules, accounts],
   );
 
-  // Debt recommendations from the converged month-0 projection (useCardProjection pass 3) that
-  // Debt Payoff and Forecast read, replacing this page's own legacy engine pass. That second pass
-  // computed its own cash floor, save-up reserves and income timing, which is why Budget's
-  // "matches Debt tab Safe to Pay" label was showing a different number than the Debt tab.
-  const {
-    recommendations: debtRecommendations,
-    loanRecommendations,
-    otherDebtRecommendations,
-    totalAvailableCash: debtSafeToPay,
-  } = useMonth0DebtBreakdown();
+  // Debt recommendations from the converged month-0 projection, by way of `useBudgetMonthTotals`
+  // -- calling `useMonth0DebtBreakdown` again here would re-run that derivation a second time.
+  const { recommendations: debtRecommendations } = debtBreakdown;
 
-  const debtPaymentRules = useMemo(() =>
-    debtRecommendations.map(r => ({
-      id: `debt:${r.cardId}`,
-      name: `${r.cardName} Payment`,
-      amount: Math.round(r.payment * 100) / 100,
-      rule_type: 'debt_payment',
-      frequency: 'monthly',
-      due_day: r.dueDay || 1,
-      due_month: null,
-      category: 'Debt Payments',
-      payment_source: null,
-      deposit_account: null,
-      notes: debtSyncNote(r.reason),
-      active: true,
-      isDebtSync: true,
-    })),
-    [debtRecommendations],
-  );
-
-  /**
-   * The NON-CARD half of "Debt Payments": a vehicle loan from the Vehicles page, a student loan,
-   * a mortgage, a liability account paired to a `debts` row.
-   *
-   * `useMonth0DebtBreakdown` has always returned these two lists and this page dropped both on the
-   * floor, so Tre's auto loan (~$422.89/mo) was missing from the Debt Payments tile, the tab total
-   * and the allocation donut — which is why the donut read "Debt 0%" against real monthly debt.
-   * Measured live 2026-08-27: he has 31 recurring rules and NOT ONE of `rule_type: 'debt_payment'`,
-   * so nothing else on this page was covering the loan either.
-   *
-   * `row.payment` is THIS month's scheduled payment, listed whether or not it has already left the
-   * account — every other tile in that KPI row states the full month's planned cost, and a payment
-   * that vanished on the day it cleared would make the month look cheaper than it is.
-   *
-   * ⚠️ A liability with `paidByExpenseRule` is SKIPPED. The user's own expense rule of that name is
-   * already listed under Bills and already counted, so a second row would double the debt both on
-   * screen and in the total. That flag exists for exactly this decision.
-   *
-   * ⚠️ Both builders already drop a debt whose final payment is behind us, so no "$0 payment on a
-   * dead loan" row can reach this list.
-   */
-  const liabilityPaymentRules = useMemo((): BudgetRule[] => [
-    ...(loanRecommendations ?? []).map(l => ({
-      id: `loan:${l.carFundId}`,
-      name: `${l.name} Payment`,
-      amount: Math.round(l.payment * 100) / 100,
-      rule_type: 'debt_payment',
-      frequency: 'monthly',
-      due_day: l.dueDay,
-      due_month: null,
-      category: 'Debt Payments',
-      payment_source: null,
-      deposit_account: null,
-      notes: l.isFinalPayment ? 'From Vehicles. Final payment on this loan.' : 'From Vehicles. Auto loan payment.',
-      active: true,
-      isDebtSync: true,
-    })),
-    ...(otherDebtRecommendations ?? [])
-      .filter(o => !o.paidByExpenseRule)
-      .map(o => ({
-        id: `liab:${o.accountId}`,
-        name: `${o.name} Payment`,
-        amount: Math.round(o.payment * 100) / 100,
-        rule_type: 'debt_payment',
-        frequency: 'monthly',
-        due_day: o.dueDay,
-        due_month: null,
-        category: 'Debt Payments',
-        payment_source: null,
-        deposit_account: null,
-        notes: o.isFinalPayment ? 'From Accounts. Final payment on this debt.' : 'From Accounts. Scheduled payment on this debt.',
-        active: true,
-        isDebtSync: true,
-      })),
-  ], [loanRecommendations, otherDebtRecommendations]);
 
   // Inject debt payment transactions into the stream
   // ⚠️ CARD ROWS ONLY, deliberately. This feeds Remaining Cash On Hand through `remainingTxDebt`,
@@ -674,107 +582,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   // USER-CONFIRMED matches, not only the automatic ones, so "auto-matched" overclaimed how a badged
   // rule got here. The label now just says "matched" — true whether the system found the charge on
   // its own or Tre confirmed it in a review.
-  const { index: matchedOccurrences, occurrences: confirmedOccurrences, monthKey: currentMonthKey } = useMatchedOccurrences();
-  const autoMatchedRuleIds = useMemo(
-    () => matchedRuleIdsInMonth(matchedOccurrences, currentMonthKey),
-    [matchedOccurrences, currentMonthKey],
-  );
 
-  // Rules by category
-  const incomeRules = useMemo(() => rules.filter(r => r.rule_type === 'income'), [rules]);
-  // cost_type override takes priority over category-based classification.
-  // cost_type = 'fixed' → fixed bucket; 'variable' → variable bucket; null → category default.
-  const isFixedRule = (r: BudgetRule): boolean => {
-    if (r.cost_type === 'fixed') return true;
-    if (r.cost_type === 'variable') return false;
-    return ['Bills', 'Subscriptions', 'Debt Payments'].includes(r.category);
-  };
+  // Rules by category: the five buckets, already merged with their synthetic rows, from the hook.
 
-  const fixedRules = useMemo((): BudgetRule[] => {
-    const fixed = rules.filter(r => r.rule_type === 'expense' && isFixedRule(r));
-    const ruleNames = new Set(fixed.map(r => r.name.toLowerCase()));
-    const uniqueSubs = subsAsRules.filter(s => !ruleNames.has(s.name.toLowerCase()));
-    return [...fixed, ...uniqueSubs];
-  }, [rules, subsAsRules]);
-  const variableRules = useMemo(() => rules.filter(r => r.rule_type === 'expense' && !isFixedRule(r)), [rules]);
-
-  const manualDebtRules = useMemo(() => rules.filter(r => r.rule_type === 'debt_payment' || (r.rule_type === 'expense' && r.category === 'Debt Payments')), [rules]);
-  const debtRules = useMemo((): BudgetRule[] => {
-    const manualNames = new Set(manualDebtRules.map(r => r.name.toLowerCase()));
-    // The loan and liability rows go through the SAME name filter as the card rows, and for them it
-    // is the only guard there is: a card row can be matched to an account, but `LoanRecRow` has no
-    // `paidByExpenseRule` equivalent, so a user who typed their own "C5 Payment" rule would
-    // otherwise see the loan twice and pay it twice in the total.
-    const uniqueDebtSync = [...debtPaymentRules, ...liabilityPaymentRules]
-      .filter(d => !manualNames.has(d.name.toLowerCase()));
-    return [...manualDebtRules, ...uniqueDebtSync];
-  }, [manualDebtRules, debtPaymentRules, liabilityPaymentRules]);
-
-  /**
-   * The ranked automatic extra the forecast already diverts to each goal, month by month, keyed by
-   * goal id. Free: `CardProjectionProvider` (mounted by `DashboardLayout`) has already run the
-   * engine, so this re-keys rows the app is holding anyway rather than forecasting a second time.
-   * Same call `SavingsGoals` makes, so both pages quote one number.
-   */
-  const { projections, cardProjection } = useCardProjectionContext();
-  const autoExtraByGoal = useMemo(() => buildAutoExtraByTarget(projections.data ?? []), [projections]);
-
-  /**
-   * A savings goal's own `monthly_contribution` is a REAL standing transfer — the forecast moves
-   * that cash out of checking every month and prices the plan around it — but this tab only ever
-   * read `recurring_rules`, so a $510/mo move-fund transfer was invisible on the one page whose
-   * job is to say where the money goes. Tre, 2026-08-27.
-   *
-   * ⚠️ ONLY goals NOT funded by a real rule. A goal carrying `linked_rule_ids` is already listed
-   * here as that rule, and `SavingsGoals` reads the same precedence (`linkedRules.length > 0 ?
-   * linkedMonthly : monthly_contribution`); synthesising a second row would double both the total
-   * and the money on screen.
-   *
-   * `start_date` carries the goal's `contribution_start_date`, so `toCurrentMonthAmount` zeroes a
-   * transfer that has not begun yet exactly as it does for a dated rule. `due_day` is deliberately
-   * null — a goal contribution has no day of the month, and inventing one prints a date the user
-   * never set.
-   */
-  const goalTransferRules = useMemo((): BudgetRule[] => savingsGoals
-    .filter(g => {
-      const ruleIds = (g.linked_rule_ids ?? []).length > 0
-        ? (g.linked_rule_ids ?? [])
-        : g.linked_rule_id ? [g.linked_rule_id] : [];
-      if (ruleIds.some(id => rules.some(r => r.id === id))) return false;
-      return Number(g.monthly_contribution) > 0;
-    })
-    .map(g => ({
-      id: `goal:${g.id}`,
-      name: `${g.name} Contribution`,
-      amount: Number(g.monthly_contribution),
-      rule_type: 'transfer',
-      frequency: 'monthly',
-      due_day: null,
-      due_month: null,
-      category: 'Savings',
-      start_date: g.contribution_start_date ?? null,
-      end_date: null,
-      payment_source: null,
-      deposit_account: g.linked_account ?? null,
-      notes: 'From Savings Goals',
-      active: true,
-      isGoalTransfer: true,
-      extraThisMonth: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0),
-      // Only when THIS month has none. A month with an extra states its own figure; adding "and
-      // another one in March" beside it is noise. A month without one used to say nothing at all,
-      // and on his live data that silence covers a goal 40 of whose next 60 months take an extra.
-      nextExtra: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0) > 0
-        ? null
-        : nextAutoExtraForGoal(autoExtraByGoal, g.id ?? ''),
-    })), [savingsGoals, rules, autoExtraByGoal]);
-
-  const transferRules = useMemo(
-    (): BudgetRule[] => [
-      ...rules.filter(r => r.rule_type === 'transfer' || r.rule_type === 'investment'),
-      ...goalTransferRules,
-    ],
-    [rules, goalTransferRules],
-  );
+  const { cardProjection } = useCardProjectionContext();
 
   // Split fixedRules into Bills-only and Subscriptions-only for separate tabs
   const billsRules = useMemo(() => fixedRules.filter(r => !r.isSub && r.category !== 'Subscriptions'), [fixedRules]);
@@ -786,52 +597,13 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const nowYear = now.getFullYear();
   const nowMonth = now.getMonth();
 
-  /**
-   * What this rule costs in the CURRENT month.
-   *
-   * ⚠️ THE MATCHED DELTA IS ADDED ON TOP OF THE FREQUENCY ARITHMETIC, NEVER IN PLACE OF IT. Tre,
-   * 2026-08-24: "the real transaction date and costs should auto override the transaction for that
-   * month". An occurrence a real payment answered contributes what actually left the account, so
-   * `matchedMonthAmountDelta` supplies `real − projected` for exactly those occurrences and zero for
-   * every other rule. Rewriting the whole total from occurrence dates would have quietly moved the
-   * figures of rules nothing matched, which is not what was asked for and is not verifiable.
-   */
-  const toCurrentMonthAmount = useCallback((r: BudgetRule) => {
-    const amt = Number(r.amount);
-    const matched = matchedMonthAmountDelta(r, nowYear, nowMonth, matchedOccurrences);
-    if (r.start_date) {
-      const startDate = new Date(r.start_date + 'T12:00:00');
-      if (startDate > new Date(nowYear, nowMonth + 1, 0)) return 0;
-    }
-    if (r.frequency === 'weekly') {
-      const monthStart = new Date(nowYear, nowMonth, 1);
-      const monthEnd = new Date(nowYear, nowMonth + 1, 0);
-      let count = 0;
-      const d = new Date(monthStart);
-      const dayOfWeek = r.due_day ?? 5;
-      while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
-      while (d <= monthEnd) { count++; d.setDate(d.getDate() + 7); }
-      return amt * count + matched;
-    }
-    if (r.frequency === 'biweekly') {
-      return amt * countRuleOccurrencesInMonth(r, nowYear, nowMonth) + matched;
-    }
-    if (r.frequency === 'yearly') {
-      const dueMonth = (r.due_month ?? 1) - 1;
-      return dueMonth === nowMonth ? amt + matched : 0;
-    }
-    return amt + matched;
-  }, [nowYear, nowMonth, matchedOccurrences]);
 
-  const totalRecurringIncome = useMemo(() => incomeRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [incomeRules, toCurrentMonthAmount]);
-  const totalFixedExpenses = useMemo(() => fixedRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [fixedRules, toCurrentMonthAmount]);
-  const totalVariableExpenses = useMemo(() => variableRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [variableRules, toCurrentMonthAmount]);
-  const totalDebtPayments = useMemo(() => debtRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [debtRules, toCurrentMonthAmount]);
-  const totalTransfers = useMemo(() => transferRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [transferRules, toCurrentMonthAmount]);
-
-  const totalCharges = totalFixedExpenses + totalVariableExpenses;
-  const totalExpenses = totalCharges + totalDebtPayments + totalTransfers;
-  const remaining = totalRecurringIncome - totalExpenses;
+  // The five totals and the three sums over them, from the one hook. Same names the page has
+  // always used, so nothing below this line had to change.
+  const {
+    income: totalRecurringIncome, fixed: totalFixedExpenses, variable: totalVariableExpenses,
+    debt: totalDebtPayments, transfers: totalTransfers, expenses: totalExpenses, remaining,
+  } = totals;
 
   const fundingAccount = useMemo(() => {
     const defaultId = profile?.default_deposit_account;
@@ -853,18 +625,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
-  const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;
-
   const cashFloor = useMemo(() => resolveCashFloor(profile), [profile]);
   const prePaycheckBillsTotal = useMemo(() =>
     getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
     [rules, payConfig, fundingAccount]);
-  const safeMinimum = useMemo(() => Math.max(cashFloor, prePaycheckBillsTotal), [cashFloor, prePaycheckBillsTotal]);
-  // This tile's own label promises it matches the Debt tab's "Safe to Pay", so it now reads that
-  // number directly instead of re-deriving it. The old formula (balance + remaining income − safe
-  // minimum) used a bare cash floor and ignored save-up reserves and vehicle/insurance holdbacks,
-  // so it ran high — $6,995 against the Debt tab's $6,488 — while claiming to be the same figure.
-  const remainingCash = debtSafeToPay;
 
   const allAccountOptions = useMemo(() => [
     { value: '', label: 'None' },
@@ -1058,155 +822,6 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     toast.info('Rule duplicated — edit and save');
   };
 
-  // Calc detail openers
-  /**
-   * Remaining Cash IS the engine's `safeToPayTotal`, so its drawer now shows the engine's OWN chain
-   * term by term instead of this page's second derivation.
-   *
-   * The old drawer had three lines and the middle one lumped everything the engine held back into
-   * "Bills, cash floor, savings and vehicle reserves held back by the Debt Payoff engine". On Tre's
-   * live data 2026-08-27 that single line was $3,956 and the answer was $0, which reads as a broken
-   * tile — when the truth is specific and defensible: every spare dollar is being saved ahead for
-   * Prime Visa's $2,845 statement due on the 7th. `buildMonth0Snapshot` already renders exactly
-   * that chain for the Dashboard's Monthly Budget Snapshot, down to naming the holdback event, so
-   * this quotes it rather than growing a third version of the same arithmetic.
-   *
-   * The lump line survives as the fallback for when no converged month-0 exists (the projection is
-   * still running, or a test mounts this page without `cardProjection`) — a drawer that renders
-   * nothing would be worse than the coarse answer.
-   */
-  const openCashCalc = () => {
-    const month0 = cardProjection?.month0;
-    if (month0) {
-      setCalcDrawer({
-        title: 'Remaining Cash',
-        lines: buildMonth0Snapshot(month0).rows.map(row => ({
-          label: row.note ? `${row.label} — ${row.note}` : row.label,
-          value: formatCurrency(row.value, false),
-          ...(row.sign === ' ' ? {} : { op: row.sign }),
-        })),
-      });
-      return;
-    }
-    const now2 = new Date();
-    const monthEndLabel = new Date(now2.getFullYear(), now2.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    setCalcDrawer({
-      title: 'Remaining Cash',
-      lines: [
-        { label: `Funding Account Balance${fundingAccount ? ` (${fundingAccount.name})` : ''}`, value: formatCurrency(fundingAccountBalance, false) },
-        { label: `Remaining Income (today → ${monthEndLabel})`, value: formatCurrency(remainingTxIncome, false), op: '+' },
-        { label: 'Bills, cash floor, savings and vehicle reserves held back by the Debt Payoff engine', value: formatCurrency(Math.max(0, fundingAccountBalance + remainingTxIncome - remainingCash), false), op: '−' },
-        { label: 'Remaining Cash (Debt tab "Safe to Pay")', value: formatCurrency(remainingCash, false), op: '=' },
-      ],
-    });
-  };
-
-  const openFixedCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = fixedRules
-      .filter(r => r.active)
-      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
-    lines.push({ label: 'Total Fixed Expenses', value: formatCurrency(totalFixedExpenses, false), op: '=' });
-    setCalcDrawer({ title: 'Fixed Expenses This Month', lines });
-  };
-
-  const openVariableCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = variableRules
-      .filter(r => r.active)
-      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
-    lines.push({ label: 'Total Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '=' });
-    setCalcDrawer({ title: 'Variable Expenses This Month', lines });
-  };
-
-  const openDebtCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = debtRules
-      .filter(r => r.active)
-      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
-    lines.push({ label: 'Total Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '=' });
-    setCalcDrawer({ title: 'Debt Payments This Month', lines });
-  };
-
-  const openTransferCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = transferRules
-      .filter(r => r.active)
-      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
-    lines.push({ label: 'Total Transfers', value: formatCurrency(totalTransfers, false), op: '=' });
-    // ⚠️ The ranked extra is LISTED, never summed in. It is paid out of the same surplus the debt
-    // recommendations above are already sized from, so adding it to this total would spend the
-    // same dollars twice and understate what is left.
-    transferRules
-      .filter(r => r.active && (r.extraThisMonth ?? 0) > 0)
-      .forEach(r => lines.push({
-        label: `${r.name} — extra this month, from surplus`,
-        value: formatCurrency(r.extraThisMonth ?? 0, false),
-      }));
-    // Same rule for the month that has none: name the next one instead of leaving the drawer
-    // silent about a goal the forecast is going to start topping up.
-    transferRules
-      .filter(r => r.active && (r.extraThisMonth ?? 0) === 0 && r.nextExtra)
-      .forEach(r => lines.push({
-        label: `${r.name} — next extra from surplus, ${nextExtraMonthLabel(r.nextExtra!.monthIndex, now)}`,
-        value: formatCurrency(r.nextExtra!.amount, false),
-      }));
-    setCalcDrawer({ title: 'Transfers This Month', lines });
-  };
-
-  const openMonthlySpendCalc = () => {
-    setCalcDrawer({
-      title: 'Monthly Spend Breakdown (planned)',
-      lines: [
-        { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses, false) },
-        { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '+' },
-        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '+' },
-        { label: 'Transfers & Investing', value: formatCurrency(totalTransfers, false), op: '+' },
-        { label: 'Total planned monthly spend', value: formatCurrency(totalExpenses, false), op: '=' },
-      ],
-    });
-  };
-
-  const openAnnualSpendCalc = () => {
-    setCalcDrawer({
-      title: 'Annual Spend Breakdown (× 12)',
-      lines: [
-        { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses * 12, false) },
-        { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses * 12, false), op: '+' },
-        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments * 12, false), op: '+' },
-        { label: 'Transfers & Investing', value: formatCurrency(totalTransfers * 12, false), op: '+' },
-        { label: 'Total Annual Spend', value: formatCurrency(totalExpenses * 12, false), op: '=' },
-      ],
-    });
-  };
-
-  const openIncomeCalc = () => {
-    const lines: { label: string; value: string; op?: string }[] = [
-      { label: `Pay frequency: ${payFrequency}`, value: '' },
-      { label: 'Gross per paycheck', value: formatCurrency(paycheckGross, false) },
-    ];
-    if (preTaxDeductionsFlat > 0) {
-      lines.push({ label: `Pre-tax deductions (reduces taxable income)`, value: formatCurrency(preTaxDeductionsFlat, false), op: '−' });
-      lines.push({ label: 'Taxable gross per paycheck', value: formatCurrency(paycheckGross - preTaxDeductionsFlat, false), op: '=' });
-    }
-    if (!hasTaxDeductions) {
-      lines.push({ label: `Income tax (${taxRate}%)`, value: formatCurrency((paycheckGross - preTaxDeductionsFlat) * taxRate / 100, false), op: '−' });
-      if (preTaxDeductionsFlat > 0) {
-        lines.push({ label: `Tax saved by pre-tax deductions`, value: formatCurrency(preTaxDeductionsFlat * taxRate / 100, false) });
-      }
-    } else {
-      lines.push({ label: 'Tax withheld via deductions (Fed Withholding / FICA / OASDI)', value: formatCurrency(postTaxDeductionsFlat, false), op: '−' });
-    }
-    if (postTaxDeductionsFlat > 0 && !hasTaxDeductions) {
-      lines.push({ label: 'Other post-tax deductions', value: formatCurrency(postTaxDeductionsFlat, false), op: '−' });
-    } else if (postTaxDeductionsFlat > 0 && hasTaxDeductions) {
-      // already shown above as a single line
-    }
-    lines.push({ label: 'Net per paycheck', value: formatCurrency(paycheckNet, false), op: '=' });
-    lines.push({ label: 'Paychecks this month', value: String(getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth()).length) });
-    lines.push({ label: 'Total monthly take-home', value: formatCurrency(monthlyTakeHome, false), op: '=' });
-    incomeRules.filter(r => r.active).forEach(r =>
-      lines.push({ label: `  Rule: ${r.name}`, value: formatCurrency(toCurrentMonthAmount(r), false), op: '+' }),
-    );
-    lines.push({ label: 'Total recurring income', value: formatCurrency(totalRecurringIncome, false), op: '=' });
-    setCalcDrawer({ title: 'Income This Month', lines });
-  };
 
   const RuleRow = ({ r, color = 'text-destructive' }: { r: BudgetRule; color?: string }) => (
   <div className={`flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between ${!r.active ? 'opacity-40' : ''}`}>
@@ -1702,67 +1317,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           badge: it is an offer that sits on the page the rules live on, not a nag. */}
       <RulesFoundCard />
 
-      {/* KPI Summary + Remaining Cash On Hand */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="cursor-pointer" onClick={openIncomeCalc}>
-            <MetricCard label="Monthly Income" value={formatCurrency(totalRecurringIncome, false)} accent="success" icon={DollarSign} clickHint />
-          </div>
-          <div className="cursor-pointer" onClick={openFixedCalc}>
-            <MetricCard label="Fixed Expenses" value={formatCurrency(totalFixedExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
-          </div>
-          <div className="cursor-pointer" onClick={openVariableCalc}>
-            <MetricCard label="Variable" value={formatCurrency(totalVariableExpenses, false)} accent="gold" icon={TrendingDown} clickHint />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="cursor-pointer" onClick={openDebtCalc}>
-            <MetricCard label="Debt Payments" value={formatCurrency(totalDebtPayments, false)} accent="crimson" icon={CreditCard} clickHint />
-          </div>
-          <div className="cursor-pointer" onClick={openTransferCalc}>
-            <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
-          </div>
-        </div>
-      </div>
+      {/* The seven KPI tiles that stood here MOVED TO THE DASHBOARD on 2026-08-27 (Tre: "i
+          wanted these moved to dashboard") and are `BudgetTotalsCard`, which reads the same
+          `useBudgetMonthTotals` this page now reads. The eighth, Remaining Cash, was DELETED
+          rather than moved: it was `debtSafeToPay`, which the Dashboard already shows as SAFE
+          TO PAY. The allocation donut below divides up the same five totals and stays here. */}
 
-      {/* Monthly & Annual Spend Totals */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
-          {/* "planned" is load-bearing (§2.4 step 10): this is the sum of the budget RULES, not of
-              anything that happened. Unlabeled it reads as an actual and gets compared to the
-              Dashboard's MONTHLY EXPENSES, which is a different question entirely.
-
-              ⚠️ ALL FOUR BUCKETS, not just fixed + variable (Tre, 2026-08-27: "yes they should").
-              It used to read `totalCharges` and so quoted a month's cost with every debt payment
-              and every standing transfer left out — on his own data that hid $423 of auto loan and
-              $877 of transfers, understating the month by $1,300 and the year by $15,600 while the
-              four tiles directly above it listed all four. Same figure the donut divides up. */}
-          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totalExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
-          <MetricCard label="Annual Spend" value={formatCurrency(totalExpenses * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
-        </div>
-      </div>
-
-      {/* Remaining Cash — prominent */}
-      <div className="relative card-forged p-4 sm:p-5 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openCashCalc}>
-        <Info size={10} className="absolute bottom-2 right-2 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity" />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Wallet size={14} className="text-primary shrink-0" />
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Remaining Cash</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              Balance + remaining income − everything the engine holds back · the Debt tab's Safe to Pay
-              {fundingAccount && <span className="font-medium"> · {fundingAccount.name}</span>}
-            </p>
-          </div>
-          <p className={`text-xl sm:text-2xl font-display font-bold ${remainingCash >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {formatCurrency(remainingCash, false)}
-          </p>
-        </div>
-      </div>
 
       {/* Budget Allocation Bar — current month only, distinct colors */}
       <div className="card-forged p-5">
@@ -2058,12 +1618,6 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         );
       })()}
 
-      <CalcDrawer
-        open={!!calcDrawer}
-        onClose={() => setCalcDrawer(null)}
-        title={calcDrawer?.title || ''}
-        lines={calcDrawer?.lines || []}
-      />
     </div>
   );
 }
