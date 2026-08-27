@@ -87,6 +87,11 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useSyncedTransactionReviewsQuery: () => ({ data: [PAYCHECK_REVIEW] }),
 }));
 
+// Budget Control reads the engine's ranked auto-extra to annotate goal-funded transfers. Nothing
+// about matching depends on it, so it is stubbed empty here.
+vi.mock('@/contexts/CardProjectionContext', () => ({
+  useCardProjectionContext: () => ({ projections: { data: [] } }),
+}));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));

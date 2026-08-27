@@ -33,3 +33,29 @@ export function buildAutoExtraByTarget(rows: readonly ForecastMonthRow[]): Map<s
   });
   return byTarget;
 }
+
+/**
+ * One goal's ranked extra in a given month, across EVERY stop of a staged plan.
+ *
+ * ⚠️ A GOAL IS NOT ALWAYS ONE TARGET. `stopRowId` (ranked-extra-payment-targets.ts) gives stop 1 the
+ * goal's own id and every later stop `${goalId}::stopN`, so a lookup by goal id alone goes blind the
+ * moment a staged goal moves past its first stop — and the surface then prints nothing where real
+ * money is arriving. Matching the id and its stop suffixes is what makes "no extra" mean no extra.
+ *
+ * Returns 0 for an unknown goal or an out-of-range month, which is the same thing every caller
+ * wants: render nothing rather than a figure nobody can source.
+ */
+export function autoExtraForGoalAtMonth(
+  byTarget: ReadonlyMap<string, number[]>,
+  goalId: string,
+  monthIndex: number,
+): number {
+  if (!goalId) return 0;
+  const stopPrefix = `${goalId}::stop`;
+  let total = 0;
+  for (const [id, months] of byTarget) {
+    if (id !== goalId && !id.startsWith(stopPrefix)) continue;
+    total += months[monthIndex] ?? 0;
+  }
+  return total;
+}

@@ -24,6 +24,8 @@ import { getDayName, countRuleOccurrencesInMonth, describeBiweeklyAnchor } from 
 import { CATEGORIES } from '@/lib/types';
 import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { buildAutoExtraByTarget, autoExtraForGoalAtMonth } from '@/lib/auto-extra-projection';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
@@ -48,7 +50,19 @@ type BudgetRule = {
   end_date?: string | null; cost_type?: string | null; isSub?: boolean; isDebtSync?: boolean;
   payment_source?: string | null; deposit_account?: string | null; notes?: string | null;
   tax_rate?: number | null; created_at?: string | null;
+  /** Synthesised from a `savings_goals` row's own `monthly_contribution` — see `goalTransferRules`. */
+  isGoalTransfer?: boolean;
+  /** The ranked automatic extra the forecast diverts to this target in the CURRENT month. Shown
+   *  beside the standing amount, never added to it — see `openTransferCalc`. */
+  extraThisMonth?: number;
 };
+
+/**
+ * A row this page SYNTHESISED from another table rather than one of the user's own
+ * `recurring_rules`. The record is owned by the surface it came from — Subscriptions, Debt Payoff,
+ * Savings Goals — so every mutation here refuses one and the row renders without action buttons.
+ */
+const isSyntheticRule = (r: BudgetRule): boolean => Boolean(r.isSub || r.isDebtSync || r.isGoalTransfer);
 
 /**
  * The sentence the rule editor shows under a biweekly rule's date field.
@@ -610,7 +624,65 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     return [...manualDebtRules, ...uniqueDebtSync];
   }, [manualDebtRules, debtPaymentRules]);
 
-  const transferRules = useMemo(() => rules.filter(r => r.rule_type === 'transfer' || r.rule_type === 'investment'), [rules]);
+  /**
+   * The ranked automatic extra the forecast already diverts to each goal, month by month, keyed by
+   * goal id. Free: `CardProjectionProvider` (mounted by `DashboardLayout`) has already run the
+   * engine, so this re-keys rows the app is holding anyway rather than forecasting a second time.
+   * Same call `SavingsGoals` makes, so both pages quote one number.
+   */
+  const { projections } = useCardProjectionContext();
+  const autoExtraByGoal = useMemo(() => buildAutoExtraByTarget(projections.data ?? []), [projections]);
+
+  /**
+   * A savings goal's own `monthly_contribution` is a REAL standing transfer — the forecast moves
+   * that cash out of checking every month and prices the plan around it — but this tab only ever
+   * read `recurring_rules`, so a $510/mo move-fund transfer was invisible on the one page whose
+   * job is to say where the money goes. Tre, 2026-08-27.
+   *
+   * ⚠️ ONLY goals NOT funded by a real rule. A goal carrying `linked_rule_ids` is already listed
+   * here as that rule, and `SavingsGoals` reads the same precedence (`linkedRules.length > 0 ?
+   * linkedMonthly : monthly_contribution`); synthesising a second row would double both the total
+   * and the money on screen.
+   *
+   * `start_date` carries the goal's `contribution_start_date`, so `toCurrentMonthAmount` zeroes a
+   * transfer that has not begun yet exactly as it does for a dated rule. `due_day` is deliberately
+   * null — a goal contribution has no day of the month, and inventing one prints a date the user
+   * never set.
+   */
+  const goalTransferRules = useMemo((): BudgetRule[] => savingsGoals
+    .filter(g => {
+      const ruleIds = (g.linked_rule_ids ?? []).length > 0
+        ? (g.linked_rule_ids ?? [])
+        : g.linked_rule_id ? [g.linked_rule_id] : [];
+      if (ruleIds.some(id => rules.some(r => r.id === id))) return false;
+      return Number(g.monthly_contribution) > 0;
+    })
+    .map(g => ({
+      id: `goal:${g.id}`,
+      name: `${g.name} Contribution`,
+      amount: Number(g.monthly_contribution),
+      rule_type: 'transfer',
+      frequency: 'monthly',
+      due_day: null,
+      due_month: null,
+      category: 'Savings',
+      start_date: g.contribution_start_date ?? null,
+      end_date: null,
+      payment_source: null,
+      deposit_account: g.linked_account ?? null,
+      notes: 'From Savings Goals',
+      active: true,
+      isGoalTransfer: true,
+      extraThisMonth: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0),
+    })), [savingsGoals, rules, autoExtraByGoal]);
+
+  const transferRules = useMemo(
+    (): BudgetRule[] => [
+      ...rules.filter(r => r.rule_type === 'transfer' || r.rule_type === 'investment'),
+      ...goalTransferRules,
+    ],
+    [rules, goalTransferRules],
+  );
 
   // Split fixedRules into Bills-only and Subscriptions-only for separate tabs
   const billsRules = useMemo(() => fixedRules.filter(r => !r.isSub && r.category !== 'Subscriptions'), [fixedRules]);
@@ -745,7 +817,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   };
 
   const openEdit = (r: BudgetRule) => {
-    if (r.isSub || r.isDebtSync) return;
+    if (isSyntheticRule(r)) return;
     setForm({
       name: r.name, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
@@ -807,12 +879,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   };
 
   const toggleActive = (r: BudgetRule) => {
-    if (r.isSub || r.isDebtSync) return;
+    if (isSyntheticRule(r)) return;
     updateRule.mutate({ id: r.id, active: !r.active });
   };
 
   const toggleCostType = (r: BudgetRule) => {
-    if (r.isSub || r.isDebtSync) return;
+    if (isSyntheticRule(r)) return;
     const nextType = isFixedRule(r) ? 'variable' : 'fixed';
     updateRule.mutate({ id: r.id, cost_type: nextType });
   };
@@ -878,7 +950,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   }, [form.frequency, form.rule_type, form.start_date, form.due_day, editCreatedAt, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
 
   const handleDuplicate = (r: BudgetRule) => {
-    if (r.isSub || r.isDebtSync) return;
+    if (isSyntheticRule(r)) return;
     setForm({
       name: `${r.name} (Copy)`, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
@@ -938,6 +1010,15 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       .filter(r => r.active)
       .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
     lines.push({ label: 'Total Transfers', value: formatCurrency(totalTransfers, false), op: '=' });
+    // ⚠️ The ranked extra is LISTED, never summed in. It is paid out of the same surplus the debt
+    // recommendations above are already sized from, so adding it to this total would spend the
+    // same dollars twice and understate what is left.
+    transferRules
+      .filter(r => r.active && (r.extraThisMonth ?? 0) > 0)
+      .forEach(r => lines.push({
+        label: `${r.name} — extra this month, from surplus`,
+        value: formatCurrency(r.extraThisMonth ?? 0, false),
+      }));
     setCalcDrawer({ title: 'Transfers This Month', lines });
   };
 
@@ -1016,6 +1097,15 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           from payoff
         </span>
       )}
+      {r.isGoalTransfer && (
+        <span
+          className="text-[9px] px-1 py-0.5 bg-primary/20 text-primary border border-primary/30 shrink-0"
+          style={{ borderRadius: 'var(--radius)' }}
+          title="This goal's own monthly contribution. Edit it on Savings Goals."
+        >
+          from goal
+        </span>
+      )}
       {autoMatchedRuleIds.has(r.id) && (
         // Present tense and factual: a transaction matching this rule has settled this month. It
         // deliberately does NOT say "paid" — the matcher found a corresponding charge, which is
@@ -1033,7 +1123,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     </div>
 
     <p className="mt-1 text-xs sm:text-sm text-muted-foreground wrap-break-word">
-      {freqLabel(r.frequency)} · Day {r.due_day}
+      {freqLabel(r.frequency)}
+      {r.due_day != null ? ` · Day ${r.due_day}` : ''}
       {r.due_month ? ` / Month ${r.due_month}` : ''}
       {r.start_date ? ` · Starts ${r.start_date}` : ''}
       {r.end_date ? ` · Ends ${r.end_date}` : ''}
@@ -1050,9 +1141,21 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       <span className="text-xs sm:text-sm text-muted-foreground">
         /mo {formatCurrency(toCurrentMonthAmount(r), false)}
       </span>
+      {/* The ranked automatic extra the forecast sends this target THIS month, beside the standing
+          amount so the row reads "$510/mo + $1,107 extra this month" — Tre's own wording.
+          ⚠️ Rendered only when there IS one. A "$0 extra this month" line states an absence as a
+          figure, which he asked for explicitly never to appear. */}
+      {(r.extraThisMonth ?? 0) > 0 && (
+        <span
+          className="text-xs sm:text-sm text-primary"
+          title="On top of the standing transfer, the forecast diverts this much surplus to this goal in the current month."
+        >
+          + {formatCurrency(r.extraThisMonth ?? 0, false)} extra this month
+        </span>
+      )}
     </div>
 
-    {!r.isSub && !r.isDebtSync && (
+    {!isSyntheticRule(r) && (
       <div className="flex flex-wrap items-center gap-1">
         {r.rule_type === 'expense' && (
           <button
@@ -1686,6 +1789,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             </div>
             {transferRules.length === 0 && <p className="text-sm text-muted-foreground">No transfers or investment contributions configured.</p>}
             {transferRules.map(r => <RuleRow key={r.id} r={r} color="text-primary" />)}
+            {goalTransferRules.length > 0 && (
+              <p className="text-[9px] text-muted-foreground pt-2 border-t border-border/30">
+                Items tagged "from goal" are a savings goal's own monthly contribution — edit them on Savings Goals.
+                Any "extra this month" is surplus the forecast diverts on top, and is not counted in the total above.
+              </p>
+            )}
           </div>
         </TabsContent>
       </Tabs>
