@@ -3,7 +3,7 @@ import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
+import { buildAutoExtraByTarget, autoExtraSeriesForGoal } from '@/lib/auto-extra-projection';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
@@ -303,8 +303,9 @@ const toMonthly = (amount: number, freq: string) =>
 /**
  * Map an enriched goal onto the pure projection model's input shape.
  *
- * `extraByGoal` is the forecast engine's own ranked automatic extra, keyed by goal id (see
- * `buildAutoExtraByTarget`). Passing it is what makes ticking "Auto Extra" move this chart, and
+ * `extraByGoal` is the forecast engine's own ranked automatic extra, keyed by TARGET id — a goal's
+ * own id, plus one entry per later stop of a staged plan (see `buildAutoExtraByTarget` and
+ * `autoExtraSeriesForGoal`). Passing it is what makes ticking "Auto Extra" move this chart, and
  * reading it from the engine rather than re-deriving it is what stops the chart and the Forecast
  * disagreeing. Omitted (or a goal with nothing diverted) leaves every number exactly as it was.
  */
@@ -326,7 +327,10 @@ const toGrowthGoal = (
   // Handoff 4b, completing it: the chart stops contributing once the goal is funded, exactly as
   // the Forecast, Dashboard and Debt engine already do. Interest keeps accruing after that.
   targetAmount: Number(g.target_amount),
-  extraByMonth: g.id ? extraByGoal?.get(g.id) : undefined,
+  // ⚠️ Not `extraByGoal.get(g.id)`: a STAGED goal is several targets (`${goalId}::stopN`), so a bare
+  // lookup draws the line without the money its later stops receive. `autoExtraSeriesForGoal` sums
+  // every stop and returns undefined when nothing is diverted, which is the untouched case.
+  extraByMonth: g.id && extraByGoal ? autoExtraSeriesForGoal(extraByGoal, g.id) : undefined,
   // The money this goal exists to SPEND. Empty for every goal until a stop is marked, so the line
   // is unchanged for anyone who has not used the feature.
   withdrawals: goalWithdrawals(g, essentialMonthlyExpenses),

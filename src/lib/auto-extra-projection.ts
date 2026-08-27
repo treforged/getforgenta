@@ -61,6 +61,31 @@ export function autoExtraForGoalAtMonth(
 }
 
 /**
+ * One goal's ranked extra as a month-indexed array — every stop of a staged plan summed together,
+ * in the shape `GrowthGoalInput.extraByMonth` consumes.
+ *
+ * Same trap as `autoExtraForGoalAtMonth`, one level up: the Savings Growth chart and the goal ETA
+ * both read a single array per goal, so a bare `map.get(goalId)` draws a staged goal's line without
+ * the money its later stops actually receive. Returns `undefined` when this goal takes no ranked
+ * extra anywhere, because that is what "leave every number exactly as it was" means to the chart.
+ */
+export function autoExtraSeriesForGoal(
+  byTarget: ReadonlyMap<string, number[]>,
+  goalId: string,
+): number[] | undefined {
+  if (!goalId) return undefined;
+  const stopPrefix = `${goalId}::stop`;
+  let merged: number[] | undefined;
+  for (const [id, months] of byTarget) {
+    if (id !== goalId && !id.startsWith(stopPrefix)) continue;
+    if (!merged) merged = new Array<number>(months.length).fill(0);
+    while (merged.length < months.length) merged.push(0);
+    months.forEach((v, i) => { merged![i] += Number(v) || 0; });
+  }
+  return merged;
+}
+
+/**
  * The FIRST month from `fromMonthIndex` onward in which this goal takes a ranked extra, or null.
  *
  * A surface that only ever states the current month's extra goes silent in a month with none, and

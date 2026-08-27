@@ -6,7 +6,7 @@
 // arriving. Tre's own move fund is exactly a staged goal ("Move fund, then emergency fund").
 
 import { describe, it, expect } from 'vitest';
-import { autoExtraForGoalAtMonth, nextAutoExtraForGoal } from '../auto-extra-projection';
+import { autoExtraForGoalAtMonth, autoExtraSeriesForGoal, nextAutoExtraForGoal } from '../auto-extra-projection';
 import { stopRowId } from '../ranked-extra-payment-targets';
 
 const GOAL = 'goal-abc';
@@ -54,6 +54,51 @@ describe('autoExtraForGoalAtMonth', () => {
     expect(autoExtraForGoalAtMonth(map, 'nobody', 0)).toBe(0);
     expect(autoExtraForGoalAtMonth(map, '', 0)).toBe(0);
     expect(autoExtraForGoalAtMonth(map, GOAL, 7)).toBe(0);
+  });
+});
+
+// The Savings Growth chart and the goal ETA both take ONE array per goal (`extraByMonth`), so the
+// staged-goal blind spot lands there as a line drawn without the money later stops receive.
+describe('autoExtraSeriesForGoal', () => {
+  it('returns the plain goal id series untouched', () => {
+    expect(autoExtraSeriesForGoal(new Map([[GOAL, [510, 0, 120]]]), GOAL)).toEqual([510, 0, 120]);
+  });
+
+  it('WOULD-FAIL PROOF: sums every stop of a staged plan, month for month', () => {
+    const map = new Map([
+      [stopRowId(GOAL, 1), [300, 0, 0]],
+      [stopRowId(GOAL, 2), [200, 450, 0]],
+      [stopRowId(GOAL, 3), [0, 50, 75]],
+    ]);
+    // What the old call did — stop 1's array alone, blind to every later stop:
+    expect(map.get(GOAL)).toEqual([300, 0, 0]);
+    expect(autoExtraSeriesForGoal(map, GOAL)).toEqual([500, 500, 75]);
+  });
+
+  it('pads to the longest series and never picks up a lookalike id', () => {
+    const map = new Map([
+      [`${GOAL}-2`, [999, 999, 999, 999]],
+      ['card-xyz', [999, 999]],
+      [stopRowId(GOAL, 1), [40]],
+      [stopRowId(GOAL, 2), [0, 0, 60]],
+    ]);
+    expect(autoExtraSeriesForGoal(map, GOAL)).toEqual([40, 0, 60]);
+  });
+
+  it('returns undefined for an unknown goal and an empty id — the untouched chart', () => {
+    const map = new Map([[GOAL, [510]]]);
+    expect(autoExtraSeriesForGoal(map, 'nobody')).toBeUndefined();
+    expect(autoExtraSeriesForGoal(map, '')).toBeUndefined();
+    expect(autoExtraSeriesForGoal(new Map(), GOAL)).toBeUndefined();
+  });
+
+  it('agrees with the per-month lookup at every index', () => {
+    const map = new Map([
+      [stopRowId(GOAL, 1), [300, 0, 0]],
+      [stopRowId(GOAL, 2), [200, 450, 0]],
+    ]);
+    const series = autoExtraSeriesForGoal(map, GOAL) ?? [];
+    series.forEach((v, i) => expect(v).toBe(autoExtraForGoalAtMonth(map, GOAL, i)));
   });
 });
 
