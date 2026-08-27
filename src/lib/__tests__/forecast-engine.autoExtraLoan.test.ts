@@ -130,9 +130,23 @@ describe('forecast-engine — extra principal on a vehicle loan', () => {
     expect(cashSpent).toBeGreaterThan(0);
     // …and the liability really fell. Without step 4c-ii-b this is 0 and the money has vanished.
     expect(loanCut).toBeGreaterThan(0);
-    // The loan can never fall by MORE than the cash that paid it. It may fall by less once the
-    // balance bottoms out at zero, which is why this is an inequality rather than an equality.
-    expect(loanCut).toBeLessThanOrEqual(cashSpent + 0.01);
+    // ⚠️ MEASURED AGAINST THE RESERVE, NOT AGAINST MONTH 3's CASH, and that changed on
+    // 2026-08-26. Comparing a cumulative loan cut against a cumulative CASH difference three
+    // months later silently included second-order effects: a smaller loan balance moves the
+    // augmented cash floor, which moves later months' cash by a few cents that have nothing to do
+    // with this payment. Measured, the pair this test is actually about agrees exactly - in the
+    // month the reserve lands, the reserve is 10,677.73 and the loan falls 10,677.73 - while
+    // month 3's cash gap had drifted to 10,677.00, so the old 0.01 tolerance was passing on luck
+    // and failed the moment anything upstream nudged it.
+    //
+    // So the invariant is stated against the dollars that were actually reserved: the loan may
+    // never fall by MORE than what was paid into it, and may fall by less once the balance bottoms
+    // out at zero, which is why this stays an inequality.
+    const reserved = on.data
+      .slice(0, i + 1)
+      .reduce((sum, row) => sum + (row.autoExtraByTarget?.['c5'] ?? 0), 0);
+    expect(reserved).toBeGreaterThan(0);
+    expect(loanCut).toBeLessThanOrEqual(reserved + 0.01);
   });
 
   it('never reserves against principal it has already retired', () => {

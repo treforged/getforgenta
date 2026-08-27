@@ -132,17 +132,6 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   const strictSaveUpMonths = new Set<number>();
   const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
 
-  if (ccMinTotal <= 0) {
-    // Zeroes, not the floors: this return happens BEFORE the backward pass runs,
-    // and zero demands nothing of any month. A caller clamping a reserve against
-    // it is therefore unconstrained, which is exactly what this early return
-    // already means everywhere else - no protection is configured.
-    return {
-      maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason,
-      requiredEndByMonth: Array(PROJECTION_MONTHS).fill(0),
-    };
-  }
-
   // Per-month net cash flow if only the minimum is ever sent to debt — the most that could
   // possibly be preserved that month. Feeds the backward pass below.
   const netAtMin: number[] = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
@@ -181,6 +170,24 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     requiredEndByMonth[m] = Math.max(floorByMonth[m], nextFloor, fromChain);
   }
 
+
+  // ⚠️ THE EARLY RETURN SITS HERE, AFTER THE BACKWARD PASS, and it moved on
+  // 2026-08-26. It used to sit above and hand back zeroes, on the reasoning that
+  // "no CC minimum means no protection is configured". That was true while the
+  // only output was `maxDebtPaymentByMonth`, which caps a DEBT payment and has
+  // nothing to cap when there is no card debt. It stopped being true the moment
+  // `requiredEndByMonth` became an output, because the reserve clamp in
+  // forecast-engine.ts reads it and a user with NO credit cards still has goals,
+  // still has a cash floor, and can still be walked into a spike months out by a
+  // ranked reserve. Returning zeroes left exactly that user with no look-ahead at
+  // all. Caught by the regression test this pass was written for, which had no
+  // cards in its fixture.
+  //
+  // The caps below are still skipped, which is the part that was always right:
+  // with `ccMinTotal <= 0` there is no reducible payment to cap.
+  if (ccMinTotal <= 0) {
+    return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason, requiredEndByMonth };
+  }
 
   // Unprotected (no caps at all) trajectory, purely to identify which future months would
   // actually breach the floor and why — used only to label saveUpReason below, not to decide

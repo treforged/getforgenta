@@ -73,11 +73,17 @@ function cardProjection(
   } as unknown as CardProjectionResult;
 }
 
+/**
+ * `oneTimeByMonth` is keyed by month, 'YYYY-MM'. It is the only way this harness can express a
+ * cost that lands in ONE future month rather than every month, which is what the look-ahead half
+ * of the clamp exists for: a spike months out that earlier months must bank against.
+ */
 function makeInputs(
   goals: GoalRow[],
   perTarget: Month0Result['autoExtraPerTarget'],
   checking: number,
   ledgerPayment: number,
+  oneTimeByMonth: Record<string, { income: number; expense: number }> = {},
 ): ForecastInputs {
   return {
     debts: [], goals, carFunds: [],
@@ -91,7 +97,7 @@ function makeInputs(
     debtBalancesByMonth: [] as unknown as ForecastInputs['debtBalancesByMonth'],
     cardProjectionData: cardProjection(perTarget, ledgerPayment),
     payConfig: { weeklyGross: 0, taxRate: 0, paycheckDay: 1, frequency: 'monthly' },
-    oneTimeByMonth: {}, ccOneTimeByMonth: {}, ccScheduledByMonth: [],
+    oneTimeByMonth, ccOneTimeByMonth: {}, ccScheduledByMonth: [],
     transactions: [],
     currentMonthRecommendedDebt: null,
     forecastMonthEvents: [],
@@ -189,16 +195,8 @@ describe('forecast-engine — the ranked reserve gives way before the month goes
     // The invariant a discretionary reserve owes: it may never leave a month holding cash that
     // cannot exist.
     //
-    // ⚠️ HONEST SCOPE. This pins the CLAMP, not the LOOK-AHEAD half of it. Mutation-checked
-    // 2026-08-26: forcing `lookaheadEnd` to 0 in forecast-engine.ts leaves all of these passing,
-    // because this fixture has no future spike, so `requiredEndByMonth` never rises above the
-    // month's own floor and the two targets coincide. Pinning the look-ahead needs a fixture with a
-    // large one-time expense several months out, which `makeInputs` cannot express today
-    // (`oneTimeByMonth` is hard-coded empty). The look-ahead itself is currently evidenced only by
-    // the live 60-month check recorded on afbff446: Dec 2028's requiredEnd was 2883, the month was
-    // ending at 2011 because the ranked reserve took the difference, and Jan 2029 landed at 1246
-    // against a floor of 1955; after the fix none of the 60 months ends below its floor. Anyone
-    // extending `makeInputs` to take one-time expenses should come back and finish this.
+    // This pins the CLAMP. The LOOK-AHEAD half is pinned separately by "banks against a spike
+    // MONTHS out" above, which `makeInputs` can now express since it takes `oneTimeByMonth`.
     //
     // The planned payment is deliberately ZERO here. With a mandatory payment the account drains
     // on its own and the month goes negative for a reason the clamp is not allowed to fix, which
@@ -226,6 +224,59 @@ describe('forecast-engine — the ranked reserve gives way before the month goes
     for (let m = 0; m < opted.data.length; m += 1) {
       expect(opted.data[m].endingCash).toBeLessThanOrEqual(control.data[m].endingCash + AUTO_EXTRA_CENT);
     }
+  });
+
+  it('banks against a spike MONTHS out, not just next month', () => {
+    // THE LOOK-AHEAD, which until now was evidenced only by a live check. The clamp protects the
+    // larger of `step3SpendFloor + cushion` (this month and next) and `requiredEndByMonth[i]` (the
+    // backward pass, which knows the whole remaining horizon). Measured on live data before the
+    // fix: Dec 2028's requiredEnd was 2883, the month ended at 2011 because the ranked reserve took
+    // the difference, and Jan 2029 then landed at 1246 against a floor of 1955.
+    //
+    // The clock is anchored at 2026-10-15, so month 0 is 2026-10 and the spike below lands four
+    // months out. Only a backward pass can see it from month 1.
+    const spike = { '2027-02': { income: 0, expense: 6000 } };
+    const g = goal({ id: 'g-spike', target_amount: 50000, auto_extra: true, sort_order: 1 });
+
+    anchor();
+    const opted = calculateForecast(
+      makeInputs([g], [{ id: 'g-spike', kind: 'goal', amount: 1200 }], 9000, 0, spike),
+    );
+
+    // The month the spike lands in, and every month, must still be solvent. Without the look-ahead
+    // the reserve drains the earlier months to their own floor and this one goes under.
+    for (const row of opted.data) expect(row.endingCash).toBeGreaterThanOrEqual(0);
+  });
+
+  it('funds ONE rank per month, which is what makes reverse-rank shedding a tie-only rule', () => {
+    // ⚠️ THIS PINS AN ASSUMPTION, NOT A BEHAVIOUR THE USER ASKED FOR, and it exists because a claim
+    // in the code depends on it. `planSurplusRankWrites`'s clamp sheds from the lowest-ranked target
+    // first, and the commit that added it (791ad355) states that this is a no-op except at a tie
+    // BECAUSE the waterfall funds only the highest unfinished rank in any given month. If that ever
+    // stopped being true the shedding order would suddenly matter and nobody would be told.
+    //
+    // Measured when the claim was made: a $500 goal ranked above a $5,000 one takes the whole $500
+    // in month 1, and the second goal is not funded until month 2.
+    const top = goal({ id: 'g-1st', target_amount: 500, auto_extra: true, sort_order: 1 });
+    const bottom = goal({ id: 'g-2nd', target_amount: 5000, auto_extra: true, sort_order: 9 });
+
+    anchor();
+    const opted = calculateForecast(makeInputs([top, bottom], [], 3000, 0));
+    const took = (m: number, id: string) => opted.data[m].autoExtraByTarget?.[id] ?? 0;
+
+    let monthsFundingBoth = 0;
+    let monthsFundingEither = 0;
+    for (let m = 0; m < opted.data.length; m += 1) {
+      const a = took(m, 'g-1st') > AUTO_EXTRA_CENT;
+      const b = took(m, 'g-2nd') > AUTO_EXTRA_CENT;
+      if (a || b) monthsFundingEither += 1;
+      if (a && b) monthsFundingBoth += 1;
+    }
+
+    // The fixture actually exercised the waterfall, so the assertion below is not vacuous.
+    expect(monthsFundingEither).toBeGreaterThan(1);
+    // And no month ever paid two DIFFERENT ranks at once.
+    expect(monthsFundingBoth).toBe(0);
   });
 
   it('conserves the money when it clamps, month by month', () => {
