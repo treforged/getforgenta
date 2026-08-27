@@ -1,5 +1,81 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36m — **`35af9cb3`. tsc 0, 292 files / 3100 tests, eslint
+> clean. 48 commits unpushed.** Tre's new ask (delete two credit-card panels) is
+> SHIPPED; the Budget-tiles move is STARTED (its pure module is committed,
+> nothing imports it yet). Manager built both; no executor spawned. Context gate
+> fired at 175k.
+>
+> ═══ ✅ SHIPPED ═══
+> - **`66ed12cd` — THE SCORE-ORDER TABLE AND THE WHOLE PAYDOWN-PLAN PANEL ARE
+>   GONE.** Tre, with a screenshot of both: *"delete these from the credit card
+>   section. its complicated and not easy to understand for users."*
+>   1. `UtilizationPanel`'s "Pay-down order for score (lowest utilization per
+>      dollar)" table, with its "$150 pays down −1.4pt" preview input — a second
+>      card order printed beside the interest order the engine actually pays,
+>      with no statement of which to follow.
+>   2. `PaydownPlanPanel` in full (file deleted): the 50%/30% milestone grid, the
+>      cheapest-vs-Discover-first fork, the planned-application month picker, the
+>      shortfall warning.
+>   **KEPT ON PURPOSE:** the four figures at the top of `UtilizationPanel` —
+>   Overall Utilization, Interest-Bearing, Utilization-Only (0%), Open Limit —
+>   plus the 0%-installment and not-yet-open-card notes. Each is a plain fact
+>   about the accounts rather than a second opinion, and utilization is a number
+>   he tracks. ⚠️ If he meant that card gone too, deleting the rest is one edit.
+>   Also removed as unreachable: `avalancheOrder`, `paydownCapacityByMonth` and
+>   `paydownGrossCapacityByMonth` in `CreditCardEngine` (the last two carried the
+>   long measured notes on netting and the `max(0,…)` clamp — that reasoning is
+>   in the git history and in session 35's blocks below, and nothing renders it
+>   now), and `src/lib/self-funded-paydown.ts` + its 36 tests, which existed
+>   solely for the deleted panel. That is the whole 3136 → 3100 test delta.
+>   `utilizationComparisonOrder`, `rankByUtilizationImpact` and
+>   `previewCardPaymentImpact` are LEFT with their tests and a note saying no UI
+>   reads them — they are the only statement of that arithmetic.
+>   ⚠️ **NOT live-verified** (deletion, gated by tsc + suite + eslint). One /debt
+>   page load would confirm it.
+> - **`35af9cb3` — `src/lib/budget-month-totals.ts`, step (a) of the tiles move.**
+>   Lifted verbatim from `BudgetControl.tsx`: `BudgetRule`, `isSyntheticRule`,
+>   `isFixedRule`, `currentMonthAmount`, `nextExtraMonthLabel`, the five bucket
+>   builders, `budgetMonthTotals()`. **Nothing imports it yet** — it is inert and
+>   green, so the next session can wire it without re-deriving it.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. ⭐ **FINISH THE TILES MOVE — the decision table and plan (a)–(f) are in
+>    session 36l's block immediately below; do not re-derive them.** Steps (a) is
+>    done. What is left, and the one design decision already taken:
+>    - **Wire it through a shared hook, not by duplicating the derivation.**
+>      The seven figures depend on synthetic rows the Dashboard does not build:
+>      `subsAsRules` (BudgetControl.tsx:528), `debtPaymentRules` (:564),
+>      `liabilityPaymentRules` (:604), `goalTransferRules` (:738), plus
+>      `useMatchedOccurrences` and `useMonth0DebtBreakdown`. Put ALL of that in a
+>      new `src/hooks/useBudgetMonthTotals.ts` returning the five buckets, the
+>      totals from `budgetMonthTotals()`, a memoised `toCurrentMonthAmount`, and
+>      the debt breakdown; have BOTH pages consume it. That is what makes "the
+>      same numbers on both pages" true by construction. ⚠️ Do NOT let
+>      BudgetControl call `useMonth0DebtBreakdown` twice (once directly, once via
+>      the hook) — it recomputes per call site; re-export it from the hook.
+>    - The Income drawer's paycheck derivation is BudgetControl LOCAL STATE
+>      (weeklyGross/taxRate/deductions, seeded from `profile`). For the Dashboard
+>      card, derive it from `profile` with `buildPayConfig()` (pay-schedule.ts:190)
+>      — same values once saved; `hasTaxDeductions` is `payConfig.taxRate === 0`
+>      when the withholding/FICA/OASDI deductions are set.
+>    - Then (b) `BudgetTotalsCard.tsx`, (c) widget id `budget_totals` after
+>      `monthly_snapshot`, (d) delete the grids at BudgetControl.tsx:1702-1745,
+>      the Monthly/Annual pair (:1726-1742), the Remaining Cash card (:1744-1762)
+>      and `openCashCalc` (:1078), (e) tests, (f) live-verify BOTH pages against
+>      $4,474 / $2,433 / $515 / $423 / $877 / $4,248 / $50,973.
+> 2. His "smaller quick things i had mentioned that i cant recall" — Debt Payoff
+>    truncating span at 390px; the "not open yet" note + payoff-method ordering on
+>    Venture X / Apple Card; the Garage card's TWO payoff dates for one loan
+>    (`autoPayoffLabel` reads `firstZero - 1` off a balance array with a one-month
+>    credit lag — MEASURE first, money math).
+> 3. Then session 36k's queue, unchanged, below.
+>
+> ⚠️ Weekly usage cap override is at **94** (Tre, 2026-08-27) in both
+> `~/.claude/bin/usage_cap_hook.py` and `usage_resume_watch.py` —
+> **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36l — **`2673ddb4`. 46 commits unpushed. ⚠️ PAUSED ON THE
 > WEEKLY USAGE CAP (92%, resets 18:00 ET).** Tre's second ask of the session,
 > built. Manager built it; no executor spawned.
