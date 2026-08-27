@@ -39,6 +39,21 @@
 >   two per row. MEASURED at 386px: first card y=211 closed vs y=325 open; at
 >   1392px the toggle is not rendered and the row is unchanged.
 >
+> - **⚠️ UNGATED, COMMITTED, DO THIS FIRST NEXT SESSION: the two figures are back
+>   on the saving card.** Tre, after reading the note above: *"yes. bring them."*
+>   `SavingCard.tsx` now derives `estLoanPrincipal` (price + tax/fees − down
+>   payment, the deleted card's own formula) and `estTotalInterest` (the
+>   amortization's `totalInterest` when a schedule exists — it counts planned
+>   extras and matches the payoff date already on the card — falling back to
+>   `payment × term − principal` when there is no purchase date), rendered as
+>   "Est. Loan" and "Est. Total Interest" in the stat grid. A test in
+>   `vehicle-money-move.test.tsx` pins both labels and $24,400 on the fixture.
+>   **THE USAGE CAP HIT BEFORE tsc OR THE SUITE COULD RUN ON IT.** Run
+>   `npx tsc --noEmit`, `npm test` and eslint before anything else, then one look
+>   at /debt's Auto Loans tab. Nothing else in this session is ungated.
+> - He also settled the other open question: **keep "Transactions"** — the phone
+>   label stays as it is, no revert, question closed.
+>
 > ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
 > 1. ⭐ **FINISH THE TILES MOVE.** Steps (a) `35af9cb3` and (b) `1becc8d6` are done
 >    and INERT. (c)–(f) are unchanged in session 36n's block below — the decision

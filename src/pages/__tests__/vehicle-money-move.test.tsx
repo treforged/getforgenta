@@ -90,6 +90,17 @@ describe("/debt's Auto Loans tab owns the vehicle money", () => {
     expect(screen.getByText('2027 Honda Civic')).toBeTruthy();
   });
 
+  it('keeps the two figures the deleted "Planned Loans — Estimate" card carried', () => {
+    // Tre, 2026-08-27: "yes. bring them." The read-only card that used to sit here printed an
+    // estimated loan principal and a total interest; the saving card that replaced it did not.
+    // Principal is price + tax and fees less the down payment: 28,000 + 2,000 - 5,600.
+    renderPage(<DebtPayoff />);
+    fireEvent.click(screen.getByRole('button', { name: /Auto Loans/ }));
+    expect(screen.getByText('Est. Loan')).toBeTruthy();
+    expect(screen.getByText('$24,400')).toBeTruthy();
+    expect(screen.getByText('Est. Total Interest')).toBeTruthy();
+  });
+
   it('no longer sends the user back to the Garage to edit a car', () => {
     renderPage(<DebtPayoff />);
     fireEvent.click(screen.getByRole('button', { name: /Auto Loans/ }));

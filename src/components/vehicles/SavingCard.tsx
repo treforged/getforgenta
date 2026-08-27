@@ -57,6 +57,12 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
     cf.expected_apr,
     cf.loan_term_months,
   );
+  // ⚠️ THE TWO FIGURES THE DELETED "PLANNED LOANS — ESTIMATE" CARD CARRIED (Tre, 2026-08-27:
+  // "yes. bring them."). That card was /debt's read-only quote of this same vehicle and printed a
+  // loan principal and a total interest this one did not; when it was replaced by the real card on
+  // 2026-08-27 those two went with it. Same formula as it used — price + tax and fees, less the
+  // down payment — so the number he was reading has not changed.
+  const estLoanPrincipal = Math.max(0, Number(cf.target_price || 0) + Number(cf.tax_fees || 0) - Number(cf.down_payment_goal || 0));
   const monthly = monthlyContrib ?? 0;
   // When no transfer rule is linked, show the computed amount needed per month to hit the goal.
   const displayMonthly = monthly > 0 ? monthly : (computedMonthlyNeeded ?? 0);
@@ -92,6 +98,14 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
       actualMonthlyPayment: 0, lumpSumPayments: lumpSums,
     });
   }, [projectedBase, lumpSums, cf]);
+
+  // The interest half of the pair above. The amortization is the better answer whenever there is
+  // one — it is what the payoff date on this card already comes from, and it counts the planned
+  // extra payments — so the old card's `payment × term − principal` is only the fallback for a
+  // vehicle with no planned purchase date, where no schedule can be built yet.
+  const estTotalInterest = projectedWithLumps?.totalInterest
+    ?? projectedBase?.totalInterest
+    ?? Math.max(0, monthlyEst * cf.loan_term_months - estLoanPrincipal);
 
   const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
   const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));
@@ -168,6 +182,14 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Insurance/mo</p>
           <p className="text-xs font-semibold">{formatCurrency(cf.monthly_insurance, false)}</p>
+        </div>
+        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
+          <p className="text-[10px] text-muted-foreground">Est. Loan</p>
+          <p className="text-xs font-semibold">{formatCurrency(estLoanPrincipal, false)}</p>
+        </div>
+        <div className="bg-secondary/40 p-2 col-span-2" style={{ borderRadius: 'var(--radius)' }}>
+          <p className="text-[10px] text-muted-foreground">Est. Total Interest</p>
+          <p className="text-xs font-semibold text-destructive">{formatCurrency(estTotalInterest, false)}</p>
         </div>
       </div>
 
