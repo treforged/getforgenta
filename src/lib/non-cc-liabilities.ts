@@ -201,12 +201,27 @@ export function buildNonCCLiabilities(params: {
  * Account types whose paired `debts` row also supplies a monthly CASH payment.
  *
  * Derived from `net-worth.ts`'s single source of truth so a liability type added there is debt-
- * serviced here the same day, minus the two whose payment is owned elsewhere: `credit_card` (the
- * revolving engine decides those) and `auto_loan` (a `car_funds` row carries the payment — see
- * the header note about vehicle loans staying out of both halves).
+ * serviced here the same day, minus the one whose payment is owned elsewhere: `credit_card`, which
+ * the revolving engine decides.
+ *
+ * ⚠️ `auto_loan` WAS EXCLUDED HERE TOO UNTIL 2026-08-27, and that was the same "paid itself down
+ * out of thin air" defect the 2026-08-24 note above records for student loans, on the one type the
+ * cash half was blind to. A vehicle loan's payment IS carried by `car_funds` — but only for the
+ * loans a car fund actually claims, and that is a LINK, not a TYPE. An `auto_loan` account paired
+ * to a `debts` row with no car fund linked to it had its balance amortized to zero by
+ * {@link buildNonCCLiabilities} with nothing ever leaving projected cash, which is the direction
+ * this file calls dangerous: it tells the user they have money they do not have. The exclusion now
+ * happens where the fact lives — `excludedAccountIds`, i.e. `linkedLoanAccountIds`, which every
+ * caller already passes and which claims a linked account whether or not its balance resolves.
+ *
+ * ⚠️ ONE double-count neither half can see: a `car_funds` loan for the same vehicle that the user
+ * never linked to the account, paying alongside the paired `debts` row. Only the explicit FK can
+ * settle that. `vehicle-loan-link.ts` refuses a name heuristic on purpose — a false positive there
+ * silently rewrites a loan's balance — and inventing one here would be the same wrong answer with
+ * cash instead of a balance.
  */
 export const DEBT_SERVICE_ACCOUNT_TYPES: ReadonlySet<string> = new Set(
-  LIABILITY_ACCOUNT_TYPES.filter(t => t !== 'credit_card' && t !== 'auto_loan'),
+  LIABILITY_ACCOUNT_TYPES.filter(t => t !== 'credit_card'),
 );
 
 /** One debt-serviced non-CC liability: the ACCOUNT and the `debts` row paired to it. */

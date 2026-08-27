@@ -94,6 +94,18 @@ export function applyLinkedLoanBalances(
  * which is exactly why it renders as a flat line for all 60 months today. Net worth reports a
  * balance as of one instant, so the row the user maintains wins; forecast projects forward, so
  * the row that can move has to be the one that survives.
+ *
+ * ⚠️ A LINK CLAIMS THE ACCOUNT EVEN WHEN THE BALANCE DOES NOT RESOLVE (2026-08-27). This used to
+ * require {@link resolveLinkedLoanBalance} to return a number, so a fund linked to a LIVE account
+ * carrying a null, zero or negative balance claimed nothing and the same loan was represented
+ * twice. That was nearly invisible while the second representation could only add a row of zeros;
+ * it stopped being invisible when `auto_loan` joined `DEBT_SERVICE_ACCOUNT_TYPES`, because the
+ * second representation now takes CASH as well. The fund amortizes its own manual `loan_amount`
+ * when the balance does not resolve — still the same loan, so the account is still claimed.
+ *
+ * The account must exist and be live, and that condition is unchanged: a loan linked to a
+ * deactivated account falls back to its manual amortization, and the deactivated account is on no
+ * forecast surface to double it.
  */
 export function linkedLoanAccountIds(
   carFunds: readonly Pick<CarFund, 'linked_loan_account_id'>[] | null | undefined,
@@ -101,9 +113,11 @@ export function linkedLoanAccountIds(
 ): Set<string> {
   const ids = new Set<string>();
   for (const cf of carFunds ?? []) {
-    if (resolveLinkedLoanBalance(cf, accounts) !== null && cf.linked_loan_account_id) {
-      ids.add(cf.linked_loan_account_id);
-    }
+    const linkedId = cf.linked_loan_account_id;
+    if (!linkedId) continue;
+    const account = (accounts ?? []).find(a => a.id === linkedId);
+    if (!account || account.active === false) continue;
+    ids.add(linkedId);
   }
   return ids;
 }

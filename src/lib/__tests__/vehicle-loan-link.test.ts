@@ -81,12 +81,28 @@ describe('applyLinkedLoanBalances', () => {
 });
 
 describe('linkedLoanAccountIds', () => {
-  it('names the account only when the link actually resolves', () => {
+  it('names the account whenever a live link points at it', () => {
     const linked = makeCarFund({ linked_loan_account_id: ACCOUNT_ID });
     expect(linkedLoanAccountIds([linked], [liveAccount]).has(ACCOUNT_ID)).toBe(true);
-    // Inactive account: nothing is deduped, because nothing was re-anchored either.
+    // Inactive account: nothing is deduped, because nothing was re-anchored either — the fund
+    // falls back to its manual amortization and the account is on no forecast surface to double.
     expect(linkedLoanAccountIds([linked], [{ ...liveAccount, active: false }]).size).toBe(0);
     expect(linkedLoanAccountIds([makeCarFund()], [liveAccount]).size).toBe(0);
+    // A link naming an account that no longer exists claims nothing.
+    expect(linkedLoanAccountIds([linked], []).size).toBe(0);
+  });
+
+  it('claims a live linked account even when its balance is no reading', () => {
+    // 2026-08-27. This used to require `resolveLinkedLoanBalance` to return a number, so a fund
+    // linked to a live account with a null/zero balance claimed nothing and the same loan was
+    // represented twice — harmless while that was a row of zeros, a double CASH charge once
+    // `auto_loan` joined `DEBT_SERVICE_ACCOUNT_TYPES`. The fund amortizes its own typed
+    // `loan_amount` in this case; it is still the same loan.
+    const linked = makeCarFund({ linked_loan_account_id: ACCOUNT_ID });
+    for (const balance of [null, 0, -50]) {
+      expect(resolveLinkedLoanBalance(linked, [{ ...liveAccount, balance }])).toBeNull();
+      expect(linkedLoanAccountIds([linked], [{ ...liveAccount, balance }]).has(ACCOUNT_ID)).toBe(true);
+    }
   });
 });
 

@@ -97,7 +97,10 @@ describe('buildRankableLiabilities', () => {
 
   it('keeps only paired, active, debt-serviced accounts and attaches their stored rank', () => {
     const rows = buildRankableLiabilities({ accounts, debts, rules: [] });
-    expect(rows.map(r => r.id)).toEqual(['sl', 'mtg']);
+    // `auto` is here since 2026-08-27: an `auto_loan` NO car fund claims is an ordinary debt on
+    // this side — its payment leaves cash here, so extra principal can be ranked against it here
+    // too. A claimed one is dropped by `excludedAccountIds`, the case below.
+    expect(rows.map(r => r.id)).toEqual(['sl', 'mtg', 'auto']);
     expect(rows[0]).toMatchObject({ balance: 12000, surplus_sort_order: 3, surplus_share: 40 });
     // Never ranked ⇒ null, which is what keeps it out of the target list entirely.
     expect(rows[1].surplus_sort_order).toBeNull();
@@ -105,15 +108,15 @@ describe('buildRankableLiabilities', () => {
 
   it('drops an account a vehicle loan is linked to — the car fund carries that one', () => {
     const rows = buildRankableLiabilities({
-      accounts, debts, rules: [], excludedAccountIds: new Set(['mtg']),
+      accounts, debts, rules: [], excludedAccountIds: new Set(['auto']),
     });
-    expect(rows.map(r => r.id)).toEqual(['sl']);
+    expect(rows.map(r => r.id)).toEqual(['sl', 'mtg']);
   });
 
   it('still lists a debt an expense rule pays: the rule is the cash side, not the debt going away', () => {
     const rows = buildRankableLiabilities({
       accounts, debts, rules: [{ name: 'student loan', rule_type: 'expense', active: true }],
     });
-    expect(rows.map(r => r.id)).toEqual(['sl', 'mtg']);
+    expect(rows.map(r => r.id)).toEqual(['sl', 'mtg', 'auto']);
   });
 });

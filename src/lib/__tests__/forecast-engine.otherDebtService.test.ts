@@ -17,6 +17,7 @@ import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import type { AccountRow, DebtRow, RuleRow } from '@/hooks/useSupabaseData';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
+import type { CarFund } from '@/lib/types';
 
 const acct = (over: Record<string, unknown>): AccountRow =>
   ({
@@ -52,9 +53,10 @@ function makeInputs(
   debts: DebtRow[],
   rules: RuleRow[],
   monthlyRuleExpenses: number,
+  carFunds: CarFund[] = [],
 ): ForecastInputs {
   return {
-    debts, goals: [], carFunds: [],
+    debts, goals: [], carFunds,
     accounts,
     budgetItems: [],
     profile: { tax_rate: 0, paycheck_deductions: [] as never },
@@ -190,26 +192,74 @@ describe('forecast-engine — non-CC debt service leaves cash and reduces the ba
     expect(loanRow(data[1], 'Home Loan')?.balance).toBeCloseTo(248897.25, 6);
   });
 
-  it('leaves an auto loan to car_funds — no debt-service cash on this side', () => {
+  // ── An auto loan is excluded by its LINK, never by its TYPE (2026-08-27) ──────────────────────
+  //
+  // `DEBT_SERVICE_ACCOUNT_TYPES` used to drop every `auto_loan` on the grounds that `car_funds`
+  // carries a vehicle loan's payment. That is true only of the loans a car fund actually claims:
+  // an `auto_loan` account paired to a `debts` row with no fund linked to it had its balance
+  // amortized to zero here while nothing left checking — the same "paid itself down out of thin
+  // air" defect this file's header records for student loans, on the one type the cash half was
+  // blind to. The previous version of this file PINNED that behaviour, noting it was a defect.
+  //
+  // Would-fail check: put `auto_loan` back in the exclusion list and case 1 charges $0 for a real
+  // loan payment; revert `linkedLoanAccountIds` to require `resolveLinkedLoanBalance` and case 3
+  // charges $450 on top of the car fund's own payment for the same loan.
+  const AUTO_ACCT = acct({ id: 'al-1', name: 'FIXED RATE LOAN', account_type: 'auto_loan', balance: 20000 });
+  const AUTO_DEBT = { id: 'd3', name: 'FIXED RATE LOAN', balance: 20000, apr: 5, target_payment: 450 } as unknown as DebtRow;
+  const CAR_FUND = (over: Partial<CarFund> = {}): CarFund => ({
+    id: 'car-1', user_id: 'u1', vehicle_name: '2004 Chevorlet C5', target_price: 0, tax_fees: 0,
+    down_payment_goal: 0, current_saved: 0, saved_source: 'fixed', saved_percent: 0, sort_order: 0,
+    auto_extra: false, monthly_insurance: 0, expected_apr: 5, loan_term_months: 48, phase: 'loan',
+    loan_amount: 20000,
+    loan_start_date: '2026-06-21', payment_start_date: '2026-08-07', interest_start_date: '2026-08-07',
+    actual_monthly_payment: 450, linked_account: null, linked_rule_id: null,
+    loan_payment_account: null, linked_loan_account_id: 'al-1',
+    planned_purchase_date: null, gift_contribution: 0, lump_sum_payments: [],
+    insurance_start_date: null, created_at: '2026-01-01',
+    ...over,
+  });
+
+  it('pays an auto loan no car fund claims, instead of amortizing it out of thin air', () => {
     anchor();
-    // The vehicle loan is owned by `car_funds` and the vehicle-loan engine. Charging its payment
-    // here as well would be the double-count this whole file exists to prevent.
-    const { data } = calculateForecast(makeInputs(
-      [CHK, acct({ id: 'al-1', name: 'FIXED RATE LOAN', account_type: 'auto_loan', balance: 20000 })],
-      [{ id: 'd3', name: 'FIXED RATE LOAN', balance: 20000, apr: 5, target_payment: 450 } as unknown as DebtRow],
+    const paid = calculateForecast(makeInputs([CHK, AUTO_ACCT], [AUTO_DEBT], [], 1000));
+    // Control: the same account with nothing paired to it — a flat, unpaid balance and no cash.
+    const unpaired = calculateForecast(makeInputs(
+      [CHK, AUTO_ACCT],
+      [{ ...AUTO_DEBT, name: 'Some Other Debt' } as unknown as DebtRow],
       [], 1000,
     ));
+
+    expect(paid.data[1].otherDebtPayment).toBeCloseTo(450, 6);
+    // $450 leaves checking every month, which is the half that used to be missing. 20000 at 5%
+    // takes ~48 months to clear, so nothing stops inside the months compared here.
+    for (const i of [0, 1, 6, 12]) {
+      expect(paid.data[i].rawEndingCash).toBeCloseTo(unpaired.data[i].rawEndingCash - 450 * (i + 1), 6);
+    }
+    // The balance half is unchanged — end of month 0, 5%/12 on 20000 less the 450 target.
+    expect(loanRow(paid.data[0], 'FIXED RATE LOAN')?.balance).toBeCloseTo(19633.333333, 5);
+  });
+
+  it('leaves an auto loan a car fund claims to car_funds, so the payment is not taken twice', () => {
+    anchor();
+    const { data } = calculateForecast(makeInputs(
+      [CHK, AUTO_ACCT], [AUTO_DEBT], [], 1000, [CAR_FUND()],
+    ));
+    // The fund carries this loan: no debt-service cash, and no `FIXED RATE LOAN` row either — the
+    // amortizing car-fund row is the one that survives (`forecast-engine.linkedVehicleLoan`).
     expect(data[1].otherDebtPayment).toBe(0);
-    // End of month 0, 5%/12 on 20000 less the paired row's 450 target: 19633.33 — see the
-    // end-of-month note in the first case above.
-    //
-    // ⚠️ NOT A CLAIM THAT THIS IS RIGHT, only what it does. `buildNonCCLiabilities` amortizes this
-    // account at the paired debts row's target payment while `buildOtherDebtPaymentSchedule` deliberately
-    // charges no cash for it (an `auto_loan` belongs to `car_funds`) — so with no car fund linked,
-    // the balance falls with nothing leaving checking. That is the same defect this file's header
-    // records for student loans, on the one account type the cash half excludes, and it predates
-    // the end-of-month change: it simply becomes visible one month earlier. Out of scope here.
-    expect(loanRow(data[0], 'FIXED RATE LOAN')?.balance).toBeCloseTo(19633.333333, 5);
+    expect(data[0].nonCCLiabBreakdown.some(r => r.name === 'FIXED RATE LOAN')).toBe(false);
+  });
+
+  it('leaves it to car_funds even when the linked account has no usable balance', () => {
+    anchor();
+    // The fund falls back to amortizing its own typed `loan_amount` when the account carries no
+    // reading, and it is still the same loan. Claiming only when the balance resolves would have
+    // charged this payment on both sides.
+    const { data } = calculateForecast(makeInputs(
+      [CHK, acct({ id: 'al-1', name: 'FIXED RATE LOAN', account_type: 'auto_loan', balance: null })],
+      [AUTO_DEBT], [], 1000, [CAR_FUND()],
+    ));
+    expect(data[1].otherDebtPayment).toBe(0);
   });
 });
 
