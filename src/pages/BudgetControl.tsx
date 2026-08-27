@@ -25,7 +25,7 @@ import { CATEGORIES } from '@/lib/types';
 import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { buildAutoExtraByTarget, autoExtraForGoalAtMonth } from '@/lib/auto-extra-projection';
+import { buildAutoExtraByTarget, autoExtraForGoalAtMonth, nextAutoExtraForGoal } from '@/lib/auto-extra-projection';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
@@ -56,6 +56,10 @@ type BudgetRule = {
   /** The ranked automatic extra the forecast diverts to this target in the CURRENT month. Shown
    *  beside the standing amount, never added to it — see `openTransferCalc`. */
   extraThisMonth?: number;
+  /** The next month that DOES take one, when this month does not. Same rule: shown, never summed.
+   *  Carried as an OFFSET from the current month — `nextExtraMonthLabel` dates it at render time,
+   *  so the memo that builds these rows stays free of the calendar. */
+  nextExtra?: { amount: number; monthIndex: number } | null;
 };
 
 /**
@@ -98,6 +102,17 @@ const biweeklyAnchorHint = (rule: { due_day?: number | null; start_date?: string
  * a card the projection could not price), and a bare "Partial statement" names a balance without
  * saying what is being done about it. Copy only, the amount and due day are untouched.
  */
+/**
+ * "Aug 2027" — the month a ranked extra lands in, from its offset.
+ *
+ * `nextAutoExtraForGoal` returns an OFFSET from the projection's month 0, deliberately: that module
+ * has no calendar. Month 0 is the current month, so the offset is added to it here, at render time,
+ * in the one place that knows what today is.
+ */
+const nextExtraMonthLabel = (monthIndex: number, now: Date): string =>
+  new Date(now.getFullYear(), now.getMonth() + monthIndex, 1)
+    .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
 const debtSyncNote = (reason: string): string => {
   if (!reason) return 'From Debt Payoff. No payment modelled for this card yet.';
   if (reason === 'Partial statement') return 'Covers part of the statement balance.';
@@ -745,6 +760,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       active: true,
       isGoalTransfer: true,
       extraThisMonth: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0),
+      // Only when THIS month has none. A month with an extra states its own figure; adding "and
+      // another one in March" beside it is noise. A month without one used to say nothing at all,
+      // and on his live data that silence covers a goal 40 of whose next 60 months take an extra.
+      nextExtra: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0) > 0
+        ? null
+        : nextAutoExtraForGoal(autoExtraByGoal, g.id ?? ''),
     })), [savingsGoals, rules, autoExtraByGoal]);
 
   const transferRules = useMemo(
@@ -761,7 +782,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
 
   const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  
+
   const nowYear = now.getFullYear();
   const nowMonth = now.getMonth();
 
@@ -1118,6 +1139,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         label: `${r.name} — extra this month, from surplus`,
         value: formatCurrency(r.extraThisMonth ?? 0, false),
       }));
+    // Same rule for the month that has none: name the next one instead of leaving the drawer
+    // silent about a goal the forecast is going to start topping up.
+    transferRules
+      .filter(r => r.active && (r.extraThisMonth ?? 0) === 0 && r.nextExtra)
+      .forEach(r => lines.push({
+        label: `${r.name} — next extra from surplus, ${nextExtraMonthLabel(r.nextExtra!.monthIndex, now)}`,
+        value: formatCurrency(r.nextExtra!.amount, false),
+      }));
     setCalcDrawer({ title: 'Transfers This Month', lines });
   };
 
@@ -1127,7 +1156,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       lines: [
         { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses, false) },
         { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '+' },
-        { label: 'Total planned monthly spend', value: formatCurrency(totalCharges, false), op: '=' },
+        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '+' },
+        { label: 'Transfers & Investing', value: formatCurrency(totalTransfers, false), op: '+' },
+        { label: 'Total planned monthly spend', value: formatCurrency(totalExpenses, false), op: '=' },
       ],
     });
   };
@@ -1138,7 +1169,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       lines: [
         { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses * 12, false) },
         { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses * 12, false), op: '+' },
-        { label: 'Total Annual Spend', value: formatCurrency(totalCharges * 12, false), op: '=' },
+        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments * 12, false), op: '+' },
+        { label: 'Transfers & Investing', value: formatCurrency(totalTransfers * 12, false), op: '+' },
+        { label: 'Total Annual Spend', value: formatCurrency(totalExpenses * 12, false), op: '=' },
       ],
     });
   };
@@ -1250,6 +1283,17 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           title="On top of the standing transfer, the forecast diverts this much surplus to this goal in the current month."
         >
           + {formatCurrency(r.extraThisMonth ?? 0, false)} extra this month
+        </span>
+      )}
+      {/* No extra THIS month, but one is coming. Says which month and how much rather than going
+          silent — silence reads as "this never happens", and on his own data 40 of the next 60
+          months carry one. Still never "$0 extra this month". */}
+      {(r.extraThisMonth ?? 0) === 0 && r.nextExtra && (
+        <span
+          className="text-xs sm:text-sm text-muted-foreground"
+          title="No surplus is being diverted to this goal in the current month. This is the next month the forecast sends one."
+        >
+          next: {formatCurrency(r.nextExtra.amount, false)} in {nextExtraMonthLabel(r.nextExtra.monthIndex, now)}
         </span>
       )}
     </div>
@@ -1681,13 +1725,19 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       {/* Monthly & Annual Spend Totals */}
       <div className="grid grid-cols-2 gap-3">
         <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
-          {/* "planned" is load-bearing (§2.4 step 10): totalCharges is the sum of the budget RULES,
-              not of anything that happened. Unlabeled it reads as an actual and gets compared to
-              the Dashboard's MONTHLY EXPENSES, which is a different question entirely. */}
-          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totalCharges, false)} accent="crimson" icon={TrendingDown} clickHint />
+          {/* "planned" is load-bearing (§2.4 step 10): this is the sum of the budget RULES, not of
+              anything that happened. Unlabeled it reads as an actual and gets compared to the
+              Dashboard's MONTHLY EXPENSES, which is a different question entirely.
+
+              ⚠️ ALL FOUR BUCKETS, not just fixed + variable (Tre, 2026-08-27: "yes they should").
+              It used to read `totalCharges` and so quoted a month's cost with every debt payment
+              and every standing transfer left out — on his own data that hid $423 of auto loan and
+              $877 of transfers, understating the month by $1,300 and the year by $15,600 while the
+              four tiles directly above it listed all four. Same figure the donut divides up. */}
+          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totalExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
-          <MetricCard label="Annual Spend" value={formatCurrency(totalCharges * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
+          <MetricCard label="Annual Spend" value={formatCurrency(totalExpenses * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
       </div>
 

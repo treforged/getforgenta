@@ -6,7 +6,7 @@
 // arriving. Tre's own move fund is exactly a staged goal ("Move fund, then emergency fund").
 
 import { describe, it, expect } from 'vitest';
-import { autoExtraForGoalAtMonth } from '../auto-extra-projection';
+import { autoExtraForGoalAtMonth, nextAutoExtraForGoal } from '../auto-extra-projection';
 import { stopRowId } from '../ranked-extra-payment-targets';
 
 const GOAL = 'goal-abc';
@@ -54,5 +54,42 @@ describe('autoExtraForGoalAtMonth', () => {
     expect(autoExtraForGoalAtMonth(map, 'nobody', 0)).toBe(0);
     expect(autoExtraForGoalAtMonth(map, '', 0)).toBe(0);
     expect(autoExtraForGoalAtMonth(map, GOAL, 7)).toBe(0);
+  });
+});
+
+// The month with no extra is the one a surface goes silent in, and silence reads as "this never
+// happens". On Tre's live data 2026-08-27 month 0 has no surplus at all while 40 of the next 60
+// months do — the first being $168 in month 12.
+describe('nextAutoExtraForGoal', () => {
+  it('finds the first month ahead that takes an extra, and says which', () => {
+    const map = new Map([[GOAL, [0, 0, 0, 168, 0, 200]]]);
+    expect(nextAutoExtraForGoal(map, GOAL)).toEqual({ monthIndex: 3, amount: 168 });
+  });
+
+  it('skips the current month by default — it is the month the caller already states', () => {
+    const map = new Map([[GOAL, [510, 0, 120]]]);
+    expect(nextAutoExtraForGoal(map, GOAL)).toEqual({ monthIndex: 2, amount: 120 });
+    // ...and looks at it when asked to.
+    expect(nextAutoExtraForGoal(map, GOAL, 0)).toEqual({ monthIndex: 0, amount: 510 });
+  });
+
+  it('sees a staged goal past stop 1, exactly as the per-month lookup does', () => {
+    const map = new Map([[stopRowId(GOAL, 2), [0, 0, 800]]]);
+    expect(map.get(GOAL)).toBeUndefined();
+    expect(nextAutoExtraForGoal(map, GOAL)).toEqual({ monthIndex: 2, amount: 800 });
+  });
+
+  it('sums stops landing in the same month', () => {
+    const map = new Map([
+      [stopRowId(GOAL, 1), [0, 40]],
+      [stopRowId(GOAL, 2), [0, 60]],
+    ]);
+    expect(nextAutoExtraForGoal(map, GOAL)).toEqual({ monthIndex: 1, amount: 100 });
+  });
+
+  it('returns null when no month ahead has one, for an unknown goal, and for an empty id', () => {
+    expect(nextAutoExtraForGoal(new Map([[GOAL, [510, 0, 0]]]), GOAL)).toBeNull();
+    expect(nextAutoExtraForGoal(new Map([[GOAL, [0, 168]]]), 'nobody')).toBeNull();
+    expect(nextAutoExtraForGoal(new Map([[GOAL, [0, 168]]]), '')).toBeNull();
   });
 });

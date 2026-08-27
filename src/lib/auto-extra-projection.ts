@@ -59,3 +59,33 @@ export function autoExtraForGoalAtMonth(
   }
   return total;
 }
+
+/**
+ * The FIRST month from `fromMonthIndex` onward in which this goal takes a ranked extra, or null.
+ *
+ * A surface that only ever states the current month's extra goes silent in a month with none, and
+ * silence reads as "this never happens" — on Tre's live data 2026-08-27 month 0 has no surplus at
+ * all, while 40 of the next 60 months do, the first being $168 in month 12. Same stop-aware
+ * matching as `autoExtraForGoalAtMonth`, because a staged goal's later stops are separate targets.
+ *
+ * `monthIndex` is an offset from the projection's month 0, so the caller owns turning it into a
+ * date — this module has no calendar and inventing one here would be a second source of truth.
+ */
+export function nextAutoExtraForGoal(
+  byTarget: ReadonlyMap<string, number[]>,
+  goalId: string,
+  fromMonthIndex = 1,
+): { monthIndex: number; amount: number } | null {
+  if (!goalId) return null;
+  const stopPrefix = `${goalId}::stop`;
+  let horizon = 0;
+  for (const [id, months] of byTarget) {
+    if (id !== goalId && !id.startsWith(stopPrefix)) continue;
+    horizon = Math.max(horizon, months.length);
+  }
+  for (let i = Math.max(0, fromMonthIndex); i < horizon; i++) {
+    const amount = autoExtraForGoalAtMonth(byTarget, goalId, i);
+    if (amount > 0) return { monthIndex: i, amount };
+  }
+  return null;
+}

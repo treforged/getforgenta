@@ -52,6 +52,9 @@ const VACATION_RULE = {
 // What the engine's month-0 row carries. Index 0 is the current month; `buildAutoExtraByTarget`
 // re-keys it by goal id.
 let autoExtraRow: Record<string, number> = { 'goal-move': 1107 };
+/** A whole projection when a test needs later months too (the "next extra" row); month 0 alone
+ *  otherwise, built from `autoExtraRow`. */
+let projectionRows: { autoExtraByTarget: Record<string, number> }[] | null = null;
 let goalRows: ReturnType<typeof goal>[] = [MOVE_FUND];
 
 vi.mock('@/hooks/useSupabaseData', () => ({
@@ -72,7 +75,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
 
 vi.mock('@/contexts/CardProjectionContext', () => ({
   useCardProjectionContext: () => ({
-    projections: { data: [{ autoExtraByTarget: autoExtraRow }] },
+    projections: { data: projectionRows ?? [{ autoExtraByTarget: autoExtraRow }] },
   }),
 }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
@@ -107,6 +110,7 @@ function openTransfers() {
 beforeEach(() => {
   localStorage.clear();
   autoExtraRow = { 'goal-move': 1107 };
+  projectionRows = null;
   goalRows = [MOVE_FUND];
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -134,6 +138,36 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
     // Not "$0 extra this month", and not the phrase at all — the row simply does not carry one.
     // (The tab's explanatory footnote below the list mentions it; the ROW must not.)
     expect(row?.textContent).not.toContain('extra this month');
+  });
+
+  // A month with no extra used to say nothing, and nothing reads as "this never happens".
+  it('names the NEXT extra when this month has none', () => {
+    autoExtraRow = {};
+    projectionRows = [
+      { autoExtraByTarget: {} },
+      { autoExtraByTarget: {} },
+      { autoExtraByTarget: { 'goal-move': 168 } },
+    ];
+    renderInAugust();
+    openTransfers();
+
+    const row = screen.getByText('Move Fund Contribution').closest('div.border-b');
+    // Rendered in August 2026, so month index 2 is October 2026.
+    expect(row?.textContent).toContain('next: $168 in Oct 2026');
+    expect(row?.textContent).not.toContain('extra this month');
+  });
+
+  it('does not name a future extra in a month that already has one', () => {
+    projectionRows = [
+      { autoExtraByTarget: { 'goal-move': 1107 } },
+      { autoExtraByTarget: { 'goal-move': 168 } },
+    ];
+    renderInAugust();
+    openTransfers();
+
+    const row = screen.getByText('Move Fund Contribution').closest('div.border-b');
+    expect(row?.textContent).toContain('+ $1,107 extra this month');
+    expect(row?.textContent).not.toContain('next:');
   });
 
   it('counts the contribution in the tab total', () => {
