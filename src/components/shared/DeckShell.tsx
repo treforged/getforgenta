@@ -34,13 +34,34 @@ export default function DeckShell({
 }: DeckShellProps) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain"
+      // ⚠️ THE PHONE'S EDGES ARE NOT THE VIEWPORT'S EDGES (Tre, 2026-08-27: "the transaction pop up
+      // selector doesnt respect the phone boundries", with a screenshot showing the header running
+      // under the status-bar clock and the card cut off at the right).
+      //
+      // Two separate faults, and both are fixed here rather than on whichever child happened to
+      // trigger them:
+      //   1. `pt-4` is 16px, which is inside the notch/status bar on every modern phone. This is a
+      //      Capacitor webview, so the real inset is `env(safe-area-inset-*)` — the same mechanism
+      //      the goal modals already use for the bottom.
+      //   2. `overflow-y-auto` alone still lets a too-wide child scroll the overlay sideways, and a
+      //      fixed overlay that scrolls sideways reads as a broken window rather than as content.
+      //      `overflow-x-hidden` makes the boundary real no matter what is inside it.
+      className="fixed inset-0 z-50 bg-background overflow-y-auto overflow-x-hidden overscroll-contain"
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={label}
       data-testid={testId}
     >
-      <div className="mx-auto w-full max-w-md px-4 pt-4 pb-10 space-y-4">
+      {/* `max-w-full` beside `max-w-md`: on a phone narrower than 448px the max-width must be the
+          SCREEN, and `min-w-0` is what lets a long unbroken merchant string wrap instead of
+          setting the column's width. */}
+      <div className="mx-auto w-full min-w-0 max-w-full sm:max-w-md px-4 pt-4 pb-10 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             {complete ? 'Done' : `${progress?.position ?? 0} of ${progress?.total ?? 0}`}

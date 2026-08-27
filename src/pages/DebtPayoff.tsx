@@ -151,13 +151,18 @@ export default function DebtPayoff() {
     if (paired?.surplus_sort_order == null) return null;
     if (!autoExtraTargets.has(paired.id)) return null;
     const balances = projections.nonCCLiabilityBalancesById.get(paired.id);
-    if (!balances) return null;
-    const firstZero = balances.findIndex(b => b <= 0);
-    if (firstZero <= 0) return null;
+    // ⚠️ A COUNT, NOT AN INDEX, and that is the whole reason for the `+ 1`. The helper answers
+    // "which month index is it cleared in" (0 = this month); a row cleared in index m took m + 1
+    // months. Tre, 2026-08-27: "the same should apply for all loans" — this row carried the same
+    // off-by-one the two DATE readouts did, in the same direction, and for the same reason: the
+    // balance array means one thing before an extra touches an entry and another after.
+    const idx = extraAwarePayoffMonthIndex(balances, autoExtraTargets.get(paired.id));
+    if (idx == null) return null;
+    const months = idx + 1;
     // The SAME balance the row displays, or the comparison that decides whether to show the
     // "with extra payments" line would be against a number the user cannot see.
     const scheduled = calculatePayoffMonths(liabilityBalance(d), Number(d.apr), Number(d.target_payment));
-    return firstZero < scheduled ? firstZero : null;
+    return months < scheduled ? months : null;
   };
 
   // Same readout for a live vehicle loan, from the engine's id-keyed loan balance arrays.
