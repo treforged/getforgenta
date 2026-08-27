@@ -357,8 +357,14 @@ export default function DebtPayoff() {
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
-      <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      {/* ⚠️ NOT `flex-wrap`, and the two controls are ONE group (Tre, 2026-08-27: "keep the add
+          account button to the right on the debt payoff tab"). Wrapping put Add Account and the
+          guide on their own line under the title, where `justify-between` then pushed them to
+          OPPOSITE ends — so the button read as left-aligned at exactly the widths a phone uses.
+          The title takes the slack (`flex-1`) and its subtitle already truncates, so the actions
+          keep their intrinsic width and stay pinned right at every width. */}
+      <div className="flex items-start sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div className="min-w-0">
             {/* Section label, not a hero: the hero number on the cards tab outranks the page
                 title (DIRECTION.md rule 2). Still an h1 — demoting the type must not demote the
@@ -367,20 +373,22 @@ export default function DebtPayoff() {
             <p className="text-xs text-muted-foreground mt-0.5 truncate">Eliminate debt with realistic, due-date-aware projections</p>
           </div>
         </div>
-        <Link
-          to={`/accounts?new=1&type=${
-            activeTab === 'cards' ? 'credit_card'
-            : activeTab === 'auto' ? 'auto_loan'
-            : activeTab === 'mortgage' ? 'mortgage'
-            : activeTab === 'student' ? 'student_loan'
-            : 'other_liability'
-          }`}
-          className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          <Plus size={12} /> Add Account
-        </Link>
-        <SurfaceGuide surface="debt" />
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to={`/accounts?new=1&type=${
+              activeTab === 'cards' ? 'credit_card'
+              : activeTab === 'auto' ? 'auto_loan'
+              : activeTab === 'mortgage' ? 'mortgage'
+              : activeTab === 'student' ? 'student_loan'
+              : 'other_liability'
+            }`}
+            className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0 whitespace-nowrap"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <Plus size={12} /> Add Account
+          </Link>
+          <SurfaceGuide surface="debt" />
+        </div>
       </div>
 
       {isDemo && (

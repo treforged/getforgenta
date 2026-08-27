@@ -26,13 +26,15 @@ const navItems = [
   // width trade that comes with the longer word.
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
-  { to: '/vehicles', icon: Car, label: 'Garage' },
   // Goals is a PANEL of the Dashboard now, for the same reason and by the same route as Accounts
   // and Budget Control (Tre, 2026-08-20: "move the goals section to the home/command center tab …
   // it makes more sense there."). `/goals` still resolves — it redirects to
   // `/dashboard?tab=goals` — so every bookmark and every in-app link keeps landing; what it
   // stopped being is a row of its own.
+  // Forecast ahead of Garage (Tre, 2026-08-27: "put forecast before the garage tab"), which is
+  // also the order the phone bar has always used.
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
+  { to: '/vehicles', icon: Car, label: 'Garage' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/premium', icon: Crown, label: 'Upgrade' },
