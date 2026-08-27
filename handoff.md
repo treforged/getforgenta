@@ -1,5 +1,74 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36a — **`4920e5c0`. tsc 0, 288 files / 3045 tests, eslint
+> clean. 29 commits unpushed.** Queue item 1 (Transfers tab) is SHIPPED and
+> LIVE-VERIFIED on his own data. No executor spawned; manager built it.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - `4920e5c0` **a savings goal's `monthly_contribution` is a real standing
+>   transfer, and the Transfers tab now lists it.** The tab only ever read
+>   `recurring_rules`, so his $510/mo move-fund contribution was invisible on the
+>   one page whose job is to say where the money goes.
+>   - `goalTransferRules` (BudgetControl.tsx) synthesises one row per goal funded
+>     by its OWN column, tagged "from goal", not editable here. Counts in the tab
+>     total, the Transfers tile and the calc drawer — the money genuinely leaves,
+>     same precedent the "from payoff" debt rows set. `isSyntheticRule` now
+>     gates all four mutation sites so a fifth cannot be missed.
+>   - ⚠️ ONLY goals NOT funded by a real rule. A goal with `linked_rule_ids` is
+>     already listed as that rule (`SavingsGoals` reads the same precedence); a
+>     second row would double the money on screen AND in the total. Pinned by a
+>     test.
+>   - The ranked extra rides beside it in his wording — `$510/mo + $1,107 extra
+>     this month` — and renders ONLY when there is one. **Never "$0 extra this
+>     month"**, per his explicit ask. The calc drawer LISTS the extra and never
+>     sums it in: it comes from the same surplus the debt recs are already sized
+>     from, so adding it would spend the same dollars twice.
+>   - **`autoExtraForGoalAtMonth` (auto-extra-projection.ts) is new and
+>     load-bearing.** A goal is NOT always one target: `stopRowId` gives stop 1
+>     the goal's own id and later stops `${goalId}::stopN`, so a bare
+>     `map.get(goalId)` goes blind once a STAGED goal moves past stop 1 — and his
+>     move fund is exactly a staged goal. Would-fail test pins it.
+>     ⚠️ **`SavingsGoals.tsx` still does the bare `extraByGoal?.get(g.id)` lookup
+>     (line ~329, `toGrowthGoal`) and has the same latent blind spot.** Not
+>     touched this session; its own slice.
+>
+> ⚠️ **LIVE, ON HIS DATA, MEASURED:** Transfers tab now lists "Move fund, then
+> emergency fund Contribution **$510/mo**" and "401K Roth Contribution
+> **$237/mo**"; tab total **$130 → $877**. **No extra line appears, and that is
+> CORRECT**: from `window.__convergenceDebug.forecastResult.data`, month 0 has
+> `autoExtraByTarget {}` and `debtPayment 0` — there is no surplus at all this
+> month. The FIRST ranked extra lands **month 12 (Aug 2027, $168)**, and 40 of
+> the 60 months carry one. His "$1,107 extra this month" figure is from an
+> earlier state, not today's numbers.
+> ⚠️ Also measured in passing, and it CONTRADICTS an older note: the debt-cash
+> loop **converged: true, passes: 20** on his live data today.
+>
+> ⬜ **NEW, OPENED BY THIS COMMIT:** when this month has no extra the row says
+> nothing. His ask said "upcoming transfers/extras", so **show the NEXT upcoming
+> extra** ("next: $168 in Aug 2027") instead of silence. Small, honest, and the
+> data is already in the same map. Queued, not built — the context gate fired.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER (old item 1 now done) ═══
+> 1. **Budget Control de-duplication vs the Dashboard** — move, don't delete.
+>    ⚠️ DO THE SUSPICIOUS ONES FIRST: **Debt Payments reads $0** and the donut says
+>    Debt 0% while he has real card + loan payments, and **Remaining Cash reads
+>    $0**. Those look WRONG, not duplicated; moving a broken number moves the bug.
+>    ⚠️ NOTE: month 0 really does have `debtPayment 0` in the engine right now, so
+>    check the ENGINE before calling the UI wrong.
+> 2. The "next upcoming extra" row above.
+> 3. `SavingsGoals.tsx` growth chart's bare goal-id extra lookup (staged blind spot).
+> 4. `vehicle-loan-engine.ts:110/:166` — for a loan whose FIRST PAYMENT IS IN THE
+>    FUTURE, `Math.max(0, …)` makes `schedule[monthsElapsed + i]` a month early on
+>    EVERY surface. The seed ring-fenced by `160803bc`. Its own slice.
+> 5. Charts for student loans / mortgage / other debts (the CC tab has one).
+> 6. Generalise `levelMonthlyToDate` to any dated target.
+> 7. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 8. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 9. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 10. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+
 > ▶ 2026-08-27 SESSION 35z — **`82076865`. tsc 0, 286 files / 3035 tests, eslint
 > clean. 27 commits unpushed.** Queue item 1 is SHIPPED. Manager wrote the engine
 > money math itself, as the queue required; no executor was spawned.
