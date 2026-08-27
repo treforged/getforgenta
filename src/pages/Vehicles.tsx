@@ -653,8 +653,19 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
     const idx = (d.getFullYear() * 12 + d.getMonth()) - nowBaseMonth;
     // undefined, never 0: recharts skips an undefined point but would draw a line
     // down to zero for a 0, inventing a paid-off loan past the projection horizon.
-    const autoBalance = receivesAutoExtra && extraBalances && idx >= 0 && idx < extraBalances.length
-      ? extraBalances[idx]
+    // ⚠️ ONE CHART, ONE CONVENTION. The solid line is `r.endBalance` — the balance at the END of
+    // the month. The engine's array is the balance a month OPENS at (reduced from index i
+    // INCLUSIVE by that month's extra), so plotting `extraBalances[idx]` beside it drew the two
+    // lines a month out of step: measured 2026-08-27 on a C5 fixture, Oct 2026 solid $15,674.80
+    // against dashed $15,962.28 — the gap is exactly that month's principal, and it put the
+    // ACCELERATED line ABOVE the un-accelerated one. The extras line looked worse than doing
+    // nothing.
+    //
+    // End of month i is what month i+1 opens at, plus back the extra that month i+1 has already
+    // had subtracted from it — because the reducer takes each month's extra off its own entry.
+    const nextIdx = idx + 1;
+    const autoBalance = receivesAutoExtra && extraBalances && idx >= 0 && nextIdx < extraBalances.length
+      ? Math.max(0, extraBalances[nextIdx] + (autoExtraMonths?.[nextIdx] ?? 0))
       : undefined;
     return { month: r.month, date: r.date, balance: r.endBalance, autoBalance };
   });
