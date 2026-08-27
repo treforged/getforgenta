@@ -1,7 +1,7 @@
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
-import { useState, useMemo, useCallback } from 'react';
-import { Link } from 'react-router';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { DebtSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
@@ -10,7 +10,7 @@ import FormModal from '@/components/shared/FormModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
-import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
+import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
 import { projectLiabilityBalances } from '@/lib/non-cc-liabilities';
@@ -21,6 +21,8 @@ import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
+import { debtTabFromSearch, type DebtTab } from '@/lib/debt-tab';
+import VehicleMoneyPanels from '@/components/vehicles/VehicleMoneyPanels';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -61,7 +63,21 @@ export default function DebtPayoff() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = usePersistedState<'cards' | 'auto' | 'mortgage' | 'student' | 'other'>('tre:debtpayoff:activeTab', 'cards');
+  const [activeTab, setActiveTab] = usePersistedState<DebtTab>('tre:debtpayoff:activeTab', 'cards');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // A deep link (`/debt?tab=auto`, which is what the Garage's car list points at now that the
+  // vehicle money lives here) names the panel it means; the persisted tab cannot. Honoured once,
+  // then stripped, so a later reload is a plain visit and the user's own tab wins again — the same
+  // rule the Garage follows for `?tab=builds`.
+  const askedTab = debtTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
 
   const ccAccountNames = useMemo(() => new Set(
     accounts?.filter(a => a.account_type === 'credit_card').map(a => a.name.toLowerCase()) ?? []
@@ -169,27 +185,6 @@ export default function DebtPayoff() {
     return months < scheduled ? months : null;
   };
 
-  // Same readout for a live vehicle loan, from the engine's id-keyed loan balance arrays.
-  // balances[i] is the balance month i OPENS at, so the final payment lands in month
-  // firstZero - 1 - the same month payoffDate names when no extra money reaches the loan, which
-  // is what keeps this line hidden until the ranked waterfall actually accelerates the payoff.
-  // ⚠️ THE MONTH IS NOT ALWAYS `firstZero - 1`. That array carries two conventions - seeded as the
-  // balance a month OPENS at, then reduced from index i INCLUSIVE by the extras - so subtracting
-  // one is right when amortization runs it out and a month EARLY when an extra is what finished it.
-  // `extraAwarePayoffMonthIndex` is the one place that reads them, shared with the Garage card so
-  // the two surfaces cannot print different dates for the same loan (they did, 2026-08-27).
-  const withExtrasAutoPayoff = (fundId: string, scheduledPayoffDate: string): string | null => {
-    if (!autoExtraTargets.has(fundId)) return null;
-    const balances = projections.carLoanBalancesByFundId.get(fundId);
-    const idx = extraAwarePayoffMonthIndex(balances, autoExtraTargets.get(fundId));
-    if (idx == null) return null;
-    const now = new Date();
-    const extras = new Date(now.getFullYear(), now.getMonth() + idx, 1);
-    const sched = new Date(scheduledPayoffDate + 'T00:00:00');
-    if (extras.getFullYear() * 12 + extras.getMonth() >= sched.getFullYear() * 12 + sched.getMonth()) return null;
-    return extras.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
-
   /**
    * The lines the Mortgage / Student Loans / Other Debts trajectory chart draws.
    *
@@ -288,7 +283,6 @@ export default function DebtPayoff() {
 
   const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
-  const savingVehicles = useMemo(() => carFunds.filter(c => c.phase === 'saving'), [carFunds]);
 
   /**
    * The same chart for the Auto Loans tab, from the engine's per-fund arrays.
@@ -488,110 +482,13 @@ export default function DebtPayoff() {
             storageKey="tre:debtpayoff:auto:chart-years"
             icon={Car}
           />
-          <div className="space-y-3">
-            {loanVehicles.map(cf => {
-              if (!cf.payment_start_date || !cf.loan_start_date) return null;
-              const proj = buildAmortizationSchedule({
-                loanAmount: cf.loan_amount, apr: cf.expected_apr, termMonths: cf.loan_term_months,
-                loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
-                interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
-                actualMonthlyPayment: cf.actual_monthly_payment,
-                lumpSumPayments: cf.lump_sum_payments ?? [],
-                // Live balance from the linked account, when there is one — so this page cannot
-                // disagree with /vehicles or the forecast about what is owed.
-                currentBalance: cf.current_balance_override ?? null,
-              });
-              const payoffFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-              const extrasPayoff = withExtrasAutoPayoff(cf.id, proj.payoffDate);
-              return (
-                <div key={cf.id} className="card-forged p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Car size={15} className="text-success shrink-0" />
-                      <div>
-                        <h3 className="text-sm font-semibold">{cf.vehicle_name}</h3>
-                        <p className="text-xs text-muted-foreground">{cf.expected_apr}% APR · {cf.loan_term_months} mo loan</p>
-                      </div>
-                    </div>
-                    <p className="text-lg font-display font-bold text-destructive">{formatCurrency(proj.remainingBalance, false)}</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><p className="text-xs text-muted-foreground">Monthly Pmt</p><p className="text-xs font-semibold text-primary">{formatCurrency(proj.effectivePayment, false)}/mo</p></div>
-                    <div>
-                      {/* ⚠️ THE EXTRA-AWARE DATE LEADS (Tre, 2026-08-27: "the payoff date with extra
-                          payments should be the default big number shown. the original without
-                          should be small below it"). It is the date the money he has actually
-                          ranked will produce; the scheduled one is what would happen if he stopped,
-                          and leading with that made the plan he set up read as the footnote. */}
-                      <p className="text-xs text-muted-foreground">Payoff</p>
-                      {extrasPayoff ? (
-                        <>
-                          <p className="text-xs font-semibold text-primary">{extrasPayoff}</p>
-                          <p className="text-[10px] text-muted-foreground">{payoffFmt} without extra payments</p>
-                        </>
-                      ) : (
-                        <p className="text-xs font-semibold">{payoffFmt}</p>
-                      )}
-                    </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
-                  </div>
-                  <Link to="/vehicles" className="mt-3 text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline block">
-                    Edit on Vehicles page →
-                  </Link>
-                </div>
-              );
-            })}
-            {loanVehicles.length === 0 && savingVehicles.length === 0 && (
-              <div className="card-forged p-12 text-center">
-                <Car size={28} className="text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No active auto loans.</p>
-                <Link to="/vehicles" className="mt-2 text-xs text-primary hover:underline block">Set up on the Vehicles page →</Link>
-              </div>
-            )}
-          </div>
-
-          {savingVehicles.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Planned Loans — Estimate</p>
-              {savingVehicles.map(cf => {
-                const loanPrincipal = Math.max(0, Number(cf.target_price || 0) + Number(cf.tax_fees || 0) - Number(cf.down_payment_goal || 0));
-                const termMonths = Number(cf.loan_term_months) || 60;
-                const apr = Number(cf.expected_apr) || 0;
-                const payment = calculateScheduledPayment(loanPrincipal, apr, termMonths);
-                const totalInterest = payment * termMonths - loanPrincipal;
-                let payoffDesc = `~${termMonths} months after purchase`;
-                if (cf.planned_purchase_date) {
-                  const parts = (cf.planned_purchase_date as string).split('-').map(Number);
-                  const payoff = new Date(parts[0], parts[1] - 1 + termMonths, 1);
-                  payoffDesc = payoff.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                }
-                return (
-                  <div key={cf.id} className="card-forged p-4 border-dashed opacity-80">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Car size={15} className="text-muted-foreground shrink-0" />
-                        <div>
-                          <h3 className="text-sm font-semibold">{cf.vehicle_name}</h3>
-                          <p className="text-xs text-muted-foreground">{apr}% APR · {termMonths} mo loan · Saving phase</p>
-                        </div>
-                      </div>
-                      <p className="text-lg font-display font-bold text-muted-foreground">{formatCurrency(loanPrincipal, false)}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 text-center">
-                      <div><p className="text-xs text-muted-foreground">Est. Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(payment, false)}/mo</p></div>
-                      <div><p className="text-xs text-muted-foreground">Payoff Est.</p><p className="text-xs font-semibold">{payoffDesc}</p></div>
-                      <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(Math.max(0, totalInterest), false)}</p></div>
-                    </div>
-                    <Link to="/vehicles" className="mt-3 text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline block">
-                      Edit on Vehicles page →
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground">Auto loans are managed on the <Link to="/vehicles" className="text-primary hover:underline">Vehicles page</Link>. Monthly payments automatically flow into Forecast.</p>
+          {/* ⚠️ THE VEHICLE MONEY LIVES HERE NOW (Tre, 2026-08-27: "move saving for down payment
+              and active loans to the auto loans section inside the debt payoff tab. it makes more
+              since there"). What stood here was a READ-ONLY copy of these same cars — a loan card
+              and a "Planned Loans — Estimate" card, each ending in an "Edit on Vehicles page"
+              link. The panel below is the real thing, writes included, so the round trip is gone
+              and there is still only one derivation of a car's money. */}
+          <VehicleMoneyPanels />
         </div>
       )}
 

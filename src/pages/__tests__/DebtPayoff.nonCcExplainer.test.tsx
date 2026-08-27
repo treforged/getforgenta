@@ -16,8 +16,12 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useRecurringRules: () => ({ data: [] }),
   useProfile: () => ({ data: { weekly_gross_income: 0, tax_rate: 0 }, loading: false }),
   useSavingsGoals: () => ({ data: [] }),
-  useCarFunds: () => ({ data: [], loading: false }),
+  useCarFunds: () => ({ data: [], add: { mutate: vi.fn() }, update: { mutate: vi.fn() }, remove: { mutate: vi.fn() }, loading: false }),
   usePaymentPlans: () => ({ data: [], loading: false }),
+  // Reached through `useMatchedOccurrences`, which the vehicle-money panel on the Auto Loans tab
+  // pulls in since that panel moved off the Garage (2026-08-27).
+  useSyncedTransactions: () => ({ data: [] }),
+  useSyncedTransactionReviewsQuery: () => ({ data: [] }),
 }));
 
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));

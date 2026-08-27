@@ -1058,7 +1058,7 @@ export default function Dashboard() {
       case 'car_goal':
         if (!carGoalData) return null;
         return (
-          <div key="car_goal" className="card-forged p-5 card-clickable" onClick={() => navigate(carGoalData.isCarFund ? '/vehicles' : '/goals')}>
+          <div key="car_goal" className="card-forged p-5 card-clickable" onClick={() => navigate(carGoalData.isCarFund ? '/debt?tab=auto' : '/goals')}>
             <div className="flex items-center gap-2 mb-4">
               <Car size={14} className="text-primary" />
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>

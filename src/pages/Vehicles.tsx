@@ -1,1055 +1,44 @@
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import DateScrollPicker from '@/components/shared/DateScrollPicker';
+import { useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
-import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Skeleton } from '@/components/ui/skeleton';
-import FormModal, { type Field } from '@/components/shared/FormModal';
-import ProgressBar from '@/components/shared/ProgressBar';
-import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
-import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, getCarFundSaved, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
-import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
-import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
-import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
-import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
+import { formatCurrency } from '@/lib/calculations';
+import { getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { useCarFunds, useAccounts } from '@/hooks/useSupabaseData';
 import { useDemo } from '@/contexts/DemoContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import Builds from '@/pages/Builds';
-import { garageTabFromSearch, type GarageTab } from '@/lib/garage-tab';
-import { Plus, Edit2, Trash2, Car, TrendingDown, Wrench, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
-import { filterProfanity, LIMITS } from '@/lib/content-filter';
-import { toast } from 'sonner';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
-import type { CarFund, CarFundSavedSource } from '@/lib/types';
-import { isLiabilityAccountType } from '@/lib/net-worth';
-import type { Json } from '@/integrations/supabase/types';
-
-const toMonthly = (amount: number, freq: string) =>
-  freq === 'weekly' ? amount * 52 / 12
-  : freq === 'biweekly' ? amount * 26 / 12
-  : freq === 'yearly' ? amount / 12
-  : amount;
-
-const emptySavingForm = {
-  vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', gift_contribution: '',
-  current_saved: '', monthly_insurance: '', expected_apr: '', loan_term_months: '60',
-  saved_source: 'fixed', saved_percent: '',
-  linked_account: '', linked_rule_id: '', planned_purchase_date: '',
-  payment_start_date: '', insurance_start_date: '',
-};
-
-const emptyLoanForm = {
-  vehicle_name: '', loan_amount: '', expected_apr: '', loan_term_months: '60',
-  loan_start_date: '', payment_start_date: '', interest_start_date: '', actual_monthly_payment: '',
-  monthly_insurance: '', loan_payment_account: '', insurance_start_date: '', linked_loan_account_id: '',
-};
-
-function addMonthsStr(dateStr: string, n: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setMonth(d.getMonth() + n);
-  return d.toISOString().split('T')[0];
-}
-
-function fmtDate(iso: string | null | undefined) {
-  if (!iso) return null;
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
-
-function LumpSumModal({
-  mode, initialDate, initialAmount, initialCount, schedule, liquidCash, onSave, onClose,
-}: {
-  mode: 'add' | 'edit';
-  initialDate: string;
-  initialAmount: string;
-  initialCount?: string;
-  schedule: { date: string; startBalance: number }[];
-  liquidCash?: number;
-  onSave: (entries: { date: string; amount: number }[]) => void;
-  onClose: () => void;
-}) {
-  const [date, setDate] = useState(initialDate);
-  const [amount, setAmount] = useState(initialAmount);
-  // Editable in both modes - lets the user grow/shrink a range or turn a single month into one.
-  const [repeatMonths, setRepeatMonths] = useState(initialCount ?? '1');
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  const bal = date
-    ? (schedule.find(r => r.date.substring(0, 7) === date.substring(0, 7))?.startBalance ?? null)
-    : null;
-  const canSave = !!date && parseFloat(amount) > 0;
-
-  const handleSave = () => {
-    const amt = parseFloat(amount);
-    if (!date || !amt || amt <= 0) return;
-    const count = Math.max(1, Math.min(60, parseInt(repeatMonths) || 1));
-    const entries = Array.from({ length: count }, (_, k) => ({ date: addMonthsStr(date, k), amount: amt }));
-    onSave(entries);
-  };
-
-  return (
-    <div
-      className="modal-overlay z-60"
-      style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
-      onClick={onClose}
-    >
-      <div
-        className="card-forged w-full sm:max-w-md flex flex-col rounded-(--radius)"
-        style={{ maxHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
-          <h2 className="font-display font-semibold text-sm">{mode === 'add' ? 'Add Extra Payment' : 'Edit Extra Payment'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-4 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Date</p>
-            <DateScrollPicker value={date} onChange={setDate} />
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-            <input
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
-              style={{ borderRadius: 'var(--radius)' }}
-            />
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-              Months <span className="text-muted-foreground/60">(consecutive, starting this date)</span>
-            </p>
-            <input
-              type="number"
-              min={1}
-              max={60}
-              placeholder="1"
-              value={repeatMonths}
-              onChange={e => setRepeatMonths(e.target.value)}
-              className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
-              style={{ borderRadius: 'var(--radius)' }}
-            />
-          </div>
-          {date && (bal !== null || liquidCash !== undefined) && (
-            <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
-              {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal, false)}</span></span>}
-              {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>}
-            </div>
-          )}
-        </div>
-
-        <div className="px-4 sm:px-6 pt-3 pb-5 sm:pb-6 shrink-0 border-t border-border mt-1">
-          <button
-            onClick={handleSave}
-            disabled={!canSave}
-            className="w-full bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            <Check size={14} />
-            {mode === 'add' ? 'Add Payment' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface LumpSumGroup {
-  ids: string[];
-  startDate: string;
-  endDate: string;
-  amount: number;
-  count: number;
-}
-
-// Merges consecutive same-amount monthly entries (e.g. from the "Repeat" add option) into a
-// single range row, so 5 separate $500 rows for Jun–Oct show as one "Jun 2026 – Oct 2026" row.
-function groupConsecutiveLumpSums(lumpSums: LumpSumPayment[]): LumpSumGroup[] {
-  const sorted = [...lumpSums].sort((a, b) => a.date.localeCompare(b.date));
-  const groups: LumpSumGroup[] = [];
-  for (const ls of sorted) {
-    const last = groups[groups.length - 1];
-    if (last && last.amount === ls.amount && addMonthsStr(last.endDate, 1) === ls.date) {
-      last.ids.push(ls.id);
-      last.endDate = ls.date;
-      last.count += 1;
-    } else {
-      groups.push({ ids: [ls.id], startDate: ls.date, endDate: ls.date, amount: ls.amount, count: 1 });
-    }
-  }
-  return groups;
-}
-
-function LumpSumPanel({
-  schedule,
-  lumpSums,
-  baseTotalInterest,
-  withLumpsTotalInterest,
-  basePayoffDate,
-  withLumpsPayoffDate,
-  onAdd,
-  onRemove,
-  onReplace,
-  label = 'Planned Extra Payments',
-  liquidCash,
-  autoExtraOn,
-}: {
-  schedule: { date: string; startBalance: number }[];
-  lumpSums: LumpSumPayment[];
-  baseTotalInterest: number;
-  withLumpsTotalInterest: number;
-  basePayoffDate: string;
-  withLumpsPayoffDate: string;
-  onAdd: (entries: LumpSumPayment[]) => void;
-  onRemove: (ids: string[]) => void;
-  onReplace: (oldIds: string[], entries: { date: string; amount: number }[]) => void;
-  label?: string;
-  liquidCash?: number;
-  /** The ranked auto-extra SWITCH for this target, not whether the waterfall currently
-   *  reaches it. A user who opted in should not be typing manual extras even in a month
-   *  the surplus never arrives, because the two are two answers to the same question. */
-  autoExtraOn?: boolean;
-}) {
-  const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; ids: string[]; date: string; amount: string; count: string }>(null);
-
-  const getBalanceBefore = (dateStr: string) => {
-    const month = dateStr.substring(0, 7);
-    return schedule.find(r => r.date.substring(0, 7) === month)?.startBalance ?? null;
-  };
-
-  const baseD = new Date(basePayoffDate + 'T00:00:00');
-  const newD = new Date(withLumpsPayoffDate + 'T00:00:00');
-  const monthsSaved = (baseD.getFullYear() - newD.getFullYear()) * 12 + (baseD.getMonth() - newD.getMonth());
-  const interestSaved = Math.max(0, Math.round((baseTotalInterest - withLumpsTotalInterest) * 100) / 100);
-  const hasLumps = lumpSums.length > 0;
-
-  return (
-    <div className="space-y-2 border-t border-border/30 pt-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium">{label}</span>
-        <button
-          onClick={() => setModal({ mode: 'add' })}
-          disabled={!!autoExtraOn}
-          className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Plus size={10} /> Add
-        </button>
-      </div>
-
-      {autoExtraOn && (
-        <p className="text-[10px] text-muted-foreground">
-          Extra payments here are handled automatically from your left-over cash, so manual ones are
-          turned off. Change that under "Where the extra money goes".
-        </p>
-      )}
-
-      {!autoExtraOn && !hasLumps && (
-        <p className="text-[10px] text-muted-foreground">No extra payments planned. Add one to see how it shortens your payoff.</p>
-      )}
-
-      {hasLumps && (
-        <div className="space-y-1">
-          {groupConsecutiveLumpSums(lumpSums).map(g => {
-            const bal = getBalanceBefore(g.startDate);
-            const isRange = g.count > 1;
-            const startLabel = new Date(g.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            const endLabel = new Date(g.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            return (
-              <div key={g.ids.join(',')} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
-                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <span className="text-[10px] font-medium shrink-0">{isRange ? `${startLabel} – ${endLabel}` : startLabel}</span>
-                  <span className="text-[10px] text-primary font-semibold shrink-0">
-                    {formatCurrency(g.amount, false)}{isRange ? `/mo × ${g.count}` : ''}
-                  </span>
-                  {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal, false)}</span>}
-                </div>
-                <div className="flex items-center gap-1 ml-2 shrink-0">
-                  <button onClick={() => setModal({ mode: 'edit', ids: g.ids, date: g.startDate, amount: String(g.amount), count: String(g.count) })} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-                  <button onClick={() => onRemove(g.ids)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {hasLumps && (monthsSaved > 0 || interestSaved > 0) && (
-        <div className="p-2 bg-success/5 border border-success/20 text-[10px] space-y-0.5" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-success font-semibold">Impact of extra payments:</p>
-          <div className="flex flex-wrap gap-3">
-            <span>Payoff: {new Date(withLumpsPayoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              {monthsSaved > 0 && <span className="text-muted-foreground"> ({monthsSaved} mo earlier)</span>}
-            </span>
-            {interestSaved > 0 && <span className="text-success">saves {formatCurrency(interestSaved, false)} interest</span>}
-          </div>
-        </div>
-      )}
-
-      {modal && (
-        <LumpSumModal
-          key={modal.mode === 'edit' ? modal.ids.join(',') : 'add'}
-          mode={modal.mode}
-          initialDate={modal.mode === 'edit' ? modal.date : ''}
-          initialAmount={modal.mode === 'edit' ? modal.amount : ''}
-          initialCount={modal.mode === 'edit' ? modal.count : '1'}
-          schedule={schedule}
-          liquidCash={liquidCash}
-          onSave={(entries) => {
-            if (modal.mode === 'add') {
-              onAdd(entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })));
-            } else {
-              onReplace(modal.ids, entries);
-            }
-            setModal(null);
-          }}
-          onClose={() => setModal(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function estimateSavingCompletion(downGoal: number, saved: number, monthly: number, plannedDate: string | null | undefined): string {
-  if (plannedDate) return fmtDate(plannedDate) ?? 'Set';
-  const rem = downGoal - saved;
-  if (rem <= 0) return 'Reached';
-  if (monthly <= 0) return 'Set contribution';
-  const months = Math.ceil(rem / monthly);
-  const dt = new Date();
-  dt.setMonth(dt.getMonth() + months);
-  return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
-function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums, liquidCash, availableAboveFloor, computedMonthlyNeeded }:
-  { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
-    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number; availableAboveFloor?: number; computedMonthlyNeeded?: number }) {
-  const gift = Number(cf.gift_contribution) || 0;
-  const personalGoal = Math.max(0, cf.down_payment_goal - gift);
-  // simMonthlyContrib is used for completion-date estimation only.
-  const simMonthlyContrib = (() => {
-    if (cf.linked_account) return 0;
-    const rem = Math.max(0, personalGoal - cf.current_saved);
-    if (rem <= 0) return 0;
-    let monthsToGoal = 12;
-    if (cf.planned_purchase_date) {
-      const parts = cf.planned_purchase_date.split('-').map(Number);
-      const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-      const now = new Date();
-      const diff = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());
-      monthsToGoal = Math.max(1, diff);
-    }
-    return Math.min(rem / monthsToGoal, rem);
-  })();
-  // For linked-account cars, live balance is the truth - don't layer checking surplus on top.
-  // For non-linked cars, add availableAboveFloor (end-of-month surplus projection) or simMonthlyContrib.
-  const simulatedSaved = linkedAccountName
-    ? Math.min(personalGoal, cf.current_saved)
-    : Math.min(personalGoal, cf.current_saved + (availableAboveFloor ?? simMonthlyContrib));
-  const pct = personalGoal > 0 ? Math.min((simulatedSaved / personalGoal) * 100, 100) : 100;
-  const monthlyEst = calculateMonthlyPayment(
-    cf.target_price + cf.tax_fees - cf.down_payment_goal,
-    cf.expected_apr,
-    cf.loan_term_months,
-  );
-  const monthly = monthlyContrib ?? 0;
-  // When no transfer rule is linked, show the computed amount needed per month to hit the goal.
-  const displayMonthly = monthly > 0 ? monthly : (computedMonthlyNeeded ?? 0);
-  const completionLabel = estimateSavingCompletion(personalGoal, cf.current_saved, displayMonthly, cf.planned_purchase_date);
-
-  const lumpSums: LumpSumPayment[] = useMemo(
-    () => Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [],
-    [cf.lump_sum_payments]
-  );
-
-  // Project the future loan so lump sums can be planned against it.
-  // Use the stored payment_start_date when available so the projected schedule matches
-  // Forecast/useCardProjection - falls back to purchase_date + 1 month for existing records.
-  const projectedBase = useMemo(() => {
-    if (!cf.planned_purchase_date) return null;
-    const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
-    if (loanAmt <= 0 || cf.loan_term_months <= 0) return null;
-    const payStart = cf.payment_start_date || addMonthsStr(cf.planned_purchase_date, 1);
-    return buildAmortizationSchedule({
-      loanAmount: loanAmt, apr: cf.expected_apr, termMonths: cf.loan_term_months,
-      loanStartDate: cf.planned_purchase_date, paymentStartDate: payStart, interestStartDate: payStart,
-      actualMonthlyPayment: 0,
-    });
-  }, [cf]);
-
-  const projectedWithLumps = useMemo(() => {
-    if (!projectedBase || lumpSums.length === 0) return projectedBase;
-    const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
-    const payStart = cf.payment_start_date || addMonthsStr(cf.planned_purchase_date!, 1);
-    return buildAmortizationSchedule({
-      loanAmount: loanAmt, apr: cf.expected_apr, termMonths: cf.loan_term_months,
-      loanStartDate: cf.planned_purchase_date!, paymentStartDate: payStart, interestStartDate: payStart,
-      actualMonthlyPayment: 0, lumpSumPayments: lumpSums,
-    });
-  }, [projectedBase, lumpSums, cf]);
-
-  const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
-  const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));
-  const handleReplaceLumps = (oldIds: string[], entries: { date: string; amount: number }[]) =>
-    onSaveLumpSums([
-      ...lumpSums.filter(l => !oldIds.includes(l.id)),
-      ...entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })),
-    ]);
-  return (
-    <div className="card-forged p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <Car size={16} className="text-primary shrink-0" />
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold truncate">{cf.vehicle_name}</h3>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="text-xs text-muted-foreground">Saving for down payment</p>
-              {linkedAccountName && (
-                <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
-                  <Link2 size={8} /> {linkedAccountName}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0 ml-2">
-          <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
-        </div>
-      </div>
-
-      {cf.planned_purchase_date && (
-        <div className="flex items-center gap-1.5 px-2 py-1.5 bg-primary/5 border border-primary/15 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-          <CalendarClock size={12} className="text-primary shrink-0" />
-          <span className="text-primary/90 font-medium">Planned purchase: {fmtDate(cf.planned_purchase_date)}</span>
-        </div>
-      )}
-
-      <div>
-        <div className="flex justify-between text-xs mb-1">
-          <span className="text-muted-foreground">Down payment progress</span>
-          <span className="font-medium">
-            {formatCurrency(simulatedSaved, false)} / {formatCurrency(personalGoal, false)}
-            {gift > 0 && <span className="text-muted-foreground"> · {formatCurrency(cf.down_payment_goal, false)} total</span>}
-          </span>
-        </div>
-        <ProgressBar value={pct} max={100} />
-        {gift > 0 && (
-          <div className="flex items-center gap-1 mt-1">
-            <span className="text-[10px] px-1.5 py-0.5 bg-success/10 border border-success/20 text-success font-medium" style={{ borderRadius: 'var(--radius)' }}>
-              Gift/contribution: {formatCurrency(gift, false)} covered
-            </span>
-          </div>
-        )}
-        <p className="text-[10px] text-muted-foreground mt-1">
-          {Math.round(pct)}%{' '}
-          {cf.planned_purchase_date
-            ? `· Planned: ${fmtDate(cf.planned_purchase_date)}`
-            : displayMonthly > 0
-              ? `· Est. ready ${completionLabel}`
-              : linkedAccountName ? '· Balance auto-synced from account' : '· Set a transfer rule to estimate completion'}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-[10px] text-muted-foreground">Target Price</p>
-          <p className="text-xs font-semibold">{formatCurrency(cf.target_price, false)}</p>
-        </div>
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-[10px] text-muted-foreground">Est. Monthly Pmt</p>
-          <p className="text-xs font-semibold text-primary">{formatCurrency(monthlyEst, false)}</p>
-        </div>
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-[10px] text-muted-foreground">Insurance/mo</p>
-          <p className="text-xs font-semibold">{formatCurrency(cf.monthly_insurance, false)}</p>
-        </div>
-      </div>
-
-      {projectedBase && (
-        <div className="flex items-center justify-between px-2 py-1.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-          <span className="text-muted-foreground">Est. Loan Payoff</span>
-          <span className="font-semibold">
-            {new Date((projectedWithLumps?.payoffDate ?? projectedBase.payoffDate) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-          </span>
-        </div>
-      )}
-
-      {displayMonthly > 0 && (
-        <p className="text-[10px] text-primary/70 text-center">
-          {formatCurrency(displayMonthly, false)}/mo
-          {monthly > 0
-            ? (linkedAccountName ? ' · via transfer rule' : ' · contribution')
-            : ' · suggested to hit goal'}
-        </p>
-      )}
-
-      {/* projectedBase needs a planned purchase date + computable loan amount/term - when not yet
-          set, the panel below still works (list + add), it just can't show payoff-date/interest-
-          saved impact figures yet. Without the fallbacks here, the whole panel (including "Add")
-          used to disappear entirely until those fields were filled in. */}
-      <LumpSumPanel
-        autoExtraOn={cf.auto_extra === true}
-        schedule={projectedWithLumps?.schedule ?? projectedBase?.schedule ?? []}
-        lumpSums={lumpSums}
-        baseTotalInterest={projectedBase?.totalInterest ?? 0}
-        withLumpsTotalInterest={projectedWithLumps?.totalInterest ?? projectedBase?.totalInterest ?? 0}
-        basePayoffDate={projectedBase?.payoffDate ?? ''}
-        withLumpsPayoffDate={projectedWithLumps?.payoffDate ?? projectedBase?.payoffDate ?? ''}
-        onAdd={handleAddLump}
-        onRemove={handleRemoveLump}
-        onReplace={handleReplaceLumps}
-        label="Projected Extra Payments"
-        liquidCash={liquidCash}
-      />
-
-      <button
-        onClick={onBuyIt}
-        className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press"
-        style={{ borderRadius: 'var(--radius)' }}
-      >
-        <Car size={12} /> I bought it - start loan tracking
-      </button>
-    </div>
-  );
-}
-
-function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, onSaveLumpSums, liquidCash }:
-  { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number }) {
-  const lumpSums: LumpSumPayment[] = useMemo(
-    () => Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [],
-    [cf.lump_sum_payments]
-  );
-
-  const baseInput = useMemo(() => {
-    if (!cf.payment_start_date || !cf.loan_start_date) return null;
-    return {
-      loanAmount: cf.loan_amount, apr: cf.expected_apr, termMonths: cf.loan_term_months,
-      loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
-      interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
-      actualMonthlyPayment: cf.actual_monthly_payment,
-      // Resolved by useCarFunds from the linked account's live balance; null when unlinked.
-      currentBalance: cf.current_balance_override ?? null,
-    };
-  }, [cf]);
-
-  const proj = useMemo(() => baseInput ? buildAmortizationSchedule(baseInput) : null, [baseInput]);
-
-  const projWithLumps = useMemo(() => {
-    if (!baseInput || lumpSums.length === 0) return proj;
-    return buildAmortizationSchedule({ ...baseInput, lumpSumPayments: lumpSums });
-  }, [baseInput, lumpSums, proj]);
-
-  const [showSchedule, setShowSchedule] = useState(false);
-
-  // THE RANKED WATERFALL'S EXTRA PRINCIPAL, if this loan is receiving any. The card
-  // above models only the fund's OWN lump sums, so without this a user who ranked
-  // this loan under "Where the extra money goes" saw a payoff date that ignored the
-  // money actually going to it. Same arrays the /debt tabs read, so the two surfaces
-  // cannot disagree. Declared above the `if (!proj)` return because hooks cannot be
-  // conditional.
-  const { projections } = useCardProjectionContext();
-  const autoExtraMonths = useMemo(
-    () => buildAutoExtraByTarget(projections.data).get(cf.id) ?? null,
-    [projections.data, cf.id],
-  );
-  const extraBalances = useMemo(
-    () => projections.carLoanBalancesByFundId?.get(cf.id) ?? null,
-    [projections.carLoanBalancesByFundId, cf.id],
-  );
-  // Gated on money actually ARRIVING, not on the loan being rankable: a ranked target
-  // that the waterfall never reaches would otherwise get a line promising nothing.
-  const receivesAutoExtra = !!autoExtraMonths && autoExtraMonths.some(v => v > 0);
-  const nextAutoExtra = autoExtraMonths?.find(v => v > 0) ?? 0;
-  // The date the dashed line reaches zero. Without this the card shows a chart
-  // hitting zero in early 2029 next to a "Payoff Date" stat reading Jun 2030, and
-  // a user is left to decide which of the two the app means. balances[i] is the
-  // balance month i OPENS at, so the final payment lands in month firstZero - 1.
-  /**
-   * The same ranked extras, keyed by CALENDAR month, for the amortization schedule.
-   *
-   * ⚠️ THE JOIN IS A DATE, NOT A POSITION, and it is the same join the chart below already makes.
-   * `autoExtraMonths` is indexed from THIS month; the schedule's rows are dated from
-   * `payment_start_date`, which for a loan already running is in the past. Lining them up by index
-   * would credit a payment made next year to a row from last year.
-   */
-  const autoExtraByMonth = useMemo(() => {
-    if (!autoExtraMonths) return undefined;
-    const out: Record<string, number> = {};
-    const n = new Date();
-    autoExtraMonths.forEach((amount, i) => {
-      if (!(amount > 0)) return;
-      const d = new Date(n.getFullYear(), n.getMonth() + i, 1);
-      out[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = amount;
-    });
-    return Object.keys(out).length > 0 ? out : undefined;
-  }, [autoExtraMonths]);
-
-  /**
-   * The schedule as the money ACTUALLY goes: the fund's own lump sums AND the ranked extras.
-   *
-   * Tre, 2026-08-26: "for auto loan, the amortization schedule should be updated with the extra
-   * payments." The chart gained its extra-aware line in `6e676601`; the table underneath was still
-   * built from lump sums alone, so a user who ranked this loan read a table that contradicted the
-   * line directly above it.
-   */
-  const projWithExtras = useMemo(() => {
-    if (!baseInput || !autoExtraByMonth) return null;
-    return buildAmortizationSchedule({
-      ...baseInput,
-      ...(lumpSums.length > 0 ? { lumpSumPayments: lumpSums } : {}),
-      autoExtraByMonth,
-    });
-  }, [baseInput, lumpSums, autoExtraByMonth]);
-
-  // ⚠️ IT USED TO SUBTRACT ONE UNCONDITIONALLY, and on Tre's own C5 that printed "Jul 2029" above
-  // a schedule whose final payment lands in Aug - while the engine sent $2,343 of extra principal
-  // that August, into a loan the label claimed was already gone. The array carries two conventions;
-  // `extraAwarePayoffMonthIndex` is now the one place that reads them, shared with /debt.
-  const autoPayoffLabel = useMemo(() => {
-    if (!receivesAutoExtra) return null;
-    const idx = extraAwarePayoffMonthIndex(extraBalances, autoExtraMonths);
-    if (idx == null) return null;
-    const n = new Date();
-    return new Date(n.getFullYear(), n.getMonth() + idx, 1)
-      .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  }, [receivesAutoExtra, extraBalances, autoExtraMonths]);
-
-  const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
-  const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));
-  const handleReplaceLumps = (oldIds: string[], entries: { date: string; amount: number }[]) =>
-    onSaveLumpSums([
-      ...lumpSums.filter(l => !oldIds.includes(l.id)),
-      ...entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })),
-    ]);
-
-  if (!proj) return null;
-
-  // projWithLumps reflects extra payments - use it for everything the user actually sees.
-  // proj (base, no lumps) is kept only for the LumpSumPanel's "impact of extra payments" comparison below.
-  const effective = projWithLumps ?? proj;
-
-  const pct = cf.loan_amount > 0 ? ((cf.loan_amount - effective.remainingBalance) / cf.loan_amount) * 100 : 0;
-
-  // The engine's array is indexed by FORECAST month (index 0 is the current month)
-  // while the schedule is indexed by payment number, so the two are joined on the
-  // calendar month rather than on position.
-  const nowBaseMonth = (() => { const n = new Date(); return n.getFullYear() * 12 + n.getMonth(); })();
-  const chartData = effective.schedule.map(r => {
-    const d = new Date(r.date + 'T00:00:00');
-    const idx = (d.getFullYear() * 12 + d.getMonth()) - nowBaseMonth;
-    // undefined, never 0: recharts skips an undefined point but would draw a line
-    // down to zero for a 0, inventing a paid-off loan past the projection horizon.
-    // ⚠️ ONE CHART, ONE CONVENTION. The solid line is `r.endBalance` — the balance at the END of
-    // the month. The engine's array is the balance a month OPENS at (reduced from index i
-    // INCLUSIVE by that month's extra), so plotting `extraBalances[idx]` beside it drew the two
-    // lines a month out of step: measured 2026-08-27 on a C5 fixture, Oct 2026 solid $15,674.80
-    // against dashed $15,962.28 — the gap is exactly that month's principal, and it put the
-    // ACCELERATED line ABOVE the un-accelerated one. The extras line looked worse than doing
-    // nothing.
-    //
-    // End of month i is what month i+1 opens at, plus back the extra that month i+1 has already
-    // had subtracted from it — because the reducer takes each month's extra off its own entry.
-    const nextIdx = idx + 1;
-    const autoBalance = receivesAutoExtra && extraBalances && idx >= 0 && nextIdx < extraBalances.length
-      ? Math.max(0, extraBalances[nextIdx] + (autoExtraMonths?.[nextIdx] ?? 0))
-      : undefined;
-    return { month: r.month, date: r.date, balance: r.endBalance, autoBalance };
-  });
-
-  // One tick per calendar year (first chart point in each year) so the x-axis reads in years, not raw payment numbers.
-  const yearTicks: string[] = [];
-  const seenYears = new Set<string>();
-  chartData.forEach(d => {
-    const year = d.date.slice(0, 4);
-    if (!seenYears.has(year)) { seenYears.add(year); yearTicks.push(d.date); }
-  });
-
-  const payoffDateFmt = new Date(effective.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
-  return (
-    <div className="card-forged p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <Car size={16} className="text-success shrink-0" />
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold truncate">{cf.vehicle_name}</h3>
-            <p className="text-xs text-muted-foreground">{cf.expected_apr}% APR · {cf.loan_term_months} mo</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0 ml-2">
-          <span className="text-[10px] bg-success/15 text-success px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>Active Loan</span>
-          <button
-            onClick={onUndo}
-            className={`icon-btn text-sm flex items-center gap-1 px-2 ${undoConfirm ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
-            title={undoConfirm ? 'Click again to confirm undo' : 'Undo purchase - revert to saving phase'}
-          >
-            <Undo2 size={16} />
-            {undoConfirm && <span className="text-xs font-medium">Confirm?</span>}
-          </button>
-          <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
-        </div>
-      </div>
-
-      {effective.isDeferredInterest && effective.monthsElapsed === 0 && (
-        <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/20 text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
-          <AlertTriangle size={12} />
-          <span>Deferred interest until {new Date((cf.interest_start_date ?? '') + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-        </div>
-      )}
-
-      {effective.isNegativeAmortization && (
-        <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
-          <AlertTriangle size={12} />
-          <span>Payment is below interest-only - balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment, false)}/mo.</span>
-        </div>
-      )}
-
-      <div>
-        <div className="flex justify-between text-xs mb-1">
-          <span className="text-muted-foreground">Loan payoff progress</span>
-          <span className="font-medium">{formatCurrency(effective.remainingBalance, false)} remaining</span>
-        </div>
-        <ProgressBar value={Math.min(pct, 100)} max={100} />
-        <p className="text-[10px] text-muted-foreground mt-1">{Math.round(pct)}% paid · {effective.monthsElapsed} of {effective.schedule.length} payments made</p>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-[10px] text-muted-foreground">Monthly Payment</p>
-          <p className="text-xs font-semibold text-primary">{formatCurrency(effective.effectivePayment, false)}</p>
-        </div>
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          {/* ⚠️ THE EXTRA-AWARE DATE LEADS (Tre, 2026-08-27: "the payoff date with extra payments
-              should be the default big number shown. the original without should be small below
-              it"). This stat used to read Jun 2030 while the chart beneath it drew a line hitting
-              zero in 2029 — the plan he actually set up was the small print on his own card. */}
-          <p className="text-[10px] text-muted-foreground">Payoff Date</p>
-          {autoPayoffLabel ? (
-            <>
-              <p className="text-xs font-semibold text-primary">{autoPayoffLabel}</p>
-              <p className="text-[10px] text-muted-foreground">{payoffDateFmt} without extra</p>
-            </>
-          ) : (
-            <p className="text-xs font-semibold">{payoffDateFmt}</p>
-          )}
-        </div>
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-[10px] text-muted-foreground">Interest Paid</p>
-          <p className="text-xs font-semibold text-destructive">{formatCurrency(effective.interestPaidToDate, false)}</p>
-        </div>
-        <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-[10px] text-muted-foreground">Total Interest</p>
-          <p className="text-xs font-semibold text-muted-foreground">{formatCurrency(effective.totalInterest, false)}</p>
-        </div>
-      </div>
-
-      {chartData.length > 1 && (
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={chartData} margin={{ left: 0, right: 12, top: 8, bottom: 28 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,0%,15%)" />
-            {yearTicks.slice(1).map(t => (
-              <ReferenceLine key={t} x={t} stroke="hsl(0,0%,22%)" strokeDasharray="2 4" />
-            ))}
-            <XAxis
-              dataKey="date"
-              ticks={yearTicks}
-              tickFormatter={(d: string) => d.slice(0, 4)}
-              tick={{ fontSize: 12, fill: 'hsl(0,0%,100%)' }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: 'Year', position: 'insideBottom', offset: -8, fontSize: 12, fill: 'hsl(0,0%,100%)' }}
-            />
-            <YAxis tick={{ fontSize: 12, fill: 'hsl(0,0%,100%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} width={48} />
-            <Tooltip
-              contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,15%)', borderRadius: 'var(--radius)', fontSize: 12 }}
-              labelStyle={{ color: 'hsl(0,0%,100%)' }}
-              itemStyle={{ color: 'hsl(0,0%,100%)' }}
-              labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              formatter={(v, n) => [formatCurrency(Number(v), false), n === 'With auto extra' ? 'With auto extra' : 'Remaining']}
-            />
-            <Line dataKey="balance" name="Remaining" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
-            {receivesAutoExtra && (
-              <Line
-                type="monotone"
-                dataKey="autoBalance"
-                name="With auto extra"
-                stroke="hsl(var(--primary))"
-                strokeDasharray="4 3"
-                strokeWidth={2}
-                dot={false}
-                connectNulls={false}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
-      )}
-
-      {receivesAutoExtra && (
-        <p className="text-[10px] text-muted-foreground">
-          The dashed line adds {formatCurrency(nextAutoExtra, false)}/mo of extra principal, from
-          left-over cash after the bills{autoPayoffLabel ? `, paying this loan off by ${autoPayoffLabel}` : ''}.
-          You set that order under "Where the extra money goes".
-        </p>
-      )}
-
-      <LumpSumPanel
-        autoExtraOn={cf.auto_extra === true}
-        schedule={projWithLumps?.schedule ?? proj.schedule}
-        lumpSums={lumpSums}
-        baseTotalInterest={proj.totalInterest}
-        withLumpsTotalInterest={projWithLumps?.totalInterest ?? proj.totalInterest}
-        basePayoffDate={proj.payoffDate}
-        withLumpsPayoffDate={projWithLumps?.payoffDate ?? proj.payoffDate}
-        onAdd={handleAddLump}
-        onRemove={handleRemoveLump}
-        onReplace={handleReplaceLumps}
-        liquidCash={liquidCash}
-      />
-
-      <button
-        onClick={() => setShowSchedule(v => !v)}
-        className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-      >
-        {showSchedule ? 'Hide' : 'Show'} full amortization schedule
-      </button>
-
-      {showSchedule && (() => {
-        // The schedule the extras are in, when there are any. `scheduled` is what the table draws.
-        const shown = projWithExtras ?? effective;
-        return (
-          <div className="space-y-1.5">
-            {projWithExtras && (
-              // Never let a number move without saying why. The rows below are shorter and the
-              // balances fall faster than the loan's own terms, and without this line that reads
-              // as the app getting the arithmetic wrong.
-              <p className="text-[10px] text-muted-foreground">
-                Includes the automatic extra payments your ranked list sends this loan, so the
-                balances below are what you would actually owe.
-              </p>
-            )}
-            <div className="overflow-x-auto max-h-64 overflow-y-auto">
-              <table className="w-full text-[10px]">
-                <thead className="sticky top-0 bg-background">
-                  <tr className="text-muted-foreground">
-                    <th className="text-left py-1 px-1">#</th>
-                    <th className="text-left py-1 px-1">Month</th>
-                    <th className="text-right py-1 px-1">Payment</th>
-                    {projWithExtras && <th className="text-right py-1 px-1">Auto extra</th>}
-                    <th className="text-right py-1 px-1">Principal</th>
-                    <th className="text-right py-1 px-1">Interest</th>
-                    <th className="text-right py-1 px-1">Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.schedule.map(r => (
-                    <tr key={r.month} className={`border-t border-border/20 ${r.month === shown.monthsElapsed ? 'bg-primary/5' : ''}`}>
-                      <td className="py-1 px-1 text-muted-foreground">{r.month}</td>
-                      <td className="py-1 px-1 text-muted-foreground">{new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
-                      <td className="py-1 px-1 text-right">{formatCurrency(r.payment, false)}</td>
-                      {projWithExtras && (
-                        // A dash, not $0: a month the waterfall did not reach and a month it sent
-                        // nothing are the same thing, and printing $0 down a whole column reads as
-                        // a broken feature rather than as "not this month".
-                        <td className="py-1 px-1 text-right text-primary">
-                          {r.autoExtra > 0 ? formatCurrency(r.autoExtra, false) : '—'}
-                        </td>
-                      )}
-                      <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal, false)}</td>
-                      <td className="py-1 px-1 text-right text-destructive">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
-                      <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance, false)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })()}
-    </div>
-  );
-}
-
-function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions, onConfirm, onClose }:
-  {
-    cf: CarFund; accountOptions: { value: string; label: string }[];
-    autoLoanAccountOptions: { value: string; label: string }[];
-    onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void;
-  }) {
-  const today = new Date().toISOString().split('T')[0];
-  const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0];
-  // getLoanPrincipal - same formula the saving-phase projection uses (Forecast.tsx/
-  // useCardProjection.ts), so accepting this default with no edits doesn't change the payment.
-  const loanAmountDefault = getLoanPrincipal(cf);
-  const [form, setForm] = useState({
-    loan_amount: String(loanAmountDefault),
-    expected_apr: String(cf.expected_apr),
-    loan_term_months: String(cf.loan_term_months),
-    loan_start_date: cf.loan_start_date ?? cf.planned_purchase_date ?? today,
-    payment_start_date: cf.payment_start_date ?? nextMonth,
-    interest_start_date: cf.payment_start_date ?? nextMonth,
-    actual_monthly_payment: '',
-    loan_payment_account: cf.loan_payment_account ?? '',
-    insurance_start_date: cf.insurance_start_date ?? '',
-    linked_loan_account_id: cf.linked_loan_account_id ?? '',
-  });
-
-  const scheduledPmt = useMemo(() => {
-    const amt = parseFloat(form.loan_amount) || 0;
-    const apr = parseFloat(form.expected_apr) || 0;
-    const term = parseInt(form.loan_term_months) || 60;
-    return calculateMonthlyPayment(amt, apr, term);
-  }, [form.loan_amount, form.expected_apr, form.loan_term_months]);
-
-  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(prev => ({ ...prev, [k]: e.target.value }));
-
-  const handleConfirm = () => {
-    const loan_amount = parseFloat(form.loan_amount);
-    if (!loan_amount) return;
-    if (!form.payment_start_date) {
-      toast.error('First Payment Date is required.');
-      return;
-    }
-    if (form.interest_start_date < form.loan_start_date) {
-      toast.error('Interest start date cannot be before loan start date');
-      return;
-    }
-    onConfirm({
-      phase: 'loan',
-      loan_amount,
-      expected_apr: parseFloat(form.expected_apr) || cf.expected_apr,
-      loan_term_months: parseInt(form.loan_term_months) || cf.loan_term_months,
-      loan_start_date: form.loan_start_date,
-      payment_start_date: form.payment_start_date,
-      interest_start_date: form.interest_start_date || form.payment_start_date,
-      actual_monthly_payment: parseFloat(form.actual_monthly_payment) || 0,
-      loan_payment_account: form.loan_payment_account || null,
-      insurance_start_date: form.insurance_start_date || null,
-      linked_loan_account_id: form.linked_loan_account_id || null,
-    });
-  };
-
-  return (
-    <div
-      className="modal-overlay z-60"
-      style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
-      onClick={onClose}
-    >
-      <div
-        className="card-forged w-full sm:max-w-sm flex flex-col rounded-(--radius)"
-        style={{ maxHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0 space-y-1">
-          <h2 className="text-sm font-semibold">Start Loan Tracking - {cf.vehicle_name}</h2>
-          <p className="text-xs text-muted-foreground">Enter your actual loan details. Payments will flow into Forecast and Debt Payoff.</p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-4 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          {[
-            { k: 'loan_amount', label: 'Loan Amount', type: 'number', placeholder: String(loanAmountDefault) },
-            { k: 'expected_apr', label: 'APR %', type: 'number', placeholder: '5.9' },
-            { k: 'loan_term_months', label: 'Term (months)', type: 'number', placeholder: '60' },
-            { k: 'loan_start_date', label: 'Loan Start Date', type: 'date' },
-            { k: 'payment_start_date', label: 'First Payment Date', type: 'date' },
-            { k: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
-            { k: 'insurance_start_date', label: 'Insurance Start Date (if different from loan start)', type: 'date' },
-          ].map(field => (
-            <div key={field.k}>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">{field.label}</label>
-              <input
-                type={field.type}
-                value={form[field.k as keyof typeof form]}
-                onChange={f(field.k)}
-                placeholder={field.placeholder ?? ''}
-                className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
-                style={{ borderRadius: 'var(--radius)' }}
-              />
-            </div>
-          ))}
-
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Monthly Payment Account <span className="text-muted-foreground/60">(defaults to general cash if unset)</span>
-            </label>
-            <select
-              value={form.loan_payment_account}
-              onChange={e => setForm(prev => ({ ...prev, loan_payment_account: e.target.value }))}
-              className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {accountOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Linked Loan Account <span className="text-muted-foreground/60">(same loan tracked as an account? link it so net worth doesn't count it twice)</span>
-            </label>
-            <select
-              value={form.linked_loan_account_id}
-              onChange={e => setForm(prev => ({ ...prev, linked_loan_account_id: e.target.value }))}
-              className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {autoLoanAccountOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt, false)}/mo)</span>
-            </label>
-            <input
-              type="number"
-              value={form.actual_monthly_payment}
-              onChange={f('actual_monthly_payment')}
-              placeholder={formatCurrency(scheduledPmt, false)}
-              className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
-              style={{ borderRadius: 'var(--radius)' }}
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-2 px-4 sm:px-6 pt-3 pb-5 sm:pb-6 shrink-0 border-t border-border mt-1">
-          <button onClick={onClose} className="flex-1 border border-border text-xs py-2 btn-press hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
-          <button onClick={handleConfirm} className="flex-1 bg-primary text-primary-foreground text-xs py-2 btn-press" style={{ borderRadius: 'var(--radius)' }}>Confirm</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { garageTabFromSearch, normalizeGarageTab, type GarageTab } from '@/lib/garage-tab';
+import { Car, Wrench, ArrowRight } from 'lucide-react';
+import { fmtDate } from '@/components/vehicles/vehicle-format';
+
+/**
+ * THE GARAGE — the cars themselves, their builds and their servicing.
+ *
+ * ⚠️ THE MONEY IS NOT HERE ANY MORE (2026-08-27). Tre: *"move saving for down payment and active
+ * loans to the auto loans section inside the debt payoff tab. it makes more since there. garage
+ * will just be the list of cars, the builds page, and maintenance"*. The down-payment plans and the
+ * loan cards — with every write they made — live in `VehicleMoneyPanels`, mounted on /debt's Auto
+ * Loans tab, which already read the same loans through the engine. Maintenance rides with Builds,
+ * where the log has always been.
+ *
+ * What is left here is the roster: every car, which phase it is in, and one tap through to the
+ * money. It quotes figures the money panel already resolved (`getCarFundSaved`) and derives
+ * nothing of its own — a second derivation is how two pages start disagreeing about one car.
+ */
 
 export default function Vehicles() {
-  const { data: carFunds, add, update, remove, loading } = useCarFunds();
+  const { data: carFunds, loading } = useCarFunds();
   const { data: accounts } = useAccounts();
-  const { data: rules } = useRecurringRules();
-  const { data: transactions } = useTransactions();
-  const { data: profile } = useProfile();
   const { isDemo } = useDemo();
-  // §1B - occurrences a real payment has already answered: the ones the user confirmed AND the ones
-  // the bank proves on its own. The confirmed half alone left this page charging remaining cash for
-  // bills the forecast had already captured.
-  const { occurrences: confirmedOccurrences } = useMatchedOccurrences();
 
-  // ⚠️ THE KEY IS STILL `tre:vehicles:activeTab`. Builds joined this page as a third panel; renaming
-  // the key would have silently reset the remembered tab for every existing user to buy nothing.
-  const [activeTab, setActiveTab] = usePersistedState<GarageTab>('tre:vehicles:activeTab', 'saving');
+  // ⚠️ THE KEY IS STILL `tre:vehicles:activeTab`, and it still holds `'saving'` or `'loan'` for
+  // every user who was last on one of the panels that moved. `normalizeGarageTab` lands those on
+  // the car list rather than on a panel that no longer renders; renaming the key would have reset
+  // the remembered tab for everyone to buy nothing.
+  const [storedTab, setActiveTab] = usePersistedState<GarageTab>('tre:vehicles:activeTab', 'vehicles');
+  const activeTab = normalizeGarageTab(storedTab);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // A deep link (`/vehicles?tab=builds`, which is where the old `/builds` route now lands) names the
@@ -1063,344 +52,21 @@ export default function Vehicles() {
     next.delete('tab');
     setSearchParams(next, { replace: true });
   }, [askedTab, searchParams, setSearchParams, setActiveTab]);
-  const [showSavingForm, setShowSavingForm] = useState(false);
-  const [showLoanForm, setShowLoanForm] = useState(false);
-  const [buyItFor, setBuyItFor] = useState<CarFund | null>(null);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [savingForm, setSavingForm] = useState(emptySavingForm);
-  const [loanForm, setLoanForm] = useState(emptyLoanForm);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [undoConfirm, setUndoConfirm] = useState<string | null>(null);
-
-  const savingVehicles = useMemo(() => carFunds.filter(c => (c.phase ?? 'saving') === 'saving'), [carFunds]);
-  const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
-
-  const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
-  const totalMonthlyLoanPayments = activeLoans.reduce((s, l) => s + l.payment, 0);
-
-  const liquidCash = useMemo(() =>
-    accounts
-      .filter(a => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-      .reduce((s, a) => s + Number(a.balance), 0),
-    [accounts]
-  );
-
-  const cashFloor = useMemo(() => { const v = Number(profile?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
-
-  const allMonthTransactions = useMemo(() =>
-    mergeWithGeneratedTransactions(transactions || [], rules, accounts),
-    [transactions, rules, accounts],
-  );
-
-  const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
-  const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
-
-  // Available cash above floor today→EOM - mirrors Forecast month 0 surplus.
-  const availableAboveFloor = useMemo(() =>
-    Math.max(0, liquidCash + remainingTxIncome - remainingTxExpenses - remainingTxDebt - cashFloor),
-    [liquidCash, remainingTxIncome, remainingTxExpenses, remainingTxDebt, cashFloor],
-  );
 
   const accountMap = useMemo(() => {
-    const map: Record<string, AccountRow> = {};
-    accounts.forEach(a => { map[a.id] = a; });
+    const map: Record<string, { name: string; balance: number }> = {};
+    accounts.forEach(a => { map[a.id] = { name: a.name, balance: Number(a.balance) }; });
     return map;
   }, [accounts]);
 
-  const accountOptions = useMemo(() => [
-    { value: '', label: 'None (Manual)' },
-    ...accounts.filter(a => a.active).map(a => ({
-      value: a.id,
-      label: `${a.name} (${a.account_type.replace(/_/g, ' ')})`,
-    })),
-  ], [accounts]);
-
-  // Restricted to liability-type accounts: this is the "this account IS the same loan" link net
-  // worth uses to dedupe (net-worth.ts), so offering a checking or savings account here would
-  // just be a confusing way to under-count debt.
-  const autoLoanAccountOptions = useMemo(() => [
-    { value: '', label: 'None (dedupe by name instead)' },
-    ...accounts.filter(a => a.active && isLiabilityAccountType(a.account_type)).map(a => ({
-      value: a.id,
-      label: `${a.name} (${a.account_type.replace(/_/g, ' ')})`,
-    })),
-  ], [accounts]);
-
-  const transferRuleOptions = useMemo(() => [
-    { value: '', label: 'None (manual)' },
-    ...rules
-      .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map(r => ({ value: r.id, label: `${r.name} - ${formatCurrency(r.amount, false)}/${r.frequency}` })),
-  ], [rules]);
-
-  const savingFormFields = useMemo(() => {
-    const fields: Field[] = [
-      { key: 'vehicle_name', label: 'Vehicle Name', type: 'text', placeholder: 'e.g., 2025 Honda Civic' },
-      { key: 'target_price', label: 'Target Price', type: 'number', placeholder: '28000', step: '0.01' },
-      { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
-      { key: 'down_payment_goal', label: 'Down Payment Goal (total to dealer)', type: 'number', placeholder: '5600', step: '0.01' },
-      { key: 'gift_contribution', label: 'Gift / External Contribution (optional)', type: 'number', placeholder: '0', step: '0.01' },
-      { key: 'planned_purchase_date', label: 'Planned Purchase Date', type: 'date' },
-      { key: 'payment_start_date', label: 'Planned First Payment Date', type: 'date' },
-      { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
-      { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
-    ];
-    // §2.10: with an account linked, say WHICH part of that balance is car money. The whole balance
-    // is the default and matches the pre-§2.10 behavior exactly; a percentage is the honest model
-    // for a commingled account, and it can never claim more than the account actually holds.
-    if (savingForm.linked_account) {
-      fields.push({
-        key: 'saved_source', label: 'Amount Saved', type: 'select',
-        options: [
-          { value: 'fixed', label: "The account's full balance" },
-          { value: 'account_percent', label: 'A percentage of the balance' },
-        ],
-        hint: savingForm.saved_source === 'account_percent'
-          ? 'Tracks the balance, so it can never claim more than the account holds.'
-          : 'Pulls the full balance. Use a percentage if this account also holds other savings.',
-      });
-      if (savingForm.saved_source === 'account_percent') {
-        fields.push({
-          key: 'saved_percent', label: 'Percent of Balance Saved for This Vehicle',
-          type: 'number', placeholder: '40', step: '0.01',
-        });
-      }
-    } else {
-      fields.push({ key: 'current_saved', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
-    }
-    fields.push(
-      { key: 'monthly_insurance', label: 'Monthly Insurance Est.', type: 'number', placeholder: '180', step: '0.01' },
-      { key: 'insurance_start_date', label: 'Insurance Start Date (if different from purchase date)', type: 'date' },
-      { key: 'expected_apr', label: 'Expected Loan APR %', type: 'number', placeholder: '5.9', step: '0.01' },
-      { key: 'loan_term_months', label: 'Loan Term (months)', type: 'number', placeholder: '60' },
-    );
-    return fields;
-  }, [savingForm.linked_account, savingForm.saved_source, accountOptions, transferRuleOptions]);
-
-  // Both vehicle forms share one editId, so they share one draft: whichever was
-  // open is the one that comes back, and reopening the other is a fresh form.
-  const draftValues = useMemo(
-    () => ({ savingForm, loanForm, which: showLoanForm ? 'loan' as const : 'saving' as const }),
-    [savingForm, loanForm, showLoanForm],
-  );
-
-  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
-    formKey: 'vehicles',
-    open: showSavingForm || showLoanForm,
-    editId,
-    values: draftValues,
-    enabled: !isDemo,
-    onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
-      setSavingForm(draft.values.savingForm);
-      setLoanForm(draft.values.loanForm);
-      setEditId(draft.editId);
-      if (draft.values.which === 'loan') setShowLoanForm(true);
-      else setShowSavingForm(true);
-    }, []),
-  });
-
-  const handleDiscardDraft = useCallback(() => {
-    discardDraft();
-    setSavingForm(emptySavingForm);
-    setLoanForm(emptyLoanForm);
-    setEditId(null);
-  }, [discardDraft]);
-
-  const openAddSaving = () => { setSavingForm(emptySavingForm); setEditId(null); setShowSavingForm(true); };
-  const openAddLoan = () => { setLoanForm(emptyLoanForm); setEditId(null); setShowLoanForm(true); };
-
-  const openEditSaving = (cf: CarFund) => {
-    setSavingForm({
-      vehicle_name: cf.vehicle_name,
-      target_price: String(cf.target_price),
-      tax_fees: String(cf.tax_fees),
-      down_payment_goal: String(cf.down_payment_goal),
-      gift_contribution: cf.gift_contribution ? String(cf.gift_contribution) : '',
-      current_saved: String(cf.current_saved),
-      saved_source: cf.saved_source ?? 'fixed',
-      saved_percent: cf.saved_percent ? String(cf.saved_percent) : '',
-      monthly_insurance: String(cf.monthly_insurance),
-      expected_apr: String(cf.expected_apr),
-      loan_term_months: String(cf.loan_term_months),
-      linked_account: cf.linked_account ?? '',
-      linked_rule_id: cf.linked_rule_id ?? '',
-      planned_purchase_date: cf.planned_purchase_date ?? '',
-      payment_start_date: cf.payment_start_date ?? '',
-      insurance_start_date: cf.insurance_start_date ?? '',
-    });
-    setEditId(cf.id); setShowSavingForm(true);
-  };
-
-  const openEditLoan = (cf: CarFund) => {
-    setLoanForm({
-      vehicle_name: cf.vehicle_name, loan_amount: String(cf.loan_amount),
-      expected_apr: String(cf.expected_apr), loan_term_months: String(cf.loan_term_months),
-      loan_start_date: cf.loan_start_date ?? '', payment_start_date: cf.payment_start_date ?? '',
-      interest_start_date: cf.interest_start_date ?? '', actual_monthly_payment: String(cf.actual_monthly_payment || ''),
-      monthly_insurance: String(cf.monthly_insurance),
-      loan_payment_account: cf.loan_payment_account ?? '',
-      insurance_start_date: cf.insurance_start_date ?? '',
-      linked_loan_account_id: cf.linked_loan_account_id ?? '',
-    });
-    setEditId(cf.id); setShowLoanForm(true);
-  };
-
-  const handleSaveSaving = () => {
-    if (!savingForm.vehicle_name) return;
-    if (!savingForm.planned_purchase_date) {
-      toast.error('Planned Purchase Date is required.');
-      return;
-    }
-    if (!savingForm.payment_start_date) {
-      toast.error('Planned First Payment Date is required.');
-      return;
-    }
-    const { clean: cleanVehicleName, flagged: vNameFlagged } = filterProfanity(savingForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
-    if (vNameFlagged) toast.warning('Vehicle name contained inappropriate language and was cleaned.');
-    const linkedAccount = savingForm.linked_account || null;
-    const linkedRule = savingForm.linked_rule_id
-      ? rules.find(r => r.id === savingForm.linked_rule_id)
-      : null;
-    // §2.10: percent mode is only meaningful against a linked account (the DB enforces this too),
-    // so an unlinked fund always falls back to 'fixed'.
-    const savedSource: CarFundSavedSource = linkedAccount && savingForm.saved_source === 'account_percent'
-      ? 'account_percent'
-      : 'fixed';
-    const savedPercent = savedSource === 'account_percent'
-      ? Math.min(100, Math.max(0, parseFloat(savingForm.saved_percent) || 0))
-      : 0;
-    if (savedSource === 'account_percent' && savedPercent <= 0) {
-      toast.error('Enter the percent of that account’s balance saved for this vehicle.');
-      return;
-    }
-    // `current_saved` stays the 'fixed' value. Under percent mode the figure is derived live by
-    // getCarFundSaved, so this column is only a last-known snapshot for that row.
-    const effectiveSaved = savedSource === 'account_percent'
-      ? Math.max(0, Number(accountMap[linkedAccount!]?.balance ?? 0)) * (savedPercent / 100)
-      : linkedAccount && accountMap[linkedAccount]
-        ? Number(accountMap[linkedAccount].balance)
-        : parseFloat(savingForm.current_saved) || 0;
-    const payload = {
-      vehicle_name: cleanVehicleName,
-      target_price: parseFloat(savingForm.target_price) || 0,
-      tax_fees: parseFloat(savingForm.tax_fees) || 0,
-      down_payment_goal: parseFloat(savingForm.down_payment_goal) || 0,
-      gift_contribution: parseFloat(savingForm.gift_contribution) || 0,
-      current_saved: effectiveSaved,
-      saved_source: savedSource,
-      saved_percent: savedPercent,
-      monthly_insurance: parseFloat(savingForm.monthly_insurance) || 0,
-      expected_apr: parseFloat(savingForm.expected_apr) || 0,
-      loan_term_months: parseInt(savingForm.loan_term_months) || 60,
-      linked_account: linkedAccount,
-      linked_rule_id: linkedRule?.id ?? null,
-      planned_purchase_date: savingForm.planned_purchase_date || null,
-      phase: 'saving' as const,
-      // Pre-planned, ahead of activation - BuyItDialog prefills payment_start_date from this
-      // instead of always defaulting to next-month. loan_start_date is intentionally left null
-      // here - planned_purchase_date IS the loan's start date while saving (no separate field;
-      // they're the same real-world date), and BuyItDialog/generateCarLoanTransactions both fall
-      // back to planned_purchase_date when loan_start_date isn't set. Populating payment_start_date
-      // here has no effect until the user actually hits "I bought it" - every loan-payment/
-      // insurance calculation gates on phase === 'loan' first.
-      loan_amount: 0, loan_start_date: null,
-      payment_start_date: savingForm.payment_start_date || null,
-      interest_start_date: null, actual_monthly_payment: 0,
-      insurance_start_date: savingForm.insurance_start_date || null,
-    };
-    if (editId) update.mutate({ id: editId, ...payload });
-    else add.mutate(payload);
-    setShowSavingForm(false);
-  };
-
-  const handleSaveLoan = () => {
-    if (!loanForm.vehicle_name) return;
-    if (!loanForm.loan_start_date) {
-      toast.error('Loan Start Date is required.');
-      return;
-    }
-    if (!loanForm.payment_start_date) {
-      toast.error('First Payment Date is required.');
-      return;
-    }
-    const { clean: cleanLoanVehicleName } = filterProfanity(loanForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
-    const payload: Partial<CarFund> & { vehicle_name: string } = {
-      vehicle_name: cleanLoanVehicleName,
-      loan_amount: parseFloat(loanForm.loan_amount) || 0,
-      expected_apr: parseFloat(loanForm.expected_apr) || 0,
-      loan_term_months: parseInt(loanForm.loan_term_months) || 60,
-      loan_start_date: loanForm.loan_start_date || null,
-      payment_start_date: loanForm.payment_start_date || null,
-      interest_start_date: loanForm.interest_start_date || loanForm.payment_start_date || null,
-      actual_monthly_payment: parseFloat(loanForm.actual_monthly_payment) || 0,
-      monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
-      loan_payment_account: loanForm.loan_payment_account || null,
-      insurance_start_date: loanForm.insurance_start_date || null,
-      linked_loan_account_id: loanForm.linked_loan_account_id || null,
-      phase: 'loan' as const,
-    };
-    // Only zero out saving-phase identity fields when creating a brand-new direct loan (no
-    // saving-phase history exists to preserve). Editing an EXISTING loan - even just to tweak the
-    // APR or term - must NOT touch these: this record may have come from a saving-phase car fund,
-    // and overwriting them here destroyed that history permanently (Undo had no way to recover
-    // it, since it assumes these fields were never touched). Supabase's .update() is a partial
-    // PATCH, so omitting them on edit preserves whatever is already there.
-    if (!editId) {
-      payload.target_price = 0; payload.tax_fees = 0; payload.down_payment_goal = 0; payload.current_saved = 0;
-      payload.linked_account = null; payload.linked_rule_id = null; payload.planned_purchase_date = null;
-    }
-    if (editId) update.mutate({ id: editId, ...payload });
-    else add.mutate(payload);
-    setShowLoanForm(false);
-  };
-
-  const handleBuyIt = (updates: Partial<CarFund>) => {
-    if (!buyItFor) return;
-    update.mutate({ id: buyItFor.id, ...updates });
-    setBuyItFor(null);
-    setActiveTab('loan');
-    toast.success('Loan tracking started');
-  };
-
-  const handleDelete = (id: string) => {
-    if (deleteConfirm === id) { remove.mutate(id); setDeleteConfirm(null); }
-    else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
-  };
-
-  const handleUndo = (cf: CarFund) => {
-    if (undoConfirm === cf.id) {
-      update.mutate({
-        id: cf.id,
-        phase: 'saving',
-        loan_amount: 0,
-        loan_start_date: null,
-        // payment_start_date is preserved, not nulled - it's a required saving-phase field now
-        // (planned first-payment date), and the user already had a real planned value here.
-        // Nulling it lost their plan on every undo and violated the "always required" invariant.
-        interest_start_date: null,
-        actual_monthly_payment: 0,
-        // restore original saving-phase fields
-        target_price: cf.target_price,
-        tax_fees: cf.tax_fees,
-        down_payment_goal: cf.down_payment_goal,
-        current_saved: cf.current_saved,
-        monthly_insurance: cf.monthly_insurance,
-        expected_apr: cf.expected_apr,
-        loan_term_months: cf.loan_term_months,
-      });
-      setUndoConfirm(null);
-      setActiveTab('saving');
-      toast.success('Reverted to saving phase');
-    } else {
-      setUndoConfirm(cf.id);
-      setTimeout(() => setUndoConfirm(null), 3000);
-    }
-  };
+  // Saving cars first, then the loans — the order a car actually travels in.
+  const roster = useMemo(() => {
+    const phaseRank = (c: typeof carFunds[number]) => ((c.phase ?? 'saving') === 'saving' ? 0 : 1);
+    return [...carFunds].sort((a, b) => phaseRank(a) - phaseRank(b) || a.vehicle_name.localeCompare(b.vehicle_name));
+  }, [carFunds]);
 
   if (loading) return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1.5">
           <Skeleton className="h-7 w-32 bg-muted/50" />
@@ -1408,34 +74,14 @@ export default function Vehicles() {
         </div>
         <Skeleton className="h-8 w-36 bg-muted/50" />
       </div>
-      {/* Tab strip */}
       <div className="flex gap-2">
         <Skeleton className="h-8 w-28 bg-muted/50" />
         <Skeleton className="h-8 w-24 bg-muted/50" />
       </div>
-      {/* Vehicle cards */}
       {[0, 1].map(i => (
-        <div key={i} className="card-forged p-4 sm:p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-40 bg-muted/50" />
-              <Skeleton className="h-3 w-24 bg-muted/50" />
-            </div>
-            <Skeleton className="h-6 w-16 bg-muted/50" />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[0, 1, 2, 3].map(j => (
-              <div key={j} className="space-y-1">
-                <Skeleton className="h-2.5 w-16 bg-muted/50" />
-                <Skeleton className="h-4 w-20 bg-muted/50" />
-              </div>
-            ))}
-          </div>
-          <Skeleton className="h-2 w-full bg-muted/50 rounded-full" />
-          <div className="flex gap-2 justify-end">
-            <Skeleton className="h-7 w-16 bg-muted/50" />
-            <Skeleton className="h-7 w-20 bg-muted/50" />
-          </div>
+        <div key={i} className="card-forged p-4 sm:p-5 space-y-3">
+          <Skeleton className="h-4 w-40 bg-muted/50" />
+          <Skeleton className="h-3 w-24 bg-muted/50" />
         </div>
       ))}
     </div>
@@ -1448,20 +94,10 @@ export default function Vehicles() {
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Garage</h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">Every vehicle from saving to payoff, and every build</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Every car you own or are saving for, its build and its servicing</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SurfaceGuide surface="garage" />
-          {activeTab === 'saving' && (
-            <button onClick={openAddSaving} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
-              <Plus size={12} /> Add Vehicle Goal
-            </button>
-          )}
-          {activeTab === 'loan' && (
-            <button onClick={openAddLoan} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
-              <Plus size={12} /> Add Loan
-            </button>
-          )}
         </div>
       </div>
 
@@ -1470,8 +106,8 @@ export default function Vehicles() {
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-foreground">Vehicles - save for the down payment, then track the loan to payoff</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Jordan has a planned purchase date set for the Civic - the Forecast shows the down payment outflow that month and projected loan payments starting the following month.</p>
+              <p className="text-xs font-semibold text-foreground">The cars themselves - the money for them lives on Debt Payoff</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Jordan's Civic is here with its build thread and service log. The down payment being saved for it, and the loan once it is bought, are on the Auto Loans tab of Debt Payoff.</p>
             </div>
           </div>
           <div className="mt-2 flex justify-end">
@@ -1480,42 +116,21 @@ export default function Vehicles() {
         </div>
       )}
 
-      {loanVehicles.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="card-forged p-4 text-center">
-            <p className="text-xs text-muted-foreground uppercase">Active Loan Payments / mo</p>
-            <p className="text-lg font-display font-bold text-primary">{formatCurrency(totalMonthlyLoanPayments, false)}</p>
-          </div>
-          <div className="card-forged p-4 text-center">
-            <p className="text-xs text-muted-foreground uppercase">Active Loans</p>
-            <p className="text-lg font-display font-bold text-foreground">{loanVehicles.length}</p>
-          </div>
-        </div>
-      )}
-
       {/* The pill row and the panels it switches are ONE group (`stack-row`): a control row
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
       <PanelBar>
-        {/* Builds leads the row (Tre, 2026-08-27: "put builds first on garage page"). Pill order
-            only — the default panel and every persisted `activeTab` are untouched, so a user who
-            was last on a loan still lands on the loan. */}
+        {/* Builds leads the row (Tre, 2026-08-27: "put builds first on garage page"). */}
         <button onClick={() => setActiveTab('builds')}
           className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Wrench size={13} /> Builds
         </button>
-        <button onClick={() => setActiveTab('saving')}
-          className={`seg-item btn-press ${activeTab === 'saving' ? 'seg-item-active' : ''}`}
+        <button onClick={() => setActiveTab('vehicles')}
+          className={`seg-item btn-press ${activeTab === 'vehicles' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Car size={13} /> Saving for Down Payment
-          {savingVehicles.length > 0 && <span className={`seg-badge ${activeTab === 'saving' ? 'seg-badge-active' : ''}`}>{savingVehicles.length}</span>}
-        </button>
-        <button onClick={() => setActiveTab('loan')}
-          className={`seg-item btn-press ${activeTab === 'loan' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <TrendingDown size={13} /> Active Loans
-          {loanVehicles.length > 0 && <span className={`seg-badge ${activeTab === 'loan' ? 'seg-badge-active' : ''}`}>{loanVehicles.length}</span>}
+          <Car size={13} /> Vehicles
+          {roster.length > 0 && <span className={`seg-badge ${activeTab === 'vehicles' ? 'seg-badge-active' : ''}`}>{roster.length}</span>}
         </button>
       </PanelBar>
 
@@ -1523,152 +138,50 @@ export default function Vehicles() {
         ⚠️ RENDERED, NOT LINKED TO - and `Builds` is unchanged from when it was its own route. It
         owns its build switcher, its own "New Build" button and every write it ever made, so hosting
         it here is a change of shell and nothing else. It is mounted only on its own tab, so the
-        page does not pay for its four queries while a user is looking at a loan.
+        page does not pay for its four queries while a user is looking at the roster.
       */}
       {activeTab === 'builds' && <Builds />}
 
-      {activeTab === 'saving' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {savingVehicles.map(cf => {
+      {activeTab === 'vehicles' && (
+        <div className="space-y-3">
+          {roster.map(cf => {
+            const isLoan = cf.phase === 'loan';
             const linkedAccount = cf.linked_account ? accountMap[cf.linked_account] : null;
-            const linkedRule = cf.linked_rule_id
-              ? rules.find(r => r.id === cf.linked_rule_id)
-              : null;
-            // §2.10: resolve the saved figure ONCE here and hand downstream a plain 'fixed' fund, so
-            // nothing re-derives a percentage from an already-resolved number.
-            const resolvedSaved = getCarFundSaved(
-              cf, null, linkedAccount ? Number(linkedAccount.balance) : null,
-            );
-            const displayCf: CarFund = resolvedSaved === Number(cf.current_saved) && cf.saved_source === 'fixed'
-              ? cf
-              : { ...cf, current_saved: resolvedSaved, saved_source: 'fixed' };
-            const monthlyContrib = linkedRule
-              ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
-              : 0;
-            // Compute monthly needed when no transfer rule is linked
-            const computedMonthlyNeeded = (() => {
-              if (monthlyContrib > 0) return 0; // rule handles it
-              const gift = Number(cf.gift_contribution) || 0;
-              const personalGoal = Math.max(0, cf.down_payment_goal - gift);
-              const rem = Math.max(0, personalGoal - resolvedSaved);
-              if (rem <= 0) return 0;
-              const now = new Date();
-              let savingMonths = 13; // default: this month + 12 future
-              if (cf.planned_purchase_date) {
-                const parts = (cf.planned_purchase_date as string).split('-').map(Number);
-                const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-                const diff = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());
-                savingMonths = Math.max(1, diff + 1); // include the purchase month
-              }
-              return Math.min(rem / savingMonths, rem);
-            })();
+            const saved = isLoan ? 0 : getCarFundSaved(cf, null, linkedAccount ? linkedAccount.balance : null);
             return (
-              <SavingCard
-                key={cf.id}
-                cf={displayCf}
-                onEdit={() => openEditSaving(cf)}
-                onDelete={() => handleDelete(cf.id)}
-                onBuyIt={() => setBuyItFor(cf)}
-                deleteConfirm={deleteConfirm === cf.id}
-                linkedAccountName={linkedAccount?.name ?? null}
-                monthlyContrib={monthlyContrib}
-                computedMonthlyNeeded={computedMonthlyNeeded}
-                onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps as unknown as Json })}
-                liquidCash={liquidCash}
-                availableAboveFloor={availableAboveFloor}
-              />
+              <div key={cf.id} className="card-forged p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Car size={16} className={`shrink-0 ${isLoan ? 'text-success' : 'text-primary'}`} />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold truncate">{cf.vehicle_name}</h3>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {isLoan
+                        ? `Owned · ${cf.expected_apr}% APR · ${cf.loan_term_months} mo loan`
+                        : `Saving · ${formatCurrency(saved, false)} of ${formatCurrency(cf.down_payment_goal, false)} down${cf.planned_purchase_date ? ` · buying ${fmtDate(cf.planned_purchase_date)}` : ''}`}
+                    </p>
+                  </div>
+                </div>
+                {/* The money is EDITED on Debt Payoff, not here. The link names the tab, because a
+                    user last on Credit Card Payoff would otherwise land on cards. */}
+                <Link
+                  to="/debt?tab=auto"
+                  className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors shrink-0"
+                >
+                  Money <ArrowRight size={11} />
+                </Link>
+              </div>
             );
           })}
-          {savingVehicles.length === 0 && (
-            <div className="card-forged p-12 text-center col-span-2">
-              <p className="text-sm text-muted-foreground">No vehicle goals yet.</p>
-              <button onClick={openAddSaving} className="mt-3 text-xs text-primary hover:underline">Add one</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'loan' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {loanVehicles.map(cf => (
-            <LoanCard
-              key={cf.id}
-              cf={cf}
-              onEdit={() => openEditLoan(cf)}
-              onDelete={() => handleDelete(cf.id)}
-              onUndo={() => handleUndo(cf)}
-              deleteConfirm={deleteConfirm === cf.id}
-              undoConfirm={undoConfirm === cf.id}
-              onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps as unknown as Json })}
-              liquidCash={liquidCash}
-            />
-          ))}
-          {loanVehicles.length === 0 && (
-            <div className="card-forged p-12 text-center col-span-2">
+          {roster.length === 0 && (
+            <div className="card-forged p-12 text-center">
               <Car size={32} className="text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No active loans yet.</p>
-              <p className="text-xs text-muted-foreground mt-1">Hit "I bought it" on a saving-phase card to start tracking.</p>
+              <p className="text-sm text-muted-foreground">No vehicles yet.</p>
+              <Link to="/debt?tab=auto" className="mt-2 text-xs text-primary hover:underline block">Add one on Debt Payoff →</Link>
             </div>
           )}
         </div>
       )}
-
-      {buyItFor && (
-        <BuyItDialog
-          cf={buyItFor} accountOptions={accountOptions} autoLoanAccountOptions={autoLoanAccountOptions}
-          onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)}
-        />
-      )}
-
       </div>
-
-      {showSavingForm && (
-        <FormModal
-          title={editId ? 'Edit Vehicle Goal' : 'Add Vehicle Goal'}
-          fields={savingFormFields}
-          values={savingForm}
-          onChange={(k, v) => setSavingForm(prev => {
-            const next = { ...prev, [k]: v };
-            // Auto-suggest a first-payment date one month after purchase - matches the
-            // purchaseMonthIdx + 1 relationship the saving-phase projection already assumes.
-            // Only fills it in if it's not already set, so it never overwrites a manual edit.
-            if (k === 'planned_purchase_date' && v && !prev.payment_start_date) {
-              next.payment_start_date = addMonthsStr(v, 1);
-            }
-            return next;
-          })}
-          onSave={handleSaveSaving}
-          draftRestored={draftRestored}
-          onDiscardDraft={handleDiscardDraft}
-          onClose={() => setShowSavingForm(false)}
-        />
-      )}
-
-      {showLoanForm && (
-        <FormModal
-          title={editId ? 'Edit Auto Loan' : 'Add Auto Loan'}
-          fields={[
-            { key: 'vehicle_name', label: 'Vehicle Name', type: 'text', placeholder: 'e.g., Toyota RAV4' },
-            { key: 'loan_amount', label: 'Loan Amount', type: 'number', placeholder: '25000', step: '0.01' },
-            { key: 'expected_apr', label: 'APR %', type: 'number', placeholder: '5.9', step: '0.01' },
-            { key: 'loan_term_months', label: 'Term (months)', type: 'number', placeholder: '60' },
-            { key: 'loan_start_date', label: 'Loan Start Date', type: 'date' },
-            { key: 'payment_start_date', label: 'First Payment Date', type: 'date' },
-            { key: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
-            { key: 'actual_monthly_payment', label: 'Payment Override (blank = scheduled)', type: 'number', placeholder: '0', step: '0.01' },
-            { key: 'monthly_insurance', label: 'Monthly Insurance', type: 'number', placeholder: '180', step: '0.01' },
-            { key: 'insurance_start_date', label: 'Insurance Start Date (if different from loan start)', type: 'date' },
-            { key: 'loan_payment_account', label: 'Monthly Payment Account', type: 'select', options: accountOptions },
-            { key: 'linked_loan_account_id', label: 'Linked Loan Account (uses its live balance)', type: 'select', options: autoLoanAccountOptions },
-          ]}
-          values={loanForm}
-          onChange={(k, v) => setLoanForm(prev => ({ ...prev, [k]: v }))}
-          onSave={handleSaveLoan}
-          draftRestored={draftRestored}
-          onDiscardDraft={handleDiscardDraft}
-          onClose={() => setShowLoanForm(false)}
-        />
-      )}
     </div>
   );
 }

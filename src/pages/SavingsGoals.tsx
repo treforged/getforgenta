@@ -793,7 +793,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           ) : (
             <Link to="/premium" className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/30 transition-colors" style={{ borderRadius: 'var(--radius)' }}><Crown size={12} /> Add Goal</Link>
           )}
-          <Link to="/vehicles" className="w-full sm:w-auto flex items-center justify-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Vehicles</Link>
+          <Link to="/debt?tab=auto" className="w-full sm:w-auto flex items-center justify-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Vehicles</Link>
         </div>
       </div>
 
@@ -827,11 +827,11 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       )}
 
       {carFunds.length > 0 && (
-        <Link to="/vehicles" className="card-forged p-3 flex items-center gap-3 hover:border-primary/30 transition-colors">
+        <Link to="/debt?tab=auto" className="card-forged p-3 flex items-center gap-3 hover:border-primary/30 transition-colors">
           <Car size={16} className="text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold">You have {carFunds.length} vehicle{carFunds.length > 1 ? 's' : ''} tracked</p>
-            <p className="text-xs text-muted-foreground">Car funds have moved to Vehicles — view saving progress &amp; loan details there →</p>
+            <p className="text-xs text-muted-foreground">Car funds live on Debt Payoff — view saving progress &amp; loan details on its Auto Loans tab →</p>
           </div>
         </Link>
       )}

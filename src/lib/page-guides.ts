@@ -165,6 +165,10 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
       { title: 'It is not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date comes from the revolving engine, which never sees a loan. A car loan usually outlives it, and the Dashboard says so rather than implying you are done.' },
       { title: 'Extra payments', body: 'Anything above the scheduled payment goes to principal and pulls the payoff date in. The schedule re-amortizes from the new balance.' },
       { title: 'Connected loans', body: 'When a loan account is linked to a connected bank, the bank\'s balance is the one used and the pair is only counted once. A typed balance is a starting point until then.' },
+      { title: 'Saving for a down payment', body: 'A car you have not bought yet sits under "Saving for Down Payment" with its down-payment progress and what the loan would cost. Set the Planned Purchase Date and the Forecast stops the saving contributions that month, shows the down payment as an outflow, and starts the projected loan payment the following month.' },
+      { title: 'Linked account and transfer rule', body: 'Link a savings account to pull the live balance as your down-payment progress, and a recurring transfer rule to sync the monthly contribution used for the estimated completion date.' },
+      { title: 'I bought it', body: 'Hit "I bought it" to enter the real loan amount, APR, start date, first payment date and interest start date. Clicked by accident? The undo button on the loan card reverts to the saving phase with your saving details preserved.' },
+      { title: 'It is not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date comes from the revolving engine, which never sees a car loan. The Dashboard says so underneath rather than implying the loan is gone.' },
     ],
   },
   'debt:mortgage': {
@@ -211,24 +215,12 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
   },
 
   // ── Garage ──────────────────────────────────────────────────────────────────────────
-  'garage:saving': {
-    title: 'Saving For A Car Guide',
+  'garage:vehicles': {
+    title: 'Vehicles Guide',
     sections: [
-      { title: 'What is this panel?', body: 'The saving phase: track your down payment goal and preview what the loan would cost before you commit to it.' },
-      { title: 'Planned Purchase Date', body: 'Set the month you plan to buy. In the Forecast, saving contributions stop that month, the down payment is shown as an outflow, and the projected loan payment starts the following month. Estimated values are used until you hit "I bought it."' },
-      { title: 'Linked Account', body: 'Link your savings account to auto-pull the current balance as your down payment progress. When linked, "Current Saved" in the form is skipped — the live balance is used instead.' },
-      { title: 'Transfer Rule', body: 'Link a recurring transfer rule to auto-sync the monthly contribution amount for the estimated completion date.' },
-      { title: 'I bought it', body: 'Hit "I bought it" to enter your real loan amount, APR, start date, first payment date, and interest start date. If you clicked by accident, use the undo button on the loan card.' },
-    ],
-  },
-  'garage:loan': {
-    title: 'Car Loan Guide',
-    sections: [
-      { title: 'What is this panel?', body: 'The loan phase: your real loan terms and full amortization to payoff, month by month.' },
-      { title: 'Connected loans', body: 'When the loan is linked to a connected bank account, the bank\'s balance is the one used and the pair is only counted once. A typed balance is a starting point until then.' },
-      { title: 'Undo Purchase', body: 'The undo button (↩) on a loan card reverts back to saving phase. Click once to see "Confirm?", click again to revert. Your saving-phase details are preserved.' },
-      { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast drawer. Projected loans for saving-phase vehicles appear as "Est. Car Loan (projected)" starting the month after the planned purchase date.' },
-      { title: 'Not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date comes from the revolving engine and does not include this loan. The Dashboard says so underneath rather than implying the loan is gone.' },
+      { title: 'What is this panel?', body: 'Every car you own or are saving for, in the order a car travels: the ones still being saved for first, then the ones you own.' },
+      { title: 'Where the money is', body: 'The down payment plan and the loan itself live on Debt Payoff, under Auto Loans - that tab already projected these loans, so putting the cards there keeps one car in one place. The Money link on each row goes straight to it.' },
+      { title: 'Builds and servicing', body: 'The Builds panel holds the build thread for a car and its maintenance log. A car does not need a build to be listed here, and a build does not need a loan.' },
     ],
   },
   'garage:builds': {
@@ -288,7 +280,7 @@ const SURFACE_FALLBACK: Record<GuideSurface, GuideKey> = {
   transactions: 'transactions:planning',
   debt: 'debt:cards',
   forecast: 'forecast:forecast',
-  garage: 'garage:saving',
+  garage: 'garage:vehicles',
   settings: 'settings:account',
 };
 
@@ -346,8 +338,7 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
     { key: 'forecast:forecast', label: 'Forecast' },
   ],
   garage: [
-    { key: 'garage:saving', label: 'Saving for a car' },
-    { key: 'garage:loan', label: 'Car loans' },
+    { key: 'garage:vehicles', label: 'Vehicles' },
     { key: 'garage:builds', label: 'Builds' },
   ],
   // ⚠️ Security and Plan are listed here even though `Settings.tsx` hides those panels in demo.

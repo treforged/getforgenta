@@ -49,9 +49,10 @@ export default function BuildCarStrip({ summary }: { summary: BuildCarSummary })
           </span>
           <span className="text-xs font-medium text-foreground truncate">{summary.vehicleName}</span>
         </div>
-        {/* The plan is EDITED on Vehicles, not here. This page connects to it and reads it. */}
+        {/* The plan is EDITED on /debt's Auto Loans tab, not here (it moved off the Garage on
+            2026-08-27). This page connects to it and reads it. */}
         <Link
-          to="/vehicles"
+          to="/debt?tab=auto"
           className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors shrink-0"
         >
           Plan <ArrowRight size={11} />
