@@ -132,9 +132,95 @@ describe('allocateRankedSurplus — an unfinished target holds the queue', () =>
     ]);
     expect(byId(r, 'c1').minimum).toBe(200);
     expect(byId(r, 'c1').extra).toBe(100);
-    // `maxExtra` caps what c1 may TAKE, not what it still OWES: $4,800 of its balance is unpaid,
-    // so it has not met its goal and g1 waits. (No production caller sets `maxExtra` today.)
-    expect(byId(r, 'g1').extra).toBe(0);
+    // `maxExtra` caps what c1 may TAKE, not what it still OWES — and taking the whole month's cap
+    // is what discharges the obligation, so the remainder falls to g1 in the SAME month. This
+    // assertion used to be 0; see the paced-exception block below for why it changed.
+    expect(byId(r, 'g1').extra).toBe(700);
+  });
+});
+
+// ── THE PACED EXCEPTION (2026-08-27) ─────────────────────────────────────────
+//
+// Tre: "pass the rest down to the next rank instead." A `maxExtra` target cannot fill its need this
+// month at any price, so holding the queue until the need is met would park every lower rank for
+// the whole pace — years, for a dated goal, rather than the one month the waterfall above costs.
+describe('allocateRankedSurplus — a paced target holds the queue only for its own month', () => {
+  const paced = (id: string, sortOrder: number, capacity: number, maxExtra: number): RankedTarget =>
+    ({ ...goal(id, sortOrder, capacity), maxExtra });
+
+  it('passes the rest down once this month’s pace is taken', () => {
+    // $5,624 still needed, $469/mo to arrive on time. The month is capped at the pace and the
+    // other $531 reaches the card in the same month instead of waiting eleven more.
+    const r = allocateRankedSurplus(1_000, [
+      paced('move-fund', 0, 5_624, 469),
+      card('visa', 1, 0, 5_000),
+    ]);
+    expect(byId(r, 'move-fund').extra).toBe(469);
+    expect(byId(r, 'visa').extra).toBe(531);
+    expect(r.unallocated).toBe(0);
+  });
+
+  it('still holds the queue when the pool could not even cover this month’s pace', () => {
+    // Not on pace: the pace is unspent, so the obligation for THIS month is not discharged.
+    // (The lower rank gets nothing either way here — the pool is gone — but the gate must not
+    // report "done for the month" on a month that fell short.)
+    const r = allocateRankedSurplus(300, [
+      paced('move-fund', 0, 5_624, 469),
+      card('visa', 1, 0, 5_000),
+    ]);
+    expect(byId(r, 'move-fund').extra).toBe(300);
+    expect(byId(r, 'visa').extra).toBe(0);
+  });
+
+  it('steps aside immediately when the pace is zero — an IRA that has used up its year', () => {
+    const r = allocateRankedSurplus(1_000, [
+      paced('roth', 0, 4_000, 0),
+      card('visa', 1, 0, 5_000),
+    ]);
+    expect(byId(r, 'roth').extra).toBe(0);
+    expect(byId(r, 'visa').extra).toBe(1_000);
+  });
+
+  it('leaves the unpaced waterfall alone — a target completed this month still holds it', () => {
+    // The 2026-08-25 contract, unchanged: no ceiling means the target MAY meet its need this
+    // month, so it is met-entirely-or-not-at-all and the surplus above it waits a month.
+    const r = allocateRankedSurplus(1_000, [goal('nearly-done', 0, 120), carFund('car', 1, 400)]);
+    expect(byId(r, 'nearly-done').total).toBe(120);
+    expect(byId(r, 'car').total).toBe(0);
+    expect(r.unallocated).toBe(880);
+  });
+
+  it('holds the queue when the ceiling is at or above the need — pacing that does not bind', () => {
+    // A ceiling wider than the need is not pacing at all; the target can finish, so it behaves
+    // exactly like an unceilinged one.
+    const r = allocateRankedSurplus(1_000, [
+      paced('g1', 0, 120, 500),
+      carFund('car', 1, 400),
+    ]);
+    expect(byId(r, 'g1').extra).toBe(120);
+    expect(byId(r, 'car').extra).toBe(0);
+  });
+
+  it('passes the rest down past a whole SPLIT rank once both halves have taken their pace', () => {
+    const r = allocateRankedSurplus(1_000, [
+      { ...paced('a', 0, 5_000, 200), share: 1 },
+      { ...paced('b', 0, 5_000, 200), share: 1 },
+      card('visa', 1, 0, 5_000),
+    ]);
+    expect(byId(r, 'a').extra).toBe(200);
+    expect(byId(r, 'b').extra).toBe(200);
+    expect(byId(r, 'visa').extra).toBe(600);
+  });
+
+  it('holds the queue while EITHER half of a split rank is still short of its pace', () => {
+    const r = allocateRankedSurplus(500, [
+      { ...paced('a', 0, 5_000, 200), share: 1 },
+      { ...paced('b', 0, 5_000, 400), share: 1 },
+      card('visa', 1, 0, 5_000),
+    ]);
+    expect(byId(r, 'a').extra).toBe(200);
+    expect(byId(r, 'b').extra).toBe(300);
+    expect(byId(r, 'visa').extra).toBe(0);
   });
 });
 

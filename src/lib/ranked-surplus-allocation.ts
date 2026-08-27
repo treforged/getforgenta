@@ -21,6 +21,18 @@
  * one month before the next target sees it. That is the literal meaning of "only after the previous
  * is met", and it is the behaviour that was asked for.
  *
+ * ── THE PACED EXCEPTION (2026-08-27) ─────────────────────────────────────────
+ * Tre: "pass the rest down to the next rank instead." A target carrying a per-month ceiling
+ * (`maxExtra` — a deadline levelled into a monthly pace, or an IRA's remaining annual allowance)
+ * is NOT allowed to fill its need this month however much money is on the table. Holding the queue
+ * until its whole need is met would then park every rank below it for as long as the pace runs,
+ * which for a dated goal is years rather than the one month the waterfall above costs.
+ *
+ * So a ceilinged target holds the queue only until THIS MONTH'S ceiling is spent. Once it has taken
+ * its pace it has met its obligation for the month, and the remainder falls to the next rank in the
+ * same month. Nothing changes for a target with no ceiling: it may take its whole need, so it is
+ * still "met entirely or not at all" and still holds the month it completes.
+ *
  * THE RULE THAT MUST NEVER BREAK: a goal ranked above a card can never starve that card's minimum.
  * Rank orders the SURPLUS, never the obligations. That is enforced structurally rather than by
  * convention — `allocateRankedSurplus` runs a mandatory pass over every target's `minimum` BEFORE
@@ -59,7 +71,12 @@ export type RankedTarget = {
    * goal's `target_amount - current_amount`, a car fund's remaining down payment. Allocation never
    * exceeds it, and it is also what the WATERFALL reads: a target whose capacity is already spent
    * has met its goal, so it steps aside and the next rank starts. A target with capacity left has
-   * not, so it holds the queue for the rest of the month.
+   * not, so it holds the queue for the rest of the month — unless a `maxExtra` is pacing it, in
+   * which case it holds only until this month's pace is taken.
+   *
+   * ⚠️ IT IS THE WHOLE REMAINING NEED, never a per-month slice of it. A caller that wants to limit
+   * what a target may take THIS month says so in `maxExtra`; writing the limit into `capacity`
+   * instead would tell the waterfall the need itself had shrunk, and the target would look met.
    */
   capacity: number;
   /**
@@ -68,7 +85,14 @@ export type RankedTarget = {
    * no ranked surplus. Omitted ⇒ true.
    */
   autoExtra?: boolean;
-  /** Optional per-month ceiling on the RANKED portion only, on top of `capacity`. Omitted ⇒ none. */
+  /**
+   * Optional per-month ceiling on the RANKED portion only, on top of `capacity`. Omitted ⇒ none.
+   *
+   * ⚠️ IT ALSO DECIDES HOW LONG THIS TARGET HOLDS THE QUEUE. A ceiling says "this target may not
+   * fill its need this month even if the money is there", so the waterfall cannot wait for the need
+   * to be met without parking every rank below it for the whole pace. A ceilinged target therefore
+   * steps aside as soon as the month's ceiling is spent; see `holdsQueueBelow`.
+   */
   maxExtra?: number;
   /**
    * Weight for a SPLIT rank — targets sharing one `sortOrder` divide that rank's money in
@@ -170,10 +194,13 @@ export function allocateRankedSurplus(
   // ⚠️ A rank whose members declare NO share is untouched — strict sequential fill, ties on `id`.
   // That is deliberate and load-bearing: `share` is a new nullable column, so every existing row
   // arrives here undefined and every existing user's allocation is byte-identical.
+  /** This month's ceiling on the ranked portion. `Infinity` for a target that has none. */
+  const ceilingOf = (t: RankedTarget) =>
+    t.maxExtra === undefined ? Number.POSITIVE_INFINITY : Math.max(0, t.maxExtra);
+
   const headroomOf = (t: RankedTarget, i: number) => {
     if (t.autoExtra === false) return 0;
-    const headroom = Math.max(0, t.capacity - paidMinimum[i]);
-    return t.maxExtra === undefined ? headroom : Math.min(headroom, Math.max(0, t.maxExtra));
+    return Math.min(Math.max(0, t.capacity - paidMinimum[i]), ceilingOf(t));
   };
 
   const paidExtra = new Array<number>(ranked.length).fill(0);
@@ -190,16 +217,32 @@ export function allocateRankedSurplus(
   };
 
   /**
-   * Is this target's own goal still unmet as the month begins?
+   * Does this target hold the queue for the rest of the month?
    *
-   * ⚠️ MEASURED ON THE NEED, NOT ON `headroomOf`. The two differ only for a `maxExtra` target,
-   * where the ceiling caps what it may TAKE this month without changing what it still OWES — and a
-   * target that is still owed something has not met its goal, whatever it was allowed to take. An
-   * opted-out target is never unmet for this purpose: it takes no extras by choice, so making the
-   * ranks below it wait on a need it has opted out of filling would strand them forever.
+   * ⚠️ MEASURED ON THE NEED, NOT ON `headroomOf`, for a target with no ceiling: it may take its
+   * whole need this month, so a need still owed means the goal is unmet whatever the pool could
+   * afford — and a target completed by THIS month's own allocation still blocks the rank below it
+   * until the next month. That is the 2026-08-25 waterfall, unchanged.
+   *
+   * ⚠️ A CEILINGED TARGET IS DIFFERENT, and that is the 2026-08-27 exception. `maxExtra` below the
+   * remaining need means this target is being PACED — it is not permitted to meet its need this
+   * month at any price — so "wait until the need is met" would hold every lower rank for the whole
+   * pace. It holds the queue only while this month's ceiling is unspent; once the pace is taken,
+   * its obligation for the month is discharged and the rest passes down. A ceiling of 0 (an IRA
+   * that has used up its year) therefore steps aside immediately, exactly as a capacity of 0 used
+   * to make it.
+   *
+   * An opted-out target never holds the queue: it takes no extras by choice, so making the ranks
+   * below it wait on a need it has opted out of filling would strand them forever.
    */
-  const unmetAtMonthStart = (t: RankedTarget, i: number) =>
-    t.autoExtra !== false && t.capacity - paidMinimum[i] >= CENT;
+  const holdsQueueBelow = (t: RankedTarget, i: number) => {
+    if (t.autoExtra === false) return false;
+    const need = t.capacity - paidMinimum[i];
+    if (need < CENT) return false;
+    const ceiling = ceilingOf(t);
+    if (ceiling >= need - CENT) return true;
+    return paidExtra[i] < ceiling - CENT;
+  };
 
   // The waterfall: closed as soon as a rank that still needed something has been offered the pool.
   let gateOpen = true;
@@ -210,41 +253,47 @@ export function allocateRankedSurplus(
     const idxs = Array.from({ length: end - start }, (_, k) => start + k);
     start = end;
     if (!gateOpen) continue;
-    // Decided BEFORE this rank is funded, and that is the whole point: a target completed by THIS
-    // month's own allocation still blocks the rank below it until the next month.
-    if (idxs.some(i => unmetAtMonthStart(ranked[i], i))) gateOpen = false;
-    if (pool < CENT) continue;
 
-    // Weights come only from members that can actually take a share; an opted-out target is not
-    // part of the split, and a zero/negative/non-finite share is not a weight.
-    const weights = idxs.map(i => {
-      const w = ranked[i].share;
-      if (ranked[i].autoExtra === false || w === undefined || !Number.isFinite(w) || w <= 0) return 0;
-      return w;
-    });
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    if (pool >= CENT) {
+      // Weights come only from members that can actually take a share; an opted-out target is not
+      // part of the split, and a zero/negative/non-finite share is not a weight.
+      const weights = idxs.map(i => {
+        const w = ranked[i].share;
+        if (ranked[i].autoExtra === false || w === undefined || !Number.isFinite(w) || w <= 0) return 0;
+        return w;
+      });
+      const totalWeight = weights.reduce((a, b) => a + b, 0);
 
-    if (idxs.length === 1 || totalWeight <= 0) {
-      fillSequentially(idxs);
-      continue;
+      if (idxs.length === 1 || totalWeight <= 0) {
+        fillSequentially(idxs);
+      } else {
+        // PROPORTIONAL PASS. Every member is measured against the pool as it stood ENTERING the
+        // rank, so the split is 50/50 of the rank's money rather than 50% and then 50% of what is
+        // left.
+        const atRankStart = pool;
+        idxs.forEach((i, k) => {
+          if (weights[k] <= 0) return;
+          const want = (atRankStart * weights[k]) / totalWeight;
+          const take = Math.min(want, headroomOf(ranked[i], i), pool);
+          if (take <= 0) return;
+          paidExtra[i] += take;
+          pool -= take;
+        });
+
+        // …then the rank's own leftovers cascade WITHIN the rank before they fall to the next one.
+        // A split partner that is already full hands its half to the other partner, not to whatever
+        // the user ranked below both of them — which is what "split with" means to the person who
+        // set it.
+        fillSequentially(idxs);
+      }
     }
 
-    // PROPORTIONAL PASS. Every member is measured against the pool as it stood ENTERING the rank,
-    // so the split is 50/50 of the rank's money rather than 50% and then 50% of what is left.
-    const atRankStart = pool;
-    idxs.forEach((i, k) => {
-      if (weights[k] <= 0) return;
-      const want = (atRankStart * weights[k]) / totalWeight;
-      const take = Math.min(want, headroomOf(ranked[i], i), pool);
-      if (take <= 0) return;
-      paidExtra[i] += take;
-      pool -= take;
-    });
-
-    // …then the rank's own leftovers cascade WITHIN the rank before they fall to the next one. A
-    // split partner that is already full hands its half to the other partner, not to whatever the
-    // user ranked below both of them — which is what "split with" means to the person who set it.
-    fillSequentially(idxs);
+    // ⚠️ DECIDED AFTER THIS RANK IS FUNDED, because a paced target's answer depends on whether it
+    // actually took this month's ceiling. It does not change the unceilinged case: there
+    // `holdsQueueBelow` reads only the need it entered the month with, so a target completed by
+    // this month's own allocation still shuts the gate, exactly as it did when the decision was
+    // made before the fill.
+    if (idxs.some(i => holdsQueueBelow(ranked[i], i))) gateOpen = false;
   }
 
   const allocations = ranked.map((t, i) => ({

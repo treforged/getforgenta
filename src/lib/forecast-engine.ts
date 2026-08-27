@@ -506,6 +506,26 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       });
       return Math.min(statutory, onTime);
     };
+    /**
+     * The allowance as the allocator wants it: a `maxExtra` BESIDE the full remaining need, never
+     * folded into `capacity`.
+     *
+     * ⚠️ THE TWO FIELDS SAY DIFFERENT THINGS AND THE WATERFALL READS BOTH. `capacity` is what this
+     * target still owes; `maxExtra` is the most it may take this month. Collapsing them (which is
+     * how the pacing first shipped) makes a paced target look permanently unmet, and an unmet rank
+     * holds every rank below it — so a goal paced over eleven months would have blocked the queue
+     * for eleven months. Kept apart, `holdsQueueBelow` can see that a target which has taken its
+     * pace is done for the month and let the rest fall through (Tre, 2026-08-27).
+     *
+     * Spreadable, and EMPTY when nothing limits the target, so an unpaced goal is built without the
+     * field at all rather than with an infinite one.
+     */
+    const monthlyCeilingFor = (
+      rowId: string, goalId: string, monthDate: Date, remaining: number,
+    ): { maxExtra?: number } => {
+      const allowance = monthlyAllowanceFor(rowId, goalId, monthDate, remaining);
+      return Number.isFinite(allowance) ? { maxExtra: allowance } : {};
+    };
     for (const g of goals) {
       if (typeof g.id !== 'string') continue;
       const stages = goalStages(g, essentialMonthlyExpenses);
@@ -1999,15 +2019,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const autoExtraPool = Math.max(0, cashPreDebtBeforeAutoExtra - step3SpendFloor - (ledgerEntry?.cycling ?? 0));
         const targets: RankedTarget[] = Array.from(autoExtraCapacity, ([id, t]) => ({
           id, kind: t.kind, sortOrder: t.sortOrder, minimum: 0,
-          // ⚠️ THE ALLOWANCE CLAMPS THE CAPACITY, IT DOES NOT REPLACE IT. A target may never be
-          // offered more than it still needs; the allowance only ever takes that number DOWN. And
-          // capacity 0 is already how a rank yields its dollars to the next one, so an IRA that has
-          // used up its year simply passes the surplus on rather than needing a rule of its own.
-          capacity: t.kind === 'goal' && t.goalId != null
-            ? Math.min(t.remaining, monthlyAllowanceFor(id, t.goalId, monthDate, t.remaining))
-            : t.remaining,
+          // ⚠️ CAPACITY IS THE WHOLE REMAINING NEED, AND THE ALLOWANCE IS A `maxExtra` BESIDE IT.
+          // The allowance used to clamp the capacity, which limited the month correctly but also
+          // told the waterfall the need itself was that small — so a paced target looked unmet
+          // forever and held every rank below it for the whole pace. Tre, 2026-08-27: "pass the
+          // rest down to the next rank instead." As two separate numbers the month is still capped
+          // (`headroomOf` reads `maxExtra`) while the gate can tell "on pace for this month" from
+          // "met entirely", which is the distinction that lets the remainder fall through.
+          capacity: t.remaining,
           autoExtra: true,
           ...(t.share === undefined ? {} : { share: t.share }),
+          ...(t.kind === 'goal' && t.goalId != null
+            ? monthlyCeilingFor(id, t.goalId, monthDate, t.remaining)
+            : {}),
         }));
         // Extra principal, capacity read fresh from the (already-reduced) amortized balance.
         //

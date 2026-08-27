@@ -899,9 +899,9 @@ describe('forecast-engine — a dated target takes only what it needs to arrive 
       .toBeCloseTo(9_000 / 11, 1);
   });
 
-  it('STILL HOLDS THE QUEUE below it while it is being paced — a target that is owed something '
-    + 'has not met its goal, whatever it was allowed to take this month. Exactly how the IRA cap '
-    + 'already behaves, and the reason pacing does not silently re-rank a plan', () => {
+  it('PASSES THE REST DOWN to the next rank once it has taken this month\'s pace — an on-pace '
+    + 'target has met its obligation for the month, so the ranks below it do not wait out the '
+    + 'whole deadline (Tre, 2026-08-27)', () => {
     anchor();
     const goal = dated({
       stages: [
@@ -910,12 +910,36 @@ describe('forecast-engine — a dated target takes only what it needs to arrive 
       ],
     } as unknown as GoalRow);
     const rows = calculateForecast(makeInputs([goal], new Array(120).fill(0))).data;
-    // Stop 1 takes its level figure; stop 2 waits for stop 1 to be met, and the surplus stop 1 did
-    // not take is NOT reserved elsewhere — it stays in the pool as cash for the debt cascade.
+    // Stop 1 is capped at its level figure — the pacing itself is untouched by this change …
     expect(perMonth(rows, 'g-1')[1]).toBeCloseTo(LEVEL, 1);
+    // … and the surplus above it now reaches stop 2 in the SAME month. This assertion used to be
+    // `toBe(0)` with stop 2 opening at month 12; holding the queue for the whole eleven-month pace
+    // is the behaviour Tre replaced.
+    expect(perMonth(rows, 'g-1::stop2')[1]).toBeGreaterThan(0);
+    // Stop 2 carries no date of its own, so nothing paces IT — it fills as fast as the surplus
+    // allows, which is the undated contract two tests above.
+    expect(perMonth(rows, 'g-1::stop2')[1]).toBeCloseTo(9_000, 1);
+  });
+
+  it('does NOT pass anything down while it is short of this month\'s pace — the obligation for the '
+    + 'month is discharged by taking the pace, not by being offered it', () => {
+    anchor();
+    // A need so large that one month of its pace outruns every dollar the fixture has: stop 1 takes
+    // the whole pool and is STILL short of the month's figure, so it has not discharged the month.
+    const HUGE = 6_000_000;
+    const PACE = HUGE / 11;
+    const goal = dated({
+      target_amount: HUGE,
+      stages: [
+        { id: 's1', name: 'Move', amount: HUGE, sort_order: 0, auto_extra: true },
+        { id: 's2', name: 'Runway', amount: 9_000, sort_order: 1, auto_extra: true },
+      ],
+    } as unknown as GoalRow);
+    const rows = calculateForecast(makeInputs([goal], new Array(120).fill(0))).data;
+    const stop1 = perMonth(rows, 'g-1')[1];
+    expect(stop1).toBeGreaterThan(0);
+    expect(stop1).toBeLessThan(PACE - 1);
     expect(perMonth(rows, 'g-1::stop2')[1]).toBe(0);
-    // The month after stop 1 completes (Sep 2027, month 11) is when stop 2 opens.
-    expect(perMonth(rows, 'g-1::stop2')[12]).toBeGreaterThan(0);
   });
 
   it('binds a dated IRA goal by whichever limit is SMALLER — the year would allow more than the '
