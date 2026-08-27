@@ -1,5 +1,75 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35u — **`b83698e5`. tsc 0, 283 files / 2970 tests.
+> 10 commits unpushed.**
+>
+> ═══ THE WEEKLY CAP: RAISED TO 90, AND THE PREMISE IT WAS ASKED ON IS WRONG ═══
+> Tre asked for an increased cap "just for the remainder of this week since most
+> routines for the week already ran". Cap is now **90 in BOTH files**, with the
+> full derivation in the code comment and a dated **RESTORE TO 75.0 AFTER
+> 2026-08-31 18:00**.
+>
+> The measurement he asked for at the same time contradicts the premise:
+>   seven_day 84.0%, window resets 2026-08-31 18:00 → 4.70 days, 16 points left,
+>   3.4 pts/day allowed. A session burns 0.78 pts/hour (~19 pts/day).
+>   **The routines have NOT mostly run** — the window resets on the 31st, so
+>   ~4.7 days of them are still AHEAD: ~68 runs at the documented 14-15/day
+>   (6 trading, 6 conductor, 1-2 marketing, 1 blog) plus the Thursday scout and
+>   backup, needing 17-25 points against the 16 that exist.
+>   So 90 is a TRADE, not a fix: ~6 points to local sessions and ~10 left for
+>   routines that need 17-25. **Expect routine rejections before the reset.**
+>   GitHub CodeQL scans cost ZERO Claude quota — Actions runners, not in scope.
+>
+> ═══ SHIPPED ═══
+> - **Every loan is now on one payoff rule.** `efa9f1df` fixed the two DATE
+>   readouts; `b83698e5` fixes the non-CC liability row, which asks a month
+>   COUNT off the same array and carried the same off-by-one — now
+>   `extraAwarePayoffMonthIndex(...) + 1`. /debt Auto Loans verified live:
+>   "Jun 2030 · Aug 2029 with extra payments".
+> - **The transaction deck respects the phone.** `DeckShell` gains all four
+>   `env(safe-area-inset-*)` (pt-4 = 16px sat inside the notch) plus
+>   `overflow-x-hidden` + `min-w-0 max-w-full`. NOT device-verified.
+> - **His manual contributions are gone, reversibly.** Backed up to
+>   `backup.manual_contributions_20260827` / `backup.recurring_rules_20260827`,
+>   then zeroed on all three `auto_extra` goals and the two linked rules
+>   DEACTIVATED rather than destroyed.
+>
+> ═══ TWO ANSWERS HE IS OWED, BOTH INVESTIGATED ═══
+> **1. "why dont i see the savings go up to the first goal then drop to 0 after
+> the payments? is there a bigger issue"** — YES, there is, and it is confirmed:
+> **a savings goal is never SPENT anywhere in the app.** `savings-growth.ts` has
+> contributions, interest, lump sums and a target CUTOFF, and no draw-down of any
+> kind; a grep for a goal spend/withdraw date across `src/lib` returns nothing.
+> A car fund IS spent (`vehicleProjections`, `purchaseMonthIdx`, the down payment
+> leaves cash) — a generic goal is not. So his move fund fills to $5,730 and then
+> sits there for ever, and net worth counts money that will actually leave in Jul
+> 2027. This is a real modelling gap, not a chart bug. NOT BUILT — it needs a
+> spend date/amount on the goal and a draw-down in the growth model and the
+> forecast, and it moves cash for every user.
+>
+> **2. "why didnt you touch the reducer convention?"** — my first answer was
+> blast radius, which is a weak reason on its own, so here is the real one:
+> **the reducer is RIGHT and the SEED is what disagrees with it.** 4c-ii-b/c
+> subtract from index i INCLUSIVE, which is end-of-month semantics, and that is
+> deliberate and correct — the drawer itemises the extra in the month it is paid.
+> The seed is `schedule[monthsElapsed + i].startBalance`, an OPENING balance.
+> The principled fix is therefore to seed `endBalance`, giving one meaning
+> everywhere and making `extra-aware-payoff.ts` unnecessary — but that shifts
+> every no-extra reading by a month for every user on every surface (the drawer,
+> `carLoanBreakdown`, the liability itemisation), so it deserves its own measured
+> session rather than a ride-along. The reading-side fix that shipped is provably
+> inert for anyone with no extras.
+>
+> ⬜ STILL QUEUED:
+> 1. "the same rule needs to auto apply to all users" for manual CONTRIBUTIONS.
+>    `585aacdc` covers LUMP SUMS only. Must follow its VISIBLE-and-confirmed
+>    pattern, never a silent wipe — it deletes real user rows.
+> 2. The goal spend-down gap above.
+> 3. The seed-vs-reducer convention fix above.
+> 4. The Feb 2031 $48.86 breach. ⛔ `scratchpad/llm/floor_out.md` IS WRONG.
+> 5. Student loans — his GF's account, not his; he has not logged into it yet.
+> 6. Friends + leaderboard Phase 2.
+
 > ▶ 2026-08-27 SESSION 35t — **THE PAYOFF-DATE BUG IS MEASURED AND FIXED
 > (`efa9f1df`).** tsc 0, 283 files / 2970 tests. 8 commits unpushed.
 >
