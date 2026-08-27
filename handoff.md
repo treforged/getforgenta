@@ -1,5 +1,70 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35t — **THE PAYOFF-DATE BUG IS MEASURED AND FIXED
+> (`efa9f1df`).** tsc 0, 283 files / 2970 tests. 8 commits unpushed.
+>
+> ⛔ **STOPPED ON PURPOSE, NOT FINISHED.** `~/.claude/usage-history.csv` measured
+> `seven_day` at **84 against a cap of 85**, rising **~0.8 points/hour**. Roughly
+> an hour of headroom at the time of writing. Everything below is durable.
+>
+> ═══ THE FIX, AND HOW IT WAS MEASURED ═══
+> Tre asked for the measurement first, and it is now two permanent pins in
+> `forecast-engine.extrasPayoffReadout.test.ts`:
+>   1. an extra reduces the balance array from its OWN month, index i INCLUSIVE
+>      (`before[m] - after[m]` == that month's extra; `[m-1]` untouched);
+>   2. when extras are what clear the debt, the array first reads zero in the
+>      SAME month the final extra lands (`lastExtraMonth === firstZero`).
+>
+> So that array carries **two conventions**: seeded as the balance a month OPENS
+> at, then reduced from index i inclusive. `firstZero - 1` is therefore right when
+> amortization runs the balance out and a month EARLY when an extra finishes it.
+> Three call sites carried that `- 1`.
+>
+> `src/lib/extra-aware-payoff.ts` is now the ONE place that reads it — it asks
+> whether money actually went in during the month the balance ran out. Both DATE
+> sites (Garage card, /debt Auto Loans) share it. LIVE before→after on his C5:
+> "Jul 2029" → "Aug 2029", agreeing with the schedule row underneath.
+>
+> ⚠️ **NOT CHANGED, DELIBERATELY:** the engine's `from i` reducer convention.
+> Moving it to `i + 1` makes the helper trivial and shifts every drawer line,
+> every `carLoanBreakdown` row and the Forecast's liability itemisation by a
+> month. The convention is load-bearing; the READING of it was wrong.
+>
+> ⚠️ **LEFT OPEN:** `withExtrasPayoffMonths` (the non-CC liability row in
+> /debt) returns `firstZero` as a month COUNT, not an index, compared against
+> `calculatePayoffMonths`. Same array, different question, NOT measured. Do not
+> assume it has the same off-by-one — measure it the way this one was.
+>
+> ═══ THE WEEKLY CAP: THE DATA REFUSES THE PREMISE ═══
+> Tre: "i think we may be able to extend our 7 day % cap considering how much we
+> can do in our current workflow with little claude token usage."
+>
+> Measured, 27 samples: **seven_day 77 → 84 across 8.9 hours of this session**.
+> The workflow is not cheap on the weekly window. This is the SECOND independent
+> measurement of the same correction — the first found the executor switch is not
+> what burns it either; the manager's own gate runs and browser round-trips are.
+> Cap files already sit at the TEMP 85 he set 2026-08-26 (both must match).
+> RECOMMENDATION ON RECORD: do not raise. The 15% left is the routine reserve and
+> the original derivation said routines need 24-27%. The lever is fewer manager
+> gate runs, not a higher ceiling. His call; nothing was changed.
+>
+> ═══ STUDENT LOANS: DIAGNOSED, NOT A BUG ═══
+> His four Direct Loans are all paired to `debts` rows and DO show Monthly
+> Payment / Payoff In / Total Interest. The missing half is "changes": the
+> "N mo with extra payments" line is gated on `paired?.surplus_sort_order != null`
+> and **all four are NULL** — they are not on the ranked list, so the line can
+> never render. That is a product decision (say why it is absent, or offer them
+> for ranking where he can see them), not a defect. Resume here.
+>
+> ⬜ ALSO STILL QUEUED:
+> 1. The Feb 2031 $48.86 breach. ⛔ the free-LLM diagnosis at
+>    `scratchpad/llm/floor_out.md` IS WRONG — start from 35l.
+> 2. Friends + leaderboard Phase 2 (leaderboard publisher).
+>
+> ⚠️ TWO COMMIT-MESSAGE TRAPS, both hit: a wrapped `Release-Note:` publishes only
+> its first line (`2ab63346` was truncated), and a bash heredoc mangles an
+> apostrophe inside a JS string — write those test names with double quotes.
+
 > ▶ 2026-08-27 SESSION 35s — **FOUR QUEUED ASKS SHIPPED, ALL GATED, MOST
 > LIVE-VERIFIED.** `26fd1bce` · `1256ab06` · `79031965`. tsc 0, 282 files /
 > 2960 tests. Local only, unpushed (6 commits ahead now).
