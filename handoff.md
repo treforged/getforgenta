@@ -1,5 +1,43 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35i — **PUSHED. End of this week's app work (Tre's call,
+> his usage is low).** Caps still five_hour 90 / seven_day 85 - RESTORE BOTH TO
+> 75 next session, that is now the top item.
+>
+> SHIPPED THIS SESSION, all live-gated (tsc + 2859 tests each):
+> `afbff446` reserve clamped against the whole tail - zero of 60 months below
+> floor, converged; `73e99483` VERSION 6.5.0 (6.4's App Store train is closed);
+> `6e676601` Garage shows the ranked auto-extra + dashed chart line + accelerated
+> payoff date; `111a158a` Loans tabs read the live ACCOUNT balance instead of the
+> hand-typed debts row; `585aacdc` auto extra ON clears hand-typed extras and
+> disables manual entry, plus the regression test owed on afbff446.
+>
+> ⚠️ TWO ITEMS NOT DONE, deliberately not rushed into the last push of the week.
+> Both are DESIGN work, not typing, and both are about making something clearer
+> to customers - shipping a half-considered version would make the exact
+> confusion Tre is asking to remove:
+> 1. **"Where the extra money goes" should reorder like the Builds tab.** Drag
+>    handlers already exist in `SurplusRankingSection.tsx` (~line 126,
+>    `dragOverId`/`draggingId`). Match the Builds tab's INTERACTION, not its code.
+> 2. **Credit cards: one toggle, per-card OR cards-in-general, never both.**
+>    Today it is a per-card opt-out - `setCardSeparated(id, bool)` writing
+>    `accounts.surplus_sort_order` at SurplusRankingSection.tsx:494 and :532 - and
+>    that is exactly what lets both representations coexist. READ
+>    `ranked-extra-payment-targets.ts`'s header first: it explains why cards rank
+>    as a BLOCK by default and why an individual rank moves the SPLIT POINT rather
+>    than overriding the payoff strategy. Tre's own account is the reference and a
+>    50/50 `surplus_share` split is the worst case.
+>
+> ⚠️ WATCH THE iOS RUN on this push. It carries VERSION 6.5.0, which is the fix
+> for the 6.4 rejection (`73e99483` has the two Apple error codes). If it fails
+> again, `gh run view --log-failed` TRUNCATES before the upload step - download
+> the logs zip instead, per `project_ios_upload_version_trap` in memory.
+>
+> ⚠️ TEST DEBT that is now DOCUMENTED IN THE TEST rather than only here: the
+> look-ahead half of `afbff446` is pinned only by the live check, because
+> `makeInputs` cannot express a one-time expense months out. Whoever extends that
+> harness should finish it.
+
 > ▶ 2026-08-26 SESSION 35h — **TWO OF THE FOUR UI ITEMS SHIPPED. STILL NOT
 > PUSHED.** `6e676601` (Garage) and `111a158a` (Loans tabs). Everything from 35g
 > below still stands.
