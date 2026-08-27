@@ -28,6 +28,7 @@ import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-ac
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
+import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { computeAutoExtraReserve } from '@/lib/ranked-surplus-allocation';
@@ -363,6 +364,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // in the balance", which only holds up to the cutoff — is what made Dashboard
       // MONTH-END CASH read $172.50 below Forecast END CASH on real data.
       const ccSourceIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+      const otherAssetIds = assetAccountIdsOf(accounts);
       const m0OneTimeCutoff = syncCutoffDate ?? todayStr;
       const oneTimeArr: { income: number; expenses: number }[] = [];
       for (let oi = 0; oi < PROJECTION_MONTHS; oi++) {
@@ -380,6 +382,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             if (t.type !== 'expense') return false;
             if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
             if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
+            // Paid out of another of the user's accounts ⇒ it never touches this balance. Mirrors
+            // `useForecastEngineInputs.oneTimeByMonth`, and it has to: the two builders feed the
+            // same month's cash on two different surfaces, so a rule applied in one and not the
+            // other is Dashboard and Forecast disagreeing about the same dollar.
+            if (otherAssetSourceId(t.payment_source, resolvedDebtFundingId ?? null, otherAssetIds) != null) return false;
             return true;
           })
           .reduce((s, t) => s + Number(t.amount), 0);

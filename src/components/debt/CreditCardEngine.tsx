@@ -11,6 +11,7 @@ import UtilizationPanel from './UtilizationPanel';
 import PaydownPlanPanel from './PaydownPlanPanel';
 import DebtHero from './DebtHero';
 import AvalancheOrderList from './AvalancheOrderList';
+import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 import CardRateLine from './CardRateLine';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
@@ -526,6 +527,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // One-time (non-generated) transactions per future month — applied AFTER debt allocation
     // in simulateVariablePayoff so they don't cause look-ahead cash hoarding in prior months.
     // Month 0 is handled separately via month0Income/month0Expenses above.
+    const otherAssetIds = assetAccountIdsOf(accounts);
     const oneTimeByMonth: { income: number; expenses: number }[] = [{ income: 0, expenses: 0 }];
 
     // Augment ccPurchasesPerMonth with one-time (non-generated) CC transactions per card.
@@ -548,6 +550,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           if (t.type !== 'expense') return false;
           if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
           if (t.payment_source && ccIds.has(t.payment_source)) return false;
+          // Paid out of another of the user's accounts ⇒ it never touches the funding balance.
+          // Same rule as `useForecastEngineInputs.oneTimeByMonth`; the sim's cash and the
+          // forecast's cash have to exclude the same transaction or the two disagree by its amount.
+          if (otherAssetSourceId(t.payment_source, resolvedFundingId || null, otherAssetIds) != null) return false;
           return true;
         })
         .reduce((s, t) => s + Number(t.amount), 0);

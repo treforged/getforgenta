@@ -8,6 +8,7 @@ import type { CalcDrawerLine } from '@/components/shared/CalcDrawer';
 import type { ForecastMonthRow } from '@/lib/forecast-engine';
 import type { CardProjectionResult } from '@/hooks/useCardProjection';
 import type { CarFund } from '@/lib/types';
+import { buildOtherAccountLines } from '@/lib/other-account-lines';
 
 /**
  * The Forecast's month-by-month receipts.
@@ -225,26 +226,17 @@ export default function MonthlyBreakdownTable({
                 },
               },
               { label: '', value: '' },
-              ...((row.nonCashTransferItems as { name: string; fromAcctName: string; amount: number }[] | undefined)?.length
-                ? [
-                    { label: 'Account Transfers (no cash impact)', value: '' },
-                    ...(row.nonCashTransferItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
-                      label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
-                      value: formatCurrency(item.amount, true),
-                    })),
-                    { label: '', value: '' },
-                  ]
-                : []),
-              ...((row.otherAccountExpenseItems as { name: string; fromAcctName: string; amount: number }[] | undefined)?.length
-                ? [
-                    { label: 'Other Account Expenses (no cash impact)', value: '' },
-                    ...(row.otherAccountExpenseItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
-                      label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
-                      value: formatCurrency(item.amount, true),
-                    })),
-                    { label: '', value: '' },
-                  ]
-                : []),
+              // ── OTHER ACCOUNTS ────────────────────────────────────────────────
+              //
+              // Tre, 2026-08-27: *"that top section is a reflection of only the checking account
+              // (the debt payment account) ... make a new section that shows the change in other
+              // accounts when there is one."* Everything above this point is one account's cash.
+              // Money that moved a DIFFERENT account of his — a bill or a one-time paid out of
+              // savings, a transfer between two non-cash accounts — belongs here instead, grouped
+              // by the account it actually moved, with that account's net change for the month.
+              // The two lists this replaces said "no cash impact", which was true of checking and
+              // silent about where the money did come from.
+              ...buildOtherAccountLines(row as Parameters<typeof buildOtherAccountLines>[0], formatCurrency),
               ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
                 .filter(a => a.bucket === 'retirement')
                 .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, true) })),

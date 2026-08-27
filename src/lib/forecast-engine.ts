@@ -124,8 +124,13 @@ export interface ForecastMonthRow {
    * that keeps this from double-counting a bill the user also has as an expense rule. */
   otherDebtPayment: number; transfersTotal: number;
   transferBreakdown: { name: string; amount: number }[];
-  nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
-  otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[];
+  /** ⚠️ BOTH ENDS. The money leaves `fromAcct` and lands in `toAcct` — one movement, two accounts —
+   *  and the popup's "Other Accounts" section cannot show a change honestly with only one of them
+   *  (a savings → brokerage transfer would read as money simply gone). `toAcctId` is null when the
+   *  transfer records no deposit account. */
+  nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number }[];
+  otherAccountExpenseItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
+  otherAccountOneTimeItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
   lumpSumSavings: number; lumpSumBrokerage: number; lumpSumRothIra: number;
   businessContrib: number; totalCCPurchases: number; ccDebtBalance: number; ccDisplayBalance: number;
   paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number;
@@ -192,6 +197,13 @@ export interface ForecastInputs {
   cardProjectionData: CardProjectionResult | null;
   payConfig: PayScheduleConfig;
   oneTimeByMonth: Record<string, { income: number; expense: number }>;
+  /**
+   * One-time expenses paid out of an ASSET ACCOUNT THAT IS NOT THE FUNDING ACCOUNT, keyed `YYYY-MM`
+   * — the ones `oneTimeByMonth` deliberately leaves out (see `other-account-cash.ts`). They debit
+   * that account instead of this walk's cash, and the month popup names them under "Other
+   * Accounts". Absent ⇒ nothing to move, which is every user with no such transaction.
+   */
+  otherAccountOneTimeByMonth?: Record<string, { id: string; name: string; amount: number }[]>;
   ccOneTimeByMonth: Record<string, number>;
   ccScheduledByMonth: number[];
   transactions: TransactionRow[];
@@ -253,7 +265,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
   const {
     debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules,
     monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData,
-    payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
+    payConfig, oneTimeByMonth, otherAccountOneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
     currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor,
     pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget,
     syncedTransactions,
@@ -1117,13 +1129,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
        * deduction split from it, since a mixed flat+pct set splits differently after a raise. */
       incomeMultiplier: number;
       transferBreakdown: { name: string; amount: number }[];
-      nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
+      nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number }[];
       floorItems: { name: string; amount: number; dueDay: number }[];
       prePaycheckBillsTotal: number;
       savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
       carContribItems: { name: string; amount: number; isPurchaseMonth: boolean }[];
       perAccountTransferContribs: Map<string, number>;
-      otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[];
+      otherAccountExpenseItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
+      otherAccountOneTimeItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
     }[] = [];
     let incomeMultiplier = 1;
     const sortedPromotions = [...(assumptions.promotions ?? [])].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
@@ -1383,7 +1396,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       let monthSavingsTransferContrib = 0;
       const activeTransferDestIds = new Set<string>();
       const transferBreakdown: { name: string; amount: number }[] = [];
-      const nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[] = [];
+      const nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number }[] = [];
       const perAccountTransferContribs = new Map<string, number>();
       for (const tr of transferRulesAll) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > monthEnd) continue;
@@ -1427,7 +1440,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           : false;
         if (srcIsNonCash) {
           if (monthAmt > 0) {
-            nonCashTransferItems.push({ name: tr.name, fromAcctId: srcAcct!.id as string, fromAcctName: srcAcct!.name as string, amount: monthAmt });
+            const destAcctNC = tr.deposit_account ? accountMap.get(tr.deposit_account) : null;
+            nonCashTransferItems.push({
+              name: tr.name,
+              fromAcctId: srcAcct!.id as string, fromAcctName: srcAcct!.name as string,
+              toAcctId: (destAcctNC?.id as string) ?? null, toAcctName: (destAcctNC?.name as string) ?? '',
+              amount: monthAmt,
+            });
             if (tr.deposit_account) {
               perAccountTransferContribs.set(tr.deposit_account, (perAccountTransferContribs.get(tr.deposit_account) ?? 0) + monthAmt);
             }
@@ -1470,7 +1489,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // Expense rules paid from a different bank account than the funding account — that money
       // never touches the funding account, so (mirroring nonCashTransferItems above) it must not
       // reduce baseExpenses. Tracked here for the popup's own "no cash impact" section instead.
-      const otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[] = [];
+      const otherAccountExpenseItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[] = [];
       for (const r of rules) {
         if (!r.active || r.rule_type !== 'expense' || !r.payment_source) continue;
         if (ccPaymentSourcesForOtherAcct.has(r.payment_source)) continue;
@@ -1479,9 +1498,28 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const srcAcct = accountMap.get(srcId);
         const monthAmt = Number(r.amount) * countRuleOccurrencesInMonth(r, d.getFullYear(), d.getMonth());
         if (monthAmt > 0) {
-          otherAccountExpenseItems.push({ name: r.name as string, fromAcctName: (srcAcct?.name as string) ?? '', amount: monthAmt });
+          // ⚠️ THE ID, not only the name. Until 2026-08-27 this list was display-only: the expense
+          // was (rightly) kept out of `baseExpenses` and then debited from NOTHING, so the money
+          // left no account at all and net worth carried a balance that had already been spent.
+          // Step 4b-iii below is the missing half and it needs the account, not its label.
+          otherAccountExpenseItems.push({ name: r.name as string, fromAcctId: srcId, fromAcctName: (srcAcct?.name as string) ?? '', amount: monthAmt });
         }
       }
+
+      // ── ONE-TIME EXPENSES PAID OUT OF ANOTHER ACCOUNT ─────────────────────────
+      //
+      // The same rule as the rules above, for one-off transactions — built by the caller because
+      // that is where the transaction list lives (`useForecastEngineInputs`). Tre's live case: the
+      // **June 2027 lease-break fee of $3,830 paid from Savings Account**, which this walk used to
+      // subtract from CHECKING's ending cash while the savings balance never moved.
+      const otherAccountOneTimeItems = (otherAccountOneTimeByMonth?.[monthKey] ?? [])
+        .filter(it => it.amount > 0)
+        .map(it => ({
+          name: it.name,
+          fromAcctId: it.id,
+          fromAcctName: (accountMap.get(it.id)?.name as string) ?? '',
+          amount: it.amount,
+        }));
 
       // Add paycheck 401k deduction — month 0 uses only paychecks strictly after syncCutoffDate.
       // Paychecks on or before the sync date are already reflected in liquidBal.
@@ -1559,7 +1597,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth, promotionNewSalary,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, incomeMultiplier, transferBreakdown, nonCashTransferItems,
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
-        otherAccountExpenseItems,
+        otherAccountExpenseItems, otherAccountOneTimeItems,
       });
 
     }
@@ -2392,6 +2430,25 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
       }
 
+      // ── 4b-iii. MONEY SPENT OUT OF AN ACCOUNT THAT IS NOT CHECKING ────────────
+      //
+      // Tre, 2026-08-27: *"that top section is a reflection of only the checking account (the debt
+      // payment account) ... make a new section that shows the change in other accounts."* Both
+      // lists are already kept OUT of this month's cash — that half was right and is unchanged —
+      // but until now they were debited from nothing, so the dollars left the plan entirely: the
+      // savings balance still carried money that had been spent and Net Worth was overstated by it
+      // for the rest of the horizon. Same shape as 4b-ii, and clamped at zero for the same reason:
+      // an account cannot be projected below empty, and a projection that goes negative there would
+      // subtract the same shortfall again every later month.
+      for (const item of [...b.otherAccountExpenseItems, ...b.otherAccountOneTimeItems]) {
+        const srcSav = perAcctSavings.get(item.fromAcctId);
+        const srcInv = perAcctInvest.get(item.fromAcctId);
+        const srcRet = perAcctRetire.get(item.fromAcctId);
+        if (srcSav) srcSav.balance = Math.max(0, srcSav.balance - item.amount);
+        else if (srcInv) srcInv.balance = Math.max(0, srcInv.balance - item.amount);
+        else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
+      }
+
       // 4c. Goal monthly contributions → linked savings account or goal pool. The APPLIED items,
       // so a balance only grows by cash that actually left checking above (`savingsOut`).
       for (const item of savingsGoalItemsApplied) {
@@ -2701,9 +2758,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         transferBreakdown: b.transferBreakdown,
         nonCashTransferItems: [
           ...b.nonCashTransferItems,
-          ...vehicleDPFromSavingsThisMonth.map(v => ({ name: `${v.vehicleName} Down Payment`, fromAcctName: v.fromAcctName, fromAcctId: '', amount: v.amount })),
+          ...vehicleDPFromSavingsThisMonth.map(v => ({ name: `${v.vehicleName} Down Payment`, fromAcctName: v.fromAcctName, fromAcctId: '', toAcctId: null, toAcctName: '', amount: v.amount })),
         ],
         otherAccountExpenseItems: b.otherAccountExpenseItems,
+        otherAccountOneTimeItems: b.otherAccountOneTimeItems,
         lumpSumSavings: lumpTransferByMonth[i].savings,
         lumpSumBrokerage: lumpTransferByMonth[i].brokerage,
         lumpSumRothIra: lumpTransferByMonth[i].roth_ira,

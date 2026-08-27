@@ -20,6 +20,7 @@ import type { ForecastInputs } from '@/lib/forecast-engine';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeAnnualFederalWithheld } from '@/lib/income-model';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 
 /**
  * Assembles the full ForecastInputs for the pure calculateForecast engine. Extracted VERBATIM
@@ -359,6 +360,7 @@ export function useForecastEngineInputs({
         .filter((a) => a.account_type === 'credit_card' && a.active)
         .flatMap((a) => [a.id, `account:${a.id}`]),
     );
+    const assetIds = assetAccountIdsOf(accounts);
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     for (const t of transactions) {
@@ -368,10 +370,46 @@ export function useForecastEngineInputs({
       if (monthKey === currentMonthKey && t.date && t.date <= syncCutoffDate) continue;
       if (!result[monthKey]) result[monthKey] = { income: 0, expense: 0 };
       if (t.type === 'income') result[monthKey].income += Number(t.amount);
-      else if (!t.payment_source || !ccSources.has(t.payment_source)) result[monthKey].expense += Number(t.amount);
+      // ⚠️ NOT THE FUNDING ACCOUNT'S CASH. A one-time paid from another account of the user's
+      // never touches the balance this walk is about; it is reported as a change in THAT account
+      // instead (`otherAccountOneTimeByMonth` below). The credit-card filter is untouched and
+      // still ahead of it — a card purchase is a liability, not a withdrawal.
+      else if ((!t.payment_source || !ccSources.has(t.payment_source))
+        && otherAssetSourceId(t.payment_source, forecastFundingAccountId, assetIds) == null) {
+        result[monthKey].expense += Number(t.amount);
+      }
     }
     return result;
-  }, [transactions, accounts, syncCutoffDate]);
+  }, [transactions, accounts, syncCutoffDate, forecastFundingAccountId]);
+
+  /**
+   * ONE-TIME EXPENSES PAID OUT OF ANOTHER ACCOUNT — the ones just excluded above, named, with the
+   * account they really came from. The engine debits that account and the month popup prints them
+   * under "Other Accounts", so the money leaves somewhere real instead of vanishing (Tre,
+   * 2026-08-27: "make a new section that shows the change in other accounts when there is one").
+   */
+  const otherAccountOneTimeByMonth = useMemo(() => {
+    const result: Record<string, { id: string; name: string; amount: number }[]> = {};
+    const assetIds = assetAccountIdsOf(accounts);
+    const today = new Date();
+    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    for (const t of transactions) {
+      if ((t as EnrichedTransaction).isGenerated || t.type !== 'expense') continue;
+      const monthKey = t.date?.substring(0, 7);
+      if (!monthKey) continue;
+      if (monthKey === currentMonthKey && t.date && t.date <= syncCutoffDate) continue;
+      const srcId = otherAssetSourceId(t.payment_source, forecastFundingAccountId, assetIds);
+      if (srcId == null) continue;
+      const amount = Number(t.amount);
+      if (!(amount > 0)) continue;
+      (result[monthKey] ??= []).push({
+        id: srcId,
+        name: (t.note as string | null) || (t.category as string | null) || 'One-time expense',
+        amount,
+      });
+    }
+    return result;
+  }, [transactions, accounts, syncCutoffDate, forecastFundingAccountId]);
 
   // CC-only one-time purchases per month — display-only.
   const ccOneTimeByMonth = useMemo(() => {
@@ -430,12 +468,12 @@ export function useForecastEngineInputs({
   const engineInputs = useMemo<ForecastInputs>(() => ({
     debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules,
     monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData,
-    payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
+    payConfig, oneTimeByMonth, otherAccountOneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
     currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor,
     pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget,
     paymentPlans: paymentPlans ?? [],
     syncedTransactions,
-  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget, paymentPlans, syncedTransactions]);
+  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, otherAccountOneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget, paymentPlans, syncedTransactions]);
 
   return {
     engineInputs,
