@@ -39,8 +39,9 @@
 >   two per row. MEASURED at 386px: first card y=211 closed vs y=325 open; at
 >   1392px the toggle is not rendered and the row is unchanged.
 >
-> - **⚠️ UNGATED, COMMITTED, DO THIS FIRST NEXT SESSION: the two figures are back
->   on the saving card.** Tre, after reading the note above: *"yes. bring them."*
+> - **`e4ed110d` — the two figures are back on the saving card. GATED (see the
+>   line below the block: tsc 0, 294 files / 3114 tests, eslint clean).** Tre,
+>   after reading the note above: *"yes. bring them."*
 >   `SavingCard.tsx` now derives `estLoanPrincipal` (price + tax/fees − down
 >   payment, the deleted card's own formula) and `estTotalInterest` (the
 >   amortization's `totalInterest` when a schedule exists — it counts planned
@@ -48,9 +49,16 @@
 >   `payment × term − principal` when there is no purchase date), rendered as
 >   "Est. Loan" and "Est. Total Interest" in the stat grid. A test in
 >   `vehicle-money-move.test.tsx` pins both labels and $24,400 on the fixture.
->   **THE USAGE CAP HIT BEFORE tsc OR THE SUITE COULD RUN ON IT.** Run
->   `npx tsc --noEmit`, `npm test` and eslint before anything else, then one look
->   at /debt's Auto Loans tab. Nothing else in this session is ungated.
+>   The usage cap hit between the edit and the gates; they were run after Tre
+>   raised it to 96% and are GREEN — **tsc 0, 294 files / 3114 tests, eslint
+>   clean.** ⚠️ NOT live-visible on his data and cannot be: he has NO saving-phase
+>   vehicle right now (/debt's Auto Loans tab reads "No vehicle goals yet" under
+>   Saving for Down Payment), so the test is the only evidence for those two
+>   cells until he adds one.
+>
+> ⚠️ **THE WEEKLY CAP OVERRIDE IS NOW 96** (Tre, 2026-08-27 afternoon: "up to
+> 96%") in both `usage_cap_hook.py` and `usage_resume_watch.py`. Still temporary
+> — restore to 75.0 after the 2026-08-31 18:00 reset.
 > - He also settled the other open question: **keep "Transactions"** — the phone
 >   label stays as it is, no revert, question closed.
 >
