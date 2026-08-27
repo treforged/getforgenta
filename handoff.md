@@ -1,5 +1,92 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35p — **STAGES ARE LIVE ON TRE'S GOAL AND SEPARATED IN THE
+> LIST (`e1d5841a`). THREE SLICES WERE DELEGATED TO THE FREE-LLM TIER: ONE IS A
+> REJECT, TWO ARE DRAFTS. AND TRE HAS REDESIGNED THE FEATURE - READ "THE N-STAGE
+> REDESIGN" BELOW BEFORE TOUCHING ANY OF IT.** tsc 0, 2892/2892. Unpushed.
+>
+> DONE THIS SESSION:
+> - His goal is SAVED with stages: `emergency_months_stage1=3`,
+>   `emergency_months_stage2=6`, verified by SQL. He asked for it in chat.
+> - The two stops now render as SEPARATE ROWS in "Where the extra money goes",
+>   live-verified in his own order: 1 Prime Visa · 2 Move fund FIRST STOP $16,221
+>   · 3 Discover · 4 Venture X · 5 Apple Card · 6 Move fund THEN $10,598 more,
+>   once the cards are clear (WAITING) · 7 C5 loan · 8 Roth IRA. The second row is
+>   `derived: true`, id `<goalId>::stage2`, and EVERY planner skips it - that flag
+>   is load-bearing, not decoration.
+>
+> ⛔ **THE FREE-LLM DIAGNOSIS OF THE FEB 2031 BREACH IS WRONG. DO NOT APPLY IT.**
+> Output at `scratchpad/llm/floor_out.md`. It asserts that `expenseByMonth`
+> already contains the cycling spend and therefore `- ccMin(m)` in `netAtMin`
+> double-counts, and its "minimal fix" DELETES the `ccMin(m)` term outright. It
+> produced no evidence for the premise - it simply agreed with the hypothesis in
+> my own prompt. Removing that term makes `netAtMin` ignore card minimums
+> entirely, which is the whole point of "net at minimum". Scorecard: accuracy 1,
+> hallucination 1 (invented a fact about a caller it never saw). The Feb 2031
+> breach is STILL OPEN and still needs the 35l write-up.
+> 📝 The other two are usable DRAFTS, not shippable, and neither has been applied:
+> - `scratchpad/llm/roth_out.md` - `computeLevelMonthlyContribution(annualCap,
+>   alreadyContributedThisYear, monthsRemainingInYear, requestedMonthly)` is a
+>   sound helper and its edge cases are right. The diff that calls it is
+>   hand-waving (invents two Maps with no lifetime). Take the helper, write the
+>   wiring yourself.
+> - `scratchpad/llm/garage_out.md` - unreviewed. Amortization schedule + auto-extra.
+>
+> ═══ THE N-STAGE REDESIGN (Tre, 2026-08-26, in chat) ═══
+> His words: *"the original $5,730 should show as the first stage since its only
+> for the move fund part (that stage should immediately stop/drop once its done).
+> the card should be edited to reflect such stages, etc. and the original fund
+> goal date should show per stage instead. in the modal the target amount and date
+> should clear if stages are planned. also be able to add multiple planned stops
+> with target amounts."*
+>
+> This SUPERSEDES the two-column design. Six changes, and the first one forces the
+> schema:
+> 1. **THE MOVE FUND IS ITSELF A STAGE.** Today `target_amount` 5,730 is the BASE
+>    that both stages are measured up from, so stage 1 reads $16,221 - the move
+>    money and three months of expenses fused into one number. He wants the 5,730
+>    to be stop #1 on its own, and to DISAPPEAR from the list the moment it is
+>    filled.
+> 2. **N STOPS, NOT TWO**, each with its own target - a DOLLAR amount or a
+>    months-of-expenses multiplier. So `emergency_months_stage1/2` cannot hold it.
+> 3. **A DATE PER STOP**, replacing the goal's single `target_date` (his is Jul
+>    2027, which is the MOVE date and means nothing to the 6-month stop).
+> 4. **THE GOAL CARD** on the Goals tab must show the stops, not one target.
+> 5. **THE MODAL** must clear/hide Target Amount and Target Date once stops exist.
+> 6. Thresholds are CUMULATIVE: stop N is reached at the sum of stops 1..N.
+>
+> PROPOSED SCHEMA, not yet built: `savings_goals.stages jsonb not null default
+> '[]'`, an ordered array of
+> `{ id, name?, amount?: number, months?: number, target_date?: string|null,
+>    after_cards?: boolean }`.
+> `after_cards` is the hand-off flag and it belongs on the stop that WAITS (his
+> 6-month one), which keeps today's behaviour expressible and generalises it.
+> Keep `emergency_months_stage1/2` for one release and migrate rows forward, or
+> the live goal above loses its stages mid-flight.
+>
+> WHAT HAS TO CHANGE, in dependency order:
+> a. migration + `types.ts` (SAME commit).
+> b. `ranked-extra-payment-targets.ts`: `goalStages` returns an ordered STAGE LIST,
+>    `stagedTargetFor` walks it, `goalRemainingNeed` reports the CURRENT stop.
+> c. `forecast-engine.ts`: `stagedTail` is currently ONE parked number. It becomes
+>    a QUEUE of remaining stops, and the `revBalTotal <= 0` unlock at ~1669 only
+>    releases stops flagged `after_cards`.
+> d. `surplus-ranking.ts`: emit one row PER STOP (the `derived` machinery already
+>    built handles rows 2..N unchanged - only the count changes), and drop a stop's
+>    row once it is filled.
+> e. `SavingsGoals.tsx`: the goal CARD, and the modal's stop editor.
+>
+> ⚠️ THE ONE INVARIANT THAT MUST NOT BREAK: it stays ONE goal row in the database.
+> His goal resolves `current_amount` from `linked_account` 36997c1c-..., so any
+> design that splits it into several goal rows double-counts the same balance.
+>
+> ⬜ ALSO STILL QUEUED: not-yet-live cards (Venture X, Apple Card) shown with a
+> "not open yet" note and ordered by the payoff method - they already render
+> individually because he is in "One row each" mode, so ONLY the note and the
+> ordering are missing; the card mode always requiring a selection; the Roth cap
+> and uncapped investing (draft above); the Garage schedule (draft above); and the
+> Feb 2031 breach (delegation rejected, start from 35l).
+
 > ▶ 2026-08-26 SESSION 35o — **STAGED EMERGENCY GOAL IS COMPLETE AND LIVE-VERIFIED.
 > `0709de5e` + `6e54cda8`, local only, unpushed. tsc 0, 2889/2889.**
 >
