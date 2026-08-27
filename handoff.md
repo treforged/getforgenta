@@ -1,5 +1,63 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36o — **`908ef938`. tsc 0, 294 files / 3113 tests, eslint
+> clean. 53 commits unpushed.** BOTH of the asks session 36n left unstarted are
+> shipped and live-verified. Manager built both; no executor spawned.
+>
+> ═══ ✅ SHIPPED ═══
+> - **`41c394f4` — THE VEHICLE MONEY IS ON /debt's AUTO LOANS TAB.** Tre: *"move
+>   saving for down payment and active loans to the auto loans section inside the
+>   debt payoff tab. it makes more since there. garage will just be the list of
+>   cars, the builds page, and maintenance"*.
+>   - `src/components/vehicles/` is new: `LumpSumPanel`, `SavingCard`, `LoanCard`,
+>     `BuyItDialog`, `vehicle-format.ts`, and `VehicleMoneyPanels` — the container
+>     with the data, the forms, the draft and every write. All lifted VERBATIM out
+>     of `Vehicles.tsx`; no arithmetic and no copy changed.
+>   - /debt's auto tab KEEPS its two stat cards and `LiabilityTrajectoryChart`;
+>     what it lost is the READ-ONLY loan card, the "Planned Loans — Estimate"
+>     section and the "managed on the Vehicles page" note, all replaced by
+>     `<VehicleMoneyPanels />`. Sections are STACKED (no nested pill row).
+>   - Garage = roster + Builds (maintenance rides with Builds, as it always has).
+>   - `garage-tab.ts` drops `saving`/`loan`, gains `normalizeGarageTab` so the
+>     stale `tre:vehicles:activeTab` value and any `?tab=loan` link land on the
+>     car list. New `debt-tab.ts` gives /debt a `?tab=auto` deep link; the roster,
+>     the Dashboard Car Goal tile, both Savings Goals links and BuildCarStrip's
+>     "Plan" all point at it now.
+>   - Guides moved with the panels: `garage:saving`+`garage:loan` → one
+>     `garage:vehicles`; their saving-phase / "I bought it" / undo guidance is now
+>     four sections of `debt:auto`.
+>   - LIVE on his data: `/debt?tab=auto` opens on Auto Loans with the C5 card,
+>     Add Loan + Add Vehicle Goal, no "Edit on Vehicles page" anywhere;
+>     `/vehicles` reads Builds | Vehicles (1) with "2004 Chevorlet C5 — Owned ·
+>     10.18% APR · 48 mo loan" and one Money link.
+>   - ⚠️ **ONE THING NOT CARRIED OVER, and he should decide:** the deleted "Planned
+>     Loans — Estimate" card printed an estimated loan PRINCIPAL and TOTAL INTEREST
+>     for a not-yet-bought car. `SavingCard` shows target price, est. monthly
+>     payment, insurance and est. payoff instead. Two cells brings them back.
+> - **`908ef938` — Forecast's five top controls collapse on a phone.** A `sm:hidden`
+>   "Controls" disclosure, persisted closed (`tre:forecast:showControls`); opened,
+>   two per row. MEASURED at 386px: first card y=211 closed vs y=325 open; at
+>   1392px the toggle is not rendered and the row is unchanged.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. ⭐ **FINISH THE TILES MOVE.** Steps (a) `35af9cb3` and (b) `1becc8d6` are done
+>    and INERT. (c)–(f) are unchanged in session 36n's block below — the decision
+>    table and the plan are there, do not re-derive them.
+> 2. His "smaller quick things i had mentioned that i cant recall" — Debt Payoff
+>    truncating span at 390px; the "not open yet" note + payoff-method ordering on
+>    Venture X / Apple Card; the Garage card's TWO payoff dates for one loan
+>    (`autoPayoffLabel` reads `firstZero - 1` off a balance array with a one-month
+>    credit lag — MEASURE first, money math). ⚠️ that last one now lives in
+>    `src/components/vehicles/LoanCard.tsx`, not `Vehicles.tsx`.
+> 3. The Transactions phone-label trade from 36n (83.3px label vs 66.8px column at
+>    390px) is still HIS CALL, one line to revert.
+> 4. Then session 36k's queue, unchanged, below.
+>
+> ⚠️ Weekly usage cap override is at **94** (Tre, 2026-08-27) in both
+> `~/.claude/bin/usage_cap_hook.py` and `usage_resume_watch.py` —
+> **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36n — **`6d0c25e3`. tsc 0, 292 files / 3100 tests, eslint
 > clean. 51 commits unpushed.** SIX of Tre's asks arrived mid-session and SIX are
 > shipped; two more arrived after the context gate and are UNSTARTED and scoped
