@@ -23,6 +23,26 @@ describe('allocateRankedSurplus — split ranks', () => {
   const shared = (id: string, sortOrder: number, capacity: number, share: number): RankedTarget =>
     ({ id, kind: 'goal', sortOrder, minimum: 0, capacity, share });
 
+  it('gives a member with no room left NO weight, so its partners split the whole rank', () => {
+    // ⚠️ THE LIVE SHAPE THIS CAME FROM (2026-08-27): a loan-phase car fund contributes TWO rows at
+    // one rank — a `car_fund` at capacity 0 and the `loan` itself — so "split this goal with the
+    // car loan 50/50" divided the rank three ways and the leftover cascade handed the dead row's
+    // third to the loan, paying it twice the goal. A weight is a claim on money; a target that can
+    // absorb nothing is not making one.
+    const r = allocateRankedSurplus(600, [
+      shared('dead', 1, 0, 50), shared('loan', 1, 16_530, 50), shared('stop2', 1, 1_000, 50),
+    ]);
+    expect(byId(r, 'dead').extra).toBe(0);
+    expect(byId(r, 'loan').extra).toBeCloseTo(300, 2);
+    expect(byId(r, 'stop2').extra).toBeCloseTo(300, 2);
+  });
+
+  it('still hands a PARTIALLY full partner the leftover of the other one, as it always did', () => {
+    const r = allocateRankedSurplus(1_000, [shared('a', 1, 200, 50), shared('b', 1, 5_000, 50)]);
+    expect(byId(r, 'a').extra).toBe(200);
+    expect(byId(r, 'b').extra).toBe(800);
+  });
+
   it('a rank where nobody declares a share is the old strict sequence, byte for byte', () => {
     const r = allocateRankedSurplus(1_000, [goal('a', 1, 600), goal('b', 1, 600)]);
     expect(byId(r, 'a').extra).toBe(600);

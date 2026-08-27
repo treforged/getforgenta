@@ -353,6 +353,19 @@ export type GoalStageInput = {
    *  stagger should always have the choice of extra payments." */
   auto_extra?: boolean | null;
   /**
+   * THIS STOP'S OWN SPLIT WEIGHT, so a stop can share a rank with something else.
+   *
+   * Tre, 2026-08-27: *"split stage 2 of savings with car loan."* A split is two targets at ONE
+   * `sortOrder`, at least one of them carrying a weight (`allocateRankedSurplus`), and until this
+   * key existed a later stop had nowhere to store one — `savings_goals.surplus_share` is a single
+   * column and it belongs to stop 1. So a stop could be dragged anywhere and ticked on its own but
+   * could never JOIN a rank, which is the one arrangement his sequence needs.
+   *
+   * Stop 1 falls back to the goal's column when it carries none of its own, exactly as
+   * `auto_extra` does, so a goal that was split before it had stops keeps its weight.
+   */
+  surplus_share?: number | null;
+  /**
    * THIS STOP IS MONEY THAT LEAVES. A move fund, a down payment, a wedding — saved up, then spent,
    * on this stop's own `target_date`.
    *
@@ -386,6 +399,9 @@ export type GoalStop = {
   sortOrder: number;
   /** This stop's own Auto extra tick. */
   autoExtra: boolean;
+  /** This stop's own SPLIT weight, or null for a stop that does not want one. See
+   *  `GoalStageInput.surplus_share`. */
+  share: number | null;
   /** This stop's money LEAVES on {@link targetDate}. See `GoalStageInput.spends`. */
   spends: boolean;
   /** True when the rank above was DERIVED rather than stored, i.e. this stop has never been
@@ -415,6 +431,16 @@ export type GoalStages = { staged: boolean; stops: GoalStop[]; total: number };
 
 /** A positive months multiplier, or null. Zero, negative and unparseable are not stages. */
 function monthsOf(raw: number | null | undefined): number | null {
+  const n = Number(raw);
+  return raw == null || !Number.isFinite(n) || n <= 0 ? null : n;
+}
+
+/**
+ * A stored SPLIT weight, or null. Zero and negative are not weights — a rank divided by a weight of
+ * zero has no answer — and they are dropped here so no consumer has to decide what they mean. The
+ * same rule `buildRankedTargets` and `buildSurplusRankRows` already apply to the column version.
+ */
+function shareIn(raw: number | null | undefined): number | null {
   const n = Number(raw);
   return raw == null || !Number.isFinite(n) || n <= 0 ? null : n;
 }
@@ -456,13 +482,15 @@ export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number)
   const hasMonthly = Number.isFinite(monthly) && monthly > 0;
   const goalRank = Number(goal.sort_order) || 0;
   const goalAutoExtra = goal.auto_extra === true;
+  const goalShare = shareIn(goal.surplus_share);
 
   const unstaged = (): GoalStages => ({
     staged: false,
     stops: [{
       id: 'target', index: 1, name: 'Target', size: base, threshold: base, floor: 0,
       afterCards: false, targetDate: goal.target_date ?? null,
-      sortOrder: goalRank, autoExtra: goalAutoExtra, spends: false, rankIsDefault: false,
+      sortOrder: goalRank, autoExtra: goalAutoExtra, share: goalShare,
+      spends: false, rankIsDefault: false,
     }],
     total: base,
   });
@@ -503,6 +531,12 @@ export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number)
         // stops keeps its tick. Later stops start unticked: a stop nobody has looked at must not
         // start diverting money.
         autoExtra: s.auto_extra != null ? s.auto_extra === true : (index === 1 && goalAutoExtra),
+        // Same inheritance as the tick, and for the same reason: `savings_goals.surplus_share` is
+        // the FIRST stop's weight and nothing else's, so a goal that was already half of a split
+        // when it gained stops keeps that split. A later stop with no weight of its own is simply
+        // not in one. ⚠️ `s.surplus_share === null` is a REAL VALUE — it is how a stop LEAVES a
+        // split — so the fallback is keyed on the key being absent, never on the value being falsy.
+        share: 'surplus_share' in s ? shareIn(s.surplus_share) : (index === 1 ? goalShare : null),
         // A stop with no date cannot be spent on one, so the flag alone is not enough.
         spends: s.spends === true && (s.target_date ?? null) != null,
         rankIsDefault: !hasStoredRank,
@@ -614,12 +648,12 @@ export function currentStopOf(goal: RankableGoal, essentialMonthlyExpenses: numb
  */
 export function goalMonthlyCeiling(params: {
   goal: RankableGoal;
-  /** The need being paced: what this goal still owes, as {@link goalRemainingNeed} reports it. */
+  /** THE STOP being paced. Its own date is the deadline; see below. */
+  stop: GoalStop;
+  /** The need being paced: what this stop still owes. */
   remainingNeed: number;
   /** Local `YYYY-MM-DD` — the month whose ceiling is being decided. */
   asOf: string;
-  /** One month of essential cost, for resolving a staged plan's stops. */
-  essentialMonthlyExpenses?: number;
   /** `accounts.account_type` per id. Absent ⇒ no statutory ceiling. */
   accountTypes?: Readonly<Record<string, string | null | undefined>>;
 }): { maxExtra?: number } {
@@ -629,7 +663,7 @@ export function goalMonthlyCeiling(params: {
   // ⚠️ THE STOP'S OWN DATE, with the GOAL's date as the fallback for stop 1 ONLY — the same rule
   // `forecast-engine.ts` applies when it fills `targetDateByRowId`. A later stop with no date of
   // its own is genuinely undated, and inheriting the goal's date would invent a deadline.
-  const stop = currentStopOf(params.goal, Number(params.essentialMonthlyExpenses) || 0);
+  const stop = params.stop;
   const targetDate = stop.targetDate ?? (stop.index === 1 ? params.goal.target_date ?? null : null);
 
   const linkedType = params.goal.linked_account != null
@@ -793,30 +827,57 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
       ...(shareOf(l.surplus_share) === undefined ? {} : { share: shareOf(l.surplus_share)! }),
     }));
 
+  // ── ONE TARGET PER STOP, exactly as `forecast-engine.ts` builds months 1+ ────
+  //
+  // ⚠️ MONTH 0 USED TO BUILD ONE TARGET PER GOAL, at the GOAL's rank, with the GOAL's tick and the
+  // GOAL's weight, carrying whatever `stagedTargetFor` said the current stop needed. Three ways
+  // that disagreed with every later month the moment a plan had more than one stop:
+  //   • THE RANK. Once stop 1 filled, the current stop was funded at the goal's own rank — so a
+  //     runway the user deliberately dragged below the cards would be funded AHEAD of them in the
+  //     one month they are standing in, and behind them in every month after.
+  //   • THE TICK. `auto_extra` on the goal row is stop 1's tick. A user who unticks stop 1 and
+  //     ticks stop 2 got the opposite of what they asked for in month 0, in both directions.
+  //   • THE SPLIT. One row per goal cannot join a rank as a stop, which is exactly what Tre asked
+  //     for on 2026-08-27 ("split stage 2 of savings with car loan").
+  // Each stop is now its own row under `stopRowId`, which is the id every downstream surface
+  // already speaks: the engine's `goalIdByTargetId` maps `<goal>::stopN` back to the goal before it
+  // credits a pool, and month 0's `autoExtraPerTarget` is read straight into that same map.
+  //
   // ⚠️ `auto_extra` is compared to `true`, never passed through. The allocator reads an OMITTED
   // `autoExtra` as opted IN, and a partial row can be missing the column entirely — so a bare
   // pass-through would silently divert surplus away from the cards on a row that never opted in.
+  // `goalStages` has already applied that rule per stop.
   const goalTargets: RankedTarget[] = goals
     .filter((g): g is RankableGoal & { id: string } => typeof g.id === 'string')
-    .map(g => {
-      const capacity = goalRemainingNeed(g, stageCtx);
-      return {
-        id: g.id,
-        kind: 'goal' as const,
-        sortOrder: Number(g.sort_order) || 0,
-        minimum: 0,
-        // ⚠️ THE WHOLE REMAINING NEED, and the month's allowance BESIDE it as `maxExtra`. Folding
-        // the allowance into the capacity caps the month correctly but tells the waterfall the need
-        // itself is that small, so a paced goal looks unmet for ever and holds every rank below it
-        // for the whole pace (Tre, 2026-08-27: "pass the rest down to the next rank instead").
-        capacity,
-        autoExtra: g.auto_extra === true,
-        ...(shareOf(g.surplus_share) === undefined ? {} : { share: shareOf(g.surplus_share)! }),
-        // Month 0's half of the pacing the forecast engine applies to months 1+.
-        ...goalMonthlyCeiling({
-          goal: g, remainingNeed: capacity, asOf, essentialMonthlyExpenses, accountTypes,
-        }),
-      };
+    .flatMap(g => {
+      const stages = goalStages(g, essentialMonthlyExpenses);
+      const saved = Number(g.current_amount) || 0;
+      return stages.stops.map(stop => {
+        // THIS stop's own dollars — `buildSurplusRankRows` sizes its rows the same way, so the list
+        // and the allocator cannot disagree about what a stop still owes. An unstaged goal is one
+        // stop with `floor: 0`, which is `goalRemainingNeed` to the cent; it goes through
+        // `goalRemainingNeed` anyway so the un-staged path stays literally the code it always was.
+        const capacity = stages.staged
+          ? Math.max(0, stop.threshold - Math.max(saved, stop.floor))
+          : goalRemainingNeed(g, stageCtx);
+        return {
+          id: stopRowId(g.id, stop.index),
+          kind: 'goal' as const,
+          sortOrder: stop.sortOrder,
+          minimum: 0,
+          // ⚠️ THE WHOLE REMAINING NEED, and the month's allowance BESIDE it as `maxExtra`. Folding
+          // the allowance into the capacity caps the month correctly but tells the waterfall the
+          // need itself is that small, so a paced goal looks unmet for ever and holds every rank
+          // below it for the whole pace (Tre, 2026-08-27: "pass the rest down to the next rank").
+          capacity,
+          autoExtra: stop.autoExtra,
+          ...(stop.share == null ? {} : { share: stop.share }),
+          // Month 0's half of the pacing the forecast engine applies to months 1+.
+          ...goalMonthlyCeiling({
+            goal: g, stop, remainingNeed: capacity, asOf, accountTypes,
+          }),
+        };
+      });
     });
 
   return [...cardTargets, ...carTargets, ...loanTargets, ...liabilityTargets, ...goalTargets];

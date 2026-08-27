@@ -157,10 +157,12 @@ export function useSurplusRanking() {
       // The array is patched from the goal row this hook already holds, never re-fetched: a fetch
       // here would race the optimistic list the user is looking at, and the rows below were built
       // from exactly these `goals`.
-      const stagePatchesByGoal = new Map<string, Map<string, { sort_order?: number; auto_extra?: boolean }>>();
+      // ⚠️ `surplus_share: null` IS A WRITE, not an absent one — it is how a stop leaves a split —
+      // so every key is spread on `!== undefined`, never on truthiness.
+      const stagePatchesByGoal = new Map<string, Map<string, { sort_order?: number; auto_extra?: boolean; surplus_share?: number | null }>>();
       for (const w of writes.goalStages) {
         const forGoal = stagePatchesByGoal.get(w.goalId) ?? new Map();
-        forGoal.set(w.stageId, { ...forGoal.get(w.stageId), ...(w.sort_order === undefined ? {} : { sort_order: w.sort_order }), ...(w.auto_extra === undefined ? {} : { auto_extra: w.auto_extra }) });
+        forGoal.set(w.stageId, { ...forGoal.get(w.stageId), ...(w.sort_order === undefined ? {} : { sort_order: w.sort_order }), ...(w.auto_extra === undefined ? {} : { auto_extra: w.auto_extra }), ...(w.surplus_share === undefined ? {} : { surplus_share: w.surplus_share }) });
         stagePatchesByGoal.set(w.goalId, forGoal);
       }
       const stageUpdates = [...stagePatchesByGoal].flatMap(([goalId, patches]) => {

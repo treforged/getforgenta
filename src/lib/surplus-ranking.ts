@@ -277,9 +277,12 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
       remaining: stages.staged
         ? Math.max(0, stop.threshold - Math.max(saved, stop.floor))
         : goalRemainingNeed(g, stageCtx),
-      // ⚠️ ONLY THE FIRST STOP CAN CARRY A SPLIT WEIGHT: `surplus_share` is one column on the goal,
-      // and a later stop has nowhere of its own to store one.
-      share: stop.index === 1 ? readShare(g.surplus_share) : null,
+      // EVERY STOP CAN CARRY A SPLIT WEIGHT since 2026-08-27 — its own `surplus_share` inside the
+      // `stages` entry, with the goal's column as stop 1's fallback because that column always was
+      // stop 1's. Until then a later stop could be dragged onto a shared rank but never actually
+      // split it, which is the arrangement Tre asked for by name ("split stage 2 of savings with
+      // car loan"). `goalStages` resolves the fallback; this reads what it decided.
+      share: readShare(stop.share),
       // A staged goal's headline number is the stop, not the cached total.
       targetAmount: stages.staged ? stop.threshold : (Number(g.target_amount) || null),
       targetDate: stages.staged ? stop.targetDate : (g.target_date ?? null),
@@ -800,7 +803,12 @@ export type SurplusRankWrites = {
    * `goals` would have let a stop's rank collide with the goal's own `sort_order` column, which is
    * the FIRST stop's rank and nothing else's.
    */
-  goalStages: { goalId: string; stageId: string; sort_order?: number; auto_extra?: boolean }[];
+  goalStages: {
+    goalId: string; stageId: string; sort_order?: number; auto_extra?: boolean;
+    /** ⚠️ `null` IS A REAL VALUE HERE — it is how a stop leaves a split — so this is
+     *  `number | null` and `undefined` alone means "unchanged". */
+    surplus_share?: number | null;
+  }[];
   /** `profiles.cards_sort_order`, or `null` when the card block did not move. */
   cardsSortOrder: number | null;
   /** `profiles.cards_surplus_share`, or `undefined` when the block's weight did not change.
@@ -832,7 +840,9 @@ export function planSurplusRankWrites(
       const patch: SurplusRankWrites['goalStages'][number] = { goalId: row.goalId, stageId: row.stageId };
       if (was.sortOrder !== row.sortOrder) patch.sort_order = row.sortOrder;
       if (was.autoExtra !== row.autoExtra) patch.auto_extra = row.autoExtra;
-      if (patch.sort_order === undefined && patch.auto_extra === undefined) continue;
+      if (was.share !== row.share) patch.surplus_share = row.share;
+      if (patch.sort_order === undefined && patch.auto_extra === undefined
+        && patch.surplus_share === undefined) continue;
       writes.goalStages.push(patch);
       continue;
     }

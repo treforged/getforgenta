@@ -491,6 +491,20 @@ describe('planSurplusRankWrites — a stop writes its jsonb entry, never the goa
     expect(w.goalStages).toEqual([{ goalId: 'g-1', stageId: 'a', auto_extra: false }]);
   });
 
+  it('emits a stop\'s SPLIT WEIGHT into its jsonb entry, and a null when it leaves the split', () => {
+    // Tre, 2026-08-27: "split stage 2 of savings with car loan." The weight has to land on the
+    // STOP — `savings_goals.surplus_share` is one column and it belongs to stop 1 — so a later
+    // stop joining a rank is a `goalStages` patch like its rank and its tick.
+    const before = build();
+    const joined = before.map(r => r.id === 'g-1::stop2' ? { ...r, share: 50 } : r);
+    expect(planSurplusRankWrites(before, joined).goalStages)
+      .toEqual([{ goalId: 'g-1', stageId: 'b', surplus_share: 50 }]);
+    // ⚠️ AND BACK OUT AGAIN. `null` is a real write here; treated as "no change" the stop could
+    // join a split and never leave one.
+    expect(planSurplusRankWrites(joined, before).goalStages)
+      .toEqual([{ goalId: 'g-1', stageId: 'b', surplus_share: null }]);
+  });
+
   it('still writes `savings_goals` columns for an UNSTAGED goal', () => {
     const before = buildSurplusRankRows({
       goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],

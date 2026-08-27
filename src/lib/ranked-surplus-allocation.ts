@@ -257,10 +257,19 @@ export function allocateRankedSurplus(
     if (pool >= CENT) {
       // Weights come only from members that can actually take a share; an opted-out target is not
       // part of the split, and a zero/negative/non-finite share is not a weight.
+      //
+      // ⚠️ NEITHER IS A MEMBER WITH NO ROOM LEFT. A weight is a claim on the rank's money, and a
+      // target that can absorb nothing is not making one — counting it would shrink its partners'
+      // halves in favour of a share it cannot spend. Live shape that found this: a LOAN-phase car
+      // fund contributes two rows at one rank (a `car_fund` at capacity 0 and the `loan` itself,
+      // which is how one row wears two hats), so "split this stop with the car loan" 50/50 divided
+      // the rank three ways and paid the loan twice the stop. Harmless for a two-member split —
+      // the leftover cascade below already hands a full partner's share to the other one — so this
+      // only changes an outcome where it was already wrong.
       const weights = idxs.map(i => {
         const w = ranked[i].share;
         if (ranked[i].autoExtra === false || w === undefined || !Number.isFinite(w) || w <= 0) return 0;
-        return w;
+        return headroomOf(ranked[i], i) - paidExtra[i] > CENT ? w : 0;
       });
       const totalWeight = weights.reduce((a, b) => a + b, 0);
 

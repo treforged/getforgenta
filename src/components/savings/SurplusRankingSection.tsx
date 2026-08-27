@@ -474,9 +474,9 @@ export default function SurplusRankingSection({
           const isCards = row.kind === 'cards';
           const isCard = row.kind === 'card';
           const isLiability = row.kind === 'liability';
-          // A LATER STOP of a staged goal. Since 2026-08-26 it IS a row the user owns — its own
-          // rank, its own tick — so the only thing it still cannot do is join a SPLIT: a weight is
-          // stored in `savings_goals.surplus_share`, one column, which belongs to the first stop.
+          // A LATER STOP of a staged goal — a row the user fully owns since 2026-08-26 (its own
+          // rank, its own tick) and, since 2026-08-27, its own split weight as well. Only its
+          // WORDING still differs: its money passes through the stop above it first.
           const isLaterStop = row.stage != null && row.stage > 1;
           const prev = draft[i - 1];
           const inSplit = draft.some(r => r.id !== row.id && r.sortOrder === row.sortOrder && r.share !== null && row.share !== null);
@@ -592,7 +592,11 @@ export default function SurplusRankingSection({
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}
               </div>
 
-              {!readOnly && i > 0 && !isLaterStop && (
+              {/* A later stop may share a rank too, since 2026-08-27: the weight is stored on the
+                  STOP (`stages[].surplus_share`) instead of on the goal's one column, so there is
+                  somewhere to put it. Tre asked for exactly this arrangement — "split stage 2 of
+                  savings with car loan". */}
+              {!readOnly && i > 0 && (
                 <button
                   type="button"
                   onClick={() => toggleSplit(row, i)}

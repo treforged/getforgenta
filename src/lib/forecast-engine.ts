@@ -553,10 +553,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           kind: 'goal',
           sortOrder: stop.sortOrder,
           remaining: need,
-          // One `surplus_share` column, which belongs to the first stop; see `buildSurplusRankRows`.
-          ...(stop.index === 1
-            ? { share: shareOf((g as { surplus_share?: number | null }).surplus_share) }
-            : {}),
+          // THIS stop's own split weight. `goalStages` has already resolved it — the stop's stored
+          // `surplus_share`, or the goal's column for stop 1, which is whose weight that column
+          // always was. Before 2026-08-27 only stop 1 could carry one at all, so a later stop could
+          // be dragged onto a rank but never SHARE it (Tre: "split stage 2 of savings with car
+          // loan"); see `GoalStageInput.surplus_share`.
+          ...(stop.share == null ? {} : { share: stop.share }),
           goalId: g.id,
         });
       }
