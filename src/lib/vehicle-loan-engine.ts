@@ -67,6 +67,21 @@ export interface LoanProjection {
   remainingBalance: number;
   interestPaidToDate: number;
   monthsElapsed: number;
+  /**
+   * The schedule index of the CURRENT calendar month — `monthsElapsed`'s unclamped twin, and the
+   * only correct thing to add a forecast month offset to: `schedule[scheduleOffset + i]` is the row
+   * belonging to i months from now.
+   *
+   * ⚠️ NEGATIVE when the first payment is still in the future, and that is the whole point.
+   * `monthsElapsed` clamps at 0 because it counts PAYMENTS MADE (it drives "3 of 48 payments made"
+   * and `interestPaidToDate`, both of which are zero before the loan starts). Index arithmetic done
+   * on that clamp hands month i the row of month i + 1, so the balances run a month ahead of the
+   * payments — measured on the captured fixture, a real final payment sat in a month the balance
+   * array already read as zero. A negative index resolves to `undefined`, which the caller must
+   * read as "not amortizing yet", NOT as "owes nothing": the loan is disbursed and owes its opening
+   * balance in those months.
+   */
+  scheduleOffset: number;
   monthsRemaining: number;
   isDeferredInterest: boolean;
   isNegativeAmortization: boolean;
@@ -107,7 +122,9 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
 
   // Hoisted above the loop because the splice below needs to know which row is the first
   // not-yet-paid one; it is clamped to the schedule's length afterwards, as it always was.
-  const monthsElapsedRaw = Math.max(0, monthsBetween(paymentStartDate, todayStr));
+  // `monthsSincePaymentStart` is the same figure UNCLAMPED — see `scheduleOffset`.
+  const monthsSincePaymentStart = monthsBetween(paymentStartDate, todayStr);
+  const monthsElapsedRaw = Math.max(0, monthsSincePaymentStart);
   const hasLiveBalance = currentBalance != null && Number.isFinite(currentBalance);
   /** The first row whose payment has not happened yet. Re-anchoring here (rather than at row 1)
    * is what keeps the paid history truthful — see `LoanInput.currentBalance`. */
@@ -187,6 +204,7 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
     remainingBalance: Math.round(remainingBalance * 100) / 100,
     interestPaidToDate: Math.round(interestPaidToDate * 100) / 100,
     monthsElapsed,
+    scheduleOffset: monthsSincePaymentStart,
     monthsRemaining,
     isDeferredInterest,
     isNegativeAmortization,

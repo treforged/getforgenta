@@ -455,14 +455,18 @@ describe('a cleared vehicle loan stops being charged', () => {
     expect(off.data[scheduleEnds].carLoanPayment).toBe(0);
   });
 
-  it('does NOT cancel a real final payment on a loan whose first payment is still in the future '
-    + '— there the balance array is the half that is a month out, not the schedule', () => {
-    // THE CASE THIS GUARDS, measured on the real captured fixture (2026-07-20 capture, C5's first
-    // payment 2026-08-07). `buildAmortizationSchedule` clamps monthsElapsedRaw with Math.max(0,…),
-    // so for a not-yet-started loan `schedule[monthsElapsed + i]` gives month i the row belonging
-    // to month i + 1 and the whole array runs a month ahead of the payments. Its last entry
-    // therefore reads zero while a real final payment is still owed that month. An ungated
-    // "zero balance ⇒ no payment" rule deleted $422.89 of a genuine bill.
+  it('FIXED: a loan whose first payment is still in the future no longer runs its balance array a '
+    + 'month ahead of its payments', () => {
+    // THE DEFECT, measured on the real captured fixture (2026-07-20 capture, C5's first payment
+    // 2026-08-07). `buildAmortizationSchedule` clamps monthsElapsedRaw with Math.max(0,…) because
+    // that figure counts PAYMENTS MADE, and the seed then did `schedule[monthsElapsed + i]` — so
+    // month i got the row belonging to month i + 1 and the whole array ran a month ahead of the
+    // payments the engine charges (those key off the calendar month and were never shifted). Its
+    // last entry read zero while a real final payment was still owed that month.
+    //
+    // FIXED by seeding off `scheduleOffset`, the unclamped twin (-1 here). Months before the first
+    // payment now read the loan's OPENING balance rather than the next row's, which is what a
+    // disbursed, not-yet-amortizing loan actually owes.
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-15T12:00:00'));   // BEFORE the 2026-08-07 first payment
     const fund = c5({ auto_extra: false });
@@ -470,19 +474,29 @@ describe('a cleared vehicle loan stops being charged', () => {
     const balances = res.carLoanBalancesByFundId.get('c5')!;
     const proj = buildAmortizationSchedule(scheduleInput(fund));
 
-    expect(proj.monthsElapsed).toBe(0);
-    // Row 0 is dated in the month AFTER forecast month 0 — that is the shift, stated as a number.
+    expect(proj.monthsElapsed).toBe(0);          // no payment has been made...
+    expect(proj.scheduleOffset).toBe(-1);        // ...and row 0 belongs to NEXT month.
     expect(proj.schedule[0].date.substring(0, 7)).toBe('2026-08');
+
+    // Month 0 owes the opening balance in full — nothing has been paid yet. The OLD seed showed
+    // row 1's balance here, i.e. a payment that has not happened.
+    expect(balances[0]).toBeCloseTo(proj.schedule[0].startBalance, 2);
+    expect(balances[0]).toBeGreaterThan(proj.schedule[1].startBalance);
+    // ...and every later month is the row for that same calendar month.
+    for (let i = 1; i < 6; i++) {
+      expect(balances[i]).toBeCloseTo(proj.schedule[i - 1].startBalance, 2);
+    }
+
+    // The array and the payments now agree about the FINAL month: the last row is dated in forecast
+    // month `schedule.length`, the balance there is still positive, and the payment is charged.
     const arrayZeroFrom = firstZero(balances);
     console.log('[D1c] schedule.length =', proj.schedule.length, ' array first zero =', arrayZeroFrom,
-      ' payment at that idx =', res.data[arrayZeroFrom].carLoanPayment,
-      ' schedule row at that idx =', JSON.stringify(proj.schedule[arrayZeroFrom] ?? null));
-    expect(arrayZeroFrom).toBe(proj.schedule.length);
-    // The array says nothing is owed; the schedule has a row for that month and it is real. The
-    // payment survives, because nothing ranked this loan and no extra ever touched it.
-    expect(res.data[arrayZeroFrom].carLoanPayment).toBeGreaterThan(0);
-    expect(Object.keys(res.data[arrayZeroFrom].autoExtraByTarget)).not.toContain('c5');
-    // One month later there is no row at all and nothing is charged, as always.
-    expect(res.data[arrayZeroFrom + 1].carLoanPayment).toBe(0);
+      ' payment at last owed idx =', res.data[arrayZeroFrom - 1].carLoanPayment);
+    expect(arrayZeroFrom).toBe(proj.schedule.length + 1);
+    expect(res.data[arrayZeroFrom - 1].carLoanPayment).toBeGreaterThan(0);
+    expect(Object.keys(res.data[arrayZeroFrom - 1].autoExtraByTarget)).not.toContain('c5');
+    // One month past the last row there is nothing owed and nothing charged, as always.
+    expect(balances[arrayZeroFrom]).toBe(0);
+    expect(res.data[arrayZeroFrom].carLoanPayment).toBe(0);
   });
 });

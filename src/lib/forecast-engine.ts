@@ -937,10 +937,21 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
             // the live-balance splice lands on the first not-yet-paid row's startBalance, and the
             // paid row before it deliberately keeps its historical end balance. Reading the row
             // before therefore showed the drifted estimate in month 0 and the bank's figure in
-            // every month after. Indexing forward also folds in the old `schedIdx < 0` case
-            // (`schedule[0].startBalance` IS the loan amount) and the past-the-end case (no row,
+            // every month after. Indexing forward also folds in the past-the-end case (no row,
             // nothing owed).
-            const bal = proj.schedule[proj.monthsElapsed + i]?.startBalance ?? 0;
+            //
+            // ⚠️ `scheduleOffset`, NOT `monthsElapsed`: the latter clamps at 0 because it counts
+            // payments made, and index arithmetic on that clamp gave month i the row of month i + 1
+            // for a loan whose first payment is still in the future — the balances then ran a month
+            // ahead of the payments the engine actually charges (both `getActiveCarLoanPayments`
+            // and `activeCarLoanByMonth` key off the calendar month, so that side was never
+            // shifted). A negative index is the not-yet-amortizing case and means the loan owes its
+            // OPENING balance; `?? 0` there would erase a real liability from net worth and hand
+            // the PASS-3 suppression a zero that a genuinely owed payment sits in.
+            const schedIdx = proj.scheduleOffset + i;
+            const bal = schedIdx < 0
+              ? (proj.schedule[0]?.startBalance ?? 0)
+              : (proj.schedule[schedIdx]?.startBalance ?? 0);
             fundBalances[i] = Math.max(0, bal);
             carLoanBalanceByMonth[i] += fundBalances[i];
           }
@@ -1753,21 +1764,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // different claims and only the first is defended.
       //
       // ⚠️ GATED ON AN EXTRA HAVING ACTUALLY LANDED, and that gate is not belt-and-braces — it is
-      // the difference between fixing this defect and creating a worse one. The balance array and
-      // the payment do NOT agree about which forecast month a schedule row belongs to when
-      // `payment_start_date` is still in the FUTURE: `buildAmortizationSchedule` clamps
-      // `monthsElapsedRaw` with `Math.max(0, …)`, so `schedule[monthsElapsed + i]` hands month i
-      // the row of month i + 1 and the array runs a month ahead of the payments. Measured on the
-      // real captured fixture (2026-07-20, first payment 2026-08-07): the array reads zero from
-      // index 36 while schedule row 36 — dated 2029-07-07, $495.39 less a $72.50 lump sum — is a
-      // real final payment that is genuinely owed. An ungated "zero balance ⇒ no payment" rule
-      // silently deleted it. Only the ranked waterfall can make the balance and the schedule
-      // disagree in a way the SCHEDULE is wrong about, so only a fund the waterfall has actually
-      // paid may have its payment suppressed. A fund nobody ranked behaves exactly as before.
+      // the difference between fixing this defect and creating a worse one. Only the ranked
+      // waterfall can make the balance and the schedule disagree in a way the SCHEDULE is wrong
+      // about, so only a fund the waterfall has actually paid may have its payment suppressed. A
+      // fund nobody ranked behaves exactly as before.
       //
-      // (The future-start shift itself is a real defect in the seed, and it is left alone here on
-      // purpose: the seed is out of this change's scope, and it is `vehicle-loan-engine.ts`'s
-      // `monthsElapsed` clamp that owns it.)
+      // (The gate was FIRST written for a different disagreement: a loan whose `payment_start_date`
+      // is still in the FUTURE seeded its balance array off `monthsElapsed`, whose `Math.max(0, …)`
+      // clamp handed month i the row of month i + 1 — so the array read zero in a month a real
+      // final payment was still owed, and an ungated rule deleted it. That seed shift is FIXED at
+      // its source (`scheduleOffset`, seeded above); the gate stays because the extra-vs-schedule
+      // disagreement it also covers is real and permanent.)
       //
       // ⚠️ LUMP SUMS ARE NOT SUPPRESSED, deliberately. `activeCarLoanLumpSumByMonth` is a dated
       // instruction the user typed in, not a figure the engine derived, and silently deleting one
