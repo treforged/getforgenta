@@ -1,5 +1,78 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 35x — **`359f42e8`. tsc 0, 285 files / 3003 tests.
+> 18 commits unpushed.** Two opus-executors ran on Tre's explicit per-case
+> approval; both reports were accurate and both named their own gaps.
+>
+> ═══ ⛔ START HERE: THE FORECAST PAYS A LOAN IT SAYS IS GONE ═══
+> **VERIFIED LIVE on his own data this session.** The /forecast drawer for **Oct
+> 2029** — two months AFTER the C5's projected **Aug 2029** payoff — still lists
+> **"Car Loan Payments $422.89"**. `carLoanPayment` is priced off the
+> amortization schedule while `carLoanBalancesByFundId` is reduced by the ranked
+> extras, so the balance reads cleared while the cash line keeps charging. Both
+> cannot be true. On his numbers that is roughly **10 months x $423 ≈ $4,200** of
+> cash wrongly removed from the projection.
+>
+> The engine deliberately does not RE-AMORTIZE (documented, conservative) — but
+> "do not shorten the term" and "keep taking the payment after the balance hits
+> zero" are different claims, and only the first one is defended anywhere.
+> NEEDS ITS OWN SLICE. Do not bolt it onto something else.
+>
+> ═══ ⛔ SECOND: NET WORTH IS UNDERSTATED EVERY MONTH ═══
+> The drawer and the net-worth line pair **opening** liabilities with **closing**
+> cash and assets. Measured: month 0 `netWorth 13,615` where an end-of-month loan
+> line gives `13,902` — one month's principal, on every liability, every month.
+> Correct minimal change is at the EMISSION sites only
+> (`forecast-engine.ts:2109`, `:2475`, `:2481`), reading `i+1`. **Never the
+> seed.** Blast radius: every month row, the drawer, the CSV export, the
+> net-worth chart and tiles, and a step change against recorded snapshots.
+>
+> ═══ ✅ THE SEED QUESTION IS SETTLED: DO NOT CHANGE IT ═══
+> Tre approved "the proper fix"; the measurement says there is nothing to fix
+> there and my earlier claim is REFUTED, not merely doubted.
+> `balances[0]` = **$15,900** = `current_balance_override` = `proj.remainingBalance`
+> = the "$X remaining" the Garage card prints. Seeding `endBalance` would put
+> **$15,612** at index 0 — $288 less than the bank says — in the month-0 drawer,
+> the month-0 CSV row and net worth today. And both conventions name the right
+> payoff month anyway, so the seed was never what made the labels wrong.
+> `extra-aware-payoff.ts` is the right answer for the date/count surfaces.
+> The 7-test harness `forecast-engine.balanceArrayConvention.test.ts` pins every
+> number so this cannot drift again unnoticed.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - `1f27d557` the reachability verdict now counts a contribution only from when
+>   it STARTS. Rule extracted as `contributionStartIdx` and SHARED with the
+>   growth chart. One memo means the row verdict and the collision banner were
+>   both fixed by one line. LIVE before→after on his goal with its real
+>   2027-11-21 date: "On track for Jul 2027" → "12 months late — $5,624 short",
+>   banner now fires.
+> - `359f42e8` the Garage chart's dashed "with auto extra" line was drawn one
+>   month's principal ABOVE the solid one — the accelerated line looked worse
+>   than doing nothing.
+>
+> ═══ HIS MOVE FUND IS SET ═══
+> $510/mo, no start date, "On track for Jul 2027", and it costs nothing: card
+> payoff ETA still Sep 2028 and monthly interest still $108.28, because $5,588 of
+> Prime Visa's $8,539 is 0% promo. He still has to set the transfer up at his
+> bank.
+>
+> ⬜ ALSO QUEUED:
+> 1. The Garage card's big date and the amortization table under it are TWO
+>    MODELS — measured 4 months apart on a fixture (card 2028-03, table 2027-11).
+>    The engine never re-amortizes; `projWithExtras` does. Same "two dates on one
+>    card" shape fixed earlier today, in a new place. Product call.
+> 2. Capacity over-allocation: a loan's ranked-extra capacity is read as the
+>    OPENING balance, so $289.92 more than it can absorb really left checking.
+> 3. "auto apply to all users" for manual CONTRIBUTIONS (`585aacdc` = lump sums
+>    only). Must be VISIBLE and confirmed — it deletes real user rows.
+> 4. The Feb 2031 $48.86 breach. ⛔ `scratchpad/llm/floor_out.md` IS WRONG.
+> 5. Student loans — his GF's account.
+> 6. The mobile deck fix (`b83698e5`) is NOT device-verified.
+>
+> ⚠️ CAP: weekly **90**, dated RESTORE TO 75.0 AFTER 2026-08-31 18:00. At 85%.
+> ⚠️ ROUTING: subagents were used on his EXPLICIT PER-CASE approval. That is not
+> standing — the default is still free-LLM executors only.
+
 > ▶ 2026-08-27 SESSION 35w — **`ec97789f`. tsc 0, 284 files / 2985 tests.
 > 15 commits unpushed.**
 >
