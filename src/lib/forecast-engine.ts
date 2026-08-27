@@ -30,7 +30,7 @@ import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-prote
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
 import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId } from '@/lib/ranked-extra-payment-targets';
 import {
-  IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate,
+  IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate, monthsUntilTargetDate,
 } from '@/lib/retirement-contribution-cap';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
@@ -457,8 +457,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     /** Every stop id that belongs to one goal, in plan order — what a contribution into the goal's
      *  own account decays, and what a reserve spills into. */
     const stopIdsByGoal = new Map<string, string[]>();
-    /** How much a goal may take in a given month, when something limits it. See the block below. */
-    const goalContributionRule = new Map<string, { kind: 'ira'; annualCap: number } | { kind: 'invest'; targetDate: string | null }>();
+    /** The IRA annual limit governing a goal's contributions, by goal id. Absent for every goal not
+     *  linked to an IRA, which is nearly all of them. See the block below. */
+    const iraAnnualCapByGoal = new Map<string, number>();
+    /**
+     * THE DATE A RANKED TARGET'S MONEY IS WANTED BY, keyed by the RANKED ROW id rather than the goal
+     * id — a staged plan's stop 2 is paced against its own date, not the goal's, which "could only
+     * ever describe one of them" (see `GoalStageInput.target_date`).
+     */
+    const targetDateByRowId = new Map<string, string | null>();
     /**
      * Dollars already contributed to a capped goal, per CALENDAR year.
      *
@@ -468,32 +475,36 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
      */
     const contributedByYear = new Map<string, Map<number, number>>();
     const noteContribution = (goalId: string, year: number, amount: number) => {
-      if (!(amount > 0) || !goalContributionRule.has(goalId)) return;
+      if (!(amount > 0) || !iraAnnualCapByGoal.has(goalId)) return;
       const perYear = contributedByYear.get(goalId) ?? new Map<number, number>();
       perYear.set(year, (perYear.get(year) ?? 0) + amount);
       contributedByYear.set(goalId, perYear);
     };
     /**
-     * The most this goal may take THIS month — `Infinity` when nothing limits it, which is every
-     * goal that is not linked to an IRA or a brokerage.
+     * The most this ranked target may take THIS month — `Infinity` when nothing limits it, which is
+     * every target that is neither linked to an IRA nor carrying a date of its own.
+     *
+     * TWO LIMITS, AND THE SMALLER WINS. A statutory ceiling ("how much may go in this year") and a
+     * deadline ("how much does this need per month to arrive on time") answer different questions,
+     * and a target that has both is bound by both: a dated IRA goal that needs $200/mo to be there
+     * on time should take $200, not the $583 the year's allowance would permit.
      */
-    const monthlyAllowanceFor = (goalId: string, monthDate: Date, remaining: number): number => {
-      const rule = goalContributionRule.get(goalId);
-      if (!rule) return Number.POSITIVE_INFINITY;
-      if (rule.kind === 'ira') {
-        return levelMonthlyAllowance({
-          annualCap: rule.annualCap,
+    const monthlyAllowanceFor = (
+      rowId: string, goalId: string, monthDate: Date, remaining: number,
+    ): number => {
+      const annualCap = iraAnnualCapByGoal.get(goalId);
+      const statutory = annualCap == null
+        ? Number.POSITIVE_INFINITY
+        : levelMonthlyAllowance({
+          annualCap,
           alreadyContributed: contributedByYear.get(goalId)?.get(monthDate.getFullYear()) ?? 0,
           month: monthDate.getMonth(),
         });
-      }
-      const until = rule.targetDate
-        ? (() => {
-          const t = new Date(`${rule.targetDate.slice(0, 10)}T00:00:00`);
-          return (t.getFullYear() - monthDate.getFullYear()) * 12 + (t.getMonth() - monthDate.getMonth());
-        })()
-        : null;
-      return levelMonthlyToDate({ remainingNeed: remaining, monthsUntilDate: until });
+      const onTime = levelMonthlyToDate({
+        remainingNeed: remaining,
+        monthsUntilDate: monthsUntilTargetDate(targetDateByRowId.get(rowId), monthDate),
+      });
+      return Math.min(statutory, onTime);
     };
     for (const g of goals) {
       if (typeof g.id !== 'string') continue;
@@ -504,6 +515,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const id = stopRowId(g.id, stop.index);
         ids.push(id);
         goalIdByTargetId.set(id, g.id);
+        // ⚠️ THE STOP'S OWN DATE, with the GOAL's date as the fallback for stop 1 ONLY. An unstaged
+        // goal already resolves to one stop carrying `target_date`, and stop 1 of a staged plan is
+        // the row that keeps the bare goal id everywhere else — so a plan whose stops predate the
+        // per-stop date field still paces its first stop against the date the user did set. A LATER
+        // stop with no date of its own is genuinely undated and is left unpaced; inheriting the
+        // goal's date there would invent a deadline for a runway nobody dated.
+        targetDateByRowId.set(id, stop.targetDate ?? (stop.index === 1 ? g.target_date ?? null : null));
         // ⚠️ THE TICK IS PER STOP. A goal with stop 1 ticked and stop 2 not is a real and ordinary
         // plan ("fund the move automatically, I will decide about the runway later"), and the whole
         // point of giving each stop its own switch is that the engine reads them separately.
@@ -532,15 +550,21 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // dont cap it".
       //
       // Both are the same shape and only the ceiling differs: an IRA levels what is left of the
-      // YEAR'S allowance over the months left in the year, an investing goal levels its own
-      // remaining need over the months until its own date. A goal that is neither is untouched,
-      // which is every goal of every user who has not linked one of these account types.
+      // YEAR'S allowance over the months left in the year, a dated target levels its own remaining
+      // need over the months until its own date.
+      //
+      // ⚠️ THE DATED HALF IS NO LONGER A BROKERAGE FEATURE. It shipped reading `brokerage` because
+      // that is the account type the investing ask arrived attached to, but "only take exactly what
+      // it needs to reach the goal on time" is a sentence about a DATE, not about an account type —
+      // a move fund in a savings account wants pacing for exactly the reason a brokerage goal does,
+      // and front-loading it starves every rank below for months. So the date is read off the
+      // target itself (above) and the account type now decides only the statutory ceiling.
+      //
+      // Blast radius: a target is only ever offered these dollars if its Auto extra tick is ON,
+      // which DEFAULTS FALSE — and an undated target is returned `Infinity`, unchanged. So this
+      // moves money for a user who both ticked a target and gave it a date, and for nobody else.
       const linkedType = g.linked_account ? accountMap.get(g.linked_account)?.account_type : null;
-      if (isIraCapped(linkedType)) {
-        goalContributionRule.set(g.id, { kind: 'ira', annualCap: IRA_ANNUAL_LIMIT });
-      } else if (linkedType === 'brokerage') {
-        goalContributionRule.set(g.id, { kind: 'invest', targetDate: g.target_date ?? null });
-      }
+      if (isIraCapped(linkedType)) iraAnnualCapByGoal.set(g.id, IRA_ANNUAL_LIMIT);
     }
     for (const c of carFunds) {
       // Mirrors `buildRankedTargets`: a car fund's `auto_extra` is a real column on a full row, so
@@ -1980,7 +2004,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           // capacity 0 is already how a rank yields its dollars to the next one, so an IRA that has
           // used up its year simply passes the surplus on rather than needing a rule of its own.
           capacity: t.kind === 'goal' && t.goalId != null
-            ? Math.min(t.remaining, monthlyAllowanceFor(t.goalId, monthDate, t.remaining))
+            ? Math.min(t.remaining, monthlyAllowanceFor(id, t.goalId, monthDate, t.remaining))
             : t.remaining,
           autoExtra: true,
           ...(t.share === undefined ? {} : { share: t.share }),

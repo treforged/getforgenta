@@ -780,13 +780,153 @@ describe('forecast-engine — a Roth IRA goal is capped per year and paid level'
     expect(perMonth(rows, 'g-1')[1]).toBeGreaterThan(IRA_ANNUAL_LIMIT / 12);
   });
 
-  it('leaves a goal linked to NOTHING exactly as it was — the whole feature is opt-in by account '
-    + 'type, so no existing user moves', () => {
+  it('leaves a goal linked to NOTHING and dated NOTHING exactly as it was — the whole feature is '
+    + 'opt-in, so no existing user moves', () => {
     anchor();
     const capped = calculateForecast(
       makeInputs([goalRow({ id: 'g-1', target_amount: 20_000, auto_extra: true, sort_order: 0 })],
         new Array(120).fill(0)),
     ).data;
     expect(perMonth(capped, 'g-1')[1]).toBeGreaterThan(IRA_ANNUAL_LIMIT / 12);
+  });
+});
+
+// ── ANY DATED TARGET IS PACED, NOT JUST AN INVESTING ONE ─────────────────────
+//
+// Tre: "only take exactly what it needs to reach the goal on time". The levelling shipped reading
+// `brokerage`, because that is the account type the investing ask arrived attached to — but the
+// sentence is about a DATE. A move fund in a savings account wants pacing for exactly the same
+// reason, and front-loading it starves every rank below it for months.
+//
+// The fixture anchors at 15 Oct 2026 and the target date is 1 Sep 2027, i.e. eleven months out.
+// Month 0's reserve comes from the month-0 stub (empty here), so every assertion reads month 1
+// onwards, where the spread is over the eleven payments Nov..Sep.
+
+describe('forecast-engine — a dated target takes only what it needs to arrive on time', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const perMonth = (rows: ReturnType<typeof calculateForecast>['data'], id: string) =>
+    rows.map(r => Number(r.autoExtraByTarget?.[id] ?? 0));
+  const NEED = 12_000;
+  /** Nov 2026 … Sep 2027 inclusive: what one payment has to be to land the need on the date. */
+  const LEVEL = NEED / 11;
+  const dated = (over: GoalRow = {}) => goalRow({
+    id: 'g-1', target_amount: NEED, current_amount: 0, auto_extra: true, sort_order: 0,
+    target_date: '2027-09-01', ...over,
+  });
+
+  it('spreads a plain savings goal over the months until its date instead of filling it at once', () => {
+    anchor();
+    const months = perMonth(
+      calculateForecast(makeInputs([dated()], new Array(120).fill(0))).data, 'g-1',
+    );
+    expect(months[1]).toBeCloseTo(LEVEL, 1);
+    // And it is genuinely paced rather than merely capped: still level most of a year later.
+    expect(months[6]).toBeCloseTo(LEVEL, 1);
+  });
+
+  it('still ARRIVES on the date — the whole need is funded by the target month and no later', () => {
+    anchor();
+    const months = perMonth(
+      calculateForecast(makeInputs([dated()], new Array(120).fill(0))).data, 'g-1',
+    );
+    const through = (n: number) => months.slice(0, n + 1).reduce((a, b) => a + b, 0);
+    expect(through(11)).toBeCloseTo(NEED, 1); // month 11 IS Sep 2027
+    expect(through(10)).toBeLessThan(NEED - 1);
+  });
+
+  it('takes it ALL when the date has already passed — a missed deadline is due now, not spread', () => {
+    anchor();
+    const months = perMonth(
+      calculateForecast(makeInputs([dated({ target_date: '2026-07-01' })], new Array(120).fill(0))).data,
+      'g-1',
+    );
+    expect(months[1]).toBeCloseTo(NEED, 1);
+  });
+
+  it('leaves an UNDATED goal filling as fast as the surplus allows — the levelling answers '
+    + '"by when", and without a date there is no question', () => {
+    anchor();
+    const months = perMonth(
+      calculateForecast(makeInputs([dated({ target_date: null })], new Array(120).fill(0))).data,
+      'g-1',
+    );
+    expect(months[1]).toBeCloseTo(NEED, 1);
+  });
+
+  it('paces a STOP by its OWN date, not by the goal\'s — a staged plan\'s single `target_date` '
+    + '"could only ever describe one of them"', () => {
+    anchor();
+    const goal = dated({
+      target_date: '2026-11-01', // the goal's date, one month out, and NOT this stop's
+      stages: [{ id: 's1', name: 'Move', amount: NEED, sort_order: 0, auto_extra: true, target_date: '2027-09-01' }],
+    } as unknown as GoalRow);
+    const months = perMonth(calculateForecast(makeInputs([goal], new Array(120).fill(0))).data, 'g-1');
+    expect(months[1]).toBeCloseTo(LEVEL, 1);
+  });
+
+  it('falls back to the goal\'s date for STOP 1 ONLY — a plan written before stops had dates keeps '
+    + 'pacing its first stop', () => {
+    anchor();
+    const goal = dated({
+      stages: [{ id: 's1', name: 'Move', amount: NEED, sort_order: 0, auto_extra: true }],
+    } as unknown as GoalRow);
+    const rows = calculateForecast(makeInputs([goal], new Array(120).fill(0))).data;
+    expect(perMonth(rows, 'g-1')[1]).toBeCloseTo(LEVEL, 1);
+  });
+
+  it('gives a LATER undated stop no deadline at all — inheriting the goal\'s date there would '
+    + 'invent one for a runway nobody dated', () => {
+    anchor();
+    // Stop 1 is not ticked, so it takes nothing and holds up nothing; stop 2 is the paced-or-not
+    // question. The goal carries a date eleven months out and stop 2 carries none.
+    const goal = dated({
+      stages: [
+        { id: 's1', name: 'Move', amount: NEED, sort_order: 0, auto_extra: false },
+        { id: 's2', name: 'Runway', amount: 9_000, sort_order: 1, auto_extra: true },
+      ],
+    } as unknown as GoalRow);
+    const rows = calculateForecast(makeInputs([goal], new Array(120).fill(0))).data;
+    expect(perMonth(rows, 'g-1::stop2')[1]).toBeCloseTo(9_000, 1);
+    // …and it IS paced the moment that stop is given a date of its own.
+    const withDate = dated({
+      stages: [
+        { id: 's1', name: 'Move', amount: NEED, sort_order: 0, auto_extra: false },
+        { id: 's2', name: 'Runway', amount: 9_000, sort_order: 1, auto_extra: true, target_date: '2027-09-01' },
+      ],
+    } as unknown as GoalRow);
+    expect(perMonth(calculateForecast(makeInputs([withDate], new Array(120).fill(0))).data, 'g-1::stop2')[1])
+      .toBeCloseTo(9_000 / 11, 1);
+  });
+
+  it('STILL HOLDS THE QUEUE below it while it is being paced — a target that is owed something '
+    + 'has not met its goal, whatever it was allowed to take this month. Exactly how the IRA cap '
+    + 'already behaves, and the reason pacing does not silently re-rank a plan', () => {
+    anchor();
+    const goal = dated({
+      stages: [
+        { id: 's1', name: 'Move', amount: NEED, sort_order: 0, auto_extra: true },
+        { id: 's2', name: 'Runway', amount: 9_000, sort_order: 1, auto_extra: true },
+      ],
+    } as unknown as GoalRow);
+    const rows = calculateForecast(makeInputs([goal], new Array(120).fill(0))).data;
+    // Stop 1 takes its level figure; stop 2 waits for stop 1 to be met, and the surplus stop 1 did
+    // not take is NOT reserved elsewhere — it stays in the pool as cash for the debt cascade.
+    expect(perMonth(rows, 'g-1')[1]).toBeCloseTo(LEVEL, 1);
+    expect(perMonth(rows, 'g-1::stop2')[1]).toBe(0);
+    // The month after stop 1 completes (Sep 2027, month 11) is when stop 2 opens.
+    expect(perMonth(rows, 'g-1::stop2')[12]).toBeGreaterThan(0);
+  });
+
+  it('binds a dated IRA goal by whichever limit is SMALLER — the year would allow more than the '
+    + 'deadline needs, and taking the year\'s figure would over-fund it early', () => {
+    anchor();
+    const goal = dated({ linked_account: 'roth-1' });
+    const roth = acct({ id: 'roth-1', name: 'Roth IRA', account_type: 'roth_ira', balance: 0 });
+    const months = perMonth(
+      calculateForecast(makeInputs([goal], new Array(120).fill(0), [roth])).data, 'g-1',
+    );
+    // Nov 2026 leaves two months of a $7,000 allowance ($3,500), and the deadline needs $1,090.91.
+    expect(months[1]).toBeCloseTo(LEVEL, 1);
   });
 });

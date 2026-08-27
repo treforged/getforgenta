@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate, monthsLeftInYear,
+  monthsUntilTargetDate,
 } from '../retirement-contribution-cap';
 
 describe('isIraCapped — only the accounts the IRA limit actually governs', () => {
@@ -114,5 +115,53 @@ describe('levelMonthlyToDate — the same idea with no ceiling ("dont cap it")',
   it('is 0 when there is nothing left to need', () => {
     expect(levelMonthlyToDate({ remainingNeed: 0, monthsUntilDate: 6 })).toBe(0);
     expect(levelMonthlyToDate({ remainingNeed: -100, monthsUntilDate: 6 })).toBe(0);
+  });
+
+  it('holds the pace when a month underfunds — a bigger need over fewer months is a BIGGER level '
+    + 'figure, which is what makes the target still arrive on time', () => {
+    const first = levelMonthlyToDate({ remainingNeed: 1_200, monthsUntilDate: 11 }); // 100
+    // Half of it actually moved, so 1,150 is left with one fewer month to do it in.
+    const second = levelMonthlyToDate({ remainingNeed: 1_200 - first / 2, monthsUntilDate: 10 });
+    expect(second).toBeGreaterThan(first);
+    expect(second).toBeCloseTo(1_150 / 11, 6);
+  });
+});
+
+// ── HOW MANY MONTHS UNTIL THE DATE ───────────────────────────────────────────
+//
+// Counted in CALENDAR months, so the day of the month can never move the answer — the same class of
+// bug that once deleted a paycheck landing on its own end date.
+
+describe('monthsUntilTargetDate — the months half of "on time"', () => {
+  const from = new Date('2026-10-15T12:00:00');
+
+  it('counts calendar months forward, whatever day of the month either date is', () => {
+    expect(monthsUntilTargetDate('2026-10-01', from)).toBe(0);
+    expect(monthsUntilTargetDate('2026-10-31', from)).toBe(0);
+    expect(monthsUntilTargetDate('2026-11-01', from)).toBe(1);
+    expect(monthsUntilTargetDate('2027-09-01', from)).toBe(11);
+    expect(monthsUntilTargetDate('2028-10-15', from)).toBe(24);
+  });
+
+  it('goes negative for a date already past, which the levelling reads as due now', () => {
+    expect(monthsUntilTargetDate('2026-07-01', from)).toBe(-3);
+    expect(levelMonthlyToDate({
+      remainingNeed: 900, monthsUntilDate: monthsUntilTargetDate('2026-07-01', from),
+    })).toBeCloseTo(900, 6);
+  });
+
+  it('is null for anything that is not a readable date, so a bad row is left UNPACED rather than '
+    + 'paced by a guess', () => {
+    expect(monthsUntilTargetDate(null, from)).toBeNull();
+    expect(monthsUntilTargetDate(undefined, from)).toBeNull();
+    expect(monthsUntilTargetDate('', from)).toBeNull();
+    expect(monthsUntilTargetDate('not-a-date', from)).toBeNull();
+    expect(levelMonthlyToDate({
+      remainingNeed: 900, monthsUntilDate: monthsUntilTargetDate('not-a-date', from),
+    })).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('reads a full timestamp by its date part', () => {
+    expect(monthsUntilTargetDate('2027-01-20T00:00:00.000Z', from)).toBe(3);
   });
 });
