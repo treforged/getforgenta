@@ -431,10 +431,10 @@ export default function SurplusRankingSection({
           const isCards = row.kind === 'cards';
           const isCard = row.kind === 'card';
           const isLiability = row.kind === 'liability';
-          // The SECOND STOP of a staged emergency goal. It is a projection of the goal above, not a
-          // row anyone owns: no handle, no split, no tick, because its position is decided by when
-          // the cards clear rather than by where a person drags it.
-          const isStage2 = row.derived === true && row.stage === 2;
+          // A LATER STOP of a staged goal. It is a projection of the goal above, not a row anyone
+          // owns: no handle, no split, no tick, because its position is decided by the plan (and by
+          // when the cards clear) rather than by where a person drags it.
+          const isLaterStop = row.derived === true && row.stage != null;
           const prev = draft[i - 1];
           const inSplit = draft.some(r => r.id !== row.id && r.sortOrder === row.sortOrder && r.share !== null && row.share !== null);
           const startsSplit = inSplit && (!prev || prev.sortOrder !== row.sortOrder);
@@ -445,8 +445,8 @@ export default function SurplusRankingSection({
               key={row.id}
               layout="position"
               transition={ROW_SETTLE}
-              onDragOver={e => !isTouch && !readOnly && canReorder && !isStage2 && onDragOver(e, row.id)}
-              onDrop={e => !isTouch && !readOnly && canReorder && !isStage2 && onDrop(e, row.id)}
+              onDragOver={e => !isTouch && !readOnly && canReorder && !isLaterStop && onDragOver(e, row.id)}
+              onDrop={e => !isTouch && !readOnly && canReorder && !isLaterStop && onDrop(e, row.id)}
               className={[
                 // ⚠️ NOT `transition-all`. That included `transform`, so the CSS transition and
                 // framer's own per-frame transform writes fought over the same property and the
@@ -462,7 +462,7 @@ export default function SurplusRankingSection({
             >
               {/* The same spacer read-only gets: a lone row keeps the columns lined up without
                   offering a handle or an arrow that could not move it anywhere. */}
-              {readOnly || !canReorder || isStage2 ? (
+              {readOnly || !canReorder || isLaterStop ? (
                 <span className="w-4 shrink-0" />
               ) : !isTouch ? (
                 <div
@@ -512,12 +512,14 @@ export default function SurplusRankingSection({
                 <p className="text-xs font-medium text-foreground wrap-break-word">
                   {row.name}
                   {/* Which stop this row is. Without it two rows carrying the same goal name read
-                      as a duplicate rather than as a sequence. */}
-                  {row.stage === 1 && (
-                    <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">First stop</span>
-                  )}
-                  {isStage2 && (
-                    <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider text-primary">Then</span>
+                      as a duplicate rather than as a sequence. The stop's own NAME leads when the
+                      user gave it one, because "Move fund" says more than "Stop 1 of 3" — the
+                      count follows it so the sequence is still legible either way. */}
+                  {row.stage != null && (
+                    <span className={`ml-1.5 text-[10px] font-mono uppercase tracking-wider ${isLaterStop ? 'text-primary' : 'text-muted-foreground'}`}>
+                      {row.stageLabel ?? `Stop ${row.stage}`}
+                      {row.stageCount != null && row.stageCount > 1 && ` · ${row.stage}/${row.stageCount}`}
+                    </span>
                   )}
                   {inSplit && row.share !== null && (
                     <span className="ml-1.5 text-[10px] font-mono text-primary">
@@ -538,18 +540,23 @@ export default function SurplusRankingSection({
                       : isCard
                         ? `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
                         : row.remaining && row.remaining > 0
-                          ? isStage2
-                            // It is not "to go" yet: nothing is going there until the cards clear,
-                            // and printing the same phrase as an active row would say it is being
-                            // funded right now when it is deliberately not.
+                          // It is not "to go" while the plan has it parked: nothing is going there
+                          // until the cards clear (or until the stop above it is filled), and
+                          // printing the same phrase as an active row would say it is being funded
+                          // right now when it is deliberately not. Keyed off the WAITING FLAG rather
+                          // than off `derived`, because a goal whose only unfilled stop waits shows
+                          // that stop on its own row.
+                          ? row.stageWaitsForCards
                             ? `${formatCurrency(row.remaining, false)} more, once the cards are clear`
-                            : `${formatCurrency(row.remaining, false)} to go`
+                            : isLaterStop
+                              ? `${formatCurrency(row.remaining, false)} more, after the stop above`
+                              : `${formatCurrency(row.remaining, false)} to go`
                           : 'Fully funded'}
                 </p>
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}
               </div>
 
-              {!readOnly && i > 0 && !isStage2 && (
+              {!readOnly && i > 0 && !isLaterStop && (
                 <button
                   type="button"
                   onClick={() => toggleSplit(row, i)}
@@ -561,16 +568,18 @@ export default function SurplusRankingSection({
                 </button>
               )}
 
-              {isStage2 ? (
+              {isLaterStop ? (
                 // ⚠️ DELIBERATELY NOT A CHECKBOX, for the same reason a liability has none: the
                 // switch belongs to the GOAL, which is already ticked on its own row above. A second
                 // tick here would move on screen, plan no write (the id is synthetic) and revert on
                 // the next refetch, which is the worst of both.
                 <span
                   className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0"
-                  title="Follows the goal's own setting, once your cards are clear"
+                  title={row.stageWaitsForCards
+                    ? "Follows the goal's own setting, once your cards are clear"
+                    : "Follows the goal's own setting, once the stop above it is filled"}
                 >
-                  Waiting
+                  {row.stageWaitsForCards ? 'Waiting' : 'Queued'}
                 </span>
               ) : isCards || isCard ? (
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">Always</span>

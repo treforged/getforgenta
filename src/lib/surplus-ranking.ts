@@ -92,21 +92,27 @@ export type SurplusRankRow = {
   /**
    * A row the list DERIVES from another row rather than one the user owns.
    *
-   * ⚠️ NEVER WRITTEN, NEVER DRAGGED, NEVER AUTO-DESELECTED. Its id is synthetic (`<goalId>::stage2`)
+   * ⚠️ NEVER WRITTEN, NEVER DRAGGED, NEVER AUTO-DESELECTED. Its id is synthetic (`<goalId>::stopN`)
    * and no table has a row under it, so every planner below skips it: a write would `.eq('id', …)`
    * a uuid that does not exist, and a drag would let the user place something whose position is
    * derived, not chosen. Its rank comes from where the engine actually funds it.
    */
   derived?: boolean;
   /**
-   * Which stop of a STAGED emergency goal this row stands for. Absent on every ordinary row.
+   * Which stop of a STAGED goal this row stands for, 1-based. Absent on every ordinary row.
    *
-   * The list shows the two stops SEPARATELY because that is what actually happens to the money:
-   * the first stop fills, the cards then take everything, and the second stop resumes once they are
-   * clear. One row printing one number could not say that, and a user reading it would think the
-   * goal simply stopped.
+   * The list shows the stops SEPARATELY because that is what actually happens to the money: the
+   * first stop fills, the cards then take everything, and the stop after the hand-off resumes once
+   * they are clear. One row printing one number could not say that, and a user reading it would
+   * think the goal simply stopped.
    */
-  stage?: 1 | 2;
+  stage?: number;
+  /** How many stops the goal has in total — so a row can say "Stop 2 of 3" without re-deriving it. */
+  stageCount?: number;
+  /** This stop's own name, for the label beside the goal name. */
+  stageLabel?: string;
+  /** This stop is parked until revolving card debt is clear. */
+  stageWaitsForCards?: boolean;
 };
 
 /** The least this module needs of a credit-card `accounts` row. */
@@ -185,6 +191,10 @@ export function compareSurplusRankRows(a: SurplusRankRow, b: SurplusRankRow): nu
  * A goal or car fund with nothing left to fund is still listed: it is still a row the user can
  * rank, and hiding it would make the list jump around as balances move.
  */
+/** Half a cent — the same dust rule `goalRemainingNeed` applies, so "filled" means the same thing
+ *  in this list as it does in the allocator. */
+const RANK_CENT = 0.005;
+
 export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRankRow[] {
   const {
     goals, carFunds, cards = [], liabilities = [], cardsSortOrder = 0, cardsShare = null,
@@ -205,9 +215,19 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
 
   const rankableGoals = goals.filter((g): g is typeof g & { id: string } => typeof g.id === 'string');
 
+  // Each goal's own draggable row, and the stop it currently stands for.
+  //
+  // ⚠️ THE OWN ROW IS THE CURRENT STOP, NOT ALWAYS STOP #1. Tre, 2026-08-26: "that stage should
+  // immediately stop/drop once its done." A stop that is filled must leave the list, and the goal
+  // itself has to keep exactly one row the user can drag — so the own row advances to the next
+  // unfilled stop and the derived rows below cover whatever comes after it.
+  const currentStop = new Map<string, ReturnType<typeof goalStages>['stops'][number]>();
   const goalRows: SurplusRankRow[] = rankableGoals.map(g => {
     const stages = goalStages(g, essentialMonthlyExpenses);
     const saved = Number(g.current_amount) || 0;
+    const stop = stages.stops.find(s => saved < s.threshold - RANK_CENT) ?? stages.stops[stages.stops.length - 1];
+    currentStop.set(g.id, stop);
+    const floor = stop.threshold - stop.size;
     return {
       id: g.id,
       kind: 'goal' as const,
@@ -215,18 +235,21 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
       sortOrder: Number(g.sort_order) || 0,
       autoExtra: g.auto_extra === true,
       autoExtraAutoCleared: g.auto_extra_auto_cleared === true,
-      // A staged goal's own row is the FIRST stop only. Its remaining need is measured against
-      // stage 1 whatever the cards are doing, so the row does not blink to "Fully funded" the
-      // moment the hand-off starts -- `goalRemainingNeed` would report 0 there, which is right for
-      // the ALLOCATOR (capacity 0 is how a rank yields) and wrong for a person reading a list.
+      // Measured against THIS STOP whatever the cards are doing, so the row does not blink to
+      // "Fully funded" the moment the hand-off starts -- `goalRemainingNeed` would report 0 there,
+      // which is right for the ALLOCATOR (capacity 0 is how a rank yields) and wrong for a person
+      // reading a list.
       remaining: stages.staged
-        ? Math.max(0, stages.stage1 - saved)
+        ? Math.max(0, stop.threshold - Math.max(saved, floor))
         : goalRemainingNeed(g, stageCtx),
       share: readShare(g.surplus_share),
-      targetAmount: Number(g.target_amount) || null,
-      targetDate: g.target_date ?? null,
+      // A staged goal's headline number is the stop it is filling, not the cached total.
+      targetAmount: stages.staged ? stop.threshold : (Number(g.target_amount) || null),
+      targetDate: stages.staged ? stop.targetDate : (g.target_date ?? null),
       createdAt: g.created_at ?? '',
-      ...(stages.staged ? { stage: 1 as const } : {}),
+      ...(stages.staged
+        ? { stage: stop.index, stageCount: stages.stops.length, stageLabel: stop.name, stageWaitsForCards: stop.afterCards }
+        : {}),
     };
   });
 
@@ -320,46 +343,57 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     createdAt: '',
   }];
 
-  // ── THE SECOND STOP OF A STAGED GOAL, AS ITS OWN ROW ───────────────────────
+  // ── EVERY LATER STOP OF A STAGED GOAL, AS ITS OWN ROW ──────────────────────
   //
   // Tre, 2026-08-26: "the staggered sections should separate in the goals ordering." They have to,
-  // because the ORDER is the feature. The money goes: first stop, then every card, then the second
-  // stop. One row printing one number cannot say that, and the row going quiet at the hand-off
-  // reads as a bug rather than as the plan working.
+  // because the ORDER is the feature. The money goes: first stop, then every card, then the stop
+  // that waits. One row printing one number cannot say that, and the row going quiet at the
+  // hand-off reads as a bug rather than as the plan working.
   //
-  // Seated immediately AFTER the last card, because that is where the engine actually funds it --
-  // `stagedTargetFor` holds the goal at stage 1 until `revolvingRemaining` hits zero. Half a rank
-  // past the cards so it can never collide with a rank the user chose, the same fractional trick
-  // that keeps the card block contiguous.
+  // A stop that WAITS is seated immediately after the last card, because that is where the engine
+  // actually funds it -- `stagedTargetFor` holds the goal at the open threshold until
+  // `revolvingRemaining` hits zero. Half a rank past the cards so it can never collide with a rank
+  // the user chose, the same fractional trick that keeps the card block contiguous. A stop BEFORE
+  // the hand-off sits just under the goal's own row, where it is funded.
   const lastCardRank = [...cardsRow, ...cardRows].reduce(
     (max, r) => Math.max(max, r.sortOrder), Number.NEGATIVE_INFINITY,
   );
-  const stage2Rows: SurplusRankRow[] = rankableGoals.flatMap(g => {
+  const laterStopRows: SurplusRankRow[] = rankableGoals.flatMap(g => {
     const stages = goalStages(g, essentialMonthlyExpenses);
-    if (!stages.staged || stages.stage2 <= stages.stage1) return [];
-    const saved = Number(g.current_amount) || 0;
+    if (!stages.staged) return [];
+    const current = currentStop.get(g.id);
+    if (current == null) return [];
     const ownRank = Number(g.sort_order) || 0;
-    return [{
-      id: `${g.id}::stage2`,
-      kind: 'goal' as const,
-      name: (g.name ?? '').trim() || 'Untitled goal',
-      // With no cards at all there is nothing to wait for, so it sits straight after its own first
-      // stop rather than at minus infinity.
-      sortOrder: (Number.isFinite(lastCardRank) ? lastCardRank : ownRank) + 0.5,
-      autoExtra: g.auto_extra === true,
-      autoExtraAutoCleared: false,
-      remaining: Math.max(0, stages.stage2 - Math.max(saved, stages.stage1)),
-      // A derived row never carries a split weight: it has no row to store one on.
-      share: null,
-      targetAmount: Number(g.target_amount) || null,
-      targetDate: g.target_date ?? null,
-      createdAt: g.created_at ?? '',
-      derived: true,
-      stage: 2 as const,
-    }];
+    const afterCardsRank = (Number.isFinite(lastCardRank) ? lastCardRank : ownRank) + 0.5;
+    // Once one stop waits, everything after it waits too — the cards clear once.
+    let gated = current.afterCards;
+    return stages.stops.filter(s => s.index > current.index).map((s, k) => {
+      gated = gated || s.afterCards;
+      return {
+        id: `${g.id}::stop${s.index}`,
+        kind: 'goal' as const,
+        name: (g.name ?? '').trim() || 'Untitled goal',
+        // Nudged by position so two later stops keep their order instead of tying.
+        sortOrder: (gated ? afterCardsRank : ownRank) + 0.001 * (k + 1),
+        autoExtra: g.auto_extra === true,
+        autoExtraAutoCleared: false,
+        // Its OWN dollars: the stops above it are somebody else's row.
+        remaining: s.size,
+        // A derived row never carries a split weight: it has no row to store one on.
+        share: null,
+        targetAmount: s.threshold,
+        targetDate: s.targetDate,
+        createdAt: g.created_at ?? '',
+        derived: true,
+        stage: s.index,
+        stageCount: stages.stops.length,
+        stageLabel: s.name,
+        stageWaitsForCards: gated,
+      };
+    });
   });
 
-  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows, ...stage2Rows]
+  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows, ...laterStopRows]
     .sort(compareSurplusRankRows);
 }
 

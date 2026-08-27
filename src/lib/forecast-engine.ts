@@ -28,7 +28,7 @@ import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
-import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities, goalStages } from '@/lib/ranked-extra-payment-targets';
+import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities, goalStages, openThresholdOf } from '@/lib/ranked-extra-payment-targets';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -400,11 +400,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       if (g.auto_extra !== true || typeof g.id !== 'string') continue;
       const stages = goalStages(g, essentialMonthlyExpenses);
       const saved = Number(g.current_amount) || 0;
-      // For an unstaged goal `stage1` IS `target_amount` and `stage2` equals it, so `stagedTail`
-      // computes to 0 and this is byte-identical to the single `goalRemainingNeed` call it replaced.
-      const rawNeed = stages.stage1 - saved;
+      // The plan splits in exactly one place: everything up to the first stop flagged `after_cards`
+      // is OPEN and can draw extras today, everything from that stop onwards is PARKED until
+      // revolving debt clears. Cards clear once, so one gate covers however many stops follow it.
+      //
+      // For an UNSTAGED goal there is no gate, `openThreshold` IS `target_amount` and `stagedTail`
+      // computes to 0 — byte-identical to the single `goalRemainingNeed` call this replaced.
+      const openThreshold = openThresholdOf(stages);
+      const rawNeed = openThreshold - saved;
       const need = rawNeed < NEED_DUST ? 0 : rawNeed;
-      const rawTail = stages.staged ? stages.stage2 - Math.max(saved, stages.stage1) : 0;
+      const rawTail = stages.total - Math.max(saved, openThreshold);
       const stagedTail = rawTail < NEED_DUST ? 0 : rawTail;
       if (need > 0 || stagedTail > 0) {
         autoExtraCapacity.set(g.id, {

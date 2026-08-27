@@ -1,12 +1,17 @@
-// A STAGED EMERGENCY GOAL — one goal, two thresholds, one balance.
+// A STAGED SAVINGS GOAL — one goal, N thresholds, one balance.
 //
 // Tre, 2026-08-26: fill the move fund, then three months of expenses, then STOP and throw
 // everything at the cards, then come back for months four to six.
 //
+// REDESIGNED the same day: the move fund is a STOP IN ITS OWN RIGHT rather than a base the runway
+// is measured up from, there can be any number of stops, and each carries its own date. The plan
+// lives in `savings_goals.stages`; the two `emergency_months_stage1/2` columns are read only when
+// that array is empty, and the tests below pin both readers producing the same thresholds.
+//
 // This is money math on a live balance, so what is pinned here is the DECISION at each step rather
 // than one end-to-end total:
 //   (a) what a month of essential cost is, one rule source at a time (`isEssentialExpenseRule`);
-//   (b) where the two thresholds land, measured upwards from `target_amount` (`goalStages`);
+//   (b) where the stops land, cumulatively (`goalStages`, `openThresholdOf`);
 //   (c) which one the goal is chasing right now (`stagedTargetFor`), including the hand-off;
 //   (d) the engine actually stopping at stage 1 while a card owes revolving, and RESUMING at
 //       stage 2 the month that debt clears.
@@ -17,7 +22,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
-  goalStages, stagedTargetFor, goalRemainingNeed, revolvingRemainingOf,
+  goalStages, openThresholdOf, stagedTargetFor, goalRemainingNeed, revolvingRemainingOf,
   type GoalStageContext, type RankableGoal,
 } from '../ranked-extra-payment-targets';
 import {
@@ -132,15 +137,21 @@ const staged = (over: Partial<RankableGoal> = {}): RankableGoal => ({
   emergency_months_stage1: 3, emergency_months_stage2: 6, ...over,
 });
 
-describe('goalStages — measured UPWARDS from target_amount', () => {
-  it("puts stage 1 at base + 3E and stage 2 at base + 6E, so the move fund is not cannibalised", () => {
+describe('goalStages — cumulative stops, the legacy columns read as three of them', () => {
+  it('turns the two-column plan into base / +3E / +3E-after-cards, thresholds unchanged', () => {
     const s = goalStages(staged(), 1_000);
-    expect(s).toEqual({ staged: true, stage1: 8_730, stage2: 11_730 });
+    expect(s.staged).toBe(true);
+    expect(s.stops.map(x => x.threshold)).toEqual([5_730, 8_730, 11_730]);
+    expect(s.stops.map(x => x.size)).toEqual([5_730, 3_000, 3_000]);
+    expect(s.stops.map(x => x.afterCards)).toEqual([false, false, true]);
+    expect(s.total).toBe(11_730);
   });
 
   it('is NOT staged when the goal has no stage 1 — every ordinary goal, and the whole opt-out', () => {
-    expect(goalStages(staged({ emergency_months_stage1: null }), 1_000))
-      .toEqual({ staged: false, stage1: 5_730, stage2: 5_730 });
+    const s = goalStages(staged({ emergency_months_stage1: null }), 1_000);
+    expect(s.staged).toBe(false);
+    expect(s.total).toBe(5_730);
+    expect(s.stops).toHaveLength(1);
   });
 
   it('is NOT staged when there is no expense figure to multiply — a target nobody derived is not '
@@ -149,14 +160,112 @@ describe('goalStages — measured UPWARDS from target_amount', () => {
     expect(goalStages(staged(), Number.NaN).staged).toBe(false);
   });
 
-  it('collapses stage 2 onto stage 1 when only stage 1 is set — "and then stop"', () => {
+  it('collapses to two stops when only stage 1 is set — "and then stop"', () => {
     const s = goalStages(staged({ emergency_months_stage2: null }), 1_000);
-    expect(s).toEqual({ staged: true, stage1: 8_730, stage2: 8_730 });
+    expect(s.stops.map(x => x.threshold)).toEqual([5_730, 8_730]);
+    expect(s.total).toBe(8_730);
   });
 
-  it('never lets stage 2 sit BELOW stage 1, whatever is stored', () => {
+  it('never lets a legacy stage 2 BELOW stage 1 add a stop, whatever is stored', () => {
     const s = goalStages(staged({ emergency_months_stage1: 6, emergency_months_stage2: 3 }), 1_000);
-    expect(s.stage2).toBe(s.stage1);
+    expect(s.stops).toHaveLength(2);
+    expect(s.total).toBe(11_730);
+  });
+});
+
+// ── THE N-STAGE PLAN (Tre, 2026-08-26) ───────────────────────────────────────
+//
+// The move fund is stop #1 in its own right, there can be any number of stops, each is sized by a
+// dollar amount OR a months multiplier, and each carries its own date. Thresholds are CUMULATIVE.
+
+describe('goalStages — stored `stages` wins over everything', () => {
+  const withStops = (stages: unknown, over: Partial<RankableGoal> = {}): RankableGoal => ({
+    id: 'g-1', target_amount: 99_999, current_amount: 0, auto_extra: true, sort_order: 0,
+    emergency_months_stage1: 3, emergency_months_stage2: 6, stages, ...over,
+  });
+
+  it('adds the stops up and IGNORES target_amount — which is a cached display total, so counting '
+    + 'it would double the first stop', () => {
+    const s = goalStages(withStops([
+      { id: 'a', name: 'Move fund', amount: 5_730 },
+      { id: 'b', name: 'Three months', months: 3 },
+      { id: 'c', name: 'Three more', months: 3, after_cards: true },
+    ]), 1_000);
+    expect(s.staged).toBe(true);
+    expect(s.stops.map(x => x.threshold)).toEqual([5_730, 8_730, 11_730]);
+    expect(s.stops.map(x => x.name)).toEqual(['Move fund', 'Three months', 'Three more']);
+    expect(s.total).toBe(11_730);
+  });
+
+  it('carries a per-stop date, which is the whole reason the goal-level one had to go', () => {
+    const s = goalStages(withStops([
+      { id: 'a', amount: 5_730, target_date: '2027-07-03' },
+      { id: 'b', months: 3, target_date: '2028-01-31' },
+    ]), 1_000);
+    expect(s.stops.map(x => x.targetDate)).toEqual(['2027-07-03', '2028-01-31']);
+  });
+
+  it('takes five stops as happily as two — "be able to add multiple planned stops"', () => {
+    const s = goalStages(withStops(
+      [100, 200, 300, 400, 500].map((amount, i) => ({ id: `s${i}`, amount })),
+    ), 1_000);
+    expect(s.stops.map(x => x.threshold)).toEqual([100, 300, 600, 1_000, 1_500]);
+  });
+
+  it('DROPS a stop it cannot size rather than storing it as a zero — a zero-size stop reads as '
+    + 'already filled the moment it is created', () => {
+    const s = goalStages(withStops([
+      { id: 'a', amount: 1_000 },
+      { id: 'b' },                              // sized by neither
+      { id: 'c', amount: 500, months: 2 },      // sized by both
+      { id: 'd', months: -1 },                  // not a multiplier
+      { id: 'e', amount: 250 },
+    ]), 1_000);
+    expect(s.stops.map(x => x.threshold)).toEqual([1_000, 1_250]);
+  });
+
+  it('drops a MONTHS stop when there is no expense figure, rather than multiplying nothing', () => {
+    const s = goalStages(withStops([
+      { id: 'a', amount: 1_000 },
+      { id: 'b', months: 3 },
+    ]), 0);
+    expect(s.stops.map(x => x.threshold)).toEqual([1_000]);
+    expect(s.total).toBe(1_000);
+  });
+
+  it('falls back to the legacy columns only when `stages` is empty or not an array', () => {
+    expect(goalStages(withStops([]), 1_000).total).toBe(99_999 + 6_000);
+    expect(goalStages(withStops('nonsense'), 1_000).total).toBe(99_999 + 6_000);
+  });
+});
+
+describe('openThresholdOf — where the plan is cut in two by the hand-off', () => {
+  const plan = (stages: unknown) => goalStages(
+    { target_amount: 0, current_amount: 0, stages }, 1_000,
+  );
+
+  it('is the threshold BEFORE the first waiting stop', () => {
+    expect(openThresholdOf(plan([
+      { id: 'a', amount: 5_730 }, { id: 'b', months: 3 }, { id: 'c', months: 3, after_cards: true },
+    ]))).toBe(8_730);
+  });
+
+  it('is the whole total when nothing waits', () => {
+    expect(openThresholdOf(plan([{ id: 'a', amount: 100 }, { id: 'b', amount: 200 }]))).toBe(300);
+  });
+
+  it('is ZERO when the very first stop waits — a plan that starts blocked draws nothing', () => {
+    expect(openThresholdOf(plan([{ id: 'a', amount: 100, after_cards: true }]))).toBe(0);
+  });
+
+  it('covers every stop after the first waiting one, because cards clear exactly once', () => {
+    const p = plan([
+      { id: 'a', amount: 100 },
+      { id: 'b', amount: 200, after_cards: true },
+      { id: 'c', amount: 300 },
+    ]);
+    expect(openThresholdOf(p)).toBe(100);
+    expect(p.total).toBe(600);
   });
 });
 
@@ -208,55 +317,81 @@ describe('buildSurplusRankRows — a staged goal shows the stage it is actually 
   const goalRow1 = (p: Parameters<typeof buildSurplusRankRows>[0]) =>
     buildSurplusRankRows(p).find(r => r.id === 'g-1')!;
 
-  it('shows stage 1 remaining, not the base target, once expenses are known', () => {
+  it('shows the FIRST STOP alone, not the whole plan — the move fund is a stop in its own right', () => {
+    // Before the redesign this row printed 8,730: the move money and three months of expenses fused
+    // into one number. Tre, 2026-08-26: "the original $5,730 should show as the first stage since
+    // its only for the move fund part."
     expect(goalRow1({
       goals: [goalRowFor()], carFunds: [], essentialMonthlyExpenses: 1_000,
-    }).remaining).toBe(8_730);
+    }).remaining).toBe(5_730);
   });
 
-  it("keeps the FIRST STOP's own row at zero once it is filled, rather than reopening it", () => {
-    // The goal's own row is the first stop and nothing else. Rolling stage 2 into it would print
-    // one number for two stops that happen at different times, either side of the whole card block.
+  it("ADVANCES the goal's own row to the next stop once one is filled, rather than leaving a row at "
+    + 'zero — "that stage should immediately stop/drop once its done"', () => {
+    const row = goalRow1({
+      goals: [goalRowFor({ current_amount: 5_730 })],
+      carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
+      essentialMonthlyExpenses: 1_000,
+    });
+    expect(row.stage).toBe(2);
+    expect(row.remaining).toBe(3_000);
+    expect(row.stageWaitsForCards).toBe(false);
+  });
+
+  it("shows the WAITING stop on the goal's own row once every open stop is filled, flagged so the "
+    + 'row can say it is parked rather than claiming to be funded', () => {
     const row = goalRow1({
       goals: [goalRowFor({ current_amount: 8_730 })],
       carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
       essentialMonthlyExpenses: 1_000,
     });
-    expect(row.remaining).toBe(0);
-    expect(row.stage).toBe(1);
+    expect(row.stage).toBe(3);
+    expect(row.remaining).toBe(3_000);
+    expect(row.stageWaitsForCards).toBe(true);
   });
 
-  it('SEPARATES the second stop into its own row, seated after the last card', () => {
+  it('SEPARATES every later stop into its own row, the waiting one seated after the last card', () => {
     // Tre, 2026-08-26: "the staggered sections should separate in the goals ordering." The order IS
-    // the feature: first stop, then every card, then the second stop.
+    // the feature: first stop, then every card, then the stop that waits.
     const rows = buildSurplusRankRows({
-      goals: [goalRowFor({ current_amount: 8_730 })],
+      goals: [goalRowFor()],
       carFunds: [],
       cards: [{ id: 'card-1', balance: 2_000, surplus_sort_order: 4 }],
       cardsSortOrder: 4,
       essentialMonthlyExpenses: 1_000,
     });
-    const stage2 = rows.find(r => r.id === 'g-1::stage2')!;
-    expect(stage2.stage).toBe(2);
-    expect(stage2.remaining).toBe(3_000);
-    // After the card, never before it, because that is when the engine actually funds it.
-    expect(rows.findIndex(r => r.id === 'g-1::stage2'))
-      .toBeGreaterThan(rows.findIndex(r => r.id === 'card-1'));
-    expect(rows.findIndex(r => r.id === 'g-1::stage2'))
-      .toBeGreaterThan(rows.findIndex(r => r.id === 'g-1'));
+    const derived = rows.filter(r => r.derived);
+    expect(derived.map(r => r.id)).toEqual(['g-1::stop2', 'g-1::stop3']);
+    // Each row carries its OWN dollars, so the three rows sum to the plan rather than restating it.
+    expect(rows.find(r => r.id === 'g-1')!.remaining).toBe(5_730);
+    expect(derived.map(r => r.remaining)).toEqual([3_000, 3_000]);
+
+    const at = (id: string) => rows.findIndex(r => r.id === id);
+    // Stop 2 is funded before the cards, stop 3 only after them. That is where the engine puts the
+    // money, and the list has to say the same thing.
+    expect(at('g-1::stop2')).toBeGreaterThan(at('g-1'));
+    expect(at('g-1::stop2')).toBeLessThan(at('card-1'));
+    expect(at('g-1::stop3')).toBeGreaterThan(at('card-1'));
   });
 
-  it('never emits a second-stop row for an UNSTAGED goal, or for one that stops at stage 1', () => {
+  it('emits ONE row and no derived rows for an UNSTAGED goal — every user until they plan a stop', () => {
     const plain = buildSurplusRankRows({
       goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],
       carFunds: [], essentialMonthlyExpenses: 1_000,
     });
     expect(plain.some(r => r.derived)).toBe(false);
-    const stopsAtOne = buildSurplusRankRows({
-      goals: [goalRowFor({ emergency_months_stage2: null })],
-      carFunds: [], essentialMonthlyExpenses: 1_000,
+    expect(plain.find(r => r.id === 'g-1')!.remaining).toBe(5_730);
+    expect(plain.find(r => r.id === 'g-1')!.stage).toBeUndefined();
+  });
+
+  it('drops a FILLED stop out of the list entirely — no row stands for money already saved', () => {
+    const rows = buildSurplusRankRows({
+      goals: [goalRowFor({ current_amount: 5_730 })],
+      carFunds: [], cards: [{ id: 'card-1', balance: 2_000, surplus_sort_order: 4 }],
+      cardsSortOrder: 4,
+      essentialMonthlyExpenses: 1_000,
     });
-    expect(stopsAtOne.some(r => r.derived)).toBe(false);
+    expect(rows.filter(r => r.id.startsWith('g-1')).map(r => r.stage)).toEqual([2, 3]);
   });
 
   it('plans NO write for the derived row — its id is not a uuid in any table', () => {

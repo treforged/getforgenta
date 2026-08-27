@@ -24,16 +24,14 @@ import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { goalStages } from '@/lib/ranked-extra-payment-targets';
+import GoalStopsEditor, { newStopDraft, stopDraftsFrom, stopsToStages, type StopDraft } from '@/components/savings/GoalStopsEditor';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
 const ROTH_IRA_LIMIT = 7000;
-const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', emergency_months_stage1: '', emergency_months_stage2: '' };
-
-/** What "3 months and then 6" defaults to when the user first switches sizing-from-expenses on. */
-const DEFAULT_STAGE_MONTHS = { stage1: '3', stage2: '6' };
+const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '' };
 
 // allGoals' shape: a real savings_goals row enriched with values computed from
 // the linked account/rule (not DB columns themselves).
@@ -378,6 +376,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  /** The goal's planned stops as the form holds them. Empty ⇒ an ordinary single-target goal, and
+   *  that is every goal until the user adds one. */
+  const [stops, setStops] = useState<StopDraft[]>([]);
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
   // 97.3 — the auto-end toggle plus the stamp map (ruleId -> end_date THIS feature wrote) for
   // the goal being edited. The map is provenance: without it we cannot tell our own end_date
@@ -544,8 +545,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   // The linked rules, the auto-end toggle and its provenance map are all part of
   // what the user filled in, so they ride the draft alongside the text fields.
   const draftValues = useMemo(
-    () => ({ form, selectedRuleIds, autoEnd, stampedRules }),
-    [form, selectedRuleIds, autoEnd, stampedRules],
+    () => ({ form, stops, selectedRuleIds, autoEnd, stampedRules }),
+    [form, stops, selectedRuleIds, autoEnd, stampedRules],
   );
 
   const { restored: draftRestored, discard: discardDraft } = useFormDraft({
@@ -556,6 +557,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     enabled: !isDemo,
     onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
       setForm(draft.values.form);
+      // A draft written before stops existed has none, and `?? []` is what keeps it restorable.
+      setStops(draft.values.stops ?? []);
       setSelectedRuleIds(draft.values.selectedRuleIds);
       setAutoEnd(draft.values.autoEnd);
       setStampedRules(draft.values.stampedRules);
@@ -567,6 +570,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   const handleDiscardDraft = useCallback(() => {
     discardDraft();
     setForm(emptyForm);
+    setStops([]);
     setSelectedRuleIds([]);
     setAutoEnd(false);
     setStampedRules({});
@@ -575,6 +579,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
 
   const openAdd = (goalType = 'Custom') => {
     setForm({ ...emptyForm, goal_type: goalType });
+    setStops([]);
     setSelectedRuleIds([]);
     setAutoEnd(false); setStampedRules({});
     setEditId(null); setShowForm(true);
@@ -586,9 +591,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
       goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
       contribution_start_date: g.contribution_start_date || '',
-      emergency_months_stage1: g.emergency_months_stage1 == null ? '' : String(g.emergency_months_stage1),
-      emergency_months_stage2: g.emergency_months_stage2 == null ? '' : String(g.emergency_months_stage2),
     });
+    setStops(stopDraftsFrom(g.stages));
     // Populate from linked_rule_ids, falling back to legacy single linked_rule_id
     const ids = (g.linked_rule_ids ?? []).length > 0
       ? (g.linked_rule_ids ?? [])
@@ -605,9 +609,10 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
       goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
       contribution_start_date: g.contribution_start_date || '',
-      emergency_months_stage1: g.emergency_months_stage1 == null ? '' : String(g.emergency_months_stage1),
-      emergency_months_stage2: g.emergency_months_stage2 == null ? '' : String(g.emergency_months_stage2),
     });
+    // The PLAN copies; the progress does not. `stopDraftsFrom` mints fresh local ids, so the copy
+    // cannot share a stop id with the original.
+    setStops(stopDraftsFrom(g.stages));
     const ids = (g.linked_rule_ids ?? []).length > 0
       ? (g.linked_rule_ids ?? [])
       : g.linked_rule_id ? [g.linked_rule_id] : [];
@@ -620,35 +625,24 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   };
 
   /**
-   * The two month multipliers as the database wants them: a positive number, or null.
+   * The stops as the database wants them, and what they come to in dollars right now.
    *
-   * Blank, zero and unparseable all read as null — the same rule `goalStages` applies — so there is
-   * exactly one definition of "this goal is not staged" and the form cannot store a state the
-   * engine would ignore.
+   * A stop with no usable size is dropped by `stopsToStages`, so `stagesPayload` being empty is
+   * exactly "this goal is not staged" — there is one definition of that, and the form cannot store
+   * a state the engine would ignore.
    */
-  const stageMonths = useMemo(() => {
-    const positiveOrNull = (raw: string): number | null => {
-      const n = Number(raw);
-      return raw.trim() === '' || !Number.isFinite(n) || n <= 0 ? null : n;
-    };
-    return {
-      m1: positiveOrNull(form.emergency_months_stage1),
-      m2: positiveOrNull(form.emergency_months_stage2),
-    };
-  }, [form.emergency_months_stage1, form.emergency_months_stage2]);
-
-  /** What the two thresholds come to in dollars, right now, on the numbers in the form. */
-  const stagePreview = useMemo(() => goalStages(
-    {
-      target_amount: parseFloat(form.target_amount) || 0,
-      emergency_months_stage1: stageMonths.m1,
-      emergency_months_stage2: stageMonths.m2,
-    },
-    essentialMonthlyExpenses,
-  ), [form.target_amount, stageMonths, essentialMonthlyExpenses]);
+  const stagesPayload = useMemo(() => stopsToStages(stops), [stops]);
+  const stagePreview = useMemo(
+    () => goalStages({ target_amount: 0, stages: stagesPayload }, essentialMonthlyExpenses),
+    [stagesPayload, essentialMonthlyExpenses],
+  );
+  const hasStops = stagesPayload.length > 0;
 
   const handleSave = () => {
-    const target_amount = parseFloat(form.target_amount);
+    // ⚠️ WITH STOPS THERE IS NO TARGET AMOUNT FIELD TO PARSE. Tre, 2026-08-26: "in the modal the
+    // target amount and date should clear if stages are planned." The stops ARE the target, so the
+    // number stored below is derived from them rather than typed.
+    const target_amount = hasStops ? stagePreview.total : parseFloat(form.target_amount);
     if (!form.name || isNaN(target_amount)) return;
     const { clean: cleanName, flagged: nameFlagged } = filterProfanity(form.name.trim().slice(0, LIMITS.goalName));
     if (nameFlagged) toast.warning('Goal name contained inappropriate language and was cleaned.');
@@ -657,19 +651,25 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     } = {
       name: cleanName, target_amount, current_amount: parseFloat(form.current_amount) || 0,
       monthly_contribution: parseFloat(form.monthly_contribution) || 0,
-      target_date: form.target_date || null,
+      // The LAST stop's date is the goal's date, because that is when the whole plan is done. The
+      // stops each carry their own; this one exists for the surfaces that only know about a goal.
+      target_date: hasStops
+        ? (stagePreview.stops[stagePreview.stops.length - 1]?.targetDate ?? null)
+        : (form.target_date || null),
       linked_account: form.linked_account || null,
       goal_type: form.goal_type || 'Custom',
       contribution_start_date: form.contribution_start_date || null,
       linked_rule_ids: selectedRuleIds,
       linked_rule_id: selectedRuleIds.length === 1 ? selectedRuleIds[0] : null,
       auto_end_contributions: autoEnd,
-      // ⚠️ NULL, NOT 0, WHEN SIZING IS OFF. Null is the opt-out the whole feature hangs on —
-      // `goalStages` reads it as "not staged" and the goal chases `target_amount` exactly as it did
-      // before this existed. And stage 2 is nulled with stage 1 rather than left behind: a stage 2
-      // with no stage 1 is ignored by the engine, and the database now refuses to store one.
-      emergency_months_stage1: stageMonths.m1,
-      emergency_months_stage2: stageMonths.m1 == null ? null : stageMonths.m2,
+      // ⚠️ AN EMPTY ARRAY IS THE OPT-OUT the whole feature hangs on — `goalStages` reads it as "not
+      // staged" and the goal chases `target_amount` exactly as it did before this existed.
+      stages: stagesPayload as unknown as Json,
+      // The two-column design this replaced. Cleared on every save so a row cannot carry BOTH plans
+      // and depend on which reader looked at it; `goalStages` prefers `stages`, but a stale pair
+      // left behind would come back the moment someone deleted every stop.
+      emergency_months_stage1: null,
+      emergency_months_stage2: null,
     };
 
     // 97.3 — the ONLY place auto-end writes are issued: an explicit save, never a render path.
@@ -727,8 +727,13 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       { key: 'name', label: 'Goal Name', type: 'text', placeholder: 'e.g., Emergency Fund' },
       { key: 'goal_type', label: 'Goal Type', type: 'select', options: GOAL_TYPES.map(t => ({ value: t, label: t })) },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
-      { key: 'target_amount', label: 'Target Amount', type: 'number', placeholder: '10000', step: '0.01' },
     ];
+    // Tre, 2026-08-26: "in the modal the target amount and date should clear if stages are planned."
+    // With stops the single target is not a thing the user sets — it is the sum of what they
+    // planned — so the field is removed rather than left showing a number nobody typed.
+    if (!hasStops) {
+      fields.push({ key: 'target_amount', label: 'Target Amount', type: 'number', placeholder: '10000', step: '0.01' });
+    }
     if (!form.linked_account) {
       fields.push({ key: 'current_amount', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
     }
@@ -736,9 +741,11 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       fields.push({ key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' });
       fields.push({ key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' });
     }
-    fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
+    // Same reason: each stop carries its own date now, and one goal-level date could only ever
+    // describe one of them.
+    if (!hasStops) fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
     return fields;
-  }, [form.linked_account, selectedRuleIds.length, accountOptions]);
+  }, [form.linked_account, selectedRuleIds.length, accountOptions, hasStops]);
 
   // The page's subject is `goals`, but the gate used to be on `accounts` alone —
   // so between the two resolving, a signed-in user with goals was shown
@@ -820,7 +827,15 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {allGoals.map(g => {
-          const pct = Number(g.target_amount) > 0 ? (Number(g.current_amount) / Number(g.target_amount)) * 100 : 0;
+          // THE CARD SHOWS THE STOP, NOT THE TOTAL (Tre, 2026-08-26: "the card should be edited to
+          // reflect such stages ... and the original fund goal date should show per stage instead").
+          // A staged goal measured against its full total reads as barely started for years, and
+          // the one number it should be showing — what the next stop needs — is nowhere on it.
+          const plan = goalStages(g, essentialMonthlyExpenses);
+          const saved = Number(g.current_amount);
+          const nowStop = plan.stops.find(s => saved < s.threshold - 0.005) ?? plan.stops[plan.stops.length - 1];
+          const headlineTarget = plan.staged ? nowStop.threshold : Number(g.target_amount);
+          const pct = headlineTarget > 0 ? (saved / headlineTarget) * 100 : 0;
           const isLinked = !!g.linked_account && accountMap[g.linked_account];
           const linkedAcct = isLinked ? accountMap[g.linked_account!] : null;
           const linkedAccountType = linkedAcct?.account_type ?? '';
@@ -866,10 +881,48 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                 </div>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount), false)}</span>
-                <span className="text-xs text-muted-foreground">of {formatCurrency(Number(g.target_amount), false)}</span>
+                <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(saved, false)}</span>
+                <span className="text-xs text-muted-foreground">
+                  of {formatCurrency(headlineTarget, false)}
+                  {plan.staged && <span className="ml-1">· {nowStop.name}</span>}
+                </span>
               </div>
-              <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} color={pct >= 100 ? 'success' : 'gold'} />
+              <ProgressBar value={saved} max={headlineTarget} color={pct >= 100 ? 'success' : 'gold'} />
+
+              {/* THE PLAN, one line per stop. Each says what it needs, when it is wanted, and where
+                  it is: done, being filled now, or waiting. A stop that is done is struck through
+                  rather than deleted, because the card is the one place the whole sequence should
+                  still be visible — it is the RANKED LIST that drops a filled stop. */}
+              {plan.staged && (
+                <ul className="space-y-1 border-t border-border/40 pt-2">
+                  {plan.stops.map(s => {
+                    const done = saved >= s.threshold - 0.005;
+                    const isNow = !done && s.index === nowStop.index;
+                    return (
+                      <li key={s.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                        <span className={`min-w-0 wrap-break-word ${done ? 'text-muted-foreground line-through' : isNow ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {s.index}. {s.name}
+                          {s.targetDate && (
+                            <span className="ml-1 text-muted-foreground">
+                              by {new Date(`${s.targetDate.slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 font-mono text-muted-foreground">
+                          {formatCurrency(s.threshold, false)}
+                          {done
+                            ? <span className="ml-1.5 text-success">done</span>
+                            : isNow
+                              ? <span className="ml-1.5 text-primary">now</span>
+                              : s.afterCards
+                                ? <span className="ml-1.5">after cards</span>
+                                : <span className="ml-1.5">queued</span>}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
                 <span>{pct.toFixed(0)}% complete</span>
                 <span>Est. completion: {estimateCompletion(g)}</span>
@@ -908,86 +961,28 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Goal' : 'Add Goal'}
         >
-          {/* ── EMERGENCY RUNWAY, SIZED FROM REAL EXPENSES ───────────────────────────
-              One goal, two thresholds, one balance. Not two goals: a goal linked to a savings
-              account resolves its balance FROM that account, so two goals on one account both read
-              as funded and the savings get double-counted. */}
-          <div className="space-y-2">
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Emergency Runway (optional)</label>
+          {/* ── THE PLANNED STOPS ────────────────────────────────────────────────────
+              One goal, N thresholds, one balance. Not N goals: a goal linked to a savings account
+              resolves its balance FROM that account, so several goals on one account all read as
+              funded and the savings get double-counted. */}
+          <GoalStopsEditor
+            stops={stops}
+            onChange={setStops}
+            essentialMonthlyExpenses={essentialMonthlyExpenses}
+          />
+          {!hasStops && stops.length === 0 && (
             <button
               type="button"
-              onClick={() => setForm(prev => ({
-                ...prev,
-                emergency_months_stage1: stageMonths.m1 == null ? DEFAULT_STAGE_MONTHS.stage1 : '',
-                emergency_months_stage2: stageMonths.m1 == null ? DEFAULT_STAGE_MONTHS.stage2 : '',
-              }))}
-              className="w-full flex items-start gap-2.5 text-left p-2.5 bg-secondary/30 border border-border/50 hover:border-primary/30 transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-              aria-pressed={stageMonths.m1 != null}
+              onClick={() => setStops([
+                newStopDraft({ name: 'First target', mode: 'amount', amount: form.target_amount || '', targetDate: form.target_date || '' }),
+                newStopDraft({ name: 'Emergency runway', mode: 'months', months: '3' }),
+                newStopDraft({ name: 'Full runway', mode: 'months', months: '3', afterCards: true }),
+              ])}
+              className="text-[10px] text-primary hover:underline text-left"
             >
-              <span
-                className={`shrink-0 mt-0.5 w-4 h-4 border flex items-center justify-center ${stageMonths.m1 != null ? 'bg-primary border-primary text-primary-foreground' : 'border-border'}`}
-                style={{ borderRadius: 'calc(var(--radius) / 2)' }}
-              >
-                {stageMonths.m1 != null && <Check size={11} />}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs text-foreground">Add months of expenses on top of this target</span>
-                <span className="block text-[10px] text-muted-foreground mt-0.5">
-                  Stored as months, not dollars, so the target follows what you actually spend instead of going stale.
-                </span>
-              </span>
+              Use the emergency-runway plan: this target, then 3 months of expenses, then 3 more once your cards are clear
             </button>
-
-            {stageMonths.m1 != null && (
-              essentialMonthlyExpenses <= 0 ? (
-                <p className="text-[10px] text-amber-500">
-                  We cannot read a monthly expense figure from your recurring rules yet, so there is
-                  nothing to multiply. Add your bills first and this will size itself.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block">
-                      <span className="block text-[10px] text-muted-foreground uppercase tracking-wider mb-1">First stop (months)</span>
-                      <input
-                        type="number" min="0" step="1" inputMode="decimal"
-                        value={form.emergency_months_stage1}
-                        onChange={e => setForm(prev => ({ ...prev, emergency_months_stage1: e.target.value }))}
-                        className="w-full bg-secondary/30 border border-border/50 px-2 py-1.5 text-xs"
-                        style={{ borderRadius: 'var(--radius)' }}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="block text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Then (months)</span>
-                      <input
-                        type="number" min="0" step="1" inputMode="decimal"
-                        value={form.emergency_months_stage2}
-                        onChange={e => setForm(prev => ({ ...prev, emergency_months_stage2: e.target.value }))}
-                        className="w-full bg-secondary/30 border border-border/50 px-2 py-1.5 text-xs"
-                        style={{ borderRadius: 'var(--radius)' }}
-                      />
-                    </label>
-                  </div>
-                  {/* The whole reason this section exists rather than two bare number inputs: nobody
-                      can pick "3 months" without being shown what three months costs. */}
-                  <p className="text-[10px] text-muted-foreground">
-                    One month of essentials is {formatCurrency(essentialMonthlyExpenses, false)} — your bills,
-                    the ones charged to a card, and the car payment and its insurance.
-                  </p>
-                  <p className="text-[11px] text-foreground">
-                    First stop {formatCurrency(stagePreview.stage1, false)}
-                    {stagePreview.stage2 > stagePreview.stage1 && <> · then {formatCurrency(stagePreview.stage2, false)}</>}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {stagePreview.stage2 > stagePreview.stage1
-                      ? 'Extra funding pauses at the first stop while your cards still carry a balance, then resumes to the second once they are clear.'
-                      : 'Funding stops at the first stop — set a second number to keep going once your cards are clear.'}
-                  </p>
-                </div>
-              )
-            )}
-          </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Transfer Rules (auto-sync contributions)</label>

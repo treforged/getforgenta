@@ -250,15 +250,26 @@ export type RankableGoal = {
   sort_order?: number | null;
   auto_extra?: boolean | null;
   target_amount?: number | null;
+  /** The goal's single date. Superseded by a per-stop `target_date` once stops exist; carried here
+   *  so an UNSTAGED goal's one stop can still report the date the user set. */
+  target_date?: string | null;
   current_amount?: number | null;
   /** Weight for a SPLIT rank. Null/absent ⇒ no split; see `allocateRankedSurplus`. */
   surplus_share?: number | null;
   /**
-   * STAGE 1 of a staged emergency goal, in MONTHS of essential expenses, on top of
-   * `target_amount`. Null on every goal until the feature is used, and null is the whole opt-out.
+   * THE PLANNED STOPS, in order — `savings_goals.stages`. Non-empty is the whole opt-in, and it
+   * WINS over the two legacy columns below. Typed loosely because it arrives as `Json` off the
+   * data layer; {@link goalStages} validates every entry it reads.
+   */
+  stages?: unknown;
+  /**
+   * LEGACY stage 1, in MONTHS of essential expenses, on top of `target_amount`.
+   *
+   * ⚠️ SUPERSEDED by `stages` and read only when `stages` is empty. Kept for one release so a row
+   * the backfill missed keeps its plan instead of silently losing it; see the migration.
    */
   emergency_months_stage1?: number | null;
-  /** STAGE 2, in months, also on top of `target_amount`. See {@link goalStages}. */
+  /** LEGACY stage 2, in months, also on top of `target_amount`. See {@link goalStages}. */
   emergency_months_stage2?: number | null;
 };
 
@@ -290,10 +301,51 @@ export type GoalStageContext = {
   revolvingRemaining: number;
 };
 
-/** A staged goal's two thresholds, in dollars, or `staged: false` for every ordinary goal. */
-export type GoalStages =
-  | { staged: false; stage1: number; stage2: number }
-  | { staged: true; stage1: number; stage2: number };
+/**
+ * ONE PLANNED STOP as it is stored, inside `savings_goals.stages`.
+ *
+ * Sized by EXACTLY ONE of `amount` (fixed dollars) or `months` (a multiplier over essential
+ * expenses) — the database constraint enforces the same thing, because a stop sized by both would
+ * have no single answer and one sized by neither would be a rank the user can drag that moves no
+ * money.
+ */
+export type GoalStageInput = {
+  id?: string | null;
+  name?: string | null;
+  /** Fixed dollars for THIS stop. Mutually exclusive with `months`. */
+  amount?: number | null;
+  /** Months of essential expenses for THIS stop. Mutually exclusive with `amount`. */
+  months?: number | null;
+  /** This stop's own date. Replaces the goal's single `target_date`, which could only ever describe
+   *  one of them — on Tre's row it is the MOVE date and says nothing about the six-month stop. */
+  target_date?: string | null;
+  /** This stop WAITS until revolving credit-card debt is clear. The hand-off, as a flag. */
+  after_cards?: boolean | null;
+};
+
+/** One stop, resolved into dollars against a live expense figure. */
+export type GoalStop = {
+  /** The stored stop id, or a positional fallback. Stable enough to key a row and a React list. */
+  id: string;
+  /** 1-based position in the plan. */
+  index: number;
+  name: string;
+  /** THIS stop's own dollars. */
+  size: number;
+  /** CUMULATIVE dollars — what must be saved for this stop to be filled. */
+  threshold: number;
+  afterCards: boolean;
+  targetDate: string | null;
+};
+
+/**
+ * A goal's plan: its stops in order, and what the whole thing comes to.
+ *
+ * `staged: false` is an ordinary one-target goal, and it still carries ONE stop — the plain
+ * `target_amount` — so that every caller can walk `stops` without a special case. `total` is the
+ * last threshold, i.e. the number the goal is ultimately chasing.
+ */
+export type GoalStages = { staged: boolean; stops: GoalStop[]; total: number };
 
 /** A positive months multiplier, or null. Zero, negative and unparseable are not stages. */
 function monthsOf(raw: number | null | undefined): number | null {
@@ -301,26 +353,101 @@ function monthsOf(raw: number | null | undefined): number | null {
   return raw == null || !Number.isFinite(n) || n <= 0 ? null : n;
 }
 
+/** A non-negative dollar size, or null. */
+function amountOf(raw: number | null | undefined): number | null {
+  const n = Number(raw);
+  return raw == null || !Number.isFinite(n) || n < 0 ? null : n;
+}
+
+/** The stored `stages` column as an array of candidate stops, or `[]` for anything else. */
+function readStageInputs(raw: unknown): GoalStageInput[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((s): s is GoalStageInput => s != null && typeof s === 'object' && !Array.isArray(s));
+}
+
 /**
- * The two dollar thresholds a staged goal passes through.
+ * THE STOPS A GOAL PASSES THROUGH, in order, resolved into dollars.
  *
- * Both are measured from `target_amount` UPWARDS, because `target_amount` is the base the stages
- * extend — on Tre's row it is $5,730, the lease break plus the deposit, i.e. the MOVE half of
- * "Move fund, then emergency fund". Stage 1 is that plus three months; stage 2 is that plus six.
+ * Tre, 2026-08-26: *"the original $5,730 should show as the first stage since its only for the move
+ * fund part (that stage should immediately stop/drop once its done) ... also be able to add multiple
+ * planned stops with target amounts."*
  *
- * A goal with only stage 1 set is legal and means "and then stop": stage 2 collapses onto stage 1.
+ * So the move fund is not a BASE the stages are measured up from any more — it is stop #1 in its own
+ * right, and thresholds are CUMULATIVE: stop N is reached at the sum of stops 1..N. That is what
+ * lets a stop drop out of the list the moment it is filled without moving any of the others.
+ *
+ * Three shapes are read, in this order:
+ *   1. `stages` non-empty  → the stops as stored. `target_amount` is NOT added; it is a cached
+ *      display total the form rewrites on save, and adding it would double-count stop #1.
+ *   2. LEGACY `emergency_months_stage1/2` → the same thresholds the two-column design produced
+ *      (`target_amount`, +stage1 months, +stage2 months), expressed as three stops. Only reached by
+ *      a row the migration's backfill missed.
+ *   3. Neither → one stop, the plain `target_amount`, `staged: false`.
  */
 export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number): GoalStages {
   const base = Number(goal.target_amount) || 0;
-  const m1 = monthsOf(goal.emergency_months_stage1);
   const monthly = Number(essentialMonthlyExpenses);
-  if (m1 == null || !Number.isFinite(monthly) || monthly <= 0) {
-    return { staged: false, stage1: base, stage2: base };
-  }
+  const hasMonthly = Number.isFinite(monthly) && monthly > 0;
+
+  const unstaged = (): GoalStages => ({
+    staged: false,
+    stops: [{ id: 'target', index: 1, name: 'Target', size: base, threshold: base, afterCards: false, targetDate: goal.target_date ?? null }],
+    total: base,
+  });
+
+  const build = (inputs: GoalStageInput[]): GoalStages => {
+    let running = 0;
+    const stops: GoalStop[] = [];
+    for (const s of inputs) {
+      const amount = amountOf(s.amount);
+      const months = monthsOf(s.months);
+      // A months-sized stop with no expense figure to multiply is not zero, it is UNKNOWN — and a
+      // zero-size stop would silently read as already filled. Drop it rather than invent it.
+      let size: number | null = null;
+      if (amount != null && months == null) size = amount;
+      else if (months != null && amount == null) size = hasMonthly ? months * monthly : null;
+      if (size == null) continue;
+      running += size;
+      stops.push({
+        id: typeof s.id === 'string' && s.id.length > 0 ? s.id : `stop-${stops.length + 1}`,
+        index: stops.length + 1,
+        name: (s.name ?? '').trim() || `Stop ${stops.length + 1}`,
+        size,
+        threshold: running,
+        afterCards: s.after_cards === true,
+        targetDate: s.target_date ?? null,
+      });
+    }
+    return stops.length === 0 ? unstaged() : { staged: true, stops, total: running };
+  };
+
+  const stored = readStageInputs(goal.stages);
+  if (stored.length > 0) return build(stored);
+
+  const m1 = monthsOf(goal.emergency_months_stage1);
+  if (m1 == null || !hasMonthly) return unstaged();
   const m2 = monthsOf(goal.emergency_months_stage2);
-  const stage1 = base + m1 * monthly;
-  const stage2 = base + Math.max(m1, m2 ?? m1) * monthly;
-  return { staged: true, stage1, stage2 };
+  const tailMonths = m2 != null && m2 > m1 ? m2 - m1 : null;
+  return build([
+    ...(base > 0 ? [{ name: 'First target', amount: base, target_date: goal.target_date ?? null }] : []),
+    { name: 'Emergency runway', months: m1 },
+    ...(tailMonths != null ? [{ name: 'Full runway', months: tailMonths, after_cards: true }] : []),
+  ]);
+}
+
+/**
+ * The first stop that still WAITS on the cards, or -1. Everything from it onwards is parked while
+ * revolving debt is outstanding — cards clear once, so one gate is the whole gate.
+ */
+export function firstGatedStopIndex(stages: GoalStages): number {
+  return stages.stops.findIndex(s => s.afterCards);
+}
+
+/** What must be saved before any stop is gated — i.e. the target while the cards still owe. */
+export function openThresholdOf(stages: GoalStages): number {
+  const gate = firstGatedStopIndex(stages);
+  if (gate === -1) return stages.total;
+  return gate === 0 ? 0 : stages.stops[gate - 1].threshold;
 }
 
 /**
@@ -342,17 +469,33 @@ export function goalRemainingNeed(goal: RankableGoal, ctx?: GoalStageContext): n
 /**
  * The target a staged goal is chasing RIGHT NOW, given what is saved and what the cards still owe.
  *
- * The whole rule, and it is three lines:
- *   saved below stage 1                      → chase stage 1
- *   at stage 1, cards still owe revolving    → chase stage 1, i.e. nothing more (capacity 0)
- *   otherwise                                → chase stage 2
+ * Walk the stops in order and stop at the first one not yet filled. If that stop WAITS on the cards
+ * and the cards still owe, the target is the threshold already reached instead — which makes the
+ * remaining need zero, and capacity 0 is already how a rank yields its dollars to the next one.
+ * Every stop is filled ⇒ the last threshold, i.e. nothing left to chase.
  */
 export function stagedTargetFor(goal: RankableGoal, ctx: GoalStageContext): number {
   const stages = goalStages(goal, ctx.essentialMonthlyExpenses);
-  if (!stages.staged) return stages.stage1;
   const saved = Number(goal.current_amount) || 0;
-  if (saved < stages.stage1 - CENT) return stages.stage1;
-  return Number(ctx.revolvingRemaining) > 0 ? stages.stage1 : stages.stage2;
+  const cardsOwe = Number(ctx.revolvingRemaining) > 0;
+  for (let i = 0; i < stages.stops.length; i++) {
+    const stop = stages.stops[i];
+    if (saved >= stop.threshold - CENT) continue;
+    if (stop.afterCards && cardsOwe) return i === 0 ? 0 : stages.stops[i - 1].threshold;
+    return stop.threshold;
+  }
+  return stages.total;
+}
+
+/**
+ * The stop the goal is filling right now — the first one not yet complete, or the last one when
+ * every stop is done. What a person reading a list needs to see; the ENGINE reads
+ * {@link stagedTargetFor}, which also knows about the hand-off to the cards.
+ */
+export function currentStopOf(goal: RankableGoal, essentialMonthlyExpenses: number): GoalStop {
+  const stages = goalStages(goal, essentialMonthlyExpenses);
+  const saved = Number(goal.current_amount) || 0;
+  return stages.stops.find(s => saved < s.threshold - CENT) ?? stages.stops[stages.stops.length - 1];
 }
 
 /**

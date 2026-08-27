@@ -1624,6 +1624,7 @@ export type Database = {
           monthly_contribution: number
           name: string
           sort_order: number
+          stages: Json
           surplus_share: number | null
           target_amount: number
           target_date: string | null
@@ -1649,6 +1650,7 @@ export type Database = {
           monthly_contribution?: number
           name: string
           sort_order?: number
+          stages?: Json
           surplus_share?: number | null
           target_amount?: number
           target_date?: string | null
@@ -1674,6 +1676,7 @@ export type Database = {
           monthly_contribution?: number
           name?: string
           sort_order?: number
+          stages?: Json
           surplus_share?: number | null
           target_amount?: number
           target_date?: string | null
