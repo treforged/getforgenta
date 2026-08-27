@@ -1,5 +1,66 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36i — **`6285c804`. tsc 0, 290 files / 3099 tests, eslint
+> clean. 41 commits unpushed.** Session 36h's queue item 1 is SHIPPED. Manager
+> built it; no executor spawned. Context gate fired at 177k.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **`6285c804` — MONTH 0 NOW PACES.** The engine paces months 1+
+>   (`monthlyCeilingFor`); month 0's reserve is decided on a different path
+>   entirely — `useCardProjection` → `buildRankedTargets` →
+>   `allocateRankedSurplus` — which knew nothing about `levelMonthlyToDate` or the
+>   IRA cap, so the month the user is standing in could reserve a dated goal's
+>   WHOLE need. New exported **`goalMonthlyCeiling`** in
+>   `ranked-extra-payment-targets.ts` is month 0's copy of the engine's rule,
+>   deliberately the same shape:
+>   - the same TWO LIMITS with the smaller winning (statutory IRA vs on-time pace);
+>   - the same stop's-own-date, goal's date as the fallback for **stop 1 only**;
+>   - the allowance as **`maxExtra` BESIDE the true `capacity`**, never folded in,
+>     so `holdsQueueBelow` passes the rest down in month 0 as it does in month 1.
+> - Both hooks now pass **`accountTypes`** (`useCardProjection.ts`,
+>   `useForecastEngineInputs.ts`) beside the `accountBalances` they already passed
+>   — the IRA half needs the linked account's TYPE.
+> - `SavingsGoal` in `src/lib/types.ts` gained the `linked_account` column it was
+>   missing (hand-kept subset; the engine and the hooks already read it).
+> - 10 new tests (pace over months-to-date, undated unchanged, due-this-month takes
+>   the whole need, IRA level share, smaller-of-two, no `accountTypes` ⇒ no
+>   statutory ceiling, savings account is not an IRA, and three end-to-end
+>   allocator cases: on-pace passes down, short-of-pace holds, undated unchanged).
+> - ⚠️ **THE YEAR IS ASSUMED UNUSED** (`alreadyContributed: 0`). Nothing in this app
+>   records what went into an IRA before today, and the engine makes the same
+>   assumption at the start of its own horizon. Documented in the helper rather
+>   than guessed at. If a YTD contribution source ever exists, that is the one
+>   line to change.
+>
+> ═══ NOT LIVE-VERIFIED, AND WHY ═══
+> - His month-0 ranked reserve is **$0** (36h measured it: his standing $510/mo
+>   already beats the move fund's ~$469/mo pace, so the ranked surplus goes to the
+>   cards). A ceiling on a reserve of zero changes nothing visible, so there is no
+>   number on his screen this could move. Pinned by tests instead.
+> - ⚠️ A PRE-EXISTING SHAPE DIFFERENCE WAS SEEN AND LEFT ALONE: the engine builds
+>   **one target per STOP** (`stopRowId`, per-stop `sortOrder`), month 0 builds
+>   **one target per GOAL** at `goal.sort_order` with the current stop's need. That
+>   predates this work and is a separate item; do not "fix" it inside a pacing
+>   change.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 2. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 3. Month 0 builds one target per GOAL where the engine builds one per STOP (see
+>    above) — audit whether that changes any month-0 reserve on a staged plan.
+> 4. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 5. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 6. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36h — **`49276579`. tsc 0, 290 files / 3089 tests, eslint
 > clean. 39 commits unpushed.** Session 36g's queue items 1 AND 2 are both done:
 > the decision is built and it is LIVE-VERIFIED on his own data. Manager built
