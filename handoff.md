@@ -1,5 +1,67 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36g — **tsc 0, 290 files / 3081 tests, eslint clean. 37
+> commits unpushed.** Session 36f's queue item 1 is SHIPPED. Manager built it; no
+> executor spawned. ⚠️ NOT live-verified on his data — see the top of the queue.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **Any DATED target takes only what it needs to arrive on time.** The levelling
+>   (`levelMonthlyToDate`) shipped reading `linked_account.account_type ===
+>   'brokerage'`, because that is the account type the investing ask arrived
+>   attached to. "Only take exactly what it needs to reach the goal on time" is a
+>   sentence about a DATE, not an account type, so the date is now read off the
+>   TARGET and the account type decides only the statutory (IRA) ceiling.
+> - **The date is per STOP, not per goal** — `targetDateByRowId` is keyed by the
+>   RANKED ROW id, so a staged plan's stop 2 is paced by its own `target_date`.
+>   The goal's own date is a fallback for **stop 1 only**: a later undated stop is
+>   genuinely undated, and inheriting the goal's date would invent a deadline.
+> - **Two limits, smaller wins.** `monthlyAllowanceFor` now returns
+>   `min(statutory, onTime)`; a dated IRA goal that needs $200/mo to be there on
+>   time takes $200, not the $583 the year's allowance would permit.
+> - New pure **`monthsUntilTargetDate`** (calendar months, day-of-month and TZ
+>   proof) beside the levelling, + 9 unit tests and 7 engine tests.
+> - ⚠️ **THE ALLOWANCE STAYS ON `capacity`, NOT on `maxExtra`, and that is
+>   deliberate.** `maxExtra` looks like the semantically right field (a per-month
+>   ceiling), but `unmetAtMonthStart` measures the rank gate on CAPACITY on
+>   purpose — capacity 0 is how an IRA that has used up its year steps aside and
+>   lets the next rank have the money. Moving the allowance to `maxExtra` would
+>   have that IRA block every rank below it for the rest of the year. Don't.
+> - ⚠️ **A PACED TARGET STILL HOLDS THE QUEUE BELOW IT**, for the whole time it is
+>   being paced (pinned by a test now). That is the pre-existing, deliberate
+>   "only after the previous is met" rule, and the IRA cap has behaved this way
+>   since it shipped. The surplus the paced target did not take is NOT reserved
+>   elsewhere — it stays in the pool as cash for the debt cascade. **If Tre wants
+>   an on-pace target to pass the REST down to the next rank, that is a separate
+>   product decision** and it moves IRA money too.
+>
+> ═══ ⚠️ WHAT THIS DOES TO HIS OWN DATA (measured by SQL, NOT yet rendered) ═══
+> His goal `a035a97e` stop 1 "First target" is **$5,730, dated 2027-07-03,
+> auto_extra ON, `spends: true`**, saved $106.44 → need **$5,623.56** over Aug
+> 2026…Jul 2027 = **~$469/mo**. His standing `monthly_contribution` is **$510/mo**,
+> which ALREADY exceeds that pace — so the ranked reserve for stop 1 should now be
+> at or near **zero in most months**, and that surplus goes to the cards instead
+> of being front-loaded into the move fund. Stops 2 and 3 (runway, ranks 5 and 7)
+> carry NO date and are unpaced. **Nobody has looked at the rendered forecast.**
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. ⚠️ **LIVE-VERIFY THE ABOVE** on /forecast + /savings-goals: the move-fund
+>    reserve per month, and that the freed surplus actually lands on the cards
+>    rather than vanishing. One navigate + one scripted extraction.
+> 2. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 3. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 4. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 5. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 6. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36f — **`28ebdb5b`. tsc 0, 290 files / 3067 tests, eslint
 > clean. 36 commits unpushed.** Session 36e's queue item 1 is SHIPPED and
 > LIVE-VERIFIED on his own data. Manager built it; no executor spawned.
