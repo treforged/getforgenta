@@ -1,5 +1,55 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36e — **`61e61a09`. tsc 0, 289 files / 3061 tests, eslint
+> clean. 34 commits unpushed.** Session 36d's queue items 1 and 2 are BOTH
+> shipped. Manager built it; no executor spawned. Context gate fired at 176k.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **`a65b301b` — the Savings Growth chart sees every stop of a staged goal.**
+>   `toGrowthGoal` (SavingsGoals.tsx) fed `extraByGoal.get(g.id)` straight into
+>   `GrowthGoalInput.extraByMonth`, and a goal is not always one target:
+>   `stopRowId` gives stop 1 the goal's own id and later stops
+>   `${goalId}::stopN`. New **`autoExtraSeriesForGoal`** (auto-extra-projection.ts)
+>   merges every stop into one month-indexed array, pads to the longest stop's
+>   horizon, returns `undefined` when nothing is diverted. `estimateCompletion`
+>   shares the mapper, so the goal ETA was wrong the same way and is fixed too.
+>   ⚠️ **MEASURED LIVE** off `window.__convergenceDebug.forecastResult.data`:
+>   his move fund `a035a97e…` takes **$1,258** under its own id and **$21,195**
+>   under `::stop2` (first $1,246 at month 26) + `::stop3` (first $3,998 at month
+>   37) — **94% of the $22,453 the engine diverts to that goal was invisible**
+>   to that line. 5 new tests incl. the would-fail proof.
+> - **`61e61a09` — a future-first-payment loan stops running its balances a month
+>   ahead of its payments.** `monthsElapsed` clamps at 0 and MUST (it counts
+>   payments made — "3 of 48", `interestPaidToDate`), but the forecast seed did
+>   `schedule[monthsElapsed + i]`, so month i got month i+1's row while the
+>   PAYMENT side keys off the calendar month and was never shifted. New
+>   **`LoanProjection.scheduleOffset`** = the unclamped twin, negative before the
+>   first payment; forecast-engine ~:943 reads it and treats a negative index as
+>   "disbursed but not amortizing yet" — the loan owes its **OPENING** balance
+>   there, so the old `?? 0` would have erased a real liability. Fixture at
+>   2026-07-15: `scheduleOffset -1`, array first-zero `schedule.length` →
+>   `schedule.length + 1`. **No effect on his loans today** (all already paying,
+>   `scheduleOffset === monthsElapsed`). The PASS-3 suppression gate STAYS — the
+>   extra-vs-schedule disagreement it also covers is real; only its stale
+>   future-start note was rewritten.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. Charts for student loans / mortgage / other debts (the CC tab has one).
+> 2. Generalise `levelMonthlyToDate` to any dated target.
+> 3. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 4. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 5. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 6. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 7. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
 > ▶ 2026-08-27 SESSION 36d — **`d7a05872`. tsc 0, 289 files / 3056 tests, eslint
 > clean. 32 commits unpushed.** Old queue items 1 and 2 are BOTH shipped and
 > live-verified. Manager built it; no executor spawned. Context gate fired.
