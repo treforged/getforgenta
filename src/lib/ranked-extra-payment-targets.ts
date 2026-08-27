@@ -337,6 +337,17 @@ export type GoalStageInput = {
   /** This stop's own Auto extra tick. Every stop has one — Tre, 2026-08-26: "each part of the
    *  stagger should always have the choice of extra payments." */
   auto_extra?: boolean | null;
+  /**
+   * THIS STOP IS MONEY THAT LEAVES. A move fund, a down payment, a wedding — saved up, then spent,
+   * on this stop's own `target_date`.
+   *
+   * Tre, 2026-08-27: *"why dont i see the savings go up to the first goal then drop to 0 after the
+   * payments? is there a bigger issue"* — there was. Nothing in the app ever SPENT a savings goal:
+   * a car fund is spent at its purchase month, but a plain goal only ever grew, so a balance
+   * earmarked for something counted toward net worth for ever and the cash it will really need
+   * never left the projection.
+   */
+  spends?: boolean | null;
 };
 
 /** One stop, resolved into dollars against a live expense figure. */
@@ -360,6 +371,8 @@ export type GoalStop = {
   sortOrder: number;
   /** This stop's own Auto extra tick. */
   autoExtra: boolean;
+  /** This stop's money LEAVES on {@link targetDate}. See `GoalStageInput.spends`. */
+  spends: boolean;
   /** True when the rank above was DERIVED rather than stored, i.e. this stop has never been
    *  dragged. Lets the list seat it sensibly without pretending the user chose the position. */
   rankIsDefault: boolean;
@@ -434,7 +447,7 @@ export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number)
     stops: [{
       id: 'target', index: 1, name: 'Target', size: base, threshold: base, floor: 0,
       afterCards: false, targetDate: goal.target_date ?? null,
-      sortOrder: goalRank, autoExtra: goalAutoExtra, rankIsDefault: false,
+      sortOrder: goalRank, autoExtra: goalAutoExtra, spends: false, rankIsDefault: false,
     }],
     total: base,
   });
@@ -475,6 +488,8 @@ export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number)
         // stops keeps its tick. Later stops start unticked: a stop nobody has looked at must not
         // start diverting money.
         autoExtra: s.auto_extra != null ? s.auto_extra === true : (index === 1 && goalAutoExtra),
+        // A stop with no date cannot be spent on one, so the flag alone is not enough.
+        spends: s.spends === true && (s.target_date ?? null) != null,
         rankIsDefault: !hasStoredRank,
       });
     }
@@ -720,4 +735,43 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
     }));
 
   return [...cardTargets, ...carTargets, ...loanTargets, ...liabilityTargets, ...goalTargets];
+}
+
+
+/** One planned outflow from a goal's balance: what leaves, and when. */
+export type GoalWithdrawal = { stopId: string; date: string; amount: number };
+
+/**
+ * THE MONEY THIS GOAL IS GOING TO SPEND, and when.
+ *
+ * One entry per stop marked `spends`, at that stop's own date. A plan with no such stop returns
+ * `[]`, which is every goal of every user until one is marked — so every caller that consumes this
+ * is inert by default.
+ */
+export function goalWithdrawals(
+  goal: RankableGoal, essentialMonthlyExpenses: number,
+): GoalWithdrawal[] {
+  return goalStages(goal, essentialMonthlyExpenses).stops
+    .filter(s => s.spends && s.targetDate != null && s.size > 0)
+    .map(s => ({ stopId: s.id, date: s.targetDate as string, amount: s.size }));
+}
+
+/**
+ * What this goal has saved, counting money it has ALREADY SPENT as still achieved.
+ *
+ * ⚠️ WITHOUT THIS A SPENT STOP RE-OPENS AND IS RE-FUNDED. The thresholds are cumulative and
+ * measured against the live balance, so the moment the move fund's $5,730 leaves the account the
+ * plan reads "stop 1 unfilled" and starts saving for the move all over again — for a move that has
+ * already happened. Progress through a plan is not the same thing as the balance in the account,
+ * and this is where the two part company.
+ */
+export function goalSavedIncludingSpent(
+  goal: RankableGoal, essentialMonthlyExpenses: number, asOf: Date,
+): number {
+  const saved = Number(goal.current_amount) || 0;
+  const today = asOf.toISOString().slice(0, 10);
+  const spent = goalWithdrawals(goal, essentialMonthlyExpenses)
+    .filter(w => w.date <= today)
+    .reduce((sum, w) => sum + w.amount, 0);
+  return saved + spent;
 }

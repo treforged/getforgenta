@@ -23,7 +23,7 @@ import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveA
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
-import { goalStages } from '@/lib/ranked-extra-payment-targets';
+import { goalStages, goalWithdrawals, goalSavedIncludingSpent } from '@/lib/ranked-extra-payment-targets';
 import { IRA_ANNUAL_LIMIT } from '@/lib/retirement-contribution-cap';
 import GoalStopsEditor, { newStopDraft, stopDraftsFrom, stopsToStages, type StopDraft } from '@/components/savings/GoalStopsEditor';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
@@ -312,6 +312,7 @@ const toGrowthGoal = (
   g: EnrichedGoal,
   index: number,
   extraByGoal?: Map<string, number[]>,
+  essentialMonthlyExpenses = 0,
 ): GrowthGoalInput => ({
   id: g.id ?? String(index),
   name: g.name ?? '',
@@ -326,12 +327,17 @@ const toGrowthGoal = (
   // the Forecast, Dashboard and Debt engine already do. Interest keeps accruing after that.
   targetAmount: Number(g.target_amount),
   extraByMonth: g.id ? extraByGoal?.get(g.id) : undefined,
+  // The money this goal exists to SPEND. Empty for every goal until a stop is marked, so the line
+  // is unchanged for anyone who has not used the feature.
+  withdrawals: goalWithdrawals(g, essentialMonthlyExpenses),
 });
 
-function SavingsGrowthChart({ goals, extraByGoal }: { goals: EnrichedGoal[]; extraByGoal: Map<string, number[]> }) {
+function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses }: {
+  goals: EnrichedGoal[]; extraByGoal: Map<string, number[]>; essentialMonthlyExpenses: number;
+}) {
   const { rows: chartData, series } = useMemo(
-    () => buildSavingsGrowthData(goals.map((g, i) => toGrowthGoal(g, i, extraByGoal))),
-    [goals, extraByGoal],
+    () => buildSavingsGrowthData(goals.map((g, i) => toGrowthGoal(g, i, extraByGoal, essentialMonthlyExpenses))),
+    [goals, extraByGoal, essentialMonthlyExpenses],
   );
   const isMobile = useIsViewportBelow(640);
   // 60 monthly points is far too many labels and dots to draw: thin the axis to
@@ -342,7 +348,7 @@ function SavingsGrowthChart({ goals, extraByGoal }: { goals: EnrichedGoal[]; ext
   return (
     <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Savings Growth Projection</h3>
-      <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates. Contributions stop once a goal hits its target; interest keeps compounding.</p>
+      <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates. Contributions stop once a goal hits its target; interest keeps compounding. A stop you marked as spent drops out of the line on its date.</p>
       <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
@@ -815,7 +821,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         </Link>
       )}
 
-      <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} />
+      <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} essentialMonthlyExpenses={essentialMonthlyExpenses} />
 
       <SurplusRankingSection
         cardsSubtitle={cardsRankSubtitle}
@@ -836,7 +842,11 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           // A staged goal measured against its full total reads as barely started for years, and
           // the one number it should be showing — what the next stop needs — is nowhere on it.
           const plan = goalStages(g, essentialMonthlyExpenses);
-          const saved = Number(g.current_amount);
+          // ⚠️ PROGRESS COUNTS MONEY ALREADY SPENT. Thresholds are cumulative against the live
+          // balance, so the month the move fund's $5,730 leaves the account the plan would read
+          // "stop 1 unfilled" and start saving for a move that has already happened. Progress
+          // through a plan and the balance in the account are not the same thing.
+          const saved = goalSavedIncludingSpent(g, essentialMonthlyExpenses, new Date());
           const nowStop = plan.stops.find(s => saved < s.threshold - 0.005) ?? plan.stops[plan.stops.length - 1];
           const headlineTarget = plan.staged ? nowStop.threshold : Number(g.target_amount);
           const pct = headlineTarget > 0 ? (saved / headlineTarget) * 100 : 0;
@@ -885,7 +895,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                 </div>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(saved, false)}</span>
+                <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount), false)}</span>
                 <span className="text-xs text-muted-foreground">
                   of {formatCurrency(headlineTarget, false)}
                   {plan.staged && <span className="ml-1">· {nowStop.name}</span>}
@@ -906,6 +916,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                       <li key={s.id} className="flex items-baseline justify-between gap-2 text-[11px]">
                         <span className={`min-w-0 wrap-break-word ${done ? 'text-muted-foreground line-through' : isNow ? 'text-foreground' : 'text-muted-foreground'}`}>
                           {s.index}. {s.name}
+                          {s.spends && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">· spent</span>
+                          )}
                           {s.targetDate && (
                             <span className="ml-1 text-muted-foreground">
                               by {new Date(`${s.targetDate.slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}

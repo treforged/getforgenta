@@ -44,6 +44,15 @@ export type GrowthGoalInput = {
    */
   targetAmount?: number | null;
   /**
+   * PLANNED OUTFLOWS: money this goal is saved up in order to SPEND, and the date it goes.
+   * `goalWithdrawals` builds it from the stops the user marked as spent.
+   *
+   * Omitted (or empty) is every goal until one is marked, and leaves every number here exactly as
+   * it was. Tre, 2026-08-27: "why dont i see the savings go up to the first goal then drop to 0
+   * after the payments?" — because until this existed the line only ever went up.
+   */
+  withdrawals?: { date: string; amount: number }[];
+  /**
    * The RANKED AUTOMATIC EXTRA the forecast engine diverts to this goal, month by month, index 0
    * being the current month — i.e. `ForecastMonthRow.autoExtraByTarget[goalId]` lifted straight
    * off the projection rows. Optional, and omitting it (or passing all zeros) leaves every number
@@ -105,6 +114,8 @@ type GoalState = {
   cutoffOffset: number | null;
   lumpsByMonth: Map<number, number>;
   extraByMonth: number[];
+  /** Money that LEAVES this goal, by month index — see `GrowthGoalInput.withdrawals`. */
+  withdrawalsByMonth: Map<number, number>;
 };
 
 /**
@@ -131,6 +142,15 @@ function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, mont
     if (offset == null || offset < 1 || offset > months - 1) continue;
     lumpsByMonth.set(offset, (lumpsByMonth.get(offset) ?? 0) + Number(ls.amount || 0));
   }
+  // Same windowing rule as the lump sums, and for the same reason: a withdrawal dated this month
+  // or earlier has already happened, so it is part of the opening balance rather than a future
+  // event to draw again.
+  const withdrawalsByMonth = new Map<number, number>();
+  for (const w of g.withdrawals ?? []) {
+    const offset = monthOffset(w.date, baseYear, baseMonth);
+    if (offset == null || offset < 1 || offset > months - 1) continue;
+    withdrawalsByMonth.set(offset, (withdrawalsByMonth.get(offset) ?? 0) + Math.max(0, Number(w.amount || 0)));
+  }
   const startOffsetRaw = g.contributionStartDate
     ? monthOffset(g.contributionStartDate, baseYear, baseMonth)
     : null;
@@ -147,6 +167,7 @@ function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, mont
     // Sanitised at the boundary: a hole or a NaN in the engine's output must add nothing rather
     // than turn the whole projected line into NaN.
     extraByMonth: (g.extraByMonth ?? []).map(v => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0)),
+    withdrawalsByMonth,
   };
 }
 
@@ -160,7 +181,13 @@ function stepMonth(s: GoalState, monthIndex: number): number {
     // the engine has already decided both whether this goal ranks and when it stops, so gating it
     // again here would be this module second-guessing the allocation it is quoting.
     + (s.extraByMonth[monthIndex] ?? 0)
-    + (s.lumpsByMonth.get(monthIndex) ?? 0);
+    + (s.lumpsByMonth.get(monthIndex) ?? 0)
+    // ...and the money that LEAVES. A goal saved up for something spends it eventually, and until
+    // 2026-08-27 nothing in this app ever modelled that: the line only ever went up, so a move
+    // fund counted toward net worth for ever. Clamped at zero because a balance cannot go negative
+    // - if the plan under-saved, what is there is what gets spent.
+    - (s.withdrawalsByMonth.get(monthIndex) ?? 0);
+  if (s.balance < 0) s.balance = 0;
   return s.balance;
 }
 

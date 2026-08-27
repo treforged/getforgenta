@@ -29,6 +29,8 @@ export type StopDraft = {
    *  here. Carried so a save from this form cannot wipe them. */
   sortOrder: number | null;
   autoExtra: boolean | null;
+  /** This stop's money LEAVES on its date, rather than staying saved. */
+  spends: boolean;
 };
 
 let uidSeq = 0;
@@ -37,7 +39,7 @@ export function newStopDraft(partial: Partial<StopDraft> = {}): StopDraft {
   return {
     uid: `stop-${uidSeq}`,
     name: '', mode: 'amount', amount: '', months: '', targetDate: '', afterCards: false,
-    sortOrder: null, autoExtra: null,
+    sortOrder: null, autoExtra: null, spends: false,
     ...partial,
   };
 }
@@ -59,6 +61,7 @@ export function stopDraftsFrom(stored: unknown): StopDraft[] {
       afterCards: s.after_cards === true,
       sortOrder: s.sort_order ?? null,
       autoExtra: s.auto_extra ?? null,
+      spends: s.spends === true,
     })];
   });
 }
@@ -83,6 +86,7 @@ export function stopsToStages(drafts: readonly StopDraft[]): GoalStageInput[] {
       // switch its automatic extra back off.
       ...(d.sortOrder == null ? {} : { sort_order: d.sortOrder }),
       ...(d.autoExtra == null ? {} : { auto_extra: d.autoExtra }),
+      ...(d.spends ? { spends: true } : {}),
     }];
   });
 }
@@ -246,6 +250,25 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
                       className="w-full bg-secondary/40 border border-border/50 px-2 py-1.5 text-xs"
                       style={{ borderRadius: 'var(--radius)' }}
                     />
+                  </label>
+
+                  {/* MONEY THAT LEAVES. A move fund, a down payment, a wedding: saved up and then
+                      SPENT. Until 2026-08-27 nothing in the app modelled that, so an earmarked
+                      balance counted toward net worth for ever. Gated on a date because "it gets
+                      spent" is only actionable if the app knows when. */}
+                  <label className={`flex items-start gap-2 ${s.targetDate ? 'cursor-pointer' : 'opacity-50'}`}>
+                    <input
+                      type="checkbox"
+                      checked={s.spends}
+                      disabled={!s.targetDate}
+                      onChange={e => patch(s.uid, { spends: e.target.checked })}
+                      className="mt-0.5 shrink-0 accent-primary w-4 h-4"
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      This money gets <span className="text-foreground">spent</span> on that date —
+                      drop it out of my savings then
+                      {!s.targetDate && <span className="block">Set a date above to use this.</span>}
+                    </span>
                   </label>
 
                   <p className="text-[10px] text-muted-foreground">
