@@ -1,5 +1,60 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35l — **CARD TOGGLE FIXED TWICE MORE (`07986184`). FEB
+> 2031 BREACH ROOT-CAUSED. MOVE/EMERGENCY SPLIT DESIGNED, NOT BUILT - and there
+> is a reason not to hack it into the data, below.**
+>
+> CARD TOGGLE, both defects Tre found within minutes: it rendered BELOW eight
+> rows (moved above the list - a control that governs a list belongs before it),
+> and the mode was derived from whether ANY card was solo, so it lit "One row
+> each" while two of his four cards were still blocked. Three states now:
+> `block` / `individual` / `mixed`, mixed showing neither pressed and saying
+> "Right now it is both: 2 on their own and 2 sharing one spot."
+>
+> ⚠️ STILL OPEN ON THE CARDS (Tre, same message): the two NOT-YET-LIVE cards
+> (Venture X, Apple Card - `accounts.card_start_date` in the future) should show
+> INDIVIDUALLY with a "not open yet" note, ordered by the chosen payoff method,
+> seated AFTER Discover and BEFORE the car-loan extra payments. And the control
+> must ALWAYS require a selection - no persisted mixed state - defaulting to "as
+> one group" following the method chosen on /debt.
+>
+> FEB 2031 BREACH, reproduced: m54 ends $2,705.56 vs floor $2,754.42, short
+> **$48.86**. NOT the Roth cap and NOT the ranked reserve - `autoExtraOut` is 0
+> that month. The floor JUMPS to 2754 in Jan+Feb 2031 (2009 either side) because
+> those months pre-fund more bills before the next paycheck: their `floorItems`
+> carry the C5 loan 423, C5 insurance 173, Robinhood 100 and Prime Visa min 49,
+> which Dec 2030 and Mar 2031 do not. The month's only real outflow is debtPay
+> 384, all CYCLING by then and not reducible. SUSPECT: `netAtMin` models "pay
+> only the minimum" (ccMin 199) while the sim pays 384, so the backward pass
+> under-demands from Jan 2031 - which ends at 3103 with 349 of unbanked room.
+> CHECK FIRST whether cycling is both added to `expenseByMonth` AND excluded via
+> ccMin; that is the shape of a double-count.
+>
+> ⚠️⚠️ MOVE FUND / EMERGENCY FUND - DO NOT SPLIT IT IN THE DATA. Tre wants:
+> move fund, then 3 months of expenses, then STOP and accelerate the cards, then
+> resume to 6 months, then the rest. The waterfall already funds one rank at a
+> time in order and cards are already a rankable row, so the SEQUENCE looks
+> expressible with separate goals ranked around the card block - and it is a
+> trap. His goal is linked to a savings ACCOUNT (`linked_account`
+> 36997c1c-...), and `current_amount` is resolved FROM that account, so two goals
+> pointing at one account both report the same balance and both look funded. A
+> data split would silently double-count his emergency savings.
+>
+> So this is a real feature: ONE goal with STAGES - a first threshold (3x monthly
+> expenses), a hand-off to the card block, a second threshold (6x), where the
+> stages share one balance. Sizing from his own numbers, monthly expense in the
+> engine's own `expenseByMonth` is about $3,275 post-cliff, so 3 months is about
+> $9,825 and 6 months about $19,650 - but CONFIRM THE BASIS with him before
+> hard-coding it, because "expenses" could reasonably mean with or without debt
+> service. His current single goal is target $5,730 (= lease break 3,830 +
+> deposit 1,900, i.e. the MOVE half only) named "Move fund, then emergency fund".
+>
+> ALSO QUEUED from the same message: Roth IRA annual IRS cap applied per
+> contribution year with LEVEL monthly amounts so auto-transfer works; the same
+> level-monthly idea for investing but uncapped; and the Garage amortization
+> SCHEDULE (not just the chart, which `6e676601` already did) reflecting ranked
+> auto-extra.
+
 > ▶ 2026-08-26 SESSION 35k — **BOTH PIECES OF KNOWN DEBT CLEARED, and clearing
 > the first one found a real bug.** `7aa10e61`, pushed. Caps 85/85.
 >
