@@ -1,5 +1,45 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36d — **`d7a05872`. tsc 0, 289 files / 3056 tests, eslint
+> clean. 32 commits unpushed.** Old queue items 1 and 2 are BOTH shipped and
+> live-verified. Manager built it; no executor spawned. Context gate fired.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **MONTHLY / ANNUAL SPEND now count all four buckets** (Tre: "yes they
+>   should"). They read `totalCharges` (fixed+variable) and so quoted a month
+>   with every debt payment and transfer missing. LIVE: **$2,948 → $4,248** and
+>   **$35,377 → $50,973**; both drawers itemise four lines now.
+> - **A month with no ranked extra names the NEXT one.** `nextAutoExtraForGoal`
+>   (auto-extra-projection.ts) — first month from index 1, same stop-aware match
+>   as `autoExtraForGoalAtMonth` (staged goals are several targets). It returns
+>   an OFFSET, never a date; `nextExtraMonthLabel` dates it at render time.
+>   LIVE: "Move fund… Contribution $510/mo · **next: $168 in Aug 2027**" —
+>   the exact figure session 36a measured. Listed, never summed.
+> - ⚠️ **React Compiler lint trap, cost a round:** putting `nowYear`/`nowMonth`
+>   in a `useMemo` dep list fails `react-hooks/preserve-manual-memoization`
+>   ("this dependency may be modified later") even though both are `const`
+>   numbers. The fix is the better design anyway — keep the memo calendar-free
+>   and format at render time. Don't re-add calendar values to those deps.
+> - **Weekly usage cap 90 → 92** in BOTH `~/.claude/bin/usage_cap_hook.py` and
+>   `usage_resume_watch.py` (Tre asked; seven_day measured at 89.0%, window
+>   resets 2026-08-31 18:00). ⚠️ The dated-override note still stands: **restore
+>   to 75.0 after the reset.**
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. `SavingsGoals.tsx` ~:329 `toGrowthGoal`'s bare `extraByGoal?.get(g.id)` —
+>    same staged-goal blind spot; `autoExtraForGoalAtMonth` is the fix, and
+>    `nextAutoExtraForGoal` is now available there too.
+> 2. `vehicle-loan-engine.ts:110/:166` `Math.max(0, …)` a month early for a loan
+>    whose FIRST payment is in the future. Its own slice.
+> 3. Charts for student loans / mortgage / other debts.
+> 4. Generalise `levelMonthlyToDate` to any dated target.
+> 5. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 6. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 7. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 8. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+
 > ▶ 2026-08-27 SESSION 36c — **`ff451b68`. tsc 0, 289 files / 3049 tests, eslint
 > clean. 30 commits unpushed.** Session 36b's A + B + C are SHIPPED and
 > LIVE-VERIFIED on his own data. Manager built it; no executor spawned.
