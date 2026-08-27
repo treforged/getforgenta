@@ -1613,6 +1613,8 @@ export type Database = {
           contribution_start_date: string | null
           created_at: string
           current_amount: number
+          emergency_months_stage1: number | null
+          emergency_months_stage2: number | null
           goal_type: string
           id: string
           linked_account: string | null
@@ -1636,6 +1638,8 @@ export type Database = {
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
+          emergency_months_stage1?: number | null
+          emergency_months_stage2?: number | null
           goal_type?: string
           id?: string
           linked_account?: string | null
@@ -1659,6 +1663,8 @@ export type Database = {
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
+          emergency_months_stage1?: number | null
+          emergency_months_stage2?: number | null
           goal_type?: string
           id?: string
           linked_account?: string | null

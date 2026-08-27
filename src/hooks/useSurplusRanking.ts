@@ -12,6 +12,8 @@ import {
   type SurplusRankRow, type SurplusRankWrites,
 } from '@/lib/surplus-ranking';
 import { buildRankableLiabilities, type RankableLiability } from '@/lib/ranked-extra-payment-targets';
+import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
+import { resolveFundingAccountId } from '@/lib/funding-account';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 
@@ -88,6 +90,32 @@ export function useSurplusRanking() {
     excludedAccountIds: linkedLoanAccountIds(carFunds ?? [], accounts),
   }), [accounts, debts, rules, carFunds]);
 
+  /**
+   * One month of essential cost, for a STAGED emergency goal's thresholds.
+   *
+   * ⚠️ THIS EXISTS SO THE LIST AND THE FORECAST PRINT THE SAME NUMBER. `forecast-engine` sizes a
+   * staged goal's stage 1 from exactly this figure; without it here the same row would show its
+   * base `target_amount` in the list while the engine reserved against stage 1, and a user reading
+   * two screens would see two different remaining needs for one goal.
+   *
+   * The funding account is resolved the same way `CardProjectionContext` resolves it — the
+   * validated `profiles.default_deposit_account`, else the first active checking account — so the
+   * "paid from another bank account" exclusion lands on the same rules in both places. Null is
+   * safe: `computeEssentialMonthlyExpenses` then excludes nothing, which over-reports rather than
+   * under-funds a runway.
+   */
+  const essentialMonthlyExpenses = useMemo(() => {
+    const fundingAccountId = resolveFundingAccountId(accounts ?? [], profile?.default_deposit_account)
+      ?? ((accounts ?? []).find(a => a.active && a.account_type === 'checking')?.id as string | undefined)
+      ?? null;
+    return computeEssentialMonthlyExpenses({
+      rules: rules ?? [],
+      accounts: accounts ?? [],
+      carFunds: carFunds ?? [],
+      fundingAccountId,
+    });
+  }, [rules, accounts, carFunds, profile?.default_deposit_account]);
+
   const rows = useMemo(
     () => buildSurplusRankRows({
       goals,
@@ -97,8 +125,9 @@ export function useSurplusRanking() {
       cardsSortOrder: profile?.cards_sort_order ?? 0,
       cardsShare: profile?.cards_surplus_share ?? null,
       accountBalances,
+      essentialMonthlyExpenses,
     }),
-    [goals, carFunds, cards, liabilities, profile?.cards_sort_order, profile?.cards_surplus_share, accountBalances],
+    [goals, carFunds, cards, liabilities, profile?.cards_sort_order, profile?.cards_surplus_share, accountBalances, essentialMonthlyExpenses],
   );
 
   const save = useMutation({

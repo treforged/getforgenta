@@ -28,8 +28,8 @@
  */
 
 import {
-  carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed,
-  type RankableGoal, type RankableLiability,
+  carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed, revolvingRemainingOf,
+  type GoalStageContext, type RankableGoal, type RankableLiability,
 } from './ranked-extra-payment-targets';
 import type { CarFund } from './types';
 
@@ -125,6 +125,17 @@ export type BuildSurplusRankRowsParams = {
   fundingAccountId?: string | null;
   /** Live balance per account id, for `getCarFundSaved`. */
   accountBalances?: Readonly<Record<string, number>>;
+  /**
+   * One month of essential cost — `computeEssentialMonthlyExpenses`. The multiplicand a STAGED
+   * emergency goal's thresholds are measured in.
+   *
+   * ⚠️ OMITTING IT IS NOT NEUTRAL FOR A STAGED GOAL. With nothing here the stages cannot be sized,
+   * so the goal reports its base `target_amount` while the ENGINE is chasing stage 1 — the list and
+   * the forecast would print different numbers for the same row. Absent is the right answer only
+   * where no goal is staged, which is every caller until the feature is switched on.
+   * The `cards` above double as the stage gate; see {@link revolvingRemainingOf}.
+   */
+  essentialMonthlyExpenses?: number;
 };
 
 /** A stored weight, or null. Zero, negative and unparseable are not weights. */
@@ -159,11 +170,20 @@ export function compareSurplusRankRows(a: SurplusRankRow, b: SurplusRankRow): nu
 export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRankRow[] {
   const {
     goals, carFunds, cards = [], liabilities = [], cardsSortOrder = 0, cardsShare = null,
-    fundingAccountId = null, accountBalances = {},
+    fundingAccountId = null, accountBalances = {}, essentialMonthlyExpenses = 0,
   } = p;
 
   const balanceOf = (accountId: string | null) =>
     accountId != null && accountId in accountBalances ? accountBalances[accountId] : null;
+
+  // Built from the SAME `cards` the block row is built from, exactly as `buildRankedTargets` builds
+  // its own — so the list and the allocator agree about whether stage 2 has opened. With no
+  // multiplicand `goalStages` reports `staged: false` and every goal falls back to `target_amount`,
+  // which is what this list printed before staged goals existed.
+  const stageCtx: GoalStageContext = {
+    essentialMonthlyExpenses,
+    revolvingRemaining: revolvingRemainingOf(cards),
+  };
 
   const goalRows: SurplusRankRow[] = goals
     .filter((g): g is typeof g & { id: string } => typeof g.id === 'string')
@@ -174,7 +194,7 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
       sortOrder: Number(g.sort_order) || 0,
       autoExtra: g.auto_extra === true,
       autoExtraAutoCleared: g.auto_extra_auto_cleared === true,
-      remaining: goalRemainingNeed(g),
+      remaining: goalRemainingNeed(g, stageCtx),
       share: readShare(g.surplus_share),
       targetAmount: Number(g.target_amount) || null,
       targetDate: g.target_date ?? null,

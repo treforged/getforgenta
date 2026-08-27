@@ -28,6 +28,7 @@ import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-ac
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
+import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { computeAutoExtraReserve } from '@/lib/ranked-surplus-allocation';
 import type { Tables } from '@/integrations/supabase/types';
@@ -2099,6 +2100,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cardsSortOrder,
           fundingAccountId: resolvedDebtFundingId ?? null,
           accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+          // A STAGED emergency goal's thresholds are multiples of this. ⚠️ It must be passed here
+          // and not only inside the engine: this hook decides MONTH 0, the engine decides months
+          // 1+, and a month 0 built without it would chase the goal's base `target_amount` while
+          // every later month chased stage 1 — every debt surface in the app reads this month 0.
+          essentialMonthlyExpenses: computeEssentialMonthlyExpenses({
+            rules, accounts, carFunds, fundingAccountId: resolvedDebtFundingId ?? null, asOf: now,
+          }),
           // Loan targets draw a reserve now that the forecast can credit one: `forecast-engine.ts`
           // step 4c-ii-b reduces the vehicle's amortized balance by exactly the dollars that leave
           // checking here, from the paying month forward.

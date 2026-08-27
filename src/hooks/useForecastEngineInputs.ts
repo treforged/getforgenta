@@ -8,6 +8,7 @@ import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/au
 import { aggregateByMonth, type ScheduledEvent } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
+import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
@@ -209,6 +210,14 @@ export function useForecastEngineInputs({
         cardsSortOrder,
         fundingAccountId: forecastFundingAccountId,
         accountBalances: Object.fromEntries(accounts.map(a => [a.id, Number(a.balance)])),
+        // A STAGED emergency goal's thresholds are multiples of this. ⚠️ It must be passed here and
+        // not only inside the engine: this hook decides MONTH 0, the engine decides months 1+, and
+        // a month 0 built without it would chase the goal's base `target_amount` while every later
+        // month chased stage 1 — the breakdown and the forecast disagreeing on the first month.
+        // Same figure, same inputs, same reference day as `forecast-engine.ts` computes for itself.
+        essentialMonthlyExpenses: computeEssentialMonthlyExpenses({
+          rules, accounts, carFunds, fundingAccountId: forecastFundingAccountId, asOf: now0,
+        }),
         // Loan targets draw a reserve now that the forecast can credit one: `forecast-engine.ts`
         // step 4c-ii-b reduces the vehicle's amortized balance by exactly the dollars that leave
         // checking here, from the paying month forward.

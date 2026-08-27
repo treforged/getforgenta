@@ -356,6 +356,19 @@ export function stagedTargetFor(goal: RankableGoal, ctx: GoalStageContext): numb
 }
 
 /**
+ * The least this needs of a card. `CardData` satisfies it, and so does a raw credit-card `accounts`
+ * row — which is deliberate: the ranked LIST holds account rows and the ALLOCATOR holds `CardData`,
+ * and both have to compute this gate the same way or the two surfaces would disagree about whether
+ * stage 2 is open. It costs nothing to be structural here because `buildCardData` sets
+ * `autopayFullBalance` to exactly `balance <= 0`, so an account row that omits the flag sums
+ * identically.
+ */
+export type RevolvingCard = {
+  balance?: number | null;
+  autopayFullBalance?: boolean;
+};
+
+/**
  * Revolving balance still owed across the user's cards — the gate that keeps a staged goal at
  * stage 1.
  *
@@ -363,7 +376,7 @@ export function stagedTargetFor(goal: RankableGoal, ctx: GoalStageContext): numb
  * `autoExtra: false`: its balance is cleared by the autopay itself, so it is not debt anyone is
  * paying down and it must not hold the second stage shut for ever.
  */
-export function revolvingRemainingOf(cards: readonly CardData[]): number {
+export function revolvingRemainingOf(cards: readonly RevolvingCard[]): number {
   return cards.reduce((sum, c) => {
     if (c.autopayFullBalance) return sum;
     const bal = Number(c.balance);
