@@ -1,4 +1,55 @@
-# Handoff — Forgenta
+# Handoff - Forgenta
+
+> _ 2026-08-27 SESSION 36p - **`90b39aba`. tsc 0, 294 files / 3114 tests, eslint
+> clean. 57 commits unpushed.** THE TILES MOVE IS COMPLETE, and with it every ask
+> that was open at the start of the session. Manager built all of it; no executor
+> spawned.
+>
+> === SHIPPED THIS SESSION ===
+> - **`41c394f4`** - the vehicle money moved to /debt's Auto Loans tab; the Garage
+>   keeps the roster, Builds and the service log. Details in 36o below.
+> - **`908ef938`** - Forecast's five top controls collapse behind one "Controls"
+>   button under `sm`. Details in 36o below.
+> - **`e4ed110d`** - Est. Loan + Est. Total Interest back on the saving card
+>   ("yes. bring them."). Gated green; no live surface until he has a
+>   saving-phase vehicle again.
+> - **`90b39aba` - THE BUDGET TILES ARE ON THE DASHBOARD.** Seven moved, one
+>   deleted:
+>   - `src/components/dashboard/BudgetTotalsCard.tsx` is the widget
+>     (`budget_totals` in `dashboard-widgets.ts`, seated behind `monthly_snapshot`
+>     so `mergeSavedLayout` anchors it there for existing users). It owns the
+>     `CalcDrawer` state; all seven drawers came with their tiles. The Income
+>     drawer derives the paycheck chain from `profiles` via `buildPayConfig()`,
+>     where `payConfig.taxRate === 0` is the old `hasTaxDeductions` signal.
+>   - **Remaining Cash was DELETED, not moved** - it was `debtSafeToPay`, which
+>     the Dashboard already shows as SAFE TO PAY.
+>   - **Budget Control now reads `useBudgetMonthTotals` as well** (-428 lines):
+>     no more inline subscriptions / card payments / loan + liability payments /
+>     goal transfers. The debt breakdown and matched index come back OUT of the
+>     hook, never re-fetched. Its donut, its six rule tabs and its transaction
+>     stream are untouched.
+>   - LIVE on his data, all seven exact: **$4,474 / $2,433 / $515 / $423 / $877 /
+>     $4,248 / $50,973**; Income drawer reads gross $1,093, pre-tax $14, $230
+>     withheld via deductions; /budget shows no tiles, no Remaining Cash, and the
+>     donut still divides the same totals (Fixed 54 / Variable 12 / Debt 9 /
+>     Transfers 20 / Remaining 5).
+>
+> === QUEUE, IN PRIORITY ORDER ===
+> 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
+>    truncating span at 390px; the "not open yet" note + payoff-method ordering on
+>    Venture X / Apple Card; the Garage card's TWO payoff dates for one loan
+>    (`autoPayoffLabel` reads `firstZero - 1` off a balance array with a one-month
+>    credit lag - MEASURE first, money math). That last one now lives in
+>    `src/components/vehicles/LoanCard.tsx`.
+> 2. Then session 36k's queue, unchanged, further below.
+>
+> SETTLED, do not re-ask: the phone nav label stays **"Transactions"**; the
+> saving card's two estimate figures are **back**.
+>
+> !! Weekly usage cap override is at **96** (Tre, 2026-08-27: "up to 96%") in both
+> `~/.claude/bin/usage_cap_hook.py` and `usage_resume_watch.py` -
+> **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
 
 > ▶ 2026-08-27 SESSION 36o — **`908ef938`. tsc 0, 294 files / 3113 tests, eslint
 > clean. 53 commits unpushed.** BOTH of the asks session 36n left unstarted are
