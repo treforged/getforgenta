@@ -1,5 +1,60 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36f — **`28ebdb5b`. tsc 0, 290 files / 3067 tests, eslint
+> clean. 36 commits unpushed.** Session 36e's queue item 1 is SHIPPED and
+> LIVE-VERIFIED on his own data. Manager built it; no executor spawned.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **`28ebdb5b` — Auto Loans / Mortgage / Student Loans / Other Debts each draw a
+>   payoff trajectory.** Only the card tab had one. New pure
+>   **`buildLiabilityTrajectory`** (`src/lib/liability-trajectory.ts`, 6 tests) +
+>   **`LiabilityTrajectoryChart`** (year selector 1/2/3/5, per-tab storage key,
+>   `icon` prop). Points come from the ENGINE's own arrays
+>   (`nonCCLiabilityBalancesById` keyed by account id or `debt:<id>`,
+>   `carLoanBalancesByFundId` keyed by fund id) — no second math path.
+>   `projectBalances` is now exported as **`projectLiabilityBalances`** because
+>   the dashed "without extra payments" companion must come from the function
+>   that SEEDS those arrays.
+> - ⚠️ **THE CONVENTION FIX, and it is the whole reason the helper exists:** the
+>   engine reduces an entry from index i INCLUSIVE, so the raw array means one
+>   thing before an extra touches it and another after. Plotted raw beside a
+>   scheduled walk, the ACCELERATED line sits BELOW the un-accelerated one by a
+>   month's principal (the trap /vehicles hit). The helper adds each month's own
+>   extra back, so both lines mean "owed entering this month".
+> - ⚠️ **LIVE, ON HIS DATA** (/debt → Auto Loans, 5Y): both lines start at
+>   $16,254; solid reaches $0 at the start of **Sep 2029**, dashed at the start of
+>   **Jul 2030** — exactly the card's "Payoff **Aug 2029** / **Jun 2030** without
+>   extra payments" under the opening-balance convention. Looked at the render.
+> - ⚠️ **He has NO mortgage, student loan or other_liability account** (verified
+>   by SQL on his user_id: 401k, auto_loan, 4 brokerage, 3 checking, 4 cards,
+>   roth_ira, savings). Those three tabs correctly draw NOTHING on his data —
+>   the chart returns null rather than an empty frame. Don't "fix" that, and
+>   don't expect to live-verify them without a fixture. The four student loans
+>   visible in an unfiltered `accounts` query belong to ANOTHER user.
+> - ⚠️ **React Compiler lint trap #2:** a helper that reads a `useMemo` value
+>   declared LOWER in the file fails `react-hooks/preserve-manual-memoization` on
+>   THAT memo ("Could not preserve existing memoization"), not on the helper.
+>   Declare derived helpers below every memo they read.
+> - ⚠️ Demo mode is unreachable while signed in (`/auth` redirects to
+>   `/dashboard`), so a demo-data render pass costs a sign-out. Not worth it.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. Generalise `levelMonthlyToDate` to any dated target.
+> 2. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 3. `non-cc-liabilities.ts` auto_loan amortizes with no cash leaving; Feb 2031
+>    breach (⛔ `scratchpad/llm/floor_out.md` IS WRONG); mobile deck `b83698e5`
+>    NOT device-verified.
+> 4. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 5. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 6. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36e — **`61e61a09`. tsc 0, 289 files / 3061 tests, eslint
 > clean. 34 commits unpushed.** Session 36d's queue items 1 and 2 are BOTH
 > shipped. Manager built it; no executor spawned. Context gate fired at 176k.
