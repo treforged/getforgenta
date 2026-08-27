@@ -21,6 +21,8 @@ import { Plus, Edit2, Trash2, Car, TrendingDown, Wrench, AlertTriangle, Link2, U
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import type { CarFund, CarFundSavedSource } from '@/lib/types';
 import { isLiabilityAccountType } from '@/lib/net-worth';
 import type { Json } from '@/integrations/supabase/types';
@@ -535,6 +537,38 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
 
   const [showSchedule, setShowSchedule] = useState(false);
 
+  // THE RANKED WATERFALL'S EXTRA PRINCIPAL, if this loan is receiving any. The card
+  // above models only the fund's OWN lump sums, so without this a user who ranked
+  // this loan under "Where the extra money goes" saw a payoff date that ignored the
+  // money actually going to it. Same arrays the /debt tabs read, so the two surfaces
+  // cannot disagree. Declared above the `if (!proj)` return because hooks cannot be
+  // conditional.
+  const { projections } = useCardProjectionContext();
+  const autoExtraMonths = useMemo(
+    () => buildAutoExtraByTarget(projections.data).get(cf.id) ?? null,
+    [projections.data, cf.id],
+  );
+  const extraBalances = useMemo(
+    () => projections.carLoanBalancesByFundId?.get(cf.id) ?? null,
+    [projections.carLoanBalancesByFundId, cf.id],
+  );
+  // Gated on money actually ARRIVING, not on the loan being rankable: a ranked target
+  // that the waterfall never reaches would otherwise get a line promising nothing.
+  const receivesAutoExtra = !!autoExtraMonths && autoExtraMonths.some(v => v > 0);
+  const nextAutoExtra = autoExtraMonths?.find(v => v > 0) ?? 0;
+  // The date the dashed line reaches zero. Without this the card shows a chart
+  // hitting zero in early 2029 next to a "Payoff Date" stat reading Jun 2030, and
+  // a user is left to decide which of the two the app means. balances[i] is the
+  // balance month i OPENS at, so the final payment lands in month firstZero - 1.
+  const autoPayoffLabel = useMemo(() => {
+    if (!receivesAutoExtra || !extraBalances) return null;
+    const firstZero = extraBalances.findIndex(b => b <= 0);
+    if (firstZero <= 0) return null;
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth() + firstZero - 1, 1)
+      .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }, [receivesAutoExtra, extraBalances]);
+
   const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
   const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));
   const handleReplaceLumps = (oldIds: string[], entries: { date: string; amount: number }[]) =>
@@ -551,8 +585,20 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
 
   const pct = cf.loan_amount > 0 ? ((cf.loan_amount - effective.remainingBalance) / cf.loan_amount) * 100 : 0;
 
-  const chartData = effective.schedule
-    .map(r => ({ month: r.month, date: r.date, balance: r.endBalance }));
+  // The engine's array is indexed by FORECAST month (index 0 is the current month)
+  // while the schedule is indexed by payment number, so the two are joined on the
+  // calendar month rather than on position.
+  const nowBaseMonth = (() => { const n = new Date(); return n.getFullYear() * 12 + n.getMonth(); })();
+  const chartData = effective.schedule.map(r => {
+    const d = new Date(r.date + 'T00:00:00');
+    const idx = (d.getFullYear() * 12 + d.getMonth()) - nowBaseMonth;
+    // undefined, never 0: recharts skips an undefined point but would draw a line
+    // down to zero for a 0, inventing a paid-off loan past the projection horizon.
+    const autoBalance = receivesAutoExtra && extraBalances && idx >= 0 && idx < extraBalances.length
+      ? extraBalances[idx]
+      : undefined;
+    return { month: r.month, date: r.date, balance: r.endBalance, autoBalance };
+  });
 
   // One tick per calendar year (first chart point in each year) so the x-axis reads in years, not raw payment numbers.
   const yearTicks: string[] = [];
@@ -653,11 +699,31 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
               labelStyle={{ color: 'hsl(0,0%,100%)' }}
               itemStyle={{ color: 'hsl(0,0%,100%)' }}
               labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              formatter={(v) => [formatCurrency(Number(v), false), 'Remaining']}
+              formatter={(v, n) => [formatCurrency(Number(v), false), n === 'With auto extra' ? 'With auto extra' : 'Remaining']}
             />
-            <Line dataKey="balance" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
+            <Line dataKey="balance" name="Remaining" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
+            {receivesAutoExtra && (
+              <Line
+                type="monotone"
+                dataKey="autoBalance"
+                name="With auto extra"
+                stroke="hsl(var(--primary))"
+                strokeDasharray="4 3"
+                strokeWidth={2}
+                dot={false}
+                connectNulls={false}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
+      )}
+
+      {receivesAutoExtra && (
+        <p className="text-[10px] text-muted-foreground">
+          The dashed line adds {formatCurrency(nextAutoExtra, false)}/mo of extra principal, from
+          left-over cash after the bills{autoPayoffLabel ? `, paying this loan off by ${autoPayoffLabel}` : ''}.
+          You set that order under "Where the extra money goes".
+        </p>
       )}
 
       <LumpSumPanel
