@@ -102,6 +102,14 @@ export type BuildRankedTargetsParams = {
    * `true`. Defaults FALSE for the same reason its sibling does.
    */
   includeLiabilityTargets?: boolean;
+  /**
+   * One month of essential cost (`computeEssentialMonthlyExpenses`) — what a STAGED goal's
+   * thresholds are multiples of.
+   *
+   * Omitted ⇒ no goal is staged and every goal chases its plain `target_amount`, which is every
+   * caller and every user until the feature is switched on. See {@link goalStages}.
+   */
+  essentialMonthlyExpenses?: number;
 };
 
 /**
@@ -245,12 +253,122 @@ export type RankableGoal = {
   current_amount?: number | null;
   /** Weight for a SPLIT rank. Null/absent ⇒ no split; see `allocateRankedSurplus`. */
   surplus_share?: number | null;
+  /**
+   * STAGE 1 of a staged emergency goal, in MONTHS of essential expenses, on top of
+   * `target_amount`. Null on every goal until the feature is used, and null is the whole opt-out.
+   */
+  emergency_months_stage1?: number | null;
+  /** STAGE 2, in months, also on top of `target_amount`. See {@link goalStages}. */
+  emergency_months_stage2?: number | null;
 };
 
-/** A goal's remaining need. Negative (over-funded) reads as 0, never as a refund. */
-export function goalRemainingNeed(goal: RankableGoal): number {
-  const need = (Number(goal.target_amount) || 0) - (Number(goal.current_amount) || 0);
+/**
+ * WHY A STAGED GOAL IS A FEATURE AND NOT TWO GOALS (2026-08-26).
+ *
+ * Tre's sequence is: fill the move fund, then three months of expenses, then STOP and throw
+ * everything at the cards, then come back for months four to six. The waterfall already funds one
+ * rank at a time in order and the card block is already a rankable row, so that sequence LOOKS
+ * expressible as two goals ranked either side of the cards — and it is a trap. A goal linked to a
+ * savings ACCOUNT resolves `current_amount` FROM that account, so two goals pointing at one account
+ * both report the same balance and both read as funded. Splitting it in the data would silently
+ * double-count the very savings the feature exists to build.
+ *
+ * So it is ONE goal with two thresholds over ONE balance, and the hand-off to the cards needs no
+ * new mechanism at all: **capacity 0 is already how a target yields its dollars to the next rank.**
+ */
+export type GoalStageContext = {
+  /**
+   * One month of essential cost — `computeEssentialMonthlyExpenses`. The thresholds are multiples
+   * of this rather than stored dollars so they track the user's actual spending; see that module
+   * for why a frozen figure goes wrong within months.
+   */
+  essentialMonthlyExpenses: number;
+  /**
+   * Revolving card balance still owed. ANY of it holds a staged goal at stage 1, which is the
+   * hand-off Tre asked for. Zero (or no context at all) lets stage 2 open.
+   */
+  revolvingRemaining: number;
+};
+
+/** A staged goal's two thresholds, in dollars, or `staged: false` for every ordinary goal. */
+export type GoalStages =
+  | { staged: false; stage1: number; stage2: number }
+  | { staged: true; stage1: number; stage2: number };
+
+/** A positive months multiplier, or null. Zero, negative and unparseable are not stages. */
+function monthsOf(raw: number | null | undefined): number | null {
+  const n = Number(raw);
+  return raw == null || !Number.isFinite(n) || n <= 0 ? null : n;
+}
+
+/**
+ * The two dollar thresholds a staged goal passes through.
+ *
+ * Both are measured from `target_amount` UPWARDS, because `target_amount` is the base the stages
+ * extend — on Tre's row it is $5,730, the lease break plus the deposit, i.e. the MOVE half of
+ * "Move fund, then emergency fund". Stage 1 is that plus three months; stage 2 is that plus six.
+ *
+ * A goal with only stage 1 set is legal and means "and then stop": stage 2 collapses onto stage 1.
+ */
+export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number): GoalStages {
+  const base = Number(goal.target_amount) || 0;
+  const m1 = monthsOf(goal.emergency_months_stage1);
+  const monthly = Number(essentialMonthlyExpenses);
+  if (m1 == null || !Number.isFinite(monthly) || monthly <= 0) {
+    return { staged: false, stage1: base, stage2: base };
+  }
+  const m2 = monthsOf(goal.emergency_months_stage2);
+  const stage1 = base + m1 * monthly;
+  const stage2 = base + Math.max(m1, m2 ?? m1) * monthly;
+  return { staged: true, stage1, stage2 };
+}
+
+/**
+ * A goal's remaining need. Negative (over-funded) reads as 0, never as a refund.
+ *
+ * ⚠️ WITHOUT `ctx` A STAGED GOAL REPORTS ITS BASE TARGET ONLY, and that under-report is the
+ * deliberate choice: a caller that has not been taught to compute essential expenses cannot size
+ * the stages, and offering capacity it cannot explain would move a user's money on a number nobody
+ * derived. Every caller that CAN — the forecast, the card projection, the ranked list — passes it.
+ */
+export function goalRemainingNeed(goal: RankableGoal, ctx?: GoalStageContext): number {
+  const saved = Number(goal.current_amount) || 0;
+  const need = ctx == null
+    ? (Number(goal.target_amount) || 0) - saved
+    : stagedTargetFor(goal, ctx) - saved;
   return need < CENT ? 0 : need;
+}
+
+/**
+ * The target a staged goal is chasing RIGHT NOW, given what is saved and what the cards still owe.
+ *
+ * The whole rule, and it is three lines:
+ *   saved below stage 1                      → chase stage 1
+ *   at stage 1, cards still owe revolving    → chase stage 1, i.e. nothing more (capacity 0)
+ *   otherwise                                → chase stage 2
+ */
+export function stagedTargetFor(goal: RankableGoal, ctx: GoalStageContext): number {
+  const stages = goalStages(goal, ctx.essentialMonthlyExpenses);
+  if (!stages.staged) return stages.stage1;
+  const saved = Number(goal.current_amount) || 0;
+  if (saved < stages.stage1 - CENT) return stages.stage1;
+  return Number(ctx.revolvingRemaining) > 0 ? stages.stage1 : stages.stage2;
+}
+
+/**
+ * Revolving balance still owed across the user's cards — the gate that keeps a staged goal at
+ * stage 1.
+ *
+ * A card on autopay-in-full is excluded for the same reason `buildRankedTargets` gives it
+ * `autoExtra: false`: its balance is cleared by the autopay itself, so it is not debt anyone is
+ * paying down and it must not hold the second stage shut for ever.
+ */
+export function revolvingRemainingOf(cards: readonly CardData[]): number {
+  return cards.reduce((sum, c) => {
+    if (c.autopayFullBalance) return sum;
+    const bal = Number(c.balance);
+    return Number.isFinite(bal) && bal > 0 ? sum + bal : sum;
+  }, 0);
 }
 
 /**
@@ -267,7 +385,15 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
     cardsSortOrder = 0, fundingAccountId = null, accountBalances = {},
     cardRanks = {}, cardsShare = null, includeLoanTargets = false,
     liabilities = [], includeLiabilityTargets = false,
+    essentialMonthlyExpenses = 0,
   } = p;
+
+  // Built from the SAME `cards` the block is built from, so the gate that holds a staged goal at
+  // stage 1 and the debt those dollars are being handed to are provably the same rows.
+  const stageCtx: GoalStageContext = {
+    essentialMonthlyExpenses,
+    revolvingRemaining: revolvingRemainingOf(cards),
+  };
 
   /** A stored weight, or undefined. Zero and negative are not weights and are dropped here so the
    *  allocator never has to decide what they mean. */
@@ -372,7 +498,7 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
       kind: 'goal' as const,
       sortOrder: Number(g.sort_order) || 0,
       minimum: 0,
-      capacity: goalRemainingNeed(g),
+      capacity: goalRemainingNeed(g, stageCtx),
       autoExtra: g.auto_extra === true,
       ...(shareOf(g.surplus_share) === undefined ? {} : { share: shareOf(g.surplus_share)! }),
     }));
