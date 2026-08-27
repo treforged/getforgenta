@@ -33,6 +33,7 @@ import {
   type GoalStageContext, type RankableGoal, type RankableLiability,
 } from './ranked-extra-payment-targets';
 import type { CarFund } from './types';
+import { cardStartMonthOffset } from './card-start-date';
 
 /**
  * The id the card block carries in this list. Not a uuid and never written to a row — on save it
@@ -112,6 +113,18 @@ export type SurplusRankRow = {
   stageCount?: number;
   /** This stop's own name, for the label beside the goal name. */
   stageLabel?: string;
+  /**
+   * A credit card the user has PLANNED but not opened yet — `accounts.card_start_date` is in the
+   * future. Tre, 2026-08-26: "if we still want to show the two not live cards yet, just show them
+   * individually with a note."
+   *
+   * Its row otherwise reads "$0 balance · minimum always paid", which is the same sentence a real
+   * open card with nothing owed prints — so a card that does not exist looks like a card that is
+   * paid off, and the two are opposite news.
+   */
+  notOpenYet?: boolean;
+  /** The month it opens, already formatted ("Mar 2027"). Only set with {@link notOpenYet}. */
+  opensLabel?: string;
 };
 
 /** The least this module needs of a credit-card `accounts` row. */
@@ -123,6 +136,10 @@ export type RankableCard = {
   surplus_sort_order?: number | null;
   surplus_share?: number | null;
   created_at?: string | null;
+  /** `accounts.card_start_date`. A FUTURE date means the card is planned, not open. */
+  card_start_date?: string | null;
+  /** `accounts.apr`, so the not-yet-open cards can be ordered the way the payoff strategy would. */
+  apr?: number | null;
 };
 
 export type BuildSurplusRankRowsParams = {
@@ -159,6 +176,18 @@ export type BuildSurplusRankRowsParams = {
    * The `cards` above double as the stage gate; see {@link revolvingRemainingOf}.
    */
   essentialMonthlyExpenses?: number;
+  /**
+   * Today, for deciding which cards are open yet. Injected rather than read from the clock so the
+   * list is a pure function of its inputs and a test can stand anywhere in time.
+   */
+  asOf?: Date;
+  /**
+   * The payoff strategy in force, which orders the NOT-YET-OPEN cards among themselves — Tre,
+   * 2026-08-26: "ordered by the payoff method". Open cards keep the rank the user dragged them to;
+   * a card that does not exist yet has no rank anybody chose, so the strategy is the only honest
+   * answer to what order they should be in.
+   */
+  cardPayoffStrategy?: 'avalanche' | 'snowball';
 };
 
 /** A stored weight, or null. Zero, negative and unparseable are not weights. */
@@ -198,7 +227,9 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
   const {
     goals, carFunds, cards = [], liabilities = [], cardsSortOrder = 0, cardsShare = null,
     fundingAccountId = null, accountBalances = {}, essentialMonthlyExpenses = 0,
+    asOf, cardPayoffStrategy = 'avalanche',
   } = p;
+  const today = asOf ?? new Date();
 
   const balanceOf = (accountId: string | null) =>
     accountId != null && accountId in accountBalances ? accountBalances[accountId] : null;
@@ -326,18 +357,34 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     }));
 
   const soloCards = cards.filter(c => c.surplus_sort_order != null && Number.isFinite(Number(c.surplus_sort_order)));
-  const cardRows: SurplusRankRow[] = soloCards.map(c => ({
-    id: c.id,
-    kind: 'card' as const,
-    name: (c.name ?? '').trim() || 'Credit card',
-    sortOrder: Number(c.surplus_sort_order),
-    autoExtra: true,
-    remaining: Math.max(0, Number(c.balance) || 0),
-    share: readShare(c.surplus_share),
-    targetAmount: null,
-    targetDate: null,
-    createdAt: c.created_at ?? '',
-  }));
+  const cardRows: SurplusRankRow[] = soloCards.map(c => {
+    // ⚠️ `cardStartMonthOffset`, NOT `isCardOpenAsOf`. That sibling first checks
+    // `account_type === 'credit_card'` and returns TRUE for anything else — and a `RankableCard`
+    // carries no `account_type`, so every card would have read as open and the note would never
+    // have appeared. Both helpers are the same arithmetic underneath; only this one is answerable
+    // from the shape this module actually holds.
+    const opensIn = cardStartMonthOffset(c.card_start_date, today);
+    const notOpenYet = opensIn > 0;
+    return {
+      id: c.id,
+      kind: 'card' as const,
+      name: (c.name ?? '').trim() || 'Credit card',
+      sortOrder: Number(c.surplus_sort_order),
+      autoExtra: true,
+      remaining: Math.max(0, Number(c.balance) || 0),
+      share: readShare(c.surplus_share),
+      targetAmount: null,
+      targetDate: null,
+      createdAt: c.created_at ?? '',
+      ...(notOpenYet
+        ? {
+          notOpenYet: true,
+          opensLabel: new Date(`${c.card_start_date}T00:00:00`)
+            .toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
+        }
+        : {}),
+    };
+  });
 
   // The block row disappears when every card has been pulled out of it: a row standing for nothing
   // is a rank the user can drag that changes no money at all.
@@ -355,9 +402,13 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     createdAt: '',
   }];
 
-  return enforceStopOrder(
-    [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows]
-      .sort(compareSurplusRankRows),
+  return orderNotOpenCards(
+    enforceStopOrder(
+      [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows]
+        .sort(compareSurplusRankRows),
+    ),
+    cardPayoffStrategy,
+    soloCards,
   );
 }
 
@@ -449,6 +500,45 @@ export function enforceStopOrder(rows: readonly SurplusRankRow[]): SurplusRankRo
     });
   }
   return touched ? densify(out.sort(compareSurplusRankRows)) : [...rows];
+}
+
+/**
+ * NOT-YET-OPEN CARDS, IN THE ORDER THE PAYOFF STRATEGY WOULD ATTACK THEM.
+ *
+ * Tre, 2026-08-26: *"if we still want to show the two not live cards yet, just show them
+ * individually with a note ... ordered by the payoff method."*
+ *
+ * A card that does not exist yet cannot have a rank anybody meant: it has never owed anything, so
+ * whatever `surplus_sort_order` it holds is an accident of when it was created. The strategy is the
+ * only answer that is about the card rather than about the row.
+ *
+ * ⚠️ IT REORDERS WITHIN THE POSITIONS THOSE ROWS ALREADY OCCUPY and touches nothing else — the same
+ * rule {@link enforceStopOrder} uses. So this can never move a planned card past an OPEN one, past
+ * a goal, or past the block; it only decides which planned card sits in which of the slots the
+ * planned cards already hold. Nothing the user dragged moves.
+ *
+ * Avalanche is highest APR first, snowball is lowest balance first — the same two comparators
+ * `getStrategyPayoffOrder` uses, on the only two fields an `accounts` row hands this module.
+ */
+export function orderNotOpenCards(
+  rows: readonly SurplusRankRow[],
+  strategy: 'avalanche' | 'snowball',
+  cards: readonly RankableCard[],
+): SurplusRankRow[] {
+  const slots: number[] = [];
+  rows.forEach((r, i) => { if (r.kind === 'card' && r.notOpenYet) slots.push(i); });
+  if (slots.length < 2) return [...rows];
+  const byId = new Map(cards.map(c => [c.id, c]));
+  const ordered = slots.map(i => rows[i]).sort((a, b) => {
+    const ca = byId.get(a.id);
+    const cb = byId.get(b.id);
+    return strategy === 'avalanche'
+      ? (Number(cb?.apr) || 0) - (Number(ca?.apr) || 0)
+      : (Number(a.remaining) || 0) - (Number(b.remaining) || 0);
+  });
+  const out = [...rows];
+  slots.forEach((slot, k) => { out[slot] = { ...ordered[k], sortOrder: rows[slot].sortOrder }; });
+  return out;
 }
 
 /**

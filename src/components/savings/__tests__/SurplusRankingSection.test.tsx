@@ -274,3 +274,58 @@ describe('SurplusRankingSection — a student loan is a ranked row, not a checkb
     expect(screen.queryByLabelText('Take Student Loan off the ranked list')).toBeNull();
   });
 });
+
+// ── ALWAYS REQUIRE A SELECTION (Tre, 2026-08-26) ─────────────────────────────
+//
+// "always require a selection for rank credit cards. default is as one group which follows the
+// method selected in debt tab." Two failures this pins: the control being HIDDEN in the state a
+// user most needs it (one block, one card, nothing pulled out), and a MIXED list — some cards on
+// their own, some sharing a spot — reading as a settled arrangement when it is an unanswered
+// question left behind by the retired per-card control.
+
+describe('SurplusRankingSection — the card-rank mode always asks', () => {
+  it('shows the control whenever there is a card at all, including the one-block-one-card state '
+    + 'that used to hide it', () => {
+    setup([row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'), row('g1', 'Savings', 1)], {
+      cards: [{ id: 'v', name: 'Visa' }],
+    });
+    expect(screen.getByText('As one group')).not.toBeNull();
+    expect(screen.getByText('One row each')).not.toBeNull();
+  });
+
+  it('shows NO control for a user with no credit cards — a question about nothing', () => {
+    setup(THREE, { cards: [] });
+    expect(screen.queryByText('As one group')).toBeNull();
+  });
+
+  it('presses exactly one button when the list is settled', () => {
+    setup([row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'), row('g1', 'Savings', 1)], {
+      cards: [{ id: 'v', name: 'Visa' }],
+    });
+    expect(screen.getByText('As one group').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('One row each').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByText('Choose one')).toBeNull();
+  });
+
+  it('presses NEITHER button on a mixed list, marks it "Choose one", and says the app reads an '
+    + 'unanswered list as one group', () => {
+    setup([
+      row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'),
+      row('solo', 'Discover', 1, 'card'),
+      row('g1', 'Savings', 2),
+    ], { cards: [{ id: 'solo', name: 'Discover' }, { id: 'blocked', name: 'Visa' }] });
+    expect(screen.getByText('As one group').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByText('One row each').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByText('Choose one')).not.toBeNull();
+    expect(screen.getByText(/treat it as one group/)).not.toBeNull();
+  });
+
+  it('gives both mode buttons a bigger tap target than the 20px they had', () => {
+    setup([row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'), row('g1', 'Savings', 1)], {
+      cards: [{ id: 'v', name: 'Visa' }],
+    });
+    for (const label of ['As one group', 'One row each']) {
+      expect(screen.getByText(label).className).toContain('min-h-[36px]');
+    }
+  });
+});

@@ -17,6 +17,7 @@ import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expense
 import { resolveFundingAccountId } from '@/lib/funding-account';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import { usePersistedState } from '@/hooks/usePersistedState';
 
 /**
  * Targets this app session has already switched `auto_extra` off for.
@@ -117,6 +118,17 @@ export function useSurplusRanking() {
     });
   }, [rules, accounts, carFunds, profile?.default_deposit_account]);
 
+  /**
+   * The payoff strategy the /debt tab is set to — it orders the NOT-YET-OPEN cards in the list
+   * (Tre, 2026-08-26: "ordered by the payoff method").
+   *
+   * ⚠️ READ FROM THE SAME `localStorage` KEY `CardProjectionContext` reads, not from the context
+   * itself. This hook is rendered directly by its own tests with a plain query-client wrapper, so a
+   * context dependency here would make the hook impossible to mount without the whole projection
+   * provider. The key IS the storage; the context is another reader of it, not its owner.
+   */
+  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
+
   const rows = useMemo(
     () => buildSurplusRankRows({
       goals,
@@ -127,8 +139,9 @@ export function useSurplusRanking() {
       cardsShare: profile?.cards_surplus_share ?? null,
       accountBalances,
       essentialMonthlyExpenses,
+      cardPayoffStrategy: debtStrategy,
     }),
-    [goals, carFunds, cards, liabilities, profile?.cards_sort_order, profile?.cards_surplus_share, accountBalances, essentialMonthlyExpenses],
+    [goals, carFunds, cards, liabilities, profile?.cards_sort_order, profile?.cards_surplus_share, accountBalances, essentialMonthlyExpenses, debtStrategy],
   );
 
   const save = useMutation({

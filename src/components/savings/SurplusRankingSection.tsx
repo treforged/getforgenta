@@ -383,17 +383,27 @@ export default function SurplusRankingSection({
           rank, where the block's weight and a pulled-out card's weight are partly about the same
           debt (Tre, 2026-08-26: "or just credit cards in general, never both"). It is a mode now.
           Either way the payoff strategy still decides which card the money actually hits. */}
-      {!readOnly && (cardMode !== 'block' || blockedCards.length > 1) && (
-        <div className="mt-3 space-y-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            Rank credit cards
-          </span>
+      {!readOnly && (cards?.length ?? 0) > 0 && (
+        <div
+          className={`mt-3 space-y-1.5 ${cardMode === 'mixed' ? 'border border-amber-500/40 bg-amber-500/5 p-2.5' : ''}`}
+          style={cardMode === 'mixed' ? { borderRadius: 'var(--radius)' } : undefined}
+        >
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Rank credit cards
+            </span>
+            {/* ALWAYS REQUIRE A SELECTION (Tre, 2026-08-26). A mixed list is an unanswered question,
+                not a working state, so it is marked as one rather than left looking settled. */}
+            {cardMode === 'mixed' && (
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500">Choose one</span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setCardRankMode('block')}
               aria-pressed={cardMode === 'block'}
-              className={`text-[11px] px-2 py-0.5 border transition-colors ${
+              className={`text-[11px] px-2 py-1.5 min-h-[36px] border transition-colors ${
                 cardMode === 'block'
                   ? 'border-primary text-primary'
                   : 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
@@ -406,7 +416,7 @@ export default function SurplusRankingSection({
               type="button"
               onClick={() => setCardRankMode('individual')}
               aria-pressed={cardMode === 'individual'}
-              className={`text-[11px] px-2 py-0.5 border transition-colors ${
+              className={`text-[11px] px-2 py-1.5 min-h-[36px] border transition-colors ${
                 cardMode === 'individual'
                   ? 'border-primary text-primary'
                   : 'border-border text-muted-foreground hover:text-foreground hover:border-primary'
@@ -418,7 +428,7 @@ export default function SurplusRankingSection({
           </div>
           <p className="text-[10px] text-muted-foreground">
             {cardMode === 'mixed'
-              ? `Right now it is both: ${soloCardCount} on their own and ${blockedCards.length} sharing one spot. Pick one above and the list will tidy itself.`
+              ? `Right now it is both: ${soloCardCount} on their own and ${blockedCards.length} sharing one spot. Until you pick, treat it as one group — that is the arrangement that cannot cost you extra interest.`
               : cardMode === 'individual'
                 ? 'Each card sits in the list on its own, so you can fund a goal between two of them. Which card the money actually pays is still decided by your payoff strategy.'
                 : 'All your cards share one spot in the list, ordered by your payoff strategy. That is the arrangement that cannot cost you extra interest.'}
@@ -530,7 +540,12 @@ export default function SurplusRankingSection({
                       // thing to the user: a balance the surplus can attack.
                       ? `${formatCurrency(row.remaining ?? 0, false)} owed · extra principal`
                       : isCard
-                        ? `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
+                        // A card the user has PLANNED but not opened prints the same sentence as a
+                        // real card with nothing owed, and "$0 balance · minimum always paid" is the
+                        // opposite news from "this does not exist yet".
+                        ? row.notOpenYet
+                          ? `Not open yet · opens ${row.opensLabel ?? 'later'}`
+                          : `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
                         : row.remaining && row.remaining > 0
                           // A later stop is not "to go" yet: the money physically passes through
                           // the stop above it first, whatever rank either of them sits at, and
