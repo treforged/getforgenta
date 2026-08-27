@@ -594,11 +594,23 @@ export default function SurplusRankingSection({
                 <button
                   type="button"
                   onClick={() => toggleSplit(row, i)}
-                  title={inSplit ? 'Give this its own rank' : 'Split this rank with the one above'}
-                  aria-label={inSplit ? `Unsplit ${row.name}` : `Split ${row.name} with the row above`}
-                  className="icon-btn min-w-[36px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  // ⚠️ SAY WHAT IT DOES TO THE MONEY (Tre, 2026-08-27: "make what that link icon
+                  // does clearer for users to understand what it does"). A bare chain icon with
+                  // "Split this rank" told the user the MECHANIC and not the CONSEQUENCE — the
+                  // consequence is that two things get funded at the same time out of one pot
+                  // instead of the upper one finishing first, which is the whole reason to press it.
+                  title={inSplit
+                    ? `Stop sharing — ${prev ? `${prev.name} finishes before ${row.name} starts` : 'the row above finishes first'}`
+                    : `Share this money — fund ${prev ? prev.name : 'the row above'} and ${row.name} at the same time, ${DEFAULT_SPLIT_SHARE}/${100 - DEFAULT_SPLIT_SHARE}, instead of one at a time`}
+                  aria-label={inSplit
+                    ? `Stop sharing this money between ${row.name} and the row above it`
+                    : `Share this money between ${row.name} and the row above it`}
+                  className="icon-btn min-w-[36px] flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
                   {inSplit ? <Unlink size={16} /> : <Link2 size={16} />}
+                  <span className="text-[8px] font-mono uppercase tracking-wider leading-none">
+                    {inSplit ? 'Split' : 'Share'}
+                  </span>
                 </button>
               )}
 

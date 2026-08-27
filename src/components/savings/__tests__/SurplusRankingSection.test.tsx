@@ -236,7 +236,9 @@ describe('SurplusRankingSection — a student loan is a ranked row, not a checkb
     expect(screen.getByText('Student Loan')).toBeTruthy();
     expect(screen.getByLabelText('Move Student Loan up')).toBeTruthy();
     expect(screen.getByLabelText('Move Student Loan down')).toBeTruthy();
-    expect(screen.getByLabelText('Split Student Loan with the row above')).toBeTruthy();
+    // The control says what it does to the MONEY now, not the mechanic (Tre, 2026-08-27:
+    // "make what that link icon does clearer"). Still the same button on the same row.
+    expect(screen.getByLabelText('Share this money between Student Loan and the row above it')).toBeTruthy();
   });
 
   it('offers NO auto-extra toggle on the liability row, and still offers one on the goal', () => {
