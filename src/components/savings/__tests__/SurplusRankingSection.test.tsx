@@ -94,18 +94,31 @@ describe('SurplusRankingSection — the row transition never widens back to `tra
 });
 
 describe('SurplusRankingSection — which reorder control each input type gets', () => {
-  it('paints the drag handle and no rank buttons on a pointer device', () => {
+  // ⚠️ THE ANSWER IS NOW "THE SAME ONE, EVERYWHERE" (Tre, 2026-08-26: "make the reorganizer arrows
+  // instead. especially so its easier on mobile"). The desktop-only drag handle is gone: it was a
+  // 16px target needing a press, a travel and a release, and it was the one control here a phone
+  // could not use — so the list had two reorder gestures and only one of them was ever tested on a
+  // phone. These two tests used to assert exactly that split.
+  it('paints the rank buttons on a pointer device, and no drag handle', () => {
     setup();
-    expect(screen.queryByLabelText('Move Savings up')).toBeNull();
-    expect(document.querySelectorAll('[draggable="true"]')).toHaveLength(3);
+    expect(screen.getByLabelText('Move Savings up')).not.toBeNull();
+    expect(screen.getByLabelText('Move Savings down')).not.toBeNull();
+    expect(document.querySelectorAll('[draggable="true"]')).toHaveLength(0);
   });
 
-  it('paints the rank buttons and no drag handle on touch', () => {
+  it('paints the same rank buttons on touch', () => {
     isTouch.value = true;
     setup();
     expect(screen.getByLabelText('Move Savings up')).not.toBeNull();
     expect(screen.getByLabelText('Move Savings down')).not.toBeNull();
     expect(document.querySelectorAll('[draggable="true"]')).toHaveLength(0);
+  });
+
+  it('gives every reorder arrow the app\'s 44px tap target — the whole reason it is arrows', () => {
+    setup();
+    for (const label of ['Move Savings up', 'Move Savings down']) {
+      expect(screen.getByLabelText(label).className).toContain('icon-btn');
+    }
   });
 
   it('disables up on the first row and down on the last', () => {

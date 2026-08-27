@@ -28,7 +28,7 @@ import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
-import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities, goalStages, openThresholdOf } from '@/lib/ranked-extra-payment-targets';
+import { goalRemainingNeed, carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId } from '@/lib/ranked-extra-payment-targets';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -352,6 +352,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       ...goals.map((g) => [g.id as string, (g.linked_account as string | null) ?? null] as const),
       ...carFunds.map((c) => [c.id, c.linked_account ?? null] as const),
     ]);
+    /**
+     * A ranked target id back to the `savings_goals` row it belongs to.
+     *
+     * ⚠️ WITHOUT THIS THE MONEY VANISHES. A staged goal's second stop is ranked under
+     * `<goalId>::stop2`, which is not a key in `autoExtraLinkedAcct` and not a key in `goalPools`
+     * either — so the cash would leave checking at step 4c-ii and land in neither, which is the
+     * exact failure that step's own comment says is worse than not shipping the feature. Populated
+     * for EVERY stop, ticked or not, because a stop can be ticked between two reads of this map.
+     */
+    const goalIdByTargetId = new Map<string, string>();
     // RANKED AUTOMATIC EXTRA PAYMENTS — MULTI-MONTH. Month 0's reserve is decided by
     // `useCardProjection` (the converged chain every user-facing debt surface reads) and arrives
     // on `cardProjectionData.month0`. Every LATER month is decided here, in the loop below,
@@ -370,13 +380,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // every existing user this map is EMPTY and the loop below takes a fast path that leaves the
     // whole cascade byte-identical.
     //
-    // ⚠️ `stagedTail` IS THE ONE THING THIS MAP CANNOT EXPRESS WITHOUT HELP. `remaining` only ever
-    // falls, which is right for every ordinary target — but a STAGED emergency goal (see
-    // `goalStages`) must go to zero at stage 1, stay there while the cards are being cleared, and
-    // then REOPEN for stage 2. So the second stage's dollars are parked here rather than in
-    // `remaining`, and the month loop moves them across the moment revolving debt hits zero. A goal
-    // with a pending tail is never deleted from the map, or its stage 2 would vanish with it.
-    const autoExtraCapacity = new Map<string, { kind: 'goal' | 'car_fund'; sortOrder: number; remaining: number; share?: number; stagedTail?: number }>();
+    // ⚠️ A STAGED GOAL HAS ONE ENTRY PER STOP, NOT ONE PER GOAL, and `goalId` is what puts the
+    // dollars back in the right pot. Tre, 2026-08-26: each stop carries its own rank and its own
+    // Auto extra tick, so each is a target in its own right — which also retired the parked
+    // `stagedTail` this map used to need. The hand-off to the cards is no longer a flag the engine
+    // has to unlock; it is a stop SITTING below the cards in the user's own ranking, which the
+    // waterfall already honours without being told anything.
+    const autoExtraCapacity = new Map<string, { kind: 'goal' | 'car_fund'; sortOrder: number; remaining: number; share?: number; goalId?: string }>();
     /** A stored split weight, or undefined. Zero and negative are not weights. */
     const shareOf = (raw: unknown): number | undefined => {
       const n = Number(raw);
@@ -396,30 +406,37 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     /** Half a cent. Below this a remaining need is rounding noise, not money — the same dust rule
      *  `goalRemainingNeed` applies, kept here because the staged split cannot call through it. */
     const NEED_DUST = 0.005;
+    /** Every stop id that belongs to one goal, in plan order — what a contribution into the goal's
+     *  own account decays, and what a reserve spills into. */
+    const stopIdsByGoal = new Map<string, string[]>();
     for (const g of goals) {
-      if (g.auto_extra !== true || typeof g.id !== 'string') continue;
+      if (typeof g.id !== 'string') continue;
       const stages = goalStages(g, essentialMonthlyExpenses);
       const saved = Number(g.current_amount) || 0;
-      // The plan splits in exactly one place: everything up to the first stop flagged `after_cards`
-      // is OPEN and can draw extras today, everything from that stop onwards is PARKED until
-      // revolving debt clears. Cards clear once, so one gate covers however many stops follow it.
-      //
-      // For an UNSTAGED goal there is no gate, `openThreshold` IS `target_amount` and `stagedTail`
-      // computes to 0 — byte-identical to the single `goalRemainingNeed` call this replaced.
-      const openThreshold = openThresholdOf(stages);
-      const rawNeed = openThreshold - saved;
-      const need = rawNeed < NEED_DUST ? 0 : rawNeed;
-      const rawTail = stages.total - Math.max(saved, openThreshold);
-      const stagedTail = rawTail < NEED_DUST ? 0 : rawTail;
-      if (need > 0 || stagedTail > 0) {
-        autoExtraCapacity.set(g.id, {
+      const ids: string[] = [];
+      for (const stop of stages.stops) {
+        const id = stopRowId(g.id, stop.index);
+        ids.push(id);
+        goalIdByTargetId.set(id, g.id);
+        // ⚠️ THE TICK IS PER STOP. A goal with stop 1 ticked and stop 2 not is a real and ordinary
+        // plan ("fund the move automatically, I will decide about the runway later"), and the whole
+        // point of giving each stop its own switch is that the engine reads them separately.
+        if (!stop.autoExtra) continue;
+        const rawNeed = stop.threshold - Math.max(saved, stop.floor);
+        const need = rawNeed < NEED_DUST ? 0 : rawNeed;
+        if (need <= 0) continue;
+        autoExtraCapacity.set(id, {
           kind: 'goal',
-          sortOrder: Number(g.sort_order) || 0,
+          sortOrder: stop.sortOrder,
           remaining: need,
-          share: shareOf((g as { surplus_share?: number | null }).surplus_share),
-          ...(stagedTail > 0 ? { stagedTail } : {}),
+          // One `surplus_share` column, which belongs to the first stop; see `buildSurplusRankRows`.
+          ...(stop.index === 1
+            ? { share: shareOf((g as { surplus_share?: number | null }).surplus_share) }
+            : {}),
+          goalId: g.id,
         });
       }
+      stopIdsByGoal.set(g.id, ids);
     }
     for (const c of carFunds) {
       // Mirrors `buildRankedTargets`: a car fund's `auto_extra` is a real column on a full row, so
@@ -430,23 +447,38 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const need = carFundRemainingNeed(c, forecastFundingAccountId, linkedAcct ? Number(linkedAcct.balance) : null);
       if (need > 0) autoExtraCapacity.set(c.id, { kind: 'car_fund', sortOrder: c.sort_order, remaining: need, share: shareOf(c.surplus_share) });
     }
-    /** Fill part of a target's remaining need. An exhausted target is deleted, which is also what
-     *  lets the loop's fast path fire again once every target is full. */
+    /**
+     * Fill part of a target's remaining need. An exhausted target is deleted, which is also what
+     * lets the loop's fast path fire again once every target is full.
+     *
+     * ⚠️ THE OVERFLOW CARRIES INTO THE NEXT STOP OF THE SAME GOAL rather than being dropped. One
+     * savings account holds every stop of a plan, so a payment that runs past stop 1 in the month it
+     * completes it has genuinely funded part of stop 2. Losing that would leave the goal permanently
+     * one payment short of its own total. The chain is walked FROM the stop the money landed on: a
+     * contribution into the goal's account starts at stop 1, a ranked reserve at the stop it was
+     * ranked against.
+     */
     const decayAutoExtraCapacity = (id: string, amount: number) => {
-      const cap = autoExtraCapacity.get(id);
-      if (!cap || !(amount > 0)) return;
-      // Stage 1 absorbs first, and the overflow carries into the parked tail rather than being
-      // dropped: a monthly contribution that runs past stage 1 in the month it completes it has
-      // genuinely funded part of stage 2, and losing that would leave the goal permanently one
-      // month's contribution short of its own target.
-      const spill = Math.max(0, amount - cap.remaining);
-      cap.remaining = Math.max(0, cap.remaining - amount);
-      if (spill > 0 && cap.stagedTail != null) cap.stagedTail = Math.max(0, cap.stagedTail - spill);
-      // ⚠️ A STAGED GOAL WITH A TAIL STILL PENDING IS NOT DELETED. Deletion is what lets the loop's
-      // fast path fire again, and it is correct for an exhausted target — but a goal parked at
-      // stage 1 waiting for the cards is not exhausted, it is waiting, and deleting it here would
-      // silently retire stage 2 for ever.
-      if (cap.remaining <= 0 && !(cap.stagedTail != null && cap.stagedTail > 0)) autoExtraCapacity.delete(id);
+      if (!(amount > 0)) return;
+      const goalId = autoExtraCapacity.get(id)?.goalId;
+      const chain = goalId != null ? (stopIdsByGoal.get(goalId) ?? [id]) : [id];
+      const from = chain.indexOf(id);
+      let left = amount;
+      for (const stopId of chain.slice(from < 0 ? 0 : from)) {
+        if (left <= 0) break;
+        const cap = autoExtraCapacity.get(stopId);
+        if (!cap) continue;
+        const taken = Math.min(left, cap.remaining);
+        cap.remaining = Math.max(0, cap.remaining - taken);
+        left -= taken;
+        if (cap.remaining <= 0) autoExtraCapacity.delete(stopId);
+      }
+    };
+    /** A payment into a GOAL's own account — its monthly contribution, or a lump sum. It lands in
+     *  one pot and therefore fills the plan from stop 1 forward, whatever any stop's rank says. */
+    const decayGoalCapacity = (goalId: string, amount: number) => {
+      const chain = stopIdsByGoal.get(goalId);
+      decayAutoExtraCapacity(chain != null && chain.length > 0 ? chain[0] : goalId, amount);
     };
 
     // Aggregate scalars derived from per-account Maps (fixes retire-linked goal double-counting)
@@ -1653,7 +1685,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // the affordability back-off above must decay the capacity by what it ACTUALLY contributed,
       // or the goal's remaining need would shrink by dollars that never moved — and the ranked
       // waterfall (the only catch-up path there is) would never refill them.
-      for (const item of savingsGoalItemsApplied) decayAutoExtraCapacity(item.goalId, item.amount);
+      for (const item of savingsGoalItemsApplied) decayGoalCapacity(item.goalId, item.amount);
       for (const v of vehicleProjections) {
         if (i <= v.purchaseMonthIdx) decayAutoExtraCapacity(v.fundId, v.contrib);
       }
@@ -1667,18 +1699,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         autoExtraThisMonth = cardProjectionData?.month0?.autoExtraPerTarget ?? [];
         autoExtraOutThisMonth = cardProjectionData?.month0?.chain?.autoExtraReserve ?? 0;
       } else if (autoExtraCapacity.size > 0 || autoExtraLoanFunds.length > 0 || autoExtraLiabilities.length > 0) {
-        // STAGE 2 OPENS HERE, and this is the whole hand-off mechanism. While `revBalTotal` is
-        // positive a staged goal's capacity is zero, which the waterfall already reads as "pass
-        // these dollars to the next rank" — the cards. The month revolving debt clears, the parked
-        // tail becomes ordinary capacity and the goal resumes exactly where it stopped.
-        if (revBalTotal <= 0) {
-          for (const cap of autoExtraCapacity.values()) {
-            if (cap.stagedTail != null && cap.stagedTail > 0) {
-              cap.remaining += cap.stagedTail;
-              cap.stagedTail = 0;
-            }
-          }
-        }
+        // ⚠️ THERE IS NO STAGE UNLOCK HERE ANY MORE, and its absence is the feature. A later stop
+        // used to be parked in `stagedTail` and released the month `revBalTotal` hit zero. Now each
+        // stop carries its own rank, so "after the cards" is expressed by the stop SITTING below
+        // them and the ordinary waterfall does the rest — which is also the only way it could
+        // express "behind the loan", which Tre asked for by name and a card-shaped flag cannot say.
         // The same three arguments month 0 builds, one month later: the card block's combined
         // minimum and balance, and a pool that is already net of the floor and the cycling spend.
         // `computeAutoExtraReserve` settles that combined minimum BEFORE it consults any rank, so
@@ -2064,7 +2089,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // every target has a home, so nothing is silently dropped.
       for (const t of autoExtraThisMonth) {
         if (!(t.amount > 0)) continue;
-        const linked = autoExtraLinkedAcct.get(t.id) ?? null;
+        // A stop's dollars belong to its GOAL's account and its GOAL's pool: the stops of one plan
+        // share one balance, which is the whole reason the plan is one goal row.
+        const creditId = goalIdByTargetId.get(t.id) ?? t.id;
+        const linked = autoExtraLinkedAcct.get(creditId) ?? null;
         const savA = linked ? perAcctSavings.get(linked) : undefined;
         const invA = linked ? perAcctInvest.get(linked) : undefined;
         const retA = linked ? perAcctRetire.get(linked) : undefined;
@@ -2076,7 +2104,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // explicit rather than relying on `carFundPools.get(anAccountId)` happening to miss: a
         // silent miss is indistinguishable from a credit that did nothing.
         else if (t.kind !== 'loan' && t.kind !== 'liability') {
-          const pool = t.kind === 'goal' ? goalPools.get(t.id) : carFundPools.get(t.id);
+          const pool = t.kind === 'goal' ? goalPools.get(creditId) : carFundPools.get(t.id);
           if (pool) pool.balance += t.amount;
         }
       }

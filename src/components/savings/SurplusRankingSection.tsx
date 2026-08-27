@@ -153,12 +153,12 @@ export default function SurplusRankingSection({
     const out = new Map<string, { id: string; remaining: number; targetDate: string | null; monthly?: number[] }>();
     for (const row of rows) {
       if (row.remaining === null) continue;
-      // A DERIVED row has no schedule of its own: the engine reports the whole staged goal under
-      // the real goal id, so looking one up here would find nothing and call a target that IS being
-      // funded unreachable. The goal's own row already carries the verdict.
-      if (row.derived) continue;
       const extra = autoExtraByTarget?.get(row.id);
-      const own = ownMonthlyByTarget?.[row.id] ?? 0;
+      // ⚠️ THE GOAL'S OWN MONTHLY CONTRIBUTION BELONGS TO THE FIRST STOP ONLY. It is one standing
+      // transfer into one account, and the thresholds are cumulative, so it fills stop 1 and only
+      // reaches stop 2 through it. Crediting it to every stop would call a three-stop plan reachable
+      // on three times the money that actually arrives.
+      const own = row.stage != null && row.stage > 1 ? 0 : (ownMonthlyByTarget?.[row.goalId ?? row.id] ?? 0);
       const months = extra ?? (capacityByMonth ? new Array(capacityByMonth.length).fill(0) : undefined);
       out.set(row.id, {
         id: row.id,
@@ -431,10 +431,10 @@ export default function SurplusRankingSection({
           const isCards = row.kind === 'cards';
           const isCard = row.kind === 'card';
           const isLiability = row.kind === 'liability';
-          // A LATER STOP of a staged goal. It is a projection of the goal above, not a row anyone
-          // owns: no handle, no split, no tick, because its position is decided by the plan (and by
-          // when the cards clear) rather than by where a person drags it.
-          const isLaterStop = row.derived === true && row.stage != null;
+          // A LATER STOP of a staged goal. Since 2026-08-26 it IS a row the user owns — its own
+          // rank, its own tick — so the only thing it still cannot do is join a SPLIT: a weight is
+          // stored in `savings_goals.surplus_share`, one column, which belongs to the first stop.
+          const isLaterStop = row.stage != null && row.stage > 1;
           const prev = draft[i - 1];
           const inSplit = draft.some(r => r.id !== row.id && r.sortOrder === row.sortOrder && r.share !== null && row.share !== null);
           const startsSplit = inSplit && (!prev || prev.sortOrder !== row.sortOrder);
@@ -445,8 +445,8 @@ export default function SurplusRankingSection({
               key={row.id}
               layout="position"
               transition={ROW_SETTLE}
-              onDragOver={e => !isTouch && !readOnly && canReorder && !isLaterStop && onDragOver(e, row.id)}
-              onDrop={e => !isTouch && !readOnly && canReorder && !isLaterStop && onDrop(e, row.id)}
+              onDragOver={e => !isTouch && !readOnly && canReorder && onDragOver(e, row.id)}
+              onDrop={e => !isTouch && !readOnly && canReorder && onDrop(e, row.id)}
               className={[
                 // ⚠️ NOT `transition-all`. That included `transform`, so the CSS transition and
                 // framer's own per-frame transform writes fought over the same property and the
@@ -460,44 +460,36 @@ export default function SurplusRankingSection({
               ].join(' ')}
               style={{ borderRadius: 'var(--radius)' }}
             >
-              {/* The same spacer read-only gets: a lone row keeps the columns lined up without
-                  offering a handle or an arrow that could not move it anywhere. */}
-              {readOnly || !canReorder || isLaterStop ? (
-                <span className="w-4 shrink-0" />
-              ) : !isTouch ? (
-                <div
-                  draggable
-                  onDragStart={e => onDragStart(e, row.id)}
-                  onDragEnd={onDragEnd}
-                  className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 shrink-0"
-                  title="Drag to reorder"
-                >
-                  <GripVertical size={16} />
-                </div>
+              {/* ── ARROWS, ON EVERY DEVICE ────────────────────────────────────────
+                  Tre, 2026-08-26: "make the reorganizer arrows instead. especially so its easier
+                  on mobile." The desktop drag handle is gone: a grip is a 16px target that needs a
+                  press, a travel and a release to move one rank, and it was the ONLY control here
+                  a phone could not use — so the list had two different reorder gestures depending
+                  on what you were holding, and only one of them was ever tested on a phone.
+
+                  `icon-btn` is the app's 44px tap target from index.css (the Builds tab adopted it
+                  2026-08-24 after 24x24 arrows measured unhittable at 390x844). `min-w-[36px]`
+                  narrows the pair back down because it is a VERTICAL stack and two 44px-wide cells
+                  would eat a quarter of a 390px row. Drag-and-drop still WORKS on the row itself
+                  for anyone who reaches for it; it is just no longer the only way in. */}
+              {readOnly || !canReorder ? (
+                <span className="w-9 shrink-0" />
               ) : (
-                // PARITY WITH THE BUILDS TAB (Tre, 2026-08-26: "have it reorder the same way the
-                // builds tab does"). Builds adopted `icon-btn`, the app's 44px tap target from
-                // index.css, on 2026-08-24 after its 24x24 arrows measured unhittable at 390x844;
-                // this list still had bare `p-1` arrows, which is the same defect one surface
-                // later. `min-w-[32px]` narrows the pair back down because it is a VERTICAL stack
-                // and two 44px-wide cells would eat a quarter of a 390px row. The `gap-2` goes:
-                // `icon-btn` already carries its own height, and keeping the gap on top pushed the
-                // pair taller than the row it sits in.
                 <div className="flex flex-col shrink-0">
                   <button
                     type="button"
                     aria-label={`Move ${row.name} up`}
                     disabled={i === 0}
                     onClick={() => move(row.id, -1)}
-                    className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
-                  ><ArrowUp size={16} /></button>
+                    className="icon-btn min-w-[36px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
+                  ><ArrowUp size={18} /></button>
                   <button
                     type="button"
                     aria-label={`Move ${row.name} down`}
                     disabled={i === draft.length - 1}
                     onClick={() => move(row.id, 1)}
-                    className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
-                  ><ArrowDown size={16} /></button>
+                    className="icon-btn min-w-[36px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
+                  ><ArrowDown size={18} /></button>
                 </div>
               )}
 
@@ -540,17 +532,13 @@ export default function SurplusRankingSection({
                       : isCard
                         ? `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
                         : row.remaining && row.remaining > 0
-                          // It is not "to go" while the plan has it parked: nothing is going there
-                          // until the cards clear (or until the stop above it is filled), and
+                          // A later stop is not "to go" yet: the money physically passes through
+                          // the stop above it first, whatever rank either of them sits at, and
                           // printing the same phrase as an active row would say it is being funded
-                          // right now when it is deliberately not. Keyed off the WAITING FLAG rather
-                          // than off `derived`, because a goal whose only unfilled stop waits shows
-                          // that stop on its own row.
-                          ? row.stageWaitsForCards
-                            ? `${formatCurrency(row.remaining, false)} more, once the cards are clear`
-                            : isLaterStop
-                              ? `${formatCurrency(row.remaining, false)} more, after the stop above`
-                              : `${formatCurrency(row.remaining, false)} to go`
+                          // now when it is deliberately next.
+                          ? isLaterStop
+                            ? `${formatCurrency(row.remaining, false)} more, after stop ${(row.stage ?? 2) - 1}`
+                            : `${formatCurrency(row.remaining, false)} to go`
                           : 'Fully funded'}
                 </p>
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}
@@ -562,26 +550,13 @@ export default function SurplusRankingSection({
                   onClick={() => toggleSplit(row, i)}
                   title={inSplit ? 'Give this its own rank' : 'Split this rank with the one above'}
                   aria-label={inSplit ? `Unsplit ${row.name}` : `Split ${row.name} with the row above`}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0"
+                  className="icon-btn min-w-[36px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
-                  {inSplit ? <Unlink size={13} /> : <Link2 size={13} />}
+                  {inSplit ? <Unlink size={16} /> : <Link2 size={16} />}
                 </button>
               )}
 
-              {isLaterStop ? (
-                // ⚠️ DELIBERATELY NOT A CHECKBOX, for the same reason a liability has none: the
-                // switch belongs to the GOAL, which is already ticked on its own row above. A second
-                // tick here would move on screen, plan no write (the id is synthetic) and revert on
-                // the next refetch, which is the worst of both.
-                <span
-                  className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0"
-                  title={row.stageWaitsForCards
-                    ? "Follows the goal's own setting, once your cards are clear"
-                    : "Follows the goal's own setting, once the stop above it is filled"}
-                >
-                  {row.stageWaitsForCards ? 'Waiting' : 'Queued'}
-                </span>
-              ) : isCards || isCard ? (
+              {isCards || isCard ? (
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">Always</span>
               ) : isLiability ? (
                 // ⚠️ DELIBERATELY NOT A CHECKBOX. `accounts` has no `auto_extra` column, so there
@@ -596,14 +571,22 @@ export default function SurplusRankingSection({
                   Ranked
                 </span>
               ) : (
-                <label className="flex items-center gap-1.5 shrink-0 cursor-pointer select-none">
+                // EVERY STOP HAS ITS OWN TICK (Tre, 2026-08-26: "each part of the stagger should
+                // always have the choice of extra payments"). A later stop's lives inside
+                // `savings_goals.stages`, which is what makes it a real switch rather than one that
+                // moves on screen and reverts on the next refetch.
+                //
+                // The whole label is the target and it carries `icon-btn`'s 44px height, because at
+                // 390px a bare 13px checkbox is the smallest thing on the row and the one most
+                // often mis-tapped.
+                <label className="flex items-center gap-2 shrink-0 cursor-pointer select-none min-h-[44px] px-1">
                   <input
                     type="checkbox"
                     checked={row.autoExtra}
                     disabled={readOnly}
                     onChange={e => toggleAutoExtra(row.id, e.target.checked)}
-                    className="accent-primary"
-                    aria-label={`Auto extra for ${row.name}`}
+                    className="accent-primary w-4 h-4"
+                    aria-label={`Auto extra for ${row.name}${row.stage != null ? `, stop ${row.stage}` : ''}`}
                   />
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Auto extra</span>
                 </label>

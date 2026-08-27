@@ -16,7 +16,19 @@ export type StopDraft = {
   amount: string;
   months: string;
   targetDate: string;
+  /**
+   * ⚠️ LEGACY, CARRIED THROUGH BUT NEVER OFFERED. "Wait until my cards are clear" was how the
+   * hand-off was said before a stop had a rank of its own. Tre, 2026-08-26: "each should be freely
+   * re-orderable ... emergency 2 should be behind all the credit cards, then 3 is behind the loan."
+   * A stop says that by SITTING there now, and the editor no longer shows a checkbox that could
+   * only ever contradict the ranked list. Round-tripped so editing a goal does not silently drop
+   * what an older save stored.
+   */
   afterCards: boolean;
+  /** The stop's rank and its Auto extra tick, both set in "Where the extra money goes" rather than
+   *  here. Carried so a save from this form cannot wipe them. */
+  sortOrder: number | null;
+  autoExtra: boolean | null;
 };
 
 let uidSeq = 0;
@@ -25,6 +37,7 @@ export function newStopDraft(partial: Partial<StopDraft> = {}): StopDraft {
   return {
     uid: `stop-${uidSeq}`,
     name: '', mode: 'amount', amount: '', months: '', targetDate: '', afterCards: false,
+    sortOrder: null, autoExtra: null,
     ...partial,
   };
 }
@@ -44,6 +57,8 @@ export function stopDraftsFrom(stored: unknown): StopDraft[] {
       months: hasMonths ? String(s.months) : '',
       targetDate: s.target_date ?? '',
       afterCards: s.after_cards === true,
+      sortOrder: s.sort_order ?? null,
+      autoExtra: s.auto_extra ?? null,
     })];
   });
 }
@@ -63,6 +78,11 @@ export function stopsToStages(drafts: readonly StopDraft[]): GoalStageInput[] {
       ...(d.mode === 'amount' ? { amount: n } : { months: n }),
       ...(d.targetDate ? { target_date: d.targetDate } : {}),
       ...(d.afterCards ? { after_cards: true } : {}),
+      // ⚠️ PRESERVED, NOT SET. Rank and tick belong to "Where the extra money goes"; a save from
+      // this form that omitted them would silently return every stop to its default position and
+      // switch its automatic extra back off.
+      ...(d.sortOrder == null ? {} : { sort_order: d.sortOrder }),
+      ...(d.autoExtra == null ? {} : { auto_extra: d.autoExtra }),
     }];
   });
 }
@@ -83,8 +103,12 @@ export type GoalStopsEditorProps = {
  * planned stops with target amounts."*
  *
  * So a goal is a SEQUENCE, not a number. Each stop is sized either in dollars or in months of what
- * the user actually spends, carries its own date, and can be marked as waiting for the credit cards
- * to clear — which is the hand-off the two-column design could only express once.
+ * the user actually spends and carries its own date.
+ *
+ * ⚠️ WHERE A STOP SITS IN THE PLAN IS NOT SET HERE. Its rank among the cards, the loans and the
+ * other goals — and its own Auto extra tick — live in "Where the extra money goes", because that is
+ * the list they are compared against. This form decides what the stops ARE; that list decides when
+ * they are paid.
  *
  * ⚠️ THE RUNNING TOTAL IS PRINTED PER ROW, and that is the whole reason this is a component rather
  * than three inputs. Thresholds are CUMULATIVE, so "3 months" on row 2 does not mean the goal stops
@@ -128,14 +152,15 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
       {stops.length === 0 ? (
         <p className="text-[10px] text-muted-foreground">
           Add stops to break this goal into stages — a move fund first, then months of expenses.
-          Each stop can wait for your credit cards to clear before it starts. Leave this empty and
-          the goal keeps its single target amount and date.
+          Each one gets its own row in "Where the extra money goes", so you can put it behind your
+          cards or behind a loan. Leave this empty and the goal keeps its single target and date.
         </p>
       ) : (
         <>
           {/* Says the one thing about this design that is not obvious from looking at it. */}
           <p className="text-[10px] text-muted-foreground">
-            Stops fill in order and add up. Each stop drops off your list the moment it is filled.
+            Stops fill in order and add up. Each one gets its own row in "Where the extra money
+            goes" — drag it anywhere you like — and drops off that list the moment it is filled.
           </p>
           <ul className="space-y-2">
             {stops.map((s, i) => {
@@ -222,22 +247,6 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
                       style={{ borderRadius: 'var(--radius)' }}
                     />
                   </label>
-
-                  {/* The hand-off, and it only makes sense from the second stop onwards: a first
-                      stop that waited for the cards would be a goal that never starts. */}
-                  {i > 0 && (
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={s.afterCards}
-                        onChange={e => patch(s.uid, { afterCards: e.target.checked })}
-                        className="mt-0.5 shrink-0"
-                      />
-                      <span className="text-[10px] text-muted-foreground">
-                        Wait until my credit cards are clear before funding this stop
-                      </span>
-                    </label>
-                  )}
 
                   <p className="text-[10px] text-muted-foreground">
                     {s.mode === 'months' && !hasMonthly

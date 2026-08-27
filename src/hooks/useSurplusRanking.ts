@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSavingsGoals, useCarFunds, useProfile, useAccounts, useDebts, useRecurringRules } from '@/hooks/useSupabaseData';
@@ -133,7 +134,40 @@ export function useSurplusRanking() {
   const save = useMutation({
     mutationFn: async (writes: SurplusRankWrites) => {
       if (isDemo || !user) throw new Error('Demo mode');
+      // ── A STOP'S RANK AND TICK LIVE INSIDE `savings_goals.stages` ────────────
+      //
+      // So a stop write is READ-MODIFY-WRITE on one jsonb column, not a column patch, and every
+      // stop of one goal has to be folded into a SINGLE update: two concurrent patches of the same
+      // array would each write their own copy of it and the second would silently discard the
+      // first. Grouping by goal is what makes "drag stop 2 and stop 3 in one go" safe.
+      //
+      // The array is patched from the goal row this hook already holds, never re-fetched: a fetch
+      // here would race the optimistic list the user is looking at, and the rows below were built
+      // from exactly these `goals`.
+      const stagePatchesByGoal = new Map<string, Map<string, { sort_order?: number; auto_extra?: boolean }>>();
+      for (const w of writes.goalStages) {
+        const forGoal = stagePatchesByGoal.get(w.goalId) ?? new Map();
+        forGoal.set(w.stageId, { ...forGoal.get(w.stageId), ...(w.sort_order === undefined ? {} : { sort_order: w.sort_order }), ...(w.auto_extra === undefined ? {} : { auto_extra: w.auto_extra }) });
+        stagePatchesByGoal.set(w.goalId, forGoal);
+      }
+      const stageUpdates = [...stagePatchesByGoal].flatMap(([goalId, patches]) => {
+        const goal = goals.find(g => g.id === goalId);
+        const stored = Array.isArray(goal?.stages) ? (goal.stages as unknown[]) : null;
+        // A goal whose stages we cannot read is skipped rather than overwritten with a guess: the
+        // write would replace a real plan with a fabricated one.
+        if (stored == null) return [];
+        const nextStages = stored.map(entry => {
+          if (entry == null || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+          const row = entry as { id?: unknown };
+          const patch = typeof row.id === 'string' ? patches.get(row.id) : undefined;
+          return patch ? { ...row, ...patch } : entry;
+        });
+        return [supabase.from('savings_goals')
+          .update({ stages: nextStages as unknown as Json })
+          .eq('id', goalId).eq('user_id', user.id)];
+      });
       const results = await Promise.all([
+        ...stageUpdates,
         ...writes.goals.map(({ id, ...patch }) =>
           supabase.from('savings_goals').update(patch).eq('id', id).eq('user_id', user.id)),
         ...writes.carFunds.map(({ id, ...patch }) =>
@@ -231,14 +265,44 @@ export function useSurplusRanking() {
     deselectInFlight.current = true;
     void (async () => {
       try {
-        const results = await Promise.all(plan.map(t =>
-          supabase
-            .from(t.kind === 'goal' ? 'savings_goals' : 'car_funds')
-            // `auto_extra_auto_cleared` (20260826_auto_extra_auto_cleared.sql) is what makes this
-            // decision survive a reload -- see the module-scoped Set above.
-            .update({ auto_extra: false, auto_extra_auto_cleared: true })
-            .eq('id', t.id)
-            .eq('user_id', user.id)));
+        // A STAGED GOAL'S STOP carries its tick inside `savings_goals.stages`, so its deselect is a
+        // patch of that array rather than of the goal's `auto_extra` column -- and every stop of one
+        // goal has to ride ONE update, or two concurrent writes of the same array would each keep
+        // only their own change. `auto_extra_auto_cleared` stays a goal-level column: it records
+        // that automation touched this goal, which is true whichever stop it touched.
+        const stopPlan = plan.filter(t => t.goalId != null && t.stageId != null);
+        const stopsByGoal = new Map<string, Set<string>>();
+        for (const t of stopPlan) {
+          const set = stopsByGoal.get(t.goalId!) ?? new Set<string>();
+          set.add(t.stageId!);
+          stopsByGoal.set(t.goalId!, set);
+        }
+        const stopWrites = [...stopsByGoal].flatMap(([goalId, stageIds]) => {
+          const goal = goals.find(g => g.id === goalId);
+          const stored = Array.isArray(goal?.stages) ? (goal.stages as unknown[]) : null;
+          if (stored == null) return [];
+          const nextStages = stored.map(entry => {
+            if (entry == null || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+            const row = entry as { id?: unknown };
+            return typeof row.id === 'string' && stageIds.has(row.id)
+              ? { ...row, auto_extra: false }
+              : entry;
+          });
+          return [supabase.from('savings_goals')
+            .update({ stages: nextStages as unknown as Json, auto_extra_auto_cleared: true })
+            .eq('id', goalId).eq('user_id', user.id)];
+        });
+        const results = await Promise.all([
+          ...stopWrites,
+          ...plan.filter(t => t.goalId == null || t.stageId == null).map(t =>
+            supabase
+              .from(t.kind === 'goal' ? 'savings_goals' : 'car_funds')
+              // `auto_extra_auto_cleared` (20260826_auto_extra_auto_cleared.sql) is what makes this
+              // decision survive a reload -- see the module-scoped Set above.
+              .update({ auto_extra: false, auto_extra_auto_cleared: true })
+              .eq('id', t.id)
+              .eq('user_id', user.id)),
+        ]);
         const failed = results.find(r => r.error);
         if (failed?.error) throw failed.error;
         // Only marked once the write has actually landed, so a failed pass genuinely retries

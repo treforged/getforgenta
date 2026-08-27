@@ -29,6 +29,7 @@
 
 import {
   carFundRemainingNeed, carLoanRemainingNeed, goalRemainingNeed, goalStages, revolvingRemainingOf,
+  stopRowId,
   type GoalStageContext, type RankableGoal, type RankableLiability,
 } from './ranked-extra-payment-targets';
 import type { CarFund } from './types';
@@ -90,29 +91,27 @@ export type SurplusRankRow = {
    * queries actually use. */
   createdAt: string;
   /**
-   * A row the list DERIVES from another row rather than one the user owns.
-   *
-   * ⚠️ NEVER WRITTEN, NEVER DRAGGED, NEVER AUTO-DESELECTED. Its id is synthetic (`<goalId>::stopN`)
-   * and no table has a row under it, so every planner below skips it: a write would `.eq('id', …)`
-   * a uuid that does not exist, and a drag would let the user place something whose position is
-   * derived, not chosen. Its rank comes from where the engine actually funds it.
+   * The `savings_goals` row this stop belongs to. Present ONLY on a staged goal's rows, and it is
+   * what makes them writable: the row's own `id` is `<goalId>::stopN` for the second stop onwards,
+   * which is not a uuid in any table, so a patch has to be aimed at the goal and then at the entry
+   * named by {@link stageId} inside its `stages` array.
    */
-  derived?: boolean;
+  goalId?: string;
+  /** The stop's stored id inside `savings_goals.stages` — which entry a write patches. */
+  stageId?: string;
   /**
    * Which stop of a STAGED goal this row stands for, 1-based. Absent on every ordinary row.
    *
-   * The list shows the stops SEPARATELY because that is what actually happens to the money: the
-   * first stop fills, the cards then take everything, and the stop after the hand-off resumes once
-   * they are clear. One row printing one number could not say that, and a user reading it would
-   * think the goal simply stopped.
+   * The list shows the stops SEPARATELY because that is what actually happens to the money, and
+   * since 2026-08-26 each one is a row in its own right: its own rank, its own Auto extra tick,
+   * both stored on the stop. The only thing a drag may not do is let two stops cross — see
+   * {@link enforceStopOrder}.
    */
   stage?: number;
   /** How many stops the goal has in total — so a row can say "Stop 2 of 3" without re-deriving it. */
   stageCount?: number;
   /** This stop's own name, for the label beside the goal name. */
   stageLabel?: string;
-  /** This stop is parked until revolving card debt is clear. */
-  stageWaitsForCards?: boolean;
 };
 
 /** The least this module needs of a credit-card `accounts` row. */
@@ -215,42 +214,55 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
 
   const rankableGoals = goals.filter((g): g is typeof g & { id: string } => typeof g.id === 'string');
 
-  // Each goal's own draggable row, and the stop it currently stands for.
+  // ── ONE ROW PER UNFILLED STOP, EACH ONE REAL ────────────────────────────────
   //
-  // ⚠️ THE OWN ROW IS THE CURRENT STOP, NOT ALWAYS STOP #1. Tre, 2026-08-26: "that stage should
-  // immediately stop/drop once its done." A stop that is filled must leave the list, and the goal
-  // itself has to keep exactly one row the user can drag — so the own row advances to the next
-  // unfilled stop and the derived rows below cover whatever comes after it.
-  const currentStop = new Map<string, ReturnType<typeof goalStages>['stops'][number]>();
-  const goalRows: SurplusRankRow[] = rankableGoals.map(g => {
+  // Tre, 2026-08-26: *"each part of the stagger should always have the choice of extra payments. and
+  // each should be freely re-orderable around the other items. just stay in their relative order.
+  // for example, emergercy 2 should be behind all the credit cards, then 3 is behind the loan."*
+  //
+  // So a stop is not a projection of the goal any more — it is a row in its own right, with its own
+  // rank and its own Auto extra tick, both stored on the stop inside `savings_goals.stages`. That is
+  // also what retired the `after_cards` flag: a stop expresses "after the cards" by SITTING after
+  // them, and a flag saying the same thing in a second language could only ever disagree with it.
+  //
+  // A FILLED STOP LEAVES THE LIST ("that stage should immediately stop/drop once its done"). A goal
+  // whose every stop is filled keeps its LAST one, at zero — the same rule that keeps a finished
+  // ordinary goal listed rather than making the list jump around as balances move.
+  const goalRows: SurplusRankRow[] = rankableGoals.flatMap(g => {
     const stages = goalStages(g, essentialMonthlyExpenses);
     const saved = Number(g.current_amount) || 0;
-    const stop = stages.stops.find(s => saved < s.threshold - RANK_CENT) ?? stages.stops[stages.stops.length - 1];
-    currentStop.set(g.id, stop);
-    const floor = stop.threshold - stop.size;
-    return {
-      id: g.id,
+    const unfilled = stages.stops.filter(s => saved < s.threshold - RANK_CENT);
+    const shown = unfilled.length > 0 ? unfilled : stages.stops.slice(-1);
+    return shown.map(stop => ({
+      id: stopRowId(g.id, stop.index),
       kind: 'goal' as const,
       name: (g.name ?? '').trim() || 'Untitled goal',
-      sortOrder: Number(g.sort_order) || 0,
-      autoExtra: g.auto_extra === true,
-      autoExtraAutoCleared: g.auto_extra_auto_cleared === true,
-      // Measured against THIS STOP whatever the cards are doing, so the row does not blink to
-      // "Fully funded" the moment the hand-off starts -- `goalRemainingNeed` would report 0 there,
-      // which is right for the ALLOCATOR (capacity 0 is how a rank yields) and wrong for a person
-      // reading a list.
+      sortOrder: stop.sortOrder,
+      autoExtra: stop.autoExtra,
+      // The provenance flag lives on the GOAL, so only the stop that reads that column can carry it.
+      autoExtraAutoCleared: stop.index === 1 && g.auto_extra_auto_cleared === true,
+      // THIS stop's own dollars, never the plan's. The rows then sum to what is left rather than
+      // each restating the total.
       remaining: stages.staged
-        ? Math.max(0, stop.threshold - Math.max(saved, floor))
+        ? Math.max(0, stop.threshold - Math.max(saved, stop.floor))
         : goalRemainingNeed(g, stageCtx),
-      share: readShare(g.surplus_share),
-      // A staged goal's headline number is the stop it is filling, not the cached total.
+      // ⚠️ ONLY THE FIRST STOP CAN CARRY A SPLIT WEIGHT: `surplus_share` is one column on the goal,
+      // and a later stop has nowhere of its own to store one.
+      share: stop.index === 1 ? readShare(g.surplus_share) : null,
+      // A staged goal's headline number is the stop, not the cached total.
       targetAmount: stages.staged ? stop.threshold : (Number(g.target_amount) || null),
       targetDate: stages.staged ? stop.targetDate : (g.target_date ?? null),
       createdAt: g.created_at ?? '',
       ...(stages.staged
-        ? { stage: stop.index, stageCount: stages.stops.length, stageLabel: stop.name, stageWaitsForCards: stop.afterCards }
+        ? {
+          goalId: g.id,
+          stageId: stop.id,
+          stage: stop.index,
+          stageCount: stages.stops.length,
+          stageLabel: stop.name,
+        }
         : {}),
-    };
+    }));
   });
 
   // A SAVING-phase car fund is a thing being filled; a LOAN-phase one is a debt being paid down.
@@ -343,58 +355,10 @@ export function buildSurplusRankRows(p: BuildSurplusRankRowsParams): SurplusRank
     createdAt: '',
   }];
 
-  // ── EVERY LATER STOP OF A STAGED GOAL, AS ITS OWN ROW ──────────────────────
-  //
-  // Tre, 2026-08-26: "the staggered sections should separate in the goals ordering." They have to,
-  // because the ORDER is the feature. The money goes: first stop, then every card, then the stop
-  // that waits. One row printing one number cannot say that, and the row going quiet at the
-  // hand-off reads as a bug rather than as the plan working.
-  //
-  // A stop that WAITS is seated immediately after the last card, because that is where the engine
-  // actually funds it -- `stagedTargetFor` holds the goal at the open threshold until
-  // `revolvingRemaining` hits zero. Half a rank past the cards so it can never collide with a rank
-  // the user chose, the same fractional trick that keeps the card block contiguous. A stop BEFORE
-  // the hand-off sits just under the goal's own row, where it is funded.
-  const lastCardRank = [...cardsRow, ...cardRows].reduce(
-    (max, r) => Math.max(max, r.sortOrder), Number.NEGATIVE_INFINITY,
+  return enforceStopOrder(
+    [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows]
+      .sort(compareSurplusRankRows),
   );
-  const laterStopRows: SurplusRankRow[] = rankableGoals.flatMap(g => {
-    const stages = goalStages(g, essentialMonthlyExpenses);
-    if (!stages.staged) return [];
-    const current = currentStop.get(g.id);
-    if (current == null) return [];
-    const ownRank = Number(g.sort_order) || 0;
-    const afterCardsRank = (Number.isFinite(lastCardRank) ? lastCardRank : ownRank) + 0.5;
-    // Once one stop waits, everything after it waits too — the cards clear once.
-    let gated = current.afterCards;
-    return stages.stops.filter(s => s.index > current.index).map((s, k) => {
-      gated = gated || s.afterCards;
-      return {
-        id: `${g.id}::stop${s.index}`,
-        kind: 'goal' as const,
-        name: (g.name ?? '').trim() || 'Untitled goal',
-        // Nudged by position so two later stops keep their order instead of tying.
-        sortOrder: (gated ? afterCardsRank : ownRank) + 0.001 * (k + 1),
-        autoExtra: g.auto_extra === true,
-        autoExtraAutoCleared: false,
-        // Its OWN dollars: the stops above it are somebody else's row.
-        remaining: s.size,
-        // A derived row never carries a split weight: it has no row to store one on.
-        share: null,
-        targetAmount: s.threshold,
-        targetDate: s.targetDate,
-        createdAt: g.created_at ?? '',
-        derived: true,
-        stage: s.index,
-        stageCount: stages.stops.length,
-        stageLabel: s.name,
-        stageWaitsForCards: gated,
-      };
-    });
-  });
-
-  return [...cardsRow, ...cardRows, ...carRows, ...loanRows, ...liabilityRows, ...goalRows, ...laterStopRows]
-    .sort(compareSurplusRankRows);
 }
 
 // ── GROUPS ───────────────────────────────────────────────────────────────────
@@ -449,6 +413,45 @@ function densify(rows: readonly SurplusRankRow[]): SurplusRankRow[] {
 }
 
 /**
+ * THE ONE THING A DRAG MAY NOT DO: let two stops of the same goal cross.
+ *
+ * Tre, 2026-08-26: *"each should be freely re-orderable around the other items. just stay in their
+ * relative order."* Anywhere is fair game — behind the cards, behind the loan, between two other
+ * goals — but stop 3 landing above stop 2 would be a plan that cannot happen: the thresholds are
+ * cumulative, so the money physically passes through stop 2 first and the list would be describing
+ * an order the engine can never follow.
+ *
+ * The rule is positional and it preserves the user's intent as far as it can. A goal's stops keep
+ * the SET of positions they collectively occupy; only which stop sits in which of those positions
+ * is corrected, back into index order. Drag stop 3 to the top and it takes the topmost of its
+ * goal's positions — so it moves, visibly, as far as it legally can, rather than snapping back to
+ * where it started with no explanation.
+ *
+ * Assumes the input is already sorted; returns a densely-ranked list.
+ */
+export function enforceStopOrder(rows: readonly SurplusRankRow[]): SurplusRankRow[] {
+  const byGoal = new Map<string, number[]>();
+  rows.forEach((r, i) => {
+    if (r.goalId == null || r.stage == null) return;
+    const at = byGoal.get(r.goalId);
+    if (at) at.push(i); else byGoal.set(r.goalId, [i]);
+  });
+  const out = [...rows];
+  let touched = false;
+  for (const positions of byGoal.values()) {
+    if (positions.length < 2) continue;
+    const stops = positions.map(i => out[i]).sort((a, b) => (a.stage ?? 0) - (b.stage ?? 0));
+    positions.forEach((slot, k) => {
+      if (out[slot] === stops[k]) return;
+      // The slot's rank belongs to the POSITION, not to the row that happened to be dropped in it.
+      out[slot] = { ...stops[k], sortOrder: rows[slot].sortOrder };
+      touched = true;
+    });
+  }
+  return touched ? densify(out.sort(compareSurplusRankRows)) : [...rows];
+}
+
+/**
  * Move `fromId` to `toId`'s position. Returns a new densely-ranked list; the input is untouched.
  * An unknown id or a no-op move returns the list densified and otherwise unchanged.
  *
@@ -462,9 +465,6 @@ export function moveSurplusRankRow(
   rows: readonly SurplusRankRow[], fromId: string, toId: string,
 ): SurplusRankRow[] {
   if (fromId === toId) return densify(rows);
-  // A DERIVED row has no rank of its own to move: it is seated where the engine actually funds it,
-  // half a rank past the last card. Letting it be dragged would offer a choice that changes nothing.
-  if (rows.some(r => r.id === fromId && r.derived)) return densify(rows);
   const groups = toGroups(rows).map(g => [...g]);
   const fromGroupIdx = groups.findIndex(g => g.some(r => r.id === fromId));
   const toGroupIdx = groups.findIndex(g => g.some(r => r.id === toId));
@@ -481,7 +481,9 @@ export function moveSurplusRankRow(
 
   const insertAt = toGroupIdx + (toGroupIdx > fromGroupIdx ? 1 : 0);
   groups.splice(insertAt, 0, [stripped]);
-  return fromGroups(groups.filter(g => g.length > 0));
+  // A stop is free to land anywhere EXCEPT above an earlier stop of its own goal; see
+  // `enforceStopOrder` for why that one is not a preference.
+  return enforceStopOrder(fromGroups(groups.filter(g => g.length > 0)));
 }
 
 /**
@@ -579,7 +581,7 @@ export function setSurplusRankAutoExtra(
   rows: readonly SurplusRankRow[], id: string, autoExtra: boolean,
 ): SurplusRankRow[] {
   return rows.map(r => (
-    r.id === id && !r.derived && r.kind !== 'cards' && r.kind !== 'card' && r.kind !== 'liability'
+    r.id === id && r.kind !== 'cards' && r.kind !== 'card' && r.kind !== 'liability'
       ? { ...r, autoExtra, autoExtraAutoCleared: false }
       : r
   ));
@@ -594,6 +596,11 @@ export function setSurplusRankAutoExtra(
 export type AutoExtraDeselect = {
   id: string;
   kind: 'goal' | 'car_fund' | 'loan';
+  /** Set on a STAGED goal's stop. The tick lives inside `savings_goals.stages`, so the caller
+   *  patches that entry rather than the goal's `auto_extra` column — `id` here is the ROW id
+   *  (`<goalId>::stopN` from the second stop on) and is not a uuid anywhere. */
+  goalId?: string;
+  stageId?: string;
   /** For the message. The user is told a switch of theirs moved; saying which one is the least
    *  that owes them. */
   name: string;
@@ -647,9 +654,6 @@ export function planAutoExtraDeselect(
 ): AutoExtraDeselect[] {
   const out: AutoExtraDeselect[] = [];
   for (const row of rows) {
-    // A DERIVED row has no table row behind it, so there is no `auto_extra` to switch off and the
-    // write would target an id that does not exist. Its own goal is already in this loop.
-    if (row.derived) continue;
     if (row.kind !== 'goal' && row.kind !== 'car_fund' && row.kind !== 'loan') continue;
     if (!row.autoExtra || alreadyDeselected.has(row.id) || row.autoExtraAutoCleared) continue;
     if (row.remaining === null || row.remaining > 0) continue;
@@ -657,7 +661,10 @@ export function planAutoExtraDeselect(
     // need reads 0 for that reason alone. A debt being paid down has no target amount by design
     // (`loanRows` above), so nothing outstanding there really is paid off.
     if (row.kind !== 'loan' && !(row.targetAmount !== null && row.targetAmount > 0)) continue;
-    out.push({ id: row.id, kind: row.kind, name: row.name });
+    out.push({
+      id: row.id, kind: row.kind, name: row.name,
+      ...(row.goalId != null && row.stageId != null ? { goalId: row.goalId, stageId: row.stageId } : {}),
+    });
   }
   return out;
 }
@@ -694,6 +701,16 @@ export type SurplusRankWrites = {
    * block can make of it.
    */
   cards: { id: string; surplus_sort_order?: number | null; surplus_share?: number | null }[];
+  /**
+   * Per-STOP patches for a staged goal, keyed by the goal row and the stop's own id inside its
+   * `stages` array.
+   *
+   * A separate channel from `goals` because it is a separate WRITE: the caller has to read the
+   * goal's current `stages`, patch the named entry and put the whole array back. Folding these into
+   * `goals` would have let a stop's rank collide with the goal's own `sort_order` column, which is
+   * the FIRST stop's rank and nothing else's.
+   */
+  goalStages: { goalId: string; stageId: string; sort_order?: number; auto_extra?: boolean }[];
   /** `profiles.cards_sort_order`, or `null` when the card block did not move. */
   cardsSortOrder: number | null;
   /** `profiles.cards_surplus_share`, or `undefined` when the block's weight did not change.
@@ -712,15 +729,23 @@ export function planSurplusRankWrites(
   before: readonly SurplusRankRow[], after: readonly SurplusRankRow[],
 ): SurplusRankWrites {
   const prev = new Map(before.map(r => [r.id, r]));
-  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], goalStages: [], cardsSortOrder: null };
 
   for (const row of after) {
-    // ⚠️ A DERIVED row is a projection of another row, not a row anyone owns. `<goalId>::stage2` is
-    // not a uuid in any table, so a patch planned here would `.eq('id', …)` nothing at best and
-    // throw at worst. Its position is computed from where the engine funds it, never stored.
-    if (row.derived) continue;
     const was = prev.get(row.id);
     if (!was) continue;
+    // ⚠️ A STAGED GOAL'S ROWS DO NOT WRITE THE GOAL'S COLUMNS. `<goalId>::stop2` is not a uuid in
+    // any table, and even the first stop's row must not touch `savings_goals.sort_order` any more:
+    // the plan's ranks live on the stops, and writing one of them to the goal would leave two
+    // sources for the same number, disagreeing the moment a stop is dragged.
+    if (row.goalId != null && row.stageId != null) {
+      const patch: SurplusRankWrites['goalStages'][number] = { goalId: row.goalId, stageId: row.stageId };
+      if (was.sortOrder !== row.sortOrder) patch.sort_order = row.sortOrder;
+      if (was.autoExtra !== row.autoExtra) patch.auto_extra = row.autoExtra;
+      if (patch.sort_order === undefined && patch.auto_extra === undefined) continue;
+      writes.goalStages.push(patch);
+      continue;
+    }
     if (row.kind === 'cards') {
       if (was.sortOrder !== row.sortOrder) writes.cardsSortOrder = row.sortOrder;
       if (was.share !== row.share) writes.cardsShare = row.share;
@@ -772,7 +797,7 @@ export function planSurplusRankWrites(
 /** True when there is nothing to send. Lets a caller skip the toast as well as the round trips. */
 export function isSurplusRankWritesEmpty(w: SurplusRankWrites): boolean {
   return w.goals.length === 0 && w.carFunds.length === 0 && w.cards.length === 0
-    && w.cardsSortOrder === null && w.cardsShare === undefined;
+    && w.goalStages.length === 0 && w.cardsSortOrder === null && w.cardsShare === undefined;
 }
 
 /**
@@ -818,7 +843,7 @@ export function planCardRankModeWrites(
   blockedCards: readonly { id: string }[],
   mode: 'block' | 'individual',
 ): SurplusRankWrites {
-  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], goalStages: [], cardsSortOrder: null };
 
   if (mode === 'block') {
     for (const row of rows) {
@@ -843,7 +868,7 @@ export function planCardRankModeWrites(
 export function planCardSeparationWrites(
   rows: readonly SurplusRankRow[], cardId: string, separate: boolean,
 ): SurplusRankWrites {
-  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], goalStages: [], cardsSortOrder: null };
   if (!separate) {
     writes.cards.push({ id: cardId, surplus_sort_order: null, surplus_share: null });
     return writes;
@@ -884,7 +909,7 @@ export function planCardSeparationWrites(
 export function planLiabilityRankWrites(
   rows: readonly SurplusRankRow[], accountId: string, ranked: boolean,
 ): SurplusRankWrites {
-  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], cardsSortOrder: null };
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], goalStages: [], cardsSortOrder: null };
   // Off the list clears the weight too: a rank that is gone cannot be half of a split.
   writes.cards.push(ranked
     ? { id: accountId, surplus_sort_order: toGroups(rows).length, surplus_share: null }

@@ -28,7 +28,10 @@ import {
 import {
   computeEssentialMonthlyExpenses, isEssentialExpenseRule, type EssentialRule,
 } from '../essential-monthly-expenses';
-import { buildSurplusRankRows, planAutoExtraDeselect, planSurplusRankWrites } from '../surplus-ranking';
+import {
+  buildSurplusRankRows, enforceStopOrder, moveSurplusRankRow, planAutoExtraDeselect,
+  planSurplusRankWrites, setSurplusRankAutoExtra, type SurplusRankRow,
+} from '../surplus-ranking';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import type { AccountRow } from '@/hooks/useSupabaseData';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
@@ -309,7 +312,7 @@ describe('revolvingRemainingOf', () => {
 
 // ── THE RANKED LIST AGREES WITH THE ENGINE ───────────────────────────────────
 
-describe('buildSurplusRankRows — a staged goal shows the stage it is actually chasing', () => {
+describe('buildSurplusRankRows — one row per unfilled stop, each one real', () => {
   const goalRowFor = (over: Partial<RankableGoal> = {}) =>
     ({ ...staged(over), name: 'Move fund, then emergency fund', created_at: '2026-01-01' });
 
@@ -326,100 +329,198 @@ describe('buildSurplusRankRows — a staged goal shows the stage it is actually 
     }).remaining).toBe(5_730);
   });
 
-  it("ADVANCES the goal's own row to the next stop once one is filled, rather than leaving a row at "
-    + 'zero — "that stage should immediately stop/drop once its done"', () => {
-    const row = goalRow1({
-      goals: [goalRowFor({ current_amount: 5_730 })],
-      carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
-      essentialMonthlyExpenses: 1_000,
-    });
-    expect(row.stage).toBe(2);
-    expect(row.remaining).toBe(3_000);
-    expect(row.stageWaitsForCards).toBe(false);
-  });
-
-  it("shows the WAITING stop on the goal's own row once every open stop is filled, flagged so the "
-    + 'row can say it is parked rather than claiming to be funded', () => {
-    const row = goalRow1({
-      goals: [goalRowFor({ current_amount: 8_730 })],
-      carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
-      essentialMonthlyExpenses: 1_000,
-    });
-    expect(row.stage).toBe(3);
-    expect(row.remaining).toBe(3_000);
-    expect(row.stageWaitsForCards).toBe(true);
-  });
-
-  it('SEPARATES every later stop into its own row, the waiting one seated after the last card', () => {
-    // Tre, 2026-08-26: "the staggered sections should separate in the goals ordering." The order IS
-    // the feature: first stop, then every card, then the stop that waits.
+  it('gives EVERY stop its own row, its own dollars and its own Auto extra tick', () => {
+    // Tre, 2026-08-26: "each part of the stagger should always have the choice of extra payments."
     const rows = buildSurplusRankRows({
-      goals: [goalRowFor()],
+      goals: [goalRowFor({
+        auto_extra: true,
+        stages: [
+          { id: 'a', name: 'Move fund', amount: 5_730 },
+          { id: 'b', name: 'Runway', months: 3, auto_extra: true },
+          { id: 'c', name: 'Full runway', months: 3, auto_extra: false },
+        ],
+      })],
+      carFunds: [], essentialMonthlyExpenses: 1_000,
+    }).filter(r => r.kind === 'goal');
+    expect(rows.map(r => r.id)).toEqual(['g-1', 'g-1::stop2', 'g-1::stop3']);
+    // Each row carries its OWN dollars, so the rows sum to the plan rather than each restating it.
+    expect(rows.map(r => r.remaining)).toEqual([5_730, 3_000, 3_000]);
+    // Stop 1 inherits the goal's own column; the others read their own.
+    expect(rows.map(r => r.autoExtra)).toEqual([true, true, false]);
+    // And every one of them knows which jsonb entry a write should patch.
+    expect(rows.map(r => r.stageId)).toEqual(['a', 'b', 'c']);
+    expect(rows.every(r => r.goalId === 'g-1')).toBe(true);
+  });
+
+  it('seats a stop at its OWN stored rank — "emergency 2 should be behind all the credit cards, '
+    + 'then 3 is behind the loan"', () => {
+    const rows = buildSurplusRankRows({
+      goals: [goalRowFor({
+        sort_order: 1,
+        stages: [
+          { id: 'a', amount: 5_730, sort_order: 1 },
+          { id: 'b', months: 3, sort_order: 6 },
+          { id: 'c', months: 3, sort_order: 8 },
+        ],
+      })],
       carFunds: [],
-      cards: [{ id: 'card-1', balance: 2_000, surplus_sort_order: 4 }],
-      cardsSortOrder: 4,
+      cards: [
+        { id: 'visa', balance: 2_000, surplus_sort_order: 0 },
+        { id: 'discover', balance: 2_000, surplus_sort_order: 3 },
+      ],
+      liabilities: [{ id: 'loan-1', name: 'Car loan', account_type: 'other_liability', balance: 9_000, surplus_sort_order: 7 }],
       essentialMonthlyExpenses: 1_000,
     });
-    const derived = rows.filter(r => r.derived);
-    expect(derived.map(r => r.id)).toEqual(['g-1::stop2', 'g-1::stop3']);
-    // Each row carries its OWN dollars, so the three rows sum to the plan rather than restating it.
-    expect(rows.find(r => r.id === 'g-1')!.remaining).toBe(5_730);
-    expect(derived.map(r => r.remaining)).toEqual([3_000, 3_000]);
-
-    const at = (id: string) => rows.findIndex(r => r.id === id);
-    // Stop 2 is funded before the cards, stop 3 only after them. That is where the engine puts the
-    // money, and the list has to say the same thing.
-    expect(at('g-1::stop2')).toBeGreaterThan(at('g-1'));
-    expect(at('g-1::stop2')).toBeLessThan(at('card-1'));
-    expect(at('g-1::stop3')).toBeGreaterThan(at('card-1'));
+    expect(rows.map(r => r.id)).toEqual(['visa', 'g-1', 'discover', 'g-1::stop2', 'loan-1', 'g-1::stop3']);
   });
 
-  it('emits ONE row and no derived rows for an UNSTAGED goal — every user until they plan a stop', () => {
-    const plain = buildSurplusRankRows({
-      goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],
+  it('DEFAULTS an undragged stop to just under the one above it, and says the rank was not chosen', () => {
+    const rows = buildSurplusRankRows({
+      goals: [goalRowFor({ sort_order: 4, stages: [{ id: 'a', amount: 100 }, { id: 'b', amount: 200 }] })],
       carFunds: [], essentialMonthlyExpenses: 1_000,
-    });
-    expect(plain.some(r => r.derived)).toBe(false);
-    expect(plain.find(r => r.id === 'g-1')!.remaining).toBe(5_730);
-    expect(plain.find(r => r.id === 'g-1')!.stage).toBeUndefined();
+    }).filter(r => r.kind === 'goal');
+    expect(rows.map(r => r.id)).toEqual(['g-1', 'g-1::stop2']);
+    expect(rows[0].sortOrder).toBeLessThan(rows[1].sortOrder);
   });
 
-  it('drops a FILLED stop out of the list entirely — no row stands for money already saved', () => {
+  it('drops a FILLED stop out of the list entirely — "that stage should immediately stop/drop once '
+    + "its done\"", () => {
     const rows = buildSurplusRankRows({
       goals: [goalRowFor({ current_amount: 5_730 })],
       carFunds: [], cards: [{ id: 'card-1', balance: 2_000, surplus_sort_order: 4 }],
       cardsSortOrder: 4,
       essentialMonthlyExpenses: 1_000,
     });
-    expect(rows.filter(r => r.id.startsWith('g-1')).map(r => r.stage)).toEqual([2, 3]);
+    expect(rows.filter(r => r.goalId === 'g-1').map(r => r.stage)).toEqual([2, 3]);
   });
 
-  it('plans NO write for the derived row — its id is not a uuid in any table', () => {
+  it('keeps the LAST stop listed once every one is filled, rather than making the goal vanish', () => {
     const rows = buildSurplusRankRows({
-      goals: [goalRowFor({ current_amount: 8_730 })],
-      carFunds: [], cards: [{ id: 'card-1', balance: 2_000 }],
-      essentialMonthlyExpenses: 1_000,
-    });
-    // Same list, every rank shifted: the derived row must still plan nothing.
-    const moved = rows.map(r => ({ ...r, sortOrder: r.sortOrder + 10 }));
-    const writes = planSurplusRankWrites(rows, moved);
-    expect(writes.goals.some(w => w.id.includes('::stage2'))).toBe(false);
+      goals: [goalRowFor({ current_amount: 99_999 })],
+      carFunds: [], essentialMonthlyExpenses: 1_000,
+    }).filter(r => r.kind === 'goal');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].stage).toBe(3);
+    expect(rows[0].remaining).toBe(0);
   });
 
-  it('never auto-deselects the derived row', () => {
-    const rows = buildSurplusRankRows({
-      goals: [goalRowFor({ current_amount: 26_000 })],
-      carFunds: [], cards: [{ id: 'card-1', balance: 0 }],
-      essentialMonthlyExpenses: 1_000,
+  it('emits ONE plain row for an UNSTAGED goal — every user until they plan a stop', () => {
+    const plain = buildSurplusRankRows({
+      goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],
+      carFunds: [], essentialMonthlyExpenses: 1_000,
     });
-    expect(planAutoExtraDeselect(rows).some(d => d.id.includes('::stage2'))).toBe(false);
+    expect(plain.filter(r => r.kind === 'goal')).toHaveLength(1);
+    expect(plain.find(r => r.id === 'g-1')!.remaining).toBe(5_730);
+    expect(plain.find(r => r.id === 'g-1')!.stage).toBeUndefined();
+    expect(plain.find(r => r.id === 'g-1')!.goalId).toBeUndefined();
+  });
+});
+
+// ── THE ONE THING A DRAG MAY NOT DO ──────────────────────────────────────────
+
+describe('enforceStopOrder / moveSurplusRankRow — stops may go anywhere but may not cross', () => {
+  const stopRow = (stage: number, sortOrder: number): SurplusRankRow => ({
+    id: stage === 1 ? 'g-1' : `g-1::stop${stage}`,
+    kind: 'goal', name: 'Plan', sortOrder, autoExtra: true, remaining: 100, share: null,
+    targetAmount: 100, targetDate: null, createdAt: '2026-01-01',
+    goalId: 'g-1', stageId: `s${stage}`, stage, stageCount: 3,
+  });
+  const other = (id: string, sortOrder: number): SurplusRankRow => ({
+    id, kind: 'card', name: id, sortOrder, autoExtra: true, remaining: 500, share: null,
+    targetAmount: null, targetDate: null, createdAt: '2026-01-01',
+  });
+
+  it('leaves a legal order untouched', () => {
+    const rows = [stopRow(1, 0), other('visa', 1), stopRow(2, 2), stopRow(3, 3)];
+    expect(enforceStopOrder(rows).map(r => r.id))
+      .toEqual(['g-1', 'visa', 'g-1::stop2', 'g-1::stop3']);
+  });
+
+  it('puts two crossed stops back into plan order WITHOUT moving anything else, and without '
+    + 'giving up the positions they collectively won', () => {
+    // stop 3 dragged above stop 2. Both positions are still the goal's; only which stop sits in
+    // which is corrected — so the drag visibly moved the pair up, it just did not invert the plan.
+    const rows = [stopRow(1, 0), other('visa', 1), stopRow(3, 2), other('discover', 3), stopRow(2, 4)];
+    expect(enforceStopOrder(rows).map(r => r.id))
+      .toEqual(['g-1', 'visa', 'g-1::stop2', 'discover', 'g-1::stop3']);
+  });
+
+  it('is applied by a real drag: dragging stop 3 to the top lands it as high as it legally can', () => {
+    const rows = [other('visa', 0), stopRow(1, 1), stopRow(2, 2), stopRow(3, 3)];
+    const after = moveSurplusRankRow(rows, 'g-1::stop3', 'visa');
+    // Stop 3 asked for the top slot. The goal now occupies slots 0, 2 and 3, and the plan hands
+    // those out in index order — so the drag really did move the goal's stops above the card, it
+    // just refused to put stop 3 in front of stops 1 and 2.
+    expect(after.map(r => r.id)).toEqual(['g-1', 'visa', 'g-1::stop2', 'g-1::stop3']);
+  });
+
+  it('lets a stop move freely when nothing would cross', () => {
+    const rows = [stopRow(1, 0), stopRow(2, 1), other('visa', 2), other('discover', 3)];
+    const after = moveSurplusRankRow(rows, 'g-1::stop2', 'discover');
+    expect(after.map(r => r.id)).toEqual(['g-1', 'visa', 'discover', 'g-1::stop2']);
+  });
+});
+
+describe('planSurplusRankWrites — a stop writes its jsonb entry, never the goal columns', () => {
+  const goalRowFor = (over: Partial<RankableGoal> = {}) =>
+    ({ ...staged(over), name: 'Plan', created_at: '2026-01-01' });
+  const build = (over: Partial<RankableGoal> = {}) => buildSurplusRankRows({
+    goals: [goalRowFor({
+      stages: [{ id: 'a', amount: 5_730 }, { id: 'b', months: 3 }, { id: 'c', months: 3 }],
+      ...over,
+    })],
+    carFunds: [], essentialMonthlyExpenses: 1_000,
+  });
+
+  it('emits a goalStages patch for a moved stop and NOTHING on `goals`', () => {
+    const before = build();
+    const after = moveSurplusRankRow(before, 'g-1::stop3', 'g-1');
+    const w = planSurplusRankWrites(before, after);
+    expect(w.goals).toEqual([]);
+    expect(w.goalStages.length).toBeGreaterThan(0);
+    expect(w.goalStages.every(x => x.goalId === 'g-1')).toBe(true);
+    expect(new Set(w.goalStages.map(x => x.stageId)).size).toBe(w.goalStages.length);
+  });
+
+  it('emits a goalStages patch for a stop whose tick moved, including the FIRST stop — its rank '
+    + 'and tick live on the stop now, not on `savings_goals`', () => {
+    const before = build();
+    // The fixture goal is ticked, so the change under test is the tick coming OFF.
+    const w = planSurplusRankWrites(before, setSurplusRankAutoExtra(before, 'g-1', false));
+    expect(w.goals).toEqual([]);
+    expect(w.goalStages).toEqual([{ goalId: 'g-1', stageId: 'a', auto_extra: false }]);
+  });
+
+  it('still writes `savings_goals` columns for an UNSTAGED goal', () => {
+    const before = buildSurplusRankRows({
+      goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],
+      carFunds: [], essentialMonthlyExpenses: 1_000,
+    });
+    const w = planSurplusRankWrites(before, setSurplusRankAutoExtra(before, 'g-1', false));
+    expect(w.goalStages).toEqual([]);
+    expect(w.goals[0]).toMatchObject({ id: 'g-1', auto_extra: false });
+  });
+});
+
+describe('the legacy two-column plan still reads', () => {
+  const goalRowFor = (over: Partial<RankableGoal> = {}) =>
+    ({ ...staged(over), name: 'Plan', created_at: '2026-01-01' });
+
+  it('produces the same three stops, in the same order, from the columns alone — a row the '
+    + 'migration missed keeps its plan instead of silently losing it', () => {
+    const rows = buildSurplusRankRows({
+      goals: [goalRowFor()], carFunds: [], essentialMonthlyExpenses: 1_000,
+    }).filter(r => r.kind === 'goal');
+    expect(rows.map(r => r.remaining)).toEqual([5_730, 3_000, 3_000]);
+    expect(rows.map(r => r.stage)).toEqual([1, 2, 3]);
   });
 
   it('is byte-identical to the old list for an UNSTAGED goal', () => {
-    expect(goalRow1({
+    const rows = buildSurplusRankRows({
       goals: [goalRowFor({ emergency_months_stage1: null, emergency_months_stage2: null })],
       carFunds: [], essentialMonthlyExpenses: 1_000,
-    }).remaining).toBe(5_730);
+    });
+    expect(rows.find(r => r.id === 'g-1')!.remaining).toBe(5_730);
   });
 });
 
@@ -532,42 +633,74 @@ const anchor = () => {
   vi.setSystemTime(new Date('2026-10-15T12:00:00'));
 };
 
+/**
+ * Three stops over one balance: $2,000, then one month of essentials, then two more.
+ * Thresholds 2,000 / 3,000 / 5,000 — the same numbers the retired two-column plan produced.
+ *
+ * ⚠️ THE RANKS ARE THE POINT. Stops 1 and 2 sit ABOVE the card block (`cards_sort_order: 5`) and
+ * stop 3 sits BELOW it, which is Tre's own arrangement: "emergency 2 should be behind all the
+ * credit cards." There is no flag anywhere in this fixture — where a stop sits IS the hand-off.
+ */
 const STAGED_GOAL: GoalRow = {
-  emergency_months_stage1: 1, emergency_months_stage2: 3,
-} as GoalRow;
+  stages: [
+    { id: 's1', name: 'Move', amount: 2_000, sort_order: 0, auto_extra: true },
+    { id: 's2', name: 'Runway', months: 1, sort_order: 1, auto_extra: true },
+    { id: 's3', name: 'Full runway', months: 2, sort_order: 6, auto_extra: true },
+  ],
+} as unknown as GoalRow;
 
-describe('forecast-engine — a staged goal stops at stage 1 and resumes at stage 2', () => {
+describe('forecast-engine — a stop is funded when its RANK comes up, not when a flag opens', () => {
   afterEach(() => vi.useRealTimers());
 
+  /** Every stop of one goal is its own ranked target, so the goal's total is the sum of its rows. */
+  const totalForGoal = (rows: ReturnType<typeof calculateForecast>['data'], id: string) =>
+    rows.reduce((s, r) => s + Object.entries(r.autoExtraByTarget ?? {})
+      .filter(([k]) => k === id || k.startsWith(`${id}::`))
+      .reduce((t, [, v]) => t + Number(v || 0), 0), 0);
   const totalFor = (rows: ReturnType<typeof calculateForecast>['data'], id: string) =>
     rows.reduce((s, r) => s + Number(r.autoExtraByTarget?.[id] ?? 0), 0);
 
-  it('funds ONLY stage 1 while the cards still owe revolving — the hand-off Tre asked for', () => {
+  it('funds only the stops ABOVE the cards while the cards still owe revolving', () => {
     anchor();
-    // Revolving never clears across the horizon, so stage 2 never opens.
+    // Revolving never clears across the horizon, so the rank-6 stop never comes up.
     const rows = calculateForecast(
       makeInputs([goalRow(STAGED_GOAL)], new Array(120).fill(5_000)),
     ).data;
-    expect(totalFor(rows, 'g-1')).toBeCloseTo(3_000, 2);
+    expect(totalForGoal(rows, 'g-1')).toBeCloseTo(3_000, 2);
+    expect(totalFor(rows, 'g-1::stop3')).toBeCloseTo(0, 2);
   });
 
-  it('resumes to stage 2 once revolving debt is gone, and stops there', () => {
+  it('funds the stop BELOW the cards once the cards are clear, and stops there', () => {
     anchor();
     // Cards clear at month 6.
     const revolving = new Array(120).fill(0).map((_, i) => (i < 6 ? 5_000 : 0));
     const rows = calculateForecast(makeInputs([goalRow(STAGED_GOAL)], revolving)).data;
-    expect(totalFor(rows, 'g-1')).toBeCloseTo(5_000, 2);
-    // Nothing beyond stage 1 arrives before the debt clears.
+    expect(totalForGoal(rows, 'g-1')).toBeCloseTo(5_000, 2);
+    // Nothing from the rank-6 stop arrives before the debt clears.
     const beforeClear = rows.slice(0, 6)
-      .reduce((s, r) => s + Number(r.autoExtraByTarget?.['g-1'] ?? 0), 0);
-    expect(beforeClear).toBeLessThanOrEqual(3_000 + 0.005);
+      .reduce((s, r) => s + Number(r.autoExtraByTarget?.['g-1::stop3'] ?? 0), 0);
+    expect(beforeClear).toBeCloseTo(0, 2);
   });
 
-  it('never over-funds past stage 2, whatever the month-by-month split', () => {
+  it('draws NOTHING for a stop the user has not ticked — "each part of the stagger should always '
+    + 'have the choice of extra payments", and the choice has to be able to be no', () => {
+    anchor();
+    const goal = goalRow({
+      stages: [
+        { id: 's1', name: 'Move', amount: 2_000, sort_order: 0, auto_extra: true },
+        { id: 's2', name: 'Runway', months: 1, sort_order: 1, auto_extra: false },
+        { id: 's3', name: 'Full runway', months: 2, sort_order: 2, auto_extra: false },
+      ],
+    } as unknown as GoalRow);
+    const rows = calculateForecast(makeInputs([goal], new Array(120).fill(0))).data;
+    expect(totalForGoal(rows, 'g-1')).toBeCloseTo(2_000, 2);
+  });
+
+  it('never over-funds past the whole plan, whatever the month-by-month split', () => {
     anchor();
     const revolving = new Array(120).fill(0).map((_, i) => (i < 3 ? 5_000 : 0));
     const rows = calculateForecast(makeInputs([goalRow(STAGED_GOAL)], revolving)).data;
-    expect(totalFor(rows, 'g-1')).toBeLessThanOrEqual(5_000 + 0.005);
+    expect(totalForGoal(rows, 'g-1')).toBeLessThanOrEqual(5_000 + 0.005);
   });
 
   it('leaves an UNSTAGED goal exactly as it was — the whole feature is opt-in', () => {

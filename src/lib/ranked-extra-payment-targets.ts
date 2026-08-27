@@ -319,24 +319,62 @@ export type GoalStageInput = {
   /** This stop's own date. Replaces the goal's single `target_date`, which could only ever describe
    *  one of them — on Tre's row it is the MOVE date and says nothing about the six-month stop. */
   target_date?: string | null;
-  /** This stop WAITS until revolving credit-card debt is clear. The hand-off, as a flag. */
+  /**
+   * ⚠️ LEGACY. "This stop waits until revolving credit-card debt is clear", from the first cut of
+   * the feature, when a stop had no rank of its own and the hand-off had to be a flag.
+   *
+   * Tre, 2026-08-26: *"each should be freely re-orderable around the other items ... emergency 2
+   * should be behind all the credit cards, then 3 is behind the loan."* A stop that carries its own
+   * rank expresses that by SITTING there, and a flag saying the same thing in a second language can
+   * only disagree with it. Read for one release to seed a stop's rank; never written again.
+   */
   after_cards?: boolean | null;
+  /**
+   * This stop's own rank in "Where the extra money goes". Null on a stop that has never been
+   * dragged; {@link goalStages} then seats it just after the stop above it.
+   */
+  sort_order?: number | null;
+  /** This stop's own Auto extra tick. Every stop has one — Tre, 2026-08-26: "each part of the
+   *  stagger should always have the choice of extra payments." */
+  auto_extra?: boolean | null;
 };
 
 /** One stop, resolved into dollars against a live expense figure. */
 export type GoalStop = {
-  /** The stored stop id, or a positional fallback. Stable enough to key a row and a React list. */
+  /** The stored stop id, or a positional fallback. What a write patches, and what keys a React
+   *  list. NOT the ranked row's id — see {@link stopRowId}. */
   id: string;
-  /** 1-based position in the plan. */
+  /** 1-based position in the plan. The plan's order, which a drag may never change. */
   index: number;
   name: string;
   /** THIS stop's own dollars. */
   size: number;
   /** CUMULATIVE dollars — what must be saved for this stop to be filled. */
   threshold: number;
+  /** What must already be saved before this stop starts filling — the previous threshold. */
+  floor: number;
+  /** LEGACY, and only ever read to seed a rank. See `GoalStageInput.after_cards`. */
   afterCards: boolean;
   targetDate: string | null;
+  /** This stop's own rank in the surplus list. */
+  sortOrder: number;
+  /** This stop's own Auto extra tick. */
+  autoExtra: boolean;
+  /** True when the rank above was DERIVED rather than stored, i.e. this stop has never been
+   *  dragged. Lets the list seat it sensibly without pretending the user chose the position. */
+  rankIsDefault: boolean;
 };
+
+/**
+ * The id a stop wears in "Where the extra money goes".
+ *
+ * The FIRST stop keeps the bare goal id, because that is the id every other surface already uses
+ * for a goal — the forecast's `autoExtraByTarget`, the reachability verdicts, the pool it credits.
+ * An unstaged goal is a goal with one stop, and it therefore keeps exactly the id it always had.
+ */
+export function stopRowId(goalId: string, index: number): string {
+  return index <= 1 ? goalId : `${goalId}::stop${index}`;
+}
 
 /**
  * A goal's plan: its stops in order, and what the whole thing comes to.
@@ -388,10 +426,16 @@ export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number)
   const base = Number(goal.target_amount) || 0;
   const monthly = Number(essentialMonthlyExpenses);
   const hasMonthly = Number.isFinite(monthly) && monthly > 0;
+  const goalRank = Number(goal.sort_order) || 0;
+  const goalAutoExtra = goal.auto_extra === true;
 
   const unstaged = (): GoalStages => ({
     staged: false,
-    stops: [{ id: 'target', index: 1, name: 'Target', size: base, threshold: base, afterCards: false, targetDate: goal.target_date ?? null }],
+    stops: [{
+      id: 'target', index: 1, name: 'Target', size: base, threshold: base, floor: 0,
+      afterCards: false, targetDate: goal.target_date ?? null,
+      sortOrder: goalRank, autoExtra: goalAutoExtra, rankIsDefault: false,
+    }],
     total: base,
   });
 
@@ -407,15 +451,31 @@ export function goalStages(goal: RankableGoal, essentialMonthlyExpenses: number)
       if (amount != null && months == null) size = amount;
       else if (months != null && amount == null) size = hasMonthly ? months * monthly : null;
       if (size == null) continue;
+      const floor = running;
       running += size;
+      const index = stops.length + 1;
+      const stored = Number(s.sort_order);
+      const hasStoredRank = s.sort_order != null && Number.isFinite(stored);
+      // A stop nobody has dragged sits one rank under the stop above it — or under the goal's own
+      // rank, for the first one. That is a DEFAULT, not a choice, and `rankIsDefault` says so, so
+      // the list can seat it without claiming the user put it there.
+      const previous = stops[stops.length - 1];
+      const fallback = previous == null ? goalRank : previous.sortOrder + 1;
       stops.push({
-        id: typeof s.id === 'string' && s.id.length > 0 ? s.id : `stop-${stops.length + 1}`,
-        index: stops.length + 1,
-        name: (s.name ?? '').trim() || `Stop ${stops.length + 1}`,
+        id: typeof s.id === 'string' && s.id.length > 0 ? s.id : `stop-${index}`,
+        index,
+        name: (s.name ?? '').trim() || `Stop ${index}`,
         size,
         threshold: running,
+        floor,
         afterCards: s.after_cards === true,
         targetDate: s.target_date ?? null,
+        sortOrder: hasStoredRank ? stored : fallback,
+        // The FIRST stop inherits the goal's own column, so a goal that was ticked before it had
+        // stops keeps its tick. Later stops start unticked: a stop nobody has looked at must not
+        // start diverting money.
+        autoExtra: s.auto_extra != null ? s.auto_extra === true : (index === 1 && goalAutoExtra),
+        rankIsDefault: !hasStoredRank,
       });
     }
     return stops.length === 0 ? unstaged() : { staged: true, stops, total: running };
