@@ -279,6 +279,14 @@ export default function MonthlyBreakdownTable({
               ...((row.carLoanBreakdown ?? []) as { name: string; balance: number }[])
                 .map(cl => ({ label: `  ${cl.name}`, value: formatCurrency(cl.balance, true) })),
               { label: 'Total Liabilities', value: formatCurrency(row.rawTotalLiabilities ?? row.totalLiabilities, true) },
+              // ⚠️ SAY WHICH MOMENT THESE BALANCES ARE (Tre, 2026-08-27: "yes label it"). Since
+              // `160803bc` every liability line here is the balance at the END of the month, so the
+              // total agrees with the rows above it and Net Worth below it does not subtract a
+              // payment from cash while still carrying the balance that payment cleared. The knock-on
+              // is that THIS MONTH's row reads one payment's principal below the "$X remaining" the
+              // Garage card and /accounts show, because those answer "what do you owe today". Two
+              // correct answers to two different questions is only confusing while it is unlabelled.
+              { label: '  after this month’s payments', value: '' },
               { label: '', value: '' },
               { label: 'Net Worth', value: formatCurrency(row.rawNetWorth ?? row.netWorth, true) },
             ],
