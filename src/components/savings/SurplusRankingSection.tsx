@@ -379,7 +379,9 @@ export default function SurplusRankingSection({
         <p className="text-xs text-muted-foreground mb-3">
           Tick <span className="text-foreground font-medium">Auto extra</span> on anything that should
           take a share. Nothing is diverted until you do. Only the highest one that is not finished
-          gets the money; when it is done the tick comes off and the next one takes over.
+          gets the money; when it is done the tick comes off and the next one takes over. A goal with
+          a date, or a retirement account with an annual limit, takes only what that month calls for
+          and passes the rest straight down the list.
         </p>
       ) : (
         <p className="text-xs text-muted-foreground mb-3">
