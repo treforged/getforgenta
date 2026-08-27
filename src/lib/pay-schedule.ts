@@ -4,7 +4,7 @@
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
-import { getBiweeklyDatesInMonth, toLocalDateStr } from './scheduling';
+import { getBiweeklyDatesInMonth, occurrenceSurvivesEndDate, toLocalDateStr, trailingEarnedPayDate } from './scheduling';
 // The ledger's real-overrides-projected rule asks the bank matcher's own amount and date questions,
 // rather than growing a second tolerance here that could drift from it. Leaf module, no cycle:
 // `transaction-matching.ts` deliberately does not import this file.
@@ -287,23 +287,31 @@ export function getRemainingNonPaycheckIncomeByDay(
       if (dep && dep !== fundingAccountId) continue;
     }
     const amt = Number(r.amount);
+    // ⚠️ `end_date` WAS NOT READ HERE AT ALL, so an income rule that had already ENDED kept paying
+    // forever: measured at $1,100 still counted for a rule whose end_date was 2020-06-30. This
+    // total feeds credit-card-engine.ts's safe-to-pay income, so the over-count told the user to
+    // put money they do not have onto a card. Gated per occurrence, via the same
+    // `occurrenceSurvivesEndDate` every generator uses, so the final earned paycheck still lands.
+    // A rule with no `end_date` returns true unconditionally and takes the path it always did.
+    const stillPaying = (day: number) =>
+      occurrenceSurvivesEndDate(r, toLocalDateStr(new Date(year, month, day)), now);
 
     if (r.frequency === 'weekly') {
       const dayOfWeek = r.due_day ?? 5;
       const d = new Date(year, month, 1);
       while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
       while (d.getMonth() === month) {
-        if (d.getDate() >= today && d.getDate() <= effectiveDueDay) total += amt;
+        if (d.getDate() >= today && d.getDate() <= effectiveDueDay && stillPaying(d.getDate())) total += amt;
         d.setDate(d.getDate() + 7);
       }
     } else if (r.frequency === 'monthly') {
       const rd = Math.min(r.due_day || 1, monthEnd.getDate());
-      if (rd >= today && rd <= effectiveDueDay) total += amt;
+      if (rd >= today && rd <= effectiveDueDay && stillPaying(rd)) total += amt;
     } else if (r.frequency === 'yearly') {
       const dueMonth = (r.due_month ?? 1) - 1;
       if (dueMonth === month) {
         const rd = Math.min(r.due_day || 1, monthEnd.getDate());
-        if (rd >= today && rd <= effectiveDueDay) total += amt;
+        if (rd >= today && rd <= effectiveDueDay && stillPaying(rd)) total += amt;
       }
     }
   }
@@ -1187,7 +1195,10 @@ export function getSafeToPayByDueDate(
  * 7-day step cannot drift across a boundary, so anchoring it could only move a correct schedule.
  */
 export function getRuleOccurrenceDatesInMonth(
-  rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date' | 'created_at' | 'end_date'>,
+  rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date' | 'created_at' | 'end_date'>
+    // Optional, and omitting it opts the caller out of the trailing final paycheck — see
+    // `EndDatedRule` in scheduling.ts for which call sites do that and why.
+    & Partial<Pick<RuleRow, 'rule_type'>>,
   year: number,
   month: number, // 0-indexed
 ): string[] {
@@ -1210,11 +1221,20 @@ export function getRuleOccurrenceDatesInMonth(
   // hand. "Does the Transactions tab cover all 60 months" is exactly that
   // question, which is how the audit found it.
   const endDate = rule.end_date ? new Date(rule.end_date + 'T12:00:00') : null;
-  if (endDate && endDate < monthStart) return dates;
+  // ⚠️ THE TRAILING FINAL PAYCHECK IS THE ONE THING `end_date` MUST NOT DELETE. A weekly/biweekly
+  // INCOME rule is paid in arrears, so the work done up to its last day is paid on the next payday
+  // — which falls after `end_date`, and often in the month AFTER it. Skipping the whole month here
+  // silently deleted that cheque ($1,100 on Tre's partner income ending 2027-08-31, due 2027-09-10).
+  // `trailingEarnedPayDate` returns null for every other rule, so this stays the old hard skip.
+  const trailing = trailingEarnedPayDate(rule);
+  const trailingHere = trailing != null
+    && trailing >= toLocalDateStr(monthStart) && trailing <= toLocalDateStr(monthEnd);
+  if (endDate && endDate < monthStart && !trailingHere) return dates;
 
   // Compared per occurrence rather than per month, so a rule ending mid-month
-  // keeps the occurrences before the end and drops the ones after it.
-  const notPastEnd = (iso: string) => !endDate || new Date(iso + 'T12:00:00') <= endDate;
+  // keeps the occurrences before the end and drops the ones after it — and lets the one trailing
+  // paycheck through. `occurrenceSurvivesEndDate` is the gate every generator shares.
+  const notPastEnd = (iso: string) => occurrenceSurvivesEndDate(rule, iso);
 
   // The mirror of `notPastEnd`, and it was missing until 2026-08-25. `start_date` was honoured
   // only as the whole-month skip above, so a weekly rule started mid-month back-filled every
@@ -1239,7 +1259,12 @@ export function getRuleOccurrenceDatesInMonth(
   // existing date-pinned test runs, which is exactly why it survived this long.
   // `transaction-matching.ts`'s `daysBetween` carries the same warning about the same trap.
   if (rule.frequency === 'biweekly') {
-    return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
+    if (!rule.end_date) return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
+    // The grid is generated UNCLAMPED (`end_date: null`) because the trailing cheque is by
+    // definition past the date `getBiweeklyDatesInMonth` clamps at; `notPastEnd` then decides.
+    // The no-`end_date` path above stays byte-identical.
+    return getBiweeklyDatesInMonth({ ...rule, end_date: null }, year, month)
+      .map(toLocalDateStr).filter(notPastEnd);
   } else if (rule.frequency === 'weekly') {
     const d = new Date(monthStart);
     const dayOfWeek = rule.due_day ?? 5;

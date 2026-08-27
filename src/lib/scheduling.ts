@@ -202,6 +202,106 @@ export function getBiweeklyDatesInMonth(
   return dates;
 }
 
+/** The rule fields the end-date/arrears rules read. Structural, so every caller's row satisfies it.
+ *
+ * ⚠️ `rule_type` IS OPTIONAL, AND OMITTING IT OPTS OUT OF THE TRAILING PAYCHECK. A caller that does
+ * not supply it is treated as not-income, so `trailingEarnedPayDate` returns null and `end_date`
+ * truncates exactly as it always has. That is deliberate for the bank-charge matchers
+ * (`auto-matched-occurrences.ts`, `bank-activity-queue.ts`, `matched-occurrence-display.ts`,
+ * `rules-from-history.ts`), which build a narrow literal to ask "where do this rule's occurrences
+ * land" for charge attribution and have no use for a paycheck that has not happened yet. Anything
+ * modelling INCOME must pass the whole rule row. */
+export type EndDatedRule = BiweeklyRule & {
+  rule_type?: string | null;
+  frequency?: string | null;
+  end_date?: string | null;
+};
+
+/**
+ * The ONE extra paycheck a weekly/biweekly INCOME rule still owes after its `end_date`, as
+ * `YYYY-MM-DD`, or null when it owes none.
+ *
+ * ⚠️ THE DEFECT THIS PREVENTS. `end_date` used to truncate the schedule strictly at the date, which
+ * silently deleted the final EARNED paycheck: work done up to the last day is paid on the next
+ * payday, which by definition falls after the last day. Measured on a biweekly $1,100 partner
+ * income ending 2027-08-31 (Tre's move month): the schedule stopped at 2027-08-27 and the
+ * 2027-09-10 cheque — real money, already earned — never appeared in the forecast at all. A
+ * household planning a move around that date is counting on it.
+ *
+ * ⚠️ ARREARS IS A PER-FREQUENCY CLAIM, NOT A BLANKET ONE.
+ *  - `weekly` / `biweekly`: paid in arrears. A payday settles the cycle ENDING on it, so anything
+ *    worked after the last payday on or before `end_date` is unpaid and lands on the next scheduled
+ *    payday. That is the cheque returned here.
+ *  - a payday landing EXACTLY on `end_date` settles the final cycle, so nothing trails it — null.
+ *  - `monthly` / `semi_monthly` / `yearly`: NOT given a trailing cheque. A monthly salary is
+ *    normally paid current (on or near the last day of the period it covers), and the app models it
+ *    as one payment on `due_day` with no period boundaries to reason about, so inventing a trailing
+ *    payment would be inventing money. These truncate at `end_date`, unchanged.
+ *  - EXPENSES get nothing. Rent does not arrive one cycle late because the lease ended.
+ */
+export function trailingEarnedPayDate(rule: EndDatedRule, today: Date = new Date()): string | null {
+  if (rule.rule_type !== 'income') return null;
+  if (!rule.end_date) return null;
+  if (rule.frequency !== 'weekly' && rule.frequency !== 'biweekly') return null;
+
+  const end = new Date(`${rule.end_date.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(end.getTime())) return null;
+  // An end before the start is not a schedule at all — the rule never pays, so nothing trails it.
+  // (BudgetControl rejects this on save; a legacy row could still carry it.)
+  if (rule.start_date && rule.end_date.slice(0, 10) < rule.start_date.slice(0, 10)) return null;
+
+  if (rule.frequency === 'weekly') {
+    // Clamped exactly as `resolveBiweeklyAnchor` clamps it, and for the same reason: `due_day`
+    // holds a DAY OF MONTH on monthly rules, so a rule flipped monthly -> weekly hands this a 15
+    // and an unclamped weekday walk never terminates.
+    const raw = rule.due_day;
+    const dayOfWeek = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 6 ? raw : 5;
+    if (end.getDay() === dayOfWeek) return null; // payday on the last day — already settled
+    const d = new Date(end);
+    do { d.setDate(d.getDate() + 1); } while (d.getDay() !== dayOfWeek);
+    return toLocalDateStr(d);
+  }
+
+  // Biweekly: walk the phase-anchored grid to the first payday strictly after `end_date`.
+  const d = resolveBiweeklyAnchor(rule, today);
+  if (d <= end) {
+    // Jump whole cycles then close the remainder, same exact arithmetic as
+    // `getBiweeklyDatesInMonth` — day-differencing noon-anchored dates never lands off-phase.
+    const wholeCycles = Math.floor(Math.round((end.getTime() - d.getTime()) / DAY_MS) / 14);
+    d.setDate(d.getDate() + wholeCycles * 14);
+    while (d <= end) d.setDate(d.getDate() + 14);
+    const previous = new Date(d);
+    previous.setDate(previous.getDate() - 14);
+    if (previous.getTime() === end.getTime()) return null; // payday on the last day
+  }
+  // `d > end` on entry means the rule ended before its very first payday, in which case that first
+  // payday IS the final earned cheque — the anchor itself, which is what `d` already holds.
+  return toLocalDateStr(d);
+}
+
+/**
+ * Whether one occurrence date survives the rule's `end_date`. The single gate every generator
+ * shares, so none of them can disagree about where a schedule stops.
+ *
+ * `end_date` truncates, with exactly one exception: the final earned paycheck of a weekly/biweekly
+ * income rule (see `trailingEarnedPayDate`).
+ *
+ * ⚠️ COMPARED AS `YYYY-MM-DD` STRINGS, not Dates. `new Date('2027-08-27')` parses as UTC MIDNIGHT,
+ * which is 2027-08-26 20:00 in US Eastern — so the old `d <= new Date(rule.end_date)` bound in
+ * `generateScheduledEvents` dropped a paycheck landing ON its own end date, stopping a biweekly
+ * income a FULL CYCLE early. Lexicographic comparison of the date strings has no timezone and no
+ * time-of-day in it at all.
+ */
+export function occurrenceSurvivesEndDate(
+  rule: EndDatedRule,
+  iso: string,
+  today: Date = new Date(),
+): boolean {
+  if (!rule.end_date) return true;
+  if (iso <= rule.end_date.slice(0, 10)) return true;
+  return iso === trailingEarnedPayDate(rule, today);
+}
+
 // Generate scheduled events for the next N months from recurring rules
 export function generateScheduledEvents(
   rules: RuleRow[],
@@ -217,7 +317,12 @@ export function generateScheduledEvents(
     if (!rule.active) continue;
 
     const startDate = rule.start_date ? new Date(rule.start_date) : from;
-    const ruleEnd = rule.end_date ? new Date(rule.end_date) : endDate;
+    // END OF THE END DATE'S DAY, not its UTC midnight. `new Date('2027-08-27')` is 2027-08-26 20:00
+    // in US Eastern, so an occurrence at local noon on its own end date compared GREATER than the
+    // bound and was dropped — a biweekly income ending on a payday stopped a full cycle early and
+    // lost that $1,100 cheque outright. The per-month generators parse at 'T12:00:00' and did NOT
+    // have the bug, so the two paths also disagreed by one paycheck.
+    const ruleEnd = rule.end_date ? new Date(`${rule.end_date.slice(0, 10)}T23:59:59.999`) : endDate;
     const effectiveEnd = ruleEnd < endDate ? ruleEnd : endDate;
 
     const accountName = rule.deposit_account
@@ -316,6 +421,23 @@ export function generateScheduledEvents(
         d.setFullYear(d.getFullYear() + 1);
       }
     }
+
+    // The final EARNED paycheck of a weekly/biweekly income rule, which lands after `end_date` and
+    // so is unreachable from any loop above — every one of them stops at `effectiveEnd`. That is
+    // also why this can never duplicate an event: the trailing date is strictly after `end_date`
+    // and the loops emit nothing past it. Bounded by `from`/`endDate` like the loops are, so a
+    // rule that ended before today contributes nothing.
+    const trailing = trailingEarnedPayDate(rule, from);
+    if (trailing && trailing >= toLocalDateStr(from) && trailing <= toLocalDateStr(endDate)) {
+      events.push({
+        date: trailing,
+        name: rule.name,
+        amount: Number(rule.amount),
+        type: rule.rule_type as ScheduledEvent['type'],
+        source: accountName,
+        ruleId: rule.id,
+      });
+    }
   }
 
   return events.sort((a, b) => a.date.localeCompare(b.date));
@@ -340,6 +462,7 @@ export function countRuleOccurrencesInMonth(
   rule: {
     frequency: string; due_day?: number | null;
     start_date?: string | null; end_date?: string | null; created_at?: string | null;
+    rule_type?: string | null;
   },
   year: number,
   month: number,
@@ -348,13 +471,42 @@ export function countRuleOccurrencesInMonth(
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 0);
   if (rule.start_date && new Date(rule.start_date + 'T00:00:00') > monthEnd) return 0;
-  if (rule.end_date && new Date(rule.end_date + 'T00:00:00') < monthStart) return 0;
+  if (rule.end_date && new Date(rule.end_date + 'T00:00:00') < monthStart) {
+    // The whole-month gate is not the last word for a weekly/biweekly income rule: its final
+    // earned paycheck lands AFTER `end_date`, so it can fall in a month the rule has otherwise
+    // finished. Every other frequency (and every expense) gets null back and still returns 0.
+    const trailing = trailingEarnedPayDate(rule, today);
+    return trailing != null
+      && trailing >= toLocalDateStr(monthStart) && trailing <= toLocalDateStr(monthEnd) ? 1 : 0;
+  }
   if (rule.frequency === 'monthly') return 1;
   if (rule.frequency === 'semi_monthly') return 2;
   if (rule.frequency === 'yearly') return 1 / 12;
   const dayOfWeek = rule.due_day ?? 5;
-  if (rule.frequency === 'weekly') return countWeekdayInMonth(year, month, dayOfWeek);
-  if (rule.frequency === 'biweekly') return getBiweeklyDatesInMonth(rule, year, month, today).length;
+  // ⚠️ THE `end_date` BRANCHES BELOW EXIST BECAUSE THE MONTH GATE ABOVE IS TOO COARSE FOR A RULE
+  // THAT ENDS MID-MONTH. `countWeekdayInMonth` counts every matching weekday in the month, so a
+  // weekly income ending on the 5th was still counted as four paychecks in its final month — 4
+  // where `getRuleOccurrenceDatesInMonth` (which has honoured end_date per occurrence since it was
+  // written) said 0. The no-`end_date` path is left literally untouched, which is nearly every
+  // rule: it must stay byte-identical.
+  if (rule.frequency === 'weekly') {
+    if (!rule.end_date) return countWeekdayInMonth(year, month, dayOfWeek);
+    const d = new Date(year, month, 1);
+    while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
+    let count = 0;
+    while (d.getMonth() === month) {
+      if (occurrenceSurvivesEndDate(rule, toLocalDateStr(d), today)) count++;
+      d.setDate(d.getDate() + 7);
+    }
+    return count;
+  }
+  if (rule.frequency === 'biweekly') {
+    if (!rule.end_date) return getBiweeklyDatesInMonth(rule, year, month, today).length;
+    // The grid is generated UNCLAMPED (`end_date: null`) because the trailing cheque is by
+    // definition past the date `getBiweeklyDatesInMonth` clamps at; the shared gate then decides.
+    return getBiweeklyDatesInMonth({ ...rule, end_date: null }, year, month, today)
+      .filter(d => occurrenceSurvivesEndDate(rule, toLocalDateStr(d), today)).length;
+  }
   return 0;
 }
 
