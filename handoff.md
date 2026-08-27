@@ -1,5 +1,77 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-27 SESSION 36j — **`b6d7382f`. tsc 0, 290 files / 3102 tests, eslint
+> clean. 42 commits unpushed.** Session 36i's queue item 2 (the auto_loan half) is
+> SHIPPED. Manager built it; no executor spawned. Context gate fired at 179k.
+>
+> ═══ SHIPPED THIS SESSION ═══
+> - **`b6d7382f` — AN AUTO LOAN NO CAR FUND CLAIMS TAKES REAL CASH.**
+>   `DEBT_SERVICE_ACCOUNT_TYPES` excluded every `auto_loan` because "a `car_funds`
+>   row carries the payment". True only of the loans a car fund actually CLAIMS,
+>   and claiming is a **LINK, not a TYPE**. An `auto_loan` account paired to a
+>   `debts` row with no fund linked had its balance amortized to zero by
+>   `buildNonCCLiabilities` with nothing leaving projected cash — the same "paid
+>   itself down out of thin air" defect `82076865` fixed for student loans. The
+>   old test suite PINNED it with a comment saying it was a defect and out of
+>   scope; this was that scope. The exclusion now runs through
+>   `excludedAccountIds`, which every caller already passes.
+> - **`linkedLoanAccountIds` widened to match.** It required
+>   `resolveLinkedLoanBalance` to return a number, so a fund linked to a LIVE
+>   account with a null/zero/negative balance claimed nothing and the loan was
+>   represented twice — near-invisible as a row of zeros, a double CASH charge the
+>   moment `auto_loan` joined the debt-service set. The fund amortizes its typed
+>   `loan_amount` in that case; still the same loan, so still claimed. An INACTIVE
+>   linked account is unchanged (claims nothing, reaches no forecast surface).
+> - **Knock-on, deliberate:** an unclaimed auto loan is now a RANKABLE liability
+>   ("Where the extra money goes"), the same treatment a student loan gets — honest
+>   now that its payment really leaves cash. `buildRankableLiabilities`' fixture
+>   test was updated to expect it, and its vehicle-link case now excludes the
+>   `auto` id instead of using a mortgage as a stand-in for a vehicle link.
+> - 4 new tests (2 engine: pays an unclaimed auto loan / leaves a claimed one alone
+>   even with no usable balance; 2 pure on the widened claim rule). **Both rules
+>   proven to bite:** restoring the `auto_loan` exclusion fails the engine case with
+>   $0 of cash for a real payment; restoring the old `linkedLoanAccountIds` fails
+>   two, incl. the case that would charge $450 on top of the car fund's payment.
+>
+> ═══ NOT LIVE-VERIFIED, AND WHY ═══
+> - ⚠️ **NO CHANGE ON TRE'S OWN DATA, by construction.** His one `auto_loan`
+>   (`FIXED RATE LOAN`) is linked to the C5 car fund, so it is claimed under BOTH
+>   the old rule and the new one, and it has **no `debts` row at all**. Every
+>   real-data convergence test and `goldenTierA` green and unmoved. There is no
+>   number on his screen this could move — pinned by tests instead.
+>
+> ═══ ⬜ QUEUE, IN PRIORITY ORDER ═══
+> 1. Two items BLOCKED ON HIS GF'S ACCOUNT — **ask which account first.**
+> 2. ⚠️ **NEW, SAME DEFECT CLASS, FOUND WHILE FIXING THE ABOVE:** a `debts` row
+>    with **NO account** amortizes with no cash leaving. `buildNonCCLiabilities`'
+>    second loop gives it a `debt:<id>` row at its own apr/`target_payment`, but
+>    `listDebtServiceLiabilities` iterates ACCOUNTS only, so nothing is ever
+>    charged. That is the ordinary manual-entry shape (a debt the user typed with
+>    no connected account), so it is probably the bigger of the two. Left alone
+>    deliberately: fixing it means relaxing the "PAIRING IS REQUIRED" doctrine and
+>    it makes such rows RANKABLE, which is a product call, and the double-count
+>    risk is real (a user whose cash side is a differently-named expense rule).
+> 3. Still open from the same queue line: **Feb 2031 breach** (⛔
+>    `scratchpad/llm/floor_out.md` IS WRONG); **mobile deck `b83698e5` NOT
+>    device-verified.**
+> 4. Month 0 builds one target per GOAL where the engine builds one per STOP —
+>    audit whether that changes any month-0 reserve on a staged plan.
+> 5. Final-payment true-up on non-CC debts (opened by `82076865`).
+> 6. Garage card's big date vs its amortization table = TWO MODELS. Product call.
+> 7. Older open asks: Roth IRA cap + level monthly (`scratchpad/llm/roth_out.md`,
+>    unapplied), garage amortization vs ranked extra (`garage_out.md`,
+>    UNREVIEWED), "not open yet" note + payoff-method ordering on Venture X /
+>    Apple Card.
+>
+> ⚠️ A double-count NEITHER half can see, documented in both files: a `car_funds`
+> loan for the same vehicle the user never LINKED, paying alongside a paired
+> `debts` row. Only the explicit FK can settle it — `vehicle-loan-link.ts` refuses
+> a name heuristic on purpose (a false positive there silently rewrites a balance).
+>
+> ⚠️ Weekly usage cap override still at **92** in `~/.claude/bin/usage_cap_hook.py`
+> and `usage_resume_watch.py` — **restore to 75.0 after the 2026-08-31 18:00 reset.**
+
+
 > ▶ 2026-08-27 SESSION 36i — **`6285c804`. tsc 0, 290 files / 3099 tests, eslint
 > clean. 41 commits unpushed.** Session 36h's queue item 1 is SHIPPED. Manager
 > built it; no executor spawned. Context gate fired at 177k.
