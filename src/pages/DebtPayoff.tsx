@@ -13,6 +13,10 @@ import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
+import { projectLiabilityBalances } from '@/lib/non-cc-liabilities';
+import { PROJECTION_MONTHS } from '@/lib/scheduling';
+import LiabilityTrajectoryChart from '@/components/debt/LiabilityTrajectoryChart';
+import type { LiabilityTrajectoryInput } from '@/lib/liability-trajectory';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
@@ -186,6 +190,38 @@ export default function DebtPayoff() {
     return extras.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
+  /**
+   * The lines the Mortgage / Student Loans / Other Debts trajectory chart draws.
+   *
+   * The id is the SAME key `buildNonCCLiabilities` gives the row - the paired account's id, or
+   * `debt:<id>` for a debts row with no account - so the chart reads the engine's own array rather
+   * than re-deriving one. When the engine has no row for a debt (nothing paired it, nothing
+   * projected it) the fallback amortizes the figures the card itself is showing, which is exactly
+   * where its "Payoff In" months come from: a line that cannot disagree with the number beside it.
+   */
+  const liabilityTrajectoryInputs = (list: typeof otherDebts): LiabilityTrajectoryInput[] =>
+    list.map(d => {
+      const paired = pairedLiabilityAccount(d.name);
+      const id = paired?.id ?? `debt:${d.id}`;
+      const extras = (paired && autoExtraTargets.get(paired.id)) || null;
+      const engineBalances = projections.nonCCLiabilityBalancesById.get(id);
+      // `LIABILITY_MONTHS` - the engine's arrays carry one trailing closing balance past the last
+      // forecast month, and the fallback must be the same length or the two would end on different
+      // months depending on which one a debt happened to get.
+      const scheduled = projectLiabilityBalances(
+        liabilityBalance(d), Number(d.apr), Number(d.target_payment), PROJECTION_MONTHS + 1,
+      );
+      return {
+        id,
+        name: d.name,
+        balances: engineBalances ?? scheduled,
+        extrasByMonth: extras,
+        // Only a debt the waterfall actually reaches gets a second line; for every other debt the
+        // scheduled walk IS the drawn line, and drawing it twice says nothing.
+        scheduled: extras?.some(v => v > 0) ? scheduled : null,
+      };
+    });
+
   const { restored: draftRestored, discard: discardDraft } = useFormDraft({
     formKey: 'debts',
     open: showForm,
@@ -253,6 +289,53 @@ export default function DebtPayoff() {
   const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
   const savingVehicles = useMemo(() => carFunds.filter(c => c.phase === 'saving'), [carFunds]);
+
+  /**
+   * The same chart for the Auto Loans tab, from the engine's per-fund arrays.
+   *
+   * /vehicles already draws a chart PER LOAN; this is the one that answers "when does all of my
+   * car debt go away", which is the question this page is for, and it keeps the five tabs from
+   * being four-with-a-picture-and-one-without.
+   *
+   * ⚠️ THE SCHEDULED COMPANION IS JOINED ON THE CALENDAR MONTH, NOT ON POSITION. The amortization
+   * schedule is indexed by payment number and dated from `payment_start_date` — in the past for a
+   * loan already running — while the engine's array is indexed from THIS month. Lining them up by
+   * index credits a payment made next year to a row from last year (the same trap /vehicles hit).
+   */
+  const autoTrajectoryInputs = (): LiabilityTrajectoryInput[] => {
+    const now = new Date();
+    const baseMonth = now.getFullYear() * 12 + now.getMonth();
+    return loanVehicles.flatMap(cf => {
+      if (!cf.payment_start_date || !cf.loan_start_date) return [];
+      const proj = buildAmortizationSchedule({
+        loanAmount: cf.loan_amount, apr: cf.expected_apr, termMonths: cf.loan_term_months,
+        loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
+        interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
+        actualMonthlyPayment: cf.actual_monthly_payment,
+        lumpSumPayments: cf.lump_sum_payments ?? [],
+        currentBalance: cf.current_balance_override ?? null,
+      });
+      // NaN, not 0, for a month the schedule does not cover: the chart reads a non-finite entry as
+      // "not projected" and leaves a gap, where a 0 would draw a paid-off loan that isn't.
+      const scheduled = new Array<number>(PROJECTION_MONTHS + 1).fill(Number.NaN);
+      for (const r of proj.schedule) {
+        const d = new Date(r.date + 'T00:00:00');
+        const i = (d.getFullYear() * 12 + d.getMonth()) - baseMonth;
+        if (i >= 0 && i < scheduled.length) scheduled[i] = r.startBalance;
+        // The month AFTER the last payment opens at nothing, and saying so is what lets the line
+        // land on zero instead of stopping in mid-air.
+        if (i + 1 >= 0 && i + 1 < scheduled.length) scheduled[i + 1] = r.endBalance;
+      }
+      const extras = autoExtraTargets.get(cf.id) ?? null;
+      return [{
+        id: cf.id,
+        name: cf.vehicle_name,
+        balances: projections.carLoanBalancesByFundId.get(cf.id) ?? scheduled,
+        extrasByMonth: extras,
+        scheduled: extras?.some(v => v > 0) ? scheduled : null,
+      }];
+    });
+  };
 
   // The Auto / Mortgage / Student / Other tabs are fed by `debts` and `carFunds`,
   // not by `accounts`. Gating on accounts alone flashed "No mortgage tracked yet"
@@ -391,6 +474,12 @@ export default function DebtPayoff() {
               </div>
             </div>
           )}
+          <LiabilityTrajectoryChart
+            title="Auto Loan Payoff Trajectory"
+            debts={autoTrajectoryInputs()}
+            storageKey="tre:debtpayoff:auto:chart-years"
+            icon={Car}
+          />
           <div className="space-y-3">
             {loanVehicles.map(cf => {
               if (!cf.payment_start_date || !cf.loan_start_date) return null;
@@ -539,6 +628,11 @@ export default function DebtPayoff() {
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment, false)}</p></div>
           </div>
+          <LiabilityTrajectoryChart
+            title="Other Debt Payoff Trajectory"
+            debts={liabilityTrajectoryInputs(otherDebts)}
+            storageKey="tre:debtpayoff:other:chart-years"
+          />
           <div className="space-y-3">
             {otherDebts.map(d => {
               const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
@@ -644,6 +738,11 @@ export default function DebtPayoff() {
               </div>
             </div>
           )}
+          <LiabilityTrajectoryChart
+            title="Mortgage Payoff Trajectory"
+            debts={liabilityTrajectoryInputs(mortgageDebts)}
+            storageKey="tre:debtpayoff:mortgage:chart-years"
+          />
           <div className="space-y-3">
             {mortgageDebts.map(d => {
               const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
@@ -710,6 +809,11 @@ export default function DebtPayoff() {
               </div>
             </div>
           )}
+          <LiabilityTrajectoryChart
+            title="Student Loan Payoff Trajectory"
+            debts={liabilityTrajectoryInputs(studentDebts)}
+            storageKey="tre:debtpayoff:student:chart-years"
+          />
           <div className="space-y-3">
             {studentDebts.map(d => {
               const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);

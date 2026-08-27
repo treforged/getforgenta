@@ -237,7 +237,7 @@ export type OtherDebtRecRow = NonNullable<MonthlyDebtBreakdown['otherDebtRecomme
  *
  * The payment is capped at the balance-with-interest, so a final payment shows the true-up rather
  * than the nominal figure — the same courtesy `getActiveCarLoanPayments` does for a vehicle loan,
- * and it is computed with the same one-month step `buildNonCCLiabilities.projectBalances` uses so
+ * and it is computed with the same one-month step `projectLiabilityBalances` uses so
  * the row and the projected balance cannot disagree about when the debt ends.
  */
 export function buildOtherDebtRecommendations(params: {

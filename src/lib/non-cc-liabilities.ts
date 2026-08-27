@@ -104,8 +104,15 @@ export interface NonCCLiabilities {
 
 const norm = (name: string | null | undefined): string => (name ?? '').trim().toLowerCase();
 
-/** Opening balances for `months` months, amortized at apr with a fixed payment. */
-function projectBalances(start: number, apr: number, payment: number, months: number): number[] {
+/**
+ * Opening balances for `months` months, amortized at apr with a fixed payment — the target payment
+ * ALONE, no ranked extra money.
+ *
+ * Exported since 2026-08-27 because /debt's non-CC tabs draw a "without extra payments" companion
+ * line and it has to come from the function that SEEDS the engine's array, not from a second
+ * amortizer that agrees with it today and drifts tomorrow.
+ */
+export function projectLiabilityBalances(start: number, apr: number, payment: number, months: number): number[] {
   const monthlyRate = (Number(apr) || 0) / 1200;
   const pay = Number(payment) || 0;
   const out = new Array<number>(months).fill(0);
@@ -154,7 +161,7 @@ export function buildNonCCLiabilities(params: {
       name: a.name,
       account_type: a.account_type,
       // The connected account's balance is the truth; the debts row only lends apr/payment.
-      balances: projectBalances(
+      balances: projectLiabilityBalances(
         Number(a.balance) || 0,
         Number(matched?.apr ?? 0),
         Number(matched?.target_payment ?? 0),
@@ -173,7 +180,7 @@ export function buildNonCCLiabilities(params: {
       id: `debt:${d.id ?? n}`,
       name: d.name,
       account_type: 'other_liability',
-      balances: projectBalances(
+      balances: projectLiabilityBalances(
         Number(d.balance) || 0,
         Number(d.apr ?? 0),
         Number(d.target_payment ?? 0),
@@ -339,7 +346,7 @@ export function isOtherDebtPaymentOwed(
  * to `min_payment`), for as long as {@link isOtherDebtPaymentOwed} says that debt still owes
  * anything.
  *
- * The balances it tests against are projected here, with the same {@link projectBalances} walk and
+ * The balances it tests against are projected here, with the same {@link projectLiabilityBalances} walk and
  * the same `target_payment` {@link buildNonCCLiabilities} uses, so this schedule stops in the month
  * the drawer's own row reaches zero. It is the RANKED-EXTRA-BLIND version: nothing here knows about
  * extra principal, so a debt an extra clears early keeps being charged to its scheduled end. The
@@ -386,7 +393,7 @@ export function buildOtherDebtPaymentSchedule(params: {
     if (l.paidByExpenseRule || !(l.payment > 0)) continue;
     // `months + 1`, so the last month has an entry to test and the walk matches the engine's
     // LIABILITY_MONTHS arrays entry for entry.
-    const balances = projectBalances(l.balance, l.apr, l.amortizingPayment, months + 1);
+    const balances = projectLiabilityBalances(l.balance, l.apr, l.amortizingPayment, months + 1);
     for (let m = 0; m < months; m++) {
       if (isOtherDebtPaymentOwed(l, balances, m)) out[m] += l.payment;
     }
