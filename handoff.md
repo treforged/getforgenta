@@ -1,5 +1,64 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35q — **THE N-STAGE REDESIGN IS BUILT, APPLIED AND
+> LIVE-VERIFIED ON TRE'S OWN DATA (`2ab63346`).** tsc 0, 279 files / 2912 tests.
+> Local only, unpushed. Every one of the six changes in 35p's spec is done.
+>
+> **WHAT SHIPPED.** `savings_goals.stages jsonb not null default '[]'` holds an
+> ordered list of stops, each `{id, name?, amount?|months?, target_date?,
+> after_cards?}`. Sized by EXACTLY ONE of amount/months (the DB enforces it).
+> Thresholds are CUMULATIVE, which is what lets a filled stop leave the list
+> without moving any of the others.
+>
+> - **Migration applied** to mdtosrbfkextcaezuclh, file at
+>   `supabase/migrations/20260826_savings_goals_stages.sql`, `types.ts` patched
+>   in the same commit. ⚠️ THE SHAPE CHECK HAD TO BE AN IMMUTABLE FUNCTION
+>   (`public.savings_goal_stages_valid`): Postgres refuses a subquery inside a
+>   CHECK ("0A000") and walking a jsonb array is one, however it is written.
+> - **The backfill** turns the two legacy columns into three stops with
+>   BYTE-IDENTICAL thresholds and moves the goal's own `target_date` onto stop 1
+>   (a second migration did that half; do not drop it).
+> - `emergency_months_stage1/2` are KEPT for one release and read ONLY when
+>   `stages` is empty, so a row the backfill missed keeps its plan. Every save
+>   nulls them, so a row can never carry both plans.
+> - `openThresholdOf` cuts the plan at the FIRST `after_cards` stop; the engine's
+>   `revBalTotal <= 0` unlock is unchanged, because cards clear exactly once and
+>   one gate therefore covers every stop behind it.
+> - **The goal's OWN ranked row is the CURRENT stop and ADVANCES as stops fill.**
+>   Later stops are derived rows `<goalId>::stopN` — waiting ones seated after
+>   the last card, the rest under the goal. `derived` is still load-bearing:
+>   every planner skips those ids.
+>
+> **LIVE ON HIS DATA** (:8080 → Dashboard → Goals):
+> ranked list 1 Prime Visa · 2 Move fund **FIRST TARGET 1/3, $5,624 to go** ·
+> 3 **EMERGENCY RUNWAY 2/3**, $10,598 queued · 4 Discover · 5 Venture X ·
+> 6 Apple Card · 7 **FULL RUNWAY 3/3**, $10,598 once the cards are clear
+> (WAITING) · 8 C5 loan · 9 Roth IRA.
+> Goal card: `1. First target by Jul 2027 $5,730 now` / `2. Emergency runway
+> $16,328 queued` / `3. Full runway $26,925 after cards`.
+> Modal: the stop editor renders his three stops and there is **no Target Amount
+> field** — exactly what he asked for.
+>
+> ⚠️ `target_amount` IS NOW A CACHED DISPLAY TOTAL on a staged goal, rewritten to
+> the stops' sum on save. `goalStages` IGNORES it whenever `stages` is non-empty;
+> adding it would double stop #1. Do not "fix" the Dashboard/AiAdvisor readers by
+> summing both.
+>
+> ⬜ STILL QUEUED, untouched by this session:
+> 1. Not-yet-live cards (Venture X, Apple Card) shown with a "not open yet" note
+>    and ordered by the payoff method. They already render individually.
+> 2. The card mode always requiring a selection (default "as one group").
+> 3. Roth IRA annual cap with LEVEL monthly amounts — a usable DRAFT helper is at
+>    `scratchpad/llm/roth_out.md`; take the helper, write the wiring yourself.
+> 4. Investing auto-transfer uncapped.
+> 5. Garage amortization SCHEDULE reflecting ranked auto-extra — unreviewed draft
+>    at `scratchpad/llm/garage_out.md`.
+> 6. The Feb 2031 $48.86 breach. ⛔ THE FREE-LLM DIAGNOSIS AT
+>    `scratchpad/llm/floor_out.md` IS WRONG — do not apply it; start from 35l.
+>
+> ROUTING NOTE: built inline by the manager. Money math on a live balance;
+> Claude executors need Tre's per-case yes.
+
 > ▶ 2026-08-26 SESSION 35p — **STAGES ARE LIVE ON TRE'S GOAL AND SEPARATED IN THE
 > LIST (`e1d5841a`). THREE SLICES WERE DELEGATED TO THE FREE-LLM TIER: ONE IS A
 > REJECT, TWO ARE DRAFTS. AND TRE HAS REDESIGNED THE FEATURE - READ "THE N-STAGE
