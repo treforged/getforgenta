@@ -1,5 +1,65 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-26 SESSION 35o — **STAGED EMERGENCY GOAL IS COMPLETE AND LIVE-VERIFIED.
+> `0709de5e` + `6e54cda8`, local only, unpushed. tsc 0, 2889/2889.**
+>
+> All four of 35n's next steps are done.
+>
+> 1. **MIGRATION APPLIED** to mdtosrbfkextcaezuclh:
+>    `savings_goals.emergency_months_stage1/2 numeric null`, file at
+>    `supabase/migrations/20260826_savings_goals_emergency_stages.sql`. Two
+>    constraints: non-negative, and stage 2 cannot exist without stage 1 (a lone
+>    stage 2 is silently ignored by `goalStages`, so it should not be storable).
+>    `types.ts` patched in the SAME commit.
+> 2. **THE THREE CALL SITES ARE THREADED.** `surplus-ranking.ts` gained
+>    `essentialMonthlyExpenses` and builds its stage context from the same `cards`
+>    it builds the block row from; `useSurplusRanking` computes the figure
+>    (funding account resolved the way `CardProjectionContext` resolves it);
+>    `useCardProjection` and `useForecastEngineInputs` pass it into
+>    `buildRankedTargets`. `revolvingRemainingOf` is now structural
+>    (`RevolvingCard`) so an `accounts` row and a `CardData` compute the gate
+>    identically — safe because `buildCardData` sets `autopayFullBalance` to
+>    exactly `balance <= 0`.
+> 3. **THE UI SHIPPED** in `SavingsGoals.tsx`: an "Emergency Runway (optional)"
+>    section in the goal form — a toggle, two month inputs, and the derived
+>    dollars printed LIVE off the same `goalStages` the engine uses.
+> 4. **28 TESTS** in `src/lib/__tests__/staged-emergency-goal.test.ts`.
+>
+> **LIVE-VERIFIED on Tre's own data** (localhost:8080 → Dashboard → Goals → edit
+> "Move fund, then emergency fund"): "One month of essentials is **$3,533**",
+> first stop **$16,328**, then **$26,925**. The modal was CLOSED WITHOUT SAVING —
+> his goal still has no stages stored, which is the pending decision below.
+>
+> ⚠️ THE DERIVED FIGURE IS $3,533, NOT THE $3,386 SESSION 35m HAND-SUMMED. The
+> $147/mo gap is the module counting his rows rather than a human adding them up,
+> and $3,533 is the number the engine will actually use. Do not "correct" it back.
+>
+> TWO FIXTURE TRAPS the tests cost an hour to find, written down so they are not
+> re-paid: with `profiles.cards_sort_order` at its default 0 the card block wins
+> the rank tie, takes everything, and the goal is NEVER funded — which looks
+> exactly like the stage gate working; and a $1,000 expense rule with no paycheck
+> leaves no surplus at all, so every assertion passes for the wrong reason. The
+> fixture now sets `cards_sort_order: 5` and a real `weeklyGross`.
+>
+> WOULD-FAIL CHECK RUN, not asserted: forcing `stagedTail` to 0 where
+> `autoExtraCapacity` is seeded fails "resumes to stage 2" (1 failed / 27 passed).
+>
+> ⬜ NEXT:
+> 1. **TRE'S DECISION, not a build step:** nothing is stored on his goal yet. If
+>    he wants 3-and-6, open the goal, tick "Add months of expenses", save. Worth
+>    telling him the numbers first — $16,328 then $26,925 on a $5,730 base.
+> 2. **STILL QUEUED from 35l/35m**, untouched by this session: not-yet-live cards
+>    shown individually with a "not open yet" note, ordered by the payoff method,
+>    seated after Discover and before the car-loan extras; "always require a
+>    selection" for the card mode defaulting to "as one group"; Roth IRA annual
+>    cap with LEVEL monthly amounts; investing auto-transfer uncapped; Garage
+>    amortization SCHEDULE reflecting ranked auto-extra; and the Feb 2031 $48.86
+>    breach whose root cause is written up in 35l.
+>
+> ROUTING NOTE, same as 35n: built inline by the manager. This is convergence-
+> adjacent money math and the free-`llm` tier's only code sample scored 2.7;
+> Claude executors need Tre's per-case yes.
+
 > ▶ 2026-08-26 SESSION 35n — **STAGED EMERGENCY GOAL: THE ENGINE HALF IS BUILT
 > AND COMMITTED (`974c6fff`, local only, unpushed). tsc 0, 2113/2113 lib tests.
 > IT IS INERT UNTIL THE MIGRATION LANDS - that is the next action.**
