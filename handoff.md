@@ -1,7 +1,96 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36r. **PAUSED ON THE USAGE CAP**
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36s. FIX 1 SHIPPED AND GATED.
+> FIX 2 RE-DIAGNOSED - THE OLD DIAGNOSIS IS WRONG, AND IT NOW NEEDS TRE.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> **STATE: tsc 0, 296 files / 3137 tests green, working tree clean, commits
+> local on `main` (nothing pushed).**
+>
+> ### ✅ FIX 1 - DONE. `2cfc14db` (behaviour) + `676c24d8` (tests + one defect)
+> A new credit card now takes its own rank on creation instead of dropping into
+> the block and overwriting a "One row each" choice. 14 tests, incl. the
+> regression pin that a staged goal's STOP below the seat is patched through
+> `goalStages`, not `goals` - the thing that broke the Prime Visa / move-fund
+> split pairing on 2026-08-27 and had to be repaired by hand in SQL. That pin
+> covers `planCardSeparationWrites` too, which had the same trap.
+> **One defect the tests caught:** the planner was bumping the card BLOCK row,
+> which would have walked `profiles.cards_sort_order` one lower per card ever
+> added. Excluded now.
+>
+> ⚠️ **STILL UNVERIFIED IN A BROWSER.** Unit-pinned, never clicked. Worth one
+> pass on localhost:8080 (`dev-signin` skill): with the list on "One row each",
+> create a throwaway credit card, confirm it lands at its own rank in strategy
+> position and the Prime Visa / move-fund split SURVIVES, then delete it.
+>
+> 🔎 **GAP FOUND, NOT FIXED (deliberate, out of the asked scope).** The seat is
+> assigned in the ACCOUNT-CREATION path, which is `Accounts.tsx` only. A card
+> created by the **Plaid sync** (`supabase/functions/_shared/sync-handler.ts`
+> inserts `accounts` rows directly) still lands with a NULL rank and reproduces
+> the whole bug. The durable fix would be a self-heal in `useSurplusRanking`,
+> but it needs a way to tell "individual + one new card" from a legacy MIXED
+> list, and today `cardMode` is DERIVED, so there is nothing that can tell them
+> apart. Storing the chosen mode is the real answer. Queued, not started.
+>
+> ### ⚠️ FIX 2 - THE 36q DIAGNOSIS IS WRONG. READ THIS BEFORE TOUCHING THE ENGINE
+> 36q said: *"the defect is in `credit-card-engine.ts` Step 2's cycling-pool
+> funding ... `paidOffPool` is starved in tight months while $710+ goes to Prime
+> Visa and Discover the same month."* **Both halves of that are false, verified in
+> the source this session:**
+> - **The $710 is MINIMUMS**, not extra. Prime $559 + Discover $150 = $709. Tre
+>   already ruled minimums untouchable in 36q ("the payment plans should be
+>   guaranteed paid, hence why they are included in the cards minimum"), so they
+>   correctly outrank the grocery statement.
+> - **The cycling pool ALREADY outranks every discretionary dollar.** Step 2
+>   computes `paidOffCashCost` first; Step 5's `availableCash` is explicitly what
+>   is left AFTER it (`credit-card-engine.ts:1748-1752`). There is no ordering
+>   defect in Step 2 to fix. Do not go re-order that pool - that is the change
+>   that has been reverted three times.
+> - Also ruled out this session: **double-counting**. Card-charged rules are
+>   pulled out of cash expenses by `ccExplicitRuleIds` / `ccDefaultRuleIds`
+>   (`useForecastEngineInputs.ts:282-296`), so the $230 of groceries leaves cash
+>   exactly once, one month later, as the statement payment.
+>
+> **What is actually happening:** Nov 2026 genuinely has no cash. 36q measured it
+> ending **$2,333 against a $2,444 floor** while paying only minimums. The engine
+> giving the card $50 of a $230 statement is ARITHMETICALLY CORRECT given the
+> floor. Forcing full payment from inside Step 2 could only come out of the cash
+> floor or out of a contractual minimum, and both are worse than the ~$13 of
+> 29.99% interest it avoids.
+>
+> **The only lever left is CROSS-MONTH, and it is the one 36q closed.** Oct 2026
+> pays Prime **$715 = $559 min + $156 DISCRETIONARY** and ends pinned to its own
+> floor. Held as cash, that $156 would let Nov pay $206 of the $230 instead of
+> $50. That is the save-up pull-back, and 36q found why it never binds:
+> `forecast-engine.ts:2304` hands the month to the sim's ledger and
+> `credit-card-engine.ts:1819-1824` lets `debtCashTargetByMonth` OVERWRITE
+> `mDebtCap` ("Wins over mDebtCap"), while the target is just the sim's own spend
+> echoed back - so the cap never enters the fixed point.
+>
+> ### ❓ THIS IS NOW A QUESTION FOR TRE, NOT A BUILD (it is in "Your actions")
+> He ruled "leave as is" in 36q, but he ruled it about **minimums**. This is about
+> **discretionary extra**, which his own reasoning does not cover. The fork:
+> **(a)** make the look-ahead cap bind on DISCRETIONARY spend only (minimums
+> always exempt) so a month can hold cash back for next month's full-balance
+> statement - the real fix, and a change to the convergence fixed point, so it
+> needs the full adversarial treatment and a fixture recapture; or **(b)** accept
+> it and stop calling it a defect - the cost is ~$13 of interest across Nov-Jan
+> and the card self-corrects by Jan. Recommend **(a)**, because the app currently
+> tells him he is revolving on the one card whose whole point is that he does not.
+> ⚠️ Whichever he picks, **do not re-open the MINIMUM-payment pull-back.**
+>
+> ### CAP HOUSEKEEPING
+> - Weekly usage cap override is **97**; restore to 75.0 after the 2026-08-31
+>   18:00 ET reset.
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+> - Then the 36p queue below (Debt Payoff span at 390px; "not open yet" note +
+>   payoff-method ordering on Venture X / Apple Card; the Garage card's two
+>   payoff dates in `src/components/vehicles/LoanCard.tsx` - MEASURE first).
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36r - superseded by 36s above; kept for the file list.
+> **PAUSED ON THE USAGE CAP**
 > (weekly 96% >= cap 96%, resets 18:00 ET 2026-08-31). Read THIS block first;
 > the 36q brief below it is still the map for FIX 2 and everything older.
 > ═══════════════════════════════════════════════════════════════════════
