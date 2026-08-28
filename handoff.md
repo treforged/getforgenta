@@ -44,6 +44,36 @@
 > and it never mentions the hard pull, the lease, or the waitlist itself.
 > Nothing is pending on me from this thread.
 >
+> === 3. HIS COUNTER-PLAN, AND I AGREE WITH IT (advisory; NOT yet modelled) ===
+> Tre: *"what if i push off venture x to 2028 and just got robinhood gold this
+> month, the gold card at the beginning of next month, only put groceries on it
+> and paid it in full every month... like how my debit card is acting for my
+> groceries right now, but i get the benifits out of it."*
+> Verified off `engineInputs` LIVE:
+> - Grocery rules are **$230/mo on CHASE CHECKING** + **$240/mo already earmarked
+>   to Venture X** = $470/mo. So "only groceries" is $2,760/yr (the debit half) or
+>   $5,640/yr (both) -> 3% = $82.80 / $169.20, less $50 Gold = **+$33 or +$119/yr**.
+> - Cards today: Prime Visa $8,539.01/$14,400, Discover $10,440.44/$11,000
+>   (= **74.7%** revolving util), Venture X planned 2027-06-01 ($10k limit, $395
+>   fee), Apple Card planned 2028-02-28.
+> - **The utilization gain beats the rewards.** Any new limit divides the same
+>   $18,979: a $2k limit -> 69.3%, a $5k limit -> 62.7%.
+> - **His timing is strictly better than what the app models today.** Applying
+>   Sep/Oct 2026 puts the hard pull ~9-10 months behind him and the account
+>   ~10 months old at the **July 2027 lease**. The current plan applies for
+>   Venture X in Jun 2027 = fresh pull + 1-month-old account exactly when the
+>   landlord pulls credit.
+> - Pushing Venture X to 2028 saves the $395 and avoids two new accounts before
+>   the lease; the cost is the $4k sign-up bonus, which was going to be hit with
+>   movers + groceries and gets harder once groceries move to Robinhood anyway.
+>   The two decisions are coupled - pushing is the consistent choice.
+> - Caveat set with him: the CARD is waitlist-gated, so "beginning of next month"
+>   is not his to schedule; joining Gold is.
+> ⏭ **NOT YET DONE - offered, awaiting his go:** model it in the app. Add the
+> Robinhood card with `card_start_date` Oct 2026, repoint the $230 Groceries rule's
+> `payment_source` from CHASE CHECKING to it, push Venture X's `card_start_date` +
+> `annual_fee_date` to 2028, re-run and report utilization at Jul 2027 + payoff ETA.
+>
 > === QUEUE - UNCHANGED FROM 36p ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
 >    truncating span at 390px; the "not open yet" note + payoff-method ordering on
