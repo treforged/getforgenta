@@ -1073,7 +1073,13 @@ export function planNewCardRankWrites(
   const at = behind ? behind.sortOrder : solo[solo.length - 1].sortOrder + 1;
 
   const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], goalStages: [], cardsSortOrder: null };
-  bumpRowsAtOrBelow(rows, at, writes);
+  // ⚠️ THE BLOCK ROW IS NOT BUMPED, and it is the one row that must not be. On an individual list
+  // the block only exists at all because this very card is transiently sitting in it — a NULL
+  // `surplus_sort_order` IS block membership — and the moment this write lands the block is empty
+  // again and its row disappears. Moving `profiles.cards_sort_order` for it would leave the block's
+  // stored rank one lower than the user set it, permanently, one step per card they ever add, and
+  // they would only find out by switching back to One group.
+  bumpRowsAtOrBelow(rows.filter(r => r.kind !== 'cards'), at, writes);
   writes.cards.push({ id: newCard.id, surplus_sort_order: at, surplus_share: null });
   return writes;
 }

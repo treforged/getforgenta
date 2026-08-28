@@ -35,7 +35,12 @@ const ACCOUNTS = [
 vi.mock('@/hooks/useSupabaseData', () => ({
   useAccounts: () => ({
     data: ACCOUNTS, loading: false,
-    add: { mutate: mocks.addAccount, isPending: false },
+    // The create path went async so it can seat a new credit card in the surplus ranking with the
+    // id the insert returns — see `rankNewCard`. Both entry points land on the same spy.
+    add: {
+      mutate: mocks.addAccount, isPending: false,
+      mutateAsync: (item: unknown) => { mocks.addAccount(item); return Promise.resolve({ id: 'new-account' }); },
+    },
     update: { mutate: mocks.updateAccount, isPending: false },
     remove: { mutate: vi.fn(), isPending: false },
     reorder: { mutate: vi.fn(), isPending: false },
@@ -54,6 +59,10 @@ vi.mock('@/hooks/usePlaidItems', () => ({
   }),
 }));
 
+// The page mounts this ONLY to seat a newly-created credit card at its own rank. Mocked whole
+// rather than fed data: the real hook pulls goals, car funds, the profile and the rules, none of
+// which this file is about, and its writes are covered by `surplus-ranking.newCard.test.ts`.
+vi.mock('@/hooks/useSurplusRanking', () => ({ useSurplusRanking: () => ({ rankNewCard: vi.fn() }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));
 vi.mock('@/components/shared/PlaidLinkButton', () => ({ default: () => null }));
