@@ -1,5 +1,62 @@
 # Handoff - Forgenta
 
+> ▶ 2026-08-27 SESSION 36q - **NO CODE CHANGED. Two questions, both answered;
+> working tree is 36p's.** Diagnosis + advisory only.
+>
+> === 1. THE NOV 2026 CASH-FLOOR BREACH - DIAGNOSED, THEN CLOSED BY TRE ===
+> He asked why Prime Visa does not pull back in October to cover November.
+> Measured LIVE (`window.__convergenceDebug`, converged:true / 15 passes /
+> usedFallback:false - the old non-convergence memory is STALE):
+> - Nov 2026 ends **$2,333 against its own $2,444 floor**, short **$111**, while
+>   paying ONLY minimums (Prime $559 + Discover $150 = $709). November cannot fix
+>   itself.
+> - Oct 2026 pays Prime **$715** = its $559 min + **$156 discretionary**, and ends
+>   at $2,447 - pinned to its OWN floor of $2,444.
+> - BOTH look-ahead passes already demand the pull-back: Forecast PASS-2's
+>   `maxDebtPaymentByMonth[Oct]` = **$760** (minimums only) and
+>   useCardProjection's = **$199** (revolving-only min). NEITHER BINDS.
+> - WHY they do not bind, and this is the durable finding:
+>   `forecast-engine.ts:2304` hands the month back to the sim's ledger (the
+>   "single-clamp rule": the sim clamps, the engine trusts), and
+>   `credit-card-engine.ts:1819-1824` lets `debtCashTargetByMonth` **overwrite**
+>   `mDebtCap` outright - the comment says "Wins over mDebtCap". The target is the
+>   sim's own spend echoed back (`revolvingDebtCashTarget = ledgerEntry.revolving`
+>   + surplus above THIS month's floor, `forecast-engine.ts:2319`), so the cap
+>   never enters the fixed point. **The save-up cap is live only in month 0 and in
+>   pinned months; everywhere else the convergence handshake makes it inert.**
+> - ⛔ **TRE RULED: LEAVE AS IS. DO NOT BUILD THE PULL-BACK.** His reasoning, and
+>   it is right: *"the payment plans should be guaranteed paid, hence why they are
+>   included in the cards minimum."* Prime Visa's $559 minimum is mostly Equal Pay
+>   promo installments, which are contractual - so the engine refusing to reduce
+>   them is correct behaviour, not a defect. Do not re-open this.
+>
+> === 2. ROBINHOOD GOLD CARD - ADVISORY, NO CODE ===
+> He uploaded `Robinhood_Gold_Strategy_Review.pdf` (a STRONG-YES writeup, not
+> mine) and asked whether to apply sooner. Answered in chat: split the two
+> actions. **Joining Gold / the waitlist sooner is defensible** (the queue rewards
+> Gold tenure and account history; invites now land in weeks, verified Aug 2026).
+> **Applying/accepting the card sooner is not** - a hard pull plus a new account
+> ahead of the **July 2027 lease** is the same condition already standing on the
+> Venture X. Five gaps named in the PDF: it assumes he pays statements in full
+> (he carries $13,998 interest-bearing, ETA Dec 2028); its spend table starts at
+> $5k/yr against the ~$3k/yr his app actually routes through cards; its $7,500
+> IRA-match math assumes contribution capacity he does not have ($106 in savings);
+> and it never mentions the hard pull, the lease, or the waitlist itself.
+> Nothing is pending on me from this thread.
+>
+> === QUEUE - UNCHANGED FROM 36p ===
+> 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
+>    truncating span at 390px; the "not open yet" note + payoff-method ordering on
+>    Venture X / Apple Card; the Garage card's TWO payoff dates for one loan
+>    (`autoPayoffLabel` reads `firstZero - 1` off a balance array with a one-month
+>    credit lag - MEASURE first, money math), in
+>    `src/components/vehicles/LoanCard.tsx`.
+> 2. Then session 36k's queue, unchanged, further below.
+>
+> !! Weekly usage cap override is still **96** - restore to 75.0 after the
+> 2026-08-31 18:00 reset.
+
+
 > ▶ 2026-08-27 SESSION 36p - **`814a2ba5`, PUSHED. `origin/main` verified by
 > contents. tsc 0, 295 files / 3124 tests, eslint clean, working tree clean.**
 > Everything open at session start shipped, plus two asks that arrived mid-session.
