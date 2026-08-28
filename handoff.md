@@ -1,7 +1,65 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36w. **THE ROOT CAUSE OF "THE CAP IS
+> ▶▶ RESUME BRIEF - 2026-08-28 SESSION 36x. **DO THE CONDUCTOR TOKEN TRACKER
+> FIRST — it is a NEW ask from Tre and it is not in this repo.** Then resume
+> 36w step 1 below. Cap is now 98.0, tools are unblocked.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### 🆕 ASK 1 (2026-08-28, NOT STARTED): CONDUCTOR TOKEN-USAGE TRACKER
+> **Repo: `C:\Users\tvonh\Desktop\tre-forged-conductor`** (the `conductor` shim
+> at `~/.claude/bin/conductor` execs `scripts/conductor.mjs` there). NOT
+> getforgenta. Write that repo its own handoff when the slice lands.
+>
+> His words: *"add on the conductor page a token usage tracker for each type of
+> agent used. including the local LLMs. also track routines token usage. this
+> will help give us a better estimate over time for each block of time of claude
+> usage tokens, so we can set caps appropriately. that way we ensure all
+> automated routines have the usage they need."*
+>
+> So the DELIVERABLE is not a pretty chart — it is **the number that lets the
+> weekly cap be set from measured demand instead of a guess**, with the trading
+> routines' reserved headroom coming out as a measured figure. Design to that.
+> - Break out by **agent type**: manager (Fable/Opus), `sonnet-executor`,
+>   `opus-executor`, and **the local/free LLM tier** (`llm` shim → Ollama
+>   models + free cloud tiers; see `~/.claude/bin/FREE-LLM-EXECUTORS.md`).
+>   Local LLM tokens cost $0 but are the whole point of the routing ladder, so
+>   they must be visible next to the paid tiers, not hidden.
+> - Break out by **routine** (the scheduled jobs — Reddit Scout, backup sync,
+>   the trading routines, blog auto-publish) separately from interactive work.
+> - Bucket by **time block** so a week's shape is visible, since the cap is a
+>   rolling seven-day percentage.
+> - **Find the real source before designing the schema.** `usage_cap_hook.py`
+>   already reads a live usage percentage from somewhere — start at
+>   `~/.claude/bin/usage_cap_hook.py` (and `usage_resume_watch.py`, same logic)
+>   and reuse that source rather than inventing a second one that can diverge.
+>   The 85-vs-92 divergence comment in both files is a warning about exactly
+>   that failure. Ollama/`llm` usage will need its own capture — check whether
+>   `llm.py` already logs anything.
+> - **Executor: a free LLM per Tre's standing rule.** Brief `llm`, apply the
+>   returned diff, run the gates yourself. Do NOT spawn sonnet/opus-executor
+>   without asking him first.
+>
+> ### 🧾 ASK 2 (2026-08-28, BLOCKED): `npm ci` IN GETFORGENTA
+> Dependabot merges pulled in (`9d0e72aa`, package.json + lockfile, 24 dep
+> lines). `npm ci` failed twice: first EPERM unlinking
+> `node_modules/lightningcss-win32-x64-msvc/*.node` (a live vite dev server held
+> it), then EUSAGE *"can only install with an existing package-lock.json"* —
+> so the lockfile is missing or the command ran outside the repo root.
+> **Diagnose before reinstalling:** `ls -la package-lock.json; git status --short`
+> in `C:\Users\tvonh\Desktop\getforgenta`. If it is missing/dirty,
+> `git checkout -- package-lock.json` then retry. Gates (`tsc`, `npm test`) have
+> NOT been run against the new dependency set.
+>
+> ### CAP STATE
+> `DEFAULT_CAP_WEEKLY` is **98.0** in BOTH `~/.claude/bin/usage_cap_hook.py` and
+> `usage_resume_watch.py` (Tre ran the sed 2026-08-28; the hook blocks every
+> tool including Read/Edit, so the session cannot raise its own cap — he has to).
+> **Restore to 75.0 after the 08-31 18:00 ET reset**, and the tracker above is
+> what should replace that guess.
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36w - still the live engine work, resume at its step 1. **THE ROOT CAUSE OF "THE CAP IS
 > TOO LOOSE TO BIND" IS FOUND, BY READING, NOT YET BY MEASUREMENT.** No code
 > changed. tsc untouched, tree clean, nothing pushed. Session PAUSED on the
 > weekly usage cap (97%), resumes after 08-31 18:00 ET.
