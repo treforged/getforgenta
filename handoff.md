@@ -1,7 +1,66 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-28 SESSION 36y. **BOTH 36x ASKS ARE DONE OR
+> ▶▶ RESUME BRIEF - 2026-08-28 SESSION 36z. **36w STEPS 1-4 ARE BUILT,
+> COMMITTED LOCAL AS `40218c8d`, GATES GREEN. RESUME AT STEP 5 (the fixture)
+> AND STEP 6 (live verify).** Session paused ON the weekly cap (98% >= 98.0);
+> resumes after 08-31 18:00 ET.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### ✅ THE INSTALLMENT-CAP FIX IS IN — `40218c8d`, NOT PUSHED
+> Convention A → Convention B on forecast-engine's PASS 2, exactly as 36w
+> designed it. Read the commit body; it carries the whole argument. Four sites:
+> - `debt-model-types.ts` — `installmentCostByMonth: number[]` added to
+>   `CardProjectionResult`, beside `maxDebtPaymentByMonth`.
+> - `useCardProjection.ts:2457` — returns it from `hookResult` (the value already
+>   computed at line 810; nothing recomputed).
+> - `forecast-engine.ts` — PASS 2 reads it into a local, adds it to
+>   `expenseByMonth`, subtracts it from `ccMinByMonth` (floored at 0, and that
+>   array is now built UNCONDITIONALLY instead of only under ISB pins / m0
+>   settlements — with no installment/pin/settlement it is `ccMinTotal`, which is
+>   what the old `undefined` fallback resolved to).
+> - `forecast-engine.ts` `debtPayments` — adds the installment back on the CAP
+>   side. **Step 4's open question is answered:** `rawDebtPayment` IS Convention A
+>   (`cardProjectionData?.allPaymentTotals?.[i]`, forecast-engine.ts:1368), so
+>   without this the displayed payment would have been cut by contractual money.
+>
+> **Gates:** `tsc --noEmit` clean. **3142/3146**, the SAME 4 failures as before
+> the change (the 28th-of-the-month calendar artifact). **No golden fixture
+> moved**, exactly as the invariance argument predicted.
+>
+> **Also verified while in there:** `maxDebtPaymentGap` (forecast-convergence.ts:76)
+> compares `data[m].debtPayment`, which stays Convention A because of the step-4
+> add-back — so the convergence metric's units did NOT change. That was the one
+> way this could have quietly broken the loop.
+>
+> ### ▶ RESUME HERE
+> 1. **STEP 5 — the fixture 36u asked for, still unbuilt.** A month where a finite
+>    cap sits BELOW the discretionary spend WITH an installment plan present,
+>    pinning that the deployable pool ends at `cap − installment`, not `cap`.
+>    This also finally pins `1d1de408`. ⚠️ Do NOT model it on
+>    `forecast-engine.revolvingDebtCash.test.ts` or `.goldenTierA` — those hang off
+>    the gitignored real fixture and SELF-SKIP, so they pin nothing on a fresh
+>    clone. Build synthetic inputs (`forecast-engine.autoExtraFloorClamp.test.ts`,
+>    297 lines, is the nearest harness that does).
+> 2. **STEP 6 — live-verify on his data.** Nov 2026 backlog → $0,
+>    `window.__convergenceDebug` `converged:true`, no red month. I got as far as
+>    curling :8080 and the cap fired. **HMR is NOT enough for engine edits** —
+>    `node scripts/dev-session.mjs down && … up`, then reload.
+> 3. Restore `DEFAULT_CAP_WEEKLY` to **75.0** in BOTH `~/.claude/bin/usage_cap_hook.py`
+>    and `usage_resume_watch.py` after the 08-31 18:00 ET reset (it is 98.0 now).
+> 4. Then the 36y leftovers: the Conductor token-tracker PANEL half + collector
+>    scheduling + tokens→percent conversion (in `tre-forged-conductor`, commits
+>    `fb3dc9f`+`caa1345`, not pushed); pinning the 4 calendar-artifact tests with
+>    fake timers; MEMORY.md compaction (23.1KB vs a 24.4KB read limit).
+>
+> ### 📌 SECONDARY, NOTED NOT FIXED (carried forward from 36w)
+> `reducibleDebtCapByMonth` (forecast-engine.ts, ~line 1676 pre-change) sums
+> `monthlyRevolvingBalances`, which carries installment balances inside it
+> (`credit-card-engine.ts:2171`) — Convention A too. It does not bind at the month
+> in question, so fix it only with its own measurement.
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36y - superseded by 36z above. **BOTH 36x ASKS ARE DONE OR
 > DIAGNOSED. RESUME 36w STEP 1** (the installment-cap fix, below). Weekly
 > usage was 97% against a 98.0 cap when this was written — expect the hook to
 > block, and check `~/.claude/usage-state.json` before planning a long slice.
