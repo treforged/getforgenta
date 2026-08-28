@@ -1,7 +1,90 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36t. **BOTH FIXES SHIPPED AND GATED.**
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36u. LIVE-MEASURED ON HIS DATA.
+> **THE NOV/DEC UNDERPAYMENT IS STRUCTURAL. IT IS NOT AN ALLOCATION BUG,
+> AND OPTION (a) CANNOT FIX IT. DO NOT RE-OPEN IT WITHOUT READING THIS.**
+> tsc 0, 297 files / 3146 tests green. All local on `main`, nothing pushed.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### 📏 WHAT THE LIVE MEASUREMENT SAID (localhost:8080, his own account)
+> `window.__convergenceDebug`: **converged:true, 14 passes, usedFallback:false.**
+> No month is red - every month ends pinned AT its floor (endCash 2447/2444/2446
+> vs minSafe 2444/2444/2390).
+>
+> Robinhood card (`7b1e9a44-…`), months 0-7:
+> - `monthlyCyclingOwed` 0, 0, **255, 230, 414.50, 592.64**, 230, 230
+> - `monthlyMandatoryCyclingPayment` 0, 0, **255, 25, 25, 230**, 230, 230
+> - `monthlyCyclingBacklog` 0, 0, 0, **180, 353.80**, 0, 0, 0
+>
+> ⚠️ **READ THE BACKLOG, NOT THE MANDATORY, TO GET THE TOTAL PAID.** A cycling
+> card can also take a Step-5 backlog-cascade payment on top of its mandatory
+> share. Nov: owed 230, backlog 180 ⇒ **$50 paid**. Dec: owed 414.50, backlog
+> 353.80 ⇒ **$60.70 paid**. Those reconcile exactly with 36q's $50 / $61, so
+> **nothing regressed this session** - I briefly misread the $25 mandatory as the
+> whole payment. Do not repeat that; `monthlyMandatoryCyclingPayment` is one
+> component of two.
+>
+> ### 🔑 WHY OPTION (a) CANNOT FIX IT - THE DURABLE FINDING
+> **Oct 2026 has NO discretionary dollar to hold back.** Measured: its revolving
+> payment is **$841**, and its contract minimums are **$841** (Prime Visa
+> `revolvingMinDue` is dominated by its Equal Pay promo installments; the static
+> `minPayment` column reads 559.40 and understates it, Discover 150.40).
+> **36q's "Oct pays $715 = $559 min + $156 discretionary" is STALE and wrong on
+> current data.** Cross-month save-up moves discretionary money; there is none.
+> Nov is short because Nov is genuinely short - it ends $111 below its own floor
+> paying minimums only. The only remaining levers touch contractual minimums,
+> which Tre ruled untouchable, or the grocery spend itself, which is not the
+> app's call. **Treat this as CLOSED unless his cash flow changes.**
+>
+> ### SHIPPED THIS SESSION (both correct, both inert on HIS data - by measurement)
+> - **`7ecbd0f3`** `intendedCyclingStatement` (new `src/lib/cycling-statement-reserve.ts`).
+>   The save-up look-ahead read the per-month purchase map `?? 0`, so a card
+>   spending through a plain RECURRING RULE reserved nothing and the existing
+>   `max(actual, intended)` deadlock-breaker collapsed to the sim's own
+>   underpayment. Now mirrors what the engine actually charges. **Effect: the
+>   forecast's `maxDebtPaymentByMonth` went from uncapped to finite ($785 at
+>   m2-m4).** 9 tests.
+> - **`1d1de408`** the save-up cap now survives `debtCashTargetByMonth` instead of
+>   being replaced by it (`credit-card-engine.ts:1819`, the "Wins over mDebtCap"
+>   line), floored at `totalMins` so minimums are exempt. Verified the cap really
+>   is threaded to the converged resim (`forecast-convergence.ts:198` passes a
+>   damped `cap`). It is a NO-OP on his data only because totalMins === the whole
+>   payment. **UNPINNED BY A TEST** - no fixture has a month where a finite cap
+>   sits below the discretionary spend. If you touch this, build that fixture.
+>
+> ### ⛔ NEW, CONFIRMED, NOT FIXED: PLAID WILL DUPLICATE HIS ROBINHOOD CARD
+> He asked to "make sure when the new card starts auto syncing, it will replace
+> appropriately". **It will not.** `persistAccount`
+> (`supabase/functions/_shared/sync-handler.ts:115-120`) matches an existing row
+> ONLY on `plaid_account_id`. His hand-created Robinhood row has none, so the
+> first sync takes the `!existing` branch and **INSERTS A SECOND CARD**. Cost:
+> debt double-counted, ~$5,250 of phantom limit in utilization, and the manual
+> row's `card_start_date` / `payment_preference` / due day / APR / and its
+> `surplus_sort_order 0` all stranded on the orphan while the Plaid row lands
+> unranked (which is FIX 1's Plaid gap, compounding). **Not Robinhood-specific:
+> any user who hand-creates a card and later links that bank gets a duplicate.**
+>
+> Proposed fix, NOT built, and it needs his sign-off because a wrong merge is
+> destructive: **claim-on-first-sync.** When no `plaid_account_id` matches, look
+> for an adoptable manual row and set its `plaid_account_id` instead of
+> inserting. Adopt ONLY when unambiguous - same user, `plaid_account_id IS NULL`,
+> active, same `account_type`, matching institution, and **exactly one**
+> candidate. **Exclude not-yet-open cards** (`card_start_date` in the future): a
+> card that does not exist yet cannot be the one Plaid just found, which is what
+> protects the planned Venture X and Apple Card. Zero or 2+ candidates ⇒ insert
+> as today, so ambiguity degrades to a visible duplicate rather than a silent
+> wrong merge. Note his Robinhood row opens 2026-09-01, so it only becomes
+> adoptable after that date - correct, not a bug.
+>
+> ### STILL NOT DONE
+> - **FIX 1 was never clicked.** Creating a throwaway card on his live DB was not
+>   attempted. The ranked-list read is also unverified this session.
+> - Weekly cap override is **97**; restore to 75.0 after the 08-31 18:00 ET reset.
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36t - superseded by 36u above. **BOTH FIXES SHIPPED AND GATED.**
 > tsc 0, 297 files / 3146 tests green. All local on `main`, nothing pushed.
 > ONE THING OUTSTANDING: neither fix has been LIVE-VERIFIED in a browser.
 > ═══════════════════════════════════════════════════════════════════════
