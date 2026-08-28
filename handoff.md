@@ -116,8 +116,7 @@
 >   ⚠️ The earlier "Sep 2028" was a TRANSIENT convergence state, already corrected
 >   everywhere. Re-read a payoff milestone twice before reporting it.
 > - Application figures verified from `profiles`: weekly gross **$1,093** ->
->   **$56,836/yr** own pre-tax; rent **$1,915** total, **his share $957.50**;
->   household frame is $70,036 + $1,915. Told him to pick ONE frame, never mix.
+>   **$56,836/yr** own pre-tax; plus the GF's **$1,100/mo which lands in HIS pocket** while HE pays the whole **$1,915** rent -> application answer **$70,036 income / $1,915 housing**, both literally factual. HIS SHARE IS NOT $958; I said that from a bad assumption and he corrected it.
 > - Crypto gift: claimed, opens **Sept 3**, hard claim deadline **Sept 8**, no
 >   sell/withdraw restriction, 1099-reportable. Not modelled.
 >
