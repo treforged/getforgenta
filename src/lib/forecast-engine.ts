@@ -2640,7 +2640,22 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // Stored on the row so the summary and the table cannot drift apart again. Two places
       // computing the same predicate differently is the defect being fixed here, not a detail of
       // how it was computed, so MonthlyBreakdownTable reads this flag rather than re-deriving it.
-      const belowSafeMinimum = rawEndingCash < b.monthMinSafe;
+      //
+      // ⚠️ HALF-A-CENT TOLERANCE, and it is not cosmetic. A month that PINS to its floor is the
+      // engine working: PASS 3 and the sim's Step 5 both drain end cash to exactly the floor and
+      // send the rest to debt, so on real data the common case is `rawEndingCash === floor`, not
+      // `> floor`. A bare `<` then turns IEEE-754 residue into a red row — measured on Tre's live
+      // forecast 2026-08-27, Nov 2026 ended at 2444.3999999999996 against a floor of 2444.4 and
+      // was painted as a breach, while the drawer showed the two figures as identical $2,444. The
+      // month was not short by anything; it was short by 4e-13, which is the sum of a hundred
+      // additions and no money at all.
+      //
+      // Half a cent is the right width: it is below the resolution of any real dollar amount, so a
+      // genuine one-cent breach (2444.39 against 2444.40) still trips this, while no accumulation
+      // of floating-point error in a 60-month cash walk gets anywhere near it. Matches the
+      // tolerances already used for the same reason in floor-protection.ts (`mFloor - 0.01`) and
+      // credit-card-engine.ts (0.005 on backlog and paid-off tests).
+      const belowSafeMinimum = rawEndingCash < b.monthMinSafe - 0.005;
 
       // Flag: floor breached AND the one-time expense alone caused it. Same floor, same cents:
       // against the setting this badge was as unreachable in automatic mode as the milestone was.
