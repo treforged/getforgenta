@@ -132,7 +132,26 @@
 > LIVE-VERIFIED: **zero breached months across all 60**, and the "Cash below safe
 > minimum" milestone is gone from the summary. He reported it; he was right.
 >
-> === ⚠️ RANKING: I CREATED THE ROBINHOOD CARD WITHOUT A SURPLUS RANK ===
+> === ⚠️ PRODUCT BUG, NOT FIXED IN CODE: NEW CARDS GET NO SURPLUS RANK ===
+> **Tre, verbatim: "it needs to show in rank individually regardless. consider my
+> customers. they cant just have you take it in and out with sql. it needs to be
+> there since the selection is supposed to be show each card one row each. not
+> grouped on my account. i selected it and yoy overwrote it. and follow the
+> avalanche/snowball order selected on debt payoff tab by default."**
+> A newly created credit card lands with `surplus_sort_order` NULL and
+> `payment_preference` NULL, so it falls into the grouped "Credit cards" row and
+> silently overrides the user's "One row each" selection with the
+> "4 on their own and 1 sharing one spot" ambiguity prompt. **THE FIX IS IN THE
+> ACCOUNT-CREATION PATH, NOT THE DATA:** a new credit card must be assigned a
+> `surplus_sort_order` on insert, positioned by the payoff method selected on the
+> Debt Payoff tab (avalanche = marginal APR desc, snowball = balance asc - see
+> `getStrategyPayoffOrder` in `src/lib/debt-payoff-order.ts`). STILL TO BUILD.
+> HIS DATA is patched by hand for now: Robinhood sso 0 (top under BOTH methods -
+> highest APR 29.99% and smallest balance), Prime 1, Discover 2, Venture X 3,
+> Apple 4; `payment_preference='statement'`. VERIFIED live: the grouped row and
+> the CHOOSE ONE prompt are gone, "One row each" is back.
+>
+> === ⚠️ OLD NOTE, SUPERSEDED ===
 > His Goals tab went back to showing the grouped "Credit cards" row plus the
 > "RANK CREDIT CARDS - choose one" prompt reading *"4 on their own and 1 sharing
 > one spot"*. Cause: the SQL insert set `sort_order` 0 and left
@@ -156,9 +175,17 @@
 > is `tentativeAvailAboveFloor - reservedForRevolving - pinnedMandatoryTotal`, so
 > revolving MINIMUMS are reserved first (right) but Step 5's SURPLUS then flows to
 > the revolving cascade instead of clearing a higher-APR cycling statement.
-> ⚠️ VERIFY BEFORE CHANGING - money math, fragile convergence loop, and the
-> Step-5 ordering has NOT been read end to end. Two reads: real mis-ranking, or
-> deliberate design. Do not assert a bug yet.
+> ⚠️ NARROWED 2026-08-27: setting `payment_preference='statement'` on the card
+> does NOT fix it - re-measured after the change and Nov still pays $50 of $230
+> (backlog $180), Dec $61 of $414.50 (backlog $353.80), Jan catches up at $593.
+> So the defect is NOT a missing preference flag; it is in Step 2's cycling-pool
+> funding, where the card's mandatory stays at the 2% floor ($25) instead of the
+> full statement, and the pool is starved by `tentativeAvailAboveFloor -
+> effectiveReservedForRevolving`. A card the user autopays in FULL is a hard
+> commitment and should be mandatory, ranked with the must-pays, not funded from
+> a discretionary pool. He explicitly asked for the root-cause fix.
+> ⚠️ STILL VERIFY BEFORE CHANGING - money math in the fragile convergence loop,
+> and Step-5 ordering has NOT been read end to end.
 >
 > === QUEUE - UNCHANGED FROM 36p ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
