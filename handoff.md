@@ -1,7 +1,108 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36v. **I WAS WRONG TWICE. TRE WAS
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36w. **THE ROOT CAUSE OF "THE CAP IS
+> TOO LOOSE TO BIND" IS FOUND, BY READING, NOT YET BY MEASUREMENT.** No code
+> changed. tsc untouched, tree clean, nothing pushed. Session PAUSED on the
+> weekly usage cap (97%), resumes after 08-31 18:00 ET.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### 🎯 THE FINDING: TWO CALLERS, TWO CONVENTIONS, ONE CONSUMER
+> `computeFloorProtection` is called twice with the SAME meaning of
+> `maxDebtPaymentByMonth` assumed by its one consumer — and the two callers
+> disagree about whether the mandatory installment cash is inside that number.
+>
+> - **`useCardProjection.ts` (the hook) = CONVENTION B — correct.** It adds
+>   `installmentCostByMonth[m]` to `expenseByMonth` (line ~1055) AND strips it
+>   from `ccMinByMonth` (`ccMinRevOnly`, line ~1049). Its own comment at line
+>   ~800 spells out why: *"the engine deducts this separately from availableCash
+>   (Step 2.5), so the look-ahead must also model it as an expense rather than as
+>   part of ccMin — otherwise save-up caps include the installment amount and the
+>   engine pays it twice … draining $300+ per save-up month more than the
+>   look-ahead predicted."* Its cap is therefore in **cascade-pool units**.
+> - **`forecast-engine.ts:1685` (PASS 2) = CONVENTION A — the bug.** Its
+>   `expenseByMonth` (line 1687-1690) has **NO installment term at all**, and its
+>   `ccMinTotal` is `sum(simCards.minPayment)`, which INCLUDES the installment
+>   portion (that is exactly why the hook has to strip it). Its cap is therefore
+>   in **total-CC-outflow units**.
+>   - It is not hiding in `cyclingByMonth` either: that is
+>     `allPaymentTotals − debtPaymentTotals`, and `monthlyPayments` =
+>     `pay + instPayThisMonth` (`credit-card-engine.ts:1985`) while
+>     `proj.months[i].payment` = `monthlyPayments[m-1]` (line 744), so for a
+>     revolving card the installment sits in BOTH totals and cancels out.
+>   - Nor in `baseExpenses`: `forecast-engine.ts:697` folds in only
+>     **checking-sourced** payment-plan installments. Prime Visa's Equal Pay is
+>     card-sourced.
+> - **The consumer, `credit-card-engine.ts:1810/1848`, assumes CONVENTION B**:
+>   `availableCash = min(availableCash, max(mDebtCap − pinnedStep5Total,
+>   totalMins))`, where `availableCash` (line 1793) has ALREADY subtracted
+>   `installmentCashCost`. Convergence feeds it the FORECAST cap
+>   (`forecast-convergence.ts:192 → resimulateWithDebtCash(target, cap) →
+>   forecastMaxDebtPaymentByMonth`, which REPLACES the hook's own cap).
+>
+> **So the cap arrives inflated by exactly `installmentCashCost`.** 36v measured
+> Oct 2026: `mDebtCap 784.80`, `installmentCashCost 510.50`, `availableCash 330`.
+> `784.80 − 510.50 = 274.30`, which is **below** the 330 the sim deploys — the
+> cap would have bound and held back ~$55.70, plus whatever Sep gives up. That is
+> the missing constraint 36v could not find. The residual
+> (840.50 − 784.80 = 55.70) is `requiredEnd + FLOOR_CUSHION − step5Floor`, which
+> is consistent with m2 being a save-up month at all.
+>
+> ### 🧯 WHY THE FIX IS SAFER THAN IT LOOKS (state this in the commit)
+> Converting PASS 2 to Convention B is **invariant on the backward pass**:
+> `netAtMin = income − expense + oneTime − carDP − ccMin`, so adding `I` to
+> `expense` and removing `I` from `ccMin` leaves `netAtMin` — and therefore
+> `requiredEndByMonth`, which other code now reads — **unchanged to the cent**.
+> In the forward pass's uncapped branch `natural` drops by `I` while `expense`
+> rises by `I`, so `bal` is unchanged too. Only the CAP moves, and only where it
+> binds. Expect **no golden fixture to move**; if one does, understand it before
+> accepting it.
+>
+> ### 🔨 THE BUILD, IN ORDER (nothing below is started)
+> 1. **Expose `installmentCostByMonth` on `CardProjectionResult`.** It is already
+>    computed correctly, once, at `useCardProjection.ts:810` (plan-schedule-aware
+>    via `upfrontPayByMonth`; do NOT recompute it in forecast-engine, it will
+>    drift). Add the field in `src/lib/debt-model-types.ts` beside
+>    `maxDebtPaymentByMonth` and return it from `hookResult`.
+> 2. **forecast-engine.ts:1687** — add `+ installmentCostByMonth[i]` to
+>    `expenseByMonth`.
+> 3. **forecast-engine.ts:1659-1666** — `ccMinByMonth` must exist ALWAYS now (not
+>    only when ISB pins / m0 settlements exist) and must subtract
+>    `installmentCostByMonth[m]`, floored at 0 — the hook's `ccMinRevOnly`.
+> 4. **forecast-engine.ts:1705** — `debtPayments[i] = min(b.rawDebtPayment,
+>    maxDebtPaymentByMonth[i])` compares a Convention-A `rawDebtPayment`
+>    (`allPaymentTotals`, installment included) against what is now a
+>    Convention-B cap. Add the installment back on the cap side here, or the
+>    DISPLAYED payment gets cut by the installment amount. **Verify what
+>    `rawDebtPayment` actually is first — I ran out of budget before reading it.**
+> 5. **Build the fixture 36u asked for**: a month where a finite cap sits BELOW
+>    the discretionary spend, with an installment plan present, pinning that the
+>    engine's deployable pool ends at `cap − installment`, not `cap`. This also
+>    finally pins `1d1de408`.
+> 6. Then live-verify (Nov 2026 backlog → $0, `converged:true`, no red month).
+>
+> ### 📌 SECONDARY, NOTED NOT FIXED
+> `reducibleDebtCapByMonth` (forecast-engine.ts:1676) sums
+> `monthlyRevolvingBalances`, which is end balance minus purchases —
+> **installment balances are inside it** (`credit-card-engine.ts:2171`). So that
+> bound is Convention A too. It does not bind at m2 (784.80 ≪ owed) so it is not
+> the current bug; fix it only with its own measurement.
+>
+> ### ⚠️ OFFLINE HARNESS CANNOT REPRODUCE HIS OCT 2026
+> `src/lib/__tests__/fixtures/forecast-inputs.real.json` was captured 2026-07-20,
+> BEFORE the Robinhood card existed, so its m2 is Sep 2026 and the card is
+> absent. Use it for regression safety, not for reproducing this month.
+> `zz-tmp-diagnostic.test.ts` is the ready-made dump harness (it is committed
+> despite saying "deleted before hand-off").
+>
+> ### STILL OPEN (unchanged from 36v)
+> - Approved and unbuilt: Plaid claim-on-first-sync; throwaway-card live check of
+>   FIX 1; FIX 1's Plaid gap; the per-CARD "pay in full / mandatory" marker.
+> - Weekly cap override is **97**; restore to 75.0 after the 08-31 18:00 ET reset.
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36v - superseded by 36w above. **I WAS WRONG TWICE. TRE WAS
 > RIGHT.** Oct 2026 DOES have discretionary money to cut back. The real
 > blocker is now MEASURED, not inferred. tsc 0, tree clean, nothing pushed.
 > ═══════════════════════════════════════════════════════════════════════
