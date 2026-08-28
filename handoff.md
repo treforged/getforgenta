@@ -96,8 +96,9 @@
 >   ends AT its floor ($2,449/$2,449, cent-level flag only) instead of $111 under;
 >   Jul 2027 the move month still clears at $2,017 against a $2,014 floor with the
 >   movers on the card.
-> ⏭ **UPDATE THE LIMIT** on that account the day approval lands - every
-> utilization figure moves with it (74.7% today, 67.2% at $3k, 62.7% at $5k).
+> ✅ **LIMIT CONFIRMED $5,250** (soft-pull prequal, no score impact, APR 29.99% variable).
+> Account updated 3000 -> 5250. **Utilization 74.7% -> 61.9%** ($18,979.45 /
+> $30,650). Payoff still Nov 2028. The app shows 74.7% until 2026-09-15 passes.
 > 📄 Full reasoning saved to his OBSIDIAN VAULT (the vault IS
 > `C:\Users\tvonh\Desktop\claudecontext`): `Robinhood Gold Card Decision.md`,
 > plus memory `project_robinhood_gold_decision.md`.
