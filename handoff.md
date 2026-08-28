@@ -1,4 +1,4 @@
-# Handoff - Forgenta
+﻿# Handoff - Forgenta
 
 > ▶ 2026-08-27 SESSION 36q - **NO CODE CHANGED. Two questions, both answered;
 > working tree is 36p's.** Diagnosis + advisory only.
@@ -75,7 +75,7 @@
 > - NEW account `7b1e9a44-3c52-4f18-9d6a-8e2f5c71a903` "Robinhood Gold Card",
 >   `card_start_date` **2026-09-15**, limit **$3,000 = AN ASSUMPTION** until
 >   approval, APR 29.99, due day 15. **`annual_fee` deliberately NULL** - he sent
->   the signup screenshot and Gold is **$5/mo, first 30 days free**, billed to
+>   the signup screenshot and Gold is first-30-days-free then $5/mo, but HE CHOSE THE ANNUAL PLAN: **$50/yr**, billed to
 >   Robinhood investing cash falling back to Chase Total Checking. So it is a
 >   `$5/mo` recurring_rule `2f6c8d10-...` from CHASE CHECKING starting
 >   **2026-09-26**, NOT a card annual fee.
@@ -92,8 +92,7 @@
 >   concurrent** ($230 ends 2027-12-28, $240 starts 2028-01-03). Grocery spend is
 >   ~$230-240/mo, NEVER $470. I told him $470/+$119 once before checking the
 >   dates; corrected to **~+$23/yr** net of the $60/yr Gold.
-> - **MEASURED LIVE AFTER (converged true/18 passes):** CC Debt Free
->   **Dec 2028 -> Sep 2028** (the $395 leaving 2027 is most of it); Nov 2026 now
+> - **MEASURED LIVE AFTER (converged true/18 passes):** CC Debt Free stays **Dec 2028**; Nov 2026 now
 >   ends AT its floor ($2,449/$2,449, cent-level flag only) instead of $111 under;
 >   Jul 2027 the move month still clears at $2,017 against a $2,014 floor with the
 >   movers on the card.
