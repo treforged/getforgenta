@@ -69,10 +69,40 @@
 >   The two decisions are coupled - pushing is the consistent choice.
 > - Caveat set with him: the CARD is waitlist-gated, so "beginning of next month"
 >   is not his to schedule; joining Gold is.
-> ⏭ **NOT YET DONE - offered, awaiting his go:** model it in the app. Add the
-> Robinhood card with `card_start_date` Oct 2026, repoint the $230 Groceries rule's
-> `payment_source` from CHASE CHECKING to it, push Venture X's `card_start_date` +
-> `annual_fee_date` to 2028, re-run and report utilization at Jul 2027 + payoff ETA.
+> ✅ **HE SAID GO. MODELLED ON HIS LIVE DB 2026-08-27** (user_id
+> `a72f416e-433a-4055-9ab0-9feae4e60edf` on every write - the tables hold many
+> other users' rows, filter or you will hit them):
+> - NEW account `7b1e9a44-3c52-4f18-9d6a-8e2f5c71a903` "Robinhood Gold Card",
+>   `card_start_date` **2026-09-15**, limit **$3,000 = AN ASSUMPTION** until
+>   approval, APR 29.99, due day 15. **`annual_fee` deliberately NULL** - he sent
+>   the signup screenshot and Gold is **$5/mo, first 30 days free**, billed to
+>   Robinhood investing cash falling back to Chase Total Checking. So it is a
+>   `$5/mo` recurring_rule `2f6c8d10-...` from CHASE CHECKING starting
+>   **2026-09-26**, NOT a card annual fee.
+> - Rule `0683bc28` Groceries $230 repointed CHASE CHECKING -> Robinhood.
+> - Rule `510c641b` renamed **"Groceries Robinhood"**, $240, repointed Venture X
+>   -> Robinhood (still starts 2028-01-03).
+> - Account `3cd63d6e` Venture X: `card_start_date` + `annual_fee_date`
+>   2027-06-01 -> **2028-06-01**.
+> - Txn `ece72e4f` Movers $1,500 (2027-07-01) -> Robinhood (Venture X no longer
+>   exists on that date). Txns `e8a61a5b` Tires $900 + `142d8166` ESR Wheels
+>   $1,538 (Dec 2028) **left on Venture X** on purpose - it exists by then and
+>   $2,438 would swamp a $3k limit.
+> - ⚠️ CORRECTION TO RECORD: the two grocery rules are **SEQUENTIAL, not
+>   concurrent** ($230 ends 2027-12-28, $240 starts 2028-01-03). Grocery spend is
+>   ~$230-240/mo, NEVER $470. I told him $470/+$119 once before checking the
+>   dates; corrected to **~+$23/yr** net of the $60/yr Gold.
+> - **MEASURED LIVE AFTER (converged true/18 passes):** CC Debt Free
+>   **Dec 2028 -> Sep 2028** (the $395 leaving 2027 is most of it); Nov 2026 now
+>   ends AT its floor ($2,449/$2,449, cent-level flag only) instead of $111 under;
+>   Jul 2027 the move month still clears at $2,017 against a $2,014 floor with the
+>   movers on the card.
+> ⏭ **UPDATE THE LIMIT** on that account the day approval lands - every
+> utilization figure moves with it (74.7% today, 67.2% at $3k, 62.7% at $5k).
+> 📄 Full reasoning saved to his OBSIDIAN VAULT (the vault IS
+> `C:\Users\tvonh\Desktop\claudecontext`): `Robinhood Gold Card Decision.md`,
+> plus memory `project_robinhood_gold_decision.md`.
+> 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it next session.
 >
 > === QUEUE - UNCHANGED FROM 36p ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
