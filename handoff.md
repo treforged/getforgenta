@@ -102,6 +102,24 @@
 > `C:\Users\tvonh\Desktop\claudecontext`): `Robinhood Gold Card Decision.md`,
 > plus memory `project_robinhood_gold_decision.md`.
 > 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it next session.
+> === 3b. LATER THE SAME EVENING ===
+> - He chose the **ANNUAL Gold plan, $50/yr** (not $5/mo). Rule `2f6c8d10` is now
+>   `yearly` $50 starting 2026-09-26. Card confirmed **no annual fee, 3% ALL
+>   categories**. He is **already INVITED** (no waitlist) and the invite offers a
+>   **soft-pull prequalification**, so the real limit is knowable before any hard
+>   pull. Net on ~$230/mo of groceries: **~+$33/yr**.
+> - He set the $230 Groceries rule to **never end** and the $240 "Groceries
+>   Robinhood" rule was **DELETED** (the UI would only set `active=false`; nothing
+>   in `synced_transaction_reviews` referenced it). **One grocery rule now.**
+> - **CC Debt Free settles at Nov 2028** - one month earlier than the Dec 2028
+>   baseline, from that $10/mo. STABLE across two consecutive runs (converged/17).
+>   ⚠️ The earlier "Sep 2028" was a TRANSIENT convergence state, already corrected
+>   everywhere. Re-read a payoff milestone twice before reporting it.
+> - Application figures verified from `profiles`: weekly gross **$1,093** ->
+>   **$56,836/yr** own pre-tax; rent **$1,915** total, **his share $957.50**;
+>   household frame is $70,036 + $1,915. Told him to pick ONE frame, never mix.
+> - Crypto gift: claimed, opens **Sept 3**, hard claim deadline **Sept 8**, no
+>   sell/withdraw restriction, 1099-reportable. Not modelled.
 >
 > === QUEUE - UNCHANGED FROM 36p ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
