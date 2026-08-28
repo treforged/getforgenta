@@ -24,6 +24,7 @@ import { carChargeEvidence } from '@/lib/capture-evidence';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
+import { intendedCyclingStatement } from '@/lib/cycling-statement-reserve';
 import { annualFeeAmount, annualFeeMonthIndexes } from '@/lib/annual-fee';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
@@ -1149,7 +1150,20 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // only saves enough to repeat the underpayment. Using max(actual, intended) ensures
             // the look-ahead always reserves the full statement amount, breaking the deadlock.
             // Month 0 is always an empty map (no deferred history), so intended is 0 there.
-            const intended = m > 0 ? (cardPurchasesPerMonth[m - 1]?.[c.id] ?? 0) : 0;
+            //
+            // ⚠️ `intended` MUST MIRROR WHAT THE ENGINE ACTUALLY CHARGES, and until 2026-08-27 it
+            // did not — it read the per-month map with a fallback of ZERO, so a card spending
+            // through a plain RECURRING RULE reserved nothing and `max(actual, 0)` collapsed back to
+            // the underpayment. `intendedCyclingStatement` owns that rule now, with the invariant
+            // and the measured failure written down beside it.
+            //
+            // Reserving the STATEMENT rather than the underpayment is what makes the preceding month
+            // hold cash back: a higher `cyclingPaymentByMonth` raises `comprehensiveMExp`, which
+            // raises `requiredEndByMonth`, which caps the earlier month's debt payment and marks it
+            // a strict save-up month — and `forecast-engine.ts`'s surplus branch is already gated on
+            // exactly that set, so the cap survives instead of being echoed away. Contract minimums
+            // are never squeezed by this: `computeFloorProtection` floors every cap at `mCcMin`.
+            const intended = intendedCyclingStatement(cardPurchasesPerMonth, m, c);
             return s + Math.max(actual, intended);
           }, 0),
         );
