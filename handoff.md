@@ -1,12 +1,42 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-28 SESSION 36x. **DO THE CONDUCTOR TOKEN TRACKER
-> FIRST — it is a NEW ask from Tre and it is not in this repo.** Then resume
-> 36w step 1 below. Cap is now 98.0, tools are unblocked.
+> ▶▶ RESUME BRIEF - 2026-08-28 SESSION 36y. **BOTH 36x ASKS ARE DONE OR
+> DIAGNOSED. RESUME 36w STEP 1** (the installment-cap fix, below). Weekly
+> usage was 97% against a 98.0 cap when this was written — expect the hook to
+> block, and check `~/.claude/usage-state.json` before planning a long slice.
 > ═══════════════════════════════════════════════════════════════════════
 >
-> ### 🆕 ASK 1 (2026-08-28, NOT STARTED): CONDUCTOR TOKEN-USAGE TRACKER
+> ### ✅ ASK 1 (2026-08-28) — CONDUCTOR TOKEN TRACKER: MEASUREMENT HALF SHIPPED
+> **In `C:\Users\tvonh\Desktop\tre-forged-conductor`, commits `fb3dc9f` +
+> `caa1345`. NOT PUSHED.** Its own handoff entry
+> (`handoff/2026-08-28-the-token-ledger.md`) is the full account; the short
+> version:
+> - `conductor_token_usage` (hour × agent type × model × tier × source ×
+>   routine) + `conductor_token_usage_add(jsonb)` which **adds** increments,
+>   both applied to Supabase project `zyvqoefbgsgkbdoydopt` (the CONDUCTOR's
+>   project, not getforgenta's).
+> - `scripts/token-usage.mjs` reads Claude Code's transcripts, the subagent
+>   transcripts under `<session>/subagents/`, and the new free-tier ledger.
+> - `~/.claude/bin/llm.py` now writes `~/.claude/llm-usage.jsonl` — counts
+>   only, never content; `--probe` excluded.
+> - Backfilled 530 buckets: manager 439.6M, opus-executor 21.6M,
+>   fable-executor 10.0M, sonnet-executor 5.8M, Explore 2.2M, llm:ollama 16.
+> - **Still open:** the page panel, scheduling the collector, and the
+>   tokens→percent conversion that actually turns this into a cap number.
+>
+> ### ✅ ASK 2 (2026-08-28) — `npm ci`: DONE, AND THE 4 RED TESTS ARE THE CALENDAR
+> The lockfile was never missing (270 KB, tracked, tree clean). `npm ci` exit 0,
+> **`tsc --noEmit` clean, 3142/3146 tests pass**. The 4 failures
+> (`useCardProjection.month0income`, `.staleFundingId` ×2, `.confirmedOccurrence`)
+> are a **date artifact, not the dependency bump**: `month0income` builds its
+> bill day as `Math.min(28, now.getDate() + 5)` and its own comment says the
+> assertion holds *"as long as today is before the 28th"*. Today is the 28th.
+> They go red every 28th–31st and green on the 1st. Worth pinning with fake
+> timers — a gate that is red four days a month is not a gate — but it is not a
+> regression and nothing is blocked on it.
+>
+> ### 🗄️ ASK 1's ORIGINAL BRIEF, kept for the panel half
 > **Repo: `C:\Users\tvonh\Desktop\tre-forged-conductor`** (the `conductor` shim
 > at `~/.claude/bin/conductor` execs `scripts/conductor.mjs` there). NOT
 > getforgenta. Write that repo its own handoff when the slice lands.
