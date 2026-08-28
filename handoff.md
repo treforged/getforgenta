@@ -112,7 +112,9 @@
 > - He set the $230 Groceries rule to **never end** and the $240 "Groceries
 >   Robinhood" rule was **DELETED** (the UI would only set `active=false`; nothing
 >   in `synced_transaction_reviews` referenced it). **One grocery rule now.**
-> - **CC Debt Free settles at Nov 2028** - one month earlier than the Dec 2028
+> - ⚠️ **THE PAYOFF MONTH IS NOT STABLE.** Dec 2028 baseline; Nov 2028 with card
+>   start 09-15; **Sep 2028** with start 09-01 + a $25 charge - each internally
+>   stable across 2 runs, moved 2 months by sub-$100 inputs. Say 'late 2028'. - one month earlier than the Dec 2028
 >   baseline, from that $10/mo. STABLE across two consecutive runs (converged/17).
 >   ⚠️ The earlier "Sep 2028" was a TRANSIENT convergence state, already corrected
 >   everywhere. Re-read a payoff milestone twice before reporting it.
