@@ -1,5 +1,114 @@
 ﻿# Handoff - Forgenta
 
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36q, WRITTEN AT THE CLEAR POINT.
+> Read THIS block, then the 36q block below it for detail. Everything below
+> 36q is older sessions and is unchanged.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> **STATE: tsc 0, 295 files / 3124 tests green, working tree clean, all commits
+> local on `main` (nothing pushed - his standing rule is push straight to main,
+> no PRs, but nothing has been pushed this session).**
+>
+> ### WHAT I AM DOING NEXT (he told me to continue after his /clear)
+> **TWO FIXES, IN THIS ORDER:**
+>
+> **FIX 1 - new credit cards must get a surplus rank on creation.** His words:
+> *"it needs to show in rank individually regardless. consider my customers. they
+> cant just have you take it in and out with sql... i selected it and yoy
+> overwrote it. and follow the avalanche/snowball order selected on debt payoff
+> tab by default."* A card created today lands with `surplus_sort_order` NULL and
+> `payment_preference` NULL, drops into the grouped "Credit cards" row, and
+> silently overrides the user's saved "One row each" choice with a "4 on their
+> own and 1 sharing one spot" prompt. Fix in the ACCOUNT-CREATION path: assign
+> `surplus_sort_order` on insert, positioned by the payoff method selected on the
+> Debt Payoff tab. `getStrategyPayoffOrder` in `src/lib/debt-payoff-order.ts`
+> already computes that exact ordering (avalanche = marginal APR desc, snowball =
+> balance asc) - reuse it, do not re-derive. ⚠️ Inserting into the middle of the
+> rank space must SHIFT the goals/stages too, or it breaks split pairings - see
+> "the reconnect" below for what that costs when it is missed.
+>
+> **FIX 2 - a card the user autopays IN FULL is not paid in full by the sim.**
+> Measured on the live Robinhood card: Oct pays its $255 statement in full (the
+> one-cycle lag IS modelled right), but **Nov pays $50 of $230 (backlog $180),
+> Dec $61 of $414.50 (backlog $353.80)**, then Jan catches up at $593 - i.e. the
+> model revolves a 29.99% balance, the exact failure mode the card plan exists to
+> avoid. RULED OUT: `payment_preference='statement'` does NOT fix it (set it,
+> re-measured, unchanged). The defect is in `credit-card-engine.ts` Step 2's
+> cycling-pool funding - the card's mandatory stays at the 2% floor ($25) instead
+> of the full statement, and `paidOffPool = tentativeAvailAboveFloor -
+> effectiveReservedForRevolving - pinnedMandatoryTotal` is starved in tight
+> months while $710+ goes to Prime Visa (27.49%) and Discover (16.6%) the same
+> month. A full-balance autopay is a hard commitment and belongs with the
+> must-pays, not in a discretionary pool. ⚠️ MONEY MATH IN THE FRAGILE
+> CONVERGENCE LOOP. Read Step 5's ordering end to end BEFORE changing anything;
+> this class of change has been reverted three times in this repo.
+>
+> ### HIS DATA - EVERY WRITE MADE THIS SESSION (user_id
+> `a72f416e-433a-4055-9ab0-9feae4e60edf`; the tables hold MANY other users' rows,
+> filter on every statement or you will hit them)
+> - NEW account `7b1e9a44-3c52-4f18-9d6a-8e2f5c71a903` **Robinhood Gold Card**:
+>   `card_start_date` 2026-09-01, limit **$5,250** (CONFIRMED by the soft-pull
+>   prequal, not a guess), APR 29.99, due day 12, `payment_preference='statement'`,
+>   `surplus_sort_order` 0, **`annual_fee` NULL on purpose**.
+> - Rule `2f6c8d10-...` **Robinhood Gold $50 YEARLY** from Chase checking, starts
+>   2026-09-26 (he chose the ANNUAL plan; first 30 days free).
+> - Rule `0683bc28` Groceries $230 repointed to the card; he made it NEVER END.
+> - Rule `510c641b` "Groceries Robinhood" $240 **DELETED** (the UI would only set
+>   `active=false`; nothing referenced it).
+> - Account `3cd63d6e` Venture X pushed to **2028-06-01** (start AND fee date).
+> - Txn `ece72e4f` Movers $1,500 (2027-07-01) → the card. Txns `e8a61a5b` Tires
+>   $900 + `142d8166` ESR Wheels $1,538 (Dec 2028) LEFT on Venture X on purpose.
+> - Txn `c4a71b98` **$25 expedited shipping**, charged TO the card, dated
+>   2026-09-01 so it lands on the first statement.
+> - **THE RECONNECT (he caught this):** shifting the cards' `surplus_sort_order`
+>   +1 to seat Robinhood at 0 **broke the split pairing** between Prime Visa and
+>   the move fund's first stop, and collided Apple Card with "Emergency runway".
+>   Fixed by shifting the goal side to match: stages First target 0→1, Emergency
+>   runway 4→5, Full runway 5→6; goals Roth 6→7, Brokerage 7→8, 401K 8→9.
+>   LIVE-VERIFIED the list now reads 1 Robinhood · **2 Prime Visa 50% SPLIT with
+>   Move fund FIRST TARGET 1/3 50%** · 3 Discover · 4 Venture X. **Any future
+>   rank insert must do this same shift.**
+>
+> ### SHIPPED THIS SESSION (code)
+> - **`30891508`** - a month that pins EXACTLY to its cash floor is no longer
+>   painted red. `belowSafeMinimum` was a bare `<` with no tolerance; PASS 3 and
+>   Step 5 both drain to exactly the floor, so IEEE-754 residue read as a breach
+>   (Nov 2026: 2444.3999999999996 vs a 2444.4 floor). Now `- 0.005`.
+>   LIVE-VERIFIED: zero breached months across all 60. HE reported it.
+>
+> ### ⚠️ DO NOT REPORT A PAYOFF MONTH
+> "CC Debt Free" read Dec / Nov / Sep 2028 across sub-$100 input changes in one
+> evening, each config internally stable across repeated runs. The month sits on
+> a threshold. **Say "late 2028".** I quoted Sep 2028 once from a transient and
+> had to retract it - do not repeat that.
+>
+> ### ADVISORY, CLOSED (no code, nothing pending)
+> Robinhood Gold: he signed up (annual $50/yr), was ALREADY INVITED (no
+> waitlist), took the card at a **$5,250 limit from a SOFT pull** →
+> **utilization 74.7% → 61.9%**, which is the real win, not the ~$33/yr of cash
+> back. **Redemption trap recorded: auto-redeem pays 0.7¢/pt = 2.1%; only "Cash
+> back" to the brokerage account pays 1¢/pt = the full 3%. Never auto-redeem.**
+> Authorized user for his partner: WAIT ~6-12 months (no history to inherit yet;
+> AU open-date backdating means waiting costs her nothing; Discover at 94.9%
+> would actively hurt her). Application figures: income **~$72,400**, housing
+> **$1,915** - his $80k at Chase / $75k at Discover are stale and reconcile to
+> his 2027 promoted salary. Crypto: **he agreed to sell ~$150 of AVAX and put it
+> on PRIME VISA** (27.49% guaranteed beats a speculative asset).
+> Full write-up lives in his OBSIDIAN VAULT (the vault IS
+> `C:\Users\tvonh\Desktop\claudecontext`): `Robinhood Gold Card Decision.md`.
+> Memory: `project_robinhood_gold_decision.md`.
+>
+> ### ALSO OPEN
+> - ⛔ The Nov 2026 engine pull-back is **RULED OUT BY HIM** - promo installment
+>   minimums are contractual. Do not re-open.
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+> - !! Weekly usage cap override is **96** - restore to 75.0 after the
+>   2026-08-31 18:00 reset.
+> - Then the 36p queue below (Debt Payoff span at 390px; "not open yet" note +
+>   payoff-method ordering on Venture X / Apple Card; the Garage card's two
+>   payoff dates in `src/components/vehicles/LoanCard.tsx` - MEASURE first).
+
 > ▶ 2026-08-27 SESSION 36q - **NO CODE CHANGED. Two questions, both answered;
 > working tree is 36p's.** Diagnosis + advisory only.
 >
