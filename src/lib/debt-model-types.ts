@@ -210,6 +210,13 @@ export interface CardProjectionResult {
   /** Per-month cap on Step-5 debt payments from the look-ahead floor-protection pass.
    * Infinity = uncapped; finite = save-up month. Exposed for debugging interest-accrual causes. */
   maxDebtPaymentByMonth: number[];
+  /** Per-month mandatory installment cash cost (plan-schedule-aware via upfrontPayByMonth, with a
+   * flat fallback for cards carrying only the manual Accounts-tab installment fields). The engine
+   * deducts this from availableCash separately (Step 2.5), so anything that models the cascade
+   * pool must treat it as an EXPENSE and strip it out of the CC-minimum term — see
+   * useCardProjection's `ccMinRevOnly`. Exposed so forecast-engine's PASS-2 look-ahead can use the
+   * same convention instead of computing (and drifting on) its own. */
+  installmentCostByMonth: number[];
   /** Authoritative per-month payment ledger built from the active sim's own outputs —
    * .claude/plan/unify-cycling-model.md Stage 2. Not yet consumed by forecast-engine.ts. */
   paymentLedger: PaymentLedgerEntry[];

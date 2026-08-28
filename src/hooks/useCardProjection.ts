@@ -2454,6 +2454,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // non-resim hookResult self-consistent. Months 1+ stay raw-sim (tuned convergence untouched).
         paymentLedger: buildPaymentLedger(activeSim, cards).map((entry, i) => (i === 0 ? month0PaymentLedger : entry)),
         maxDebtPaymentByMonth,
+        installmentCostByMonth,
         m0Income,
         m0Expenses,
         m0SafeFloor,

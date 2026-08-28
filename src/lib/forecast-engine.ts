@@ -1656,14 +1656,30 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // left the live balance, double-counting the cash.
     const m0SettledCcMin = (cardProjectionData?.simCards ?? [])
       .reduce((s, c) => s + (c.m0MinSettled ? Number(c.minPayment || 0) : 0), 0);
-    const ccMinByMonth = ((cardProjectionData?.manualIsbPins ?? []).length > 0 || m0SettledCcMin > 0)
-      ? Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-          ccMinTotal
-          - (m === 0 ? m0SettledCcMin : 0)
-          + ((cardProjectionData?.manualIsbPins ?? [])
-            .filter(p => p.month === m)
-            .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0)))
-      : undefined;
+    // Mandatory installment cash per month, from the hook's single computation of it
+    // (plan-schedule-aware). Recomputing it here would drift from the schedule the engine's own
+    // Step 2.5 receives, so it is carried across rather than rebuilt.
+    const installmentCostByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
+      Math.max(0, cardProjectionData?.installmentCostByMonth?.[m] ?? 0));
+    // CONVENTION B — the cascade-pool convention, matching useCardProjection's `ccMinRevOnly` and
+    // what the consumer (credit-card-engine.ts:1810/1848) actually assumes: the mandatory
+    // installment cash is an EXPENSE (added to expenseByMonth below), never part of the CC-minimum
+    // term. `ccMinTotal` sums CardData.minPayment, which INCLUDES the installment portion, so it
+    // has to come back out here. Previously this array only existed when ISB pins or month-0
+    // settlements did, and never subtracted the installment — so the cap computeFloorProtection
+    // produced was in total-CC-outflow units while credit-card-engine compared it against an
+    // availableCash that had already paid the installments, leaving the cap inflated by exactly
+    // installmentCashCost and therefore too loose to bind (36w). It is now built unconditionally;
+    // with no installments, no pins and no settlement it is ccMinTotal in every month, which is
+    // what the `undefined` fallback resolved to anyway.
+    const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
+      Math.max(0,
+        ccMinTotal
+        - (m === 0 ? m0SettledCcMin : 0)
+        - installmentCostByMonth[m]
+        + ((cardProjectionData?.manualIsbPins ?? [])
+          .filter(p => p.month === m)
+          .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0))));
     // Upper bound on the reducible (revolving + backlog) debt payment per month: the debt
     // outstanding entering month m, from the sim's own trajectory. Keeps the look-ahead's cash
     // walk from assuming surplus keeps flowing to debt after all revolving debt has cleared —
@@ -1687,7 +1703,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
           + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + otherDebtPaymentByMonth[i]
-          + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]),
+          + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]
+          + installmentCostByMonth[i]),
       oneTimeNetByMonth: baseData.map(b => b.oneTimeNet),
       carDownPaymentByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, i) => getMonthEffectiveDP(i)),
       floorByMonth: baseData.map(b => b.monthMinSafe),
@@ -1702,7 +1719,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // debtPayments[i]: Forecast's own raw recommended payment (rawDebtPayment, already sourced
     // from cardProjectionData.allPaymentTotals where available), capped by this page's own
     // look-ahead above.
-    const debtPayments = baseData.map((b, i) => Math.min(b.rawDebtPayment, maxDebtPaymentByMonth[i]));
+    // `rawDebtPayment` is allPaymentTotals — CONVENTION A, every CC outflow including the
+    // mandatory installment. `maxDebtPaymentByMonth` is now Convention B (cascade pool only), so
+    // the installment has to be added back on the cap side or the DISPLAYED payment would be cut
+    // by an amount that is contractual and was never reducible. Infinity + x stays Infinity.
+    const debtPayments = baseData.map((b, i) =>
+      Math.min(b.rawDebtPayment, maxDebtPaymentByMonth[i] + installmentCostByMonth[i]));
 
     // Resolve each goal's live current_amount/monthly_contribution/contribution-start delay the
     // same way SavingsGoals.tsx's allGoals does (linked_account balance, linked_rule amount) so
