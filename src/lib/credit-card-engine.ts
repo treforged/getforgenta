@@ -1821,6 +1821,32 @@ export function simulateVariablePayoff(
       // The target is the TOTAL revolving debt cash for the month; pinned Step-5 spend comes out
       // of it first, leaving the remainder for the unpinned cascade.
       availableCash = Math.max(mDebtTarget - pinnedStep5Total, totalMins);
+      // ── THE SAVE-UP CAP SURVIVES THE TARGET (2026-08-27, Tre's call) ─────────
+      //
+      // It did not until now: the target REPLACED availableCash outright, and the comment above
+      // said so ("Wins over mDebtCap"). That made the cap inert everywhere except month 0 and
+      // pinned months, because the target is the sim's own spend echoed back through the forecast's
+      // ledger — so a month the look-ahead had told to save up simply re-spent, every pass, and the
+      // fixed point was the un-capped one. Measured live 2026-08-27: Oct 2026 carried a computed
+      // cap of $785 and paid $1,096.
+      //
+      // What that cost is the next month. A cycling card's statement is a bill; when the month it
+      // lands in has nothing above its floor, the statement is not paid and the balance revolves —
+      // on Tre's live data a $230 grocery statement on a 29.99% card was paid $25.
+      //
+      // ⚠️ MINIMUMS ARE EXEMPT, and that is the whole shape of the ruling. The clamp is floored at
+      // `totalMins` — the contract minimums this month's cascade is about to enforce — so it can
+      // only ever reduce DISCRETIONARY paydown. Tre, 2026-08-27: "the payment plans should be
+      // guaranteed paid, hence why they are included in the cards minimum", and then "a. cross-month
+      // save up is the logical choice." Both hold here: the promo installments and every contract
+      // minimum are untouchable, and only the extra on top is deferred a month.
+      //
+      // The two-cycle this could create (cap holds cash back → next month is fine → look-ahead
+      // relaxes → month re-spends) is collapsed by the damped re-target in runDebtCashConvergence,
+      // the same damping that settles the payment↔clip cycle the deficit branch can open.
+      if (mDebtCap !== undefined && isFinite(mDebtCap)) {
+        availableCash = Math.min(availableCash, Math.max(mDebtCap - pinnedStep5Total, totalMins));
+      }
     }
 
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
