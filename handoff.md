@@ -1,9 +1,9 @@
 # Handoff - Forgenta
 
-> _ 2026-08-27 SESSION 36p - **`90b39aba`. tsc 0, 294 files / 3114 tests, eslint
-> clean. 57 commits unpushed.** THE TILES MOVE IS COMPLETE, and with it every ask
-> that was open at the start of the session. Manager built all of it; no executor
-> spawned.
+> ▶ 2026-08-27 SESSION 36p - **`814a2ba5`, PUSHED. `origin/main` verified by
+> contents. tsc 0, 295 files / 3124 tests, eslint clean, working tree clean.**
+> Everything open at session start shipped, plus two asks that arrived mid-session.
+> Manager built all of it; no executor spawned.
 >
 > === SHIPPED THIS SESSION ===
 > - **`41c394f4`** - the vehicle money moved to /debt's Auto Loans tab; the Garage
@@ -33,7 +33,6 @@
 >     withheld via deductions; /budget shows no tiles, no Remaining Cash, and the
 >     donut still divides the same totals (Fixed 54 / Variable 12 / Debt 9 /
 >     Transfers 20 / Remaining 5).
->
 > - **`5a9e28a2` - CARDS CARRY THEIR ANNUAL FEE.** `accounts.annual_fee` +
 >   `annual_fee_date` (migration applied, types patched same commit, two CHECKs);
 >   `src/lib/annual-fee.ts` is the one recurrence rule (recurs on the anniversary,
@@ -41,10 +40,25 @@
 >   ⚠️ THE FEE IS A CARD PURCHASE, NOT A CASH EXPENSE, and BOTH tallies had to
 >   learn it from that module: `cardPurchasesPerMonth` (useCardProjection, the
 >   sim) and `ccScheduledByMonth` (useForecastEngineInputs, the CASH WALK).
->   Wiring only the first was measured live and showed nothing on /forecast.
+>   Wiring only the first was measured live and showed NOTHING on /forecast - if
+>   another charge type is ever added, wire both.
 >   Applied to his Venture X ($395, 2027-06-01): CC line Jun 2027 $254 -> $649,
 >   Jun 2028 $494 -> $889, July untouched both years; cash still pins at the
 >   floor, so the fee costs payoff SPEED, not cash - ETA still Dec 2028.
+>
+> === ADVISORY THREAD, NOT CODE (he asked, I answered; nothing is pending on me) ===
+> He asked about the Robinhood Gold Card, banking there, and moving the Roth IRA.
+> Answered NO to all three for now, off his live accounts: revolving
+> **$18,979 / $25,400 = 74.7%** (Discover 94.9% alone), interest-bearing $13,998,
+> payoff ETA **Dec 2028**, cash $2,858, savings $106, **Roth IRA $991** (a 3% match
+> is $29.73, locked 5 years). Venture X timing at Jun 2027 is defensible AFTER his
+> clarification that movers + groceries hit the $4k bonus with spend he already
+> makes - conditions given: apply only AFTER the new lease is approved, and check
+> utilization then (his own sim has tracked card liabilities at ~$6.2k by Jun 2027).
+> The free move he has not done: **ask Discover and Chase for credit-limit
+> increases** (soft pull, no new account).
+> ⚠️ **HE DOES NOT HAVE AN AMEX GOLD** - the "card stack" line in the global
+> CLAUDE.md is a PLAN. He corrected me on it; memory file written.
 >
 > === QUEUE, IN PRIORITY ORDER ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
@@ -55,8 +69,8 @@
 >    `src/components/vehicles/LoanCard.tsx`.
 > 2. Then session 36k's queue, unchanged, further below.
 >
-> SETTLED, do not re-ask: the phone nav label stays **"Transactions"**; the
-> saving card's two estimate figures are **back**.
+> SETTLED, do not re-ask: the phone nav label stays **"Transactions"**; the saving
+> card's two estimate figures are **back**; the Venture X annual fee is **modelled**.
 >
 > !! Weekly usage cap override is at **96** (Tre, 2026-08-27: "up to 96%") in both
 > `~/.claude/bin/usage_cap_hook.py` and `usage_resume_watch.py` -
