@@ -1,7 +1,77 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36u. LIVE-MEASURED ON HIS DATA.
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36v. **I WAS WRONG TWICE. TRE WAS
+> RIGHT.** Oct 2026 DOES have discretionary money to cut back. The real
+> blocker is now MEASURED, not inferred. tsc 0, tree clean, nothing pushed.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### 📏 THE MEASUREMENT THAT SETTLES IT (temporary probe inside the engine at
+> m === 2, run against his live data, then removed — tree is clean)
+> ```
+> availableCash 330.00   totalMins 199.30   installmentCashCost 510.50
+> mDebtCap 784.80        mDebtTarget 330.00  pinnedStep5Total 0
+> paidOffCashCost 255.00 (Robinhood's Oct statement, paid IN FULL)
+> ```
+> **Oct 2026's $840.50 debt payment decomposes as:**
+> - **$510.50** mandatory Equal Pay installments (0% promo, contractual, paid
+>   OUTSIDE the cascade via `installmentCashCost`) — untouchable, his ruling
+> - **$199.30** revolving contract minimums (`totalMins`) — untouchable
+> - **$130.70 DISCRETIONARY** (330.00 − 199.30) — **CUTTABLE. HE IS RIGHT.**
+>
+> Sep (m1) pays 1,159.50 against the same $199.30 of revolving minimums, so it
+> carries far more discretionary still. Nov (m3) and Dec (m4) pay exactly 709.80
+> = minimums + installments, zero discretionary. **Sep + Oct together hold well
+> over the $230 Nov needs.** My two earlier claims — "the $710 is all minimums"
+> (36s) and "Oct's $841 IS its $841 of minimums" (36u) — were BOTH back-solved
+> from totals, never measured. Do not repeat that; the probe is the method.
+>
+> ### ⛔ WHY THE FIX STILL DOES NOT BIND — THE REAL BLOCKER, MEASURED
+> `mDebtCap` for Oct is **784.80** while `availableCash` is only **330.00**. The
+> cap is more than double the pool it is being compared against, so it cannot
+> constrain anything — and `1d1de408`'s clamp, which is correct in itself, is
+> unreachable for exactly that reason. Making the cap "survive the target" was
+> necessary but is not sufficient: **the cap is too loose to matter.**
+>
+> The open question, and it is the whole of the remaining work: **why does
+> `computeFloorProtection` size Oct's cap at $784.80 when Nov is $111 short?**
+> `intendedCyclingStatement` (`7ecbd0f3`) did move the caps from uncapped to
+> finite, so the statement IS now visible to the look-ahead — but $784.80 is
+> still far above the $330 Oct actually deploys. Suspect the look-ahead's own
+> cash walk (`bal` in floor-protection.ts's forward pass, built from
+> `comprehensiveMExp` / `incomeByMonth`) diverges from the sim's real state, so
+> it believes Oct is richer than it is. **START THERE.** Instrument
+> `requiredEndByMonth[2]`, `netAtMin[3]` and the forward pass's `bal` at m2 and
+> compare each against the sim's actual numbers above.
+>
+> ### ⚠️ METHOD NOTE FOR WHOEVER PICKS THIS UP
+> A temporary `globalThis.__probeM2 = {...}` line just before
+> `const payments = new Map(...)` in `simulateVariablePayoff`, plus a dev-server
+> restart and a reload, answers in one pass what three sessions of reading could
+> not. HMR alone was NOT enough to pick up engine edits — restart
+> `node scripts/dev-session.mjs down && … up`. REMOVE THE PROBE AFTERWARDS.
+>
+> ### ✅ APPROVED BY TRE 2026-08-27, ALL STILL TO BUILD
+> 1. **Plaid sync adoption** (claim-on-first-sync) — design in 36u below, approved.
+> 2. **Create + delete a throwaway card** to live-verify FIX 1 — approved.
+> 3. **Finish FIX 1's Plaid gap** (a synced card still lands unranked) — approved.
+> 4. **NEW: a "pay in full / mandatory" marker.** He proposed it per planned
+>    transaction in Budget Control, then simplified it himself: *"maybe just a
+>    mandatory marker on each card is fine."* Take the per-CARD version — one
+>    flag on the card, not one per transaction. Purpose in his words: *"it just
+>    lets the user know a not meeting the cash floor is inevitable and to check
+>    cash floor."* So it is a WARNING surface first (this card must clear in full;
+>    here is the month it cannot, go look at your floor), and only second an
+>    engine input. Goal: *"never have interest on the robinhood card."*
+>
+> ### STILL OPEN
+> - Weekly cap override is **97**; restore to 75.0 after the 08-31 18:00 ET reset.
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36u - superseded by 36v above. ⚠️ ITS "STRUCTURAL / NO
+> DISCRETIONARY DOLLAR" CONCLUSION IS WRONG - see 36v. The Plaid duplicate
+> finding and its claim-on-first-sync design below are still correct. LIVE-MEASURED ON HIS DATA.
 > **THE NOV/DEC UNDERPAYMENT IS STRUCTURAL. IT IS NOT AN ALLOCATION BUG,
 > AND OPTION (a) CANNOT FIX IT. DO NOT RE-OPEN IT WITHOUT READING THIS.**
 > tsc 0, 297 files / 3146 tests green. All local on `main`, nothing pushed.
