@@ -1,8 +1,79 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
-> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36s. FIX 1 SHIPPED AND GATED.
-> FIX 2 RE-DIAGNOSED - THE OLD DIAGNOSIS IS WRONG, AND IT NOW NEEDS TRE.
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36t. **BOTH FIXES SHIPPED AND GATED.**
+> tsc 0, 297 files / 3146 tests green. All local on `main`, nothing pushed.
+> ONE THING OUTSTANDING: neither fix has been LIVE-VERIFIED in a browser.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### ✅ FIX 2 - DONE. `7ecbd0f3`. Tre chose (a), cross-month save-up.
+> **The 36q/36s diagnosis was wrong twice over, and the real cause was one
+> fallback wide.** `computeCyclingPaymentByMonth` (`useCardProjection.ts`) sizes
+> the reserve a save-up month banks for next month's statement. It ALREADY had a
+> guard for this - `Math.max(actual, intended)` - with a comment saying it exists
+> to stop the look-ahead "only saving enough to repeat the underpayment". The
+> guard never fired, because `intended` read `cardPurchasesPerMonth[m-1]?.[id]`
+> **`?? 0`**. That map carries SCHEDULED one-offs; a card spending through an
+> ordinary recurring rule has nothing in it. So `intended` was 0, the max
+> collapsed to the sim's own underpayment, and the loop closed on itself: the
+> look-ahead reserved $50 because the sim paid $50, and the sim paid $50 because
+> the look-ahead reserved $50.
+> - The engine defers `max(cardPurchasesThisMonth(card), monthlyNewPurchases)`
+>   and `cardPurchasesThisMonth` itself falls back to `monthlyNewPurchases` for
+>   m>=1, so it charges the steady amount map entry or no map entry. The
+>   look-ahead now mirrors that, via new `src/lib/cycling-statement-reserve.ts`
+>   (`intendedCyclingStatement`), which owns the rule with the invariant beside
+>   it: **under-reporting guarantees an overrun that lands as interest-bearing
+>   backlog; over-reporting is merely conservative.** Hence max, not a fallback
+>   chain. `cyclingExcessByMonth` already read the map correctly - they now agree.
+> - **NOTHING ELSE MOVED, deliberately.** Step 2's pool ordering untouched. The
+>   target/cap precedence at `credit-card-engine.ts:1819` untouched. This is an
+>   INPUT fix that lets the EXISTING save-up machinery see a must-pay it was blind
+>   to: truthful statement -> `comprehensiveMExp` up -> `requiredEndByMonth` up ->
+>   the preceding month is capped and enters `strictSaveUpMonths` -> and
+>   `forecast-engine.ts:2358`'s surplus branch is already gated on that set, so
+>   the cap survives instead of being echoed back. **Minimums cannot be squeezed:
+>   `computeFloorProtection` floors every cap at `mCcMin`** (floor-protection.ts
+>   :283), which is the half of Tre's earlier ruling that stands.
+> - 9 tests incl. the `?? 0` regression itself and the save-up chain end to end.
+> - **Every golden-fixture payoff pin still holds - no fixture moved.** That is
+>   the safety evidence for a change this close to the convergence loop.
+>
+> ### ⚠️ THE ONE THING LEFT: LIVE VERIFICATION (both fixes, one session)
+> Neither fix has been clicked. Unit-pinned is not measured. On localhost:8080
+> (`dev-signin` skill):
+> 1. **FIX 2 is the one that matters.** Open the Robinhood card's months in the
+>    forecast and re-measure Nov/Dec 2026. Expect Nov to pay its full ~$230
+>    statement and the backlog to be $0. ⚠️ ALSO CHECK WHAT IT COST: Oct now holds
+>    back the ~$156 it was sending to Prime Visa, so confirm **no month went red**
+>    (`window.__convergenceDebug` should still report `converged:true`) and note
+>    whether the CC payoff date moved. **DO NOT REPORT A PAYOFF MONTH** - it sits
+>    on a threshold and read Dec/Nov/Sep 2028 across sub-$100 changes in one
+>    evening. Say "late 2028".
+> 2. **FIX 1**: with the ranked list on "One row each", create a throwaway credit
+>    card, confirm it lands at its own rank in strategy position and the Prime
+>    Visa / move-fund split SURVIVES, then delete it.
+>
+> ### 🔎 KNOWN GAP IN FIX 1, NOT FIXED (deliberate, out of scope)
+> The seat is assigned in the ACCOUNT-CREATION path, which is `Accounts.tsx` only.
+> A card created by the **Plaid sync** (`supabase/functions/_shared/sync-handler.ts`
+> inserts `accounts` rows directly) still lands with a NULL rank and reproduces
+> the whole bug. The durable fix is a self-heal in `useSurplusRanking`, but it
+> needs a way to tell "individual + one new card" from a legacy MIXED list, and
+> `cardMode` is DERIVED today so nothing can. **Storing the chosen mode is the
+> real answer.** Queued, not started.
+>
+> ### CAP HOUSEKEEPING
+> - Weekly usage cap override is **97**; restore to 75.0 after the 2026-08-31
+>   18:00 ET reset.
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+> - Then the 36p queue below (Debt Payoff span at 390px; "not open yet" note +
+>   payoff-method ordering on Venture X / Apple Card; the Garage card's two
+>   payoff dates in `src/components/vehicles/LoanCard.tsx` - MEASURE first).
+
+> ═══════════════════════════════════════════════════════════════════════
+> ▶▶ SESSION 36s - superseded by 36t above. FIX 1 detail and the FIX 2
+> re-diagnosis that led to it.
 > ═══════════════════════════════════════════════════════════════════════
 >
 > **STATE: tsc 0, 296 files / 3137 tests green, working tree clean, commits
