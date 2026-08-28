@@ -123,7 +123,28 @@
 > - Crypto gift: claimed, opens **Sept 3**, hard claim deadline **Sept 8**, no
 >   sell/withdraw restriction, 1099-reportable. Not modelled.
 >
-> === ⚠️ NEW, TOP OF QUEUE: THE GROCERY CARD IS NOT PAID IN FULL ===
+> === ✅ SHIPPED `30891508`: A MONTH PINNED TO ITS FLOOR IS NO LONGER RED ===
+> `belowSafeMinimum` was `rawEndingCash < b.monthMinSafe` with NO tolerance, but
+> PASS 3 and the sim's Step 5 both drain end cash to EXACTLY the floor, so pinning
+> AT the floor is the common case and IEEE-754 residue read as a breach. Live:
+> Nov 2026 ended 2444.3999999999996 vs a 2444.4 floor - red row, identical $2,444
+> in the drawer. Now `< monthMinSafe - 0.005`. tsc 0, 295 files / 3124 tests.
+> LIVE-VERIFIED: **zero breached months across all 60**, and the "Cash below safe
+> minimum" milestone is gone from the summary. He reported it; he was right.
+>
+> === ⚠️ RANKING: I CREATED THE ROBINHOOD CARD WITHOUT A SURPLUS RANK ===
+> His Goals tab went back to showing the grouped "Credit cards" row plus the
+> "RANK CREDIT CARDS - choose one" prompt reading *"4 on their own and 1 sharing
+> one spot"*. Cause: the SQL insert set `sort_order` 0 and left
+> **`surplus_sort_order` NULL**, so the new card fell into the shared group.
+> Others are Prime Visa sso 0 (50% share), Discover 1, Venture X 2, Apple 3.
+> ⛔ NOT FIXED BY ME ON PURPOSE - the rank is his payoff strategy, AND whether
+> this card belongs in the surplus queue at all depends on the pay-in-full issue
+> below. Ranking it FIRST (highest APR, 29.99%) is right only if it really does
+> carry a balance; if the statement is paid in full as it should be, it never
+> needs a rank. Resolve the issue below first, then ask him.
+>
+> === ⚠️ TOP OF QUEUE: THE GROCERY CARD IS NOT PAID IN FULL ===
 > Measured on the Robinhood card in the converged sim: Oct pays its $255 statement
 > in full (the one-cycle lag IS modelled correctly), but **Nov pays $50 of $230
 > and Dec pays $61 of $414.50**, building a balance to **$592.64 by Jan 2027** -
