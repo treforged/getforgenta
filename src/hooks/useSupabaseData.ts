@@ -69,8 +69,16 @@ export function useAccounts() {
       // A new account goes to the END of the list. The column defaults to 0, which would put it
       // at the top — the opposite of the date-added order it replaced.
       const sort_order = item.sort_order ?? nextAccountSortOrder(query.data ?? []);
-      const { error } = await supabase.from('accounts').insert(sanitizePayload({ ...item, sort_order, user_id: user.id }));
+      // ⚠️ RETURNS THE NEW ROW'S ID, and a caller needs it: a brand-new credit card has to be seated
+      // in the surplus ranking straight away (`useSurplusRanking().rankNewCard`) or it lands with a
+      // NULL `surplus_sort_order`, drops into the card block and overwrites a "One row each" choice
+      // the user already made. There is no other way to learn the id — the row is generated server
+      // side and the list refetch is a separate round trip that has not happened yet.
+      const { data, error } = await supabase.from('accounts')
+        .insert(sanitizePayload({ ...item, sort_order, user_id: user.id }))
+        .select('id').single();
       if (error) throw error;
+      return data as { id: string };
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account added'); },
     onError: (e: Error) => toast.error(e.message),

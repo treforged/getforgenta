@@ -523,6 +523,26 @@ export function enforceStopOrder(rows: readonly SurplusRankRow[]): SurplusRankRo
  * Avalanche is highest APR first, snowball is lowest balance first — the same two comparators
  * `getStrategyPayoffOrder` uses, on the only two fields an `accounts` row hands this module.
  */
+/**
+ * The seat the payoff strategy would give a card, as a number that sorts ASCENDING — lower is paid
+ * first. Avalanche negates the APR so "highest rate first" and "lowest balance first" can be the
+ * same comparison; a card with neither field reads as the back of the queue under avalanche and the
+ * front under snowball, which is what a $0 card genuinely is under each rule.
+ *
+ * The one statement of this ordering inside this module, shared by {@link orderNotOpenCards} and
+ * {@link planNewCardRankWrites} so the list cannot seat a card in one place and reorder it in
+ * another. `getStrategyPayoffOrder` (debt-payoff-order.ts) is the same two comparators over
+ * `CardData`; it cannot be called here because it drops every card with no balance, and a card that
+ * has just been created always has one.
+ */
+function payoffSeatKey(
+  strategy: 'avalanche' | 'snowball',
+  apr: number | null | undefined,
+  balance: number | null | undefined,
+): number {
+  return strategy === 'avalanche' ? -(Number(apr) || 0) : Math.max(0, Number(balance) || 0);
+}
+
 export function orderNotOpenCards(
   rows: readonly SurplusRankRow[],
   strategy: 'avalanche' | 'snowball',
@@ -532,13 +552,10 @@ export function orderNotOpenCards(
   rows.forEach((r, i) => { if (r.kind === 'card' && r.notOpenYet) slots.push(i); });
   if (slots.length < 2) return [...rows];
   const byId = new Map(cards.map(c => [c.id, c]));
-  const ordered = slots.map(i => rows[i]).sort((a, b) => {
-    const ca = byId.get(a.id);
-    const cb = byId.get(b.id);
-    return strategy === 'avalanche'
-      ? (Number(cb?.apr) || 0) - (Number(ca?.apr) || 0)
-      : (Number(a.remaining) || 0) - (Number(b.remaining) || 0);
-  });
+  const ordered = slots.map(i => rows[i]).sort((a, b) => (
+    payoffSeatKey(strategy, byId.get(a.id)?.apr, a.remaining)
+    - payoffSeatKey(strategy, byId.get(b.id)?.apr, b.remaining)
+  ));
   const out = [...rows];
   slots.forEach((slot, k) => { out[slot] = { ...ordered[k], sortOrder: rows[slot].sortOrder }; });
   return out;
@@ -977,19 +994,87 @@ export function planCardSeparationWrites(
   const block = rows.find(r => r.kind === 'cards');
   const at = block ? block.sortOrder + 1 : toGroups(rows).length;
   writes.cards.push({ id: cardId, surplus_sort_order: at, surplus_share: null });
+  bumpRowsAtOrBelow(rows, at, writes);
+  return writes;
+}
 
+/**
+ * MAKE ROOM AT RANK `at`: every row already at it or below moves down one.
+ *
+ * Shared by every planner that INSERTS a rank rather than re-ordering existing ones. Seating a new
+ * row on top of an occupied rank would silently create a split — two rows sharing a number is what
+ * a split IS — so the room has to be made first.
+ *
+ * ⚠️ A STAGED GOAL'S STOP IS ROUTED FIRST, BEFORE `kind`. Its row id is `<goalId>::stopN` from stop
+ * 2 onwards and its rank lives inside `savings_goals.stages`, so a `kind === 'goal'` patch would
+ * aim `savings_goals.sort_order` at an id that exists in no table: the bump vanishes, and the stop
+ * stays behind on a rank the row above just took. That is exactly what broke the Prime Visa /
+ * move-fund split pairing when the Robinhood card was seated at rank 0 on 2026-08-27, and it had to
+ * be repaired by hand in SQL.
+ *
+ * A liability bumps through the `accounts` channel like a card, NOT through the trailing
+ * `car_funds` fallback — that fallback used to be "anything that is not a goal", and a liability
+ * landing there would have written a `sort_order` to a `car_funds` row that does not exist.
+ */
+function bumpRowsAtOrBelow(
+  rows: readonly SurplusRankRow[], at: number, writes: SurplusRankWrites,
+): void {
   for (const row of rows) {
     if (row.sortOrder < at) continue;
     const moved = row.sortOrder + 1;
-    if (row.kind === 'cards') writes.cardsSortOrder = moved;
-    // A liability bumps through the `accounts` channel like a card, NOT through the trailing
-    // `car_funds` fallback — that fallback used to be "anything that is not a goal", and a
-    // liability landing there would have written a `sort_order` to a `car_funds` row that does
-    // not exist, silently losing the bump and leaving two rows sharing a rank.
+    if (row.goalId != null && row.stageId != null) {
+      writes.goalStages.push({ goalId: row.goalId, stageId: row.stageId, sort_order: moved });
+    } else if (row.kind === 'cards') writes.cardsSortOrder = moved;
     else if (row.kind === 'card' || row.kind === 'liability') writes.cards.push({ id: row.id, surplus_sort_order: moved });
     else if (row.kind === 'goal') writes.goals.push({ id: row.id, sort_order: moved });
     else writes.carFunds.push({ id: row.id, sort_order: moved });
   }
+}
+
+/**
+ * A CARD THE USER HAS JUST CREATED, SEATED WHERE THE PAYOFF STRATEGY WOULD PUT IT.
+ *
+ * Tre, 2026-08-27: *"it needs to show in rank individually regardless. consider my customers. they
+ * cant just have you take it in and out with sql ... i selected it and yoy overwrote it. and follow
+ * the avalanche/snowball order selected on debt payoff tab by default."*
+ *
+ * A new `accounts` row lands with `surplus_sort_order` NULL, which is the "inside the block" value —
+ * so on a list the user had set to **One row each** the new card silently re-created the block and
+ * turned the whole list MIXED, which is the one arrangement `planCardRankModeWrites` exists to
+ * prevent. The user's chosen mode was overwritten by an account they added.
+ *
+ * ⚠️ IT ONLY ACTS IN INDIVIDUAL MODE — every other active card already ranked on its own. Returns
+ * `null` otherwise, and `null` means "write nothing": in BLOCK mode the block is the mode the user
+ * picked and a NULL rank is precisely how the new card joins it, and in a legacy MIXED list nobody
+ * has picked anything, so inventing a rank would be this same bug pointed the other way.
+ *
+ * The SEAT is the first existing card the strategy would pay AFTER this one, read down the list in
+ * the order the user actually has it — so a user who dragged their cards out of strategy order
+ * keeps that order, and the new card lands at the boundary inside it rather than reshuffling
+ * everything. Nothing already on the list changes rank relative to anything else; the rows at and
+ * below the seat move down one together.
+ */
+export function planNewCardRankWrites(
+  rows: readonly SurplusRankRow[],
+  cards: readonly RankableCard[],
+  newCard: RankableCard,
+  strategy: 'avalanche' | 'snowball',
+): SurplusRankWrites | null {
+  // The new card may or may not have reached `cards` yet depending on whether the refetch has
+  // landed, and it must not count as one of the cards whose mode is being read either way.
+  const others = cards.filter(c => c.id !== newCard.id);
+  const solo = rows.filter(r => r.kind === 'card' && r.id !== newCard.id)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (others.length === 0 || solo.length !== others.length) return null;
+
+  const byId = new Map(others.map(c => [c.id, c]));
+  const key = payoffSeatKey(strategy, newCard.apr, newCard.balance);
+  const behind = solo.find(r => payoffSeatKey(strategy, byId.get(r.id)?.apr, r.remaining) > key);
+  const at = behind ? behind.sortOrder : solo[solo.length - 1].sortOrder + 1;
+
+  const writes: SurplusRankWrites = { goals: [], carFunds: [], cards: [], goalStages: [], cardsSortOrder: null };
+  bumpRowsAtOrBelow(rows, at, writes);
+  writes.cards.push({ id: newCard.id, surplus_sort_order: at, surplus_share: null });
   return writes;
 }
 

@@ -8,9 +8,9 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSavingsGoals, useCarFunds, useProfile, useAccounts, useDebts, useRecurringRules } from '@/hooks/useSupabaseData';
 import {
   buildSurplusRankRows, isSurplusRankWritesEmpty, planAutoExtraDeselect, planCardRankModeWrites,
-  planCardSeparationWrites,
+  planCardSeparationWrites, planNewCardRankWrites,
   planLiabilityRankWrites, planSurplusRankWrites,
-  type SurplusRankRow, type SurplusRankWrites,
+  type RankableCard, type SurplusRankRow, type SurplusRankWrites,
 } from '@/lib/surplus-ranking';
 import { buildRankableLiabilities, type RankableLiability } from '@/lib/ranked-extra-payment-targets';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
@@ -48,7 +48,20 @@ const autoExtraDeselected = new Set<string>();
  * ⚠️ BOTH LIST QUERIES `.order('created_at')`, NOT `sort_order`. The ordering is done here, by
  * `buildSurplusRankRows`; reading `data` straight off either hook gives the wrong order.
  */
-export function useSurplusRanking() {
+export type UseSurplusRankingOptions = {
+  /**
+   * Whether this mount runs the met-target auto-deselect pass. Default `true`, which is every
+   * screen that SHOWS the list.
+   *
+   * ⚠️ PASS `false` WHERE THE LIST IS NOT ON SCREEN. `Accounts` mounts this hook only to seat a
+   * newly-created card (see `rankNewCard`); running the deselect there would fire a background
+   * write and a toast about rows the user is not looking at, which is exactly what the effect's own
+   * note rules out ("it only runs where the list is on screen, and that is enough").
+   */
+  autoDeselect?: boolean;
+};
+
+export function useSurplusRanking({ autoDeselect = true }: UseSurplusRankingOptions = {}) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const qc = useQueryClient();
@@ -254,6 +267,20 @@ export function useSurplusRanking() {
     saveMutate(planLiabilityRankWrites(rows, accountId, ranked));
   }, [rows, saveMutate]);
 
+  /**
+   * Seat a card the user has JUST CREATED, so adding an account cannot overwrite the "One row each"
+   * choice they already made (Tre, 2026-08-27: "i selected it and yoy overwrote it").
+   *
+   * Called with the new card's own figures rather than looked up, because the `accounts` refetch may
+   * not have landed yet — and `planNewCardRankWrites` is a no-op in every mode but individual, so a
+   * caller never has to work out whether it applies.
+   */
+  const rankNewCard = useCallback((card: RankableCard) => {
+    if (readOnly) return;
+    const writes = planNewCardRankWrites(rows, cards, card, debtStrategy);
+    if (writes) saveMutate(writes);
+  }, [rows, cards, debtStrategy, readOnly, saveMutate]);
+
   // ── AUTO-DESELECT ────────────────────────────────────────────────────────
   //
   // "once it comes true it should auto deselect" (Tre, 2026-08-25). A target that has met its goal
@@ -273,7 +300,7 @@ export function useSurplusRanking() {
   const dataReady = !goalsLoading && !carFundsLoading && !accountsLoading;
 
   useEffect(() => {
-    if (readOnly || !user || !dataReady || deselectInFlight.current) return;
+    if (!autoDeselect || readOnly || !user || !dataReady || deselectInFlight.current) return;
     const plan = planAutoExtraDeselect(rows, autoExtraDeselected);
     if (plan.length === 0) return;
 
@@ -337,7 +364,7 @@ export function useSurplusRanking() {
         deselectInFlight.current = false;
       }
     })();
-  }, [rows, readOnly, user, dataReady, qc]);
+  }, [rows, readOnly, user, dataReady, qc, autoDeselect]);
 
   return {
     rows,
@@ -350,6 +377,7 @@ export function useSurplusRanking() {
     setCardSeparated,
     setCardRankMode,
     setLiabilityRanked,
+    rankNewCard,
     saving: save.isPending,
     loading: goalsLoading || carFundsLoading,
     readOnly,

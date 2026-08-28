@@ -12,6 +12,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
+import { useSurplusRanking } from '@/hooks/useSurplusRanking';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Link } from 'react-router';
 import FormModal from '@/components/shared/FormModal';
@@ -142,6 +143,12 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   const { data: accounts, add, update, remove, reorder, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
+  /**
+   * ⚠️ `autoDeselect: false` — this page does NOT show the ranked list. The hook is mounted for one
+   * thing only: seating a credit card the user has just created at the rank the payoff strategy
+   * would give it, so adding a card cannot silently overwrite a "One row each" choice.
+   */
+  const { rankNewCard } = useSurplusRanking({ autoDeselect: false });
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -589,7 +596,22 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         });
       }
     } else {
-      add.mutate({ ...payload, balance: resolvedBalance });
+      // A NEW CREDIT CARD IS SEATED IN THE RANKED LIST IN THE SAME BREATH IT IS CREATED.
+      // `accounts.surplus_sort_order` is NULL on a fresh row, which is the "inside the card block"
+      // value — so on a list the user had set to "One row each" the new card re-created the block
+      // and made the whole list mixed, overwriting the choice they had already made (Tre,
+      // 2026-08-27). `rankNewCard` writes nothing in any other mode, and the id can only be learned
+      // from the insert itself. A failed insert has already been reported by `add`'s own onError.
+      const created = add.mutateAsync({ ...payload, balance: resolvedBalance });
+      void created.then(row => {
+        if (form.account_type !== 'credit_card' || !row?.id) return;
+        rankNewCard({
+          id: row.id,
+          apr: payload.apr ?? null,
+          balance: resolvedBalance,
+          card_start_date: payload.card_start_date ?? null,
+        });
+      }).catch(() => { /* reported by the mutation */ });
     }
     
     // Sync min_payment to the debts table for non-credit-card debt accounts (mortgage/auto/

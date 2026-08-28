@@ -1,6 +1,87 @@
 ﻿# Handoff - Forgenta
 
 > ═══════════════════════════════════════════════════════════════════════
+> ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36r. **PAUSED ON THE USAGE CAP**
+> (weekly 96% >= cap 96%, resets 18:00 ET 2026-08-31). Read THIS block first;
+> the 36q brief below it is still the map for FIX 2 and everything older.
+> ═══════════════════════════════════════════════════════════════════════
+>
+> ### ⚠️ STATE: **FIX 1 IS CODE-COMPLETE BUT UNVERIFIED.** tsc has NOT been run,
+> the test suite has NOT been run, nothing was checked in a browser. The cap hook
+> blocked every non-git shell command mid-slice. **THE VERY FIRST THING THE NEXT
+> SESSION DOES IS `npx tsc --noEmit` AND `npm test`.** Do not report FIX 1 as
+> shipped until both are green - the commit message says the same.
+>
+> ### FIX 1 - NEW CARDS GET A SURPLUS RANK ON CREATION (code written, unverified)
+> The defect: a new `accounts` row lands with `surplus_sort_order` NULL, which IS
+> the "inside the card block" value. On a list the user had set to **One row
+> each**, adding a card re-created the block and turned the list MIXED - the one
+> arrangement `planCardRankModeWrites` exists to prevent. His words: *"i selected
+> it and yoy overwrote it ... follow the avalanche/snowball order selected on debt
+> payoff tab by default."*
+>
+> What was written, five files:
+> 1. **`src/lib/surplus-ranking.ts`**
+>    - `payoffSeatKey(strategy, apr, balance)` - private, ascending, lower is paid
+>      first. Extracted from `orderNotOpenCards`' inline comparator, which now
+>      calls it, so there is ONE statement of the strategy order in this module.
+>      ⚠️ `getStrategyPayoffOrder` could NOT be reused directly as the 36q brief
+>      suggested: it filters `c.balance > 0`, and a card created today always has
+>      a $0 balance, so it drops the very card being seated. `payoffSeatKey` is
+>      the same two comparators over the two fields an `accounts` row carries.
+>    - `bumpRowsAtOrBelow(rows, at, writes)` - private, shared. **Routes a staged
+>      goal's STOP by `goalId`/`stageId` BEFORE it looks at `kind`.** This is the
+>      fix for "the reconnect" trap in the 36q brief: `planCardSeparationWrites`
+>      had the old loop, which sent a stop row down the `writes.goals` channel
+>      aimed at `<goalId>::stopN` - an id in no table - so the bump vanished and
+>      two rows ended up sharing a rank. That is what broke the Prime Visa /
+>      move-fund split when Robinhood was seated at rank 0, repaired by hand in
+>      SQL. `planCardSeparationWrites` now calls the shared helper, so that bug is
+>      fixed too, not just avoided in the new path.
+>    - `planNewCardRankWrites(rows, cards, newCard, strategy)` - returns `null`
+>      (write nothing) unless the list is in INDIVIDUAL mode, i.e. every OTHER
+>      active card already has a rank. Block mode: NULL is how the card correctly
+>      joins the block. Legacy mixed: nobody picked anything, so inventing a rank
+>      would be the same bug pointed the other way. Seat = the first existing card
+>      row the strategy would pay AFTER this one, read down the list in the order
+>      the USER actually has it, else one past the last card. Then bump.
+> 2. **`src/hooks/useSurplusRanking.ts`** - new `rankNewCard(card)`; new options
+>    arg `{ autoDeselect = true }` so a mount that does not SHOW the list can opt
+>    out of the met-target auto-deselect write+toast.
+> 3. **`src/hooks/useSupabaseData.ts`** - `useAccounts().add` now does
+>    `.select('id').single()` and RETURNS `{ id }`. ⚠️ This is the only way to
+>    learn a new row's id. Check nothing else broke on the changed return type.
+> 4. **`src/pages/Accounts.tsx`** - imports `useSurplusRanking`, mounts it with
+>    `{ autoDeselect: false }`, and the create branch of `handleSave` is now
+>    `add.mutateAsync(...).then(row => rankNewCard(...))` for credit cards.
+>
+> ### WHAT IS LEFT ON FIX 1
+> - **Run the gates.** `npx tsc --noEmit`, then `npm test` (never trust an exit
+>   code from `--reporter=basic`; read the summary line).
+> - **No tests were written yet.** Add them to
+>   `src/lib/__tests__/surplus-ranking.splits.test.ts` or a new
+>   `surplus-ranking.newCard.test.ts`. The four that matter:
+>   (a) block mode -> returns `null`; (b) mixed -> returns `null`;
+>   (c) individual + avalanche -> a 29.99% card seats at rank 0 and every row at
+>   or below bumps +1; (d) **a staged goal's stop below the seat emits a
+>   `goalStages` patch, NOT a `goals` one** - that is the regression pin for the
+>   reconnect trap, and it should also be asserted against
+>   `planCardSeparationWrites`.
+> - **Live-verify** on localhost:8080 (canonical origin; `dev-signin` skill):
+>   create a throwaway credit card while the list is on "One row each", confirm it
+>   appears at its own rank in strategy position, confirm the Prime Visa / move
+>   fund split pairing SURVIVES, then delete the card.
+>
+> ### THEN FIX 2 - unchanged, see the 36q brief below (a card the user autopays IN
+> FULL is not paid in full by the sim; `credit-card-engine.ts` Step 2 cycling-pool
+> funding). ⚠️ Money math in the fragile convergence loop; reverted three times.
+>
+> ### CAP HOUSEKEEPING
+> - Weekly usage cap override is **96**; restore to 75.0 after the 2026-08-31
+>   18:00 ET reset. (Carried from 36q, still open.)
+> - 🧹 MEMORY.md is 23.1KB against a 24.4KB read limit - compact it.
+
+> ═══════════════════════════════════════════════════════════════════════
 > ▶▶ RESUME BRIEF - 2026-08-27 SESSION 36q, WRITTEN AT THE CLEAR POINT.
 > Read THIS block, then the 36q block below it for detail. Everything below
 > 36q is older sessions and is unchanged.
