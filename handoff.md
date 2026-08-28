@@ -123,6 +123,22 @@
 > - Crypto gift: claimed, opens **Sept 3**, hard claim deadline **Sept 8**, no
 >   sell/withdraw restriction, 1099-reportable. Not modelled.
 >
+> === ⚠️ NEW, TOP OF QUEUE: THE GROCERY CARD IS NOT PAID IN FULL ===
+> Measured on the Robinhood card in the converged sim: Oct pays its $255 statement
+> in full (the one-cycle lag IS modelled correctly), but **Nov pays $50 of $230
+> and Dec pays $61 of $414.50**, building a balance to **$592.64 by Jan 2027** -
+> revolving at **29.99%**, the exact failure mode the whole plan avoids.
+> Nov 2026's cash breach IS closed ($2,444.40 end vs $2,444.40 floor, cent-level
+> flag only), but it is closed BY underpaying the new card.
+> Likely a RANKING issue, not affordability: the same month sends $710+ to Prime
+> Visa (27.49%) and Discover (16.6%). In `credit-card-engine.ts` the cycling pool
+> is `tentativeAvailAboveFloor - reservedForRevolving - pinnedMandatoryTotal`, so
+> revolving MINIMUMS are reserved first (right) but Step 5's SURPLUS then flows to
+> the revolving cascade instead of clearing a higher-APR cycling statement.
+> ⚠️ VERIFY BEFORE CHANGING - money math, fragile convergence loop, and the
+> Step-5 ordering has NOT been read end to end. Two reads: real mis-ranking, or
+> deliberate design. Do not assert a bug yet.
+>
 > === QUEUE - UNCHANGED FROM 36p ===
 > 1. His "smaller quick things i had mentioned that i cant recall" - Debt Payoff
 >    truncating span at 390px; the "not open yet" note + payoff-method ordering on
