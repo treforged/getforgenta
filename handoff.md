@@ -1,4 +1,69 @@
-# Handoff - Forgenta
+﻿# Handoff - Forgenta
+
+> ===================================================================
+> >> RESUME BRIEF - 2026-08-31 SESSION 40. **NOTHING IN THIS REPO CHANGED.**
+> The work was forged-glass Slice 2, the oldest untouched ask with a written
+> spec. `786b33c` on forged-glass. getforgenta `main` is clean.
+> ===================================================================
+>
+> ### 1. THE FIRST-RUN PANEL IS NOW A LICENCE GATE - MECHANISM SHIPPED, BEHAVIOUR UNRUN
+> Acceptance went into the EXISTING welcome panel, per the spec; there is still
+> exactly one first run. `glass-lib.ps1` gained `Get-GlassLegalPath`,
+> `Test-GlassLegalAccepted` (fail closed), `Set-GlassLegalAccepted` (UTC
+> timestamp + SHA-256 of every shipped document, so a dispute about wording has
+> an answer), `Get-GlassLegalDocument` (DISCOVERS `legal\*.md` - no filename is
+> hardcoded anywhere) and `Deny-GlassLegal`.
+> Three decisions worth not re-deriving:
+> - `Deny-GlassLegal` **writes a zero** into every enabled file rather than
+>   deleting it. `Get-GlassEnabled` treats a MISSING file as ENABLED, so a
+>   delete-based revert would have re-enabled glass on the next launch.
+> - It finds the terminal by **Mechanism**, not by the key `terminal`, because
+>   `apps.psd1` owns the keys and a rename must not skip the one app whose
+>   revert edits somebody else's config file.
+> - The gate is now "has the licence been accepted", NOT `Test-GlassFirstRun`.
+>   Declining writes state, so the first-run test is false forever afterwards
+>   and gating on it would turn a refusal into permission.
+> **UNPROVEN:** parse clean and `-SelfTest` builds the panel (25 controls, four
+> document buttons discovered from disk, 520x474), but nobody has ticked the
+> box, pressed Decline, or looked at the window. Not deployed.
+>
+> ### 2. THE LEGAL DOCUMENTS WERE YIELDED TO A PARALLEL SESSION - DO NOT RE-WRITE THEM
+> `desktop-bf` was building the SAME slice in the same tree at the same minute.
+> It overwrote my `EULA.md` and `PRIVACY.md` at 19:17 and added `RISKS.md`.
+> `src/legal/` is uncommitted and is THEIRS; my `RISK-DISCLOSURE.md` is probably
+> redundant with their `RISKS.md` and they were told to delete it if so. The
+> commit deliberately contains **no document**, only the mechanism. It was told
+> all of this by SendMessage, including that its Slice 3 work
+> (`Get-CandidateWindow`, `glass-request.ps1`, four tray hunks) is untouched and
+> still uncommitted - the diff was split by hunk and only my own were staged.
+>
+> ### 3. FREE-EXECUTOR LESSONS, SCORED INTO THE PLAYBOOK
+> Four qwen3-coder:30b runs. It invented `Get-Date -AsUTC`, which is PowerShell
+> 7 only and would have thrown at the exact moment of recording an acceptance -
+> and it PARSES, so no gate here would have caught it. On prose it cannot hold a
+> claim and its qualifying exception in one breath: told to write "sends nothing
+> anywhere" and "but it launches a tool that does" together, it separated them
+> by three sentences, which is the lie by omission the brief forbade.
+> **Rule added: on a 5.1 target check every cmdlet parameter against 5.1's real
+> surface; and write any qualified legal sentence yourself.**
+>
+> ### >> RESUME HERE
+> 1. **Look at the licence panel.** `glass-tray.ps1 -ShowWelcome` opens the real
+>    first window a customer sees. Tick, Accept, and confirm `legal-accepted.txt`
+>    appears with a hash line per document; then Decline from a wiped install and
+>    confirm it quits leaving nothing on.
+> 2. forged-glass Slice 3 (asks.md 146) is IN FLIGHT with `desktop-bf`. Do not
+>    start it.
+> 3. Cycling backlog Sep 2026 -> Feb 2027 still runs $180 / $339.50 / $527.98 /
+>    $710.48 / $235.54 / $2.95 and self-clears by Mar 2027. If a zero backlog was
+>    genuinely the target it needs its own measurement.
+> 4. au-041 Instagram delete still needs a Chrome-attached session.
+>
+> ### STILL TRUE FROM 39
+> Sep 2026's $112 dip is his $200 dog-sitting one-time, not an engine defect.
+> `reducibleDebtCapByMonth` (forecast-engine.ts ~1692) is still Convention A; it
+> does not bind, so fix it only with its own measurement.
+
 
 > ===================================================================
 > >> RESUME BRIEF - 2026-08-31 SESSION 39. **THE EXECUTIVE MANAGEMENT
