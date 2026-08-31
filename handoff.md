@@ -42,6 +42,19 @@
 > file (`feedback_fable_never_executes.md`) is now linked. Index: 78 entries, 78
 > files, zero unlinked, zero broken.
 >
+> ### 5. NEW SKILL `desk` - AND THE REEL BEHIND IT IS REFUTED
+> `~/.claude/skills/desk/` + a router at `Desktop\CLAUDE.md`, so saying "work" in
+> any Desktop folder boots the manager loop instead of asking what to do. It
+> delegates draft-shaped slices to free local executors via
+> `scripts/delegate.mjs` (charter as `--system`, `--no-charter` to A/B it).
+> The reel (IG DcrALjeD2B7) claimed a 120,000-char leaked Fable-5 prompt makes
+> cheap models frontier-grade. **Nine real qwen3-coder:30b runs say the reverse:
+> every charter addition cost an existing instruction** - GAPS present 1/1 at
+> 2,818 chars, 2/3 at 3,593, 0/2 at ~3,900, 2/2 again after reverting to 2,873.
+> Charter is back at its best-measuring size with a ~3,000-char budget. The
+> transferable rule: the BRIEF is the ceiling, the charter is the floor. All
+> scored into `~/.claude/ollama/playbook.md`.
+>
 > ### >> RESUME HERE
 > 1. **DO NOT TOUCH the `tre-forged-conductor` repo blind.** At 18:20 ET on 08-31 a
 >    PARALLEL session was actively editing it - `runner.mjs` mtime equalled the wall
