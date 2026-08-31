@@ -1,6 +1,94 @@
 # Handoff - Forgenta
 
 > ===================================================================
+> >> RESUME BRIEF - 2026-08-31 SESSION 39. **THE EXECUTIVE MANAGEMENT
+> STRUCTURE NOW BOOTS ITSELF.** Nothing in this repo changed; the work was
+> in the harness. `main` is clean and pushed at `43b92008`.
+> ===================================================================
+>
+> ### 1. "ALWAYS RUNNING BY DEFAULT" - SHIPPED, TAKES EFFECT NEXT SESSION
+> Tre mid-turn: *"the workflow stuff not conductor. the exective management
+> structure should be always running by default."* It was gated on trigger words
+> ("work", "go", "what's next", a bare ".") in `Desktop\CLAUDE.md`, which made the
+> manager loop a MODE and an ordinary assistant the default. Two halves:
+> - `claudecontext/exec_structure_hook.py`, wired into `~/.claude/settings.json`
+>   on **SessionStart** (the full 1,972-char charter) and **UserPromptSubmit**
+>   (a 292-char reminder every 12th prompt, so it survives a compaction that ate
+>   the SessionStart block).
+> - `Desktop\CLAUDE.md`'s "The trigger" section rewritten as "The default, not a
+>   trigger".
+>
+> **Pipe-tested BEFORE wiring, all three checks:** valid JSON on SessionStart; the
+> throttle fired at exactly prompt 12 of 13 and nowhere else; malformed stdin
+> still exits 0 and still emits the charter. Merged settings re-validated - all
+> five pre-existing hook events and the permissions block intact.
+> **It does NOT apply to the session that wrote it** - the charter appears at the
+> next session start.
+>
+> ### 2. THE HARNESS WRITE BLOCK IS FIXED - DO NOT RE-RECORD IT AS LIVE
+> `~/.claude/bin/` used to refuse writes from both Bash and the Write tool: the
+> auto-mode classifier blocks a session from widening its own guardrails, which
+> also meant the session could not grant itself the fix. **Three sessions burned
+> turns on this exact wall** - 37 on `usage_cap_hook.py` (recorded, wrongly, as
+> "only Tre can change the cap"), f096f909 on `session_coop.py`, and this one on
+> `exec_structure_hook.py`.
+> Tre switched the session to MANUAL mode and approved the edits by hand.
+> `~/.claude/settings.json` now carries, in `permissions.allow` (40 entries): bare
+> `Bash` + `PowerShell`, and Read/Edit/Write for `~/.claude/settings.json`,
+> `~/.claude/bin/**`, `~/.claude/skills/**` and `Desktop/claudecontext/**`. A new
+> `autoMode.allow` block (3 entries, `$defaults` first) approves ordinary shell
+> work and harness maintenance; `soft_deny`/`hard_deny` explicitly still bind.
+> **Proven, not assumed:** JSON re-validated with all 6 hook events intact, and a
+> write probe to `~/.claude/bin/.write-probe` succeeded and was cleaned up - the
+> same operation refused minutes earlier.
+> `exec_structure_hook.py` STAYS in `claudecontext/` beside `statusline.py` and
+> `session_logger.py`. It works there; moving it now buys nothing.
+>
+> ### 3. TWO PARALLEL SESSIONS EDITED THE SAME FILES DURING THIS TURN
+> Both landed cleanly beside this work and neither was reverted:
+> - `~/.claude/settings.json` gained `session_coop.py` on five events.
+> - `Desktop\CLAUDE.md` gained a cross-session-coop paragraph.
+> Re-read both before editing them again.
+>
+> ### 4. THE CONDUCTOR TOKEN TRACKER IS CLOSED - DO NOT PICK IT UP
+> 38's resume list said the panel half was blocked by a parallel session. That
+> session finished and merged it: **PR #156 `01685d0`**, "The weekly cap stops
+> being a guess". Verified by CONTENTS: `app/tokens.tsx` (283 ln, the panel),
+> `scripts/runner.mjs` (+60, the collector schedule), `lib/usage-rate.mjs` +
+> `supabase/migrations/20260831_usage_percent.sql` (tokens->percent), plus
+> `scripts/verify-token-panel.mjs` and `scripts/usage-rate.test.mjs`. Asks ledger
+> 265 flipped to [x].
+>
+> ### >> RESUME HERE
+> 1. **forged-glass Slice 2 - licence and liability (asks.md 145).** He has asked
+>    twice; it is the oldest untouched ask that already has a written spec
+>    (`forged-glass/handoff/2026-08-25-skills-ship-as-a-plugin.md`). Drafts only,
+>    saying so in their own text; licensor TRE Forged LLC; EULA + privacy
+>    statement + risk disclosure under `src/legal/`; acceptance goes in the
+>    EXISTING first-run panel (`glass-tray.ps1`, `Show-Welcome` at ~line 192),
+>    never a second first-run.
+>    **The privacy claim was VERIFIED this session:** grep of `src/` for
+>    `Invoke-WebRequest|Invoke-RestMethod|System.Net|WebClient|curl|HttpClient|
+>    Start-BitsTransfer` returns exactly ONE hit - a comment at
+>    `glass-console.ps1:42` asserting the absence. So "Forged Glass makes no
+>    network connections" is true as written - **but it launches `claude`, which
+>    does.** The statement must say so plainly or it is a lie by omission.
+>    Drafting is a text slice: route it to the free-LLM tier and review it.
+> 2. **forged-glass Slice 3 - the app request form (asks.md 146).** Local-only, no
+>    network call; that is what keeps Slice 2's privacy sentence absolute.
+> 3. Cycling backlog Sep 2026 -> Feb 2027 still runs $180 / $339.50 / $527.98 /
+>    $710.48 / $235.54 / $2.95 and self-clears by Mar 2027. 36z's step 6 wrote the
+>    criterion as "Nov 2026 backlog -> $0"; the BREACH closed, the backlog did not.
+>    If a zero backlog was genuinely the target it needs its own measurement.
+> 4. au-041 Instagram delete still needs a Chrome-attached session.
+>
+> ### STILL TRUE FROM 38
+> Sep 2026's $112 dip is his $200 dog-sitting one-time, not an engine defect - do
+> not "fix" it. `reducibleDebtCapByMonth` (forecast-engine.ts ~1692) is still
+> Convention A; it does not bind, so fix it only with its own measurement.
+
+
+> ===================================================================
 > >> RESUME BRIEF - 2026-08-31 SESSION 38. **37'S WHOLE RESUME LIST IS
 > CLOSED. `main` IS PUSHED AND VERIFIED BY CONTENTS.** Nothing is blocked
 > on Tre except one product judgement call.
