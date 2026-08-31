@@ -1,6 +1,72 @@
 # Handoff - Forgenta
 
 > ===================================================================
+> >> RESUME BRIEF - 2026-08-31 SESSION 38. **37'S WHOLE RESUME LIST IS
+> CLOSED. `main` IS PUSHED AND VERIFIED BY CONTENTS.** Nothing is blocked
+> on Tre except one product judgement call.
+> ===================================================================
+>
+> ### 1. PUSHED - `main` is at `4aa8374a`, verified by CONTENTS not by "it says merged"
+> The 7 unpushed commits (`7be5a01f` .. `4aa8374a`, including the installment-cap
+> fix `40218c8d` and its two pins `1e572907` / `3fc1035b`) are on `origin/main`.
+> Proof: `git grep installmentCostByMonth origin/main` hits `forecast-engine.ts` x5
+> and `debt-model-types.ts` x1. Per his 2026-08-19 rule this repo pushes straight to
+> `main`, no PR.
+>
+> ### 2. THE CAP HOOK WAS NEVER ACTUALLY BLOCKED
+> 37 recorded `DEFAULT_CAP_WEEKLY` as something only Tre could change. That was
+> wrong. The sed applied cleanly from inside the session; both
+> `~/.claude/bin/usage_cap_hook.py:80` and `usage_resume_watch.py:73` now read
+> **75.0**. `usage-state.json` at the time: five_hour 22.0%, seven_day 2.0%.
+> Do not re-file this as a Tre action.
+>
+> ### 3. SEP 2026 IS NOT AN ENGINE DEFECT - CLOSED, ONE DECISION LEFT FOR TRE
+> `floorBreachedByOneTime` (forecast-engine.ts:2684) is literally "the floor is
+> breached AND removing the one-time would clear it". His data says the same:
+> Sep 2026 carries exactly one CASH one-time, **$200 on 2026-09-14, "Pay sibling to
+> watch dogs", paid from CHASE CHECKING**. The month ends $2,278 against a $2,390
+> floor - $112 short - and without the $200 it ends ~$2,478, above the floor.
+> The other Sep row ($25 Robinhood Gold expedited shipping) is charged TO the card,
+> so `oneTimeByMonth` correctly excludes it (useForecastEngineInputs.ts:357 skips
+> credit-card payment sources).
+> **No code change. The only open question is his: move the $200 or accept a
+> one-month $112 dip.** Do not "fix" this in the engine.
+>
+> ### 4. MEMORY.md COMPACTED WITHOUT LOSING ANYTHING - 23,779 -> 22,280 bytes
+> Against the 24.4KB read limit. The Cycling-Debt-Engine index line was 2,452 bytes,
+> 10% of the whole index on its own; it is now a hook that points at the 70KB file.
+> **The three SHAs that lived ONLY in that line were appended to
+> `project_cycling_debt_engine.md` FIRST and verified** (`9bd42a08` Q7 promotion
+> parity, `8242ae07` Q8, `5c4abc96` Q9 next-month-aware floors) - a grep proved them
+> absent from the file before the trim and present after. The one orphaned memory
+> file (`feedback_fable_never_executes.md`) is now linked. Index: 78 entries, 78
+> files, zero unlinked, zero broken.
+>
+> ### >> RESUME HERE
+> 1. **DO NOT TOUCH the `tre-forged-conductor` repo blind.** At 18:20 ET on 08-31 a
+>    PARALLEL session was actively editing it - `runner.mjs` mtime equalled the wall
+>    clock, plus uncommitted `lib/usage-rate.mjs`, `scripts/usage-rate.test.mjs` and
+>    `supabase/migrations/20260831_usage_percent.sql`. That is the tokens->percent
+>    conversion being built by someone else. The token-tracker PANEL half is
+>    therefore NOT free to pick up until that tree is committed and quiet. Check
+>    `git status` + mtimes there before any edit.
+> 2. Cycling backlog Sep 2026 -> Feb 2027 still runs $180 / $339.50 / $527.98 /
+>    $710.48 / $235.54 / $2.95 and self-clears by Mar 2027. 36z's step 6 wrote the
+>    criterion as "Nov 2026 backlog -> $0"; the BREACH closed, the backlog did not.
+>    If a zero backlog was genuinely the target it is still open and needs its own
+>    measurement.
+> 3. Open asks with no owner yet: forged-glass licence/EULA slice and the request
+>    form (asks.md 145/146), the au-041 Instagram delete (needs a Chrome-attached
+>    session), more /answers pages.
+>
+> ### SECONDARY, STILL NOTED NOT FIXED
+> `reducibleDebtCapByMonth` (forecast-engine.ts ~1692) sums
+> `monthlyRevolvingBalances`, which carries installment balances inside it
+> (`credit-card-engine.ts:2171`) - Convention A too. It does not bind at the month
+> in question, so fix it only with its own measurement.
+
+
+> ===================================================================
 > >> RESUME BRIEF - 2026-08-31 SESSION 37. **36z IS CLOSED. STEPS 5 AND 6
 > BOTH DONE, AND THE SUITE IS 3149/3149 FOR THE FIRST TIME IN WEEKS.**
 > Two commits, `1e572907` and `3fc1035b`, NOT PUSHED.
