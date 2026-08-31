@@ -1,11 +1,29 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterAll } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
+
+// -- CLOCK PIN ---------------------------------------------------------------------------------
+// These fixtures schedule a bill on the 28th and assert it is still ahead of "today" - the hook's
+// month-0 window is "what is left of this month" and is measured against the real clock. From the
+// 28th onward the bill is behind it, so this file went red four days out of every month for purely
+// calendar reasons. A gate that is red four days a month is not a gate.
+//
+// The day of the month is the ONLY degree of freedom that was ever breaking them, so that is the
+// only one pinned: the clock is moved to the 10th of the CURRENT month, keeping the same year and
+// month and therefore every piece of relative arithmetic these files already do. Only `Date` is
+// faked - real timers are left alone so React and testing-library behave normally. It must run at
+// module scope because some of the `now`-derived constants below are evaluated at import time.
+const REAL_NOW = new Date();
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(new Date(REAL_NOW.getFullYear(), REAL_NOW.getMonth(), 10, 12, 0, 0));
+afterAll(() => { vi.useRealTimers(); });
+// ----------------------------------------------------------------------------------------------
+
 
 // Finding §2.8 (2026-08-05). `persistedDebtFundingId` comes from localStorage
 // (`tre:debt:fundingAccount`), so it outlives the account it names — the account can be deleted or
