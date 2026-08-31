@@ -1,6 +1,72 @@
 ﻿# Handoff - Forgenta
 
 > ===================================================================
+> >> RESUME BRIEF - 2026-08-31 SESSION 41. **THREE OPEN LEDGER ITEMS CLOSED
+> WITH MEASUREMENTS. NO PRODUCT CODE CHANGED.** `main` is clean.
+> ===================================================================
+>
+> ### 1. THE REDUCER CONVENTION IS ANSWERED - IT IS INERT, NOT JUST NON-BINDING
+> Asks ledger 71 ("why didnt you touch the reducer convention?") had stood open
+> since the answer "blast radius", which he was right to reject. It now has a
+> number instead of an excuse.
+> `reducibleDebtCapByMonth` (forecast-engine.ts ~1692) sums
+> `monthlyRevolvingBalances`, which still carries installment balances inside it
+> (credit-card-engine.ts:2171), so that bound is Convention A. **A/B measured**
+> through the REAL sim <-> engine convergence loop on the golden fixture (temp
+> harness cloned from `forecast-convergence.realData.test.ts`, deleted after; the
+> engine edit was reverted and `git status` is clean):
+> - bound ON vs bound DELETED ENTIRELY -> **all 60 months of `debtPayment` and
+>   `endingCash` identical to the cent**, red months `[]` both ways.
+> So the Convention-A error inside it moves no number a customer sees. Do not
+> spend another session on it.
+> Shape of the bound, for whoever reads this next: $15,171 at m1 falling to
+> $1,726 by Jul 2027, then **$0.04 from Aug 2027 onward** while `debtPayment`
+> continues at $568-$3,136/mo - that tail is pure CYCLING (statement payments),
+> which is not reducible, which is why a near-zero bound beside a $568 payment is
+> correct and not a defect.
+> **CAVEAT, stated because it matters:** the fixture is 2026-07-20, pre-Robinhood.
+> Recapture it and this A/B must be re-run before the conclusion is reused.
+>
+> ### 2. THE FIXTURE IS CLEAN - ZERO RED MONTHS, ZERO CYCLING BACKLOG
+> Same harness, same run: over all 60 months the golden fixture has **no month
+> below its own floor** (`belowSafeMinimum` false everywhere, cent resolution) and
+> **no cycling backlog above $0.005 in any month**. That is the offline half of
+> ledger 84 (the Feb 2031 breach) and 92 (the "new 1-month breach"): neither
+> reproduces offline post-`40218c8d`. Both remain LIVE questions only - his
+> current data is not this fixture, and 40's live reading (one red month, Sep
+> 2026, `floorBreachedByOneTime`, his $200 dog-sitting one-time) still stands as
+> the live answer. Handoff 40's item 3 (the Sep 2026 -> Feb 2027 backlog run) is
+> likewise a LIVE-data figure: it does not exist offline, so it cannot be chased
+> without a recaptured fixture or a signed-in browser session.
+>
+> ### 3. TWO LEDGER LINES WERE STALE, NOT OPEN
+> - **196** (forecast month popups: top section is CHECKING only, other accounts
+>   get their own section) shipped `2673ddb4` on 2026-08-27 -
+>   `src/lib/other-account-cash.ts` + `other-account-lines.ts` +
+>   MonthlyBreakdownTable, verified against his own Supabase rows before a line
+>   was written. Flipped to [x].
+> - **70** (goals never drop after the goal is reached) shipped `069bf084` +
+>   `ec97789f`. Confirmed live this session: his goal `a035a97e` stop
+>   `752a620f` carries `spends: true`, $5,730, 2027-07-03, so the drop renders on
+>   HIS data and not only in `goal-spend-down.test.ts`. Flipped to [x].
+>
+> ### >> RESUME HERE
+> 1. Ledger 84 / 92 / the backlog run need **live** data. Either recapture
+>    `forecast-inputs.real.json` or drive localhost signed in (`dev-signin`
+>    skill). Do not re-measure them on the July fixture - it says clean and that
+>    is not evidence about his today.
+> 2. Ask 289 ("work the item on board for trading") could NOT be started:
+>    `conductor status` reports nothing queued for this project, so the trading
+>    card is not reachable from this machine's board. It needs the card's text.
+> 3. forged-glass Slices 2/3 are IN FLIGHT with a parallel session. Do not touch.
+> 4. au-041 Instagram delete still needs a Chrome-attached session.
+>
+> ### STILL TRUE FROM 40
+> Sep 2026's $112 dip is his $200 dog-sitting one-time, not an engine defect.
+> forged-glass `786b33c`'s licence panel is still behaviourally unrun.
+
+
+> ===================================================================
 > >> RESUME BRIEF - 2026-08-31 SESSION 40. **NOTHING IN THIS REPO CHANGED.**
 > The work was forged-glass Slice 2, the oldest untouched ask with a written
 > spec. `786b33c` on forged-glass. getforgenta `main` is clean.
