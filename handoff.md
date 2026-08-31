@@ -1,4 +1,84 @@
-﻿# Handoff - Forgenta
+# Handoff - Forgenta
+
+> ===================================================================
+> >> RESUME BRIEF - 2026-08-31 SESSION 37. **36z IS CLOSED. STEPS 5 AND 6
+> BOTH DONE, AND THE SUITE IS 3149/3149 FOR THE FIRST TIME IN WEEKS.**
+> Two commits, `1e572907` and `3fc1035b`, NOT PUSHED.
+> ===================================================================
+>
+> ### THE INSTALLMENT-CAP FIX IS NOW PINNED **AND** LIVE-VERIFIED
+> **STEP 5 - `1e572907`**, `src/lib/__tests__/forecast-engine.installmentCapConvention.test.ts`.
+> Differential by construction: every assertion is one forecast against a
+> byte-identical control differing only by `installmentCostByMonth`, so no floor,
+> income derivation or dollar cap is hardcoded. Two scenarios, because one cannot
+> see both halves of the Convention A -> B conversion:
+> - **month 0** - the only month not already chained down to ccMin by an earlier
+>   capped month, so the `availableForDebt` branch is observable with headroom.
+> - **month 2** - the backward chain has drained months 0-1 to their required
+>   ending balance, so `availableForDebt` lands exactly on ccMin and the cap IS
+>   the minimum. The only place the ccMin subtraction is visible.
+> A third test pins the `debtPayments` add-back.
+> **All three would-fail checks were RUN, not reasoned:** drop the expense term ->
+> A and B fail; drop the ccMin term -> B fails (300 vs 100), A still passes; drop
+> the add-back -> test 3 fails (4698 vs 4498).
+> Two harness traps, both found the hard way and both documented in the file:
+> the stub carries **no `paymentLedger`** (with one, forecast-engine.ts:2326 takes
+> the shown payment from `ledgerEntry.total` and `debtPayments` never reaches
+> `data[i].debtPayment` - the first draft of test 3 passed with the add-back
+> deleted), and `monthlyRevolvingBalances` is populated large (an empty map drives
+> `reducibleDebtCapByMonth` to zero from month 1 and takes ccMin with it).
+>
+> **STEP 6 - LIVE, on his data, :8080 signed in:**
+> - `window.__convergenceDebug` = **converged:true / passes:19 / usedFallback:false**,
+>   against converged:false / passes:24 / usedFallback:true measured 2026-08-26.
+>   **The debt-cash loop converges again.**
+> - **Oct 2027, the month that ended at MINUS $195.15 against its $2,009.40 floor,
+>   now ends $2,505 and is not red.**
+> - No negative month anywhere in the 60.
+> - Nov 2026 ends $2,444 against a $2,444 floor - the breach is closed at the cent.
+> - **One red month remains: Sep 2026, $2,278 vs a $2,390 floor**, and the engine
+>   itself flags it `floorBreachedByOneTime: true` - a one-time expense the month
+>   cannot absorb. That is a different class of thing from the engine overspend
+>   this work was chasing, and it is NOT the Nov-2026 pull-back Tre vetoed on
+>   2026-08-27 ("leave as is... payment plans should be guaranteed paid").
+> - Cycling backlog runs Sep 2026 -> Feb 2027 ($180 / $339.50 / $527.98 / $710.48 /
+>   $235.54 / $2.95) and self-clears by Mar 2027. 36z's step 6 wrote the criterion
+>   as "Nov 2026 backlog -> $0"; the BREACH is what closed, the backlog is not zero.
+>   If a zero backlog was genuinely the target, that is still open and needs its
+>   own measurement.
+>
+> ### THE 4 RED TESTS ARE GONE, NOT EXPLAINED - `3fc1035b`
+> Three handoffs carried them as "the 28th of the month". `vi.useFakeTimers({
+> toFake: ['Date'] })` at module scope now moves the clock to the **10th of the
+> CURRENT month** in `useCardProjection.month0income` / `.staleFundingId` /
+> `.confirmedOccurrence` - same year, same month, so every relative calculation
+> those files already do is untouched, and the only degree of freedom that was
+> ever breaking them is pinned. Real timers are left alone so React and
+> testing-library behave normally; module scope because `confirmedOccurrence`'s
+> `now`/`CURRENT_MONTH` are evaluated at import time. The assertions are
+> REACHABLE again, not weakened: `staleFundingId` read 0 expenses today.
+> **Gates: tsc clean, 3149/3149, 298/298 files.**
+>
+> ### >> RESUME HERE
+> 1. **BLOCKED ON TRE:** `DEFAULT_CAP_WEEKLY` is still **98.0** in both
+>    `~/.claude/bin/usage_cap_hook.py` and `usage_resume_watch.py`. The weekly
+>    window HAS reset (`usage-state.json` seven_day 0.0%), but the session is
+>    blocked from editing its own cap hook - he has to run the sed to 75.0.
+> 2. **Push.** Two commits sit unpushed here (`1e572907`, `3fc1035b`), and
+>    `40218c8d` + `8087a7ac` before them. Per his 2026-08-19 rule this repo pushes
+>    straight to `main`, no PR.
+> 3. **Sep 2026's one-time breach** - decide whether $2,278 vs $2,390 is worth
+>    acting on. It is his data, not an engine defect, so it may just be true.
+> 4. The 36y leftovers: the Conductor token-tracker PANEL half + collector
+>    scheduling + tokens->percent conversion (in `tre-forged-conductor`, commits
+>    `fb3dc9f` + `caa1345`, not pushed); MEMORY.md compaction (23.1KB vs a 24.4KB
+>    read limit).
+>
+> ### SECONDARY, STILL NOTED NOT FIXED
+> `reducibleDebtCapByMonth` (forecast-engine.ts ~1692) sums
+> `monthlyRevolvingBalances`, which carries installment balances inside it
+> (`credit-card-engine.ts:2171`) - Convention A too. It does not bind at the month
+> in question, so fix it only with its own measurement.
 
 > ═══════════════════════════════════════════════════════════════════════
 > ▶▶ RESUME BRIEF - 2026-08-28 SESSION 36z. **36w STEPS 1-4 ARE BUILT,
