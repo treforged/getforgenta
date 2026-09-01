@@ -102,3 +102,6 @@ scripts/probe-*.mjs
 # after clips that are committed alongside them. The named clips are the evidence; these
 # are the raw tape. Ten of them was 9 MB on one afternoon's capture.
 handoff/evidence/**/page@*.webm
+
+# Raw Supabase row dump for the offline fixture recapture harness. REAL financial data.
+src/lib/__tests__/fixtures/raw-rows.real*.json

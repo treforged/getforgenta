@@ -1,6 +1,90 @@
 ﻿# Handoff - Forgenta
 
 > ===================================================================
+> >> RESUME BRIEF - 2026-08-31 SESSION 42. **THE FIXTURE CAN NOW BE REBUILT
+> OFFLINE, AND IT HAS BEEN.** The golden fixture is no longer 2026-07-20; it is
+> live data dumped at 2026-09-01T00:20Z. `main` had one commit added.
+> ===================================================================
+>
+> ### 1. THE LIVE-RECAPTURE HARNESS EXISTS - SESSION 41'S RESUME ITEM 0, DONE
+> `src/lib/__tests__/recapture-forecast-fixture.test.tsx` rebuilds
+> `forecast-inputs.real.json` from a raw Supabase row dump with NO browser and NO
+> signed-in session. Runbook: `docs/forecast-fixture-recapture.md`.
+> - It renders the REAL `CardProjectionProvider` with `@/hooks/useSupabaseData`
+>   and `@/hooks/usePlaidItems` mocked. That is the whole design decision:
+>   `payConfig`, `cashFloor`, `syncCutoffDate`, `forecastFundingAccountId`, the
+>   scheduled events and the assumptions hydration are ALL derived by the
+>   provider, so a harness that re-derived them would be measuring itself.
+> - Gated on `RECAPTURE=1` plus the dump's presence, so `npm test` can never
+>   rewrite a fixture built from his real money. Verified both ways: skips
+>   without the flag, writes 321,545 bytes with it.
+> - **THE DUMP COSTS NOTHING IN CONTEXT.** An oversized Supabase MCP result is
+>   spilled to a file under `tool-results/` and only the path comes back. Two
+>   queries (67 KB and 101 KB) went to disk and were assembled by
+>   `scripts/fixture-recapture/assemble-raw.mjs` without a single row entering
+>   the session. Reuse this trick for any large read.
+>
+> ### 2. WHAT HIS LIVE DATA ACTUALLY SAYS (2026-09-01T00:20Z dump)
+> Measured through the real sim <-> engine loop, not asserted:
+> - **converged: true, 19 passes.** No fallback.
+> - **CC Debt Free: Dec 2028.** The suite had been pinned to Jul 2027, which was
+>   a fact about the July capture, not a regression. Re-pinned with the dump date
+>   in the comment.
+> - **floor-breach months: (none)** across all 60 months. The only breach-shaped
+>   signal is the milestone "Sep 2026 one-time expense caused floor breach",
+>   which is the known `floorBreachedByOneTime` on his $200 dog-sitting one-time.
+> That is the live answer ledger 84 and 92 were waiting on, and it says the
+> engine is not currently putting a month below the floor on his real rows.
+> Rows now in play: 17 accounts (the July capture had 12), 83 transactions, 31
+> rules, 2 debts, 4 goals, 1 car fund, 1 budget item, 8 payment plans.
+>
+> ### 3. THE COST, STATED PLAINLY - 10 PINNED ASSERTIONS NOW FAIL LOCALLY
+> A recapture invalidates every assertion pinned to the old capture. `npm test`
+> is 14 failed / 3135 passed locally. **4 of the 14 are unrelated** and predate
+> this work (`Transactions.mergedTab` x3, `Transactions.repeat` x1 - neither file
+> reads the fixture). The other 10 are fixture-pinned, in six files:
+> `forecast-convergence.floorDeficit` (3), `forecast-convergence.floorFlicker`
+> (2), `forecast-convergence.manualISB` (2), `forecast-engine.goldenTierA` (1),
+> `monthEndCash.invariant` (1), `step3-display` (1).
+> **None is a code regression.** Each is a number that legitimately moved. Some
+> are anti-vacuous guards ("the fixture must actually exercise this path") that
+> may no longer hold on newer data, and those need judgement, not a new number.
+> **CI is unaffected** - the fixture is gitignored, so all of these skip there.
+>
+> ### 4. ONE THING WENT WRONG, AND IT IS FIXED FOR NEXT TIME
+> The first run overwrote the 2026-07-20 golden capture with no copy. It is gone;
+> `forecast-inputs.real.bak-2026-07-03/07-15` and `.live-2026-07-16` survive, so
+> there is still an older baseline, but the exact one every session-37-to-41
+> measurement quoted is not recoverable. The harness now copies the fixture it
+> replaces to `forecast-inputs.real.replaced-<date>.json` BEFORE writing.
+>
+> ### >> RESUME HERE
+> 1. **Re-pin the 10 fixture-pinned assertions**, one file at a time, each with
+>    the dump date in the comment the way `forecast-convergence.realData` now
+>    carries it. Treat every moved number as a question first: `step3-display`'s
+>    guard went to 0, which may mean his surplus no longer routes to Prime Visa
+>    at all, and that is a finding rather than a pin.
+> 2. Ledger 84 (Feb 2031 breach) and 92 (a new 1-month breach) can now be
+>    re-asked against live data. The live run says zero floor-breach months, so
+>    either the breach he saw is Sep 2026's one-time, or it is a DISPLAY
+>    condition that the milestone list does not carry. Check the surface, not the
+>    engine, before touching the engine.
+> 3. The convergence A/B in session 41 item 1 (the reducer convention) was run on
+>    the July fixture and its own caveat says re-run it after a recapture. The
+>    fixture is recaptured. It is cheap now.
+> 4. Unchanged and still open: forged-glass Slices 2/3 with a parallel session,
+>    au-041 Instagram delete (needs Chrome), Vehicles.tsx's 4 em dashes.
+>
+> ### FREE-EXECUTOR SCORE THIS SESSION
+> qwen3-coder:30b, two rounds on the harness. Round 1 invented
+> `vi.mocked('<module path>').useX = ...`, which is not a vitest API, and put JSX
+> in a `.ts` file. Round 2, given the exact `vi.hoisted` pattern, got the mock
+> block RIGHT (used verbatim) and the test body wrong - it called a hook outside a
+> component and dropped its own imports. Lesson for the playbook: it can be
+> trusted with a mock/config block when the pattern is pasted, and cannot be
+> trusted with React test-body control flow.
+
+> ===================================================================
 > >> RESUME BRIEF - 2026-08-31 SESSION 41. **THREE OPEN LEDGER ITEMS CLOSED
 > WITH MEASUREMENTS. NO PRODUCT CODE CHANGED.** `main` is clean.
 > ===================================================================

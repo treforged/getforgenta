@@ -125,14 +125,21 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     console.log('[repro] CC Debt Free:', ccFree?.month ?? '(never)',
       '| floor-breach months:', floorBreaches.map(m => m.month).join(', ') || '(none)');
 
-    // Expected-good anchors (re-pinned 2026-07-20 with real paymentPlans in the sim — the
-    // earlier Jun 2027 pin was measured with paymentPlans=[], which left the sim's cash walk
-    // $228/mo richer than the engine's; Jul 2027 verified identical on main and
-    // q12-floor-cutoff): loop converges, payoff Jul 2027, zero floor-breach milestones.
-    // The payoff month is data-dependent — re-pin it if the fixture is ever recaptured.
+    // Expected-good anchors. RE-PINNED 2026-08-31 to Dec 2028, on a fixture recaptured from live
+    // Supabase rows by `recapture-forecast-fixture.test.tsx` (raw dump 2026-09-01T00:20Z). The
+    // previous pin, Jul 2027, was measured on the 2026-07-20 capture; Dec 2028 is not a
+    // regression, it is what his data now says, and it matches the payoff ETA recorded outside
+    // this repo. Converged in 19 passes with zero floor-breach milestones.
+    //
+    // Earlier history, kept because it explains the shape of the pin: re-pinned 2026-07-20 with
+    // real paymentPlans in the sim — the earlier Jun 2027 pin was measured with paymentPlans=[],
+    // which left the sim's cash walk $228/mo richer than the engine's.
+    //
+    // The payoff month is data-dependent — re-pin it whenever the fixture is recaptured, and say
+    // in the commit which dump it was measured on.
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month, 'payoff month regressed').toBe('Jul 2027');
+    expect(ccFree!.month, 'payoff month regressed').toBe('Dec 2028');
     expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
   });
 });
