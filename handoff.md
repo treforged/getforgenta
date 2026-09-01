@@ -8,6 +8,35 @@
 
 ---
 
+## Resume queue
+
+1. [ ] Density pass, surfaces beyond Accounts. Dashboard overview, Transactions,
+   Debt Payoff, Forecast and Garage were MEASURED and are already reasonable
+   (first card 122-234px, 4-8 cards above the fold), so the systemic scale
+   change covered them. Next concrete step: only revisit if Tre names a
+   specific screen — do not churn surfaces that measure fine.
+2. [ ] The within-month payoff wobble. Next concrete step: open the debt-cash
+   walk and find why month 0's shrinking debt payment pushes CC Debt Free from
+   Jun 2028 to Jul 2028 as due days pass. The `it.fails` tripwire in
+   `src/lib/__tests__/forecast-convergence.manualISB.test.ts` goes RED when it
+   is fixed; delete the block then.
+3. [ ] Plaid on iOS TestFlight — Tre: "i couldnt access it." Next concrete
+   step: read `supabase/functions/plaid-hosted-link-result` and the native link
+   path in `src/pages/Accounts.tsx`, then check the hosted-link flow actually
+   opens on the native build. Web and data are healthy; this is native-only.
+4. [ ] The forecast engine sits in the first-paint path: 23 chunks / 1081 kB
+   raw, ~206 kB of it `CardProjectionContext` + `useSupabaseData` +
+   `essential-monthly-expenses`, paid by signed-out visitors. Next concrete
+   step: make `CardProjectionProvider` lazy behind the authed routes only.
+5. [x] The 15 red tests — fixed, `f031e96b`, golden tests now pin invariants.
+6. [x] Google OAuth popup hang — fixed, `7108311a`, INITIAL_SESSION was the
+   missing event.
+7. [x] Blank localhost — an ad blocker matching `cookie-consent` in module
+   request paths. Renamed, `2315285c` + follow-up.
+8. [x] Robinhood duplicate — a manual $2,000 row, set inactive in the database.
+9. [x] Convergence budget 24 -> 32, `c5107228`.
+10. [x] handoff.md trimmed from 1,075,335 bytes, `0bc51eef`, pushed.
+
 ## Where things stand — 2026-09-01
 
 `main` is green and everything below is pushed and verified against `origin` by
