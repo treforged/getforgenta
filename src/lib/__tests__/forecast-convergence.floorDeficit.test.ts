@@ -80,9 +80,9 @@ describe('deficit fixes — real capture', () => {
     // `passes === 1` in particular was never an invariant: it held because that
     // capture had no short month, so neither deficit fix fired. A capture that
     // DOES have one (this one is short in Sep 2026) legitimately needs the loop
-    // to work, and 19 passes of a 24-pass budget is it working.
+    // to work, and 19 passes of a 32-pass budget is it working.
     expect(out.converged).toBe(true);
-    expect(out.passes, 'passes should stay clear of the 24-pass fallback cliff').toBeLessThanOrEqual(20);
+    expect(out.passes, 'passes should stay clear of the 32-pass fallback cliff').toBeLessThanOrEqual(20);
 
     // THE LOOP MAY NOT INVENT A BREACH. Measured against the same capture run
     // WITHOUT the loop, so a shortfall the raw engine already had is not blamed

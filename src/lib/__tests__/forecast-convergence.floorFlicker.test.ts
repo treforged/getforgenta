@@ -164,7 +164,7 @@ describe('floor-regime flicker — real capture', () => {
     // the loop settles well inside its budget and produces the same answer the
     // raw engine does for everything the latch is not supposed to touch.
     expect(out.converged).toBe(true);
-    expect(out.passes, 'passes should stay clear of the 24-pass fallback cliff').toBeLessThanOrEqual(22);
+    expect(out.passes, 'passes should stay clear of the 32-pass fallback cliff').toBeLessThanOrEqual(22);
     const rawBreaches = new Set(
       calculateForecast(inputs).data.filter(r => r.belowSafeMinimum).map(r => r.month));
     expect(

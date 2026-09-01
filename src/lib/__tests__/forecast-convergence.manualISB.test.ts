@@ -68,7 +68,7 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     // a short month for the loop to solve. Pinning the observation meant every
     // recapture reported a regression that had not happened. What is worth
     // guarding is the distance to the 24-pass fallback cliff.
-    expect(out.passes, 'pass count is approaching the 24-pass fallback cliff').toBeLessThanOrEqual(22);
+    expect(out.passes, 'pass count is approaching the 32-pass fallback cliff').toBeLessThanOrEqual(22);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     expect(out.projections.data.some(r => r.month === ccFree!.month)).toBe(true);
     expect(
@@ -77,29 +77,47 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     ).toEqual([]);
   });
 
-  // KNOWN FAILURE, DELIBERATELY RECORDED RATHER THAN DELETED.
+  // KNOWN DEFECT, MEASURED PROPERLY THE SECOND TIME.
   //
-  // The two tests above used to pin the payoff month to the literal 'Jul 2027'
-  // on BOTH clocks, which quietly asserted something real: eleven days of
-  // elapsed due-days must not move the answer. On the 2026-09-01 recapture it
-  // does. Capture clock says Dec 2028; the same inputs eleven days later say
-  // Jul 2028 -- five months earlier, from nothing but the calendar.
+  // First reported as "eleven days of clock moves the payoff five months", which
+  // was an artifact of the comparison rather than the engine. `capturedAt` is
+  // 2026-09-01T00:20Z, which in local time is the EVENING OF 31 AUGUST, so the
+  // day-0 scenario has an August month 0 with $2,455 of cash and no debt payment
+  // made yet, while every later day has a September month 0 with $6,206. Two
+  // sides of a month rollover are not the same forecast and were never supposed
+  // to agree.
   //
-  // That is a headline number on his dashboard moving five months because he
-  // opened the app a week and a half later, so it is a defect and not a pin to
-  // re-fit. Replacing the assertion with something looser would have made the
-  // suite green and made the defect invisible, which is exactly the failure
-  // mode this codebase keeps writing comments about.
+  // Swept day by day (0,1,2,3,5,7,9,11,13,15) the real shape is this:
   //
-  // `it.fails` keeps the suite honest in both directions: green while the
-  // defect stands, and RED the moment somebody fixes it, which is the signal to
-  // delete this block and fold the assertion back into the test above.
+  //   day 0  Aug month0  Dec 2028   <- the rollover, not a defect
+  //   day 2  Sep month0  Jun 2028
+  //   day 4  Sep month0  Jun 2028
+  //   day 6  Sep month0  Jul 2028   <- moves BACKWARDS mid-month
+  //   day 16 Sep month0  Jul 2028
+  //
+  // What is left after removing the rollover is small and still wrong: inside a
+  // single month, as due days pass and month 0's debt payment shrinks from
+  // $2,662 to $661, the payoff gets ONE MONTH LATER. More of the month's
+  // payments having already happened must never make the debt-free date worse.
+  // That is the invariant pinned here, and it is the one that fails.
+  //
+  // `it.fails` keeps this honest in both directions: green while the defect
+  // stands, RED the moment somebody fixes it, which is the signal to delete this
+  // block and assert monotonicity for real.
   (hasFixture ? it.fails : it.skip)(
-    'KNOWN: eleven days of clock moves the payoff month (Dec 2028 -> Jul 2028)',
+    'KNOWN: within one month, a later clock makes the payoff LATER (Jun 2028 -> Jul 2028)',
     () => {
-      const atCapture = runScenario(0);
-      const elevenDaysLater = runScenario(11);
-      expect(elevenDaysLater.ccFree!.month).toBe(atCapture.ccFree!.month);
+      // Both clocks land in the same month 0, so the rollover cannot explain a
+      // difference between them.
+      const early = runScenario(2);
+      const late = runScenario(6);
+      expect(early.out.projections.data[0].month).toBe(late.out.projections.data[0].month);
+      const idx = (m: string | undefined) =>
+        late.out.projections.data.findIndex(r => r.month === m);
+      expect(
+        idx(late.ccFree!.month),
+        'more of the month already paid must not push the debt-free date out',
+      ).toBeLessThanOrEqual(idx(early.ccFree!.month));
     },
     900000,
   );
@@ -136,7 +154,7 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     // count moved: convergence, the Jul 2027 payoff and the empty floor-breach list below are all
     // unchanged, and 13 still sits far under the 24-pass budget. The capturedAt scenario above is
     // a day-20 clock, cannot overflow, and its 18-pass pin was unaffected.
-    expect(out.passes, 'pass count is approaching the 24-pass fallback cliff').toBeLessThanOrEqual(22);
+    expect(out.passes, 'pass count is approaching the 32-pass fallback cliff').toBeLessThanOrEqual(22);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
 
     expect(

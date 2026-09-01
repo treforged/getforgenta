@@ -112,7 +112,21 @@ export function runDebtCashConvergence(
   // floor cutoff slows convergence further — the 2026-07-16 fixture (with real paymentPlans) needs
   // all 18, so 24 restores a comparable margin above the worst observed trajectory. The fallback to
   // base remains the zero-regression guard for genuine (non-decaying) oscillation, which no budget fixes.
-  const { maxPasses = 24, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  //
+  // 24 -> 32 on 2026-09-01, on measurement rather than on feel. The 2026-09-01
+  // capture needs 19 passes untouched, and a sweep of one-time April shocks from
+  // $0 to $4,000 in $250 steps found a band from $1,500 to $2,250 that needs 23
+  // -- ONE pass under the budget. Nothing in that sweep fell back, and re-running
+  // every point at a 64-pass budget produced identical counts, which proves the
+  // loop is genuinely converging rather than being truncated.
+  //
+  // So this costs nothing on any input that converges and buys margin on the
+  // ones that would otherwise land on the base fallback, where the failure is
+  // not a slow answer but a WRONG one: exhaustion publishes the unaccelerated
+  // base pair, which is how a Jul 2027 payoff once became Feb 2029. The only
+  // price is eight more engine runs on a genuinely oscillating input, which is
+  // already the slow path.
+  const { maxPasses = 32, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
   // On exhaustion, publish the last resim (not base) only when the loop was genuinely CONVERGING
   // toward its fixed point but ran out of budget — i.e. the gap made net progress (lastGap <
