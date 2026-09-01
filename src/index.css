@@ -202,6 +202,54 @@
   padding-right: calc(1rem + env(safe-area-inset-right));
 }
 
+/* A BOX AROUND EVERY MODAL CLOSER (Tre, 2026-09-01).
+
+   A bare X floating in a corner reads as decoration until you have already
+   guessed at it once. A border makes it a button at a glance, and it gives the
+   tap a visible edge on a phone where the icon alone is 14 pixels of target
+   inside a 44-pixel hit area nobody can see.
+
+   MATCHED BY WHAT IT IS, NOT BY A CLASS SOMEBODY HAS TO REMEMBER. There are
+   twenty overlays in this app and roughly as many close buttons, written by
+   hand at different times with different padding. Selecting on "a button inside
+   a modal scrim whose only child is the X icon" catches all of them and catches
+   the next one somebody writes without a single call site knowing this rule
+   exists. `:has()` is the whole reason this can be one rule instead of twenty
+   edits; every browser this app supports has shipped it.
+
+   Deliberately quiet: a hairline in the existing border colour, not a filled
+   control. It is the least important button on the panel and it should not
+   compete with the one the person actually came to press. */
+.modal-overlay button:has(> svg.lucide-x) {
+  /* TIED TO THE ICON, not to a theme token, and that is deliberate after two
+     measured misses. `--border` in this theme is a raw HSL TRIPLET (`0 0% 15%`)
+     rather than a colour, so `border: 1px solid var(--border)` is invalid at
+     computed-value time and the entire declaration is dropped -- live, the
+     button came back `0px none` while the radius and padding from the same rule
+     applied. `--color-border` parses, but the button's own text utility then
+     wins the border-color cascade anyway.
+     `currentColor` sidesteps both: the box is always a fraction of whatever
+     colour the X is already drawn in, so it matches on every surface and cannot
+     be undone by a utility class on the button. */
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  border-radius: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.modal-overlay button:has(> svg.lucide-x):hover {
+  border-color: currentColor;
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* Buttons that already carry their own padding keep it; the bare ones would
+   otherwise draw a box hugging the glyph with no air in it. */
+.modal-overlay button:has(> svg.lucide-x):not([class*="p-"]):not([class*="px-"]) {
+  padding: 0.375rem;
+}
+
 @utility seg-track {
   @apply flex flex-wrap items-center gap-1 p-1 border border-border bg-secondary/50;
   @apply max-w-full overflow-x-auto;

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { initMonitoring } from './lib/monitoring'
+import { installModalDismissGuard } from './lib/modal-dismiss-guard'
 
 // MONITORING IS NOT PART OF THE FIRST PAINT, and it used to be. The two vendor
 // chunks behind it are the largest things this app ships after the charts
@@ -23,6 +24,11 @@ import { initMonitoring } from './lib/monitoring'
 // until the plugins are up, and the ErrorBoundary still catches and still
 // renders. That is the right trade for a finance app whose first screen is a
 // person waiting to see their money.
+// Before the first render, and cheap: two document listeners. A modal that
+// closes while you are selecting text in it is a bug you can hit on the first
+// screen, so this one does not wait for idle.
+installModalDismissGuard();
+
 const startMonitoring = () => initMonitoring();
 if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
   window.requestIdleCallback(startMonitoring, { timeout: 3000 });

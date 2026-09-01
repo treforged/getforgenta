@@ -12,12 +12,23 @@ type Props = {
 export default function InstructionsModal({ pageTitle, sections }: Props) {
   const [open, setOpen] = useState(false);
 
-// ⚠️ PORTALLED TO `document.body`. See `CalcDrawer.tsx` for the full reason: on iOS WebKit a
-// `position: fixed` overlay rendered inside `main` — an `overflow-y: auto` scroller — resolves
-// against the SCROLLER rather than the viewport, so its scrim stops short of the screen edges and
-// leaves the status-bar strip undimmed. Desktop browsers do not reproduce it. z-index cannot fix
-// it, because z-index does not escape a containing block.
-  return createPortal((
+// ⚠️ ONLY THE OVERLAY IS PORTALLED, and the trigger is not. See `CalcDrawer.tsx`
+// for why the overlay has to be: on iOS WebKit a `position: fixed` overlay
+// rendered inside `main` — an `overflow-y: auto` scroller — resolves against the
+// SCROLLER rather than the viewport, so its scrim stops short of the screen
+// edges and leaves the status-bar strip undimmed. z-index cannot fix it,
+// because z-index does not escape a containing block.
+//
+// THE BUTTON WAS INSIDE THAT PORTAL UNTIL 2026-09-01 and it caused two bugs at
+// once. It is a static, in-flow element, so portalling it appended a 31px
+// button to the END of document.body, below #root — which is exactly the height
+// by which the desktop page overflowed its viewport, giving the whole shell a
+// scrollbar on top of the content pane's own. Tre: "why is the full page
+// scrollable, not just the specific tab." It also meant the Guide never
+// appeared in the header row this component's own docblock says it lives in.
+//
+// The overlay needs the portal. The trigger never did.
+  return (
     <>
       <button
         onClick={() => setOpen(true)}
@@ -28,7 +39,7 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
         <BookOpen size={11} /> Guide
       </button>
 
-      {open && (
+      {open && createPortal((
         <div
           className="modal-overlay z-50"
           style={{ background: 'rgba(0,0,0,0.85)' }}
@@ -82,7 +93,7 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </>
-  ), document.body);
+  );
 }

@@ -87,22 +87,39 @@ export default function Sidebar() {
         collapsed ? "w-16" : "w-52"
       )}
     >
-      <div className="flex items-center justify-between px-3 h-14 border-b border-sidebar-border">
-        {!collapsed && (
-          <Link to={brandTo} className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
-            <img
-              src="/logo-transparent.png"
-              alt="Forgenta"
-              // Kept in proportion with the mobile bar's mark, which went 22 -> 30.
-              style={{ height: 34, width: 34, objectFit: 'contain' }}
-              draggable={false}
-            />
+      {/* THE MARK SURVIVES THE COLLAPSE (Tre, 2026-09-01: "keep the logo still
+          visible when you collapse the left side bar on desktop"). The whole
+          brand link used to be dropped, which left a 64px rail with nothing in
+          it but a chevron -- and took away the only way back to the dashboard
+          from the header.
+
+          The WORDMARK still goes, because it cannot fit and it is the half that
+          repeats what the tab title already says. The mark shrinks 34 -> 24 and
+          the padding tightens to px-2 so that 8 + 24 + gap + a 16px chevron + 8
+          lands inside the rail rather than wrapping. */}
+      <div className={cn(
+        "flex items-center justify-between h-14 border-b border-sidebar-border",
+        collapsed ? "px-2 gap-1" : "px-3",
+      )}>
+        <Link
+          to={brandTo}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0"
+          aria-label="Forgenta home"
+        >
+          <img
+            src="/logo-transparent.png"
+            alt="Forgenta"
+            // Kept in proportion with the mobile bar's mark, which went 22 -> 30.
+            style={{ height: collapsed ? 24 : 34, width: collapsed ? 24 : 34, objectFit: 'contain' }}
+            draggable={false}
+          />
+          {!collapsed && (
             <span className="font-display font-bold text-sm tracking-tight text-primary">FORGENTA</span>
-            {isDemo && (
-              <span className="text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1 py-0.5 rounded shrink-0">Demo</span>
-            )}
-          </Link>
-        )}
+          )}
+          {!collapsed && isDemo && (
+            <span className="text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1 py-0.5 rounded shrink-0">Demo</span>
+          )}
+        </Link>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="p-1 text-muted-foreground hover:text-foreground transition-colors btn-press"
