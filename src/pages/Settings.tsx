@@ -22,6 +22,7 @@ import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendLink } from '@/components/settings/FriendLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
+import NotificationSettings from '@/components/settings/NotificationSettings';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useTheme } from '@/hooks/useTheme';
 import type { ThemeChoice } from '@/lib/theme';
@@ -551,6 +552,10 @@ export default function SettingsPage() {
           the whole promise of the feature: a decision the app applies everywhere has to be
           reversible somewhere obvious. Renders nothing at all until something has been learned. */}
       <MerchantRulesSettings />
+
+      {/* Native only - it renders nothing in the browser, where local notifications do not
+          exist. See the component for why there is no permission prompt on this screen. */}
+      <NotificationSettings />
       </>)}
 
       {/* ── Account: who you are, how you share it, how you end it ────────────────────── */}
