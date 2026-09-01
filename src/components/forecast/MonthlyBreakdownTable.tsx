@@ -251,6 +251,13 @@ export default function MonthlyBreakdownTable({
               // The two lists this replaces said "no cash impact", which was true of checking and
               // silent about where the money did come from.
               ...buildOtherAccountLines(row as Parameters<typeof buildOtherAccountLines>[0], formatCurrency),
+              // Non-funding liquid accounts first: they are the closest thing to the cash walk
+              // above, and Tre asked for them by name (2026-09-02, "include the general operations
+              // account balance in the forecast pop ups"). Before this they appeared in no row and
+              // in no total.
+              ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
+                .filter(a => a.bucket === 'cash')
+                .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, true) })),
               ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
                 .filter(a => a.bucket === 'retirement')
                 .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, true) })),

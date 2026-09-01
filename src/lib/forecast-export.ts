@@ -140,6 +140,9 @@ export interface ForecastMonthDetail {
   retirementAccounts: ForecastAccountLine[];
   investmentAccounts: ForecastAccountLine[];
   savingsAccounts: ForecastAccountLine[];
+  /** Non-funding liquid accounts (a second checking, a cash account). They are counted in
+   *  `totalAssets`, so omitting them here would leave the export's own rows short of its total. */
+  cashAccounts: ForecastAccountLine[];
   creditCards: ForecastAccountLine[];
   otherLiabilities: ForecastAccountLine[];
   carLoans: ForecastAccountLine[];
@@ -268,6 +271,7 @@ export function buildForecastMonthDetail(row: ForecastExportRow, absoluteI: numb
   const retirementAccounts = assetBreakdown.filter(a => a.bucket === 'retirement').map(a => ({ label: a.name, amount: a.balance }));
   const investmentAccounts = assetBreakdown.filter(a => a.bucket === 'investment').map(a => ({ label: a.name, amount: a.balance }));
   const savingsAccounts = assetBreakdown.filter(a => a.bucket === 'savings').map(a => ({ label: a.name, amount: a.balance }));
+  const cashAccounts = assetBreakdown.filter(a => a.bucket === 'cash').map(a => ({ label: a.name, amount: a.balance }));
 
   const creditCards = getCreditCardBalances(absoluteI, cardProjectionData);
   const otherLiabilities = ((row.nonCCLiabBreakdown ?? []) as { name: string; balance: number }[]).map(l => ({ label: l.name, amount: l.balance }));
@@ -287,6 +291,7 @@ export function buildForecastMonthDetail(row: ForecastExportRow, absoluteI: numb
     retirementAccounts,
     investmentAccounts,
     savingsAccounts,
+    cashAccounts,
     creditCards,
     otherLiabilities,
     carLoans,

@@ -72,6 +72,7 @@ export async function exportForecastCsv(rows: ForecastRow[], details: ForecastMo
   const retirementLabels = collectLabelUnion(details, d => d.retirementAccounts);
   const investmentLabels = collectLabelUnion(details, d => d.investmentAccounts);
   const savingsLabels = collectLabelUnion(details, d => d.savingsAccounts);
+  const cashLabels = collectLabelUnion(details, d => d.cashAccounts);
   const ccLabels = collectLabelUnion(details, d => d.creditCards);
   const otherLiabLabels = collectLabelUnion(details, d => d.otherLiabilities);
   const carLoanLabels = collectLabelUnion(details, d => d.carLoans);
@@ -85,6 +86,7 @@ export async function exportForecastCsv(rows: ForecastRow[], details: ForecastMo
     ...retirementLabels.map(l => `Retirement: ${l}`),
     ...investmentLabels.map(l => `Investment: ${l}`),
     ...savingsLabels.map(l => `Savings: ${l}`),
+    ...cashLabels.map(l => `Cash: ${l}`),
     'Total Assets',
     ...ccLabels.map(l => `Credit Card: ${l}`),
     ...otherLiabLabels.map(l => `Liability: ${l}`),
@@ -114,6 +116,7 @@ export async function exportForecastCsv(rows: ForecastRow[], details: ForecastMo
       ...retirementLabels.map(l => amountForLabel(d.retirementAccounts, l).toFixed(2)),
       ...investmentLabels.map(l => amountForLabel(d.investmentAccounts, l).toFixed(2)),
       ...savingsLabels.map(l => amountForLabel(d.savingsAccounts, l).toFixed(2)),
+      ...cashLabels.map(l => amountForLabel(d.cashAccounts, l).toFixed(2)),
       d.totalAssets.toFixed(2),
       ...ccLabels.map(l => amountForLabel(d.creditCards, l).toFixed(2)),
       ...otherLiabLabels.map(l => amountForLabel(d.otherLiabilities, l).toFixed(2)),

@@ -207,6 +207,7 @@ function monthDetailHtml(d: ForecastMonthDetail): string {
           { label: 'Retirement', rows: d.retirementAccounts },
           { label: 'Investment', rows: d.investmentAccounts },
           { label: 'Savings', rows: d.savingsAccounts },
+          { label: 'Cash', rows: d.cashAccounts },
         ])}</table>
       </div>
       <div class="flow-col">

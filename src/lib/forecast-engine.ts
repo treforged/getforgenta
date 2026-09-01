@@ -137,7 +137,7 @@ export interface ForecastMonthRow {
   isRaiseMonth: boolean; promotionNewSalary: number; recommendedDebtPayment: number;
   floorItems: { name: string; amount: number; dueDay: number }[];
   prePaycheckBillsTotal: number; settingsCashFloor: number;
-  assetBreakdown: { bucket: 'retirement' | 'investment' | 'savings'; id: string; name: string; balance: number }[];
+  assetBreakdown: { bucket: 'retirement' | 'investment' | 'savings' | 'cash'; id: string; name: string; balance: number }[];
   /** This month's RANKED AUTOMATIC EXTRA payment per target, keyed by goal id / car fund id and
    * carrying only the targets that actually took money this month. Emitted so a surface that
    * projects one target on its own (the Goals page's Savings Growth chart) can add the same
@@ -319,6 +319,29 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     );
     const perAcctSavings = new Map<string, { name: string; balance: number }>(
       savingsAcctsForTrack.map((a) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
+    );
+
+    // NON-FUNDING LIQUID ACCOUNTS — a second checking, a cash account.
+    //
+    // Tre, 2026-09-02: *"include the general operations account balance in the forecast pop ups."*
+    // He has three checking accounts; only the funding one was anywhere in this file.
+    //
+    // Starting cash deliberately seeds from the FUNDING account alone (see `liquidBal` above —
+    // summing every liquid account inflates opening cash and masks real floor breaches), and the
+    // per-account maps above cover only brokerage, savings/HYS and retirement. So a second
+    // checking account reached no popup row AND no total, while `net-worth.ts` counts every
+    // non-liability account as an asset. The forecast's Total Assets and Net Worth were understated
+    // by the whole of it, in every month — $173.54 of his on 2026-09-02. That is small money and a
+    // real disagreement between two screens that answer the same question.
+    //
+    // Tracked here rather than folded into `liquidBal`: these balances are NOT available to the
+    // cash walk, the floor or debt paydown, and moving them there would undo the fix the comment
+    // above is describing. They are assets, not spendable cash.
+    const otherLiquidAccts = active.filter(
+      (a) => liquidTypes.includes(a.account_type) && a.id !== fundingAcct?.id
+    );
+    const perAcctOtherLiquid = new Map<string, { name: string; balance: number }>(
+      otherLiquidAccts.map((a) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
     );
 
     const monthlyInvestGrowth = Math.pow(1 + assumptions.investmentGrowth / 100, 1 / 12) - 1;
@@ -2687,7 +2710,24 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         (rawEndingCash - b.oneTimeNet) >= b.monthMinSafe;
       const debtWasReduced = debtPayments[i] < b.rawDebtPayment;
 
-      const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
+      // Money that left or reached one of the non-funding liquid accounts this month. These are
+      // the SAME three lists the popup's OTHER ACCOUNTS section itemises, applied to the balance,
+      // so that section and the asset row beneath it cannot tell different stories about one
+      // account. No interest is applied: these are checking-shaped accounts and inventing a yield
+      // for them would be a number with no source.
+      for (const t of b.nonCashTransferItems ?? []) {
+        const from = t.fromAcctId ? perAcctOtherLiquid.get(t.fromAcctId) : undefined;
+        if (from) from.balance -= t.amount;
+        const to = t.toAcctId ? perAcctOtherLiquid.get(t.toAcctId) : undefined;
+        if (to) to.balance += t.amount;
+      }
+      for (const e of [...(b.otherAccountExpenseItems ?? []), ...(b.otherAccountOneTimeItems ?? [])]) {
+        const acct = e.fromAcctId ? perAcctOtherLiquid.get(e.fromAcctId) : undefined;
+        if (acct) acct.balance -= e.amount;
+      }
+      const otherLiquidBal = Array.from(perAcctOtherLiquid.values()).reduce((s, a) => s + a.balance, 0);
+
+      const totalAssets = finalLiquid + investBal + retireBal + savingsBal + otherLiquidBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
       // ccDebtFreeFired flips the month the SIM's own revolving balance (already inclusive of any
@@ -2837,6 +2877,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // Per-account balances stay unrounded: the popup and CSV export are their only readers,
         // and both now print exact cents (N8).
         assetBreakdown: [
+          ...Array.from(perAcctOtherLiquid.entries()).map(([id, a]) => ({ bucket: 'cash' as const, id, name: a.name, balance: a.balance })),
           ...Array.from(perAcctRetire.entries()).map(([id, a]) => ({ bucket: 'retirement' as const, id, name: a.name, balance: a.balance })),
           ...Array.from(perAcctInvest.entries()).map(([id, a]) => ({ bucket: 'investment' as const, id, name: a.name, balance: a.balance })),
           ...Array.from(perAcctSavings.entries()).map(([id, a]) => ({ bucket: 'savings' as const, id, name: a.name, balance: a.balance })),
