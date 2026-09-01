@@ -18,7 +18,6 @@ import { captureReferral } from "@/lib/referral";
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import Analytics from "@/components/shared/Analytics";
 import ResumeRecovery from "@/components/shared/ResumeRecovery";
@@ -29,6 +28,22 @@ import { ACCOUNTS_PANEL_PARAM, isAccountsTab } from "@/lib/accounts-tab";
 import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
+
+/**
+ * ⚠️ LAZY ON PURPOSE, AND IT IS NOT ABOUT THE LAYOUT.
+ *
+ * `DashboardLayout` mounts `CardProjectionProvider`, which pulls the whole forecast engine —
+ * `CardProjectionContext` + `useSupabaseData` + `essential-monthly-expenses` +
+ * `vehicle-loan-engine` and friends. Imported statically here, all of that landed in the entry
+ * chunk's static-import closure, so a signed-out visitor on the marketing page or `/auth` paid to
+ * download and parse the debt engine before anything rendered — and could never use it. Every
+ * page inside the layout was already lazy; the layout itself was the one static edge holding the
+ * engine on the first-paint path.
+ *
+ * Do not turn this back into a static import to "simplify" the Suspense boundary below.
+ * Re-measure with the entry-closure BFS before changing it.
+ */
+const DashboardLayout = lazy(() => import("@/components/layout/DashboardLayout"));
 
 const Auth = lazy(() => import("@/pages/Auth"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -281,7 +296,7 @@ function AppRoutes() {
           the shell itself would otherwise take the whole app white. It offers no
           way-back button because every route lives inside it — retry/reload are
           the only honest options at that level. */}
-      <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
+      <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><Suspense fallback={<PageLoader />}><DashboardLayout /></Suspense></ErrorBoundary></ProtectedRoute>}>
         <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Dashboard" homeTo={null}><Dashboard /></ErrorBoundary></Suspense>} />
         <Route path="/budget" element={<BudgetRedirect />} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
