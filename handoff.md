@@ -12,9 +12,22 @@
 
 ## Resume queue
 
-1. [ ] Nothing is mid-flight. Clean tree, `origin/main` 0/0, suite green with no
-   expected-fail. The Asks Ledger was read 2026-09-01 02:07 and carries nothing
-   new for this desk. Next concrete step: pick from 3-4.
+1. [ ] Nothing is mid-flight; the tree is clean and `origin/main` is 0/0. The
+   Asks Ledger was read 2026-09-01 02:07 and again at the close — nothing new
+   for this desk. Items 2 and 3 closed this session, 4 is deliberately parked
+   until mid-month, and 5 now needs only Tre. So the next concrete step is the
+   one open DEFECT this desk still owns, which no queue item had yet claimed:
+   **eleven days of elapsed clock moves CC Debt Free five months (Dec 2028 ->
+   Jul 2028) on the current capture**, tripwired as an `it.fails` at
+   `forecast-convergence.manualISB.test.ts:87` (it goes RED when fixed). Live
+   `/debt` showed PAYOFF ETA Jul 2028 / 22 mo on 2026-09-01, consistent with it.
+   ⚠️ Do NOT assume `aadf3ae2` already explains this. That commit closed the
+   small month-0 wobble as arithmetic (month 0 is partial, so its debt payment
+   legitimately shrinks as the month passes). A FIVE-MONTH swing is a different
+   size of effect and has not been shown to have the same cause. The session was
+   about to open this file when the context gate fired at 176k; nothing was
+   read, changed or concluded, so it starts cold and clean.
+
 2. [x] The forecast engine is OFF the first-paint path — `0a74fc5d`. The one
    static edge holding it there was `DashboardLayout`, imported eagerly in
    `App.tsx` while every page inside it was already lazy; it mounts
