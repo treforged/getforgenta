@@ -200,9 +200,28 @@ gaps in shipped surfaces, which outrank a design refactor.
 14. [ ] TRANSFERS must show on the HOMEPAGE too.
 15. [ ] Transfer RULES, and anything generated from a GOAL, must show in
     Transactions.
-16. [ ] AUTO EXTRA PAYMENTS and TRANSFERS must show in Transactions. (14-16 are
-    one investigation: find where each of these is written and why Transactions
-    and the dashboard feed exclude it. Do that read ONCE, then fix all three.)
+16. [ ] AUTO EXTRA PAYMENTS and TRANSFERS must show in Transactions.
+    **THE READ IS DONE (2026-09-02). 14-16 are NOT one fix - they are two, and
+    the split is what matters:**
+    - **TRANSFERS are real rows nobody queries.** They live in the
+      `lump_sum_transfers` table and already have full CRUD in
+      `useSupabaseData.ts:517-549`. `src/pages/Transactions.tsx:8` and
+      `src/pages/Dashboard.tsx:19` import `useTransactions` and NOT that hook, so
+      both surfaces are blind to the table for no reason beyond never having asked
+      for it. Item 14 and the transfer half of 16 are this same one cause, and it
+      is the cheap half: read the hook, merge into the list, tag the rows.
+    - **AUTO EXTRA is not a row at all.** `auto_extra` lives on the goal and
+      vehicle records and is consumed by the FORECAST ENGINE
+      (`useCardProjection`, `useSurplusRanking`, `useForecastEngineInputs`).
+      Nothing is written to `transactions`, so there is nothing to query - showing
+      it means DERIVING projected entries from the engine and displaying them
+      beside real ones. Same shape as the goal-generated half of item 15.
+    - Item 15's RULE half may already work: `Transactions.tsx:457` already maps
+      `rule_type` into projected rows. Verify before building anything.
+    ⚠️ The design call before any code: do derived/projected entries appear in the
+    same list as real transactions, and how does a user tell them apart? On a
+    finance app, a projection that reads as a settled transaction is a lie. Decide
+    that first; it governs all three items.
 17. [ ] Review text WRAPPING and FORMATTING issues. Pairs naturally with the
     item 6 rollout — `truncate` and fixed-width columns are all over the button
     inventory's neighbourhood.
