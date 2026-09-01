@@ -142,7 +142,7 @@ When context is between 150k and 200k tokens:
 4. Do not touch the working tree after dispatching; the successor owns
    it.
 5. Only then tell the user, and let it be the single action in the
-   message: `/clear` this tab — its successor is already running. The
+   message: `/exit` this tab — its successor is already running. The
    next agent resumes from `handoff.md` (a SessionStart hook surfaces
    it automatically).
 
