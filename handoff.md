@@ -10,54 +10,38 @@
 
 ---
 
-## ⚠️ TOP OF QUEUE — the debug-console security gate (NOT STARTED, brief intact)
+## CLOSED — the debug-console security gate, and it was seen to fail
 
-Tre, 2026-09-02, relayed via the Desktop desk: *"for security make sure exposure
-can never happen, then i will enable it."* He WANTS the in-page debug console
-(Eruda / vConsole) for testing on his iPhone. The gate is the precondition, so
-this gate is the only thing standing between him and a feature he asked for.
+`871e1136`, on origin/main, verified by contents. Tre asked for exposure to be
+made impossible before he enables an in-page console for iPhone testing. Done,
+and the acceptance was the RED, not a green build.
 
-**NOT STARTED HERE, and deliberately.** Two reasons, both still true when you
-read this: the five-hour usage window hit its cap mid-brief, and session
-`c2164291` was live in THIS SAME WORKING TREE on this exact task at the time.
-Check whether that session already shipped it before building anything —
-`git log --oneline -20` and look for an eruda/vConsole guard or a bundle check.
-Two sessions building one security gate in one tree is how you get a gate that
-half exists.
+- `src/lib/debug-console.ts` — `await import('eruda')` INSIDE a branch needing
+  BOTH `MODE !== 'production'` AND `VITE_ENABLE_DEBUG_CONSOLE === 'true'`. Vite
+  folds both to literals, so production eliminates the import outright.
+- `scripts/check-no-debug-console.mjs` — scans the built bundle, fails on any
+  eruda/vConsole marker, and **fails when it finds nothing to inspect** (missing
+  dist, zero files, or files but no JS bundle). Wired into android-build.yml and
+  ios-build.yml BEFORE `cap sync`, so a bad bundle never reaches a device.
+- **The negative test, which is the evidence:** a deliberate top-level
+  `import 'eruda'` in main.tsx built GREEN (`built in 1.73s`) while the gate went
+  RED — 59 hits in `dist/assets/index-ClbKxA59.js`, exit 1. Removed, rebuilt,
+  clean: 115 files / 95 JS / 3.56 MB scanned, exit 0. Both nothing-to-check
+  branches were also driven to red on purpose.
+- **Not dead code either:** `vite build --mode development` with the flag ON
+  emits `assets/eruda-<hash>.js` as a lazy chunk; flag unset, none.
+- eruda **3.4.3, pinned** (not `^`), reviewed before install: no dependencies, no
+  npm lifecycle scripts, one bundled file, and its only external URLs are its own
+  docs page and two donation links. Installed with `--ignore-scripts`.
 
-**THE STAKES, so this is not scoped as a nice-to-have:** Eruda and vConsole
-expose `localStorage` to anyone who opens the page. On Supabase, localStorage
-holds the **auth session JWT**. On a personal-finance app that is account
-takeover, not a debug convenience.
-
-The brief, which is sound and worth following as written:
-
-1. **Dynamic import only, never top-level.** `const eruda = await import('eruda')`
-   inside a branch. A top-level `import 'eruda'` bundles it regardless of any
-   guard below it — that is the actual bug, and it is invisible in review
-   because the guard looks correct.
-2. **Gate on `MODE !== 'production'` AND an explicit preview flag**, so a preview
-   build is opt-in rather than "anything that is not prod".
-3. **THE PART THAT MAKES IT "NEVER": a committed check that builds production and
-   asserts the output bundle contains no `eruda` and no `vConsole`, failing the
-   build if it does.** Wire it into CI. A runtime `if` still SHIPS the code and
-   is one bad merge from being wrong; only a build-time failure survives a future
-   refactor by someone who never saw this conversation.
-4. **Negative-test the gate before believing it.** Add a top-level import on
-   purpose, watch the check go RED, remove it, watch it go green. A gate nobody
-   has seen fail is not a gate.
-5. **The check must FAIL if it finds nothing to check.** If it cannot locate the
-   production bundle it errors rather than passes — an upstream rename otherwise
-   turns "assert all X" into a green no-op.
-
-Report back with the diff AND the RED output from step 4. The Desktop desk will
-only tell Tre it is safe to enable once it has seen the gate fail on purpose,
-because a green build is exactly what you get today with the bug present.
-
-⚠️ Prefer options that avoid the risk entirely if they still answer his need:
-Gus (windows-tune) established that testing Forgenta on the iPhone is just
-opening the Vercel preview URL in Safari, and that Playwright WebKit on Windows
-covers debugging without putting a console next to real credentials.
+⚠️ **THE CONSTRAINT TO TELL HIM, not a caveat.** Because the gate requires a
+NON-PRODUCTION build, the console cannot appear on an ordinary Vercel preview —
+those build in production mode. Using it on the phone needs a preview deployed
+with `--mode development` and `VITE_ENABLE_DEBUG_CONSOLE=true`. That is what makes
+"never in production" a build-time fact rather than a promise. On such a preview
+he is signed in as himself, so the console reads HIS real JWT: safe only while
+that URL stays behind Vercel deployment protection. No Vercel setting was changed
+by this desk.
 
 ---
 
