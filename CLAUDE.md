@@ -130,8 +130,21 @@ When context is between 150k and 200k tokens:
 2. Run the `context-handoff` skill: write/refresh `handoff.md` at the
    repo root with goals, current state, active files, changes made,
    failed attempts, and next steps. Commit it locally.
-3. Tell the user to run `/clear`; the next agent resumes from
-   `handoff.md` (a SessionStart hook surfaces it automatically).
+3. **Dispatch your successor BEFORE saying anything to Tre.** A session
+   cannot clear itself, so a turn that ends on "run /clear" parks the
+   work on his key press — which is exactly what happened on
+   2026-09-01 ("Ada got to the clear part but they didnt auto clear and
+   continue"). Run `dispatch getforgenta "<the resume brief>"`
+   (`~/.claude/bin/dispatch.py`, on PATH). It opens a fresh tab at this
+   desk — same name, empty context — which reads the brief plus
+   `handoff.md` and carries on down the resume queue. `--dry-run`
+   prints the tab and brief path without opening anything.
+4. Do not touch the working tree after dispatching; the successor owns
+   it.
+5. Only then tell the user, and let it be the single action in the
+   message: `/clear` this tab — its successor is already running. The
+   next agent resumes from `handoff.md` (a SessionStart hook surfaces
+   it automatically).
 
 When resuming a session where `handoff.md` exists, read it in full
 before doing anything else.
