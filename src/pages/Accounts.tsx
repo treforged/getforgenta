@@ -806,9 +806,17 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         {/* Hosted inside the Dashboard, this page's panels are already in Home's guide —
             a second button here is the two-at-once state the registry exists to end. */}
         {!embedded && <SurfaceGuide surface="accounts" />}
-        <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
-          <Plus size={14} /> Add Account
-        </button>
+        {/* EMBEDDED, THIS BUTTON MOVES DOWN to sit on the panel row (see Group B).
+            On the Dashboard the heading and the guide are both gone, so this row
+            collapsed to one right-aligned button floating above a centred pill
+            row: two controls, two different alignments, two rows, ~55px of fold
+            for one button. Standalone the row still has a title to sit beside,
+            so it stays. */}
+        {!embedded && (
+          <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
+            <Plus size={14} /> Add Account
+          </button>
+        )}
       </div>
 
       {isDemo && (
@@ -847,6 +855,11 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {/* Panel switcher — Garage-style pills. What the accounts add up to is answered by the
           Dashboard's overview strip, which sits above the panel switcher on every panel, so no
           total here depends on which tab you happened to be on. */}
+      {/* ONE ROW, ONE RHYTHM. The pill track keeps its own centring; the action
+          sits at the right of the SAME line rather than on a line of its own, so
+          the eye crosses one control row before the accounts instead of three. */}
+      <div className={embedded ? 'flex items-center gap-2' : undefined}>
+      {embedded && <div className="hidden sm:block flex-1" />}
       <PanelBar>
         <button onClick={() => setActiveTab('balances')}
           className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}
@@ -863,10 +876,21 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           </button>
         )}
       </PanelBar>
+      {embedded && (
+        <div className="flex-1 flex justify-end">
+          <button onClick={() => openAdd()} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold btn-press whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
+            <Plus size={14} /> Add Account
+          </button>
+        </div>
+      )}
+      </div>
 
       {/* Filter */}
       {effectiveTab === 'balances' && (
-      <div className="flex gap-2">
+      /* CENTRED TO MATCH THE PILL ROW ABOVE IT. Left-aligned under a centred
+         control it read as a stray group rather than as the second half of one
+         header, which is the alignment half of Tre's 2026-09-01 note. */
+      <div className="flex gap-2 justify-center">
         {(['all', 'assets', 'liabilities'] as const).map(t => (
           <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : ''}`} style={{ borderRadius: 'var(--radius)' }}>
             {t === 'all' ? 'All Accounts' : t.charAt(0).toUpperCase() + t.slice(1)}

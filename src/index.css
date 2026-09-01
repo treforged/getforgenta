@@ -344,6 +344,30 @@
   & > * + * { margin-top: 0.75rem; }
 }
 
+/* DESKTOP IS TIGHTER THAN THE NOMINAL SCALE, on purpose (Tre, 2026-09-01: "we
+   really need to reduce all the excess spacing").
+
+   The three steps above are written in rem and were sized against a 16px root.
+   This app does not have one: the root is FLUID and measures 18px on a desktop
+   viewport, so every gap renders 12.5% larger than it was drawn -- 1.5rem is
+   27px here, not 24px. Nothing was mis-specified; the scale is simply being
+   read at a size it was not designed at, and it compounds down a page. Measured
+   on the Dashboard's Accounts panel: the first account card sat 621px down a
+   1193px viewport, so more than half the fold was spent before any content.
+
+   So the steps are re-cut for the width where the inflation actually bites.
+   Phones keep the original numbers: a thumb needs the separation, and the
+   inflation is smaller there because the fluid root is smaller too.
+
+   64rem is Tailwind's `lg`, which is the breakpoint the layout already changes
+   at -- the sidebar appears, the shell widens. Density belongs on the same
+   line, not on a second one nobody remembers. */
+@media (min-width: 64rem) {
+  .stack-section > * + * { margin-top: 1.25rem; }
+  .stack-block > * + * { margin-top: 0.875rem; }
+  .stack-row > * + * { margin-top: 0.625rem; }
+}
+
 @utility btn-press {
   @apply active:scale-[0.98] transition-transform duration-75;
   @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
@@ -477,6 +501,21 @@
 @utility icon-btn {
   /* 44px minimum tap target for icon-only buttons */
   @apply flex items-center justify-center min-h-[44px] min-w-[44px];
+}
+
+/* A MOUSE DOES NOT NEED A THUMB'S TARGET (Tre, 2026-09-01: "reduce all the
+   excess spacing").
+
+   44px is the right floor for a finger and it is the wrong one for a cursor. In
+   a list of sixteen accounts every row carries three or four of these, and the
+   difference between 44 and 32 is roughly a card and a half of extra scrolling
+   for nothing a mouse user can feel.
+
+   `pointer: fine` is the honest test rather than a width query: it asks what the
+   person is actually pointing with. A laptop with a touchscreen reports `coarse`
+   and keeps the full target, which is the correct answer for it. */
+@media (pointer: fine) {
+  .icon-btn { min-height: 32px; min-width: 32px; }
 }
 
 @layer utilities {
