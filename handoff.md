@@ -15,15 +15,22 @@
    (first card 122-234px, 4-8 cards above the fold), so the systemic scale
    change covered them. Next concrete step: only revisit if Tre names a
    specific screen — do not churn surfaces that measure fine.
-2. [ ] The within-month payoff wobble. Next concrete step: open the debt-cash
-   walk and find why month 0's shrinking debt payment pushes CC Debt Free from
-   Jun 2028 to Jul 2028 as due days pass. The `it.fails` tripwire in
-   `src/lib/__tests__/forecast-convergence.manualISB.test.ts` goes RED when it
-   is fixed; delete the block then.
-3. [ ] Plaid on iOS TestFlight — Tre: "i couldnt access it." Next concrete
-   step: read `supabase/functions/plaid-hosted-link-result` and the native link
-   path in `src/pages/Accounts.tsx`, then check the hosted-link flow actually
-   opens on the native build. Web and data are healthy; this is native-only.
+2. [x] The within-month payoff wobble — NOT A DEFECT, settled by per-card
+   measurement. Month 0 is a partial month: by the 6th less income remains
+   before the due date, so $850 less goes to cards, the balances end $850
+   higher and the cash ends $850 higher. Every dollar accounted for. The
+   `it.fails` tripwire is gone, replaced by the invariant worth owning — month 0
+   may shrink but must stay WHOLE — verified to fail on a one-dollar leak. The
+   suite now has no expected-fail.
+3. [ ] Plaid on iOS TestFlight — CLAIMED BY ANOTHER SESSION (getforgenta-5e),
+   do not duplicate. Their findings: both edge functions ARE deployed with the
+   hosted branch (create-link-token v45, hosted-link-result v2; the
+   "undeployed" note was stale), TestFlight is current, render gates pass,
+   DeepLinkHandler ignores plaid-complete. `oauth_states` has zero rows ever and
+   `rate_limits` shows 3 taps in 16s on 08-29 with no exchange after, so no
+   native tap has got past /link/token/create. The one missing fact is the
+   function's response text, which needs `query_logs` on the allowlist — that is
+   an action for Tre.
 4. [ ] The forecast engine sits in the first-paint path: 23 chunks / 1081 kB
    raw, ~206 kB of it `CardProjectionContext` + `useSupabaseData` +
    `essential-monthly-expenses`, paid by signed-out visitors. Next concrete
@@ -115,3 +122,34 @@ contents.
   zero tests in this vitest.
 - Tre runs concurrent sessions on this tree. Re-read before writing, and never
   `git add -A`.
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-01 01:51 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (2 file(s)):**
+
+```
+M handoff.md
+ M src/lib/__tests__/forecast-convergence.manualISB.test.ts
+```
+
+- **Recent commits:**
+
+```
+f6740275 docs(handoff): a Resume queue, ordered, so the next session picks up mid-thread
+ab5c60aa style(accounts): the row actions move beside the meta line, not under it
+0bc51eef docs(handoff): a snapshot again, not a 1 MB log
+4dcd60fe style(density): 61px back above the fold, and the control rows finally agree
+48025907 fix(dev): point every importer at the renamed consent modules
+2315285c fix(dev): an ad blocker was blanking the entire app, and the filename was why
+7108311a fix(auth): the Google popup closes itself again
+c5107228 fix(convergence): 32-pass budget, and the clock tripwire says what is actually wrong
+```
+
+<!-- AUTO-SNAPSHOT:END -->
