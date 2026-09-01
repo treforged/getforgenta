@@ -74,7 +74,7 @@ import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
-  X, Car, Shield, Check, FileDown, LayoutDashboard, Building2, PiggyBank,
+  X, Car, Shield, Check, FileDown, LayoutDashboard, Building2, PiggyBank, ChevronDown,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -1144,35 +1144,44 @@ export default function Dashboard() {
                 const total = categoryData.reduce((s, c) => s + c.value, 0);
                 const top = categoryData.slice(0, 8);
                 const rest = categoryData.slice(8);
+                const renderRow = ({ name, value }: { name: string; value: number }, i: number) => {
+                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                  const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+                  return (
+                    <div key={name}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                          <CategoryIcon category={name} size={11} className="shrink-0" />
+                          <span className="text-xs font-medium truncate">{name}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 shrink-0 ml-2">
+                          <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
+                          <span className="text-xs font-bold font-display w-16 text-right">{formatCurrency(value, false)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                    </div>
+                  );
+                };
                 return (
                   <div className="space-y-3">
-                    {top.map(({ name, value }, i) => {
-                      const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                      const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
-                      return (
-                        <div key={name}>
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                              <CategoryIcon category={name} size={11} className="shrink-0" />
-                              <span className="text-xs font-medium truncate">{name}</span>
-                            </div>
-                            <div className="flex items-center gap-2.5 shrink-0 ml-2">
-                              <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
-                              <span className="text-xs font-bold font-display w-16 text-right">{formatCurrency(value, false)}</span>
-                            </div>
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {top.map((entry, i) => renderRow(entry, i))}
                     {rest.length > 0 && (
-                      <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
-                        <span className="text-[10px] text-muted-foreground">+{rest.length} more</span>
-                        <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
-                      </div>
+                      <details className="group">
+                        <summary className="flex items-center justify-between pt-1.5 border-t border-border/40 cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
+                          <span className="flex items-center gap-1.5">
+                            <ChevronDown size={11} className="shrink-0" />
+                            <span className="text-[10px] text-muted-foreground">+{rest.length} more</span>
+                          </span>
+                          <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
+                        </summary>
+                        <div className="space-y-3 pt-3">
+                          {rest.map((entry, i) => renderRow(entry, i + top.length))}
+                        </div>
+                      </details>
                     )}
                   </div>
                 );

@@ -589,8 +589,7 @@ export default function Auth() {
             <button
               onClick={handleTrustDevice}
               disabled={loading}
-              className="w-full bg-primary text-primary-foreground py-3 text-xs font-semibold btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="btn btn-block btn-primary"
             >
               {loading ? 'Saving…' : 'Yes, trust this device'}
             </button>
@@ -641,15 +640,13 @@ export default function Auth() {
           <div className="space-y-3">
             <button
               onClick={() => switchMode('signup')}
-              className="auth-cta auth-cta-1 w-full bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="auth-cta auth-cta-1 btn btn-block btn-primary"
             >
               Start Free
             </button>
             <button
               onClick={() => switchMode('login')}
-              className="auth-cta auth-cta-2 w-full border border-border text-foreground py-3.5 text-sm font-semibold hover:bg-secondary/60 transition-colors btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="auth-cta auth-cta-2 btn btn-block btn-outline"
             >
               Sign In
             </button>
@@ -862,8 +859,7 @@ export default function Auth() {
             <button
               type="submit"
               disabled={loading || mismatch}
-              className="w-full bg-primary text-primary-foreground py-3 text-xs font-semibold btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="btn btn-block btn-primary"
             >
               {loading ? 'Updating…' : 'Set New Password'}
             </button>
@@ -1028,8 +1024,7 @@ export default function Auth() {
           <button
             type="submit"
             disabled={loading || (mode === 'signup' && !!confirmPassword && confirmPassword !== password)}
-            className="w-full bg-primary text-primary-foreground py-2.5 text-xs font-semibold btn-press disabled:opacity-50"
-            style={{ borderRadius: 'var(--radius)' }}
+            className="btn btn-block btn-primary"
           >
             {loading
               ? 'Processing…'
