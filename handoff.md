@@ -10,6 +10,57 @@
 
 ---
 
+## ⚠️ TOP OF QUEUE — the debug-console security gate (NOT STARTED, brief intact)
+
+Tre, 2026-09-02, relayed via the Desktop desk: *"for security make sure exposure
+can never happen, then i will enable it."* He WANTS the in-page debug console
+(Eruda / vConsole) for testing on his iPhone. The gate is the precondition, so
+this gate is the only thing standing between him and a feature he asked for.
+
+**NOT STARTED HERE, and deliberately.** Two reasons, both still true when you
+read this: the five-hour usage window hit its cap mid-brief, and session
+`c2164291` was live in THIS SAME WORKING TREE on this exact task at the time.
+Check whether that session already shipped it before building anything —
+`git log --oneline -20` and look for an eruda/vConsole guard or a bundle check.
+Two sessions building one security gate in one tree is how you get a gate that
+half exists.
+
+**THE STAKES, so this is not scoped as a nice-to-have:** Eruda and vConsole
+expose `localStorage` to anyone who opens the page. On Supabase, localStorage
+holds the **auth session JWT**. On a personal-finance app that is account
+takeover, not a debug convenience.
+
+The brief, which is sound and worth following as written:
+
+1. **Dynamic import only, never top-level.** `const eruda = await import('eruda')`
+   inside a branch. A top-level `import 'eruda'` bundles it regardless of any
+   guard below it — that is the actual bug, and it is invisible in review
+   because the guard looks correct.
+2. **Gate on `MODE !== 'production'` AND an explicit preview flag**, so a preview
+   build is opt-in rather than "anything that is not prod".
+3. **THE PART THAT MAKES IT "NEVER": a committed check that builds production and
+   asserts the output bundle contains no `eruda` and no `vConsole`, failing the
+   build if it does.** Wire it into CI. A runtime `if` still SHIPS the code and
+   is one bad merge from being wrong; only a build-time failure survives a future
+   refactor by someone who never saw this conversation.
+4. **Negative-test the gate before believing it.** Add a top-level import on
+   purpose, watch the check go RED, remove it, watch it go green. A gate nobody
+   has seen fail is not a gate.
+5. **The check must FAIL if it finds nothing to check.** If it cannot locate the
+   production bundle it errors rather than passes — an upstream rename otherwise
+   turns "assert all X" into a green no-op.
+
+Report back with the diff AND the RED output from step 4. The Desktop desk will
+only tell Tre it is safe to enable once it has seen the gate fail on purpose,
+because a green build is exactly what you get today with the bug present.
+
+⚠️ Prefer options that avoid the risk entirely if they still answer his need:
+Gus (windows-tune) established that testing Forgenta on the iPhone is just
+opening the Vercel preview URL in Safari, and that Playwright WebKit on Windows
+covers debugging without putting a console next to real credentials.
+
+---
+
 ## Resume queue
 
 1. [x] The five-month payoff swing is NOT a defect, and `aadf3ae2` did already
