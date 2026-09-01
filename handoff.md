@@ -48,14 +48,22 @@
    meantime. Next concrete step: recapture on a genuinely mid-month day (the
    10th-20th), `RECAPTURE=1`, runbook `docs/forecast-fixture-recapture.md`, and
    budget the same session for re-pinning the ~10 assertions with judgement.
-5. [~] Plaid on iOS TestFlight — CLAIMED BY ANOTHER SESSION (`getforgenta-5e`),
-   do not duplicate. They established: both edge functions ARE deployed with the
-   hosted branch (create-link-token v45, hosted-link-result v2; the "undeployed"
-   note was stale), TestFlight is current, render gates pass, DeepLinkHandler
-   ignores plaid-complete. `oauth_states` has zero rows ever and `rate_limits`
-   shows 3 taps in 16s on 08-29 with no exchange after, so no native tap has got
-   past `/link/token/create`. Blocked on Tre: `query_logs` on the Supabase
-   allowlist, to read the function's response text.
+5. [~] Plaid on iOS TestFlight. The `query_logs` blocker is CLEARED — Tre
+   approved it 2026-09-01 02:30 and `mcp__claude_ai_Supabase__query_logs` is now
+   in `.claude/settings.local.json`; verified by running it, not by reading the
+   file. **But the evidence it was wanted for has expired.** `function_edge_logs`
+   on `mdtosrbfkextcaezuclh` retains exactly 24 hours (measured: oldest row
+   2026-08-31T06:20Z, newest 2026-09-01T06:15Z, 87 rows), and the failing taps
+   were 2026-08-29T17:41Z — three days gone and unrecoverable. Everything else
+   the previous session established still stands: both edge functions ARE
+   deployed with the hosted branch (create-link-token v45, hosted-link-result
+   v2), TestFlight is current, render gates pass, DeepLinkHandler ignores
+   plaid-complete, `oauth_states` has zero rows ever, and `rate_limits` shows 3
+   taps in 16s on 08-29 with no exchange after — so no native tap has got past
+   `/link/token/create`. Next concrete step, and it is the ONLY one left: Tre
+   taps Connect Bank once on the phone, then read the function logs WITHIN 24
+   HOURS with `query_logs`. The owning session (`getforgenta-5e`) is no longer
+   in the peer roster, so this desk owns it again.
 6. [x] 15 red tests — `f031e96b`. Golden tests pin engine self-consistency now.
 7. [x] The payoff wobble — `aadf3ae2`. Not a defect; see below.
 8. [x] Google OAuth popup hang — `7108311a`. `INITIAL_SESSION` was the missing event.
