@@ -105,30 +105,25 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 01:51 by handoff_hook. Everything below this heading is
+_Written 2026-09-01 02:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
-
-```
-M handoff.md
- M src/lib/__tests__/forecast-convergence.manualISB.test.ts
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+268e1e66 docs(handoff): clear-ready â€” nothing mid-flight, queue reordered around what is left
+6343df2f docs(handoff): the wobble is closed, and Plaid is another session's
+aadf3ae2 test(convergence): the payoff wobble is not a defect, and here is the invariant that is
 f6740275 docs(handoff): a Resume queue, ordered, so the next session picks up mid-thread
 ab5c60aa style(accounts): the row actions move beside the meta line, not under it
 0bc51eef docs(handoff): a snapshot again, not a 1 MB log
 4dcd60fe style(density): 61px back above the fold, and the control rows finally agree
 48025907 fix(dev): point every importer at the renamed consent modules
-2315285c fix(dev): an ad blocker was blanking the entire app, and the filename was why
-7108311a fix(auth): the Google popup closes itself again
-c5107228 fix(convergence): 32-pass budget, and the clock tripwire says what is actually wrong
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
