@@ -34,6 +34,7 @@ import CalcDrawer, { type CalcDrawerLine } from '@/components/shared/CalcDrawer'
 import ForecastHero from '@/components/forecast/ForecastHero';
 import ForecastAssumptionsPanel from '@/components/forecast/ForecastAssumptionsPanel';
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable';
+import { isManualCashFloor } from '@/lib/cash-floor';
 import ReceiptsDisclosure from '@/components/forecast/ReceiptsDisclosure';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
@@ -637,6 +638,7 @@ export default function Forecast() {
             onToggle={() => setShowReceipts(!showReceipts)}
           >
             <MonthlyBreakdownTable
+              cashFloorIsManual={isManualCashFloor(profile)}
               displayData={displayData}
               filterYear={filterYear}
               duplicatesByMonth={duplicatesByMonth}

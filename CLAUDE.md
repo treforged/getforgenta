@@ -117,6 +117,27 @@ those.
 
 Unattended sessions have a harder boundary still: see `AGENT.md`.
 
+## USAGE CAP — RE-VERIFY, NEVER QUOTE THE STALE NUMBER
+
+Tre, 2026-09-02: *"set rules to always check cap reset when i ask. not use the
+stale number."*
+
+The usage line arrives on a prompt as a SNAPSHOT. By the time he asks, the
+five-hour window may already have reset — that is exactly when he asks. Answering
+"you are at 91%, I am paused" from a number that was true an hour ago tells him
+his own machine is blocked when it is not, and costs a whole round trip to
+correct.
+
+So when the cap is relevant — he asks about it, he says it reset, or a turn is
+about to stop because of it — **read the CURRENT figure from the usage line on
+THIS prompt** and say the number and its reset time out loud. If this prompt
+carries no usage line, say that instead of reaching for the last one seen.
+Never carry a cap reading across turns, and never let a stale one be the reason
+work stops.
+
+This happened on 2026-09-02: the cap had reset to 24% and the session reported
+91% and refused to work.
+
 ## CONTEXT GATE (handoff loop)
 
 After every completed step (TDD gate, plan item, commit), check context

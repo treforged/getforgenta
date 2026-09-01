@@ -919,7 +919,13 @@ export default function Dashboard() {
       ...(engineExtra > 0 ? [{ label: 'Extra Debt Payoff (above minimums)', value: formatCurrency(engineExtra, true), op: '+' }] : []),
       { label: 'Total Recommended Debt Payment', value: formatCurrency(engineTotal, true), op: '=' },
       { label: '', value: '' },
-      { label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, true) },
+      // Tre, 2026-09-02: "if cash floor set to automatic, dont show cash floor set in
+      // forecast pop ups". In automatic mode `resolveCashFloor` returns 0 by design -- it
+      // means "contribute nothing of your own, let the measured bills decide" -- so this row
+      // printed $0.00 and read as a floor of nothing rather than as "not in use".
+      ...(isManualCashFloor(profile)
+        ? [{ label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, true) }]
+        : []),
       { label: `Pre-paycheck bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, true) },
       { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(forecastFloor0.monthMinSafe, true), op: '≥' },
       { label: '', value: '' },
@@ -966,8 +972,13 @@ export default function Dashboard() {
   const openFloorCalc = () => {
     const { floorItems, prePaycheckBillsTotal, monthMinSafe } = forecastFloor0;
     const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'Settings floor', value: formatCurrency(cashFloor, false) },
-      { label: '', value: '' },
+      // Omitted in automatic mode: the setting is not contributing to the floor, and a
+      // $0.00 row is indistinguishable from a floor the user set to zero. See the note on
+      // the debt drawer above.
+      ...(isManualCashFloor(profile)
+        ? [{ label: 'Settings floor', value: formatCurrency(cashFloor, false) },
+           { label: '', value: '' }]
+        : []),
       ...(floorItems.length > 0
         ? [
             { label: 'Fixed monthly obligations (next mo.):', value: '' },

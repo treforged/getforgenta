@@ -32,6 +32,17 @@ type Props = {
   /** Cumulative PASS-3 surplus per card, so per-card balances match Debt Payoff and the export. */
   step3CumSurplus: Map<string, number[]>;
   carFunds: CarFund[];
+  /**
+   * Whether the user has taken the cash floor over by hand.
+   *
+   * Tre, 2026-09-02: "if cash floor set to automatic, dont show cash floor set in forecast
+   * pop ups". `resolveCashFloor` returns 0 in automatic mode by design, so the drawer's
+   * `Settings floor` row printed $0.00 -- which reads as a floor of nothing rather than as a
+   * setting that is not in use. It is omitted instead. NOT keyed off the value being 0:
+   * cash-floor.ts warns twice that a stored 0 is a real manual choice, and hiding on value
+   * would swallow it.
+   */
+  cashFloorIsManual: boolean;
   onOpenCalcDrawer: (drawer: { title: string; lines: CalcDrawerLine[] }) => void;
   onOpenFloorDrawer: (drawer: { title: string; lines: CalcDrawerLine[] }) => void;
 };
@@ -45,6 +56,7 @@ export default function MonthlyBreakdownTable({
   cardProjectionData,
   step3CumSurplus,
   carFunds,
+  cashFloorIsManual,
   onOpenCalcDrawer,
   onOpenFloorDrawer,
 }: Props) {
@@ -196,8 +208,10 @@ export default function MonthlyBreakdownTable({
                   onOpenFloorDrawer({
                     title: `${row.month} — Cash Floor`,
                     lines: [
-                      { label: 'Settings floor', value: formatCurrency(settingsFloor, true) },
-                      { label: '', value: '' },
+                      ...(cashFloorIsManual
+                        ? [{ label: 'Settings floor', value: formatCurrency(settingsFloor, true) },
+                           { label: '', value: '' }]
+                        : []),
                       ...(items.length > 0
                         ? [
                             { label: 'Fixed monthly obligations (next mo.):', value: '' },
