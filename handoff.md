@@ -50,7 +50,37 @@
 >   `752a620f` carries `spends: true`, $5,730, 2027-07-03, so the drop renders on
 >   HIS data and not only in `goal-spend-down.test.ts`. Flipped to [x].
 >
+> ### 4. THE LEDGER IS THE PROBLEM, NOT THE BACKLOG - FOUR STALE LINES IN ONE SESSION
+> Ledger 70, 77 and 196 were all marked open and all three had SHIPPED days earlier;
+> ask 71 was open only because it had never been measured. That is four turns this
+> session spent re-deriving closed work, and it is the same trap sessions 37-39 hit.
+> Newly closed this pass with evidence:
+> - **77** (the Garage card printing TWO payoff dates for one loan - "Jul 2029"
+>   above a schedule ending Aug 2029, with $2,343 of extra principal going in that
+>   August) is FIXED at `efa9f1df`. The cause was the READING, not the engine:
+>   `carLoanBalancesByFundId` is seeded as what a month OPENS owing but reduced
+>   from index `i` INCLUSIVE, so `firstZero - 1` is correct under ordinary
+>   amortization and a month EARLY when an extra is what clears the debt.
+>   `src/lib/extra-aware-payoff.ts` is the single rule now, shared by all three
+>   call sites (LoanCard.tsx:116, DebtPayoff.tsx:179, the engine tests).
+>   **Do not "fix" this in the engine** - reducing from `i + 1` would move every
+>   drawer line and liability itemisation by a month.
+>
+> ### 5. A LIVE RECAPTURE IS CHEAPER THAN IT LOOKS - SIZED, NOT BUILT
+> His current data is small enough to rebuild the fixture offline with no browser:
+> 17 accounts, 83 transactions, 31 recurring rules, 2 debts, 4 goals, 1 car fund,
+> 1 budget item, 8 payment plans. The blocker is that `useForecastEngineInputs`
+> pulls its rows through react-query hooks (useDebts/useAccounts/...), so a
+> recapture harness has to `vi.mock` those hooks with rows fetched from Supabase -
+> `useCardProjection` alone is not enough, because the engine also needs the
+> DERIVED fields (`monthlyAggregates`, `oneTimeByMonth`, `planExpensesByMonth`,
+> `forecastMonthEvents`, `ccScheduledByMonth`). That harness is the one thing that
+> would turn 84 / 92 / the backlog run from browser work into a repeatable test.
+> Keep the output gitignored - it is his real financial data.
+>
 > ### >> RESUME HERE
+> 0. **Build the live-recapture harness in item 5.** It unblocks three open items
+>    at once and every future money question without a signed-in browser.
 > 1. Ledger 84 / 92 / the backlog run need **live** data. Either recapture
 >    `forecast-inputs.real.json` or drive localhost signed in (`dev-signin`
 >    skill). Do not re-measure them on the July fixture - it says clean and that
@@ -60,6 +90,9 @@
 >    card is not reachable from this machine's board. It needs the card's text.
 > 3. forged-glass Slices 2/3 are IN FLIGHT with a parallel session. Do not touch.
 > 4. au-041 Instagram delete still needs a Chrome-attached session.
+>
+> 5. Ledger 200 is still partly open: `src/pages/Vehicles.tsx` still carries **4**
+>    em dashes (his standing rule is none).
 >
 > ### STILL TRUE FROM 40
 > Sep 2026's $112 dip is his $200 dog-sitting one-time, not an engine defect.
