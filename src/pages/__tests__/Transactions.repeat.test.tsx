@@ -162,7 +162,20 @@ function save() {
   fireEvent.click(within(dialog()).getByRole('button', { name: /Add Transaction|Schedule Repeat|Update/i }));
 }
 
+// THE CLOCK IS FROZEN INSIDE THE MONTH THIS FILE'S FIXTURES LIVE IN.
+//
+// These rows are dated in August 2026 and the surfaces under test show the
+// CURRENT month, so on 2026-09-01 three of these tests started failing without
+// a line of source code changing. A test that passes in August and fails in
+// September is not testing the code, it is testing the calendar.
+//
+// Frozen rather than made relative, because the literal dates carry meaning
+// that a generated date would lose: the repeat control asserts that 2026-08-21
+// is a Friday. `shouldAdvanceTime` keeps timers moving so React Testing Library
+// still settles.
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-08-20T12:00:00'));
   localStorage.clear();
   Object.values(mocks).forEach(m => m.mockReset());
   mocks.addRule.mockResolvedValue('rule-1');
@@ -174,7 +187,7 @@ beforeEach(() => {
   }) as any);
 });
 
-afterEach(() => { cleanup(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('Transactions, the Repeats control', () => {
   it('offers None, Weekly, Every 2 Weeks and Monthly, defaulting to None', () => {

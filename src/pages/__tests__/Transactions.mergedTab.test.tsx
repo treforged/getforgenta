@@ -124,12 +124,25 @@ function renderAt(url = '/transactions') {
 
 const order = (testId: string) => screen.getByTestId(testId).style.order;
 
+// THE CLOCK IS FROZEN INSIDE THE MONTH THIS FILE'S FIXTURES LIVE IN.
+//
+// These rows are dated in August 2026 and the surfaces under test show the
+// CURRENT month, so on 2026-09-01 three of these tests started failing without
+// a line of source code changing. A test that passes in August and fails in
+// September is not testing the code, it is testing the calendar.
+//
+// Frozen rather than made relative, because the literal dates carry meaning
+// that a generated date would lose: the repeat control asserts that 2026-08-21
+// is a Friday. `shouldAdvanceTime` keeps timers moving so React Testing Library
+// still settles.
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-08-20T12:00:00'));
   localStorage.clear();
   mocks.needsDecision = [];
   mocks.suggestedCount = 0;
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers(); });
 
 describe('Transactions — Planning and Bank Activity as one tab', () => {
   it('offers two panels, not four', () => {

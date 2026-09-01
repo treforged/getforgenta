@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams, type CardProjectionResult } from '../useCardProjection';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
@@ -29,8 +29,15 @@ const CHECKING_ID = 'checking-1';
 const CARD_HI = 'card-hi';
 const CARD_LO = 'card-lo';
 
+// THE CLOCK IS FROZEN, because this harness reads `new Date()` and the cards it
+// builds have `payment_due_day: 1`. Run on the first of a month, the same
+// synthetic scenario produces a different payoff month than it does mid-month,
+// and on 2026-09-01 that flipped a payoff from 2 to 3 with no source change.
+// Mid-month is the ordinary case and the one the expectations were written for.
+const FROZEN_NOW = new Date('2026-08-20T12:00:00');
+
 function renderProjection(): CardProjectionResult {
-  const now = new Date();
+  const now = new Date(FROZEN_NOW);
   const accounts = [
     { id: CHECKING_ID, name: 'Checking', account_type: 'checking', balance: 5000, active: true },
     { id: CARD_HI, name: 'HighApr', account_type: 'credit_card', balance: 3000, credit_limit: 10000, apr: 25, payment_due_day: 1, active: true, min_payment: 50, payment_preference: null },
@@ -81,6 +88,12 @@ const revolvingTotalAt = (r: CardProjectionResult, m: number) =>
     const startRevBal = m === 0 ? revBal : (r.monthlyRevolvingBalances.get(p.id)?.[m - 1] ?? 0);
     return startRevBal > 0 ? s + p.payments[m] : s;
   }, 0);
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FROZEN_NOW);
+});
+afterEach(() => vi.useRealTimers());
 
 describe('useCardProjection — resimulateWithDebtCash (Phase 2 Option C step 3)', () => {
   it('clamp months: revolving payments follow the target, and all surpluses are zero', () => {

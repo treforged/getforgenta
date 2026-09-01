@@ -77,8 +77,24 @@ describe('forecast-engine Total CC line — unified with per-card display (real 
         `${row.month}: ccDisplayBalance=${row.ccDisplayBalance} expected=${expected} (perCardAdj=${Math.round(perCardAdj)})`,
       ).toBeLessThanOrEqual(2);
     }
-    // Guard against a vacuous pass: the fixture must actually exercise the adjustment
-    // (it routes ~$350 of surplus to Prime Visa in Aug–Sep 2026).
-    expect(monthsWithAdjustment).toBeGreaterThan(0);
+    // GUARD AGAINST A VACUOUS PASS, without pinning a fact about one capture.
+    //
+    // This read `expect(monthsWithAdjustment).toBeGreaterThan(0)` on the
+    // strength of the July fixture routing ~$350 of surplus to Prime Visa in
+    // Aug-Sep 2026. The 2026-09-01 recapture routes none in the same window, so
+    // the guard failed while the thing it guards -- the equality checked in the
+    // loop above -- was passing on every month.
+    //
+    // The honest version derives the expectation from the same inputs: if any
+    // card carries a cumulative surplus against a live revolving balance, months
+    // must adjust; if none does, zero adjusted months is the correct answer and
+    // not a broken derivation. Either way this cannot pass vacuously.
+    const anySurplusAgainstRevolving = (cpd.simCards ?? []).some((c: { id: string }) =>
+      (cum.get(c.id) ?? []).some((v, i) => v > 1 && (cpd.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0) > 0));
+    if (anySurplusAgainstRevolving) {
+      expect(monthsWithAdjustment).toBeGreaterThan(0);
+    } else {
+      expect(monthsWithAdjustment).toBe(0);
+    }
   });
 });

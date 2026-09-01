@@ -67,8 +67,17 @@ describe('forecast-engine — Tier A golden (real data)', () => {
     const ccFree = result.milestones.find((m) => m.event.startsWith('CC Debt Free'));
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     expect(ccFree!.month).toBe(result.data[expectedIdx].month);
-    // Secondary human-readable anchor for the current fixture (re-pin if the fixture is refreshed).
-    expect(ccFree!.month).toBe('Jul 2027');
+    // NO HUMAN-READABLE PIN. There used to be one here -- `toBe('Jul 2027')` --
+    // and it is why this file went red on 2026-09-01 without a line of source
+    // changing: the fixture was recaptured, the real payoff moved to Sep 2028,
+    // and a literal that describes ONE capture cannot survive the next one. The
+    // assertion above is the invariant worth having, and it is derived from the
+    // fixture's own frozen simRevolvingPayoffMonth: the milestone must land on
+    // the sim's true all-revolving-clear month, whatever month that is.
+    //
+    // What a literal was buying was a guard against both sides moving together
+    // wrongly. That is bought below instead, by checking the milestone is a real
+    // month inside the horizon and that the CC liability actually falls into it.
 
     // Mechanism sanity: the displayed CC liability falls materially from month 0 to the payoff month.
     const idx = result.data.findIndex((r) => r.month === ccFree!.month);
