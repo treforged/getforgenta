@@ -1,3 +1,23 @@
+// Consent preferences.
+//
+// ⚠️ THE FILENAME IS LOAD-BEARING. This was `cookie-consent.ts` until
+// 2026-09-01, and content blockers match that string: uBlock-style lists block
+// any request whose path contains `cookie-consent`, along with `cookieconsent`,
+// `cookie-banner` and friends. In a Vite dev build every module is its own
+// request, so the block did not merely disable a banner -- the request for this
+// file FAILED, which failed `CookieBanner` and `Analytics`, which failed
+// `App.tsx`, which left a completely blank page.
+//
+// Blank, and silent: this repo sets `hmr: { overlay: false }`, so there was no
+// error overlay, and a module-graph fetch failure logs nothing to the console.
+// Proved by copying this file byte-for-byte to a neutral name and importing
+// both from the page: the neutral copy loaded, this path threw "Failed to
+// fetch" while curl fetched it happily with a 200.
+//
+// So do not rename this back, and do not add `cookie` to any other module path
+// that ships to a browser. The production build inlines these into a hashed
+// bundle and is not affected, which is exactly why it went unnoticed in dev.
+
 export type CookieCategoryId = 'essential' | 'analytics' | 'marketing';
 
 export interface CookieConsentState {

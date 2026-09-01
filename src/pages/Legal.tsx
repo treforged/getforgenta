@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/cookie-consent';
-import { useCookieConsent } from '@/hooks/useCookieConsent';
+import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/consent-prefs';
+import { useConsentPrefs } from '@/hooks/useConsentPrefs';
 import { Shield, ChevronDown, ChevronUp, X } from 'lucide-react';
 import DeleteDataContent from '@/components/legal/DeleteDataContent';
 
 function CookiePreferencesInline() {
-  const { consent, acceptAll, rejectNonEssential, saveCustom } = useCookieConsent();
+  const { consent, acceptAll, rejectNonEssential, saveCustom } = useConsentPrefs();
   const [open, setOpen] = useState(false);
   const [analytics, setAnalytics] = useState(consent?.analytics ?? false);
   const [marketing, setMarketing] = useState(consent?.marketing ?? false);

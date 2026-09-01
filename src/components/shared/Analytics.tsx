@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { loadConsent, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
+import { loadConsent, COOKIE_CONSENT_EVENT } from '@/lib/consent-prefs';
 import { initGA } from '@/lib/analytics';
 
 /**

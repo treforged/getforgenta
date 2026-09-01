@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { X, ChevronDown, ChevronUp, Shield } from 'lucide-react';
-import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/cookie-consent';
-import { useCookieConsent } from '@/hooks/useCookieConsent';
+import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/consent-prefs';
+import { useConsentPrefs } from '@/hooks/useConsentPrefs';
 
 // ---------------------------------------------------------------------------
 // Preferences modal
@@ -172,9 +172,9 @@ function PreferencesModal({
 // ---------------------------------------------------------------------------
 // Main banner
 // ---------------------------------------------------------------------------
-export default function CookieBanner() {
+export default function ConsentBanner() {
   const { status, consent, acceptAll, rejectNonEssential, saveCustom } =
-    useCookieConsent();
+    useConsentPrefs();
   const [showPrefs, setShowPrefs] = useState(false);
 
   // Don't render once the user has decided

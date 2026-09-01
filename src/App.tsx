@@ -19,7 +19,7 @@ import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import CookieBanner from "@/components/shared/CookieBanner";
+import ConsentBanner from "@/components/shared/ConsentBanner";
 import Analytics from "@/components/shared/Analytics";
 import ResumeRecovery from "@/components/shared/ResumeRecovery";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
@@ -487,7 +487,7 @@ const App = () => (
                 <DeepLinkHandler />
                 <ResumeRecovery />
                 <AppRoutes />
-                <CookieBanner />
+                <ConsentBanner />
                 <Analytics />
               </ViewedProfileProvider>
             </SubscriptionProvider>

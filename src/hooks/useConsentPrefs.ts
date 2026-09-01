@@ -3,7 +3,7 @@ import {
   CookieConsentState,
   loadConsent,
   saveConsent,
-} from '@/lib/cookie-consent';
+} from '@/lib/consent-prefs';
 
 export type ConsentStatus = 'pending' | 'decided';
 
@@ -19,7 +19,7 @@ interface UseCookieConsentReturn {
   saveCustom: (prefs: Pick<CookieConsentState, 'analytics' | 'marketing'>) => void;
 }
 
-export function useCookieConsent(): UseCookieConsentReturn {
+export function useConsentPrefs(): UseCookieConsentReturn {
   // Read localStorage in a lazy initializer rather than a mount effect. The
   // stored consent never changes between the initializer and the first commit,
   // and initializing here means a returning visitor no longer gets one frame of
