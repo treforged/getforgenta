@@ -13,14 +13,22 @@
 ## Resume queue
 
 1. [ ] Nothing is mid-flight. Clean tree, `origin/main` 0/0, suite green with no
-   expected-fail. Next concrete step: read the Asks Ledger
-   (`claudecontext/asks.md`) for anything Tre has added, then pick from 2-4.
-2. [ ] The forecast engine sits in the FIRST-PAINT path: 23 chunks / 1081 kB raw
-   before anything renders, ~206 kB of it `CardProjectionContext` +
-   `useSupabaseData` + `essential-monthly-expenses` — paid by signed-out
-   visitors on the marketing page and `/auth`, who can never use it. Next
-   concrete step: make `CardProjectionProvider` lazy behind the authed routes
-   only, then re-measure by BFS from the built entry chunk.
+   expected-fail. The Asks Ledger was read 2026-09-01 02:07 and carries nothing
+   new for this desk. Next concrete step: pick from 3-4.
+2. [x] The forecast engine is OFF the first-paint path — `0a74fc5d`. The one
+   static edge holding it there was `DashboardLayout`, imported eagerly in
+   `App.tsx` while every page inside it was already lazy; it mounts
+   `CardProjectionProvider`. Lazy behind its own Suspense boundary now. MEASURED
+   by BFS of the entry chunk's static-import closure: **23 chunks / 1081.9 kB ->
+   13 chunks / 811.2 kB raw, -270.7 kB (-25%)**. `CardProjectionContext` (98.3),
+   `useSupabaseData` (58.2), `essential-monthly-expenses` (49.5),
+   `vehicle-loan-engine`, `payment-plan-generator`, `ordinal`, `card-start-date`
+   all left the closure. PROVEN in a browser, not inferred: on the PRODUCTION
+   build served at :4179 a signed-out `/auth` fetches 18 JS chunks and ZERO
+   engine chunks, and still renders; signed in at :8080 `/dashboard` renders
+   through the new boundary (Command Center, sidebar, `scroll-main`) and `/debt`
+   still runs the engine (PAYOFF ETA Jul 2028 / 22 mo), no console errors.
+
 3. [ ] Density beyond the Accounts panel. Dashboard overview, Transactions, Debt
    Payoff and Forecast were MEASURED after the systemic scale change and are
    already reasonable (first card 122-234px, 4-8 cards above the fold). Next
@@ -105,7 +113,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 02:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-01 02:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -116,14 +124,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-268e1e66 docs(handoff): clear-ready â€” nothing mid-flight, queue reordered around what is left
+7ced75fc docs(handoff): refresh the machine snapshot so it stops contradicting the tree
+268e1e66 docs(handoff): clear-ready — nothing mid-flight, queue reordered around what is left
 6343df2f docs(handoff): the wobble is closed, and Plaid is another session's
 aadf3ae2 test(convergence): the payoff wobble is not a defect, and here is the invariant that is
 f6740275 docs(handoff): a Resume queue, ordered, so the next session picks up mid-thread
 ab5c60aa style(accounts): the row actions move beside the meta line, not under it
 0bc51eef docs(handoff): a snapshot again, not a 1 MB log
 4dcd60fe style(density): 61px back above the fold, and the control rows finally agree
-48025907 fix(dev): point every importer at the renamed consent modules
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
