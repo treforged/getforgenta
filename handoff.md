@@ -262,6 +262,49 @@ gaps in shipped surfaces, which outrank a design refactor.
     that persists sent records for the history argument, and a Settings toggle. That
     slice NEEDS A DEVICE to verify — do not mark it done off a green build.
 
+26. [~] NOTIFICATIONS are now three slices deep and one device-check from done.
+    - policy `7ce2eec4` — pure decision module, 20 tests
+    - service `cc517310` — `@capacitor/local-notifications` ^8.3.1 +
+      `src/lib/notification-service.ts`, 18 tests with the plugins mocked
+    - settings `7bdecf1e` — `src/components/settings/NotificationSettings.tsx`,
+      5 tests that PRESS the switch, mounted in Settings' `preferences` panel
+    THE PRODUCT DECISION, do not quietly reverse it: permission is requested at the
+    FIRST MOMENT THERE IS SOMETHING REAL TO SEND, never at launch and never from the
+    settings screen. A denied user is never re-prompted. Enabled defaults ON.
+    The toggle renders NOTHING on web on purpose — local notifications do not exist
+    in the browser build and a toggle that does nothing is worse than none.
+    ⚠️ NOT DONE, and it is the only thing left: NOBODY HAS SEEN A NOTIFICATION.
+    Mocks cannot display one. Needs an Android device or emulator (Android is the
+    cheap path — the iOS widget/notification side is coupled to item 12). Also still
+    missing: a CALLER that builds `NotificationSignals` from live forecast data and
+    invokes `runNotificationCheck`. Nothing calls it yet, so the feature is inert.
+27. [x] `/answers/snowball-or-avalanche.html` stated a minimum-payment formula that
+    does not produce its own table — `7e6d684a`. Found by the marketing desk,
+    RE-DERIVED here independently: my simulation reproduces all six printed figures
+    EXACTLY under "1% of balance, floored at $25" (36/$3,875/m29 and 38/$4,581/m9),
+    and matches none of them under the "1% + interest" the prose claimed
+    (37/$4,003/m32, 38/$4,450/m16). Fixed the PROSE, not the table — the table is
+    right for what it did, and rewriting eight figures plus the argument around them
+    risks a real error to remove a described one. The simplification is now stated
+    with its direction and size.
+    ⚠️ Open decision handed back to marketing/Ellis: his treforged.com calculator
+    should use 1%-of-balance so tool and article agree. If the fuller issuer formula
+    is preferred instead, the article gets REGENERATED in the same change — never a
+    second formula standing beside it. This desk owns that regeneration.
+
+### iPhone testing (item 12) — Gus has the toolchain half, 2026-09-02
+Gus (windows-tune) reports the ask is much smaller than it looks: Forgenta is a web
+app, so testing it on the iPhone is opening the Vercel preview URL in Safari — no
+Mac, no install, nothing on the phone. Only Safari WEB INSPECTOR is macOS-locked,
+not running the app. Ranked fallbacks: Playwright WebKit on Windows (verified
+resolvable), then `google/ios-webkit-debug-proxy`. Write-up + security reviews:
+`claudecontext/research/ios-testing-from-windows-2026-09-01.md`.
+⚠️ THE ONE THING THAT COULD REACH THIS DESK, and it is a hard no by default: Eruda /
+vConsole inject a debug console into the page and expose `localStorage`, which here
+holds the SUPABASE AUTH JWT. On a finance app that is account takeover. Do not adopt
+either; if ever forced to, it must be dynamically imported behind BOTH a
+`MODE !== 'production'` and a preview-deployment gate, never a top-level import.
+
 ### Machine notes, 2026-09-02
 - **OPUS is the default manager model again** (Tre via Ruby: "if i use fable as
   default, my usage is burnt much quicker"). The five-hour window is machine-wide
