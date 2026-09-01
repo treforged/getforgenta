@@ -120,17 +120,50 @@ export default function Auth() {
     // then close the popup (parent poll detects it) or navigate directly.
     // PKCE flow returns ?code= in search; legacy implicit returns #access_token= in hash.
     if (hash.includes('access_token') || !!searchParams.get('code')) {
+      // ⚠️ TWO PATHS, BECAUSE EITHER ONE ALONE HAS A RACE (Tre, 2026-09-01: the
+      // popup "gets stuck", and closing it by hand signs him in anyway).
+      //
+      // The old code listened for SIGNED_IN only. Under PKCE, supabase-js
+      // exchanges the ?code= for a session while the client is initialising,
+      // which is usually BEFORE this effect has subscribed -- and a subscriber
+      // that arrives after the exchange is handed `INITIAL_SESSION`, not
+      // `SIGNED_IN`. So the handler never fired, the popup never closed itself,
+      // and the parent's poll sat there until the window was closed by hand. At
+      // that point the poll's `popup.closed` branch found the session that had
+      // existed the whole time and signed him in, which is exactly the symptom.
+      //
+      // The comment this replaces said getSession() races, and it does: it can
+      // run BEFORE the exchange completes. The two races are opposite, so both
+      // paths are wired and whichever wins finishes the job once.
+      // `sub` is captured rather than referenced directly: supabase-js may invoke
+      // the callback synchronously while onAuthStateChange is still returning,
+      // and touching `subscription` from inside it would hit the temporal dead
+      // zone and throw where nothing catches.
+      let done = false;
+      let sub: { unsubscribe: () => void } | null = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        sub?.unsubscribe();
+        if (window.opener) {
+          window.close();
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      };
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          subscription.unsubscribe();
-          if (window.opener) {
-            window.close();
-          } else {
-            navigate('/dashboard', { replace: true });
-          }
+        // Any event that means "there is a session now". INITIAL_SESSION is the
+        // one the old code was missing.
+        if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+          finish();
         }
       });
-      return () => subscription.unsubscribe();
+      sub = subscription;
+      // A session that already existed when this mounted never produces another
+      // event, so it is checked directly as well.
+      if (done) sub.unsubscribe();
+      supabase.auth.getSession().then(({ data: got }) => { if (got.session) finish(); });
+      return () => { if (!done) sub?.unsubscribe(); };
     }
 
     // Normal load: redirect if already signed in
