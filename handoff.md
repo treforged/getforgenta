@@ -29,16 +29,25 @@
    through the new boundary (Command Center, sidebar, `scroll-main`) and `/debt`
    still runs the engine (PAYOFF ETA Jul 2028 / 22 mo), no console errors.
 
-3. [ ] Density beyond the Accounts panel. Dashboard overview, Transactions, Debt
-   Payoff and Forecast were MEASURED after the systemic scale change and are
-   already reasonable (first card 122-234px, 4-8 cards above the fold). Next
-   concrete step: do NOT churn those — revisit only if Tre names a screen.
-   Garage and Settings were never measured.
-4. [ ] `monthEndCash.invariant` cannot exercise its own post-cutoff scenario on
-   a capture taken on the last evening of a month, because the cutoff IS the
-   last day of month 0. It still asserts month-0 equality and warns loudly. Next
-   concrete step: recapture mid-month (`RECAPTURE=1`, runbook at
-   `docs/forecast-fixture-recapture.md`) and the case returns.
+3. [x] Density is DONE, and the last two screens needed no change. Dashboard
+   overview, Transactions, Debt Payoff and Forecast were measured previously.
+   Garage and Settings were the unmeasured half and were measured 2026-09-01
+   against a laptop fold (768px window minus chrome = 678px of content):
+   **Garage's entire page is 865px** — it all but fits, 187px of scroll — and
+   **Settings puts its first real panel at y=168**, with only a 36px title and a
+   42px tab bar above it. Neither is a density problem, so neither was touched.
+   Next concrete step: none. Revisit only if Tre names a screen.
+4. [ ] `monthEndCash.invariant` still cannot exercise its post-cutoff scenario:
+   the live capture was taken on the last evening of August, so the cutoff IS
+   the last day of month 0. It still asserts month-0 equality and warns loudly.
+   DELIBERATELY NOT DONE on 2026-09-01 — a recapture at 02:20 on the 1st sets
+   the cutoff to day 1, which swaps one unrepresentative extreme (month 0 all
+   actual) for the other (month 0 almost all projected), and it re-invalidates
+   the ~10 real-data pins that `f031e96b` had just re-pinned hours earlier. The
+   fixture is gitignored and CI never sees it, so nothing is failing in the
+   meantime. Next concrete step: recapture on a genuinely mid-month day (the
+   10th-20th), `RECAPTURE=1`, runbook `docs/forecast-fixture-recapture.md`, and
+   budget the same session for re-pinning the ~10 assertions with judgement.
 5. [~] Plaid on iOS TestFlight — CLAIMED BY ANOTHER SESSION (`getforgenta-5e`),
    do not duplicate. They established: both edge functions ARE deployed with the
    hosted branch (create-link-token v45, hosted-link-result v2; the "undeployed"
