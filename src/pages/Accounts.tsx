@@ -967,7 +967,16 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       {liability ? '-' : ''}{formatCurrency(Number(a.balance), false)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  {/* THE META LINE AND THE ACTIONS SHARE A ROW (Tre, 2026-09-01:
+                      "reduce all the excess spacing"). The actions used to sit
+                      in a band of their own under the text, which cost every row
+                      a full 41px for four icons that had a whole empty right
+                      half beside them. Sixteen accounts made that most of a
+                      screen of scrolling. Side by side the row is two visual
+                      lines instead of three, the icons form a straight column
+                      down the right edge, and nothing is lost. */}
+                  <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground truncate mt-0.5 min-w-0">
                     {TYPE_LABELS[a.account_type] || a.account_type}
                     {a.institution ? ` · ${a.institution}` : ''}
                     {a.apr ? ` · ${a.apr}% APR` : ''}
@@ -984,7 +993,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       ? ` · ${formatCurrency(annualFeeAmount(a), false)}/yr fee${nextAnnualFeeLabel(a, new Date()) ? ` · next ${nextAnnualFeeLabel(a, new Date())}` : ''}`
                       : ''}
                   </p>
-                  <div className="flex items-center gap-0.5 mt-2 -ml-1">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     {a.plaid_account_id && (
                       <button
                         onClick={() => handleUnlinkAccount(a.id)}
@@ -1000,6 +1009,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                     </button>
                     <button onClick={() => openEdit(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
                     <button onClick={() => handleDelete(a)} className="icon-btn text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
+                  </div>
                   </div>
                 </div>
               </div>
