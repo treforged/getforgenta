@@ -180,36 +180,51 @@ gaps in shipped surfaces, which outrank a design refactor.
     (desktop unchecked). ⚠️ Memory says Tre has NO student loan, so that tab
     draws nothing on his data — reproduce with seeded/demo data, not his.
 20. [ ] Create SYMMETRY across the sections of the SECURITY tab.
-21. [~] Include the GENERAL OPERATIONS account balance in the forecast pop-ups.
-    DIAGNOSED, nothing written yet. Both lines live in
-    `src/components/forecast/MonthlyBreakdownTable.tsx` (the Cash Floor drawer
-    is the `onClick` on the `Cash Floor` row, ~line 188; the asset list is the
-    OTHER ACCOUNTS block, ~line 228).
-    ROOT CAUSE for 21: "General Operations" is a SECOND CHECKING account
-    (`account_type: 'checking'`), and the engine buckets only brokerage into
-    `perAcctInvest`, savings/HYS into `perAcctSavings` and retirement into
-    `perAcctRetire` (`forecast-engine.ts` ~317-330). A non-funding LIQUID
-    account is in NO per-account tracker, so it reaches `assetBreakdown` — and
-    therefore the popup — nowhere. Starting cash deliberately seeds from the
-    FUNDING account only (~line 291, and that is correct: summing all liquid
-    accounts masks real floor breaches), so this is a DISPLAY gap, not a cash
-    bug. ⚠️ UNANSWERED and the next thing to check: whether `totalAssets`
-    already includes non-funding liquid balances. If it does, the popup's rows
-    do not add up to its own total today and that is a second, quieter defect.
-    If it does not, adding a display row without adding it to the total would
-    CREATE that mismatch. Money math — verify before writing a line.
-22. [~] If the cash floor is set to AUTOMATIC, do not show "cash floor set" in
-    forecast pop-ups. DIAGNOSED. The line is `{ label: 'Settings floor', ... }`,
-    the first row of the Cash Floor drawer, fed by `row.settingsCashFloor`
-    (`forecast-engine.ts`: `settingsCashFloor: cashFloor`). `src/lib/cash-floor.ts`
-    says automatic mode reads `cash_floor` as 0 while KEEPING the user's saved
-    number in the column, so in automatic the drawer prints "Settings floor
-    $0.00" — exactly the meaningless row he is objecting to. Fix: carry
-    `cash_floor_is_manual` through to the row (it is not on the row today) and
-    omit the line when automatic. ⚠️ Do NOT solve this by hiding the line when
-    the value is 0 — a user who genuinely set a manual floor of $0 would then
-    silently lose it, and cash-floor.ts warns twice that 0 is a real saved
-    value, not an absence.
+21. [x] GENERAL OPERATIONS balance in the forecast pop-ups — `83f9cd3d`. Asked as a
+    missing ROW; it was a missing NUMBER. Only the FUNDING checking account existed
+    anywhere in the engine, so General Operations ($168.54) and Alliant Checking
+    ($5.00) were in no popup row AND in no total, while `net-worth.ts` counts every
+    non-liability account as an asset — Total Assets and Net Worth understated by
+    **$173.54 in every one of the 60 months**, and /accounts and /forecast disagreed
+    about what he owns. Balances read from the live DB first, not assumed.
+    The engine now tracks non-funding liquid accounts per account, applies the same
+    three movement lists the OTHER ACCOUNTS section already itemises, and adds them
+    under a new `cash` bucket and to `totalAssets`. NOT folded into `liquidBal` — they
+    are assets, not spendable cash, and folding them in would undo the reason the
+    funding-account-only seed exists (a test asserts ending cash does not move).
+    Threaded through forecast-export/exportCsv/exportPdf, which split by bucket; the
+    CSV needed its HEADER column as well as its data column or every later column
+    would have shifted. Verified live: Sep 2026 popup lists both, and correctly does
+    NOT list CHASE CHECKING. New test `forecast-engine.nonFundingLiquid` — the suite
+    passed 3160 both before and after the bug was found, which is why it exists.
+22. [x] Cash floor "setting" row hidden in AUTOMATIC mode — `5f506f40`. He IS on
+    automatic (`cash_floor_is_manual = false`, `cash_floor = 2500`, read from the DB),
+    and `resolveCashFloor` returns 0 for automatic BY DESIGN, so three drawers printed
+    "$0.00": the forecast month drawer's `Settings floor`, the dashboard cash-floor
+    drawer's `Settings floor`, and the dashboard debt drawer's `Your Cash Floor
+    Setting`. All three omitted in automatic, with the blank spacer that followed.
+    ⚠️ Keyed on `isManualCashFloor`, NEVER on the value being 0 — cash-floor.ts warns
+    twice that a stored 0 is a real manual choice. Verified by opening all three.
+
+### NEXT UP — Tre's ASAP item, and a scope correction before anyone starts it
+
+23. [ ] WIDGETS + NOTIFICATIONS (his ASAP; retention, users back weekly/daily).
+    ⚠️ **Widgets are NOT unstarted — do not scope this as greenfield.** Measured
+    2026-09-02: ANDROID IS BUILT. `android/.../widgets/NetWorthWidgetProvider.java`,
+    `SurplusWidgetProvider.java`, `WidgetBridgePlugin.java`, the two
+    `widget_*_info.xml` layouts, `src/plugins/widget-bridge.ts`, `useWidgetSync.ts`
+    (carrying a partner-view guard so a widget never syncs someone else's numbers)
+    and tests for both the hook and the registry.
+    The two REAL gaps:
+    (a) **iOS has no widget extension** — nothing widget-shaped anywhere under
+        `ios/App`. That is WidgetKit + Swift + a new Xcode target, and it cannot be
+        verified from this machine, so it is coupled to the iPhone-testing item and
+        should not be started before it.
+    (b) **Notifications do not exist at all** — no `@capacitor/local-notifications`,
+        no push package, nothing in `src`. This is the whole of the notification half.
+    Start with NOTIFICATIONS: they are cross-platform, verifiable from here, and the
+    stronger retention lever — a widget is passive, a notification actively brings
+    someone back. Then iOS WidgetKit alongside item 12.
 
 ### Machine notes, 2026-09-02
 - **OPUS is the default manager model again** (Tre via Ruby: "if i use fable as
