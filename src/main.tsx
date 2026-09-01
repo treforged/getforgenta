@@ -4,6 +4,7 @@ import './index.css'
 import App from './App'
 import { initMonitoring } from './lib/monitoring'
 import { installModalDismissGuard } from './lib/modal-dismiss-guard'
+import { maybeLoadDebugConsole } from './lib/debug-console'
 
 // MONITORING IS NOT PART OF THE FIRST PAINT, and it used to be. The two vendor
 // chunks behind it are the largest things this app ships after the charts
@@ -28,6 +29,13 @@ import { installModalDismissGuard } from './lib/modal-dismiss-guard'
 // closes while you are selecting text in it is a bug you can hit on the first
 // screen, so this one does not wait for idle.
 installModalDismissGuard();
+
+// Opt-in in-page debug console, for testing a preview build on a real phone.
+// It loads in NON-PRODUCTION builds that explicitly ask for it and nowhere
+// else; in a production build the branch inside folds to `false` and the
+// dynamic import is eliminated entirely. `npm run check:debug-console`
+// fails the build if it ever is not. See src/lib/debug-console.ts.
+void maybeLoadDebugConsole();
 
 const startMonitoring = () => initMonitoring();
 if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {

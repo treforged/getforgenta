@@ -87,6 +87,17 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
+      # SECURITY GATE, not a lint. Eruda/vConsole expose localStorage, which in
+      # this app holds the Supabase auth session JWT - shipping one to production
+      # is account takeover, not a debug convenience. The runtime guard in
+      # src/lib/debug-console.ts is one careless refactor from being wrong
+      # (a top-level import bundles the console regardless of any guard below
+      # it), so the guarantee is this build-time failure. It also fails when it
+      # finds no bundle to inspect, so a renamed output directory cannot turn it
+      # into a green no-op.
+      - name: Assert no debug console in the production bundle
+        run: npm run check:debug-console
+
       - name: Sync Capacitor
         run: npx cap sync android
 
