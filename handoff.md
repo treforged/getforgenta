@@ -12,21 +12,33 @@
 
 ## Resume queue
 
-1. [ ] Nothing is mid-flight; the tree is clean and `origin/main` is 0/0. The
-   Asks Ledger was read 2026-09-01 02:07 and again at the close — nothing new
-   for this desk. Items 2 and 3 closed this session, 4 is deliberately parked
-   until mid-month, and 5 now needs only Tre. So the next concrete step is the
-   one open DEFECT this desk still owns, which no queue item had yet claimed:
-   **eleven days of elapsed clock moves CC Debt Free five months (Dec 2028 ->
-   Jul 2028) on the current capture**, tripwired as an `it.fails` at
-   `forecast-convergence.manualISB.test.ts:87` (it goes RED when fixed). Live
-   `/debt` showed PAYOFF ETA Jul 2028 / 22 mo on 2026-09-01, consistent with it.
-   ⚠️ Do NOT assume `aadf3ae2` already explains this. That commit closed the
-   small month-0 wobble as arithmetic (month 0 is partial, so its debt payment
-   legitimately shrinks as the month passes). A FIVE-MONTH swing is a different
-   size of effect and has not been shown to have the same cause. The session was
-   about to open this file when the context gate fired at 176k; nothing was
-   read, changed or concluded, so it starts cold and clean.
+1. [x] The five-month payoff swing is NOT a defect, and `aadf3ae2` did already
+   explain it — the caution in the previous version of this item was wrong to
+   re-open it. Measured cold on 2026-09-01 11:49 by walking clock offsets 0..11
+   against the current capture (throwaway diagnostic, deleted; the standing
+   guard is the `month 0 stays whole` invariant in
+   `forecast-convergence.manualISB.test.ts`):
+
+       d= 0  Mon Aug 31  month0=Aug 2026  cash0=2454.88  paid0=   0.00  ccFree=Dec 2028  19 passes
+       d= 1  Tue Sep 01  month0=Sep 2026  cash0=3191.97  paid0=2662.00  ccFree=Jun 2028   9 passes
+       d= 4  Fri Sep 04  month0=Sep 2026  cash0=3136.97  paid0=2717.00  ccFree=Jun 2028   9 passes
+       d= 5  Sat Sep 05  month0=Sep 2026  cash0=3986.97  paid0=1867.00  ccFree=Jul 2028  10 passes
+       d= 8  Tue Sep 08  month0=Sep 2026  cash0=5192.97  paid0= 661.00  ccFree=Jul 2028  11 passes
+       d=11  Fri Sep 11  month0=Sep 2026  cash0=5192.97  paid0= 661.00  ccFree=Jul 2028  11 passes
+
+   The whole five-month swing lands in ONE step, d=0 -> d=1, and it is a MONTH
+   ROLLOVER, not eleven days of drift: `capturedAt` is 2026-09-01T00:20Z, which
+   is the evening of 31 August locally, so day 0's month 0 is a one-day stub of
+   August that pays **$0.00** at the cards. Every later clock has a whole
+   September month 0. Comparing a one-day month against a full one is the entire
+   effect; "eleven days" was never what moved it.
+   Inside September the payoff drifts the other way and only one month
+   (Jun -> Jul 2028) as the clock advances, which is exactly the partial-month
+   arithmetic `aadf3ae2` pinned, and it is whole to the cent at every step:
+   d4->d5 paid -850.00 / cash +850.00; d7->d8 paid -1206.00 / cash +1206.00.
+   Converged true at every offset, 9-19 passes, all under the 22-pass pin.
+   NOTHING TO FIX. Do not re-open this a fourth time; if a future capture shows
+   a swing, first check whether the two clocks straddle a month boundary.
 
 2. [x] The forecast engine is OFF the first-paint path — `0a74fc5d`. The one
    static edge holding it there was `DashboardLayout`, imported eagerly in
