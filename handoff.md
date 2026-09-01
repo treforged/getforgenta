@@ -226,6 +226,42 @@ gaps in shipped surfaces, which outrank a design refactor.
     stronger retention lever — a widget is passive, a notification actively brings
     someone back. Then iOS WidgetKit alongside item 12.
 
+### Closed 2026-09-02, later in the day
+
+24. [x] The forgenta tab that "should auto close" and did not — `45334a7f`. NOT the
+    auto-exit hook's fault. His screenshot read "running stop hooks... 1/4 · 6m 55s":
+    the chain was WEDGED on the FIRST hook, so the exit hook, wired fourth, never ran.
+    The wedged hook was THIS REPO'S: `.claude/settings.json` runs
+    `scripts/sync-graph-to-obsidian.ps1` on Stop, which rebuilt a 31,000-node graphify
+    graph inline whenever sources changed. `scripts/graph-sync.log` line 4415 records
+    `12:05:25 run start` + "sources changed - running graphify update" and then NOTHING
+    ever again, while another session's 12:08:45 run finished in 44s — two concurrent
+    rebuilds over one shared `graphify-out`, and the loser never returns.
+    Fix: the hook passes `-SkipRebuild` (the daily scheduled task and weekly backup
+    already own rebuilds), a single-instance lock that exits rather than waits (stale
+    after 1h), and `timeout: 60` on the hook. All three paths RUN: 257ms normal, 206ms
+    contended without stealing the lock, stale lock taken over and released.
+    ⚠️ Still open: the auto-exit mechanism itself is UNPROVEN end to end — its one live
+    trial never reached it. This desk's next handoff is the real test.
+    ⚠️ The other three Stop hooks (session_logger.py, conductor session-hook.mjs,
+    handoff_exit.py) still carry NO timeout. Not this desk's files.
+25. [~] NOTIFICATIONS — the policy layer shipped, `7ce2eec4`. See item 23 for why this
+    is the right half to have built first. `src/lib/notification-policy.ts` is PURE: no
+    imports, no I/O, `now` is passed in. Three gates (quiet hours 21:00-08:00, 3/week,
+    20h apart) then five keyed candidates in precedence — unaffordable bill within 2
+    days > next month's floor breach > new milestone > stale accounts > Sunday
+    check-in. A suppressed candidate falls THROUGH rather than silencing the run, and
+    the check-in refuses to send without both real figures.
+    20 tests, and the two date tests were verified to FAIL against the broken code, not
+    merely to pass — which corrected one of them: Mar 7->8 is a full 24h and proves
+    nothing, the hazard is midnights STRADDLING the transition (Mar 8->9, 23h).
+    Four defects were fixed in review of the free-executor draft, two of which would
+    have misfired on real users: UTC parsing of `yyyy-mm-dd` (every due date a day
+    early in the Americas) and a floored DST day.
+    Next concrete step: `@capacitor/local-notifications`, a permission-gated scheduler
+    that persists sent records for the history argument, and a Settings toggle. That
+    slice NEEDS A DEVICE to verify — do not mark it done off a green build.
+
 ### Machine notes, 2026-09-02
 - **OPUS is the default manager model again** (Tre via Ruby: "if i use fable as
   default, my usage is burnt much quicker"). The five-hour window is machine-wide
