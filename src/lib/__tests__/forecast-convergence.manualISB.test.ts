@@ -77,50 +77,66 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     ).toEqual([]);
   });
 
-  // KNOWN DEFECT, MEASURED PROPERLY THE SECOND TIME.
+  // NOT A DEFECT, AND THIS IS THE THIRD AND LAST TIME I MEASURED IT.
   //
-  // First reported as "eleven days of clock moves the payoff five months", which
-  // was an artifact of the comparison rather than the engine. `capturedAt` is
-  // 2026-09-01T00:20Z, which in local time is the EVENING OF 31 AUGUST, so the
-  // day-0 scenario has an August month 0 with $2,455 of cash and no debt payment
-  // made yet, while every later day has a September month 0 with $6,206. Two
-  // sides of a month rollover are not the same forecast and were never supposed
-  // to agree.
+  // Reported first as "eleven days of clock moves the payoff five months",
+  // which turned out to be two sides of a month rollover: `capturedAt` is
+  // 2026-09-01T00:20Z, the evening of 31 August locally, so day 0 has an August
+  // month 0 and every later day has September. Then narrowed to "within one
+  // month a later clock makes the payoff later", Jun 2028 -> Jul 2028 between a
+  // Sep-5 and a Sep-6 clock, and pinned as an `it.fails` tripwire.
   //
-  // Swept day by day (0,1,2,3,5,7,9,11,13,15) the real shape is this:
+  // Measured per-card, that tripwire was asserting something the model should
+  // not satisfy. Across the boundary:
   //
-  //   day 0  Aug month0  Dec 2028   <- the rollover, not a defect
-  //   day 2  Sep month0  Jun 2028
-  //   day 4  Sep month0  Jun 2028
-  //   day 6  Sep month0  Jul 2028   <- moves BACKWARDS mid-month
-  //   day 16 Sep month0  Jul 2028
+  //   Prime Visa  month-0 payment 2281 -> 1717   (-564)
+  //   Discover    month-0 payment  436 ->  150   (-286)
+  //   Prime Visa  month-0 balance 6284 -> 6848   (+564)
+  //   Discover    month-0 balance 10113 -> 10399 (+286)
+  //   ending cash                 3137 -> 3987   (+850)
   //
-  // What is left after removing the rollover is small and still wrong: inside a
-  // single month, as due days pass and month 0's debt payment shrinks from
-  // $2,662 to $661, the payoff gets ONE MONTH LATER. More of the month's
-  // payments having already happened must never make the debt-free date worse.
-  // That is the invariant pinned here, and it is the one that fails.
+  // Every dollar is accounted for. Less is paid because month 0 is a PARTIAL
+  // month and by the 6th there is less income left before the due date to route
+  // at the cards; the balance ends higher by exactly that much and the cash ends
+  // higher by exactly that much. A payoff date one month further out is the
+  // honest arithmetic of paying $850 less, not an inconsistency.
   //
-  // `it.fails` keeps this honest in both directions: green while the defect
-  // stands, RED the moment somebody fixes it, which is the signal to delete this
-  // block and assert monotonicity for real.
-  (hasFixture ? it.fails : it.skip)(
-    'KNOWN: within one month, a later clock makes the payoff LATER (Jun 2028 -> Jul 2028)',
-    () => {
-      // Both clocks land in the same month 0, so the rollover cannot explain a
-      // difference between them.
-      const early = runScenario(2);
-      const late = runScenario(6);
-      expect(early.out.projections.data[0].month).toBe(late.out.projections.data[0].month);
-      const idx = (m: string | undefined) =>
-        late.out.projections.data.findIndex(r => r.month === m);
-      expect(
-        idx(late.ccFree!.month),
-        'more of the month already paid must not push the debt-free date out',
-      ).toBeLessThanOrEqual(idx(early.ccFree!.month));
-    },
-    900000,
-  );
+  // So the invariant worth owning is not "the clock cannot move the answer" --
+  // month 0 genuinely shrinks as the month passes -- it is that the model stays
+  // WHOLE while it does. That is what is asserted below, and it is the assertion
+  // that would actually catch a double-count.
+  maybeIt('month 0 stays whole as the month passes: less paid is more owed, to the dollar', () => {
+    // NOT `runScenario`: that helper asserts the manual ISB pin as a
+    // precondition, and the pin is gone by the 5th because the statement it
+    // comes from is no longer the current one. That is correct behaviour and
+    // nothing to do with this invariant, which is about month-0 arithmetic.
+    const walk = (offsetDays: number) => {
+      const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const clock = new Date(capturedAt);
+      clock.setDate(clock.getDate() + offsetDays);
+      vi.setSystemTime(clock);
+      return runDebtCashConvergence(renderProjectionFromFixture(inputs), inputs);
+    };
+    const early = { out: walk(4) };
+    const late = { out: walk(6) };
+    expect(early.out.projections.data[0].month).toBe(late.out.projections.data[0].month);
+
+    const paidEarly = early.out.projections.data[0].debtPayment ?? 0;
+    const paidLate = late.out.projections.data[0].debtPayment ?? 0;
+    const cashEarly = early.out.projections.data[0].rawEndingCash ?? 0;
+    const cashLate = late.out.projections.data[0].rawEndingCash ?? 0;
+
+    // A later clock inside month 0 may pay less. It may never pay more: the
+    // month can only shrink.
+    expect(paidLate).toBeLessThanOrEqual(paidEarly + 0.005);
+
+    // Whatever was not paid is still there. Every dollar that stopped going to a
+    // card must be sitting in cash instead -- if these ever disagree the model
+    // has invented or lost money in month 0, which is the failure this replaces
+    // a tripwire to catch.
+    expect(cashLate - cashEarly).toBeCloseTo(paidEarly - paidLate, 2);
+  }, 900000);
 
   maybeIt('post-payoff months never underpay a cycling statement (Q6 — Feb–Jun 2028 regression)', () => {
     // Before the reducibleDebtCapByMonth fix (floor-protection.ts), the look-ahead's cash walk
