@@ -180,9 +180,36 @@ gaps in shipped surfaces, which outrank a design refactor.
     (desktop unchecked). ⚠️ Memory says Tre has NO student loan, so that tab
     draws nothing on his data — reproduce with seeded/demo data, not his.
 20. [ ] Create SYMMETRY across the sections of the SECURITY tab.
-21. [ ] Include the GENERAL OPERATIONS account balance in the forecast pop-ups.
-22. [ ] If the cash floor is set to AUTOMATIC, do not show "cash floor set" in
-    forecast pop-ups. (21-22 are the same component; do them together.)
+21. [~] Include the GENERAL OPERATIONS account balance in the forecast pop-ups.
+    DIAGNOSED, nothing written yet. Both lines live in
+    `src/components/forecast/MonthlyBreakdownTable.tsx` (the Cash Floor drawer
+    is the `onClick` on the `Cash Floor` row, ~line 188; the asset list is the
+    OTHER ACCOUNTS block, ~line 228).
+    ROOT CAUSE for 21: "General Operations" is a SECOND CHECKING account
+    (`account_type: 'checking'`), and the engine buckets only brokerage into
+    `perAcctInvest`, savings/HYS into `perAcctSavings` and retirement into
+    `perAcctRetire` (`forecast-engine.ts` ~317-330). A non-funding LIQUID
+    account is in NO per-account tracker, so it reaches `assetBreakdown` — and
+    therefore the popup — nowhere. Starting cash deliberately seeds from the
+    FUNDING account only (~line 291, and that is correct: summing all liquid
+    accounts masks real floor breaches), so this is a DISPLAY gap, not a cash
+    bug. ⚠️ UNANSWERED and the next thing to check: whether `totalAssets`
+    already includes non-funding liquid balances. If it does, the popup's rows
+    do not add up to its own total today and that is a second, quieter defect.
+    If it does not, adding a display row without adding it to the total would
+    CREATE that mismatch. Money math — verify before writing a line.
+22. [~] If the cash floor is set to AUTOMATIC, do not show "cash floor set" in
+    forecast pop-ups. DIAGNOSED. The line is `{ label: 'Settings floor', ... }`,
+    the first row of the Cash Floor drawer, fed by `row.settingsCashFloor`
+    (`forecast-engine.ts`: `settingsCashFloor: cashFloor`). `src/lib/cash-floor.ts`
+    says automatic mode reads `cash_floor` as 0 while KEEPING the user's saved
+    number in the column, so in automatic the drawer prints "Settings floor
+    $0.00" — exactly the meaningless row he is objecting to. Fix: carry
+    `cash_floor_is_manual` through to the row (it is not on the row today) and
+    omit the line when automatic. ⚠️ Do NOT solve this by hiding the line when
+    the value is 0 — a user who genuinely set a manual floor of $0 would then
+    silently lose it, and cash-floor.ts warns twice that 0 is a real saved
+    value, not an absence.
 
 ### Machine notes, 2026-09-02
 - **OPUS is the default manager model again** (Tre via Ruby: "if i use fable as
