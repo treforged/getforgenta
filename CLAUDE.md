@@ -134,11 +134,17 @@ When context is between 150k and 200k tokens:
    cannot clear itself, so a turn that ends on "run /clear" parks the
    work on his key press — which is exactly what happened on
    2026-09-01 ("Ada got to the clear part but they didnt auto clear and
-   continue"). Run `dispatch getforgenta "<the resume brief>"`
+   continue"). Run `dispatch getforgenta "<the resume brief>" --handoff`
    (`~/.claude/bin/dispatch.py`, on PATH). It opens a fresh tab at this
    desk — same name, empty context — which reads the brief plus
    `handoff.md` and carries on down the resume queue. `--dry-run`
    prints the tab and brief path without opening anything.
+   `--handoff` is what arms THIS tab's own exit, and it is opt-in for
+   a reason: a bare `dispatch` is also how one desk routes an ask to
+   another, and a router that closed itself mid-task would be useless.
+   It arms only after the successor's tab has actually launched, so a
+   dispatch that fails to open leaves this session alive. Checked in
+   dispatch.py directly rather than taken on report.
 4. Do not touch the working tree after dispatching; the successor owns
    it.
 5. Only then tell the user, and let it be the single action in the
