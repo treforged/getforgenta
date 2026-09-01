@@ -287,10 +287,20 @@ gaps in shipped surfaces, which outrank a design refactor.
     right for what it did, and rewriting eight figures plus the argument around them
     risks a real error to remove a described one. The simplification is now stated
     with its direction and size.
-    ⚠️ Open decision handed back to marketing/Ellis: his treforged.com calculator
-    should use 1%-of-balance so tool and article agree. If the fuller issuer formula
-    is preferred instead, the article gets REGENERATED in the same change — never a
-    second formula standing beside it. This desk owns that regeneration.
+    RESOLVED 2026-09-02 and NOTHING FURTHER IS OWED HERE. Marketing challenged the
+    avalanche row (37/$3,893 against the page's 36/$3,875) and was right to hold. I
+    published my exact loop and asked for their months 28-38 rather than accepting
+    their table; instrumenting it found the bug in THEIR loop — when a target card
+    cleared mid-month they let the remaining budget evaporate instead of spilling it
+    to the next card in the same month. With the spill added, all six figures match
+    the page to the dollar. **36 is the right answer, the table stays, no
+    regeneration.** My basis finding is now in their spec: the minimum is 1% of the
+    POST-interest balance (pre-interest gives $4,582, and that dollar is the
+    difference between matching the article and not).
+    Worth keeping, from their own write-up: their intermediate version was NEARLY
+    right on snowball and they read that near-match as evidence the engine was sound.
+    It was two bugs cancelling. A branch that nearly agrees is not evidence.
+    Formula settled for both properties: 1% of post-interest balance, floored at $25.
 
 ### iPhone testing (item 12) — Gus has the toolchain half, 2026-09-02
 Gus (windows-tune) reports the ask is much smaller than it looks: Forgenta is a web

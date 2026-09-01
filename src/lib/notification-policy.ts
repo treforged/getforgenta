@@ -86,7 +86,7 @@ export function decideNotification(signals: NotificationSignals, history: readon
 
     const dueDate = parseLocalDate(soonestBill.dueDate);
     const daysUntilDue = daysBetween(today, dueDate);
-    let dueText = '';
+    let dueText: string;
     if (daysUntilDue === 0) {
       dueText = 'today';
     } else if (daysUntilDue === 1) {
