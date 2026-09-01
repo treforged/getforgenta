@@ -1,4 +1,22 @@
-param()
+param(
+    # Skip the graphify rebuild and do the cheap copy only.
+    #
+    # THE STOP HOOK PASSES THIS, AND THAT IS THE WHOLE POINT (2026-09-02).
+    # Tre: "the old forgenta terminal tab is still open. it should auto close."
+    # It could not: its Stop chain was wedged on THIS script. graph-sync.log line
+    # 4415 records `2026-09-01 12:05:25 run start` followed by "sources changed -
+    # running graphify update", and then NOTHING - no exit code, no "run complete"
+    # - while a second session's run at 12:08:45 finished in 44 seconds. Two
+    # concurrent rebuilds over one shared graphify-out, which is routine on a
+    # machine that runs a dozen sessions in one tree, and the loser hangs forever.
+    # The terminal sat at "running stop hooks 1/4" for the rest of the day and the
+    # auto-exit hook, wired fourth, never got to run.
+    #
+    # A 31,000-node rebuild does not belong in the path a human is waiting on to
+    # close a window. The daily "Forgenta Graph Sync" scheduled task and the weekly
+    # backup already own the rebuild; the hook now only mirrors what they produced.
+    [switch]$SkipRebuild
+)
 
 # Refreshes the graphify knowledge graph (only when source files actually
 # changed) and mirrors it into the Obsidian vault.
@@ -26,6 +44,22 @@ function Write-Log([string]$Message) {
 
 Write-Log "run start"
 
+# SINGLE INSTANCE. Even with the rebuild skipped, two sessions ending at once would
+# race on the same copy. A stale lock (older than an hour, so a crashed run cannot
+# block forever) is taken over rather than obeyed.
+$LockFile = "$RepoDir\scripts\.graph-sync.lock"
+if (Test-Path $LockFile) {
+    $age = (Get-Date) - (Get-Item $LockFile).LastWriteTime
+    if ($age.TotalMinutes -lt 60) {
+        Write-Log "another run holds the lock (age $([int]$age.TotalMinutes)m) - exiting without waiting"
+        exit 0
+    }
+    Write-Log "stale lock ($([int]$age.TotalMinutes)m old) - taking it over"
+}
+Set-Content -Path $LockFile -Value $PID -Encoding utf8
+
+try {
+
 # Only rebuild if source files changed since last graph build
 $needsRebuild = $false
 if (Test-Path $GraphJson) {
@@ -38,19 +72,27 @@ if (Test-Path $GraphJson) {
     $needsRebuild = $true
 }
 
+$skippedByRequest = $false
+if ($SkipRebuild -and $needsRebuild) {
+    Write-Log "sources changed but -SkipRebuild was passed - the scheduled task owns rebuilds"
+    $needsRebuild = $false
+    $skippedByRequest = $true
+}
+
 if ($needsRebuild) {
     Write-Log "sources changed since last build - running 'python -m graphify update .'"
     Set-Location $RepoDir
     $output = python -m graphify update . 2>&1
     Write-Log "graphify exit code $LASTEXITCODE"
     if ($output) { Write-Log ("graphify output: " + ($output | Out-String).Trim()) }
-} else {
+} elseif (-not $skippedByRequest) {
     Write-Log "no source changes since last build - skipping rebuild"
 }
 
 # Sync to Obsidian
 if (-not (Test-Path $GraphSrc)) {
     Write-Log "GRAPH_REPORT.md missing at $GraphSrc - nothing to sync, exiting"
+    Remove-Item $LockFile -Force -ErrorAction SilentlyContinue
     exit 0
 }
 
@@ -66,3 +108,8 @@ if (Test-Path $WikiSrc) {
 }
 
 Write-Log "run complete"
+
+}
+finally {
+    Remove-Item $LockFile -Force -ErrorAction SilentlyContinue
+}

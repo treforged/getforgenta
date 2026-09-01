@@ -105,3 +105,6 @@ handoff/evidence/**/page@*.webm
 
 # Raw Supabase row dump for the offline fixture recapture harness. REAL financial data.
 src/lib/__tests__/fixtures/raw-rows.real*.json
+
+# single-instance lock for scripts/sync-graph-to-obsidian.ps1
+scripts/.graph-sync.lock
