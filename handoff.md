@@ -254,6 +254,14 @@ fires the native prompt on the **3rd** qualifying action, once ever, gated on
 `SavingsGoals.tsx:724` (a goal created). So this is a TRIGGER-PLACEMENT job, not a
 build, and Tre's ask is precisely the criticism of what is there.
 
+✅ **ANSWERED BY TRE 2026-09-02: "first plaid link completing."** So the trigger
+moves to the moment a Plaid link succeeds and real balances land — the first time
+the app shows him something he did not type in himself. Do NOT ask him again.
+⚠️ Note the ordering dependency this creates: native Plaid linking is CURRENTLY
+BROKEN (see the Plaid section above), so on iOS this trigger cannot fire until
+that is fixed. Wire it anyway — the web/Android path still reaches it — but do not
+read "no review prompts on iOS" as this feature failing.
+
 ⚠️ **THE CURRENT TRIGGER IS AIMED AT A MOMENT OF WORK, NOT A MOMENT OF VALUE.**
 Saving a third budget rule is data entry — the app is asking to be rated right
 after making the user do chores. The aha moments in this product are where the
