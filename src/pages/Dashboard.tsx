@@ -1222,10 +1222,23 @@ export default function Dashboard() {
                           <p className="text-xs font-medium">{t.note || '—'}</p>
                           {t.isGenerated && <Repeat size={9} className="text-primary" />}
                         </div>
-                        <p className="text-xs text-muted-foreground">{t.category}</p>
+                        {/* MONEY MOVED IS NOT MONEY SPENT (Tre, 2026-09-02: transfers "need to
+                            show on the homepage as well"). Same defect this panel shared with
+                            Transactions until 0f92da5c: a transfer rendered as a red outflow with
+                            a category, indistinguishable from spending. For a transfer the
+                            destination is the more useful half - "Business" says less than "to
+                            General Operations" - so it replaces the category on this cramped row
+                            rather than crowding in beside it. */}
+                        <p className="text-xs text-muted-foreground">
+                          {t.isTransfer
+                            ? <>transfer {'→'} {t.transferDestination ? (accountMap[t.transferDestination]?.name ?? 'another account') : 'another account'}</>
+                            : t.category}
+                        </p>
                       </div>
                     </div>
-                    <span className={`text-xs font-bold font-display ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                    {/* A transfer leaves the account, so it keeps its minus - but it is not a
+                        loss, so it does not get the red that means one. */}
+                    <span className={`text-xs font-bold font-display ${t.isTransfer ? 'text-muted-foreground' : t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                       {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount), false)}
                     </span>
                   </div>
