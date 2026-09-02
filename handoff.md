@@ -45,7 +45,45 @@ by this desk.
 
 ---
 
-## ⚠️ PLAID NATIVE LINK — ROOT CAUSE FOUND AND FIX DEPLOYED, awaiting ONE tap
+## ✅ PLAID NATIVE LINK — FIXED AND CONFIRMED ON HIS DEVICE (`ca3f88fc`)
+
+Three weeks. **The cause was never configuration.** `PlaidLinkButton` has TWO call
+sites to `plaid-create-link-token`. The WEB one always sent `redirect_uri`; the
+HOSTED one — the only path that sets `hosted: true`, and so the only path Plaid
+REQUIRES the field on — never did. Confirmed working on his phone 2026-09-02:
+link and re-link both complete, "Robinhood linked! 4 accounts synced".
+
+⚠️ **THE METHOD LESSON, which is worth more than the fix.** I reported THREE wrong
+causes first — the Plaid whitelist was empty, the env var was unset, a rebuild was
+needed — each stated as fact off a `curl` of the production bundle. **getforgenta.com
+serves a "Vercel Security Checkpoint" challenge to curl**, so every one of those
+scans was grepping an anti-bot page and finding nothing. I read absence as evidence.
+Re-running the identical search from INSIDE the browser (same origin, clearance
+cookie) found the value immediately and pointed straight at the request body.
+**A negative result from a tool that can be silently intercepted is not a result.**
+
+### Robinhood duplication after the re-link — MERGED, reversible
+He had **two Plaid items** for Robinhood (Apr 2026 + Aug 2026). The re-link did not
+create the duplicate; it REVIVED the dormant April item beside the still-syncing
+August one, double-counting **$2,054.85**.
+Kept the freshly re-linked April set (authenticated, complete, includes the card),
+and:
+- restored HIS labels onto it (`agentic (bot-traded)`, `individual (personal)`) —
+  Plaid returns two accounts both called "Robinhood individual";
+- repointed the **"Brokerage" goal** ($100k target) and the **"Groceries" $230/mo
+  rule** before deactivating anything;
+- carried `card_start_date` (2026-08-26), `payment_due_day` (12) and `annual_fee`
+  from the MANUAL "Robinhood Gold Card" placeholder onto the real Plaid card, which
+  had none of them — `card_start_date` is the load-bearing one for utilisation;
+- set the four superseded rows **INACTIVE, not deleted**, renamed `(replaced)` with
+  a user-facing note.
+VERIFIED: 0 goals, 0 rules, 0 car funds and 0 transactions still point at any
+retired row, and the retired total is exactly $2,054.85 — the predicted number.
+⚠️ THE UNDERLYING CODE GAP IS STILL OPEN: nothing prevents or reconciles TWO Plaid
+items for one institution. This merge was manual. A second re-link of any bank can
+do the same thing again.
+
+## OLD (kept for the reasoning) — root cause hunt
 
 Tre, 2026-09-02, from the device — the first real error text this bug has produced:
 `"redirect_uri and hosted_link.completion_redirect_uri must be set when
