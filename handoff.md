@@ -41,11 +41,54 @@ verified by contents (0/0 ahead).
   Chrome profile is signed out on `localhost:8080` and only Tre can sign it in
   (dev-signin skill: never type credentials). Everything above is jsdom-with-real-
   clicks, which is real but is not the live app.
-- Two follow-on asks arrived mid-batch from the App-workflow session and are NOT
-  started: review prompts fired at the value moment, and the first-100-organic-
-  premium OG cohort + social-follow achievement (coordinate with Nora on where the
-  truth about "premium" lives; Stripe is the only provider that can grant
-  free-forever).
+## NEXT TWO ASKS — ASSIGNED TO THIS DESK, NOT STARTED (cap, 2026-09-02 17:30 ET)
+
+Neither is begun; both are mine. Stopped at 83% of the 5h cap, not blocked.
+
+**1. Review prompts at the VALUE MOMENT.** Tre: *"part of that was the app
+updates which will prompt it after the ah ha moment(value moment)."* The prompt
+mechanism ALREADY EXISTS — `@capacitor-community/in-app-review` via
+`src/hooks/useInAppReview.ts`, called from `BudgetControl.tsx:731` and
+`SavingsGoals.tsx:724`. So this ask is about WHICH EVENT fires it, not about
+building a prompt.
+⚠️ What is there today is exactly the lazy version the ask warns against: a
+`localStorage` COUNTER (`tre:review:actionCount`, threshold 3) that fires on the
+third "positive action" of any kind. Both stores rate-limit prompts, so a prompt
+spent on the wrong moment is genuinely gone. Read those two call sites before
+proposing the aha moment, and say which event was chosen and why. Native API
+only; never a homegrown modal.
+
+**2. First 100 organic premium + the OG cohort + a social-follow achievement.**
+
+RULED, 2026-09-02, do NOT reopen: **the DATABASE is the truth about "premium".
+The webhooks (`revenuecat-webhook`, `stripe-webhook`) are its writers. Conductor
+READS THE DATABASE, not the providers.** Nora has the revenue half and was given
+the same ruling in the same words. The reason: two readers of two provider APIs
+disagree slowly and invisibly, and a cohort that cannot be enumerated identically
+from two places in a year is not trackable — which is the exact word Tre used.
+
+Settled and approved, build on these without asking again:
+- The OG cohort is defined off that same source, and OG status is written
+  SERVER-SIDE from a verified subscription event. The client gets SELECT on its
+  own row and NO INSERT — same reasoning as no UPDATE on `learn_progress.read_at`:
+  a client that can write the fact can fabricate it.
+- **Build the MARKING NOW even though the reward is undecided.** It has to exist
+  today to be enumerable in a year, and that is independent of how the reward is
+  eventually honoured. On the account, not the device, so it survives a reinstall
+  and a platform switch by construction.
+- Generalise `learn_progress.lesson_id` into a generic ACHIEVEMENT id. One
+  achievement system, not three; the column has no foreign key, which is what
+  makes this cheap. OG and social-follow are rows in the same table.
+- An "achievement earned" notification kind, with its own opt-out and its own
+  share of the week, is the right shape — the policy already takes a per-category
+  gate.
+
+⛔ **WRITE NO USER-FACING PROMISE TEXT YET.** Stripe is the only provider that can
+grant free-forever; RevenueCat is mobile. What an OG who subscribed on MOBILE gets
+at the one-year mark is TRE'S CALL and is on his list as two options: (a) move
+them to a Stripe-billed plan at the one-year mark, or (b) word the promise as "we
+will make you whole" from day one with the mechanism named. The copy is the part
+that is expensive to walk back — build the marking, wait for the answer.
 
 ---
 
@@ -973,17 +1016,16 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 13:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 17:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
-M handoff.md
- M supabase/.temp/cli-latest
+M supabase/.temp/cli-latest
 ?? .vercelignore
 ?? deno.lock
 ```
@@ -991,14 +1033,14 @@ M handoff.md
 - **Recent commits:**
 
 ```
+92e2067f docs(handoff): the notification+Learn batch is shipped, and what is still unproven
+a5d6b196 feat(notifications,learn): an off switch that works everywhere, a real weekly cadence, and Learn
 fac9176a docs(handoff): put the two live threads at the top of the resume queue
 97ee10a1 docs(handoff): the dedupe is deployed, and the debug preview is rate-limited for a day
 8e6f628e docs(handoff): where this session actually is, not just what the backlog holds
 bb421023 fix(plaid): duplicate accounts are removed automatically on re-link
 5f3284ce fix(reminder): the monthly notice names the accounts that actually need updating
 04d96f3b feat(accounts): group the balances list by provider
-d478eaac docs(handoff): Plaid is fixed and confirmed, and the Robinhood duplication is merged
-c0a39778 fix(accounts): account names wrap instead of truncating on a phone
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
