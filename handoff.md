@@ -107,11 +107,26 @@ $1,915 was 8.9%. Exactly what he predicted would happen.
 ⚠️ **`bf267b29` "Rent (new place)" $1,480 from 2027-07-01 is NOT combined** — utilities
 may not be bundled at the new place, and that is his call, not an inference.
 
-Next concrete step: confirm whether `hasTxnCoverage` is computed from
-`synced_transactions` (where rent actually is) or from `transactions` (where it is
-not) — if the latter, coverage is false for rent and it always falls to the date
-heuristic. That single fact decides whether this is a wiring job or a matcher job.
-⚠️ MONEY PATH: adversarial verification, and a test asserting a NUMBER.
+**THAT QUESTION IS NOW ANSWERED — it is a WIRING job, not a matcher job.**
+`useForecastEngineInputs.ts:90` feeds the matcher `syncedTransactions`, and
+`transaction-matching.ts:429` computes `hasTxnCoverage` from that. So coverage reads
+the RIGHT table, the one his Invitationhomes rent is actually in.
+**And the four wired call sites are CAR LOANS and CARD MINIMUMS — not recurring
+expense rules.** `forecast-engine.ts:723` is the car-loan gate (read it: it builds
+`carChargeEvidence`), 784 and `useCardProjection.ts:679,1564` are the same family.
+So for RENT — and electricity, and every other recurring expense — there is no
+evidence anywhere, and every gate falls back to `dueDate < cutoff - 3`.
+**THE BUG IS THEREFORE REAL AND UNFIXED, but it is not visible today.** Rent due
+Sep 1 against a Sep 1 cutoff: `Sep-01 < Aug-29` is false, so it is correctly still
+reserved. It flips on **Sep 5** — from then on the app assumes a rent that has not
+cleared was paid. His seven-month history clears on the 2nd-4th, so the normal month
+never reaches the cliff; a single late month does.
+NEXT CONCRETE STEP: build expense-rule evidence the way `carChargeEvidence` is built,
+and pass it at the recurring-expense gates. ⚠️ Do NOT sweep all six unwired sites —
+`pay-schedule.ts:897` (card minimums) is deliberately excluded and the reasoning is
+at `pay-schedule.ts:876-892`.
+⚠️ MONEY PATH: adversarial verification, and a test asserting a NUMBER — specifically
+that a rule due on the 1st, unmatched, with coverage, is STILL reserved on the 6th.
 
 ## Resume queue
 
