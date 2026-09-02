@@ -120,8 +120,36 @@ Deno.serve(async (req) => {
       user: { client_user_id: userId },
     };
     if (hosted) {
-      // Hosted Link runs Plaid's own OAuth hand-off on Plaid's domain, so the
-      // app's redirect_uri does not apply and passing both is rejected.
+      // ⚠️ THE COMMENT THAT USED TO BE HERE WAS WRONG, AND IT COST THREE WEEKS.
+      // It said "the app's redirect_uri does not apply and passing both is
+      // rejected", so this branch deliberately omitted `redirect_uri`. Plaid says
+      // the exact opposite, and this is the error every native tap was getting
+      // (Tre, 2026-09-02, from the device):
+      //
+      //   "redirect_uri and hosted_link.completion_redirect_uri must be set when
+      //    hosted_link.is_mobile_app is set to true"
+      //
+      // Both are required together. They are different things: `redirect_uri` is
+      // the HTTPS URI Plaid hands an OAuth bank back to and MUST be whitelisted in
+      // the Plaid dashboard, while `completion_redirect_uri` is the app-scheme URI
+      // Plaid sends the user to once the hosted flow finishes.
+      if (!redirectUri) {
+        // Fail here, with the reason, rather than posting a request Plaid will
+        // reject with a message the client never surfaces. Silence is what made
+        // this take three weeks to see.
+        return new Response(JSON.stringify({
+          error: "hosted_link_requires_redirect_uri",
+          message:
+            "Hosted Link needs an HTTPS redirect_uri as well as the app-scheme " +
+            "completion URI. Set VITE_PLAID_OAUTH_REDIRECT_URI in the app's env " +
+            "AND whitelist that exact URI in the Plaid dashboard under " +
+            "Team Settings > API > Allowed redirect URIs.",
+        }), {
+          status: 422,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      linkTokenBody.redirect_uri = redirectUri;
       linkTokenBody.hosted_link = {
         is_mobile_app: true,
         completion_redirect_uri: HOSTED_COMPLETION_URI,
