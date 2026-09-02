@@ -10,6 +10,45 @@
 
 ---
 
+## SHIPPED 2026-09-02 ~17:15 ET — notifications + Learn (`a5d6b196`)
+
+Dispatched batch from Sam, three asks worked as one area. On `origin/main`,
+verified by contents (0/0 ahead).
+
+- **The toggle's real fault** was not the button: `NotificationSettings` returned
+  `null` off-native, so THERE WAS NO OFF SWITCH IN A BROWSER AT ALL, and the value
+  sat in Capacitor Preferences on one device where nothing server-side could read
+  it. `profiles.notification_prefs` is the source of truth now (device keeps a
+  mirror for the offline send path), the legacy `forged:notif_enabled` is still
+  honoured on the way IN so nobody who said no gets un-muted, and a failed write
+  reverts the switch and toasts instead of leaving a user believing they are silent.
+- **Cadence** 3/week -> 5/week, one a day (`MIN_HOURS_BETWEEN` 16 + quiet hours),
+  with `MAX_PER_WEEK_BY_KIND` so one overdrawn week cannot spend the allowance on
+  bill warnings. Two new candidates: `learn_lesson` (names the lesson and its
+  length) and `streak_risk` (>=2 days at stake, after 18:00, nothing read today).
+  Seven per-category opt-outs, checked PER CANDIDATE so silencing the recap does
+  not silence the week.
+- **Learn** — 12 lessons in `src/lib/learn-lessons.ts` (content is code, not rows:
+  no CMS, no public read surface), one badge each, dashboard widget id `learn`,
+  progress in `learn_progress`. **No UPDATE grant on that table on purpose** — a
+  client that could rewrite `read_at` could fabricate a streak.
+- Migration `20260902_notification_prefs_and_learn.sql` is APPLIED to the live
+  project as well as committed. `anon` holds nothing on `learn_progress`; verified
+  by query, not by reading the migration.
+- Pressed, not read: toggle 9/9, LearnCard 7/7, cadence 14/14, streak 10/10; full
+  suite 3272 pass / 0 fail; `tsc --noEmit` and `vite build` clean.
+- **ONE EVIDENCE GAP:** the same presses in a REAL browser. The Claude-controlled
+  Chrome profile is signed out on `localhost:8080` and only Tre can sign it in
+  (dev-signin skill: never type credentials). Everything above is jsdom-with-real-
+  clicks, which is real but is not the live app.
+- Two follow-on asks arrived mid-batch from the App-workflow session and are NOT
+  started: review prompts fired at the value moment, and the first-100-organic-
+  premium OG cohort + social-follow achievement (coordinate with Nora on where the
+  truth about "premium" lives; Stripe is the only provider that can grant
+  free-forever).
+
+---
+
 ## WHERE I AM RIGHT NOW — written 2026-09-02 ~11:45 ET, mid-session
 
 **Nothing is half-built.** Tree clean apart from `handoff.md`,
@@ -934,31 +973,32 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 11:44 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 13:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M handoff.md
  M supabase/.temp/cli-latest
+?? .vercelignore
 ?? deno.lock
 ```
 
 - **Recent commits:**
 
 ```
+fac9176a docs(handoff): put the two live threads at the top of the resume queue
+97ee10a1 docs(handoff): the dedupe is deployed, and the debug preview is rate-limited for a day
+8e6f628e docs(handoff): where this session actually is, not just what the backlog holds
 bb421023 fix(plaid): duplicate accounts are removed automatically on re-link
 5f3284ce fix(reminder): the monthly notice names the accounts that actually need updating
 04d96f3b feat(accounts): group the balances list by provider
 d478eaac docs(handoff): Plaid is fixed and confirmed, and the Robinhood duplication is merged
 c0a39778 fix(accounts): account names wrap instead of truncating on a phone
-83fb1796 test(friends): freeze the clock, because this test was a time bomb that went off today
-ca3f88fc fix(plaid): the hosted call site never sent redirect_uri, and that was the whole bug
-34c9cb3b docs(handoff): the review trigger is the first Plaid link, and this push rebuilds production
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
