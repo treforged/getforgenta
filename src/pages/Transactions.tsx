@@ -1136,10 +1136,29 @@ export default function Transactions() {
                         real
                       </span>
                     )}
+                    {t.isTransfer && (
+                      <span
+                        className="text-[9px] text-muted-foreground bg-muted/40 px-1 py-0.5"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        title="Money moved between your own accounts. It leaves this account but you still have it, so it is not counted as spending."
+                      >
+                        transfer
+                      </span>
+                    )}
                     {sourceMissing && <span className="text-destructive" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {t.matchedActualDate ?? t.date} · {t.category}{!isRecon && <> · {sourceMissing ? <span className="text-destructive">⚠ Missing account</span> : getSourceLabel(t.payment_source)}</>}
+                    {/* MONEY MOVED IS NOT MONEY SPENT (Tre, 2026-09-02: transfers "need to show").
+                        They already appeared here, but styled exactly like an expense and showing
+                        only the account they LEFT - so his $130 Owners Contribution read as $130 of
+                        business spending rather than $130 sitting in another of his own accounts.
+                        The engine has always known the difference (`isTransfer` is why
+                        MonthlyExpenseModel excludes these from living costs); only the row did not
+                        say so. Destination is appended when the rule names one. */}
+                    {t.isTransfer && (
+                      <> {'→'} {t.transferDestination ? getSourceLabel(t.transferDestination) : 'another account'}</>
+                    )}
                   </p>
                 </div>
               </div>

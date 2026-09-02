@@ -56,6 +56,15 @@ export type EnrichedTransaction = {
    */
   isTransfer?: boolean;
   /**
+   * Where a transfer's money LANDS, as an account id.
+   *
+   * Only meaningful when `isTransfer` is true, and absent when the rule names no destination.
+   * `payment_source` answers "which account did this leave", which is the whole story for an
+   * expense and only HALF of it for a transfer: money moved between two accounts the user owns is
+   * not money spent, and a row that shows only the source reads exactly like one that was.
+   */
+  transferDestination?: string | null;
+  /**
    * `YYYY-MM-DD` the money ACTUALLY moved, on a generated occurrence a settled bank transaction
    * answered. Set by `substituteMatchedLedgerRows` (`matched-occurrence-display.ts`), never here.
    *
@@ -1374,6 +1383,11 @@ export function generateMonthTransactionsFromRules(
         // §2.4 Phase 2. The rule_type is known HERE and nowhere downstream, which is exactly why
         // `MonthlyExpenseModel.transfers` sat at 0 until now.
         isTransfer: r.rule_type === 'transfer' || r.rule_type === 'investment',
+        // The destination is dropped by `rawSource` above, which keeps only one account per row.
+        // A transfer needs both ends or a surface cannot tell the user where the money went.
+        transferDestination: (r.rule_type === 'transfer' || r.rule_type === 'investment')
+          ? (r.deposit_account ?? null)
+          : undefined,
       });
     }
   });
