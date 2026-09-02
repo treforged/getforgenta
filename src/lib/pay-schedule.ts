@@ -2,7 +2,7 @@
 // Single source of truth for income calculations across all tabs
 
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
-import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
+import { isCapturedInBalance, dueDateInMonth, isDebitStillOutstanding } from './sync-cutoff';
 import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
 import { getBiweeklyDatesInMonth, occurrenceSurvivesEndDate, toLocalDateStr, trailingEarnedPayDate } from './scheduling';
 // The ledger's real-overrides-projected rule asks the bank matcher's own amount and date questions,
@@ -469,7 +469,7 @@ export function getRemainingTransactionExpensesByDay(
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
-      const afterCutoff = cutoffDate ? t.date > cutoffDate : txDay >= today;
+      const afterCutoff = cutoffDate ? isDebitStillOutstanding(t.date, cutoffDate) : txDay >= today;
       if (afterCutoff && txDay <= effectiveDueDay) total += Number(t.amount);
     } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
@@ -558,7 +558,7 @@ export function getRemainingTransactionExpenseItemsByDay(
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
-      const afterCutoff = cutoffDate ? t.date > cutoffDate : txDay >= today;
+      const afterCutoff = cutoffDate ? isDebitStillOutstanding(t.date, cutoffDate) : txDay >= today;
       if (afterCutoff && txDay <= effectiveDueDay) {
         items.push({ date: t.date, note: t.note || t.category || 'Expense', amount: Number(t.amount), isGenerated: !!t.isGenerated });
       }
@@ -624,7 +624,7 @@ export function getRemainingTransactionExpensesThisMonth(
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const included = cutoffDate ? t.date > cutoffDate : parseInt(t.date.split('-')[2]) >= today;
+    const included = cutoffDate ? isDebitStillOutstanding(t.date, cutoffDate) : parseInt(t.date.split('-')[2]) >= today;
     if (included) total += Number(t.amount);
   }
   return total;
@@ -644,7 +644,7 @@ export function getRemainingTransactionDebtPaymentsThisMonth(transactions: Enric
   for (const t of transactions) {
     if (t.type !== 'expense' || t.category !== 'Debt Payments') continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const included = cutoffDate ? t.date > cutoffDate : parseInt(t.date.split('-')[2]) >= today;
+    const included = cutoffDate ? isDebitStillOutstanding(t.date, cutoffDate) : parseInt(t.date.split('-')[2]) >= today;
     if (included) total += Number(t.amount);
   }
   return total;

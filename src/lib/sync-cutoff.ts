@@ -117,6 +117,34 @@ export function isCapturedInBalance(
   return dueDate < shiftDays(balanceAsOf, -SETTLEMENT_LAG_DAYS);
 }
 
+/**
+ * Is a projected DEBIT dated `date` still outstanding against a balance synced as of `cutoffDate`?
+ *
+ * THE GRACE PERIOD (Tre, 2026-09-02: *"my rent hasnt been taken out of my account yet, there
+ * should be a grace period. when this type of issue occurs, it can throw off other calculations
+ * for days."*).
+ *
+ * The `getRemainingTransaction*` helpers used to ask a bare `t.date > cutoffDate`, which drops a
+ * projected bill the instant the sync date passes its due date — on the DATE ALONE, with no check
+ * that the money actually left. His rent is due the 1st and has cleared on the 2nd-4th for seven
+ * straight months, so on the 2nd it vanished from remaining expenses while the $2,070 was still
+ * sitting in the account and still about to go. That reads cash HIGH, which is the unsafe
+ * direction, and it stays wrong until the debit lands: exactly "for days".
+ *
+ * The same `SETTLEMENT_LAG_DAYS` every other outflow gate in this file already honours fixes it,
+ * so a bill keeps being reserved for three days past the cutoff. INCOME MUST NOT USE THIS — the
+ * lag exists because money leaves later than it is scheduled to, and a deposit arriving late is
+ * not the same risk. `isCapturedInBalance` makes the same debits-only distinction.
+ */
+export function isDebitStillOutstanding(date: string, cutoffDate: string): boolean {
+  // Expressed as the exact complement of the fallback branch of `isCapturedInBalance`, NOT as its
+  // own comparison. Written independently it first shipped as `>` against `<`, which disagreed
+  // with that function by one day on the boundary — the same operator-direction defect this file
+  // already records (engine `<=` vs hook `<` for one charge). A debit is outstanding precisely
+  // when it is not yet captured, and there is now one operator deciding that for both.
+  return !isCapturedInBalance(date, cutoffDate);
+}
+
 /** `YYYY-MM-DD` for a day-of-month within the month key `YYYY-MM` — the shape due days arrive in. */
 export function dueDateInMonth(monthKey: string, dayOfMonth: number): string {
   return `${monthKey}-${String(dayOfMonth).padStart(2, '0')}`;
