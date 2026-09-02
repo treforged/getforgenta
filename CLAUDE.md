@@ -85,15 +85,20 @@ question sitting in a terminal he is not looking at has not been asked.
 
 If an ambiguity is hit — unclear requirements, conflicting instructions,
 multiple valid interpretations, or a decision that changes scope or
-behaviour — **put it on the board and carry on**:
+behaviour — **ask it in the chat reply and carry on**.
 
-```
-conductor ask "<the question>" --options a,b,c
-```
+The question goes in the closing **"Actions for me"** list; he answers in
+chat. Do NOT use `AskUserQuestion`; it halts the session on the keyboard,
+which is the thing being removed.
 
-It returns immediately, and the question reaches his phone with one-tap
-answers. Do NOT use `AskUserQuestion`; it halts the session on the
-keyboard, which is the thing being removed.
+⚠️ **DO NOT WRITE TO THE CONDUCTOR.** Tre, 2026-08-31: *"nothing should be
+filling ot conductor anymore for now."* (STANDING; recorded in
+`claudecontext/asks-completed.md`.) The old instruction here was
+`conductor ask "<question>" --options a,b,c`. A session that still runs it
+files into a switched-off board and then carries on believing it asked —
+the failure is silent, which is why this says so instead of just dropping
+the line. The mechanism is kept collapsed in `AGENT.md` in case the hold
+is lifted; the RULE it served — never stop and wait — is unchanged.
 
 Then, in this order:
 
@@ -103,8 +108,9 @@ Then, in this order:
    work or redirects one clearly-labelled piece.
 3. Something else: the queue, `handoff.md`'s next steps, a known bug.
 
-Collect replies with `conductor answers` at natural boundaries — after a
-test run, before a commit, starting the next slice. Never in a poll loop.
+He replies in chat, so there is nothing to poll and no boundary to collect
+at. Fold his answer in when it arrives, and if it contradicts an assumption
+you already built on, fix that piece and say so rather than leaving both.
 
 Still true: do not guess silently, and do not implement multiple variants.
 Pick the more conservative reading, say which one you picked, and make it

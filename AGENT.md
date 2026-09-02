@@ -74,16 +74,30 @@ So the governing question before every write is not "does this work" but
 
 ## Do this instead of stopping
 
-**A session must never park and wait for Tre.** File the question and carry on:
+**A session must never park and wait for Tre.** THE RULE IS UNCHANGED; only the
+CHANNEL has moved. Put the question in the closing **"Actions for me"** list of
+your chat reply and carry on: work the parts that do not depend on the answer,
+then the parts that do under an assumption you state out loud, then something
+else. He answers in chat.
+
+⚠️ **DO NOT WRITE TO THE CONDUCTOR.** Tre, 2026-08-31: *"nothing should be
+filling ot conductor anymore for now."* (STANDING; recorded in
+`claudecontext/asks-completed.md`.) A session that runs `conductor ask` files
+into a switched-off board and then carries on believing it asked — the failure
+is silent, which is why this note is here rather than a deleted line.
+
+<details><summary>The filing mechanism, kept for if the hold is lifted</summary>
 
 ```
 conductor ask "<the question>" --options a,b,c
 ```
 
-It returns immediately and puts the question on his board with one-tap answers.
-Then work on the parts that do not depend on the answer, then on the parts that
-do under an assumption you state out loud, then on something else. Collect
-replies with `conductor answers` at natural boundaries.
+Returned immediately and put the question on his board with one-tap answers;
+`conductor answers` collected replies at natural boundaries. One option per
+`--options` entry, each a thing he can pick — two buttons both reading "yes" was
+a real defect. Kept collapsed rather than deleted because it is correct and
+hard-won, and the suspension is explicitly "for now".
+</details>
 
 **This supersedes the AMBIGUITY RULE in `CLAUDE.md`**, which said to stop and
 wait. Same instinct, wrong cost: a stopped session spends Tre's attention AND
@@ -123,10 +137,17 @@ tree that is not the real one — this has caused a real conflict mess before.
 ## Shipping (a human-driven session only)
 
 ```
-git push -u origin <branch>   →   gh pr create   →   conductor pr <number>
+git push -u origin <branch>   →   gh pr create
 ```
 
-All three or none. A PR that is open but never filed is waiting on nobody.
+⚠️ THIS USED TO END IN `conductor pr <number>` AND SAY "all three or none".
+Both halves were live traps once the board was switched off: a session following
+it literally pushes, opens the PR, then stops dead at a step that does nothing.
+Two steps now, and the PR number goes to Tre in the chat reply instead.
+
+⚠️ AND ON THIS REPO IT IS USUALLY NEITHER — Tre, 2026-08-19: **no PRs, no feature
+branches on getforgenta**; commit on `main` and push straight to it. The block
+above applies only where a PR is actually wanted.
 Finish everything before filing: filing hands Tre a merge button and he presses
 it, so anything committed afterwards lands on a branch whose PR is already
 closed. Verify a merge by CONTENTS (`git grep -F <marker> origin/main`), never
