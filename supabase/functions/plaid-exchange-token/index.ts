@@ -12,6 +12,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 import { planSupersededConnections } from "../_shared/supersede-connection.ts";
+import { planAccountRetirement } from "../_shared/retire-accounts.ts";
 
 const MAX_LINKED  = 10;
 const RATE_LIMIT  = { windowMs: 60_000, max: 10 };
@@ -121,6 +122,41 @@ Deno.serve(async (req) => {
     }
     const { access_token, item_id } = exchangeBody;
 
+    // ── THE INSTITUTION ID MUST NOT DEPEND ON THE CLIENT ────────────────────────
+    // Supersession is keyed on `institution_id`, and `planSupersededConnections` returns an EMPTY
+    // ARRAY when it is null - deliberately, because without it there is no safe way to tell "the
+    // same bank again" from "a second bank". That safety turns into a silent no-op the moment the
+    // id goes missing.
+    //
+    // Which is exactly what happened on 2026-09-02. The HOSTED (native) flow gets its
+    // institution_id from Plaid's link-session results, and for Robinhood that came back null. So
+    // the client posted null, the supersede block was skipped entirely, and Tre ended up with TWO
+    // active Robinhood connections double-counting $2,054.85 - while the web flow, which gets the
+    // id from Link metadata, had been superseding correctly all along.
+    //
+    // `/item/get` answers it authoritatively from the access token we just minted, so the tidy-up
+    // no longer depends on which flow the user came through or on what the provider chose to echo
+    // back. Non-fatal: a failure here leaves institution_id null, which is exactly today's
+    // behaviour rather than a worse one.
+    if (!institution_id) {
+      try {
+        const itemRes = await fetch(`${plaidBase}/item/get`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: PLAID_CLIENT_ID, secret: PLAID_SECRET, access_token }),
+        });
+        const itemBody = await itemRes.json();
+        if (itemRes.ok) {
+          institution_id = itemBody.item?.institution_id ?? null;
+          console.log(`Resolved institution_id ${institution_id} from /item/get (client sent none)`);
+        } else {
+          console.error("Plaid /item/get failed:", JSON.stringify(itemBody));
+        }
+      } catch (e) {
+        console.error("Plaid /item/get threw:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
     // Resolve institution name if not passed from Link metadata
     if (!institution_name && institution_id) {
       try {
@@ -191,13 +227,68 @@ Deno.serve(async (req) => {
           await supabase.from("financial_connections")
             .update({ connection_status: "revoked", updated_at: nowIso })
             .in("id", superseded);
-          // Deactivated, never deleted — the row, its history and its id all survive, and one flag
-          // undoes it. References are NOT re-pointed: see supersede-connection.ts on why an
-          // automatic remap would guess, on money.
-          await supabase.from("accounts")
-            .update({ active: false, updated_at: nowIso })
-            .eq("user_id", userId)
-            .in("connection_id", superseded);
+          // A duplicate nobody references is DELETED; one something points at is only hidden.
+          // See retire-accounts.ts for why that split rather than "delete them all".
+          const { data: staleRows } = await supabase.from("accounts")
+            .select("id").eq("user_id", userId).in("connection_id", superseded);
+          const staleIds: string[] = (staleRows ?? []).map((r: { id: string }) => r.id);
+
+          if (staleIds.length > 0) {
+            // ⚠️ A FAILED LOOKUP MUST MEAN "REFERENCED", NEVER "NOT REFERENCED". If any of these
+            // queries errors and we treat its result as empty, the plan deletes rows that a goal
+            // or a rule still points at. So an error here marks EVERYTHING referenced, which
+            // degrades to the old deactivate-only behaviour instead of to data loss.
+            let lookupFailed = false;
+            const referenced = new Set<string>();
+            const collect = (
+              rows: Record<string, unknown>[] | null,
+              err: unknown,
+              cols: string[],
+            ) => {
+              if (err) { lookupFailed = true; return; }
+              for (const row of rows ?? []) {
+                for (const c of cols) {
+                  const v = row[c];
+                  if (typeof v === "string" && v) referenced.add(v);
+                }
+              }
+            };
+
+            const goals = await supabase.from("savings_goals")
+              .select("linked_account").eq("user_id", userId).in("linked_account", staleIds);
+            collect(goals.data, goals.error, ["linked_account"]);
+
+            const rules = await supabase.from("recurring_rules")
+              .select("payment_source, deposit_account").eq("user_id", userId);
+            collect(rules.data, rules.error, ["payment_source", "deposit_account"]);
+
+            const txns = await supabase.from("transactions")
+              .select("account, payment_source").eq("user_id", userId).in("account", staleIds);
+            collect(txns.data, txns.error, ["account", "payment_source"]);
+
+            const funds = await supabase.from("car_funds")
+              .select("linked_account, loan_payment_account").eq("user_id", userId);
+            collect(funds.data, funds.error, ["linked_account", "loan_payment_account"]);
+
+            const plan = lookupFailed
+              ? { deletable: [], deactivateOnly: staleIds }
+              : planAccountRetirement(staleIds, referenced);
+
+            if (plan.deactivateOnly.length > 0) {
+              await supabase.from("accounts")
+                .update({ active: false, updated_at: nowIso })
+                .eq("user_id", userId).in("id", plan.deactivateOnly);
+            }
+            if (plan.deletable.length > 0) {
+              await supabase.from("accounts")
+                .delete().eq("user_id", userId).in("id", plan.deletable);
+            }
+            console.log(
+              `Retired ${staleIds.length} account(s): deleted ${plan.deletable.length}, ` +
+              `kept ${plan.deactivateOnly.length} that are still referenced` +
+              (lookupFailed ? " (reference lookup FAILED - nothing deleted)" : ""),
+            );
+          }
           console.log(
             `Superseded ${superseded.length} prior connection(s) to ${institution_id} for user ${userId}`,
           );
