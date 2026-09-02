@@ -220,7 +220,23 @@ AUTO-EXTRA half, which remains blocked on the design call below — it is derive
 from the engine, not a row, so it means showing projections beside settled
 transactions.
 
-14. [ ] TRANSFERS must show on the HOMEPAGE too.
+14. [x] TRANSFERS on the HOMEPAGE — `1ef4c108`. They already reach Recent
+    Transactions (same generated stream as Transactions); the defect was that a
+    transfer rendered as a red outflow with a category icon, identical to money
+    spent. Sub-line now shows `transfer → <destination>` in place of the category
+    (on a row that cramped, "where it went" beats "Business"), and the amount keeps
+    its minus but loses the destructive red — it left the account, it is not a loss.
+    VERIFIED BY MAKING IT RENDER: the panel looks back 7 days and his transfer is
+    dated 2026-09-29, so it cannot appear today. Narrowed the window locally to
+    25-30 Sep, read the live DOM — `Owners Contribution | transfer → General
+    Operations | -$130` at rgb(113,113,122), against expenses at rgb(154,24,24) and
+    income at rgb(51,153,88) — then reverted. No temp code is in the diff.
+    ⚠️ STILL OPEN AND IT IS TRE'S CALL, not a default: whether PROJECTED entries
+    (future transfers, and the auto-extra payments of 15-16) belong on the homepage
+    beside settled ones at all. This change added none — it only fixed how a
+    transfer looks once it is in the window. A projection that reads as settled is a
+    lie on a finance app, so nobody should pick this by default. Filed to him
+    2026-09-02 via the Desktop desk as a genuine fork.
 15. [ ] Transfer RULES, and anything generated from a GOAL, must show in
     Transactions.
 16. [ ] AUTO EXTRA PAYMENTS and TRANSFERS must show in Transactions.
