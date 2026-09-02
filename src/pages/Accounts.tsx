@@ -401,12 +401,36 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   }, [orderedAccounts, filterType]);
 
   /**
+   * GROUPED BY PROVIDER (Tre, 2026-09-02: "group accounts on the accounts tab by provider").
+   *
+   * With sixteen accounts across eight institutions, a flat list makes you read every row to find
+   * the one you want — and it is what made a duplicated Robinhood connection so hard to see.
+   *
+   * Group ORDER follows first appearance in the already-ordered list, so his manual ordering still
+   * decides which provider sits at the top; only the rows of one provider are pulled together. A
+   * row with no institution (added by hand) collects under one heading rather than becoming a
+   * group of one each time.
+   */
+  const groupedAccounts = useMemo(() => {
+    const groups: { key: string; label: string; rows: typeof filteredAccounts }[] = [];
+    const byKey = new Map<string, (typeof groups)[number]>();
+    for (const a of filteredAccounts) {
+      const label = a.institution?.trim() || 'Added by hand';
+      const key = label.toLowerCase();
+      let g = byKey.get(key);
+      if (!g) { g = { key, label, rows: [] }; byKey.set(key, g); groups.push(g); }
+      g.rows.push(a);
+    }
+    return groups;
+  }, [filteredAccounts]);
+
+  /**
    * One tap moves the row past exactly one row the user can SEE — so the step is measured in the
    * filtered list, while the position it lands on is written against the full one.
    */
-  const moveRow = useCallback((id: string, delta: number) => {
-    applyOrder(moveAccountBy(orderedAccounts, filteredAccounts.map(a => a.id), id, delta));
-  }, [applyOrder, orderedAccounts, filteredAccounts]);
+  const moveRow = useCallback((id: string, delta: number, visibleIds: string[]) => {
+    applyOrder(moveAccountBy(orderedAccounts, visibleIds, id, delta));
+  }, [applyOrder, orderedAccounts]);
 
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
   const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
@@ -906,7 +930,16 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
         )}
-        {filteredAccounts.map((a, i) => {
+        {groupedAccounts.map(group => {
+        const groupIds = group.rows.map(r => r.id);
+        return (
+        <div key={group.key} className="space-y-3">
+          <div className="flex items-center gap-2 px-1 pt-1">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
+            <span className="text-[10px] text-muted-foreground">{group.rows.length}</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+        {group.rows.map((a, i) => {
           const Icon = TYPE_ICONS[a.account_type] || Wallet;
           const liability = isLiability(a.account_type);
           return (
@@ -928,14 +961,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       type="button"
                       aria-label={`Move ${a.name} up`}
                       disabled={i === 0}
-                      onClick={() => moveRow(a.id, -1)}
+                      onClick={() => moveRow(a.id, -1, groupIds)}
                       className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
                     ><ArrowUp size={16} /></button>
                     <button
                       type="button"
                       aria-label={`Move ${a.name} down`}
-                      disabled={i === filteredAccounts.length - 1}
-                      onClick={() => moveRow(a.id, 1)}
+                      disabled={i === group.rows.length - 1}
+                      onClick={() => moveRow(a.id, 1, groupIds)}
                       className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
                     ><ArrowDown size={16} /></button>
                   </div>
@@ -1029,6 +1062,9 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
               {a.notes && <p className="text-xs text-muted-foreground mt-2 ml-12 wrap-break-word">{a.notes}</p>}
             </div>
           );
+        })}
+        </div>
+        );
         })}
       </div>
 
