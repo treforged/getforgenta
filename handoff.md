@@ -70,7 +70,41 @@ unset in production. **It is set** — confirmed in the Vercel dashboard, scoped
 read back in the UI. So the client was very likely sending `redirect_uri` all along
 and the function was discarding it. That makes the code fix plausibly the WHOLE fix.
 
-NEXT CONCRETE STEP, and it is one tap: Tre opens the app and taps Connect Bank once,
+**2026-09-02 UPDATE — HE TAPPED. The error is now OUR OWN 422,
+`hosted_link_requires_redirect_uri`, not Plaid's.** That is progress and it is
+diagnostic: the deployed fix is live and working, and it proves the CLIENT is
+sending no `redirect_uri` at all.
+
+So `VITE_PLAID_OAUTH_REDIRECT_URI` exists as a Vercel KEY but is almost certainly
+EMPTY. The client only sends it when truthy
+(`import.meta.env.VITE_PLAID_OAUTH_REDIRECT_URI ?? null`), and an empty string is
+falsy — `.env.example` ships it blank, and the comment beside it says "Only set
+once the URI is whitelisted in the Plaid dashboard", which is exactly the shape of
+a placeholder key added and never filled. It is marked SENSITIVE in Vercel so the
+value cannot be read back to confirm; setting it is the test.
+⚠️ I could not confirm by reading the production bundle: `PlaidLinkButton` is in a
+lazy chunk and two attempts to locate it by scraping chunk names from the entry
+returned nothing. That is an unfinished check, not a negative result — do not
+record it as "the bundle does not contain it".
+
+REMAINING WORK IS CONFIG AND IT NEEDS TRE'S PLAID LOGIN, in this order:
+ 1. Plaid dashboard > Team Settings > API > Allowed redirect URIs: add an HTTPS
+    URI, e.g. `https://getforgenta.com/plaid-oauth`.
+ 2. Vercel > getforgenta > Environment Variables: set
+    `VITE_PLAID_OAUTH_REDIRECT_URI` to that EXACT string (Production + Preview).
+ 3. REDEPLOY production — Vite inlines env vars at BUILD time, so the value does
+    nothing until the site is rebuilt. The native app loads
+    `https://getforgenta.com` per `capacitor.config.ts`, so no TestFlight build is
+    needed; a web redeploy is enough.
+ 4. Tap again. If it then fails with a PLAID error naming the redirect URI, step 1
+    did not match step 2 character-for-character.
+⚠️ There is no app route at `/plaid-oauth` and no `receivedRedirectUri` handling in
+`PlaidLinkButton`. For HOSTED link that is probably fine — Plaid runs the OAuth
+hand-off on its own page and returns the user via `completion_redirect_uri` — but
+it is UNVERIFIED, and it is the next thing to suspect if the tap gets further and
+then stalls on the return leg.
+
+OLD NEXT STEP (done): Tre opens the app and taps Connect Bank once,
 then read `function_edge_logs` for `plaid-create-link-token` **within 24 HOURS**
 (measured retention; the 08-29 evidence expired unrecoverably before anyone looked).
 - Works -> done, close this out.
