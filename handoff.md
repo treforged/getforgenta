@@ -97,6 +97,18 @@ So NOTHING needs adding to Plaid. Do not add `/plaid-oauth`; it does not exist
 there and inventing a third entry is pointless. The editor was opened read-only,
 nothing was typed, and Cancel was confirmed to have restored it.
 
+**CONFIRMING DATUM FROM TRE 2026-09-02: "local host on pc works but not mobile."**
+Exactly what the diagnosis predicts, so keep it as EVIDENCE rather than filing it
+as a second bug. The WEB path takes the `else if (redirectUri)` branch where
+`redirect_uri` is OPTIONAL, so linking works on localhost with the env var empty.
+Only the NATIVE path sets `hosted_link.is_mobile_app`, and that is the branch Plaid
+requires `redirect_uri` on. One empty value explains both halves: web unaffected,
+mobile dead.
+⚠️ CONSEQUENCE WORTH KNOWING BEFORE ANYONE "VERIFIES" THIS: it cannot be tested on
+desktop. Web will keep working whether or not the value is set, so a green localhost
+proves nothing. The only real test is a tap on the PHONE after a production
+redeploy.
+
 REMAINING WORK IS TWO STEPS AND NEEDS NO PLAID CHANGE:
  1. Vercel > getforgenta > Environment Variables: set
     `VITE_PLAID_OAUTH_REDIRECT_URI` to EXACTLY `https://getforgenta.com/oauth`
