@@ -454,6 +454,42 @@ these should be ONE achievements system, not two.
 
 ## Resume queue
 
+**TOP OF QUEUE — added 2026-09-02 ~12:05 ET, ahead of the numbered items below.**
+
+- [~] **Debug-console dev-mode preview deploy. Tre APPROVED it; it is still
+  outstanding.** Do not re-ask him. Blocked only by a Vercel free-tier upload
+  rate limit (`api-upload-free`) that this desk tripped at ~11:57 ET, so it
+  clears around **2026-09-03 12:00 ET**. The full recipe, the mistake that
+  caused the block, and the two dead ends already ruled out are in the
+  "Debug-console preview deploy" bullet under BLOCKED / WAITING above — read
+  that before retrying, it saves the whole hour. Short version: write
+  `.vercelignore` FIRST (the CLI does not read `.gitignore`, and the tree is
+  465 MB), then deploy with `--scope treforgeds-projects`, `--archive=tgz`,
+  `--local-config <a copy of vercel.json carrying "buildCommand":
+  "npm run build:dev">` and `--build-env VITE_ENABLE_DEBUG_CONSOLE=true`.
+  Vercel SSO protection is already confirmed ON, so the preview URL is not
+  publicly reachable.
+
+- [~] **Auto-dedupe is DEPLOYED but NOT PROVEN.** `plaid-exchange-token` went
+  live 2026-09-02 11:49:13 ET, verified via `list_edge_functions` (ACTIVE,
+  `verify_jwt` still true). What is missing is one real re-link on Tre's device
+  showing the `Retired N account(s)` line. `function_edge_logs` retains only
+  24 hours, so that evidence must be collected DURING a re-link, never after.
+  Do not redeploy and do not rebuild the dedupe — `bb421023` is shipped.
+
+- ⛔ **DO NOT REBUILD the rent / bill grace-period fix. It is SHIPPED as
+  `c85a8565`** and closed out in this file (see the section at "CLOSED — the
+  'grace period' for a bill that has not cleared"). A duplicate fix on a money
+  path is expensive and hard to unpick; if it looks unfixed, verify against
+  `c85a8565` first and ask before touching it.
+
+- An untracked `.vercelignore` sits at the repo root. Deliberately NOT
+  committed — it would also change what git-integrated production builds see,
+  and no gate has been run on that. Gate it and commit, or re-create it per
+  deploy. It is not stray junk; delete it only on purpose.
+
+---
+
 1. [x] The five-month payoff swing is NOT a defect, and `aadf3ae2` did already
    explain it — the caution in the previous version of this item was wrong to
    re-open it. Measured cold on 2026-09-01 11:49 by walking clock offsets 0..11
