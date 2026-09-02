@@ -300,6 +300,20 @@ function renderCard(search = '') {
 }
 
 describe('the Settings card, rendered', () => {
+  // ⚠️ THIS BLOCK PINS THE CLOCK, AND IT MUST. `PENDING_ROW` carries a FIXED
+  // `expires_at`, and the card hides an invite once it has expired - so against the
+  // real clock these cases passed until that timestamp and then failed forever. It
+  // went off on 2026-09-02 at 12:00Z, three weeks after it was written, in a test
+  // that has nothing to do with dates. Freezing the clock is the fix; pushing the
+  // date out to 2099 would only reset the fuse.
+  // `toFake: ['Date']` and not the timers: testing-library's findBy* waits on real
+  // timers, and faking those deadlocks every async assertion in here.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-08-27T12:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   it('says plainly that it has no friends yet, and offers both ways in', async () => {
     renderCard();
     expect(await screen.findByText('No friends yet.')).toBeTruthy();
