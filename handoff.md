@@ -51,10 +51,49 @@ not assume) — and watch the next re-link's logs for the
   row within its PROVIDER, not the whole page.
 
 ### BLOCKED / WAITING
-- **Dedupe deploy** — waiting on Tre's yes (above).
-- **Debug-console preview deploy** — approved via two peer relays but never by him
-  directly TO THIS DESK; it creates a URL carrying his live Supabase JWT, so I have
-  held it. One word from him unblocks it.
+- **Dedupe deploy** — ✅ DONE 2026-09-02 11:49 EDT. Tre approved; deployed with
+  `npx supabase functions deploy plaid-exchange-token --project-ref
+  mdtosrbfkextcaezuclh` (CLI, not the MCP). Verified by `list_edge_functions`:
+  `plaid-exchange-token` ACTIVE, `verify_jwt` still **true**, `updated_at`
+  1788364153672 = 2026-09-02 11:49:13 local, 49s after the command. The deploy
+  log shows the shared modules went up with it: `_shared/retire-accounts.ts` and
+  `_shared/supersede-connection.ts`. **STILL UNPROVEN ON A REAL RE-LINK** — the
+  `Retired N account(s)` log line has not been seen yet. Next re-link on his
+  device is the evidence; watch `function_edge_logs` (24h retention only).
+- **Debug-console preview deploy** — approved by Tre 2026-09-02, attempted, and
+  **BLOCKED FOR 24 HOURS BY A VERCEL RATE LIMIT I CAUSED**. Retry after
+  2026-09-03 ~12:00 EDT.
+  - What the shape has to be: the console needs `MODE !== 'production'`, so an
+    ordinary Vercel preview cannot carry it. The deploy must override the build
+    command to `npm run build:dev` and set `VITE_ENABLE_DEBUG_CONSOLE=true`.
+    Done WITHOUT touching the repo's `vercel.json`, via a copy of it carrying
+    `"buildCommand": "npm run build:dev"` passed as `--local-config`.
+  - Safety precondition CHECKED and it holds: `get_project_deployment_protection`
+    on `prj_rzrXx0dwi717dwKUpOgNJRKod2Ef` returns `ssoProtection.enabled: true`,
+    `deploymentType: "all_except_custom_domains"`. So a preview URL is behind
+    Vercel Authentication and the JWT it would expose is not publicly reachable.
+    No Vercel setting was changed by this desk.
+  - ⚠️ **THE MISTAKE, so it is not repeated.** The Vercel CLI does NOT read
+    `.gitignore`; with no `.vercelignore` the first `vercel deploy` tried to
+    upload the whole 465 MB tree (`graphify-out` 338 MB, `backups` 49 MB, `dist`
+    24 MB, `handoff` 13 MB, android/ios ~20 MB). It aborted repeatedly and burned
+    the free tier's 5000-file upload quota: `api-upload-free`, "try again in 24
+    hours". A `.vercelignore` written afterwards cut the payload to 3.9 MB, and
+    `--archive=tgz` to a single 9.1 MB upload, but the limit had already tripped.
+    **Write `.vercelignore` BEFORE the first CLI deploy from this repo.**
+  - An untracked `.vercelignore` is now sitting at the repo root with exactly
+    that content. It is deliberately NOT committed: it would also change what
+    git-integrated production builds see, and that change has had no gate run on
+    it. Either commit it after gating, or keep re-creating it per deploy.
+  - `vercel build` + `deploy --prebuilt` is NOT a workaround: `vercel env pull`
+    returns `[SENSITIVE]` placeholders for `VITE_TURNSTILE_SITE_KEY`,
+    `VITE_STRIPE_PUBLISHABLE_KEY` and both RevenueCat keys, so a locally built
+    bundle would ship a dead Turnstile key and he could not sign in. The build
+    has to happen ON Vercel. (The pulled `.vercel/.env.preview.local` was deleted
+    from disk after this check.)
+  - Auth note: the CLI is logged in as `treforged` but the project lives under
+    team `treforgeds-projects`; without `--scope treforgeds-projects` the deploy
+    returns a bare "Not authorized".
 - **Notifications** — policy + service + toggle + caller all shipped, but **nobody
   has seen one on a device**. Needs Android emulator or his phone. His chosen
   trigger ("first plaid link completing") can now actually fire since linking works.
