@@ -239,6 +239,73 @@ at `pay-schedule.ts:876-892`.
 ⚠️ MONEY PATH: adversarial verification, and a test asserting a NUMBER — specifically
 that a rule due on the 1st, unmatched, with coverage, is STILL reserved on the 6th.
 
+## NEW 2026-09-02 — two product asks routed in by Mona (from Tre's Instagram DMs)
+
+Neither was recorded anywhere until Mona pulled them off Instagram. Both are his
+words, verbatim, and both are DESIGN-FIRST — nothing should be built until the
+forks below are answered.
+
+**A. REVIEWS, tied to the value moment.** *"research my market and create a plan to
+get more reviews. part of that was the app updates which will prompt it after the
+ah ha moment(value moment)."*
+**IT IS ALREADY BUILT — READ THIS BEFORE PLANNING ANYTHING.** `useInAppReview.ts`
+fires the native prompt on the **3rd** qualifying action, once ever, gated on
+`localStorage`. The two call sites are `BudgetControl.tsx:731` (a rule saved) and
+`SavingsGoals.tsx:724` (a goal created). So this is a TRIGGER-PLACEMENT job, not a
+build, and Tre's ask is precisely the criticism of what is there.
+
+⚠️ **THE CURRENT TRIGGER IS AIMED AT A MOMENT OF WORK, NOT A MOMENT OF VALUE.**
+Saving a third budget rule is data entry — the app is asking to be rated right
+after making the user do chores. The aha moments in this product are where the
+user first SEES something they did not already know: a payoff DATE appearing, the
+CC Debt Free milestone firing, a Plaid link completing and real balances landing,
+a goal completing. Any of those is defensible; the third row typed into a form is
+not. Pick with evidence, not by taste, and note that both stores RATE-LIMIT the
+prompt (Apple ~3/year), so a mistimed trigger is SPENT, not retried.
+
+⚠️ **AND THERE IS A REAL DEFECT IN IT, of the silently-wasted kind.** `KEY_DONE` is
+written BEFORE `InAppReview.requestReview()` is awaited, and the catch swallows
+everything. So if the call throws — or the OS declines to show anything, which it
+does routinely and without telling you — the user's ONE shot is already burned and
+can never fire again. Some of his existing installs may have spent their prompt on
+nothing. Moving the flag after a resolved call is not a complete fix either (Apple
+never confirms display), but burning it before the attempt is strictly worse than
+after, and the current order cannot be defended.
+Also minor: keys are `tre:review:*` where the rest of the app uses the `forged:`
+prefix.
+
+**B. FIRST 100 ORGANIC PREMIUM USERS + OG PROGRAMME.** *"we need to push for our
+first 100 organic premium users. they should recieve an OGs achievement as well.
+after a year, they get a year free just for being an OG. this needs to be
+trackable. we also need to make revenue trackable on conductor. i use revenue cat
+for mobile and stripe for desktop. note stripe is the only one where i can award
+free forever plans. make an acheivement for following the socials, instagram and
+tiktok."*
+
+⚠️ **THE LOAD-BEARING CONSTRAINT IS HIS OWN: Stripe is the ONLY side that can award
+free-forever plans.** So "a year free after a year as an OG" CANNOT be implemented
+symmetrically — a mobile OG on RevenueCat has no equivalent lever. **This is a
+MONEY PATH and an entitlement that must still be honourable in twelve months**, so
+the answer has to be settled BEFORE any schema lands. Do not pick it by default.
+The options, none obviously right: grant the mobile OG a Stripe-side comp that
+requires them to move to web billing; issue RevenueCat promotional entitlements
+(time-limited, need renewing, so someone must own that in a year); or restrict the
+OG offer to Stripe signups and say so up front, which is honest but caps the
+programme at desktop users.
+
+SPLIT INTO FOUR, because they estimate very differently and only one is blocked:
+ B1. OG achievement + the first-100 counter (needs "organic" DEFINED — it is doing
+     real work in that sentence and currently means nothing queryable).
+ B2. The year-free entitlement — BLOCKED on the fork above. Money path.
+ B3. Revenue tracking surfaced on Conductor — cross-desk, RevenueCat + Stripe.
+ B4. Social-follow achievement (Instagram, TikTok) — ⚠️ NOT VERIFIABLE. Neither
+     platform exposes "does user X follow account Y" to a third party. So this can
+     only ever be self-attested or link-click-attested; say which, visibly, rather
+     than shipping an achievement that silently trusts a tap.
+
+Relates to the existing streak/achievements items already in the queue below —
+these should be ONE achievements system, not two.
+
 ## Resume queue
 
 1. [x] The five-month payoff swing is NOT a defect, and `aadf3ae2` did already
@@ -685,25 +752,31 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 19:25 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 05:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
+- **vs upstream:** 1 ahead, 0 behind  <- UNPUSHED
 
-- **Working tree:** clean
+- **Uncommitted (3 file(s)):**
+
+```
+M supabase/.temp/cli-latest
+?? deno.lock
+?? pj.js
+```
 
 - **Recent commits:**
 
 ```
-d87a5aad docs(handoff): items 14-16 are two fixes, not one, and the read that proves it
-fa18d82a docs(handoff): the debug-console gate is closed, and the RED is on the record
-871e1136 feat(security): the debug console can never reach production, and the gate has been seen to fail
-950a9c7c docs(handoff): the debug-console security gate, logged unstarted at the top of the queue
-31746ac8 docs(handoff): the answers-page formula is settled, and 36 was right all along
-f86b494a docs(handoff): notifications three slices deep, and the answers-page formula settled
-7e6d684a fix(answers): the method paragraph now describes the arithmetic that made the table
-7bdecf1e feat(settings): the one place notifications can be switched off
+fbdd71cf docs(handoff): web works and mobile does not, which is the diagnosis confirming itself
+c5ca9a5f docs(handoff): the Plaid whitelist was never empty, and the URI to use is already there
+9df231c6 docs(handoff): Plaid now fails on OUR 422, which narrows it to an empty env value
+eb77c0cf docs: questions go to chat, not a board that was switched off
+759aaac7 docs(handoff): the grace period is fixed, and the cause was not where I had it
+c85a8565 fix(cash): a bill that has not cleared stays reserved for the settlement window
+cf81885c docs(handoff): Plaid root cause found, fix deployed v46, one tap away
+8546eae0 fix(plaid): hosted link needs BOTH redirect URIs, and the old comment said otherwise
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
