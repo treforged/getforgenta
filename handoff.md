@@ -45,6 +45,42 @@ by this desk.
 
 ---
 
+## ⚠️ PLAID NATIVE LINK — ROOT CAUSE FOUND AND FIX DEPLOYED, awaiting ONE tap
+
+Tre, 2026-09-02, from the device — the first real error text this bug has produced:
+`"redirect_uri and hosted_link.completion_redirect_uri must be set when
+hosted_link.is_mobile_app is set to true"`
+
+CAUSE: a comment in `plaid-create-link-token` that was confidently wrong. It said
+"the app's redirect_uri does not apply and passing both is rejected", so the hosted
+branch deliberately OMITTED `redirect_uri`. Plaid requires both, together. Every
+native tap since `bc16b4fc` was rejected before a token was ever created — which is
+exactly why `oauth_states` has never held a row and `rate_limits` showed taps with
+no exchange after them. Fixed in `8546eae0`.
+
+DEPLOYED 2026-09-02: **version 46, `verify_jwt: false` PRESERVED** (verified via
+`list_edge_functions`, not assumed). Deployed with the **Supabase CLI**, not the MCP
+— `supabase/config.toml` warns in its own header that the MCP/dashboard path ignores
+that file and defaults `verify_jwt` to true, which would have rejected every caller.
+
+⚠️ **AN EARLIER GUESS OF MINE WAS WRONG, do not repeat it.** I inferred from a blank
+`.env.example` and an absent `.env.local` that `VITE_PLAID_OAUTH_REDIRECT_URI` was
+unset in production. **It is set** — confirmed in the Vercel dashboard, scoped
+"Production and Preview", added Apr 28, and marked SENSITIVE so its value cannot be
+read back in the UI. So the client was very likely sending `redirect_uri` all along
+and the function was discarding it. That makes the code fix plausibly the WHOLE fix.
+
+NEXT CONCRETE STEP, and it is one tap: Tre opens the app and taps Connect Bank once,
+then read `function_edge_logs` for `plaid-create-link-token` **within 24 HOURS**
+(measured retention; the 08-29 evidence expired unrecoverably before anyone looked).
+- Works -> done, close this out.
+- New error naming the redirect URI -> the URI is not whitelisted in the Plaid
+  dashboard (Team Settings > API > Allowed redirect URIs). ONLY THEN does he need to
+  log in to Plaid; the value is sensitive in Vercel so it must be read from there or
+  from him, never guessed.
+- Our own 422 `hosted_link_requires_redirect_uri` -> the env var is not reaching the
+  native build, which is a build/config problem rather than a Plaid one.
+
 ## ⚠️ NEXT UP — the "grace period" for a bill that has not cleared (DIAGNOSED, NO CODE YET)
 
 Tre, 2026-09-02: *"my rent hasnt been taken out of my account yet, there should be
