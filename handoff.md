@@ -85,12 +85,27 @@ is already written; it is wired at only 4 of 10 call sites:
 `covered + unmatched` and re-reserve a minimum already paid. **Read the comment at
 `pay-schedule.ts:876-892` before touching that one.** Do not "fix" it blindly.
 
-BEFORE PROPOSING A WINDOW, note the second defect found alongside it: **the rule
-amount is stale.** $1,915 against ~$2,079-2,118 actual for seven straight months —
-so during the days before it clears the app reserves ~$170 LESS than the debit that
-is coming. The app already detects this and offers "Update Rent to $2,093" on the
-Plan tab; he has not accepted it. That understatement is present every month, not
-just at the edge, and is arguably the bigger number.
+~~SECOND DEFECT: the rule amount is stale~~ — **I READ THAT WRONG AND HE CORRECTED
+IT.** Tre, 2026-09-02: *"internet, smart home, and water are all included in my rent
+bill at once. thats why advised we should just combine it. then that recommendation
+would be more accurate."* The $170 "gap" was never drift; it was ONE bank debit being
+modelled as FOUR rules. RESOLVED 2026-09-02:
+  Rent 1915 + Internet 85 + Smart Home 40 + Water/Sewer/Trash 30 = **$2,070**
+  Invitationhomes actual: 2049.95 / 2104.08 / 2082.82 / 2079.48 / 2082.82 / 2117.82 /
+  2079.48 — mean **$2,085**. A $15 gap, not $170.
+Verified no separate internet/water/smart-home merchant exists in
+`synced_transactions`; the only utility merchant is **Duke Energy** ($112-$198),
+which is the Electricity rule and is correctly left alone.
+DONE, and reversibly: rule `c8bd61fa` renamed to "Rent (incl. internet, smart home,
+water)" at $2,070; rules `ffa2fcfb` (Internet), `43dfee9c` (Smart Home), `5aa20b02`
+(Water/Sewer/Trash) set **active = false, NOT deleted**, each carrying a note saying
+how to reverse. Arithmetically neutral by design: the cash floor is **still $2,390**,
+and the floor list went from five lines to two.
+The drift recommendation correctly STOPPED firing, and that is the right outcome, not
+a broken matcher: `MIN_DRIFT_PCT = 0.05`, and $15 on $2,070 is 0.7%, where $170 on
+$1,915 was 8.9%. Exactly what he predicted would happen.
+⚠️ **`bf267b29` "Rent (new place)" $1,480 from 2027-07-01 is NOT combined** — utilities
+may not be bundled at the new place, and that is his call, not an inference.
 
 Next concrete step: confirm whether `hasTxnCoverage` is computed from
 `synced_transactions` (where rent actually is) or from `transactions` (where it is
