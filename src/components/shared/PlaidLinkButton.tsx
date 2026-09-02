@@ -179,6 +179,14 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         hosted: true,
+        // ⚠️ REQUIRED, AND ITS ABSENCE IS WHY EVERY NATIVE TAP FAILED. Plaid rejects a
+        // hosted link token unless `redirect_uri` is sent ALONGSIDE
+        // `hosted_link.completion_redirect_uri` - "must be set when
+        // hosted_link.is_mobile_app is set to true". The web call site below has always
+        // sent it; this one never did, so no amount of setting the env var could fix it.
+        // The value is whitelisted in the Plaid dashboard under Allowed redirect URIs and
+        // must match there character-for-character.
+        ...(OAUTH_REDIRECT_URI ? { redirect_uri: OAUTH_REDIRECT_URI } : {}),
         ...(relinkItemId ? { plaid_item_id: relinkItemId } : {}),
       }),
     });
