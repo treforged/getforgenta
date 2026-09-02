@@ -81,7 +81,7 @@ then read `function_edge_logs` for `plaid-create-link-token` **within 24 HOURS**
 - Our own 422 `hosted_link_requires_redirect_uri` -> the env var is not reaching the
   native build, which is a build/config problem rather than a Plaid one.
 
-## ⚠️ NEXT UP — the "grace period" for a bill that has not cleared (DIAGNOSED, NO CODE YET)
+## ✅ CLOSED — the "grace period" for a bill that has not cleared (`c85a8565`)
 
 Tre, 2026-09-02: *"my rent hasnt been taken out of my account yet, there should be
 a grace period. when this type of issue occurs, it can throw off other
@@ -157,8 +157,27 @@ Sep 1 against a Sep 1 cutoff: `Sep-01 < Aug-29` is false, so it is correctly sti
 reserved. It flips on **Sep 5** — from then on the app assumes a rent that has not
 cleared was paid. His seven-month history clears on the 2nd-4th, so the normal month
 never reaches the cliff; a single late month does.
-NEXT CONCRETE STEP: build expense-rule evidence the way `carChargeEvidence` is built,
-and pass it at the recurring-expense gates. ⚠️ Do NOT sweep all six unwired sites —
+**FIXED `c85a8565`, AND THE CAUSE WAS NOT WHERE THIS SECTION SAID.** The
+`isCapturedInBalance` wiring gap below is real but was NOT what he hit. The
+`getRemainingTransaction*` helpers in `pay-schedule.ts` asked a bare
+`t.date > cutoffDate`, dropping a projected bill the instant Plaid's sync date
+passed its due date — on the DATE ALONE, no settlement lag, no evidence. So from
+the 2nd of every month his rent vanished from remaining expenses while $2,070 was
+still in the account. New `isDebitStillOutstanding` in `sync-cutoff.ts` applies the
+same `SETTLEMENT_LAG_DAYS` the rest of the app already honours.
+⚠️ TWO TRAPS, both caught only because tests were written first:
+ - DEBITS ONLY. Seven call sites share that comparison and THREE ARE INCOME
+   (`getRemainingTransactionIncomeByDay`, `...IncomeItemsByDay`,
+   `...IncomeThisMonth`). Extending the lag to income double-counts a paycheck. A
+   test pins them unchanged.
+ - THE BOUNDARY. Written as its own comparison it shipped as `>` where
+   `isCapturedInBalance` uses `<`, disagreeing by one day. It is now literally
+   `!isCapturedInBalance(...)` so one operator decides both.
+6 tests asserting NUMBERS. Suite 3210 -> 3216 with nothing else moving — no test
+covered the 0-3 day post-cutoff window, which is how it survived.
+
+STILL OPEN (lower value, and NOT what he reported): build expense-rule evidence the
+way `carChargeEvidence` is built, and pass it at the recurring-expense gates. ⚠️ Do NOT sweep all six unwired sites —
 `pay-schedule.ts:897` (card minimums) is deliberately excluded and the reasoning is
 at `pay-schedule.ts:876-892`.
 ⚠️ MONEY PATH: adversarial verification, and a test asserting a NUMBER — specifically
