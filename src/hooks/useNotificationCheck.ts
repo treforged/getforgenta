@@ -10,8 +10,8 @@ import type { NotificationSignals } from '@/lib/notification-policy';
  * all of it was inert. This is deliberately the thinnest possible layer: it assembles signals from
  * data the dashboard already has and hands them over. No judgement lives here.
  *
- * ONCE PER MOUNT, not per render and not on a timer. The policy's own gates (quiet hours, three a
- * week, twenty hours apart) decide whether anything is actually sent, so a user who opens the
+ * ONCE PER MOUNT, not per render and not on a timer. The policy's own gates (quiet hours, five a
+ * week, sixteen hours apart, and a per-kind share of the week) decide whether anything is actually sent, so a user who opens the
  * dashboard six times in a morning is silent after the first. A timer here would duplicate a
  * decision the policy already owns.
  */
@@ -33,6 +33,14 @@ export interface NotificationCheckInputs {
   monthEndCash: number | null;
   /** `plaid_items.last_synced_at` for the funding account, ISO, or null when never synced. */
   lastAccountSyncAt: string | null;
+  /**
+   * Learn state, from `useLearnProgress`. Absent (null / 0 / false) is a real answer here: it
+   * means there is no lesson to offer and no streak to lose, and the policy treats it as "those
+   * candidates do not apply" rather than sending a generic nudge.
+   */
+  nextLesson: { id: string; title: string; minutes: number } | null;
+  learnStreak: number;
+  learnedToday: boolean;
   /** False in demo, partner view, or while the figures are still loading. */
   enabled: boolean;
 }
@@ -75,6 +83,9 @@ export function buildNotificationSignals(
     lastAccountSyncAt: inputs.lastAccountSyncAt,
     netWorth: inputs.netWorth,
     monthEndCash: inputs.monthEndCash,
+    nextLesson: inputs.nextLesson,
+    learnStreak: inputs.learnStreak,
+    learnedToday: inputs.learnedToday,
   };
 }
 

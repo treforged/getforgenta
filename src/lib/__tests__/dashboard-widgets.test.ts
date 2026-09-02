@@ -115,6 +115,10 @@ describe('mergeSavedLayout', () => {
   it('puts a new widget at the front when it has no earlier neighbour in the saved layout', () => {
     const merged = ids(mergeSavedLayout([cfg('debt_recommendations')]));
     expect(merged[0]).toBe('monthly_snapshot');
-    expect(merged[merged.length - 1]).toBe('debt_recommendations');
+    // The saved widget keeps its place relative to the defaults: everything that precedes it in
+    // DEFAULT_LAYOUT lands before it, and everything that follows it lands after. `learn` was
+    // added after it on 2026-09-02, so it is the tail now.
+    expect(merged[merged.length - 1]).toBe('learn');
+    expect(merged[merged.length - 2]).toBe('debt_recommendations');
   });
 });

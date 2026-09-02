@@ -8,7 +8,8 @@ export type WidgetId =
   | 'transactions_spending'
   | 'goal_progress'
   | 'advanced_analytics'
-  | 'debt_recommendations';
+  | 'debt_recommendations'
+  | 'learn';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -80,6 +81,13 @@ export const WIDGET_META: WidgetMeta[] = [
     id: 'debt_recommendations',
     label: 'Debt Recommendations',
     description: 'Recommended debt payments this month — safe to pay, minimums, and per-card breakdown',
+  },
+  {
+    // Added 2026-09-02. Last in the default order on purpose: it is the only card that is not
+    // about this user's own money, so it must never sit above the ones that are.
+    id: 'learn',
+    label: 'Learn',
+    description: 'Short financial lessons with an achievement for each one you finish, and a streak for reading consistently',
   },
 ];
 

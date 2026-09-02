@@ -1,66 +1,135 @@
 import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { isEnabled, setEnabled } from '@/lib/notification-service';
+import { toast } from 'sonner';
+import { loadPrefs, savePrefs, NOTIFICATION_CATEGORIES } from '@/lib/notification-prefs';
+import type { NotificationPrefs, NotificationCategory } from '@/lib/notification-prefs';
 
 /**
  * The one place notifications can be switched off.
  *
- * RENDERS NOTHING ON THE WEB, deliberately. Local notifications do not exist in the browser
- * build, so a toggle there would be a control that does nothing - worse than no control, because
- * a user who turns it ON would reasonably expect to start hearing from us.
+ * IT USED TO RENDER NOTHING ON THE WEB. The reasoning was that local notifications do not exist
+ * in a browser, so a toggle there would be a control that does nothing. What that actually
+ * produced was an app with NO off switch anywhere a browser user could reach — and the preference
+ * was stored per-device, so it did not follow the account either.
  *
- * Applies IMMEDIATELY with no Save button, following the Appearance precedent on the same screen:
- * this is a device-level preference rather than part of the profile the Save button writes, and
- * folding it into `dirty` would mean a user could switch notifications off, navigate away, and
- * have them silently stay on.
+ * The switch is now an ACCOUNT preference (`profiles.notification_prefs`), which makes it real in
+ * a browser: it is the value every device and every future server-side sender reads. The web copy
+ * says plainly where the alerts are delivered, rather than implying the browser will buzz.
  *
- * There is no permission prompt here either. Permission is asked at the first moment there is
- * something real to send (see notification-service.ts) - not from a settings screen, where it
- * would buy the user nothing and can only be answered once.
+ * Applies IMMEDIATELY with no Save button, following the Appearance precedent on the same screen.
+ * Unlike before, a failed write is SHOWN and the switch goes back: a toggle that flips on screen
+ * while the write fails leaves a user believing they are muted, and they are not.
+ *
+ * There is still no permission prompt here. Permission is asked at the first moment there is
+ * something real to send (see notification-service.ts).
  */
 export default function NotificationSettings() {
-  const [on, setOn] = useState<boolean | null>(null);
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void isEnabled().then(value => {
-      if (!cancelled) setOn(value);
+    void loadPrefs().then(value => {
+      if (!cancelled) setPrefs(value);
     });
     return () => { cancelled = true; };
   }, []);
 
-  if (!Capacitor.isNativePlatform()) return null;
   // Until the stored value has been read there is no honest state to draw. Rendering a default
   // would flip under the user the moment the real value arrived.
-  if (on === null) return null;
+  if (prefs === null) return null;
 
-  const toggle = () => {
-    const next = !on;
-    setOn(next);
-    void setEnabled(next);
+  const commit = async (next: NotificationPrefs) => {
+    const previous = prefs;
+    setPrefs(next);
+    setSaving(true);
+    const ok = await savePrefs(next);
+    setSaving(false);
+    if (!ok) {
+      setPrefs(previous);
+      toast.error('Could not save that. Your notification settings are unchanged.');
+    }
   };
+
+  const toggleMaster = () => { void commit({ ...prefs, enabled: !prefs.enabled }); };
+
+  const toggleCategory = (key: NotificationCategory) => {
+    void commit({
+      ...prefs,
+      categories: { ...prefs.categories, [key]: prefs.categories[key] === false },
+    });
+  };
+
+  const isNative = Capacitor.isNativePlatform();
 
   return (
     <div className="card-forged p-5 space-y-4">
       <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notifications</h2>
+
       <div className="flex items-center justify-between">
         <div className="min-w-0 pr-3">
           <span className="text-xs">Alerts about your money</span>
           <p className="text-[10px] text-muted-foreground mt-1">
-            A bill you cannot cover, a month projected below your cash floor, a milestone, or a
-            Sunday summary. At most three a week, never between 9pm and 8am.
+            A bill you cannot cover, a month projected below your cash floor, a milestone, a
+            lesson, or a Sunday recap. At most five a week, one a day, never between 9pm and 8am.
           </p>
+          {!isNative && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Delivered on the Forgenta mobile app. This setting applies to every device on your
+              account.
+            </p>
+          )}
         </div>
-        <button
-          onClick={toggle}
-          role="switch"
-          aria-checked={on}
-          aria-label="Alerts about your money"
-          className={`shrink-0 w-8 h-4 rounded-full transition-colors ${on ? 'bg-primary' : 'bg-secondary'} relative`}
-        >
-          <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
-        </button>
+        <Switch
+          checked={prefs.enabled}
+          onPress={toggleMaster}
+          disabled={saving}
+          label="Alerts about your money"
+        />
+      </div>
+
+      {/*
+        Per-category opt-outs. They exist because a single master switch forces an all-or-nothing
+        choice, and the user who would have muted only the weekly recap mutes everything instead —
+        including the bill warning that was the reason to install the app.
+      */}
+      <div className={`space-y-3 pt-1 ${prefs.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+        {NOTIFICATION_CATEGORIES.map(category => (
+          <div key={category.key} className="flex items-center justify-between">
+            <div className="min-w-0 pr-3">
+              <span className="text-[11px]">{category.label}</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{category.description}</p>
+            </div>
+            <Switch
+              checked={prefs.categories[category.key] !== false}
+              onPress={() => toggleCategory(category.key)}
+              disabled={saving || !prefs.enabled}
+              label={category.label}
+            />
+          </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+/** The switch itself, extracted only so the master and the seven categories cannot drift apart. */
+function Switch({ checked, onPress, disabled, label }: {
+  checked: boolean;
+  onPress: () => void;
+  disabled: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onPress}
+      disabled={disabled}
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={`shrink-0 w-8 h-4 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-secondary'} relative disabled:opacity-60`}
+    >
+      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+    </button>
   );
 }

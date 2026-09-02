@@ -944,6 +944,30 @@ export type Database = {
         }
         Relationships: []
       }
+      learn_progress: {
+        Row: {
+          created_at: string
+          id: string
+          lesson_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lesson_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leaderboard_shares: {
         Row: {
           created_at: string
@@ -1343,6 +1367,7 @@ export type Database = {
           is_premium: boolean | null
           last_401k_update: string | null
           monthly_income_default: number | null
+          notification_prefs: Json | null
           onboarding_completed: boolean | null
           onboarding_step: number | null
           paycheck_day: number | null
@@ -1395,6 +1420,7 @@ export type Database = {
           is_premium?: boolean | null
           last_401k_update?: string | null
           monthly_income_default?: number | null
+          notification_prefs?: Json | null
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
           paycheck_day?: number | null
@@ -1447,6 +1473,7 @@ export type Database = {
           is_premium?: boolean | null
           last_401k_update?: string | null
           monthly_income_default?: number | null
+          notification_prefs?: Json | null
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
           paycheck_day?: number | null

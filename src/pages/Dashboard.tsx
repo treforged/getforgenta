@@ -70,6 +70,8 @@ import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
+import LearnCard from '@/components/dashboard/LearnCard';
+import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
@@ -759,6 +761,10 @@ export default function Dashboard() {
     return plaidItems.find(pi => pi.plaid_item_id === acct.plaid_item_id)?.last_synced_at ?? null;
   }, [fundingAccountId, accounts, plaidItems]);
 
+  // Learn signals for the two engagement notifications. Read from the same hook the Learn card
+  // uses, so the notification can never offer a lesson the card says is already finished.
+  const learnProgress = useLearnProgress();
+
   useNotificationCheck({
     monthMinSafe: forecastFloor0.monthMinSafe,
     floorItems: forecastFloor0.floorItems,
@@ -768,7 +774,14 @@ export default function Dashboard() {
     netWorth: accountSummary.netWorth,
     monthEndCash,
     lastAccountSyncAt: lastFundingSyncAt,
-    enabled: !isDemo && !essentialLoading,
+    nextLesson: learnProgress.next
+      ? { id: learnProgress.next.id, title: learnProgress.next.title, minutes: learnProgress.next.minutes }
+      : null,
+    learnStreak: learnProgress.streak,
+    learnedToday: learnProgress.readToday,
+    // Also waits on the Learn rows: firing before they land would offer lesson one to someone who
+    // has read eight, which is worse than staying quiet for a second.
+    enabled: !isDemo && !essentialLoading && !learnProgress.loading,
   });
 
   const categoryData = useMemo(
@@ -1410,6 +1423,12 @@ export default function Dashboard() {
             debtBreakdown={debtBreakdown}
           />
         );
+
+      // Learn: financial lessons + one achievement each. It reads and writes only
+      // `learn_progress`, so it needs nothing from this page's figures — which is also why it is
+      // safe to render for an account whose money data is still loading.
+      case 'learn':
+        return <LearnCard key="learn" />;
 
       default:
         return null;

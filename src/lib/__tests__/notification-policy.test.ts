@@ -28,6 +28,9 @@ const signals = (over: Partial<NotificationSignals> = {}): NotificationSignals =
   lastAccountSyncAt: '2026-09-02T06:00:00',
   netWorth: null,
   monthEndCash: null,
+  nextLesson: null,
+  learnStreak: 0,
+  learnedToday: false,
   ...over,
 });
 

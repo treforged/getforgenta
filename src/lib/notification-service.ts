@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { decideNotification } from '@/lib/notification-policy';
+import { loadPrefs, savePrefs } from '@/lib/notification-prefs';
 import type {
   NotificationDecision, NotificationRecord, NotificationSignals,
 } from '@/lib/notification-policy';
@@ -21,7 +22,7 @@ export async function getHistory(): Promise<NotificationRecord[]> {
       typeof item.key === 'string' &&
       typeof item.sentAt === 'string' &&
       typeof item.kind === 'string' &&
-      ['bill_due', 'floor_risk', 'milestone', 'weekly_checkin', 'stale_accounts'].includes(item.kind)
+      ['bill_due', 'floor_risk', 'milestone', 'weekly_checkin', 'stale_accounts', 'learn_lesson', 'streak_risk'].includes(item.kind)
     );
   } catch {
     return [];
@@ -37,7 +38,17 @@ export async function recordSent(record: NotificationRecord): Promise<void> {
   } catch { /* never block the app */ }
 }
 
+/**
+ * The master switch, kept as a thin read over `notification-prefs.ts`.
+ *
+ * The account row is the source of truth now (see that file for why a device-local switch was
+ * unreadable by anything that sends). `ENABLED_KEY` is still honoured on the way IN so that a
+ * user who switched notifications off on this device before the change stays off: the old value
+ * is a real answer they gave, and losing it would start notifying someone who had said no.
+ */
 export async function isEnabled(): Promise<boolean> {
+  const prefs = await loadPrefs();
+  if (!prefs.enabled) return false;
   try {
     const { Preferences } = await import('@capacitor/preferences');
     const { value } = await Preferences.get({ key: ENABLED_KEY });
@@ -48,8 +59,12 @@ export async function isEnabled(): Promise<boolean> {
 }
 
 export async function setEnabled(enabled: boolean): Promise<void> {
+  const prefs = await loadPrefs();
+  await savePrefs({ ...prefs, enabled });
   try {
     const { Preferences } = await import('@capacitor/preferences');
+    // Kept in step so the legacy key can never disagree with the account and re-mute a user
+    // who has just turned notifications back on.
     await Preferences.set({ key: ENABLED_KEY, value: enabled ? 'true' : 'false' });
   } catch { /* never block the app */ }
 }
@@ -74,8 +89,11 @@ export async function runNotificationCheck(signals: NotificationSignals): Promis
   if (!Capacitor.isNativePlatform()) return null;
   try {
     if (!(await isEnabled())) return null;
+    // The per-category opt-outs travel with the decision rather than being checked afterwards:
+    // a candidate the user silenced must FALL THROUGH to the next one, not silence the week.
+    const prefs = await loadPrefs();
     const history = await getHistory();
-    const decision = decideNotification(signals, history);
+    const decision = decideNotification(signals, history, prefs);
     if (!decision) return null;
     // PERMISSION IS ASKED HERE, AND NOWHERE ELSE. Not at launch, not at sign-up: at the first
     // moment there is a real, specific thing to tell this user. Prompting before showing the

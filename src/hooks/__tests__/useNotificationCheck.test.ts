@@ -26,6 +26,9 @@ const inputs = (over: Partial<NotificationCheckInputs> = {}): NotificationCheckI
   monthEndCash: 2393,
   lastAccountSyncAt: '2026-09-02T09:00:00Z',
   enabled: true,
+  nextLesson: null,
+  learnStreak: 0,
+  learnedToday: false,
   ...over,
 });
 
