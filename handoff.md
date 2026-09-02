@@ -10,6 +10,67 @@
 
 ---
 
+## WHERE I AM RIGHT NOW — written 2026-09-02 ~11:45 ET, mid-session
+
+**Nothing is half-built.** Tree clean apart from `handoff.md`,
+`supabase/.temp/cli-latest` and `deno.lock` (the last two are build artefacts, not
+mine); `origin/main` 0/0. A cold session loses no work by starting here.
+
+### THE ONE THING WAITING ON A HUMAN
+`bb421023` — automatic duplicate-account deletion — is **committed and pushed but
+DELIBERATELY NOT DEPLOYED**. It changes `plaid-exchange-token`, which is live, and
+it introduces a `DELETE` on the `accounts` table. Tre asked for it ("the
+duplicates need to actually be deleted automatically") and I asked for an explicit
+go before deploying, because the blast radius is his real financial rows.
+**Deploy command when he says yes** (CLI, NOT the MCP — `config.toml` warns the
+MCP path ignores it and defaults `verify_jwt` to true, which would reject every
+caller):
+```
+npx supabase functions deploy plaid-exchange-token --project-ref mdtosrbfkextcaezuclh
+```
+Then verify with `list_edge_functions` that the version bumped and `verify_jwt`
+is still **true** for this one (it is not in the config's false-list — check, do
+not assume) — and watch the next re-link's logs for the
+`Retired N account(s): deleted X, kept Y` line.
+
+### DECISIONS THIS SESSION THE CODE DOES NOT EXPLAIN
+- **Delete-vs-hide is a split, not timidity.** A superseded account nothing
+  references is deleted; one a goal/rule/transaction/car-fund points at is only
+  deactivated. His superseded Robinhood row had a **$100k goal** on it and the
+  card it replaced had a **$230/mo rule**. Auto-RE-POINTING is refused outright:
+  Robinhood returns two accounts both named "Robinhood individual" and a previous
+  session guessed backwards. Do not "improve" this into a full auto-merge.
+- **A failed reference lookup counts as REFERENCED.** An empty query result and a
+  failed query are indistinguishable unless you check, and treating the latter as
+  "nothing references this" deletes real rows. It degrades to deactivate-only.
+- **The Robinhood merge on his live data was manual and is DONE** — labels
+  restored, goal + rule repointed, card metadata carried over, 4 rows inactive and
+  named "(replaced)". Retired total $2,054.85, matching the predicted double-count
+  exactly. Do not re-run it.
+- **Account list grouping changed reorder semantics on purpose**: ↑/↓ now move a
+  row within its PROVIDER, not the whole page.
+
+### BLOCKED / WAITING
+- **Dedupe deploy** — waiting on Tre's yes (above).
+- **Debug-console preview deploy** — approved via two peer relays but never by him
+  directly TO THIS DESK; it creates a URL carrying his live Supabase JWT, so I have
+  held it. One word from him unblocks it.
+- **Notifications** — policy + service + toggle + caller all shipped, but **nobody
+  has seen one on a device**. Needs Android emulator or his phone. His chosen
+  trigger ("first plaid link completing") can now actually fire since linking works.
+- **Android build** — last failure was Google Play returning "The service is
+  currently unavailable" at Commit-the-Edit, AFTER a successful upload. Not our
+  code. My re-run was cancelled by later pushes; the newest commit's run supersedes
+  it. versionCode is run-number-derived so there is no collision to fear.
+
+### METHOD LESSON FROM TODAY, worth more than any single fix
+`getforgenta.com` serves a **Vercel Security Checkpoint** to `curl`. I scanned the
+production bundle three times, found nothing, and reported three wrong causes as
+fact. The same search from inside the browser found it immediately.
+**A negative result from a tool that can be silently intercepted is not a result.**
+
+---
+
 ## CLOSED — the debug-console security gate, and it was seen to fail
 
 `871e1136`, on origin/main, verified by contents. Tre asked for exposure to be
@@ -798,31 +859,31 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 05:16 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 11:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 1 ahead, 0 behind  <- UNPUSHED
+- **vs upstream:** 0 ahead, 0 behind
 
 - **Uncommitted (3 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M handoff.md
+ M supabase/.temp/cli-latest
 ?? deno.lock
-?? pj.js
 ```
 
 - **Recent commits:**
 
 ```
-fbdd71cf docs(handoff): web works and mobile does not, which is the diagnosis confirming itself
-c5ca9a5f docs(handoff): the Plaid whitelist was never empty, and the URI to use is already there
-9df231c6 docs(handoff): Plaid now fails on OUR 422, which narrows it to an empty env value
-eb77c0cf docs: questions go to chat, not a board that was switched off
-759aaac7 docs(handoff): the grace period is fixed, and the cause was not where I had it
-c85a8565 fix(cash): a bill that has not cleared stays reserved for the settlement window
-cf81885c docs(handoff): Plaid root cause found, fix deployed v46, one tap away
-8546eae0 fix(plaid): hosted link needs BOTH redirect URIs, and the old comment said otherwise
+bb421023 fix(plaid): duplicate accounts are removed automatically on re-link
+5f3284ce fix(reminder): the monthly notice names the accounts that actually need updating
+04d96f3b feat(accounts): group the balances list by provider
+d478eaac docs(handoff): Plaid is fixed and confirmed, and the Robinhood duplication is merged
+c0a39778 fix(accounts): account names wrap instead of truncating on a phone
+83fb1796 test(friends): freeze the clock, because this test was a time bomb that went off today
+ca3f88fc fix(plaid): the hosted call site never sent redirect_uri, and that was the whole bug
+34c9cb3b docs(handoff): the review trigger is the first Plaid link, and this push rebuilds production
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
