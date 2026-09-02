@@ -45,6 +45,59 @@ by this desk.
 
 ---
 
+## ⚠️ NEXT UP — the "grace period" for a bill that has not cleared (DIAGNOSED, NO CODE YET)
+
+Tre, 2026-09-02: *"my rent hasnt been taken out of my account yet, there should be
+a grace period. when this type of issue occurs, it can throw off other
+calculations for days."*
+
+**A grace period ALREADY EXISTS, and it is better than a fixed window. Do not
+build a second one.** `src/lib/sync-cutoff.ts`:
+
+```
+isCapturedInBalance(dueDate, balanceAsOf, evidence?)
+  evidence.matched        -> captured   (a settled txn matched it)
+  evidence.hasTxnCoverage -> NOT captured  ("genuinely has not hit, however old")
+  otherwise               -> dueDate < balanceAsOf - SETTLEMENT_LAG_DAYS   (= 3)
+```
+
+MEASURED against his real data rather than reasoned about:
+- Rent rule: **$1,915, due_day 1**, active, funding account CHASE CHECKING.
+- `transactions` holds **no rent row at all** for Aug or Sep. The real charges live
+  in **`synced_transactions`** as merchant `Invitationhomes`.
+- Actual clearing dates: Feb 2, Mar 2, Apr 2, May 4, Jun 2, Jul 2, **Aug 3**. It is
+  due on the 1st and clears on the **2nd-4th, never the 1st**. No September row yet
+  (correct — it is due today).
+
+SO THE STATE HE IS DESCRIBING IS THE CORRECT ONE, and the 3-day lag covers the
+normal case. The exposure is the EDGE, and it is real: a clear on the 5th or later
+is past `due + 3`, at which point the date heuristic **silently flips to "assume
+paid"** — the charge stops being reserved, projected cash rises, and it stays wrong
+until the debit lands. That is exactly "throws off other calculations for days".
+
+**THE FIX IS WIRING, NOT INVENTION.** The `evidence` path answers this correctly and
+is already written; it is wired at only 4 of 10 call sites:
+- WIRED: `forecast-engine.ts:723,784`, `useCardProjection.ts:679,1564`
+- NOT: `credit-card-engine.ts:380`, `pay-schedule.ts:897`, `payment-plan-generator.ts:236`,
+  `useCardProjection.ts:620,622,2302`
+⚠️ Some omissions are DELIBERATE and documented in place — `pay-schedule.ts:897`'s
+`dueSynced` is applied only to CREDIT-CARD minimums, where evidence would report
+`covered + unmatched` and re-reserve a minimum already paid. **Read the comment at
+`pay-schedule.ts:876-892` before touching that one.** Do not "fix" it blindly.
+
+BEFORE PROPOSING A WINDOW, note the second defect found alongside it: **the rule
+amount is stale.** $1,915 against ~$2,079-2,118 actual for seven straight months —
+so during the days before it clears the app reserves ~$170 LESS than the debit that
+is coming. The app already detects this and offers "Update Rent to $2,093" on the
+Plan tab; he has not accepted it. That understatement is present every month, not
+just at the edge, and is arguably the bigger number.
+
+Next concrete step: confirm whether `hasTxnCoverage` is computed from
+`synced_transactions` (where rent actually is) or from `transactions` (where it is
+not) — if the latter, coverage is false for rent and it always falls to the date
+heuristic. That single fact decides whether this is a wiring job or a matcher job.
+⚠️ MONEY PATH: adversarial verification, and a test asserting a NUMBER.
+
 ## Resume queue
 
 1. [x] The five-month payoff swing is NOT a defect, and `aadf3ae2` did already
