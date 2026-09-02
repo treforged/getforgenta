@@ -197,6 +197,29 @@ gaps in shipped surfaces, which outrank a design refactor.
     `top.length` so each category keeps its colour. Verified by PRESSING it on
     /dashboard: card 502px -> 601px, revealing Travel, Gas and Dining, and
     collapsing again.
+⚠️ **CORRECTION TO THE READ BELOW, measured against his live data 2026-09-02.**
+The read named `lump_sum_transfers` as the table and "query the hook" as the cheap
+fix. **He has ZERO rows in that table.** What he actually has is two active
+`recurring_rules` with `rule_type = 'transfer'`, $330/mo total: "Owners
+Contribution" $130 (due day 29, starts 2026-09-29) and "HYS" $200 (does not start
+until **Nov 2027**, so it will not appear on any current surface). Those already
+reach Transactions through the rule generator, so nothing needed querying — and
+the transfer half of 15/16 was never a missing-query problem.
+THE ACTUAL DEFECT, now fixed in `0f92da5c`: transfers showed as EXPENSES. The row
+read "Owners Contribution · 2026-09-29 · Business · CHASE CHECKING", in red, with
+a briefcase icon — indistinguishable from $130 of business spending when it is
+$130 moving to another of his own accounts. `isTransfer` had been on the generated
+row all along but was consumed only by `MonthlyExpenseModel`; no UI read it, and
+the DESTINATION was dropped entirely by `rawSource`, which keeps one account per
+row. Added `transferDestination` + a `transfer` badge. Verified live: the row now
+reads `Owners Contribution · transfer · … · CHASE CHECKING → General Operations`.
+Three tests appended to `rule-transaction-stamp.test.ts`, the destination one
+verified RED when the field is dropped.
+**Still open from 14-16:** transfers on the HOMEPAGE (item 14, untouched), and the
+AUTO-EXTRA half, which remains blocked on the design call below — it is derived
+from the engine, not a row, so it means showing projections beside settled
+transactions.
+
 14. [ ] TRANSFERS must show on the HOMEPAGE too.
 15. [ ] Transfer RULES, and anything generated from a GOAL, must show in
     Transactions.
@@ -452,7 +475,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 02:05 by handoff_hook. Everything below this heading is
+_Written 2026-09-01 19:25 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -463,14 +486,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-7ced75fc docs(handoff): refresh the machine snapshot so it stops contradicting the tree
-268e1e66 docs(handoff): clear-ready — nothing mid-flight, queue reordered around what is left
-6343df2f docs(handoff): the wobble is closed, and Plaid is another session's
-aadf3ae2 test(convergence): the payoff wobble is not a defect, and here is the invariant that is
-f6740275 docs(handoff): a Resume queue, ordered, so the next session picks up mid-thread
-ab5c60aa style(accounts): the row actions move beside the meta line, not under it
-0bc51eef docs(handoff): a snapshot again, not a 1 MB log
-4dcd60fe style(density): 61px back above the fold, and the control rows finally agree
+d87a5aad docs(handoff): items 14-16 are two fixes, not one, and the read that proves it
+fa18d82a docs(handoff): the debug-console gate is closed, and the RED is on the record
+871e1136 feat(security): the debug console can never reach production, and the gate has been seen to fail
+950a9c7c docs(handoff): the debug-console security gate, logged unstarted at the top of the queue
+31746ac8 docs(handoff): the answers-page formula is settled, and 36 was right all along
+f86b494a docs(handoff): notifications three slices deep, and the answers-page formula settled
+7e6d684a fix(answers): the method paragraph now describes the arithmetic that made the table
+7bdecf1e feat(settings): the one place notifications can be switched off
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
