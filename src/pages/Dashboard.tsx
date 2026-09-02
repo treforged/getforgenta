@@ -72,6 +72,7 @@ import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendation
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
+import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
   X, Car, Shield, Check, FileDown, LayoutDashboard, Building2, PiggyBank, ChevronDown,
@@ -746,6 +747,29 @@ export default function Dashboard() {
   useNetWorthSnapshotRecorder();
 
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
+
+  // The caller that makes the notification feature exist: policy + service + toggle all shipped
+  // before anything invoked them, so all of it was inert. Signals come from figures this page
+  // already holds, and only the ones it can source TRUTHFULLY - see the hook for what is
+  // deliberately absent and why passing zeros there would invent warnings.
+  const lastFundingSyncAt = useMemo((): string | null => {
+    if (!fundingAccountId) return null;
+    const acct = accounts.find(a => a.id === fundingAccountId);
+    if (!acct?.plaid_item_id) return null;
+    return plaidItems.find(pi => pi.plaid_item_id === acct.plaid_item_id)?.last_synced_at ?? null;
+  }, [fundingAccountId, accounts, plaidItems]);
+
+  useNotificationCheck({
+    monthMinSafe: forecastFloor0.monthMinSafe,
+    floorItems: forecastFloor0.floorItems,
+    // `cashPreDebt` is the figure this page already compares against the floor (see the
+    // safe-to-spend line below); month-end cash answers a different question and must not stand in.
+    cashPreDebt: cardProjection?.month0 ? cardProjection.month0.chain.cashPreDebt : null,
+    netWorth: accountSummary.netWorth,
+    monthEndCash,
+    lastAccountSyncAt: lastFundingSyncAt,
+    enabled: !isDemo && !essentialLoading,
+  });
 
   const categoryData = useMemo(
     () => Object.entries(expenseBreakdown).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
