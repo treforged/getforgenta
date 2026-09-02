@@ -87,12 +87,22 @@ lazy chunk and two attempts to locate it by scraping chunk names from the entry
 returned nothing. That is an unfinished check, not a negative result — do not
 record it as "the bundle does not contain it".
 
-REMAINING WORK IS CONFIG AND IT NEEDS TRE'S PLAID LOGIN, in this order:
- 1. Plaid dashboard > Team Settings > API > Allowed redirect URIs: add an HTTPS
-    URI, e.g. `https://getforgenta.com/plaid-oauth`.
- 2. Vercel > getforgenta > Environment Variables: set
-    `VITE_PLAID_OAUTH_REDIRECT_URI` to that EXACT string (Production + Preview).
- 3. REDEPLOY production — Vite inlines env vars at BUILD time, so the value does
+⚠️ **CHECKED IN THE PLAID DASHBOARD 2026-09-02 — THE WHITELIST IS NOT EMPTY, and
+my earlier note that it was is WRONG.** A text scrape only caught Plaid's own
+example text (`https://*.example.com/oauth.html`); opening the editor shows TWO
+URIs already configured:
+    `https://app.treforged.com/oauth`
+    **`https://getforgenta.com/oauth`**  <- this is the one to use
+So NOTHING needs adding to Plaid. Do not add `/plaid-oauth`; it does not exist
+there and inventing a third entry is pointless. The editor was opened read-only,
+nothing was typed, and Cancel was confirmed to have restored it.
+
+REMAINING WORK IS TWO STEPS AND NEEDS NO PLAID CHANGE:
+ 1. Vercel > getforgenta > Environment Variables: set
+    `VITE_PLAID_OAUTH_REDIRECT_URI` to EXACTLY `https://getforgenta.com/oauth`
+    (Production + Preview). It exists as a key already and is marked sensitive,
+    so it must be EDITED, not added.
+ 2. REDEPLOY production — Vite inlines env vars at BUILD time, so the value does
     nothing until the site is rebuilt. The native app loads
     `https://getforgenta.com` per `capacitor.config.ts`, so no TestFlight build is
     needed; a web redeploy is enough.
