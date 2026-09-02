@@ -956,7 +956,15 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <p className="text-sm font-semibold truncate">{a.name}</p>
+                      {/* WRAPS, NOT TRUNCATES (Tre, 2026-09-02: "we need to fix the
+                          truncation"). The name is how you tell two accounts apart, and on a
+                          phone the Auto-sync badge and the balance are both shrink-0, so
+                          "Robinhood individual" arrived as "Robinhoo...". That is worst exactly
+                          when it matters most - he had TWO accounts named "Robinhood individual"
+                          and could not tell them apart on the screen that lists them.
+                          `line-clamp-2` costs nothing on a short name and only grows the row when
+                          the name genuinely needs a second line. */}
+                      <p className="text-sm font-semibold line-clamp-2 break-words">{a.name}</p>
                       {a.plaid_account_id && (
                         <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none shrink-0" style={{ borderRadius: 'var(--radius)' }}>
                           Auto-sync
@@ -976,7 +984,12 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       lines instead of three, the icons form a straight column
                       down the right edge, and nothing is lost. */}
                   <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs text-muted-foreground truncate mt-0.5 min-w-0">
+                  {/* Same reason, and worse here: four 44px action buttons sit shrink-0 on
+                      this line, so on a 390px phone the meta text had ~150px and rendered
+                      "Brokerage" as "Broke..." and "Credit card" as "Credit...". Clamped to two
+                      lines rather than moved, because moving the actions back to their own row
+                      would undo the density work from 2026-09-01. */}
+                  <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5 min-w-0">
                     {TYPE_LABELS[a.account_type] || a.account_type}
                     {a.institution ? ` · ${a.institution}` : ''}
                     {a.apr ? ` · ${a.apr}% APR` : ''}
