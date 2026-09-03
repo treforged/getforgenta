@@ -289,6 +289,44 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## DEMO FIXTURE IS MARKETING-CRITICAL — measured baseline 2026-09-03, and it is WEAK
+
+Tre elevated the demo fixture to a first-class deliverable: his real accounts are
+not marketing material, so **the fixture is the only thing that can ever be
+filmed or screenshotted**. Every video, App Store image and post comes from it.
+
+**MEASURED, NOT ESTIMATED. The strongest line the app produces CANNOT FIRE on the
+demo fixture.**
+
+    credit cards in demo:      2  (Chase Sapphire $8,500 @ 22.99%,
+                                   Discover It    $4,200 @ 18.99%)
+    cards with balance_tranches: 0
+    promo expiry warnings:       0
+
+`promoExpiryWarnings` needs `balance_tranches` with a `promo_end_date`. The demo
+data has **none**, so the reprice line — *"$3,562 at 0% reprices to 27.49% on Jul
+7, 2027 (+$82/mo) — clearing it first needs $356/mo for 10 months"* — is
+unreachable from the fixture. It only exists on Tre's real cards.
+
+**Two consequences for the design, and the second is a legal one nobody raised:**
+
+1. **Plain revolving balances are the RIGHT starting shape.** Tre's promo-heavy
+   set is why the payoff date refused to move; the demo's plain cards should move.
+   Keep them and ADD one promo card so the reprice warning has something to fire
+   on — do not copy his shape wholesale.
+2. ⚠️ **The demo cards are named "Chase Sapphire" and "Discover It" — REAL
+   PRODUCTS.** Sam's bar is "obviously synthetic", and real card brands in a
+   screenshot are the opposite of that, quite apart from using another company's
+   marks in marketing material. Rename before anything is filmed.
+
+**Rules for the rebuild (Sam):** the fixture is INPUT and every line must be
+genuinely derived from it — no number tuned to produce a dramatic sentence the
+engine would not compute. And a test that FAILS when the fixture goes weak, or it
+degrades silently until a shoot.
+
+**Blocked on Ruby for the bar** — what "strong enough" means in her terms. Do not
+guess it.
+
 ## RULE: verify against the DEMO FIXTURE, not Tre's live account
 
 Set 2026-09-03 after I toggled two of his card payment preferences to answer a
