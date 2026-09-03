@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { toLocalDateStr } from '@/lib/scheduling';
 interface MatchEntry {
   plaidAccount: PlaidSyncedAccount & { plaid_account_id?: string };
   matchedAccountId: string | null; // null = keep as new
@@ -613,7 +614,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         addReconciliation.mutate({
           account_id: editId,
           source_table: 'accounts',
-          effective_date: new Date().toISOString().split('T')[0],
+          effective_date: toLocalDateStr(new Date()),
           delta: resolvedBalance - projectedBalance,
           actual_balance: resolvedBalance,
           projected_balance: projectedBalance,

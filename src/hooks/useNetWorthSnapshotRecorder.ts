@@ -5,6 +5,7 @@ import { useAccounts, useAssets, useCarFunds, useLiabilities, useNetWorthSnapsho
 import { aggregateNetWorth } from '@/lib/net-worth';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { hasRecordableData, shouldRecordSnapshot } from '@/lib/net-worth-snapshot';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 /**
  * Records a net-worth snapshot at most once every seven days.
@@ -45,7 +46,7 @@ export function useNetWorthSnapshotRecorder(): void {
     attempted.current = true;
     upsert.mutate(
       {
-        snapshot_date: new Date().toISOString().split('T')[0],
+        snapshot_date: toLocalDateStr(new Date()),
         total_assets: totals.totalAssets,
         total_liabilities: totals.totalLiabilities,
         net_worth: totals.netWorth,

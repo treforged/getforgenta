@@ -23,6 +23,7 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
 import { debtTabFromSearch, type DebtTab } from '@/lib/debt-tab';
 import VehicleMoneyPanels from '@/components/vehicles/VehicleMoneyPanels';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -257,7 +258,7 @@ export default function DebtPayoff() {
       addReconciliation.mutate({
         account_id: editId,
         source_table: 'debts',
-        effective_date: new Date().toISOString().split('T')[0],
+        effective_date: toLocalDateStr(new Date()),
         delta,
         actual_balance: balance,
         projected_balance: projectedBalance,

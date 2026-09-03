@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { buildPayConfig, getPaychecksInMonth, getPaycheckGross } from '@/lib/pay-schedule';
 import type { AccountRow } from './useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 type ProfileRow = Partial<Tables<'profiles'>> & { user_id: string };
 
@@ -80,7 +81,7 @@ export function use401kAutoUpdate(
     // First run: set last_401k_update to today without applying changes
     if (!lastUpdate) {
       supabase.from('profiles')
-        .update({ last_401k_update: today.toISOString().split('T')[0] })
+        .update({ last_401k_update: toLocalDateStr(today) })
         .eq('user_id', profile.user_id)
         .then(() => {});
       ranRef.current = true;
@@ -97,7 +98,7 @@ export function use401kAutoUpdate(
     if (missedPaychecks.length === 0) {
       // Still update the date so we don't keep rechecking
       supabase.from('profiles')
-        .update({ last_401k_update: today.toISOString().split('T')[0] })
+        .update({ last_401k_update: toLocalDateStr(today) })
         .eq('user_id', profile.user_id)
         .then(() => {});
       ranRef.current = true;
@@ -130,7 +131,7 @@ export function use401kAutoUpdate(
         .eq('id', primaryAccount.id)
         .eq('user_id', profile.user_id),
       supabase.from('profiles')
-        .update({ last_401k_update: today.toISOString().split('T')[0] })
+        .update({ last_401k_update: toLocalDateStr(today) })
         .eq('user_id', profile.user_id),
     ]).then(() => {});
   }, [profile, accounts, isDemo]);

@@ -18,6 +18,7 @@ import { buildPayConfig, getPaychecksInMonth, getPaycheckGross } from '@/lib/pay
 import { compoundGrowth } from '@/lib/retirement-projection';
 import type { AccountRow } from './useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 type ProfileRow = Partial<Tables<'profiles'>> & { user_id: string };
 
@@ -115,7 +116,7 @@ export function useRetirementAutoUpdate(
     // First run ever: record today's date, no balance change
     if (!lastUpdate) {
       supabase.from('profiles')
-        .update({ last_401k_update: today.toISOString().split('T')[0] })
+        .update({ last_401k_update: toLocalDateStr(today) })
         .eq('user_id', profile.user_id)
         .then(() => {});
       return;
@@ -156,7 +157,7 @@ export function useRetirementAutoUpdate(
 
     writes.push(
       supabase.from('profiles')
-        .update({ last_401k_update: today.toISOString().split('T')[0] })
+        .update({ last_401k_update: toLocalDateStr(today) })
         .eq('user_id', profile.user_id)
         .then(() => {}),
     );
