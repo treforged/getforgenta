@@ -185,6 +185,26 @@ Then: an expired link, an already-used link, and a decline.
 
 </details>
 
+## Claim-on-first-sync SHIPPED and DEPLOYED (2026-09-03)
+
+`persistAccount` matched on `plaid_account_id` alone, so a hand-typed card had no
+match and linking that bank INSERTED A DUPLICATE — debt counted twice, a phantom
+credit limit, manual fields and surplus rank stranded. Approved 2026-08-27,
+unstarted until now. Fixed by `_shared/account-claim.ts` (pure, 12 tests) plus
+wiring (5 tests). Deployed to plaid-sync, plaid-sync-all and financial-sync.
+
+**The policy checked against LIVE data, which is the part worth keeping.** Of the
+unlinked accounts on the real database:
+- **Chase credit_card has TWO unlinked rows** — the ambiguity guard refuses both.
+- **Apple credit_card is dated 2028-02-28** — the not-yet-open guard refuses it.
+Both risky cases are exactly the ones the rule was written for, and they exist in
+real data rather than only in the tests. The remaining singletons are the
+claimable shape.
+
+Two ledger entries were STALE and are now closed: FIX 1 (`surplus-ranking`) and
+the PASS-2 cap conversion both shipped WITH tests since those lines were written.
+Check before rebuilding — verifying saved a duplicate money fix twice today.
+
 ## CI: the Tests gate is GREEN, for the first time ever (2026-09-03)
 
 It was created 2026-09-03 02:26 already red and had **13 failures / 3 cancelled /
@@ -1148,46 +1168,38 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 15:49 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 16:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (18 file(s)):**
+- **Uncommitted (10 file(s)):**
 
 ```
 M .claude/settings.json
- M src/components/builds/PhaseBlock.tsx
- M src/components/debt/CardRateLine.tsx
- M src/components/shared/BalanceTrancheEditor.tsx
- M src/components/shared/FormModal.tsx
- M src/components/vehicles/BuyItDialog.tsx
- M src/components/vehicles/vehicle-format.ts
- M src/contexts/AuthContext.tsx
- M src/hooks/useSupabaseData.ts
- M src/lib/demo-data.ts
- M src/pages/AiAdvisor.tsx
- M src/pages/Forecast.tsx
- M src/pages/Transactions.tsx
+ M src/lib/__tests__/sync-handler-wiring.test.ts
  M supabase/.temp/cli-latest
+ M supabase/functions/_shared/sync-handler.ts
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
 ?? .vercelignore
 ?? deno.lock
+?? src/lib/__tests__/account-claim.test.ts
+?? supabase/functions/_shared/account-claim.ts
 ```
 
 - **Recent commits:**
 
 ```
+c27d2073 docs(handoff): debug-console preview is deployed and gated
+54ff5b57 fix(dates): close the toISOString class — the last 22 sites, and the test that hid one
 1b596cf9 docs(handoff): expired-link and decline paths pressed live, artefacts removed
 743bc693 docs(handoff): the consent flow is deployed and pressed — one row after two presses
 a4c72665 feat(revenue): push a summary to the Conductor instead of giving it a database key
 ba076f04 db: restore a subscriber's premium access, then make the defect unrepresentable
 4403803f db: constrain user_subscriptions.plan — one row of eleven locks a real user out of premium
 2825edf5 fix(dates): stop writing UTC dates into columns the code reads back as local
-880c5b9d docs(handoff): the Tests gate is green for the first time, and the honest gap in the proof
-9788de03 test: unmount what the tests mount — the flake that fails a run of passing tests
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
