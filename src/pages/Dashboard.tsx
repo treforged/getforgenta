@@ -749,7 +749,12 @@ export default function Dashboard() {
    */
   useNetWorthSnapshotRecorder();
 
-  useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
+  useWidgetSync({
+    monthEndCash,
+    netWorth: accountSummary.netWorth,
+    currency: profile?.currency,
+    enabled: !isDemo && !essentialLoading,
+  });
 
   // The caller that makes the notification feature exist: policy + service + toggle all shipped
   // before anything invoked them, so all of it was inert. Signals come from figures this page

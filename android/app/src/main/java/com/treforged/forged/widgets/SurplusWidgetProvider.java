@@ -27,8 +27,20 @@ public class SurplusWidgetProvider extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_surplus);
 
         WidgetSnapshot snap = WidgetSnapshot.load(context);
-        if (snap != null) {
+        // ⚠️ STALE IS TREATED AS ABSENT, NOT AS A NUMBER WITH A CAVEAT. A widget
+        // shows a figure without anyone opening the app, so nobody opens the app to
+        // check what the home screen already told them — a week-old balance shown
+        // confidently is worse than "--", because "--" prompts a tap and a wrong
+        // number ends the conversation.
+        if (snap != null && !snap.isStale(System.currentTimeMillis())) {
+            // The USER's currency. Formatting a non-USD figure with "$" is a wrong
+            // number rendered confidently, which is the same failure as a stale one.
             NumberFormat fmt = NumberFormat.getCurrencyInstance(Locale.US);
+            try {
+                fmt.setCurrency(java.util.Currency.getInstance(snap.currency));
+            } catch (IllegalArgumentException e) {
+                // Unknown code — keep the default rather than crash the widget.
+            }
             fmt.setMaximumFractionDigits(0);
             String amount = fmt.format(snap.monthEndCash);
             boolean positive = snap.monthEndCash >= 0;
