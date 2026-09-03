@@ -85,7 +85,7 @@ vi.mock('@/hooks/useAutoEndReconcile', () => ({ useAutoEndReconcile: () => ({ re
 vi.mock('@/hooks/useMonth0DebtBreakdown', () => ({
   useMonth0DebtBreakdown: () => ({ recommendations: [], totalAvailableCash: 0 }),
 }));
-vi.mock('@/hooks/useInAppReview', () => ({ requestReviewAfterAction: vi.fn() }));
+vi.mock('@/hooks/useInAppReview', () => ({ reportValueEvents: vi.fn() }));
 vi.mock('@/hooks/useFormDraft', () => ({ useFormDraft: () => ({ restored: false, discard: vi.fn() }) }));
 vi.mock('@/components/budget/RuleDriftPanel', () => ({ default: () => null }));
 vi.mock('@/components/rules/RulesFoundCard', () => ({ default: () => null }));

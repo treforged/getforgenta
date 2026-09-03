@@ -5,7 +5,6 @@ import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { buildAutoExtraByTarget, autoExtraSeriesForGoal } from '@/lib/auto-extra-projection';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
-import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
 import { GoalsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
@@ -721,7 +720,6 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       update.mutate({ id: editId, ...payload });
     } else {
       add.mutate(payload);
-      requestReviewAfterAction();
     }
     setShowForm(false);
   };

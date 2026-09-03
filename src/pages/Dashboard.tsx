@@ -72,6 +72,7 @@ import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendation
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
 import LearnCard from '@/components/dashboard/LearnCard';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
+import { useValueMoments } from '@/hooks/useValueMoments';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
@@ -782,6 +783,19 @@ export default function Dashboard() {
     // Also waits on the Learn rows: firing before they land would offer lesson one to someone who
     // has read eight, which is worse than staying quiet for a second.
     enabled: !isDemo && !essentialLoading && !learnProgress.loading,
+  });
+
+  // The review prompt, asked at a VALUE MOMENT rather than on an action count. It used to fire on
+  // the third budget rule or savings goal a user CREATED — work done for the app — and both
+  // stores rate-limit the prompt so hard that the one ask most users ever see was spent there.
+  // See review-moment.ts for what counts as value received and why nothing here fires on bad news.
+  useValueMoments({
+    goals,
+    debts,
+    hasLinkedAccounts: plaidItems.length > 0,
+    projectedCash: cardProjection?.month0 ? cardProjection.month0.chain.cashPreDebt : null,
+    cashFloor: forecastFloor0.monthMinSafe,
+    enabled: !isDemo && !essentialLoading,
   });
 
   const categoryData = useMemo(

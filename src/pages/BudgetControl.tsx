@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Json, Tables } from '@/integrations/supabase/types';
-import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router';
 import { BudgetSkeleton } from '@/components/shared/PageSkeleton';
@@ -728,7 +727,6 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         .catch(() => { /* the mutation's own onError already surfaced this */ });
     } else {
       addRule.mutate(payload);
-      requestReviewAfterAction();
     }
     setShowForm(false);
     setEditId(null);
