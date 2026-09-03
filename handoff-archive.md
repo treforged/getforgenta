@@ -12346,3 +12346,212 @@ Nothing is lost â€” the archive is committed, and git has every version reg
 when you need the history of a decision; the live sections above plus the backlog below are
 sufficient to resume work.
 
+
+
+---
+
+## Resume-queue items archived 2026-09-03 (closed, kept for the reasoning)
+
+Moved out of `handoff.md` because that file is injected into every session that starts at
+this desk, and the queue alone was ~30 KB of it. A resume item should be a POINTER — one or
+two lines and a path to here.
+
+1. [x] The five-month payoff swing is NOT a defect, and `aadf3ae2` did already
+   explain it — the caution in the previous version of this item was wrong to
+   re-open it. Measured cold on 2026-09-01 11:49 by walking clock offsets 0..11
+   against the current capture (throwaway diagnostic, deleted; the standing
+   guard is the `month 0 stays whole` invariant in
+   `forecast-convergence.manualISB.test.ts`):
+
+       d= 0  Mon Aug 31  month0=Aug 2026  cash0=2454.88  paid0=   0.00  ccFree=Dec 2028  19 passes
+       d= 1  Tue Sep 01  month0=Sep 2026  cash0=3191.97  paid0=2662.00  ccFree=Jun 2028   9 passes
+       d= 4  Fri Sep 04  month0=Sep 2026  cash0=3136.97  paid0=2717.00  ccFree=Jun 2028   9 passes
+       d= 5  Sat Sep 05  month0=Sep 2026  cash0=3986.97  paid0=1867.00  ccFree=Jul 2028  10 passes
+       d= 8  Tue Sep 08  month0=Sep 2026  cash0=5192.97  paid0= 661.00  ccFree=Jul 2028  11 passes
+       d=11  Fri Sep 11  month0=Sep 2026  cash0=5192.97  paid0= 661.00  ccFree=Jul 2028  11 passes
+
+   The whole five-month swing lands in ONE step, d=0 -> d=1, and it is a MONTH
+   ROLLOVER, not eleven days of drift: `capturedAt` is 2026-09-01T00:20Z, which
+   is the evening of 31 August locally, so day 0's month 0 is a one-day stub of
+   August that pays **$0.00** at the cards. Every later clock has a whole
+   September month 0. Comparing a one-day month against a full one is the entire
+   effect; "eleven days" was never what moved it.
+   Inside September the payoff drifts the other way and only one month
+   (Jun -> Jul 2028) as the clock advances, which is exactly the partial-month
+   arithmetic `aadf3ae2` pinned, and it is whole to the cent at every step:
+   d4->d5 paid -850.00 / cash +850.00; d7->d8 paid -1206.00 / cash +1206.00.
+   Converged true at every offset, 9-19 passes, all under the 22-pass pin.
+   NOTHING TO FIX. Do not re-open this a fourth time; if a future capture shows
+   a swing, first check whether the two clocks straddle a month boundary.
+
+2. [x] The forecast engine is OFF the first-paint path — `0a74fc5d`. The one
+   static edge holding it there was `DashboardLayout`, imported eagerly in
+   `App.tsx` while every page inside it was already lazy; it mounts
+   `CardProjectionProvider`. Lazy behind its own Suspense boundary now. MEASURED
+   by BFS of the entry chunk's static-import closure: **23 chunks / 1081.9 kB ->
+   13 chunks / 811.2 kB raw, -270.7 kB (-25%)**. `CardProjectionContext` (98.3),
+   `useSupabaseData` (58.2), `essential-monthly-expenses` (49.5),
+   `vehicle-loan-engine`, `payment-plan-generator`, `ordinal`, `card-start-date`
+   all left the closure. PROVEN in a browser, not inferred: on the PRODUCTION
+   build served at :4179 a signed-out `/auth` fetches 18 JS chunks and ZERO
+   engine chunks, and still renders; signed in at :8080 `/dashboard` renders
+   through the new boundary (Command Center, sidebar, `scroll-main`) and `/debt`
+   still runs the engine (PAYOFF ETA Jul 2028 / 22 mo), no console errors.
+
+3. [x] Density is DONE, and the last two screens needed no change. Dashboard
+   overview, Transactions, Debt Payoff and Forecast were measured previously.
+   Garage and Settings were the unmeasured half and were measured 2026-09-01
+   against a laptop fold (768px window minus chrome = 678px of content):
+   **Garage's entire page is 865px** — it all but fits, 187px of scroll — and
+   **Settings puts its first real panel at y=168**, with only a 36px title and a
+   42px tab bar above it. Neither is a density problem, so neither was touched.
+   Next concrete step: none. Revisit only if Tre names a screen.
+
+13. [x] Dashboard "Spending by Category" shows every category — `13e43d50`. It
+    sliced to the top 8 and rendered "+N more" as DEAD TEXT. Now a native
+    `<details>` disclosure (no hook: the code lives inside a `case` of a render
+    function), same row renderer for the hidden rows, colour index offset by
+    `top.length` so each category keeps its colour. Verified by PRESSING it on
+    /dashboard: card 502px -> 601px, revealing Travel, Gas and Dining, and
+    collapsing again.
+⚠️ **CORRECTION TO THE READ BELOW, measured against his live data 2026-09-02.**
+The read named `lump_sum_transfers` as the table and "query the hook" as the cheap
+fix. **He has ZERO rows in that table.** What he actually has is two active
+`recurring_rules` with `rule_type = 'transfer'`, $330/mo total: "Owners
+Contribution" $130 (due day 29, starts 2026-09-29) and "HYS" $200 (does not start
+until **Nov 2027**, so it will not appear on any current surface). Those already
+reach Transactions through the rule generator, so nothing needed querying — and
+the transfer half of 15/16 was never a missing-query problem.
+THE ACTUAL DEFECT, now fixed in `0f92da5c`: transfers showed as EXPENSES. The row
+read "Owners Contribution · 2026-09-29 · Business · CHASE CHECKING", in red, with
+a briefcase icon — indistinguishable from $130 of business spending when it is
+$130 moving to another of his own accounts. `isTransfer` had been on the generated
+row all along but was consumed only by `MonthlyExpenseModel`; no UI read it, and
+the DESTINATION was dropped entirely by `rawSource`, which keeps one account per
+row. Added `transferDestination` + a `transfer` badge. Verified live: the row now
+reads `Owners Contribution · transfer · … · CHASE CHECKING → General Operations`.
+Three tests appended to `rule-transaction-stamp.test.ts`, the destination one
+verified RED when the field is dropped.
+**Still open from 14-16:** transfers on the HOMEPAGE (item 14, untouched), and the
+AUTO-EXTRA half, which remains blocked on the design call below — it is derived
+from the engine, not a row, so it means showing projections beside settled
+transactions.
+
+14. [x] TRANSFERS on the HOMEPAGE — `1ef4c108`. They already reach Recent
+    Transactions (same generated stream as Transactions); the defect was that a
+    transfer rendered as a red outflow with a category icon, identical to money
+    spent. Sub-line now shows `transfer → <destination>` in place of the category
+    (on a row that cramped, "where it went" beats "Business"), and the amount keeps
+    its minus but loses the destructive red — it left the account, it is not a loss.
+    VERIFIED BY MAKING IT RENDER: the panel looks back 7 days and his transfer is
+    dated 2026-09-29, so it cannot appear today. Narrowed the window locally to
+    25-30 Sep, read the live DOM — `Owners Contribution | transfer → General
+    Operations | -$130` at rgb(113,113,122), against expenses at rgb(154,24,24) and
+    income at rgb(51,153,88) — then reverted. No temp code is in the diff.
+    ⚠️ STILL OPEN AND IT IS TRE'S CALL, not a default: whether PROJECTED entries
+    (future transfers, and the auto-extra payments of 15-16) belong on the homepage
+    beside settled ones at all. This change added none — it only fixed how a
+    transfer looks once it is in the window. A projection that reads as settled is a
+    lie on a finance app, so nobody should pick this by default. Filed to him
+    2026-09-02 via the Desktop desk as a genuine fork.
+
+21. [x] GENERAL OPERATIONS balance in the forecast pop-ups — `83f9cd3d`. Asked as a
+    missing ROW; it was a missing NUMBER. Only the FUNDING checking account existed
+    anywhere in the engine, so General Operations ($168.54) and Alliant Checking
+    ($5.00) were in no popup row AND in no total, while `net-worth.ts` counts every
+    non-liability account as an asset — Total Assets and Net Worth understated by
+    **$173.54 in every one of the 60 months**, and /accounts and /forecast disagreed
+    about what he owns. Balances read from the live DB first, not assumed.
+    The engine now tracks non-funding liquid accounts per account, applies the same
+    three movement lists the OTHER ACCOUNTS section already itemises, and adds them
+    under a new `cash` bucket and to `totalAssets`. NOT folded into `liquidBal` — they
+    are assets, not spendable cash, and folding them in would undo the reason the
+    funding-account-only seed exists (a test asserts ending cash does not move).
+    Threaded through forecast-export/exportCsv/exportPdf, which split by bucket; the
+    CSV needed its HEADER column as well as its data column or every later column
+    would have shifted. Verified live: Sep 2026 popup lists both, and correctly does
+    NOT list CHASE CHECKING. New test `forecast-engine.nonFundingLiquid` — the suite
+    passed 3160 both before and after the bug was found, which is why it exists.
+
+22. [x] Cash floor "setting" row hidden in AUTOMATIC mode — `5f506f40`. He IS on
+    automatic (`cash_floor_is_manual = false`, `cash_floor = 2500`, read from the DB),
+    and `resolveCashFloor` returns 0 for automatic BY DESIGN, so three drawers printed
+    "$0.00": the forecast month drawer's `Settings floor`, the dashboard cash-floor
+    drawer's `Settings floor`, and the dashboard debt drawer's `Your Cash Floor
+    Setting`. All three omitted in automatic, with the blank spacer that followed.
+    ⚠️ Keyed on `isManualCashFloor`, NEVER on the value being 0 — cash-floor.ts warns
+    twice that a stored 0 is a real manual choice. Verified by opening all three.
+
+### NEXT UP — Tre's ASAP item, and a scope correction before anyone starts it
+
+24. [x] The forgenta tab that "should auto close" and did not — `45334a7f`. NOT the
+    auto-exit hook's fault. His screenshot read "running stop hooks... 1/4 · 6m 55s":
+    the chain was WEDGED on the FIRST hook, so the exit hook, wired fourth, never ran.
+    The wedged hook was THIS REPO'S: `.claude/settings.json` runs
+    `scripts/sync-graph-to-obsidian.ps1` on Stop, which rebuilt a 31,000-node graphify
+    graph inline whenever sources changed. `scripts/graph-sync.log` line 4415 records
+    `12:05:25 run start` + "sources changed - running graphify update" and then NOTHING
+    ever again, while another session's 12:08:45 run finished in 44s — two concurrent
+    rebuilds over one shared `graphify-out`, and the loser never returns.
+    Fix: the hook passes `-SkipRebuild` (the daily scheduled task and weekly backup
+    already own rebuilds), a single-instance lock that exits rather than waits (stale
+    after 1h), and `timeout: 60` on the hook. All three paths RUN: 257ms normal, 206ms
+    contended without stealing the lock, stale lock taken over and released.
+    ⚠️ Still open: the auto-exit mechanism itself is UNPROVEN end to end — its one live
+    trial never reached it. This desk's next handoff is the real test.
+    ⚠️ The other three Stop hooks (session_logger.py, conductor session-hook.mjs,
+    handoff_exit.py) still carry NO timeout. Not this desk's files.
+
+27. [x] `/answers/snowball-or-avalanche.html` stated a minimum-payment formula that
+    does not produce its own table — `7e6d684a`. Found by the marketing desk,
+    RE-DERIVED here independently: my simulation reproduces all six printed figures
+    EXACTLY under "1% of balance, floored at $25" (36/$3,875/m29 and 38/$4,581/m9),
+    and matches none of them under the "1% + interest" the prose claimed
+    (37/$4,003/m32, 38/$4,450/m16). Fixed the PROSE, not the table — the table is
+    right for what it did, and rewriting eight figures plus the argument around them
+    risks a real error to remove a described one. The simplification is now stated
+    with its direction and size.
+    RESOLVED 2026-09-02 and NOTHING FURTHER IS OWED HERE. Marketing challenged the
+    avalanche row (37/$3,893 against the page's 36/$3,875) and was right to hold. I
+    published my exact loop and asked for their months 28-38 rather than accepting
+    their table; instrumenting it found the bug in THEIR loop — when a target card
+    cleared mid-month they let the remaining budget evaporate instead of spilling it
+    to the next card in the same month. With the spill added, all six figures match
+    the page to the dollar. **36 is the right answer, the table stays, no
+    regeneration.** My basis finding is now in their spec: the minimum is 1% of the
+    POST-interest balance (pre-interest gives $4,582, and that dollar is the
+    difference between matching the article and not).
+    Worth keeping, from their own write-up: their intermediate version was NEARLY
+    right on snowball and they read that near-match as evidence the engine was sound.
+    It was two bugs cancelling. A branch that nearly agrees is not evidence.
+    Formula settled for both properties: 1% of post-interest balance, floored at $25.
+
+### iPhone testing (item 12) — Gus has the toolchain half, 2026-09-02
+Gus (windows-tune) reports the ask is much smaller than it looks: Forgenta is a web
+app, so testing it on the iPhone is opening the Vercel preview URL in Safari — no
+Mac, no install, nothing on the phone. Only Safari WEB INSPECTOR is macOS-locked,
+not running the app. Ranked fallbacks: Playwright WebKit on Windows (verified
+resolvable), then `google/ios-webkit-debug-proxy`. Write-up + security reviews:
+`claudecontext/research/ios-testing-from-windows-2026-09-01.md`.
+⚠️ THE ONE THING THAT COULD REACH THIS DESK, and it is a hard no by default: Eruda /
+vConsole inject a debug console into the page and expose `localStorage`, which here
+holds the SUPABASE AUTH JWT. On a finance app that is account takeover. Do not adopt
+either; if ever forced to, it must be dynamically imported behind BOTH a
+`MODE !== 'production'` and a preview-deployment gate, never a top-level import.
+
+### Machine notes, 2026-09-02
+- **OPUS is the default manager model again** (Tre via Ruby: "if i use fable as
+  default, my usage is burnt much quicker"). The five-hour window is machine-wide
+  across every session in the roster. No resume should suggest `/model fable`;
+  Fable is opt-in for a single hard slice.
+- A handed-off tab ends with **`/exit`, not `/clear`** — clearing leaves an idle
+  desk in the roster with an empty head. `dispatch ... --handoff` arms the exit
+  automatically (see CLAUDE.md step 3).
+
+
+> Items 6-12 arrived 2026-09-01 02:30 via Sam at the Desktop, routed from Tre's
+> own message, and he placed them explicitly BEHIND the current work ("all of
+> them can sit right after the current tasks"). The judgment calls inside them
+> are already made — do not re-ask him. Logged unstarted: the context gate had
+> already fired when they arrived, so not one of them has been opened, and each
+> begins cold.
