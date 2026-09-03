@@ -373,6 +373,15 @@ describe('a sign-out that did not happen is never reported as one', () => {
     renderSignedIn();
     await waitForIdleWatcher();
 
+    // ⚠️ CAPTURED, NOT ASSUMED. This used to assert the stamp equalled `String(NOW)`, which
+    // silently assumed the mount had happened on the same millisecond as `setSystemTime(NOW)`.
+    // These timers run with `shouldAdvanceTime`, so the clock moves in real time and the stamp
+    // written at mount is NOW + however long the render took — a ~20ms drift that failed only
+    // under full-suite load. A suite with a known flake trains everyone to read red as "probably
+    // the flaky one", which is how a real failure gets waved through.
+    const stampBefore = localStorage.getItem(LAST_ACTIVITY_KEY);
+    expect(stampBefore).not.toBeNull();
+
     await idleFor(IDLE_TIMEOUT_MS + MINUTE);
 
     await waitFor(() => expect(h.toast.error).toHaveBeenCalledTimes(1));
@@ -382,9 +391,13 @@ describe('a sign-out that did not happen is never reported as one', () => {
     expect(h.toast.error).toHaveBeenCalledWith(
       'Your session timed out but we could not sign you out. Check your connection.',
     );
-    // The stamp is back exactly as it was, so the next check re-runs the sign-out rather than
-    // reading a fresh clock and giving the session another ten minutes.
-    expect(localStorage.getItem(LAST_ACTIVITY_KEY)).toBe(String(NOW));
+    // The stamp is back EXACTLY as it was, so the next check re-runs the sign-out rather than
+    // reading a fresh clock and giving the session another ten minutes. Comparing it to the
+    // captured value is also the stronger assertion: it fails if the stamp is refreshed to the
+    // current time, which is the actual bug, whereas `String(NOW)` conflated "restored" with
+    // "mounted at exactly NOW".
+    expect(localStorage.getItem(LAST_ACTIVITY_KEY)).toBe(stampBefore);
+    expect(Number(localStorage.getItem(LAST_ACTIVITY_KEY))).toBeLessThan(Date.now() - IDLE_TIMEOUT_MS);
   });
 
   it('retries on the next check, and does not repeat the message every thirty seconds', async () => {

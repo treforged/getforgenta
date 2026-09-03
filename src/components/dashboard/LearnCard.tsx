@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GraduationCap, Flame, Check, Trophy, ChevronDown } from 'lucide-react';
 import { useLearnProgress, useMarkLessonRead } from '@/hooks/useLearnProgress';
+import SocialFollowRow from '@/components/dashboard/SocialFollowRow';
 import { LEARN_LESSONS } from '@/lib/learn-lessons';
 import type { LearnLesson } from '@/lib/learn-lessons';
 
@@ -126,6 +127,10 @@ export default function LearnCard() {
           </button>
         )}
       </div>
+
+      {/* Below the ring and separated by a rule, because these two badges are UNVERIFIABLE and
+          must never count toward the lesson progress above them. See social-links.ts. */}
+      <SocialFollowRow />
     </div>
   );
 }

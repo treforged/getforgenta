@@ -6,6 +6,16 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   test: {
     exclude: [...configDefaults.exclude, "backups/**"],
+    // 5s (vitest's default) is too tight for this repo's heaviest tests. The forecast
+    // convergence suites run a real 60-month projection to a fixed point and take ~2.4s of
+    // test time ALONE — comfortably inside 5s on their own, and over it when the runner is
+    // saturating every core. They then failed with "Test timed out", which looks exactly
+    // like a hang and is not one.
+    //
+    // This was raised on 2026-09-02 because an intermittently red suite is worse than a slow
+    // one: it trains everybody to read a failure as "probably the flaky one", and that is how
+    // a real failure gets waved through. 20s is still short enough to catch a genuine hang.
+    testTimeout: 20_000,
     alias: {
       // Runtime half of the esm.sh bridge (types: src/types/esm-sh-supabase.d.ts).
       // Lets vitest import supabase/functions/_shared/sync-handler.ts, whose Deno-style

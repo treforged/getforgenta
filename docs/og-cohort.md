@@ -127,6 +127,33 @@ rolled back) rather than reasoned about:
 | Provider did not say why | ✅ |
 | Cancelled, but premium 10 days before | ✅ |
 
+## Achievements the app cannot verify
+
+`follow_instagram` and `follow_tiktok` are **claim-based on purpose.** Neither
+platform gives a consumer app a supported way to ask "does user X follow account
+Y", so there is no version of this feature where the app knows. The RLS policy
+says so honestly: a signed-in client may write both ids itself, which also means
+anyone can mint them without following anything.
+
+**Do not "fix" this by wiring it to something real — there is nothing real to
+wire it to.** Two rules follow instead:
+
+1. **A claimed follow must never unlock anything of value.** Cosmetic only. It may
+   sit on a badge wall or count toward a streak. It must not gate a feature, a
+   discount, or anything touching the OG reward. That is exactly why `og_founder`
+   is *not* on the client-writable list while these two are: the test is whether a
+   user could profit by lying.
+2. **The wording is an intent, not an assertion.** The app says *"Tapped through
+   to Instagram"*, because opening the profile is the event it actually observed.
+   It must never say *"Followed us"* — printing a fact you did not measure is the
+   same error as drawing a gauge value you never read. A test asserts the absence
+   of that wording, not only the presence of the right one.
+
+⚠️ **The Instagram handle is unconfirmed.** `@treforged` is verified for TikTok
+(`tre-forged-marketing/TIKTOK.md`); the Instagram one is the brand handle by
+inference and has not been checked against a source. A wrong link sends users to
+a stranger's profile, so it is flagged here rather than assumed correct.
+
 ## Open questions
 
 - The RevenueCat → Stripe migration path at the anniversary is **not built**.
