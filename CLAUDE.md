@@ -29,18 +29,41 @@ rarely the cheap move here.
 | Database shape or a new column | `supabase/migrations/` (74 files — grep, never list) |
 | What is in flight right now | `handoff.md` — read it before anything else |
 
-### What to paste to a FREE LOCAL MODEL
+### Table 2 — WHAT TO PASTE INTO A FREE LOCAL MODEL
 
-It gets no repo exploration. It gets the files you paste, so paste few and paste
-the right ones.
+A local model cannot explore. It gets exactly the files you paste, so this table
+exists to stop you grepping to work out what to send — which is the cost table 1
+was meant to remove, just moved one step later.
 
-| Slice shape | Paste |
+| Slice shape | Paste exactly these |
 | --- | --- |
-| A pure money helper + tests | the one `src/lib/<thing>.ts` and one nearby `src/lib/__tests__/<thing>.test.ts` as the style example |
-| A date bug | `src/lib/scheduling.ts` (for `toLocalDateStr`) plus the one offending file |
-| An edge-function change | that function's own `supabase/functions/<name>/index.ts`, plus only the `supabase/functions/_shared/` files it imports |
-| A migration | one recent file from `supabase/migrations/` as the house style, plus the table's current shape |
-| Anything touching the engine | do NOT paste `src/lib/forecast-engine.ts`; it is ~2,900 lines. Paste the function and its callers |
+| A pure money helper + its tests | `src/lib/cash-floor-warning.ts` and `src/lib/__tests__/cash-floor-warning.test.ts` as the style pair, plus the one file being changed |
+| A date bug anywhere | `src/lib/scheduling.ts` (holds `toLocalDateStr`) and `src/lib/sync-cutoff.ts`, plus the offending file |
+| A money-page UI change | `src/contexts/CardProjectionContext.tsx` (what the page can see) and `src/lib/debt-model-types.ts` (the shapes), plus the one page file |
+| An edge function | `supabase/functions/<name>/index.ts` and only the `supabase/functions/_shared/` files it imports — check its import block first |
+| A migration | `supabase/migrations/20260903_og_consent_tokens.sql` as the house style, plus the table's current shape from the DB |
+| A failing test | the test file and the single source file under it. Never the engine |
+
+⛔ **Never paste `src/lib/forecast-engine.ts` (≈2,900 lines) or
+`src/hooks/useCardProjection.ts` (≈2,300).** Paste the function and its callers.
+
+### What the free tier CANNOT do here — and what is simply UNMEASURED
+
+**Be honest about which is which.** As of 2026-09-03 there are NO scored
+free-executor runs for this repo — `~/.claude/ollama/playbook.md` has no
+getforgenta entries, because every slice this session was done directly. So this
+section states reasoning, not measurement, and says so.
+
+- **UNMEASURED, no data either way:** pure helper + tests, a mechanical date
+  sweep, a migration written to a template. These look like reasonable first
+  experiments. Score them into the playbook rather than assuming.
+- **REASONED, not measured — poor fit:** anything spanning the engine, the sim and
+  floor-protection at once. Today's bugs needed all three read together plus a live
+  database check, and a model that cannot open a file cannot do that. Delegate the
+  helper, not the diagnosis.
+- **NEVER delegate:** the decision to write to production data, anything reading a
+  secret, and the final read of a money diff. Those are the manager's regardless
+  of how good the executor is.
 
 ### Gates — run these by name
 
