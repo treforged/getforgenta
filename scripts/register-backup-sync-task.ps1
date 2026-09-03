@@ -5,7 +5,16 @@ param()
 # task is ever deleted or needs re-registering (e.g. after moving the repo).
 
 $TaskName = "Forgenta Backup Sync"
-$ScriptPath = "C:\Users\tvonh\Desktop\getforgenta\scripts\daily-backup-and-sync.ps1"
+# THE PATH IS TAKEN FROM THIS FILE'S OWN LOCATION. Hardcoded, this script was a
+# loaded gun: re-running it would have re-registered the task against the dead
+# pre-move path and silently undone a correct repoint.
+if (-not $PSScriptRoot) {
+    throw "register-backup-sync-task.ps1 must be run as a file (PSScriptRoot is empty)."
+}
+$ScriptPath = Join-Path $PSScriptRoot "daily-backup-and-sync.ps1"
+if (-not (Test-Path $ScriptPath)) {
+    throw "Refusing to register a task against a script that is not there: $ScriptPath"
+}
 
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""

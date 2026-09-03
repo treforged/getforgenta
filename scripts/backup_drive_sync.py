@@ -30,6 +30,13 @@ _LOG_FILE = _ROOT / "scripts" / "backup-drive-sync.log"
 # proving the upload path works again should not be the same action that deletes local copies.
 _RETENTION_DAYS = int(os.environ.get("FORGENTA_BACKUP_RETENTION_DAYS", "14"))
 # Set FORGENTA_BACKUP_DRY_RUN=1 to zip and report without uploading or deleting.
+#
+# ⚠️ THIS FLAG WAS DEFINED AND NEVER READ until 2026-09-02. `FORGENTA_BACKUP_DRY_RUN=1`
+# did nothing at all: the run uploaded to Drive and deleted local folders exactly as if
+# the flag were absent, while the operator believed they were doing a safe rehearsal.
+# It was found the only way a flag like this ever is — by using it, and then checking
+# whether the thing it promised not to do had happened. A safety flag that lies is worse
+# than no flag, because no flag makes you careful.
 _DRY_RUN = os.environ.get("FORGENTA_BACKUP_DRY_RUN") == "1"
 _DRIVE_FOLDER_NAME = "Forgenta Local Backups"
 
@@ -149,6 +156,10 @@ def main() -> None:
             media = None
             try:
                 zip_path = _zip_folder(folder)
+                if _DRY_RUN:
+                    _log(f"DRY RUN: would upload {key} ({zip_path.stat().st_size} bytes)")
+                    uploaded_count += 1
+                    continue
                 media = MediaFileUpload(str(zip_path), mimetype="application/zip", resumable=False)
                 uploaded = service.files().create(
                     body={"name": zip_path.name, "parents": [folder_id]},
@@ -173,12 +184,16 @@ def main() -> None:
 
         is_old = folder_date is not None and (now - folder_date) > timedelta(days=_RETENTION_DAYS)
         if is_old and key in state:
-            shutil.rmtree(folder, ignore_errors=True)
+            if _DRY_RUN:
+                _log(f"DRY RUN: would delete local {key} (older than {_RETENTION_DAYS}d, already synced)")
+            else:
+                shutil.rmtree(folder, ignore_errors=True)
+                _log(f"Deleted local {key} (older than {_RETENTION_DAYS}d, already synced)")
             deleted_count += 1
-            _log(f"Deleted local {key} (older than {_RETENTION_DAYS}d, already synced)")
 
     _log(
-        f"Done. Uploaded {uploaded_count}, failed {failed_count}, "
+        f"Done{' (DRY RUN - nothing uploaded or deleted)' if _DRY_RUN else ''}. "
+        f"Uploaded {uploaded_count}, failed {failed_count}, "
         f"deleted {deleted_count} of {len(folders)} backup folders."
     )
 

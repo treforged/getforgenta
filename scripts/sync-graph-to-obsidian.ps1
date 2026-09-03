@@ -30,8 +30,18 @@ param(
 # Every run appends to scripts/graph-sync.log (gitignored) so a scheduled run
 # can be audited after the fact instead of assumed to have worked.
 
-$RepoDir   = "C:\Users\tvonh\Desktop\getforgenta"
-$GraphDir  = "C:\Users\tvonh\Desktop\claudecontext\code-graph"
+# DERIVED, NEVER HARDCODED - see daily-backup-and-sync.ps1 for what the old
+# absolute paths cost. $GraphDir was the more dangerous of the two: it pointed at
+# the pre-move Desktop\claudecontext\code-graph, and the copy step below does
+# New-Item -Force on it, so every run RE-CREATED the dead folder and wrote the
+# graph into a directory nothing reads. A failure that manufactures its own
+# evidence of success is the worst shape a failure can have.
+if (-not $PSScriptRoot) {
+    # Split-Path throws on an empty string; the guard must precede the call.
+    throw "sync-graph-to-obsidian.ps1 must be run as a file (PSScriptRoot is empty)."
+}
+$RepoDir   = Split-Path -Parent $PSScriptRoot
+$GraphDir  = Join-Path (Split-Path -Parent $RepoDir) "claudecontext\code-graph"
 $GraphSrc  = "$RepoDir\graphify-out\GRAPH_REPORT.md"
 $GraphJson = "$RepoDir\graphify-out\graph.json"
 $WikiSrc   = "$RepoDir\graphify-out\wiki"

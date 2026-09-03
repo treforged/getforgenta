@@ -13,7 +13,14 @@ param()
 # normally a no-op and stays in place as a fallback.
 
 $TaskName = "Forgenta Graph Sync"
-$ScriptPath = "C:\Users\tvonh\Desktop\getforgenta\scripts\sync-graph-to-obsidian.ps1"
+# Derived from this file's own location - see register-backup-sync-task.ps1.
+if (-not $PSScriptRoot) {
+    throw "register-graph-sync-task.ps1 must be run as a file (PSScriptRoot is empty)."
+}
+$ScriptPath = Join-Path $PSScriptRoot "sync-graph-to-obsidian.ps1"
+if (-not (Test-Path $ScriptPath)) {
+    throw "Refusing to register a task against a script that is not there: $ScriptPath"
+}
 
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
