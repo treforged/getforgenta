@@ -161,12 +161,60 @@ A wrong handle **does not fail** — it succeeds at sending users to a stranger'
 profile. No error, no log line, nothing to notice. If either handle changes,
 re-confirm it against the platform rather than against this file.
 
+## The anniversary run
+
+`supabase/functions/og-anniversary` runs daily and settles members whose year has
+come due. Its decisions are a **pure module** (`_shared/og-anniversary.ts`) with
+tests, deliberately: the first genuine anniversary is a year after the code was
+written, so without a way to exercise it now it would run for the first time in
+production, once, on a date nobody is watching.
+
+Three properties, each one a lesson this repo paid for on 2026-09-02:
+
+- **It fails loudly.** Every run writes to `og_anniversary_runs`, *including* a
+  run that found nothing: "No members were due today" is a positive statement,
+  not silence. `og_anniversary_last_run()` is the question a human or a monitor
+  asks. The backup task on this machine reported success for six days while
+  doing nothing; this one would go unnoticed for a year.
+- **It can be rehearsed.** `?simulate_due_before=<iso>` pretends the date has
+  arrived; `?dry_run=1` is the **default** and walks the whole path writing
+  nothing but the run row. The dry-run flag is honoured at every write and
+  tested — `FORGENTA_BACKUP_DRY_RUN` was defined and never read, and a
+  "rehearsal" uploaded to Drive and deleted 17 folders.
+- **It is safe to re-run.** Granting a free year twice costs real money, and the
+  natural way to do it is a half-completed run that gets retried. Already-settled
+  members are skipped, and every write is conditional on the row still being
+  unsettled.
+
+### ⚠️ A mobile OG cannot be migrated by us
+
+This is a fact about the stores, not a gap in the code. **Only the user can
+cancel an App Store or Play subscription**, and only the user can enter card
+details for Stripe. So there is no version of this where the job silently moves
+someone's billing rail.
+
+The job's output for a mobile member is therefore `needs_user_action` with a
+timestamp — an action that is *owed*, recorded — rather than a silent no-op. What
+the ask should look like, and whether it risks a gap in their access, is a real
+product decision and is **open**.
+
+Recommended shape, for whoever decides it: offer the free year as a Stripe
+checkout that costs nothing for twelve months, ask them to cancel the store
+subscription only *after* it completes, and let the two overlap rather than risk
+a day without access. An overlap costs them nothing because the Stripe side is
+free; a gap costs trust.
+
 ## Open questions
 
-- The RevenueCat → Stripe migration path at the anniversary is **not built**.
-- Nothing yet *runs* at the anniversary. `og_members_reward_due_idx` indexes the
-  members with `reward_granted_at is null` so the job can find them cheaply, but
-  the job does not exist.
+- **The Stripe grant is written but not wired.** Applying the free year means
+  creating a twelve-month 100% discount against a live subscription in a real
+  payment account — an outward action to be authorised, not switched on quietly.
+  Until it is, an eligible Stripe member is flagged `reward_action_required_at`
+  rather than marked granted: a `reward_granted_at` written by code that granted
+  nothing is exactly the class of lie this job exists to avoid.
+- **The function is not deployed and no cron schedule exists yet.** Both are live
+  changes and neither has been made.
+- The mobile ask above is undecided.
 - The user-facing copy is unwritten. It may now say the year is free — the
   mechanism is decided and honourable on both platforms — but it must not name
   the billing rail.

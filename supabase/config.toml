@@ -79,6 +79,12 @@ verify_jwt = false
 [functions.publish-slot]
 verify_jwt = false
 
+# Settles OG free years at the anniversary. Guarded by CRON_SECRET like the rest
+# of this block; there is no user path into it at all, and it grants money, so
+# the header check is the whole authentication story.
+[functions.og-anniversary]
+verify_jwt = false
+
 # ── verify_jwt = true: caller is the authenticated app ─────────────────────────
 
 # Serves _shared/sync-handler.ts, which requires a user Bearer token and calls
