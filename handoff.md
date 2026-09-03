@@ -185,6 +185,43 @@ Then: an expired link, an already-used link, and a decline.
 
 </details>
 
+## The OG cohort is EMPTY, and that is why the consent ask sends nothing
+
+`og-consent-ask?dry_run=1` returns `would_send: []` with zero failures and zero
+skips. The handler is fine. **`og_members` has ZERO ROWS**, so there is nobody to
+select. Established 2026-09-03.
+
+Why it is empty, precisely:
+- Five `user_subscriptions` rows are premium+active. **FOUR are not organic** — no
+  `stripe_subscription_id` and no `revenuecat_app_user_id` — so `claim_og_place`
+  deliberately refuses them. A comp should not take one of the hundred founding
+  places, and that guard is correct.
+- **ONE is genuinely organic**, created 2026-05-18, last touched 2026-05-23. The
+  `user_subscriptions_claim_og` trigger was added by the 2026-09-02 migration and
+  fires only on INSERT or UPDATE of plan/status/cancel_at_period_end. That row has
+  not been written since May, so **the trigger has never evaluated the one real
+  founding subscriber, and there is no backfill.**
+
+So enrolment is wired but retroactively blind. Every future organic subscriber
+enrols correctly; everyone who subscribed before 2026-09-02 never will.
+
+Also true regardless: `claim_og_place` sets `reward_due_at = now() + 1 year`, so
+even a backfilled member is not due for a year and `dry_run=0` would mail nobody
+today.
+
+**Open decision, not mine:** whether to backfill that one subscriber, and if so
+whether `reward_due_at` runs a year from the BACKFILL or a year from their actual
+subscription start (2026-05-18). Backfilling grants a real person a founding
+place, and dating it from today quietly costs them three months.
+
+**PATTERN WORTH KEEPING (Sam, 2026-09-03): a cron-gated function can be exercised
+without anyone holding CRON_SECRET.** It lives in Supabase Vault, so call the
+function from inside the database with `net.http_post`, building the header from
+`select decrypted_secret from vault.decrypted_secrets where name = 'CRON_SECRET'`
+— exactly what pg_cron does. The value never enters anyone's context.
+`revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
+{"ok": true, "lines": 4}}`.
+
 ## Claim-on-first-sync SHIPPED and DEPLOYED (2026-09-03)
 
 `persistAccount` matched on `plaid_account_id` alone, so a hand-typed card had no
