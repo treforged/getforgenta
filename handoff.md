@@ -261,6 +261,34 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## NEXT SLICE, SCOPED AND READY: the cash-floor warning Tre asked for
+
+His ask (2026-08-27, approved, unstarted): *"a mandatory marker on each card is
+fine. it just lets the user know a not meeting the cash floor is inevitable and
+to check cash floor."*
+
+**Do not build the marker. It already exists.** `accounts.payment_preference`
+('statement' | 'full') and `autopayFullBalance` are both live and read all over
+`credit-card-engine.ts`. The engine also already computes WHY a month is tight:
+`ccMandatoryReasonByMonth` (useCardProjection.ts:1293) names the card whose pinned
+statement sized the reserve, and `floor-protection.ts:210` prefers it over its
+own heuristics — with a comment recording that the heuristic once reported a
+$2,443 Prime Visa reserve as "$200 Pay sibling to watch dogs".
+
+**THE ACTUAL GAP: that reason never reaches the user.** `CreditCardEngine.tsx:763`
+builds its OWN local `saveUpMonths` set and the sim's `saveUpReason` map is
+rendered nowhere — `grep saveUpReason src/components src/pages` returns nothing.
+So the app computes a known-cause explanation specifically to avoid mislabelling,
+then throws it away and recomputes a worse one.
+
+So the slice is: surface `cardProjection.saveUpReason` / `saveUpMonths` on the
+debt page instead of the local recomputation, and say plainly when the floor
+cannot be met because a full-balance card must be paid. Warning first, engine
+input second — his own ordering.
+
+⚠️ It is a UI slice on a money page, so it needs a real press, not a green build:
+`dev-signin` skill, then look at the page. Do not ship it on tests alone.
+
 ## Claim-on-first-sync SHIPPED and DEPLOYED (2026-09-03)
 
 `persistAccount` matched on `plaid_account_id` alone, so a hand-typed card had no
