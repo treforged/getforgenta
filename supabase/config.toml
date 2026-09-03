@@ -47,6 +47,11 @@ verify_jwt = false
 [functions.og-consent-ask]
 verify_jwt = false
 
+# Pushes a grouped revenue summary to the Conductor. Called with x-cron-secret,
+# not a user JWT; there is no user path into it.
+[functions.revenue-push]
+verify_jwt = false
+
 [functions.og-consent]
 verify_jwt = false
 
