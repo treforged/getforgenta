@@ -52,6 +52,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { displayedManualCashFloor, isManualCashFloor } from '@/lib/cash-floor';
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { buildCashFloorWarning } from '@/lib/cash-floor-warning';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -130,7 +131,7 @@ const PAYMENT_MODE_TIPS = {
 
 export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
-  const { forecastInputsBundle, debtCashConverged } = useCardProjectionContext();
+  const { forecastInputsBundle, debtCashConverged, cardProjection: convergedCardProjection, projections: convergedProjections } = useCardProjectionContext();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
   const { items: plaidItems } = usePlaidItems();
@@ -1071,6 +1072,20 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // generateRecommendations sorts — never re-sorted by flat APR here (see debt-payoff-order.ts).
   const interestThisMonth = useMemo(() => projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), [projections]);
   const interestAtPlan = useMemo(() => getPlanInterestNextMonth(projections, debtCashConverged), [projections, debtCashConverged]);
+
+  // THE CASH-FLOOR WARNING (Tre, 2026-08-27: "it just lets the user know a not
+  // meeting the cash floor is inevitable and to check cash floor").
+  //
+  // Read from the CONVERGED run, never from this file's local prepass. The local
+  // one infers a cause from whatever else is happening that month, and
+  // floor-protection.ts records what that costs: it once reported a $2,443 Prime
+  // Visa reserve as "$200 Pay sibling to watch dogs". `saveUpReason` names the
+  // outflow that actually sized the reserve, and where it has no answer this
+  // states the shortfall alone rather than guessing one.
+  const cashFloorWarning = useMemo(() => buildCashFloorWarning({
+    months: convergedProjections?.data ?? [],
+    saveUpReason: convergedCardProjection?.saveUpReason,
+  }), [convergedProjections, convergedCardProjection]);
   const payoffOrder = useMemo(() => getStrategyPayoffOrder(cards, strategy, payoffOrderAsOf()), [cards, strategy]);
 
   // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
@@ -1538,6 +1553,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   </TooltipContent>
                 </Tooltip>
               </div>
+              {cashFloorWarning && (
+                <p
+                  role="status"
+                  data-testid="cash-floor-warning"
+                  className="text-[10px] text-amber-600 dark:text-amber-500 flex items-start gap-1 mt-1"
+                >
+                  <AlertTriangle size={10} className="shrink-0 mt-[2px]" />
+                  <span>{cashFloorWarning.message}</span>
+                </p>
+              )}
               {!manualFloor && (
                 <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                   <Info size={9} className="shrink-0" />
