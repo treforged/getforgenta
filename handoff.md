@@ -149,6 +149,37 @@ The moment it is live, press these two FIRST, in this order:
 
 Then: an expired link, an already-used link, and a decline.
 
+## CI: the Tests gate is GREEN, for the first time ever (2026-09-03)
+
+It was created 2026-09-03 02:26 already red and had **13 failures / 3 cancelled /
+0 successes** — born red, never once seen to pass. Two separate causes, both
+fixed:
+
+1. **Env.** `client.ts` throws at import without `VITE_SUPABASE_URL` /
+   `VITE_SUPABASE_PUBLISHABLE_KEY`; locally they come from gitignored
+   `.env.local`, and the workflow passed no env at all, so 7 suites died before a
+   test ran. Fixed with DUMMY values in the step — the throw is correct and stays,
+   and the live secrets are deliberately NOT wired in.
+2. **A repo-wide flake.** No `globals: true` and no `setupFiles`, so RTL's
+   `cleanup()` never registered and **nothing had ever been unmounted**. React's
+   scheduler could fire after jsdom teardown → `window is not defined` as an
+   UNHANDLED error: run red, every individual test reporting passing. Fixed by
+   `src/test-setup.ts`.
+
+Also: the count assertion is now a FLOOR (`MIN_TESTS=3000` vs 3405 actual), not
+merely non-zero, so "half the suites stopped loading" cannot pass. It decays
+upward — raise it deliberately, never lower it to go green.
+
+**Honest gap:** the direct A/B that would have PROVEN the flake was a race — a
+rerun of the identical failing commit — was cancelled by my own next push and
+never completed. The race explanation rests on the mechanism (no cleanup
+registered, scheduler vs teardown) plus green/red/green on the same test code. I
+chose not to spend CI on re-proving it once the fix was already in.
+
+**Lesson worth keeping: local green is not CI green.** Four commits went in
+before anyone read the badge. Say "local suite green, CI unverified" until the
+run is watched to completion.
+
 ## Dependabot: 3 fixed, 3 left ALONE on purpose (2026-09-03)
 
 Fixed via `overrides` in package.json — `browserslist` 4.28.8 (the HIGH),
@@ -1067,36 +1098,34 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 13:21 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 13:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (8 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M .claude/settings.json
- M src/lib/expense-filtering.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
 ?? .vercelignore
 ?? deno.lock
-?? src/lib/__tests__/expense-filtering.unpaid.test.ts
 ```
 
 - **Recent commits:**
 
 ```
+3159db63 ci(tests): the Tests workflow had NEVER been green — seven suites died before a test ran
+966ed7c7 fix(expenses): a bill due TODAY was not a bill already paid — the dormant sibling of the rent bug
 dbd8d677 docs(handoff): the 3 Dependabot fixes, and why the uuid trio was left alone
 20d8ebcc fix(deps): patch the three Dependabot alerts, including the high
 0ec2ce9b docs(handoff): what the cert rotation will break in iOS CI, and the key facts nobody should re-check
 a45b9248 feat(og): the consent email, and the ask that issues its link
 6df540b2 feat(og): the consent confirmation page, where the buttons are actually pressed
 2f3a5c88 feat(og): nothing grants a free year without a confirmed consent row
-97a0b662 fix(forecast): a rule starting the 1st was charged the month before, in every negative-offset timezone
-b32248c5 docs(handoff): the lead on the timezone money bug — one path re-derives the month, the other inherits it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
