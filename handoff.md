@@ -116,6 +116,39 @@ decision (a cron entry calling `og-consent-ask?dry_run=0`), not a code change.
 `config.toml`, but the MCP/dashboard deploy path ignores that file and defaults
 to true, which would break the page for anyone not signed in.
 
+## ⚠️ THE CONSENT HANDLERS HAVE NEVER BEEN RUN — the two presses to do FIRST
+
+`og-consent` and `og-consent-ask` have 3396 green tests behind them and **neither
+handler has executed once.** The tests exercise the PURE modules — page HTML,
+email, token rules, the decider — and do press the buttons in parsed DOM. The
+Deno handlers, the Supabase calls, the Resend call, `req.formData()` and the
+token-spend ordering have never run. That is a green build wearing the costume of
+a live test, and it is the `forged-glass` shape: a licence panel whose Accept and
+Decline buttons both threw the first time a human pressed them, after every check
+had printed what the controls SAID.
+
+**Blocked on Tre only** — three migrations, three env vars
+(`RESEND_API_KEY`, `CONSENT_FROM`, `FUNCTIONS_BASE_URL`), and both functions
+deployed with `verify_jwt = false`. **Do NOT work around it**: no local stub for
+the database, no mock Resend. The point is the real button on the real page
+against the real database.
+
+The moment it is live, press these two FIRST, in this order:
+
+1. **DOUBLE-PRESS the confirm button.** The second press must NOT insert a second
+   row. `og_billing_consent` is APPEND-ONLY — a duplicate cannot be deleted, and
+   it is a legal record of what somebody agreed to. Detection relies on
+   `.update(...).is("used_at", null).select("user_id")` coming back EMPTY on the
+   second press; that an empty array (not the row, not null) is what Supabase
+   returns there under a service-role key is BELIEVED, NOT PROVEN. Verify by
+   counting rows for that user, not by reading the response.
+2. **Open the page SIGNED OUT.** It must render, not 401. `verify_jwt = false` is
+   declared in `config.toml`, but the MCP/dashboard deploy path IGNORES that file
+   and defaults to true — which would 401 exactly the signed-out founders the
+   page exists for.
+
+Then: an expired link, an already-used link, and a decline.
+
 ## Dependabot: 3 fixed, 3 left ALONE on purpose (2026-09-03)
 
 Fixed via `overrides` in package.json — `browserslist` 4.28.8 (the HIGH),
@@ -1034,7 +1067,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 04:05 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 13:21 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1044,26 +1077,26 @@ machine-generated and replaced each time; put durable notes above it._
 
 ```
 M .claude/settings.json
- M package-lock.json
- M package.json
+ M src/lib/expense-filtering.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
 ?? .vercelignore
 ?? deno.lock
+?? src/lib/__tests__/expense-filtering.unpaid.test.ts
 ```
 
 - **Recent commits:**
 
 ```
+dbd8d677 docs(handoff): the 3 Dependabot fixes, and why the uuid trio was left alone
+20d8ebcc fix(deps): patch the three Dependabot alerts, including the high
 0ec2ce9b docs(handoff): what the cert rotation will break in iOS CI, and the key facts nobody should re-check
 a45b9248 feat(og): the consent email, and the ask that issues its link
 6df540b2 feat(og): the consent confirmation page, where the buttons are actually pressed
 2f3a5c88 feat(og): nothing grants a free year without a confirmed consent row
 97a0b662 fix(forecast): a rule starting the 1st was charged the month before, in every negative-offset timezone
 b32248c5 docs(handoff): the lead on the timezone money bug — one path re-derives the month, the other inherits it
-4e22f7bc docs(handoff): put the live money bug at the top, with the diagnostic that saves an hour
-3dab1b69 ci: make the test step say WHY it failed — and it found a money bug
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
