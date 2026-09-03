@@ -232,19 +232,52 @@ jobs:
             -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/ipa
 
+      # ⛔ UPLOADING IS DELIBERATE NOW, NOT AUTOMATIC (2026-09-03).
+      #
+      # This step ran on EVERY push to main touching src/**, and on 2026-09-03 it
+      # sent ELEVEN builds to TestFlight in one day — test fixes, a date sweep, a
+      # settings toggle, a demo fixture — until Apple refused the twelfth:
+      #
+      #   ERROR: [altool] Upload limit reached ... (90382)
+      #
+      # None of those eleven was a release. The limit was the symptom, not the
+      # problem. Building on every push is worth keeping — it catches an iOS
+      # compile break the moment it lands — but SHIPPING on every push spends a
+      # daily quota on commits nobody meant to release, and puts a red build
+      # email in Tre's inbox for something that needs no action.
+      #
+      # So the build still runs on every qualifying push; the upload does not.
+      # Ship on purpose: `workflow_dispatch`, or a `v*` tag.
       - name: Upload to App Store Connect
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
         run: |
+          set -o pipefail
           mkdir -p ~/.appstoreconnect/private_keys
           echo -n "$APP_STORE_CONNECT_API_KEY_CONTENT" | base64 --decode -o ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
-          xcrun altool --upload-app \
-            -f $RUNNER_TEMP/ipa/App.ipa \
-            --type ios \
-            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+          # TELL A RATE LIMIT APART FROM A BROKEN BUILD. A bare red for 90382
+          # says "wait a day" in the same voice as "your code does not compile",
+          # and a red that cannot distinguish those teaches everyone to ignore
+          # reds. That is the cry-wolf failure, arriving in Tre's inbox.
+          if xcrun altool --upload-app \
+               -f $RUNNER_TEMP/ipa/App.ipa \
+               --type ios \
+               --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+               --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/altool.log"; then
+            echo "Uploaded to App Store Connect."
+          elif grep -q '90382' "$RUNNER_TEMP/altool.log"; then
+            echo "::warning::Apple upload limit reached (90382). The build is fine — nothing to fix. Retry tomorrow."
+            {
+              echo "### Apple upload limit reached — NO ACTION NEEDED"
+              echo "The app built and signed correctly. Apple caps uploads per app per day; retry tomorrow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::altool upload failed for a reason OTHER than the daily limit — read the log above."
+            exit 1
+          fi
 
       - name: Clean up keychain
         if: always()
