@@ -65,6 +65,31 @@ what let a defect live inside an assertion.
   `last_401k_update`). Real, one-day-early at negative offsets, different blast
   radius from the money engine — do them as their own slice.
 
+## OG billing consent — the GATE is in, the SURFACES are not (2026-09-03)
+
+`decideAnniversary` now refuses to grant without a confirmed `og_billing_consent`
+row (`needs_consent`), Stripe-native members included — `docs/og-cohort.md` states
+that rule with no exception. Gate proven by deletion: remove it and three tests
+fail, including "NEVER GRANTS WITHOUT A CONFIRMED ROW".
+
+Two deliberate choices, both toward not lying in the record:
+- `needs_consent` is REPORT-ONLY. Writing `reward_action_required_at` would record
+  that we asked somebody we have not — the same class of lie as a
+  `reward_granted_at` written by code that granted nothing.
+- A failed consent READ is a failure, not an absent consent. A database blip that
+  read as "never asked" would re-email someone who already confirmed.
+
+**Next up here, in order:**
+1. The consent EMAIL and the WEB confirmation page. Copy is already shipped and
+   versioned (`_shared/og-consent-text.ts`, `buildConsentRow` is pure). Email +
+   web only — never in-app, never behind an in-app link (anti-steering).
+2. Flip `needs_consent` from report-only to actually sending, once (1) exists.
+3. The Stripe grant itself stays unwired pending Tre's explicit yes; it is a real
+   action on his live Stripe account.
+
+**Migrations WRITTEN, NOT APPLIED** — `20260903_og_billing_consent.sql` and
+`20260903_og_anniversary_consent_required.sql`.
+
 ---
 
 ## SESSION OF 2026-09-02 — FIVE THINGS SHIPPED, ALL ON `origin/main`
@@ -941,46 +966,31 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 02:39 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 03:01 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (39 file(s)):**
+- **Uncommitted (10 file(s)):**
 
 ```
 M .claude/settings.json
- M handoff.md
- M package.json
- M src/components/debt/CreditCardEngine.tsx
- M src/components/savings/SurplusRankingSection.tsx
- M src/hooks/__tests__/useCardProjection.month0PinConsistency.test.ts
- M src/hooks/useCardProjection.ts
- M src/lib/__tests__/fixtures/forecast-fixture-io.ts
- M src/lib/__tests__/forecast-convergence.floorDeficit.test.ts
- M src/lib/__tests__/forecast-convergence.floorFlicker.test.ts
- M src/lib/__tests__/forecast-convergence.manualISB.test.ts
- M src/lib/__tests__/forecast-convergence.pinnedOverride.test.ts
- M src/lib/__tests__/forecast-convergence.promoParity.test.ts
- M src/lib/__tests__/forecast-convergence.realData.test.ts
- M src/lib/__tests__/forecast-engine.captureEvidence.test.ts
- M src/lib/__tests__/forecast-engine.goldenTierA.test.ts
- M src/lib/__tests__/forecast-engine.revolvingDebtCash.test.ts
- M src/lib/__tests__/forecast-engine.simAgreement.test.ts
- M src/lib/__tests__/forecast-popup-decimals.test.ts
- M src/lib/__tests__/goal-contribution-overrun.test.ts
- M src/lib/__tests__/monthEndCash.invariant.test.ts
- M src/lib/__tests__/q9-diagnostic.isbPullback.test.ts
- M src/lib/__tests__/step3-display.test.ts
- M src/lib/__tests__/zz-tmp-diagnostic.test.ts
- M src/lib/build-loan-link.ts
-... 14 more
+ M src/lib/__tests__/og-anniversary.test.ts
+ M supabase/.temp/cli-latest
+ M supabase/functions/_shared/og-anniversary.ts
+ M supabase/functions/og-anniversary/index.ts
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? .vercelignore
+?? deno.lock
+?? supabase/migrations/20260903_og_anniversary_consent_required.sql
 ```
 
 - **Recent commits:**
 
 ```
+97a0b662 fix(forecast): a rule starting the 1st was charged the month before, in every negative-offset timezone
 b32248c5 docs(handoff): the lead on the timezone money bug — one path re-derives the month, the other inherits it
 4e22f7bc docs(handoff): put the live money bug at the top, with the diagnostic that saves an hour
 3dab1b69 ci: make the test step say WHY it failed — and it found a money bug
@@ -988,7 +998,6 @@ b655256c feat(og): the consent wording, versioned — the part that has to survi
 421197f9 ci: a test workflow that deploys nothing, so CI can be exercised without shipping
 7c5c51e8 docs(handoff): the consent record, and the CI hole that let releases ship untested
 7eeb3a7f ci(android): run the unit tests before shipping, and fail when they match nothing
-745984e3 test(widgets): make the Android trust rules pressable, and name what blocks running them
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

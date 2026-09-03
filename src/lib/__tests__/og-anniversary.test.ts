@@ -31,7 +31,84 @@ const member = (over: Partial<AnniversaryMember> = {}): AnniversaryMember => ({
   reward_declined_at: null,
   eligible: true,
   lapse_reason: null,
+  consent: { decision: 'confirmed', decided_at: '2027-09-01T00:00:00Z', consent_version: 'og-stripe-move-v1' },
   ...over,
+});
+
+describe('decideAnniversary — the consent gate', () => {
+  // Tre, 2026-09-03: "id want it to notify the user that their subscribtion would be moved to
+  // stripe and require a confirmation. it would need to be tracked for legal reason."
+  // docs/og-cohort.md states it without exception: NOTHING GRANTS WITHOUT A CONFIRMED ROW.
+  //
+  // Would-fail check: delete the `member.consent === null` branch and "never asked" starts
+  // granting — which is the whole failure this gate exists to prevent, and the one that would
+  // move a real person's billing without them agreeing to it.
+
+  it('NEVER GRANTS WITHOUT A CONFIRMED ROW — an unasked member is not granted', () => {
+    const d = decideAnniversary(member({ consent: null }), NOW);
+    expect(d.action).toBe('needs_consent');
+    expect(d.action).not.toBe('grant_stripe');
+    expect(d.reason).toContain('never been asked');
+  });
+
+  it('gives a Stripe-native member NO carve-out — they must consent too', () => {
+    // Their billing rail does not change, but the doc's rule has no exception and the record
+    // has to name the version they agreed to. A carve-out here is a person granted silently.
+    const d = decideAnniversary(member({ claimed_provider: 'stripe', consent: null }), NOW);
+    expect(d.action).toBe('needs_consent');
+  });
+
+  it('does not grant a mobile member without consent either', () => {
+    const d = decideAnniversary(member({ claimed_provider: 'revenuecat', consent: null }), NOW);
+    expect(d.action).toBe('needs_consent');
+  });
+
+  it('keeps an asked-but-unanswered member OUTSTANDING, not granted and not declined', () => {
+    // "We asked and heard nothing" is a different obligation from "they said no", and an
+    // outstanding one must stay named on every run.
+    const d = decideAnniversary(member({
+      consent: { decision: 'asked', decided_at: '2027-08-20T00:00:00Z', consent_version: 'og-stripe-move-v1' },
+    }), NOW);
+    expect(d.action).toBe('outstanding');
+    expect(d.reason).toContain('no answer yet');
+  });
+
+  it('closes out a member who declined the move, naming the consent', () => {
+    const d = decideAnniversary(member({
+      consent: { decision: 'declined', decided_at: '2027-08-21T00:00:00Z', consent_version: 'og-stripe-move-v1' },
+    }), NOW);
+    expect(d.action).toBe('decline');
+    expect(d.reason).toContain('declined the move to Stripe billing');
+    // Must be distinguishable from an eligibility forfeit, which reads very differently.
+    expect(d.reason).not.toContain('not eligible');
+  });
+
+  it('grants only with a confirmed row, and records which version was agreed to', () => {
+    const d = decideAnniversary(member(), NOW);
+    expect(d.action).toBe('grant_stripe');
+    expect(d.reason).toContain('og-stripe-move-v1');
+  });
+
+  it('an already-settled member is still skipped ahead of the gate', () => {
+    // Idempotency outranks consent: a granted member must not be re-asked.
+    const d = decideAnniversary(member({ reward_granted_at: DUE, consent: null }), NOW);
+    expect(d.action).toBe('skip');
+  });
+});
+
+describe('summarize — the consent ask is never silent', () => {
+  it('names members who still need the ask, and counts them as DUE', () => {
+    // A run that reported "0 members were due today" on the day a hundred people became owed
+    // a free year nobody had asked yet would be the silence this whole job is built against.
+    const s = summarize([
+      { user_id: 'u1', og_number: 1, action: 'needs_consent', reason: 'never asked' },
+      { user_id: 'u2', og_number: 2, action: 'needs_consent', reason: 'never asked' },
+    ], []);
+    expect(s.consent_required).toBe(2);
+    expect(s.members_due).toBe(2);
+    expect(s.notes).toContain('NEED THE CONSENT ASK SENT');
+    expect(s.notes).not.toContain('found nothing to do');
+  });
 });
 
 describe('decideAnniversary', () => {

@@ -41,7 +41,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decideAnniversary, summarize } from "../_shared/og-anniversary.ts";
-import type { AnniversaryDecision, AnniversaryMember } from "../_shared/og-anniversary.ts";
+import type { AnniversaryDecision, AnniversaryMember, ConsentState } from "../_shared/og-anniversary.ts";
 
 Deno.serve(async (req) => {
   const secret = req.headers.get("x-cron-secret");
@@ -92,7 +92,28 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const member: AnniversaryMember = { ...row, eligible: eligible === true } as AnniversaryMember;
+      // WHO HAS AGREED. Read from the database, never inferred and never assumed:
+      // docs/og-cohort.md — "nothing grants without a confirmed row". A FAILED
+      // READ IS NOT AN ABSENT CONSENT. Treating an error as "no row" would make
+      // a transient database blip look exactly like a person who was never
+      // asked, which is the safe direction for granting but the WRONG direction
+      // for reporting: it would put someone who already confirmed back on the
+      // "needs the ask sent" list and email them again. So a failed read is a
+      // failure, and this member is skipped this run.
+      const { data: consentRows, error: consentErr } = await db.rpc("og_billing_consent_current", {
+        p_user_id: row.user_id,
+      });
+      if (consentErr) {
+        failures.push({ user_id: row.user_id, error: `consent check failed: ${consentErr.message}` });
+        continue;
+      }
+      // The function returns a set; no row means never asked, which is a real
+      // and distinct state rather than a missing value.
+      const consent: ConsentState | null = Array.isArray(consentRows) && consentRows.length > 0
+        ? consentRows[0] as ConsentState
+        : null;
+
+      const member: AnniversaryMember = { ...row, eligible: eligible === true, consent } as AnniversaryMember;
       const decision = decideAnniversary(member, dueBefore);
       decisions.push(decision);
 
@@ -100,7 +121,20 @@ Deno.serve(async (req) => {
       // row already says so, so there is nothing to write — but they are counted
       // and named in the summary every run, because an obligation that stops
       // being mentioned is an obligation that stops being kept.
-      if (dryRun || decision.action === "skip" || decision.action === "outstanding") continue;
+      //
+      // `needs_consent` is REPORT-ONLY TOO, and deliberately so. Sending the ask
+      // means emailing a real person about their billing, and the surface that
+      // does it is not built yet. Writing `reward_action_required_at` here
+      // instead would record that we asked somebody we have not asked — the same
+      // class of lie as a `reward_granted_at` written by code that granted
+      // nothing. So they stay in the summary, named and counted, until the ask
+      // exists. See docs/og-cohort.md.
+      if (
+        dryRun
+        || decision.action === "skip"
+        || decision.action === "outstanding"
+        || decision.action === "needs_consent"
+      ) continue;
 
       try {
         await settle(db, decision, now);
@@ -124,6 +158,7 @@ Deno.serve(async (req) => {
     action_required: summary.action_required,
     declined: summary.declined,
     outstanding: summary.outstanding,
+    consent_required: summary.consent_required,
     failed: summary.failed,
     notes: summary.notes,
   });

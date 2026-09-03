@@ -33,8 +33,28 @@ export type AnniversaryAction =
    * named on every run until it is settled.
    */
   | 'outstanding'
+  /**
+   * Eligible and due, but NOBODY HAS AGREED YET. The ask has not gone out, or
+   * it went out and no answer came back.
+   *
+   * Tre, 2026-09-03: *"id want it to notify the user that their subscribtion
+   * would be moved to stripe and require a confirmation. it would need to be
+   * tracked for legal reason."* So the order is notify → explicit confirmation
+   * → act, and this outcome is the "not yet" in the middle. It is NOT a
+   * failure and NOT a decline: it is an obligation that has reached the point
+   * where somebody has to be asked. `docs/og-cohort.md`: **nothing grants
+   * without a confirmed row.**
+   */
+  | 'needs_consent'
   /** Already settled. The guard that makes a retried run safe. */
   | 'skip';
+
+/** The latest row from `og_billing_consent_current(user_id)`; null = never asked. */
+export interface ConsentState {
+  decision: 'asked' | 'confirmed' | 'declined';
+  decided_at: string;
+  consent_version: string;
+}
 
 export interface AnniversaryMember {
   user_id: string;
@@ -47,6 +67,11 @@ export interface AnniversaryMember {
   /** From `og_reward_eligible(user_id, reward_due_at)` — evaluated in the DB. */
   eligible: boolean;
   lapse_reason: string | null;
+  /**
+   * From `og_billing_consent_current(user_id)`. `null` means never asked, which
+   * is a DIFFERENT fact from asked-and-no-answer and must stay distinguishable.
+   */
+  consent: ConsentState | null;
 }
 
 export interface AnniversaryDecision {
@@ -99,8 +124,54 @@ export function decideAnniversary(member: AnniversaryMember, now: Date): Anniver
     };
   }
 
+  // ── THE CONSENT GATE ───────────────────────────────────────────────────────
+  // It sits HERE, after eligibility and before anything that could act, because
+  // it gates BOTH outcomes below it. A Stripe-native member gets no carve-out:
+  // docs/og-cohort.md says "nothing grants without a confirmed row" with no
+  // exception, and the version they confirmed is what the record has to name.
+  //
+  // WHY IT IS A GATE AND NOT A CHECK AT THE WRITE SITE: `settle()` already
+  // refuses to stamp `reward_granted_at` for a grant it did not perform, but a
+  // guard that only exists at the last line is a guard one refactor away from
+  // being skipped. Deciding it here makes "who has agreed" visible in the run
+  // summary a year before anyone presses anything.
+  if (member.consent?.decision === 'declined') {
+    // NOT a forfeit and not a lapse — they read the ask and said no, which the
+    // consent copy explicitly offers ("your subscription stays exactly as it
+    // is"). Recorded as declined so the obligation is closed rather than
+    // pending forever, and the reason names the consent so a later reader is
+    // not left guessing which kind of "declined" this was.
+    return {
+      ...base,
+      action: 'decline',
+      reason: `declined the move to Stripe billing on ${member.consent.decided_at} (${member.consent.consent_version})`,
+    };
+  }
+
+  if (member.consent?.decision === 'asked') {
+    // Asked and no answer. Same bucket as the half-done mobile flow, on purpose:
+    // both are "still owed, already asked, do not ask again today".
+    return {
+      ...base,
+      action: 'outstanding',
+      reason: `asked for billing consent on ${member.consent.decided_at} (${member.consent.consent_version}), no answer yet`,
+    };
+  }
+
+  if (member.consent === null) {
+    return {
+      ...base,
+      action: 'needs_consent',
+      reason: 'eligible and due, but has never been asked to consent to the move to Stripe billing',
+    };
+  }
+
   if (member.claimed_provider === 'stripe') {
-    return { ...base, action: 'grant_stripe', reason: 'eligible, billed on Stripe' };
+    return {
+      ...base,
+      action: 'grant_stripe',
+      reason: `eligible, billed on Stripe, consented ${member.consent.decided_at} (${member.consent.consent_version})`,
+    };
   }
 
   return {
@@ -117,6 +188,8 @@ export interface RunSummary {
   declined: number;
   /** Asked on an earlier run and still not settled. Never allowed to reach zero by neglect. */
   outstanding: number;
+  /** Due, eligible, and nobody has asked them yet. The email that has to go out. */
+  consent_required: number;
   failed: number;
   notes: string;
 }
@@ -138,14 +211,23 @@ export function summarize(
   const action_required = count('needs_user_action');
   const declined = count('decline');
   const outstanding = count('outstanding');
-  const members_due = granted + action_required + declined;
+  const consent_required = count('needs_consent');
+  // `consent_required` counts toward members_due: they ARE due, and leaving them
+  // out would let a run report "0 members were due today" on a day a hundred
+  // people became owed a free year nobody had asked yet.
+  const members_due = granted + action_required + declined + consent_required;
 
   const lines: string[] = [];
   lines.push(
     members_due === 0
       ? 'No members were due today. This run completed and found nothing to do.'
-      : `${members_due} member(s) due: ${granted} granted, ${action_required} awaiting user action, ${declined} declined.`,
+      : `${members_due} member(s) due: ${granted} granted, ${action_required} awaiting user action, ${declined} declined, ${consent_required} awaiting the consent ask.`,
   );
+  // Named separately and unmissably: until the ask goes out, these people are
+  // owed a free year and nothing in the system is trying to give it to them.
+  if (consent_required > 0) {
+    lines.push(`${consent_required} member(s) NEED THE CONSENT ASK SENT — nothing grants without a confirmed row.`);
+  }
   // Reported on EVERY run, including one with nothing new due. An obligation
   // that stops being mentioned is an obligation that stops being kept.
   if (outstanding > 0) {
@@ -165,6 +247,7 @@ export function summarize(
     action_required,
     declined,
     outstanding,
+    consent_required,
     failed: failures.length,
     notes: lines.join('\n'),
   };
