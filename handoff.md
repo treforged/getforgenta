@@ -129,6 +129,15 @@ two named tests are DONE against the live endpoint:
    `.update(...).is("used_at", null).select()` comes back EMPTY on the second
    press — is now proven by counting rows, not by reading a response.
 3. GET rendered both buttons as `method="POST"` and recorded nothing.
+4. **Expired link refuses BOTH verbs.** GET and POST each returned 410 "expired",
+   and the POST recorded nothing — an expired credential cannot be used by
+   skipping the page and posting straight at it.
+5. **Decline records `declined`, once.** One row, `action_taken` =
+   `pressed-decline-web: "No thanks, leave it as it is"`, and the page said
+   "Nothing changes".
+6. The `og_consent_tokens_one_live` index proved itself in passing: it refused a
+   second unused token for the same user, which is why the expired and decline
+   cases had to be run in sequence rather than side by side.
 
 **Test artefacts were REMOVED.** The press wrote a real-shaped consent row against
 Tre's own user id; left in place it would read as genuine consent in a legal
