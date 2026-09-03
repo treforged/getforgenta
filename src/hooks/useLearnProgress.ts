@@ -12,19 +12,30 @@ import { computeStreak, hasReadToday } from '@/lib/learn-streak';
  * The Learn track's state: which lessons this account has read, and everything derived from that.
  *
  * ONE SOURCE, DERIVED EVERYTHING. Streak, badge count and next lesson are all computed from the
- * same `learn_progress` rows rather than stored separately, because a stored badge count that
+ * same `achievements` rows rather than stored separately, because a stored badge count that
  * disagrees with the rows that earned it forces the UI to pick a winner, and it will pick wrong.
+ *
+ * THE TABLE IS `achievements`, NOT `learn_progress`. It was renamed when the OG badge and the
+ * social-follow badges arrived — they are the same shape, and three parallel tables would mean
+ * three sets of grants to get right instead of one. Lesson rows are namespaced `lesson:<slug>`,
+ * which is also what the RLS INSERT policy allows a client to write: `lesson:%` and the two
+ * social follows, and nothing else. `og_founder` is deliberately not writable from here, because
+ * it is worth a free year.
  *
  * DEMO MODE READS AND WRITES NOTHING. A demo session has no user, so marking a lesson read would
  * either fail against RLS or write to whoever happens to be signed in. It gets an empty, honest
  * state instead.
  */
 
-export const LEARN_PROGRESS_QUERY_KEY = 'learn_progress';
+export const LEARN_PROGRESS_QUERY_KEY = 'achievements';
+
+/** Lesson achievement ids are namespaced, so one table can hold badges that are not lessons. */
+export const LESSON_PREFIX = 'lesson:';
+export const lessonAchievementId = (lessonId: string): string => `${LESSON_PREFIX}${lessonId}`;
 
 export interface LearnProgressRow {
-  lesson_id: string;
-  read_at: string;
+  achievement_id: string;
+  earned_at: string;
 }
 
 export interface LearnProgress {
@@ -57,10 +68,13 @@ export function useLearnProgress(): LearnProgress {
       // RLS already restricts this to the caller's rows; the filter is stated anyway, matching
       // every other read in the app.
       const { data, error } = await supabase
-        .from('learn_progress')
-        .select('lesson_id, read_at')
+        .from('achievements')
+        .select('achievement_id, earned_at')
         .eq('user_id', user.id)
-        .order('read_at', { ascending: false });
+        // Lessons only. The OG and social badges live in the same table and are shown elsewhere;
+        // counting them here would put the Learn ring at 14/12.
+        .like('achievement_id', `${LESSON_PREFIX}%`)
+        .order('earned_at', { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -69,14 +83,14 @@ export function useLearnProgress(): LearnProgress {
   const rows = useMemo(() => query.data ?? [], [query.data]);
 
   return useMemo(() => {
-    const readIds = rows.map(r => r.lesson_id);
-    const timestamps = rows.map(r => r.read_at);
+    const readIds = rows.map(r => r.achievement_id.slice(LESSON_PREFIX.length));
+    const timestamps = rows.map(r => r.earned_at);
     const now = new Date();
 
     const achievements = rows
       .map(row => {
-        const lesson = lessonById(row.lesson_id);
-        return lesson ? { lesson, readAt: row.read_at } : null;
+        const lesson = lessonById(row.achievement_id.slice(LESSON_PREFIX.length));
+        return lesson ? { lesson, readAt: row.earned_at } : null;
       })
       // A row for a retired lesson is history, not an error — it is simply not shown.
       .filter((a): a is { lesson: LearnLesson; readAt: string } => a !== null);
@@ -97,8 +111,8 @@ export function useLearnProgress(): LearnProgress {
 }
 
 /**
- * Mark a lesson read. Idempotent by the `(user_id, lesson_id)` unique index rather than by a
- * read-then-write, so a double tap cannot mint a second badge or move an earlier `read_at`.
+ * Mark a lesson read. Idempotent by the `(user_id, achievement_id)` unique index rather than by a
+ * read-then-write, so a double tap cannot mint a second badge or move an earlier `earned_at`.
  */
 export function useMarkLessonRead() {
   const { user } = useAuth();
@@ -111,8 +125,8 @@ export function useMarkLessonRead() {
       if (!LEARN_LESSONS.some(l => l.id === lessonId)) throw new Error('Unknown lesson.');
 
       const { error } = await supabase
-        .from('learn_progress')
-        .insert({ user_id: user.id, lesson_id: lessonId });
+        .from('achievements')
+        .insert({ user_id: user.id, achievement_id: lessonAchievementId(lessonId) });
 
       // 23505 is the unique violation: the lesson was already read. That is a success from the
       // reader's point of view, and surfacing it as a failure would make a second tap look broken.

@@ -944,26 +944,26 @@ export type Database = {
         }
         Relationships: []
       }
-      learn_progress: {
+      achievements: {
         Row: {
           created_at: string
           id: string
-          lesson_id: string
-          read_at: string
+          achievement_id: string
+          earned_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          lesson_id: string
-          read_at?: string
+          achievement_id: string
+          earned_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          lesson_id?: string
-          read_at?: string
+          achievement_id?: string
+          earned_at?: string
           user_id?: string
         }
         Relationships: []

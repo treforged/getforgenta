@@ -5,7 +5,7 @@
 // beside it, and for the same reason — a control checked by reading its label ships broken.
 //
 // What is being protected:
-//  - "Mark as read" actually WRITES a `learn_progress` row for this user and this lesson;
+//  - "Mark as read" actually WRITES a namespaced `achievements` row for this user and lesson;
 //  - the badge and the counter move afterwards, from the row rather than from local state;
 //  - a second press cannot mint a second badge (the unique index is treated as success);
 //  - a demo/signed-out reader is TOLD the button would do nothing, rather than shown a dead one.
@@ -18,7 +18,7 @@ import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const state = vi.hoisted(() => ({
-  rows: [] as { lesson_id: string; read_at: string }[],
+  rows: [] as { achievement_id: string; earned_at: string }[],
   inserts: [] as Record<string, unknown>[],
   /** Set to emulate the unique index firing on a second press. */
   insertError: null as { code: string } | null,
@@ -32,18 +32,22 @@ const toastError = vi.hoisted(() => vi.fn());
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: (table: string) => {
-      if (table !== 'learn_progress') throw new Error(`unexpected table ${table}`);
+      if (table !== 'achievements') throw new Error(`unexpected table ${table}`);
       return {
         select: () => ({
           eq: () => ({
-            order: async () => ({ data: state.rows, error: null }),
+            // `.like()` namespaces the read to lesson rows; the mock mirrors the real chain so a
+            // dropped filter would show up here rather than as a Learn ring counting OG badges.
+            like: () => ({
+              order: async () => ({ data: state.rows, error: null }),
+            }),
           }),
         }),
         insert: async (payload: Record<string, unknown>) => {
           if (state.insertError) return { error: state.insertError };
           state.inserts.push(payload);
           state.rows = [
-            { lesson_id: payload.lesson_id as string, read_at: new Date().toISOString() },
+            { achievement_id: payload.achievement_id as string, earned_at: new Date().toISOString() },
             ...state.rows,
           ];
           return { error: null };
@@ -106,7 +110,9 @@ describe('LearnCard', () => {
     fireEvent.click(button);
 
     await waitFor(() => expect(state.inserts.length).toBe(1));
-    expect(state.inserts[0]).toEqual({ user_id: 'user-1', lesson_id: FIRST.id });
+    // NAMESPACED. A bare lesson id would be refused by the RLS policy, which only allows
+    // `lesson:%` and the two social follows — that is what stops a client minting `og_founder`.
+    expect(state.inserts[0]).toEqual({ user_id: 'user-1', achievement_id: `lesson:${FIRST.id}` });
     await waitFor(() =>
       expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining(FIRST.achievement.name)),
     );
@@ -187,8 +193,8 @@ describe('LearnCard', () => {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     state.rows = [
-      { lesson_id: LEARN_LESSONS[0].id, read_at: today.toISOString() },
-      { lesson_id: LEARN_LESSONS[1].id, read_at: yesterday.toISOString() },
+      { achievement_id: `lesson:${LEARN_LESSONS[0].id}`, earned_at: today.toISOString() },
+      { achievement_id: `lesson:${LEARN_LESSONS[1].id}`, earned_at: yesterday.toISOString() },
     ];
     mount();
     expect(await screen.findByText(/2-day streak/i)).toBeTruthy();
