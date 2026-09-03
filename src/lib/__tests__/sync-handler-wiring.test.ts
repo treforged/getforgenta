@@ -27,15 +27,21 @@ import type {
 type Row = Record<string, unknown>;
 
 /** Captures what persistAccount writes. `existing` = the row the select finds (null = insert path). */
-function fakeDb(existing: Row | null) {
+function fakeDb(existing: Row | null, owned: Row[] = [], byId: Record<string, Row> = {}) {
   const writes: { inserted?: Row; updated?: Row; updatedId?: unknown } = {};
   const db = {
     from(table: string) {
       if (table !== 'accounts') throw new Error(`unexpected table ${table}`);
       return {
+        // Three chains now, and each is spelled out rather than stubbed loosely:
+        //   .eq(user).eq(plaid).maybeSingle()  the provider-id lookup
+        //   .eq(user)                          the claim scan, awaited directly
+        //   .eq(id).maybeSingle()              re-reading a claimed row
         select: () => ({
-          eq: () => ({
+          eq: (col: string, val: unknown) => ({
             eq: () => ({ maybeSingle: async () => ({ data: existing }) }),
+            maybeSingle: async () => ({ data: col === 'id' ? (byId[String(val)] ?? null) : existing }),
+            then: (res: (v: { data: Row[] }) => unknown) => res({ data: owned }),
           }),
         }),
         insert: async (payload: Row) => {
@@ -182,5 +188,61 @@ describe('persistAccount — a renamed account keeps its name', () => {
     const { db, writes } = fakeDb({ id: 'row-1', name_is_manual: false, min_payment_is_manual: false });
     await persistAccount(db, 'user-1', connection, account({}), NOW);
     expect('name_is_manual' in writes.updated!).toBe(false);
+  });
+});
+
+// ── CLAIM-ON-FIRST-SYNC ──────────────────────────────────────────────────────
+// The pure decision has its own suite (`account-claim.test.ts`). What is pinned here is the
+// WIRING: that persistAccount UPDATES the claimed row instead of inserting a second one, and
+// that the update carries the provider id so every later sync takes the ordinary path.
+//
+// The defect being prevented: a card the user typed in has no plaid_account_id, so linking that
+// bank inserted a duplicate — debt counted twice, a phantom credit limit, and the manual fields
+// and surplus rank stranded on the original.
+describe('persistAccount — claim-on-first-sync', () => {
+  const handMade = {
+    id: 'hand-1', account_type: 'credit_card', institution: 'Discover Bank',
+    plaid_account_id: null, card_start_date: null,
+  };
+  const claimedRow = {
+    id: 'hand-1', apr: null, apr_plaid_synced: null, credit_limit: 15000,
+    min_payment_is_manual: null, name_is_manual: null, balance_tranches: null,
+  };
+
+  it('UPDATES the hand-made card instead of inserting a duplicate', async () => {
+    const { db, writes } = fakeDb(null, [handMade], { 'hand-1': claimedRow });
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect(writes.inserted, 'a duplicate row was inserted — this is the defect').toBeUndefined();
+    expect(writes.updatedId).toBe('hand-1');
+  });
+
+  it('stamps the provider id on the claim, so later syncs match normally', async () => {
+    const { db, writes } = fakeDb(null, [handMade], { 'hand-1': claimedRow });
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect(writes.updated?.plaid_account_id).toBe('acct-1');
+  });
+
+  it('inserts as before when nothing is claimable', async () => {
+    const other = { ...handMade, institution: 'Chase' };
+    const { db, writes } = fakeDb(null, [other], {});
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect(writes.inserted).toBeDefined();
+    expect(writes.updatedId).toBeUndefined();
+  });
+
+  it('does NOT stamp a provider id on an ordinary update — only on a claim', async () => {
+    // The already-linked path must not start rewriting plaid_account_id on every sync.
+    const { db, writes } = fakeDb(claimedRow, [], {});
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect(writes.updated).toBeDefined();
+    expect('plaid_account_id' in (writes.updated ?? {})).toBe(false);
+  });
+
+  it('leaves a not-yet-open planned card alone and inserts instead', async () => {
+    const planned = { ...handMade, card_start_date: '2027-01-01' };
+    const { db, writes } = fakeDb(null, [planned], {});
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect(writes.inserted, 'a planned card must never be welded to a real one').toBeDefined();
+    expect(writes.updatedId).toBeUndefined();
   });
 });

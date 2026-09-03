@@ -27,6 +27,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { getCorsHeaders } from "./cors.ts";
 import { resolveAprOnSync } from "./providers/apr-sync-policy.ts";
 import { shouldSeedTranches } from "./providers/balance-tranche-seed.ts";
+import { chooseClaimCandidate, type ClaimableAccount } from "./account-claim.ts";
 import {
   type FinancialConnection,
   getProvider,
@@ -112,12 +113,49 @@ export async function persistAccount(
   account: NormalizedAccount,
   now: string,
 ): Promise<void> {
-  const { data: existing } = await db
+  const COLS = "id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, name_is_manual, balance_tranches";
+
+  let { data: existing } = await db
     .from("accounts")
-    .select("id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, name_is_manual, balance_tranches")
+    .select(COLS)
     .eq("user_id", userId)
     .eq("plaid_account_id", account.providerAccountId)
     .maybeSingle();
+
+  // CLAIM-ON-FIRST-SYNC. Matching on `plaid_account_id` alone means a card the
+  // user TYPED IN has no match, so linking that bank inserts a SECOND row for a
+  // card they already have: the debt is counted twice, their hand-typed limit
+  // becomes a phantom limit on a duplicate, and their manual fields and surplus
+  // rank stay stranded on the original. Confirmed on a real Robinhood card,
+  // ~$5,250 of phantom limit.
+  //
+  // The decision itself is in `chooseClaimCandidate`, pure and tested, because
+  // adopting the WRONG row is worse than the duplicate it prevents — it welds a
+  // provider account onto an unrelated record, silently. It claims only on a
+  // single unambiguous match and otherwise falls through to the insert below,
+  // which is today's behaviour.
+  let claimedId: string | null = null;
+  if (!existing) {
+    const { data: owned } = await db
+      .from("accounts")
+      .select("id, account_type, institution, plaid_account_id, card_start_date")
+      .eq("user_id", userId);
+    // Server date. A card opening today or tomorrow could read a day early at the
+    // boundary, and that errs toward NOT claiming, which is the safe direction.
+    const verdict = chooseClaimCandidate(
+      (owned ?? []) as ClaimableAccount[],
+      account.accountType,
+      connection.institution_name ?? null,
+      now.slice(0, 10),
+    );
+    if (verdict.claim) {
+      claimedId = verdict.id;
+      console.log(`Claiming account ${verdict.id} for ${account.providerAccountId}: ${verdict.reason}`);
+      const { data: adopted } = await db
+        .from("accounts").select(COLS).eq("id", verdict.id).maybeSingle();
+      existing = adopted;
+    }
+  }
 
   const shared = {
     name: account.name,
@@ -169,6 +207,10 @@ export async function persistAccount(
     ...shared,
     apr: effectiveApr,
     credit_limit: effectiveLimit,
+    // Only on a claim. This is the write that ends the duplicate: from here the
+    // row matches on `plaid_account_id` like any other and every later sync takes
+    // the ordinary path.
+    ...(claimedId ? { plaid_account_id: account.providerAccountId } : {}),
   };
 
   // A NAME THE USER CHOSE IS THEIRS, and this is the half that makes the rename stick. Without it
