@@ -27,6 +27,12 @@ export type AnniversaryAction =
   | 'needs_user_action'
   /** Eligibility failed. The reason is recorded at the time, not re-derived. */
   | 'decline'
+  /**
+   * Asked, still owed. Both halves of the mobile flow are performed by the user
+   * and we see only the first, so an outstanding obligation stays counted and
+   * named on every run until it is settled.
+   */
+  | 'outstanding'
   /** Already settled. The guard that makes a retried run safe. */
   | 'skip';
 
@@ -65,9 +71,17 @@ export function decideAnniversary(member: AnniversaryMember, now: Date): Anniver
     return { ...base, action: 'skip', reason: `already declined at ${member.reward_declined_at}` };
   }
   if (member.reward_action_required_at !== null) {
-    // Already asked. Asking again every day for a year is how a reminder becomes
-    // a reason to uninstall; re-prompting is a separate decision with its own cadence.
-    return { ...base, action: 'skip', reason: `already flagged for user action at ${member.reward_action_required_at}` };
+    // Asked, but NOT SETTLED. Deliberately its own outcome rather than a `skip`:
+    // the ask has two halves the user performs (start the free year, then cancel
+    // the store subscription) and we only ever see the first. Someone who does
+    // half of it — or neither — is still owed, and a `skip` would make them
+    // vanish from every run summary from then on. Silently dropping an
+    // outstanding obligation is the failure this whole job is built against.
+    //
+    // It is NOT re-asked here. Asking again every day for a year is how a
+    // reminder becomes a reason to uninstall; re-prompting is a separate
+    // decision with its own cadence. This outcome exists to keep them VISIBLE.
+    return { ...base, action: 'outstanding', reason: `asked at ${member.reward_action_required_at}, not yet confirmed on both sides` };
   }
 
   if (new Date(member.reward_due_at) > now) {
@@ -101,6 +115,8 @@ export interface RunSummary {
   granted: number;
   action_required: number;
   declined: number;
+  /** Asked on an earlier run and still not settled. Never allowed to reach zero by neglect. */
+  outstanding: number;
   failed: number;
   notes: string;
 }
@@ -121,6 +137,7 @@ export function summarize(
   const granted = count('grant_stripe');
   const action_required = count('needs_user_action');
   const declined = count('decline');
+  const outstanding = count('outstanding');
   const members_due = granted + action_required + declined;
 
   const lines: string[] = [];
@@ -129,6 +146,11 @@ export function summarize(
       ? 'No members were due today. This run completed and found nothing to do.'
       : `${members_due} member(s) due: ${granted} granted, ${action_required} awaiting user action, ${declined} declined.`,
   );
+  // Reported on EVERY run, including one with nothing new due. An obligation
+  // that stops being mentioned is an obligation that stops being kept.
+  if (outstanding > 0) {
+    lines.push(`${outstanding} member(s) STILL OWED — asked previously, not yet confirmed on both sides.`);
+  }
   for (const d of decisions) {
     if (d.action === 'skip') continue;
     lines.push(`  #${d.og_number} ${d.action}: ${d.reason}`);
@@ -142,6 +164,7 @@ export function summarize(
     granted,
     action_required,
     declined,
+    outstanding,
     failed: failures.length,
     notes: lines.join('\n'),
   };

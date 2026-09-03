@@ -50,6 +50,15 @@ create table if not exists public.og_anniversary_runs (
   granted           integer not null default 0,
   action_required   integer not null default 0,
   declined          integer not null default 0,
+
+  -- Asked on an EARLIER run and still not settled. Both halves of the mobile
+  -- flow are performed by the user — start the free year, then cancel the store
+  -- subscription — and we only ever observe the first. Someone who does half of
+  -- it is still owed, so they stay counted here on every run rather than
+  -- disappearing after the day they were asked. An obligation that stops being
+  -- mentioned is an obligation that stops being kept.
+  outstanding       integer not null default 0,
+
   failed            integer not null default 0,
 
   -- Anything the run wants a human to read later. Errors go here in full;

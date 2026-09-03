@@ -96,7 +96,11 @@ Deno.serve(async (req) => {
       const decision = decideAnniversary(member, dueBefore);
       decisions.push(decision);
 
-      if (dryRun || decision.action === "skip") continue;
+      // `outstanding` is REPORT-ONLY: the member has already been asked and the
+      // row already says so, so there is nothing to write — but they are counted
+      // and named in the summary every run, because an obligation that stops
+      // being mentioned is an obligation that stops being kept.
+      if (dryRun || decision.action === "skip" || decision.action === "outstanding") continue;
 
       try {
         await settle(db, decision, now);
@@ -119,6 +123,7 @@ Deno.serve(async (req) => {
     granted: summary.granted,
     action_required: summary.action_required,
     declined: summary.declined,
+    outstanding: summary.outstanding,
     failed: summary.failed,
     notes: summary.notes,
   });

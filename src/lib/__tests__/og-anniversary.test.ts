@@ -47,9 +47,17 @@ describe('decideAnniversary', () => {
     expect(d.reason).toContain('already granted');
   });
 
-  it('does not re-decline or re-ask someone already settled', () => {
+  it('does not re-decline someone already settled', () => {
     expect(decideAnniversary(member({ reward_declined_at: DUE }), NOW).action).toBe('skip');
-    expect(decideAnniversary(member({ reward_action_required_at: DUE }), NOW).action).toBe('skip');
+  });
+
+  it('KEEPS AN ASKED-BUT-UNSETTLED MEMBER VISIBLE rather than skipping them', () => {
+    // The mobile ask has two halves the USER performs and we only ever see the first, so
+    // someone who did half of it is still owed. A `skip` would drop them out of every run
+    // summary from then on — an obligation that stops being mentioned stops being kept.
+    const d = decideAnniversary(member({ reward_action_required_at: DUE }), NOW);
+    expect(d.action).toBe('outstanding');
+    expect(d.reason).toContain('not yet confirmed on both sides');
   });
 
   it('leaves a member alone before their date', () => {
@@ -107,6 +115,19 @@ describe('summarize — the record that the run happened', () => {
     expect(s.notes).toContain('#2 needs_user_action');
     expect(s.notes).toContain('#3 decline');
     expect(s.notes).not.toContain('#4');  // skips are not noise in the log
+  });
+
+  it('names members STILL OWED on every run, even one with nothing new due', () => {
+    const s = summarize(
+      [decideAnniversary(member({ og_number: 7, reward_action_required_at: DUE }), NOW)],
+      [],
+    );
+    expect(s.outstanding).toBe(1);
+    expect(s.members_due).toBe(0);
+    // Both statements appear: nothing NEW was due, and somebody is still owed.
+    expect(s.notes).toContain('No members were due today');
+    expect(s.notes).toContain('STILL OWED');
+    expect(s.notes).toContain('#7 outstanding');
   });
 
   it('reports failures in full rather than swallowing them', () => {

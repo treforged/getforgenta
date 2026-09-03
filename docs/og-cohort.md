@@ -204,6 +204,40 @@ subscription only *after* it completes, and let the two overlap rather than risk
 a day without access. An overlap costs them nothing because the Stripe side is
 free; a gap costs trust.
 
+#### ⛔ THE ASK GOES BY EMAIL. NEVER INSIDE THE APP.
+
+This is not a design preference — it is the difference between a loyalty reward
+and an app-store risk, and the penalty is not a warning, it is the app.
+
+Telling an iOS user, **inside the app**, to pay outside the App Store is
+anti-steering: historically the fastest way to get rejected or pulled. US rules
+loosened after the Epic injunction, but it remains the most sensitive surface in
+the store. Google's rules are looser and not absent.
+
+So:
+
+- **Deliver the ask by email.** An email to a customer is unambiguously outside
+  the app; a screen inside it is not.
+- **The in-app side may say a member is an OG and that their reward is being
+  arranged.** It must not name Stripe, must not carry a payment link, and must
+  not instruct anyone to cancel anything.
+- **Use the same channel for both platforms**, so there is one flow to get right
+  rather than two.
+
+If a future change moves this into an in-app banner, modal or push, it is a
+regression, not an improvement.
+
+#### Both halves, or it is not settled
+
+The user performs two actions and **we only ever observe the first**: starting
+the free Stripe year, and cancelling the store subscription. Some will do the
+first and never the second; a few will cancel first and stall.
+
+So a member who has been asked is recorded as `outstanding` — **counted and named
+in every run summary until both sides are confirmed**, not skipped after the day
+they were asked. An obligation that stops being mentioned is an obligation that
+stops being kept.
+
 ## Open questions
 
 - **The Stripe grant is written but not wired.** Applying the free year means
