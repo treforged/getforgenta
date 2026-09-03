@@ -116,6 +116,33 @@ decision (a cron entry calling `og-consent-ask?dry_run=0`), not a code change.
 `config.toml`, but the MCP/dashboard deploy path ignores that file and defaults
 to true, which would break the page for anyone not signed in.
 
+## iOS CI secrets are being rotated this week (2026-09-03) — what will break
+
+Tre's Apple distribution certificate is being rotated, which invalidates every
+provisioning profile built on it. `.github/workflows/ios-build.yml` consumes
+`BUILD_CERTIFICATE_BASE64` and `BUILD_PROVISION_PROFILE_BASE64`; **they must be
+replaced in the SAME pass.** Update one and not the other and iOS CI goes red on
+a signing error that never mentions certificates — expect an hour lost to it
+otherwise. Runbook lives at
+`claudecontext/security-reviews/2026-09-03_credential-rotation-runbook.md` (Sam's).
+
+App Store Connect keys, read off the live key list 2026-09-03 so nobody re-checks:
+- **`VP34CQ3J84`** ("Forged CI") is the LIVE API key — the only active one, last
+  used today. It is what `APP_STORE_CONNECT_API_KEY_ID` resolves to. Nothing in
+  this tree names it: the workflow builds `AuthKey_${...}.p8` at runtime, so
+  rotating is a secrets update, not a code change.
+- **`AH86Q9RAQW`** is NOT active. Nothing to revoke; any file of that name is a
+  stale artefact.
+- **`G77784XFWZ`** ("Forged Subscription") is an ACTIVE in-app purchase key with
+  no consumer in this repo. ⚠️ Apple shows DOWNLOADED, not LAST USED, for these,
+  so **Apple cannot tell you whether anything uses it** — the only place that
+  answers it is RevenueCat's app settings. Revoking it fails SILENTLY
+  (subscription status going stale), never as a red build.
+
+When the profile is regenerated, **include the App Group entitlement** — the iOS
+widget slice (`docs/ios-widgets-scope.md`, scoped not started) needs it, and it
+is free to fold into a regeneration that is happening anyway.
+
 ---
 
 ## SESSION OF 2026-09-02 — FIVE THINGS SHIPPED, ALL ON `origin/main`
@@ -992,38 +1019,35 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 03:01 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 03:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (10 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M .claude/settings.json
- M src/lib/__tests__/og-anniversary.test.ts
+ M handoff.md
  M supabase/.temp/cli-latest
- M supabase/functions/_shared/og-anniversary.ts
- M supabase/functions/og-anniversary/index.ts
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
 ?? .vercelignore
 ?? deno.lock
-?? supabase/migrations/20260903_og_anniversary_consent_required.sql
 ```
 
 - **Recent commits:**
 
 ```
+a45b9248 feat(og): the consent email, and the ask that issues its link
+6df540b2 feat(og): the consent confirmation page, where the buttons are actually pressed
+2f3a5c88 feat(og): nothing grants a free year without a confirmed consent row
 97a0b662 fix(forecast): a rule starting the 1st was charged the month before, in every negative-offset timezone
 b32248c5 docs(handoff): the lead on the timezone money bug — one path re-derives the month, the other inherits it
 4e22f7bc docs(handoff): put the live money bug at the top, with the diagnostic that saves an hour
 3dab1b69 ci: make the test step say WHY it failed — and it found a money bug
 b655256c feat(og): the consent wording, versioned — the part that has to survive being questioned
-421197f9 ci: a test workflow that deploys nothing, so CI can be exercised without shipping
-7c5c51e8 docs(handoff): the consent record, and the CI hole that let releases ship untested
-7eeb3a7f ci(android): run the unit tests before shipping, and fail when they match nothing
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
