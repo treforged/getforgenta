@@ -1,0 +1,121 @@
+name: Tests
+
+# THE POINT OF THIS FILE IS THAT IT DEPLOYS NOTHING.
+#
+# Until 2026-09-03 the only workflow that touched the Android project was
+# `android-build.yml`, which ships to Google Play (production, staged 10%) on
+# every push to main touching `src/**` or `android/**`. That made `main` a
+# release channel rather than a branch, and it meant THE ONLY WAY TO EXERCISE CI
+# WAS TO PUBLISH A RELEASE. A pipeline you cannot test without shipping is a
+# pipeline nobody touches — which is how `android/app/src/test` sat for years as
+# a directory that had never run, looking exactly like coverage.
+#
+# So: no deploy step, no signing secrets, no store credentials, and NO PATH
+# FILTER. The absent filter is deliberate. A CI change should verify itself on
+# its own push, and a filter listing `src/**` and `android/**` is precisely what
+# stopped that — a change to a workflow file did not match its own trigger.
+#
+# This runs on pull_request too, so a failure is visible BEFORE a merge that
+# would deploy.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (typecheck, lint, vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      # `vitest run` exits 0 when it matches no test files, so the count is
+      # asserted rather than assumed — same reasoning as the Android step below
+      # and as `check:debug-console` failing when it finds no bundle. A suite
+      # that runs nothing is not a passing suite.
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          npx vitest run --reporter=json --outputFile=vitest-results.json 2>&1 | tail -20
+          TOTAL=$(node -e "const r=require('./vitest-results.json');console.log(r.numTotalTests||0)")
+          echo "Web tests executed: $TOTAL"
+          echo "Web tests executed: $TOTAL" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TOTAL" -lt 1 ]; then
+            echo "::error::vitest reported $TOTAL tests. A suite that runs nothing is not a passing suite."
+            exit 1
+          fi
+
+  android:
+    name: Android (JVM unit tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5.7.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # `npx cap sync android` needs the web build output to exist, and the
+      # Android project needs the sync to have run. Neither needs secrets: this
+      # is an unsigned, un-uploaded build of the test sources only.
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - run: chmod +x android/gradlew
+
+      - name: Run Android unit tests
+        run: |
+          set -o pipefail
+          cd android
+          ./gradlew :app:testDebugUnitTest
+          RESULTS=app/build/test-results/testDebugUnitTest
+          if [ ! -d "$RESULTS" ]; then
+            echo "::error::No test results directory at android/$RESULTS - the task matched nothing."
+            exit 1
+          fi
+          # awk rather than `paste | bc`: bc is not guaranteed on a runner image,
+          # and a missing binary would fail this for a reason unrelated to tests.
+          TOTAL=$(grep -ho 'tests="[0-9]*"' "$RESULTS"/*.xml | grep -o '[0-9]*' | awk '{n+=$1} END {print n+0}')
+          echo "Android unit tests executed: $TOTAL"
+          echo "Android unit tests executed: $TOTAL" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TOTAL" -lt 1 ]; then
+            echo "::error::Android unit tests reported $TOTAL executed. A suite that runs nothing is not a passing suite."
+            exit 1
+          fi
+
+      # Kept even on failure: "which test failed" should not require re-running
+      # the job locally, which on this repo is impossible without an SDK.
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-test-results
+          path: android/app/build/test-results/testDebugUnitTest
+          retention-days: 14
