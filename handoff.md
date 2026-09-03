@@ -79,16 +79,27 @@ Two deliberate choices, both toward not lying in the record:
 - A failed consent READ is a failure, not an absent consent. A database blip that
   read as "never asked" would re-email someone who already confirmed.
 
+The WEB CONFIRMATION PAGE is built too: `functions/og-consent`, server-rendered
+so it stays out of the Capacitor bundle (a React route would ship inside the
+mobile app whether or not anything links to it). The link is a credential —
+256-bit CSPRNG, SHA-256 at rest, expiring, single-use, own table so
+`og_billing_consent` never gains an UPDATE path. A GET records nothing; both
+buttons are POST. Tests parse real DOM and PRESS the buttons; switch either form
+to GET and three fail.
+
 **Next up here, in order:**
-1. The consent EMAIL and the WEB confirmation page. Copy is already shipped and
-   versioned (`_shared/og-consent-text.ts`, `buildConsentRow` is pure). Email +
-   web only — never in-app, never behind an in-app link (anti-steering).
+1. The consent EMAIL that issues the token. Resend pattern is in
+   `unverified-nudge/index.ts`. Note `og_consent_tokens_one_live` allows one
+   unused token per person, so a RESEND must retire the outstanding one first.
 2. Flip `needs_consent` from report-only to actually sending, once (1) exists.
 3. The Stripe grant itself stays unwired pending Tre's explicit yes; it is a real
    action on his live Stripe account.
 
-**Migrations WRITTEN, NOT APPLIED** — `20260903_og_billing_consent.sql` and
-`20260903_og_anniversary_consent_required.sql`.
+**Migrations WRITTEN, NOT APPLIED** — `20260903_og_billing_consent.sql`,
+`20260903_og_anniversary_consent_required.sql`, `20260903_og_consent_tokens.sql`.
+**`og-consent` must deploy with `verify_jwt = false`** — declared in
+`config.toml`, but the MCP/dashboard deploy path ignores that file and defaults
+to true, which would break the page for anyone not signed in.
 
 ---
 

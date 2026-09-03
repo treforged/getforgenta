@@ -33,6 +33,17 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+# The OG billing-consent page. Served to a person opening a link from an EMAIL,
+# on a device where they may never have signed in — requiring a login to accept a
+# gift is how a promise goes unclaimed. Identity comes from a single-use, hashed,
+# expiring token in the URL (_shared/og-consent-token.ts), and the page records
+# nothing on a GET, so a mail scanner following the link cannot manufacture
+# consent. It must stay a server-rendered page rather than a route in the React
+# app: that bundle ships inside the Capacitor mobile app, and the ask must live
+# outside the app entirely (App Store anti-steering — docs/og-cohort.md).
+[functions.og-consent]
+verify_jwt = false
+
 # RevenueCat calls this server-to-server and authenticates with its own
 # Authorization header value, which is not a Supabase JWT.
 [functions.revenuecat-webhook]
