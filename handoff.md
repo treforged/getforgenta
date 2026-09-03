@@ -289,6 +289,25 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## ⛔ DO NOT LET ANYONE "TIDY" THE `send.treforged.com` DNS RECORDS
+
+Forgenta's auth mail AND the OG consent email both send from
+`noreply@treforged.com` through Resend (`og-consent-ask/index.ts:38`,
+`CONSENT_FROM`). Ellis established 2026-09-03 that `send.treforged.com` is **not a
+stray second setup**: it is the MAIL FROM / bounce subdomain Resend requires to
+verify `treforged.com`, and its SPF TXT and `feedback-smtp` MX come from Resend's
+own record set.
+
+Mail from `noreply@treforged.com` aligns on DKIM strictly (`d=treforged.com`) AND
+on SPF under relaxed alignment via that subdomain. **Sam moved the root domain to
+`p=quarantine` today**, so removing those `send.` records would break bounce
+handling and leave DMARC resting on DKIM alone — with quarantine live, that is
+consent emails and password resets landing in spam or vanishing.
+
+It looks like clutter. It is not. This is second-hand from Ellis and I have not
+read the DNS zone myself, but the consequence lands on my flow, so it is recorded
+here rather than only in his repo.
+
 ## INTERNATIONAL RELEASE — planned, NOT started. Plan: `docs/international-release-plan.md`
 
 Tre wants Forgenta in more countries. **No store setting has been changed, and the
@@ -1342,17 +1361,16 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 17:22 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 18:51 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M .claude/settings.json
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1363,14 +1381,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+9a2df306 docs(handoff): international release state, and the dev sign-in facts that cost time today
+671f0165 docs: Japan excluded, and real multi-currency scoped before it is started
+f82d5bb4 fix(settings): disable the currency picker, because it never did anything
 1537cac9 docs: the international release plan — and the currency picker that does nothing
 6c3e94fb test(debt): pin what a month-0 shortfall shows — pressing the page found the gap
 4d037bcb docs: name the files per slice shape, and say what is UNMEASURED rather than guessing
 815f0742 docs: a routing table at the top of CLAUDE.md, so a cold session stops grepping
 d97f00d4 feat(debt): tell the user the cash floor will be missed, and name what causes it
-3c82fc14 docs(handoff): label what each of the five OG rows actually is
-7be124ab docs(handoff): scope the cash-floor warning — the marker exists, the reason exists, the UI throws it away
-27a00206 docs(handoff): lead the OG stacking note with the gate that makes it safe
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

@@ -1,7 +1,46 @@
-export function formatCurrency(amount: number, showCents = true, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+/**
+ * ONE PLACE THAT KNOWS HOW TO RENDER MONEY.
+ *
+ * `formatCurrency` has 391 call sites across 47 files. Threading a currency
+ * argument through all of them would be a diff nobody could review, and every new
+ * call site would have to remember — so the display settings live here and the
+ * call sites stay as they are.
+ *
+ * WHY BOTH FIELDS. Currency and locale are different knobs and fixing only one
+ * leaves it half wrong: `en-US` renders `€1,234.56` where most of the eurozone
+ * writes `1.234,56 €`. Symbol, grouping, decimal separator and symbol POSITION all
+ * come from the locale, not the currency.
+ *
+ * ⚠️ This is display only. It does NOT convert. Calling €100 "$100" would be worse
+ * than useless in a finance app, so nothing here touches the amount — whether
+ * Forgenta shows per-currency subtotals or one converted total is an open product
+ * decision (docs/international-release-plan.md), and this plumbing serves either.
+ */
+interface MoneyDisplay { locale: string; currency: string }
+
+// US default, because that is what every existing figure already assumed. Changing
+// the default silently would restate every number in the app.
+let moneyDisplay: MoneyDisplay = { locale: 'en-US', currency: 'USD' };
+
+/** Set once when the user's profile is known. Safe to call repeatedly. */
+export function setMoneyDisplay(next: Partial<MoneyDisplay>): void {
+  moneyDisplay = { ...moneyDisplay, ...next };
+}
+
+/** What money is currently rendered as — for tests, and for showing the user. */
+export function getMoneyDisplay(): MoneyDisplay {
+  return moneyDisplay;
+}
+
+/** Back to the US default. Tests must call this, or one test leaks into the next. */
+export function resetMoneyDisplay(): void {
+  moneyDisplay = { locale: 'en-US', currency: 'USD' };
+}
+
+export function formatCurrency(amount: number, showCents = true, currency?: string): string {
+  return new Intl.NumberFormat(moneyDisplay.locale, {
     style: 'currency',
-    currency,
+    currency: currency ?? moneyDisplay.currency,
     minimumFractionDigits: showCents ? 2 : 0,
     maximumFractionDigits: showCents ? 2 : 0,
   }).format(amount);
