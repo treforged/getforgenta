@@ -45,7 +45,20 @@ public class WidgetSnapshot {
      */
     public static WidgetSnapshot load(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String json = prefs.getString(KEY, null);
+        return parse(prefs.getString(KEY, null));
+    }
+
+    /**
+     * The trust rules, split out from {@link #load} so they can be EXERCISED.
+     *
+     * `load` needs an Android Context and therefore only runs on a device; this
+     * takes the raw string and runs on the JVM, so `./gradlew testDebugUnitTest`
+     * presses every rule below. Splitting it is the difference between a
+     * read-and-reason change and a tested one.
+     *
+     * @return a snapshot, or null when there is not one worth drawing.
+     */
+    public static WidgetSnapshot parse(String json) {
         if (json == null) return null;
         try {
             JSONObject obj = new JSONObject(json);

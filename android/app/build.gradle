@@ -42,6 +42,10 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    // The REAL org.json, so JVM unit tests exercise WidgetSnapshot.parse rather than
+    // the android.jar stub, whose JSON classes throw "not mocked" by default. Without
+    // this the widget trust rules cannot be pressed anywhere but a device.
+    testImplementation "org.json:json:20231013"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
