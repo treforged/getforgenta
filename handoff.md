@@ -289,6 +289,43 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## RULE: verify against the DEMO FIXTURE, not Tre's live account
+
+Set 2026-09-03 after I toggled two of his card payment preferences to answer a
+marketing question, then restored both and verified. Sam's reasoning, and it is
+right: **a restore that verifies is still one step short of never having changed
+it.** If a sync, webhook or scheduled job had fired between the change and the
+restore, the restore would have been correct and the intervening state would
+still have been wrong. Low probability, real, avoidable at no cost.
+
+**Mutate his account only when ONLY his data can answer the question.** That was
+not true here — the fixture would have answered it AND given a second dataset.
+
+⚠️ `/demo` does NOT switch while signed in — it stays on the real account, checked.
+So the fixture route for a question like this is a **headless comparison**
+(compute with `paymentPreference: 'statement'` vs `'min'` over `demo-data.ts` and
+diff the payoff months), not the browser.
+
+## Two open items from the "one input, one number" question
+
+1. **Run the payment-mode toggle against the demo fixture.** On Tre's data the
+   payoff MONTH did not move on either card tested — only the label changed,
+   "Interest-free: 16 mo (Dec 2027)" → "Payoff: 16 months (Dec 2027)". His card
+   set is promo-heavy, so his payoff months are pinned by 0% expiry schedules
+   rather than payment size. **n=1: "does not move ON THIS DATA", not "cannot
+   move".** Ordinary revolving debt would likely move. If it does, Ruby gets a
+   second marketing asset; if it does not, that is a real product finding about
+   what the control does.
+2. **The recompute takes 2,499 ms** (measured, card toggle → label change). Worth
+   fixing on its own merits, not just for filming: two and a half seconds of
+   nothing after a tap reads as a broken control.
+
+**The stronger finding, already routed to Ruby:** the app ALREADY renders
+zero-input lines that name a number, a date and a consequence — e.g. *"$3,562 at
+0% reprices to 27.49% on Jul 7, 2027 (+$82/mo) — clearing it first needs $356/mo
+for 10 months"*, and the cash-floor warning naming the exact card and statement.
+No tap, no wait, nothing built for a camera.
+
 ## `reach` schema APPLIED 2026-09-03 — Piper's, contained, verified
 
 Forged Reach (attribution for Ruby's posts) now has a `reach` schema in the
@@ -1395,7 +1432,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 18:51 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 19:10 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1415,14 +1452,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+96c6b0b3 docs(handoff): reach schema applied and verified by behaviour, not by setting
+82547b04 feat(money): one place that knows how to render money, plus two records that were missing
 9a2df306 docs(handoff): international release state, and the dev sign-in facts that cost time today
 671f0165 docs: Japan excluded, and real multi-currency scoped before it is started
 f82d5bb4 fix(settings): disable the currency picker, because it never did anything
 1537cac9 docs: the international release plan — and the currency picker that does nothing
 6c3e94fb test(debt): pin what a month-0 shortfall shows — pressing the page found the gap
 4d037bcb docs: name the files per slice shape, and say what is UNMEASURED rather than guessing
-815f0742 docs: a routing table at the top of CLAUDE.md, so a cold session stops grepping
-d97f00d4 feat(debt): tell the user the cash floor will be missed, and name what causes it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
