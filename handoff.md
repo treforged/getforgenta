@@ -392,9 +392,15 @@ call sites pass, and the only reader of `profile.currency` outside Settings is t
 home-screen widget. Now DISABLED with an honest note, **verified on screen**
 (`disabled: true`, value `USD`, note rendering).
 
-**Counted, not estimated:** 44 hardcoded `en-US`, 91 `toLocale` sites, **32 pinned
-to `en-US` and therefore MM/DD/YYYY**, 19 hardcoded `$`, 0 `formatCurrency` calls
-passing a currency. `exportPdf.ts:168` and `notification-policy.ts:307` hardcode
+**Counted, not estimated:** 44 hardcoded `en-US`, 91 `toLocale` sites, 32 pinned
+to `en-US`, 19 hardcoded `$`, 0 `formatCurrency` calls passing a currency.
+
+⚠️ **I OVERSTATED THE DATE PROBLEM AND CORRECTED IT.** I first said those 32 sites
+render MM/DD/YYYY. They do not: every one passes `{ month: 'short', ... }`, and
+there are ZERO bare `toLocaleDateString('en-US')` calls and ZERO numeric month
+options. The app renders `Sep 2026`, unambiguous in any locale. The real gap is
+**hardcoded English month names** — a translation issue, not a wrong date. This
+removes the argument that dates block an English-speaking first tranche. `exportPdf.ts:168` and `notification-policy.ts:307` hardcode
 locale AND USD together.
 
 **Decisions Tre has made:** real multi-currency, NOT display-only relabelling.

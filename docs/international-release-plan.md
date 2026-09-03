@@ -44,15 +44,35 @@ the grouping, separator and symbol position wrong.
 | --- | --- |
 | `en-US` hardcoded in `src/` (excluding tests) | 44 |
 | `toLocaleDateString` / `toLocaleString` call sites | 91 |
-| …of those, pinned to `en-US` — so **MM/DD/YYYY** | 32 |
+| …of those, pinned to `en-US` | 32 |
+| …of those that render an AMBIGUOUS numeric date (`9/3/2026`) | **0** |
 | Hardcoded `$` in JSX | 19 |
 | `formatCurrency` calls that pass a currency | **0** |
 
-**MM/DD/YYYY is the one that will not be reported.** Outside the US, 03/09/2026
-reads as 3 September. A user will not file a bug; they will read the wrong date
-and quietly stop trusting the app. `src/lib/exportPdf.ts:168` and
-`src/lib/notification-policy.ts:307` hardcode `en-US` AND `USD` together, so a
-statement PDF and a push notification are both wrong for a non-US user.
+### ⚠️ CORRECTION, 2026-09-03 — I overstated the date problem
+
+I first wrote that those 32 sites render **MM/DD/YYYY**, and said so to Sam and in
+a commit. **That was wrong, and I checked it properly only afterwards.**
+
+Every one of the 32 passes an explicit textual option object — `{ month: 'short',
+year: 'numeric' }` and similar. There are **zero** bare `toLocaleDateString('en-US')`
+calls, **zero** numeric or 2-digit month options, and no `Intl.DateTimeFormat` at
+all. So the app renders `Sep 2026` and `Sep 3, 2026`, which are unambiguous in
+every locale.
+
+**The real defect is milder: the month names are hardcoded ENGLISH.** A French
+user sees `Sep` where they expect `sept.`. That is a translation gap, not a wrong
+number, and nobody misreads a date because of it.
+
+**This matters for sequencing.** It removes the argument that dates BLOCK an
+English-speaking first tranche — in those markets the current rendering is
+correct as it stands. The currency picker that does nothing is still real and
+still first; the date sites drop to ordinary localisation work that ships with
+translation, not before it.
+
+`src/lib/exportPdf.ts` and `src/lib/notification-policy.ts:307` still hardcode
+`en-US` AND `USD` together, so a statement PDF and a push notification are still
+wrong for a non-US user on the CURRENCY side.
 
 ### One piece of dead code worth knowing
 
@@ -65,7 +85,7 @@ the enum first, or saving EUR starts failing.
 
 1. **Thread `profile.currency` into `formatCurrency` and pick the locale from it.**
    One helper, then the call sites. Without this, nothing else matters.
-2. **Replace the 32 `en-US` date calls** with the user's locale.
+2. **Replace the 32 `en-US` date calls** with the user's locale — for TRANSLATED month names, not to fix an ambiguity. See the correction above.
 3. **Kill the 19 hardcoded `$`** and `formatYAxisTick`'s `$`.
 4. **Fix `exportPdf` and `notification-policy`**, which are wrong twice over.
 5. Decide what the currency picker MEANS. Display-only relabelling, or a real
