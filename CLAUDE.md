@@ -1,5 +1,62 @@
 # CLAUDE.md
 
+## ROUTING TABLE — start here, do not grep first
+
+Verified against a real directory listing on 2026-09-03. **If a path here is
+wrong, fix it in the same commit as whatever moved it** — a routing table with one
+bad row is worse than none, because it sends the next session confidently to the
+wrong place.
+
+Scale, so you know when a listing is worth reading: 74 migrations, 33 edge
+functions, 234 test files under `src/lib/__tests__` alone. Reading a directory is
+rarely the cheap move here.
+
+| If the ask is about | Start in |
+| --- | --- |
+| Forecast numbers, month-0 cash, payoff dates | `src/lib/forecast-engine.ts`, then `src/lib/forecast-convergence.ts` |
+| The credit-card simulation the Dashboard reads | `src/hooks/useCardProjection.ts` (+ `src/hooks/cardProjectionResim.ts`) |
+| "Why is this month short?", save-up months, reserves | `src/lib/floor-protection.ts` |
+| Card interest, statements, cycling, payoff order | `src/lib/credit-card-engine.ts`, `src/lib/debt-payoff-order.ts` |
+| Paychecks, pay frequency, bills before payday | `src/lib/pay-schedule.ts` |
+| Recurring rules, dates, occurrences | `src/lib/scheduling.ts` — `toLocalDateStr` lives here, USE IT |
+| "Already paid?", sync cutoffs, settlement | `src/lib/sync-cutoff.ts`, `src/lib/transaction-matching.ts` |
+| The shape the engine consumes | `src/lib/debt-model-types.ts`, `src/hooks/useForecastEngineInputs.ts` |
+| Wiring the sim and engine together for a page | `src/contexts/CardProjectionContext.tsx` |
+| The money pages themselves | `src/pages/Dashboard.tsx`, `src/pages/Forecast.tsx`, `src/pages/DebtPayoff.tsx` + `src/components/debt/CreditCardEngine.tsx` |
+| Bank sync, account matching, duplicate accounts | `supabase/functions/_shared/sync-handler.ts`, `supabase/functions/_shared/account-claim.ts` |
+| Providers (Plaid, Akoya) | `supabase/functions/_shared/providers/` |
+| Subscriptions, premium, OG cohort | `supabase/functions/stripe-webhook/`, `revenuecat-webhook/`, `_shared/og-*.ts`, `docs/og-cohort.md` |
+| Database shape or a new column | `supabase/migrations/` (74 files — grep, never list) |
+| What is in flight right now | `handoff.md` — read it before anything else |
+
+### What to paste to a FREE LOCAL MODEL
+
+It gets no repo exploration. It gets the files you paste, so paste few and paste
+the right ones.
+
+| Slice shape | Paste |
+| --- | --- |
+| A pure money helper + tests | the one `src/lib/<thing>.ts` and one nearby `src/lib/__tests__/<thing>.test.ts` as the style example |
+| A date bug | `src/lib/scheduling.ts` (for `toLocalDateStr`) plus the one offending file |
+| An edge-function change | that function's own `supabase/functions/<name>/index.ts`, plus only the `supabase/functions/_shared/` files it imports |
+| A migration | one recent file from `supabase/migrations/` as the house style, plus the table's current shape |
+| Anything touching the engine | do NOT paste `src/lib/forecast-engine.ts`; it is ~2,900 lines. Paste the function and its callers |
+
+### Gates — run these by name
+
+- `npm run test:tz` — the suite under UTC, America/New_York and Asia/Tokyo. **This
+  is the real gate.** A single-timezone run has missed a live money bug before.
+- `npx tsc --noEmit` and `npm run lint`.
+- `npm run build` — needed when the change touches build config or `browserslist`.
+- CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
+  collapsed suite fails instead of passing quietly.
+- ⚠️ **The real-data fixtures are gitignored, so the golden/convergence tests SKIP
+  in CI.** A green badge says nothing about the money engine. Run `test:tz`
+  locally.
+- Live UI verification needs the `dev-signin` skill. A green suite is not a
+  pressed button.
+
+
 ## SYSTEM EXECUTION OVERRIDE
 
 Default to `/multi-plan` for any non-trivial task.
