@@ -227,6 +227,51 @@ So:
 If a future change moves this into an in-app banner, modal or push, it is a
 regression, not an improvement.
 
+#### The consent record (Tre, 2026-09-03)
+
+He authorised the Stripe route and added a requirement: *"id want it to notify
+the user that their subscribtion would be moved to stripe and require a
+confirmation. it would need to be tracked for legal reason."*
+
+So the flow is **notify → explicit confirmation → act**, and the consent record
+is a compliance artefact rather than a UX flag. `og_billing_consent` exists to
+answer one question to a stranger a year from now: **who agreed, to what exact
+wording, when, and by what action.**
+
+- **The wording is STORED, not referenced.** `consent_text` + `consent_version` +
+  a SHA-256, never a foreign key to live copy. Copy gets edited; a record that
+  points at current text would silently start claiming people agreed to something
+  they never read.
+- **Append-only.** No UPDATE policy and no UPDATE grant for anyone, and no client
+  INSERT — rows are written server-side. A record the subject can write or amend
+  proves nothing. *Pressed as a signed-in client: insert, update and delete are
+  each refused with "permission denied"; reading one's own row works.*
+- **A decline and a non-response are both recorded.** `decision` is
+  `asked` / `confirmed` / `declined`. An absent row is indistinguishable from
+  never having asked, and "we asked and heard nothing" is a different obligation
+  from "they said no".
+- **It must be a real confirmation.** No pre-ticked box, no "continuing means you
+  agree", and consent is never inferred from clicking a link in an email. An
+  affirmative act on a page that states: the subscription moves to Stripe
+  billing, it costs nothing for twelve months, what happens after that, and that
+  they should cancel the store subscription only **after** this completes.
+- **Nothing grants without a confirmed row**, and nothing is stamped granted
+  unless Stripe itself confirmed the change.
+
+##### The one place Stripe IS named
+
+The general rule above — never name the billing rail in user-facing copy — is
+**superseded for the consent text specifically**. They are consenting to a move
+to Stripe, so the text must say so; consent to an unnamed thing is not consent.
+Keep it out of marketing copy everywhere else.
+
+##### The confirmation surface is email-and-web too
+
+The anti-steering constraint binds harder here, not less: the ask goes by
+**email** and the confirmation happens on a **web page**. Never in the app, and
+never behind a link *in* the app. That is what keeps the whole flow outside App
+Store payment rules.
+
 #### Both halves, or it is not settled
 
 The user performs two actions and **we only ever observe the first**: starting
