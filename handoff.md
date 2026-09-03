@@ -206,6 +206,14 @@ backfill.** 2027-03-26, 04-18, 05-16, 05-17, 05-18. Dating from today would have
 shortened the real founding subscriber's free year by three months, and a
 founding member's year should start when they started paying.
 
+✅ **WHY THIS IS SAFE TO LEAVE OPEN, read this before reacting to the line below:
+NOTHING MOVES FOR A YEAR, AND NOTHING GRANTS WITHOUT A CONFIRMED CONSENT ROW.**
+The earliest reward is due 2027-03-26, and `decideAnniversary` returns
+`needs_consent` rather than `grant_stripe` until an `og_billing_consent` row says
+confirmed. The Stripe grant itself is also still unwired. So no money can move
+without a deliberate human step, and the question below is a decision with a
+year of runway rather than a fire.
+
 ⚠️ **OPEN: four of these five already hold a granted comp year** (period ends
 around 2027-05-16). They now ALSO carry an OG reward due in 2027, which stacks a
 second free year on top. Tre's words were "so they will have the OG achievement",
