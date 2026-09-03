@@ -74,6 +74,26 @@ Six scripts had the pre-move absolute path baked in; all now derive from
 - iOS widgets: **scoped, not started** — `docs/ios-widgets-scope.md`. It names
   the signing trap that would turn every iOS build red.
 
+### 2026-09-03 — consent, and the CI hole
+
+- **`og_billing_consent`** is live (Tre: the Stripe move must "notify the user...
+  and require a confirmation... tracked for legal reason"). Append-only, wording
+  STORED not referenced, decline and non-response both recorded. Pressed as a
+  client: insert/update/delete all refused. Detail: `docs/og-cohort.md`.
+- ⚠️ **THE ANDROID UNIT TESTS HAD NEVER RUN IN CI.** `android-build.yml` went
+  from `chmod +x gradlew` straight to `bundleRelease`, which does not run tests.
+  Every Play release to date shipped without them. Fixed: a test step BEFORE the
+  build that fails the job, and fails when it matches NOTHING (count asserted
+  non-zero out of the JUnit XML).
+- ⚠️ **EVERY PUSH TO `main` TOUCHING `src/**` OR `android/**` DEPLOYS TO GOOGLE
+  PLAY** (production, staged 10%). That is the repo's existing design, not new —
+  but it means the only way to force-verify a CI change is to ship. Worth
+  decoupling into a non-deploying test workflow.
+- **I reported "no CI workflow in this repo" and was WRONG.** There are eight.
+  My `ls` ran from a drifted cwd after a `Set-Location`, and an empty listing
+  reads exactly like a missing directory. Re-check the path before trusting an
+  empty result.
+
 ## WHAT LIVE-PRESSING FOUND THAT 3272 GREEN TESTS DID NOT
 
 Read this before deciding a suite is proof of anything.
@@ -864,7 +884,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 22:05 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 22:21 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -881,14 +901,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+745984e3 test(widgets): make the Android trust rules pressable, and name what blocks running them
+42de51d9 feat(og): the billing-move consent record, built as a compliance artefact
+443e5698 docs(ios): scope the iOS widgets, and name the signing trap before anyone hits it
+dd097596 fix(widgets): never put a number on a home screen that the app did not read
 b83eb32a docs(handoff): the resume queue is pointers now, not reports — 30 KB to 14 KB
 b575498f fix(og): an asked-but-unsettled member stays visible, and the ask goes by email
 63f4c214 feat(og): the anniversary run — loud, rehearsable, and safe to re-run
 682a6bd2 docs: the Instagram handle is confirmed, and the session's state rewritten
-47ec5907 feat(social): a follow badge that only claims what the app actually saw, and a suite that can be trusted
-fa80831b feat(og): the first-100 cohort, one achievement system, and a churn rule that is fair
-5749f4a8 fix(scripts): derive every path from $PSScriptRoot, and make the dry-run flag real
-5aea5188 feat(review): ask for a review at a value moment, not on an action count
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
