@@ -116,7 +116,32 @@ decision (a cron entry calling `og-consent-ask?dry_run=0`), not a code change.
 `config.toml`, but the MCP/dashboard deploy path ignores that file and defaults
 to true, which would break the page for anyone not signed in.
 
-## ⚠️ THE CONSENT HANDLERS HAVE NEVER BEEN RUN — the two presses to do FIRST
+## ✅ THE CONSENT HANDLERS ARE DEPLOYED AND PRESSED (2026-09-03)
+
+Both migrations applied, all three functions deployed `verify_jwt=false`, and the
+two named tests are DONE against the live endpoint:
+
+1. **Signed-out GET returns 410, not 401.** `verify_jwt=false` works; the page
+   reaches its own handler for a person who has never signed in.
+2. **Double-press confirm inserts ONE row.** Press 1 -> 200 "recorded". Press 2 on
+   the same link -> 410 "already answered". `og_billing_consent` held exactly 1
+   row. The unproven assumption — that
+   `.update(...).is("used_at", null).select()` comes back EMPTY on the second
+   press — is now proven by counting rows, not by reading a response.
+3. GET rendered both buttons as `method="POST"` and recorded nothing.
+
+**Test artefacts were REMOVED.** The press wrote a real-shaped consent row against
+Tre's own user id; left in place it would read as genuine consent in a legal
+record. Deleted both it and the token; `og_billing_consent` and
+`og_consent_tokens` are back to 0 rows. Never leave a fabricated consent row
+behind to prove a test passed.
+
+STILL NOT SET: `RESEND_API_KEY`, `CONSENT_FROM`, `FUNCTIONS_BASE_URL`,
+`CONDUCTOR_SESSION_SECRET`. No secret-setting tool exists on the Supabase
+connector, so those four are genuinely Tre's. Until they are set,
+`og-consent-ask` cannot send and `revenue-push` cannot post.
+
+<details><summary>What the risk was, before it was pressed</summary>
 
 `og-consent` and `og-consent-ask` have 3396 green tests behind them and **neither
 handler has executed once.** The tests exercise the PURE modules — page HTML,
@@ -148,6 +173,8 @@ The moment it is live, press these two FIRST, in this order:
    page exists for.
 
 Then: an expired link, an already-used link, and a decline.
+
+</details>
 
 ## CI: the Tests gate is GREEN, for the first time ever (2026-09-03)
 
@@ -1098,16 +1125,17 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 13:36 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 15:29 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M .claude/settings.json
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1118,14 +1146,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+a4c72665 feat(revenue): push a summary to the Conductor instead of giving it a database key
+ba076f04 db: restore a subscriber's premium access, then make the defect unrepresentable
+4403803f db: constrain user_subscriptions.plan — one row of eleven locks a real user out of premium
+2825edf5 fix(dates): stop writing UTC dates into columns the code reads back as local
+880c5b9d docs(handoff): the Tests gate is green for the first time, and the honest gap in the proof
+9788de03 test: unmount what the tests mount — the flake that fails a run of passing tests
+413919e9 ci(tests): assert a FLOOR near the real test count, not merely non-zero
 3159db63 ci(tests): the Tests workflow had NEVER been green — seven suites died before a test ran
-966ed7c7 fix(expenses): a bill due TODAY was not a bill already paid — the dormant sibling of the rent bug
-dbd8d677 docs(handoff): the 3 Dependabot fixes, and why the uuid trio was left alone
-20d8ebcc fix(deps): patch the three Dependabot alerts, including the high
-0ec2ce9b docs(handoff): what the cert rotation will break in iOS CI, and the key facts nobody should re-check
-a45b9248 feat(og): the consent email, and the ask that issues its link
-6df540b2 feat(og): the consent confirmation page, where the buttons are actually pressed
-2f3a5c88 feat(og): nothing grants a free year without a confirmed consent row
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
