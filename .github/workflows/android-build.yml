@@ -104,6 +104,43 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      # THE ANDROID UNIT TESTS HAD NEVER RUN IN CI. This workflow went straight from
+      # `chmod +x gradlew` to `bundleRelease`, and `bundleRelease` does not run
+      # tests — so every release to date shipped without them, while
+      # `android/app/src/test` sat there looking like coverage. That is the same
+      # failure as a backup reporting success for six days: the appearance of a
+      # check is worse than its absence, because it stops anyone looking.
+      #
+      # BEFORE the build, not after, so a failing test stops a release rather
+      # than being reported about one that already exists. No `continue-on-error`:
+      # a test step that runs and is ignored manufactures exactly the false
+      # confidence it was added to remove.
+      #
+      # AND IT FAILS WHEN IT MATCHES NOTHING. A gradle task that silently found
+      # no tests would go green and prove nothing — the same hole one level up —
+      # so the count is read out of the JUnit XML and asserted non-zero, the way
+      # `check:debug-console` fails when it finds no bundle to inspect.
+      - name: Run Android unit tests
+        run: |
+          set -o pipefail
+          cd android
+          ./gradlew :app:testDebugUnitTest
+          RESULTS=app/build/test-results/testDebugUnitTest
+          if [ ! -d "$RESULTS" ]; then
+            echo "::error::No test results directory at android/$RESULTS - the task matched nothing."
+            exit 1
+          fi
+          # awk rather than `paste | bc`: bc is not guaranteed on a runner image, and
+          # a missing binary here would fail the step for a reason that has nothing
+          # to do with the tests.
+          TOTAL=$(grep -ho 'tests="[0-9]*"' "$RESULTS"/*.xml | grep -o '[0-9]*' | awk '{n+=$1} END {print n+0}')
+          echo "Android unit tests executed: ${TOTAL:-0}"
+          if [ -z "$TOTAL" ] || [ "$TOTAL" -lt 1 ]; then
+            echo "::error::Android unit tests reported $TOTAL executed. A suite that runs nothing is not a passing suite."
+            exit 1
+          fi
+          echo "Android unit tests executed: $TOTAL" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Decode keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
