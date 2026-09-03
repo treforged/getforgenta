@@ -41,6 +41,12 @@ verify_jwt = false
 # consent. It must stay a server-rendered page rather than a route in the React
 # app: that bundle ships inside the Capacitor mobile app, and the ask must live
 # outside the app entirely (App Store anti-steering — docs/og-cohort.md).
+# Sends the OG billing-consent email. Called with the x-cron-secret header, not a
+# user JWT — there is no user path into it at all. Declared here so a CLI deploy
+# cannot silently flip it, per the note at the top of this file.
+[functions.og-consent-ask]
+verify_jwt = false
+
 [functions.og-consent]
 verify_jwt = false
 

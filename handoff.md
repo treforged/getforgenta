@@ -87,11 +87,26 @@ mobile app whether or not anything links to it). The link is a credential —
 buttons are POST. Tests parse real DOM and PRESS the buttons; switch either form
 to GET and three fail.
 
-**Next up here, in order:**
-1. The consent EMAIL that issues the token. Resend pattern is in
-   `unverified-nudge/index.ts`. Note `og_consent_tokens_one_live` allows one
-   unused token per person, so a RESEND must retire the outstanding one first.
-2. Flip `needs_consent` from report-only to actually sending, once (1) exists.
+The EMAIL is built too: `functions/og-consent-ask` + pure `_shared/og-consent-email.ts`.
+It reuses `decideAnniversary` rather than re-deriving who is owed, retires any
+outstanding link before issuing a new one, and writes the `asked` row AFTER the
+send — recording first would claim we asked someone we did not, and the unique
+index would then block the retry that fixes it. Dry run is the default and is
+checked at every branch; `?limit=N` caps the blast radius and a malformed limit
+is a 400, never "no limit".
+
+**`needs_consent` stays report-only in `og-anniversary` ON PURPOSE — that is not
+an unfinished flip.** The notify job is its own function so the emails can be
+stopped without stopping the accounting. Turning the ask on is a SCHEDULING
+decision (a cron entry calling `og-consent-ask?dry_run=0`), not a code change.
+
+**Next up here:**
+1. Nothing in code. The flow is notify -> confirm -> act end to end; what remains
+   is applying migrations, setting env, deploying, and scheduling — all Tre's.
+2. A consent copy **v2** when convenient: v1's body says "Decline below", but the
+   buttons are on the linked page, not below in the email. NEVER edit v1 in place
+   (rule 1 of `og-consent-text.ts` — it would rewrite what everyone already
+   consented to); add a version.
 3. The Stripe grant itself stays unwired pending Tre's explicit yes; it is a real
    action on his live Stripe account.
 
