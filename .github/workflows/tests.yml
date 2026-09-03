@@ -54,6 +54,23 @@ jobs:
       # and as `check:debug-console` failing when it finds no bundle. A suite
       # that runs nothing is not a passing suite.
       - name: Unit tests
+        # DUMMY VALUES, DELIBERATELY NOT THE REAL SECRETS.
+        #
+        # `src/integrations/supabase/client.ts` THROWS at import time when these
+        # are missing, so seven suites that transitively import it died before a
+        # single test ran — and this workflow had never once been green since it
+        # was added. Locally the vars come from `.env.local`, which is gitignored
+        # and does not exist on a runner, so a suite that passes on this machine
+        # says nothing about CI.
+        #
+        # The guard is CORRECT and is not weakened: shipping a build with no
+        # Supabase URL should fail loudly. These are jsdom unit tests that never
+        # open a socket, so they need the variables to EXIST, not to be real.
+        # Using the actual secrets here would expose live credentials to every
+        # test run for no benefit and make the suite depend on a real project.
+        env:
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_not_a_real_key
         run: |
           set -o pipefail
           # TWO reporters, and NO `| tail`. The first version of this step ran
