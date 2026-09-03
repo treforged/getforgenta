@@ -116,6 +116,21 @@ decision (a cron entry calling `og-consent-ask?dry_run=0`), not a code change.
 `config.toml`, but the MCP/dashboard deploy path ignores that file and defaults
 to true, which would break the page for anyone not signed in.
 
+## Dependabot: 3 fixed, 3 left ALONE on purpose (2026-09-03)
+
+Fixed via `overrides` in package.json — `browserslist` 4.28.8 (the HIGH),
+`@xmldom/xmldom` 0.8.15, `@humanfs/node` 0.16.8. All were transitive under dev
+tooling, none in the shipped bundle.
+
+**`npm audit` still reports 3 moderates that Dependabot does not, and leaving
+them is a decision, not an oversight.** One root cause:
+`@capacitor/cli -> xcode@3.0.1 -> uuid@7.0.3`. npm's own remedy is DOWNGRADING
+`@capacitor/cli` 8.5.0 -> 8.4.3 (semver-major) — a regression. Forcing `uuid` to
+11.x/13.x crosses that package's CJS->ESM break and would likely break
+`cap sync ios`, and the iOS build is about to be exercised for the cert
+rotation. Revisit AFTER the rotation, and prove any pin by running `cap sync`
+rather than by reading the lockfile.
+
 ## iOS CI secrets are being rotated this week (2026-09-03) — what will break
 
 Tre's Apple distribution certificate is being rotated, which invalidates every
@@ -1019,17 +1034,18 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 03:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 04:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (8 file(s)):**
 
 ```
 M .claude/settings.json
- M handoff.md
+ M package-lock.json
+ M package.json
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1040,6 +1056,7 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+0ec2ce9b docs(handoff): what the cert rotation will break in iOS CI, and the key facts nobody should re-check
 a45b9248 feat(og): the consent email, and the ask that issues its link
 6df540b2 feat(og): the consent confirmation page, where the buttons are actually pressed
 2f3a5c88 feat(og): nothing grants a free year without a confirmed consent row
@@ -1047,7 +1064,6 @@ a45b9248 feat(og): the consent email, and the ask that issues its link
 b32248c5 docs(handoff): the lead on the timezone money bug — one path re-derives the month, the other inherits it
 4e22f7bc docs(handoff): put the live money bug at the top, with the diagnostic that saves an hour
 3dab1b69 ci: make the test step say WHY it failed — and it found a money bug
-b655256c feat(og): the consent wording, versioned — the part that has to survive being questioned
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
