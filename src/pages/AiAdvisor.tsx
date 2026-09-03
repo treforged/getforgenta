@@ -19,6 +19,7 @@ import {
   Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2,
   Send, ChevronRight, User, ArrowLeft, Plus, MessageSquare, History, X,
 } from 'lucide-react';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 const AI_CONSENT_VERSION = '2026-04-30-gemini-2.5-flash';
 
@@ -638,7 +639,7 @@ export default function AiAdvisor() {
   const snapshot = useMemo(() => {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const currentDate = now.toISOString().split('T')[0];
+    const currentDate = toLocalDateStr(now);
     const thisMonth = allTxns.filter(t => t.date?.startsWith(currentMonthStr));
 
     const monthlyIncome = thisMonth

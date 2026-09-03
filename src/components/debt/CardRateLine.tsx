@@ -5,6 +5,7 @@ import { cardMarginalApr, payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { parseTranches, promoExpiryWarnings } from '@/lib/balance-tranches';
 import { ordinal } from '@/lib/ordinal';
 import type { AccountRow } from '@/hooks/useSupabaseData';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 /**
  * The rate/limit/utilization line under a card's name in the payoff accordion, plus its promo
@@ -37,7 +38,7 @@ export default function CardRateLine({ card, utilizationNow, account }: Props) {
   const warnings = promoExpiryWarnings(
     parseTranches(account?.balance_tranches),
     Number(account?.apr ?? card.apr),
-    new Date().toISOString().slice(0, 10),
+    toLocalDateStr(new Date()),
   );
 
   return (

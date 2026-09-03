@@ -8,6 +8,7 @@ import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { TransactionRow } from '@/hooks/useSupabaseData';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 // eslint-disable-next-line react-refresh/only-export-components -- small shared constant, not worth a separate file
 export const PHASE_COLORS = [
@@ -142,7 +143,7 @@ export default function PhaseBlock({
     e.stopPropagation();
     if (openItemEdit === item.id) { setOpenItemEdit(null); return; }
     const linkedTx = transactions.find(t => t.car_build_item_id === item.id);
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateStr(new Date());
     const mode: LinkMode = linkedTx ? 'transaction' : (item.payment_plan_id ? 'plan' : 'none');
     setItemEdits(prev => ({
       ...prev,
@@ -776,7 +777,7 @@ export default function PhaseBlock({
               if (!isExpanded) onSetExpanded(true);
               const newId = await onAddItem(phase.id, phase.build_id);
               if (!newId) return;
-              const today = new Date().toISOString().split('T')[0];
+              const today = toLocalDateStr(new Date());
               setItemEdits(prev => ({
                 ...prev,
                 [newId]: {

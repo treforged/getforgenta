@@ -8,6 +8,7 @@ import DateScrollPicker from './DateScrollPicker';
 import {
   newTrancheRow, trancheOverage, DEFAULT_TRANCHE_LABEL, type TrancheFormRow,
 } from '@/lib/tranche-form';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 type Props = {
   rows: TrancheFormRow[];
@@ -89,7 +90,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
                   <div className="mt-1">
                     <button
                       type="button"
-                      onClick={() => patch(row.id, 'promo_end_date', new Date().toISOString().split('T')[0])}
+                      onClick={() => patch(row.id, 'promo_end_date', toLocalDateStr(new Date()))}
                       className="text-xs text-primary hover:text-primary/80 py-1"
                     >
                       + Set date

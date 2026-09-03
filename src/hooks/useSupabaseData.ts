@@ -691,6 +691,7 @@ export {
   isHandledReview, validateReviewInput, validateReviewSet, isLinkStatus, LINK_STATUSES,
   findExclusiveReview, findReviewRowFor, applyReviewToSet, linkTarget,
 } from '@/lib/synced-transaction-review';
+import { toLocalDateStr } from '@/lib/scheduling';
 export type { ReviewStatus, ReviewInput, CarChargeKind } from '@/lib/synced-transaction-review';
 export { planLedgerImport } from '@/lib/synced-transaction-import';
 export type { LedgerDraft, ImportPlan, ImportContext } from '@/lib/synced-transaction-import';
@@ -1102,7 +1103,7 @@ function demoRenewal(day: number, monthsAhead = 0) {
   const t = new Date();
   const rolled = monthsAhead === 0 && day < t.getDate() ? 1 : monthsAhead;
   const dt = new Date(t.getFullYear(), t.getMonth() + rolled, day);
-  return dt.toISOString().split('T')[0];
+  return toLocalDateStr(dt);
 }
 
 const demoSubs = [
@@ -1358,7 +1359,7 @@ export function useNetWorthSnapshots() {
  */
 function demoPlanStart(day: number, monthOffset: number) {
   const t = new Date();
-  return new Date(t.getFullYear(), t.getMonth() + monthOffset, day).toISOString().split('T')[0];
+  return toLocalDateStr(new Date(t.getFullYear(), t.getMonth() + monthOffset, day));
 }
 
 const demoPaymentPlans: PaymentPlan[] = [

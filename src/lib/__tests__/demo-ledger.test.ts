@@ -18,9 +18,17 @@ import {
 import { scanForDuplicateTransactions } from '@/lib/duplicate-transaction-detection';
 import type { RuleRow, AccountRow } from '@/hooks/useSupabaseData';
 import type { CarFund } from '@/lib/types';
+import { toLocalDateStr } from '../scheduling';
 
 const withIds = demoTransactions.map((t, i) => ({ ...t, id: String(i) }));
-const today = new Date().toISOString().split('T')[0];
+// LOCAL date, matching what demo-data.ts now produces. `toISOString()` here is the
+// UTC date, and the two disagree for part of every day — nine hours of it in
+// Asia/Tokyo, where local midnight is 15:00 UTC. During that window a demo charge
+// dated today (local) compares as GREATER than today (UTC) and this suite fails,
+// which is exactly what the three-timezone gate caught. It is not a flake: it is a
+// daily window, and it only looked random because the earlier run happened to fall
+// inside it and the retry did not.
+const today = toLocalDateStr(new Date());
 const monthKey = (offset: number) => {
   const n = new Date();
   const d = new Date(n.getFullYear(), n.getMonth() + offset, 1);

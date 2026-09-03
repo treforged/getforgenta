@@ -1,11 +1,12 @@
 import { Transaction, Debt, SavingsGoal, CarFund, Asset, Liability, CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from './types';
+import { toLocalDateStr } from './scheduling';
 
 const now = new Date();
 const y = now.getFullYear();
 const m = now.getMonth();
 
 function d(day: number, monthOffset = 0) {
-  return new Date(y, m + monthOffset, day).toISOString().split('T')[0];
+  return toLocalDateStr(new Date(y, m + monthOffset, day));
 }
 
 // ── Net Worth Snapshots — 26 weekly points ending today ───────────────────
@@ -36,7 +37,7 @@ const DEMO_ACCOUNT_ASSETS_START = 19_800;
 const DEMO_NON_AUTO_LIABILITIES_START = 24_900;
 
 function demoSnapshotDate(weeksAgo: number) {
-  return new Date(y, m, now.getDate() - weeksAgo * 7).toISOString().split('T')[0];
+  return toLocalDateStr(new Date(y, m, now.getDate() - weeksAgo * 7));
 }
 
 function demoNetWorthSeries() {
@@ -348,7 +349,7 @@ export const demoCarBuildItems: CarBuildItem[] = [
 // an overdue oil change, an air filter coming up, and a rotation still a while off.
 function dPlusDays(days: number) {
   const dt = new Date(y, m, now.getDate() + days);
-  return dt.toISOString().split('T')[0];
+  return toLocalDateStr(dt);
 }
 
 export const demoCarMaintenanceLogs: CarMaintenanceLog[] = [

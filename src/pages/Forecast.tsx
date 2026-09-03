@@ -36,6 +36,7 @@ import ForecastAssumptionsPanel from '@/components/forecast/ForecastAssumptionsP
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable';
 import { isManualCashFloor } from '@/lib/cash-floor';
 import ReceiptsDisclosure from '@/components/forecast/ReceiptsDisclosure';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -234,8 +235,8 @@ export default function Forecast() {
     const [startIdx, endIdx] = getCalendarYearMonthRange(yr, now);
     const start = new Date(now.getFullYear(), now.getMonth() + startIdx, 1);
     const end = new Date(now.getFullYear(), now.getMonth() + endIdx, 0);
-    const startStr = start.toISOString().split('T')[0];
-    const endStr = end.toISOString().split('T')[0];
+    const startStr = toLocalDateStr(start);
+    const endStr = toLocalDateStr(end);
     return scheduledEvents.filter(e => e.date >= startStr && e.date <= endStr).slice(0, 100);
   }, [scheduledEvents, filterYear]);
 

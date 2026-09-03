@@ -42,6 +42,7 @@ import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactio
 import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 // LAZY, not a plain import. Budget Control was its own route chunk until today; importing it
 // statically here would fold it into the Activity chunk, so every visit to the planning ledger —
@@ -61,14 +62,14 @@ const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 // plainly editing something that already repeats. Offering a repeat there would insert a SECOND
 // rule beside the first and bill the same money twice, forever. It lives in the form rather than in
 // its own state so a restored draft cannot come back without it.
-const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '', repeat: 'none', overrides_rule: '' };
+const emptyForm = { date: toLocalDateStr(new Date()), type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '', repeat: 'none', overrides_rule: '' };
 
 const emptyPlanForm = {
   name: '',
   provider: '',
   total_amount: '',
   frequency: 'monthly' as PaymentPlanFrequency,
-  start_date: new Date().toISOString().split('T')[0],
+  start_date: toLocalDateStr(new Date()),
   total_payments: '',
   category: 'Shopping',
   payment_source: '',
@@ -453,7 +454,7 @@ export default function Transactions() {
     // For now, open a form pre-filled with rule data
     const r = editChoiceRule;
     setForm({
-      date: new Date().toISOString().split('T')[0],
+      date: toLocalDateStr(new Date()),
       type: r.rule_type === 'income' ? 'income' : 'expense',
       amount: String(r.amount),
       category: r.rule_type === 'income' ? 'Income' : r.category,
@@ -473,7 +474,7 @@ export default function Transactions() {
 
   const duplicateTransaction = (t: EnrichedTransaction) => {
     setForm({
-      date: new Date().toISOString().split('T')[0],
+      date: toLocalDateStr(new Date()),
       type: t.type,
       amount: String(t.amount),
       category: t.category,
@@ -783,7 +784,7 @@ export default function Transactions() {
       <>
         <button
           onClick={async () => {
-            const filename = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+            const filename = `transactions-${toLocalDateStr(new Date())}.csv`;
             await exportTransactionsCsv(filtered, filename);
           }}
           className="w-full sm:w-auto flex items-center justify-center gap-2 bg-secondary border border-border px-4 py-2 text-sm font-medium hover:border-primary/40 hover:text-primary transition-colors"

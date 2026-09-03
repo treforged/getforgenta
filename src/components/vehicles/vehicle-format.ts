@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '@/lib/scheduling';
 /**
  * The two date helpers the vehicle-money cards share.
  *
@@ -10,7 +11,7 @@
 export function addMonthsStr(dateStr: string, n: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 export function fmtDate(iso: string | null | undefined) {

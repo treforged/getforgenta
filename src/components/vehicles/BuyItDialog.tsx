@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { getLoanPrincipal } from '@/lib/vehicle-loan-engine';
 import type { CarFund } from '@/lib/types';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 /**
  * "I bought it" — the dialog that turns a saving-phase plan into a real loan.
@@ -17,8 +18,8 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
     autoLoanAccountOptions: { value: string; label: string }[];
     onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void;
   }) {
-  const today = new Date().toISOString().split('T')[0];
-  const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
+  const nextMonth = toLocalDateStr(new Date(new Date().setMonth(new Date().getMonth() + 1)));
   // getLoanPrincipal - same formula the saving-phase projection uses (Forecast.tsx/
   // useCardProjection.ts), so accepting this default with no edits doesn't change the payment.
   const loanAmountDefault = getLoanPrincipal(cf);

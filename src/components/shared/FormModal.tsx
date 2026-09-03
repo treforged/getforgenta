@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, type ReactNode } from 'react';
 import { X, Info, Check, Loader2, RotateCcw } from 'lucide-react';
 import DateScrollPicker from './DateScrollPicker';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 export type Field = {
   key: string;
@@ -127,7 +128,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                 <div className="mt-1">
                   {!values[f.key] ? (
                     <button type="button"
-                      onClick={() => onChange(f.key, new Date().toISOString().split('T')[0])}
+                      onClick={() => onChange(f.key, toLocalDateStr(new Date()))}
                       className="text-xs text-primary hover:text-primary/80 py-1">
                       + Set date
                     </button>

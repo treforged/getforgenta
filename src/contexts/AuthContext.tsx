@@ -13,6 +13,7 @@ import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
 import { isDeviceTrusted } from '@/lib/trusted-device';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const now = new Date();
     const pastDate = (monthsBack: number) => {
       const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 15);
-      return d.toISOString().split('T')[0];
+      return toLocalDateStr(d);
     };
     const [carRes, goalRes] = await Promise.all([
       supabase.from('car_funds').select('id').eq('user_id', userId),
