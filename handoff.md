@@ -10,6 +10,78 @@
 
 ---
 
+## ⛔ START HERE — UNFIXED AND LIVE — the forecast engine disagrees with itself outside Eastern time
+
+**This is the first thing to work on. It is money, it is in production, and it
+affects every user who is not in Eastern time.**
+
+#### Reproduce it
+
+```
+TZ=UTC npx vitest run
+```
+
+In EDT the suite is 3331 green. Under UTC it is **5 failed**, all money engine:
+
+| Test | File |
+| --- | --- |
+| publishes one month-end cash figure to both surfaces | `monthEndCash.invariant.test.ts` |
+| counts a post-cutoff month-0 one-time on both surfaces, and still agrees to the cent | `monthEndCash.invariant.test.ts` |
+| converges without pushing payoff out or breaching the cash floor | `forecast-convergence.realData.test.ts` |
+| clock=capturedAt (2026-07-15): converges with no floor breach and the live payoff | `forecast-convergence.manualISB.test.ts` |
+| post-payoff months never underpay a cycling statement (Q6) | `forecast-convergence.manualISB.test.ts` |
+
+The invariant failure states the user-facing symptom exactly:
+
+> Dashboard Month-End Cash **$2393.09** vs Forecast End Cash **$3192.00** — the
+> two tiles print different dollars for the same fact.
+
+**~$799 apart.** A user in London or Los Angeles can see two different month-end
+figures on two screens of this app.
+
+#### The diagnostic that saves an hour
+
+**THE TWO CASH CHAINS DO NOT SHIFT TOGETHER.** That is what rules out the
+comfortable explanation — "the fixture was captured in EDT, so everything moves
+by a few hours and the test is brittle". If that were it, both chains would move
+and still agree. They disagree. So **one path is timezone-sensitive and the other
+is not**, and finding which is the work.
+
+⚠️ **Do not attempt a quick fix because it looks like a one-liner.** If it were a
+single date-parsing bug both chains would shift together. Something is genuinely
+inconsistent BETWEEN the two paths.
+
+#### Where to start
+
+- `src/lib/__tests__/monthEndCash.invariant.test.ts:77` — cheapest reproduction.
+- The shape to look for: **`new Date('2026-09-04')` is parsed as UTC midnight**,
+  which is the evening of the 3rd in any negative offset. `notification-policy.ts`
+  (`parseLocalDate`, `daysBetween`) already documents this project being bitten
+  by exactly this once, and carries the fix pattern.
+- Money math, highest care tier, adversarial verification before it ships.
+
+#### ⛔ Pinning the test timezone is a REGRESSION, not a fix
+
+Setting `TZ=America/New_York` in the runner turns CI green in one line and leaves
+every non-Eastern user with two screens showing different money. That is
+manufacturing the appearance of coverage — burying a live bug under a passing
+badge. **CI is left honestly red on purpose.** If anyone proposes pinning it,
+that is the bug winning.
+
+#### Why it was found only now
+
+The check existed, was correct, and **had never been executed anywhere it could
+fail**. That is worse than a missing test: the presence of
+`monthEndCash.invariant.test.ts` is what made everyone confident. A test that
+only ever runs in one timezone carries one timezone's worth of truth. It was
+found the day the suite first ran in CI, which runs in UTC.
+
+Not attempted on 2026-09-03 because the session was near its usage cap. A
+forecast engine left half-corrected overnight is worse than one that is wrong in
+a way we have written down precisely.
+
+---
+
 ## SESSION OF 2026-09-02 — FIVE THINGS SHIPPED, ALL ON `origin/main`
 
 Verified by contents each time, never by the push output. Newest first.
@@ -73,45 +145,6 @@ Six scripts had the pre-move absolute path baked in; all now derive from
 - `fa80831b` OG cohort + one achievement system + the churn rule.
 - iOS widgets: **scoped, not started** — `docs/ios-widgets-scope.md`. It names
   the signing trap that would turn every iOS build red.
-
-### ⛔ 2026-09-03 — UNRESOLVED AND IT IS MONEY: the forecast engine disagrees with itself outside Eastern time
-
-**Found by putting the suite in CI, which runs in UTC.** Locally, in EDT, the
-suite is 3331 green. Under `TZ=UTC` it is **5 failed**, and all five are the
-money engine:
-
-```
-TZ=UTC npx vitest run
-  src/lib/__tests__/monthEndCash.invariant.test.ts        (2 failed)
-  src/lib/__tests__/forecast-convergence.realData.test.ts (1 failed)
-  src/lib/__tests__/forecast-convergence.manualISB.test.ts(2 failed)
-```
-
-The invariant failure is the one that matters and it is not subtle:
-
-> Dashboard Month-End Cash **$2393.09** vs Forecast End Cash **$3192.00** — the
-> two tiles print different dollars for the same fact.
-
-**~$799 apart, and only outside Eastern time.** The two cash chains do not shift
-together, so this is not a fixture that was captured in EDT: one path is
-timezone-sensitive and the other is not. If that reading is right, a user in
-London or Los Angeles can see two different month-end figures on two screens of
-this app today.
-
-**DO NOT "FIX" THIS BY PINNING THE TEST TIMEZONE.** Setting `TZ=America/New_York`
-in the runner would turn CI green and leave every non-Eastern user with the bug —
-manufacturing the appearance of coverage, which is the failure this whole day was
-about. CI is left honestly red until the engine is right.
-
-Start here: `monthEndCash.invariant.test.ts:77` is the cheapest reproduction, and
-`daysBetween`/`parseLocalDate` in `notification-policy.ts` document the exact
-class of bug (`new Date('2026-09-04')` is UTC midnight, which is the evening of
-the 3rd in any negative offset). Look for a date parsed one way in the sim and
-another way in the engine.
-
-⚠️ Money math, highest care tier, and adversarial verification before it ships.
-It was NOT attempted on 2026-09-02/03 because the session was near its usage cap
-and a half-finished change on this path is worse than a known bug.
 
 ### 2026-09-03 — consent, and the CI hole
 
