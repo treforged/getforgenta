@@ -185,7 +185,38 @@ Then: an expired link, an already-used link, and a decline.
 
 </details>
 
-## The OG cohort is EMPTY, and that is why the consent ask sends nothing
+## OG cohort BACKFILLED 2026-09-03 on Tre's direct instruction
+
+*"back fill them. and all other users with premium so they will have the OG
+achievement."* Done: **5 `og_members` rows (numbers 1-5) and 5 `og_founder`
+achievements, 0 members without a badge.**
+
+**Before state, for reversal: BOTH tables held ZERO rows for these users.**
+Reverting is `delete from og_members` plus `delete from achievements where
+achievement_id = 'og_founder'`.
+
+His instruction deliberately overrides `claim_og_place`'s organic-only rule. Four
+of the five have no `stripe_subscription_id`, so the trigger would have refused
+them; he asked for the badge for all premium users and that is what he gets. The
+trigger is unchanged — this was a one-off backfill, and future enrolment still
+follows the organic rule.
+
+**`reward_due_at` runs from each subscription's own `created_at`, not from the
+backfill.** 2027-03-26, 04-18, 05-16, 05-17, 05-18. Dating from today would have
+shortened the real founding subscriber's free year by three months, and a
+founding member's year should start when they started paying.
+
+⚠️ **OPEN: four of these five already hold a granted comp year** (period ends
+around 2027-05-16). They now ALSO carry an OG reward due in 2027, which stacks a
+second free year on top. Tre's words were "so they will have the OG achievement",
+which reads like he wanted the BADGE. Nothing moves for a year, and the consent
+gate means nothing grants without a confirmed row, so there is time — but somebody
+should decide whether the comps keep the second year.
+
+All five verify `eligible = true`, unsettled, `consent = null`, so the anniversary
+job will report them as `needs_consent` when they come due in 2027.
+
+## The OG cohort WAS empty, and that is why the consent ask sent nothing
 
 `og-consent-ask?dry_run=1` returns `would_send: []` with zero failures and zero
 skips. The handler is fine. **`og_members` has ZERO ROWS**, so there is nobody to
@@ -1205,38 +1236,34 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 16:06 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 16:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (10 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M .claude/settings.json
- M src/lib/__tests__/sync-handler-wiring.test.ts
  M supabase/.temp/cli-latest
- M supabase/functions/_shared/sync-handler.ts
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
 ?? .vercelignore
 ?? deno.lock
-?? src/lib/__tests__/account-claim.test.ts
-?? supabase/functions/_shared/account-claim.ts
 ```
 
 - **Recent commits:**
 
 ```
+c2ef7a18 docs(handoff): the consent ask sends nothing because og_members is empty, and why
+680686e3 docs(handoff): claim-on-first-sync shipped, deployed, and checked against live data
+7d92db3b fix(sync): a hand-typed card no longer becomes a duplicate when the bank is linked
 c27d2073 docs(handoff): debug-console preview is deployed and gated
 54ff5b57 fix(dates): close the toISOString class — the last 22 sites, and the test that hid one
 1b596cf9 docs(handoff): expired-link and decline paths pressed live, artefacts removed
 743bc693 docs(handoff): the consent flow is deployed and pressed — one row after two presses
 a4c72665 feat(revenue): push a summary to the Conductor instead of giving it a database key
-ba076f04 db: restore a subscriber's premium access, then make the defect unrepresentable
-4403803f db: constrain user_subscriptions.plan — one row of eleven locks a real user out of premium
-2825edf5 fix(dates): stop writing UTC dates into columns the code reads back as local
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
