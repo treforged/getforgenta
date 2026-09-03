@@ -6,6 +6,12 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   test: {
     exclude: [...configDefaults.exclude, "backups/**"],
+    // Unmounts what the tests mount. Without it nothing ever calls RTL's cleanup()
+    // (it self-registers only under `globals: true`), mounted trees outlive their
+    // file, and React's scheduler can fire after jsdom teardown — "window is not
+    // defined" as an unhandled error, failing the run while every test still
+    // reports passing. See src/test-setup.ts.
+    setupFiles: ["./src/test-setup.ts"],
     // 5s (vitest's default) is too tight for this repo's heaviest tests. The forecast
     // convergence suites run a real 60-month projection to a fixed point and take ~2.4s of
     // test time ALONE — comfortably inside 5s on their own, and over it when the runner is
