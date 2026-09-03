@@ -289,6 +289,40 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## `reach` schema APPLIED 2026-09-03 — Piper's, contained, verified
+
+Forged Reach (attribution for Ruby's posts) now has a `reach` schema in the
+Forgenta project: `campaign`, `tracked_link`, `click`. Migrations are maintained
+in `forge-reach/supabase/migrations/` and are **append-only from 2026-09-03**.
+Applied as ledger entries `reach_0001_init` and `reach_0002_brief_code`.
+
+**Approved on three conditions, all met:** not exposed to PostgREST, explicit
+revokes on anon/authenticated (not just RLS), and her migrations stay in her repo
+with a message before each apply.
+
+**Verified after applying, not before.** Her script returned 4 PASS and one
+UNKNOWN — the PostgREST exposure check cannot read `pgrst.db_schemas` from a SQL
+session, and it says UNKNOWN rather than PASS, which is the right choice.
+
+**I settled the UNKNOWN by behaviour instead of by setting**, which is stronger:
+an anon-key request for `reach.campaign` with `Accept-Profile: reach` returns
+
+    HTTP 406  PGRST106  "Only the following schemas are exposed: public, graphql_public"
+
+and the control — `public.founder_waitlist` with the same key — returns 401
+`permission denied`, proving the key is live and the first result is not a
+transport failure. **`reach` is unreachable with the public anon key.**
+
+⚠️ **Two consequences to know before anyone moves `reach`:** `campaign.owner_id`
+references `auth.users` with ON DELETE CASCADE, so (a) `reach` cannot be lifted
+into its own Supabase project without dropping that FK first, and (b) deleting a
+Forgenta user irreversibly deletes their campaigns, links and clicks. Both are
+correct for a pilot; neither is a thing to discover during a migration.
+
+**Still mine, not built:** joining a click to a signup needs a Forgenta-side
+callback. Piper will bring the shape; do not let another desk build a Forgenta
+endpoint.
+
 ## ⛔ DO NOT LET ANYONE "TIDY" THE `send.treforged.com` DNS RECORDS
 
 Forgenta's auth mail AND the OG consent email both send from
