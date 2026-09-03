@@ -58,6 +58,22 @@ badge.
 Six scripts had the pre-move absolute path baked in; all now derive from
 `$PSScriptRoot`.
 
+### Later the same day — OG cohort, anniversary job, widgets
+
+- `dd097596` widgets: **absent was rendered as zero** (`optDouble(key, 0)`, so a
+  real zero and missing data were pixel-identical in confident gold) and
+  **nothing ever went stale**. Stale is now absent, not a caveat. Also the app
+  had been sending the literal `'USD'` — a non-USD user read their money with the
+  wrong symbol. ⚠️ The Java half is READ-AND-REASON, not tested; pressing it
+  needs a device build.
+- `b83eb32a` resume queue 30 KB → 14 KB, pointers not reports.
+- `b575498f` / `63f4c214` the anniversary job: loud, rehearsable, idempotent.
+  **Deployed and inert** — no cron schedule exists, the Stripe grant is unwired.
+  Detail: `docs/og-cohort.md`.
+- `fa80831b` OG cohort + one achievement system + the churn rule.
+- iOS widgets: **scoped, not started** — `docs/ios-widgets-scope.md`. It names
+  the signing trap that would turn every iOS build red.
+
 ## WHAT LIVE-PRESSING FOUND THAT 3272 GREEN TESTS DID NOT
 
 Read this before deciding a suite is proof of anything.
@@ -98,11 +114,17 @@ Read this before deciding a suite is proof of anything.
 
 ## STILL UNBUILT — recorded so a year does not pass with these in a doc only
 
-- **Nothing RUNS at the anniversary.** `og_members_reward_due_idx` exists so a job
-  can find members cheaply; the job does not exist.
-- **The RevenueCat → Stripe migration path is not written.** Moving a live mobile
-  subscriber to Stripe billing without losing access mid-switch is the part that
-  quietly fails.
+- **The anniversary job EXISTS and is deployed, but nothing fires it.** No cron
+  schedule, and the Stripe grant is unwired — both are live changes waiting on
+  Tre. `docs/og-cohort.md`.
+- **A mobile OG CANNOT be migrated by us** — a fact about the stores, not a gap.
+  Only the user can cancel a store subscription. The ask must go BY EMAIL, never
+  in-app (anti-steering). Awaiting Tre. `docs/og-cohort.md`.
+- **iOS widgets are unstarted**, scoped in `docs/ios-widgets-scope.md`. Do the
+  entitlements/provisioning step FIRST and separately.
+- **The Android widget change is unpressed.** Strictly safer than what it
+  replaced, so shipping it that way was the right risk — but a device build
+  should confirm it when convenient.
 - **No user-facing promise copy.** It may now say the year is free. It must never
   name the billing rail — the user is promised a year, not a rail.
 - **`ForgentaRedditScout` still points at the dead pre-move path.** Sam hit
@@ -842,40 +864,31 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 21:43 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 22:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (12 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
-M docs/og-cohort.md
- M handoff.md
- M src/components/dashboard/LearnCard.tsx
- M src/contexts/__tests__/AuthContext.test.tsx
- M supabase/.temp/cli-latest
- M vite.config.ts
+M supabase/.temp/cli-latest
 ?? .vercelignore
 ?? deno.lock
-?? src/components/dashboard/SocialFollowRow.tsx
-?? src/components/dashboard/__tests__/SocialFollowRow.test.tsx
-?? src/hooks/useSocialAchievements.ts
-?? src/lib/social-links.ts
 ```
 
 - **Recent commits:**
 
 ```
+b83eb32a docs(handoff): the resume queue is pointers now, not reports — 30 KB to 14 KB
+b575498f fix(og): an asked-but-unsettled member stays visible, and the ask goes by email
+63f4c214 feat(og): the anniversary run — loud, rehearsable, and safe to re-run
+682a6bd2 docs: the Instagram handle is confirmed, and the session's state rewritten
+47ec5907 feat(social): a follow badge that only claims what the app actually saw, and a suite that can be trusted
 fa80831b feat(og): the first-100 cohort, one achievement system, and a churn rule that is fair
 5749f4a8 fix(scripts): derive every path from $PSScriptRoot, and make the dry-run flag real
 5aea5188 feat(review): ask for a review at a value moment, not on an action count
-4a0579f2 fix(learn): stop listing the lesson the card is already offering
-0cae5a19 docs(handoff): the two queued asks, and the "premium" ruling so nobody re-litigates it
-92e2067f docs(handoff): the notification+Learn batch is shipped, and what is still unproven
-a5d6b196 feat(notifications,learn): an off switch that works everywhere, a real weekly cadence, and Learn
-fac9176a docs(handoff): put the two live threads at the top of the resume queue
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
