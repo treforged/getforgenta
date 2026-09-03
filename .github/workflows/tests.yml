@@ -83,8 +83,27 @@ jobs:
           TOTAL=$(node -e "const r=require('./vitest-results.json');console.log(r.numTotalTests||0)")
           echo "Web tests executed: $TOTAL"
           echo "Web tests executed: $TOTAL" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$TOTAL" -lt 1 ]; then
-            echo "::error::vitest reported $TOTAL tests. A suite that runs nothing is not a passing suite."
+          # A FLOOR NEAR THE REAL COUNT, not merely non-zero.
+          #
+          # `-lt 1` catches "the suite ran nothing". It does NOT catch "half the
+          # suites stopped loading", which is the shape this repo actually hit:
+          # seven suites died at import on a missing env var. That run exited
+          # non-zero for its own reasons, but the same import failure in a suite
+          # vitest treats as skippable would sail past a non-zero check with a
+          # collapsed count and a green tick.
+          #
+          # 3404 tests pass as of 2026-09-03. The floor is set well below that so
+          # ordinary churn — deleting a test file, moving cases around — does not
+          # trip it, while losing whole swathes of the suite does.
+          #
+          # ⚠️ IT DECAYS UPWARD. As the suite grows, a fixed floor protects a
+          # smaller and smaller fraction of it. Raise it when the real count has
+          # moved well past it; a floor at a third of the true count is barely a
+          # floor at all. That maintenance cost is the price of the check, and it
+          # is worth naming rather than discovering.
+          MIN_TESTS=3000
+          if [ "$TOTAL" -lt "$MIN_TESTS" ]; then
+            echo "::error::vitest reported $TOTAL tests, below the floor of $MIN_TESTS. Either whole suites stopped loading, or the floor is stale and should be re-set deliberately — do not lower it to make this pass."
             exit 1
           fi
 
