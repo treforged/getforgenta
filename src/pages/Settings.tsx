@@ -502,12 +502,25 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-muted-foreground uppercase">Currency</label>
+            {/* DISABLED ON PURPOSE, 2026-09-03. This offered EUR and GBP and changed
+                NOTHING: `formatCurrency` takes a currency argument that no call site
+                passes, and the only reader of `profile.currency` outside this page is
+                the home-screen widget. So a user could select EUR and watch every
+                balance, projection and payoff stay in dollars — a control that makes a
+                promise the app breaks silently, which is worse than no control.
+                Re-enable it in the same change that threads currency AND locale through
+                formatCurrency, never before. See docs/international-release-plan.md. */}
             <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
-              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
+              disabled
+              aria-describedby="currency-note"
+              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
               <option value="USD">USD ($)</option>
               <option value="EUR">EUR (€)</option>
               <option value="GBP">GBP (£)</option>
             </select>
+            <p id="currency-note" className="text-[10px] text-muted-foreground mt-1">
+              Every figure is shown in US dollars. Other currencies are not supported yet.
+            </p>
           </div>
           <div>
             <label className="text-xs text-muted-foreground uppercase">Budget Start Day</label>
