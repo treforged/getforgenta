@@ -46,6 +46,18 @@ export function buildCashFloorWarning(input: FloorWarningInput): FloorWarning | 
   // The reason for a shortfall in month N is recorded against the month that has
   // to SAVE UP for it, which is an earlier one. So take the nearest reason at or
   // before this month rather than requiring an exact hit.
+  //
+  // ⚠️ A MONTH-0 SHORTFALL THEREFORE HAS NO CAUSE, and that is not a bug to work
+  // around: you cannot save up for a month that has already arrived, so no
+  // `saveUpReason` is ever recorded against index 0. Verified live on 2026-09-03 —
+  // the app showed a month-0 breach with the earliest reason at month 5, so the
+  // message correctly fell back to the plain statement. The fixture happened to
+  // breach at month 1 with a reason at month 0, which is why the named form looked
+  // universal in testing and is not.
+  //
+  // Naming a cause anyway from the nearest LATER reason would be the exact defect
+  // this file exists to avoid: attributing this month's shortfall to next spring's
+  // expense. Better to say less.
   let cause: string | null = null;
   if (input.saveUpReason) {
     for (let m = idx; m >= 0; m--) {

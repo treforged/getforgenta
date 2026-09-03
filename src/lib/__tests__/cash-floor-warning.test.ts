@@ -79,3 +79,18 @@ describe('buildCashFloorWarning', () => {
     expect(buildCashFloorWarning({ months: [] })).toBeNull();
   });
 });
+
+describe('a month-0 shortfall', () => {
+  it('shows the plain message, because no save-up reason can exist for the current month', () => {
+    // Verified live 2026-09-03: the running app breached at month 0 with its earliest
+    // saveUpReason at month 5. You cannot save up for a month that has arrived.
+    const w = buildCashFloorWarning({
+      months: [{ month: 'Sep 2026', belowSafeMinimum: true }, { month: 'Oct 2026' }],
+      saveUpReason: new Map([[5, { eventName: '$1,900 New place security deposit', monthLabel: 'x' }]]),
+    });
+    expect(w?.cause).toBeNull();
+    expect(w?.message).toBe('Cash is projected below your safe minimum in Sep 2026. Check your cash floor.');
+    // The failure to avoid: blaming this month on next spring.
+    expect(w?.message).not.toContain('security deposit');
+  });
+});
