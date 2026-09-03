@@ -86,6 +86,9 @@
   },
   "overrides": {
     "brace-expansion@1": "1.1.18",
-    "brace-expansion@>=2": "5.0.9"
+    "brace-expansion@>=2": "5.0.9",
+    "browserslist": "^4.28.7",
+    "@xmldom/xmldom": "^0.8.15",
+    "@humanfs/node": "^0.16.8"
   }
 }
