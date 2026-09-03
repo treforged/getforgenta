@@ -31,10 +31,10 @@ const DEMO_AUTO_LOAN_TODAY = 26_500;
 /** Account balances today, i.e. `demoAccounts` less the two cards. */
 const DEMO_ACCOUNT_ASSETS_TODAY = 24_600;
 /** Cards + student loan today: 8,500 + 4,200 + 8,000. */
-const DEMO_NON_AUTO_LIABILITIES_TODAY = 20_700;
+const DEMO_NON_AUTO_LIABILITIES_TODAY = 14_482;
 /** Where those two lines stood 26 weeks ago — less saved, more owed on the cards. */
 const DEMO_ACCOUNT_ASSETS_START = 19_800;
-const DEMO_NON_AUTO_LIABILITIES_START = 24_900;
+const DEMO_NON_AUTO_LIABILITIES_START = 18_682;
 
 function demoSnapshotDate(weeksAgo: number) {
   return toLocalDateStr(new Date(y, m, now.getDate() - weeksAgo * 7));
@@ -190,14 +190,14 @@ export const demoTransactions: DemoTransaction[] = [
 // Mortgage is left empty ON PURPOSE. Jordan rents — $1,600 a month, rule r2 — and inventing a
 // mortgage to light up a tab would be the one demo number a visitor could catch out.
 export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_limit?: number })[] = [
-  { name: 'Chase Sapphire', balance: 8500, apr: 22.99, min_payment: 212, target_payment: 600, credit_limit: 12000 },
-  { name: 'Discover It',    balance: 4200, apr: 18.99, min_payment: 105, target_payment: 300, credit_limit:  7500 },
+  { name: 'Cobalt Rewards Card', balance: 4318, apr: 24.74, min_payment: 112, target_payment: 600, credit_limit: 12000 },
+  { name: 'Summit Everyday Card', balance: 2164, apr: 18.99, min_payment: 58, target_payment: 300, credit_limit:  7500 },
   { name: 'Student Loan',   balance: 8000, apr:  5.50, min_payment:  95, target_payment:  95 },
   { name: 'Dental Financing', balance: 640, apr: 0,    min_payment:  80, target_payment:  80 },
 ];
 
 // ── Demo Savings Goals ─────────────────────────────────────
-// Emergency Fund linked to Marcus HYS (d3) so balance auto-pulls from the account.
+// Emergency Fund linked to Ridgeway Savings (d3) so balance auto-pulls from the account.
 export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at'> & { linked_account?: string; goal_type?: string })[] = [
   { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 300, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [], sort_order: 0, auto_extra: false },
   { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 150, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [], sort_order: 1, auto_extra: false },
@@ -211,7 +211,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     tax_fees: 2000,
     down_payment_goal: 5600,
     // Finding §2.9 (Tre, 2026-08-08): this was $3,200 earmarked against `linked_account: 'd1'` —
-    // Chase Checking, which holds $2,800 — so the demo rendered "Balance on hand $0" with no
+    // Northvale Checking, which holds $2,800 — so the demo rendered "Balance on hand $0" with no
     // explanation. $1,200 of the $2,800 checking balance being car money is coherent AND still
     // exercises the earmark path, so the demo shows the feature working rather than a clamped zero.
     // If d1's balance ever changes, keep this below it.
@@ -451,16 +451,16 @@ function demoFeed(): DemoSyncedTransaction[] {
 
   for (const M of DEMO_FEED_MONTHS) {
     // ── Matches a demo rule: these are the deck's cards ──────────────────────
-    // r2 Rent — $1,600 on the 1st from Chase Checking.
+    // r2 Rent — $1,600 on the 1st from Northvale Checking.
     rows.push(demoCharge('rent', M, 1, 'd1', 1600.00, 'RIDGEVIEW APARTMENTS RENT', 'Ridgeview Apartments', 'Bills'));
-    // r4 Car Insurance — $280 on the 14th from Chase Checking.
+    // r4 Car Insurance — $280 on the 14th from Northvale Checking.
     rows.push(demoCharge('insurance', M, 14, 'd1', 280.00, 'PROGRESSIVE INS PMT', 'Progressive Insurance', 'Car'));
-    // r3 Utilities — $200 on the 15th from Chase Checking.
+    // r3 Utilities — $200 on the 15th from Northvale Checking.
     rows.push(demoCharge('utilities', M, 15, 'd1', 200.00, 'DUKE ENERGY BILLPAY', 'Duke Energy', 'Bills'));
-    // r13 Streaming + Gym — $85 on the 4th on Discover.
+    // r13 Streaming + Gym — $85 on the 4th on the Summit card.
     rows.push(demoCharge('gym', M, 4, 'd8', 85.00, 'IRON HOUSE GYM MEMBER', 'Iron House Gym', 'Subscriptions'));
 
-    // r1 Weekly Paycheck — inflow, so NEGATIVE. Deposited to Chase Checking.
+    // r1 Weekly Paycheck — inflow, so NEGATIVE. Deposited to Northvale Checking.
     // r11 Gas and r10 Groceries — the two weekly expense rules.
     for (const day of DEMO_WEEKLY_DAYS) {
       rows.push(demoCharge('payroll', M, day, 'd1', -1462.50, 'RIDGELINE FAB PAYROLL DIR DEP', 'Ridgeline Fabrication', 'Income'));
@@ -508,14 +508,30 @@ export const demoSyncedTransactions: DemoSyncedTransaction[] = demoFeed();
 // meaningful forecast projections. Checking balance supports the
 // cash floor while showing debt payoff in action.
 export const demoAccounts = [
-  { id: 'd1', user_id: 'demo', name: 'Chase Checking', account_type: 'checking', institution: 'Chase', balance: 2800, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
-  { id: 'd2', user_id: 'demo', name: 'Alliant Checking', account_type: 'checking', institution: 'Alliant', balance: 1000, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'd3', user_id: 'demo', name: 'Marcus HYS', account_type: 'high_yield_savings', institution: 'Marcus', balance: 5800, credit_limit: null, apr: 4.5, active: true, notes: 'Emergency fund', created_at: '', updated_at: '' },
-  { id: 'd4', user_id: 'demo', name: 'Fidelity 401k', account_type: '401k', institution: 'Fidelity', balance: 8500, credit_limit: null, apr: null, active: true, notes: 'Employer match 4%', created_at: '', updated_at: '' },
-  { id: 'd5', user_id: 'demo', name: 'Roth IRA', account_type: 'roth_ira', institution: 'Fidelity', balance: 4200, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'd6', user_id: 'demo', name: 'Robinhood', account_type: 'brokerage', institution: 'Robinhood', balance: 2000, credit_limit: null, apr: null, active: true, notes: 'Index funds', created_at: '', updated_at: '' },
-  { id: 'd7', user_id: 'demo', name: 'Chase Sapphire', account_type: 'credit_card', institution: 'Chase', balance: 8500, credit_limit: 12000, apr: 22.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement' },
-  { id: 'd8', user_id: 'demo', name: 'Discover It', account_type: 'credit_card', institution: 'Discover', balance: 4200, credit_limit: 7500, apr: 18.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 22, payment_preference: 'full' },
+  { id: 'd1', user_id: 'demo', name: 'Northvale Checking', account_type: 'checking', institution: 'Northvale Bank', balance: 2800, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
+  { id: 'd2', user_id: 'demo', name: 'Harborline Checking', account_type: 'checking', institution: 'Harborline Credit Union', balance: 1000, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'd3', user_id: 'demo', name: 'Ridgeway Savings', account_type: 'high_yield_savings', institution: 'Ridgeway Savings Bank', balance: 5800, credit_limit: null, apr: 4.5, active: true, notes: 'Emergency fund', created_at: '', updated_at: '' },
+  { id: 'd4', user_id: 'demo', name: 'Workplace 401k', account_type: '401k', institution: 'Meridian Wealth', balance: 8500, credit_limit: null, apr: null, active: true, notes: 'Employer match 4%', created_at: '', updated_at: '' },
+  { id: 'd5', user_id: 'demo', name: 'Roth IRA', account_type: 'roth_ira', institution: 'Meridian Wealth', balance: 4200, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'd6', user_id: 'demo', name: 'Brokerage', account_type: 'brokerage', institution: 'Lakeside Invest', balance: 2000, credit_limit: null, apr: null, active: true, notes: 'Index funds', created_at: '', updated_at: '' },
+  // ⚠️ NO REAL CARD OR BANK NAMES. These are marketing assets: every App Store
+  // screenshot and every video comes from this fixture, so a real issuer's mark
+  // would be in published material. Invented names also satisfy the "obviously
+  // synthetic" half of the bar (docs/DEMO-FIXTURE-SPEC.md).
+  //
+  // The tranche below is what makes the strongest line the app produces
+  // REACHABLE from the demo. Before 2026-09-03 no demo card had any, so
+  // `promoExpiryWarnings` returned nothing and the reprice sentence existed only
+  // on Tre's real cards — which can never be filmed.
+  //
+  // Figures chosen against spec §3: not round, and deliberately far from Tre's
+  // own ($3,562 / $8,693 / $2,845 at 27.49% and 16.6%), with an invented issuer,
+  // so a published screenshot cannot partially disclose his position.
+  { id: 'd7', user_id: 'demo', name: 'Cobalt Rewards Card', account_type: 'credit_card', institution: 'Northvale Bank', balance: 4318, credit_limit: 12000, apr: 24.74, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement',
+    balance_tranches: [
+      { id: 'dt1', label: 'Balance transfer', balance: 2417, apr: 0, promo_end_date: '2027-05-11', min_payment: null },
+    ] },
+  { id: 'd8', user_id: 'demo', name: 'Summit Everyday Card', account_type: 'credit_card', institution: 'Harborline Credit Union', balance: 2164, credit_limit: 7500, apr: 18.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 22, payment_preference: 'full' },
   // Named to match the `Student Loan` row in `demoDebts` — `DebtPayoff.tsx` pairs the two by name,
   // and `net-worth.ts` counts a `student_loan` account as a liability, which is why the manual
   // liability row for it was removed rather than kept alongside.
@@ -551,5 +567,5 @@ export const demoRecurringRules = [
   { id: 'dr-roommate', user_id: 'demo', name: 'Roommate Contribution', amount: 900, rule_type: 'income', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Monthly rent split', created_at: '', updated_at: '' },
   // Explicit CC purchase rules — ensures monthlyNewPurchases is realistic for each card
   { id: 'dr-cc1', user_id: 'demo', name: 'Monthly Expenses', amount: 450, rule_type: 'expense', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Groceries', payment_source: 'account:d7', deposit_account: null, active: true, notes: 'Groceries & dining on Sapphire', created_at: '', updated_at: '' },
-  { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on Discover', created_at: '', updated_at: '' },
+  { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on the Summit card', created_at: '', updated_at: '' },
 ];
