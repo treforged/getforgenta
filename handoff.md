@@ -51,6 +51,38 @@ is not**, and finding which is the work.
 single date-parsing bug both chains would shift together. Something is genuinely
 inconsistent BETWEEN the two paths.
 
+#### THE LEAD (searched 2026-09-03 00:10, read-only — not yet proven by experiment)
+
+**The fixture's `capturedAt` is `2026-09-01T00:20:11.665Z`.** That is 1 September
+in UTC and **31 August at 20:20 in EDT**. So the two environments do not merely
+shift by hours — they put "today" in **different months**, which is what makes a
+whole month's cash the size of the disagreement.
+
+Then the two paths bucket by month DIFFERENTLY, which is the "they do not shift
+together" part:
+
+- **`forecast-engine.ts` re-derives a month key from LOCAL `now`** —
+  `` `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` `` — and
+  matches items by STRING (`slice(0, 7)` / `startsWith`, **7 sites**). So its
+  month-0 label moves when the local month moves.
+- **`cardProjectionResim.ts` does none of that (zero such sites).** Its comment
+  at line 24 says it: *"Per-month per-card real purchases (index = month), same
+  array the base pipeline built."* The sim consumes a **pre-built ledger indexed
+  by month**; it does not re-bucket. Its only date construction is line 87.
+
+So when local `now` and UTC `now` fall in different months, **the engine's month
+key shifts and the sim's pre-built index does not** — one path re-derives, the
+other inherits. That is exactly a disagreement rather than a shared shift, and it
+matches the ~$799 delta being a month's worth of movement.
+
+⚠️ **This is a LEAD, established by reading, not by an isolating experiment.** It
+has not been proven, and the fix is not obvious from it: making them agree means
+deciding WHICH definition of month-0 is correct for a user, not just aligning two
+call sites. Confirm it first — the cheapest confirmation is to re-run the failing
+test with a `capturedAt` that is mid-month in both timezones (e.g. the existing
+`forecast-inputs.real.bak-2026-07-15.json`, captured at 12:15Z) and see whether
+the failures disappear. If they do, the month-boundary reading is right.
+
 #### Where to start
 
 - `src/lib/__tests__/monthEndCash.invariant.test.ts:77` — cheapest reproduction.
@@ -956,16 +988,18 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 22:21 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 00:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M handoff.md
+ M supabase/.temp/cli-latest
+?? .github/workflows/handoff.md
 ?? .vercelignore
 ?? deno.lock
 ```
@@ -973,14 +1007,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+4e22f7bc docs(handoff): put the live money bug at the top, with the diagnostic that saves an hour
+3dab1b69 ci: make the test step say WHY it failed — and it found a money bug
+b655256c feat(og): the consent wording, versioned — the part that has to survive being questioned
+421197f9 ci: a test workflow that deploys nothing, so CI can be exercised without shipping
+7c5c51e8 docs(handoff): the consent record, and the CI hole that let releases ship untested
+7eeb3a7f ci(android): run the unit tests before shipping, and fail when they match nothing
 745984e3 test(widgets): make the Android trust rules pressable, and name what blocks running them
 42de51d9 feat(og): the billing-move consent record, built as a compliance artefact
-443e5698 docs(ios): scope the iOS widgets, and name the signing trap before anyone hits it
-dd097596 fix(widgets): never put a number on a home screen that the app did not read
-b83eb32a docs(handoff): the resume queue is pointers now, not reports — 30 KB to 14 KB
-b575498f fix(og): an asked-but-unsettled member stays visible, and the ask goes by email
-63f4c214 feat(og): the anniversary run — loud, rehearsable, and safe to re-run
-682a6bd2 docs: the Instagram handle is confirmed, and the session's state rewritten
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
