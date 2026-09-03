@@ -206,6 +206,34 @@ backfill.** 2027-03-26, 04-18, 05-16, 05-17, 05-18. Dating from today would have
 shortened the real founding subscriber's free year by three months, and a
 founding member's year should start when they started paying.
 
+**WHAT EACH OF THE FIVE ACTUALLY IS** (labelled 2026-09-03 at Sam's request, so
+no future session has to infer it from `stripe_subscription_id` being null, which
+cannot tell a comp from a free-forever grant):
+
+| OG # | stripe sub | period end | reading |
+| --- | --- | --- | --- |
+| 1 | no | **none** | no end recorded — free forever / indefinite |
+| 2 | no | 2027-01-01 | comp with a FIXED end |
+| 3 | no | **none** | no end recorded — free forever / indefinite |
+| 4 | no | 2027-05-16 | comp with a FIXED end |
+| 5 | **yes** | none | ORGANIC subscriber, the intended case |
+
+So the stacking Tre accepted is real for **#2 and #4 only**. For #1 and #3 an OG
+year is decorative: you cannot give a free year to an account that already pays
+nothing indefinitely. For #5 it is the benefit working as designed.
+
+⚠️ **This is INFERENCE, not proof.** A null `current_period_end` means "no end is
+recorded", which is not the same statement as "this grant never ends". Nothing in
+this table stores intent. Proving it needs whatever issued those grants —
+`grant-promo-premium`, or a Stripe coupon with `duration: forever`. Recorded as a
+reading so it is honest about being one.
+
+⚠️ **SEPARATE, AND NOBODY ASKED FOR IT: OG #5 has a `stripe_subscription_id` but
+`current_period_end` is NULL.** That is the one genuinely organic subscriber, and
+a live Stripe subscription should carry a period end — the webhook writes it. So
+either it never landed or something cleared it. Not blocking anything and not
+investigated; worth a look before anyone trusts renewal dates on that account.
+
 ✅ **WHY THIS IS SAFE TO LEAVE OPEN, read this before reacting to the line below:
 NOTHING MOVES FOR A YEAR, AND NOTHING GRANTS WITHOUT A CONFIRMED CONSENT ROW.**
 The earliest reward is due 2027-03-26, and `decideAnniversary` returns
