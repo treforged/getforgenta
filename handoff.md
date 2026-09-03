@@ -859,6 +859,18 @@ these should be ONE achievements system, not two.
 
 **TOP OF QUEUE — added 2026-09-02 ~12:05 ET, ahead of the numbered items below.**
 
+- [x] **DONE 2026-09-03 15:56 ET — debug-console dev-mode preview deploy.**
+  URL: `https://getforgenta-5vj0wmdoc-treforgeds-projects.vercel.app`
+  (target=preview, status=Ready). Built with `npm run build:dev` and
+  `VITE_ENABLE_DEBUG_CONSOLE=true` via a `--local-config` copy of `vercel.json`,
+  `--archive=tgz`, `--scope treforgeds-projects`. The rate limit that blocked the
+  earlier attempt had long expired. NOT publicly reachable, verified rather than
+  assumed: an anonymous GET returns 302 to `vercel.com/sso-api`. Tre must sign in
+  with his Vercel account to open it. The recipe below was correct as written and
+  needed no changes.
+
+<details><summary>Original item, kept for the recipe</summary>
+
 - [~] **Debug-console dev-mode preview deploy. Tre APPROVED it; it is still
   outstanding.** Do not re-ask him. Blocked only by a Vercel free-tier upload
   rate limit (`api-upload-free`) that this desk tripped at ~11:57 ET, so it
@@ -872,6 +884,8 @@ these should be ONE achievements system, not two.
   "npm run build:dev">` and `--build-env VITE_ENABLE_DEBUG_CONSOLE=true`.
   Vercel SSO protection is already confirmed ON, so the preview URL is not
   publicly reachable.
+
+</details>
 
 - [~] **Auto-dedupe is DEPLOYED but NOT PROVEN.** `plaid-exchange-token` went
   live 2026-09-02 11:49:13 ET, verified via `list_edge_functions` (ACTIVE,
@@ -1134,17 +1148,28 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 15:29 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 15:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (18 file(s)):**
 
 ```
 M .claude/settings.json
- M handoff.md
+ M src/components/builds/PhaseBlock.tsx
+ M src/components/debt/CardRateLine.tsx
+ M src/components/shared/BalanceTrancheEditor.tsx
+ M src/components/shared/FormModal.tsx
+ M src/components/vehicles/BuyItDialog.tsx
+ M src/components/vehicles/vehicle-format.ts
+ M src/contexts/AuthContext.tsx
+ M src/hooks/useSupabaseData.ts
+ M src/lib/demo-data.ts
+ M src/pages/AiAdvisor.tsx
+ M src/pages/Forecast.tsx
+ M src/pages/Transactions.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1155,14 +1180,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+1b596cf9 docs(handoff): expired-link and decline paths pressed live, artefacts removed
+743bc693 docs(handoff): the consent flow is deployed and pressed — one row after two presses
 a4c72665 feat(revenue): push a summary to the Conductor instead of giving it a database key
 ba076f04 db: restore a subscriber's premium access, then make the defect unrepresentable
 4403803f db: constrain user_subscriptions.plan — one row of eleven locks a real user out of premium
 2825edf5 fix(dates): stop writing UTC dates into columns the code reads back as local
 880c5b9d docs(handoff): the Tests gate is green for the first time, and the honest gap in the proof
 9788de03 test: unmount what the tests mount — the flake that fails a run of passing tests
-413919e9 ci(tests): assert a FLOOR near the real test count, not merely non-zero
-3159db63 ci(tests): the Tests workflow had NEVER been green — seven suites died before a test ran
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
