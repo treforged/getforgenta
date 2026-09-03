@@ -289,6 +289,48 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## INTERNATIONAL RELEASE — planned, NOT started. Plan: `docs/international-release-plan.md`
+
+Tre wants Forgenta in more countries. **No store setting has been changed, and the
+app must be fixed first** — the store change is a checkbox, the app change is the
+work, and adding a country before the app is right ships wrong numbers on day one.
+Sam agreed the reordering.
+
+**THE LIVE BUG THIS FOUND, fixed:** the Settings currency picker offered USD, EUR
+and GBP and **did nothing**. `formatCurrency` takes a currency argument that ZERO
+call sites pass, and the only reader of `profile.currency` outside Settings is the
+home-screen widget. Now DISABLED with an honest note, **verified on screen**
+(`disabled: true`, value `USD`, note rendering).
+
+**Counted, not estimated:** 44 hardcoded `en-US`, 91 `toLocale` sites, **32 pinned
+to `en-US` and therefore MM/DD/YYYY**, 19 hardcoded `$`, 0 `formatCurrency` calls
+passing a currency. `exportPdf.ts:168` and `notification-policy.ts:307` hardcode
+locale AND USD together.
+
+**Decisions Tre has made:** real multi-currency, NOT display-only relabelling.
+**Japan is EXCLUDED and decided** — Google requires publishing the business
+operator's name, phone and physical address, and he declined. Do not re-ask.
+
+**Still his to decide:** per-currency subtotals or one converted total, and which
+rate applies to HISTORY (a payoff projection converted at today's rate differs
+from one converted per-transaction, and it compounds over the horizon).
+
+**Next, in order:** thread currency AND locale through `formatCurrency` → the 32
+date sites → then countries. Rate-source criteria are in the plan; nothing has
+been priced or read, so do not treat any provider as chosen.
+
+## DEV SIGN-IN: Google SSO carries, and the session DOES drop
+
+Tre is signed into Google in the Claude-controlled Chrome, so `/auth` → "Continue
+with Google" signs in with **no credential typed**. Worth knowing because the
+Supabase session dropped mid-verification today — a probe that read SIGNED IN at
+3560s was signed out twenty minutes later. If a page bounces to `/auth`, re-run
+that click rather than assuming the dev server broke.
+
+⚠️ `Object.keys(localStorage)` can show `[BLOCKED: JWT token]` instead of the
+`sb-*` key. That is the harness redacting, NOT proof of being signed out. Check
+where the app actually routes.
+
 ## NEXT SLICE, SCOPED AND READY: the cash-floor warning Tre asked for
 
 His ask (2026-08-27, approved, unstarted): *"a mandatory marker on each card is
@@ -1300,16 +1342,17 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 16:22 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 17:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M .claude/settings.json
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1320,14 +1363,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
-c2ef7a18 docs(handoff): the consent ask sends nothing because og_members is empty, and why
-680686e3 docs(handoff): claim-on-first-sync shipped, deployed, and checked against live data
-7d92db3b fix(sync): a hand-typed card no longer becomes a duplicate when the bank is linked
-c27d2073 docs(handoff): debug-console preview is deployed and gated
-54ff5b57 fix(dates): close the toISOString class — the last 22 sites, and the test that hid one
-1b596cf9 docs(handoff): expired-link and decline paths pressed live, artefacts removed
-743bc693 docs(handoff): the consent flow is deployed and pressed — one row after two presses
-a4c72665 feat(revenue): push a summary to the Conductor instead of giving it a database key
+1537cac9 docs: the international release plan — and the currency picker that does nothing
+6c3e94fb test(debt): pin what a month-0 shortfall shows — pressing the page found the gap
+4d037bcb docs: name the files per slice shape, and say what is UNMEASURED rather than guessing
+815f0742 docs: a routing table at the top of CLAUDE.md, so a cold session stops grepping
+d97f00d4 feat(debt): tell the user the cash floor will be missed, and name what causes it
+3c82fc14 docs(handoff): label what each of the five OG rows actually is
+7be124ab docs(handoff): scope the cash-floor warning — the marker exists, the reason exists, the UI throws it away
+27a00206 docs(handoff): lead the OG stacking note with the gate that makes it safe
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
