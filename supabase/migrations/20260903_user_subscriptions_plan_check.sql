@@ -28,7 +28,10 @@
 -- this constraint rather than against it — a defect whose origin cannot be
 -- pinned is exactly the one worth making impossible instead of merely fixing.
 --
--- ⚠️ THIS MIGRATION WILL FAIL WHILE THE BAD ROW EXISTS, ON PURPOSE. Postgres
+-- APPLIED 2026-09-03 19:26 UTC, after the row was corrected. Tre authorised the
+-- correction; Sam relayed it.
+--
+-- ⚠️ THIS MIGRATION WILL FAIL WHILE A BAD ROW EXISTS, ON PURPOSE. Postgres
 -- validates a CHECK against existing rows, so applying it is blocked until
 -- somebody decides what that account's plan should actually be. That decision is
 -- Tre's — writing 'premium' would restore a year of access to a real person, and
