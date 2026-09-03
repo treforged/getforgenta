@@ -56,7 +56,13 @@ jobs:
       - name: Unit tests
         run: |
           set -o pipefail
-          npx vitest run --reporter=json --outputFile=vitest-results.json 2>&1 | tail -20
+          # TWO reporters, and NO `| tail`. The first version of this step ran
+          # `--reporter=json ... | tail -20`: when a test failed, the JSON went to
+          # a file and the human-readable failure went nowhere, so the step said
+          # only "exit code 1". A gate that fails without saying why is a gate
+          # somebody disables. `default` prints which test failed and how;
+          # `json` is what the count below is read from.
+          npx vitest run --reporter=default --reporter=json --outputFile=vitest-results.json
           TOTAL=$(node -e "const r=require('./vitest-results.json');console.log(r.numTotalTests||0)")
           echo "Web tests executed: $TOTAL"
           echo "Web tests executed: $TOTAL" >> "$GITHUB_STEP_SUMMARY"

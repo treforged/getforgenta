@@ -74,6 +74,45 @@ Six scripts had the pre-move absolute path baked in; all now derive from
 - iOS widgets: **scoped, not started** — `docs/ios-widgets-scope.md`. It names
   the signing trap that would turn every iOS build red.
 
+### ⛔ 2026-09-03 — UNRESOLVED AND IT IS MONEY: the forecast engine disagrees with itself outside Eastern time
+
+**Found by putting the suite in CI, which runs in UTC.** Locally, in EDT, the
+suite is 3331 green. Under `TZ=UTC` it is **5 failed**, and all five are the
+money engine:
+
+```
+TZ=UTC npx vitest run
+  src/lib/__tests__/monthEndCash.invariant.test.ts        (2 failed)
+  src/lib/__tests__/forecast-convergence.realData.test.ts (1 failed)
+  src/lib/__tests__/forecast-convergence.manualISB.test.ts(2 failed)
+```
+
+The invariant failure is the one that matters and it is not subtle:
+
+> Dashboard Month-End Cash **$2393.09** vs Forecast End Cash **$3192.00** — the
+> two tiles print different dollars for the same fact.
+
+**~$799 apart, and only outside Eastern time.** The two cash chains do not shift
+together, so this is not a fixture that was captured in EDT: one path is
+timezone-sensitive and the other is not. If that reading is right, a user in
+London or Los Angeles can see two different month-end figures on two screens of
+this app today.
+
+**DO NOT "FIX" THIS BY PINNING THE TEST TIMEZONE.** Setting `TZ=America/New_York`
+in the runner would turn CI green and leave every non-Eastern user with the bug —
+manufacturing the appearance of coverage, which is the failure this whole day was
+about. CI is left honestly red until the engine is right.
+
+Start here: `monthEndCash.invariant.test.ts:77` is the cheapest reproduction, and
+`daysBetween`/`parseLocalDate` in `notification-policy.ts` document the exact
+class of bug (`new Date('2026-09-04')` is UTC midnight, which is the evening of
+the 3rd in any negative offset). Look for a date parsed one way in the sim and
+another way in the engine.
+
+⚠️ Money math, highest care tier, and adversarial verification before it ships.
+It was NOT attempted on 2026-09-02/03 because the session was near its usage cap
+and a half-finished change on this path is worse than a known bug.
+
 ### 2026-09-03 — consent, and the CI hole
 
 - **`og_billing_consent`** is live (Tre: the Stripe move must "notify the user...
