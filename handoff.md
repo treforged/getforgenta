@@ -37,10 +37,20 @@ verified by contents (0/0 ahead).
   by query, not by reading the migration.
 - Pressed, not read: toggle 9/9, LearnCard 7/7, cadence 14/14, streak 10/10; full
   suite 3272 pass / 0 fail; `tsc --noEmit` and `vite build` clean.
-- **ONE EVIDENCE GAP:** the same presses in a REAL browser. The Claude-controlled
-  Chrome profile is signed out on `localhost:8080` and only Tre can sign it in
-  (dev-signin skill: never type credentials). Everything above is jsdom-with-real-
-  clicks, which is real but is not the live app.
+- **EVIDENCE GAP NOW CLOSED — pressed in the live app 2026-09-02 ~21:00 ET** (Tre
+  signed the Claude Chrome profile in). Settings > Preferences renders all eight
+  switches in a BROWSER; pressing the master wrote `enabled:false` to his real
+  `profiles.notification_prefs` (read back by SQL); pressing Weekly recap wrote
+  `weekly_checkin:false` with `bill_due` still true; a full page reload showed the
+  recap still off. On the dashboard Overview, "Mark as read" wrote a real
+  `learn_progress` row, the ring moved 0% -> 8%, the streak line appeared, the
+  badge read Floor Set and the offer advanced to lesson two. Both his settings and
+  the test row were restored afterwards; his account is as it was.
+- **THE LIVE PRESS FOUND A BUG THE TESTS DID NOT** — the offered lesson was listed
+  TWICE, once as the highlighted next-up row and again at the top of the list,
+  reading as two lessons with one name. Fixed (the list is now everything except
+  the offered lesson) with a regression test that counts the rows. This is the
+  entire argument for pressing it: 3272 green tests did not see it.
 ## NEXT TWO ASKS — ASSIGNED TO THIS DESK, NOT STARTED (cap, 2026-09-02 17:30 ET)
 
 Neither is begun; both are mine. Stopped at 83% of the 5h cap, not blocked.
@@ -83,12 +93,14 @@ Settled and approved, build on these without asking again:
   share of the week, is the right shape — the policy already takes a per-category
   gate.
 
-⛔ **WRITE NO USER-FACING PROMISE TEXT YET.** Stripe is the only provider that can
-grant free-forever; RevenueCat is mobile. What an OG who subscribed on MOBILE gets
-at the one-year mark is TRE'S CALL and is on his list as two options: (a) move
-them to a Stripe-billed plan at the one-year mark, or (b) word the promise as "we
-will make you whole" from day one with the mechanism named. The copy is the part
-that is expensive to walk back — build the marking, wait for the answer.
+**ANSWERED by Tre 2026-09-02: option (a) — an OG who subscribed on MOBILE is
+MOVED TO A STRIPE-BILLED PLAN at the one-year mark, and that is how the free year
+is granted.** So the promise copy may now say the year is free; it no longer has
+to hedge. What this adds to the build: the one-year fulfilment path is a provider
+MIGRATION, not an in-app grant, and it needs a subscription state that can change
+provider without the user losing access mid-switch. Design that before writing
+the copy that promises it. Recorded in memory as `og-cohort-year-free-via-stripe`
+alongside `premium-truth-lives-in-the-database`.
 
 ---
 

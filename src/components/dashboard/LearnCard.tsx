@@ -33,7 +33,11 @@ export default function LearnCard() {
   const readSet = new Set(progress.readIds);
   const openLesson = openLessonId ? LEARN_LESSONS.find(l => l.id === openLessonId) ?? null : null;
   const pct = progress.totalCount === 0 ? 0 : Math.round((progress.readCount / progress.totalCount) * 100);
-  const visible = showAll ? LEARN_LESSONS : LEARN_LESSONS.slice(0, 4);
+  // The next lesson already has its own row above, with its summary. Listing it again below —
+  // which is what the first live press of this card showed — reads as two different lessons with
+  // the same name. The list is therefore everything EXCEPT the one being offered.
+  const rest = LEARN_LESSONS.filter(lesson => lesson.id !== progress.next?.id);
+  const visible = showAll ? rest : rest.slice(0, 4);
 
   return (
     <div className="card-forged p-5 space-y-4">
@@ -110,13 +114,15 @@ export default function LearnCard() {
             onToggle={() => setOpenLessonId(openLessonId === lesson.id ? null : lesson.id)}
           />
         ))}
-        {LEARN_LESSONS.length > 4 && (
+        {rest.length > 4 && (
           <button
             onClick={() => setShowAll(!showAll)}
             className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
           >
             <ChevronDown className={`w-3 h-3 transition-transform ${showAll ? 'rotate-180' : ''}`} aria-hidden="true" />
-            {showAll ? 'Show fewer' : `Show all ${LEARN_LESSONS.length} lessons`}
+            {/* No count in the label: the list excludes the lesson offered above, so any number
+                here would disagree with the ring by one exactly when a lesson is being offered. */}
+            {showAll ? 'Show fewer' : 'Show all lessons'}
           </button>
         )}
       </div>

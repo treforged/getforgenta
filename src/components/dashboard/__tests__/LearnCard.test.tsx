@@ -159,6 +159,24 @@ describe('LearnCard', () => {
     expect(screen.queryByRole('button', { name: /mark as read/i })).toBeNull();
   });
 
+  it('does not list the lesson it is already offering', async () => {
+    // Found by pressing it in the live app on 2026-09-02: the next lesson had its own row AND
+    // appeared again at the top of the list below, reading as two lessons with one name.
+    mount();
+    await screen.findAllByRole('button', { name: new RegExp(FIRST.title, 'i') });
+    expect(screen.getAllByRole('button', { name: new RegExp(FIRST.title, 'i') })).toHaveLength(1);
+
+    // And once it is read, it rejoins the list — the offer has moved on to the next one.
+    const button = await openFirstLesson();
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: new RegExp(LEARN_LESSONS[1].title, 'i') })).toHaveLength(1),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: new RegExp(FIRST.title, 'i') })).toHaveLength(1),
+    );
+  });
+
   it('shows a streak only when there is one, never a zero dressed as a stat', async () => {
     mount();
     await screen.findAllByRole('button', { name: new RegExp(FIRST.title, 'i') });
