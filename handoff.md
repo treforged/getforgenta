@@ -10,97 +10,105 @@
 
 ---
 
-## SHIPPED 2026-09-02 ~17:15 ET — notifications + Learn (`a5d6b196`)
+## SESSION OF 2026-09-02 — FIVE THINGS SHIPPED, ALL ON `origin/main`
 
-Dispatched batch from Sam, three asks worked as one area. On `origin/main`,
-verified by contents (0/0 ahead).
+Verified by contents each time, never by the push output. Newest first.
 
-- **The toggle's real fault** was not the button: `NotificationSettings` returned
-  `null` off-native, so THERE WAS NO OFF SWITCH IN A BROWSER AT ALL, and the value
-  sat in Capacitor Preferences on one device where nothing server-side could read
-  it. `profiles.notification_prefs` is the source of truth now (device keeps a
-  mirror for the offline send path), the legacy `forged:notif_enabled` is still
-  honoured on the way IN so nobody who said no gets un-muted, and a failed write
-  reverts the switch and toasts instead of leaving a user believing they are silent.
-- **Cadence** 3/week -> 5/week, one a day (`MIN_HOURS_BETWEEN` 16 + quiet hours),
-  with `MAX_PER_WEEK_BY_KIND` so one overdrawn week cannot spend the allowance on
-  bill warnings. Two new candidates: `learn_lesson` (names the lesson and its
-  length) and `streak_risk` (>=2 days at stake, after 18:00, nothing read today).
-  Seven per-category opt-outs, checked PER CANDIDATE so silencing the recap does
-  not silence the week.
-- **Learn** — 12 lessons in `src/lib/learn-lessons.ts` (content is code, not rows:
-  no CMS, no public read surface), one badge each, dashboard widget id `learn`,
-  progress in `learn_progress`. **No UPDATE grant on that table on purpose** — a
-  client that could rewrite `read_at` could fabricate a streak.
-- Migration `20260902_notification_prefs_and_learn.sql` is APPLIED to the live
-  project as well as committed. `anon` holds nothing on `learn_progress`; verified
-  by query, not by reading the migration.
-- Pressed, not read: toggle 9/9, LearnCard 7/7, cadence 14/14, streak 10/10; full
-  suite 3272 pass / 0 fail; `tsc --noEmit` and `vite build` clean.
-- **EVIDENCE GAP NOW CLOSED — pressed in the live app 2026-09-02 ~21:00 ET** (Tre
-  signed the Claude Chrome profile in). Settings > Preferences renders all eight
-  switches in a BROWSER; pressing the master wrote `enabled:false` to his real
-  `profiles.notification_prefs` (read back by SQL); pressing Weekly recap wrote
-  `weekly_checkin:false` with `bill_due` still true; a full page reload showed the
-  recap still off. On the dashboard Overview, "Mark as read" wrote a real
-  `learn_progress` row, the ring moved 0% -> 8%, the streak line appeared, the
-  badge read Floor Set and the offer advanced to lesson two. Both his settings and
-  the test row were restored afterwards; his account is as it was.
-- **THE LIVE PRESS FOUND A BUG THE TESTS DID NOT** — the offered lesson was listed
-  TWICE, once as the highlighted next-up row and again at the top of the list,
-  reading as two lessons with one name. Fixed (the list is now everything except
-  the offered lesson) with a regression test that counts the rows. This is the
-  entire argument for pressing it: 3272 green tests did not see it.
-## NEXT TWO ASKS — ASSIGNED TO THIS DESK, NOT STARTED (cap, 2026-09-02 17:30 ET)
+| Commit | What |
+| --- | --- |
+| `47ec5907` | Social-follow badge, and the test suite made trustworthy again |
+| `fa80831b` | OG cohort + one achievement system + the churn rule |
+| `5749f4a8` | Backup/graph scripts: every path derived from `$PSScriptRoot` |
+| `5aea5188` | Review prompt moved to a real value moment |
+| `4a0579f2` / `a5d6b196` | Notifications toggle, weekly cadence, and Learn |
 
-Neither is begun; both are mine. Stopped at 83% of the 5h cap, not blocked.
+### The three original asks
 
-**1. Review prompts at the VALUE MOMENT.** Tre: *"part of that was the app
-updates which will prompt it after the ah ha moment(value moment)."* The prompt
-mechanism ALREADY EXISTS — `@capacitor-community/in-app-review` via
-`src/hooks/useInAppReview.ts`, called from `BudgetControl.tsx:731` and
-`SavingsGoals.tsx:724`. So this ask is about WHICH EVENT fires it, not about
-building a prompt.
-⚠️ What is there today is exactly the lazy version the ask warns against: a
-`localStorage` COUNTER (`tre:review:actionCount`, threshold 3) that fires on the
-third "positive action" of any kind. Both stores rate-limit prompts, so a prompt
-spent on the wrong moment is genuinely gone. Read those two call sites before
-proposing the aha moment, and say which event was chosen and why. Native API
-only; never a homegrown modal.
+**1. The notification toggle.** Its real fault was not the button: it returned
+`null` off-native, so there was NO off switch in a browser, and the value lived
+in Capacitor Preferences on one device where nothing server-side could read it.
+`profiles.notification_prefs` is the source of truth now, with a device mirror
+for the offline send path. The legacy `forged:notif_enabled` is honoured on the
+way IN so nobody who said no is un-muted. A failed write reverts the switch and
+says so.
 
-**2. First 100 organic premium + the OG cohort + a social-follow achievement.**
+**2. Cadence.** 3/week → 5/week, one a day, with `MAX_PER_WEEK_BY_KIND` so one
+overdrawn week cannot spend the allowance on bill warnings. Two new triggers
+carry the quiet weeks (a named lesson; a streak with 2+ days genuinely at
+stake). Seven per-category opt-outs, checked PER CANDIDATE so silencing the
+recap does not silence the week.
 
-RULED, 2026-09-02, do NOT reopen: **the DATABASE is the truth about "premium".
-The webhooks (`revenuecat-webhook`, `stripe-webhook`) are its writers. Conductor
-READS THE DATABASE, not the providers.** Nora has the revenue half and was given
-the same ruling in the same words. The reason: two readers of two provider APIs
-disagree slowly and invisibly, and a cohort that cannot be enumerated identically
-from two places in a year is not trackable — which is the exact word Tre used.
+**3. Learn.** 12 lessons, one badge each, dashboard widget `learn`. Content is
+code, not rows. Streaks bucket by LOCAL day.
 
-Settled and approved, build on these without asking again:
-- The OG cohort is defined off that same source, and OG status is written
-  SERVER-SIDE from a verified subscription event. The client gets SELECT on its
-  own row and NO INSERT — same reasoning as no UPDATE on `learn_progress.read_at`:
-  a client that can write the fact can fabricate it.
-- **Build the MARKING NOW even though the reward is undecided.** It has to exist
-  today to be enumerable in a year, and that is independent of how the reward is
-  eventually honoured. On the account, not the device, so it survives a reinstall
-  and a platform switch by construction.
-- Generalise `learn_progress.lesson_id` into a generic ACHIEVEMENT id. One
-  achievement system, not three; the column has no foreign key, which is what
-  makes this cheap. OG and social-follow are rows in the same table.
-- An "achievement earned" notification kind, with its own opt-out and its own
-  share of the week, is the right shape — the policy already takes a per-category
-  gate.
+### And then
 
-**ANSWERED by Tre 2026-09-02: option (a) — an OG who subscribed on MOBILE is
-MOVED TO A STRIPE-BILLED PLAN at the one-year mark, and that is how the free year
-is granted.** So the promise copy may now say the year is free; it no longer has
-to hedge. What this adds to the build: the one-year fulfilment path is a provider
-MIGRATION, not an in-app grant, and it needs a subscription state that can change
-provider without the user losing access mid-switch. Design that before writing
-the copy that promises it. Recorded in memory as `og-cohort-year-free-via-stripe`
-alongside `premium-truth-lives-in-the-database`.
+**Review prompts** now fire on a goal reached, a debt cleared, or the first
+complete positive projection — never a forecast, never bad news. It used to fire
+on the user's third FORM SUBMISSION. A user already prompted under the old
+counter is migrated as already-spent, or the change would ask a second time into
+a silent store refusal that is indistinguishable from success in the logs.
+
+**The OG cohort** is live: `og_members`, the `og_founder` badge, and a churn rule
+written in plain words at `docs/og-cohort.md`. `learn_progress` became
+`achievements` (lessons namespaced `lesson:<slug>`) so one table holds every
+badge.
+
+**Backups had silently done nothing since 2026-08-27** while reporting success.
+Six scripts had the pre-move absolute path baked in; all now derive from
+`$PSScriptRoot`.
+
+## WHAT LIVE-PRESSING FOUND THAT 3272 GREEN TESTS DID NOT
+
+Read this before deciding a suite is proof of anything.
+
+- **The Learn card listed the offered lesson TWICE** — once as the highlighted
+  next-up row, again at the top of the list. One look found it; the whole test
+  suite did not.
+- **`FORGENTA_BACKUP_DRY_RUN` was defined and never read.** A "dry run" uploaded
+  to Drive and deleted 17 local folders. Both were what the overdue task should
+  have done and every folder was already uploaded, so no harm — but the flag was
+  a lie. **A safety flag that lies is worse than no flag, because no flag makes
+  you careful.**
+- **`sync-graph-to-obsidian.ps1` wrote to the dead `Desktop\claudecontext`** and
+  does `New-Item -Force`, so every run RE-CREATED the folder and wrote the graph
+  where nothing reads it. A failure that manufactures its own evidence of
+  success — worse than a silent one.
+- **The suite had TWO flake classes**, which is why it went red on a different
+  file each run: an assertion comparing a stamp to `String(NOW)` while the timers
+  advanced in real time, and forecast convergence suites blowing vitest's 5s
+  default under parallel load with "Test timed out", which looks exactly like a
+  hang. `testTimeout` is now 20s. **3310 passing on three consecutive runs.**
+
+## DECISIONS THAT ARE SETTLED — DO NOT RE-OPEN
+
+- **The DATABASE is the truth about "premium".** The webhooks write it; Conductor
+  and this cohort READ it. Never a provider API directly.
+- **An OG who joined on mobile is MOVED TO A STRIPE-BILLED PLAN** at the
+  anniversary; that is how the free year is granted (Tre, 2026-09-02).
+- **Churn:** keeps the year if premium within 30 days of the anniversary, or if
+  the lapse was a billing failure rather than a choice. `unknown` QUALIFIES —
+  ambiguity goes to the customer. Only deliberate-and-stayed-gone forfeits.
+- **The follow badges are claim-based ON PURPOSE.** Neither platform will tell a
+  consumer app whether someone followed. They gate NOTHING, and the wording says
+  "Tapped through to Instagram" because that is the event actually observed.
+  Do not "fix" this by wiring it to something real.
+- **Both social handles are `@treforged`,** confirmed against sources (see
+  `docs/og-cohort.md`), not inferred from the brand name.
+
+## STILL UNBUILT — recorded so a year does not pass with these in a doc only
+
+- **Nothing RUNS at the anniversary.** `og_members_reward_due_idx` exists so a job
+  can find members cheaply; the job does not exist.
+- **The RevenueCat → Stripe migration path is not written.** Moving a live mobile
+  subscriber to Stripe billing without losing access mid-switch is the part that
+  quietly fails.
+- **No user-facing promise copy.** It may now say the year is free. It must never
+  name the billing rail — the user is promised a year, not a rail.
+- **`ForgentaRedditScout` still points at the dead pre-move path.** Sam hit
+  Access denied on it (registered elevated) and it is DISABLED, so it is
+  harmless where it sits. The fixed `scripts/setup-scheduler.ps1` repairs it
+  whenever it is next wanted.
 
 ---
 
@@ -1028,31 +1036,40 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 17:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 21:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (12 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M docs/og-cohort.md
+ M handoff.md
+ M src/components/dashboard/LearnCard.tsx
+ M src/contexts/__tests__/AuthContext.test.tsx
+ M supabase/.temp/cli-latest
+ M vite.config.ts
 ?? .vercelignore
 ?? deno.lock
+?? src/components/dashboard/SocialFollowRow.tsx
+?? src/components/dashboard/__tests__/SocialFollowRow.test.tsx
+?? src/hooks/useSocialAchievements.ts
+?? src/lib/social-links.ts
 ```
 
 - **Recent commits:**
 
 ```
+fa80831b feat(og): the first-100 cohort, one achievement system, and a churn rule that is fair
+5749f4a8 fix(scripts): derive every path from $PSScriptRoot, and make the dry-run flag real
+5aea5188 feat(review): ask for a review at a value moment, not on an action count
+4a0579f2 fix(learn): stop listing the lesson the card is already offering
+0cae5a19 docs(handoff): the two queued asks, and the "premium" ruling so nobody re-litigates it
 92e2067f docs(handoff): the notification+Learn batch is shipped, and what is still unproven
 a5d6b196 feat(notifications,learn): an off switch that works everywhere, a real weekly cadence, and Learn
 fac9176a docs(handoff): put the two live threads at the top of the resume queue
-97ee10a1 docs(handoff): the dedupe is deployed, and the debug preview is rate-limited for a day
-8e6f628e docs(handoff): where this session actually is, not just what the backlog holds
-bb421023 fix(plaid): duplicate accounts are removed automatically on re-link
-5f3284ce fix(reminder): the monthly notice names the accounts that actually need updating
-04d96f3b feat(accounts): group the balances list by provider
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

@@ -149,10 +149,17 @@ wire it to.** Two rules follow instead:
    same error as drawing a gauge value you never read. A test asserts the absence
    of that wording, not only the presence of the right one.
 
-⚠️ **The Instagram handle is unconfirmed.** `@treforged` is verified for TikTok
-(`tre-forged-marketing/TIKTOK.md`); the Instagram one is the brand handle by
-inference and has not been checked against a source. A wrong link sends users to
-a stranger's profile, so it is flagged here rather than assumed correct.
+**Both handles are confirmed against a source**, and the provenance is recorded
+because re-deriving it from the brand name is exactly the mistake to avoid:
+
+| Network | Handle | Confirmed from |
+| --- | --- | --- |
+| TikTok | `@treforged` | `tre-forged-marketing/TIKTOK.md` |
+| Instagram | `@treforged` | Instagram's own thread header ("TRE Forged" / "treforged"), read in-session by Sam, 2026-09-03 |
+
+A wrong handle **does not fail** — it succeeds at sending users to a stranger's
+profile. No error, no log line, nothing to notice. If either handle changes,
+re-confirm it against the platform rather than against this file.
 
 ## Open questions
 

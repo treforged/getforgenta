@@ -35,10 +35,16 @@ export interface SocialLink {
 }
 
 /**
- * ⚠️ `treforged` is confirmed for TikTok (tre-forged-marketing/TIKTOK.md names
- * @treforged). The Instagram handle is the brand handle by inference and has NOT
- * been confirmed against a source — a wrong link here sends users to a stranger's
- * profile, so it is flagged rather than assumed correct.
+ * BOTH HANDLES ARE CONFIRMED AGAINST A SOURCE, not inferred from the brand name.
+ *   - TikTok: `tre-forged-marketing/TIKTOK.md` names @treforged.
+ *   - Instagram: confirmed 2026-09-03 from Instagram's own thread header
+ *     (rendered as "TRE Forged" / "treforged"), read in-session by Sam.
+ *
+ * WHY THAT DISTINCTION IS WORTH A COMMENT: a wrong handle does not fail. It
+ * SUCCEEDS at sending users to a stranger's profile — no error, no log line,
+ * nothing to notice. Same family as a gauge drawing a zero it never read, and
+ * exactly the case where "probably right" is not good enough. If either handle
+ * changes, re-confirm it against the platform rather than against this file.
  */
 export const SOCIAL_LINKS: readonly SocialLink[] = [
   {
