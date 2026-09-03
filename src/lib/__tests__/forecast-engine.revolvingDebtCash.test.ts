@@ -23,9 +23,9 @@ describe('forecast-engine — revolvingDebtCash row field (real data)', () => {
   afterEach(() => vi.useRealTimers());
 
   maybeIt('emits a per-month revolving debt cash target that is non-negative and drives real payoff', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const { data } = calculateForecast(inputs);
 

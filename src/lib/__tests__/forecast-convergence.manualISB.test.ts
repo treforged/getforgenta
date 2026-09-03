@@ -26,10 +26,10 @@ const hasFixture = existsSync(FIXTURE);
 const maybeIt = hasFixture ? it : it.skip;
 
 function runScenario(clockOffsetDays: number) {
-  const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+  const { clock: capturedClock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
   vi.useFakeTimers({ toFake: ['Date'] });
-  const clock = new Date(capturedAt);
+  const clock = new Date(capturedClock);
   clock.setDate(clock.getDate() + clockOffsetDays);
   vi.setSystemTime(clock);
 
@@ -111,9 +111,9 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     // comes from is no longer the current one. That is correct behaviour and
     // nothing to do with this invariant, which is about month-0 arithmetic.
     const walk = (offsetDays: number) => {
-      const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+      const { clock: capturedClock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
       vi.useFakeTimers({ toFake: ['Date'] });
-      const clock = new Date(capturedAt);
+      const clock = new Date(capturedClock);
       clock.setDate(clock.getDate() + offsetDays);
       vi.setSystemTime(clock);
       return runDebtCashConvergence(renderProjectionFromFixture(inputs), inputs);

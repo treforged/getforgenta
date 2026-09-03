@@ -1,5 +1,6 @@
 import { getActiveCarLoanPayments, getCarFundSaved, getLoanPrincipal } from './vehicle-loan-engine';
 import type { CarBuild, CarFund } from './types';
+import { toLocalDateStr } from './scheduling';
 
 /**
  * The connection between a BUILD (the log of what you are doing to the car) and the CAR FUND
@@ -80,7 +81,7 @@ export interface BuildCarSummaryOptions {
 
 /** ISO `YYYY-MM-DD` for a Date, matching `getActiveCarLoanPayments`'s own comparison basis. */
 function isoDay(d: Date): string {
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 /**

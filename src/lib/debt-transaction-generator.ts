@@ -6,6 +6,7 @@ import { countRuleOccurrencesInMonth } from './scheduling';
 import { buildPayConfig, getMonthNetIncome, type EnrichedTransaction } from './pay-schedule';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
+import { toLocalDateStr } from './scheduling';
 
 /** Cash-only expense total for a specific month — excludes CC-tagged rules to avoid double-counting.
  *  Includes transfer/investment rules since those are real liquid-cash outflows that reduce debt surplus.
@@ -137,7 +138,7 @@ export function generateDebtPaymentTransactions(
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + i + 1, 0).getDate();
       const effectiveDay = Math.min(cardDueDay, monthEnd);
       const d = new Date(now.getFullYear(), now.getMonth() + i, effectiveDay);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toLocalDateStr(d);
       const isAutopay = proj.card.autopayFullBalance || (row.startBalance <= 0 && i > 0);
 
       result.push({

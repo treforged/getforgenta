@@ -10,107 +10,60 @@
 
 ---
 
-## ⛔ START HERE — UNFIXED AND LIVE — the forecast engine disagrees with itself outside Eastern time
+## RESOLVED 2026-09-03 — the "$799 divergence" was a replay artifact, and hunting it found THREE real bugs
 
-**This is the first thing to work on. It is money, it is in production, and it
-affects every user who is not in Eastern time.**
+**Suite is green in three timezones: `npm run test:tz` runs UTC, America/New_York
+and Asia/Tokyo, 3345 tests each.** It used to be green in exactly one.
 
-#### Reproduce it
+#### The $799 itself: a fixture replay artifact, never user-facing
 
-```
-TZ=UTC npx vitest run
-```
+A golden capture freezes arrays indexed `0..N` from the CAPTURING machine's local
+month (`forecastMonthEvents`, `planExpensesByMonth`); the sim re-derives from
+`new Date()`. `capturedAt` is `2026-09-01T00:20:11.665Z` — 1 Sep in UTC, 31 Aug in
+EDT — so pinning that raw INSTANT under `TZ=UTC` put the engine's month 0 in
+September against August's empty index-0 slot. Month-0 income falls back to the
+month-KEYED aggregate; month-0 expenses deliberately have no fallback. $199 base +
+$599.875 plan = **$798.875**, exactly the gap.
 
-In EDT the suite is 3331 green. Under UTC it is **5 failed**, all money engine:
+Not user-facing: `useForecastEngineInputs.ts:118,247` builds those arrays from the
+same `new Date()` the engine and sim read, so index 0 is always the user's own
+month. Fixed by `captureClock()` in `fixtures/forecast-fixture-io.ts` — replays a
+capture at the WALL CLOCK it was taken at, in any timezone. `serializeForecastCapture`
+now records `capturedTzOffsetMinutes`; older fixtures fall back to
+`CAPTURE_TIMEZONE`. All 18 replay sites pin `clock`, never `new Date(capturedAt)`.
 
-| Test | File |
-| --- | --- |
-| publishes one month-end cash figure to both surfaces | `monthEndCash.invariant.test.ts` |
-| counts a post-cutoff month-0 one-time on both surfaces, and still agrees to the cent | `monthEndCash.invariant.test.ts` |
-| converges without pushing payoff out or breaching the cash floor | `forecast-convergence.realData.test.ts` |
-| clock=capturedAt (2026-07-15): converges with no floor breach and the live payoff | `forecast-convergence.manualISB.test.ts` |
-| post-payoff months never underpay a cycling statement (Q6) | `forecast-convergence.manualISB.test.ts` |
+#### The three real ones it uncovered
 
-The invariant failure states the user-facing symptom exactly:
+1. **`scheduling.ts:319` — a rule's `start_date` parsed as UTC midnight.** The
+   biggest. `new Date('2027-07-01')` is 30 June 8pm in Eastern, so "Rent (new
+   place)" ($1,480/mo) was generated into **June 2027 as well** — a month of rent
+   he does not owe. `computeFloorProtection`'s backward reserve pass carried the
+   phantom expense to May 2027 and pushed projected CC payoff from **Sep 2028 out
+   to Dec 2028**. The comment on the very next line already documented this trap
+   for `end_date`; the start-date line never got it.
+2. **`toISOString()` used to format LOCAL dates**, at ~30 money-path sites
+   including `useCardProjection.ts:167`'s `todayStr` — which reads TOMORROW'S DATE
+   every evening after 8pm ET. Swept to the repo's own `toLocalDateStr`. This
+   alone cleared 23 of Tokyo's 24 failures.
+3. **Biweekly paycheck walk stepped `+14 × 86400000` ms** from a local midnight —
+   23 or 25 hours across a DST boundary, moving a payday and so a month's paycheck
+   COUNT. Now calendar arithmetic; `Math.floor` on the anchor gap → `Math.round`.
 
-> Dashboard Month-End Cash **$2393.09** vs Forecast End Cash **$3192.00** — the
-> two tiles print different dollars for the same fact.
+`forecast-convergence.realData`'s payoff pin is re-baselined **Dec 2028 → Sep 2028**
+and now agrees across all three offsets. A pin only one timezone could reproduce is
+what let a defect live inside an assertion.
 
-**~$799 apart.** A user in London or Los Angeles can see two different month-end
-figures on two screens of this app.
+#### Two facts that correct earlier notes here
 
-#### The diagnostic that saves an hour
-
-**THE TWO CASH CHAINS DO NOT SHIFT TOGETHER.** That is what rules out the
-comfortable explanation — "the fixture was captured in EDT, so everything moves
-by a few hours and the test is brittle". If that were it, both chains would move
-and still agree. They disagree. So **one path is timezone-sensitive and the other
-is not**, and finding which is the work.
-
-⚠️ **Do not attempt a quick fix because it looks like a one-liner.** If it were a
-single date-parsing bug both chains would shift together. Something is genuinely
-inconsistent BETWEEN the two paths.
-
-#### THE LEAD (searched 2026-09-03 00:10, read-only — not yet proven by experiment)
-
-**The fixture's `capturedAt` is `2026-09-01T00:20:11.665Z`.** That is 1 September
-in UTC and **31 August at 20:20 in EDT**. So the two environments do not merely
-shift by hours — they put "today" in **different months**, which is what makes a
-whole month's cash the size of the disagreement.
-
-Then the two paths bucket by month DIFFERENTLY, which is the "they do not shift
-together" part:
-
-- **`forecast-engine.ts` re-derives a month key from LOCAL `now`** —
-  `` `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` `` — and
-  matches items by STRING (`slice(0, 7)` / `startsWith`, **7 sites**). So its
-  month-0 label moves when the local month moves.
-- **`cardProjectionResim.ts` does none of that (zero such sites).** Its comment
-  at line 24 says it: *"Per-month per-card real purchases (index = month), same
-  array the base pipeline built."* The sim consumes a **pre-built ledger indexed
-  by month**; it does not re-bucket. Its only date construction is line 87.
-
-So when local `now` and UTC `now` fall in different months, **the engine's month
-key shifts and the sim's pre-built index does not** — one path re-derives, the
-other inherits. That is exactly a disagreement rather than a shared shift, and it
-matches the ~$799 delta being a month's worth of movement.
-
-⚠️ **This is a LEAD, established by reading, not by an isolating experiment.** It
-has not been proven, and the fix is not obvious from it: making them agree means
-deciding WHICH definition of month-0 is correct for a user, not just aligning two
-call sites. Confirm it first — the cheapest confirmation is to re-run the failing
-test with a `capturedAt` that is mid-month in both timezones (e.g. the existing
-`forecast-inputs.real.bak-2026-07-15.json`, captured at 12:15Z) and see whether
-the failures disappear. If they do, the month-boundary reading is right.
-
-#### Where to start
-
-- `src/lib/__tests__/monthEndCash.invariant.test.ts:77` — cheapest reproduction.
-- The shape to look for: **`new Date('2026-09-04')` is parsed as UTC midnight**,
-  which is the evening of the 3rd in any negative offset. `notification-policy.ts`
-  (`parseLocalDate`, `daysBetween`) already documents this project being bitten
-  by exactly this once, and carries the fix pattern.
-- Money math, highest care tier, adversarial verification before it ships.
-
-#### ⛔ Pinning the test timezone is a REGRESSION, not a fix
-
-Setting `TZ=America/New_York` in the runner turns CI green in one line and leaves
-every non-Eastern user with two screens showing different money. That is
-manufacturing the appearance of coverage — burying a live bug under a passing
-badge. **CI is left honestly red on purpose.** If anyone proposes pinning it,
-that is the bug winning.
-
-#### Why it was found only now
-
-The check existed, was correct, and **had never been executed anywhere it could
-fail**. That is worse than a missing test: the presence of
-`monthEndCash.invariant.test.ts` is what made everyone confident. A test that
-only ever runs in one timezone carries one timezone's worth of truth. It was
-found the day the suite first ran in CI, which runs in UTC.
-
-Not attempted on 2026-09-03 because the session was near its usage cap. A
-forecast engine left half-corrected overnight is worse than one that is wrong in
-a way we have written down precisely.
+- **CI never ran these tests.** `forecast-inputs.real*.json` is gitignored and
+  untracked, so every fixture test SKIPS in CI. "CI runs in UTC and found it" is
+  wrong — a human ran `TZ=UTC npx vitest run` on this machine. The standing rule
+  against pinning `TZ=America/New_York` still holds and was not used; `test:tz`
+  runs MORE offsets, not fewer.
+- **Still open, deliberately out of scope:** the same `toISOString` shape survives
+  in UI form defaults and three DB-write sites (`snapshot_date`, `effective_date`,
+  `last_401k_update`). Real, one-day-early at negative offsets, different blast
+  radius from the money engine — do them as their own slice.
 
 ---
 
@@ -988,25 +941,47 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 00:06 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 02:39 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (39 file(s)):**
 
 ```
-M handoff.md
- M supabase/.temp/cli-latest
-?? .github/workflows/handoff.md
-?? .vercelignore
-?? deno.lock
+M .claude/settings.json
+ M handoff.md
+ M package.json
+ M src/components/debt/CreditCardEngine.tsx
+ M src/components/savings/SurplusRankingSection.tsx
+ M src/hooks/__tests__/useCardProjection.month0PinConsistency.test.ts
+ M src/hooks/useCardProjection.ts
+ M src/lib/__tests__/fixtures/forecast-fixture-io.ts
+ M src/lib/__tests__/forecast-convergence.floorDeficit.test.ts
+ M src/lib/__tests__/forecast-convergence.floorFlicker.test.ts
+ M src/lib/__tests__/forecast-convergence.manualISB.test.ts
+ M src/lib/__tests__/forecast-convergence.pinnedOverride.test.ts
+ M src/lib/__tests__/forecast-convergence.promoParity.test.ts
+ M src/lib/__tests__/forecast-convergence.realData.test.ts
+ M src/lib/__tests__/forecast-engine.captureEvidence.test.ts
+ M src/lib/__tests__/forecast-engine.goldenTierA.test.ts
+ M src/lib/__tests__/forecast-engine.revolvingDebtCash.test.ts
+ M src/lib/__tests__/forecast-engine.simAgreement.test.ts
+ M src/lib/__tests__/forecast-popup-decimals.test.ts
+ M src/lib/__tests__/goal-contribution-overrun.test.ts
+ M src/lib/__tests__/monthEndCash.invariant.test.ts
+ M src/lib/__tests__/q9-diagnostic.isbPullback.test.ts
+ M src/lib/__tests__/step3-display.test.ts
+ M src/lib/__tests__/zz-tmp-diagnostic.test.ts
+ M src/lib/build-loan-link.ts
+... 14 more
 ```
 
 - **Recent commits:**
 
 ```
+b32248c5 docs(handoff): the lead on the timezone money bug — one path re-derives the month, the other inherits it
 4e22f7bc docs(handoff): put the live money bug at the top, with the diagnostic that saves an hour
 3dab1b69 ci: make the test step say WHY it failed — and it found a money bug
 b655256c feat(og): the consent wording, versioned — the part that has to survive being questioned
@@ -1014,7 +989,6 @@ b655256c feat(og): the consent wording, versioned — the part that has to survi
 7c5c51e8 docs(handoff): the consent record, and the CI hole that let releases ship untested
 7eeb3a7f ci(android): run the unit tests before shipping, and fail when they match nothing
 745984e3 test(widgets): make the Android trust rules pressable, and name what blocks running them
-42de51d9 feat(og): the billing-move consent record, built as a compliance artefact
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

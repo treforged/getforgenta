@@ -29,12 +29,12 @@ describe('runDebtCashConvergence — user payment pin survives every resim pass'
   afterEach(() => vi.useRealTimers());
 
   maybeIt('keeps the pinned payment on the converged projection', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // Pin ONLY Date (the sim/engine read new Date() internally) — leave real timers for
     // @testing-library's render machinery.
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const a = inputs.assumptions as Record<string, unknown>;
     const projectionAssumptions = {

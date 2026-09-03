@@ -29,12 +29,12 @@ describe('forecast-engine — sim agreement on the converged pair (post-unificat
   afterEach(() => vi.useRealTimers());
 
   maybeIt('keeps row.debtPayment within a dollar of the converged sim allPaymentTotals every month', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // Pin ONLY Date (the sim/engine read new Date() internally) — leave real timers for
     // @testing-library's render machinery.
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const base = renderProjectionFromFixture(inputs);
     const out = runDebtCashConvergence(base, inputs);

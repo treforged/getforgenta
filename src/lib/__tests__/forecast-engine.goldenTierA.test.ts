@@ -40,12 +40,12 @@ describe('forecast-engine — Tier A golden (real data)', () => {
   afterEach(() => vi.useRealTimers());
 
   maybeIt('CC Debt Free milestone fires on the SIM true revolving-$0 month, Discover last', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // The engine reads new Date() internally, so anchor the clock to the capture instant —
     // otherwise the projection horizon (and the CC-Debt-Free month) shifts with the run date.
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const result = calculateForecast(inputs);
 

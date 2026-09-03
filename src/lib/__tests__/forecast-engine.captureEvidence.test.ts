@@ -34,8 +34,7 @@ const ymd = (d: Date) =>
  * The engine reads `new Date()` internally, so everything is anchored to the fixture's capture
  * instant rather than to today — the same clock-pinning the golden test does.
  */
-function buildScenario(capturedAt: string) {
-  const at = new Date(capturedAt);
+function buildScenario(at: Date) {
   const dueDate = ymd(new Date(at.getFullYear(), at.getMonth(), 1));
   // Late enough in the month that the DATE HEURISTIC alone calls the 1st "captured" (1 < 28 − 3),
   // so the baseline is a real drop and every assertion below is a departure from it.
@@ -90,11 +89,11 @@ describe('forecast-engine — §1A Stage C capture evidence (real inputs, synthe
   afterEach(() => vi.useRealTimers());
 
   maybeIt('honours transaction evidence at the month-0 car gates, matching useCardProjection', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
-    const { at, carFund, loanPayment, syncCutoffDate, txn, coverage } = buildScenario(capturedAt);
+    const { at, carFund, loanPayment, syncCutoffDate, txn, coverage } = buildScenario(clock);
     expect(loanPayment).toBeGreaterThan(0);
     const charge = (t?: readonly MatchableTransaction[]) =>
       month0CarCharges(inputs, carFund, syncCutoffDate, t);

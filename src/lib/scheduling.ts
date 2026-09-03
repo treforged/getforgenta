@@ -316,7 +316,19 @@ export function generateScheduledEvents(
   for (const rule of rules) {
     if (!rule.active) continue;
 
-    const startDate = rule.start_date ? new Date(rule.start_date) : from;
+    // NOON LOCAL, not `new Date(rule.start_date)`. The bare form parses `YYYY-MM-DD` as UTC
+    // midnight, which is the EVENING BEFORE at any negative offset — so a rule starting
+    // 2027-07-01 was already in range on 30 June in US Eastern and its occurrences generated a
+    // month early. On the real capture that put "Rent (new place)" ($1,480/mo, start_date
+    // 2027-07-01) into June 2027, a month of rent the user does not owe, and the phantom expense
+    // then propagated backward through `computeFloorProtection`'s reserve pass and moved the
+    // projected CC payoff from Sep 2028 to Dec 2028. Invisible until the suite first ran under
+    // TZ=UTC, where the two parses coincide.
+    //
+    // The `end_date` immediately below already documents the same trap, and the per-month
+    // generators already parse at 'T12:00:00'. This line was the one that did not — so the two
+    // paths disagreed with each other as well as with the calendar.
+    const startDate = rule.start_date ? new Date(`${rule.start_date.slice(0, 10)}T12:00:00`) : from;
     // END OF THE END DATE'S DAY, not its UTC midnight. `new Date('2027-08-27')` is 2027-08-26 20:00
     // in US Eastern, so an occurrence at local noon on its own end date compared GREATER than the
     // bound and was dropped — a biweekly income ending on a payday stopped a full cycle early and

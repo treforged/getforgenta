@@ -1,5 +1,6 @@
 import type { EnrichedTransaction } from './pay-schedule';
 import { isCapturedInBalance } from './sync-cutoff';
+import { toLocalDateStr } from './scheduling';
 
 export type PaymentPlanFrequency = 'weekly' | 'biweekly' | 'monthly';
 
@@ -31,7 +32,7 @@ export function getPaymentDates(startDate: string, frequency: PaymentPlanFrequen
     const d = new Date(startDate + 'T00:00:00');
     const step = frequency === 'weekly' ? 7 : 14;
     for (let i = 0; i < count; i++) {
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(toLocalDateStr(d));
       d.setDate(d.getDate() + step);
     }
     return dates;
@@ -113,7 +114,7 @@ export function getUpfrontPlanProgress(
   cardDueDay: number | null | undefined,
   asOf?: string,
 ): { paid: number; remaining: number; endDate: string; dates: string[] } {
-  const cutoff = asOf ?? new Date().toISOString().split('T')[0];
+  const cutoff = asOf ?? toLocalDateStr(new Date());
   const dates = getUpfrontCardPlanDates(plan, cardDueDay);
   const paid = dates.filter(d => d <= cutoff).length;
   const endDate = dates[dates.length - 1] ?? plan.start_date;
@@ -121,7 +122,7 @@ export function getUpfrontPlanProgress(
 }
 
 export function getNextPaymentDate(plan: PaymentPlan): string | null {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
   const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
   return dates.find(d => d >= today) ?? null;
 }
@@ -139,7 +140,7 @@ export function isPlanInProgress(plan: PaymentPlan, asOf?: string): boolean {
 }
 
 export function getPlanProgress(plan: PaymentPlan, asOf?: string): { paid: number; remaining: number; endDate: string } {
-  const today = asOf ?? new Date().toISOString().split('T')[0];
+  const today = asOf ?? toLocalDateStr(new Date());
   const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
   const paid = dates.filter(d => d < today).length;
   const endDate = dates[dates.length - 1] ?? plan.start_date;
@@ -195,7 +196,7 @@ export function deriveUpfrontPlanFields(
   installmentByCard: Map<string, { balance: number; monthlyPayment: number }>;
   upfrontPayByMonth: { [cardId: string]: number }[];
 } {
-  const cutoff = syncCutoffDate ?? now.toISOString().split('T')[0];
+  const cutoff = syncCutoffDate ?? toLocalDateStr(now);
   const sourceToCardId = new Map<string, UpfrontPlanCard>(
     cards.flatMap(c => [[c.id, c], [`account:${c.id}`, c]] as [string, UpfrontPlanCard][]),
   );

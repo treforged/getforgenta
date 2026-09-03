@@ -16,6 +16,7 @@ import {
   assessReachability, assessSurplusCollision, monthIndexOf, type Reachability,
 } from '@/lib/surplus-reachability';
 import { contributionStartIdx } from '@/lib/savings-growth';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 const KIND_ICON = {
   cards: CreditCard, card: CreditCard, car_fund: Car, goal: Target, loan: Banknote,
@@ -150,7 +151,7 @@ export default function SurplusRankingSection({
     setDraft(rows);
   }, [signature, rows]);
 
-  const today = asOf ?? new Date().toISOString().slice(0, 10);
+  const today = asOf ?? toLocalDateStr(new Date());
 
   /**
    * ONE schedule per target, built once and used by BOTH the per-row verdict and the banner.

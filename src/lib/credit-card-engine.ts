@@ -21,6 +21,7 @@ import type { Tables } from '@/integrations/supabase/types';
 // `debt-payoff-order`.
 import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from './ranked-surplus-allocation';
 import { resolveCashFloor } from './cash-floor';
+import { toLocalDateStr } from './scheduling';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
 // debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
 // canonical source since it has zero internal dependencies, avoiding a circular import (this
@@ -397,7 +398,7 @@ export function buildCardData(
   return ccAccounts.map((acct, i) => {
     const acctKey = `account:${acct.id}`;
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(now);
 
     // monthlyNewPurchases is the card's RECURRING monthly spend estimate — it is re-applied to
     // every projected month by the simulation (cardPurchasesThisMonth falls back to it for m >= 1).
@@ -1235,7 +1236,7 @@ export function simulateVariablePayoff(
 
     // End-of-month ISO date for SimulatedDebtPayment records
     const payDate = new Date(now.getFullYear(), now.getMonth() + m + 1, 0);
-    const payDateStr = payDate.toISOString().split('T')[0];
+    const payDateStr = toLocalDateStr(payDate);
     // The date this month's rates are resolved at (last day of the month — see monthEndAsOf).
     // Kept separate from payDateStr, which is UTC-formatted for the transaction records.
     const trancheAsOf = monthEndAsOf(now, m);

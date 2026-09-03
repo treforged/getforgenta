@@ -46,6 +46,7 @@ import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionRe
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { isManualCashFloor } from '@/lib/cash-floor';
 import { hasPinnedStatement } from '@/lib/statement-pin';
+import { toLocalDateStr } from '@/lib/scheduling';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -164,7 +165,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       if (rawCards.length === 0) return null;
 
       const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
+      const todayStr = toLocalDateStr(now);
 
       // Handoff item 4b — mirrors forecast-engine.ts exactly (same inputs, same function, built
       // separately per file since these are separate call trees; "byte-identical" means the
@@ -655,7 +656,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // rather than capping at loan_term_months (insurance is an ownership cost, not a financing one).
       const carLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        const dStr = d.toISOString().split('T')[0];
+        const dStr = toLocalDateStr(d);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return carFunds
           .filter(cf => cf.phase === 'loan' && cf.loan_start_date)

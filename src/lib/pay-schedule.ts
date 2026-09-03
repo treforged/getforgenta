@@ -129,19 +129,26 @@ export function getPaychecksInMonth(config: PayScheduleConfig, year: number, mon
     const d = new Date(year, month, day);
     paychecks.push({ date: d, gross, net });
   } else if (config.frequency === 'biweekly' && config.paycheckStartDate) {
-    // Phase-anchored biweekly: find all dates D in the month where (D - anchor) % 14 === 0
+    // Phase-anchored biweekly: find all dates D in the month where (D - anchor) % 14 === 0.
+    //
+    // ⚠️ CALENDAR ARITHMETIC, NOT MILLISECONDS. This walk used to add `14 * 86400000` to a
+    // timestamp, which is 14 days only where the offset never moves. Across a DST boundary a
+    // local midnight plus 14×86400000 ms is 23:00 the PREVIOUS day (or 01:00), so `getDate()`
+    // returned a day early and a paycheck moved — sometimes into the previous month, changing
+    // that month's paycheck COUNT and so a whole paycheck of income. It never showed in Eastern
+    // testing because the same shift happened on both sides of every comparison; it surfaced as
+    // a $1,206 Prime Visa divergence from May 2027 the first time the suite ran under TZ=UTC,
+    // where no such transition exists. `Math.floor` on the anchor difference was the same bug in
+    // miniature: a 13.958-day gap floored to 13, which moved the phase by a day.
     const anchorMs = new Date(config.paycheckStartDate + 'T00:00:00').getTime();
     const DAY_MS = 86400000;
-    const startMs = monthStart.getTime();
-    const endMs = monthEnd.getTime();
-    // Find the first biweekly date on or after monthStart
-    const diffDays = Math.floor((startMs - anchorMs) / DAY_MS);
+    const diffDays = Math.round((monthStart.getTime() - anchorMs) / DAY_MS);
     const remainder = ((diffDays % 14) + 14) % 14;
     const firstOffset = remainder === 0 ? 0 : 14 - remainder;
-    let ms = startMs + firstOffset * DAY_MS;
-    while (ms <= endMs) {
-      paychecks.push({ date: new Date(ms), gross, net });
-      ms += 14 * DAY_MS;
+    const d = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate() + firstOffset);
+    while (d <= monthEnd) {
+      paychecks.push({ date: new Date(d), gross, net });
+      d.setDate(d.getDate() + 14);
     }
   } else {
     // weekly or biweekly (no anchor) — find occurrences of paycheckDay (day of week) in the month
@@ -334,12 +341,12 @@ export function getRemainingOneTimeIncomeByDay(
   transactions: EnrichedTransaction[], dueDay: number = 31
 ): number {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(now);
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthEnd = new Date(year, month + 1, 0);
   const effectiveDueDay = Math.min(dueDay, monthEnd.getDate());
-  const monthEndStr = monthEnd.toISOString().split('T')[0];
+  const monthEndStr = toLocalDateStr(monthEnd);
 
   let total = 0;
   for (const t of transactions) {
@@ -361,12 +368,12 @@ export function getRemainingOneTimeExpensesByDay(
   transactions: EnrichedTransaction[], dueDay: number = 31
 ): number {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(now);
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthEnd = new Date(year, month + 1, 0);
   const effectiveDueDay = Math.min(dueDay, monthEnd.getDate());
-  const monthEndStr = monthEnd.toISOString().split('T')[0];
+  const monthEndStr = toLocalDateStr(monthEnd);
 
   let total = 0;
   for (const t of transactions) {
@@ -723,7 +730,11 @@ export function getNextMonthPrePaycheckCutoff(
 ): { nextMonthStart: Date; nextMonthEnd: Date; effectiveCutoff: Date } {
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-  const fullMonthCutoff = new Date(nextMonthEnd.getTime() + 86400000);
+  // Calendar arithmetic, not `+ 86400000` — one day across a DST boundary is 23 or 25 hours,
+  // and this is a cutoff every next-month bill is compared against.
+  const fullMonthCutoff = new Date(
+    nextMonthEnd.getFullYear(), nextMonthEnd.getMonth(), nextMonthEnd.getDate() + 1,
+  );
 
   // Use first paycheck of next month as the cutoff — only bills due before that paycheck
   // arrives need to be reserved from current cash. Falls back to full-month if no paychecks.
@@ -956,7 +967,7 @@ export function getAugmentedMinSafeCash(
     // becomes owned next month owes insurance in that month, so the month before must reserve it
     // (when due before next month's first paycheck). A genuinely future car — owned two or more
     // months out — is still excluded, since nextMonthStart is before it is owned.
-    if (monthsBetween(anchorDate, nextMonthStart.toISOString().split('T')[0]) < 0) continue; // not owned yet
+    if (monthsBetween(anchorDate, toLocalDateStr(nextMonthStart)) < 0) continue; // not owned yet
     const dueDayBasis = cf.payment_start_date ?? cf.planned_purchase_date;
     if (!dueDayBasis) continue;
     const insuranceDueDay = new Date(dueDayBasis + 'T00:00:00').getDate();
@@ -1002,7 +1013,7 @@ export function getAugmentedMinSafeCash(
         // check it looked identical to a genuinely paid-off cycling card and reserved its minimum
         // in the floor every month from today, even though the card won't have its first real
         // payment due until that start month.
-        if (card.startDate && monthsBetween(card.startDate, now.toISOString().split('T')[0]) < 0) return none;
+        if (card.startDate && monthsBetween(card.startDate, toLocalDateStr(now)) < 0) return none;
         if (dueSynced(card.dueDay)) return none;
         if (duePostPaycheck(card.dueDay)) return none;
         // A backlog-carrying cycling card's minimum is ALSO reserved by simulateVariablePayoff's
@@ -1624,7 +1635,7 @@ export function createDebtPaymentTransactions(
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const effectiveDay = Math.min(dueDay, monthEnd);
     const d = new Date(now.getFullYear(), now.getMonth(), effectiveDay);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(d);
     results.push({
       id: `debtpay:${rec.cardId}:${dateStr}`,
       date: dateStr,

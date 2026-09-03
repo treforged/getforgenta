@@ -1,6 +1,7 @@
 import type { CarFund } from './types';
 import { PROJECTION_MONTHS } from './credit-card-engine';
 import type { EnrichedTransaction } from './pay-schedule';
+import { toLocalDateStr } from './scheduling';
 
 export type CarLoanTransaction = EnrichedTransaction & { carFundId: string };
 
@@ -90,7 +91,7 @@ export interface LoanProjection {
 function addMonths(dateStr: string, n: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 export function monthsBetween(fromStr: string, toStr: string): number {
@@ -112,7 +113,7 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
   const scheduled = calculateScheduledPayment(loanAmount, apr, termMonths);
   const effectivePmt = actualMonthlyPayment > 0 ? actualMonthlyPayment : scheduled;
   const today = asOf ?? new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(today);
 
   const isDeferredInterest = interestStartDate > paymentStartDate;
   let isNegativeAmortization = false;
@@ -376,7 +377,7 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
     // loan's effective start month depend on which day happened to be picked, not on
     // payment_start_date's actual month — causing Forecast and Debt Payoff to disagree with each
     // other, and either to disagree with the saving-phase projection's month-only anchor.
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(today);
     if (monthsBetween(cf.payment_start_date, todayStr) < 0) continue;
 
     const proj = buildAmortizationSchedule({
@@ -533,7 +534,7 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): CarLoanTransac
         const d = new Date(start.getFullYear(), start.getMonth() + m, start.getDate());
         results.push({
           id: `carloanins:${cf.id}:${m}`,
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           type: 'expense',
           amount: Number(cf.monthly_insurance),
           category: 'Insurance',

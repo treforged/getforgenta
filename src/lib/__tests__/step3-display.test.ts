@@ -49,9 +49,9 @@ describe('forecast-engine Total CC line — unified with per-card display (real 
   afterEach(() => vi.useRealTimers());
 
   maybeIt('ccDisplayBalance subtracts the HOOK per-card surpluses, matching the popup lines', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const result = calculateForecast(inputs);
     const cpd = inputs.cardProjectionData!;

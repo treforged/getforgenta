@@ -22,9 +22,9 @@ describe('Q9 diagnostic — ISB pin month funding on live fixture', () => {
   afterEach(() => vi.useRealTimers());
 
   maybeIt('dump converged early months', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const base = renderProjectionFromFixture(inputs, {
       persistedDebtFundingId: LIVE_FUNDING_ID,

@@ -28,9 +28,9 @@ describe('forecast popup decimals — raw balance fields agree with their rounde
   afterEach(() => vi.useRealTimers());
 
   maybeIt('every raw* field rounds to the chart/table field, and raws are not pre-rounded', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const out = runDebtCashConvergence(renderProjectionFromFixture(inputs), inputs);
     const rows = out.projections.data;

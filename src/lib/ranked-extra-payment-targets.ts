@@ -40,6 +40,7 @@ import {
   IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate, monthsUntilTargetDate,
 } from './retirement-contribution-cap';
 import type { RankedTarget } from './ranked-surplus-allocation';
+import { toLocalDateStr } from './scheduling';
 
 export type BuildRankedTargetsParams = {
   cards: readonly CardData[];
@@ -915,7 +916,7 @@ export function goalSavedIncludingSpent(
   goal: RankableGoal, essentialMonthlyExpenses: number, asOf: Date,
 ): number {
   const saved = Number(goal.current_amount) || 0;
-  const today = asOf.toISOString().slice(0, 10);
+  const today = toLocalDateStr(asOf);
   const spent = goalWithdrawals(goal, essentialMonthlyExpenses)
     .filter(w => w.date <= today)
     .reduce((sum, w) => sum + w.amount, 0);

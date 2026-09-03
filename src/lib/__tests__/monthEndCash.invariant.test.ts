@@ -48,12 +48,12 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
   afterEach(() => vi.useRealTimers());
 
   maybeIt('publishes one month-end cash figure to both surfaces', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // Pin ONLY Date (the sim/engine read new Date() internally) — leave real timers for
     // @testing-library's render machinery.
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const base = renderProjectionFromFixture(inputs);
     const out = runDebtCashConvergence(base, inputs);
@@ -87,9 +87,9 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
   });
 
   maybeIt('keeps the sim-side definition intact: endCash = cashPreDebt − safeToPay + carReserveHeld', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const out = runDebtCashConvergence(renderProjectionFromFixture(inputs), inputs);
     const m0 = out.cardProjection?.month0;
@@ -114,12 +114,12 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
   // BOTH sides the way the app builds them: `transactions` (which the sim's own builder reads)
   // and `oneTimeByMonth` (which useForecastEngineInputs precomputes for the engine).
   maybeIt('counts a post-cutoff month-0 one-time on both surfaces, and still agrees to the cent', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const fx = inputs as unknown as Record<string, unknown>;
-    const now = new Date(capturedAt);
+    const now = new Date(clock);
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     // Last day of the capture month — inside month 0 and as late as the month allows.
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);

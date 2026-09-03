@@ -40,12 +40,12 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
   afterEach(() => vi.useRealTimers());
 
   maybeIt('converges without pushing payoff out or breaching the cash floor', async () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // Pin ONLY Date (the sim/engine read new Date() internally) — leave real timers for
     // @testing-library's render machinery.
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const a = inputs.assumptions as Record<string, unknown>;
     const projectionAssumptions = {
@@ -125,11 +125,22 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     console.log('[repro] CC Debt Free:', ccFree?.month ?? '(never)',
       '| floor-breach months:', floorBreaches.map(m => m.month).join(', ') || '(none)');
 
-    // Expected-good anchors. RE-PINNED 2026-08-31 to Dec 2028, on a fixture recaptured from live
-    // Supabase rows by `recapture-forecast-fixture.test.tsx` (raw dump 2026-09-01T00:20Z). The
-    // previous pin, Jul 2027, was measured on the 2026-07-20 capture; Dec 2028 is not a
-    // regression, it is what his data now says, and it matches the payoff ETA recorded outside
-    // this repo. Converged in 19 passes with zero floor-breach milestones.
+    // Expected-good anchors. RE-PINNED 2026-09-03 to Sep 2028, THREE MONTHS EARLIER, because the
+    // Dec 2028 it replaces was measured off a bug rather than off his data.
+    //
+    // `scheduling.ts` parsed a rule's `start_date` with a bare `new Date('2027-07-01')` — UTC
+    // midnight, which is 30 June at 8pm in US Eastern. "Rent (new place)" ($1,480/mo, starting
+    // 2027-07-01) was therefore generated into JUNE 2027 as well: a month of rent he does not
+    // owe. `computeFloorProtection`'s backward reserve pass then carried that phantom expense all
+    // the way back to May 2027, capping the debt payment there and pushing payoff out to Dec.
+    //
+    // The pin is now measured in a suite that runs under THREE offsets (`npm run test:tz`), and
+    // UTC, America/New_York and Asia/Tokyo agree on Sep 2028 to the month. A pin that only one
+    // timezone can reproduce is what let the previous one encode a defect for three days.
+    //
+    // Measured on the same fixture as before — recaptured from live Supabase rows by
+    // `recapture-forecast-fixture.test.tsx`, raw dump 2026-09-01T00:20Z. Zero floor-breach
+    // milestones, as before.
     //
     // Earlier history, kept because it explains the shape of the pin: re-pinned 2026-07-20 with
     // real paymentPlans in the sim — the earlier Jun 2027 pin was measured with paymentPlans=[],
@@ -139,7 +150,7 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     // in the commit which dump it was measured on.
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month, 'payoff month regressed').toBe('Dec 2028');
+    expect(ccFree!.month, 'payoff month regressed').toBe('Sep 2028');
     expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
   });
 });

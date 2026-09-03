@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:tz": "node scripts/test-timezones.mjs",
     "check:debug-console": "node scripts/check-no-debug-console.mjs",
     "test:watch": "vitest",
     "version:next": "node scripts/next-version.mjs",

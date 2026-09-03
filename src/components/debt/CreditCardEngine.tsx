@@ -51,6 +51,7 @@ import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/g
 import type { Tables } from '@/integrations/supabase/types';
 import { displayedManualCashFloor, isManualCashFloor } from '@/lib/cash-floor';
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -410,7 +411,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // is baked into the live checking balance and must not be double-counted).
   const { monthEvents, cardPurchasesPerMonth: ccPurchasesPerMonth } = useMemo(() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(now);
     const scheduledEvents = generateScheduledEvents(rules, accounts, PROJECTION_MONTHS);
 
     const liquidAccountIds = new Set<string>(
@@ -579,7 +580,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Inject CC-sourced payment plan charges into augmentedCCPurchases so the
     // accordion shows installment spending on the correct card per month.
     if (paymentPlans && paymentPlans.length > 0) {
-      const todayStr = now.toISOString().split('T')[0];
+      const todayStr = toLocalDateStr(now);
       const cutoff = syncCutoffDate ?? todayStr;
       const sourceToCardId = new Map<string, string>(
         cards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),

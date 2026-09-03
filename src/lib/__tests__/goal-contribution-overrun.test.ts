@@ -158,7 +158,7 @@ describe('4b deferral guard — real data', () => {
       goals,
       rules,
       accounts,
-      new Date(capture.capturedAt),
+      capture.clock,
     );
 
     expect(

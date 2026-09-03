@@ -13,9 +13,9 @@ const maybeIt = existsSync(FIXTURE) ? it : it.skip;
 describe('DIAG', () => {
   afterEach(() => vi.useRealTimers());
   maybeIt('dump', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
     const base = renderProjectionFromFixture(inputs);
     // eslint-disable-next-line no-console
     console.log('PINS', JSON.stringify(base.manualIsbPins));

@@ -39,6 +39,7 @@ import type { AccountRow, RuleRow, DebtRow, TransactionRow } from '@/hooks/useSu
 import type { CardProjectionResult } from '@/hooks/useCardProjection';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
 import type { Tables } from '@/integrations/supabase/types';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 /**
  * Half a cent, the point below which an over-reserve is rounding residue rather
@@ -763,7 +764,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // is an ownership cost, not a financing one).
     const activeCarLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-      const dStr = d.toISOString().split('T')[0];
+      const dStr = toLocalDateStr(d);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       return (carFunds)
         .filter((cf): cf is typeof cf & { loan_start_date: string } => cf.phase === 'loan' && !!cf.loan_start_date)

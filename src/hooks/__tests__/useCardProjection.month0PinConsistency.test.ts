@@ -30,9 +30,9 @@ describe('useCardProjection — month-0 floor pin makes the sim pay the plan (Op
   afterEach(() => vi.useRealTimers());
 
   maybeIt('sim-derived month-0 per-card payments sum to the floor-capped ledger total', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     const a = inputs.assumptions as Record<string, unknown>;
     const projectionAssumptions = {

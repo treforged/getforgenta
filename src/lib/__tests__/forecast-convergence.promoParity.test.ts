@@ -31,9 +31,9 @@ describe('runDebtCashConvergence — sim/engine promotion parity (Q7 regression)
   afterEach(() => vi.useRealTimers());
 
   maybeIt('with promotions visible to the sim, every cycling statement is paid in full', () => {
-    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    const { clock, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(capturedAt));
+    vi.setSystemTime(clock);
 
     // Scenario precondition: the fixture must carry the scheduled promotion whose omission from
     // the sim produced the Q7 miss — otherwise this test silently stops covering the scenario.
