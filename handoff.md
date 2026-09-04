@@ -387,7 +387,43 @@ zero-input lines that name a number, a date and a consequence — e.g. *"$3,562 
 for 10 months"*, and the cash-floor warning naming the exact card and statement.
 No tap, no wait, nothing built for a camera.
 
-## `reach` schema APPLIED 2026-09-03 — Piper's, contained, verified
+## `reach` — EXPOSED and GRANTED 2026-09-04. Containment is proven for the first time.
+
+Supersedes the 2026-09-03 section below, whose evidence proved routing rather than
+containment. Sequence, all of it verified against the live project rather than reported:
+
+1. **Tre toggled `reach` into the exposed schemas** (via Sam). I approved it: reachable
+   is not permitted, the revokes are the control, and hiding the schema was the thing
+   PREVENTING the control from ever being tested.
+2. **Exposure immediately revealed a bug that had been invisible since 0001.** Every
+   migration ended `revoke all on schema reach from anon, authenticated, public` — and
+   **PUBLIC is every role, `service_role` included**, with no explicit grant anywhere. So
+   the APP had no USAGE either, and `/r/<code>` returned `permission denied for schema
+   reach`: the exact words of correct containment, produced by a completely different
+   fact. Third time on this schema that two failures produced one observation.
+3. **`0005_service_role_grants.sql` applied by me** (migration
+   `reach_service_role_grants_and_rate_limit_rls`), read in full first. Revoke FIRST then
+   grant — the reverse order strips `service_role` again, which is how four consecutive
+   migrations looked right and were wrong.
+
+Verified AFTER the apply, from `has_*_privilege` and `pg_class`, not from the success flag:
+
+    role            schema_usage  select tracked_link  insert click  execute limiter
+    anon            false         false                false         false
+    authenticated   false         false                false         false
+    service_role    TRUE          TRUE                 TRUE          TRUE
+    RLS enabled on campaign, click, rate_limit, tracked_link — all four
+
+Piper's `verify_reach_grants.sql` also caught a real omission the first time it ran
+against something live: `reach.rate_limit` had RLS off (her 0004). Closed by 0005.
+
+**Two open notes, neither urgent:** `relforcerowsecurity` is false on all four tables, so
+the table OWNER bypasses RLS (Postgres default, consistent) — only matters if anything
+connects as the owner rather than `service_role`. And `alter default privileges` binds to
+the role that RAN it, so a future migration applied as a different role lands ungranted —
+`for role postgres` would pin it.
+
+## SUPERSEDED — `reach` schema APPLIED 2026-09-03 — Piper's, contained, verified
 
 Forged Reach (attribution for Ruby's posts) now has a `reach` schema in the
 Forgenta project: `campaign`, `tracked_link`, `click`. Migrations are maintained
@@ -1557,7 +1593,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-04 00:57 by handoff_hook. Everything below this heading is
+_Written 2026-09-04 01:18 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1577,6 +1613,7 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+51320d1c docs(handoff): multi-currency is decided, and the blocker moved from the decision to the data
 fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards are not why
 6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
 91030ffe test(demo): fail if a real company name gets back into the synced feed
@@ -1584,7 +1621,6 @@ fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards
 27e24b88 [demo-fixture]: rebuild the persona so the demo is a person the app is FOR
 5bcf9d3f ci(ios): stop shipping to TestFlight on every push, and say when Apple is just rate-limiting
 9d13d13e docs(db): copy in Ellis's founder_page_views migration, verified against the live project
-d9e06627 feat(demo): make the strongest line in the app filmable, and guard it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
