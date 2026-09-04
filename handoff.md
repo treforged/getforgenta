@@ -1179,6 +1179,17 @@ these should be ONE achievements system, not two.
 > belong in `docs/` or in the commit body, and the item points at them.
 
 
+**FIRST, 2026-09-03 ~21:25 ET — FINISH VERIFYING THE DEMO-FIXTURE REBUILD.** It is
+COMMITTED BUT NOT PROVEN and NOT PUSHED: the session hit the 90% five-hour cap between
+the last edit and the last gate. `npx tsc --noEmit` was clean and the targeted tests
+(demo-marketing-lines, demo-marketing-lines.engine, demo-bank-activity, demo-ledger)
+passed, but `npm run test:tz` has NOT been re-run since the synced-feed rebuild.
+Run it; if green, push. One edit was BLOCKED mid-flight and never applied — a
+`NO REAL MERCHANT NAMES IN THE SYNCED FEED` guard for
+`src/lib/__tests__/demo-marketing-lines.test.ts` (regex over `demoSyncedTransactions`
+merchant_name + name, list in the commit body). Re-apply it. Detail: the
+"DEMO FIXTURE REBUILT" section above.
+
 **TOP OF QUEUE — added 2026-09-02 ~12:05 ET, ahead of the numbered items below.**
 
 - [x] **DONE 2026-09-03 15:56 ET — debug-console dev-mode preview deploy.**
