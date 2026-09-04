@@ -16,7 +16,7 @@
 // asset forever rather than once.
 
 import { describe, it, expect } from 'vitest';
-import { demoAccounts } from '../demo-data';
+import { demoAccounts, demoSyncedTransactions } from '../demo-data';
 import { promoExpiryWarnings } from '../balance-tranches';
 import { formatCurrency } from '../calculations';
 
@@ -133,6 +133,18 @@ describe('the fixture stays inside the marketing band', () => {
     for (const a of demoAccounts) {
       expect(REAL.test(String(a.name)), `account name "${a.name}"`).toBe(false);
       expect(REAL.test(String(a.institution ?? '')), `institution "${a.institution}"`).toBe(false);
+    }
+  });
+
+  it('NO REAL MERCHANT NAMES IN THE SYNCED FEED EITHER — it is on screen too', () => {
+    // The accounts were renamed on 2026-09-03 and the FEED was missed, so the Decision Deck —
+    // which is a screenshot surface — still named Progressive, Duke Energy, Verizon, Chevron,
+    // Publix, Tire Rack and O'Reilly. Renaming the accounts and leaving the merchants is the
+    // half-fix this assertion exists to stop recurring.
+    const REAL_MERCHANTS = /progressive|duke energy|verizon|at&t|t-mobile|chevron|shell |publix|kroger|walmart|target|costco|amazon|netflix|spotify|tire rack|o'?reilly|autozone|geico|state farm|allstate|comcast|xfinity|spectrum/i;
+    for (const t of demoSyncedTransactions) {
+      expect(REAL_MERCHANTS.test(String(t.merchant_name ?? '')), `merchant "${t.merchant_name}"`).toBe(false);
+      expect(REAL_MERCHANTS.test(String(t.name)), `descriptor "${t.name}"`).toBe(false);
     }
   });
 
