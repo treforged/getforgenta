@@ -22,16 +22,29 @@ import { formatCurrency } from '../calculations';
 
 const AS_OF = '2026-09-03';
 
-function repriceLines(): { hook: string; full: string; balance: number; extra: number }[] {
-  const out: { hook: string; full: string; balance: number; extra: number }[] = [];
+function repriceLines(): { hook: string; beat: string; full: string; balance: number; extra: number }[] {
+  const out: { hook: string; beat: string; full: string; balance: number; extra: number }[] = [];
   for (const c of demoAccounts.filter(a => a.account_type === 'credit_card')) {
     const tranches = (c as unknown as { balance_tranches?: unknown[] }).balance_tranches ?? [];
     for (const w of promoExpiryWarnings(tranches as never, Number(c.apr ?? 0), AS_OF)) {
       const when = new Date(w.promoEndDate + 'T00:00:00')
         .toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      // THE BEAT is the first thing on screen, and it is a CUT of the line rather
+      // than the whole line. Ruby measured the earlier cut at 10/11: it carried
+      // THREE figures and tripped `check_one_message`. A filmed beat has no body
+      // standing behind it to absorb a third number, so the ceiling matters as
+      // much as her floor of two.
+      //
+      // ⚠️ THE BEAT IS A CAPTION, NOT WHAT THE APP RENDERS. The card still shows
+      // the full sentence including "at 0%", and a screenshot cannot crop
+      // mid-sentence — so the beat is what the voiceover and on-screen text say,
+      // derived from the same computed figures. If we ever want the beat itself
+      // on screen, that is a UI change and not a fixture one.
       const hook = `${formatCurrency(w.balance, false)} at ${w.promoApr}% reprices to ${w.standardApr}%`;
+      const beat = `${formatCurrency(w.balance, false)} reprices to ${w.standardApr}% on ${when.replace(/, \d{4}$/, '')}`;
       out.push({
         hook,
+        beat,
         full: `${hook} on ${when} (+${formatCurrency(w.extraMonthlyInterest, false)}/mo) — `
           + `clearing it first needs ${formatCurrency(w.requiredMonthlyPaydown, false)}/mo for ${w.monthsRemaining} months`,
         balance: w.balance,
@@ -69,10 +82,19 @@ describe('the demo fixture can produce a filmable line', () => {
     expect(repriceLines()[0].full).toMatch(/\(\+\$\d+\/mo\)/);
   });
 
-  it('F5 — the hook fits the frame: 12 words and 70 characters', () => {
-    const { hook } = repriceLines()[0];
-    expect(hook.split(/\s+/).length).toBeLessThanOrEqual(12);
-    expect(hook.length).toBeLessThanOrEqual(70);
+  it('F5 — the BEAT fits the frame: 12 words and 70 characters', () => {
+    const { beat } = repriceLines()[0];
+    expect(beat.split(/\s+/).length).toBeLessThanOrEqual(12);
+    expect(beat.length).toBeLessThanOrEqual(70);
+  });
+
+  it('F1 CEILING — the beat carries EXACTLY two figures, not three', () => {
+    // Ruby's spec asked for two as a floor and set no ceiling; the first cut carried three
+    // ($2,417, 0%, 24.74%) and scored 10/11 on `check_one_message`. Dropping the 0% — which the
+    // full line says anyway — took it to 11/11. A third number in the beat has nowhere to land.
+    const { beat } = repriceLines()[0];
+    const figures = beat.match(/\$[\d,]+|\d+(\.\d+)?%/g) ?? [];
+    expect(figures.length, `beat "${beat}" carries ${figures.length} figures`).toBe(2);
   });
 
   it('F6 — leaves a fresh figure for the punch', () => {

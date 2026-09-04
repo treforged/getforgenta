@@ -61,8 +61,8 @@ describe('demo bank activity fixture', () => {
     const q = queue();
     const suggested = merchantsOf(Object.keys(q.suggestions));
     expect(suggested.has('Ridgeview Apartments')).toBe(true);
-    expect(suggested.has('Duke Energy')).toBe(true);
-    expect(suggested.has('Progressive Insurance')).toBe(true);
+    expect(suggested.has('Fairfield Power')).toBe(true);
+    expect(suggested.has('Northline Fiber')).toBe(true);
   });
 
   // PROPERTY 3 — one-offs produce no suggestion, so the deck is not a wall of false certainty.
@@ -83,7 +83,7 @@ describe('demo bank activity fixture', () => {
     });
     const named = new Set(proposals.map(p => p.merchantLabel));
     expect(named.has('Apex Auto Detailing')).toBe(true);
-    expect(named.has('Verizon Wireless')).toBe(true);
+    expect(named.has('Brightline Water')).toBe(true);
     expect(named.has('Iron Peak Storage')).toBe(true);
   });
 
@@ -95,6 +95,6 @@ describe('demo bank activity fixture', () => {
     });
     const named = new Set(proposals.map(p => p.merchantLabel));
     expect(named.has('Ridgeview Apartments')).toBe(false);
-    expect(named.has('Duke Energy')).toBe(false);
+    expect(named.has('Fairfield Power')).toBe(false);
   });
 });

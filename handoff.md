@@ -289,43 +289,37 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
-## DEMO FIXTURE IS MARKETING-CRITICAL — measured baseline 2026-09-03, and it is WEAK
+## DEMO FIXTURE REBUILT 2026-09-03 — a persona the app is FOR, and 12 filmable lines
 
-Tre elevated the demo fixture to a first-class deliverable: his real accounts are
-not marketing material, so **the fixture is the only thing that can ever be
-filmed or screenshotted**. Every video, App Store image and post comes from it.
+The fixture is the ONLY thing that can ever be filmed (Tre): his real accounts are
+not marketing material. It was measured weak on 2026-09-03 — zero balance tranches,
+so the strongest line the app produces could not fire — and real card brands in the
+names. Both are fixed; what follows is what it IS now.
 
-**MEASURED, NOT ESTIMATED. The strongest line the app produces CANNOT FIRE on the
-demo fixture.**
+**The persona changed, and that was the real defect.** The demo ran on the app's
+`DEFAULT_PROFILE`: $1,875/wk gross, a roommate, ~$2,800/mo of surplus, and a forecast
+climbing past $91,000 in eighteen months while the same fixture carried $6,482 of card
+debt at 24.74%. Nobody saving $2,800 a month carries that balance. `demoProfile` in
+`src/lib/demo-data.ts` is now its own object — $968/wk gross, thin surplus, a
+semiannual $1,014 insurance premium — and `useSupabaseData`'s demo branch reads it.
+A signed-out non-demo user still gets `DEFAULT_PROFILE`.
 
-    credit cards in demo:      2  (Chase Sapphire $8,500 @ 22.99%,
-                                   Discover It    $4,200 @ 18.99%)
-    cards with balance_tranches: 0
-    promo expiry warnings:       0
+**What the engine now says about it** (`npx vitest run src/lib/__tests__/demo-marketing-lines.engine.test.ts`):
+cards clear Dec 2027 ("CC Debt Free"), no month breaches its floor, tightest month is
+$2 above it, $2,417 reprices 0% -> 24.74% on May 11 2027, minimums alone would cost
+$8,924 on $6,482.
 
-`promoExpiryWarnings` needs `balance_tranches` with a `promo_end_date`. The demo
-data has **none**, so the reprice line — *"$3,562 at 0% reprices to 27.49% on Jul
-7, 2027 (+$82/mo) — clearing it first needs $356/mo for 10 months"* — is
-unreachable from the fixture. It only exists on Tre's real cards.
-
-**Two consequences for the design, and the second is a legal one nobody raised:**
-
-1. **Plain revolving balances are the RIGHT starting shape.** Tre's promo-heavy
-   set is why the payoff date refused to move; the demo's plain cards should move.
-   Keep them and ADD one promo card so the reprice warning has something to fire
-   on — do not copy his shape wholesale.
-2. ⚠️ **The demo cards are named "Chase Sapphire" and "Discover It" — REAL
-   PRODUCTS.** Sam's bar is "obviously synthetic", and real card brands in a
-   screenshot are the opposite of that, quite apart from using another company's
-   marks in marketing material. Rename before anything is filmed.
-
-**Rules for the rebuild (Sam):** the fixture is INPUT and every line must be
-genuinely derived from it — no number tuned to produce a dramatic sentence the
-engine would not compute. And a test that FAILS when the fixture goes weak, or it
-degrades silently until a shoot.
-
-**Blocked on Ruby for the bar** — what "strong enough" means in her terms. Do not
-guess it.
+- **The harness is the reusable part:** `src/lib/__tests__/fixtures/demo-forecast-harness.ts`
+  runs the app's own card sim (`useCardProjection`, so callers need jsdom) and feeds it
+  to `calculateForecast`. `runDemoForecast` WITHOUT cards reads several hundred a month
+  too rich — the file says why. Use `runDemoForecastWithCards` for anything about cash.
+- **Twelve lines, four types** (repricing / leakage / acceleration / cash-floor), every
+  figure read out of the engine run, guarded against Ruby's F1/F2/F5/F6 in
+  `demo-marketing-lines.engine.test.ts`. Spec: `tre-forged-marketing/docs/DEMO-FIXTURE-SPEC.md`.
+- **A cash-floor BREACH line is not producible and should not be chased.** The converged
+  engine protects the floor by holding back debt payments, so a breach only happens for a
+  persona the app cannot help. The honest cash-floor lines are the tightest-month headroom
+  and the lumpy premium, and that is what shipped.
 
 ## RULE: verify against the DEMO FIXTURE, not Tre's live account
 
@@ -1476,16 +1470,18 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 19:10 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 21:02 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (8 file(s)):**
 
 ```
 M .claude/settings.json
+ M handoff.md
+ M src/lib/__tests__/demo-marketing-lines.test.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1496,14 +1492,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+5bcf9d3f ci(ios): stop shipping to TestFlight on every push, and say when Apple is just rate-limiting
+9d13d13e docs(db): copy in Ellis's founder_page_views migration, verified against the live project
+d9e06627 feat(demo): make the strongest line in the app filmable, and guard it
+324e4c37 docs(handoff): the demo fixture cannot produce the app's strongest line — measured
+ee006dac docs: correct my own overstatement — there is no MM/DD/YYYY anywhere in the app
+c64504aa docs(handoff): verify against the demo fixture, not Tre's live account
 96c6b0b3 docs(handoff): reach schema applied and verified by behaviour, not by setting
 82547b04 feat(money): one place that knows how to render money, plus two records that were missing
-9a2df306 docs(handoff): international release state, and the dev sign-in facts that cost time today
-671f0165 docs: Japan excluded, and real multi-currency scoped before it is started
-f82d5bb4 fix(settings): disable the currency picker, because it never did anything
-1537cac9 docs: the international release plan — and the currency picker that does nothing
-6c3e94fb test(debt): pin what a month-0 shortfall shows — pressing the page found the gap
-4d037bcb docs: name the files per slice shape, and say what is UNMEASURED rather than guessing
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

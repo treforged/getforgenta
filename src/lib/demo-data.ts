@@ -449,37 +449,50 @@ function demoCharge(
 function demoFeed(): DemoSyncedTransaction[] {
   const rows: DemoSyncedTransaction[] = [];
 
+  // ⚠️ EVERY MERCHANT NAME HERE IS INVENTED, and that is a rule rather than a style.
+  // Until 2026-09-03 this feed named Progressive, Duke Energy, Verizon, Chevron, Publix,
+  // Tire Rack and O'Reilly — real companies, in the ONE fixture every screenshot and App
+  // Store image comes from. The accounts had already been renamed for exactly that reason;
+  // the feed was missed because no test looked at it. Amounts track the rules in
+  // `demoRecurringRules`, so a rule edit that leaves this behind breaks the matcher and
+  // `demo-bank-activity.test.ts` says so.
   for (const M of DEMO_FEED_MONTHS) {
     // ── Matches a demo rule: these are the deck's cards ──────────────────────
-    // r2 Rent — $1,600 on the 1st from Northvale Checking.
-    rows.push(demoCharge('rent', M, 1, 'd1', 1600.00, 'RIDGEVIEW APARTMENTS RENT', 'Ridgeview Apartments', 'Bills'));
-    // r4 Car Insurance — $280 on the 14th from Northvale Checking.
-    rows.push(demoCharge('insurance', M, 14, 'd1', 280.00, 'PROGRESSIVE INS PMT', 'Progressive Insurance', 'Car'));
-    // r3 Utilities — $200 on the 15th from Northvale Checking.
-    rows.push(demoCharge('utilities', M, 15, 'd1', 200.00, 'DUKE ENERGY BILLPAY', 'Duke Energy', 'Bills'));
-    // r13 Streaming + Gym — $85 on the 4th on the Summit card.
-    rows.push(demoCharge('gym', M, 4, 'd8', 85.00, 'IRON HOUSE GYM MEMBER', 'Iron House Gym', 'Subscriptions'));
+    // r2 Rent — $1,385 on the 1st from Northvale Checking.
+    rows.push(demoCharge('rent', M, 1, 'd1', 1385.00, 'RIDGEVIEW APARTMENTS RENT', 'Ridgeview Apartments', 'Bills'));
+    // r3 Utilities — $178 on the 15th from Northvale Checking.
+    rows.push(demoCharge('utilities', M, 15, 'd1', 178.00, 'FAIRFIELD POWER BILLPAY', 'Fairfield Power', 'Bills'));
+    // r15 Internet and r16 Phone — $74 and $62, both on the 8th.
+    rows.push(demoCharge('internet', M, 8, 'd1', 74.00, 'NORTHLINE FIBER INTERNET', 'Northline Fiber', 'Bills'));
+    rows.push(demoCharge('phone', M, 8, 'd1', 62.00, 'CLEARWAVE MOBILE PMT', 'Clearwave Mobile', 'Bills'));
+    // r13 Streaming + Gym — $57 on the 4th on the Summit card.
+    rows.push(demoCharge('gym', M, 4, 'd8', 57.00, 'IRON HOUSE GYM MEMBER', 'Iron House Gym', 'Subscriptions'));
 
     // r1 Weekly Paycheck — inflow, so NEGATIVE. Deposited to Northvale Checking.
     // r11 Gas and r10 Groceries — the two weekly expense rules.
     for (const day of DEMO_WEEKLY_DAYS) {
-      rows.push(demoCharge('payroll', M, day, 'd1', -1462.50, 'RIDGELINE FAB PAYROLL DIR DEP', 'Ridgeline Fabrication', 'Income'));
-      rows.push(demoCharge('gas', M, day, 'd1', 55.00, 'CHEVRON 0421', 'Chevron', 'Gas'));
-      rows.push(demoCharge('groceries', M, day + 3, 'd7', 80.00, 'PUBLIX #1184', 'Publix', 'Groceries'));
+      rows.push(demoCharge('payroll', M, day, 'd1', -755.04, 'RIDGELINE FAB PAYROLL DIR DEP', 'Ridgeline Fabrication', 'Income'));
+      rows.push(demoCharge('gas', M, day, 'd1', 47.00, 'CROSSTOWN FUEL 0421', 'Crosstown Fuel', 'Gas'));
+      rows.push(demoCharge('groceries', M, day + 3, 'd7', 118.00, 'MARKETWAY FOODS #1184', 'Marketway Foods', 'Groceries'));
     }
 
     // ── Matches NO rule: what the patterns card proposes ─────────────────────
     // A monthly cadence the demo profile never wrote a rule for. Days and amounts are deliberately
     // far from every rule above so the matcher cannot claim them and leave the card empty.
     rows.push(demoCharge('detailing', M, 12, 'd7', 39.99, 'APEX AUTO DETAILING CLUB', 'Apex Auto Detailing', 'Car'));
-    rows.push(demoCharge('phone', M, 18, 'd1', 92.15, 'VERIZON WIRELESS PMT', 'Verizon Wireless', 'Bills'));
+    rows.push(demoCharge('water', M, 18, 'd1', 58.40, 'BRIGHTLINE WATER SVC', 'Brightline Water', 'Bills'));
     rows.push(demoCharge('storage', M, 7, 'd1', 145.00, 'IRON PEAK STORAGE UNIT', 'Iron Peak Storage', 'Bills'));
   }
 
+  // The semiannual insurance premium, in the one covered month it actually falls in (r4b,
+  // September 12). A twelfth of it every month is exactly the smoothing the fixture exists to
+  // avoid — see the rule's own comment.
+  rows.push(demoCharge('insurance', 0, 12, 'd1', 1014.00, 'HALSTEAD MUTUAL AUTO PREM', 'Halstead Mutual', 'Car'));
+
   // ── One-offs: no cadence, no rule, no suggestion — the build-thread spending ─
-  rows.push(demoCharge('summit', -1, 9, 'd7', 218.44, 'SUMMIT RACING EQUIP', 'Summit Racing', 'Car'));
-  rows.push(demoCharge('tirerack', -2, 21, 'd7', 642.00, 'TIRE RACK INC', 'Tire Rack', 'Car'));
-  rows.push(demoCharge('oreilly', 0, 16, 'd7', 87.31, 'OREILLY AUTO 2214', "O'Reilly Auto Parts", 'Car'));
+  rows.push(demoCharge('speedshop', -1, 9, 'd7', 218.44, 'REDLINE SPEED SHOP', 'Redline Speed Shop', 'Car'));
+  rows.push(demoCharge('tires', -2, 21, 'd7', 642.00, 'TREAD DEPOT INC', 'Tread Depot', 'Car'));
+  rows.push(demoCharge('parts', 0, 16, 'd7', 87.31, 'PARTS CORNER 2214', 'Parts Corner', 'Car'));
   rows.push(demoCharge('coffee', 0, 6, 'd7', 12.00, 'CARS AND COFFEE DTWN', 'Cars & Coffee', 'Entertainment'));
   rows.push(demoCharge('dyno', -2, 27, 'd7', 175.00, 'APEX DYNO SESSION', 'Apex Dyno', 'Car'));
 
@@ -539,33 +552,70 @@ export const demoAccounts = [
   { id: 'd9', user_id: 'demo', name: 'Cash', account_type: 'cash', institution: '', balance: 300, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
 ];
 
+// ─── The demo persona's profile ──────────────────────────
+//
+// SEPARATE FROM `DEFAULT_PROFILE` ON PURPOSE. Until 2026-09-03 the demo ran on the
+// app's DEFAULT profile — $1,875/week gross, a roommate paying half the rent, ~$2,800
+// of monthly surplus — and the forecast it produced climbed past $91,000 inside
+// eighteen months while the same fixture carried $6,482 of revolving card debt at
+// 24.74%. Nobody saving $2,800 a month carries that balance, so the demo's own numbers
+// argued against each other, and the app's cash-floor warning was unreachable from it:
+// every projected month cleared its floor by five figures.
+//
+// This is the ONE fixture every screenshot, App Store image and reel comes from
+// (Tre, 2026-09-03), so the persona has to be a person the app is FOR. Single earner
+// on ~$50k, real card debt, a thin monthly surplus, and a lumpy semiannual insurance
+// premium — the ordinary shape that makes a budget go short.
+//
+// ⚠️ NOTHING HERE IS TUNED TO PRODUCE A SENTENCE. The persona was chosen for
+// plausibility; every filmed figure is whatever the engine computes from it. If a line
+// stops computing, the line is dropped — the fixture is not re-tuned until it comes
+// back. See `tre-forged-marketing/docs/DEMO-FIXTURE-SPEC.md` §3.
+export const demoProfile = {
+  currency: 'USD',
+  weekly_gross_income: 968,
+  paycheck_frequency: 'weekly',
+  paycheck_day: 5,
+  tax_rate: 22,
+  // 968 × 4.33 = 4,191.44 gross/mo; × 0.78 = 3,269.32 net.
+  gross_income: 4191.44,
+  monthly_income_default: 3269.32,
+  cash_floor: 1500,
+};
+
 // ─── Recurring Rules ─────────────────────────────────────
-// FIX #14: Demo recurring rules now cover a full realistic budget with
-// all rule types (income, expense, transfer, investment) so the forecast
-// shows meaningful projections. Amounts are consistent with the demo
-// profile's weekly_gross_income of $1875 @ 22% tax.
+// A full budget in every rule type (income, expense, transfer, investment), sized to
+// `demoProfile` above rather than to the app default. Weekly net is 968 × 0.78 =
+// $755.04 per Friday deposit.
+//
+// THE SEMIANNUAL INSURANCE PREMIUM IS THE POINT OF THE MARCH AND SEPTEMBER ROWS.
+// Paying auto insurance twice a year instead of monthly is both common and cheaper, and
+// it is exactly the pattern a month-by-month budget hides: eleven ordinary months and
+// one that is a thousand dollars short. Two `yearly` rules six months apart, not a
+// monthly twelfth, because the twelfth is the smoothing that loses the information.
 export const demoRecurringRules = [
-  // Income — $1875/week gross @ 22% tax = $1462.50 net per paycheck
-  { id: 'r1', user_id: 'demo', name: 'Weekly Paycheck', amount: 1462.50, rule_type: 'income', frequency: 'weekly', due_day: 5, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Friday deposits', created_at: '', updated_at: '' },
+  // Income — $968/week gross @ 22% tax = $755.04 net per paycheck
+  { id: 'r1', user_id: 'demo', name: 'Weekly Paycheck', amount: 755.04, rule_type: 'income', frequency: 'weekly', due_day: 5, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Friday deposits', created_at: '', updated_at: '' },
   // Fixed expenses
-  { id: 'r2', user_id: 'demo', name: 'Rent', amount: 1600, rule_type: 'expense', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r3', user_id: 'demo', name: 'Utilities', amount: 200, rule_type: 'expense', frequency: 'monthly', due_day: 15, due_month: null, start_date: '2026-01-15', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r4', user_id: 'demo', name: 'Car Insurance', amount: 280, rule_type: 'expense', frequency: 'monthly', due_day: 14, due_month: null, start_date: '2026-01-14', end_date: null, category: 'Car', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'r2', user_id: 'demo', name: 'Rent', amount: 1385, rule_type: 'expense', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'r3', user_id: 'demo', name: 'Utilities', amount: 178, rule_type: 'expense', frequency: 'monthly', due_day: 15, due_month: null, start_date: '2026-01-15', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  // The lumpy pair. Same policy, billed twice a year.
+  { id: 'r4', user_id: 'demo', name: 'Car Insurance (6-month premium)', amount: 1014, rule_type: 'expense', frequency: 'yearly', due_day: 12, due_month: 3, start_date: '2026-03-12', end_date: null, category: 'Car', payment_source: 'd1', deposit_account: null, active: true, notes: 'Paid semiannually', created_at: '', updated_at: '' },
+  { id: 'r4b', user_id: 'demo', name: 'Car Insurance (6-month premium)', amount: 1014, rule_type: 'expense', frequency: 'yearly', due_day: 12, due_month: 9, start_date: '2026-09-12', end_date: null, category: 'Car', payment_source: 'd1', deposit_account: null, active: true, notes: 'Paid semiannually', created_at: '', updated_at: '' },
+  { id: 'r14', user_id: 'demo', name: 'Vehicle Registration', amount: 268, rule_type: 'expense', frequency: 'yearly', due_day: 9, due_month: 6, start_date: '2026-06-09', end_date: null, category: 'Car', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
   // Variable expenses
-  { id: 'r10', user_id: 'demo', name: 'Groceries', amount: 80, rule_type: 'expense', frequency: 'weekly', due_day: 6, due_month: null, start_date: '2026-01-06', end_date: null, category: 'Groceries', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r11', user_id: 'demo', name: 'Gas', amount: 55, rule_type: 'expense', frequency: 'weekly', due_day: 3, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Gas', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r12', user_id: 'demo', name: 'Dining Out', amount: 120, rule_type: 'expense', frequency: 'monthly', due_day: 20, due_month: null, start_date: '2026-01-20', end_date: null, category: 'Dining', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  // Subscriptions
+  { id: 'r10', user_id: 'demo', name: 'Groceries', amount: 118, rule_type: 'expense', frequency: 'weekly', due_day: 6, due_month: null, start_date: '2026-01-06', end_date: null, category: 'Groceries', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'r11', user_id: 'demo', name: 'Gas', amount: 47, rule_type: 'expense', frequency: 'weekly', due_day: 3, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Gas', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'r12', user_id: 'demo', name: 'Dining Out', amount: 96, rule_type: 'expense', frequency: 'monthly', due_day: 20, due_month: null, start_date: '2026-01-20', end_date: null, category: 'Dining', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  // Subscriptions and services
   { id: 'r5', user_id: 'demo', name: 'Amazon Prime', amount: 139, rule_type: 'expense', frequency: 'yearly', due_day: 15, due_month: 3, start_date: '2026-03-15', end_date: null, category: 'Subscriptions', payment_source: 'd7', deposit_account: null, active: true, notes: 'Annual renewal', created_at: '', updated_at: '' },
-  { id: 'r13', user_id: 'demo', name: 'Streaming + Gym', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  // Transfers — savings and investments
-  { id: 'r6', user_id: 'demo', name: 'Emergency Fund', amount: 300, rule_type: 'transfer', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Savings', payment_source: 'd1', deposit_account: 'd3', active: true, notes: 'HYS contribution', created_at: '', updated_at: '' },
-  { id: 'r7', user_id: 'demo', name: '401k Contribution', amount: 375, rule_type: 'investment', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd4', active: true, notes: 'Pre-tax', created_at: '', updated_at: '' },
-  { id: 'r8', user_id: 'demo', name: 'Roth IRA', amount: 250, rule_type: 'investment', frequency: 'monthly', due_day: 10, due_month: null, start_date: '2026-01-10', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd5', active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r9', user_id: 'demo', name: 'Brokerage', amount: 200, rule_type: 'investment', frequency: 'monthly', due_day: 10, due_month: null, start_date: '2026-01-10', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd6', active: true, notes: 'Index funds', created_at: '', updated_at: '' },
-  // Non-paycheck income — demonstrates Bug 2 fix (non-paycheck income included in simulation)
-  { id: 'dr-roommate', user_id: 'demo', name: 'Roommate Contribution', amount: 900, rule_type: 'income', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Monthly rent split', created_at: '', updated_at: '' },
-  // Explicit CC purchase rules — ensures monthlyNewPurchases is realistic for each card
-  { id: 'dr-cc1', user_id: 'demo', name: 'Monthly Expenses', amount: 450, rule_type: 'expense', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Groceries', payment_source: 'account:d7', deposit_account: null, active: true, notes: 'Groceries & dining on Sapphire', created_at: '', updated_at: '' },
-  { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on the Summit card', created_at: '', updated_at: '' },
+  { id: 'r13', user_id: 'demo', name: 'Streaming + Gym', amount: 57, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'r15', user_id: 'demo', name: 'Internet', amount: 74, rule_type: 'expense', frequency: 'monthly', due_day: 8, due_month: null, start_date: '2026-01-08', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'r16', user_id: 'demo', name: 'Phone', amount: 62, rule_type: 'expense', frequency: 'monthly', due_day: 8, due_month: null, start_date: '2026-01-08', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
+  // Transfers — savings and investments. Thin, because the surplus is thin: no Roth
+  // contribution, because nobody funding one is also revolving $6,482 at 24.74%.
+  { id: 'r6', user_id: 'demo', name: 'Emergency Fund', amount: 60, rule_type: 'transfer', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Savings', payment_source: 'd1', deposit_account: 'd3', active: true, notes: 'HYS contribution', created_at: '', updated_at: '' },
+  { id: 'r7', user_id: 'demo', name: '401k Contribution', amount: 110, rule_type: 'investment', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd4', active: true, notes: 'Pre-tax', created_at: '', updated_at: '' },
+    // Explicit CC purchase rules — ensures monthlyNewPurchases is realistic for each card
+  { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 57, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on the Summit card', created_at: '', updated_at: '' },
 ];

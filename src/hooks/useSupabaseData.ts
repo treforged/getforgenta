@@ -13,7 +13,7 @@ import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
   demoCarMaintenanceLogs,
-  demoSyncedTransactions, demoAccounts, demoRecurringRules,
+  demoSyncedTransactions, demoAccounts, demoRecurringRules, demoProfile,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
@@ -1253,7 +1253,12 @@ export function useProfile() {
     queryKey: ['profile', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<Partial<Tables<'profiles'>>> => {
-      if (isDemo || !user) return { ...DEFAULT_PROFILE, display_name: 'Demo User', is_premium: true };
+      // The demo persona's OWN profile, not the app default — see `demoProfile` in
+      // demo-data.ts for why they had to stop being the same object. `!user` (signed
+      // out, no demo flag) still gets the app default: that path is a new user's
+      // starting point, not a persona.
+      if (isDemo) return { ...DEFAULT_PROFILE, ...demoProfile, display_name: 'Demo User', is_premium: true } as Partial<Tables<'profiles'>>;
+      if (!user) return { ...DEFAULT_PROFILE, display_name: 'Demo User', is_premium: true };
       try {
         const { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
         if (error) throw error;
