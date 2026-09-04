@@ -7,6 +7,34 @@
 > under ~15 KB: rewrite the state, do not append to it. Everything below the
 > AUTO-SNAPSHOT marker is machine-written and is replaced on every run — write
 > above it.
+>
+> ⚠️ **MEASURED 2026-09-04: this file is 101 KB — 6.7× its own ~15 KB rule**, and every
+> byte is read at every SessionStart in this folder, forever. The rule above has been
+> stated for days and is not being followed, which makes it decoration. The fix is to move
+> RESOLVED and CLOSED sections to `handoff-archive.md` and leave a one-line pointer — not to
+> restate the rule again. Do it when there is budget for a careful prune; it is a real cost,
+> not a tidiness preference.
+
+---
+
+## ⇢ FIRST UP, 2026-09-04 — act on this before reading anything else
+
+**Read `withPaymentOverrides` at `src/hooks/useCardProjection.ts:2420` and establish what a
+pinned payment MEANS — floor, cap, or replacement — then answer why pinning $400/mo on the
+demo fixture's highest-APR card leaves the payoff month at 16 while a $600 pin moves it.**
+
+Everything you need is already measured, in "OPEN, WITH NUMBERS" below. Do this first
+because it is the load-bearing unknown: the standing explanation for Tre's own payoff date
+refusing to move is "his cards are promo-heavy", and that explanation just failed on a
+fixture built specifically to test it. If the real cause is that the plan already allocates
+everything above the cash floor, then the product's strongest control does nothing for the
+users who most need it, and several sections of this file are wrong.
+
+Multi-currency is PARKED, deliberately and cleanly: decided (per-currency subtotals) and
+scoped, NOT started, nothing half-edited. It needs a currency column on money-carrying rows
+plus a backfill — a schema change on live financial data — and it was not worth beginning
+at 85% of a 91% weekly cap. See the MULTI-CURRENCY section for the constraints already
+settled, so that slice does not re-argue them.
 
 ---
 
