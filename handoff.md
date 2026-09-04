@@ -440,6 +440,38 @@ It looks like clutter. It is not. This is second-hand from Ellis and I have not
 read the DNS zone myself, but the consequence lands on my flow, so it is recorded
 here rather than only in his repo.
 
+## MULTI-CURRENCY: Tre said PER-CURRENCY SUBTOTALS (2026-09-04). The blocker is now DATA, not the decision.
+
+**Measured before designing anything, and it decides the whole feature: this app stores
+NO currency on any money-carrying row.**
+
+    grep currency src/integrations/supabase/types.ts  -> profiles, expenses, capital_contributions
+    accounts                                          -> NO currency column
+    transactions / recurring_rules                    -> NO currency column
+    grep -rl currency supabase/migrations             -> ZERO files
+    grep -rl "capital_contributions" src              -> types.ts only
+    grep -rl "from('expenses')" src                   -> nothing
+
+So the two tables that DO carry a currency are **not used by the app at all**, and the
+one live column — `profiles.currency` — is a display preference, not a per-amount fact.
+Every balance, rule and transaction in Forgenta is a bare number.
+
+**Consequence: "per-currency subtotals" has nothing to group by yet.** The decision Tre
+made is the right one and it is not the next step. The next step is attaching a currency
+to money-carrying rows, and that is a migration + a write path + a backfill of every
+existing row to `USD`, which is a slice in its own right and was NOT started at 84% of a
+91% weekly cap.
+
+**Design constraints, settled now so the slice does not re-litigate them:**
+- Subtotal PER CURRENCY. Never a single converted total, and never a rate this app invents.
+- A missing rate renders as a missing subtotal with a reason, not a converted figure. An
+  empty subtotal beats a confident wrong one — Tre's own recorded preference, and currency
+  is where a plausible-looking number hides a wrong one most easily.
+- `formatCurrency` already takes a per-call currency override and `setMoneyDisplay` exists
+  (`src/lib/calculations.ts`). The display layer is ready; the data layer is not.
+- Settings' currency selector stays DISABLED with its note until rows carry a currency.
+  A selector that changes the symbol on unconverted USD numbers is a lie with a dropdown.
+
 ## INTERNATIONAL RELEASE — planned, NOT started. Plan: `docs/international-release-plan.md`
 
 Tre wants Forgenta in more countries. **No store setting has been changed, and the
@@ -1525,18 +1557,16 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-04 00:35 by handoff_hook. Everything below this heading is
+_Written 2026-09-04 00:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (8 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M .claude/settings.json
- M handoff.md
- M src/lib/__tests__/demo-marketing-lines.test.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1547,14 +1577,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards are not why
+6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
+91030ffe test(demo): fail if a real company name gets back into the synced feed
 774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
 27e24b88 [demo-fixture]: rebuild the persona so the demo is a person the app is FOR
 5bcf9d3f ci(ios): stop shipping to TestFlight on every push, and say when Apple is just rate-limiting
 9d13d13e docs(db): copy in Ellis's founder_page_views migration, verified against the live project
 d9e06627 feat(demo): make the strongest line in the app filmable, and guard it
-324e4c37 docs(handoff): the demo fixture cannot produce the app's strongest line — measured
-ee006dac docs: correct my own overstatement — there is no MM/DD/YYYY anywhere in the app
-c64504aa docs(handoff): verify against the demo fixture, not Tre's live account
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
