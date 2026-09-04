@@ -1179,16 +1179,31 @@ these should be ONE achievements system, not two.
 > belong in `docs/` or in the commit body, and the item points at them.
 
 
-**FIRST, 2026-09-03 ~21:25 ET — FINISH VERIFYING THE DEMO-FIXTURE REBUILD.** It is
-COMMITTED BUT NOT PROVEN and NOT PUSHED: the session hit the 90% five-hour cap between
-the last edit and the last gate. `npx tsc --noEmit` was clean and the targeted tests
-(demo-marketing-lines, demo-marketing-lines.engine, demo-bank-activity, demo-ledger)
-passed, but `npm run test:tz` has NOT been re-run since the synced-feed rebuild.
-Run it; if green, push. One edit was BLOCKED mid-flight and never applied — a
-`NO REAL MERCHANT NAMES IN THE SYNCED FEED` guard for
-`src/lib/__tests__/demo-marketing-lines.test.ts` (regex over `demoSyncedTransactions`
-merchant_name + name, list in the commit body). Re-apply it. Detail: the
+**DONE 2026-09-04 — the demo-fixture rebuild is proven and pushed.** `npx tsc --noEmit`
+clean, `npm run test:tz` green in all three zones (3460 passed, 1 skipped), the
+NO REAL MERCHANT NAMES guard applied, `origin/main` verified by CONTENTS. Detail: the
 "DEMO FIXTURE REBUILT" section above.
+
+**⚠️ MY CONTAINMENT PROBE FOR `reach` PROVED THE WRONG THING (found by Piper, 2026-09-04).**
+`verify_reach_grants.sql`'s closing note — mine — reads *"406/PGRST106 → `reach` is
+provably not exposed. Not 'not seen to be exposed'."* That is true and it is not
+containment. **PostgREST refuses an unexposed schema BEFORE authentication, for every
+key including service_role**, so the identical 406 that I read as proof of containment
+was also the reason forge-reach's app could never read a row. The grants and RLS
+underneath — the actual control — have never been exercised by a single real request.
+A test can be passed by the bug it should have caught when the assertion and the defect
+produce the same observation.
+- **Decision: EXPOSE `reach`** (approved to Piper 2026-09-04). Reachable is not
+  permitted; the revokes are the control, and exposure is what finally tests them.
+- **Needs Tre:** exposed schemas is a project API SETTING, not SQL — no Supabase MCP
+  tool reaches it. Dashboard, or the Management API.
+- **The control probe is the whole point:** after exposure, anon + `Accept-Profile: reach`
+  must return **401/42501**, not 406 and NOT an empty 200. An empty 200 reads like
+  "nothing there" and means "you are in". Anything else: revert first, diagnose second.
+- **Standing consequence:** schema-level hiding used to backstop a forgotten revoke.
+  It will not any more, so every future `reach` migration must carry its own revokes.
+- Correct the misleading note in `forge-reach/supabase/verify_reach_grants.sql` — that
+  is Piper's repo, so ask rather than edit.
 
 **TOP OF QUEUE — added 2026-09-02 ~12:05 ET, ahead of the numbered items below.**
 
@@ -1481,7 +1496,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 21:02 by handoff_hook. Everything below this heading is
+_Written 2026-09-04 00:35 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1503,14 +1518,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
+27e24b88 [demo-fixture]: rebuild the persona so the demo is a person the app is FOR
 5bcf9d3f ci(ios): stop shipping to TestFlight on every push, and say when Apple is just rate-limiting
 9d13d13e docs(db): copy in Ellis's founder_page_views migration, verified against the live project
 d9e06627 feat(demo): make the strongest line in the app filmable, and guard it
 324e4c37 docs(handoff): the demo fixture cannot produce the app's strongest line — measured
 ee006dac docs: correct my own overstatement — there is no MM/DD/YYYY anywhere in the app
 c64504aa docs(handoff): verify against the demo fixture, not Tre's live account
-96c6b0b3 docs(handoff): reach schema applied and verified by behaviour, not by setting
-82547b04 feat(money): one place that knows how to render money, plus two records that were missing
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
