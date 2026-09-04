@@ -417,6 +417,20 @@ Verified AFTER the apply, from `has_*_privilege` and `pg_class`, not from the su
 Piper's `verify_reach_grants.sql` also caught a real omission the first time it ran
 against something live: `reach.rate_limit` had RLS off (her 0004). Closed by 0005.
 
+**CLOSED 2026-09-04 — the app read a row, and the privacy claim is now about a real
+request.** Piper's smoke test: `/r/<code>` → 302 to the real destination, `/api/briefs/…`
+→ 200. The click row the APP wrote, every column: `id, link_id, at,
+referrer_host='l.instagram.com', device='mobile'` — **no IP, no user agent**, against a
+request that carried a real iPhone UA and a real `Referer`. The limiter row held a salted
+hash (`brief-read:57a8f312…`), which also proves `rate_limit_hit` executed as
+`service_role`. Anon probes after the grants: 401/42501 on both a read AND a write, with a
+live-key control. Full verify 7/7 PASS.
+
+**Cleanup verified by ME, not by her report:** `count(*)` on all four `reach` tables reads
+0/0/0/0. She nearly missed the `rate_limit` row because she wrote two rows and the APP
+wrote the other two — a cleanup list built from "what I inserted" misses what the system
+inserted in response, and the system's rows are the ones carrying request-derived data.
+
 **Two open notes, neither urgent:** `relforcerowsecurity` is false on all four tables, so
 the table OWNER bypasses RLS (Postgres default, consistent) — only matters if anything
 connects as the owner rather than `service_role`. And `alter default privileges` binds to
