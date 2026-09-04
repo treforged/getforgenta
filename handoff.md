@@ -289,6 +289,35 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
+## OPEN, WITH NUMBERS — "paying more does not move the payoff date" is NOT the promo cards
+
+Attempted 2026-09-04 on the REBUILT fixture, which carries plain revolving balances
+precisely so the control has something to move. It still did not move, and the promo
+explanation does not survive contact:
+
+    base                              simRevolvingPayoffMonth = 16 (forecast = 16)
+    pin d7 $400/mo x 12 months        simRevolvingPayoffMonth = 16   <- no change
+    ladder 150 / 250 / 400 / 600      ends STRICTLY below 16          <- something moves
+
+So a pin somewhere between $400 and $600 changes the date and $400 does not, on a
+fixture whose entire card debt is $6,482. The likely reason, unproven: **month 0 already
+sends $2,530 to the cards** (`month0.safeToPayTotal`, measured), so a $400 pin is BELOW
+the existing allocation, not above it — which makes "pay more" the wrong description of
+what the test pressed. Whether a pin is a floor, a cap or a replacement is unestablished.
+
+**DO NOT ship a test asserting this until the semantics are read.** One was written and
+deleted rather than committed, because its passes could not be explained and a green
+assertion nobody can explain is what this desk keeps getting caught by.
+
+Next session, in order:
+1. Read `withPaymentOverrides` at `src/hooks/useCardProjection.ts:2420` — what a pin MEANS.
+2. Get the real field shapes first. A probe read `perCardPayments[m].d7` and
+   `monthlyRevolvingBalances` and printed `undefined` for both, so it proved nothing
+   about whether the pin took effect. `runDemoCardProjection` (jsdom) is the way in.
+3. Then decide whether the ORIGINAL complaint — Tre's own payoff date refusing to move —
+   is the same cause. If it is, the promo-card explanation in the sections below is wrong
+   and should be struck rather than left standing.
+
 ## DEMO FIXTURE REBUILT 2026-09-03 — a persona the app is FOR, and 12 filmable lines
 
 The fixture is the ONLY thing that can ever be filmed (Tre): his real accounts are
