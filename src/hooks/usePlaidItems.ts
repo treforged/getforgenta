@@ -14,6 +14,7 @@
 import {
   type FinancialConnection,
   useFinancialConnections,
+  type ConnectionStatus,
 } from '@/hooks/useFinancialConnections';
 
 export interface PlaidItem {
@@ -25,6 +26,16 @@ export interface PlaidItem {
   institution_name: string | null;
   last_synced_at: string | null;
   created_at: string;
+  /**
+   * Carried through so a caller can tell a live link from a retired one.
+   *
+   * It was dropped here before, which is how the Linked Banks list ended up unable to
+   * distinguish them even in principle: the shim threw away the one field that answers
+   * the question. `usePlaidItems` now returns only live connections, so in practice this
+   * is always 'active', 'reauth_required' or 'error' -- but a caller that needs to say
+   * WHICH kind of unhealthy a link is can now do so without a second query.
+   */
+  connection_status: ConnectionStatus;
 }
 
 export function usePlaidItems() {
@@ -38,6 +49,7 @@ export function usePlaidItems() {
     institution_name: c.institution_name,
     last_synced_at: c.last_synced_at,
     created_at: c.created_at,
+    connection_status: c.connection_status,
   }));
 
   return {

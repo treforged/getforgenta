@@ -131,8 +131,35 @@ export function useFinancialConnections() {
     }
   };
 
+  const allConnections = query.data ?? [];
+
   return {
-    connections: query.data ?? [],
+    /**
+     * The connections the user actually HAS. Revoked ones are excluded.
+     *
+     * ⚠️ WHY THIS FILTER IS THE WHOLE FIX FOR THE DUPLICATE-BANK BUG (2026-09-05, live).
+     * Tre re-linked Robinhood on his phone and then saw THREE Robinhood rows in Linked
+     * Banks. Every layer underneath had done its job: `planSupersededConnections` marked
+     * both older items `revoked`, their accounts were deactivated one second before the
+     * new rows were written, and no balance was double-counted. The only thing wrong was
+     * this hook handing the UI every row it could find, including the two the backend had
+     * already retired. So the bug was never in the dedupe and never in his data — it was
+     * a missing filter, and no cleanup of live financial rows is needed to fix it.
+     *
+     * A revoked connection is not a connection. `plaid-sync-all` already skips it, it can
+     * never sync again, and the only thing listing it achieves is telling the user to
+     * re-link a bank they just linked.
+     */
+    connections: allConnections.filter(c => c.connection_status !== 'revoked'),
+    /**
+     * Every row, revoked included — the audit view.
+     *
+     * Kept because supersession deliberately never DELETES a connection: `active = false`
+     * and a `revoked` status preserve the row, its id and its history, and one flag undoes
+     * the whole thing. Anything that needs to explain what happened to an old link reads
+     * this; anything that renders "your banks" reads `connections`.
+     */
+    allConnections,
     loading: query.isLoading,
     error: query.error,
     syncing,
