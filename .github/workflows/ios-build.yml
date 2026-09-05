@@ -190,6 +190,34 @@ jobs:
           mkdir -p "$PROFILE_PATH"
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH/forged.mobileprovision"
 
+      # ⚠️ SAY WHAT THE PROFILE ACTUALLY CARRIES, because a green signing run does not prove it.
+      #
+      # `signingStyle: manual` does NOT reliably fail when the profile lacks a capability — Xcode
+      # can silently DROP the entitlement from the exported binary instead. That produces a build
+      # which signs cleanly, ships, installs, calls `register()` and never hears back: exactly the
+      # 22 `timeout` registrations measured on a real iPhone on 2026-09-05, over a full hour, with
+      # permission already granted.
+      #
+      # We took a green run as proof the profile carried push. It only ever proved the profile and
+      # the certificate matched each other. So the profile now states its own capabilities in the
+      # log, and a missing `aps-environment` FAILS HERE — loudly, before a build nobody can receive
+      # notifications on reaches TestFlight.
+      #
+      # Only the entitlement KEYS are printed. The profile also contains certificates and a team
+      # identifier, and none of that belongs in a public run log.
+      - name: Assert the provisioning profile carries push
+        run: |
+          set -o pipefail
+          PROFILE=~/Library/MobileDevice/Provisioning\ Profiles/forged.mobileprovision
+          ENTITLEMENTS=$(security cms -D -i "$PROFILE"             | plutil -extract Entitlements xml1 -o - -             | plutil -p - || true)
+          echo "Profile entitlement keys:"
+          echo "$ENTITLEMENTS" | grep -oE '"[a-z0-9.\-]+" =>' | sort -u || true
+          if ! echo "$ENTITLEMENTS" | grep -q "aps-environment"; then
+            echo "::error::The provisioning profile has NO aps-environment. Push Notifications is           not enabled on this profile, so the entitlement will be dropped from the IPA and every           registration will time out. Regenerate the profile with the capability enabled and           re-encode BUILD_PROVISION_PROFILE_BASE64."
+            exit 1
+          fi
+          echo "aps-environment present in the profile: $(echo "$ENTITLEMENTS" | grep -A1 'aps-environment' | tail -1)"
+
       - name: Build IPA
         run: |
           xcodebuild \

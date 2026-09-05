@@ -24,9 +24,21 @@
 	  ZERO iOS — while `APNS_AUTH_KEY_P8`, `APNS_KEY_ID` and `APNS_TEAM_ID` all sat correctly
 	  configured in Supabase. A perfect `.p8` signs nothing for an app the OS will not register.
 
-	  `development` covers debug and TestFlight builds; the App Store submission process rewrites
-	  it to `production` when Apple re-signs, so this one value is correct for both and does not
-	  need a per-configuration split.
+	  ⚠️ THE VALUE IS `production`, AND `development` WAS WRONG — I WROTE IT, WITH A CONFIDENT AND
+	  INCORRECT JUSTIFICATION, IN `c1cff973`. That comment claimed "development covers debug and
+	  TestFlight builds; the App Store submission rewrites it to production when Apple re-signs."
+	  It does not. **A TestFlight build is DISTRIBUTION-signed and registers against the PRODUCTION
+	  APNs environment.** With `development`, iOS asks the sandbox for a token on a build that is
+	  not entitled to one, and `register()` is accepted and then never calls back.
+
+	  That is exactly what it did: 22 registration attempts from Tre's iPhone between 17:33Z and
+	  18:33Z, every one recorded `timeout` with `prompted: false` — permission granted, the OS
+	  simply never answering. The entitlement was present and had the wrong value, which is a
+	  failure that looks identical to the entitlement being absent.
+
+	  `production` is correct for every build this repo produces: `ios-build.yml` only ever archives
+	  `-configuration Release` and exports `app-store-connect`. A local Xcode debug build is the one
+	  case that would want `development`, and nothing in CI makes one.
 
 	  ⚠️ THIS KEY ALONE IS NOT ENOUGH, AND IT BREAKS SIGNING UNTIL THE OTHER HALF IS DONE.
 	  Release signs Manual against the pinned "Forged App Store" profile (see the note above), so
@@ -39,6 +51,6 @@
 	  Only Tre can do those; nothing in this repo can.
 	-->
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>production</string>
 </dict>
 </plist>
