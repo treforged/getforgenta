@@ -92,7 +92,7 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
         <button
           type="submit"
           disabled={!stripe || loading}
-          className="flex-1 py-2 text-xs font-medium bg-primary text-primary-foreground btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
+          className="btn btn-md btn-primary flex-1"
           style={{ borderRadius: 'var(--radius)' }}
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
@@ -102,7 +102,7 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
+          className="btn btn-md btn-secondary w-full sm:w-auto"
           style={{ borderRadius: 'var(--radius)' }}
         >
           Cancel
@@ -468,7 +468,7 @@ export default function SettingsPage() {
               still be savable after switching to another, or tabbing away would quietly discard
               typed work — the rule the backdrop-tap save was built on. */}
           {dirty && !isDemo && (
-            <button onClick={handleSave} disabled={update.isPending} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
+            <button onClick={handleSave} disabled={update.isPending} className="btn btn-md btn-primary w-full sm:w-auto" style={{ borderRadius: 'var(--radius)' }}>
               <Save size={12} /> {update.isPending ? 'Saving...' : 'Save Changes'}
             </button>
           )}
@@ -633,7 +633,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleEmailChange}
                   disabled={emailLoading || !newEmail.trim()}
-                  className="w-full sm:w-auto px-2.5 py-1 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                  className="btn btn-sm btn-secondary w-full sm:w-auto"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {emailLoading ? 'Sending…' : 'Send Verification'}
@@ -708,7 +708,7 @@ export default function SettingsPage() {
                       </div>
                       <button
                         onClick={() => handleRevokeDevice(device.device_id)}
-                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
+                        className="btn btn-sm btn-outline text-muted-foreground hover:border-destructive/40 hover:text-destructive shrink-0"
                         style={{ borderRadius: 'var(--radius)' }}
                       >
                         Revoke
@@ -769,7 +769,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handlePasswordChange}
                   disabled={passwordLoading || !currentPassword || !newPassword || newPassword !== confirmNewPassword}
-                  className="w-full py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                  className="btn btn-md btn-secondary w-full"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {passwordLoading ? 'Updating…' : 'Update Password'}
@@ -795,7 +795,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleForceSignOut}
                   disabled={forceSignOutLoading}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
+                  className="btn btn-md btn-danger w-full sm:w-auto"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {forceSignOutLoading ? <Loader2 size={12} className="animate-spin" /> : <LogOut size={12} />}
@@ -804,7 +804,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setForceSignOutConfirm(false)}
                   disabled={forceSignOutLoading}
-                  className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="btn btn-md btn-ghost"
                 >
                   <X size={12} />
                 </button>
@@ -812,7 +812,7 @@ export default function SettingsPage() {
             ) : (
               <button
                 onClick={() => setForceSignOutConfirm(true)}
-                className="w-full sm:w-auto flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
+                className="btn btn-md bg-secondary border border-border hover:border-destructive/40 hover:text-destructive w-full sm:w-auto"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 <LogOut size={12} /> Sign out all devices
@@ -848,7 +848,7 @@ export default function SettingsPage() {
                 setInviteCopied(true);
                 setTimeout(() => setInviteCopied(false), 2000);
               }}
-              className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
+              className="btn btn-md btn-secondary w-full sm:w-auto shrink-0"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {inviteCopied
@@ -967,7 +967,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => !hasMobileSub && setDeleteStep('confirm')}
                   disabled={hasMobileSub}
-                  className="shrink-0 flex items-center gap-1.5 bg-secondary border border-destructive/30 text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors btn-press disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-secondary"
+                  className="btn btn-md bg-secondary border border-destructive/30 text-destructive hover:bg-destructive/10 shrink-0"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <Trash2 size={12} />
@@ -1012,7 +1012,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deleteConfirmText !== 'DELETE' || deleteLoading}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
+                  className="btn btn-md btn-danger w-full sm:w-auto"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {deleteLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
@@ -1021,7 +1021,7 @@ export default function SettingsPage() {
                 <button
                   onClick={resetDeleteFlow}
                   disabled={deleteLoading}
-                  className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors btn-press disabled:opacity-50"
+                  className="btn btn-md btn-ghost"
                 >
                   Cancel
                 </button>
@@ -1088,7 +1088,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleShowPaymentUpdate}
                     disabled={setupLoading}
-                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                    className="btn btn-md btn-secondary w-full sm:w-auto"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     {setupLoading ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
@@ -1100,7 +1100,7 @@ export default function SettingsPage() {
                     <button
                       onClick={() => handleCancelOrResume('resume')}
                       disabled={cancelLoading}
-                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
+                      className="btn btn-md btn-primary w-full sm:w-auto"
                       style={{ borderRadius: 'var(--radius)' }}
                     >
                       {cancelLoading ? <Loader2 size={12} className="animate-spin" /> : <Crown size={12} />}
@@ -1114,14 +1114,14 @@ export default function SettingsPage() {
                           <button
                             onClick={() => handleCancelOrResume('cancel')}
                             disabled={cancelLoading}
-                            className="px-3 py-1.5 text-xs font-medium bg-destructive text-destructive-foreground btn-press disabled:opacity-50"
+                            className="btn btn-md btn-danger"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             {cancelLoading ? <Loader2 size={12} className="animate-spin" /> : 'Yes, cancel'}
                           </button>
                           <button
                             onClick={() => setConfirmCancel(false)}
-                            className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                            className="btn btn-md btn-ghost"
                           >
                             <X size={12} />
                           </button>
@@ -1129,7 +1129,7 @@ export default function SettingsPage() {
                       ) : (
                         <button
                           onClick={() => setConfirmCancel(true)}
-                          className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
+                          className="btn btn-md bg-secondary border border-border hover:border-destructive/40 hover:text-destructive w-full sm:w-auto"
                           style={{ borderRadius: 'var(--radius)' }}
                         >
                           Cancel subscription

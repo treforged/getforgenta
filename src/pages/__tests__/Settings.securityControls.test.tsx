@@ -281,6 +281,40 @@ describe('the Security tab, one shape per section', () => {
     expect(securityPanel).not.toMatch(/px-3 py-2 text-xs font-medium bg-secondary/);
   });
 
+  /**
+   * ITEM 6 — THE `btn` VOCABULARY, ON THIS SURFACE.
+   *
+   * 13e43d50 measured 456 `<button>` elements across 88 files carrying 380 DISTINCT class strings,
+   * and only 18 of them declaring a tap target at all. Settings was the densest at 24. The point of
+   * the rollout is the tap target: `btn` sets `min-height: 44px`, relaxed to 32px only under
+   * `(pointer: fine)`, so a thumb gets a thumb-sized control and a cursor does not waste the space.
+   *
+   * ⚠️ THESE TESTS PRESS. The Auth migration before this one was verified in the stylesheet and
+   * never pressed, because `/auth` redirects to `/dashboard` while signed in — so "migrated" meant
+   * "the classes changed" and nothing more. The class assertion below is the cheap half; the tests
+   * above, which click Unlink, Revoke, Remove and Add Authenticator App and assert the handler ran,
+   * are what say the migration did not break them.
+   */
+  it('the migrated buttons carry the shared vocabulary and inherit its 44px tap target', async () => {
+    await renderSecurityTab();
+    for (const name of [/Send Verification/i, /Update Password/i]) {
+      const el = screen.getByRole('button', { name });
+      expect(el.className.split(/\s+/), `${name} was not migrated`).toContain('btn');
+      expect(el.className).toMatch(/btn-(sm|md|lg|block)/);
+    }
+  });
+
+  it('no migrated button re-declares what `btn` already gives it', () => {
+    const src = readFileSync(path.resolve(here, '../Settings.tsx'), 'utf8');
+    // `btn` already applies btn-press, transition-colors, disabled:opacity-50, the radius and the
+    // flex centring. A migrated button repeating them is how 380 distinct strings happened.
+    const migrated = src.match(/className="btn [^"]*"/g) ?? [];
+    expect(migrated.length).toBeGreaterThan(10);
+    for (const cls of migrated) {
+      expect(cls, `redundant utility left on: ${cls}`).not.toMatch(/btn-press|transition-colors|disabled:opacity-50/);
+    }
+  });
+
   it('the heading has ONE implementation — no section hand-rolls its own again', () => {
     const files = [
       '../../components/settings/LinkedAccounts.tsx',
