@@ -1187,6 +1187,75 @@ fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
+_Written 2026-09-05 05:17 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (6 file(s)):**
+
+```
+M .claude/settings.json
+ M handoff.md
+ M supabase/.temp/cli-latest
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+```
+
+- **Recent commits:**
+
+```
+12e62ad4 [plaid]: the orphan invariant becomes PRODUCTION code, because a test-local one proved nothing
+efa5d1ee [push]: the transport - APNs HTTP/2 and FCM v1, with the silent-vanish failure guarded
+69cb0437 test(plaid): a supersede leaves no account pointing at a connection that is gone
+8c6369f4 [debt]: a 0% tranche is not a free tranche - a flat monthly fee, and a schedule that cannot be prepaid
+3fa0469d docs(handoff): two standing patterns, the Pay Over Time finding, and his live numbers
+664bdb10 [push]: the sender - two of seven kinds, and it says so in its own code
+ad9fe324 [push]: the server has no clock - give it the user's timezone before it sends anything
+65136b05 docs(handoff): close the seed-data escalation, record the unknown-APR decision and the push fork
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-05 04:59 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (5 file(s)):**
+
+```
+M .claude/settings.json
+ M supabase/.temp/cli-latest
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+```
+
+- **Recent commits:**
+
+```
+69cb0437 test(plaid): a supersede leaves no account pointing at a connection that is gone
+8c6369f4 [debt]: a 0% tranche is not a free tranche - a flat monthly fee, and a schedule that cannot be prepaid
+3fa0469d docs(handoff): two standing patterns, the Pay Over Time finding, and his live numbers
+664bdb10 [push]: the sender - two of seven kinds, and it says so in its own code
+ad9fe324 [push]: the server has no clock - give it the user's timezone before it sends anything
+65136b05 docs(handoff): close the seed-data escalation, record the unknown-APR decision and the push fork
+9f3fbbfc [push]: the storage and registration half of push notifications
+94744ee7 test(learn): validate the lesson catalogue, so a malformed lesson fails here not on a phone
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
 _Written 2026-09-05 04:23 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
