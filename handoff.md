@@ -97,13 +97,26 @@ in sees a working finance app rather than an empty shell. **Nobody is budgeting 
 the "user" is Apple.** Right escalation on the evidence I had, wrong conclusion once scoped. Do
 not re-raise it.
 
-**⚠️ STILL OPEN — an unknown card APR is silently treated as 0%.** `credit-card-engine.ts:471`
-does `Number(acct.apr) || 0`, and a 0% card sorts LAST under avalanche. **DECIDED (Sam,
+**✅ CLOSED 2026-09-05 — an unknown card APR was silently treated as 0%.** `credit-card-engine.ts` used to do
+`Number(acct.apr) || 0`, and a 0% card sorted LAST under avalanche. **DECIDED (Sam,
 2026-09-05): the app ASKS, it does not assume.** Both defaults are the confident-zero mistake —
 sorting an unknown rate first invents a pessimistic number just as surely. So: a null-APR card is
 NOT ranked and NOT assigned a rate; its MINIMUM is still paid, because it is real debt; it renders
 in the ranking list in a "needs your rate" state with an inline input, so the fix is one tap where
-the problem is visible; and it never silently sorts last. Not built yet.
+the problem is visible; and it never silently sorts last.
+
+✅ **IT IS BUILT, and this section said otherwise for a whole session.** `0d91028b` ("a card with
+no APR is asked for its rate, not ranked as if it were 0%") shipped every part of the decision
+above: `credit-card-engine.ts:505` carries `aprIsUnknown` as a real distinction instead of
+collapsing an unknown rate to 0, `rankableForStrategy` (line 104) keeps such a card out of the
+ranking, `debt-payoff-order.ts` threads the flag through both list builders, and
+`AvalancheOrderList` renders the "needs your rate" row with its inline input — mounted for real at
+`CreditCardEngine.tsx:1608`, not merely exported.
+
+⚠️ **This is the CALLER gate firing in the direction nobody watches.** It was written for features
+described as built that were never called. The opposite costs just as much: a record saying NOT
+BUILT about something shipped, called and tested, which the next session rebuilds on top of itself.
+`grep -rn aprIsUnknown src/` was the whole check. **Grep before you BUILD, not only before you scope.**
 
 **Also settled today, from Tre:** the Robinhood card is **NOT** to be demoted — *"it needs to be
 paid first, and on time in full"* — so `surplus_sort_order: 0` stays, and its due day is now the
