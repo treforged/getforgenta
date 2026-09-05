@@ -206,6 +206,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       initialized.current = true;
 
+      // ⚠️ RevenueCat MUST be configured on a RESTORED session too, not only on a fresh
+      // sign-in. Supabase fires INITIAL_SESSION when it rehydrates a session from storage,
+      // which is what happens on almost every launch of the mobile app — a person who stays
+      // signed in never sees SIGNED_IN again. Configuring only there left the SDK unconfigured
+      // for exactly those users, so getOfferings, purchasePackage and restorePurchases all
+      // returned null and the paywall and Restore Purchases silently did nothing.
+      //
+      // This is the same event that was missed once before, in the Google OAuth popup hang
+      // (7108311a). It is the easy one to forget because it never fires in a fresh-login test.
+      //
+      // Deliberately outside the branch chain below: this must happen on a restored session
+      // whatever else that branch decides about navigation.
+      if (session?.user?.id && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
+      }
+
       if (event === 'SIGNED_IN') {
         // Password recovery: Supabase fires SIGNED_IN when it establishes the
         // recovery session from the hash tokens, before the user sets a new

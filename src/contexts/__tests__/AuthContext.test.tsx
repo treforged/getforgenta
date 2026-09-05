@@ -31,6 +31,7 @@ const h = vi.hoisted(() => ({
   trusted: false,
   appStateHandlers: [] as ((state: { isActive: boolean }) => void)[],
   authHandlers: [] as ((event: string, session: Session | null) => void)[],
+  revenueCatInits: [] as string[],
   getSession: vi.fn<() => Promise<SessionResult>>(),
   refreshSession: vi.fn<() => Promise<SessionResult>>(),
   startAutoRefresh: vi.fn<() => Promise<void>>(),
@@ -88,7 +89,10 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 // Native/vendor edges AuthProvider pulls in. Not what is under test.
-vi.mock('@/lib/purchases', () => ({ initRevenueCat: async () => {}, logOutRevenueCat: async () => {} }));
+vi.mock('@/lib/purchases', () => ({
+  initRevenueCat: async (id: string) => { h.revenueCatInits.push(id); },
+  logOutRevenueCat: async () => {},
+}));
 vi.mock('@/lib/monitoring', () => ({ identifyMonitoringUser: () => {} }));
 vi.mock('@/lib/analytics', () => ({ maybeTrackOAuthSignUp: () => {} }));
 vi.mock('@/lib/trusted-device', () => ({ isDeviceTrusted: async () => h.trusted }));
@@ -419,5 +423,53 @@ describe('a sign-out that did not happen is never reported as one', () => {
     await waitFor(() => expect(signOutAttempts()).toBeGreaterThan(afterFirstAttempt));
     expect(h.toast.error).toHaveBeenCalledTimes(1); // said once, not once every thirty seconds
     expect(await screen.findByText('sign in')).toBeTruthy();
+  });
+
+  // ⚠️ THE PURCHASE PATH FOR A RETURNING USER.
+  //
+  // `Purchases.configure` is what makes the RevenueCat SDK usable at all: without it,
+  // getOfferings, purchasePackage and restorePurchases every one return null, so the paywall
+  // has nothing to show and Restore Purchases silently does nothing.
+  //
+  // It used to be called only on SIGNED_IN. Supabase fires INITIAL_SESSION when it rehydrates a
+  // session from storage, which is what happens on nearly every launch of the mobile app -- a
+  // person who stays signed in never sees SIGNED_IN again. So the SDK was never configured for
+  // exactly the users most likely to buy. This is the same event that was missed once before,
+  // in the Google OAuth popup hang (7108311a), and it survives because it never fires in a
+  // fresh-login test.
+  //
+  // Would-fail check: drop 'INITIAL_SESSION' from the condition in AuthContext and the first
+  // case here fails with an empty array.
+  describe('RevenueCat is configured for a RESTORED session, not only a fresh sign-in', () => {
+    it('configures on INITIAL_SESSION, which is what a returning user actually fires', async () => {
+      renderSignedIn();
+      await waitFor(() => expect(h.authHandlers.length).toBeGreaterThan(0));
+      h.revenueCatInits = [];
+
+      h.authHandlers.forEach(cb => cb('INITIAL_SESSION', { user: { id: 'user-restored' } } as unknown as Session));
+
+      await waitFor(() => expect(h.revenueCatInits).toEqual(['user-restored']));
+    });
+
+    it('still configures on a fresh SIGNED_IN', async () => {
+      renderSignedIn();
+      await waitFor(() => expect(h.authHandlers.length).toBeGreaterThan(0));
+      h.revenueCatInits = [];
+
+      h.authHandlers.forEach(cb => cb('SIGNED_IN', { user: { id: 'user-fresh' } } as unknown as Session));
+
+      await waitFor(() => expect(h.revenueCatInits).toContain('user-fresh'));
+    });
+
+    it('configures nothing when there is no user on the event', async () => {
+      renderSignedIn();
+      await waitFor(() => expect(h.authHandlers.length).toBeGreaterThan(0));
+      h.revenueCatInits = [];
+
+      h.authHandlers.forEach(cb => cb('INITIAL_SESSION', null));
+
+      await new Promise(r => setTimeout(r, 20));
+      expect(h.revenueCatInits).toEqual([]);
+    });
   });
 });

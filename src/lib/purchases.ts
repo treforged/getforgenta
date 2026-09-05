@@ -14,11 +14,41 @@ import type {
 
 const isNative = (): boolean => Capacitor.isNativePlatform();
 
-let configured = false;
+/**
+ * WHICH user the SDK is currently configured for, not merely THAT it is.
+ *
+ * ⚠️ A bare boolean latch was wrong in a way that only shows up on money. `configure` is what
+ * ties a purchase to a person, so a second user arriving while the latch was still true would
+ * have had their entitlements attached to the FIRST user's RevenueCat customer. Holding the id
+ * makes "already configured" mean "already configured FOR THIS PERSON", which is the only
+ * version of that question worth asking.
+ */
+let configuredUserId: string | null = null;
+
+/** Test seam and sign-out reset. Not part of the public surface. */
+export function __resetRevenueCatForTests(): void {
+  configuredUserId = null;
+}
+
+/** Whether the SDK is ready to be called. Purchases silently no-op without it. */
+export function isRevenueCatConfigured(): boolean {
+  return configuredUserId !== null;
+}
 
 export async function initRevenueCat(userId: string): Promise<void> {
   if (!isNative()) return;
-  if (configured) return;
+  if (configuredUserId === userId) return;
+  // A DIFFERENT user on an already-configured SDK: hang up first, or their purchases land on
+  // the previous customer. logOut is what returns the SDK to a state configure can claim.
+  if (configuredUserId !== null) {
+    try {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      await Purchases.logOut();
+    } catch {
+      // Best effort. Configuring for the right user matters more than a clean hang-up.
+    }
+    configuredUserId = null;
+  }
 
   const platform = Capacitor.getPlatform();
   const apiKey = platform === 'ios'
@@ -32,11 +62,11 @@ export async function initRevenueCat(userId: string): Promise<void> {
 
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   await Purchases.configure({ apiKey, appUserID: userId });
-  configured = true;
+  configuredUserId = userId;
 }
 
 export async function getOfferings(): Promise<PurchasesOfferings | null> {
-  if (!isNative() || !configured) return null;
+  if (!isNative() || configuredUserId === null) return null;
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   return Purchases.getOfferings();
 }
@@ -44,28 +74,28 @@ export async function getOfferings(): Promise<PurchasesOfferings | null> {
 export async function purchasePackage(
   pkg: PurchasesPackage,
 ): Promise<CustomerInfo | null> {
-  if (!isNative() || !configured) return null;
+  if (!isNative() || configuredUserId === null) return null;
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
   return customerInfo;
 }
 
 export async function restorePurchases(): Promise<CustomerInfo | null> {
-  if (!isNative() || !configured) return null;
+  if (!isNative() || configuredUserId === null) return null;
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   const { customerInfo } = await Purchases.restorePurchases();
   return customerInfo;
 }
 
 export async function logOutRevenueCat(): Promise<void> {
-  if (!isNative() || !configured) return;
+  if (!isNative() || configuredUserId === null) return;
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   await Purchases.logOut();
-  configured = false;
+  configuredUserId = null;
 }
 
 export async function presentCodeRedemptionSheet(): Promise<void> {
-  if (!isNative() || !configured) return;
+  if (!isNative() || configuredUserId === null) return;
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   await Purchases.presentCodeRedemptionSheet();
 }
