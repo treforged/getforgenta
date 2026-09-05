@@ -17,26 +17,68 @@
 
 ---
 
-## ⇢ FIRST UP, 2026-09-04 — act on this before reading anything else
+## ⇢ FIRST UP — nothing is blocking. Take the next item from the resume queue.
 
-**Read `withPaymentOverrides` at `src/hooks/useCardProjection.ts:2420` and establish what a
-pinned payment MEANS — floor, cap, or replacement — then answer why pinning $400/mo on the
-demo fixture's highest-APR card leaves the payoff month at 16 while a $600 pin moves it.**
-
-Everything you need is already measured, in "OPEN, WITH NUMBERS" below. Do this first
-because it is the load-bearing unknown: the standing explanation for Tre's own payoff date
-refusing to move is "his cards are promo-heavy", and that explanation just failed on a
-fixture built specifically to test it. If the real cause is that the plan already allocates
-everything above the cash floor, then the product's strongest control does nothing for the
-users who most need it, and several sections of this file are wrong.
+The 2026-09-04 load-bearing unknown is CLOSED — see "RESOLVED 2026-09-05: a pin is a
+REPLACEMENT" below. It is the most important thing in this file for anyone touching the
+debt controls, so read that section before you touch `withPaymentOverrides`, the DebtPayoff
+override UI, or any copy that says "pay more".
 
 Multi-currency is PARKED, deliberately and cleanly: decided (per-currency subtotals) and
 scoped, NOT started, nothing half-edited. It needs a currency column on money-carrying rows
-plus a backfill — a schema change on live financial data — and it was not worth beginning
-at 85% of a 91% weekly cap. See the MULTI-CURRENCY section for the constraints already
-settled, so that slice does not re-argue them.
+plus a backfill — a schema change on live financial data. See the MULTI-CURRENCY section for
+the constraints already settled, so that slice does not re-argue them.
 
 ---
+
+## RESOLVED 2026-09-05 — a payment pin is a REPLACEMENT, and the promo cards were never the reason
+
+**The standing explanation — "his payoff date will not move because his cards are
+promo-heavy" — is WRONG and is struck. Do not repeat it.** Three facts replace it, each
+measured, on the demo fixture AND reproduced on the real capture. The regression test is
+`src/lib/__tests__/payment-pin-semantics.test.ts`.
+
+**1. A pin sets the card's EXACT total for that month.** Not a floor, not extra money.
+`paymentOverridesByMonth` (credit-card-engine.ts, param #21, JSDoc ~line 1090) clamps only at
+`>= 0` and at what the card owes, deducts the pin from the month's cash BEFORE the pools are
+sized, and excludes the card from normal allocation so the others rebalance around it. It may
+even be pinned BELOW the contract minimum. Measured on the demo fixture: the unpinned plan
+sent the 24.74% card $2,485 / $1,673 / $942 / $743…; a "$400 pin" made it pay exactly $400 —
+a CUT of $343 to $2,085 a month. **The previous session's test never pressed "pay more". It
+pressed "pay less" and read the result as "the control does nothing".**
+
+**2. A pin cannot add cash to debt, so it cannot move the date by paying more.** Total paid to
+cards over the horizon, demo fixture, 18 months: base **$19,785**, $400 pin **$19,428**, $600
+pin **$19,117**, $1,000 pin **$19,617**. Real capture, 24 months: base **$40,143**, and every
+pin between $400 and $1,200 on either card lands **$39,706–$40,416**. The total is set by
+income minus the cash floor. The plan already spends everything above the floor on debt, so
+there is no "more" to find — a pin only re-orders WHICH card receives it.
+
+**3. The highest-APR card is not the card that sets the payoff month.** Demo fixture: the
+24.74% card's revolving balance is **$0 at month 2** while `simRevolvingPayoffMonth` is **16** —
+the 16 comes entirely from the OTHER card. Real capture: payoff **24**, set by **Discover
+(16.6%, $10,440, clears month 23)**, while **Prime Visa (27.49%, $8,565) clears at month 16**.
+Under avalanche the lowest-APR card is paid LAST by construction, so it is the one that sets
+the date. **Paying more onto the highest-APR card cannot move a date that card does not set.**
+
+**Why the old measurements looked contradictory, resolved exactly.** "$400 pin → still 16,
+$600 pin → moves" was pinning months 0-11. A user pin at month 0 outranks the m0 floor pin
+(`mergeM0FloorPins`, useCardProjection.ts ~2350), so $400 at month 0 cut the month-0 payment
+from $2,485 to $400 and the balance ballooned to $7,963 by month 12 — landing back on 16 by
+the opposite route. Pinning months 1-12 instead: $400 → **14**, $600 → **14**, $1,000 → **15**.
+**Non-monotonic**, because a pin re-orders rather than adds.
+
+**⚠️ THE PRODUCT CONSEQUENCE, and it is a real one — routed to Sam for Tre.** On the real
+capture NO pin improves the payoff date: every value tried leaves it at 24 or pushes it to 25.
+Pinning Discover $1,200/mo clears Discover at month 10 instead of 23 and makes the OVERALL
+date WORSE (25), because Prime Visa then finishes at 24 instead of 16. A user who reaches for
+this control to "get out of debt faster" is reaching for a control that cannot do that. Either
+the UI must say what it does (re-order, not accelerate), or the app needs a real "pay extra"
+input that raises the debt total by lowering the cash floor. That is a product decision, not
+a bug fix.
+
+**What would actually move the date:** more cash into the plan (lower the cash floor, more
+income, less spend), not a different split across cards.
 
 ## RESOLVED 2026-09-03 — the "$799 divergence" was a replay artifact, and hunting it found THREE real bugs
 
@@ -317,34 +359,14 @@ function from inside the database with `net.http_post`, building the header from
 `revenue-push` was closed end to end this way: `{"pushed": 4, "conductor":
 {"ok": true, "lines": 4}}`.
 
-## OPEN, WITH NUMBERS — "paying more does not move the payoff date" is NOT the promo cards
+## CLOSED 2026-09-05 — "paying more does not move the payoff date"
 
-Attempted 2026-09-04 on the REBUILT fixture, which carries plain revolving balances
-precisely so the control has something to move. It still did not move, and the promo
-explanation does not survive contact:
+Answered in full, with numbers, in "RESOLVED 2026-09-05 — a payment pin is a REPLACEMENT"
+near the top of this file. Test: `src/lib/__tests__/payment-pin-semantics.test.ts`.
 
-    base                              simRevolvingPayoffMonth = 16 (forecast = 16)
-    pin d7 $400/mo x 12 months        simRevolvingPayoffMonth = 16   <- no change
-    ladder 150 / 250 / 400 / 600      ends STRICTLY below 16          <- something moves
-
-So a pin somewhere between $400 and $600 changes the date and $400 does not, on a
-fixture whose entire card debt is $6,482. The likely reason, unproven: **month 0 already
-sends $2,530 to the cards** (`month0.safeToPayTotal`, measured), so a $400 pin is BELOW
-the existing allocation, not above it — which makes "pay more" the wrong description of
-what the test pressed. Whether a pin is a floor, a cap or a replacement is unestablished.
-
-**DO NOT ship a test asserting this until the semantics are read.** One was written and
-deleted rather than committed, because its passes could not be explained and a green
-assertion nobody can explain is what this desk keeps getting caught by.
-
-Next session, in order:
-1. Read `withPaymentOverrides` at `src/hooks/useCardProjection.ts:2420` — what a pin MEANS.
-2. Get the real field shapes first. A probe read `perCardPayments[m].d7` and
-   `monthlyRevolvingBalances` and printed `undefined` for both, so it proved nothing
-   about whether the pin took effect. `runDemoCardProjection` (jsdom) is the way in.
-3. Then decide whether the ORIGINAL complaint — Tre's own payoff date refusing to move —
-   is the same cause. If it is, the promo-card explanation in the sections below is wrong
-   and should be struck rather than left standing.
+One correction this made to the record: the demo fixture is NOT free of promo balances —
+card `d7` carries a $2,417 balance transfer at 0% APR to 2027-05-11. It did not matter, but
+"the rebuilt fixture carries plain revolving balances" was inaccurate and is struck.
 
 ## DEMO FIXTURE REBUILT 2026-09-03 — a persona the app is FOR, and 12 filmable lines
 
@@ -1635,7 +1657,7 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-04 01:18 by handoff_hook. Everything below this heading is
+_Written 2026-09-04 01:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1655,14 +1677,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+7843868a docs(handoff): name the ONE thing a cold session does first, and park multi-currency
+758962ac docs(handoff): reach item 20 closed - the app read a row, and no IP reached the database
+d7150d40 docs(handoff): reach is exposed and granted - and containment is proven for the first time
 51320d1c docs(handoff): multi-currency is decided, and the blocker moved from the decision to the data
 fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards are not why
 6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
 91030ffe test(demo): fail if a real company name gets back into the synced feed
 774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
-27e24b88 [demo-fixture]: rebuild the persona so the demo is a person the app is FOR
-5bcf9d3f ci(ios): stop shipping to TestFlight on every push, and say when Apple is just rate-limiting
-9d13d13e docs(db): copy in Ellis's founder_page_views migration, verified against the live project
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
