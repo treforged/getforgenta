@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
+import { registerForPush, revokeCurrentPushToken } from '@/lib/push-registration';
+import { supabasePushStore, readLastPushToken } from '@/lib/push-store';
 import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
@@ -220,6 +222,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // whatever else that branch decides about navigation.
       if (session?.user?.id && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
+        // Push registration rides on the SAME condition, and for the same reason: a returning
+        // user fires INITIAL_SESSION, never SIGNED_IN, so registering only on the latter would
+        // collect tokens from first-time sign-ins and from nobody else. It also has to happen
+        // AFTER sign-in — a token with no user is a row we cannot address and a permission
+        // prompt the person has been given no reason for.
+        registerForPush(supabasePushStore).catch(() => {/* native no-op on web */});
       }
 
       if (event === 'SIGNED_IN') {
@@ -269,6 +277,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionStorage.setItem('forgenta:recovery_pending', '1');
       } else if (event === 'SIGNED_OUT') {
         logOutRevenueCat().catch(() => {/* native no-op on web */});
+        // Retire this device's token so the next person to sign in on this phone does not
+        // receive the previous one's notifications. Best effort and deliberately not awaited:
+        // a sign-out that failed because a token write failed would trap someone in an account
+        // they are trying to leave.
+        revokeCurrentPushToken(supabasePushStore, readLastPushToken())
+          .catch(() => {/* native no-op on web */});
         navigate('/auth');
       } else if (event === 'USER_UPDATED') {
         // Sync the updated email to Stripe so dunning/receipt emails stay current.
