@@ -31,6 +31,51 @@ the constraints already settled, so that slice does not re-argue them.
 
 ---
 
+## ⚠️ CORRECTIONS TO TODAY'S OWN RECORD — 2026-09-05, made the same day
+
+**A finding I published was scoped to the wrong data, and I am striking it rather than letting
+it stand.** I reported that "$1,195.88 of Tre's most expensive debt is treated as free money"
+because two cards had a null APR. Those cards — "Capital one SAVOR" and "Fairwinds Preffered
+Cash Back" — **belong to a different user.** The query behind it was not scoped to his
+`user_id`.
+
+**Tre's actual cards, five active, scoped by joining `auth.users` on his email:**
+
+    Robinhood Credit Card   $46.38      29.99%   rank 0   plaid-linked
+    Prime Visa              $8,711.21   27.49%   rank 1   plaid-linked
+    Discover it Card       $10,290.04   16.60%   rank 2   plaid-linked
+    Venture X                   $0.00   22.99%   rank 3   manual
+    Apple Card                  $0.00   22.99%   rank 4   manual
+    ------------------------------------------------------
+    total                  $19,047.63
+
+That total matches the outside analysis exactly. **There is no missing $6,480, no unranked-card
+problem in his data, and every one of his cards carries a real APR and a real rank.**
+
+**THE CODE DEFECT SURVIVES, and is worth fixing on its own merits.**
+`credit-card-engine.ts:471` does `const apr = Number(acct.apr) || 0`, so an UNKNOWN rate becomes
+ZERO — and under avalanche a 0% card sorts LAST. Any real user who leaves an APR blank has their
+most expensive debt paid last, silently, and is told nothing. That is the confident-zero this
+codebase refuses everywhere else. Not Tre's problem today; still a defect.
+
+**⚠️ A REAL SIGNED-UP USER IS CARRYING DEMO SEED DATA AS LIVE ACCOUNTS.** Found while chasing the
+above. Nine accounts with ids `de100001`…`de100009` — Chase Checking $2,800, Alliant Checking
+$1,000, Marcus HYS $5,800, Fidelity 401k $8,500, Roth IRA $4,200, Robinhood $2,000, Chase
+Sapphire $8,500, Discover It $4,200, Cash $300 — all inserted at the **identical microsecond**
+`2026-04-25 15:39:27.196925`. Machine-generated. Four are already inactive; **five are still
+active**. Nothing was touched: they are not Tre's rows.
+**The question worth answering is WHICH CODE PATH can write a `de1000xx` id into a production
+account row.** A person making financial decisions on seeded balances is a worse outcome than
+anything else fixed today, and whatever did it can do it again.
+
+**Also settled today, from Tre:** the Robinhood card is **NOT** to be demoted — *"it needs to be
+paid first, and on time in full"* — so `surplus_sort_order: 0` stays, and its due day is now the
+10th. And "is EU/Japan closed for Apple and Google too?" — **both, and it is one disclosure
+question wearing two store-specific forms**: Japan is a GOOGLE requirement (business operator's
+name, phone and physical address under the Specified Commercial Transactions Act) and the EU is
+an APPLE one (the DSA trader declaration, published on the product page in all 27 territories).
+Neither region can be served without the disclosure he has refused, on either store.
+
 ## 2026-09-05 — OVERDRIVE. Twelve things shipped, and three of them were live defects nobody knew about.
 
 Every item below is on `origin/main`, verified by CONTENTS, with its gate run. Detail is in the
@@ -1026,6 +1071,40 @@ fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards
 6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
 91030ffe test(demo): fail if a real company name gets back into the synced feed
 774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-05 03:42 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (5 file(s)):**
+
+```
+M .claude/settings.json
+ M supabase/.temp/cli-latest
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+```
+
+- **Recent commits:**
+
+```
+a24e48aa [debt]: one broken chart no longer blanks the whole /debt page
+6c1202d1 docs(handoff): record the overdrive session - three live defects, and the CREATE re-grant rule
+a682d752 [floor]: size a variable bill's buffer from its own history, not from a percentage
+93fd2819 [revenue]: a comped subscription is not a subscriber - count it separately, never as revenue
+23d5c9c0 [debt]: tapping a point on the Student Loans chart works on mobile
+724ee9f7 [ui]: roll four surfaces onto the btn vocabulary, and lift 73 labels to the text floor
+074311c6 [security]: stop an anonymous stranger reading the subscriber counts
+3d429927 [revenuecat]: configure the SDK for a RETURNING user, not only a fresh sign-in
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
