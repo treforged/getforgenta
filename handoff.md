@@ -45,6 +45,49 @@ Also learned, and worth keeping: `index.css:845` forces `font-size: 16px !import
 input, textarea and select (iOS zooms below that), so a font-size class on any select in this
 app is inert.
 
+## ⚠️ PUSH NOTIFICATIONS — APNs STILL DOES NOT WORK, AND EVERY CODE HYPOTHESIS IS EXHAUSTED.
+
+**Do not start here believing it is nearly done.** As of 2026-09-05 23:10Z: `push_sends` holds
+**ZERO rows across ALL users**, Tre has **no device token**, and his row reads
+`outcome timeout | attempts 46 | app_build 686 | detail permission=granted`.
+
+**WHAT IS PROVEN CORRECT — each read from the artifact, not inferred. Do not re-check these.**
+- `aps-environment => production` AND `get-task-allow => false` **in the exported IPA**, read with
+  `codesign -d --entitlements` (a CI step now asserts this every build and fails without it).
+- The provisioning profile carries `aps-environment` (a second CI step decodes and asserts it).
+- Permission is `granted` — MEASURED from `checkPermissions()`, not deduced from which branch ran.
+- `registrationError` **never fires**; the error text is captured now and is always null.
+- The listeners are awaited before `register()`, and a late token is saved rather than discarded.
+- The registration JS ships in the **WEB bundle**, not the binary — the app is a WebView on
+  getforgenta.com, so a fix reaches a phone on the next app open with **no TestFlight install**.
+
+**SIX FIXES SHIPPED TONIGHT, ALL REAL, NONE OF THEM THE CAUSE:** the missing `aps-environment`
+(`c1cff973`), `development` where a TestFlight build needs `production` (`8561f0d0`), the
+`register()`-races-its-own-listeners bug (`ec67489f`), the late token being thrown away
+(`8975c23f`), build attribution and the provider error text (`fce36189`), and a `pending` row plus
+retry-on-resume (`529ae594`).
+
+**⚠️ THE NEXT STEP IS ENVIRONMENTAL, NOT CODE.** APNs uses port 5223 and some networks block it,
+which produces exactly this signature: `register()` accepted, no token, **no error**. The cheap
+test is wifi OFF, cellular on, force-quit and reopen. It had not been run when this was written.
+
+**⚠️ TWO CORRECTIONS TO MY OWN REASONING, so they are not repeated:**
+1. I claimed the 30s wait window "recorded nothing" and sent us down a wrong branch. **Rows WERE
+   being written** — attempts went 41 → 46 at 22:47:35Z. The read that looked like silence was
+   taken between attempts. I built a theory on a stale timestamp.
+2. `INITIAL_SESSION` is NOT missing from the registration path (`AuthContext.tsx:248` handles both
+   events), and the "iOS resumed the app so sign-in never re-ran" theory is dead — Tre swipes the
+   app out of the switcher, so those were real cold starts.
+
+**WHAT `pending` IS FOR.** Written the instant `register()` is called, so the three states are
+distinguishable: **no row** = the handler never ran; **`pending`** = it ran and the app closed
+before the provider answered; **anything else** = it ran and resolved. It is instrumentation, not
+a fix — that distinction was previously inferable only, and inference is what cost this evening.
+
+**Also unbuilt and worth knowing: there is no Trophy Case.** All five `Trophy` references are a
+lucide ICON inside `LearnCard`. Tre earned `lesson:what-a-cash-floor-is` and asked where
+achievements live; there is no page and no route. Unbuilt slice, not an unwired one.
+
 ## ⇢ FIRST UP — RECONCILE A PLANNED TRANSACTION WITH ITS REAL PLAID TWIN.
 
 **Tre, 2026-09-05, verbatim, and it is the actual ask behind two mis-scoped slices:**
@@ -1096,7 +1139,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 12:50 by handoff_hook. Everything below this heading is
+_Written 2026-09-05 19:08 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1116,14 +1159,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
-42acba3e [push]: prove the FCM credentials without sending anything — ?check=1
-033a8024 [push]: name the nine reasons a device has no token, and stop the switch claiming what it did not do
-c1cff973 [ios]: add the aps-environment entitlement — iOS push could never have worked without it
-af0e1552 [push]: schedule the sender — it had no caller at all, and it can currently reach nobody
-0982aa18 [mobile]: rule 8 — Back puts you where you were, and the fifth reason it never worked
-478c9954 docs(handoff): the push sender is built too, and a caller-gate sweep of what actually remains
-c0bd1880 docs: the record lies in both directions — grep before you BUILD, and close the queue too
-18340a12 docs(handoff): close resume-queue item 5, which still read "FIRST UP, NOT started" after shipping
+529ae594 [push]: an attempt is visible while it is still an attempt — my 30s window recorded nothing
+8975c23f [push]: a token that arrives late is SAVED, not thrown away — and this file caused that
+3fe5bd08 [ios]: print entitlement VALUES from the shipped binary, not just the keys
+9cfb901c [ios]: read the entitlements out of the SHIPPED binary, and record what iOS actually said
+ec67489f [push]: register() was racing its own listeners — the bug behind 31 timeouts
+fce36189 [push]: record WHICH BUILD produced a registration outcome — 29 measurements could not say
+8561f0d0 [ios]: aps-environment was `development` — my error — and the build now proves the profile carries push
+deac9832 [settings]: the toggle knob stays in its track, notifications move to the top, and the section collapses
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
