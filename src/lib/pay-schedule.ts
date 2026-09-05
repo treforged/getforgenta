@@ -4,7 +4,7 @@
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth, isDebitStillOutstanding } from './sync-cutoff';
 import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
-import { getBiweeklyDatesInMonth, occurrenceSurvivesEndDate, toLocalDateStr, trailingEarnedPayDate } from './scheduling';
+import { getBiweeklyDatesInMonth, getCustomIntervalDatesInMonth, occurrenceSurvivesEndDate, ruleCustomInterval, toLocalDateStr, trailingEarnedPayDate } from './scheduling';
 // The ledger's real-overrides-projected rule asks the bank matcher's own amount and date questions,
 // rather than growing a second tolerance here that could drift from it. Leaf module, no cycle:
 // `transaction-matching.ts` deliberately does not import this file.
@@ -1245,6 +1245,7 @@ export function getSafeToPayByDueDate(
  */
 export function getRuleOccurrenceDatesInMonth(
   rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date' | 'created_at' | 'end_date'>
+    & { interval_unit?: string | null; interval_count?: number | null }
     // Optional, and omitting it opts the caller out of the trailing final paycheck — see
     // `EndDatedRule` in scheduling.ts for which call sites do that and why.
     & Partial<Pick<RuleRow, 'rule_type'>>,
@@ -1307,6 +1308,16 @@ export function getRuleOccurrenceDatesInMonth(
   // right, having already borrowed `scheduling.ts`'s helper. A no-op in US Eastern, where every
   // existing date-pinned test runs, which is exactly why it survived this long.
   // `transaction-matching.ts`'s `daysBetween` carries the same warning about the same trap.
+  // A custom interval (interval_unit + interval_count) governs outright when the rule carries one,
+  // and reaches the same shared `notPastEnd` / `notBeforeStart` gates every branch below uses. Null
+  // on every existing rule, so the branches below stay byte-identical for all of them.
+  const customInterval = ruleCustomInterval(rule);
+  if (customInterval) {
+    return getCustomIntervalDatesInMonth(rule, customInterval, year, month)
+      .map(toLocalDateStr)
+      .filter(iso => notPastEnd(iso) && notBeforeStart(iso));
+  }
+
   if (rule.frequency === 'biweekly') {
     if (!rule.end_date) return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
     // The grid is generated UNCLAMPED (`end_date: null`) because the trailing cheque is by

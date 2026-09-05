@@ -99,9 +99,14 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
           )}
           {fields.map(f => (
             <div key={f.key}>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider">{f.label}</label>
+              {/* `htmlFor`/`id` rather than a bare <label>. A label with no control attached is a
+                  label a screen reader cannot associate with anything, and tapping it does not
+                  focus the field — which on a phone form is a real miss, not a lint nicety. The
+                  checkbox branch below wraps its input instead, which already associates them. */}
+              <label htmlFor={`field-${f.key}`} className="text-[10px] text-muted-foreground uppercase tracking-wider">{f.label}</label>
               {f.type === 'select' ? (
                 <select
+                  id={`field-${f.key}`}
                   value={values[f.key] || ''}
                   onChange={e => onChange(f.key, e.target.value)}
                   disabled={f.disabled}
@@ -146,6 +151,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                 </div>
               ) : (
                 <input
+                  id={`field-${f.key}`}
                   type={f.type}
                   step={f.step}
                   value={values[f.key] || ''}

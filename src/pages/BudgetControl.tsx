@@ -31,17 +31,66 @@ import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
 import { resolveCashFloor } from '@/lib/cash-floor';
+import { ruleCustomInterval } from '@/lib/scheduling';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
   due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '', end_date: '',
   tax_rate: '',
+  // Blank = repeat on `frequency` exactly as before. Set together, they are the user-chosen
+  // interval (Tre, 2026-09-05: every other month, every three weeks, every five weeks).
+  interval_count: '', interval_unit: '',
 };
+
+const INTERVAL_UNIT_OPTIONS = [
+  { value: '', label: 'Use the frequency above' },
+  { value: 'day', label: 'Days' },
+  { value: 'week', label: 'Weeks' },
+  { value: 'month', label: 'Months' },
+  { value: 'year', label: 'Years' },
+];
+
+/** The typed "repeat every" box as a number the database will accept, or null for blank/invalid.
+ * Bounds mirror the CHECK constraint exactly (1-60): an out-of-range value here is a value that
+ * would drive the occurrence walk, and one the write would reject anyway. */
+export function parseCustomIntervalCount(raw: string): number | null {
+  const t = raw.trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isInteger(n) && n >= 1 && n <= 60 ? n : null;
+}
+
+/** The caption under the "Repeat every" box, saying in words what the rule will actually do —
+ * or naming what is still missing, because a half-filled pair is the one state that saves nothing
+ * and the user cannot see why from two boxes alone. */
+export function customIntervalFormHint(rawCount: string, rawUnit: string): string {
+  const count = parseCustomIntervalCount(rawCount);
+  const unit = rawUnit.trim();
+  if (rawCount.trim() === '' && unit === '') return 'Leave blank to repeat on the frequency above';
+  if (count === null && rawCount.trim() !== '') return 'Enter a whole number from 1 to 60';
+  if (count !== null && unit === '') return 'Pick a unit as well — days, weeks, months or years';
+  if (count === null && unit !== '') return 'Enter how many, as well as the unit';
+  return customIntervalLabel({ interval_count: count, interval_unit: unit }) ?? '';
+}
+
+/** "Every 3 weeks" / "Every other month", or null when the rule just uses its frequency.
+ * Written out in words on the rule row, because a cadence nobody can see on the list is a
+ * cadence the user has to open the form to check. */
+export function customIntervalLabel(
+  rule: { interval_unit?: string | null; interval_count?: number | null },
+): string | null {
+  const interval = ruleCustomInterval(rule);
+  if (!interval) return null;
+  const unit = interval.count === 1 ? interval.unit : `${interval.unit}s`;
+  if (interval.count === 2 && interval.unit === 'month') return 'Every other month';
+  return interval.count === 1 ? `Every ${unit}` : `Every ${interval.count} ${unit}`;
+}
 
 // Common shape across real recurring_rules rows and the synthetic subscription/debt-sync
 // "rule" entries (subsAsRules/debtPaymentRules) merged alongside them in fixedRules/debtRules.
 type BudgetRule = {
   id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
+  interval_unit?: string | null; interval_count?: number | null;
   category: string; due_day?: number | null; due_month?: number | null; start_date?: string | null;
   end_date?: string | null; cost_type?: string | null; isSub?: boolean; isDebtSync?: boolean;
   payment_source?: string | null; deposit_account?: string | null; notes?: string | null;
@@ -675,6 +724,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     if (isSyntheticRule(r)) return;
     setForm({
       name: r.name, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
+      interval_count: r.interval_count != null ? String(r.interval_count) : '',
+      interval_unit: r.interval_unit || '',
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
       start_date: r.start_date || '', end_date: r.end_date || '',
@@ -696,6 +747,20 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       toast.error('End Date cannot be before Start Date');
       return;
     }
+    // The custom interval is BOTH FIELDS OR NEITHER, and the database says so too. A count with no
+    // unit is not a schedule and a unit with no count is ambiguous between "one" and "unset", so
+    // this refuses the half-filled form here rather than letting the write fail with a constraint
+    // error the user cannot act on.
+    const intervalCount = parseCustomIntervalCount(form.interval_count);
+    const intervalUnit = form.interval_unit.trim() || null;
+    if (form.interval_count.trim() !== '' && intervalCount === null) {
+      toast.error('Repeat every must be a whole number from 1 to 60');
+      return;
+    }
+    if ((intervalCount === null) !== (intervalUnit === null)) {
+      toast.error('Set both "Repeat every" and its unit, or leave both blank');
+      return;
+    }
     const { clean: cleanRuleName, flagged: ruleNameFlagged } = filterProfanity(form.name.trim().slice(0, LIMITS.ruleName));
     const { clean: cleanRuleNotes, flagged: ruleNotesFlagged } = filterProfanity(form.notes.trim().slice(0, LIMITS.ruleNotes));
     if (ruleNameFlagged || ruleNotesFlagged) toast.warning('Some content contained inappropriate language and was cleaned.');
@@ -708,6 +773,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       tax_rate: form.rule_type === 'income' && form.tax_rate.trim() !== '' && !isNaN(parsedTaxRate) ? parsedTaxRate : null,
+      interval_count: intervalCount,
+      interval_unit: intervalUnit,
     };
     if (editId) {
       // 97.3 — editing a rule moves the projection of every goal it funds, and the stamped
@@ -756,10 +823,24 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     const fields: Field[] = [
       { key: 'name', label: 'Name', type: 'text', placeholder: 'e.g., Rent, Paycheck', required: true },
       { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01', required: true,
-        ...(editId === paycheckRuleId && weeklyGross > 0 ? { disabled: true, hint: 'Controlled by gross income in Income & Tax settings' } : {}) },
+        // ⚠️ `editId !== null` IS LOad-BEARING. `paycheckRuleId` starts as null and stays null until a
+        // paycheck rule is identified, and `editId` is null whenever the form is ADDING rather than
+        // editing — so a bare `editId === paycheckRuleId` was `null === null`, TRUE, and locked the
+        // Amount box read-only on every new rule for anyone whose gross income is set and whose
+        // paycheck rule is not. The box could not be typed into at all, with a hint pointing at a
+        // settings page that had nothing to do with it. Found by pressing the form rather than
+        // reading it.
+        ...(editId !== null && editId === paycheckRuleId && weeklyGross > 0 ? { disabled: true, hint: 'Controlled by gross income in Income & Tax settings' } : {}) },
       { key: 'rule_type', label: 'Type', type: 'select', options: RULE_TYPE_OPTIONS },
       { key: 'frequency', label: 'Frequency', type: 'select', options: [{ value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: 'Biweekly' }, { value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' }] },
       { key: 'due_day', label: form.frequency === 'weekly' || form.frequency === 'biweekly' ? 'Day of Week (0=Sun, 5=Fri)' : 'Due Day of Month', type: 'number' },
+      // The user-chosen interval. Left blank — which is how every existing rule and every new one
+      // starts — the frequency above governs and nothing about the rule changes. Filled in, these
+      // two express "every other month", "every three weeks", "every five weeks" and everything
+      // else of that shape WITHOUT the frequency list above growing an entry per cadence.
+      { key: 'interval_count', label: 'Repeat every (optional)', type: 'number', placeholder: '1', step: '1',
+        hint: customIntervalFormHint(form.interval_count, form.interval_unit) },
+      { key: 'interval_unit', label: 'Interval unit', type: 'select', options: INTERVAL_UNIT_OPTIONS },
     ];
     if (form.frequency === 'yearly') {
       fields.push({ key: 'due_month', label: 'Due Month (1-12)', type: 'number' });
@@ -801,12 +882,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     return fields;
     // `form.start_date`, `form.due_day` and `editCreatedAt` are inputs to the biweekly hint above —
     // omit them and the caption goes stale the moment the user types.
-  }, [form.frequency, form.rule_type, form.start_date, form.due_day, editCreatedAt, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
+  }, [form.frequency, form.rule_type, form.start_date, form.due_day, form.interval_count, form.interval_unit, editCreatedAt, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
 
   const handleDuplicate = (r: BudgetRule) => {
     if (isSyntheticRule(r)) return;
     setForm({
       name: `${r.name} (Copy)`, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
+      interval_count: r.interval_count != null ? String(r.interval_count) : '',
+      interval_unit: r.interval_unit || '',
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
       start_date: r.start_date || '', end_date: r.end_date || '',
@@ -868,7 +951,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     </div>
 
     <p className="mt-1 text-xs sm:text-sm text-muted-foreground wrap-break-word">
-      {freqLabel(r.frequency)}
+      {customIntervalLabel(r) ?? freqLabel(r.frequency)}
       {r.due_day != null ? ` · Day ${r.due_day}` : ''}
       {r.due_month ? ` / Month ${r.due_month}` : ''}
       {r.start_date ? ` · Starts ${r.start_date}` : ''}

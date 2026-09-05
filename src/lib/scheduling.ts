@@ -202,6 +202,113 @@ export function getBiweeklyDatesInMonth(
   return dates;
 }
 
+/* ─── Custom repeat intervals ──────────────────────────────────────────────────────────────────
+ *
+ * Tre, 2026-09-05: a planned item must repeat every other month, every three weeks, every five
+ * weeks — not only on the closed `frequency` vocabulary.
+ *
+ * TWO COLUMNS, NOT MORE ENUM VALUES. `interval_unit` + `interval_count` express every one of those
+ * and every one nobody has asked for yet, without any of the twenty-odd files that branch on
+ * `frequency` growing a new case. See migration 20260905_recurring_rules_custom_interval.sql.
+ *
+ * ⚠️ NULL MEANS NOTHING CHANGES. Every rule in the database carries nulls here, so
+ * `ruleCustomInterval` returns null for all of them and every generator below takes the byte-
+ * identical path it took yesterday. That is deliberate and it is what the round-trip test on
+ * Tre's own Supplements rule (monthly, due day 28) pins.
+ */
+
+export type CustomInterval = { unit: 'day' | 'week' | 'month' | 'year'; count: number };
+
+const INTERVAL_UNITS = ['day', 'week', 'month', 'year'] as const;
+
+/** The rule's custom interval, or null when it has none and `frequency` still governs.
+ *
+ * BOTH COLUMNS OR NEITHER. A count with no unit is not a schedule and a unit with no count is
+ * ambiguous between "one" and "unset"; the database CHECK refuses to hold either, and this refuses
+ * to interpret one, so a legacy or hand-edited half-row falls back to `frequency` rather than
+ * silently inventing a cadence. The bounds mirror the CHECK exactly (1..60): an out-of-range value
+ * reaching a walking loop is an out-of-range value driving a loop. */
+export function ruleCustomInterval(
+  rule: { interval_unit?: string | null; interval_count?: number | null },
+): CustomInterval | null {
+  const unit = rule.interval_unit;
+  const count = rule.interval_count;
+  if (unit == null || count == null) return null;
+  if (!(INTERVAL_UNITS as readonly string[]).includes(unit)) return null;
+  if (!Number.isInteger(count) || count < 1 || count > 60) return null;
+  return { unit: unit as CustomInterval['unit'], count };
+}
+
+/** The date every custom-interval schedule is phased from, at local noon, or null when the rule
+ * carries nothing to phase on. Noon, not midnight, for the reason this file documents everywhere
+ * else: `new Date('2026-07-01')` is the evening of 30 June at any negative offset. */
+function customIntervalAnchor(
+  rule: { start_date?: string | null; created_at?: string | null },
+): Date | null {
+  const raw = rule.start_date ?? rule.created_at ?? null;
+  if (!raw) return null;
+  const d = new Date(`${raw.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const noonOn = (y: number, m: number, day: number) => new Date(y, m, day, 12, 0, 0, 0);
+
+/**
+ * Every occurrence of a custom-interval rule inside one calendar month, as local Dates at noon.
+ *
+ * ONE DEFINITION, THREE CALLERS. `generateScheduledEvents`, `countRuleOccurrencesInMonth` and
+ * `getRuleOccurrenceDatesInMonth` all come through here rather than each walking its own grid.
+ * This file's history is a list of bugs where two generators disagreed by a day or a cycle — the
+ * biweekly re-phasing, the day-31 month overflow, the UTC-formatted local date. A single source
+ * cannot drift from itself.
+ *
+ * DAY / WEEK phase on the anchor, exactly as biweekly phases on `start_date`.
+ * MONTH / YEAR land on `due_day`, CLAMPED to the month's length for the same reason the monthly
+ * generator clamps it: a day-31 rule must charge on 28 February, not overflow into March and then
+ * stay there. A month that is not on the interval grid produces nothing at all.
+ *
+ * `start_date` and `end_date` are NOT applied here — the callers apply their own shared gates
+ * (`notBeforeStart` / `occurrenceSurvivesEndDate`), so the arrears rules keep working unchanged.
+ */
+export function getCustomIntervalDatesInMonth(
+  rule: { due_day?: number | null; start_date?: string | null; created_at?: string | null },
+  interval: CustomInterval,
+  year: number,
+  month: number,
+): Date[] {
+  const anchor = customIntervalAnchor(rule);
+  if (!anchor) return [];
+  const monthStart = noonOn(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const monthEnd = noonOn(year, month, lastDay);
+
+  if (interval.unit === 'month' || interval.unit === 'year') {
+    const stepMonths = interval.count * (interval.unit === 'year' ? 12 : 1);
+    const anchorIdx = anchor.getFullYear() * 12 + anchor.getMonth();
+    const targetIdx = year * 12 + month;
+    const delta = targetIdx - anchorIdx;
+    if (delta < 0 || delta % stepMonths !== 0) return [];
+    const dueDay = rule.due_day || anchor.getDate();
+    return [noonOn(year, month, Math.min(dueDay, lastDay))];
+  }
+
+  const stepDays = interval.count * (interval.unit === 'week' ? 7 : 1);
+  const d = new Date(anchor);
+  if (d < monthStart) {
+    // Jump whole cycles then close the remainder — the same arithmetic the biweekly grid uses,
+    // and for the same reason: day-differencing noon-anchored dates never lands off-phase.
+    const whole = Math.floor(Math.round((monthStart.getTime() - d.getTime()) / DAY_MS) / stepDays);
+    d.setDate(d.getDate() + whole * stepDays);
+    while (d < monthStart) d.setDate(d.getDate() + stepDays);
+  }
+  const dates: Date[] = [];
+  while (d <= monthEnd) {
+    dates.push(new Date(d));
+    d.setDate(d.getDate() + stepDays);
+  }
+  return dates;
+}
+
 /** The rule fields the end-date/arrears rules read. Structural, so every caller's row satisfies it.
  *
  * ⚠️ `rule_type` IS OPTIONAL, AND OMITTING IT OPTS OUT OF THE TRAILING PAYCHECK. A caller that does
@@ -343,7 +450,30 @@ export function generateScheduledEvents(
         ? accounts.find(a => a.id === rule.payment_source)?.name
         : undefined;
 
-    if (rule.frequency === 'weekly') {
+    const customInterval = ruleCustomInterval(rule);
+    if (customInterval) {
+      // Walked MONTH BY MONTH through the same per-month function the other two generators call,
+      // rather than stepping a cursor of its own. That is what makes the timeline and the per-month
+      // count agree by construction instead of by careful copying — this file's history is a list
+      // of two generators drifting apart by a day or a cycle.
+      const windowStart = new Date(Math.max(from.getTime(), startDate.getTime()));
+      const cursor = new Date(windowStart.getFullYear(), windowStart.getMonth(), 1);
+      while (cursor <= effectiveEnd) {
+        for (const d of getCustomIntervalDatesInMonth(rule, customInterval, cursor.getFullYear(), cursor.getMonth())) {
+          if (d < windowStart || d > effectiveEnd) continue;
+          if (!occurrenceSurvivesEndDate(rule, toLocalDateStr(d))) continue;
+          events.push({
+            date: toLocalDateStr(d),
+            name: rule.name,
+            amount: Number(rule.amount),
+            type: rule.rule_type as ScheduledEvent['type'],
+            source: accountName,
+            ruleId: rule.id,
+          });
+        }
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else if (rule.frequency === 'weekly') {
       const dayOfWeek = rule.due_day ?? 5;
       const dates = getNextWeekdays(dayOfWeek, months * 5, new Date(Math.max(from.getTime(), startDate.getTime())));
       for (const d of dates) {
@@ -475,6 +605,7 @@ export function countRuleOccurrencesInMonth(
     frequency: string; due_day?: number | null;
     start_date?: string | null; end_date?: string | null; created_at?: string | null;
     rule_type?: string | null;
+    interval_unit?: string | null; interval_count?: number | null;
   },
   year: number,
   month: number,
@@ -490,6 +621,16 @@ export function countRuleOccurrencesInMonth(
     const trailing = trailingEarnedPayDate(rule, today);
     return trailing != null
       && trailing >= toLocalDateStr(monthStart) && trailing <= toLocalDateStr(monthEnd) ? 1 : 0;
+  }
+  // A custom interval answers this outright and never reaches the frequency branches: it is the
+  // only thing that knows a month is OFF the grid entirely (an every-other-month bill contributes
+  // nothing in its off months, where `frequency === 'monthly'` would return a flat 1).
+  const customInterval = ruleCustomInterval(rule);
+  if (customInterval) {
+    return getCustomIntervalDatesInMonth(rule, customInterval, year, month)
+      .filter(d => occurrenceSurvivesEndDate(rule, toLocalDateStr(d), today))
+      .filter(d => !rule.start_date || toLocalDateStr(d) >= rule.start_date.slice(0, 10))
+      .length;
   }
   if (rule.frequency === 'monthly') return 1;
   if (rule.frequency === 'semi_monthly') return 2;

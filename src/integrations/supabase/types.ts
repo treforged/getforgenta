@@ -1851,6 +1851,8 @@ export type Database = {
           end_date: string | null
           frequency: string
           id: string
+          interval_count: number | null
+          interval_unit: string | null
           name: string
           notes: string | null
           payment_source: string | null
@@ -1872,6 +1874,8 @@ export type Database = {
           end_date?: string | null
           frequency?: string
           id?: string
+          interval_count?: number | null
+          interval_unit?: string | null
           name: string
           notes?: string | null
           payment_source?: string | null
@@ -1893,6 +1897,8 @@ export type Database = {
           end_date?: string | null
           frequency?: string
           id?: string
+          interval_count?: number | null
+          interval_unit?: string | null
           name?: string
           notes?: string | null
           payment_source?: string | null
