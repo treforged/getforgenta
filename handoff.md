@@ -853,8 +853,34 @@ downloaded, installed or run.
 - **REJECTED on purpose:** rule 11, "update immediately then sync". Right for a like, wrong
   for money — an optimistic balance that fails to write shows a false number. Do not "fix"
   the current behaviour.
-- Still open and small: rule 8 (scroll restoration, worth it for the Transactions ledger)
-  and rule 14 (sheets do not dismiss on swipe-down; they DO on backdrop and X).
+- Still open: rule 14 (sheets do not dismiss on swipe-down; they DO on backdrop and X).
+
+### ⚠️ RULE 8, SCROLL RESTORATION — ATTEMPTED AND DELIBERATELY NOT SHIPPED. Read before retrying.
+Written, 8 tests green, **and it did not work in the browser three times running.** Reverted
+rather than pushed, because a feature nobody has seen work is the thing this desk keeps
+finding in other people's code. The WIP is at
+`…/scratchpad/scroll-restoration-wip/` (session 94435eb0); it is a starting point, NOT a
+working thing.
+
+**What is already established, so nobody re-derives it:**
+- ✅ The scroller is `#scroll-main` (`DashboardLayout`), NOT the window. `main` carries
+  `overflow-y-auto`, so `window.scrollY` is permanently 0.
+- ✅ Navigation type detection WORKS. Verified in the console: REPLACE on landing, PUSH on a
+  tap through, **POP on `history.back()`** — restore only on POP is correct and it fires.
+- ✅ **`scrollTop` CLAMPS SILENTLY.** Assign 400 to a container still 600px tall because its
+  data has not arrived and you get 0, no error. The Dashboard only reaches `scrollHeight`
+  2517 once its queries resolve, so restoring after N frames is wrong — wait for the
+  CONDITION (`scrollHeight - clientHeight >= saved`) with a deadline.
+- ✅ **A PROGRAMMATIC `scrollTop` ASSIGNMENT FIRES NO `scroll` EVENT.** Measured: 0 events for
+  an assignment the element accepted and read back as 400. So a saved offset tracked from a
+  scroll listener misses every non-gesture move. Read `el.scrollTop` in the effect CLEANUP
+  instead — no listener, nothing to miss.
+- ❌ **STILL UNEXPLAINED:** with all of the above fixed, the offset still comes back 0 after a
+  POP. Next step is to log inside the cleanup and confirm whether `el` there is still the
+  mounted scroller, and whether `DashboardLayout` remounts across the navigation.
+- ⚠️ **The jsdom harness cannot see any of this** — `scrollHeight`/`clientHeight` are 0 and
+  `scrollTop` does not clamp, so tests pass against all four failures above. The WIP test file
+  models height and clamping deliberately; keep that.
 
 ### 7. Housekeeping that is now DONE — do not redo
 - ✅ The `handoff_hook` auto-snapshot bug is FIXED. It was appending a block per run:
@@ -907,7 +933,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 07:09 by handoff_hook. Everything below this heading is
+_Written 2026-09-05 07:37 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -926,14 +952,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+8d6d335e docs(handoff): the reel audited and item 10 given a floor to stand on
+b8628837 [mobile]: the reel's UX rules, audited — one built, one real defect named, one rejected
+f21d4d00 [money]: the currency picker now changes the numbers, which it never has
+4b8e0bca docs(handoff): items 6, 17 and the OG cohort closed out, with what was NOT verified said plainly
+30297595 [ui]: Budget Control's Add actions get a tap target, and keep the look they had
+51ccaa1d [ui]: BankActivity joins the btn vocabulary — 18px controls become 32px, and I watched it render
+e9c4bd8c [og]: an OG seat now requires real money, and the trigger wakes up to notice
 0833a184 docs(handoff): onboarding and the review prompt were already shipped - say so before somebody rebuilds them
-821dc985 [onboarding]: where people STOP, because "conversion is the metric" needs a number to be one
-424df7ef docs(handoff): the tap-target problem measured in a real browser, and my own wrong number corrected
-4d3ddfa4 docs(handoff): the queue for the next session, and the snapshot bug that was growing it without bound
-8e631589 docs(og-cohort): a hole is worth what the NEXT feature makes it worth
-3792ecbe [premium]: the button that claims the streak reward — and it asks, it does not decide
-e9e50b44 [premium]: a 30-day streak grants 30 days of Premium — server-counted, server-clocked, and it ends
-a5baac3a [security]: a streak cannot be backdated into existence — the clock belongs to the server
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
