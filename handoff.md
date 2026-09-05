@@ -45,13 +45,78 @@ Also learned, and worth keeping: `index.css:845` forces `font-size: 16px !import
 input, textarea and select (iOS zooms below that), so a font-size class on any select in this
 app is inert.
 
-## ⇢ FIRST UP — rule 8, scroll restoration, with four measured constraints already established
-— see the rule-8 section below. Start from those, not from zero.
+## ⇢ FIRST UP — RECONCILE A PLANNED TRANSACTION WITH ITS REAL PLAID TWIN.
 
-⚠️ **A CONCURRENT SESSION HELD THIS AT 2026-09-05 ~08:00 ET** (`useScrollRestoration.ts`/`.test.tsx`,
-`MobileNav.tabToTop.test.tsx`, `docs/mobile-ux-rules-audit.md`), and Sam's direction to it was to
-REVERT rule 8 rather than keep patching it. Check `git log` on those four paths before starting:
-if the revert landed, this item is closed and the next one is Arabic/RTL above.
+**Tre, 2026-09-05, verbatim, and it is the actual ask behind two mis-scoped slices:**
+> *"the transaction should auto pull from plaid so I wait for it to ask to categorize it. sometimes
+> i will add a transaction that day if its unrelated to a auto move, that way i can already plan
+> ahead. then it should merge when the real transaction shows."*
+
+**⚠️ HE IS NOT DOUBLE-COUNTING. Checked, and the number that said he was is a FALSE ALARM.**
+A ±1-cent, ±5-day join over his 641 synced rows produced **96 pairs, 63 of his 83 manual rows,
+$7,282.14** — and 63 of 83 was the tell. `synced_transactions` **never enters the cash math**:
+`useForecastEngineInputs.ts:90` feeds them only to `buildAutoMatchedOccurrences`, and
+`matched-occurrence-display.ts:166` says so outright. A manual row separately retires the rule
+projection it answers (`overridesGeneratedOccurrence`, `mergeWithGeneratedTransactions` PASS 2).
+Do not re-derive this and do not re-report the $7,282.
+
+**THE REAL GAP, and it is an accuracy one:** nothing merges his planned row with the real one, so
+**his typed figure stands forever and the bank's never replaces it.** He types $50, the charge is
+$52.30, the ledger keeps $50 and nothing tells him. That is the silently-wrong number this repo
+refuses everywhere else — the merge exists to CORRECT THE AMOUNT AND DATE, not to tidy a list.
+
+**BUILD IT AS A SECOND CALLER, NOT A SECOND MATCHER.** `transaction-matching.ts` already has the
+hard half — `amountConfidence` (exact/strong tolerances), `DATE_WINDOW_DAYS = 5`,
+`normalizePaymentSource`, `ruleChargeAccountId`. Its `MatchableRule` aims it at RECURRING RULES.
+**Widen the target to manual `transactions`; cloning the logic guarantees drift.**
+
+**Design, decided (Sam, 2026-09-05) — do not re-argue:**
+- **Propose, never merge silently.** A wrong auto-merge HIDES a real transaction, which is worse
+  than two rows a person can reconcile themselves.
+- **Show BOTH figures and say which wins** — his, the bank's, and that the bank's is about to.
+- **In the categorize prompt he already waits for**, not a new reconciliation inbox.
+- An unmatched manual row stays visible and stays his.
+- ⚠️ **The FALSE-merge test matters more than the true one:** two genuinely different transactions
+  of the same amount on the same day must NOT merge. That failure loses money from view.
+
+## ✅ CLOSED — lump-sum transfers. Already built, and his constraint settled with a number.
+`9f72c935` (test only; committed LOCALLY, unpushed — see the `src` hold below).
+- **`lump_sum_transfers` is an ABANDONED DUPLICATE** with 0 rows. The live mechanism is
+  `savings_goals.lump_sum_payments`, wired end to end: written `SavingsGoals.tsx:733`, read
+  `forecast-engine.ts:797`, mirrored `useCardProjection.ts:920`, rendered
+  `MonthlyBreakdownTable.tsx:183-185`, exported `forecast-export.ts:249-251`. **Two of us reasoned
+  from a row count on the wrong table and nearly rebuilt a working feature on top of itself.**
+- **Measured:** auto-extra OFF, a lump moves cash by exactly 500. Auto-extra ON, it moves cash by
+  **ZERO** and auto-extra to that goal drops 1065.16 → 565.16. **A substitution, not a
+  double-count.** His constraint is unnecessary for correctness.
+- **KEEP IT ANYWAY, for a different reason:** with auto-extra on the control changes nothing
+  visible, which is the lying-control shape. Disable it with auto-extra ON, visible and saying why.
+  **He was right, for a reason he did not have — tell him, or he keeps a wrong model of his own
+  forecast.** NOT BUILT YET; only the test is.
+
+## ⚠️ `src/**` COMMITS ARE ON HOLD (Sam, 2026-09-05) until Tre's APNs test lands.
+Non-`src` work (migrations, docs, handoff) ships normally. **`9f72c935` is committed and NOT
+pushed.** The hold exists because VERSION is now 6.6.0 and `android-build.yml` deploys to **Google
+Play production at a 10% staged rollout auto-promoting after 24 hours** on any `src/**` push —
+shipping the build that changes the permission flow before the first real-device evidence exists.
+
+## 📱 TESTFLIGHT 6.6, BUILD 676 — uploaded, waiting on Tre's iOS test.
+Install, Settings → Notifications → "Alerts about your money" ON, accept the iOS prompt.
+**If it works he sees NOTHING; if it fails he now gets a line under the switch saying why.**
+Then fire ONE real delivery and WATCH it — the first test APNs has ever had.
+⚠️ **Uploaded ≠ processed.** `altool` succeeded; Apple's processing is async and there are no App
+Store Connect credentials locally, only in GitHub. Do not claim it is installable unseen.
+
+### ⚠️ THREE THINGS THAT COST A RELEASE TODAY — read before shipping a build
+1. **A green `ios-build` run does NOT mean a build shipped.** `Upload to App Store Connect` is
+   gated `if: workflow_dispatch || refs/tags/v`. Eleven green push builds today uploaded NOTHING.
+2. **The version train closes.** `CFBundleShortVersionString 6.5` was rejected — *"train version
+   '6.5' is closed for new build submissions"*. This is documented in `version-bump.yml`'s own
+   header because it happened at 6.3 on 2026-08-21. **Run Bump VERSION; never hand-edit.**
+3. **`aps-environment` was missing from `App.entitlements` entirely**, so iOS push could never have
+   worked whatever the `.p8` said. Added `c1cff973`. It did NOT break signing — the profile already
+   carried the capability. **I predicted it would and never ran `gh run list`; Sam caught it.
+   Verify by evidence, not by mechanism, even when the mechanism is right.**
 
 ### ⚠️ TWO THINGS THAT OUTLIVE ANY SINGLE TASK, now also in `CLAUDE.md`'s gates
 1. **A jsdom green on anything geometric is not evidence.** jsdom reports `scrollHeight` and
@@ -936,7 +1001,22 @@ downloaded, installed or run.
   the current behaviour.
 - Still open: rule 14 (sheets do not dismiss on swipe-down; they DO on backdrop and X).
 
-### ⚠️ RULE 8, SCROLL RESTORATION — ATTEMPTED AND DELIBERATELY NOT SHIPPED. Read before retrying.
+### ✅ RULE 8, SCROLL RESTORATION — SHIPPED 2026-09-05, `0982aa18`. Verified in a browser.
+The four measured constraints below were all correct and all insufficient. **The fifth was one grep
+away: `App.tsx` mounted a `ScrollToTop` that ran `scrollTo(0,0)` on EVERY pathname change, POP
+included**, so the restore was racing an explicit scroll-to-top on the same element in the same
+commit. Nothing in the original hook was wrong. `ScrollToTop` now skips POP.
+Two more found only by measuring: **the live `scrollTop` read inside the cleanup is ALREADY STALE**
+(the person was at 800, the cleanup read 10, because the outgoing content shrinks and the browser
+clamps first — 10 is non-zero, plausible and wrong, so the save takes `max(live, lastGesture)`);
+and **`requestAnimationFrame` does not fire in a hidden tab**, so an rAF-only retry schedules itself
+and does nothing, indistinguishable from working.
+⚠️ **A THIRD TARGET FOR THE CALLER GREP: a SECOND WRITER to the same object.** Not code with no
+caller, not a document with no code — two things writing the same DOM property.
+The historical detail below is kept because its four facts are still true.
+
+<details><summary>The original attempt, reverted — its four facts still hold</summary>
+
 Written, 8 tests green, **and it did not work in the browser three times running.** Reverted
 rather than pushed, because a feature nobody has seen work is the thing this desk keeps
 finding in other people's code. The WIP is at
@@ -962,6 +1042,8 @@ working thing.
 - ⚠️ **The jsdom harness cannot see any of this** — `scrollHeight`/`clientHeight` are 0 and
   `scrollTop` does not clamp, so tests pass against all four failures above. The WIP test file
   models height and clamping deliberately; keep that.
+
+</details>
 
 ### 7. Housekeeping that is now DONE — do not redo
 - ✅ The `handoff_hook` auto-snapshot bug is FIXED. It was appending a block per run:
@@ -1014,16 +1096,17 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 07:56 by handoff_hook. Everything below this heading is
+_Written 2026-09-05 12:50 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M .claude/settings.json
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1033,14 +1116,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
-2687ab2d docs(handoff): rule 8 attempted, NOT shipped, and four facts recorded so it is not re-derived
-794bd3a2 docs(ux-audit): rule 13's description was left in the present tense after it was fixed
-5369c9e8 [push]: stop spending the one-shot permission prompt on sign-in
-8d6d335e docs(handoff): the reel audited and item 10 given a floor to stand on
-b8628837 [mobile]: the reel's UX rules, audited — one built, one real defect named, one rejected
-f21d4d00 [money]: the currency picker now changes the numbers, which it never has
-4b8e0bca docs(handoff): items 6, 17 and the OG cohort closed out, with what was NOT verified said plainly
-30297595 [ui]: Budget Control's Add actions get a tap target, and keep the look they had
+42acba3e [push]: prove the FCM credentials without sending anything — ?check=1
+033a8024 [push]: name the nine reasons a device has no token, and stop the switch claiming what it did not do
+c1cff973 [ios]: add the aps-environment entitlement — iOS push could never have worked without it
+af0e1552 [push]: schedule the sender — it had no caller at all, and it can currently reach nobody
+0982aa18 [mobile]: rule 8 — Back puts you where you were, and the fifth reason it never worked
+478c9954 docs(handoff): the push sender is built too, and a caller-gate sweep of what actually remains
+c0bd1880 docs: the record lies in both directions — grep before you BUILD, and close the queue too
+18340a12 docs(handoff): close resume-queue item 5, which still read "FIRST UP, NOT started" after shipping
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
