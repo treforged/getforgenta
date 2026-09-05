@@ -1146,7 +1146,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             </button>
             <button
               onClick={() => setShowCatalog(true)}
-              className="shrink-0 flex items-center gap-1 text-xs sm:text-sm text-primary border border-primary/30 px-2 py-1 hover:bg-primary/5 transition-colors"
+              className="btn btn-sm text-primary border border-primary/30 hover:bg-primary/5 shrink-0"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <Plus size={10} /> Add Deduction
@@ -1502,7 +1502,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Income Rules</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome, false)}/mo</span>
-                <button onClick={() => openAdd('income')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
+                <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>
             </div>
             {incomeRules.length === 0 && <p className="text-sm text-muted-foreground">No income rules. Add one to auto-generate paychecks.</p>}
@@ -1516,7 +1516,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
-                <button onClick={() => openAdd('expense', 'Bills')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
+                <button onClick={() => openAdd('expense', 'Bills')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
             {billsRules.length === 0 && <p className="text-sm text-muted-foreground">No fixed expenses.</p>}
@@ -1530,7 +1530,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
-                <button onClick={() => openAdd('expense', 'Subscriptions')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
+                <button onClick={() => openAdd('expense', 'Subscriptions')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
               </div>
             </div>
             {subscriptionRules.length === 0 && <p className="text-sm text-muted-foreground">No subscriptions. Rules with category "Subscriptions" appear here.</p>}
@@ -1544,7 +1544,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Variable Expenses</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses, false)}/mo</span>
-                <button onClick={() => openAdd('expense', 'Other')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Variable</button>
+                <button onClick={() => openAdd('expense', 'Other')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Variable</button>
               </div>
             </div>
             {variableRules.length === 0 && <p className="text-sm text-muted-foreground">No variable expenses.</p>}
@@ -1558,7 +1558,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(totalDebtPayments, false)}/mo</span>
-                <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
+                <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
               </div>
             </div>
             {debtRules.length === 0 && <p className="text-sm text-muted-foreground">No debt payments. Add credit card accounts and visit Debt Payoff to generate recommendations.</p>}
@@ -1578,7 +1578,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers, false)}/mo</span>
-                <button onClick={() => openAdd('investment')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Transfer</button>
+                <button onClick={() => openAdd('investment')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Transfer</button>
               </div>
             </div>
             {transferRules.length === 0 && <p className="text-sm text-muted-foreground">No transfers or investment contributions configured.</p>}
