@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import MoneyDisplaySync from '@/components/shared/MoneyDisplaySync';
 import { useTheme } from '@/hooks/useTheme';
 import ConnectionNotice from '@/components/shared/ConnectionNotice';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
@@ -483,6 +484,9 @@ const App = () => (
               {/* The partner-view lens. Session-scoped by design — inside Auth/Demo/
                   Subscription so it can read all three, never persisted anywhere. */}
               <ViewedProfileProvider>
+                {/* Sets the money singleton from the profile BEFORE the routes render, so the
+                    first paint is already in the user's currency rather than flashing dollars. */}
+                <MoneyDisplaySync />
                 <DeepLinkHandler />
                 <ResumeRecovery />
                 <AppRoutes />
@@ -499,6 +503,9 @@ const App = () => (
             <SubscriptionProvider>
               {/* Same placement as the native branch — see the comment there. */}
               <ViewedProfileProvider>
+                {/* Sets the money singleton from the profile BEFORE the routes render, so the
+                    first paint is already in the user's currency rather than flashing dollars. */}
+                <MoneyDisplaySync />
                 <DeepLinkHandler />
                 <ResumeRecovery />
                 <AppRoutes />
