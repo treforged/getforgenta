@@ -2625,7 +2625,13 @@ export type Database = {
         Returns: undefined
       }
       record_push_registration: {
-        Args: { p_outcome: string; p_platform: string; p_prompted?: boolean }
+        Args: {
+          p_app_build?: string | null
+          p_app_version?: string | null
+          p_outcome: string
+          p_platform: string
+          p_prompted?: boolean
+        }
         Returns: undefined
       }
       revenue_summary_lines: {

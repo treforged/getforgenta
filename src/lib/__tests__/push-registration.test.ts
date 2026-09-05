@@ -33,9 +33,16 @@ const h = vi.hoisted(() => ({
   saved: [] as unknown[],
   revoked: [] as string[],
   /** Outcomes the fake store was told to record, so each path can be pinned to a NAMED reason. */
-  recorded: [] as { outcome: string; platform: string; prompted: boolean }[],
+  recorded: [] as { outcome: string; platform: string; prompted: boolean; build?: string | null }[],
   /** Makes `saveToken` report failure — a real token minted and then lost to a backend error. */
   saveFails: false,
+}));
+
+// ⚠️ THE BUILD NUMBER IS PART OF THE DIAGNOSIS NOW. 29 `timeout` rows on a real iPhone could not
+// be attributed to a binary, so "682 is installed and still fails" and "these are more 676
+// attempts" were the same row. Every case below asserts the build travelled with the outcome.
+vi.mock('@capacitor/app', () => ({
+  App: { getInfo: async () => ({ version: '6.6', build: '682', name: 'Forgenta', id: 'com.treforged.forged' }) },
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -79,8 +86,8 @@ import {
 const store: PushStore = {
   saveToken: async (row) => { h.saved.push(row); return !h.saveFails; },
   revokeToken: async (token) => { h.revoked.push(token); },
-  recordOutcome: async (outcome, platform, prompted) => {
-    h.recorded.push({ outcome, platform, prompted });
+  recordOutcome: async (outcome, platform, prompted, app) => {
+    h.recorded.push({ outcome, platform, prompted, build: app?.build ?? null });
   },
 };
 
@@ -101,7 +108,7 @@ describe('push registration', () => {
     expect(h.saved).toEqual([
       { platform: 'ios', token: 'apns-token-abc', environment: 'sandbox' },
     ]);
-    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true }]);
+    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682' }]);
   });
 
   it('stores NOTHING and asks for nothing when the person already declined', async () => {
@@ -163,7 +170,7 @@ describe('push registration', () => {
     // question ("nobody has opened the switch") apart from a bug ("everybody tried and it broke"),
     // which is the whole reason the outcome type exists.
     expect(h.recorded).toEqual([
-      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false },
+      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false, build: '682' },
     ]);
     expect(h.registerCalls).toBe(0);
     expect(h.saved).toEqual([]);
@@ -216,7 +223,7 @@ describe('push registration', () => {
     expect(outcome).toBe('save_failed');
     // The token is still handed back: it is real, and losing it here too would help nobody.
     expect(token).toBe('apns-token-abc');
-    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true }]);
+    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682' }]);
   });
 
   it('records an outcome for every path that reaches the OS, so none can go uncounted', async () => {

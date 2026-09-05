@@ -44,8 +44,21 @@ export interface PushStore {
    *  unreachable — and a `void` return made it indistinguishable from success. */
   saveToken(row: DeviceTokenRow): Promise<boolean>;
   revokeToken(token: string): Promise<void>;
-  /** Best effort, never throws. See `PushRegistrationOutcome`. */
-  recordOutcome(outcome: PushRegistrationOutcome, platform: 'ios' | 'android', prompted: boolean): Promise<void>;
+  /**
+    * Best effort, never throws. See `PushRegistrationOutcome`.
+    *
+    * ⚠️ `build` IS NOT OPTIONAL DECORATION — IT IS THE FIELD WHOSE ABSENCE MADE 29 ROWS USELESS.
+    * On 2026-09-05 Tre's iPhone recorded 29 `timeout` attempts across two builds, and the row
+    * could not say which binary produced them. "682 is installed and still fails" and "these are
+    * more 676 attempts" were the SAME ROW and needed opposite fixes. A diagnostic that cannot
+    * attribute its own measurement is one field short of useful.
+    */
+  recordOutcome(
+    outcome: PushRegistrationOutcome,
+    platform: 'ios' | 'android',
+    prompted: boolean,
+    app: { version: string | null; build: string | null },
+  ): Promise<void>;
 }
 
 /**
@@ -148,12 +161,29 @@ export async function registerForPush(
   const prompted = options.prompt === true;
   let platform: 'ios' | 'android' = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
 
+  /**
+   * The binary that is running, so every recorded outcome names the build behind it.
+   *
+   * Read lazily and never allowed to throw: on a device where `App.getInfo()` is unavailable this
+   * must degrade to "unknown build", not to "no diagnosis at all".
+   */
+  const appInfo = async (): Promise<{ version: string | null; build: string | null }> => {
+    try {
+      const { App } = await import('@capacitor/app');
+      const info = await App.getInfo();
+      return { version: info.version ?? null, build: info.build ?? null };
+    } catch {
+      return { version: null, build: null };
+    }
+  };
+
   /** Record and return in one step, so no branch below can forget the recording half. */
   const done = async (
     outcome: PushRegistrationOutcome,
     token: string | null = null,
   ): Promise<PushRegistrationResult> => {
-    await store.recordOutcome(outcome, platform, prompted).catch(() => {
+    const app = await appInfo();
+    await store.recordOutcome(outcome, platform, prompted, app).catch(() => {
       // The diagnosis failing must never take the registration with it.
     });
     return { outcome, token };

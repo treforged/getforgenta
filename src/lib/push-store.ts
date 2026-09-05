@@ -80,11 +80,15 @@ export const supabasePushStore: PushStore = {
    * ⚠️ NEVER THROWS AND NEVER BLOCKS REGISTRATION. Diagnosing a failure must not become a second
    * way to fail: if this errors, the token is still saved and the person still gets notifications.
    */
-  async recordOutcome(outcome, platform, prompted): Promise<void> {
+  async recordOutcome(outcome, platform, prompted, app): Promise<void> {
     const { error } = await supabase.rpc('record_push_registration', {
       p_platform: platform,
       p_outcome: outcome,
       p_prompted: prompted,
+      // ⚠️ WHICH BINARY SAID SO. Without this a row cannot be attributed to a build, and 29
+      // `timeout` attempts across two builds read as one undifferentiated failure.
+      p_app_version: app.version,
+      p_app_build: app.build,
     });
     if (error) console.error('[push] could not record registration outcome:', error.message);
   },
