@@ -268,6 +268,50 @@ export async function sendFcm(
 }
 
 /** One device, whichever provider it belongs to. */
+/** A `device_tokens` row as the dedupe sees it: identity, plus whatever says how recent it is. */
+export interface TokenRow {
+  id: string;
+  platform: string;
+  token: string;
+  environment: string;
+  last_seen_at?: string | null;
+  created_at?: string | null;
+}
+
+/**
+ * ONE DELIVERY PER PERSON PER PLATFORM. NEWEST TOKEN WINS.
+ *
+ * ⚠️ MEASURED 2026-09-05, AND IT RETIRED AN ASSUMPTION WRITTEN DOWN AS FACT THE SAME DAY.
+ * `device_tokens` held SEVEN live android rows for one account — one device, reinstalled while
+ * the build was being tested, minting a fresh FCM id each time. The prediction in commit
+ * `af0e1552` was that the first real send would retire the six stale ones by itself, because
+ * that is what the UNREGISTERED handling in this file is for. **It does not.** A `validate_only`
+ * check accepted ALL SEVEN as valid, so nothing would have been retired and that person would
+ * have been buzzed seven times for one event.
+ *
+ * **NOTHING PRUNES A STALE TOKEN EXCEPT CODE WE WRITE.** The provider will tell you a token is
+ * DEAD; it will never tell you one is REDUNDANT, and those are different things. Assuming
+ * otherwise is the natural mistake — it was made here — so the correction lives in the code that
+ * depends on it rather than in a note somebody reads afterwards.
+ *
+ * Deduping rather than refusing to send is deliberate: this is the behaviour we want
+ * permanently, not a guard rail somebody removes when it becomes inconvenient. A person with a
+ * phone AND a tablet still gets one notification on each, because the key is the PLATFORM.
+ *
+ * Freshness prefers `last_seen_at` (the upsert touches it on every launch) and falls back to
+ * `created_at`. A row with neither sorts last rather than throwing — it is still a real token,
+ * and it wins if it is the only one for its platform.
+ */
+export function newestTokenPerPlatform(rows: readonly TokenRow[]): TokenRow[] {
+  const freshness = (t: TokenRow) => Date.parse(t.last_seen_at ?? t.created_at ?? "") || 0;
+  const newest = new Map<string, TokenRow>();
+  // Sorted newest-first once, so the FIRST row seen for a platform is the one to keep.
+  for (const row of [...rows].sort((a, b) => freshness(b) - freshness(a))) {
+    if (!newest.has(row.platform)) newest.set(row.platform, row);
+  }
+  return [...newest.values()];
+}
+
 export function sendToDevice(device: DeviceRow, message: PushMessage): Promise<SendOutcome> {
   return device.platform === "ios" ? sendApns(device, message) : sendFcm(device, message);
 }

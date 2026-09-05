@@ -45,7 +45,10 @@ import {
 } from "../_shared/notification-policy.ts";
 import { computeStreakInZone, hasReadTodayInZone, hourInZone, safeZone } from "../_shared/learn-streak.ts";
 import { LEARN_LESSONS } from "../_shared/learn-lessons.ts";
-import { checkDevice, sendToDevice, tokenTail, type DeviceRow } from "../_shared/push-transport.ts";
+import {
+  checkDevice, newestTokenPerPlatform, sendToDevice, tokenTail,
+  type DeviceRow, type TokenRow,
+} from "../_shared/push-transport.ts";
 
 /** Same namespace the client writes and the RLS policy allows: `lesson:<slug>`. */
 const LESSON_PREFIX = "lesson:";
@@ -242,16 +245,34 @@ Deno.serve(async (req) => {
         if (!decision) continue;
         totals.candidates += 1;
 
-        const { data: tokens } = await db
+        const { data: allTokens } = await db
           .from("device_tokens")
-          .select("id, platform, token, environment")
+          .select("id, platform, token, environment, last_seen_at, created_at")
           .eq("user_id", userId)
           .is("revoked_at", null);
-        if (!tokens || tokens.length === 0) {
+        if (!allTokens || allTokens.length === 0) {
           // Nothing went wrong. We simply cannot reach them — and this is the number that says
           // whether registration is working at all, which is why it is not folded into `failed`.
           totals.unreachable += 1;
           continue;
+        }
+
+        // ⚠️ ONE DELIVERY PER PERSON PER PLATFORM — see `newestTokenPerPlatform`, which carries
+        // the measurement behind it: seven live tokens for one account, and the provider retires
+        // none of them for you.
+        // The selection itself is pure and lives in `_shared/push-transport.ts`, so it is
+        // covered by `push-token-dedupe.test.ts` rather than only by whatever a live run happens
+        // to exercise — and a live run cannot exercise it at all while the only account holding
+        // several tokens produces no notification candidate.
+        const tokens = newestTokenPerPlatform(allTokens as unknown as TokenRow[]) as DeviceRow[];
+        const suppressed = allTokens.length - tokens.length;
+        if (suppressed > 0) {
+          // Said out loud in the run record rather than silently absorbed: a person holding
+          // several live tokens for one platform is a registration story worth reading.
+          notes.push(
+            `deduped ${suppressed} extra live token(s) for one user across ` +
+            `${tokens.length} platform(s) — newest per platform kept`,
+          );
         }
 
         if (dryRun) continue;
