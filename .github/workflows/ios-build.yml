@@ -292,8 +292,18 @@ jobs:
           if [ -z "$BUNDLE" ]; then echo "::error::No .app inside the IPA payload"; exit 1; fi
 
           ENT=$(codesign -d --entitlements :- --xml "$BUNDLE" 2>/dev/null | plutil -p - || true)
-          echo "Entitlement keys in the SHIPPED binary:"
-          echo "$ENT" | grep -oE '"[a-zA-Z0-9._\-]+" =>' | sort -u || true
+          # KEYS AND VALUES. None of these is a secret — the team identifier already appears in the
+          # profile step's output — and the VALUES are the point: a key list cannot tell a
+          # distribution build from a development one.
+          echo "Entitlements in the SHIPPED binary:"
+          echo "$ENT"
+
+          # ⚠️ `get-task-allow` MUST BE FALSE ON A DISTRIBUTION BUILD. True means the binary is
+          # DEVELOPMENT-signed and debuggable, and a development-signed binary claiming
+          # `aps-environment: production` is a mismatch APNs resolves by saying nothing — which is
+          # the symptom being chased. Reported rather than asserted for now: it has never been
+          # measured here, and failing a build on an untested assumption is how this day started.
+          echo "get-task-allow: $(echo "$ENT" | grep -A0 '"get-task-allow"' | head -1)"
 
           APS=$(echo "$ENT" | grep -A0 '"aps-environment"' | head -1)
           if [ -z "$APS" ]; then
