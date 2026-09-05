@@ -1,0 +1,31 @@
+# What Vercel does NOT upload from this repo.
+#
+# Two reasons, and the second is the one that matters: the upload is smaller, and
+# nothing here that is private to this machine or to the business reaches a build
+# machine at all. `.claude`, `backups`, `security-reports` and `marketing` have no
+# business leaving this computer, and the app never imports from any of them.
+#
+# ⚠️ Everything the SITE needs must stay OUT of this list. The build reads `src/`,
+# `public/`, `index.html`, `vite.config.ts` and `package.json`; nothing below is in
+# that graph, checked 2026-09-05. If you add a line here, prove the build does not
+# read it before you do.
+
+# Build output - Vercel builds this itself; uploading it is waste and can go stale.
+dist
+node_modules
+
+# Native app shells. Vercel builds the WEB target only.
+android
+ios
+
+# Private to this machine or to the business. Never upload.
+.claude
+backups
+security-reports
+marketing
+
+# Working notes and generated maps. Not part of the site.
+docs
+graphify-out
+handoff
+handoff*.md
