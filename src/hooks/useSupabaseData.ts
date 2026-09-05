@@ -507,50 +507,20 @@ export function useCarFunds() {
   return { data, loading: query.isLoading, error: query.error, add, update, remove };
 }
 
-// ─── Lump Sum Transfers ───────────────────────────────────
-export function useLumpSumTransfers() {
-  const { user } = useAuth();
-  const { isDemo } = useDemo();
-  const { viewedUserId, isPartnerView } = useViewedProfile();
-  const qc = useQueryClient();
-  const query = useQuery({
-    queryKey: ['lump_sum_transfers', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
-    enabled: !isDemo && !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase.from('lump_sum_transfers').select('*').eq('user_id', viewedUserId ?? user!.id).order('date');
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-  const add = useMutation({
-    mutationFn: async (item: { date: string; amount: number; label?: string | null; destination_type: string }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
-      const { error } = await supabase.from('lump_sum_transfers').insert(sanitizePayload({ ...item, user_id: user.id }));
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lump_sum_transfers'] }); toast.success('Transfer planned'); },
-    onError: (e) => toast.error(e.message),
-  });
-  const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'lump_sum_transfers'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
-      const { error } = await supabase.from('lump_sum_transfers').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lump_sum_transfers'] }); toast.success('Transfer updated'); },
-    onError: (e) => toast.error(e.message),
-  });
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
-      const { error } = await supabase.from('lump_sum_transfers').delete().eq('id', id).eq('user_id', user.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lump_sum_transfers'] }); toast.success('Transfer removed'); },
-    onError: (e) => toast.error(e.message),
-  });
-  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
-}
+// ─── Lump Sum Transfers — NO HOOK, DELIBERATELY ───────────────────────────
+//
+// `public.lump_sum_transfers` still exists and is still on the partner-link allowlist. Its CRUD
+// hook was removed on 2026-09-05 because NOTHING imported it: measured, the table held 0 rows for
+// 0 users, no page could write one, and the forecast never read one. A hook that only a future
+// reader can find is a hook that costs a rediscovery every time somebody greps for "transfers".
+//
+// What Tre means by a transfer today is a `recurring_rules` row with `rule_type` 'transfer' or
+// 'investment' — that is what `isTransfer` marks (pay-schedule.ts) and what the Dashboard and
+// Transactions surfaces both render (1ef4c108). This table is an earlier, abandoned attempt.
+//
+// THE TABLE ITSELF IS KEPT ON PURPOSE. It is empty, which makes keeping it free and dropping it
+// permanent, on a live financial database. Whether lump-sum transfers should be a real feature is
+// Tre's to answer, not this file's.
 
 // ─── Synced transactions (§1A, aggregator-owned, READ ONLY) ───────────────
 //

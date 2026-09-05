@@ -388,7 +388,24 @@ export default function Transactions() {
       if (t.isCarLoanPayment && typeof t.principalPortion === 'number') return s + t.principalPortion;
       return s;
     }, 0);
-    return { income, expense, debtService, net: income - expense };
+    // SETTLED vs PROJECTED. A total that silently mixes money already spent with money the app
+    // merely expects is the confident-zero mistake wearing a different hat — you cannot tell from
+    // the figure which half you are looking at.
+    //
+    // ⚠️ THE FIGURE IS NOT REDUCED, AND THAT IS DELIBERATE. The month filter reaches FUTURE months,
+    // where every row is a projection; subtracting them there would print $0 for December, which
+    // is a confident zero of exactly the kind this is meant to prevent. So the headline still
+    // counts everything and a second line names the projected part, the same shape as the
+    // "of which X debt service" line already on that tile.
+    //
+    // A projection a real bank charge has already answered is SETTLED, not projected: its date and
+    // amount are the real ones, which is what `matchedActualDate` records.
+    const isProjected = (t: typeof realized[number]) => Boolean(t.isGenerated) && !t.matchedActualDate;
+    const projectedExpense = expenses.filter(isProjected).reduce((s, t) => s + Number(t.amount), 0);
+    const projectedIncome = realized
+      .filter(t => t.type === 'income' && isProjected(t))
+      .reduce((s, t) => s + Number(t.amount), 0);
+    return { income, expense, debtService, projectedExpense, projectedIncome, net: income - expense };
   }, [filtered]);
 
   const spendBySource = useMemo(() => {
@@ -1070,12 +1087,21 @@ export default function Transactions() {
       />
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Income</p><p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income, false)}</p></div>
+        <div className="card-forged p-3 text-center">
+          <p className="text-xs text-muted-foreground uppercase">Income</p>
+          <p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income, false)}</p>
+          {totals.projectedIncome > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedIncome, false)} projected</p>
+          )}
+        </div>
         <div className="card-forged p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Total Cash Out</p>
           <p className="text-sm font-display font-bold text-destructive">{formatCurrency(totals.expense, false)}</p>
           {totals.debtService > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.debtService, false)} debt service</p>
+          )}
+          {totals.projectedExpense > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedExpense, false)} projected</p>
           )}
         </div>
         <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(totals.net, false)}</p></div>
@@ -1116,7 +1142,22 @@ export default function Transactions() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-medium">{t.note || '—'}</p>
-                    {t.isGenerated && !t.isDebtPayment && <Repeat size={10} className="text-primary" />}
+                    {/* THE WORD, NOT ONLY THE ICON. A projection must be unmistakable at a glance
+                        and never merely subtler: a tint and a glyph both fail for a colourblind
+                        user and both vanish in bright sun on a phone. A row a real bank charge has
+                        already answered is NOT projected any more — it carries the "real" chip
+                        below and its date and amount are the settled ones. */}
+                    {t.isGenerated && !t.isDebtPayment && !t.matchedActualDate && (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[9px] text-primary bg-primary/10 px-1 py-0.5"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        title="Not spent yet — the app expects this from one of your rules. Editing it opens the rule."
+                      >
+                        <Repeat size={9} />
+                        Projected
+                      </span>
+                    )}
+                    {t.isGenerated && !t.isDebtPayment && t.matchedActualDate && <Repeat size={10} className="text-primary" />}
                     {t.isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
                     {t.isPlanPayment && <span className="text-[9px] text-info bg-info/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
                     {t.isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
