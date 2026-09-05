@@ -72,3 +72,37 @@ export function planSupersededConnections(
       && c.connection_status !== 'revoked')
     .map(c => c.id);
 }
+
+/** A superseded row, as far as hanging up at the provider is concerned. */
+export interface RetirableConnection {
+  id: string;
+  access_token: string | null;
+}
+
+/**
+ * The superseded connections worth calling the provider's disconnect on.
+ *
+ * ── WHY HANG UP AT ALL ───────────────────────────────────────────────────────
+ * Marking a row `revoked` stops US syncing. It does nothing at the provider, where the Item
+ * stays live: it keeps counting against the connection quota we are billed on, and the user's
+ * bank keeps listing us as connected. Someone who re-links their bank has REPLACED that
+ * connection, not added a second one, so continuing to hold an access token we will never use
+ * again is a promise the app is not keeping.
+ *
+ * ── WHY THIS IS A SEPARATE, PURE DECISION ────────────────────────────────────
+ * `/item/remove` is IRREVERSIBLE. The failure that costs the user is hanging up on a link they
+ * still need, which is the same failure `planSupersededConnections` exists to prevent — so the
+ * choice is made here, in something a test can exercise, rather than inside the edge function's
+ * imperative block where it could only be verified by running it against Plaid.
+ *
+ * A row with no access token is skipped: there is nothing to present and the call would fail.
+ * Callers pass ONLY rows that `planSupersededConnections` already selected; this narrows that
+ * set, it never widens it.
+ */
+export function planProviderDisconnects(
+  supersededRows: readonly RetirableConnection[],
+): string[] {
+  return supersededRows
+    .filter(r => typeof r.access_token === 'string' && r.access_token.length > 0)
+    .map(r => r.id);
+}

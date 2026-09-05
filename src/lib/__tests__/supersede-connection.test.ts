@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   planSupersededConnections, type SupersedableConnection,
+  planProviderDisconnects, type RetirableConnection,
 } from '../../../supabase/functions/_shared/supersede-connection';
 
 const conn = (over: Partial<SupersedableConnection> = {}): SupersedableConnection => ({
@@ -93,5 +94,41 @@ describe('planSupersededConnections — what it must never touch', () => {
     const list = [conn()];
     planSupersededConnections(list, { institution_id: 'ins_54', provider_item_id: 'item-new' });
     expect(list).toEqual([conn()]);
+  });
+});
+
+// Hanging up at the provider after a re-link.
+//
+// `/item/remove` is IRREVERSIBLE, so this decision lives in a pure function rather than inside
+// the edge function's imperative block, where it could only be checked by calling Plaid for
+// real. The rows reaching it have already been through planSupersededConnections above; this
+// only ever narrows that set.
+//
+// Would-fail check: drop the access-token filter and "skips a row with no access token" fails —
+// which is the call that can only ever error, on a row we have nothing to present for.
+describe('planProviderDisconnects — which retired links to hang up on', () => {
+  const row = (over: Partial<RetirableConnection> = {}): RetirableConnection => ({
+    id: 'c-old', access_token: 'access-abc', ...over,
+  });
+
+  it('hangs up on a superseded link that still holds a token', () => {
+    expect(planProviderDisconnects([row()])).toEqual(['c-old']);
+  });
+
+  it('skips a row with no access token — there is nothing to present', () => {
+    expect(planProviderDisconnects([row({ access_token: null })])).toEqual([]);
+    expect(planProviderDisconnects([row({ access_token: '' })])).toEqual([]);
+  });
+
+  it('returns nothing for the ordinary case — a first link supersedes nothing', () => {
+    expect(planProviderDisconnects([])).toEqual([]);
+  });
+
+  it('keeps every token-holding row, in order, when several links are retired at once', () => {
+    // Tre's own case on 2026-09-05: three Robinhood links, two of them dead.
+    const ids = planProviderDisconnects([
+      row({ id: 'c-april' }), row({ id: 'c-august' }),
+    ]);
+    expect(ids).toEqual(['c-april', 'c-august']);
   });
 });

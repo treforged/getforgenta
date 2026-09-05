@@ -11,8 +11,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
-import { planSupersededConnections } from "../_shared/supersede-connection.ts";
+import { planSupersededConnections, planProviderDisconnects } from "../_shared/supersede-connection.ts";
 import { planAccountRetirement } from "../_shared/retire-accounts.ts";
+import { plaidProvider } from "../_shared/providers/plaid.ts";
 
 const MAX_LINKED  = 10;
 const RATE_LIMIT  = { windowMs: 60_000, max: 10 };
@@ -224,9 +225,47 @@ Deno.serve(async (req) => {
           const nowIso = new Date().toISOString();
           // `revoked` is the one status `plaid-sync-all` skips. Without this the old item keeps
           // syncing and re-activates the very rows deactivated below.
+          // Read the tokens BEFORE the status write, because the write is what makes these
+          // rows retired and we still need their access_tokens to hang up at Plaid's end.
+          const { data: supersededRows } = await supabase.from("financial_connections")
+            .select("id, access_token").in("id", superseded);
+
           await supabase.from("financial_connections")
             .update({ connection_status: "revoked", updated_at: nowIso })
             .in("id", superseded);
+
+          // ── HANG UP AT PLAID'S END TOO ──────────────────────────────────────────────
+          //
+          // Marking the row revoked stops US syncing. It does nothing at Plaid, where the
+          // Item stays live: it keeps counting against the connection quota we are billed
+          // on, and the user's bank keeps listing Forgenta as connected. A person who
+          // re-links their bank has replaced that connection, not added a second one, and
+          // the app should stop holding an access token it will never use again.
+          //
+          // ⚠️ THIS IS IRREVERSIBLE AT PLAID, so it rides on the same guard that decided
+          // the supersession: `planSupersededConnections` matches on the stable
+          // `institution_id`, never on the display name, refuses to touch the INCOMING item,
+          // and skips anything already revoked. That guard was exercised on real data on
+          // 2026-09-05 and picked exactly the two dead Robinhood links out of three.
+          //
+          // Failures are logged and swallowed, like every other step in this block: the
+          // link itself succeeded and the user's token is saved, so refusing a working
+          // connection because the tidy-up failed would trade a real problem for a
+          // cosmetic one. A stranded Item at Plaid is visible and fixable; a lost link is
+          // not.
+          // WHICH rows to hang up on is decided by a pure function so it can be tested
+          // without calling Plaid — see planProviderDisconnects. This loop only performs it.
+          const rows = (supersededRows ?? []) as { id: string; access_token: string | null }[];
+          const byId = new Map(rows.map(r => [r.id, r]));
+          for (const id of planProviderDisconnects(rows)) {
+            try {
+              await plaidProvider.disconnect(
+                { access_token: byId.get(id)?.access_token ?? null } as Parameters<typeof plaidProvider.disconnect>[0],
+              );
+            } catch (removeErr) {
+              console.error(`plaid /item/remove failed for connection ${id}:`, removeErr);
+            }
+          }
           // A duplicate nobody references is DELETED; one something points at is only hidden.
           // See retire-accounts.ts for why that split rather than "delete them all".
           const { data: staleRows } = await supabase.from("accounts")
