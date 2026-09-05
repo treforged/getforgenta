@@ -704,7 +704,7 @@ export default function BankActivity() {
               <button
                 onClick={() => setConfirmingAcceptAll(false)}
                 disabled={accepting}
-                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+                className="btn btn-sm btn-ghost"
               >
                 Cancel
               </button>
@@ -962,7 +962,7 @@ export default function BankActivity() {
                       // so removing the entry also clears this decision and re-offers the charge.
                       <button
                         onClick={() => undoImport.mutate(exclusive.transaction_id!)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="btn btn-sm btn-ghost"
                         title="Removes the entry this created from your transactions"
                       >
                         <RotateCcw size={11} /> Undo — deletes the entry
@@ -970,7 +970,7 @@ export default function BankActivity() {
                     ) : (
                       <button
                         onClick={() => remove.mutate(txn.id)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="btn btn-sm btn-ghost"
                       >
                         <RotateCcw size={11} /> Undo
                       </button>
@@ -990,14 +990,14 @@ export default function BankActivity() {
                       <>
                         <button
                           onClick={() => { void recordTransfer(pair); }}
-                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                          className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                           title="Marks both rows dealt with. Adds nothing to your ledger."
                         >
                           <ArrowLeftRight size={11} /> Record — one movement
                         </button>
                         <button
                           onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          className="btn btn-sm btn-ghost"
                         >
                           <Link2 size={11} /> {pair.paidCard ? `Link to a ${pair.paidCard.name} payment` : 'Link to a transfer you track'}
                         </button>
@@ -1009,7 +1009,7 @@ export default function BankActivity() {
                         // Same write the batch accept performs — one definition, so the two can
                         // never drift into recording a link differently. See `acceptRuleInput`.
                         onClick={() => save.mutate(acceptRuleInput(txn, suggestion.rule!))}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                        className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.rule.name}
                       </button>
@@ -1022,7 +1022,7 @@ export default function BankActivity() {
                     {!pair && showSuggestion && suggestion.plan && (
                       <button
                         onClick={() => save.mutate(acceptPlanInput(txn, suggestion.plan!.id))}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                        className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.plan.name}
                       </button>
@@ -1030,7 +1030,7 @@ export default function BankActivity() {
                     {!pair && showSuggestion && suggestion.carCharge && (
                       <button
                         onClick={() => save.mutate(acceptCarInput(txn, suggestion.carCharge!.carFundId, suggestion.carCharge!.kind))}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                        className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         {/* Names the OBLIGATION, not just the car. A vehicle bills a payment and an
                             insurance premium every month and "Confirm: Civic" would not say which
@@ -1048,7 +1048,7 @@ export default function BankActivity() {
                         onClick={() => save.mutate(
                           acceptLedgerTxnInput(txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null),
                         )}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                        className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         <Link2 size={11} /> Matches your entry on {suggestion.ledgerTxn.date}
                       </button>
@@ -1060,7 +1060,7 @@ export default function BankActivity() {
                     {!pair && showSuggestion && (
                       <button
                         onClick={() => { setRejected(r => ({ ...r, [txn.id]: true })); setPicker(null); }}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="btn btn-sm btn-ghost"
                       >
                         <X size={11} /> Not this
                       </button>
@@ -1073,7 +1073,7 @@ export default function BankActivity() {
                       <>
                         <button
                           onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          className="btn btn-sm btn-ghost"
                         >
                           <Link2 size={11} /> {hasLinks ? 'Link another bill' : 'Link to a bill'}
                         </button>
@@ -1085,7 +1085,7 @@ export default function BankActivity() {
                         {!hasLinks && (
                           <button
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'txn' ? null : { id: txn.id, kind: 'txn' }))}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            className="btn btn-sm btn-ghost"
                           >
                             <Link2 size={11} /> Link to an entry
                           </button>
@@ -1095,7 +1095,7 @@ export default function BankActivity() {
                         {pickablePlans.length > 0 && (
                           <button
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'plan' ? null : { id: txn.id, kind: 'plan' }))}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            className="btn btn-sm btn-ghost"
                           >
                             <Link2 size={11} /> {hasLinks ? 'Link another payment plan' : 'Link to a payment plan'}
                           </button>
@@ -1105,7 +1105,7 @@ export default function BankActivity() {
                         {pickableCarCharges.length > 0 && (
                           <button
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'car' ? null : { id: txn.id, kind: 'car' }))}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            className="btn btn-sm btn-ghost"
                           >
                             <Link2 size={11} /> {hasLinks ? 'Link another vehicle charge' : 'Link to a vehicle charge'}
                           </button>
@@ -1116,7 +1116,7 @@ export default function BankActivity() {
                         {plan?.ok && (
                           <button
                             onClick={() => importToLedger.mutate({ syncedTransactionId: txn.id, draft: plan.draft })}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                            className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                           >
                             <Plus size={11} /> Add to my ledger
                           </button>
@@ -1163,7 +1163,7 @@ export default function BankActivity() {
                     {!pair && !hasLinks && (
                       <button
                         onClick={() => save.mutate({ synced_transaction_id: txn.id, status: 'ignored' })}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="btn btn-sm btn-ghost"
                       >
                         <EyeOff size={11} /> Ignore
                       </button>
@@ -1174,7 +1174,7 @@ export default function BankActivity() {
                     {links.length > 1 && (
                       <button
                         onClick={() => remove.mutate(txn.id)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="btn btn-sm btn-ghost"
                         title="Removes every decision on this charge, including its category"
                       >
                         <RotateCcw size={11} /> Undo all
@@ -1268,7 +1268,7 @@ export default function BankActivity() {
       {rows.length > visible.length && (
         <button
           onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-          className="btn btn-secondary w-full px-4 py-2 text-xs font-medium"
+          className="btn btn-md btn-secondary w-full"
         >
           Show {Math.min(PAGE_SIZE, rows.length - visible.length)} more
         </button>
