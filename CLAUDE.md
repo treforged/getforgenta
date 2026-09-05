@@ -77,7 +77,25 @@ section states reasoning, not measurement, and says so.
   in CI.** A green badge says nothing about the money engine. Run `test:tz`
   locally.
 - Live UI verification needs the `dev-signin` skill. A green suite is not a
-  pressed button.
+  pressed button. `/demo` needs NO credentials and is the fastest route in.
+- ⚠️ **A JSDOM GREEN ON ANYTHING GEOMETRIC IS NOT EVIDENCE.** jsdom reports
+  `scrollHeight` and `clientHeight` as **0** and does **not clamp** `scrollTop`, so a
+  test can pass against a feature that is completely inert in a browser. Measured
+  2026-09-05 on scroll restoration: eight green tests, three failures to work in
+  Chrome, and four real constraints the harness could not observe at all — the wrong
+  scroll target, a silent `scrollTop` clamp against a page whose data has not loaded,
+  and a programmatic `scrollTop` assignment firing **no scroll event** (0 events for
+  an assignment read back as 400).
+  **Any test depending on scroll position, element size or layout must MODEL the
+  geometry** — define `scrollHeight`/`clientHeight` and a clamping `scrollTop` setter
+  on the element — **or be verified in a browser.** This is not a scroll-restoration
+  problem; it applies to every size- or layout-dependent test in this repo.
+- ⚠️ **GREP FOR THE CALLER, NOT THE DEFINITION** before scoping anything as "not
+  built". Four times on 2026-09-05 a feature was found already written, exported and
+  documented — and never called: the OG seat test's `is_comp`, the review prompt,
+  `setMoneyDisplay`, and `useLumpSumTransfers`. In three of them the surrounding
+  comment described the behaviour as if it were happening.
+  `grep -rn "theFunction" src/ | grep -v export` is the whole check.
 
 
 ## SYSTEM EXECUTION OVERRIDE

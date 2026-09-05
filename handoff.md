@@ -17,19 +17,32 @@
 
 ---
 
-## ⇢ FIRST UP — nothing is blocking. Take the next item from the resume queue.
+## ⇢ FIRST UP — the i18n scaffold plus ONE language. Nothing is blocking.
 
-The 2026-09-04 load-bearing unknown is CLOSED — see "RESOLVED 2026-09-05: a pin is a
-REPLACEMENT" below. It is the most important thing in this file for anyone touching the
-debt controls, so read that section before you touch `withPaymentOverrides`, the DebtPayoff
-override UI, or any copy that says "pay more".
+Everything else in the queue is either done, deliberately parked, or waiting on Tre.
 
-Multi-currency is PARKED, deliberately and cleanly: decided (per-currency subtotals) and
-scoped, NOT started, nothing half-edited. It needs a currency column on money-carrying rows
-plus a backfill — a schema change on live financial data. See the MULTI-CURRENCY section for
-the constraints already settled, so that slice does not re-argue them.
+**Why it was not started here, and why that was right:** it is a big slice, and a big slice
+begun 26 commits into a window lands half-done. It also now has a floor to stand on —
+`f21d4d00` made the currency picker actually change the numbers, so a translation layer no
+longer sits on top of a figure that is wrong in every locale.
 
----
+**Scope it as:** a library, a locale file layout, a language switcher, and ONE real language
+on ONE surface. Do not attempt the whole app's strings.
+⚠️ **Arabic is a separate slice** — the RTL layout mirroring is the work, not the strings.
+⚠️ The 32 `toLocaleDateString` sites are NOT a blocker: they pass textual options, so they
+render `Sep 2026`, unambiguous everywhere. `docs/international-release-plan.md` carries that
+correction; do not re-derive it a third time.
+
+**Second up:** rule 8, scroll restoration, with four measured constraints already established
+— see the rule-8 section below. Start from those, not from zero.
+
+### ⚠️ TWO THINGS THAT OUTLIVE ANY SINGLE TASK, now also in `CLAUDE.md`'s gates
+1. **A jsdom green on anything geometric is not evidence.** jsdom reports `scrollHeight` and
+   `clientHeight` as 0 and does not clamp `scrollTop`. Eight tests passed for a feature that
+   failed three times in Chrome. Model the geometry, or verify in a browser.
+2. **Grep for the CALLER, not the definition**, before scoping anything as "not built". Four
+   features on 2026-09-05 were already written, exported and never called — and three of them
+   had comments describing the behaviour as if it were happening.
 
 ## ⚠️ CORRECTIONS TO TODAY'S OWN RECORD — 2026-09-05, made the same day
 
@@ -933,7 +946,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 07:37 by handoff_hook. Everything below this heading is
+_Written 2026-09-05 07:56 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -952,14 +965,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+2687ab2d docs(handoff): rule 8 attempted, NOT shipped, and four facts recorded so it is not re-derived
+794bd3a2 docs(ux-audit): rule 13's description was left in the present tense after it was fixed
+5369c9e8 [push]: stop spending the one-shot permission prompt on sign-in
 8d6d335e docs(handoff): the reel audited and item 10 given a floor to stand on
 b8628837 [mobile]: the reel's UX rules, audited — one built, one real defect named, one rejected
 f21d4d00 [money]: the currency picker now changes the numbers, which it never has
 4b8e0bca docs(handoff): items 6, 17 and the OG cohort closed out, with what was NOT verified said plainly
 30297595 [ui]: Budget Control's Add actions get a tap target, and keep the look they had
-51ccaa1d [ui]: BankActivity joins the btn vocabulary — 18px controls become 32px, and I watched it render
-e9c4bd8c [og]: an OG seat now requires real money, and the trigger wakes up to notice
-0833a184 docs(handoff): onboarding and the review prompt were already shipped - say so before somebody rebuilds them
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
