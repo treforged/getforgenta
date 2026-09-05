@@ -1617,7 +1617,9 @@ export type Database = {
           last_401k_update: string | null
           monthly_income_default: number | null
           notification_prefs: Json | null
-          onboarding_completed: boolean | null
+          onboarding_completed: boolean
+          onboarding_furthest_step: string | null
+          onboarding_started_at: string | null | null
           onboarding_step: number | null
           paycheck_day: number | null
           paycheck_deductions: Json | null
@@ -1671,7 +1673,9 @@ export type Database = {
           last_401k_update?: string | null
           monthly_income_default?: number | null
           notification_prefs?: Json | null
-          onboarding_completed?: boolean | null
+          onboarding_completed?: boolean
+          onboarding_furthest_step?: string | null
+          onboarding_started_at?: string | null | null
           onboarding_step?: number | null
           paycheck_day?: number | null
           paycheck_deductions?: Json | null
@@ -1725,7 +1729,9 @@ export type Database = {
           last_401k_update?: string | null
           monthly_income_default?: number | null
           notification_prefs?: Json | null
-          onboarding_completed?: boolean | null
+          onboarding_completed?: boolean
+          onboarding_furthest_step?: string | null
+          onboarding_started_at?: string | null | null
           onboarding_step?: number | null
           paycheck_day?: number | null
           paycheck_deductions?: Json | null

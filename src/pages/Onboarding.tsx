@@ -55,6 +55,68 @@ function buildSteps(isPremium: boolean): Step[] {
   return ['welcome', isPremium ? 'bank' : 'premium', ...MANUAL_STEPS, 'finish'];
 }
 
+/**
+ * WHERE PEOPLE STOP, recorded as they go.
+ *
+ * Tre, 2026-09-02: onboarding is about value rather than a feature tour, and CONVERSION IS THE
+ * METRIC. `onboarding_completed` is a boolean, so it can only answer "how many finished" — the
+ * actionable question, WHICH STEP loses them, had no data behind it at all.
+ *
+ * ⚠️ MONOTONIC, AND THAT IS THE POINT. Pressing Back must never lower the recorded step: the
+ * question is how FAR someone got, not where their cursor is now. A last-position field would say
+ * a user who reached Goals and stepped back to check their income "stopped at income", which is
+ * the opposite of true and would send the next redesign at the wrong screen.
+ *
+ * ⚠️ FIRE AND FORGET, DELIBERATELY. A failed write must never block or slow the wizard — losing a
+ * funnel data point costs a statistic; making someone wait on it during signup costs the signup,
+ * which is the very thing being measured. Errors are swallowed for that reason and no other.
+ *
+ * This writes nothing about a person that they have not already given us, on their own row. An
+ * event stream would be a new category of collection needing its own consent, to answer a question
+ * two columns already answer.
+ */
+export function furthestStepPatch(
+  seen: string | null,
+  startedAt: string | null,
+  step: Step,
+  stepOrder: readonly Step[],
+  now: () => string = () => new Date().toISOString(),
+): { onboarding_furthest_step?: string; onboarding_started_at?: string } | null {
+  // Compared by POSITION IN THIS USER'S OWN FLOW, not alphabetically and not against a global
+  // list: free and premium accounts see a different second step, so "further" only means anything
+  // inside the sequence this user is actually walking.
+  const seenIdx = seen ? stepOrder.indexOf(seen as Step) : -1;
+  const nextIdx = stepOrder.indexOf(step);
+  const patch: { onboarding_furthest_step?: string; onboarding_started_at?: string } = {};
+  // An UNRECOGNISED stored value gives seenIdx -1, which would let any step overwrite it. That is
+  // the right direction: a value this flow does not contain cannot be a position within it.
+  if (nextIdx >= 0 && nextIdx > seenIdx) patch.onboarding_furthest_step = step;
+  if (!startedAt) patch.onboarding_started_at = now();
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
+async function recordFurthestStep(userId: string, step: Step, stepOrder: readonly Step[]) {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('onboarding_furthest_step, onboarding_started_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const patch = furthestStepPatch(
+      data?.onboarding_furthest_step ?? null,
+      data?.onboarding_started_at ?? null,
+      step,
+      stepOrder,
+    );
+    if (!patch) return;
+
+    await supabase.from('profiles').update(patch).eq('user_id', userId);
+  } catch {
+    // See above: a lost data point is cheaper than a stalled signup.
+  }
+}
+
 const STEP_LABELS: Record<Step, string> = {
   welcome:  'Welcome',
   bank:     'Bank',
@@ -194,6 +256,13 @@ export default function Onboarding() {
   useEffect(() => {
     writeOnboardingDraft(user?.id, data);
   }, [data, user?.id]);
+
+  // Every step the user reaches is recorded, including the first — otherwise someone who opens the
+  // wizard and closes it immediately is indistinguishable from someone who never opened it.
+  useEffect(() => {
+    if (!user?.id) return;
+    void recordFurthestStep(user.id, step, steps);
+  }, [user?.id, step, steps]);
 
   const next = () => {
     const idx = steps.indexOf(step);
