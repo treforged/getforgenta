@@ -5,7 +5,7 @@ import {
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
   openCreditLimitAtMonth, getPlanInterestNextMonth,
 } from '@/lib/credit-card-engine';
-import { getStrategyPayoffOrder, payoffOrderAsOf } from '@/lib/debt-payoff-order';
+import { getStrategyPayoffOrder, getUnratedPayoffCards, payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { cardStartMonthOffset, isSimCardOpenAsOf } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
 import DebtHero from './DebtHero';
@@ -1087,6 +1087,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     saveUpReason: convergedCardProjection?.saveUpReason,
   }), [convergedProjections, convergedCardProjection]);
   const payoffOrder = useMemo(() => getStrategyPayoffOrder(cards, strategy, payoffOrderAsOf()), [cards, strategy]);
+  // Cards the strategy pays but cannot rank — today that is only an account with no stored APR
+  // under avalanche. They are listed separately and asked for their rate rather than ranked at a
+  // placeholder 0%, which used to bury them at the cheap end of the list.
+  const unratedCards = useMemo(() => getUnratedPayoffCards(cards, strategy, payoffOrderAsOf()), [cards, strategy]);
 
   // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
   // accordion/chart balances match the Forecast month popup and CSV export. Display-only:
@@ -1601,7 +1605,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
         </div>
 
-        <AvalancheOrderList entries={payoffOrder} strategy={strategy} />
+        <AvalancheOrderList
+          entries={payoffOrder}
+          strategy={strategy}
+          unrated={unratedCards}
+          onSetApr={(cardId, apr) => updateAccount.mutate({ id: cardId, apr })}
+        />
 
         {/* Recommendation Panel */}
         <div className="card-forged p-3 sm:p-5">

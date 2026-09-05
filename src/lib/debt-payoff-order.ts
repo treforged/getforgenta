@@ -1,4 +1,4 @@
-import { marginalApr, type CardData } from './credit-card-engine';
+import { marginalApr, rankableForStrategy, type CardData } from './credit-card-engine';
 
 /**
  * The order the payoff strategy actually attacks the cards in, and the rate that ranked each one.
@@ -20,6 +20,9 @@ export type DebtPayoffOrderEntry = {
   balance: number;
   /** The card's headline APR — always shown; the marginal rate is additional, never a replacement. */
   apr: number;
+  /** True when no APR is stored on the account at all. `apr` reads 0 on such a card, but 0 here is
+   * a placeholder, not a rate — the row asks for the real one rather than claiming 0%. */
+  aprIsUnknown: boolean;
   /** The rate the next dollar paid to this card actually saves. Equals `apr` on a single-rate card. */
   marginalApr: number;
 };
@@ -48,19 +51,49 @@ export function getStrategyPayoffOrder(
   strategy: 'avalanche' | 'snowball',
   asOf: string,
 ): DebtPayoffOrderEntry[] {
-  return cards
-    .filter(c => !c.autopayFullBalance && c.balance > 0)
+  const payable = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+  return rankableForStrategy(payable, strategy)
     .map(c => ({
       cardId: c.id,
       cardName: c.name,
       color: c.color,
       balance: c.balance,
       apr: c.apr,
+      aprIsUnknown: Boolean(c.aprIsUnknown),
       marginalApr: cardMarginalApr(c, asOf),
     }))
     .sort((a, b) => (
       strategy === 'avalanche' ? b.marginalApr - a.marginalApr : a.balance - b.balance
     ));
+}
+
+/**
+ * The cards the strategy is paying but CANNOT rank — today, only avalanche and only because the
+ * account carries no APR. They are deliberately absent from `getStrategyPayoffOrder` (ranking them
+ * at a placeholder 0% would bury possibly-expensive debt at the bottom of the list), so this is the
+ * companion list the UI renders as "needs your rate" with an inline input. Same population and same
+ * fallback: when EVERY payable card is unrated `getStrategyPayoffOrder` keeps them all, so this
+ * returns nothing and no card is listed twice.
+ */
+export function getUnratedPayoffCards(
+  cards: readonly CardData[],
+  strategy: 'avalanche' | 'snowball',
+  asOf: string,
+): DebtPayoffOrderEntry[] {
+  const payable = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+  const ranked = new Set(getStrategyPayoffOrder(cards, strategy, asOf).map(e => e.cardId));
+  return payable
+    .filter(c => !ranked.has(c.id))
+    .map(c => ({
+      cardId: c.id,
+      cardName: c.name,
+      color: c.color,
+      balance: c.balance,
+      apr: c.apr,
+      aprIsUnknown: Boolean(c.aprIsUnknown),
+      marginalApr: cardMarginalApr(c, asOf),
+    }))
+    .sort((a, b) => b.balance - a.balance);
 }
 
 /**

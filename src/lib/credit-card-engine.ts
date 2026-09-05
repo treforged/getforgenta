@@ -33,6 +33,15 @@ export type CardData = {
   name: string;
   balance: number;
   apr: number;
+  /**
+   * True when the account has NO stored APR at all (accounts.apr is null/blank/non-numeric), as
+   * opposed to a genuine 0% card. `apr` still reads 0 on such a card so every interest expression
+   * stays arithmetic, but 0 here is a PLACEHOLDER, not a measured rate — so the card is excluded
+   * from avalanche ranking entirely instead of silently sorting last behind every real rate. Its
+   * minimum is still paid: it is real debt. The app ASKS for the rate (the "needs your rate" row
+   * on /debt); it never assumes one.
+   */
+  aprIsUnknown?: boolean;
   creditLimit: number;
   minPayment: number;
   /** True when the user marked min_payment as manually set (accounts.min_payment_is_manual):
@@ -80,6 +89,26 @@ export type CardData = {
    */
   tranches?: BalanceTranche[];
 };
+
+/**
+ * The cards a strategy can legitimately RANK, as opposed to the cards it pays.
+ *
+ * Avalanche orders by rate, so a card with no stored APR (`aprIsUnknown`) has no rank: it used to
+ * fall to the bottom at a placeholder 0%, which is the cheapest slot in the list and the exact
+ * wrong place for debt whose cost is unmeasured. It is dropped from the ranked list instead, and
+ * the UI asks for its rate. Snowball orders by balance, which is always known, so it drops nothing.
+ *
+ * If every candidate is unknown there is no comparison to get wrong, so the whole list is returned
+ * — otherwise a user with one unrated card would see no payoff order and no surplus routed at all.
+ */
+export function rankableForStrategy<T extends { aprIsUnknown?: boolean }>(
+  cards: readonly T[],
+  strategy: 'avalanche' | 'snowball',
+): T[] {
+  if (strategy !== 'avalanche') return [...cards];
+  const ranked = cards.filter(c => !c.aprIsUnknown);
+  return ranked.length > 0 ? ranked : [...cards];
+}
 
 export type CardMonthRow = {
   month: number;
@@ -468,7 +497,13 @@ export function buildCardData(
 
     const matchDebt = debts.find(d => d.name.toLowerCase() === acct.name.toLowerCase());
     const balance = Number(acct.balance);
-    const apr = Number(acct.apr) || 0;
+    // An account with no stored rate is NOT a 0% card. Both used to collapse to 0 here, which put
+    // an unknown-rate card last under avalanche as if it were interest-free — the cheapest possible
+    // place for what might be the most expensive debt the user has. Keep `apr` at 0 for arithmetic
+    // and carry the distinction in `aprIsUnknown`.
+    const aprRaw = acct.apr;
+    const aprIsUnknown = aprRaw === null || aprRaw === undefined || !Number.isFinite(Number(aprRaw));
+    const apr = aprIsUnknown ? 0 : Number(aprRaw);
     const creditLimit = Number(acct.credit_limit) || 0;
     // accounts.min_payment (set on the Accounts tab, Plaid-synced or user-entered) is the sole
     // source of truth for a card's minimum payment — the debts table is a separate legacy table
@@ -495,7 +530,7 @@ export function buildCardData(
     const autopayFullBalance = balance <= 0;
 
     return {
-      id: acct.id, name: acct.name, balance, apr, creditLimit,
+      id: acct.id, name: acct.name, balance, apr, aprIsUnknown, creditLimit,
       minPayment: minPay, minPaymentIsManual,
       targetPayment: Math.max(targetPay, minPay),
       monthlyNewPurchases, steadyMonthlyPurchases, monthlyRepayments: monthRepayments,
@@ -1936,7 +1971,12 @@ export function simulateVariablePayoff(
       //   null/full: pay as much as possible toward this card (standard cascade)
       //   statement: cap at startBal + interest — avoids paying new purchases this cycle
       //   backlog card: full backlog amount — no purchases mixed in to cap against
-      for (const card of strategyOrder) {
+      //
+      // Ranked on the SAME population generateRecommendations cascades over: a card with no stored
+      // APR is not ranked by avalanche (rankableForStrategy), so the projection cannot disagree
+      // with the recommendation it is supposed to be projecting. Step 5a above still paid its
+      // minimum — exclusion is from the surplus cascade only.
+      for (const card of rankableForStrategy(strategyOrder, strategy)) {
         if (remaining <= 0) break;
         const currentPayment = payments.get(card.id) ?? 0;
         const target = cascadeTarget(card);
@@ -2404,6 +2444,12 @@ export function generateRecommendations(
   const sorted = [...revolvingCards].sort((a, b) =>
     strategy === 'avalanche' ? recApr(b) - recApr(a) : a.balance - b.balance
   );
+  // Avalanche compares RATES, so a card whose rate is unknown has nothing to compare — it is
+  // excluded from the extra-payment cascade rather than ranked at a placeholder 0%. It keeps its
+  // minimum (the loop below, which runs over every card) because it is real debt. Snowball ranks
+  // on balance, which is known, so nothing is excluded there. If EVERY candidate is unknown there
+  // is no order to get wrong and no reason to strand the surplus, so none are excluded.
+  const extraOrder = rankableForStrategy(sorted, strategy);
 
   for (const card of sorted) {
     const ms = manualStmtDueNow(card);
@@ -2428,8 +2474,8 @@ export function generateRecommendations(
   }
 
   if (remaining > 0) {
-    for (let i = 0; i < sorted.length && remaining > 0; i++) {
-      const card = sorted[i];
+    for (let i = 0; i < extraOrder.length && remaining > 0; i++) {
+      const card = extraOrder[i];
       const rec = recs.find(r => r.cardId === card.id)!;
       // statement preference: cap extra at current balance (don't pre-pay new purchases)
       // full or null: pay balance + anticipated new purchases (clear the card fully)

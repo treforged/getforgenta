@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateRecommendations, type CardData } from '../credit-card-engine';
-import { getStrategyPayoffOrder, cardMarginalApr, payoffOrderAsOf, utilizationComparisonOrder } from '../debt-payoff-order';
+import { getStrategyPayoffOrder, getUnratedPayoffCards, cardMarginalApr, payoffOrderAsOf, utilizationComparisonOrder } from '../debt-payoff-order';
 import type { BalanceTranche } from '../balance-tranches';
 
 // The /debt build list prints "#1, #2, #3" in the order the engine actually pays the cards.
@@ -153,5 +153,86 @@ describe('utilizationComparisonOrder (UtilizationPanel)', () => {
   it('drops zero-balance cards — nothing to compare', () => {
     const cards = [...trancheFixture(), makeCard({ id: 'E', name: 'Empty', balance: 0, apr: 30 })];
     expect(utilizationComparisonOrder(cards, ASOF)).not.toContain('E');
+  });
+});
+
+/**
+ * A card whose account carries NO apr at all. Until 2026-09-05 this collapsed to `apr: 0` on the
+ * way out of buildCardData and then sorted LAST under avalanche — the cheapest slot in the list,
+ * handed to the one card whose cost nobody has measured. `aprIsUnknown` keeps the distinction, and
+ * the strategy declines to rank what it cannot compare.
+ */
+function unratedFixture(): CardData[] {
+  return [
+    // Both known cards carry SMALL balances on purpose: a surplus large enough to fill them both
+    // spills past them, and the third slot is where the old behaviour quietly handed money to the
+    // unrated card. A fixture where the surplus never gets that far would pass either way.
+    makeCard({ id: 'HI', name: 'Known 24%', balance: 500, apr: 24 }),
+    makeCard({ id: 'LO', name: 'Genuine 0%', balance: 300, apr: 0 }),
+    makeCard({ id: 'UNK', name: 'Rate unknown', balance: 6000, apr: 0, aprIsUnknown: true, minPayment: 90 }),
+  ];
+}
+
+describe('a card with no stored APR', () => {
+  it('is absent from the avalanche order — not sorted last at a placeholder 0%', () => {
+    const order = getStrategyPayoffOrder(unratedFixture(), 'avalanche', ASOF);
+    expect(order.map(o => o.cardId)).toEqual(['HI', 'LO']);
+  });
+
+  it('does not take a genuine 0% card down with it — 0% is a rate, absent is not', () => {
+    const order = getStrategyPayoffOrder(unratedFixture(), 'avalanche', ASOF);
+    expect(order.map(o => o.cardId)).toContain('LO');
+    expect(order.find(o => o.cardId === 'LO')?.aprIsUnknown).toBe(false);
+  });
+
+  it('IS ranked by snowball, which compares balances and needs no rate', () => {
+    const order = getStrategyPayoffOrder(unratedFixture(), 'snowball', ASOF);
+    expect(order.map(o => o.cardId)).toEqual(['LO', 'HI', 'UNK']);
+  });
+
+  it('is returned by getUnratedPayoffCards, exactly once and never also in the ranked list', () => {
+    const cards = unratedFixture();
+    const ranked = getStrategyPayoffOrder(cards, 'avalanche', ASOF).map(o => o.cardId);
+    const unrated = getUnratedPayoffCards(cards, 'avalanche', ASOF);
+    expect(unrated.map(o => o.cardId)).toEqual(['UNK']);
+    expect(ranked).not.toContain('UNK');
+    expect(unrated[0].aprIsUnknown).toBe(true);
+  });
+
+  it('leaves nothing unrated under snowball — every card there has a rank', () => {
+    expect(getUnratedPayoffCards(unratedFixture(), 'snowball', ASOF)).toEqual([]);
+  });
+
+  it('still has its MINIMUM paid by the engine — unranked is not unpaid', () => {
+    const cards = unratedFixture();
+    // Cash covers the three minimums (25 + 25 + 90 = 140) and nothing more, so every dollar
+    // allocated is a contract minimum and none of it is strategy surplus.
+    const { recommendations } = generateRecommendations(cards, 140, 0, 'avalanche', 0, 0);
+    const unk = recommendations.find(r => r.cardId === 'UNK');
+    expect(unk).toBeDefined();
+    expect(unk!.payment).toBe(90);
+    expect(recommendations.reduce((s, r) => s + r.payment, 0)).toBe(140);
+  });
+
+  it('receives NO avalanche surplus while its rate is unknown, even once the known cards are full', () => {
+    const cards = unratedFixture();
+    // $140 of minimums, then $1,000 of surplus. $475 fills HI and $275 fills LO; the remaining
+    // $250 has nowhere ranked left to go. Before this fix it went to UNK at a placeholder 0%.
+    const { recommendations } = generateRecommendations(cards, 1140, 0, 'avalanche', 0, 0);
+    const by = (id: string) => recommendations.find(r => r.cardId === id)!.payment;
+    expect(by('HI')).toBe(500);
+    expect(by('LO')).toBe(300);
+    expect(by('UNK')).toBe(90);
+    expect(recommendations.reduce((s, r) => s + r.payment, 0)).toBe(890);
+  });
+
+  it('does not strand the surplus when EVERY payable card is unrated — nothing to mis-rank', () => {
+    const onlyUnrated = [
+      makeCard({ id: 'A', name: 'Only card', balance: 5000, apr: 0, aprIsUnknown: true, minPayment: 50 }),
+    ];
+    const { recommendations } = generateRecommendations(onlyUnrated, 600, 0, 'avalanche', 0, 0);
+    expect(recommendations.find(r => r.cardId === 'A')!.payment).toBe(600);
+    expect(getStrategyPayoffOrder(onlyUnrated, 'avalanche', ASOF).map(o => o.cardId)).toEqual(['A']);
+    expect(getUnratedPayoffCards(onlyUnrated, 'avalanche', ASOF)).toEqual([]);
   });
 });
