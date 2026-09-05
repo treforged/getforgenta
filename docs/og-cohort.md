@@ -139,10 +139,19 @@ anyone can mint them without following anything.
 wire it to.** Two rules follow instead:
 
 1. **A claimed follow must never unlock anything of value.** Cosmetic only. It may
-   sit on a badge wall or count toward a streak. It must not gate a feature, a
-   discount, or anything touching the OG reward. That is exactly why `og_founder`
-   is *not* on the client-writable list while these two are: the test is whether a
-   user could profit by lying.
+   sit on a badge wall. It must not gate a feature, a discount, or anything
+   touching the OG reward. That is exactly why `og_founder` is *not* on the
+   client-writable list while these two are: the test is whether a user could
+   profit by lying.
+
+   ⚠️ **THIS LINE USED TO SAY "or count toward a streak", AND THAT BECAME WRONG ON
+   2026-09-05** — the day the login streak started paying out 30 days of Premium
+   (`20260905_streak_reward_grant.sql`). A follow badge feeding a streak that pays
+   is a mintable badge that pays. `streak_days_for()` therefore counts `lesson:%`
+   rows and nothing else, and that filter is load-bearing rather than tidy: widen
+   it to "any achievement" and the reward becomes free for anyone who can send an
+   HTTP request. **Nothing a client can mint may ever count toward the streak
+   again.**
 2. **The wording is an intent, not an assertion.** The app says *"Tapped through
    to Instagram"*, because opening the profile is the event it actually observed.
    It must never say *"Followed us"* — printing a fact you did not measure is the
@@ -297,3 +306,48 @@ stops being kept.
 - The user-facing copy is unwritten. It may now say the year is free — the
   mechanism is decided and honourable on both platforms — but it must not name
   the billing rail.
+
+## The rule this cohort exists to remember: a hole is worth what the NEXT feature makes it worth
+
+Found on 2026-09-05, while scoping the streak reward, and written here rather than in
+a commit because **the OG cohort is the next feature that will hand a latent hole
+something to steal.**
+
+`achievements` lets a signed-in client INSERT its own rows. That is correct and it is
+the same reasoning as the section above: a lesson read is something only the client
+witnesses. The INSERT policy constrained WHICH ids could be written and WHOSE row it
+was. It constrained nothing about `earned_at`, which merely **defaulted** to `now()`.
+
+A default is not a guard. Any client could supply its own timestamp — so thirty
+backdated rows, inserted one second after signup, held a thirty-day streak. **Worth
+nothing on 2026-09-04. Worth a free month of Premium the instant item 9 landed.**
+
+Nobody was wrong to allow client inserts, and nothing had been exploited (measured: 6
+rows, 0 backdated, 0 future-dated). The lesson is about the QUESTION the security pass
+asks. "What is this worth today" was answered correctly and was the wrong question.
+The right one is:
+
+> **What would this be worth once we build the next thing?**
+
+Three details worth keeping, because each one is a way of being wrong that looks like
+being right:
+
+- **A correct error handler is not evidence the constraint exists.**
+  `useLearnProgress.ts` had always handled `23505` — "the lesson was already read" —
+  and there was no unique index on `(user_id, achievement_id)`, so that branch had
+  never once run and re-reads had been quietly writing duplicates for months. The
+  index exists now. Without it, a thousand inserts of the same lesson was the other
+  route to thirty distinct days.
+- **Test a policy as the role that would attack it, not as the owner.** The first
+  probe ran as `postgres` and proved nothing: a `SECURITY DEFINER` trigger made
+  `current_user` the function owner, so the role test could never be true and every
+  writer silently took the client path. Re-run under `set local role authenticated`
+  with a real JWT claim, it was decisive. Then roll the database back to its exact
+  prior row counts and say so.
+- **The same class of bug reads as correct code.** `streak_days_for()` first looked
+  the timezone up as `profiles.id = p_user`. `profiles` carries the auth user in a
+  separate `user_id` column — 0 of 46 rows have `id = user_id` — so it found nothing,
+  fell through a `coalesce`, and would have bucketed every user's streak in UTC: the
+  exact wrong-midnight defect `20260905_profiles_timezone.sql` exists to prevent,
+  reintroduced one migration later. Nothing about the line looked wrong. Probing found
+  it; reading did not.
