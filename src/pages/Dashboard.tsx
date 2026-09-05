@@ -87,6 +87,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
 import { widgetLabel, type WidgetId } from '@/lib/dashboard-widgets';
+import { LESSON_PARAM } from '@/lib/notification-routes';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 // LAZY, not a plain import. Accounts was its own route chunk until today; importing it statically
 // folded ~40 kB of it into the Dashboard's chunk, i.e. every Overview paint paid for a panel most
@@ -216,6 +217,34 @@ export default function Dashboard() {
   const { index: matchedOccurrences, occurrences: confirmedOccurrences } = useMatchedOccurrences();
 
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
+
+  /**
+   * ⚠️ A DEEP-LINKED LESSON MUST OPEN EVEN IF THE LEARN CARD IS HIDDEN.
+   *
+   * `?lesson=<id>` is consumed by `LearnCard`, and `learn` is a REMOVABLE widget. So a person who
+   * takes it off their dashboard taps "a 2-minute lesson" in a notification and lands here with
+   * nothing to consume the param — the tap does nothing, silently, which is the exact shape the
+   * deep-linking work exists to remove.
+   *
+   * The card is appended for THIS RENDER ONLY, so a link always has somewhere to land and nobody's
+   * saved layout is edited behind their back.
+   *
+   * ⚠️ NOT VERIFIED IN A BROWSER, AND HERE IS EXACTLY WHY, because the obvious test does not work.
+   * `/demo` looks like the failing environment — the Learn card is absent there — but it is absent
+   * for a DIFFERENT reason: `useLearnProgress` is `enabled: !isDemo && !!user`, so the query never
+   * runs and `LearnCard` returns null on its own loading guard, whatever the layout says. Demo
+   * therefore cannot distinguish this fix working from it doing nothing, which makes it worse than
+   * no test. `DEFAULT_LAYOUT` also marks every widget visible, so a default account never hits
+   * this path either.
+   * **What WOULD verify it: a signed-in account with the Learn widget switched OFF in Customize,
+   * then `/dashboard?lesson=what-a-cash-floor-is`.** Until somebody does that, this is reasoned
+   * and not measured, and it is labelled that way rather than counted as evidence.
+   */
+  const widgetsToRender = useMemo(() => (
+    searchParams.has(LESSON_PARAM) && !visibleWidgets.includes('learn')
+      ? ([...visibleWidgets, 'learn'] as WidgetId[])
+      : visibleWidgets
+  ), [visibleWidgets, searchParams]);
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
   useEffect(() => {
@@ -1709,7 +1738,7 @@ export default function Dashboard() {
       {/* Dynamic widget stack. Each widget gets its own boundary so a crash in
           one card replaces only that card — the rest of the dashboard keeps
           rendering, and the fallback names the widget that failed. */}
-      {visibleWidgets.map(id => (
+      {widgetsToRender.map(id => (
         <ErrorBoundary key={id} variant="widget" label={widgetLabel(id)}>
           <Widget id={id} render={renderWidget} />
         </ErrorBoundary>

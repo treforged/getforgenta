@@ -48,13 +48,15 @@ export const LESSON_PARAM = 'lesson';
  * default and last in the default order — but a person who removes it from their dashboard makes
  * the param unconsumable, and the tap then lands on `/dashboard` and does nothing visible.
  *
- * Verified in the browser rather than assumed: on `/demo` the Learn card is not rendered at all,
- * `?lesson=what-a-cash-floor-is` was NOT consumed and no lesson opened. That is the same
- * silently-does-nothing shape this file exists to fix, so it is written down rather than left for
- * a user to find. **The fix is to consume the param where it is guaranteed to be mounted — the
- * Dashboard page itself — and have it ensure the Learn card is shown.** Not done here because it
- * could not be verified end to end in this session, and shipping an unverified claim about a
- * notification tap is the exact failure this whole batch is about.
+ * CLOSED 2026-09-05: `Dashboard.tsx` appends the `learn` widget for that render when the param is
+ * present, so a link always has somewhere to land.
+ *
+ * ⚠️ REASONED, NOT MEASURED, and the reason the obvious test fails is worth keeping. `/demo` looks
+ * like the failing environment because the Learn card is absent there — but it is absent for a
+ * DIFFERENT reason: `useLearnProgress` is `enabled: !isDemo && !!user`, so the card returns null on
+ * its own loading guard whatever the layout says. Demo cannot tell this fix working from it doing
+ * nothing. **What would verify it: a signed-in account with the Learn widget switched OFF, then
+ * `/dashboard?lesson=what-a-cash-floor-is`.**
  */
 
 /**
