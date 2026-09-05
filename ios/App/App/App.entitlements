@@ -15,5 +15,30 @@
 	<array>
 		<string>applinks:getforgenta.com</string>
 	</array>
+
+	<!--
+	  APNs. WITHOUT THIS KEY iOS PUSH CANNOT WORK AT ALL, and it was missing until 2026-09-05.
+
+	  `PushNotifications.register()` fails with a `registrationError` and no token is ever minted,
+	  which is exactly what the data showed: `device_tokens` held 7 rows, every one ANDROID, and
+	  ZERO iOS — while `APNS_AUTH_KEY_P8`, `APNS_KEY_ID` and `APNS_TEAM_ID` all sat correctly
+	  configured in Supabase. A perfect `.p8` signs nothing for an app the OS will not register.
+
+	  `development` covers debug and TestFlight builds; the App Store submission process rewrites
+	  it to `production` when Apple re-signs, so this one value is correct for both and does not
+	  need a per-configuration split.
+
+	  ⚠️ THIS KEY ALONE IS NOT ENOUGH, AND IT BREAKS SIGNING UNTIL THE OTHER HALF IS DONE.
+	  Release signs Manual against the pinned "Forged App Store" profile (see the note above), so
+	  a profile without the Push Notifications capability will FAIL at the signing step rather
+	  than build something that quietly cannot register. That is the better failure — loud instead
+	  of silent — but it does mean these three steps must happen in the Apple Developer portal:
+	    1. Enable Push Notifications on App ID `com.treforged.forged`.
+	    2. Regenerate the "Forged App Store" provisioning profile so it carries the capability.
+	    3. Re-encode it into the `BUILD_PROVISION_PROFILE_BASE64` GitHub secret.
+	  Only Tre can do those; nothing in this repo can.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>
