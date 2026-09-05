@@ -40,6 +40,8 @@ const h = vi.hoisted(() => ({
   attached: [] as string[],
   removed: [] as string[],
   registerCalledBeforeListeners: false,
+  /** Wired by the plugin mock so each test starts with no listeners attached. */
+  resetListeners: null as null | (() => void),
 }));
 
 // ⚠️ THE BUILD NUMBER IS PART OF THE DIAGNOSIS NOW. 29 `timeout` rows on a real iPhone could not
@@ -59,6 +61,7 @@ vi.mock('@capacitor/core', () => ({
 vi.mock('@capacitor/push-notifications', () => {
   const listeners: Record<string, ((p: unknown) => void)[]> = {};
   h.emit = (event, payload) => { (listeners[event] ?? []).forEach(cb => cb(payload)); };
+  h.resetListeners = () => { for (const k of Object.keys(listeners)) delete listeners[k]; };
   return {
     PushNotifications: {
       checkPermissions: async () => ({ receive: h.initialPermission }),
@@ -70,7 +73,16 @@ vi.mock('@capacitor/push-notifications', () => {
         await new Promise(r => setTimeout(r, 0));
         (listeners[event] ??= []).push(cb);
         h.attached.push(event);
-        return { remove: async () => { h.removed.push(event); } };
+        return {
+          // ⚠️ `remove()` ACTUALLY REMOVES. It used to only record the event name, so a "removed"
+          // listener kept firing — which was invisible while every handler was a no-op after its
+          // promise settled, and became visible the moment a LATE token handler could save. A fake
+          // that accepts a removal without performing it cannot test a leak.
+          remove: async () => {
+            h.removed.push(event);
+            listeners[event] = (listeners[event] ?? []).filter(fn => fn !== cb);
+          },
+        };
       },
       register: async () => {
         h.registerCalls += 1;
@@ -110,6 +122,9 @@ describe('push registration', () => {
     h.answerWith = 'token';
     h.saved = []; h.revoked = []; h.recorded = []; h.saveFails = false;
     h.attached = []; h.removed = []; h.registerCalledBeforeListeners = false;
+    // Listeners do NOT survive a test. One case's surviving handler firing into the next is a
+    // cross-test leak that reads as a product bug.
+    h.resetListeners?.();
   });
   afterEach(() => vi.clearAllMocks());
 
@@ -156,7 +171,7 @@ describe('push registration', () => {
     vi.useFakeTimers();
     h.answerWith = 'silence';
     const pending = registerForPush(store, { prompt: true });
-    await vi.advanceTimersByTimeAsync(11_000);
+    await vi.advanceTimersByTimeAsync(31_000);
     // A network problem, NOT a build problem and NOT a declined user.
     expect((await pending).outcome).toBe('timeout');
     expect(h.saved).toEqual([]);
@@ -232,6 +247,51 @@ describe('push registration', () => {
     expect(h.removed.sort()).toEqual(['registration', 'registrationError']);
   });
 
+  it('⚠️ SAVES A TOKEN THAT ARRIVES AFTER THE WAIT WINDOW — it used to be thrown away', async () => {
+    // THE BUG THIS PINS IS ONE THIS FILE CAUSED. Removing the listeners on timeout was added to
+    // stop a leak, and it also stopped a late token being heard — so APNs answering at 12s while
+    // we stopped at 10 wrote `timeout` and DISCARDED a working registration, identically on every
+    // attempt for ever. A first registration on a cold app over cellular is exactly that slow.
+    vi.useFakeTimers();
+    try {
+      h.initialPermission = 'granted';
+      h.answerWith = 'silence';                       // nothing inside the window
+      const pending = registerForPush(store);
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect((await pending).outcome).toBe('timeout'); // provisional, not final
+      expect(h.saved).toEqual([]);
+
+      // APNs answers late. The listener must still be there.
+      h.emit?.('registration', { value: 'apns-token-late' });
+      await vi.advanceTimersByTimeAsync(10);
+      await Promise.resolve();
+    } finally { vi.useRealTimers(); }
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(h.saved).toEqual([
+      { platform: 'ios', token: 'apns-token-late', environment: 'sandbox' },
+    ]);
+    // And the row is corrected from the provisional timeout to the truth.
+    expect(h.recorded.map(r => r.outcome)).toEqual(['timeout', 'registered']);
+    expect(h.recorded[1].detail).toContain('arrived after the wait window');
+  });
+
+  it('removes the token listener once the late token has been handled', async () => {
+    vi.useFakeTimers();
+    try {
+      h.initialPermission = 'granted';
+      h.answerWith = 'silence';
+      const pending = registerForPush(store);
+      await vi.advanceTimersByTimeAsync(31_000);
+      await pending;
+      h.emit?.('registration', { value: 'apns-token-late' });
+      await vi.advanceTimersByTimeAsync(10);
+    } finally { vi.useRealTimers(); }
+    await new Promise(r => setTimeout(r, 0));
+    // The error listener goes at timeout; the token listener goes once it has done its job.
+    expect(h.removed.sort()).toEqual(['registration', 'registrationError']);
+  });
+
   it('⚠️ records what iOS ACTUALLY said about permission, not what we inferred', async () => {
     // `prompted: false` was read as "already granted" for 36 attempts — an inference, not a
     // reading. A `timeout` row must now carry the OS's own answer.
@@ -247,7 +307,7 @@ describe('push registration', () => {
       h.initialPermission = 'granted';
       h.answerWith = 'silence';
       const pending = registerForPush(store);
-      await vi.advanceTimersByTimeAsync(11_000);
+      await vi.advanceTimersByTimeAsync(31_000);
       expect((await pending).outcome).toBe('timeout');
       expect(h.recorded[0].detail).toBe('permission=granted');
     } finally { vi.useRealTimers(); }

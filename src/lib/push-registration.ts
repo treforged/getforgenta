@@ -298,11 +298,43 @@ export async function registerForPush(
       },
     );
 
-    // ⚠️ AND THEY ARE REMOVED. The previous version added two listeners per call and removed
-    // neither, so 31 attempts left 62 live listeners on one device — each one still holding the
-    // closure of a settled promise.
-    await registrationHandle.remove().catch(() => {});
+    // ⚠️ ON A TIMEOUT THE `registration` LISTENER STAYS ALIVE. THIS IS THE POINT OF THE WHOLE FIX.
+    //
+    // A timeout that STOPS LISTENING is worse than no timeout at all: if APNs answers at twelve
+    // seconds and we stopped at ten, **a working token is thrown away** and `timeout` is written —
+    // which looks identical, on every attempt, for ever, no matter how many times the app is
+    // opened. A first registration on a cold app, on cellular, is exactly when APNs is slowest.
+    //
+    // Worse, THIS CODE CAUSED THAT. The removal below was added earlier today to stop a listener
+    // leak (31 attempts had left 62 live listeners), and stopping the leak also stopped late
+    // tokens being heard at all. Fixing one bug introduced another with the same signature.
+    //
+    // So the error listener goes — an error after we stopped waiting tells us nothing new — and
+    // the token listener SURVIVES, saving whatever arrives whenever it arrives and recording the
+    // outcome as `registered`. `timeout` therefore means "no answer YET", a provisional state that
+    // a later token overwrites, rather than "we gave up".
     await errorHandle.remove().catch(() => {});
+
+    if (settledAs.how !== 'token') {
+      // Re-point the token handler at the late path before returning. The promise is settled, so
+      // the original `onToken` is a no-op from here.
+      onToken = (value) => {
+        void (async () => {
+          // Remove first: whatever happens next, this listener has done its one job.
+          await registrationHandle.remove().catch(() => {});
+          if (!value) return;
+          const saved = await store.saveToken({ platform, token: value, environment })
+            .catch(() => false);
+          const app = await appInfo();
+          await store
+            .recordOutcome(saved ? 'registered' : 'save_failed', platform, prompted, app,
+              `${permissionReading ?? ''} late=${LATE_TOKEN_NOTE}`.trim())
+            .catch(() => {});
+        })();
+      };
+    } else {
+      await registrationHandle.remove().catch(() => {});
+    }
 
     if (settledAs.how === 'timeout') return done('timeout');
     if (settledAs.how === 'error') return done('registration_error', null, settledAs.detail);
@@ -324,8 +356,18 @@ export async function registerForPush(
   }
 }
 
-/** How long to wait for APNs or FCM to answer before giving up on this launch. */
-export const REGISTRATION_TIMEOUT_MS = 10_000;
+/** Marks a row written by the late-arrival path, so a slow provider is visible in the data. */
+const LATE_TOKEN_NOTE = 'arrived after the wait window';
+
+/**
+ * How long to wait for APNs or FCM to answer BEFORE REPORTING — not before giving up.
+ *
+ * ⚠️ NOTHING IS DISCARDED WHEN THIS ELAPSES. The `registration` listener outlives it and saves a
+ * token that arrives later, so this number decides only how quickly a provisional `timeout` is
+ * recorded. Raised from 10s because a first registration on a cold app over cellular is routinely
+ * slower than that, but the survival of the listener is the fix and this is only the tuning.
+ */
+export const REGISTRATION_TIMEOUT_MS = 30_000;
 
 /**
  * Mark this device's token revoked on sign-out.
