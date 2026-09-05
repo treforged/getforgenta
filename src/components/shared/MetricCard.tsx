@@ -47,7 +47,10 @@ export default function MetricCard({
   return (
     <div
       className={cn(
-        'relative card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300 h-full',
+        // overflow-hidden scoped to THIS card rather than added to the card-forged utility:
+        // that utility wraps panels containing dropdowns and popovers that are meant to escape
+        // their box, and clipping those would trade one visual bug for a worse one.
+        'relative card-forged overflow-hidden p-4 sm:p-5 hover:border-primary/20 transition-all duration-300 h-full',
         glowMap[accent],
         className
       )}
@@ -58,9 +61,22 @@ export default function MetricCard({
             {label}
           </p>
 
+          {/*
+            ⚠️ NEVER `truncate` A MONEY FIGURE, AND NEVER LET ONE SPILL.
+            This carried `whitespace-nowrap` with no truncate, and `card-forged` has no
+            overflow-hidden, so a wide value did not clip -- it SPILLED over the card border
+            onto the neighbouring tile and the icon. At 375px the value has roughly 89px, about
+            eight characters, so ordinary amounts like -$14,400 or $150,000 overflowed. It is
+            live on Dashboard and BudgetControl through a two-column grid with no breakpoint
+            bump.
+            The fix is to let it WRAP, not to truncate it. A number that runs onto a second line
+            is ugly and legible; a clipped or ellipsised one reads as a smaller number, which on
+            a finance screen is not a cosmetic problem. `break-words` gives the browser
+            permission to break a long unbroken string rather than push past its container.
+          */}
           <p
             className={cn(
-              'text-xl sm:text-2xl font-display font-bold mt-2 tracking-tight whitespace-nowrap',
+              'text-xl sm:text-2xl font-display font-bold mt-2 tracking-tight break-words',
               colorMap[accent]
             )}
           >
