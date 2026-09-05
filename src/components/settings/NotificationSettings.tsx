@@ -3,6 +3,30 @@ import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { loadPrefs, savePrefs, NOTIFICATION_CATEGORIES } from '@/lib/notification-prefs';
 import type { NotificationPrefs, NotificationCategory } from '@/lib/notification-prefs';
+import type { PushRegistrationOutcome } from '@/lib/push-registration';
+
+/**
+ * What to tell somebody whose switch is on but whose device did not register.
+ *
+ * ⚠️ THE SWITCH USED TO LIE, AND ON iOS IT LIED TO EVERYONE. `registerForPush` was called with
+ * `.catch(() => {})` and its result discarded, so the toggle went to ON whether a token had been
+ * minted or not. Measured 2026-09-05: `App.entitlements` had no `aps-environment` key, so every
+ * iOS registration failed — and the switch said ON, with `device_tokens` holding zero iOS rows.
+ * A control that reports success while doing nothing is the exact failure this repo keeps
+ * finding in its own code.
+ *
+ * Each message says whose problem it is without blaming the reader, and none of them is a toast:
+ * a toast about notifications while somebody is looking at their money is its own bad idea, and
+ * this is a line under the control they just pressed.
+ */
+const REGISTRATION_NOTE: Partial<Record<PushRegistrationOutcome, string>> = {
+  denied: 'Notifications are turned off for Forgenta in your device settings, so nothing can be delivered. Turn them on there and flip this switch again.',
+  timeout: 'Your device could not reach the notification service just now. It will try again the next time you open the app.',
+  registration_error: 'This build of the app cannot receive notifications yet. Nothing is wrong with your settings — it is being fixed, and no action from you will help until it is.',
+  empty_token: 'Your device did not return a delivery address. Reopening the app usually fixes it.',
+  save_failed: 'Your device registered but we could not save it. It will try again the next time you open the app.',
+  plugin_error: 'This build of the app cannot receive notifications yet. It is being fixed.',
+};
 
 /**
  * The one place notifications can be switched off.
@@ -26,6 +50,8 @@ import type { NotificationPrefs, NotificationCategory } from '@/lib/notification
 export default function NotificationSettings() {
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [saving, setSaving] = useState(false);
+  // `null` = nothing to say: not asked yet, on the web, or it worked.
+  const [registrationNote, setRegistrationNote] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,10 +98,17 @@ export default function NotificationSettings() {
     const next = { ...prefs, enabled: !prefs.enabled };
     void (async () => {
       await commit(next);
+      setRegistrationNote(null);
       if (next.enabled && Capacitor.isNativePlatform()) {
         const { registerForPush } = await import('@/lib/push-registration');
         const { supabasePushStore } = await import('@/lib/push-store');
-        await registerForPush(supabasePushStore, { prompt: true }).catch(() => {});
+        // ⚠️ THE RESULT IS READ NOW. It used to be `.catch(() => {})` with the value discarded,
+        // so the switch went ON whether or not a token existed — and on iOS a token never did.
+        const { outcome } = await registerForPush(supabasePushStore, { prompt: true })
+          .catch(() => ({ outcome: 'plugin_error' as const, token: null }));
+        if (outcome !== 'registered' && outcome !== 'web') {
+          setRegistrationNote(REGISTRATION_NOTE[outcome] ?? null);
+        }
       }
     })();
   };
@@ -114,6 +147,16 @@ export default function NotificationSettings() {
           label="Alerts about your money"
         />
       </div>
+
+      {registrationNote && (
+        <p
+          role="status"
+          data-testid="push-registration-note"
+          className="text-[10px] text-destructive"
+        >
+          {registrationNote}
+        </p>
+      )}
 
       {/*
         Per-category opt-outs. They exist because a single master switch forces an all-or-nothing

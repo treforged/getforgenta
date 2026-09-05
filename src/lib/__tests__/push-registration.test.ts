@@ -29,9 +29,13 @@ const h = vi.hoisted(() => ({
   requestCalls: 0,
   /** Fired to simulate APNs / FCM answering. null means it never answers. */
   emit: null as null | ((event: string, payload: unknown) => void),
-  answerWith: 'token' as 'token' | 'error' | 'silence',
+  answerWith: 'token' as 'token' | 'error' | 'silence' | 'empty',
   saved: [] as unknown[],
   revoked: [] as string[],
+  /** Outcomes the fake store was told to record, so each path can be pinned to a NAMED reason. */
+  recorded: [] as { outcome: string; platform: string; prompted: boolean }[],
+  /** Makes `saveToken` report failure — a real token minted and then lost to a backend error. */
+  saveFails: false,
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -58,6 +62,9 @@ vi.mock('@capacitor/push-notifications', () => {
         queueMicrotask(() => {
           if (h.answerWith === 'token') h.emit?.('registration', { value: 'apns-token-abc' });
           if (h.answerWith === 'error') h.emit?.('registrationError', { error: 'no' });
+          // Granted, the event fired, and the token came back empty: a PLATFORM problem, and a
+          // different one from a timeout or a refusal.
+          if (h.answerWith === 'empty') h.emit?.('registration', { value: '' });
         });
       },
     },
@@ -70,8 +77,11 @@ import {
 } from '@/lib/push-registration';
 
 const store: PushStore = {
-  saveToken: async (row) => { h.saved.push(row); },
+  saveToken: async (row) => { h.saved.push(row); return !h.saveFails; },
   revokeToken: async (token) => { h.revoked.push(token); },
+  recordOutcome: async (outcome, platform, prompted) => {
+    h.recorded.push({ outcome, platform, prompted });
+  },
 };
 
 describe('push registration', () => {
@@ -80,23 +90,25 @@ describe('push registration', () => {
     h.permission = 'granted'; h.initialPermission = 'prompt';
     h.registerCalls = 0; h.requestCalls = 0;
     h.answerWith = 'token';
-    h.saved = []; h.revoked = [];
+    h.saved = []; h.revoked = []; h.recorded = []; h.saveFails = false;
   });
   afterEach(() => vi.clearAllMocks());
 
   it('stores the token the OS hands back on its EVENT, not the register() return', async () => {
-    const token = await registerForPush(store, { prompt: true });
+    const { outcome, token } = await registerForPush(store, { prompt: true });
+    expect(outcome).toBe('registered');
     expect(token).toBe('apns-token-abc');
     expect(h.saved).toEqual([
       { platform: 'ios', token: 'apns-token-abc', environment: 'sandbox' },
     ]);
+    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true }]);
   });
 
   it('stores NOTHING and asks for nothing when the person already declined', async () => {
     h.initialPermission = 'denied';
-    const token = await registerForPush(store);
+    const { outcome } = await registerForPush(store);
 
-    expect(token).toBeNull();
+    expect(outcome).toBe('denied');
     expect(h.saved).toEqual([]);
     // Asking again from a launch loop is how a permission prompt gets permanently denied.
     expect(h.requestCalls).toBe(0);
@@ -106,13 +118,18 @@ describe('push registration', () => {
   it('stores nothing when the person declines the prompt now', async () => {
     // Reaching the prompt at all now requires being invited to ask.
     h.permission = 'denied';
-    expect(await registerForPush(store)).toBeNull();
+    expect((await registerForPush(store)).outcome).toBe('undecided_not_asked');
     expect(h.saved).toEqual([]);
   });
 
   it('stores nothing when the provider answers with an error', async () => {
     h.answerWith = 'error';
-    expect(await registerForPush(store, { prompt: true })).toBeNull();
+    // ⚠️ `registration_error` IS THE BUCKET THE MISSING `aps-environment` ENTITLEMENT LANDS IN.
+    // Until 2026-09-05 `App.entitlements` had no `aps-environment` key at all, so iOS refused to
+    // register and no token was ever minted — and this outcome was indistinguishable from a user
+    // who had simply never been asked. That is why it is named rather than `null`: one is a build
+    // problem and the other is a product decision.
+    expect((await registerForPush(store, { prompt: true })).outcome).toBe('registration_error');
     expect(h.saved).toEqual([]);
   });
 
@@ -121,7 +138,8 @@ describe('push registration', () => {
     h.answerWith = 'silence';
     const pending = registerForPush(store, { prompt: true });
     await vi.advanceTimersByTimeAsync(11_000);
-    expect(await pending).toBeNull();
+    // A network problem, NOT a build problem and NOT a declined user.
+    expect((await pending).outcome).toBe('timeout');
     expect(h.saved).toEqual([]);
     vi.useRealTimers();
   });
@@ -138,9 +156,15 @@ describe('push registration', () => {
    */
   it('⚠️ does NOT ask on the sign-in path — the one-shot prompt is left unspent', async () => {
     h.initialPermission = 'prompt';
-    const token = await registerForPush(store);   // no options: this is the sign-in call
-    expect(h.requestCalls).toBe(0);               // the assertion that matters
-    expect(token).toBeNull();
+    const { outcome } = await registerForPush(store);  // no options: this is the sign-in call
+    expect(h.requestCalls).toBe(0);                    // the assertion that matters
+    expect(outcome).toBe('undecided_not_asked');
+    // ⚠️ AND IT IS RECORDED AS NOT-ASKED, not as a failure. This is the row that tells a product
+    // question ("nobody has opened the switch") apart from a bug ("everybody tried and it broke"),
+    // which is the whole reason the outcome type exists.
+    expect(h.recorded).toEqual([
+      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false },
+    ]);
     expect(h.registerCalls).toBe(0);
     expect(h.saved).toEqual([]);
   });
@@ -148,8 +172,9 @@ describe('push registration', () => {
   it('DOES ask when the user turns notifications on, which is the whole point', async () => {
     h.initialPermission = 'prompt';
     h.permission = 'granted';
-    const token = await registerForPush(store, { prompt: true });
+    const { outcome, token } = await registerForPush(store, { prompt: true });
     expect(h.requestCalls).toBe(1);
+    expect(outcome).toBe('registered');
     expect(token).toBe('apns-token-abc');
   });
 
@@ -157,8 +182,9 @@ describe('push registration', () => {
     // The silent path has to keep working, or declining to prompt would cost every existing user
     // their token on the next launch.
     h.initialPermission = 'granted';
-    const token = await registerForPush(store);
+    const { outcome, token } = await registerForPush(store);
     expect(h.requestCalls).toBe(0);
+    expect(outcome).toBe('registered');
     expect(token).toBe('apns-token-abc');
     expect(h.saved).toHaveLength(1);
   });
@@ -166,15 +192,62 @@ describe('push registration', () => {
   it('never re-asks somebody who declined, even at the intent moment', async () => {
     // iOS would show nothing anyway; asking is pointless and the answer stands.
     h.initialPermission = 'denied';
-    expect(await registerForPush(store, { prompt: true })).toBeNull();
+    expect((await registerForPush(store, { prompt: true })).outcome).toBe('denied');
     expect(h.requestCalls).toBe(0);
   });
 
   it('does nothing at all on web', async () => {
     h.native = false;
-    expect(await registerForPush(store, { prompt: true })).toBeNull();
+    const { outcome } = await registerForPush(store, { prompt: true });
+    expect(outcome).toBe('web');
     expect(h.registerCalls).toBe(0);
     expect(h.saved).toEqual([]);
+    // ⚠️ AND RECORDS NOTHING. A row per browser session would drown the one number this is for,
+    // and there is no OS here to have failed.
+    expect(h.recorded).toEqual([]);
+  });
+
+  it('⚠️ calls a token that failed to SAVE a failure — it used to look identical to success', async () => {
+    // The worst of the outcomes: a real, reachable device minted a real token, the write lost it,
+    // and `saveToken` returning `void` meant `registerForPush` reported it exactly like a
+    // registered device. The person is then counted unreachable forever with nothing red anywhere.
+    h.saveFails = true;
+    const { outcome, token } = await registerForPush(store, { prompt: true });
+    expect(outcome).toBe('save_failed');
+    // The token is still handed back: it is real, and losing it here too would help nobody.
+    expect(token).toBe('apns-token-abc');
+    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true }]);
+  });
+
+  it('records an outcome for every path that reaches the OS, so none can go uncounted', async () => {
+    const cases: Array<[() => void, string]> = [
+      [() => { h.initialPermission = 'denied'; }, 'denied'],
+      [() => { h.answerWith = 'error'; }, 'registration_error'],
+      [() => { h.answerWith = 'empty'; }, 'empty_token'],
+      [() => { h.saveFails = true; }, 'save_failed'],
+      [() => { /* the happy path */ }, 'registered'],
+    ];
+    for (const [arrange, expected] of cases) {
+      h.initialPermission = 'prompt'; h.permission = 'granted';
+      h.answerWith = 'token'; h.saveFails = false; h.recorded = [];
+      arrange();
+      const { outcome } = await registerForPush(store, { prompt: true });
+      expect(outcome).toBe(expected);
+      expect(h.recorded).toHaveLength(1);
+      expect(h.recorded[0].outcome).toBe(expected);
+    }
+  });
+
+  it('never lets a failed RECORDING break a registration that worked', async () => {
+    // Diagnosing a failure must not become a second way to fail.
+    const flaky: PushStore = {
+      saveToken: async (row) => { h.saved.push(row); return true; },
+      revokeToken: async () => {},
+      recordOutcome: async () => { throw new Error('rpc down'); },
+    };
+    const { outcome, token } = await registerForPush(flaky, { prompt: true });
+    expect(outcome).toBe('registered');
+    expect(token).toBe('apns-token-abc');
   });
 });
 
@@ -207,8 +280,9 @@ describe('revoking on sign-out', () => {
 
   it('never lets a failed revoke break a sign-out', async () => {
     const throwing: PushStore = {
-      saveToken: async () => {},
+      saveToken: async () => true,
       revokeToken: async () => { throw new Error('network gone'); },
+      recordOutcome: async () => {},
     };
     // Trapping someone in an account they are trying to leave is far worse than a stale row,
     // which the next failed send retires anyway.

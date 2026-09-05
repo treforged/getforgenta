@@ -26,13 +26,18 @@ vi.mock('@capacitor/core', () => ({
 
 /** What `registerForPush` was called with, so the ORDER and the OPTIONS can both be asserted. */
 const pushCalls: Array<{ prompt?: boolean }> = [];
+/** What `registerForPush` should answer. Every value here is a real path — see its own tests. */
+let pushOutcome: string = 'registered';
 vi.mock('@/lib/push-registration', () => ({
   registerForPush: async (_store: unknown, options: { prompt?: boolean } = {}) => {
     pushCalls.push(options);
-    return 'apns-token-abc';
+    if (pushOutcome === 'throws') throw new Error('plugin missing');
+    return { outcome: pushOutcome, token: pushOutcome === 'registered' ? 'apns-token-abc' : null };
   },
 }));
-vi.mock('@/lib/push-store', () => ({ supabasePushStore: { saveToken: async () => {}, revokeToken: async () => {} } }));
+vi.mock('@/lib/push-store', () => ({
+  supabasePushStore: { saveToken: async () => true, revokeToken: async () => {}, recordOutcome: async () => {} },
+}));
 
 const devicePrefs = new Map<string, string>();
 vi.mock('@capacitor/preferences', () => ({
@@ -79,6 +84,7 @@ beforeEach(() => {
   updateFails = false;
   updates.length = 0;
   pushCalls.length = 0;
+  pushOutcome = 'registered';
   devicePrefs.clear();
   toastError.mockClear();
 });
@@ -91,6 +97,76 @@ const category = (name: RegExp) => screen.findByRole('switch', { name });
 
 /** The value the component last wrote to the account. */
 const lastWrite = () => updates[updates.length - 1] as { enabled: boolean; categories: Record<string, boolean> };
+
+describe('NotificationSettings — the switch must not claim what it did not do', () => {
+  /**
+   * ⚠️ THE BUG THESE PIN WAS LIVE AND UNIVERSAL ON iOS. `registerForPush` was called with
+   * `.catch(() => {})` and its result thrown away, so the switch went to ON whether a token had
+   * been minted or not. `App.entitlements` had no `aps-environment` key, so EVERY iOS
+   * registration failed — and every iOS user who turned this on was told it worked, while
+   * `device_tokens` held zero iOS rows.
+   */
+  const note = () => screen.queryByTestId('push-registration-note');
+
+  it('says nothing when registration actually worked', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    fireEvent.click(await mount());
+    await waitFor(() => expect(pushCalls).toHaveLength(1));
+    await waitFor(() => expect(lastWrite().enabled).toBe(true));
+    expect(note()).toBeNull();
+  });
+
+  it('⚠️ says the build cannot receive notifications when the OS refuses to register', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    pushOutcome = 'registration_error';
+    fireEvent.click(await mount());
+    await waitFor(() => expect(note()).not.toBeNull());
+    // Whose problem it is, without blaming the reader or sending them to a setting that is fine.
+    expect(note()!.textContent).toMatch(/cannot receive notifications yet/i);
+    expect(note()!.textContent).toMatch(/nothing is wrong with your settings/i);
+  });
+
+  it('sends somebody who declined at the OS level to the right place', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    pushOutcome = 'denied';
+    fireEvent.click(await mount());
+    await waitFor(() => expect(note()).not.toBeNull());
+    expect(note()!.textContent).toMatch(/device settings/i);
+  });
+
+  it('still explains itself when the registration call throws outright', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    pushOutcome = 'throws';
+    fireEvent.click(await mount());
+    await waitFor(() => expect(note()).not.toBeNull());
+  });
+
+  it('clears a previous warning when the switch is pressed again', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    pushOutcome = 'registration_error';
+    const sw = await mount();
+    fireEvent.click(sw);
+    await waitFor(() => expect(note()).not.toBeNull());
+
+    pushOutcome = 'registered';
+    fireEvent.click(sw);            // off
+    await waitFor(() => expect(note()).toBeNull());
+  });
+
+  it('shows nothing on the web, where there is no OS to have refused', async () => {
+    isNative = false;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    fireEvent.click(await mount());
+    await waitFor(() => expect(lastWrite().enabled).toBe(true));
+    expect(pushCalls).toHaveLength(0);
+    expect(note()).toBeNull();
+  });
+});
 
 describe('NotificationSettings', () => {
   it('RENDERS IN THE BROWSER, which is the bug it was built to fix', async () => {

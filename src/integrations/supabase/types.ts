@@ -2624,6 +2624,10 @@ export type Database = {
         Args: { p_category: string; p_merchant_key: string }
         Returns: undefined
       }
+      record_push_registration: {
+        Args: { p_outcome: string; p_platform: string; p_prompted?: boolean }
+        Returns: undefined
+      }
       revenue_summary_lines: {
         Args: never
         Returns: {

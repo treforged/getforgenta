@@ -35,10 +35,10 @@ export const supabasePushStore: PushStore = {
    * `revoked_at: null` is set explicitly: a device that signed out and signed back in must come
    * back to life rather than stay retired on a row that already exists.
    */
-  async saveToken(row: DeviceTokenRow): Promise<void> {
+  async saveToken(row: DeviceTokenRow): Promise<boolean> {
     const { data: auth } = await supabase.auth.getUser();
     const userId = auth.user?.id;
-    if (!userId) return;
+    if (!userId) return false;
 
     const { error } = await supabase.from('device_tokens').upsert({
       user_id: userId,
@@ -50,8 +50,12 @@ export const supabasePushStore: PushStore = {
     }, { onConflict: 'platform,token' });
 
     if (error) {
+      // ⚠️ AND SAY SO TO THE CALLER. This used to log and return `void`, so a real token minted
+      // and then lost to a backend error was reported to `registerForPush` exactly like a
+      // successful one — a reachable device recorded as unreachable, permanently, with nothing
+      // red anywhere. `false` is what turns that into the `save_failed` outcome.
       console.error('[push] could not save device token:', error.message);
-      return;
+      return false;
     }
 
     try {
@@ -60,6 +64,29 @@ export const supabasePushStore: PushStore = {
       // The row is saved, which is the part that matters. Losing the local copy only means
       // sign-out cannot revoke it here, and the next failed send retires it instead.
     }
+    return true;
+  },
+
+  /**
+   * Record WHY this device does or does not have a token.
+   *
+   * ⚠️ THROUGH AN RPC, NOT A TABLE WRITE. `record_push_registration` is `SECURITY DEFINER` and
+   * takes its `user_id` from `auth.uid()`, and `authenticated` has no INSERT on the table at
+   * all. A client that could name its own user id could write a false `registered` against
+   * somebody else's account and make an unreachable person look reachable — which would poison
+   * the one number this whole thing exists to produce. Same reasoning as `saveToken` not taking
+   * a `user_id`.
+   *
+   * ⚠️ NEVER THROWS AND NEVER BLOCKS REGISTRATION. Diagnosing a failure must not become a second
+   * way to fail: if this errors, the token is still saved and the person still gets notifications.
+   */
+  async recordOutcome(outcome, platform, prompted): Promise<void> {
+    const { error } = await supabase.rpc('record_push_registration', {
+      p_platform: platform,
+      p_outcome: outcome,
+      p_prompted: prompted,
+    });
+    if (error) console.error('[push] could not record registration outcome:', error.message);
   },
 
   /** Retire the row, and forget the local copy so a later sign-out cannot revoke it twice. */

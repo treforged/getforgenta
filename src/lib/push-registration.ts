@@ -39,8 +39,48 @@ export interface DeviceTokenRow {
  * module has no dependency on the Supabase client and can be exercised without one.
  */
 export interface PushStore {
-  saveToken(row: DeviceTokenRow): Promise<void>;
+  /** `true` when the row actually landed. ⚠️ NOT `void`: a token that is minted and then lost to
+   *  a failed write is the worst of the nine outcomes — a real, reachable device recorded as
+   *  unreachable — and a `void` return made it indistinguishable from success. */
+  saveToken(row: DeviceTokenRow): Promise<boolean>;
   revokeToken(token: string): Promise<void>;
+  /** Best effort, never throws. See `PushRegistrationOutcome`. */
+  recordOutcome(outcome: PushRegistrationOutcome, platform: 'ios' | 'android', prompted: boolean): Promise<void>;
+}
+
+/**
+ * WHY A PERSON HAS NO DEVICE TOKEN.
+ *
+ * ⚠️ THIS TYPE EXISTS BECAUSE `registerForPush` USED TO RETURN `null` FOR ALL OF IT. Measured
+ * 2026-09-05: the sender reported `candidates: 48, sent: 0, unreachable: 48` — forty-eight people
+ * it would have notified, none reachable — and nothing in the system could say which of these it
+ * was. "Nobody has ever been asked" and "everybody was asked and it failed" produced the same
+ * empty table and need opposite fixes: one is a product decision, the other is a bug hunt.
+ *
+ * Each value names a different owner:
+ *   registered           it worked
+ *   undecided_not_asked  the notification switch was never opened — PRODUCT, not a bug
+ *   denied               they said no; leave them alone
+ *   timeout              APNs/FCM did not answer inside REGISTRATION_TIMEOUT_MS — NETWORK
+ *   registration_error   the OS refused — BUILD (entitlements, google-services.json, provisioning)
+ *   empty_token          granted, the event fired, the token was empty — PLATFORM
+ *   save_failed          a real token was minted and the write lost it — BACKEND, and the worst
+ *   plugin_error         the plugin threw — PACKAGING
+ */
+export type PushRegistrationOutcome =
+  | 'registered'
+  | 'undecided_not_asked'
+  | 'denied'
+  | 'timeout'
+  | 'registration_error'
+  | 'empty_token'
+  | 'save_failed'
+  | 'plugin_error';
+
+/** What `registerForPush` answers. `token` is non-null only when `outcome` is `registered`. */
+export interface PushRegistrationResult {
+  outcome: PushRegistrationOutcome | 'web';
+  token: string | null;
 }
 
 /**
@@ -100,8 +140,24 @@ export function environmentFor(
 export async function registerForPush(
   store: PushStore,
   options: { prompt?: boolean } = {},
-): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return null;
+): Promise<PushRegistrationResult> {
+  // Web is not a failure and is not recorded: there is no OS to register with, and writing a row
+  // for every browser session would drown the one number this is for.
+  if (!Capacitor.isNativePlatform()) return { outcome: 'web', token: null };
+
+  const prompted = options.prompt === true;
+  let platform: 'ios' | 'android' = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
+
+  /** Record and return in one step, so no branch below can forget the recording half. */
+  const done = async (
+    outcome: PushRegistrationOutcome,
+    token: string | null = null,
+  ): Promise<PushRegistrationResult> => {
+    await store.recordOutcome(outcome, platform, prompted).catch(() => {
+      // The diagnosis failing must never take the registration with it.
+    });
+    return { outcome, token };
+  };
 
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
@@ -114,49 +170,63 @@ export async function registerForPush(
     // Undecided AND not invited to ask: leave the one-shot prompt unspent and register nothing.
     // The device is not lost — the next time the user turns notifications on, this runs with
     // `prompt: true` and asks then, which is the moment they have a reason to say yes.
-    if (undecided && !options.prompt) return null;
+    if (undecided && !options.prompt) return done('undecided_not_asked');
     const status = undecided
       ? (await PushNotifications.requestPermissions()).receive
       : current.receive;
-    if (status !== 'granted') return null;
+    if (status !== 'granted') return done('denied');
 
-    const platform = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
+    platform = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
     const environment = environmentFor(platform, import.meta.env.PROD);
 
     // The token arrives on an EVENT, not as a return value — `register()` resolves as soon as
     // the request is made, long before APNs or FCM has answered. Anything that awaited
     // `register()` and then read a token would read nothing, every time.
-    const token = await new Promise<string | null>((resolve) => {
-      let settled = false;
-      const finish = (value: string | null) => {
-        if (settled) return;
-        settled = true;
-        resolve(value);
-      };
+    // ⚠️ THE THREE WAYS THIS ENDS ARE NOT THE SAME and used to collapse into one `null`: a
+    // timeout is a network problem, a `registrationError` is a build problem, and an empty token
+    // on a successful event is a platform problem. They are carried out separately.
+    const settledAs = await new Promise<{ how: 'token' | 'timeout' | 'error'; value: string | null }>(
+      (resolve) => {
+        let settled = false;
+        const finish = (how: 'token' | 'timeout' | 'error', value: string | null) => {
+          if (settled) return;
+          settled = true;
+          resolve({ how, value });
+        };
 
-      // Nothing may wait forever: a device with no network answers neither listener.
-      const timer = setTimeout(() => finish(null), REGISTRATION_TIMEOUT_MS);
+        // Nothing may wait forever: a device with no network answers neither listener.
+        const timer = setTimeout(() => finish('timeout', null), REGISTRATION_TIMEOUT_MS);
 
-      void PushNotifications.addListener('registration', ({ value }) => {
-        clearTimeout(timer);
-        finish(value ?? null);
-      });
-      void PushNotifications.addListener('registrationError', () => {
-        clearTimeout(timer);
-        finish(null);
-      });
+        void PushNotifications.addListener('registration', ({ value }) => {
+          clearTimeout(timer);
+          finish('token', value ?? null);
+        });
+        void PushNotifications.addListener('registrationError', () => {
+          clearTimeout(timer);
+          finish('error', null);
+        });
 
-      void PushNotifications.register();
-    });
+        void PushNotifications.register();
+      },
+    );
 
-    if (!token) return null;
-    await store.saveToken({ platform, token, environment });
-    return token;
+    if (settledAs.how === 'timeout') return done('timeout');
+    if (settledAs.how === 'error') return done('registration_error');
+    if (!settledAs.value) return done('empty_token');
+
+    const token = settledAs.value;
+    // ⚠️ A FAILED WRITE IS NOT A SUCCESS. `saveToken` used to return `void` and log to the
+    // console, so a real token lost to a backend error was reported exactly like a registered
+    // one — a reachable device counted as unreachable, forever, with nothing red.
+    const saved = await store.saveToken({ platform, token, environment });
+    if (!saved) return done('save_failed', token);
+    return done('registered', token);
   } catch {
-    // A failure to register is not a failure of the app. Swallowed on purpose, and it stays
-    // swallowed: the alternative is a toast about notifications while somebody is trying to
-    // look at their money.
-    return null;
+    // A failure to register is not a failure of the app, and it stays swallowed as far as the
+    // USER is concerned: the alternative is a toast about notifications while somebody is trying
+    // to look at their money. It is no longer swallowed as far as WE are concerned, which is the
+    // whole point of the change — silence to the person, a recorded reason to us.
+    return done('plugin_error');
   }
 }
 
