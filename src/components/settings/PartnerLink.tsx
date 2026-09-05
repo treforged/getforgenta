@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SettingsSectionHeading } from './SettingsSection';
 import { useLocation, Link } from 'react-router';
 import { Users, Loader2, CheckCircle, Unlink, Crown } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
@@ -34,11 +35,14 @@ export function PartnerLink() {
     () => new URLSearchParams(search).get('partner_code') ?? '',
   );
 
+  // Heading AND blurb together, from the one shared implementation, so this section cannot drift
+  // away from the other five on the tab. Every branch below renders it.
   const header = (
-    <div className="flex items-center gap-2">
-      <Users size={13} className="text-muted-foreground" />
-      <span className="text-xs font-medium">Partner Link</span>
-    </div>
+    <SettingsSectionHeading
+      icon={Users}
+      title="Partner Link"
+      description="Link with a partner to view each other's budget, read only. Neither of you can change the other's data, and either of you can unlink at any time."
+    />
   );
 
   // Demo: a static teaser, no dead buttons (design §5).
@@ -46,10 +50,6 @@ export function PartnerLink() {
     return (
       <div className="space-y-3">
         {header}
-        <p className="text-xs text-muted-foreground">
-          Premium members can link with a partner and view each other's budget, read only.
-          Nobody can edit anybody else's money, and either of you can unlink at any time.
-        </p>
         <p className="text-xs text-muted-foreground italic">
           Sign up and upgrade to Premium to link with your partner.
         </p>
@@ -158,10 +158,6 @@ export function PartnerLink() {
   return (
     <div className="space-y-3">
       {header}
-      <p className="text-xs text-muted-foreground">
-        Link with a partner to view each other's budget, read only. Nobody can edit
-        anybody else's money, and either of you can unlink at any time.
-      </p>
 
       {isPremium ? (
         <div className="flex flex-col gap-2 sm:flex-row">

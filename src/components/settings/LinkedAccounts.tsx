@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import SettingsSection from './SettingsSection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Link2, Unlink, Loader2, CheckCircle } from 'lucide-react';
@@ -96,15 +97,11 @@ export function LinkedAccounts() {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Link2 size={13} className="text-muted-foreground" />
-        <span className="text-xs font-medium">Linked Accounts</span>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Link a social account so you can sign in with either method. Each social account can only be connected to one Forgenta account.
-      </p>
-
+    <SettingsSection
+      icon={Link2}
+      title="Linked Accounts"
+      description="Link a social account so you can sign in with either method. Each social account can only be connected to one Forgenta account."
+    >
       <div className="space-y-2">
         {OAUTH_PROVIDERS.map(provider => {
           const linked = identities.find(i => i.provider === provider.id);
@@ -153,6 +150,6 @@ export function LinkedAccounts() {
           );
         })}
       </div>
-    </div>
+    </SettingsSection>
   );
 }

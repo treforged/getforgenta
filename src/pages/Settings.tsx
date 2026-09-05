@@ -18,6 +18,7 @@ interface TrustedDevice {
   last_seen: string;
 }
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
+import SettingsSection from '@/components/settings/SettingsSection';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendLink } from '@/components/settings/FriendLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
@@ -606,11 +607,11 @@ export default function SettingsPage() {
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account Security</h2>
 
           {/* Change Email */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Mail size={13} className="text-muted-foreground" />
-              <span className="text-xs font-medium">Change Email</span>
-            </div>
+          <SettingsSection
+            icon={Mail}
+            title="Change Email"
+            description="The address you sign in with, and where account and security notices are sent. The new address has to be confirmed before it takes effect."
+          >
             <p className="text-xs text-muted-foreground">
               Current: <span className="text-foreground">{user?.email}</span>
             </p>
@@ -632,7 +633,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleEmailChange}
                   disabled={emailLoading || !newEmail.trim()}
-                  className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                  className="w-full sm:w-auto px-2.5 py-1 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {emailLoading ? 'Sending…' : 'Send Verification'}
@@ -644,7 +645,7 @@ export default function SettingsPage() {
                 Send again
               </button>
             )}
-          </div>
+          </SettingsSection>
 
           <div className="border-t border-border" />
 
@@ -670,14 +671,11 @@ export default function SettingsPage() {
           <div className="border-t border-border" />
 
           {/* Trusted Devices */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Monitor size={13} className="text-muted-foreground" />
-              <span className="text-xs font-medium">Trusted Devices</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Devices that skip 2FA for 30 days after you verify once.
-            </p>
+          <SettingsSection
+            icon={Monitor}
+            title="Trusted Devices"
+            description="Devices that skip 2FA for 30 days after you verify once. Revoke one and it has to verify again next time."
+          >
             {trustedDevices.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">No trusted devices yet.</p>
             ) : (
@@ -720,16 +718,16 @@ export default function SettingsPage() {
                 })}
               </div>
             )}
-          </div>
+          </SettingsSection>
 
           <div className="border-t border-border" />
 
           {/* Change Password */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Lock size={13} className="text-muted-foreground" />
-              <span className="text-xs font-medium">Change Password</span>
-            </div>
+          <SettingsSection
+            icon={Lock}
+            title="Change Password"
+            description="Set a new sign-in password. You stay signed in on this device; other devices are unaffected."
+          >
             {passwordSuccess ? (
               <div className="flex items-center gap-2 text-xs text-success">
                 <CheckCircle size={13} />
@@ -778,7 +776,7 @@ export default function SettingsPage() {
                 </button>
               </div>
             )}
-          </div>
+          </SettingsSection>
 
           <div className="border-t border-border" />
 

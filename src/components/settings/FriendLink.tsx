@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SettingsSectionHeading } from './SettingsSection';
 import { useLocation } from 'react-router';
 import { UserPlus, Loader2, CheckCircle, UserMinus } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
@@ -40,20 +41,18 @@ export function FriendLink() {
     () => new URLSearchParams(search).get('friend_code') ?? '',
   );
 
+  // Heading AND blurb together, from the one shared implementation. `blurb` is kept as a separate
+  // name because several branches below render it on its own; it is now empty for those, since the
+  // header already carries it and printing it twice is what "symmetry" is not.
   const header = (
-    <div className="flex items-center gap-2">
-      <UserPlus size={13} className="text-muted-foreground" />
-      <span className="text-xs font-medium">Friends</span>
-    </div>
+    <SettingsSectionHeading
+      icon={UserPlus}
+      title="Friends"
+      description="Add friends to cheer each other on. Friends never see your budget, your accounts or any dollar amount — only the rounded progress you choose to share. Either of you can remove the other at any time."
+    />
   );
 
-  const blurb = (
-    <p className="text-xs text-muted-foreground">
-      Add friends to cheer each other on. Friends never see your budget, your
-      accounts or any dollar amount — only the rounded progress you choose to
-      share. Either of you can remove the other at any time.
-    </p>
-  );
+  const blurb = null;
 
   // Demo: a static teaser, no dead buttons.
   if (isDemo) {

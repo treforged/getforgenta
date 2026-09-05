@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { SettingsSectionHeading } from './SettingsSection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Shield, ShieldCheck, ShieldOff, QrCode, Loader2, X, CheckCircle, Trash2 } from 'lucide-react';
@@ -119,18 +120,13 @@ export function TwoFactorAuth() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        {verifiedFactors.length > 0
-          ? <ShieldCheck size={13} className="text-primary" />
-          : <Shield size={13} className="text-muted-foreground" />
-        }
-        <span className="text-xs font-medium">Two-Factor Authentication</span>
-        {verifiedFactors.length > 0 && (
-          <span className="text-xs px-1 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>
-            ON
-          </span>
-        )}
-      </div>
+      <SettingsSectionHeading
+        icon={verifiedFactors.length > 0 ? ShieldCheck : Shield}
+        tone={verifiedFactors.length > 0 ? 'active' : 'default'}
+        badge={verifiedFactors.length > 0 ? 'ON' : undefined}
+        title="Two-Factor Authentication"
+        description="Ask for a code from your authenticator app as well as your password, so a stolen password is not enough to get in."
+      />
 
       {verifiedFactors.length === 0 && view === 'none' && (
         <div className="flex items-start gap-2.5 bg-gold/10 border border-gold/30 px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>

@@ -225,3 +225,71 @@ describe('the Security tab, one card, three remove controls', () => {
     expect(src).not.toMatch(/text-\[(9|10|11)px\]/);
   });
 });
+
+/**
+ * ITEM 20 — SYMMETRY ACROSS THE SECTIONS OF THE SECURITY TAB.
+ *
+ * The header markup was already identical in all seven places, and that WAS the problem: identical
+ * by copy, across five files, with nothing holding it that way. What had drifted was everything
+ * around it — Change Email, Change Password and Two-Factor carried no description at all while the
+ * others did, and Change Email's button was `px-3 py-2` against `px-2.5 py-1` everywhere else.
+ *
+ * These tests are about the SHAPE, not the wording. They assert that every section on the tab has a
+ * heading and an explaining sentence under it, so the next section cannot ship without one.
+ */
+describe('the Security tab, one shape per section', () => {
+  const SECTIONS = [
+    'Change Email',
+    'Linked Accounts',
+    'Partner Link',
+    'Friends',
+    'Two-Factor Authentication',
+    'Trusted Devices',
+    'Change Password',
+  ];
+
+  it('every section has a heading AND a sentence explaining what it does', async () => {
+    await renderSecurityTab();
+
+    for (const title of SECTIONS) {
+      const heading = screen.getByText(title);
+      // The shared heading renders <div.flex><Icon/><span>title</span></div> then the blurb <p> as
+      // the next sibling of that row. A section with no description has no such <p>.
+      const row = heading.closest('div.flex.items-center.gap-2');
+      expect(row, `${title} has no heading row`).toBeTruthy();
+      const blurb = row!.nextElementSibling;
+      expect(blurb?.tagName, `${title} has no description under its heading`).toBe('P');
+      // A SENTENCE, not just any <p>. Change Email's next sibling used to be "Current: <address>",
+      // which is a value and not an explanation — a looser assertion would have passed against the
+      // exact gap this fixed. Eight words and a full stop is the cheapest test for "explains".
+      const text = (blurb?.textContent ?? '').trim();
+      expect(text.endsWith('.'), `${title}'s description is not a sentence: "${text}"`).toBe(true);
+      expect(text.split(/\s+/).length, `${title}'s description is too short: "${text}"`).toBeGreaterThanOrEqual(8);
+    }
+  });
+
+  it('states what each security control actually shares, since that is what a person is deciding', async () => {
+    await renderSecurityTab();
+    // Spot-checked on the two whose consequence is least guessable from two words.
+    expect(screen.getByText(/read only/i)).toBeTruthy();
+    expect(screen.getByText(/never see your budget/i)).toBeTruthy();
+  });
+
+  it('one button size across the tab — nothing left on the old px-3 py-2', () => {
+    const src = readFileSync(path.resolve(here, '../Settings.tsx'), 'utf8');
+    const securityPanel = src.slice(src.indexOf("panel === 'security'"), src.indexOf('Danger Zone'));
+    expect(securityPanel).not.toMatch(/px-3 py-2 text-xs font-medium bg-secondary/);
+  });
+
+  it('the heading has ONE implementation — no section hand-rolls its own again', () => {
+    const files = [
+      '../../components/settings/LinkedAccounts.tsx',
+      '../../components/settings/TwoFactorAuth.tsx',
+      '../../components/settings/PartnerLink.tsx',
+      '../../components/settings/FriendLink.tsx',
+    ].map(f => readFileSync(path.resolve(here, f), 'utf8'));
+    for (const src of files) {
+      expect(src).toMatch(/SettingsSection/);
+    }
+  });
+});
