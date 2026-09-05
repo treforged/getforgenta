@@ -17,24 +17,41 @@
 
 ---
 
-## ⇢ FIRST UP — the i18n scaffold plus ONE language. Nothing is blocking.
+## ✅ SHIPPED 2026-09-05 — the i18n scaffold plus Spanish on Landing. `c9643e6c`, on origin/main.
 
-Everything else in the queue is either done, deliberately parked, or waiting on Tre.
+Was FIRST UP. Scoped exactly as asked: `i18next` + `react-i18next`, catalogues at
+`src/locales/<lang>/<namespace>.json`, `src/lib/i18n.ts`, a `LanguageSwitcher` on BOTH the
+signed-out Landing page and Settings, and ONE complete namespace (`landing`, 47 keys) in
+Spanish. Detail is in the commit body; three things worth not re-deriving:
 
-**Why it was not started here, and why that was right:** it is a big slice, and a big slice
-begun 26 commits into a window lands half-done. It also now has a floor to stand on —
-`f21d4d00` made the currency picker actually change the numbers, so a translation layer no
-longer sits on top of a figure that is wrong in every locale.
+- **A surface is all-or-nothing.** A half-translated screen is worse than an English one, so
+  the next surface is a new namespace file per locale — nothing in `i18n.ts` changes.
+- **The language is NOT the money knob.** `formatCurrency`/`setMoneyDisplay` still own how an
+  amount is written. Somebody reading in Spanish may hold a USD account.
+- **The currency picker is RE-ENABLED** (`Settings.tsx`), on the condition its own 2026-09-03
+  disable note set. `f21d4d00` had already connected `MoneyDisplaySync`; the control was still
+  off two commits later. Found by grepping for the CALLER, which is now a repo gate.
 
-**Scope it as:** a library, a locale file layout, a language switcher, and ONE real language
-on ONE surface. Do not attempt the whole app's strings.
-⚠️ **Arabic is a separate slice** — the RTL layout mirroring is the work, not the strings.
-⚠️ The 32 `toLocaleDateString` sites are NOT a blocker: they pass textual options, so they
-render `Sep 2026`, unambiguous everywhere. `docs/international-release-plan.md` carries that
-correction; do not re-derive it a third time.
+⚠️ **Arabic/RTL is still a separate slice, and is now the natural next i18n item.** `dir` is set
+on `<html>` and `SUPPORTED_LANGUAGES` carries a `dir` field, so the plumbing exists — the work is
+mirroring the layout, not the strings.
+⚠️ The 32 `toLocaleDateString` sites remain NOT a blocker (textual options, `Sep 2026`).
+`docs/international-release-plan.md` carries that correction; do not re-derive it a fourth time.
 
-**Second up:** rule 8, scroll restoration, with four measured constraints already established
+**The gate added this morning caught something on its first day.** jsdom reported the switcher's
+box as 0 and stayed green while Chrome showed "Español" clipped under the chevron in an 80px
+select — the browser sizes a select to its longest OPTION and ignores the 2rem author padding.
+Also learned, and worth keeping: `index.css:845` forces `font-size: 16px !important` on every
+input, textarea and select (iOS zooms below that), so a font-size class on any select in this
+app is inert.
+
+## ⇢ FIRST UP — rule 8, scroll restoration, with four measured constraints already established
 — see the rule-8 section below. Start from those, not from zero.
+
+⚠️ **A CONCURRENT SESSION HELD THIS AT 2026-09-05 ~08:00 ET** (`useScrollRestoration.ts`/`.test.tsx`,
+`MobileNav.tabToTop.test.tsx`, `docs/mobile-ux-rules-audit.md`), and Sam's direction to it was to
+REVERT rule 8 rather than keep patching it. Check `git log` on those four paths before starting:
+if the revert landed, this item is closed and the next one is Arabic/RTL above.
 
 ### ⚠️ TWO THINGS THAT OUTLIVE ANY SINGLE TASK, now also in `CLAUDE.md`'s gates
 1. **A jsdom green on anything geometric is not evidence.** jsdom reports `scrollHeight` and
