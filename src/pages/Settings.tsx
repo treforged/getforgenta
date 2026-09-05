@@ -498,6 +498,12 @@ export default function SettingsPage() {
 
       {/* ── Preferences: how the app behaves ──────────────────────────────────────────── */}
       {panel === 'preferences' && (<>
+      {/* ⚠️ FIRST IN THIS PANEL ON PURPOSE (Tre, 2026-09-05). It is the section he actually uses
+          and it was below the fold, under Display and everything else. Ordering here is not
+          cosmetic: a preference nobody scrolls to is a preference nobody sets, and this is the one
+          that decides whether the app can reach a person at all. */}
+      <NotificationSettings />
+
       {/* Display Preferences */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
@@ -582,7 +588,6 @@ export default function SettingsPage() {
 
       {/* Native only - it renders nothing in the browser, where local notifications do not
           exist. See the component for why there is no permission prompt on this screen. */}
-      <NotificationSettings />
       </>)}
 
       {/* ── Account: who you are, how you share it, how you end it ────────────────────── */}

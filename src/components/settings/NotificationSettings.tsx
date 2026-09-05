@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { usePersistedState } from '@/hooks/usePersistedState';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { loadPrefs, savePrefs, NOTIFICATION_CATEGORIES } from '@/lib/notification-prefs';
@@ -52,6 +54,19 @@ export default function NotificationSettings() {
   const [saving, setSaving] = useState(false);
   // `null` = nothing to say: not asked yet, on the web, or it worked.
   const [registrationNote, setRegistrationNote] = useState<string | null>(null);
+
+  /**
+   * Collapsed or not. **Default EXPANDED** — a section that is closed the first time you see it is
+   * a section nobody finds, and this one has just been moved to the top precisely so it IS found.
+   * Remembered per device, so it stays shut for somebody who has set it and moved on.
+   *
+   * ⚠️ REACT STATE, NOT `<details>`, AND THAT IS A RECORDED DEAD END RATHER THAN A PREFERENCE. The
+   * `<details open>` chevron rotation was tried FOUR ways in this codebase — `group-open:rotate-180`,
+   * `[details[open]_&]:rotate-180`, a plain transform rule, and the `rotate` property — and all four
+   * silently produced no rotation at all. Driving it from state sidesteps the whole thing, and the
+   * rotation below is a plain conditional class that cannot fail quietly.
+   */
+  const [collapsed, setCollapsed] = usePersistedState('tre:settings:notificationsCollapsed', false);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +139,31 @@ export default function NotificationSettings() {
 
   return (
     <div className="card-forged p-5 space-y-4">
-      <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notifications</h2>
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notifications</h2>
+        {/*
+          ⚠️ TWO ICONS, NOT ONE ROTATED — AND THIS IS THE FIFTH FAILED ATTEMPT AT THAT ROTATION.
+          The handoff already records four ways it was tried under `<details>` (`group-open:`,
+          `[details[open]_&]:`, a plain transform rule, and the `rotate` property), all of which
+          "silently produced no rotation". Driving it from React state instead did not help, and
+          MEASURING it finally said why: the class toggles correctly — `rotate-180` is present when
+          expanded and absent when collapsed — but `getComputedStyle(icon).rotate` reads **180deg in
+          BOTH states**. The class changes and the computed value does not follow it.
+
+          So the rotation is abandoned rather than attempted a sixth time. Swapping the glyph cannot
+          fail quietly: if the wrong icon renders, you can see it.
+        */}
+        {collapsed
+          ? <ChevronDown size={14} className="text-muted-foreground" />
+          : <ChevronUp size={14} className="text-muted-foreground" />}
+      </button>
+
+      {!collapsed && (<>
 
       <div className="flex items-center justify-between">
         <div className="min-w-0 pr-3">
@@ -179,6 +218,7 @@ export default function NotificationSettings() {
           </div>
         ))}
       </div>
+      </>)}
     </div>
   );
 }
@@ -199,7 +239,21 @@ function Switch({ checked, onPress, disabled, label }: {
       aria-label={label}
       className={`shrink-0 w-8 h-4 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-secondary'} relative disabled:opacity-60`}
     >
-      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      {/*
+        ⚠️ `left-0` IS LOAD-BEARING. Without it the knob is absolutely positioned with NO horizontal
+        anchor, so it starts from its STATIC position — roughly the centre of the button, because a
+        button centres its content — and the translate is applied from there. MEASURED in Chrome:
+        the ON knob's right edge sat **14px OUTSIDE** a 36px track. Tre saw it on eight toggles at
+        once and said we have shipped this before.
+
+        With the anchor, both states derive from the same origin and both fit, measured in the same
+        browser: OFF spans 2..16 and ON spans 18..32 inside a 36px track.
+
+        ⚠️ THE TRACK IS 36px, NOT THE 32px `w-8` IMPLIES — this app's root font is scaled, so every
+        rem-based number here is ~1.125x its nominal value. Reason about this control in MEASURED
+        pixels, never in the class names.
+      */}
+      <span className={`absolute top-0.5 left-0 w-3 h-3 rounded-full bg-background transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
     </button>
   );
 }
