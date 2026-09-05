@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import MoneyDisplaySync from '@/components/shared/MoneyDisplaySync';
+import PushTapHandler from '@/components/shared/PushTapHandler';
 import { useTheme } from '@/hooks/useTheme';
 import ConnectionNotice from '@/components/shared/ConnectionNotice';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
@@ -290,6 +291,8 @@ function AppRoutes() {
   return (
     <>
       <ScrollToTop />
+      {/* Inside the router, because a tap has to NAVIGATE. It renders null and only listens. */}
+      <PushTapHandler />
       <CaptureReferral />
       <Routes>
       <Route path="/" element={<ErrorBoundary label="Home" homeTo={null}><Landing /></ErrorBoundary>} />

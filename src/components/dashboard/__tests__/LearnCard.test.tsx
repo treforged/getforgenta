@@ -16,6 +16,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// ⚠️ A ROUTER IS NOW REQUIRED. `LearnCard` reads `?lesson=<id>` so a notification tap can open one
+// lesson, and it routes the takeaway's "Do this" to the control rather than describing where it
+// is — the cash-floor lesson told people to open Settings for a control that lives on the Debt
+// tab. Both need router context; without it every case in this file fails to render.
+import { MemoryRouter } from 'react-router';
 
 const state = vi.hoisted(() => ({
   rows: [] as { achievement_id: string; earned_at: string }[],
@@ -104,9 +109,11 @@ let client: QueryClient;
 const mount = () => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={client}>
-      <LearnCard />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <LearnCard />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 };
 
