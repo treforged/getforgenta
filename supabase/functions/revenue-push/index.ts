@@ -29,7 +29,25 @@ const CONDUCTOR_URL = Deno.env.get("CONDUCTOR_URL") ?? "https://conductor.trefor
 
 /** One line per (provider, plan, status). `ending` counts cancel_at_period_end. */
 interface RevenueLine {
-  provider: string; plan: string; status: string; count: number; ending: number;
+  provider: string; plan: string; status: string;
+  /**
+   * PAYING subscribers only.
+   *
+   * ⚠️ This used to be every row in the group, which meant five comped accounts were pushed
+   * to Tre as five active Stripe subscribers while the account's entire charge history was one
+   * $4.99 test payment on his own card. A number that reads as traction and is not is the
+   * expensive kind of wrong, so `revenue_summary_lines` now filters this to `not is_comp`.
+   */
+  count: number;
+  ending: number;
+  /**
+   * Carried for free. Reported ALONGSIDE the paying count, never folded into it.
+   *
+   * How many people are on a comp is real information Tre wants; it just must never be
+   * totalled as revenue. Dropping them would answer the reporting bug by hiding data, which
+   * is not the same thing as fixing it.
+   */
+  comped: number;
 }
 
 /** Nora's endpoint caps this; sending more is a 400 for the whole push. */
@@ -79,7 +97,14 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: `conductor refused: ${res.status}`, body }), { status: 502 });
   }
 
-  return new Response(JSON.stringify({ pushed: lines.length, conductor: JSON.parse(body) }, null, 2), {
+  // Totals in the response so a person reading the cron output sees the split without having
+  // to add up the groups themselves -- and cannot mistake the comped figure for revenue.
+  const paying = lines.reduce((n, l) => n + (l.count ?? 0), 0);
+  const comped = lines.reduce((n, l) => n + (l.comped ?? 0), 0);
+
+  return new Response(JSON.stringify({
+    pushed: lines.length, paying, comped, conductor: JSON.parse(body),
+  }, null, 2), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
 });

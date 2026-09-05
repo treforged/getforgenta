@@ -287,11 +287,34 @@ Deno.serve(async (req) => {
             "stripe.subscription_status": "active",
           },
         });
+        // ── THE ONLY PLACE THAT MAY SAY "THIS IS NOT A COMP" ────────────────────────
+        //
+        // `is_comp` defaults TRUE, so a subscription is treated as carried for free until
+        // real money is seen. An invoice that PAID A NON-ZERO AMOUNT is that evidence, and
+        // nothing else in this codebase is.
+        //
+        // ⚠️ Deliberately NOT the checkout.session.completed handler. A 100%-discount
+        // checkout completes exactly like a paid one, and five of the six live Stripe
+        // subscriptions on this account are precisely that shape -- a real subscription id, a
+        // full-value price, a discount that cancels it, and no payment method at all. That is
+        // why `stripe_subscription_id IS NULL` could never have classified them, and why the
+        // signal has to be the money rather than the paperwork.
+        //
+        // amount_paid is in the smallest currency unit, so a comped renewal arrives here as 0
+        // and correctly leaves the row marked as a comp.
+        const amountPaid = Number(
+          (invoice as unknown as { amount_paid?: number }).amount_paid ?? 0,
+        );
+        const paidRealMoney = Number.isFinite(amountPaid) && amountPaid > 0;
+
         const { error } = await supabase.from("user_subscriptions").update({
           subscription_status: "active",
           plan: "premium",
           stripe_subscription_id: subscriptionId,
           current_period_end: toISO(getPeriodEnd(sub)),
+          // Only ever set to false, never back to true: a subscription that has once been
+          // paid for stays a real one even if a later renewal is comped.
+          ...(paidRealMoney ? { is_comp: false } : {}),
         }).eq("user_id", userSub.user_id);
         if (error) {
           dbUpdateSpan.end("ERROR", new Error(error.message));
