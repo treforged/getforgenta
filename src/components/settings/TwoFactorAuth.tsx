@@ -126,7 +126,7 @@ export function TwoFactorAuth() {
         }
         <span className="text-xs font-medium">Two-Factor Authentication</span>
         {verifiedFactors.length > 0 && (
-          <span className="text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>
+          <span className="text-xs px-1 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>
             ON
           </span>
         )}
@@ -137,7 +137,7 @@ export function TwoFactorAuth() {
           <Shield size={13} className="text-gold mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p className="text-xs font-medium text-gold">Your account has no two-factor protection</p>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Adding a second factor significantly reduces the risk of unauthorized access. Works with Microsoft Authenticator, Google Authenticator, Apple Passwords, Bitwarden, Authy, and any TOTP app — takes under a minute to set up.
             </p>
           </div>
@@ -146,24 +146,24 @@ export function TwoFactorAuth() {
 
       {/* Active factors */}
       {factors.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {factors.map(f => (
-            <div key={f.id} className="flex items-center justify-between bg-secondary/40 border border-border px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>
+            <div key={f.id} className="flex items-center justify-between bg-secondary/40 border border-border px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
               <div className="flex items-center gap-2">
                 {f.status === 'verified'
                   ? <CheckCircle size={11} className="text-primary" />
                   : <ShieldOff size={11} className="text-muted-foreground" />}
                 <span className="text-xs">{f.friendly_name || FACTOR_LABELS[f.factor_type] || f.factor_type}</span>
-                {f.status === 'unverified' && <span className="text-[9px] text-muted-foreground">(unverified)</span>}
-                {f.phone && <span className="text-[10px] text-muted-foreground">{f.phone}</span>}
+                {f.status === 'unverified' && <span className="text-xs text-muted-foreground">(unverified)</span>}
+                {f.phone && <span className="text-xs text-muted-foreground">{f.phone}</span>}
               </div>
               <button
                 onClick={() => handleUnenroll(f.id, FACTOR_LABELS[f.factor_type] ?? 'Factor')}
                 disabled={actionLoading}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors btn-press disabled:opacity-50"
-                title="Remove"
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
               >
                 <Trash2 size={10} />
+                Remove
               </button>
             </div>
           ))}
@@ -177,7 +177,7 @@ export function TwoFactorAuth() {
             <button
               onClick={startTotpEnroll}
               disabled={actionLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {actionLoading ? <Loader2 size={10} className="animate-spin" /> : <QrCode size={10} />}
@@ -196,7 +196,7 @@ export function TwoFactorAuth() {
           </div>
           {totpQr && <img src={totpQr} alt="TOTP QR Code" className="w-40 h-40 mx-auto bg-white p-2" style={{ borderRadius: 'var(--radius)' }} />}
           <div className="bg-secondary/60 border border-border px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>
-            <p className="text-[9px] text-muted-foreground uppercase mb-0.5">Or enter this key manually</p>
+            <p className="text-xs text-muted-foreground uppercase mb-0.5">Or enter this key manually</p>
             <p className="text-xs font-mono break-all">{totpSecret}</p>
           </div>
           <button

@@ -689,28 +689,29 @@ export default function SettingsPage() {
                   // eslint-disable-next-line react-hooks/purity
                   const isExpired = Date.now() - new Date(device.trusted_at).getTime() >= 30 * 24 * 60 * 60 * 1000;
                   return (
-                    <div key={device.device_id} className="flex items-center justify-between gap-3 bg-secondary border border-border px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>
+                    <div key={device.device_id} className="flex items-center justify-between gap-3 bg-secondary/40 border border-border px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-medium truncate">{device.name}</p>
                           {isCurrentDevice && (
-                            <span className="text-[9px] px-1 py-0.5 bg-primary/15 text-primary border border-primary/30 shrink-0" style={{ borderRadius: 'var(--radius)' }}>
+                            <span className="text-xs px-1 py-0.5 bg-primary/15 text-primary border border-primary/30 shrink-0" style={{ borderRadius: 'var(--radius)' }}>
                               This device
                             </span>
                           )}
                           {isExpired && (
-                            <span className="text-[9px] px-1 py-0.5 bg-gold/15 text-gold border border-gold/30 shrink-0" style={{ borderRadius: 'var(--radius)' }}>
+                            <span className="text-xs px-1 py-0.5 bg-gold/15 text-gold border border-gold/30 shrink-0" style={{ borderRadius: 'var(--radius)' }}>
                               Expired
                             </span>
                           )}
                         </div>
-                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           Trusted {format(new Date(device.trusted_at), 'MMM d, yyyy')} · Last seen {format(new Date(device.last_seen), 'MMM d, yyyy')}
                         </p>
                       </div>
                       <button
                         onClick={() => handleRevokeDevice(device.device_id)}
-                        className="shrink-0 text-xs text-destructive hover:underline"
+                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
+                        style={{ borderRadius: 'var(--radius)' }}
                       >
                         Revoke
                       </button>

@@ -101,7 +101,7 @@ export function LinkedAccounts() {
         <Link2 size={13} className="text-muted-foreground" />
         <span className="text-xs font-medium">Linked Accounts</span>
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Link a social account so you can sign in with either method. Each social account can only be connected to one Forgenta account.
       </p>
 
@@ -120,7 +120,7 @@ export function LinkedAccounts() {
                 <div>
                   <p className="text-xs font-medium">{provider.label}</p>
                   {linked?.identity_data?.email && (
-                    <p className="text-[10px] text-muted-foreground">{linked.identity_data.email}</p>
+                    <p className="text-xs text-muted-foreground">{linked.identity_data.email}</p>
                   )}
                 </div>
               </div>
@@ -131,7 +131,7 @@ export function LinkedAccounts() {
                   <button
                     onClick={() => handleUnlink(linked)}
                     disabled={busy}
-                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50"
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     {busy ? <Loader2 size={10} className="animate-spin" /> : <Unlink size={10} />}
@@ -142,7 +142,7 @@ export function LinkedAccounts() {
                 <button
                   onClick={() => handleLink(provider.id)}
                   disabled={busy}
-                  className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {busy ? <Loader2 size={10} className="animate-spin" /> : <Link2 size={10} />}

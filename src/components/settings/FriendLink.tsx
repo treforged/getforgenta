@@ -48,7 +48,7 @@ export function FriendLink() {
   );
 
   const blurb = (
-    <p className="text-[10px] text-muted-foreground">
+    <p className="text-xs text-muted-foreground">
       Add friends to cheer each other on. Friends never see your budget, your
       accounts or any dollar amount — only the rounded progress you choose to
       share. Either of you can remove the other at any time.
@@ -90,7 +90,7 @@ export function FriendLink() {
         </p>
         <button
           onClick={refetch}
-          className="px-2.5 py-1 text-[10px] font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
+          className="px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
           style={{ borderRadius: 'var(--radius)' }}
         >
           Try again
@@ -119,7 +119,7 @@ export function FriendLink() {
               <button
                 onClick={() => revoke.mutate({ id: friend.linkId, exFriendUserId: friend.userId, kind: 'link' })}
                 disabled={revoke.isPending}
-                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 {revoke.isPending ? <Loader2 size={10} className="animate-spin" /> : <UserMinus size={10} />}
@@ -129,7 +129,7 @@ export function FriendLink() {
           ))}
           {/* A name we could not read is not a name we may invent — say which it is. */}
           {namesUnavailable && (
-            <p className="text-[10px] text-muted-foreground italic">
+            <p className="text-xs text-muted-foreground italic">
               Friends' names couldn't be loaded right now, so they're shown by the
               address you invited.
             </p>
@@ -145,7 +145,7 @@ export function FriendLink() {
         >
           <div className="min-w-0">
             <p className="text-xs font-medium truncate">Invite sent to {pending.invitee_email}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Expires {format(new Date(pending.expires_at), 'MMM d, yyyy')}. They accept
               from the email, signed in with that address.
             </p>
@@ -153,7 +153,7 @@ export function FriendLink() {
           <button
             onClick={() => revoke.mutate({ id: pending.id, exFriendUserId: null, kind: 'invite' })}
             disabled={revoke.isPending}
-            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
             style={{ borderRadius: 'var(--radius)' }}
           >
             {revoke.isPending ? <Loader2 size={10} className="animate-spin" /> : null}

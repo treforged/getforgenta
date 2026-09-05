@@ -46,7 +46,7 @@ export function PartnerLink() {
     return (
       <div className="space-y-3">
         {header}
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Premium members can link with a partner and view each other's budget, read only.
           Nobody can edit anybody else's money, and either of you can unlink at any time.
         </p>
@@ -79,7 +79,7 @@ export function PartnerLink() {
         </p>
         <button
           onClick={refetch}
-          className="px-2.5 py-1 text-[10px] font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
+          className="px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
           style={{ borderRadius: 'var(--radius)' }}
         >
           Try again
@@ -102,7 +102,7 @@ export function PartnerLink() {
               <p className="text-xs font-medium truncate">
                 Linked with {partnerLabel ?? 'your partner'}
               </p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Use "View partner" in the menu to see their budget, read only.
               </p>
             </div>
@@ -110,14 +110,14 @@ export function PartnerLink() {
           <button
             onClick={() => revoke.mutate({ id: activeLink.id, exPartnerUserId: partnerUserId, kind: 'link' })}
             disabled={revoke.isPending}
-            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
             style={{ borderRadius: 'var(--radius)' }}
           >
             {revoke.isPending ? <Loader2 size={10} className="animate-spin" /> : <Unlink size={10} />}
             Unlink
           </button>
         </div>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Unlinking takes effect immediately for both of you and needs no confirmation
           from the other side.
         </p>
@@ -135,7 +135,7 @@ export function PartnerLink() {
         >
           <div className="min-w-0">
             <p className="text-xs font-medium truncate">Invite sent to {pendingInvite.invitee_email}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Expires {format(new Date(pendingInvite.expires_at), 'MMM d, yyyy')}. They accept
               from the email, signed in with that address.
             </p>
@@ -143,7 +143,7 @@ export function PartnerLink() {
           <button
             onClick={() => revoke.mutate({ id: pendingInvite.id, exPartnerUserId: null, kind: 'invite' })}
             disabled={revoke.isPending}
-            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
             style={{ borderRadius: 'var(--radius)' }}
           >
             {revoke.isPending ? <Loader2 size={10} className="animate-spin" /> : null}
@@ -158,7 +158,7 @@ export function PartnerLink() {
   return (
     <div className="space-y-3">
       {header}
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Link with a partner to view each other's budget, read only. Nobody can edit
         anybody else's money, and either of you can unlink at any time.
       </p>
