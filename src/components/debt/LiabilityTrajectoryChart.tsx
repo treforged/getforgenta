@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type TouchEvent as ReactTouchEvent } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Landmark, type LucideIcon } from 'lucide-react';
 import { formatYAxisTick } from '@/lib/calculations';
@@ -29,6 +29,35 @@ const LIABILITY_COLORS = [
 
 const YEAR_OPTIONS = ['1', '2', '3', '5'] as const;
 type ChartYears = (typeof YEAR_OPTIONS)[number];
+
+/**
+ * MOBILE TAP DID NOT SELECT A POINT, EVEN THOUGH MOUSE HOVER ALWAYS HAS.
+ *
+ * Recharts only turns finger MOVEMENT into a selected tooltip point — `touchEventsMiddleware`
+ * wires `setMouseOverAxisIndex` to `touchmove` alone, never to `touchstart`. A stationary tap,
+ * the normal way anyone touches a chart on a phone, is a `touchstart` immediately followed by a
+ * `touchend` with no `touchmove` between them, so nothing is ever selected. A mouse gets the
+ * same first-contact selection for free, because merely entering the chart already fires
+ * `mousemove` and that alone picks the nearest point — no drag required.
+ *
+ * Replaying the tap's own touch list as a `touchmove` on the same element, at the moment of
+ * `touchstart`, gives a tap the same immediate selection a mouse gets. `onTouchStart` is a
+ * documented Recharts chart prop (`ExternalMouseEvents.onTouchStart`), so this stays inside
+ * Recharts' own event API rather than reaching into its internal Redux store.
+ */
+function selectPointOnTouch(_state: unknown, event: ReactTouchEvent<SVGGraphicsElement>) {
+  const touches = event.touches;
+  const target = event.currentTarget;
+  if (!touches || touches.length === 0 || !target || typeof TouchEvent === 'undefined') return;
+  // React's `Touch` type is a narrowed view of the DOM's own `Touch` — the runtime objects in
+  // `touches` ARE real `Touch` instances (React wraps, it does not reconstruct), so this is a
+  // type-only widening, not a runtime lie.
+  target.dispatchEvent(new TouchEvent('touchmove', {
+    touches: Array.from(touches) as unknown as Touch[],
+    bubbles: true,
+    cancelable: true,
+  }));
+}
 
 interface LiabilityTrajectoryChartProps {
   title: string;
@@ -79,7 +108,7 @@ export default function LiabilityTrajectoryChart({ title, debts, storageKey, ico
         </div>
       </div>
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={rows} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+        <LineChart data={rows} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} onTouchStart={selectPointOnTouch}>
           <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
           <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={tickInterval} />
           <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
