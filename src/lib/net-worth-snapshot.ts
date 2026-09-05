@@ -43,7 +43,7 @@ export function shouldRecordSnapshot(
   if (snapshots.length === 0) return true;
 
   const newest = snapshots.reduce<number>((latest, row) => {
-    const time = new Date(row.snapshot_date).getTime();
+    const time = new Date(row.snapshot_date + 'T00:00:00').getTime();
     return Number.isNaN(time) ? latest : Math.max(latest, time);
   }, Number.NEGATIVE_INFINITY);
 

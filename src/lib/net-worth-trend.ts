@@ -48,7 +48,7 @@ export function buildNetWorthTrend(
     return [{ month: now.toLocaleString('en', { month: 'short' }), value: currentNetWorth }];
   }
   return snapshots.map(s => ({
-    month: new Date(s.snapshot_date).toLocaleString('en', { month: 'short', day: 'numeric' }),
+    month: new Date(s.snapshot_date + 'T00:00:00').toLocaleString('en', { month: 'short', day: 'numeric' }),
     value: Number(s.net_worth),
   }));
 }
@@ -65,12 +65,12 @@ export function monthlyNetWorthChange(snapshots: readonly TrendSnapshotRow[]): n
   if (snapshots.length < 2) return null;
 
   const latest = snapshots[snapshots.length - 1];
-  const latestTime = new Date(latest.snapshot_date).getTime();
+  const latestTime = new Date(latest.snapshot_date + 'T00:00:00').getTime();
   if (Number.isNaN(latestTime)) return null;
 
   for (let i = snapshots.length - 2; i >= 0; i--) {
     const older = snapshots[i];
-    const olderTime = new Date(older.snapshot_date).getTime();
+    const olderTime = new Date(older.snapshot_date + 'T00:00:00').getTime();
     if (Number.isNaN(olderTime)) continue;
     const daysBetween = Math.floor((latestTime - olderTime) / MS_PER_DAY);
     if (daysBetween >= MONTHLY_CHANGE_MIN_DAYS) {

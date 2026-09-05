@@ -96,7 +96,7 @@ export default function Transactions() {
   const [filterSource, setFilterSource] = useState('all');
 
   // Month filter: 'YYYY-MM' | 'all'
-  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const currentMonthStr = toLocalDateStr(new Date()).slice(0, 7);
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthStr);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editChoiceId, setEditChoiceId] = useState<string | null>(null);

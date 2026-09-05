@@ -55,6 +55,27 @@ export default tseslint.config(
     },
   },
   {
+    // Truncating `.toISOString()` into a shorter date/month string reads the UTC calendar day,
+    // which is wrong for anything that represents a LOCAL calendar date or month — at a
+    // negative UTC offset (e.g. America/New_York) it renders/keys a day or a month early. This
+    // idiom bit `src/pages/Transactions.tsx:99` (the default "this month" filter went to zero
+    // rows on the last evening of a month). Scoped to app source only: test files legitimately
+    // build UTC-based fixture date strings this same way, and are not display/comparison logic.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/__tests__/**', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(slice|split)$/][callee.object.callee.property.name='toISOString']",
+          message:
+            "Do not truncate .toISOString() into a calendar date/month string — it reads the UTC day, which is a day (or a month) early at negative UTC offsets. Use toLocalDateStr() from src/lib/scheduling.ts instead.",
+        },
+      ],
+    },
+  },
+  {
     // Context files universally export a Provider component + paired useX()
     // hook from the same file - the standard React context convention. This
     // rule (Vite Fast Refresh granularity, zero production impact) flags that
