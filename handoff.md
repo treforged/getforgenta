@@ -747,6 +747,26 @@ already done (`b269b6aa`) and is the worked example of the mapping.
 - ⛔ Known dead end, do not retry: a chevron rotating on `<details>` open. Four
   approaches all silently did nothing.
 
+**⚠️ MEASURED IN A REAL BROWSER, 2026-09-05, AND IT RESIZES THIS ITEM.** Demo mode at a
+420px viewport (`/demo`, no credentials needed — it exists for exactly this):
+- **Dashboard: 18 REACHABLE controls, 10 under 44px (56%), smallest 30-36px.**
+- The DecisionDeck overlay on Transactions is already FINE — 40-50px controls; only a
+  "Browse all" text link is small.
+- ⚠️ **My first measurement said "383 controls, 98% under 44px, 18px Confirm/Ignore" and
+  IT WAS WRONG.** It counted elements sitting BEHIND a `fixed inset-0 z-50` overlay —
+  not reachable, not what a thumb meets. The corrected probe keeps only controls that are
+  the topmost element at their own centre (`document.elementFromPoint`). Reporting the
+  first number would have been the exact confident-wrong mistake this repo is against, on
+  a claim about safety.
+- **So `13e43d50`'s "456 buttons, 380 class strings, only 18 declare a tap target" counts
+  SOURCE, not rendered size.** Most render at 30-40px from padding without declaring
+  anything. The gap is real (30-36 against 44) and it is a polish job, not an emergency —
+  scope it that way, and measure per surface with the probe above before and after.
+
+**LIVE CONFIRMATION of what shipped today** (same session, demo data): the Transactions
+tiles really render "of which $3,020 projected" and "of which $4,933 projected", and 29
+"Projected" chips render on the ledger rows. Not just green tests.
+
 ### 2. Item 17 — text WRAPPING and FORMATTING. Same browser session as item 1.
 `truncate` and fixed-width columns live in the same neighbourhood as the buttons, and
 `btn` adds `whitespace-nowrap`, so a narrow viewport is where both are judged.
