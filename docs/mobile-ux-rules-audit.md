@@ -29,11 +29,12 @@ against the code and judged on its merits.
 
 ## Rule 13 — FIXED 2026-09-05. Kept here because the reasoning is the valuable part.
 
-`registerForPush()` runs from `AuthContext` **on sign-in**, so the operating system's
-notification prompt appears seconds after somebody first gets into the app — before they have
-seen a single notification-worthy thing, and before they have any reason to say yes.
+**What it USED to do**, up to 2026-09-05: `registerForPush()` ran from `AuthContext` on sign-in
+and asked immediately, so the operating system's notification prompt appeared seconds after
+somebody first got into the app — before they had seen a single notification-worthy thing, and
+before they had any reason to say yes.
 
-The code beside it already reasons about this and reaches the wrong stop:
+The code beside it already reasoned about this and reached the wrong stop:
 
 > *"It also has to happen AFTER sign-in — a token with no user is a row we cannot address and a
 > permission prompt the person has been given no reason for."*
