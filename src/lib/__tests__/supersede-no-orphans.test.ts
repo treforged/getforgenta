@@ -26,24 +26,19 @@
 import { describe, it, expect } from 'vitest';
 import { planAccountRetirement } from '../../../supabase/functions/_shared/retire-accounts';
 import {
-  planSupersededConnections, planProviderDisconnects,
+  planSupersededConnections, planProviderDisconnects, findOrphanedAccounts,
   type SupersedableConnection,
 } from '../../../supabase/functions/_shared/supersede-connection';
 
 /**
- * THE INVARIANT, as a function so it can be asserted rather than described.
+ * ⚠️ `findOrphanedAccounts` IS PRODUCTION CODE, not a helper defined here, and that distinction
+ * is the whole reason this file was rewritten.
  *
- * After a supersede, no surviving account may point at a connection that is gone. Anything this
- * returns is a row the user can still see attached to a bank the app has forgotten.
+ * The first version of these tests defined the invariant locally. It passed against the pre-fix
+ * state, because nothing in the app ever called it — a test that passes on both sides of a fix
+ * is proof of nothing. The check now runs inside `plaid-exchange-token` as a post-condition
+ * after every supersede, so deleting it is a behaviour change these cases catch.
  */
-function orphanedAccounts(
-  accounts: readonly { id: string; connection_id: string | null }[],
-  survivingConnectionIds: ReadonlySet<string>,
-): string[] {
-  return accounts
-    .filter(a => a.connection_id !== null && !survivingConnectionIds.has(a.connection_id))
-    .map(a => a.id);
-}
 
 /** His real shape on 2026-09-05: three Robinhood links, two of them dead. */
 const conns: SupersedableConnection[] = [
@@ -95,7 +90,7 @@ describe('a supersede is one unit — accounts, item, and the provider', () => {
 
     // Before handling them, the two on superseded connections ARE orphans. This is the state the
     // cleanup created by deleting items and leaving rows.
-    expect(orphanedAccounts(accounts, surviving).sort())
+    expect(findOrphanedAccounts(accounts, surviving).sort())
       .toEqual(['acct-card', 'acct-individual']);
 
     // After retiring every account on a superseded connection, nothing is left pointing at one.
@@ -105,13 +100,13 @@ describe('a supersede is one unit — accounts, item, and the provider', () => {
     const plan = planAccountRetirement(stale, new Set());
     const remaining = accounts.filter(a => !plan.deletable.includes(a.id));
 
-    expect(orphanedAccounts(remaining, surviving)).toEqual([]);
+    expect(findOrphanedAccounts(remaining, surviving)).toEqual([]);
     // A manual account with no connection is never an orphan and must never be touched.
     expect(remaining.map(a => a.id)).toContain('acct-manual');
   });
 
   it('never touches a manual account, which has no connection to be superseded by', () => {
     const accounts = [{ id: 'acct-manual', connection_id: null }];
-    expect(orphanedAccounts(accounts, new Set())).toEqual([]);
+    expect(findOrphanedAccounts(accounts, new Set())).toEqual([]);
   });
 });

@@ -11,7 +11,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
-import { planSupersededConnections, planProviderDisconnects } from "../_shared/supersede-connection.ts";
+import { planSupersededConnections, planProviderDisconnects, findOrphanedAccounts } from "../_shared/supersede-connection.ts";
 import { planAccountRetirement } from "../_shared/retire-accounts.ts";
 import { plaidProvider } from "../_shared/providers/plaid.ts";
 
@@ -331,6 +331,33 @@ Deno.serve(async (req) => {
           console.log(
             `Superseded ${superseded.length} prior connection(s) to ${institution_id} for user ${userId}`,
           );
+
+          // ── THE POST-CONDITION, RUN RATHER THAN ASSUMED ─────────────────────────────
+          //
+          // ⚠️ A supersede is ONE UNIT: the accounts, the item, and the item at the provider.
+          // Both halves have failed in opposite directions, and each looked complete on its own
+          // -- retiring accounts alone left a dead bank listed forever, and removing the item
+          // alone left account rows the user could still see. Both were found by Tre spotting
+          // rows on his screen, not by anything here.
+          //
+          // So the invariant is CHECKED after the work rather than trusted: no surviving account
+          // may point at a connection that is gone. Anything this finds is a leftover, and it is
+          // logged loudly so the next re-link does not have to be the thing that reveals it.
+          // Accounts with a null connection_id are manual and are never orphans.
+          const { data: liveConns } = await supabase.from("financial_connections")
+            .select("id").eq("user_id", userId);
+          const { data: allAccounts } = await supabase.from("accounts")
+            .select("id, connection_id").eq("user_id", userId);
+          const orphans = findOrphanedAccounts(
+            (allAccounts ?? []) as { id: string; connection_id: string | null }[],
+            new Set((liveConns ?? []).map((c: { id: string }) => c.id)),
+          );
+          if (orphans.length > 0) {
+            console.error(
+              `⚠️ supersede left ${orphans.length} orphaned account(s) for user ${userId}: ` +
+              `${orphans.join(", ")} — a row pointing at a connection that no longer exists`,
+            );
+          }
         }
       } catch (supersedeErr) {
         console.error("plaid-exchange-token supersede step failed:", supersedeErr);

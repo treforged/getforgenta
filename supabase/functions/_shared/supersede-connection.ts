@@ -106,3 +106,38 @@ export function planProviderDisconnects(
     .filter(r => typeof r.access_token === 'string' && r.access_token.length > 0)
     .map(r => r.id);
 }
+
+
+/** An account row, as far as the orphan check is concerned. */
+export interface ConnectableAccount {
+  id: string;
+  connection_id: string | null;
+}
+
+/**
+ * Accounts left pointing at a connection that no longer exists — the leftovers a user SEES.
+ *
+ * ⚠️ WHY THIS IS PRODUCTION CODE AND NOT A TEST HELPER. The two halves of a supersede failed in
+ * opposite directions on 2026-09-05, and BOTH were found by Tre spotting rows on his screen
+ * rather than by anything in the system:
+ *
+ *   - the dedupe retired ACCOUNTS but not the ITEM, leaving two dead banks listed forever;
+ *   - the cleanup then removed the ITEMS and left their ACCOUNT rows, on the reasoning that
+ *     `active: false` made them harmless. It did not. He could still see them.
+ *
+ * Each looks complete on its own. Written as a check the sender actually RUNS, the invariant
+ * cannot quietly stop being true: a supersede that leaves anything here has not finished, and
+ * the run says so instead of the user discovering it.
+ *
+ * An account with no `connection_id` is a MANUAL account and is never an orphan — it was never
+ * attached to a connection, so there is nothing for it to be orphaned from. Deleting one of
+ * those would be the worst possible over-correction.
+ */
+export function findOrphanedAccounts(
+  accounts: readonly ConnectableAccount[],
+  survivingConnectionIds: ReadonlySet<string>,
+): string[] {
+  return accounts
+    .filter(a => a.connection_id !== null && !survivingConnectionIds.has(a.connection_id))
+    .map(a => a.id);
+}
