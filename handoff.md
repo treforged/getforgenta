@@ -31,6 +31,41 @@ the constraints already settled, so that slice does not re-argue them.
 
 ---
 
+## ⏱ PLAID iOS TAP — BASELINE READ 2026-09-05 06:47Z, BEFORE his tap. Re-read within 24 h.
+
+`function_edge_logs` retains **24 HOURS**. This evidence has already expired once (the 08-29
+taps were three days gone before anyone looked), so the baseline is recorded here VERBATIM
+rather than summarised.
+
+**Window queried: 2026-09-04 06:45Z -> 2026-09-05 06:45Z. Every plaid-shaped edge invocation
+in it, in full — there is exactly one:**
+
+    POST | 200 | https://mdtosrbfkextcaezuclh.supabase.co/functions/v1/plaid-sync-all
+    2026-09-04T13:00:40.876000
+
+That is the SCHEDULED sync, not a tap. **Zero** `create-link-token`, **zero**
+`plaid-exchange-token`, **zero** `hosted-link-result` in the whole window. So as of this
+read his tap had not yet reached the backend.
+
+**Database side, same instant:**
+
+    oauth_states     4 rows, latest 2026-09-02 14:45:47.630908+00
+    plaid_items      9 rows, latest 2026-08-22 00:01:04.142658+00
+    accounts (plaid) 17 rows, latest updated 2026-09-04 13:00:40.355718+00
+
+⚠️ **CORRECTION TO THE RECORD: `oauth_states` is NOT empty and never has been "zero rows
+ever".** It holds 4 rows and the most recent is 2026-09-02. The OAuth path HAS been reached.
+Any reasoning built on "oauth_states has zero rows" is built on a wrong premise — check it
+again before repeating it.
+
+**WHAT AN ABSENCE WOULD PROVE, decided before looking so the answer cannot be shaded:** a tap
+that never reaches `/link/token/create` is a CLIENT-side failure, not a backend one. It is not
+"inconclusive". The backend cannot fail to answer a request it never received.
+
+**ONE TAP CLOSES TWO ITEMS.** If `plaid-exchange-token` runs, look for its "Retired N
+account(s)" line — that is also the first real proof of the auto-dedupe shipped as `bb421023`,
+which has never been exercised by a genuine re-link.
+
 ## RESOLVED 2026-09-05 — a payment pin is a REPLACEMENT, and the promo cards were never the reason
 
 **The standing explanation — "his payoff date will not move because his cards are
