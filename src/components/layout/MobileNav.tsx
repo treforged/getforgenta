@@ -33,6 +33,28 @@ const PRIMARY = [
   { to: '/vehicles', icon: Car, label: 'Garage' },
 ];
 
+/**
+ * TAPPING THE TAB YOU ARE ALREADY ON RETURNS YOU TO THE TOP.
+ *
+ * A convention every large mobile app shares, and one this bar did not have: the tab was a plain
+ * `<Link>` to the route you were already on, so re-tapping it did nothing at all. Someone four
+ * screens deep in Transactions had no way back to the top except to scroll all of it.
+ *
+ * The scroller is `#scroll-main` in `DashboardLayout`, NOT the window — `main` is the
+ * `overflow-y-auto` element, so `window.scrollTo` scrolls a document that never moved and
+ * silently does nothing. That is the whole reason this reaches for the element by id.
+ *
+ * `smooth` unless the reader has asked for less motion, which is the one case where an animated
+ * jump is actively unwanted rather than merely a preference.
+ */
+function scrollMainToTop() {
+  const main = document.getElementById('scroll-main');
+  if (!main) return;
+  const reduced = typeof matchMedia === 'function'
+    && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  main.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+}
+
 export default function MobileNav() {
   const { pathname } = useLocation();
 
@@ -61,6 +83,7 @@ export default function MobileNav() {
             <Link
               key={item.to}
               to={item.to}
+              onClick={active ? scrollMainToTop : undefined}
               className={cn(
                 'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 text-xs font-medium transition-colors btn-press text-center',
                 active ? 'text-primary' : item.highlight ? 'text-primary/75' : 'text-muted-foreground',
