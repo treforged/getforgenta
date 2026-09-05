@@ -587,7 +587,7 @@ that click rather than assuming the dev server broke.
 `sb-*` key. That is the harness redacting, NOT proof of being signed out. Check
 where the app actually routes.
 
-## NEXT SLICE, SCOPED AND READY: the cash-floor warning Tre asked for
+## ✅ SHIPPED — the cash-floor warning Tre asked for. `d97f00d4` + `6c3e94fb`.
 
 His ask (2026-08-27, approved, unstarted): *"a mandatory marker on each card is
 fine. it just lets the user know a not meeting the cash floor is inevitable and
@@ -614,6 +614,14 @@ input second — his own ordering.
 
 ⚠️ It is a UI slice on a money page, so it needs a real press, not a green build:
 `dev-signin` skill, then look at the page. Do not ship it on tests alone.
+
+✅ **DONE, INCLUDING THE EXACT GAP NAMED ABOVE — and this heading said "NEXT SLICE" until
+2026-09-05.** `d97f00d4` built `src/lib/cash-floor-warning.ts`; `6c3e94fb` pinned what a
+month-0 shortfall shows, found by pressing the page rather than by a green build.
+`CreditCardEngine.tsx:1087` now passes `convergedCardProjection.saveUpReason` into
+`buildCashFloorWarning` instead of recomputing a worse reason locally, and the warning renders
+at line 1560 behind `data-testid="cash-floor-warning"`. The local `saveUpMonths` recomputation
+this section was written to remove is gone.
 
 ## iOS CI secrets are being rotated this week (2026-09-03) — what will break
 

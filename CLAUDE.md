@@ -96,6 +96,18 @@ section states reasoning, not measurement, and says so.
   `setMoneyDisplay`, and `useLumpSumTransfers`. In three of them the surrounding
   comment described the behaviour as if it were happening.
   `grep -rn "theFunction" src/ | grep -v export` is the whole check.
+  ⚠️ **AND THE RECORD LIES IN BOTH DIRECTIONS — grep before you BUILD, not only before you
+  scope.** On 2026-09-05 two sections of `handoff.md` said "Not built yet" and "NEXT SLICE,
+  SCOPED AND READY" about work that was already shipped, called and tested — the null-APR
+  ranking (`0d91028b`, down to the `AvalancheOrderList` row mounted at
+  `CreditCardEngine.tsx:1608`) and the cash-floor warning (`d97f00d4`, down to the exact
+  `saveUpReason` gap that section was written to close). A session trusting the record rebuilds
+  a feature on top of itself, and the rebuild passes its own tests. **One `grep -rn` for the
+  symbol, before the first edit, is the whole check** — a command rather than a slice. A file
+  saying a thing is missing is a claim, and claims here get verified.
+  ⚠️ **AND CLOSE IT IN THE RESUME QUEUE, not only in the section above it.** The i18n item went
+  stale within the hour of shipping because the top of `handoff.md` was updated and queue item 5
+  was not. The queue is what a cold session reads first, so it is the copy that has to be right.
 
 
 ## SYSTEM EXECUTION OVERRIDE
