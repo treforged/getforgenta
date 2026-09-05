@@ -47,6 +47,24 @@ const RESULT_POLL_DELAY_MS = 1500;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const LINK_TOKEN_KEY = 'forged:plaid_link_token';
+
+/**
+ * How often to ask the SERVER whether the hosted session finished, while the sheet is still
+ * open. See the race in openHostedLink: the redirect is a hint, this is the truth.
+ */
+const WHILE_OPEN_POLL_DELAY_MS = 2000;
+
+/** Nothing may wait forever. Five minutes is longer than any real Plaid flow takes. */
+const WHILE_OPEN_MAX_MS = 5 * 60 * 1000;
+
+/** How the hosted-link sheet ended. Only 'server-completed' carries a body. */
+type HostedLinkOutcome = 'redirected' | 'server-completed' | 'dismissed' | 'timeout';
+
+interface HostedLinkResult {
+  outcome: HostedLinkOutcome;
+  /** The `plaid-hosted-link-result` body, present only when outcome is 'server-completed'. */
+  body: { public_token?: string; institution_id?: string; institution_name?: string } | null;
+}
 // Only set once the URI is whitelisted in the Plaid dashboard (Team Settings → API → Allowed redirect URIs).
 // Set VITE_PLAID_OAUTH_REDIRECT_URI in Vercel env vars to enable OAuth banks (Chase, BoA, etc.).
 const OAUTH_REDIRECT_URI: string | null = import.meta.env.VITE_PLAID_OAUTH_REDIRECT_URI ?? null;
@@ -199,43 +217,126 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
 
     // Resolves when Plaid redirects back to our scheme, or when the user dismisses
     // the sheet themselves. Mirrors the proven OAuth pattern in src/pages/Auth.tsx.
-    const redirected = await new Promise<boolean>((resolve) => {
+    // ── FOUR WAYS THIS SHEET CAN END, AND ONLY ONE OF THEM USED TO BE HEARD ──────────────
+    //
+    // ⚠️ THE BUG THIS EXISTS FOR (2026-09-05, live on Tre's iPhone). He went through the
+    // hosted flow, pressed Allow for Robinhood, and the sheet showed a BLANK WHITE PAGE and
+    // never closed. The link had SUCCEEDED — the database proves it, and the app had already
+    // adopted his accounts — so he was staring at what looked like a failure while it had
+    // worked. That is the worst failure shape there is: a person who believes a thing broke
+    // will do it again, and re-linking is exactly what creates the duplicate connections this
+    // codebase has spent weeks cleaning up.
+    //
+    // The cause was that this waited for ONE signal: an appUrlOpen matching our custom scheme.
+    // When Plaid renders a completion page instead of redirecting, that event never fires, so
+    // the promise never settled, the sheet never closed, and the polling below — which would
+    // have discovered the truth in two seconds — never even started, because it only ran after
+    // the promise resolved.
+    //
+    // THE REDIRECT IS A HINT. THE SERVER IS THE TRUTH. So the same result endpoint is polled
+    // WHILE the sheet is open, and a completed session closes the sheet ourselves. That fixes
+    // the blank page without depending on anything Plaid renders or redirects to. The timeout
+    // is the backstop: whatever else goes wrong, this cannot wait forever.
+    const { outcome, body: openBody } = await new Promise<HostedLinkResult>((resolve) => {
       let urlHandle: { remove: () => void } | null = null;
       let finishedHandle: { remove: () => void } | null = null;
+      let pollTimer: ReturnType<typeof setTimeout> | null = null;
+      let maxTimer: ReturnType<typeof setTimeout> | null = null;
       let settled = false;
 
-      const cleanup = () => { urlHandle?.remove(); finishedHandle?.remove(); };
+      /** Idempotent: every path calls this, and calling it twice must be harmless. */
+      const cleanup = () => {
+        urlHandle?.remove(); urlHandle = null;
+        finishedHandle?.remove(); finishedHandle = null;
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+        if (maxTimer) { clearTimeout(maxTimer); maxTimer = null; }
+      };
+
+      /** First one home wins; everything after it is ignored. */
+      const settle = (result: HostedLinkResult) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(result);
+      };
 
       const setup = async () => {
         urlHandle = await CapApp.addListener('appUrlOpen', ({ url }) => {
           if (!url.startsWith(HOSTED_COMPLETE_URL)) return;
-          settled = true;
-          cleanup();
           Browser.close().catch(() => {});
-          resolve(true);
+          settle({ outcome: 'redirected', body: null });
         });
 
-        // Fires when the user closes the sheet by hand. Delayed so a successful
-        // redirect wins if both fire.
+        // Fires when the user closes the sheet by hand. Delayed so a successful redirect —
+        // or a server completion landing in the same instant — wins if both fire.
         finishedHandle = await Browser.addListener('browserFinished', () => {
-          setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            resolve(false);
-          }, 300);
+          setTimeout(() => settle({ outcome: 'dismissed', body: null }), 300);
         });
+
+        maxTimer = setTimeout(() => {
+          Browser.close().catch(() => {});
+          settle({ outcome: 'timeout', body: null });
+        }, WHILE_OPEN_MAX_MS);
+
+        // ⚠️ ONE TOKEN, REUSED. `getAuthHeader` calls `supabase.auth.refreshSession`, so
+        // calling it per poll would refresh the session every two seconds for up to five
+        // minutes — around 150 refreshes for one bank link, churning the refresh token and
+        // inviting a rate limit, on the exact flow that must not fail. The header is taken
+        // once and only re-taken when the server actually rejects it.
+        let pollAuth = await getAuthHeader();
+
+        // ⚠️ A BAD POLL IS NOT A FAILED LINK. The user is mid-flow on a phone; one dropped
+        // request or one blip must not end their session. Every error here is swallowed and
+        // the next poll goes out as normal.
+        const pollOnce = async () => {
+          if (settled) return;
+          try {
+            const res = await fetch(`${FN_BASE}/plaid-hosted-link-result`, {
+              method: 'POST',
+              headers: { Authorization: pollAuth, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ link_token }),
+            });
+            if (res.ok) {
+              const polled = await res.json();
+              if (polled?.status === 'completed') {
+                Browser.close().catch(() => {});
+                settle({ outcome: 'server-completed', body: polled });
+                return;
+              }
+            } else if (res.status === 401) {
+              // The only reason to spend a refresh: the token we hold is genuinely no longer
+              // accepted. A long Plaid session can outlive it.
+              pollAuth = await getAuthHeader();
+            }
+          } catch {
+            // Swallowed on purpose. See the note above.
+          }
+          if (!settled) pollTimer = setTimeout(pollOnce, WHILE_OPEN_POLL_DELAY_MS);
+        };
 
         await Browser.open({ url: hosted_link_url });
+        pollTimer = setTimeout(pollOnce, WHILE_OPEN_POLL_DELAY_MS);
       };
 
-      setup().catch(() => { cleanup(); resolve(false); });
+      setup().catch(() => settle({ outcome: 'dismissed', body: null }));
     });
+
+    // The sheet is already closed and the server has the session. Nothing below would add
+    // anything, and going round the poll loop again would only delay the user.
+    if (outcome === 'server-completed') {
+      setLoading(false);
+      await completeLink(
+        relinkItemId ? null : (openBody?.public_token ?? null),
+        relinkItemId ? null : (openBody?.institution_id ?? null),
+        relinkItemId ? null : (openBody?.institution_name ?? null),
+      );
+      return;
+    }
 
     // Re-link mode never produces a public_token — finishing the session is the
     // whole result, so sync straight away.
     if (relinkItemId) {
-      if (redirected) await completeLink(null, null, null);
+      if (outcome === 'redirected') await completeLink(null, null, null);
       else setLoading(false);
       return;
     }
@@ -255,7 +356,7 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
         await completeLink(body.public_token, body.institution_id, body.institution_name);
         return;
       }
-      if (body.status === 'exited' && !redirected) break;
+      if (body.status === 'exited' && outcome !== 'redirected') break;
       await sleep(RESULT_POLL_DELAY_MS);
     }
 
