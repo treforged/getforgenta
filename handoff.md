@@ -173,6 +173,78 @@ surfaces with 73 labels lifted to the `text-xs` floor; the Security tab's three 
   for getforgenta, and it is a static site with no `api/` directory, so there is no route to
   throw. Not this desk's.
 
+## ⛔ TWO STANDING PATTERNS, each of which has now cost more than one bug
+
+**1. ANYTHING THAT MUST RUN FOR A *RETURNING* USER RIDES ON `INITIAL_SESSION`, NOT JUST
+`SIGNED_IN`.** Supabase fires `INITIAL_SESSION` when it rehydrates a session from storage, which
+is nearly every launch of the mobile app — a person who stays signed in **never sees `SIGNED_IN`
+again**. It has now cost three separate things:
+- the Google OAuth popup hang (`7108311a`),
+- the RevenueCat SDK never being configured, so the paywall and Restore Purchases silently did
+  nothing for every returning user,
+- push registration, which would have collected tokens from first-time sign-ins and nobody else.
+It survives because **it never fires in a fresh-login test.** Any new branch in
+`AuthContext.tsx`'s `onAuthStateChange` gets asked this question before it is written.
+
+**2. AN AGENT CANNOT REPORT THAT IT IS SPINNING, so watch the FILE, not the agent.** A
+`sonnet-executor` sat listed as "reviewing the final diff in LiabilityTrajectoryChart.tsx" for
+over an hour after that file's last write — the work was long since committed. **Nothing flagged
+it and nothing would have**: this desk was productive throughout, so it looked healthy from the
+inside, and it took Tre reading the terminal footer to spot it. Same confident-blank shape as a
+desk that is simply absent from a stuck-check.
+**The check: when you spawn an agent, note the file it should be touching. "Still listed AND its
+target file has not moved in 30 minutes" is the signal.** Compare mtime against now; that is the
+whole test. And prefer an `llm` shim call, which returns and ends — an agent can sit.
+
+## ⚠️ CHASE PAY OVER TIME IS MODELLED AS FREE, AND IT IS NOT. Money surface, not started.
+
+Reconciled 2026-09-05 against three plan-confirmation emails. **Two errors pointing in OPPOSITE
+directions, which is why nothing looked wrong.**
+
+- **The three plans are MISSING from `balance_tranches`.** No balance match, no monthly match, and
+  the timing proves it: a 12-month plan opened Sep 2026 ends **Sep 2027**, and his stored expiries
+  are Feb 2027, Jul 2027 (×2), Aug 2027. So **$2,101.39 of 0% instalment principal sits in the
+  $3,123.46 untranched remainder and is charged at 27.49%** — roughly **$577/yr of interest he
+  will not pay**.
+- **The FEES are real and have no field.** Every plan's monthly × 12 equals principal + fees to
+  within two cents (PayPal Zettle 12 × $124.06 = $1,488.72 vs $1,322.50 + $166.20 = $1,488.70).
+  **$284.40 across three, 13.5% of principal, invisible to the forecast.**
+
+Net: the forecast **overstates** these three by about **$290/yr**, with both components wrong.
+
+**⚠️ POSSIBLY BIGGER, AND UNVERIFIED — needs his statements, do not guess.** All four stored
+tranches divide to exactly whole payment counts (6.000, 11.000, 10.999, 12.000). They were
+DERIVED as balance ÷ months, not read off a statement, so their `min_payment` is principal-only
+and excludes whatever fee each carries. At a comparable load that is another **~$754** hidden
+across the $5,587.75.
+
+**THE MODELLING QUESTION UNDERNEATH THE FEE, and it moves the payoff DATE rather than the cost.**
+Chase allocates minimums to the LOWEST APR and surplus to the HIGHEST, so he **cannot selectively
+prepay a 0% plan while carrying a 27.49% balance.** These are FIXED 12-month obligations. The
+engine has no way to express "this tranche's schedule cannot be shortened" — `min_payment` on the
+tranche is close but is a floor, not a ceiling.
+
+**The fix:** a FEE concept on the tranche — a flat monthly amount, not a rate, because that is how
+Pay Over Time charges — plus the payoff math including it. A 0% tranche is not a free tranche.
+Same confident-zero as the null APR, on the same card.
+
+## HIS LIVE NUMBERS, 2026-09-05 — useful, and they go stale fast
+
+Answering "can I pay $753.75 and still clear my floor?" — **no, short by $386.95.**
+- Cash **$1,002.58**: Chase Checking $728.28, General Operations $162.59, Savings $106.71,
+  Alliant $5.00.
+- Paid **WEEKLY on Fridays** (`paycheck_day: 5` = day-of-week). Gross $1,093, tax 22%, net
+  **~$852.54/wk**. 2026-09-05 is a **Saturday**, so the balance already includes Friday's pay and
+  the next is **Fri 2026-09-11**.
+- Due before then: **Prime Visa min $559.40 (due 09-07)** + Phone Bill to Mom $30 (09-10) +
+  Robinhood $46.38 (09-10, pays in full) = **$635.78**. Discover's due day is the 1st — outside.
+- He could pay **$366.80** today, or the lot after Friday.
+
+⚠️ **His `cash_floor` reads 2500 but `cash_floor_is_manual` is FALSE**, so 2500 is a saved
+preference and is **NOT the floor in force** — the measured bills figure is. Anyone quoting 2500
+is quoting a number the engine is not using. Confirmed live, exactly as `docs/dynamic-cash-floor.md`
+describes.
+
 ## PUSH NOTIFICATIONS — the storage half is BUILT. The sender is not, and the reason matters.
 
 Full detail, Tre's seven console steps and the device-proof runbook: **`docs/push-runbook.md`**.
@@ -1108,6 +1180,42 @@ fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards
 6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
 91030ffe test(demo): fail if a real company name gets back into the synced feed
 774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-05 04:23 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (7 file(s)):**
+
+```
+M .claude/settings.json
+ M supabase/.temp/cli-latest
+R  src/lib/notification-policy.ts -> supabase/functions/_shared/notification-policy.ts
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+?? src/lib/notification-policy.ts
+```
+
+- **Recent commits:**
+
+```
+ad9fe324 [push]: the server has no clock - give it the user's timezone before it sends anything
+65136b05 docs(handoff): close the seed-data escalation, record the unknown-APR decision and the push fork
+9f3fbbfc [push]: the storage and registration half of push notifications
+94744ee7 test(learn): validate the lesson catalogue, so a malformed lesson fails here not on a phone
+f26a5b44 docs: correct my own finding, record the seed-data question, and scope the first due date
+16e70bb2 test(notifications): cover the two retention candidates that had no proof at all
+3fe96158 [seo]: keep the signed-in app out of search results, and say why robots.txt is not a defence
+05c6dfa3 [ui]: a money figure on a stat tile no longer spills over the card onto its neighbour
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
