@@ -1,3 +1,48 @@
+# Forgenta — what crawlers may index.
+#
+# ⚠️ READ THIS BEFORE ADDING A RULE HERE TO STOP SCRAPERS. robots.txt IS ADVISORY. It stops
+# polite crawlers and it stops nothing hostile — a scraper or an attacker simply ignores it.
+# Blocking bots here would cost real search traffic and prevent nothing. The defences that
+# actually hold are elsewhere and are already on: Cloudflare Bot Fight Mode and its managed
+# ruleset at the edge, Supabase Row Level Security on every table, and rate limiting on the
+# edge functions.
+#
+# AND THERE IS NOTHING HERE TO SCRAPE. This is a client-rendered app: every route below serves
+# the same empty HTML shell, and every real number is fetched afterwards from Supabase with the
+# signed-in user's own token, under RLS. A crawler — or anyone with curl — gets the shell and
+# nothing else, whichever URL they ask for.
+#
+# So the Disallow lines below are HYGIENE, not security. They keep the signed-in app's routes
+# out of search results, where they would appear as blank, useless pages under the marketing
+# site's own domain.
+
 User-agent: *
 Allow: /
+
+# Signed-in app routes. Nothing renders here without a session, so an indexed result would be an
+# empty page with the app's title — bad for a searcher and bad for the site.
+Disallow: /dashboard
+Disallow: /transactions
+Disallow: /debt
+Disallow: /forecast
+Disallow: /vehicles
+Disallow: /settings
+Disallow: /ai
+Disallow: /onboarding
+Disallow: /premium/success
+Disallow: /premium/cancel
+
+# Auth and provider callbacks. These carry one-time tokens in the URL and must never be
+# followed, cached or indexed by anything.
+Disallow: /auth-callback
+Disallow: /oauth
+Disallow: /akoya-oauth
+
+# Deliberately still ALLOWED, because they are the public site and should rank:
+#   /            the landing page
+#   /demo        the demo, which is how someone tries the product without an account
+#   /auth        the sign-in page
+#   /privacy /terms /refund /delete-data   the legal pages, which stores link to
+#   /builds/share/:token   public build pages, shared on purpose
+
 Sitemap: https://getforgenta.com/sitemap.xml
