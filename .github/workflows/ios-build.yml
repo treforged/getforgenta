@@ -260,6 +260,56 @@ jobs:
             -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/ipa
 
+      # ⚠️ READ THE ENTITLEMENTS OUT OF THE BINARY THAT ACTUALLY SHIPS.
+      #
+      # This is the LAST unverified link in the push chain, and every earlier check verified an
+      # INPUT rather than the artifact:
+      #   • `App.entitlements` says `aps-environment: production` — that is the SOURCE.
+      #   • The profile decode step proves the profile carries `aps-environment` — that is the
+      #     PROFILE.
+      # Neither proves the exported `.app` contains it. With `signingStyle: manual`, Xcode can DROP
+      # an entitlement at export without failing the build, and a binary with no `aps-environment`
+      # is exactly a device that calls `register()`, gets no token AND NO ERROR, and times out.
+      #
+      # That is the measured signature: 36 attempts on a real iPhone across builds 676, 682, 684
+      # and 686, every one `timeout`, `prompted: false`, and — once the error text was finally
+      # captured — `detail: NULL`, meaning `registrationError` never fired at all. iOS is not
+      # refusing; it has nothing to say. Three correct fixes (missing entitlement, `development`
+      # instead of `production`, and a listener race) each changed nothing.
+      #
+      # `codesign -d --entitlements` reads the signed artifact itself, so this either finds the bug
+      # or permanently retires the last guess. It FAILS the run rather than printing a warning,
+      # because a build nobody can receive a notification on should not reach TestFlight quietly.
+      - name: Assert the exported binary carries aps-environment
+        run: |
+          set -o pipefail
+          APP=$(find "$RUNNER_TEMP/ipa" -name '*.ipa' -print -quit)
+          if [ -z "$APP" ]; then echo "::error::No .ipa found under $RUNNER_TEMP/ipa"; exit 1; fi
+          WORK="$RUNNER_TEMP/ipa-inspect"
+          rm -rf "$WORK" && mkdir -p "$WORK"
+          unzip -q "$APP" -d "$WORK"
+          BUNDLE=$(find "$WORK/Payload" -maxdepth 1 -name '*.app' -print -quit)
+          if [ -z "$BUNDLE" ]; then echo "::error::No .app inside the IPA payload"; exit 1; fi
+
+          ENT=$(codesign -d --entitlements :- --xml "$BUNDLE" 2>/dev/null | plutil -p - || true)
+          echo "Entitlement keys in the SHIPPED binary:"
+          echo "$ENT" | grep -oE '"[a-zA-Z0-9._\-]+" =>' | sort -u || true
+
+          APS=$(echo "$ENT" | grep -A0 '"aps-environment"' | head -1)
+          if [ -z "$APS" ]; then
+            echo "::error::The exported binary has NO aps-environment. The source and the profile \
+          both have it, so Xcode dropped it at export. Push registration will time out on every \
+          device with no error, which is exactly the symptom being chased."
+            exit 1
+          fi
+          echo "aps-environment in the shipped binary: $APS"
+          if ! echo "$APS" | grep -q "production"; then
+            echo "::error::The exported binary has aps-environment but NOT production. A TestFlight \
+          build is distribution-signed and registers against production APNs; a sandbox value \
+          makes register() hang with no error."
+            exit 1
+          fi
+
       # ⛔ UPLOADING IS DELIBERATE NOW, NOT AUTOMATIC (2026-09-03).
       #
       # This step ran on EVERY push to main touching src/**, and on 2026-09-03 it

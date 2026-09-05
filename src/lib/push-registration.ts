@@ -161,6 +161,8 @@ export async function registerForPush(
   if (!Capacitor.isNativePlatform()) return { outcome: 'web', token: null };
 
   const prompted = options.prompt === true;
+  /** The OS's own answer, carried into whatever outcome is recorded. Null until it is read. */
+  let permissionReading: string | null = null;
   let platform: 'ios' | 'android' = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
 
   /**
@@ -186,7 +188,10 @@ export async function registerForPush(
     detail: string | null = null,
   ): Promise<PushRegistrationResult> => {
     const app = await appInfo();
-    await store.recordOutcome(outcome, platform, prompted, app, detail).catch(() => {
+    // An error's own text wins; otherwise carry the permission reading, so a `timeout` row still
+    // says what iOS reported rather than leaving us to infer it a thirty-seventh time.
+    const recordedDetail = detail ?? permissionReading;
+    await store.recordOutcome(outcome, platform, prompted, app, recordedDetail).catch(() => {
       // The diagnosis failing must never take the registration with it.
     });
     return { outcome, token };
@@ -199,6 +204,12 @@ export async function registerForPush(
     // nothing on iOS but does return the standing answer, and asking a person who declined is
     // not something to do on every launch.
     const current = await PushNotifications.checkPermissions();
+    // ⚠️ WHAT iOS ACTUALLY SAID, RECORDED RATHER THAN INFERRED. `prompted: false` has been read as
+    // "permission was already granted" for 36 attempts — but that is OUR INFERENCE from which
+    // branch ran, not a reading. If `receive` is anything other than `granted`, `register()`
+    // no-ops quietly and we have been reading our own assumption back. Same class as every other
+    // confident blank found today: a field inferred instead of measured.
+    permissionReading = `permission=${current.receive}`;   // provisional; refined once asked
     const undecided = current.receive === 'prompt' || current.receive === 'prompt-with-rationale';
     // Undecided AND not invited to ask: leave the one-shot prompt unspent and register nothing.
     // The device is not lost — the next time the user turns notifications on, this runs with
@@ -207,6 +218,12 @@ export async function registerForPush(
     const status = undecided
       ? (await PushNotifications.requestPermissions()).receive
       : current.receive;
+    // ⚠️ THE EFFECTIVE STATUS IS WHAT GATES `register()`, so that is what the row must carry. The
+    // pre-request value is kept alongside it when they differ, because "was prompt, now granted"
+    // and "was granted all along" are different stories about the same device.
+    permissionReading = current.receive === status
+      ? `permission=${status}`
+      : `permission=${current.receive}->${status}`;
     if (status !== 'granted') return done('denied');
 
     platform = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';

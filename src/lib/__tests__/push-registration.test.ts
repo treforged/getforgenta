@@ -120,7 +120,7 @@ describe('push registration', () => {
     expect(h.saved).toEqual([
       { platform: 'ios', token: 'apns-token-abc', environment: 'sandbox' },
     ]);
-    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682', detail: null }]);
+    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682', detail: 'permission=prompt->granted' }]);
   });
 
   it('stores NOTHING and asks for nothing when the person already declined', async () => {
@@ -182,7 +182,7 @@ describe('push registration', () => {
     // question ("nobody has opened the switch") apart from a bug ("everybody tried and it broke"),
     // which is the whole reason the outcome type exists.
     expect(h.recorded).toEqual([
-      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false, build: '682', detail: null },
+      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false, build: '682', detail: 'permission=prompt' },
     ]);
     expect(h.registerCalls).toBe(0);
     expect(h.saved).toEqual([]);
@@ -232,6 +232,27 @@ describe('push registration', () => {
     expect(h.removed.sort()).toEqual(['registration', 'registrationError']);
   });
 
+  it('⚠️ records what iOS ACTUALLY said about permission, not what we inferred', async () => {
+    // `prompted: false` was read as "already granted" for 36 attempts — an inference, not a
+    // reading. A `timeout` row must now carry the OS's own answer.
+    h.initialPermission = 'granted';
+    const { outcome } = await registerForPush(store);
+    expect(outcome).toBe('registered');
+    expect(h.recorded[0].detail).toBe('permission=granted');
+  });
+
+  it('carries the permission reading on a TIMEOUT too, which is the case that matters', async () => {
+    vi.useFakeTimers();
+    try {
+      h.initialPermission = 'granted';
+      h.answerWith = 'silence';
+      const pending = registerForPush(store);
+      await vi.advanceTimersByTimeAsync(11_000);
+      expect((await pending).outcome).toBe('timeout');
+      expect(h.recorded[0].detail).toBe('permission=granted');
+    } finally { vi.useRealTimers(); }
+  });
+
   it('⚠️ KEEPS the provider error text instead of discarding it', async () => {
     // A real APNs refusal used to be recorded as a bare failure with no message. Apple's string
     // usually names the cause outright.
@@ -261,7 +282,7 @@ describe('push registration', () => {
     expect(outcome).toBe('save_failed');
     // The token is still handed back: it is real, and losing it here too would help nobody.
     expect(token).toBe('apns-token-abc');
-    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682', detail: null }]);
+    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682', detail: 'permission=prompt->granted' }]);
   });
 
   it('records an outcome for every path that reaches the OS, so none can go uncounted', async () => {
