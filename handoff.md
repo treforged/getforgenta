@@ -31,40 +31,54 @@ the constraints already settled, so that slice does not re-argue them.
 
 ---
 
-## ⏱ PLAID iOS TAP — BASELINE READ 2026-09-05 06:47Z, BEFORE his tap. Re-read within 24 h.
+## ✅ PLAID ON iOS — THE NATIVE TAP REACHED THE BACKEND, 2026-09-05. First time ever.
 
-`function_edge_logs` retains **24 HOURS**. This evidence has already expired once (the 08-29
-taps were three days gone before anyone looked), so the baseline is recorded here VERBATIM
-rather than summarised.
+⚠️ `function_edge_logs` retains **24 HOURS**. These are the LOG LINES, not a summary, because
+after 2026-09-06 06:00Z nobody can re-derive them. This evidence expired unread once already.
 
-**Window queried: 2026-09-04 06:45Z -> 2026-09-05 06:45Z. Every plaid-shaped edge invocation
-in it, in full — there is exactly one:**
+**THE BASELINE, taken at 06:47Z BEFORE the tap** — this is what makes the rows below
+unambiguous. Window 2026-09-04 06:45Z to 2026-09-05 06:45Z, every plaid-shaped edge
+invocation in it, in full:
 
-    POST | 200 | https://mdtosrbfkextcaezuclh.supabase.co/functions/v1/plaid-sync-all
-    2026-09-04T13:00:40.876000
+    POST | 200 | .../functions/v1/plaid-sync-all      2026-09-04T13:00:40.876000
 
-That is the SCHEDULED sync, not a tap. **Zero** `create-link-token`, **zero**
-`plaid-exchange-token`, **zero** `hosted-link-result` in the whole window. So as of this
-read his tap had not yet reached the backend.
+That is the scheduled sync. **Zero** create-link-token, **zero** exchange-token, **zero**
+hosted-link-result in the whole 24 hours. So anything after 06:47Z is this tap and nothing else.
 
-**Database side, same instant:**
+**THE TAP, 2026-09-05, verbatim:**
 
-    oauth_states     4 rows, latest 2026-09-02 14:45:47.630908+00
-    plaid_items      9 rows, latest 2026-08-22 00:01:04.142658+00
-    accounts (plaid) 17 rows, latest updated 2026-09-04 13:00:40.355718+00
+    OPTIONS | 200 | .../functions/v1/plaid-create-link-token      06:53:45.941
+    POST    | 200 | .../functions/v1/plaid-create-link-token      06:53:46.865
+    OPTIONS | 200 | .../functions/v1/plaid-hosted-link-result     06:54:21.229
+    POST    | 200 | .../functions/v1/plaid-hosted-link-result     06:54:27.212
 
-⚠️ **CORRECTION TO THE RECORD: `oauth_states` is NOT empty and never has been "zero rows
-ever".** It holds 4 rows and the most recent is 2026-09-02. The OAuth path HAS been reached.
-Any reasoning built on "oauth_states has zero rows" is built on a wrong premise — check it
-again before repeating it.
+**⛔ THE STANDING PREMISE IS FALSE AND IS STRUCK. "No native tap has ever got past
+/link/token/create" is WRONG.** It got past it, in 924 ms, and 35 seconds later the HOSTED
+LINK RESULT endpoint answered 200 as well. Tre's screenshot at 2:54 local matches the second
+pair exactly: secure.plaid.com rendering the real "Forgenta uses Plaid to connect your
+account" screen inside TestFlight. Note the function name is `plaid-hosted-link-result`, not
+`hosted-link-result` — grep for the wrong one and you will conclude it never ran.
 
-**WHAT AN ABSENCE WOULD PROVE, decided before looking so the answer cannot be shaded:** a tap
-that never reaches `/link/token/create` is a CLIENT-side failure, not a backend one. It is not
-"inconclusive". The backend cannot fail to answer a request it never received.
+**DATABASE, before and after:**
 
-**ONE TAP CLOSES TWO ITEMS.** If `plaid-exchange-token` runs, look for its "Retired N
-account(s)" line — that is also the first real proof of the auto-dedupe shipped as `bb421023`,
-which has never been exercised by a genuine re-link.
+    oauth_states     4 rows, latest 2026-09-02 14:45:47  ->  6 rows, latest 2026-09-05 06:56:30
+    plaid_items      9 rows, latest 2026-08-22 00:01:04  ->  UNCHANGED
+    accounts (plaid) 17 rows                             ->  UNCHANGED
+
+⚠️ **A SECOND CORRECTION: `oauth_states` was never "zero rows ever".** It held 4 before this
+tap. The OAuth path had been reached before. Any diagnosis built on that emptiness — including
+"the native path was never exercised" — needs re-deriving from scratch.
+
+**WHAT IS NOT YET PROVEN, and its absence proves nothing yet.** `plaid-exchange-token` has NOT
+fired and `plaid_items` has not moved, so the link is not completed — he was still on the
+phone-number step. The last oauth_states row (06:56:30) is LATER than the last log line pulled,
+so the flow was still in motion at the time of this read.
+
+**ONE TAP STILL CLOSES TWO ITEMS.** If `plaid-exchange-token` runs, look for its
+**"Retired N account(s)"** line — that is the first and only real proof of the Plaid
+auto-dedupe shipped as `bb421023`, which no genuine re-link has ever exercised.
+
+**NEXT READ: pull `function_edge_logs` from 06:55Z forward, BEFORE 2026-09-06 06:00Z.**
 
 ## RESOLVED 2026-09-05 — a payment pin is a REPLACEMENT, and the promo cards were never the reason
 
