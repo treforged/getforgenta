@@ -477,12 +477,14 @@ export default function DebtPayoff() {
               </div>
             </div>
           )}
-          <LiabilityTrajectoryChart
-            title="Auto Loan Payoff Trajectory"
-            debts={autoTrajectoryInputs()}
-            storageKey="tre:debtpayoff:auto:chart-years"
-            icon={Car}
-          />
+          <ErrorBoundary variant="widget" label="Auto Loan Trajectory">
+            <LiabilityTrajectoryChart
+              title="Auto Loan Payoff Trajectory"
+              debts={autoTrajectoryInputs()}
+              storageKey="tre:debtpayoff:auto:chart-years"
+              icon={Car}
+            />
+          </ErrorBoundary>
           {/* ⚠️ THE VEHICLE MONEY LIVES HERE NOW (Tre, 2026-08-27: "move saving for down payment
               and active loans to the auto loans section inside the debt payoff tab. it makes more
               since there"). What stood here was a READ-ONLY copy of these same cars — a loan card
@@ -534,11 +536,13 @@ export default function DebtPayoff() {
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment, false)}</p></div>
           </div>
-          <LiabilityTrajectoryChart
-            title="Other Debt Payoff Trajectory"
-            debts={liabilityTrajectoryInputs(otherDebts)}
-            storageKey="tre:debtpayoff:other:chart-years"
-          />
+          <ErrorBoundary variant="widget" label="Other Debt Trajectory">
+            <LiabilityTrajectoryChart
+              title="Other Debt Payoff Trajectory"
+              debts={liabilityTrajectoryInputs(otherDebts)}
+              storageKey="tre:debtpayoff:other:chart-years"
+            />
+          </ErrorBoundary>
           <div className="space-y-3">
             {otherDebts.map(d => {
               const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
@@ -644,11 +648,13 @@ export default function DebtPayoff() {
               </div>
             </div>
           )}
-          <LiabilityTrajectoryChart
-            title="Mortgage Payoff Trajectory"
-            debts={liabilityTrajectoryInputs(mortgageDebts)}
-            storageKey="tre:debtpayoff:mortgage:chart-years"
-          />
+          <ErrorBoundary variant="widget" label="Mortgage Trajectory">
+            <LiabilityTrajectoryChart
+              title="Mortgage Payoff Trajectory"
+              debts={liabilityTrajectoryInputs(mortgageDebts)}
+              storageKey="tre:debtpayoff:mortgage:chart-years"
+            />
+          </ErrorBoundary>
           <div className="space-y-3">
             {mortgageDebts.map(d => {
               const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
@@ -715,11 +721,13 @@ export default function DebtPayoff() {
               </div>
             </div>
           )}
-          <LiabilityTrajectoryChart
-            title="Student Loan Payoff Trajectory"
-            debts={liabilityTrajectoryInputs(studentDebts)}
-            storageKey="tre:debtpayoff:student:chart-years"
-          />
+          <ErrorBoundary variant="widget" label="Student Loan Trajectory">
+            <LiabilityTrajectoryChart
+              title="Student Loan Payoff Trajectory"
+              debts={liabilityTrajectoryInputs(studentDebts)}
+              storageKey="tre:debtpayoff:student:chart-years"
+            />
+          </ErrorBoundary>
           <div className="space-y-3">
             {studentDebts.map(d => {
               const bal = liabilityBalance(d), apr = Number(d.apr), tp = Number(d.target_payment);
