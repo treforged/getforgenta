@@ -31,6 +31,96 @@ the constraints already settled, so that slice does not re-argue them.
 
 ---
 
+## 2026-09-05 — OVERDRIVE. Twelve things shipped, and three of them were live defects nobody knew about.
+
+Every item below is on `origin/main`, verified by CONTENTS, with its gate run. Detail is in the
+commit bodies; this is the pointer list.
+
+**⚠️ THE THREE LIVE DEFECTS, in the order they cost money:**
+
+1. **RevenueCat was never configured for a returning user.** `Purchases.configure` was called
+   only on `SIGNED_IN`. Supabase fires `INITIAL_SESSION` when it rehydrates a stored session,
+   which is nearly every launch of the mobile app — a person who stays signed in never sees
+   `SIGNED_IN` again. So `getOfferings`, `purchasePackage` and `restorePurchases` all returned
+   null on the `!configured` guard: **the paywall had nothing to show and Restore Purchases
+   silently did nothing.** Same event that caused the Google OAuth popup hang (`7108311a`); it
+   survives because it never fires in a fresh-login test. Also fixed: the guard was a bare
+   boolean, so a second user on a live SDK would have had their entitlements attached to the
+   FIRST user's customer.
+2. **The hosted Plaid sheet could hang on a blank white page forever.** It waited for ONE
+   signal, an `appUrlOpen` on our custom scheme. When Plaid renders a completion page instead
+   of redirecting, that never fires. The redirect is a hint; the SERVER is the truth, so the
+   result endpoint is now polled WHILE the sheet is open and a completed session closes it.
+   Tre hit this on his own phone at 06:54Z — the link had SUCCEEDED underneath.
+3. **An anonymous stranger could read the subscriber counts.** `revenue_summary_lines()` is
+   SECURITY DEFINER and carried `EXECUTE` to PUBLIC, which includes `anon`, whose key ships in
+   the app bundle. Revoked, and proven closed with a real anonymous request (401 / 42501).
+
+**⛔ STANDING RULE, LEARNED THE HARD WAY TODAY — put this anywhere you touch a definer function:
+`CREATE` RE-GRANTS `EXECUTE` TO `PUBLIC`.** Adding an OUT column to `revenue_summary_lines`
+needed a `DROP` and `CREATE`, and that would have silently reopened the leak closed an hour
+earlier. **Every `DROP`/`CREATE` on a SECURITY DEFINER function must carry its REVOKEs with it,
+in the same migration.** The absence of a grant is not a state you can rely on surviving a
+redefinition, and nothing in the schema warns you.
+
+**MONEY, RECONCILED FROM STRIPE ITSELF — the answer is exact.** `revenue_summary_lines` reported
+five ACTIVE STRIPE PREMIUM subscriptions. Stripe live mode: 8 subscriptions, 6 active, **every
+one carrying a discount**, five of six with no payment method, and **exactly ONE charge in the
+account's entire history — $4.99 on 2026-03-26, billed to tre@treforged.com testing his own
+checkout.** No customer money has ever moved. Fixed with an `is_comp` column, defaulting TRUE so
+a forgotten write UNDER-reports rather than invents revenue; only `invoice.paid` with
+`amount_paid > 0` clears it. Comps are reported separately and labelled, never dropped.
+⚠️ **"No `stripe_subscription_id`" could never have worked as the rule** — one comp holds a real
+subscription id, and its comp lives in a Stripe discount that is not in this database and cannot
+be. Inference here is impossible, not merely fragile.
+
+**A PAYMENT PIN IS A REPLACEMENT.** See the RESOLVED section at the top of this file. The
+promo-card explanation for the payoff date is struck.
+
+**Also shipped:** three one-day-early date defects plus an eslint rule so the class cannot return
+(`net-worth-snapshot.ts:46` was the one nobody had counted — it compares a DATE against a live
+instant, so unlike its neighbours the offset does not cancel); the Student Loans chart responds
+to a tap on mobile (recharts selects on `touchmove` only, and a stationary tap never sends one);
+duplicate bank rows in Linked Banks (the dedupe was never broken — the hook returned revoked
+connections); the supersede path now hangs up at Plaid's end too; the btn vocabulary across four
+surfaces with 73 labels lifted to the `text-xs` floor; the Security tab's three different
+"remove" treatments unified; `docs/dynamic-cash-floor.md`, `docs/distribution-expansion.md`,
+`docs/ux-rules-audit.md`; `src/lib/variable-bill-buffer.ts`; handoff.md pruned 101 KB to 54 KB.
+
+**BASELINES TO MEASURE AGAINST — write nothing over these, they are the before picture:**
+- **RevenueCat, 2026-09-05: 172 customers, 0 trialing, 0 paid, $0 revenue**, against 31 Supabase
+  accounts and only 2 rows carrying a `revenuecat_app_user_id`. The identifier column is
+  overwhelmingly `$RCAnonymousID:`. After the INITIAL_SESSION fix reaches a device, NEW customers
+  should stop being anonymous. That ratio is now the regression signal.
+- **Users: 31 total, 2 active in 7 days, 4 in 30 days, 23 dormant, 4 never signed in. Latest
+  signup 2026-08-07.**
+- **getforgenta.com: 0 CACHED REQUESTS in 30 days against 88.99k total.** Zero, not low. Every
+  request on a static Vite build is reaching origin. Worth a look at the Vercel cache headers or
+  a zone bypass rule — a free performance and cost win, not urgent.
+
+**OPEN, AND HONEST ABOUT IT:**
+- The RevenueCat fix is **not proven on a device.** It has unit and behavioural cover; it has not
+  been pressed on a phone. Do that before drawing conclusions from the customer ratio.
+- **`logIn()` is never called** — only `configure({ appUserID })` and `logOut()`. So a purchase
+  made while unidentified does NOT alias to the account on sign-in; the anonymous customer is
+  abandoned. Nothing is stranded today because nothing is paid, but it is a real money-path
+  defect the moment someone buys before signing in.
+- The chart touch fix is **not verified by a real finger on a real phone.** jsdom cannot exercise
+  recharts point selection at all — not even a mouse — so no test in this repo can close that.
+- `CreditCardEngine.tsx`'s chart has the **identical** recharts touch gap, untouched.
+- Only the Credit Card tab is inside an `ErrorBoundary`; a throw in any of the other four
+  `LiabilityTrajectoryChart` usages in `DebtPayoff.tsx` (`:480, :537, :647, :718`) blanks the
+  whole `/debt` page.
+- **Bank linking is hardcoded to the US** — `country_codes: ["US"]` at
+  `plaid-create-link-token/index.ts:118` and `plaid-exchange-token/index.ts:170`. First thing
+  that must move for ANY market. Nobody had counted it.
+- Distribution: **EU and Japan are refused and final** (Tre, on the DSA trader declaration).
+  Target is everything except those. Tranche A is UK, Canada, Australia, New Zealand.
+- The account-wide Cloudflare 5xx belongs to **another zone**, not getforgenta — its own zone
+  shows ~1,081 requests in 24 h and no French traffic at all. Vercel reports ZERO runtime errors
+  for getforgenta, and it is a static site with no `api/` directory, so there is no route to
+  throw. Not this desk's.
+
 ## ✅ PLAID ON iOS — THE NATIVE TAP REACHED THE BACKEND, 2026-09-05. First time ever.
 
 ⚠️ `function_edge_logs` retains **24 HOURS**. These are the LOG LINES, not a summary, because
@@ -936,6 +1026,43 @@ fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards
 6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
 91030ffe test(demo): fail if a real company name gets back into the synced feed
 774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-05 03:27 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (8 file(s)):**
+
+```
+M .claude/settings.json
+ M src/components/debt/LiabilityTrajectoryChart.tsx
+ M supabase/.temp/cli-latest
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+?? src/components/debt/__tests__/LiabilityTrajectoryChart.touch.test.tsx
+?? src/lib/variable-bill-buffer.ts
+```
+
+- **Recent commits:**
+
+```
+724ee9f7 [ui]: roll four surfaces onto the btn vocabulary, and lift 73 labels to the text floor
+074311c6 [security]: stop an anonymous stranger reading the subscriber counts
+3d429927 [revenuecat]: configure the SDK for a RETURNING user, not only a fresh sign-in
+77a33987 [plaid]: hang up at Plaid's end when a re-link supersedes an old connection
+3a4a3d1f [plaid]: the hosted sheet closes on the SERVER signal, not only on a redirect
+c50583c7 docs(ux): audit the app against the ten consumer-app UX rules Tre sent
+697e12a0 [settings]: one shape for "remove a linked thing" across the Security tab
+0e60139f [plaid]: a revoked connection is not a connection - stop listing retired banks
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
