@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useStreakReward, STREAK_REWARD_DAYS } from '@/hooks/useStreakReward';
 import { GraduationCap, Flame, Check, Trophy, ChevronDown } from 'lucide-react';
 import { useLearnProgress, useMarkLessonRead } from '@/hooks/useLearnProgress';
 import SocialFollowRow from '@/components/dashboard/SocialFollowRow';
@@ -77,6 +78,8 @@ export default function LearnCard() {
         </p>
       )}
 
+      <StreakReward streak={progress.streak} />
+
       {progress.next ? (
         <LessonRow
           lesson={progress.next}
@@ -132,6 +135,52 @@ export default function LearnCard() {
           must never count toward the lesson progress above them. See social-links.ts. */}
       <SocialFollowRow />
     </div>
+  );
+}
+
+/**
+ * The reward the streak is FOR, and the only place it is offered.
+ *
+ * Three states and no fourth. An open grant says when it ends, because "you have Premium" with no
+ * end date is the sentence people are surprised by later. A qualifying streak offers the claim.
+ * Anything else renders NOTHING — no locked button, no "0 of 30", no progress bar toward a reward
+ * that is not close. The card already shows the streak; a second widget counting the same days is
+ * clutter, and dangling a reward at day 3 is a nag rather than a feature.
+ *
+ * ⚠️ THE BUTTON ASKS, IT DOES NOT DECIDE. `claim_streak_reward()` counts the streak itself, from
+ * timestamps the server writes. This component cannot grant anything, and a modified client cannot
+ * either — it has no user id and no day count to send.
+ */
+function StreakReward({ streak }: { streak: number }) {
+  const { grant, loading, claim } = useStreakReward();
+
+  if (loading) return null;
+
+  if (grant) {
+    const ends = new Date(grant.expires_at);
+    return (
+      <p className="text-[11px] flex items-center gap-1.5">
+        <Trophy className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+        <span className="font-medium">Premium from your streak</span>
+        <span className="text-muted-foreground">
+          until {ends.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        </span>
+      </p>
+    );
+  }
+
+  if (streak < STREAK_REWARD_DAYS) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => claim.mutate()}
+      disabled={claim.isPending}
+      className="btn btn-md btn-primary w-full"
+    >
+      <Trophy className="w-3.5 h-3.5" aria-hidden="true" />
+      {claim.isPending ? 'Claiming…' : `Claim ${STREAK_REWARD_DAYS} days of Premium`}
+    </button>
   );
 }
 

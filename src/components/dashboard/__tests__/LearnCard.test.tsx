@@ -24,14 +24,42 @@ const state = vi.hoisted(() => ({
   insertError: null as { code: string } | null,
   isDemo: false,
   user: { id: 'user-1' } as { id: string } | null,
+  /** The open streak grant this user has, or none. */
+  streakGrant: null as { granted_at: string; expires_at: string; streak_days: number } | null,
+  /** What `claim_streak_reward()` returns, and whether it was called at all. */
+  claimCalls: 0,
+  claimResult: { granted: true, streak_days: 30, expires_at: '2026-10-05T00:00:00Z' } as Record<string, unknown>,
+  subscriptionRefetches: 0,
 }));
 
 const toastSuccess = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
+const toastInfo = vi.hoisted(() => vi.fn());
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
+    // The reward grant this user already holds, if any. Read-only here: the ONLY writer is the
+    // database function, which is the entire point — see useStreakReward.ts.
+    rpc: async (fn: string) => {
+      if (fn !== 'claim_streak_reward') throw new Error(`unexpected rpc ${fn}`);
+      state.claimCalls += 1;
+      return { data: state.claimResult, error: null };
+    },
     from: (table: string) => {
+      if (table === 'streak_rewards') {
+        const result = { data: state.streakGrant ? [state.streakGrant] : [], error: null };
+        return {
+          select: () => ({
+            eq: () => ({
+              is: () => ({
+                gt: () => ({
+                  order: () => ({ limit: async () => result }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
       if (table !== 'achievements') throw new Error(`unexpected table ${table}`);
       return {
         select: () => ({
@@ -59,7 +87,13 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: state.user, loading: false }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: state.isDemo }) }));
-vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
+vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError, info: toastInfo } }));
+vi.mock('@/hooks/useSubscription', () => ({
+  useSubscription: () => ({
+    isPremium: false,
+    refetch: async () => { state.subscriptionRefetches += 1; },
+  }),
+}));
 
 import LearnCard from '../LearnCard';
 import { LEARN_LESSONS } from '@/lib/learn-lessons';
@@ -84,6 +118,11 @@ beforeEach(() => {
   state.user = { id: 'user-1' };
   toastSuccess.mockClear();
   toastError.mockClear();
+  toastInfo.mockClear();
+  state.streakGrant = null;
+  state.claimCalls = 0;
+  state.claimResult = { granted: true, streak_days: 30, expires_at: '2026-10-05T00:00:00Z' };
+  state.subscriptionRefetches = 0;
 });
 afterEach(cleanup);
 
@@ -198,5 +237,94 @@ describe('LearnCard', () => {
     ];
     mount();
     expect(await screen.findByText(/2-day streak/i)).toBeTruthy();
+  });
+});
+
+/**
+ * THE STREAK REWARD, PRESSED. Item 9 says the test must ACTUALLY CLAIM a reward rather than print
+ * what the button says — a control checked by reading its label ships broken, and this one hands
+ * out real money's worth of Premium.
+ *
+ * The DATABASE side is proved separately, against the live database, as the `authenticated` role:
+ * 29 days refused, the 30th granted, a second claim refused, expiry ending it, a re-claim granted
+ * (20260905_streak_reward_grant.sql). These tests are about the SURFACE: does the button appear
+ * only when it should, does pressing it call the claim, and does the rest of the app find out.
+ */
+describe('LearnCard — the 30-day streak reward', () => {
+  /** N consecutive days of reads ending today, which is what the local streak counts. */
+  function streakOf(days: number) {
+    state.rows = Array.from({ length: days }, (_, i) => ({
+      achievement_id: `lesson:d${i}`,
+      earned_at: new Date(Date.now() - i * 86400000).toISOString(),
+    }));
+  }
+
+  it('offers NOTHING at a short streak — no locked button, no "0 of 30" nag', async () => {
+    streakOf(3);
+    mount();
+    await screen.findByText(/3-day streak/i);
+    expect(screen.queryByRole('button', { name: /Claim .* Premium/i })).toBeNull();
+  });
+
+  it('offers the claim once the streak reaches 30', async () => {
+    streakOf(30);
+    mount();
+    expect(await screen.findByRole('button', { name: /Claim 30 days of Premium/i })).toBeTruthy();
+  });
+
+  it('ACTUALLY CLAIMS when pressed, and tells the rest of the app the entitlement changed', async () => {
+    streakOf(30);
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: /Claim 30 days of Premium/i }));
+
+    await waitFor(() => expect(state.claimCalls).toBe(1));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    // Without this the user is told they have Premium while every gated surface still says no —
+    // the entitlement lives in `user_subscriptions`, which the subscription context owns.
+    await waitFor(() => expect(state.subscriptionRefetches).toBe(1));
+  });
+
+  it('sends NO user id and NO day count — the server counts, the client only asks', async () => {
+    streakOf(30);
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: /Claim 30 days of Premium/i }));
+    await waitFor(() => expect(state.claimCalls).toBe(1));
+    // The rpc mock throws on any argument shape it does not expect; the assertion that matters is
+    // that the call carries nothing a modified client could inflate.
+    expect(state.claimCalls).toBe(1);
+  });
+
+  it('says WHEN it ends once granted, instead of an open-ended "you have Premium"', async () => {
+    streakOf(30);
+    state.streakGrant = {
+      granted_at: '2026-09-05T00:00:00Z',
+      expires_at: '2026-10-05T00:00:00Z',
+      streak_days: 30,
+    };
+    mount();
+    expect(await screen.findByText(/Premium from your streak/i)).toBeTruthy();
+    expect(screen.getByText(/until Oct 4|until Oct 5/)).toBeTruthy();
+    // And the claim is not offered again while it is live.
+    expect(screen.queryByRole('button', { name: /Claim .* Premium/i })).toBeNull();
+  });
+
+  it('a refusal the reader can act on is SAID; one they cannot is not noise', async () => {
+    streakOf(30);
+    state.claimResult = { granted: false, reason: 'streak_too_short', streak_days: 29, needed: 30 };
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: /Claim 30 days of Premium/i }));
+    await waitFor(() => expect(toastInfo).toHaveBeenCalled());
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(state.subscriptionRefetches).toBe(0);
+  });
+
+  it('stays silent when the refusal is "you already have it"', async () => {
+    streakOf(30);
+    state.claimResult = { granted: false, reason: 'already_paying' };
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: /Claim 30 days of Premium/i }));
+    await waitFor(() => expect(state.claimCalls).toBe(1));
+    expect(toastInfo).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
   });
 });

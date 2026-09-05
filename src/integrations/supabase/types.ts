@@ -2081,6 +2081,33 @@ export type Database = {
         }
         Relationships: []
       }
+      streak_rewards: {
+        Row: {
+          expires_at: string
+          granted_at: string
+          id: string
+          revoked_at: string | null
+          streak_days: number
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          granted_at?: string
+          id?: string
+          revoked_at?: string | null
+          streak_days: number
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          granted_at?: string
+          id?: string
+          revoked_at?: string | null
+          streak_days?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           active: boolean
@@ -2437,6 +2464,9 @@ export type Database = {
       active_friend_ids: { Args: never; Returns: string[] }
       active_partner_id: { Args: never; Returns: string }
       bump_founder_view: { Args: { p_source: string }; Returns: undefined }
+      claim_streak_reward: { Args: never; Returns: Json }
+      expire_streak_rewards: { Args: never; Returns: number }
+      streak_days_for: { Args: { p_user: string }; Returns: number }
       claim_marketing_slot: {
         Args: {
           p_by: string
