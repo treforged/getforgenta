@@ -20,8 +20,8 @@ import type { NotificationPrefs, NotificationCategory } from '@/lib/notification
  * Unlike before, a failed write is SHOWN and the switch goes back: a toggle that flips on screen
  * while the write fails leaves a user believing they are muted, and they are not.
  *
- * There is still no permission prompt here. Permission is asked at the first moment there is
- * something real to send (see notification-service.ts).
+ * LOCAL notification permission is asked at the first moment there is something real to send
+ * (see notification-service.ts). PUSH permission is asked HERE, and only here — see below.
  */
 export default function NotificationSettings() {
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
@@ -51,7 +51,34 @@ export default function NotificationSettings() {
     }
   };
 
-  const toggleMaster = () => { void commit({ ...prefs, enabled: !prefs.enabled }); };
+  /**
+   * ⚠️ THE ONLY PLACE THE PUSH PERMISSION PROMPT IS ASKED FOR, and the reason is the same one
+   * `review-moment.ts` gives for reviews: on iOS the system prompt is a ONE-SHOT resource.
+   * Decline it and the app can never present it again — the person has to find it in Settings,
+   * which nobody does. So it has to be spent at a moment the user has a reason to say yes.
+   *
+   * Turning notifications ON is that moment. It is the user stating the intent in their own
+   * words, seconds before the prompt appears, which is the strongest rationale the app will ever
+   * have. `registerForPush` used to fire from `AuthContext` on sign-in instead — before a single
+   * notification-worthy thing had happened — and every new user who tapped "Don't Allow" there
+   * became permanently unreachable.
+   *
+   * Ordering matters: the preference is SAVED FIRST and the prompt follows. A person who says no
+   * to the OS still has notifications switched on in the app, so the moment they grant permission
+   * later — from Settings, or by toggling again — there is nothing else for them to redo. And a
+   * declined prompt is deliberately NOT surfaced as an error: they answered the question.
+   */
+  const toggleMaster = () => {
+    const next = { ...prefs, enabled: !prefs.enabled };
+    void (async () => {
+      await commit(next);
+      if (next.enabled && Capacitor.isNativePlatform()) {
+        const { registerForPush } = await import('@/lib/push-registration');
+        const { supabasePushStore } = await import('@/lib/push-store');
+        await registerForPush(supabasePushStore, { prompt: true }).catch(() => {});
+      }
+    })();
+  };
 
   const toggleCategory = (key: NotificationCategory) => {
     void commit({

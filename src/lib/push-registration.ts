@@ -77,12 +77,30 @@ export function environmentFor(
  * notifications has answered the question, and asking again from a catch block is how an app
  * gets its permission prompt permanently denied.
  *
- * ⚠️ ONLY CALL THIS AFTER SIGN-IN. A token with no user_id is a row we cannot address and a
- * prompt the person has not yet been given a reason for. The caller is AuthContext, beside the
- * RevenueCat call, on both SIGNED_IN and INITIAL_SESSION — the second of which is the one that
- * fires for a returning user and the one that was missed for RevenueCat until 2026-09-05.
+ * ⚠️ ONLY CALL THIS AFTER SIGN-IN. A token with no user_id is a row we cannot address.
+ *
+ * ⚠️⚠️ AND IT DOES NOT ASK BY DEFAULT. `prompt` defaults to FALSE, so the ordinary sign-in call
+ * registers a device that has ALREADY granted permission and shows nothing to anybody else.
+ *
+ * THE ONE-SHOT PROBLEM. On iOS the system notification prompt can be presented ONCE. Decline it
+ * and the app cannot ask again — the person has to find it in Settings, which nobody does. So a
+ * prompt shown at the wrong moment is not merely ineffective, it is SPENT, and the app cannot
+ * tell that it was wasted. `src/lib/review-moment.ts` documents exactly this constraint for the
+ * review prompt and draws exactly this conclusion; this is the same rule for the same reason.
+ *
+ * WHAT IT USED TO DO: `AuthContext` called this on sign-in and it asked immediately, so the OS
+ * prompt appeared seconds after somebody first got into the app — before a single notification-
+ * worthy thing had happened and before they had any reason to say yes. Every new user who tapped
+ * "Don't Allow" in that moment could never be reached by a notification again.
+ *
+ * WHEN TO PASS `prompt: true`: at the first NOTIFICATION-SHAPED INTENT — the user turning
+ * notifications on. That is `NotificationSettings`' master switch today. Do not add it to a
+ * launch path, a sign-in path, or anything that runs without the user having asked for alerts.
  */
-export async function registerForPush(store: PushStore): Promise<string | null> {
+export async function registerForPush(
+  store: PushStore,
+  options: { prompt?: boolean } = {},
+): Promise<string | null> {
   if (!Capacitor.isNativePlatform()) return null;
 
   try {
@@ -92,7 +110,12 @@ export async function registerForPush(store: PushStore): Promise<string | null> 
     // nothing on iOS but does return the standing answer, and asking a person who declined is
     // not something to do on every launch.
     const current = await PushNotifications.checkPermissions();
-    const status = current.receive === 'prompt' || current.receive === 'prompt-with-rationale'
+    const undecided = current.receive === 'prompt' || current.receive === 'prompt-with-rationale';
+    // Undecided AND not invited to ask: leave the one-shot prompt unspent and register nothing.
+    // The device is not lost — the next time the user turns notifications on, this runs with
+    // `prompt: true` and asks then, which is the moment they have a reason to say yes.
+    if (undecided && !options.prompt) return null;
+    const status = undecided
       ? (await PushNotifications.requestPermissions()).receive
       : current.receive;
     if (status !== 'granted') return null;

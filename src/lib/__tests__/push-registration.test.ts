@@ -85,7 +85,7 @@ describe('push registration', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('stores the token the OS hands back on its EVENT, not the register() return', async () => {
-    const token = await registerForPush(store);
+    const token = await registerForPush(store, { prompt: true });
     expect(token).toBe('apns-token-abc');
     expect(h.saved).toEqual([
       { platform: 'ios', token: 'apns-token-abc', environment: 'sandbox' },
@@ -104,6 +104,7 @@ describe('push registration', () => {
   });
 
   it('stores nothing when the person declines the prompt now', async () => {
+    // Reaching the prompt at all now requires being invited to ask.
     h.permission = 'denied';
     expect(await registerForPush(store)).toBeNull();
     expect(h.saved).toEqual([]);
@@ -111,23 +112,67 @@ describe('push registration', () => {
 
   it('stores nothing when the provider answers with an error', async () => {
     h.answerWith = 'error';
-    expect(await registerForPush(store)).toBeNull();
+    expect(await registerForPush(store, { prompt: true })).toBeNull();
     expect(h.saved).toEqual([]);
   });
 
   it('gives up rather than hanging when nothing ever answers', async () => {
     vi.useFakeTimers();
     h.answerWith = 'silence';
-    const pending = registerForPush(store);
+    const pending = registerForPush(store, { prompt: true });
     await vi.advanceTimersByTimeAsync(11_000);
     expect(await pending).toBeNull();
     expect(h.saved).toEqual([]);
     vi.useRealTimers();
   });
 
+  /**
+   * ⚠️ THE ONE-SHOT PROMPT, AND WHO IS ALLOWED TO SPEND IT.
+   *
+   * On iOS the system notification prompt can be presented ONCE. Declined, the app can never ask
+   * again — the person has to find it in Settings, which nobody does. So a prompt shown before
+   * the user has any reason to say yes is not merely ineffective, it is SPENT, and every new user
+   * who taps "Don't Allow" there is permanently unreachable by a notification.
+   *
+   * `AuthContext` calls this on sign-in. These pin that the sign-in path CANNOT ask.
+   */
+  it('⚠️ does NOT ask on the sign-in path — the one-shot prompt is left unspent', async () => {
+    h.initialPermission = 'prompt';
+    const token = await registerForPush(store);   // no options: this is the sign-in call
+    expect(h.requestCalls).toBe(0);               // the assertion that matters
+    expect(token).toBeNull();
+    expect(h.registerCalls).toBe(0);
+    expect(h.saved).toEqual([]);
+  });
+
+  it('DOES ask when the user turns notifications on, which is the whole point', async () => {
+    h.initialPermission = 'prompt';
+    h.permission = 'granted';
+    const token = await registerForPush(store, { prompt: true });
+    expect(h.requestCalls).toBe(1);
+    expect(token).toBe('apns-token-abc');
+  });
+
+  it('still registers on sign-in for a device that ALREADY granted — without asking again', async () => {
+    // The silent path has to keep working, or declining to prompt would cost every existing user
+    // their token on the next launch.
+    h.initialPermission = 'granted';
+    const token = await registerForPush(store);
+    expect(h.requestCalls).toBe(0);
+    expect(token).toBe('apns-token-abc');
+    expect(h.saved).toHaveLength(1);
+  });
+
+  it('never re-asks somebody who declined, even at the intent moment', async () => {
+    // iOS would show nothing anyway; asking is pointless and the answer stands.
+    h.initialPermission = 'denied';
+    expect(await registerForPush(store, { prompt: true })).toBeNull();
+    expect(h.requestCalls).toBe(0);
+  });
+
   it('does nothing at all on web', async () => {
     h.native = false;
-    expect(await registerForPush(store)).toBeNull();
+    expect(await registerForPush(store, { prompt: true })).toBeNull();
     expect(h.registerCalls).toBe(0);
     expect(h.saved).toEqual([]);
   });

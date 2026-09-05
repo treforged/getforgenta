@@ -23,11 +23,11 @@ against the code and judged on its merits.
 | 10 | Load the next batch before the user reaches the bottom | ➖ **N/A today** | no infinite feed — the ledger renders a bounded month |
 | 11 | Likes/follows/saves update immediately, then sync | ➖ **mostly N/A** | no social actions; money writes SHOULD wait for the server (see below) |
 | 12 | Save drafts and unfinished input automatically | ✅ | `useFormDraft`, used by 8 surfaces |
-| 13 | Ask for notifications/photos/camera/location only at the moment of use | ❌ **VIOLATED** | see below — this is the real finding |
+| 13 | Ask for notifications/photos/camera/location only at the moment of use | ✅ **FIXED** | `registerForPush(store, { prompt: true })`, asked only from the master switch |
 | 14 | Quick actions open in a bottom sheet, swiping down dismisses | ⚠️ **PARTIAL** | sheets exist; swipe-down-to-dismiss is not wired |
 | 15 | Notifications and shared links open the exact content | ✅ | `DeepLinkHandler` in `App.tsx` |
 
-## Rule 13 is the one worth acting on
+## Rule 13 — FIXED 2026-09-05. Kept here because the reasoning is the valuable part.
 
 `registerForPush()` runs from `AuthContext` **on sign-in**, so the operating system's
 notification prompt appears seconds after somebody first gets into the app — before they have
@@ -47,11 +47,25 @@ length for reviews). A declined prompt cannot be re-presented by the app — the
 to Settings and find it. So asking at the cheapest possible moment spends the single chance to
 ever have this user's attention on a screen they had no reason to say yes on.
 
-**Proposed, not built:** move `registerForPush` behind the first notification-shaped intent —
-turning on a reminder, opting into a streak nudge — and keep the sign-in call only for a device
-that has ALREADY granted permission, where `checkPermissions` returns granted and no prompt is
-shown. `push-registration.ts` already calls `checkPermissions` first for a related reason, so
-the mechanism exists.
+**Done.** `registerForPush` now takes `{ prompt?: boolean }`, defaulting to **false**. The
+sign-in call in `AuthContext` registers a device that has ALREADY granted permission and shows
+nothing to anybody else; an undecided device is left alone with its one-shot prompt unspent.
+`prompt: true` is passed from exactly one place — the master notification switch in
+`NotificationSettings` — which is the user stating the intent in their own words seconds before
+the prompt appears.
+
+The preference is **saved first and the prompt follows**, so somebody who declines the OS still
+has notifications switched on in the app: granting later needs no second visit to this screen.
+A declined prompt is deliberately not surfaced as an error — they answered the question.
+
+Pinned by tests that assert `requestPermissions` was **not called** on the sign-in path, was
+called on the intent path, is still skipped for an already-granted device (which must keep
+registering silently, or the change would cost every existing user their token), and is never
+re-asked of somebody who declined.
+
+⚠️ **What those tests cannot prove**, and `push-registration.test.ts` says the same at the top:
+mocks show every branch runs. They do not show that iOS presented, or withheld, a real banner.
+That needs a device — `docs/push-runbook.md`, and it is coupled to item 12.
 
 ## Rules 8 and 14 are real but smaller
 

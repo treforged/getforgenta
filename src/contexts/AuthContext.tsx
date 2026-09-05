@@ -228,6 +228,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // collect tokens from first-time sign-ins and from nobody else. It also has to happen
         // AFTER sign-in — a token with no user is a row we cannot address and a permission
         // prompt the person has been given no reason for.
+        // ⚠️ DOES NOT PROMPT. `registerForPush` defaults to `prompt: false`, so this registers a
+        // device that has ALREADY granted permission and shows nothing to anyone else. The OS
+        // prompt is a ONE-SHOT resource on iOS — declined, it can never be presented again — and
+        // spending it here meant asking somebody seconds after they first got into the app,
+        // before anything notification-worthy had happened. It is asked at the first
+        // notification-shaped INTENT instead: the master switch in NotificationSettings.
         registerForPush(supabasePushStore).catch(() => {/* native no-op on web */});
         // The server has no clock of its own — an edge function runs in UTC — so without this
         // every server-side notification computes the wrong "today" for anyone outside it. Web

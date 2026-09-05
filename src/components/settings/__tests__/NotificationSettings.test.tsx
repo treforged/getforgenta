@@ -24,6 +24,16 @@ vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => isNative },
 }));
 
+/** What `registerForPush` was called with, so the ORDER and the OPTIONS can both be asserted. */
+const pushCalls: Array<{ prompt?: boolean }> = [];
+vi.mock('@/lib/push-registration', () => ({
+  registerForPush: async (_store: unknown, options: { prompt?: boolean } = {}) => {
+    pushCalls.push(options);
+    return 'apns-token-abc';
+  },
+}));
+vi.mock('@/lib/push-store', () => ({ supabasePushStore: { saveToken: async () => {}, revokeToken: async () => {} } }));
+
 const devicePrefs = new Map<string, string>();
 vi.mock('@capacitor/preferences', () => ({
   Preferences: {
@@ -68,6 +78,7 @@ beforeEach(() => {
   storedPrefs = null;
   updateFails = false;
   updates.length = 0;
+  pushCalls.length = 0;
   devicePrefs.clear();
   toastError.mockClear();
 });
@@ -151,11 +162,58 @@ describe('NotificationSettings', () => {
     expect(toastError).toHaveBeenCalled();
   });
 
-  it('never asks for notification permission from this screen', async () => {
-    // Permission belongs at the first moment there is something real to send. This screen does
-    // not import the plugin at all, so a request from here is impossible rather than merely absent.
+  /**
+   * ⚠️ THIS SCREEN IS NOW THE ONLY PLACE THE PUSH PROMPT IS ASKED FOR, and that reverses what
+   * this file used to assert. It previously said "never asks for notification permission from
+   * this screen", which was right about LOCAL notifications (still asked at the first real send,
+   * in notification-service.ts) and became wrong about PUSH.
+   *
+   * `registerForPush` used to fire from `AuthContext` ON SIGN-IN. On iOS the system prompt is a
+   * ONE-SHOT resource — declined, the app can never present it again — so it was being spent
+   * seconds after somebody first got into the app, before a single notification-worthy thing had
+   * happened. Every new user who tapped "Don't Allow" there was permanently unreachable.
+   *
+   * Turning the switch ON is the user stating the intent in their own words, seconds before the
+   * prompt appears. That is the strongest rationale the app will ever have for asking.
+   */
+  it('⚠️ ASKS for push permission when the switch is turned ON, on a device', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };   // so the click is a turn-ON
+    const sw = await mount();
+    fireEvent.click(sw);
+    await waitFor(() => expect(pushCalls).toHaveLength(1));
+    // `prompt: true` is the whole difference between asking and not.
+    expect(pushCalls[0]).toEqual({ prompt: true });
+  });
+
+  it('SAVES THE PREFERENCE FIRST, then asks — so a declined prompt leaves nothing to redo', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };
+    const sw = await mount();
+    fireEvent.click(sw);
+    await waitFor(() => expect(pushCalls).toHaveLength(1));
+    // The account write happened, and it happened before the prompt. Someone who says no to the
+    // OS still has notifications ON in the app, so granting later needs no second visit here.
+    expect(updates.length).toBe(1);
+  });
+
+  it('does NOT ask when the switch is turned OFF — that is the opposite of intent', async () => {
+    isNative = true;
+    storedPrefs = { enabled: false, categories: {} };
+    const sw = await mount();
+    fireEvent.click(sw);                        // on  -> asks
+    await waitFor(() => expect(pushCalls).toHaveLength(1));
+    fireEvent.click(await master());            // off -> must not
+    await waitFor(() => expect(updates.length).toBe(2));
+    expect(pushCalls).toHaveLength(1);
+  });
+
+  it('does not reach for the plugin at all in a browser', async () => {
+    isNative = false;
+    storedPrefs = { enabled: false, categories: {} };
     const sw = await mount();
     fireEvent.click(sw);
     await waitFor(() => expect(updates.length).toBe(1));
+    expect(pushCalls).toHaveLength(0);
   });
 });
