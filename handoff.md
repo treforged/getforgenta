@@ -58,15 +58,22 @@ ZERO — and under avalanche a 0% card sorts LAST. Any real user who leaves an A
 most expensive debt paid last, silently, and is told nothing. That is the confident-zero this
 codebase refuses everywhere else. Not Tre's problem today; still a defect.
 
-**⚠️ A REAL SIGNED-UP USER IS CARRYING DEMO SEED DATA AS LIVE ACCOUNTS.** Found while chasing the
-above. Nine accounts with ids `de100001`…`de100009` — Chase Checking $2,800, Alliant Checking
-$1,000, Marcus HYS $5,800, Fidelity 401k $8,500, Roth IRA $4,200, Robinhood $2,000, Chase
-Sapphire $8,500, Discover It $4,200, Cash $300 — all inserted at the **identical microsecond**
-`2026-04-25 15:39:27.196925`. Machine-generated. Four are already inactive; **five are still
-active**. Nothing was touched: they are not Tre's rows.
-**The question worth answering is WHICH CODE PATH can write a `de1000xx` id into a production
-account row.** A person making financial decisions on seeded balances is a worse outcome than
-anything else fixed today, and whatever did it can do it again.
+**✅ CLOSED SAME DAY — the `de1000xx` accounts are the APP STORE REVIEWER LOGIN, not a leak.**
+I escalated nine accounts inserted at one identical microsecond as demo seed reaching a real
+user. Sam searched the whole tree for `de1000xx-0000` and there is **not one match** — not in
+`src`, not in `supabase`, not in the migrations. Nothing in the app can produce those ids. The
+account is `reviewer@treforged.com`, and the rows are a hand-run seed so a store reviewer signing
+in sees a working finance app rather than an empty shell. **Nobody is budgeting on fake balances;
+the "user" is Apple.** Right escalation on the evidence I had, wrong conclusion once scoped. Do
+not re-raise it.
+
+**⚠️ STILL OPEN — an unknown card APR is silently treated as 0%.** `credit-card-engine.ts:471`
+does `Number(acct.apr) || 0`, and a 0% card sorts LAST under avalanche. **DECIDED (Sam,
+2026-09-05): the app ASKS, it does not assume.** Both defaults are the confident-zero mistake —
+sorting an unknown rate first invents a pessimistic number just as surely. So: a null-APR card is
+NOT ranked and NOT assigned a rate; its MINIMUM is still paid, because it is real debt; it renders
+in the ranking list in a "needs your rate" state with an inline input, so the fix is one tap where
+the problem is visible; and it never silently sorts last. Not built yet.
 
 **Also settled today, from Tre:** the Robinhood card is **NOT** to be demoted — *"it needs to be
 paid first, and on time in full"* — so `surplus_sort_order: 0` stays, and its due day is now the
@@ -165,6 +172,36 @@ surfaces with 73 labels lifted to the `text-xs` floor; the Security tab's three 
   shows ~1,081 requests in 24 h and no French traffic at all. Vercel reports ZERO runtime errors
   for getforgenta, and it is a static site with no `api/` directory, so there is no route to
   throw. Not this desk's.
+
+## PUSH NOTIFICATIONS — the storage half is BUILT. The sender is not, and the reason matters.
+
+Full detail, Tre's seven console steps and the device-proof runbook: **`docs/push-runbook.md`**.
+
+**Built, applied and verified:** `device_tokens`, `push_sends`, `push_send_runs` (anon `GET` on
+all three returns **401/42501**, checked with a real request); `src/lib/push-registration.ts` with
+11 cases; `src/lib/push-store.ts`; wiring in `AuthContext` beside the RevenueCat calls, on
+`SIGNED_IN || INITIAL_SESSION`.
+
+**⚠️ THE FORK THAT DECIDES WHAT THE SENDER IS.** `notification-policy.ts` is transport-agnostic
+and the sender can call it as-is — but its SIGNALS are not equally available to a server.
+`upcomingBills`, `projectedCashAtNextBill`, `cashFloor` and `newMilestones` all come from the
+forecast engine, which is **client TypeScript that has never run on a server.** So:
+- **Server-computable today: `learn_lesson` and `streak_risk` only.** Both derive from the
+  `achievements` table (`lesson:<slug>` rows with `earned_at`) plus the bundled lesson list. The
+  maths is `learn-streak.ts`, pure, and needs porting to `supabase/functions/_shared/` — Deno
+  cannot import from `src/`.
+- **NOT server-computable without porting the engine: everything money-shaped.**
+Those two ARE what Tre asked for, so the first sender ships them — **and it must say in its own
+code that it covers two of seven kinds**, or the next person reads a working sender and assumes
+bill alerts reach dormant users when they do not. Porting the engine's signals is its own project.
+
+**⚠️ THE TRAP:** `capacitor.config.ts:8` points the shipped app at `https://getforgenta.com` as a
+WebView, so **the registration JS must be in the DEPLOYED WEB BUILD.** A native rebuild without a
+matching web deploy registers nothing and reports no error. The same fact is the upside: a web
+deploy reaches mobile users with no app store review.
+
+**Blocked on Tre only:** the APNs `.p8`, Key ID, Team ID, `google-services.json` and the FCM
+service-account JSON. Nothing else in the build waits on him.
 
 ## ✅ PLAID ON iOS — THE NATIVE TAP REACHED THE BACKEND, 2026-09-05. First time ever.
 
@@ -1071,6 +1108,40 @@ fd3c71cd docs(handoff): the payoff date still does not move, and the promo cards
 6b43cd4d docs(handoff): the reach containment probe proved routing, not containment
 91030ffe test(demo): fail if a real company name gets back into the synced feed
 774f1cf9 docs(handoff): put the unfinished half of the fixture rebuild first in the queue
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-05 04:03 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (5 file(s)):**
+
+```
+M .claude/settings.json
+ M supabase/.temp/cli-latest
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+```
+
+- **Recent commits:**
+
+```
+94744ee7 test(learn): validate the lesson catalogue, so a malformed lesson fails here not on a phone
+f26a5b44 docs: correct my own finding, record the seed-data question, and scope the first due date
+16e70bb2 test(notifications): cover the two retention candidates that had no proof at all
+3fe96158 [seo]: keep the signed-in app out of search results, and say why robots.txt is not a defence
+05c6dfa3 [ui]: a money figure on a stat tile no longer spills over the card onto its neighbour
+9a1158c6 [floor]: let a per-rule variance buffer reach the cash floor, and prove it changes nothing yet
+a24e48aa [debt]: one broken chart no longer blanks the whole /debt page
+6c1202d1 docs(handoff): record the overdrive session - three live defects, and the CREATE re-grant rule
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
