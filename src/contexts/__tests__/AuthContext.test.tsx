@@ -347,7 +347,10 @@ describe('coming back from the background, which is the only signal native can t
     h.native = true;
     renderSignedIn({ withResume: true });
     await waitForIdleWatcher();
-    await waitFor(() => expect(h.appStateHandlers.length).toBe(2)); // idle watcher + resume recovery
+    // idle watcher + resume recovery + push-registration retry (added 2026-09-05).
+    // ⚠️ COUNTED, NOT LOOSENED. This assertion exists because these handlers must not fight, and a
+    // `toBeGreaterThan` here would stop noticing when a fourth arrives — which is the point.
+    await waitFor(() => expect(h.appStateHandlers.length).toBe(3));
 
     await backgroundAndReturn(30 * MINUTE);
 

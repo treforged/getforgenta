@@ -83,6 +83,14 @@ export interface PushStore {
  *   plugin_error         the plugin threw — PACKAGING
  */
 export type PushRegistrationOutcome =
+  /**
+   * ⚠️ WRITTEN THE MOMENT `register()` IS CALLED, BEFORE THE PROVIDER ANSWERS. Without it an
+   * attempt is invisible until it resolves — and on 2026-09-05 raising the wait window from 10s to
+   * 30s meant a person who opened the app and closed it inside half a minute produced **NO ROW AT
+   * ALL**. The absence read as "the handler never ran", which is a completely different diagnosis
+   * from "it ran and nothing answered". An attempt must be visible while it is still an attempt.
+   */
+  | 'pending'
   | 'registered'
   | 'undecided_not_asked'
   | 'denied'
@@ -295,6 +303,9 @@ export async function registerForPush(
         };
 
         void PushNotifications.register();
+        // Recorded immediately, and deliberately NOT awaited: the row exists from this instant, so
+        // closing the app before the provider replies leaves evidence rather than silence.
+        void done('pending');
       },
     );
 

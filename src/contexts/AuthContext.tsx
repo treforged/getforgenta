@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
 import { registerForPush, revokeCurrentPushToken } from '@/lib/push-registration';
 import { supabasePushStore, readLastPushToken } from '@/lib/push-store';
+import { startPushRetryOnResume } from '@/lib/push-retry';
 import { reportTimezone } from '@/lib/report-timezone';
 import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
@@ -56,6 +57,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use a ref for location to avoid stale closure issues in onAuthStateChange
   const locationRef = useRef(location.pathname);
   useEffect(() => { locationRef.current = location.pathname; }, [location.pathname]);
+
+  /**
+   * ⚠️ REGISTRATION MUST BE ABLE TO RECOVER, NOT ONLY TO SUCCEED FIRST TIME.
+   *
+   * The call below fires on `SIGNED_IN || INITIAL_SESSION` — i.e. only when a session is
+   * established. iOS routinely RESUMES an app from memory instead of cold-starting it, and a
+   * resumed app does not re-run sign-in, so **a device whose registration fails once may never try
+   * again**: no token, no notifications, and nothing re-attempts until the person happens to sign
+   * out and back in. Measured 2026-09-05: 48 candidates the sender would have notified, every one
+   * unreachable.
+   *
+   * Mounted once for the app's lifetime, guarded so it cannot loop, and it never prompts.
+   * See `push-retry.ts`.
+   */
+  useEffect(() => {
+    let teardown: (() => void) | null = null;
+    let cancelled = false;
+    void startPushRetryOnResume().then(stop => {
+      if (cancelled) stop();
+      else teardown = stop;
+    });
+    return () => { cancelled = true; teardown?.(); };
+  }, []);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

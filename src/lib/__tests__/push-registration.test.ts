@@ -106,6 +106,15 @@ import {
   type PushStore,
 } from '@/lib/push-registration';
 
+/**
+ * The rows that represent a SETTLED outcome.
+ *
+ * ⚠️ `pending` is written the instant `register()` is called and is not an outcome — it exists so
+ * that closing the app before the provider answers still leaves evidence. Assertions about what
+ * actually happened must skip it, or every case has to restate a row it is not testing.
+ */
+const settled = () => h.recorded.filter(r => r.outcome !== 'pending');
+
 const store: PushStore = {
   saveToken: async (row) => { h.saved.push(row); return !h.saveFails; },
   revokeToken: async (token) => { h.revoked.push(token); },
@@ -135,7 +144,7 @@ describe('push registration', () => {
     expect(h.saved).toEqual([
       { platform: 'ios', token: 'apns-token-abc', environment: 'sandbox' },
     ]);
-    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682', detail: 'permission=prompt->granted' }]);
+    expect(settled()).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682', detail: 'permission=prompt->granted' }]);
   });
 
   it('stores NOTHING and asks for nothing when the person already declined', async () => {
@@ -196,7 +205,7 @@ describe('push registration', () => {
     // ⚠️ AND IT IS RECORDED AS NOT-ASKED, not as a failure. This is the row that tells a product
     // question ("nobody has opened the switch") apart from a bug ("everybody tried and it broke"),
     // which is the whole reason the outcome type exists.
-    expect(h.recorded).toEqual([
+    expect(settled()).toEqual([
       { outcome: 'undecided_not_asked', platform: 'ios', prompted: false, build: '682', detail: 'permission=prompt' },
     ]);
     expect(h.registerCalls).toBe(0);
@@ -247,6 +256,31 @@ describe('push registration', () => {
     expect(h.removed.sort()).toEqual(['registration', 'registrationError']);
   });
 
+  it('⚠️ writes a PENDING row the moment it asks the OS, before anything answers', async () => {
+    // THE BUG THIS PINS IS MINE, FROM TWO HOURS EARLIER. Raising the wait window from 10s to 30s
+    // meant a person who opened the app and closed it inside half a minute produced NO ROW AT ALL
+    // — and an absent row reads as "the handler never ran", which is a completely different
+    // diagnosis from "it ran and nothing answered". An attempt must be visible while it is still
+    // an attempt.
+    vi.useFakeTimers();
+    try {
+      h.initialPermission = 'granted';
+      h.answerWith = 'silence';
+      const pending = registerForPush(store);
+      // A tick, not the wait window: `done('pending')` awaits `App.getInfo()`, so it needs a
+      // microtask to land — but nothing near the 30s timeout has elapsed.
+      await vi.advanceTimersByTimeAsync(50);
+      expect(h.recorded.map(r => r.outcome)).toContain('pending');
+      // And crucially the outcome has NOT resolved yet — this is the window in which a person
+      // closing the app used to leave no trace at all.
+      expect(h.recorded.map(r => r.outcome)).not.toContain('timeout');
+      await vi.advanceTimersByTimeAsync(31_000);
+      await pending;
+    } finally { vi.useRealTimers(); }
+    // …and the provisional row is then resolved to the real outcome.
+    expect(h.recorded.map(r => r.outcome)).toEqual(['pending', 'timeout']);
+  });
+
   it('⚠️ SAVES A TOKEN THAT ARRIVES AFTER THE WAIT WINDOW — it used to be thrown away', async () => {
     // THE BUG THIS PINS IS ONE THIS FILE CAUSED. Removing the listeners on timeout was added to
     // stop a leak, and it also stopped a late token being heard — so APNs answering at 12s while
@@ -272,8 +306,8 @@ describe('push registration', () => {
       { platform: 'ios', token: 'apns-token-late', environment: 'sandbox' },
     ]);
     // And the row is corrected from the provisional timeout to the truth.
-    expect(h.recorded.map(r => r.outcome)).toEqual(['timeout', 'registered']);
-    expect(h.recorded[1].detail).toContain('arrived after the wait window');
+    expect(settled().map(r => r.outcome)).toEqual(['timeout', 'registered']);
+    expect(settled()[1].detail).toContain('arrived after the wait window');
   });
 
   it('removes the token listener once the late token has been handled', async () => {
@@ -298,7 +332,7 @@ describe('push registration', () => {
     h.initialPermission = 'granted';
     const { outcome } = await registerForPush(store);
     expect(outcome).toBe('registered');
-    expect(h.recorded[0].detail).toBe('permission=granted');
+    expect(settled()[0].detail).toBe('permission=granted');
   });
 
   it('carries the permission reading on a TIMEOUT too, which is the case that matters', async () => {
@@ -309,7 +343,7 @@ describe('push registration', () => {
       const pending = registerForPush(store);
       await vi.advanceTimersByTimeAsync(31_000);
       expect((await pending).outcome).toBe('timeout');
-      expect(h.recorded[0].detail).toBe('permission=granted');
+      expect(settled()[0].detail).toBe('permission=granted');
     } finally { vi.useRealTimers(); }
   });
 
@@ -319,7 +353,7 @@ describe('push registration', () => {
     h.answerWith = 'error';
     const { outcome } = await registerForPush(store, { prompt: true });
     expect(outcome).toBe('registration_error');
-    expect(h.recorded[0].detail).toBe('no');
+    expect(settled()[0].detail).toBe('no');
   });
 
   it('does nothing at all on web', async () => {
@@ -342,7 +376,7 @@ describe('push registration', () => {
     expect(outcome).toBe('save_failed');
     // The token is still handed back: it is real, and losing it here too would help nobody.
     expect(token).toBe('apns-token-abc');
-    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682', detail: 'permission=prompt->granted' }]);
+    expect(settled()).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682', detail: 'permission=prompt->granted' }]);
   });
 
   it('records an outcome for every path that reaches the OS, so none can go uncounted', async () => {
@@ -359,8 +393,8 @@ describe('push registration', () => {
       arrange();
       const { outcome } = await registerForPush(store, { prompt: true });
       expect(outcome).toBe(expected);
-      expect(h.recorded).toHaveLength(1);
-      expect(h.recorded[0].outcome).toBe(expected);
+      expect(settled()).toHaveLength(1);
+      expect(settled()[0].outcome).toBe(expected);
     }
   });
 
