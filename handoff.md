@@ -771,7 +771,26 @@ tiles really render "of which $3,020 projected" and "of which $4,933 projected",
 `truncate` and fixed-width columns live in the same neighbourhood as the buttons, and
 `btn` adds `whitespace-nowrap`, so a narrow viewport is where both are judged.
 
-### 3. Item 7 — ONBOARDING, and the review prompt WITH it (Sam, 2026-09-05)
+### 3. ✅ MOSTLY DONE — ONBOARDING and the review prompt. READ THIS BEFORE REBUILDING.
+Two of the three halves were ALREADY SHIPPED before this session, and a cold session that
+skips this paragraph will rebuild them:
+- **The review prompt already fires on the VALUE MOMENT, not on activity.**
+  `src/lib/review-moment.ts` replaced a "third positive action" counter (whose two call
+  sites were the user doing WORK FOR the app) with real value events, including
+  `first_positive_projection` — the "oh, I am actually fine" moment. Wired through
+  `useValueMoments` on the Dashboard. **That IS the ah-ha trigger Tre asked for.**
+- **Onboarding already ends on a real outcome**, not a tour: take-home, expenses, debt,
+  goals and available-after-expenses, computed from what the user just entered.
+- **The measurement gap is now CLOSED** (`821dc985`): `profiles.onboarding_furthest_step`
+  + `onboarding_started_at`, monotonic, compared inside the user's own flow. The funnel is
+  `select onboarding_furthest_step, count(*) from profiles where onboarding_started_at is
+  not null and not onboarding_completed group by 1;`
+- **What is genuinely left** is a PRODUCT judgement, not code: read that funnel once real
+  users are in it and decide which step to cut. Do not guess before the data exists.
+- Still open from the same ask and NOT started: "research my market and create a plan to
+  get more reviews" — that is marketing research, likely Ruby's, not this repo's.
+
+### (superseded) Item 7 — ONBOARDING, and the review prompt WITH it (Sam, 2026-09-05)
 "Onboarding = value, not explain every feature." The **ah-ha moment is the trigger for
 both** the first real outcome and the in-app review prompt, so build them together
 rather than twice. A review prompt fired before the value moment burns the one chance
