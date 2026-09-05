@@ -288,7 +288,7 @@ preference and is **NOT the floor in force** — the measured bills figure is. A
 is quoting a number the engine is not using. Confirmed live, exactly as `docs/dynamic-cash-floor.md`
 describes.
 
-## PUSH NOTIFICATIONS — the storage half is BUILT. The sender is not, and the reason matters.
+## ✅ PUSH NOTIFICATIONS — storage, sender AND transport are ALL built. `664bdb10` + `efa5d1ee`.
 
 Full detail, Tre's seven console steps and the device-proof runbook: **`docs/push-runbook.md`**.
 
@@ -317,6 +317,21 @@ deploy reaches mobile users with no app store review.
 
 **Blocked on Tre only:** the APNs `.p8`, Key ID, Team ID, `google-services.json` and the FCM
 service-account JSON. Nothing else in the build waits on him.
+
+✅ **THE SENDER EXISTS — this heading said "the sender is not" built until 2026-09-05.**
+`supabase/functions/push-send/index.ts`, 291 lines (`664bdb10`), with the APNs HTTP/2 and FCM v1
+transport in `efa5d1ee`. It ships exactly the shape this section specified: `x-cron-secret` only,
+dry-run defaulting to TRUE, and a header block naming the two kinds it sends (`learn_lesson`,
+`streak_risk`) and the five it does not, so nobody reads a working sender and assumes bill alerts
+reach dormant users. The fork above is now DESIGN DOCUMENTATION for that code, not pending work.
+**What genuinely remains is the credentials above, which are Tre's hands.**
+
+### Caller-gate sweep of the rest of this queue, 2026-09-05
+Applied `grep -rn <symbol> src/ supabase/` to each remaining item before starting any of them.
+**Genuinely open, nothing written:** Chase Pay Over Time (no `payOverTime` / `pay_over_time`
+anywhere in `src/`) and the OG billing-consent SURFACES (no `og_consent` in any `.tsx`; the gate
+itself is in). `useLumpSumTransfers` still has no `.tsx` caller, unchanged from the earlier find.
+Those three are the real remaining work in this file.
 
 ## OG billing consent — the GATE is in, the SURFACES are not (2026-09-03)
 
