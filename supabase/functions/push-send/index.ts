@@ -45,7 +45,7 @@ import {
 } from "../_shared/notification-policy.ts";
 import { computeStreakInZone, hasReadTodayInZone, hourInZone, safeZone } from "../_shared/learn-streak.ts";
 import { LEARN_LESSONS } from "../_shared/learn-lessons.ts";
-import { sendToDevice, tokenTail, type DeviceRow } from "../_shared/push-transport.ts";
+import { checkDevice, sendToDevice, tokenTail, type DeviceRow } from "../_shared/push-transport.ts";
 
 /** Same namespace the client writes and the RLS policy allows: `lesson:<slug>`. */
 const LESSON_PREFIX = "lesson:";
@@ -104,6 +104,17 @@ Deno.serve(async (req) => {
   // ⚠️ Opt IN to sending. Anything other than an explicit "0" is a dry run, so a typo, an empty
   // value or a forgotten parameter all fail in the safe direction.
   const dryRun = url.searchParams.get("dry_run") !== "0";
+  // ⚠️ `?check=1` — PROVE THE CREDENTIALS WITHOUT SENDING ANYTHING.
+  //
+  // A dry run skips the transport entirely, so it says nothing about whether the APNs and FCM
+  // credentials actually work; it only proves the decider ran. That gap is exactly where this
+  // stack has hidden its failures. This mode calls FCM with `validate_only`, which authenticates,
+  // validates the token and the payload, and delivers NOTHING — so the whole chain up to the
+  // final handset is exercised on demand, with no notification reaching a person.
+  //
+  // It is NOT proof of delivery and the response says so in its own words, because a check that
+  // gets quoted as "push works" would be worse than no check at all.
+  const checkOnly = url.searchParams.get("check") === "1";
   // Present when a run is aimed at one person, which is how this gets exercised on a real device
   // before it is ever pointed at everybody.
   const scopedUserId = url.searchParams.get("user_id");
@@ -111,6 +122,53 @@ Deno.serve(async (req) => {
   const totals: RunTotals = { candidates: 0, sent: 0, duplicate: 0, unreachable: 0, failed: 0 };
   const notes: string[] = [];
   const now = new Date();
+
+  // ── ?check=1 ───────────────────────────────────────────────────────────────
+  // Returns early and writes nothing: no `push_sends`, no `push_send_runs`. It is a question
+  // about the credentials, not a run, and recording it as a run would corrupt the counts the
+  // rest of this file exists to produce.
+  if (checkOnly) {
+    const { data: devices } = await db
+      .from("device_tokens")
+      .select("id, platform, token, environment")
+      .is("revoked_at", null);
+
+    const rows = (devices ?? []) as DeviceRow[];
+    const results: { platform: string; token: string; ok: boolean; reason?: string }[] = [];
+    for (const device of rows) {
+      const outcome = await checkDevice(device, {
+        title: "Forgenta",
+        body: "Credential check — not delivered.",
+        key: "credential_check",
+      });
+      results.push({
+        platform: device.platform,
+        token: tokenTail(device.token),
+        ok: outcome.ok,
+        reason: outcome.ok ? undefined : outcome.reason,
+      });
+    }
+
+    const android = results.filter((r) => r.platform === "android");
+    return new Response(
+      JSON.stringify({
+        mode: "check",
+        delivered: 0,
+        // Said in the response itself, because a check that gets quoted as "push works" is worse
+        // than no check at all.
+        proves: "FCM credentials, project resolution, token validity and payload shape.",
+        does_not_prove:
+          "That any notification ARRIVES on a handset, and nothing at all about APNs — FCM's " +
+          "validate_only has no APNs equivalent, so the iOS key is only testable by a real send " +
+          "to a real iOS token, and there are none.",
+        android_checked: android.length,
+        android_ok: android.filter((r) => r.ok).length,
+        ios_tokens_on_system: results.filter((r) => r.platform === "ios").length,
+        results,
+      }, null, 2),
+      { headers: { "content-type": "application/json" } },
+    );
+  }
 
   try {
     // Only people who could actually receive something. A user with no live token is not a

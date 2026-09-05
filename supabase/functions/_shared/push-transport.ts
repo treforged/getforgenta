@@ -219,7 +219,25 @@ async function fcmAccessToken(): Promise<string> {
   return fcmToken.value;
 }
 
-export async function sendFcm(device: DeviceRow, message: PushMessage): Promise<SendOutcome> {
+/**
+ * Send, or CHECK WITHOUT SENDING.
+ *
+ * ⚠️ `validateOnly` IS THE ONLY EVIDENCE AVAILABLE WHEN NOBODY IS WATCHING A PHONE. FCM's v1 API
+ * accepts `validate_only` at the top level: it authenticates, resolves the project, validates the
+ * device token and the payload, and delivers NOTHING. That exercises the entire chain this
+ * codebase could not otherwise prove — that `FCM_SERVICE_ACCOUNT_JSON` parses, that its private
+ * key imports and signs an RS256 JWT, that Google mints an access token from it, and that a
+ * stored device token is one FCM still recognises.
+ *
+ * It is not a substitute for a delivered notification and must never be reported as one. A
+ * validated request proves the notification COULD be sent; only a banner on a device proves it
+ * arrived, and this transport's own header records that it can report success and vanish.
+ */
+export async function sendFcm(
+  device: DeviceRow,
+  message: PushMessage,
+  opts: { validateOnly?: boolean } = {},
+): Promise<SendOutcome> {
   const access = await fcmAccessToken();
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
@@ -227,6 +245,7 @@ export async function sendFcm(device: DeviceRow, message: PushMessage): Promise<
       method: "POST",
       headers: { authorization: `Bearer ${access}`, "content-type": "application/json" },
       body: JSON.stringify({
+        validate_only: opts.validateOnly === true,
         message: {
           token: device.token,
           notification: { title: message.title, body: message.body },
@@ -251,4 +270,24 @@ export async function sendFcm(device: DeviceRow, message: PushMessage): Promise<
 /** One device, whichever provider it belongs to. */
 export function sendToDevice(device: DeviceRow, message: PushMessage): Promise<SendOutcome> {
   return device.platform === "ios" ? sendApns(device, message) : sendFcm(device, message);
+}
+
+/**
+ * Exercise the credentials against a real device row WITHOUT delivering anything.
+ *
+ * ⚠️ ANDROID ONLY, AND THAT ASYMMETRY IS THE POINT. FCM has `validate_only`; APNs has no
+ * equivalent, so the only way to test an APNs credential is to send a real push to a real token.
+ * With zero iOS tokens on the system there is nothing to send to, which means **the APNs key
+ * remains completely unproven and no green result here may be read as covering it.** Saying which
+ * link is untested matters more than the links that pass.
+ */
+export function checkDevice(device: DeviceRow, message: PushMessage): Promise<SendOutcome> {
+  if (device.platform === "ios") {
+    return Promise.resolve({
+      ok: false,
+      retire: false,
+      reason: "APNs has no validate-only mode; a real send to a real device is the only test.",
+    });
+  }
+  return sendFcm(device, message, { validateOnly: true });
 }
