@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
 import { registerForPush, revokeCurrentPushToken } from '@/lib/push-registration';
 import { supabasePushStore, readLastPushToken } from '@/lib/push-store';
+import { reportTimezone } from '@/lib/report-timezone';
 import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
@@ -228,6 +229,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // AFTER sign-in — a token with no user is a row we cannot address and a permission
         // prompt the person has been given no reason for.
         registerForPush(supabasePushStore).catch(() => {/* native no-op on web */});
+        // The server has no clock of its own — an edge function runs in UTC — so without this
+        // every server-side notification computes the wrong "today" for anyone outside it. Web
+        // as well as native: the streak is the same streak on both.
+        reportTimezone(session.user.id).catch(() => {});
       }
 
       if (event === 'SIGNED_IN') {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "70551936954",
+    "project_id": "forgenta-1eeba",
+    "storage_bucket": "forgenta-1eeba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:70551936954:android:ca288b93433dc602340783",
+        "android_client_info": {
+          "package_name": "com.treforged.forged"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA688qGlzp6iynvWjsLg2KgYE_fvBHHQmQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
