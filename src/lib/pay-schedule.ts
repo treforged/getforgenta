@@ -752,6 +752,23 @@ export function getPrePaycheckNextMonthBills(
   config: PayScheduleConfig,
   fundingAccountId: string | null,
   now = new Date(),
+  /**
+   * Extra dollars to reserve per rule, on top of its planned amount, for a bill whose real
+   * charges vary. Keyed by `recurring_rules.id`; a rule that is absent contributes nothing.
+   *
+   * ⚠️ COMPUTED OUTSIDE, ON PURPOSE. Sizing a buffer needs the rule's MATCHED PAYMENT HISTORY,
+   * which means transactions — and this module has never known about transactions. Threading
+   * them in would put the matcher inside the pay schedule, where the floor would then depend on
+   * sync state. So the caller does the matching and the sizing (see variable-bill-buffer.ts)
+   * and hands down a plain number per rule. This function stays what it is: a pure reading of
+   * the calendar.
+   *
+   * Omitted ⇒ byte-identical to the behaviour before buffers existed. That no-op is asserted
+   * rather than assumed, because this figure feeds the cash floor, and the cash floor is what
+   * the engine holds debt payments back to reach — so any change here moves every payoff date
+   * in the app.
+   */
+  bufferByRuleId?: ReadonlyMap<string, number>,
 ): { total: number; items: { name: string; amount: number; dueDay: number }[] } {
   const { nextMonthStart, nextMonthEnd, effectiveCutoff } = getNextMonthPrePaycheckCutoff(config, now);
 
@@ -778,7 +795,12 @@ export function getPrePaycheckNextMonthBills(
       if (ed < nextMonthStart) continue;
     }
 
-    const amt = Number(r.amount);
+    // The planned amount, plus this rule's own variance buffer when the caller sized one.
+    // A non-finite or negative buffer is ignored rather than corrected: the floor may only ever
+    // be raised by this, never lowered, or a bad map entry could quietly let the plan overspend.
+    const rawBuffer = bufferByRuleId?.get(r.id) ?? 0;
+    const buffer = Number.isFinite(rawBuffer) && rawBuffer > 0 ? rawBuffer : 0;
+    const amt = Number(r.amount) + buffer;
 
     if (r.frequency === 'weekly') {
       const dayOfWeek = r.due_day ?? 5;
@@ -880,8 +902,15 @@ export function getAugmentedMinSafeCash(
   } | null,
   monthIdx: number,
   syncCutoffDate?: string,
+  /**
+   * Per-rule variance buffers, passed straight through to getPrePaycheckNextMonthBills. See the
+   * note on that parameter for why the sizing happens in the caller and not here.
+   *
+   * Omitted ⇒ byte-identical to the behaviour before buffers existed.
+   */
+  bufferByRuleId?: ReadonlyMap<string, number>,
 ): { monthMinSafe: number; floorItems: { name: string; amount: number; dueDay: number }[]; prePaycheckBillsTotal: number; ccRevolvingMinIncluded: number } {
-  const { total: baseTotal, items: baseItems } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
+  const { total: baseTotal, items: baseItems } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now, bufferByRuleId);
   let prePaycheckBillsTotal = baseTotal;
   const floorItems: { name: string; amount: number; dueDay: number }[] = [...baseItems];
 
