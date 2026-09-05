@@ -868,16 +868,31 @@ not be done speculatively against a live payment provider.
 **Still genuinely unbuilt:** moving a live RevenueCat subscriber to Stripe without losing
 access mid-switch. `docs/og-cohort.md` says so and it is still true.
 
-### 5. ⇢ FIRST UP — the i18n scaffold. NOT started, deliberately, and it now has a floor.
+### 5. ✅ DONE 2026-09-05 — the i18n scaffold plus Spanish on Landing. `c9643e6c`.
 `f21d4d00` did the international plan's own STEP 1 first: **the currency picker now changes
 the numbers.** `setMoneyDisplay()` had existed in `calculations.ts` — exported, documented,
 with `getMoneyDisplay`/`resetMoneyDisplay` beside it — and NOTHING outside the tests had
 ever called it, so all 446 `formatCurrency` sites printed USD whatever the profile said.
 Shipping Spanish on top of that would have added a second language to the same wrong number.
-- **What is left:** the scaffold (a library, a locale file layout, a language switcher) plus
-  ONE real language. Do not attempt the whole app's strings — one surface proves the shape.
-- ⚠️ **Arabic is a SEPARATE slice.** The RTL layout mirroring is the work, not the strings.
-  Do not start it at the tail of a long window.
+- **Shipped:** `i18next` + `react-i18next`, `src/lib/i18n.ts`, catalogues at
+  `src/locales/<lang>/<namespace>.json`, a `LanguageSwitcher` on the SIGNED-OUT Landing page
+  and in Settings, and the `landing` namespace complete in Spanish (47 keys, including the
+  store-badge `aria-label`s and `alt` texts a JSX-only pass misses).
+  Gates: `test:tz` 3709 passed in all three zones, `tsc` clean, lint 0 errors. Nine new tests
+  PRESS the switcher and were mutation-checked (3 go red when `changeLanguage` is neutered).
+  Verified in Chrome, not only jsdom: `<html lang>` flips, the choice survives a reload, the
+  footer year interpolates, horizontal overflow 0px.
+- **Also in that commit: the currency picker is RE-ENABLED**, on the condition its own
+  2026-09-03 disable note set — `f21d4d00` had already connected `MoneyDisplaySync` and the
+  control was still off two commits later.
+- ⚠️ **Arabic/RTL is the NEXT i18n slice and is still separate.** `dir` is set on `<html>` and
+  `SUPPORTED_LANGUAGES` carries a `dir` field, so the plumbing exists — the work is mirroring
+  the layout. Do not start it at the tail of a window.
+- ⚠️ **A surface is all-or-nothing.** A half-translated screen is worse than an English one, so
+  the next surface is a new namespace file per locale; nothing in `i18n.ts` changes.
+- ⚠️ **A font-size class on ANY select in this app is inert.** `index.css:845` forces
+  `font-size: 16px !important` on every input, textarea and select, because anything smaller
+  makes iOS Safari zoom the page on focus.
 - The 32 `toLocaleDateString` sites are NOT a blocker: they pass textual options, so they
   render `Sep 2026` — unambiguous everywhere, just English month names. The plan's own
   correction says so; do not re-derive it.
