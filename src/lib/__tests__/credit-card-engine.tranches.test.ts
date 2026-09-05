@@ -440,7 +440,8 @@ describe('buildCardData — balance_tranches plumbing', () => {
       ],
     })], [], [], []);
     expect(cards[0].tranches).toEqual([
-      { id: 'bt', label: 'Balance transfer', balance: 5037.73, apr: 7.99, promo_end_date: '2028-01-04', min_payment: null },
+      // `monthly_fee: null` -- normalised by parseTranches like min_payment; null is no plan fee.
+      { id: 'bt', label: 'Balance transfer', balance: 5037.73, apr: 7.99, promo_end_date: '2028-01-04', min_payment: null, monthly_fee: null, fixed_term: false },
     ]);
   });
 

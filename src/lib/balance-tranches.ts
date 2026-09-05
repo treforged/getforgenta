@@ -51,6 +51,42 @@ export interface BalanceTranche {
    * a number or null, and `trancheMinimumAsOf` treats absent, null and 0 identically.
    */
   min_payment?: number | null;
+  /**
+   * A FLAT MONTHLY FEE this tranche charges, or null. Dollars, not a rate.
+   *
+   * ⚠️ A 0% TRANCHE IS NOT A FREE TRANCHE, and until this field existed the app said it was.
+   * Chase Pay Over Time — which is what every one of Tre's Prime Visa tranches is — charges a
+   * fixed monthly fee INSTEAD of interest. Measured 2026-09-05 from three plan-confirmation
+   * emails: PayPal Zettle $1,322.50 principal with **$166.20 of fees**, Costco $368.89 with
+   * $55.92, Carnival $410.00 with $62.28. **$284.40 across three plans, 13.5% of principal,
+   * and the forecast could not see a cent of it** because `apr: 0` reads as costless.
+   *
+   * The arithmetic that proves it is a fee and not hidden interest: each plan's monthly payment
+   * times twelve equals principal plus fees to within two cents (12 × $124.06 = $1,488.72
+   * against $1,322.50 + $166.20 = $1,488.70). A rate would not divide that evenly.
+   *
+   * Null on every existing row and on anything Plaid supplies — Plaid does not report plan fees
+   * — so absent means the same as it always did, and no projection moves until a user or a
+   * statement fills it in. Same user-entered, sync-safe treatment as `promo_end_date` and
+   * `min_payment`.
+   */
+  monthly_fee?: number | null;
+  /**
+   * TRUE when this tranche's schedule cannot be shortened by paying more.
+   *
+   * ⚠️ THIS MOVES THE PAYOFF DATE, NOT JUST THE COST, and it is why the fee alone was not
+   * enough. Chase applies a payment by ALLOCATION RULES — the minimum goes to the LOWEST APR
+   * balance and any surplus to the HIGHEST. So a cardholder carrying a 27.49% revolving balance
+   * **cannot** choose to prepay a 0% Pay Over Time plan: every extra dollar is taken by the
+   * expensive balance whether they want that or not. The plan runs its full term.
+   *
+   * Without this flag the engine treats a 0% tranche as something surplus can accelerate, and
+   * projects a payoff date the card will not honour. With it, `min_payment` is a CEILING as well
+   * as a floor: the tranche receives exactly its instalment and the surplus routes past it.
+   *
+   * Absent/false on every existing row, so nothing moves until a user marks a plan as one.
+   */
+  fixed_term?: boolean | null;
 }
 
 /** Postgres numerics arrive as strings; jsonb from supabase-js arrives as unknown. */
@@ -71,6 +107,8 @@ export function parseTranches(raw: unknown): BalanceTranche[] {
       apr,
       promo_end_date: typeof r.promo_end_date === 'string' && r.promo_end_date ? r.promo_end_date : null,
       min_payment: minPaymentOf(r.min_payment),
+      monthly_fee: positiveOrNull(r.monthly_fee),
+      fixed_term: r.fixed_term === true,
     });
   }
   return out;
@@ -78,6 +116,11 @@ export function parseTranches(raw: unknown): BalanceTranche[] {
 
 /** A tranche instalment is only meaningful as a positive number; anything else reads as absent. */
 function minPaymentOf(raw: unknown): number | null {
+  return positiveOrNull(raw);
+}
+
+/** Shared by `min_payment` and `monthly_fee`: zero, negative and unparseable all read as absent. */
+function positiveOrNull(raw: unknown): number | null {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -88,6 +131,15 @@ function minPaymentOf(raw: unknown): number | null {
  * Zero once the promo has ended: past `promo_end_date` the balance is ordinary money at the
  * standard rate, with no schedule of its own left to protect.
  */
+export function feeAsOf(tranche: BalanceTranche, asOf: string): number {
+  if (!tranche.monthly_fee || tranche.monthly_fee <= 0) return 0;
+  // Deliberately the SAME condition as trancheMinimumAsOf below. A plan's fee and its instalment
+  // begin and end together; if these two ever disagree the card is being charged for a plan that
+  // no longer has a schedule, or given a schedule it is not paying for.
+  if (tranche.promo_end_date && asOf > tranche.promo_end_date) return 0;
+  return tranche.monthly_fee;
+}
+
 export function trancheMinimumAsOf(tranche: BalanceTranche, asOf: string): number {
   if (!tranche.min_payment || tranche.min_payment <= 0) return 0;
   if (tranche.promo_end_date && asOf > tranche.promo_end_date) return 0;
@@ -108,6 +160,15 @@ export interface TrancheInterestLine {
   balance: number;
   apr: number;
   monthlyInterest: number;
+  /**
+   * The flat monthly fee this line charges, if any. Reported SEPARATELY from interest rather
+   * than folded into it, because they are different things to a user: interest shrinks as the
+   * balance does, a plan fee does not. A UI that added them would be unable to say why a 0%
+   * tranche costs anything at all.
+   */
+  monthlyFee: number;
+  /** Interest plus fee — what this line actually costs per month. */
+  monthlyCost: number;
   /** Set when this line's rate is a promo that will end. */
   promoEndDate: string | null;
   /** What this line will cost per month AFTER the promo ends, at the standard rate. */
@@ -120,6 +181,15 @@ export interface TrancheInterestBreakdown {
   remainderBalance: number;
   remainderMonthlyInterest: number;
   totalMonthlyInterest: number;
+  /** Every line's flat fee. Zero for a card with no fee-bearing plan, which is most of them. */
+  totalMonthlyFees: number;
+  /**
+   * What the card's balance ACTUALLY costs this month: interest plus fees.
+   *
+   * ⚠️ THIS IS THE NUMBER TO SHOW A USER. `totalMonthlyInterest` alone reports a Pay Over Time
+   * card as costing nothing, which is how $284.40 a year went unseen.
+   */
+  totalMonthlyCost: number;
 }
 
 /**
@@ -149,6 +219,11 @@ export function trancheInterestBreakdown(
       balance: usable,
       apr,
       monthlyInterest: usable * (apr / 100) / 12,
+      // The fee is charged for as long as the plan runs, and stops with it — past
+      // `promo_end_date` the balance is ordinary money at the standard rate with no plan left
+      // to charge for. Same rule as `trancheMinimumAsOf`, and it must stay the same rule.
+      monthlyFee: feeAsOf(t, asOf),
+      monthlyCost: usable * (apr / 100) / 12 + feeAsOf(t, asOf),
       promoEndDate: stillPromo ? t.promo_end_date : null,
       monthlyInterestAfterPromo: stillPromo ? usable * (standardApr / 100) / 12 : null,
     });
@@ -160,6 +235,9 @@ export function trancheInterestBreakdown(
     remainderBalance,
     remainderMonthlyInterest,
     totalMonthlyInterest: lines.reduce((s, l) => s + l.monthlyInterest, 0) + remainderMonthlyInterest,
+    totalMonthlyFees: lines.reduce((s, l) => s + l.monthlyFee, 0),
+    totalMonthlyCost:
+      lines.reduce((s, l) => s + l.monthlyCost, 0) + remainderMonthlyInterest,
   };
 }
 
@@ -246,6 +324,7 @@ export function allocatePaymentAcrossTranches(
       balance: l.balance,
       minPayment: t ? trancheMinimumAsOf(t, asOf) : 0,
       promoEndDate: l.promoEndDate,
+      fixedTerm: t?.fixed_term === true,
     };
   });
   if (breakdown.remainderBalance > 0) {
@@ -267,6 +346,12 @@ export interface TranchePayable {
   minPayment: number;
   /** Only for ordering the instalment pass; nulls sort last. */
   promoEndDate: string | null;
+  /**
+   * When true, `minPayment` is a CEILING as well as a floor — the surplus pass skips this
+   * bucket entirely. See `BalanceTranche.fixed_term` for why Chase's allocation rules make an
+   * accelerable 0% plan a fiction.
+   */
+  fixedTerm?: boolean;
 }
 
 /**
@@ -310,7 +395,12 @@ export function splitPaymentAcrossTranches(
   }
 
   // Pass 2 — the surplus, highest rate first, net of whatever pass 1 already put on each bucket.
-  const bySurplus = [...buckets].sort((a, b) => b.apr - a.apr);
+  //
+  // ⚠️ FIXED-TERM BUCKETS ARE EXCLUDED, and that is the whole point of the flag. A Chase Pay Over
+  // Time plan cannot be prepaid while a revolving balance exists: the card's own allocation rules
+  // send every surplus dollar to the highest APR. Paying one down here would project a payoff
+  // date the card will not honour. Their instalment was already paid in pass 1, in full.
+  const bySurplus = [...buckets].filter(b => !b.fixedTerm).sort((a, b) => b.apr - a.apr);
   for (const b of bySurplus) {
     if (left <= 0) break;
     apply(b.id, Math.min(left, b.balance - (out.get(b.id) ?? 0)));

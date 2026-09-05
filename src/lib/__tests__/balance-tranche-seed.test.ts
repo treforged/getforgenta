@@ -128,7 +128,11 @@ describe('tranchesFromPlaidAprs', () => {
     const parsed = parseTranches(tranches);
 
     expect(parsed).toEqual([
-      { id: 'id-1', label: 'Balance transfer', balance: 5037.73, apr: 7.99, promo_end_date: null, min_payment: null },
+      // `monthly_fee: null` is present because parseTranches always normalises the field, the
+      // same as min_payment. Null means no Pay Over Time style plan fee, which is every tranche
+      // a sync can produce -- Plaid does not report plan fees. fixed_term is false for the same
+      // reason: a synced tranche is an ordinary promo balance, not a fixed-schedule plan.
+      { id: 'id-1', label: 'Balance transfer', balance: 5037.73, apr: 7.99, promo_end_date: null, min_payment: null, monthly_fee: null, fixed_term: false },
     ]);
   });
 
