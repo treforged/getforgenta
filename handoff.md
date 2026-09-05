@@ -732,44 +732,40 @@ Eleven commits this window, `0d91028b` through the handoff. Gates green each tim
 `npx tsc --noEmit`, `npm run lint` 0 errors, `npm run test:tz` all three zones
 (3671 passed, 1 skipped). Brief: `TRE-Forged/OVERDRIVE-getforgenta-2026-09-05.md`.
 
-### 1. ⇢ FIRST UP — the `btn` rollout on the DENSE surfaces, WITH A BROWSER
-`BankActivity` (24 buttons, 9 distinct classes) and `BudgetControl` (22). Settings is
-already done (`b269b6aa`) and is the worked example of the mapping.
-- ⚠️ **These two are NOT like Settings.** Sixteen of BankActivity's buttons are inline
-  row actions with NO padding and NO tap target (`flex items-center gap-1 text-xs
-  text-muted-foreground hover:text-foreground`). `btn` imposes `min-height: 44px`, which
-  WILL change those dense rows. That is the fix, and it is also why it must be SEEN.
-- Sam, 2026-09-05: build it locally, drive Claude-in-Chrome at a phone viewport,
-  screenshot before/after, **push only what renders correctly**, and hand Tre a
-  screenshot plus one line for anything you are unsure of.
-- The dev server and the `dev-signin` skill are the route. Canonical origin is
-  `http://localhost:8080` and ONLY that — 8081 is a signed-out app.
-- ⛔ Known dead end, do not retry: a chevron rotating on `<details>` open. Four
-  approaches all silently did nothing.
+### 1. ✅ DONE — the `btn` rollout on the dense surfaces, verified in a browser
+`b269b6aa` Settings, `51ccaa1d` BankActivity, `30297595` Budget Control.
+- **BankActivity:** 17 inline row actions had NO padding and NO target and measured
+  **18px** — they are the Confirm / Not this / Ignore controls on bank charges, which are
+  money decisions. Now 32px. 283 controls carry `btn` on that surface.
+- **Budget Control:** only SEVEN of its 22 were migrated on purpose. `icon-btn`, the
+  segmented toggles, the catalog chips and the accordion headers are their own
+  vocabularies, and `btn` would repaint them. The six "Add …" actions took `btn` WITHOUT
+  `btn-ghost`, so they keep their gold `text-primary` and hover underline.
+- **Verified in Chrome on demo data:** no sideways scroll (0px), no clipped labels,
+  nothing off the right edge, layout intact in a screenshot.
+- ⚠️ **TWO THINGS UNVERIFIED, do not claim them.** This Chrome reports `pointer: fine`,
+  so it takes `btn`'s **32px desktop branch** — it says NOTHING about the 44px touch
+  value. And the CSS viewport would not go below **657px** (`resize_window` moves the OS
+  window, not `innerWidth`), so a true phone width is untested. Both need a real device,
+  which is coupled to item 12 and is Tre's.
 
-**⚠️ MEASURED IN A REAL BROWSER, 2026-09-05, AND IT RESIZES THIS ITEM.** Demo mode at a
-420px viewport (`/demo`, no credentials needed — it exists for exactly this):
-- **Dashboard: 18 REACHABLE controls, 10 under 44px (56%), smallest 30-36px.**
-- The DecisionDeck overlay on Transactions is already FINE — 40-50px controls; only a
-  "Browse all" text link is small.
-- ⚠️ **My first measurement said "383 controls, 98% under 44px, 18px Confirm/Ignore" and
-  IT WAS WRONG.** It counted elements sitting BEHIND a `fixed inset-0 z-50` overlay —
-  not reachable, not what a thumb meets. The corrected probe keeps only controls that are
-  the topmost element at their own centre (`document.elementFromPoint`). Reporting the
-  first number would have been the exact confident-wrong mistake this repo is against, on
-  a claim about safety.
-- **So `13e43d50`'s "456 buttons, 380 class strings, only 18 declare a tap target" counts
-  SOURCE, not rendered size.** Most render at 30-40px from padding without declaring
-  anything. The gap is real (30-36 against 44) and it is a polish job, not an emergency —
-  scope it that way, and measure per surface with the probe above before and after.
+**THE MEASURING PROBE, so the next session does not re-derive it.** In demo mode
+(`/demo`, no credentials) run in the console: collect
+`button, a[href], [role="button"], [role="tab"]`, drop zero-sized and hidden ones, and
+**keep only elements that are the topmost thing at their own centre**
+(`document.elementFromPoint`). That last filter is not optional — without it the count
+includes everything behind a `fixed inset-0` overlay, which is how I produced "98% under
+44px" before correcting it to "10 of 18 reachable, smallest 30-36px".
 
-**LIVE CONFIRMATION of what shipped today** (same session, demo data): the Transactions
-tiles really render "of which $3,020 projected" and "of which $4,933 projected", and 29
-"Projected" chips render on the ledger rows. Not just green tests.
-
-### 2. Item 17 — text WRAPPING and FORMATTING. Same browser session as item 1.
-`truncate` and fixed-width columns live in the same neighbourhood as the buttons, and
-`btn` adds `whitespace-nowrap`, so a narrow viewport is where both are judged.
+### 2. ✅ DONE — item 17, text wrapping. MEASURED CLEAN, nothing to fix.
+Swept `/transactions`, `/debt`, `/forecast`, `/vehicles`, `/settings`, `/dashboard` for
+leaf elements whose `scrollWidth > clientWidth`. **Zero genuinely clipped strings.**
+- ⚠️ The two apparent hits were `sr-only` spans — 1px wide with `overflow: hidden` BY
+  DESIGN. A raw `scrollWidth > clientWidth` check flags accessibility markup as a bug, so
+  **check `overflow-x` before calling anything clipped**; with `overflow: visible` the
+  text spills and is perfectly readable.
+- Same 657px caveat as item 1. If a real device ever shows wrapping trouble, re-run the
+  sweep there rather than re-reading the CSS.
 
 ### 3. ✅ MOSTLY DONE — ONBOARDING and the review prompt. READ THIS BEFORE REBUILDING.
 Two of the three halves were ALREADY SHIPPED before this session, and a cold session that
@@ -798,19 +794,36 @@ at a rating, so **the prompt's timing is the deliverable, not the dialog**. Conv
 is the metric, so whatever ships must be measurable against it.
 `src/lib/review-moment.ts` and `useInAppReview` already exist — READ THEM FIRST.
 
-### 4. The OG cohort ask — REUSE the streak grant, do not build a second one
-Tre, 2026-09-02, routed in by Sam: first 100 organic premium users get an OG achievement
-and a free year at the one-year mark, trackable. Most of this IS BUILT — schema,
-`og_founder` badge, `og-anniversary`, the consent flow, `docs/og-cohort.md`.
-- The grant mechanism to reuse is `claim_streak_reward()`'s shape: a comped
-  `user_subscriptions` row plus a scoped expiry function. Different window, same shape.
-- ⚠️ A social-follow achievement is client-mintable, so it must stay COSMETIC. The doc's
-  old "may count toward a streak" line is now wrong and has been corrected — the streak
-  pays, so nothing mintable may feed it.
-- The "revenue trackable on Conductor" half is **Nora's repo**. `revenue-push` already
-  sends `(provider, plan, status, count, ending, comped)` and needs no change: a streak
-  comp simply appears as `provider = 'streak_reward'` in the `comped` column. Send Sam
-  that one line rather than editing her tree.
+### 4. ✅ MOSTLY DONE — the OG cohort. ⚠️ ONE DECISION IS TRE'S AND IT REFRAMES HIS ASK.
+`e9c4bd8c`. Read this before touching anything OG-shaped.
+
+**THE STREAK GRANT DOES NOT REUSE HERE, and it looked like it would.** The streak comp
+goes to somebody who is NOT paying. The OG free year goes to somebody who IS. Writing a
+comped `user_subscriptions` row over an active paid subscription would erase their real
+subscription state AND not stop Stripe charging them — recording as free a person still
+being billed. The free year genuinely needs a Stripe-side 100% discount so the CHARGE
+stops, which is a real action on Tre's live account and **his to authorise**.
+
+**⚠️ FOR TRE, AND IT CHANGES HIS OWN ASK: the "first 100 organic premium users" push
+starts from ZERO, not five.** `claim_og_place()` tested organic as "has a
+stripe_subscription_id or a revenuecat_app_user_id" — the exact heuristic
+`20260905_subscriptions_is_comp.sql` disproved hours earlier, since a 100%-discount
+subscription carries a real id. So the seat test admitted precisely the accounts the
+cohort excludes, and **all 5 current `og_members` carry `is_comp = true`**. Fixed for
+FUTURE seats; the 5 existing rows are deliberately untouched, because they were
+backfilled on his direct instruction and removing somebody from a cohort is his call.
+`select * from public.og_cohort_integrity();` reports it: members / comped_members /
+seats_left / earliest_reward_due / rewards_due_now.
+
+**NOTHING IS DUE UNTIL 2027-03-26**, so wiring the Stripe grant is not urgent and should
+not be done speculatively against a live payment provider.
+
+**The social-follow badge is COSMETIC and it is PROVEN, not chosen.** A user holding
+`follow_instagram` + `follow_tiktok` and no lessons has `streak_days_for() = 0` and
+`claim_streak_reward()` refuses. Keep it that way: those ids are client-mintable.
+
+**Still genuinely unbuilt:** moving a live RevenueCat subscriber to Stripe without losing
+access mid-switch. `docs/og-cohort.md` says so and it is still true.
 
 ### 5. Item 10 — LANGUAGES (Spanish, Portuguese, Arabic)
 ⚠️ Arabic is RTL: **the layout mirroring is the real work, not the string files.**
@@ -834,6 +847,18 @@ nothing pulled from it is installed or run without the full security review.
   git-integrated PRODUCTION builds see and no gate has been run on that. It is not junk.
   `.claude/settings.json.bak-deadpath-20260903`, `deno.lock` and
   `.github/workflows/handoff.md` are also untracked and each needs a deliberate decision.
+
+### 7b. ⚠️ TWO STANDING HAZARDS on this database — check these every time
+- **`user_subscriptions` has NO FOREIGN KEY to `auth.users`.** Deleting a user leaves the
+  subscription row behind, and an orphan reads as REVENUE in
+  `revenue_summary_lines()`. I stranded one this morning with a probe. So: after ANY
+  probe that writes a subscription, re-run `select * from public.revenue_summary_lines();`
+  and confirm it is byte-identical to before. This is a standing hazard, not a one-off.
+- **A trigger's `UPDATE OF <columns>` list is a separate object from its function.** The
+  OG seat fix was a silent no-op until `is_comp` was added to
+  `user_subscriptions_claim_og`'s column list — the function body was right and the thing
+  deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
+  column, change the trigger too, and prove it by writing that column alone.
 
 ### 8. Still open from earlier, unchanged
 - Chase Pay Over Time modelled as free (section above) — money surface, not started.
@@ -859,10 +884,33 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written by handoff_hook. Everything below this heading is machine-generated and
-replaced each time; put durable notes above it._
+_Written 2026-09-05 07:09 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (5 file(s)):**
+
+```
+M .claude/settings.json
+ M supabase/.temp/cli-latest
+?? .claude/settings.json.bak-deadpath-20260903
+?? .github/workflows/handoff.md
+?? deno.lock
+```
+
+- **Recent commits:**
+
+```
+0833a184 docs(handoff): onboarding and the review prompt were already shipped - say so before somebody rebuilds them
+821dc985 [onboarding]: where people STOP, because "conversion is the metric" needs a number to be one
+424df7ef docs(handoff): the tap-target problem measured in a real browser, and my own wrong number corrected
+4d3ddfa4 docs(handoff): the queue for the next session, and the snapshot bug that was growing it without bound
+8e631589 docs(og-cohort): a hole is worth what the NEXT feature makes it worth
+3792ecbe [premium]: the button that claims the streak reward — and it asks, it does not decide
+e9e50b44 [premium]: a 30-day streak grants 30 days of Premium — server-counted, server-clocked, and it ends
+a5baac3a [security]: a streak cannot be backdated into existence — the clock belongs to the server
+```
 
 <!-- AUTO-SNAPSHOT:END -->
