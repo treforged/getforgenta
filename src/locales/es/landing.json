@@ -1,0 +1,83 @@
+{
+  "nav": {
+    "signIn": "Iniciar sesión",
+    "startFree": "Comenzar gratis"
+  },
+  "hero": {
+    "badge": "Finanzas personales, diseñadas",
+    "titleLine1": "La disciplina construye",
+    "titleAccent": "riqueza.",
+    "subtitle": "Presupuesta con precisión. Elimina deudas. Acumula ahorros. Rastrea cada objetivo. Forgenta es la cabina de mando financiera para personas que se toman en serio su dinero.",
+    "startFree": "Comenzar gratis",
+    "seeDemo": "Ver demostración",
+    "appStoreAria": "Descargar en la App Store",
+    "appStoreAlt": "Descargar en la App Store",
+    "playStoreAria": "Obtener Forgenta en Google Play",
+    "playStoreAlt": "Obtenerlo en Google Play"
+  },
+  "stats": {
+    "tools": "Herramientas financieras",
+    "freeToStart": "Gratis para comenzar",
+    "ever": "Alguna vez",
+    "adsSuffix": " anuncios"
+  },
+  "pillars": {
+    "srHeading": "Principios fundamentales",
+    "track": {
+      "title": "Rastrear",
+      "desc": "Todas las cuentas, metas y pagos — un solo panel."
+    },
+    "secure": {
+      "title": "Seguro",
+      "desc": "Cifrado a nivel bancario. MFA. Tus datos nunca se venden."
+    },
+    "automate": {
+      "title": "Automatizar",
+      "desc": "Reglas recurrentes, programación de nóminas, proyección automática."
+    }
+  },
+  "features": {
+    "heading": "Diseñado para la disciplina financiera",
+    "subheading": "Cada herramienta está diseñada para brindarte claridad, control y confianza sobre tu dinero.",
+    "cashFlow": {
+      "title": "Control de flujo de efectivo",
+      "desc": "Registra cada dólar que entra y sale. Observa tu posición financiera en tiempo real de un vistazo."
+    },
+    "analytics": {
+      "title": "Analítica de gastos",
+      "desc": "Desglosa los gastos por categoría. Identifica patrones. Reduce el despilfarro."
+    },
+    "debt": {
+      "title": "Motor de pago de deudas",
+      "desc": "Método bola de nieve o avalancha — compara estrategias y elimina la deuda sistemáticamente."
+    },
+    "savings": {
+      "title": "Objetivos de ahorro",
+      "desc": "Establece metas, sigue el progreso y observa cómo crece tu capacidad financiera."
+    },
+    "carFund": {
+      "title": "Seguimiento de fondo de auto",
+      "desc": "Planifica la compra de tu próximo vehículo con precisión. Conoce tus números."
+    },
+    "premium": {
+      "title": "Herramientas premium",
+      "desc": "Exportaciones avanzadas, historial ilimitado y analítica de nivel profesional."
+    }
+  },
+  "founder": {
+    "label": "Una nota del fundador",
+    "quote": "\"Como muchas personas, he estado atrapado en la deuda de tarjetas de crédito. Sé lo que se siente al ver un saldo y no saber por dónde empezar. Creé Forgenta porque no podía encontrar una herramienta que fuera honesta conmigo respecto a mis números y realmente me ayudara a hacer un plan. No es solo una aplicación. Es lo que desearía haber tenido cuando trataba de salir a flote.\"",
+    "name": "Tre",
+    "role": "Fundador, Forgenta"
+  },
+  "cta": {
+    "heading": "Comienza a crear riqueza hoy.",
+    "subheading": "Gratis para comenzar. Sin tarjeta de crédito. Sin anuncios. Solo tu dinero, finalmente bajo control.",
+    "button": "Comenzar gratis"
+  },
+  "footer": {
+    "rights": "© {{year}} Forgenta™ by TRE Forged LLC. Todos los derechos reservados.",
+    "privacy": "Política de privacidad",
+    "terms": "Términos del servicio"
+  }
+}

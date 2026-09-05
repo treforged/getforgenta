@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useMotionValue, useSpring, type Variants } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useDemo } from '@/contexts/DemoContext';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 import { ArrowRight, BarChart3, Shield, Target, Wallet, Car, Crown, TrendingUp, Lock, Zap } from 'lucide-react';
 
 const fadeUp: Variants = {
@@ -9,25 +11,31 @@ const fadeUp: Variants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.45 } }),
 };
 
+// ⚠️ COPY LIVES IN src/locales/<lang>/landing.json, NOT HERE. These rows carry the
+// icon, the ordering and the catalogue key; every visible string is looked up at render.
+// A key added here without an entry in BOTH locale files renders the key itself, which is
+// why landing-i18n.test.ts asserts the two catalogues have identical shapes.
 const features = [
-  { icon: Wallet, title: 'Cash Flow Control', desc: 'Track every dollar in and out. See your real-time financial position at a glance.' },
-  { icon: BarChart3, title: 'Spending Analytics', desc: 'Break down expenses by category. Identify patterns. Cut waste.' },
-  { icon: Shield, title: 'Debt Payoff Engine', desc: 'Snowball or avalanche — compare strategies and crush debt systematically.' },
-  { icon: Target, title: 'Savings Goals', desc: 'Set targets, track progress, and watch your financial runway grow.' },
-  { icon: Car, title: 'Car Fund Tracker', desc: 'Plan your next vehicle purchase with precision. Know your numbers.' },
-  { icon: Crown, title: 'Premium Tools', desc: 'Advanced exports, unlimited history, and pro-level analytics.' },
+  { icon: Wallet, key: 'cashFlow' },
+  { icon: BarChart3, key: 'analytics' },
+  { icon: Shield, key: 'debt' },
+  { icon: Target, key: 'savings' },
+  { icon: Car, key: 'carFund' },
+  { icon: Crown, key: 'premium' },
 ];
 
-const stats = [
-  { value: 12, suffix: '+', label: 'Financial Tools' },
-  { value: 100, suffix: '%', label: 'Free to Start' },
-  { value: 0, suffix: ' ads', label: 'Ever' },
+// A symbol suffix (`+`, `%`) is not language. " ads" IS words, so that row carries a
+// catalogue key instead and the symbol rows keep their literal.
+const stats: { value: number; suffix?: string; suffixKey?: string; key: string }[] = [
+  { value: 12, suffix: '+', key: 'tools' },
+  { value: 100, suffix: '%', key: 'freeToStart' },
+  { value: 0, suffixKey: 'adsSuffix', key: 'ever' },
 ];
 
 const pillars = [
-  { icon: TrendingUp, title: 'Track', desc: 'Every account, goal, and payment — one dashboard.' },
-  { icon: Lock, title: 'Secure', desc: 'Bank-level encryption. MFA. Your data never sold.' },
-  { icon: Zap, title: 'Automate', desc: 'Recurring rules, paycheck scheduling, auto-projection.' },
+  { icon: TrendingUp, key: 'track' },
+  { icon: Lock, key: 'secure' },
+  { icon: Zap, key: 'automate' },
 ];
 
 
@@ -62,6 +70,7 @@ function AnimatedCounter({ target, suffix }: { target: number; suffix: string })
 }
 
 export default function Landing() {
+  const { t } = useTranslation('landing');
   const { setIsDemo } = useDemo();
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -97,8 +106,11 @@ export default function Landing() {
             FORGENTA
           </motion.span>
           <div className="flex items-center gap-4">
+            {/* On the SIGNED-OUT page on purpose: a language preference that lives only
+                behind sign-in is unreachable by the person who most needs it. */}
+            <LanguageSwitcher className="bg-transparent border border-border px-2 py-1 text-foreground/70" />
             <Link to="/auth" className="text-xs text-foreground/70 hover:text-foreground transition-colors">
-              Sign In
+              {t('nav.signIn')}
             </Link>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link
@@ -106,7 +118,7 @@ export default function Landing() {
                 className="text-xs font-medium bg-primary text-primary-foreground px-4 py-1.5 btn-press transition-colors hover:bg-primary/90"
                 style={{ borderRadius: 'var(--radius)' }}
               >
-                Start Free
+                {t('nav.startFree')}
               </Link>
             </motion.div>
           </div>
@@ -134,7 +146,7 @@ export default function Landing() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
         >
-          <Zap size={9} /> Personal Finance, Engineered
+          <Zap size={9} /> {t('hero.badge')}
         </motion.div>
 
         <motion.h1
@@ -143,8 +155,8 @@ export default function Landing() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
         >
-          Discipline builds<br />
-          <span className="text-gold">wealth.</span>
+          {t('hero.titleLine1')}<br />
+          <span className="text-gold">{t('hero.titleAccent')}</span>
         </motion.h1>
 
         <motion.p
@@ -153,8 +165,7 @@ export default function Landing() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          Budget with precision. Eliminate debt. Stack savings. Track every goal.
-          Forgenta is the financial cockpit for people who take their money seriously.
+          {t('hero.subtitle')}
         </motion.p>
 
         <motion.div
@@ -169,7 +180,7 @@ export default function Landing() {
               className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 text-sm font-semibold btn-press transition-colors hover:bg-primary/90"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              Start Free <ArrowRight size={14} />
+              {t('hero.startFree')} <ArrowRight size={14} />
             </Link>
           </motion.div>
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -179,7 +190,7 @@ export default function Landing() {
               className="flex items-center gap-2 border border-border text-foreground px-6 py-2.5 text-sm font-semibold btn-press transition-colors hover:bg-accent"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              See Demo
+              {t('hero.seeDemo')}
             </Link>
           </motion.div>
         </motion.div>
@@ -194,11 +205,11 @@ export default function Landing() {
             href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Download on the App Store"
+            aria-label={t('hero.appStoreAria')}
           >
             <img
               src="/app-store-badge.svg"
-              alt="Download on the App Store"
+              alt={t('hero.appStoreAlt')}
               style={{ height: 54, width: 'auto' }}
             />
           </a>
@@ -206,11 +217,11 @@ export default function Landing() {
             href="https://play.google.com/store/apps/details?id=com.treforged.forged&pcampaignid=web_share"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Get Forgenta on Google Play"
+            aria-label={t('hero.playStoreAria')}
           >
             <img
               src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
-              alt="Get it on Google Play"
+              alt={t('hero.playStoreAlt')}
               style={{ height: 64, width: 'auto' }}
             />
           </a>
@@ -223,7 +234,7 @@ export default function Landing() {
           <div className="grid grid-cols-3 gap-6 text-center">
             {stats.map((s, i) => (
               <motion.div
-                key={s.label}
+                key={s.key}
                 custom={i}
                 initial="hidden"
                 whileInView="visible"
@@ -231,9 +242,9 @@ export default function Landing() {
                 variants={fadeUp}
               >
                 <p className="font-display font-extrabold text-3xl md:text-4xl text-gold">
-                  <AnimatedCounter target={s.value} suffix={s.suffix} />
+                  <AnimatedCounter target={s.value} suffix={s.suffixKey ? t('stats.' + s.suffixKey) : (s.suffix ?? '')} />
                 </p>
-                <p className="text-[10px] text-foreground/60 mt-1 uppercase tracking-wider">{s.label}</p>
+                <p className="text-[10px] text-foreground/60 mt-1 uppercase tracking-wider">{t('stats.' + s.key)}</p>
               </motion.div>
             ))}
           </div>
@@ -242,11 +253,11 @@ export default function Landing() {
 
       {/* Pillars */}
       <section className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="sr-only">Core principles</h2>
+        <h2 className="sr-only">{t('pillars.srHeading')}</h2>
         <div className="grid md:grid-cols-3 gap-4">
           {pillars.map((p, i) => (
             <motion.div
-              key={p.title}
+              key={p.key}
               className="card-forged p-5 flex items-start gap-4 group hover:border-primary/30 transition-colors"
               custom={i}
               initial="hidden"
@@ -259,8 +270,8 @@ export default function Landing() {
                 <p.icon size={16} className="text-primary" />
               </div>
               <div>
-                <h3 className="font-display font-bold text-sm mb-1 group-hover:text-primary transition-colors">{p.title}</h3>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">{p.desc}</p>
+                <h3 className="font-display font-bold text-sm mb-1 group-hover:text-primary transition-colors">{t('pillars.' + p.key + '.title')}</h3>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{t('pillars.' + p.key + '.desc')}</p>
               </div>
             </motion.div>
           ))}
@@ -278,16 +289,16 @@ export default function Landing() {
           custom={0}
         >
           <h2 className="font-display font-bold text-2xl md:text-3xl tracking-tight mb-3">
-            Built for financial discipline
+            {t('features.heading')}
           </h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Every tool designed to give you clarity, control, and confidence over your money.
+            {t('features.subheading')}
           </p>
         </motion.div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => (
             <motion.div
-              key={f.title}
+              key={f.key}
               className="card-forged p-6 group hover:border-primary/25 transition-all duration-300 cursor-default"
               custom={i}
               initial="hidden"
@@ -300,9 +311,9 @@ export default function Landing() {
                 <div className="p-1.5 bg-gold/10 border border-gold/20" style={{ borderRadius: 'var(--radius)' }}>
                   <f.icon size={15} className="text-gold" />
                 </div>
-                <h3 className="font-display font-semibold text-sm group-hover:text-primary transition-colors">{f.title}</h3>
+                <h3 className="font-display font-semibold text-sm group-hover:text-primary transition-colors">{t('features.' + f.key + '.title')}</h3>
               </div>
-              <p className="text-xs text-foreground/65 leading-relaxed">{f.desc}</p>
+              <p className="text-xs text-foreground/65 leading-relaxed">{t('features.' + f.key + '.desc')}</p>
             </motion.div>
           ))}
         </div>
@@ -320,15 +331,15 @@ export default function Landing() {
         >
           <div className="card-forged p-8 md:p-10 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-gold/60" style={{ borderRadius: 'var(--radius) 0 0 var(--radius)' }} />
-            <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-5 pl-4">A Note from the Founder</p>
+            <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-5 pl-4">{t('founder.label')}</p>
             <blockquote className="text-sm md:text-base text-foreground leading-relaxed pl-4">
-              "Like a lot of people, I've been in the weeds with credit card debt. I know what it feels like to look at a balance and not know where to even start. I built Forgenta because I couldn't find a tool that was honest with me about my numbers and actually helped me make a plan. This isn't just an app. It's what I wish I had when I was trying to get my head above water."
+              {t('founder.quote')}
             </blockquote>
             <div className="flex items-center gap-3 mt-6 pl-4">
               <div className="w-9 h-9 rounded-full bg-gold/15 border border-gold/30 flex items-center justify-center text-xs font-bold text-gold">T</div>
               <div>
-                <p className="text-xs font-semibold text-foreground">Tre</p>
-                <p className="text-[10px] text-muted-foreground">Founder, Forgenta</p>
+                <p className="text-xs font-semibold text-foreground">{t('founder.name')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('founder.role')}</p>
               </div>
             </div>
           </div>
@@ -346,10 +357,10 @@ export default function Landing() {
           custom={0}
         >
           <h2 className="font-display font-bold text-2xl md:text-3xl tracking-tight mb-4">
-            Start building wealth today.
+            {t('cta.heading')}
           </h2>
           <p className="text-sm text-muted-foreground mb-8">
-            Free to start. No credit card. No ads. Just your money, finally under control.
+            {t('cta.subheading')}
           </p>
           <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
             <Link
@@ -357,7 +368,7 @@ export default function Landing() {
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 text-sm font-semibold btn-press transition-colors hover:bg-primary/90"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              Get Started Free <ArrowRight size={14} />
+              {t('cta.button')} <ArrowRight size={14} />
             </Link>
           </motion.div>
         </motion.div>
@@ -370,9 +381,9 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="font-display font-bold text-xs tracking-tight text-gold">FORGENTA</span>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span>&copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.</span>
-            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors underline underline-offset-2">Privacy Policy</Link>
-            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <span>{t('footer.rights', { year: new Date().getFullYear() })}</span>
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors underline underline-offset-2">{t('footer.privacy')}</Link>
+            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">{t('footer.terms')}</Link>
           </div>
         </div>
       </footer>

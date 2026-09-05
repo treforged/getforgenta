@@ -8,6 +8,8 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
+    // The i18n locale catalogues are .json imported from src/lib/i18n.ts.
+    "resolveJsonModule": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",

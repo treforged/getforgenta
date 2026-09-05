@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -503,16 +504,16 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-muted-foreground uppercase">Currency</label>
-            {/* DISABLED ON PURPOSE, 2026-09-03. This offered EUR and GBP and changed
-                NOTHING: `formatCurrency` takes a currency argument that no call site
-                passes, and the only reader of `profile.currency` outside this page is
-                the home-screen widget. So a user could select EUR and watch every
-                balance, projection and payoff stay in dollars — a control that makes a
-                promise the app breaks silently, which is worse than no control.
-                Re-enable it in the same change that threads currency AND locale through
-                formatCurrency, never before. See docs/international-release-plan.md. */}
+            {/* RE-ENABLED 2026-09-05, on the condition its own disable note set.
+                It was switched off on 2026-09-03 because `formatCurrency` ignored the
+                setting — "re-enable it in the same change that threads currency AND
+                locale through formatCurrency, never before." That change is `f21d4d00`:
+                `MoneyDisplaySync` is mounted in App.tsx and calls `setMoneyDisplay`, so
+                all 446 `formatCurrency` call sites now render the chosen currency, with
+                the browser's locale deciding grouping, separator and symbol position.
+                ⚠️ DISPLAY ONLY — nothing converts an amount, which is why the note below
+                says so where the user can read it rather than only in a comment. */}
             <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
-              disabled
               aria-describedby="currency-note"
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
               <option value="USD">USD ($)</option>
@@ -520,7 +521,19 @@ export default function SettingsPage() {
               <option value="GBP">GBP (£)</option>
             </select>
             <p id="currency-note" className="text-[10px] text-muted-foreground mt-1">
-              Every figure is shown in US dollars. Other currencies are not supported yet.
+              Changes the symbol and formatting only. Amounts are not converted.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground uppercase" htmlFor="settings-language">Language</label>
+            {/* ⚠️ ONE SURFACE IS TRANSLATED SO FAR — the Landing page. The note below says
+                that out loud rather than letting the control imply the whole app changes,
+                which is the same promise-the-app-breaks failure the currency picker was
+                disabled for. Remove the caveat when the catalogue covers the app. */}
+            <LanguageSwitcher id="settings-language" className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Applies to the welcome page today. The rest of the app is still English while
+              translation rolls out. Saved on this device.
             </p>
           </div>
           <div>

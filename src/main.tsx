@@ -5,6 +5,9 @@ import App from './App'
 import { initMonitoring } from './lib/monitoring'
 import { installModalDismissGuard } from './lib/modal-dismiss-guard'
 import { maybeLoadDebugConsole } from './lib/debug-console'
+// Side-effect import: i18next must be initialised BEFORE the first render, or the
+// first paint shows raw translation keys and then restates itself.
+import './lib/i18n'
 
 // MONITORING IS NOT PART OF THE FIRST PAINT, and it used to be. The two vendor
 // chunks behind it are the largest things this app ships after the charts

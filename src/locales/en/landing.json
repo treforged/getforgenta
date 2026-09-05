@@ -1,0 +1,83 @@
+{
+  "nav": {
+    "signIn": "Sign In",
+    "startFree": "Start Free"
+  },
+  "hero": {
+    "badge": "Personal Finance, Engineered",
+    "titleLine1": "Discipline builds",
+    "titleAccent": "wealth.",
+    "subtitle": "Budget with precision. Eliminate debt. Stack savings. Track every goal. Forgenta is the financial cockpit for people who take their money seriously.",
+    "startFree": "Start Free",
+    "seeDemo": "See Demo",
+    "appStoreAria": "Download on the App Store",
+    "appStoreAlt": "Download on the App Store",
+    "playStoreAria": "Get Forgenta on Google Play",
+    "playStoreAlt": "Get it on Google Play"
+  },
+  "stats": {
+    "tools": "Financial Tools",
+    "freeToStart": "Free to Start",
+    "ever": "Ever",
+    "adsSuffix": " ads"
+  },
+  "pillars": {
+    "srHeading": "Core principles",
+    "track": {
+      "title": "Track",
+      "desc": "Every account, goal, and payment — one dashboard."
+    },
+    "secure": {
+      "title": "Secure",
+      "desc": "Bank-level encryption. MFA. Your data never sold."
+    },
+    "automate": {
+      "title": "Automate",
+      "desc": "Recurring rules, paycheck scheduling, auto-projection."
+    }
+  },
+  "features": {
+    "heading": "Built for financial discipline",
+    "subheading": "Every tool designed to give you clarity, control, and confidence over your money.",
+    "cashFlow": {
+      "title": "Cash Flow Control",
+      "desc": "Track every dollar in and out. See your real-time financial position at a glance."
+    },
+    "analytics": {
+      "title": "Spending Analytics",
+      "desc": "Break down expenses by category. Identify patterns. Cut waste."
+    },
+    "debt": {
+      "title": "Debt Payoff Engine",
+      "desc": "Snowball or avalanche — compare strategies and crush debt systematically."
+    },
+    "savings": {
+      "title": "Savings Goals",
+      "desc": "Set targets, track progress, and watch your financial runway grow."
+    },
+    "carFund": {
+      "title": "Car Fund Tracker",
+      "desc": "Plan your next vehicle purchase with precision. Know your numbers."
+    },
+    "premium": {
+      "title": "Premium Tools",
+      "desc": "Advanced exports, unlimited history, and pro-level analytics."
+    }
+  },
+  "founder": {
+    "label": "A Note from the Founder",
+    "quote": "\"Like a lot of people, I've been in the weeds with credit card debt. I know what it feels like to look at a balance and not know where to even start. I built Forgenta because I couldn't find a tool that was honest with me about my numbers and actually helped me make a plan. This isn't just an app. It's what I wish I had when I was trying to get my head above water.\"",
+    "name": "Tre",
+    "role": "Founder, Forgenta"
+  },
+  "cta": {
+    "heading": "Start building wealth today.",
+    "subheading": "Free to start. No credit card. No ads. Just your money, finally under control.",
+    "button": "Get Started Free"
+  },
+  "footer": {
+    "rights": "© {{year}} Forgenta™ by TRE Forged LLC. All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  }
+}
