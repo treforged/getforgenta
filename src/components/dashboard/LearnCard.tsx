@@ -3,6 +3,8 @@ import { useStreakReward, STREAK_REWARD_DAYS } from '@/hooks/useStreakReward';
 import { GraduationCap, Flame, Check, Trophy, ChevronDown } from 'lucide-react';
 import { useLearnProgress, useMarkLessonRead } from '@/hooks/useLearnProgress';
 import SocialFollowRow from '@/components/dashboard/SocialFollowRow';
+import { useNavigate, useSearchParams } from 'react-router';
+import { LESSON_PARAM } from '@/lib/notification-routes';
 import { LEARN_LESSONS } from '@/lib/learn-lessons';
 import type { LearnLesson } from '@/lib/learn-lessons';
 
@@ -30,10 +32,44 @@ export default function LearnCard() {
   const [openLessonId, setOpenLessonId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
+  /**
+   * ⚠️ THE OTHER HALF OF MAKING A NOTIFICATION TAP MEAN SOMETHING. A lesson has no URL of its own
+   * — it is `openLessonId` above — so `?lesson=<id>` is how one is addressed from outside, and
+   * `PushTapHandler` is what puts it there when somebody taps "a 2-minute lesson".
+   *
+   * ⚠️ DERIVED, NOT SYNCED INTO STATE. The obvious version is an effect that calls
+   * `setOpenLessonId(param)`, and it is wrong twice over: eslint rejects setting state
+   * synchronously in an effect (cascading renders), and it duplicates one truth in two places
+   * that can then disagree. So the param is simply READ as a fallback while no lesson has been
+   * opened by hand, and CLEARED in the close handler — an event, where a state write belongs.
+   *
+   * An unknown id opens nothing rather than throwing, which is the honest outcome for a link to a
+   * lesson that no longer exists.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedLessonId = searchParams.get(LESSON_PARAM);
+  const linkedLessonId = requestedLessonId
+    && LEARN_LESSONS.some(l => l.id === requestedLessonId) ? requestedLessonId : null;
+
+  /** Drops the deep link, so closing a lesson does not leave a param that re-opens it. */
+  const clearLessonParam = () => {
+    if (!requestedLessonId) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete(LESSON_PARAM);
+    setSearchParams(next, { replace: true });
+  };
+
+  /** Hand-opened wins; the deep link is only the starting position. */
+  const setOpenLesson = (id: string | null) => {
+    clearLessonParam();
+    setOpenLessonId(id);
+  };
+
   if (progress.loading) return null;
 
   const readSet = new Set(progress.readIds);
-  const openLesson = openLessonId ? LEARN_LESSONS.find(l => l.id === openLessonId) ?? null : null;
+  const effectiveOpenId = openLessonId ?? linkedLessonId;
+  const openLesson = effectiveOpenId ? LEARN_LESSONS.find(l => l.id === effectiveOpenId) ?? null : null;
   const pct = progress.totalCount === 0 ? 0 : Math.round((progress.readCount / progress.totalCount) * 100);
   // The next lesson already has its own row above, with its summary. Listing it again below —
   // which is what the first live press of this card showed — reads as two different lessons with
@@ -86,7 +122,7 @@ export default function LearnCard() {
           read={false}
           isNext
           open={openLessonId === progress.next.id}
-          onToggle={() => setOpenLessonId(openLessonId === progress.next!.id ? null : progress.next!.id)}
+          onToggle={() => setOpenLesson(effectiveOpenId === progress.next!.id ? null : progress.next!.id)}
         />
       ) : (
         <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
@@ -102,7 +138,7 @@ export default function LearnCard() {
           saving={markRead.isPending}
           readOnly={progress.readOnly}
           onMarkRead={() => {
-            markRead.mutate(openLesson.id, { onSuccess: () => setOpenLessonId(null) });
+            markRead.mutate(openLesson.id, { onSuccess: () => setOpenLesson(null) });
           }}
         />
       )}
@@ -115,7 +151,7 @@ export default function LearnCard() {
             read={readSet.has(lesson.id)}
             isNext={false}
             open={openLessonId === lesson.id}
-            onToggle={() => setOpenLessonId(openLessonId === lesson.id ? null : lesson.id)}
+            onToggle={() => setOpenLesson(effectiveOpenId === lesson.id ? null : lesson.id)}
           />
         ))}
         {rest.length > 4 && (
@@ -225,6 +261,7 @@ function LessonReader({ lesson, alreadyRead, saving, readOnly, onMarkRead }: {
   readOnly: boolean;
   onMarkRead: () => void;
 }) {
+  const navigate = useNavigate();
   return (
     <div className="border border-border rounded-[var(--radius)] p-4 space-y-3">
       <div>
@@ -239,6 +276,18 @@ function LessonReader({ lesson, alreadyRead, saving, readOnly, onMarkRead }: {
       ))}
 
       <p className="text-[11px] font-medium">Do this: {lesson.takeaway}</p>
+      {/* ⚠️ A ROUTE, NOT AN INSTRUCTION TO GO HUNTING. The cash-floor lesson told people to open
+          Settings for a control that lives on the Debt tab — stale prose nobody re-checked when
+          the control moved. A link cannot be wrong about where something is. */}
+      {lesson.action && (
+        <button
+          type="button"
+          onClick={() => navigate(lesson.action!.path)}
+          className="btn btn-ghost text-[11px] text-primary underline underline-offset-2 px-0"
+        >
+          {lesson.action.label} →
+        </button>
+      )}
 
       {alreadyRead ? (
         <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">

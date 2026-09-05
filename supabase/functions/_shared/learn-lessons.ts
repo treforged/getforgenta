@@ -28,6 +28,20 @@ export interface LearnLesson {
   /** Paragraphs. Kept short deliberately: this is a two-minute read on a phone, not an article. */
   body: readonly string[];
   takeaway: string;
+  /**
+   * Where the takeaway's instruction actually leads, as an in-app path.
+   *
+   * ⚠️ THIS EXISTS BECAUSE PROSE GOES STALE AND A ROUTE DOES NOT. The cash-floor lesson told
+   * readers to "Open Settings and set your cash floor" — and the control is on the DEBT tab. Tre
+   * hit it on 2026-09-05, on the very lesson the app had just sent him its first ever push
+   * notification about: the one actionable line in a two-minute lesson pointed at the wrong
+   * screen. Copy written when the app was laid out differently is never re-checked when a control
+   * moves, so the fix is to stop describing the location and start linking to it.
+   *
+   * Absent when a takeaway is something to do in the world ("cancel the first subscription you
+   * cannot justify") rather than somewhere in the app. Those cannot go stale.
+   */
+  action?: { label: string; path: string };
   /** The badge earned by finishing it. One lesson, one badge, no compound achievements. */
   achievement: { name: string; description: string };
 }
@@ -45,7 +59,11 @@ export const LEARN_LESSONS: readonly LearnLesson[] = [
       'A workable first floor is one to two weeks of ordinary spending. Enough that a bill arriving three days early is an inconvenience rather than an incident.',
       'Forgenta compares every projected month against this number. That is the whole reason it warns you before a bill instead of after.',
     ],
-    takeaway: 'Open Settings and set your cash floor to about two weeks of spending.',
+    // ⚠️ WAS "Open Settings and set your cash floor" UNTIL 2026-09-05. The control is on the
+    // Debt tab and always has been; nothing re-checked the sentence when it moved. Now it names
+    // no location at all — the button below goes there, so it cannot be wrong again.
+    takeaway: 'Set your cash floor to about two weeks of spending.',
+    action: { label: 'Set your cash floor', path: '/debt' },
     achievement: { name: 'Floor Set', description: 'Learned what a cash floor is and why zero is not one.' },
   },
   {
@@ -120,7 +138,10 @@ export const LEARN_LESSONS: readonly LearnLesson[] = [
       'The gap between them is usually smaller than people expect — often a few percent of total interest. The gap between a method you finish and one you abandon is the entire balance.',
       'If you have three debts and no momentum, snowball. If you have one very expensive debt, avalanche and do not overthink it.',
     ],
-    takeaway: 'Open Debt Payoff and order your debts by the method you will actually keep to.',
+    // Correct today — audited alongside the cash-floor line rather than assumed — and routed for
+    // the same reason: being right now is not the same as staying right.
+    takeaway: 'Order your debts by the method you will actually keep to.',
+    action: { label: 'Open Debt Payoff', path: '/debt' },
     achievement: { name: 'Method Chosen', description: 'Learned the real trade-off between avalanche and snowball.' },
   },
   {
