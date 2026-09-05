@@ -13416,3 +13416,179 @@ tree, `origin/main` 0/0, everything verified on origin by contents.
 
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 
+
+
+<!-- moved from handoff.md by Ada, 2026-09-05 - closed sections -->
+
+## ✅ PLAID ON iOS — THE NATIVE TAP REACHED THE BACKEND, 2026-09-05. First time ever.
+
+⚠️ `function_edge_logs` retains **24 HOURS**. These are the LOG LINES, not a summary, because
+after 2026-09-06 06:00Z nobody can re-derive them. This evidence expired unread once already.
+
+**THE BASELINE, taken at 06:47Z BEFORE the tap** — this is what makes the rows below
+unambiguous. Window 2026-09-04 06:45Z to 2026-09-05 06:45Z, every plaid-shaped edge
+invocation in it, in full:
+
+    POST | 200 | .../functions/v1/plaid-sync-all      2026-09-04T13:00:40.876000
+
+That is the scheduled sync. **Zero** create-link-token, **zero** exchange-token, **zero**
+hosted-link-result in the whole 24 hours. So anything after 06:47Z is this tap and nothing else.
+
+**THE TAP, 2026-09-05, verbatim:**
+
+    OPTIONS | 200 | .../functions/v1/plaid-create-link-token      06:53:45.941
+    POST    | 200 | .../functions/v1/plaid-create-link-token      06:53:46.865
+    OPTIONS | 200 | .../functions/v1/plaid-hosted-link-result     06:54:21.229
+    POST    | 200 | .../functions/v1/plaid-hosted-link-result     06:54:27.212
+
+**⛔ THE STANDING PREMISE IS FALSE AND IS STRUCK. "No native tap has ever got past
+/link/token/create" is WRONG.** It got past it, in 924 ms, and 35 seconds later the HOSTED
+LINK RESULT endpoint answered 200 as well. Tre's screenshot at 2:54 local matches the second
+pair exactly: secure.plaid.com rendering the real "Forgenta uses Plaid to connect your
+account" screen inside TestFlight. Note the function name is `plaid-hosted-link-result`, not
+`hosted-link-result` — grep for the wrong one and you will conclude it never ran.
+
+**DATABASE, before and after:**
+
+    oauth_states     4 rows, latest 2026-09-02 14:45:47  ->  6 rows, latest 2026-09-05 06:56:30
+    plaid_items      9 rows, latest 2026-08-22 00:01:04  ->  UNCHANGED
+    accounts (plaid) 17 rows                             ->  UNCHANGED
+
+⚠️ **A SECOND CORRECTION: `oauth_states` was never "zero rows ever".** It held 4 before this
+tap. The OAuth path had been reached before. Any diagnosis built on that emptiness — including
+"the native path was never exercised" — needs re-deriving from scratch.
+
+**WHAT IS NOT YET PROVEN, and its absence proves nothing yet.** `plaid-exchange-token` has NOT
+fired and `plaid_items` has not moved, so the link is not completed — he was still on the
+phone-number step. The last oauth_states row (06:56:30) is LATER than the last log line pulled,
+so the flow was still in motion at the time of this read.
+
+**ONE TAP STILL CLOSES TWO ITEMS.** If `plaid-exchange-token` runs, look for its
+**"Retired N account(s)"** line — that is the first and only real proof of the Plaid
+auto-dedupe shipped as `bb421023`, which no genuine re-link has ever exercised.
+
+**NEXT READ: pull `function_edge_logs` from 06:55Z forward, BEFORE 2026-09-06 06:00Z.**
+
+
+## RESOLVED 2026-09-05 — a payment pin is a REPLACEMENT, and the promo cards were never the reason
+
+**The standing explanation — "his payoff date will not move because his cards are
+promo-heavy" — is WRONG and is struck. Do not repeat it.** Three facts replace it, each
+measured, on the demo fixture AND reproduced on the real capture. The regression test is
+`src/lib/__tests__/payment-pin-semantics.test.ts`.
+
+**1. A pin sets the card's EXACT total for that month.** Not a floor, not extra money.
+`paymentOverridesByMonth` (credit-card-engine.ts, param #21, JSDoc ~line 1090) clamps only at
+`>= 0` and at what the card owes, deducts the pin from the month's cash BEFORE the pools are
+sized, and excludes the card from normal allocation so the others rebalance around it. It may
+even be pinned BELOW the contract minimum. Measured on the demo fixture: the unpinned plan
+sent the 24.74% card $2,485 / $1,673 / $942 / $743…; a "$400 pin" made it pay exactly $400 —
+a CUT of $343 to $2,085 a month. **The previous session's test never pressed "pay more". It
+pressed "pay less" and read the result as "the control does nothing".**
+
+**2. A pin cannot add cash to debt, so it cannot move the date by paying more.** Total paid to
+cards over the horizon, demo fixture, 18 months: base **$19,785**, $400 pin **$19,428**, $600
+pin **$19,117**, $1,000 pin **$19,617**. Real capture, 24 months: base **$40,143**, and every
+pin between $400 and $1,200 on either card lands **$39,706–$40,416**. The total is set by
+income minus the cash floor. The plan already spends everything above the floor on debt, so
+there is no "more" to find — a pin only re-orders WHICH card receives it.
+
+**3. The highest-APR card is not the card that sets the payoff month.** Demo fixture: the
+24.74% card's revolving balance is **$0 at month 2** while `simRevolvingPayoffMonth` is **16** —
+the 16 comes entirely from the OTHER card. Real capture: payoff **24**, set by **Discover
+(16.6%, $10,440, clears month 23)**, while **Prime Visa (27.49%, $8,565) clears at month 16**.
+Under avalanche the lowest-APR card is paid LAST by construction, so it is the one that sets
+the date. **Paying more onto the highest-APR card cannot move a date that card does not set.**
+
+**Why the old measurements looked contradictory, resolved exactly.** "$400 pin → still 16,
+$600 pin → moves" was pinning months 0-11. A user pin at month 0 outranks the m0 floor pin
+(`mergeM0FloorPins`, useCardProjection.ts ~2350), so $400 at month 0 cut the month-0 payment
+from $2,485 to $400 and the balance ballooned to $7,963 by month 12 — landing back on 16 by
+the opposite route. Pinning months 1-12 instead: $400 → **14**, $600 → **14**, $1,000 → **15**.
+**Non-monotonic**, because a pin re-orders rather than adds.
+
+**⚠️ THE PRODUCT CONSEQUENCE, and it is a real one — routed to Sam for Tre.** On the real
+capture NO pin improves the payoff date: every value tried leaves it at 24 or pushes it to 25.
+Pinning Discover $1,200/mo clears Discover at month 10 instead of 23 and makes the OVERALL
+date WORSE (25), because Prime Visa then finishes at 24 instead of 16. A user who reaches for
+this control to "get out of debt faster" is reaching for a control that cannot do that. Either
+the UI must say what it does (re-order, not accelerate), or the app needs a real "pay extra"
+input that raises the debt total by lowering the cash floor. That is a product decision, not
+a bug fix.
+
+**What would actually move the date:** more cash into the plan (lower the cash floor, more
+income, less spend), not a different split across cards.
+
+
+## CLOSED 2026-09-03 — the "$799 divergence" was a replay artifact
+
+Hunting it found three real bugs, all fixed. Lesson kept: replay a capture at its own wall
+clock, never at today's. Detail: `handoff-archive.md`.
+
+
+## CLOSED 2026-09-03 — the OG consent handlers are deployed and were PRESSED
+
+A real-shaped consent row was written and then removed; the test artefacts are gone. Detail:
+`handoff-archive.md`.
+
+
+## CLOSED 2026-09-03 — the OG cohort was BACKFILLED on Tre's direct instruction
+
+⚠️ FOR REVERSAL: both tables held ZERO rows for these users before the backfill, so deleting
+the five inserted rows restores the exact prior state. Who the five are, and why: `handoff-archive.md`.
+
+
+## CLOSED 2026-09-03 — the OG cohort was empty, which is why the consent ask sent nothing
+
+Pattern worth keeping: a cron-gated function can be exercised without waiting for its cron.
+Detail, and the one subscriber still undecided, in `handoff-archive.md`.
+
+
+## CLOSED 2026-09-05 — "paying more does not move the payoff date"
+
+Answered in full, with numbers, in "RESOLVED 2026-09-05 — a payment pin is a REPLACEMENT"
+near the top of this file. Test: `src/lib/__tests__/payment-pin-semantics.test.ts`.
+
+One correction this made to the record: the demo fixture is NOT free of promo balances —
+card `d7` carries a $2,417 balance transfer at 0% APR to 2027-05-11. It did not matter, but
+"the rebuilt fixture carries plain revolving balances" was inaccurate and is struck.
+
+
+## CLOSED 2026-09-03 — claim-on-first-sync is shipped and deployed
+
+The policy was checked against LIVE data, which is the part worth keeping. Detail: `handoff-archive.md`.
+
+
+## CLOSED 2026-09-03 — the CI Tests gate is green for the first time
+
+Lesson: local green is not CI green; four commits went in before it held. ⚠️ The real-data
+fixtures are gitignored, so the golden/convergence tests SKIP in CI — a green badge says
+nothing about the money engine. Run `npm run test:tz` locally. Detail: `handoff-archive.md`.
+
+
+## CLOSED 2026-09-03 — Dependabot: 3 fixed, 3 left alone on purpose
+
+Do not "finish" the remaining three; the reasoning is in `handoff-archive.md`.
+
+
+## CLOSED 2026-09-02 — five things shipped, all on `origin/main`
+
+Includes the OG cohort going live and the discovery that backups had silently done nothing
+since 2026-08-27 while reporting success. Detail: `handoff-archive.md`.
+
+
+## CLOSED — the debug-console security gate, and it was seen to fail
+
+Detail: `handoff-archive.md`.
+
+
+## CLOSED — Plaid native Link, fixed and confirmed on his device (`ca3f88fc`)
+
+Lesson kept: a negative result from a tool that can be silently intercepted is not a result.
+The Robinhood duplication after the re-link was merged and is reversible. Detail: `handoff-archive.md`.
+
+
+## CLOSED — the "grace period" for a bill that has not cleared (`c85a8565`)
+
+⚠️ DO NOT REBUILD IT. A grace period already existed and is better than a fixed window; the
+fix was wiring, and the cause was not where the old section said. Detail: `handoff-archive.md`.
