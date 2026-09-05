@@ -231,3 +231,91 @@ describe('notification policy — the two date helpers, which is where this woul
     expect(out?.body).toContain('$100');
   });
 });
+
+// ── THE TWO RETENTION CANDIDATES, WHICH HAD NO COVERAGE AT ALL ────────────────────────────────
+//
+// `learn_lesson` and `streak_risk` are shipped, and until now they appeared in this file only in
+// the zeroed signals fixture — never fired, never gated, never asserted. They are also the exact
+// two the whole retention plan depends on, which is the worst possible combination: the thing
+// most likely to be built on top of is the thing with no proof under it.
+//
+// Would-fail checks: drop the `learnStreak >= 2` guard and "says nothing to someone with no
+// streak" fails, which is the guilt-trip that gets an app muted; drop the history check on the
+// lesson key and "never sends the same lesson twice" fails, which is the same lesson arriving
+// every week until the user turns notifications off.
+describe('notification policy — the lesson and the streak', () => {
+  const LESSON = { id: 'what-a-cash-floor-is', title: 'What a cash floor is', minutes: 2 };
+
+  it('offers the next lesson, naming it and its length', () => {
+    const decision = decideNotification(signals({ nextLesson: LESSON }), []);
+    expect(decision?.kind).toBe('learn_lesson');
+    // "Come back and learn something" is a nudge; a named two-minute lesson is a reason.
+    expect(decision?.title).toBe('What a cash floor is');
+    expect(decision?.body).toContain('2-minute');
+  });
+
+  it('keys the lesson by ITS OWN id, so the same one never sends twice', () => {
+    const decision = decideNotification(signals({ nextLesson: LESSON }), []);
+    expect(decision?.key).toBe('learn_lesson:what-a-cash-floor-is');
+
+    const already = [sent('learn_lesson:what-a-cash-floor-is', 'learn_lesson', '2026-08-01T10:00:00')];
+    expect(decideNotification(signals({ nextLesson: LESSON }), already)).toBeNull();
+  });
+
+  it('still offers a DIFFERENT lesson after one has been sent', () => {
+    const already = [sent('learn_lesson:what-a-cash-floor-is', 'learn_lesson', '2026-08-01T10:00:00')];
+    const next = { id: 'fixed-versus-variable', title: 'Fixed vs variable spending', minutes: 2 };
+    const decision = decideNotification(signals({ nextLesson: next }), already);
+    expect(decision?.key).toBe('learn_lesson:fixed-versus-variable');
+  });
+
+  it('warns about a streak only when there is something real to lose', () => {
+    // Two days banked, nothing read today, and late enough in the day that it is true.
+    const atRisk = signals({
+      now: new Date('2026-09-02T19:00:00'), learnStreak: 4, learnedToday: false,
+    });
+    const decision = decideNotification(atRisk, []);
+    expect(decision?.kind).toBe('streak_risk');
+    expect(decision?.title).toBe('4-day streak ends tonight');
+  });
+
+  it('says NOTHING about a streak to someone who has not got one', () => {
+    // A guilt-trip about a thing they never had is how an app gets muted.
+    const noStreak = signals({
+      now: new Date('2026-09-02T19:00:00'), learnStreak: 1, learnedToday: false,
+    });
+    expect(decideNotification(noStreak, [])?.kind).not.toBe('streak_risk');
+  });
+
+  it('says nothing about a streak that is not at risk yet', () => {
+    // Already read today: there is nothing to lose, so there is nothing to say.
+    const safe = signals({
+      now: new Date('2026-09-02T19:00:00'), learnStreak: 4, learnedToday: true,
+    });
+    expect(decideNotification(safe, [])?.kind).not.toBe('streak_risk');
+
+    // And too early in the day for "ends tonight" to be true.
+    const tooEarly = signals({
+      now: new Date('2026-09-02T10:00:00'), learnStreak: 4, learnedToday: false,
+    });
+    expect(decideNotification(tooEarly, [])?.kind).not.toBe('streak_risk');
+  });
+
+  it('keys the streak warning by DATE, so it cannot repeat within one evening', () => {
+    const atRisk = signals({
+      now: new Date('2026-09-02T19:00:00'), learnStreak: 4, learnedToday: false,
+    });
+    const decision = decideNotification(atRisk, []);
+    expect(decision?.key).toBe('streak_risk:2026-09-02');
+
+    const already = [sent('streak_risk:2026-09-02', 'streak_risk', '2026-09-02T19:00:00')];
+    expect(decideNotification(atRisk, already)?.kind).not.toBe('streak_risk');
+  });
+
+  it('puts a real problem ahead of a lesson, every time', () => {
+    // A lesson is the only candidate worth sending on a week where nothing is wrong. When
+    // something IS wrong, the lesson must not be what arrives.
+    const bothAvailable = signals({ nextLesson: LESSON, newMilestones: MILESTONE });
+    expect(decideNotification(bothAvailable, [])?.kind).not.toBe('learn_lesson');
+  });
+});
