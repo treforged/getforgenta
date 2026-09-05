@@ -45,6 +45,7 @@ import {
 } from "../_shared/notification-policy.ts";
 import { computeStreakInZone, hasReadTodayInZone, hourInZone, safeZone } from "../_shared/learn-streak.ts";
 import { LEARN_LESSONS } from "../_shared/learn-lessons.ts";
+import { sendToDevice, tokenTail, type DeviceRow } from "../_shared/push-transport.ts";
 
 /** Same namespace the client writes and the RLS policy allows: `lesson:<slug>`. */
 const LESSON_PREFIX = "lesson:";
@@ -213,15 +214,53 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // ⚠️ NOT IMPLEMENTED YET, AND IT FAILS LOUDLY RATHER THAN SILENTLY SUCCEEDING.
-        // The APNs and FCM transports need Tre's .p8, Key ID, Team ID and FCM service account,
-        // none of which exist yet (docs/push-runbook.md). Returning success here would make a
-        // dry_run=0 run report "sent" while no device received anything, and that is the exact
-        // shape of a green check that means nothing.
-        throw new Error(
-          "transport not implemented: APNs/FCM credentials are not configured. " +
-          "See docs/push-runbook.md. Run with dry_run=1 until they are.",
-        );
+        // ── DELIVERY ────────────────────────────────────────────────────────
+        //
+        // ⚠️ THE CLAIM ROW IS ALREADY WRITTEN, so a device that fails here is NOT retried on the
+        // next run. That is deliberate: the alternative is re-deciding a notification the user
+        // may already have received on their other device, and a duplicate is worse than a miss.
+        // The failure is recorded instead, which is what the run row is for.
+        let delivered = 0;
+        const failures: string[] = [];
+        const retireIds: string[] = [];
+
+        for (const device of tokens as DeviceRow[]) {
+          const outcome = await sendToDevice(device, {
+            title: decision.title, body: decision.body, key: decision.key,
+          });
+          if (outcome.ok) { delivered += 1; continue; }
+          failures.push(outcome.reason);
+          // A provider saying the device is gone is not an error to retry — it is a fact about
+          // the row. Retire it so it stops being counted as reachable.
+          if (outcome.retire) retireIds.push(device.id);
+        }
+
+        if (retireIds.length > 0) {
+          await db.from("device_tokens")
+            .update({ revoked_at: new Date().toISOString() })
+            .in("id", retireIds);
+        }
+
+        // The claim recorded an optimistic device count. Correct it to what actually landed, so
+        // push_sends is a record of delivery rather than of intent.
+        if (delivered !== tokens.length) {
+          await db.from("push_sends")
+            .update({ devices_sent: delivered })
+            .eq("user_id", userId).eq("notification_key", decision.key);
+        }
+
+        // ⚠️ NO DEVICE TOOK IT IS A FAILURE, NOT A SEND. A sender that reports "sent" while
+        // nothing arrived is the green check this codebase refuses everywhere else.
+        if (delivered === 0) {
+          throw new Error(
+            `no device accepted the push (${tokens.length} tried): ${failures.join("; ")}`,
+          );
+        }
+        totals.sent += 1;
+        if (failures.length > 0) {
+          // Partial delivery: it reached them, but a device is unwell and that is worth reading.
+          notes.push(`${userId}: delivered to ${delivered}/${tokens.length} — ${failures.join("; ")}`);
+        }
       } catch (userErr) {
         totals.failed += 1;
         notes.push(`${userId}: ${userErr instanceof Error ? userErr.message : String(userErr)}`);
