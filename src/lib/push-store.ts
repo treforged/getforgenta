@@ -80,7 +80,7 @@ export const supabasePushStore: PushStore = {
    * ⚠️ NEVER THROWS AND NEVER BLOCKS REGISTRATION. Diagnosing a failure must not become a second
    * way to fail: if this errors, the token is still saved and the person still gets notifications.
    */
-  async recordOutcome(outcome, platform, prompted, app): Promise<void> {
+  async recordOutcome(outcome, platform, prompted, app, detail): Promise<void> {
     const { error } = await supabase.rpc('record_push_registration', {
       p_platform: platform,
       p_outcome: outcome,
@@ -89,6 +89,10 @@ export const supabasePushStore: PushStore = {
       // `timeout` attempts across two builds read as one undifferentiated failure.
       p_app_version: app.version,
       p_app_build: app.build,
+      // ⚠️ THE PROVIDER'S OWN WORDS. A `registrationError` used to be recorded with its message
+      // discarded, so a real APNs refusal read as a bare failure and a day was spent inferring
+      // what one string would have said outright.
+      p_detail: detail ?? null,
     });
     if (error) console.error('[push] could not record registration outcome:', error.message);
   },

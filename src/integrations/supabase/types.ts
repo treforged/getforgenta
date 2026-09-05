@@ -2628,6 +2628,7 @@ export type Database = {
         Args: {
           p_app_build?: string | null
           p_app_version?: string | null
+          p_detail?: string | null
           p_outcome: string
           p_platform: string
           p_prompted?: boolean

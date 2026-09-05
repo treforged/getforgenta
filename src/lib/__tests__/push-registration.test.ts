@@ -33,9 +33,13 @@ const h = vi.hoisted(() => ({
   saved: [] as unknown[],
   revoked: [] as string[],
   /** Outcomes the fake store was told to record, so each path can be pinned to a NAMED reason. */
-  recorded: [] as { outcome: string; platform: string; prompted: boolean; build?: string | null }[],
+  recorded: [] as { outcome: string; platform: string; prompted: boolean; build?: string | null; detail?: string | null }[],
   /** Makes `saveToken` report failure — a real token minted and then lost to a backend error. */
   saveFails: false,
+  /** Listener events attached, in order, and whether `register()` beat them. */
+  attached: [] as string[],
+  removed: [] as string[],
+  registerCalledBeforeListeners: false,
 }));
 
 // ⚠️ THE BUILD NUMBER IS PART OF THE DIAGNOSIS NOW. 29 `timeout` rows on a real iPhone could not
@@ -59,12 +63,19 @@ vi.mock('@capacitor/push-notifications', () => {
     PushNotifications: {
       checkPermissions: async () => ({ receive: h.initialPermission }),
       requestPermissions: async () => { h.requestCalls += 1; return { receive: h.permission }; },
+      // ⚠️ ATTACHMENT IS ASYNCHRONOUS, WHICH IS THE WHOLE BUG. The real plugin returns a Promise
+      // and registers the native listener on a later tick. Resolving immediately would hide the
+      // race that cost 31 registration attempts, so this deliberately defers.
       addListener: async (event: string, cb: (p: unknown) => void) => {
+        await new Promise(r => setTimeout(r, 0));
         (listeners[event] ??= []).push(cb);
-        return { remove: () => {} };
+        h.attached.push(event);
+        return { remove: async () => { h.removed.push(event); } };
       },
       register: async () => {
         h.registerCalls += 1;
+        // The assertion that matters: were BOTH listeners already attached when the OS was asked?
+        if (h.attached.length < 2) h.registerCalledBeforeListeners = true;
         // The real plugin answers on an EVENT, asynchronously, after register() resolves.
         queueMicrotask(() => {
           if (h.answerWith === 'token') h.emit?.('registration', { value: 'apns-token-abc' });
@@ -86,8 +97,8 @@ import {
 const store: PushStore = {
   saveToken: async (row) => { h.saved.push(row); return !h.saveFails; },
   revokeToken: async (token) => { h.revoked.push(token); },
-  recordOutcome: async (outcome, platform, prompted, app) => {
-    h.recorded.push({ outcome, platform, prompted, build: app?.build ?? null });
+  recordOutcome: async (outcome, platform, prompted, app, detail) => {
+    h.recorded.push({ outcome, platform, prompted, build: app?.build ?? null, detail: detail ?? null });
   },
 };
 
@@ -98,6 +109,7 @@ describe('push registration', () => {
     h.registerCalls = 0; h.requestCalls = 0;
     h.answerWith = 'token';
     h.saved = []; h.revoked = []; h.recorded = []; h.saveFails = false;
+    h.attached = []; h.removed = []; h.registerCalledBeforeListeners = false;
   });
   afterEach(() => vi.clearAllMocks());
 
@@ -108,7 +120,7 @@ describe('push registration', () => {
     expect(h.saved).toEqual([
       { platform: 'ios', token: 'apns-token-abc', environment: 'sandbox' },
     ]);
-    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682' }]);
+    expect(h.recorded).toEqual([{ outcome: 'registered', platform: 'ios', prompted: true, build: '682', detail: null }]);
   });
 
   it('stores NOTHING and asks for nothing when the person already declined', async () => {
@@ -170,7 +182,7 @@ describe('push registration', () => {
     // question ("nobody has opened the switch") apart from a bug ("everybody tried and it broke"),
     // which is the whole reason the outcome type exists.
     expect(h.recorded).toEqual([
-      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false, build: '682' },
+      { outcome: 'undecided_not_asked', platform: 'ios', prompted: false, build: '682', detail: null },
     ]);
     expect(h.registerCalls).toBe(0);
     expect(h.saved).toEqual([]);
@@ -203,6 +215,32 @@ describe('push registration', () => {
     expect(h.requestCalls).toBe(0);
   });
 
+  it('⚠️ ATTACHES BOTH LISTENERS BEFORE asking the OS to register', async () => {
+    // THE BUG THAT COST 31 ATTEMPTS. `addListener` returns a Promise; the old code `void`-ed both
+    // calls and called `register()` in the same tick, so APNs could answer before either listener
+    // existed. The token fired into nothing and the timeout won — recorded as `timeout`, which is
+    // indistinguishable from APNs never replying, which is why three entitlement fixes moved
+    // nothing.
+    await registerForPush(store, { prompt: true });
+    expect(h.registerCalledBeforeListeners).toBe(false);
+    expect(h.attached).toEqual(['registration', 'registrationError']);
+  });
+
+  it('removes both listeners afterwards, rather than leaking one per attempt', async () => {
+    // 31 attempts previously left 62 live listeners on one device.
+    await registerForPush(store, { prompt: true });
+    expect(h.removed.sort()).toEqual(['registration', 'registrationError']);
+  });
+
+  it('⚠️ KEEPS the provider error text instead of discarding it', async () => {
+    // A real APNs refusal used to be recorded as a bare failure with no message. Apple's string
+    // usually names the cause outright.
+    h.answerWith = 'error';
+    const { outcome } = await registerForPush(store, { prompt: true });
+    expect(outcome).toBe('registration_error');
+    expect(h.recorded[0].detail).toBe('no');
+  });
+
   it('does nothing at all on web', async () => {
     h.native = false;
     const { outcome } = await registerForPush(store, { prompt: true });
@@ -223,7 +261,7 @@ describe('push registration', () => {
     expect(outcome).toBe('save_failed');
     // The token is still handed back: it is real, and losing it here too would help nobody.
     expect(token).toBe('apns-token-abc');
-    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682' }]);
+    expect(h.recorded).toEqual([{ outcome: 'save_failed', platform: 'ios', prompted: true, build: '682', detail: null }]);
   });
 
   it('records an outcome for every path that reaches the OS, so none can go uncounted', async () => {

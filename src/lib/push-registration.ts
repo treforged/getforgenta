@@ -58,6 +58,8 @@ export interface PushStore {
     platform: 'ios' | 'android',
     prompted: boolean,
     app: { version: string | null; build: string | null },
+    /** The provider's own error text, when there is one. Never invented. */
+    detail?: string | null,
   ): Promise<void>;
 }
 
@@ -181,9 +183,10 @@ export async function registerForPush(
   const done = async (
     outcome: PushRegistrationOutcome,
     token: string | null = null,
+    detail: string | null = null,
   ): Promise<PushRegistrationResult> => {
     const app = await appInfo();
-    await store.recordOutcome(outcome, platform, prompted, app).catch(() => {
+    await store.recordOutcome(outcome, platform, prompted, app, detail).catch(() => {
       // The diagnosis failing must never take the registration with it.
     });
     return { outcome, token };
@@ -215,33 +218,77 @@ export async function registerForPush(
     // ⚠️ THE THREE WAYS THIS ENDS ARE NOT THE SAME and used to collapse into one `null`: a
     // timeout is a network problem, a `registrationError` is a build problem, and an empty token
     // on a successful event is a platform problem. They are carried out separately.
-    const settledAs = await new Promise<{ how: 'token' | 'timeout' | 'error'; value: string | null }>(
+    // ⚠️ THE LISTENERS ARE AWAITED BEFORE `register()`. THIS IS THE BUG THAT COST 31 ATTEMPTS.
+    //
+    // `PushNotifications.addListener()` returns a **Promise**, and this code used to `void` both
+    // calls and then call `register()` SYNCHRONOUSLY in the same tick. Capacitor attaches the
+    // native listener asynchronously, so `register()` could reach the OS — and APNs could answer —
+    // **before either listener existed**. The token fired into nothing, the timeout won, and the
+    // outcome was recorded as `timeout`: indistinguishable from APNs never replying at all.
+    //
+    // Measured on Tre's iPhone: 31 attempts between 17:33Z and 20:11Z, every one `timeout`, across
+    // three different builds. The entitlement fixes (`aps-environment` absent, then `development`
+    // instead of `production`) were both real and both irrelevant to THIS path, which is why no
+    // config change ever moved the number.
+    //
+    // Awaiting the handles is the whole fix. It also gives us something to REMOVE, which the
+    // previous version never had — see below.
+    // The handlers are declared first and assigned inside the promise below, so the listeners can
+    // be ATTACHED (and awaited) before anything is asked of the OS.
+    let onToken: (v: string | null) => void = () => {};
+    let onError: (e: unknown) => void = () => {};
+
+    const registrationHandle = await PushNotifications.addListener(
+      'registration', ({ value }) => onToken(value ?? null),
+    );
+    const errorHandle = await PushNotifications.addListener(
+      'registrationError', (err) => onError(err),
+    );
+
+    const settledAs = await new Promise<{ how: 'token' | 'timeout' | 'error'; value: string | null; detail: string | null }>(
       (resolve) => {
         let settled = false;
-        const finish = (how: 'token' | 'timeout' | 'error', value: string | null) => {
+        const finish = (how: 'token' | 'timeout' | 'error', value: string | null, detail: string | null = null) => {
           if (settled) return;
           settled = true;
-          resolve({ how, value });
+          resolve({ how, value, detail });
         };
 
         // Nothing may wait forever: a device with no network answers neither listener.
         const timer = setTimeout(() => finish('timeout', null), REGISTRATION_TIMEOUT_MS);
 
-        void PushNotifications.addListener('registration', ({ value }) => {
+        onToken = (value) => { clearTimeout(timer); finish('token', value); };
+        // ⚠️ THE ERROR TEXT IS KEPT NOW. It used to be discarded — `finish('error', null)` — so a
+        // real APNs refusal was recorded as a bare `registration_error` with no message. Apple's
+        // string usually names the cause outright, and a day was spent inferring what it would
+        // have said. Whatever arrives is stringified defensively; this must not throw.
+        onError = (err) => {
           clearTimeout(timer);
-          finish('token', value ?? null);
-        });
-        void PushNotifications.addListener('registrationError', () => {
-          clearTimeout(timer);
-          finish('error', null);
-        });
+          const describe = (): string | null => {
+            try {
+              const e = err as { error?: unknown; message?: unknown } | null;
+              return String(e?.error ?? e?.message ?? JSON.stringify(err) ?? '').slice(0, 300) || null;
+            } catch {
+              // A payload that cannot even be stringified is still worth SAYING, rather than
+              // becoming another silent null.
+              return 'unstringifiable registrationError payload';
+            }
+          };
+          finish('error', null, describe());
+        };
 
         void PushNotifications.register();
       },
     );
 
+    // ⚠️ AND THEY ARE REMOVED. The previous version added two listeners per call and removed
+    // neither, so 31 attempts left 62 live listeners on one device — each one still holding the
+    // closure of a settled promise.
+    await registrationHandle.remove().catch(() => {});
+    await errorHandle.remove().catch(() => {});
+
     if (settledAs.how === 'timeout') return done('timeout');
-    if (settledAs.how === 'error') return done('registration_error');
+    if (settledAs.how === 'error') return done('registration_error', null, settledAs.detail);
     if (!settledAs.value) return done('empty_token');
 
     const token = settledAs.value;
