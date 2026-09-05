@@ -4,7 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import ConnectionNotice from '@/components/shared/ConnectionNotice';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router";
+import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation, useNavigationType } from "react-router";
 import { Capacitor } from '@capacitor/core';
 import { MotionConfig } from 'framer-motion';
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -244,13 +244,28 @@ function GoalsRedirect() {
   return <Navigate to={`/dashboard?${params.toString()}`} replace />;
 }
 
+/**
+ * Top of the page on a NEW navigation — and deliberately NOT on a Back.
+ *
+ * ⚠️ THE POP EXCLUSION IS LOAD-BEARING, and it is the reason `useScrollRestoration` could not
+ * work before 2026-09-05. This ran on every pathname change including POP, so a hook restoring
+ * an offset on Back was competing with an explicit `scrollTo(0, 0)` on the same element in the
+ * same commit. That hook was written, passed eight tests, failed in Chrome three times and was
+ * reverted — and nothing in it was wrong. Neither half of the conflict is visible to a jsdom
+ * test, which is why the eight greens said nothing.
+ *
+ * Skipping POP is also right on its own: a browser's native behaviour on Back is to put you back
+ * where you were, not at the top. PUSH and REPLACE keep the old behaviour exactly.
+ */
 function ScrollToTop() {
   const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   useEffect(() => {
+    if (navigationType === 'POP') return;
     window.scrollTo(0, 0);
     document.getElementById('scroll-main')?.scrollTo(0, 0);
     document.getElementById('scroll-legal')?.scrollTo(0, 0);
-  }, [pathname]);
+  }, [pathname, navigationType]);
   return null;
 }
 

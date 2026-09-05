@@ -7,11 +7,16 @@ import PartnerViewBanner from '@/components/shared/PartnerViewBanner';
 import { useDemo } from '@/contexts/DemoContext';
 import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
 import { useAutoEndSyncReconcile } from '@/hooks/useAutoEndReconcile';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 export default function DashboardLayout() {
   const { isDemo } = useDemo();
   // 97.3 — balance-sync landing: refresh stale goal auto-end stamps once per app session.
   useAutoEndSyncReconcile();
+  // ⚠️ HERE AND NOT IN A PAGE. This layout owns `#scroll-main` below and persists across every
+  // route change inside it, so the hook's save-on-leave runs while the scroller is still mounted.
+  // Called from a page, it would be at the mercy of that page unmounting first.
+  useScrollRestoration();
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
