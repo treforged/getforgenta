@@ -828,7 +828,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       <p className="text-sm sm:text-base font-medium wrap-break-word">{r.name}</p>
       {r.isSub && (
         <span
-          className="text-[9px] px-1 py-0.5 bg-accent/20 text-accent-foreground border border-accent/30 shrink-0"
+          className="text-xs px-1 py-0.5 bg-accent/20 text-accent-foreground border border-accent/30 shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
         >
           sub
@@ -836,7 +836,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       )}
       {r.isDebtSync && (
         <span
-          className="text-[9px] px-1 py-0.5 bg-primary/20 text-primary border border-primary/30 shrink-0"
+          className="text-xs px-1 py-0.5 bg-primary/20 text-primary border border-primary/30 shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
         >
           from payoff
@@ -844,7 +844,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       )}
       {r.isGoalTransfer && (
         <span
-          className="text-[9px] px-1 py-0.5 bg-primary/20 text-primary border border-primary/30 shrink-0"
+          className="text-xs px-1 py-0.5 bg-primary/20 text-primary border border-primary/30 shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
           title="This goal's own monthly contribution. Edit it on Savings Goals."
         >
@@ -858,7 +858,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         // Says "matched", not "auto-matched": the underlying index also includes matches Tre
         // confirmed by hand, and the label should not claim the automatic path when it was a person.
         <span
-          className="text-[9px] px-1 py-0.5 bg-success/20 text-success border border-success/30 shrink-0"
+          className="text-xs px-1 py-0.5 bg-success/20 text-success border border-success/30 shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
           title="A settled transaction on the linked account matches this rule's amount and due date this month."
         >
@@ -917,7 +917,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           <button
             onClick={() => toggleCostType(r)}
             title="Toggle fixed / variable"
-            className={`text-[9px] px-1.5 py-0.5 border font-medium shrink-0 ${
+            className={`text-xs px-1.5 py-0.5 border font-medium shrink-0 ${
               isFixedRule(r)
                 ? 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
                 : 'bg-gold/10 text-gold border-gold/30 hover:bg-gold/20'
@@ -1010,7 +1010,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end min-w-0">
             {incomeRules.length > 0 && (
               <div className="flex w-full items-center gap-1 sm:w-auto">
-                <span className="text-[9px] text-muted-foreground uppercase shrink-0">Rule:</span>
+                <span className="text-xs text-muted-foreground uppercase shrink-0">Rule:</span>
                 <select
                   value={paycheckRuleId ?? ''}
                   onChange={e => {
@@ -1099,7 +1099,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             const retirementAccounts = accounts.filter(a => a.active && ['brokerage', 'roth_ira', '401k'].includes(a.account_type));
             return groupOrder.filter(g => grouped[g]?.length).map(group => (
               <div key={group} className="space-y-0">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pt-2 pb-0.5">{group}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pt-2 pb-0.5">{group}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {grouped[group].map(d => {
               const isRetirement = /401|403|roth|ira/i.test(d.label);
@@ -1132,19 +1132,19 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                   />
                   {/* $/% toggle */}
                   <div className="flex gap-1">
-                    <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
-                    <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
+                    <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`flex-1 text-xs py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
+                    <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`flex-1 text-xs py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
                   </div>
                   {/* Pre/post-tax toggle */}
                   {!isTaxItem && (
                     <div className="flex gap-1">
-                      <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
-                      <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
+                      <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`flex-1 text-xs py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
+                      <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`flex-1 text-xs py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
                     </div>
                   )}
                   {/* Resolved amount hint */}
                   {d.value > 0 && (
-                    <p className="text-[10px] text-muted-foreground text-right">
+                    <p className="text-xs text-muted-foreground text-right">
                       {d.mode === 'pct' ? formatCurrency(d.flatAmt, false) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
                     </p>
                   )}
@@ -1153,11 +1153,11 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                     <div className="space-y-1 pt-0.5 min-w-0">
                       {retirementAccounts.length > 0 && (
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-[10px] text-muted-foreground shrink-0">Acct:</span>
+                          <span className="text-xs text-muted-foreground shrink-0">Acct:</span>
                           <select
                             value={d.accountId ?? ''}
                             onChange={e => updateDeduction(d.id, { accountId: e.target.value || undefined })}
-                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-[10px] text-foreground"
+                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-xs text-foreground"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
@@ -1169,11 +1169,11 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                       )}
                       {savingsGoals.length > 0 && (
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-[10px] text-muted-foreground shrink-0">Goal:</span>
+                          <span className="text-xs text-muted-foreground shrink-0">Goal:</span>
                           <select
                             value={d.goalId ?? ''}
                             onChange={e => updateDeduction(d.id, { goalId: e.target.value || undefined })}
-                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-[10px] text-foreground"
+                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-xs text-foreground"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
@@ -1184,7 +1184,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                         </div>
                       )}
                       {d.goalId && d.value > 0 && (
-                        <p className="text-[10px] text-success">
+                        <p className="text-xs text-success">
                           {formatCurrency(Math.round(d.flatAmt * (payFrequency === 'biweekly' ? 26 : payFrequency === 'monthly' ? 12 : 52) / 12 * 100) / 100, false)}/mo → goal
                         </p>
                       )}
@@ -1218,7 +1218,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           )}
           {/* 401k per-paycheck breakdown — used by Forecast to compute remaining contributions this month */}
           {retire401kPerCheck > 0 && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-muted-foreground pt-1 border-t border-border/40 mt-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground pt-1 border-t border-border/40 mt-1">
               <span className="font-medium text-foreground">401(k)/retirement: {formatCurrency(retire401kPerCheck, false)}/paycheck</span>
               <span>·</span>
               <span>{remainingPaychecks.length} paycheck{remainingPaychecks.length !== 1 ? 's' : ''} left this month</span>
@@ -1242,7 +1242,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           </div>
           {hasTaxDeductions ? (
             <div className="flex flex-col justify-end">
-              <p className="text-[9px] text-muted-foreground italic">Tax Rate hidden — using withholding deductions above</p>
+              <p className="text-xs text-muted-foreground italic">Tax Rate hidden — using withholding deductions above</p>
             </div>
           ) : (
             <div>
@@ -1481,7 +1481,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {debtRules.length === 0 && <p className="text-sm text-muted-foreground">No debt payments. Add credit card accounts and visit Debt Payoff to generate recommendations.</p>}
             {debtRules.map(r => <RuleRow key={r.id} r={r} />)}
             {(debtPaymentRules.length > 0 || liabilityPaymentRules.length > 0) && (
-              <p className="text-[9px] text-muted-foreground pt-2 border-t border-border/30">
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border/30">
                 Items tagged "from payoff" are auto-synced: cards from the Debt Payoff Planner's recommendations,
                 vehicle loans from the Vehicles page, and other loans from their liability accounts.
               </p>
@@ -1501,7 +1501,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {transferRules.length === 0 && <p className="text-sm text-muted-foreground">No transfers or investment contributions configured.</p>}
             {transferRules.map(r => <RuleRow key={r.id} r={r} color="text-primary" />)}
             {goalTransferRules.length > 0 && (
-              <p className="text-[9px] text-muted-foreground pt-2 border-t border-border/30">
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border/30">
                 Items tagged "from goal" are a savings goal's own monthly contribution — edit them on Savings Goals.
                 Any "extra this month" is surplus the forecast diverts on top, and is not counted in the total above.
               </p>
@@ -1553,7 +1553,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
             {/* Benefits */}
             <div className="space-y-2.5">
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Benefits</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Benefits</p>
               <div className="flex flex-wrap gap-1.5">
                 {DEDUCTION_CATALOG.slice(0, 7).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
@@ -1561,7 +1561,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
             {/* Retirement & Savings */}
             <div className="space-y-2.5">
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Savings</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Savings</p>
               <div className="flex flex-wrap gap-1.5">
                 {DEDUCTION_CATALOG.slice(7, 13).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
@@ -1569,7 +1569,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
             {/* Taxes */}
             <div className="space-y-2.5">
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Taxes</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Taxes</p>
               <div className="flex flex-wrap gap-1.5">
                 {DEDUCTION_CATALOG.slice(13, 17).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
@@ -1577,7 +1577,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
             {/* Other */}
             <div className="space-y-2.5">
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Other</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Other</p>
               <div className="flex flex-wrap gap-1.5">
                 {DEDUCTION_CATALOG.slice(17).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
@@ -1585,7 +1585,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
             {/* Custom */}
             <div className="space-y-1.5 pt-2 border-t border-border">
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -1603,13 +1603,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                 <button
                   onClick={() => { if (customLabel.trim()) addDeductionFromCatalog({ label: customLabel.trim(), mode: 'flat', preTax: false }); }}
                   disabled={!customLabel.trim()}
-                  className="text-xs sm:text-sm px-3 py-1.5 bg-primary text-primary-foreground disabled:opacity-40 transition-opacity"
-                  style={{ borderRadius: 'var(--radius)' }}
+                  className="btn btn-md btn-primary sm:text-sm"
                 >
                   Add
                 </button>
               </div>
-              <p className="text-[9px] text-muted-foreground">Custom deductions default to flat $ post-tax — adjust after adding.</p>
+              <p className="text-xs text-muted-foreground">Custom deductions default to flat $ post-tax — adjust after adding.</p>
             </div>
           </div>
         </div>

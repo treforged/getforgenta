@@ -731,7 +731,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                         <p className="text-muted-foreground">{formatCurrency(acct.balance, false)}</p>
                       </div>
                       {isCreditCard && (
-                        <div className="flex flex-col gap-0.5 items-end shrink-0 text-[10px] font-medium">
+                        <div className="flex flex-col gap-0.5 items-end shrink-0 text-xs font-medium">
                           <span className={acct.apr != null ? 'text-success' : 'text-muted-foreground'}>
                             APR {acct.apr != null ? `${acct.apr}%` : '—'}
                           </span>
@@ -750,7 +750,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             )}
 
             {plaidSyncResult.accounts.some(a => a.type === 'credit_card' && !a.liability_synced) && (
-              <p className="text-[10px] text-gold text-center leading-relaxed">
+              <p className="text-xs text-gold text-center leading-relaxed">
                 Card details (APR, limit, min) not available from this bank. Use Re-link in the Linked Banks section to retry.
               </p>
             )}
@@ -760,8 +760,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                 setPlaidSyncResult(null);
                 if (matchEntries.length > 0) setShowMatchModal(true);
               }}
-              className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="btn btn-primary w-full py-2 text-xs font-semibold"
             >
               {matchEntries.length > 0 ? 'Match Accounts →' : 'Done'}
             </button>
@@ -798,8 +797,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 py-2 text-xs font-semibold bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
-                style={{ borderRadius: 'var(--radius)' }}
+                className="btn btn-danger flex-1 py-2 text-xs font-semibold"
               >
                 Delete Account
               </button>
@@ -838,7 +836,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             for one button. Standalone the row still has a title to sit beside,
             so it stays. */}
         {!embedded && (
-          <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
+          <button onClick={() => openAdd()} className="btn btn-primary w-full sm:w-auto sm:justify-start px-4 py-2 text-xs font-semibold">
             <Plus size={14} /> Add Account
           </button>
         )}
@@ -903,7 +901,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       </PanelBar>
       {embedded && (
         <div className="flex-1 flex justify-end">
-          <button onClick={() => openAdd()} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold btn-press whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
+          <button onClick={() => openAdd()} className="btn btn-md btn-primary font-semibold whitespace-nowrap">
             <Plus size={14} /> Add Account
           </button>
         </div>
@@ -937,7 +935,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         <div key={group.key} className="space-y-3">
           <div className="flex items-center gap-2 px-1 pt-1">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
-            <span className="text-[10px] text-muted-foreground">{group.rows.length}</span>
+            <span className="text-xs text-muted-foreground">{group.rows.length}</span>
             <div className="flex-1 h-px bg-border" />
           </div>
         {group.rows.map((a, i) => {
@@ -963,14 +961,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       aria-label={`Move ${a.name} up`}
                       disabled={i === 0}
                       onClick={() => moveRow(a.id, -1, groupIds)}
-                      className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                      className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
                     ><ArrowUp size={16} /></button>
                     <button
                       type="button"
                       aria-label={`Move ${a.name} down`}
                       disabled={i === group.rows.length - 1}
                       onClick={() => moveRow(a.id, 1, groupIds)}
-                      className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-1"
+                      className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
                     ><ArrowDown size={16} /></button>
                   </div>
                 ) : (
@@ -1000,7 +998,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                           the name genuinely needs a second line. */}
                       <p className="text-sm font-semibold line-clamp-2 break-words">{a.name}</p>
                       {a.plaid_account_id && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none shrink-0" style={{ borderRadius: 'var(--radius)' }}>
+                        <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none shrink-0" style={{ borderRadius: 'var(--radius)' }}>
                           Auto-sync
                         </span>
                       )}
@@ -1298,11 +1296,11 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
               ))}
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowMatchModal(false)} className="text-xs px-3 py-1.5 border border-border rounded hover:bg-secondary">Skip</button>
+              <button onClick={() => setShowMatchModal(false)} className="btn btn-md btn-outline">Skip</button>
               <button
                 onClick={handleConfirmMatch}
                 disabled={matchSaving || matchEntries.every(e => !e.matchedAccountId)}
-                className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded disabled:opacity-50"
+                className="btn btn-md btn-primary"
               >
                 {matchSaving ? 'Saving…' : 'Confirm Matches'}
               </button>

@@ -537,7 +537,7 @@ export default function BankActivity() {
               {/* The count rides the tab it belongs to. No badge at zero — a "0" and a badge that
                   failed to compute look identical, and there is nothing to say either way. */}
               {v.id === 'needs' && queue.suggestedCount > 0 && (
-                <span className="ml-1.5 text-[10px] font-semibold text-primary">{queue.suggestedCount}</span>
+                <span className="ml-1.5 text-xs font-semibold text-primary">{queue.suggestedCount}</span>
               )}
             </button>
           ))}
@@ -582,7 +582,7 @@ export default function BankActivity() {
             <Layers size={14} className="text-primary shrink-0" />
             <span className="min-w-0">
               <span className="block text-xs font-medium">Decide one at a time</span>
-              <span className="block text-[11px] text-muted-foreground">
+              <span className="block text-xs text-muted-foreground">
                 {deckCards.length} {deckCards.length === 1 ? 'charge' : 'charges'}, one per card, in
                 the order the app thinks is most useful.
               </span>
@@ -645,7 +645,7 @@ export default function BankActivity() {
               <p className="text-xs font-medium">
                 {recordableTransfers.length} {recordableTransfers.length === 1 ? 'movement' : 'movements'} between your own accounts
               </p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Each of these is one movement your bank reported twice, once from each side. Money
                 that moves between accounts you own is neither income nor spending, so recording
                 these clears both rows and adds nothing to your ledger. Untick anything that is
@@ -655,7 +655,7 @@ export default function BankActivity() {
           </div>
           <div className="space-y-1 pl-5">
             {recordableTransfers.map(pair => (
-              <label key={pair.key} className="flex items-center gap-2 text-[11px] cursor-pointer">
+              <label key={pair.key} className="flex items-center gap-2 text-xs cursor-pointer">
                 <input
                   type="checkbox"
                   checked={!untickedTransfers[pair.key]}
@@ -677,8 +677,7 @@ export default function BankActivity() {
           <button
             onClick={recordAllTransfers}
             disabled={recordingTransfers}
-            className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-            style={{ borderRadius: 'var(--radius)' }}
+            className="btn btn-md btn-primary font-semibold"
           >
             <ArrowLeftRight size={12} />
             {recordingTransfers
@@ -697,8 +696,7 @@ export default function BankActivity() {
               <button
                 onClick={acceptAllSuggested}
                 disabled={accepting}
-                className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                style={{ borderRadius: 'var(--radius)' }}
+                className="btn btn-md btn-primary font-semibold"
               >
                 <ListChecks size={12} />
                 {accepting ? 'Linking…' : `Confirm — link ${acceptable.length}`}
@@ -713,7 +711,7 @@ export default function BankActivity() {
               {/* Says what it will and will NOT do. "Accept all" on a financial app has to state
                   that nothing is being added to the ledger, because that is the one thing on this
                   page that would move every projected number. */}
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 Labels {acceptable.length} charges with what the app already matched them to. Adds
                 nothing to your ledger and changes no projected number. Each one stays undoable.
               </span>
@@ -721,8 +719,7 @@ export default function BankActivity() {
           ) : (
             <button
               onClick={() => setConfirmingAcceptAll(true)}
-              className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="btn btn-md btn-secondary"
             >
               <ListChecks size={12} /> Accept all {acceptable.length} suggested
             </button>
@@ -881,7 +878,7 @@ export default function BankActivity() {
                         plan,
                         exclusive?.status === 'imported' ? exclusive.transaction_id : null,
                       ); }}
-                      className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground"
+                      className="bg-secondary border border-border px-2 py-1 text-xs text-foreground"
                       style={{ borderRadius: 'var(--radius)' }}
                       aria-label="Category"
                     >
@@ -891,14 +888,14 @@ export default function BankActivity() {
                         are different promises, and a dropdown that renders them identically makes
                         the stronger one on the weaker one's evidence. */}
                     {suggestionNote && (
-                      <span className="text-[10px] text-muted-foreground" title={categorySuggestion.source === 'crowd' ? CROWD_PRIVACY_NOTE : undefined}>
+                      <span className="text-xs text-muted-foreground" title={categorySuggestion.source === 'crowd' ? CROWD_PRIVACY_NOTE : undefined}>
                         {suggestionNote}
                       </span>
                     )}
 
                     {/* An unmapped provider category is uncategorized, not "Other". Saying "Other"
                         asserts the charge is miscellaneous; the honest claim is that we do not know. */}
-                    {isGuess && <span className="text-[10px] text-muted-foreground">uncategorized — pick one</span>}
+                    {isGuess && <span className="text-xs text-muted-foreground">uncategorized — pick one</span>}
 
                     {/* SAYS WHAT THE SELECT WILL DO BEFORE IT DOES IT. A dropdown that quietly
                         creates a transaction is the kind of surprise this app does not get to
@@ -906,7 +903,7 @@ export default function BankActivity() {
                         Shown iff `planLedgerImport` said yes, so the sentence and the behaviour are
                         the same answer rather than two that can drift. */}
                     {plan?.ok && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         picking a category also adds this to your ledger
                       </span>
                     )}
@@ -914,7 +911,7 @@ export default function BankActivity() {
                 )}
 
                 {pair && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {pair.paidCard
                       ? `pays ${pair.paidCard.name} — a card payment is not spending, so it takes no category`
                       : 'not income and not spending — no category applies'}
@@ -928,7 +925,7 @@ export default function BankActivity() {
                 {links.map(link => (
                   <span
                     key={link.id}
-                    className="inline-flex items-center gap-1 text-[10px] text-success bg-success/10 pl-1.5 pr-1 py-0.5"
+                    className="inline-flex items-center gap-1 text-xs text-success bg-success/10 pl-1.5 pr-1 py-0.5"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     {linkLabel(link)}
@@ -948,7 +945,7 @@ export default function BankActivity() {
 
                 {exclusiveHandled && exclusive ? (
                   <>
-                    <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
+                    <span className="text-xs text-success bg-success/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
                       {/* A recorded transfer leg carries `'ignored'` because that is the only
                           existing status meaning "nothing about this belongs in the ledger" (see
                           `recordTransfer`), but "ignored" is not what the user did — they told the
@@ -965,7 +962,7 @@ export default function BankActivity() {
                       // so removing the entry also clears this decision and re-offers the charge.
                       <button
                         onClick={() => undoImport.mutate(exclusive.transaction_id!)}
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                         title="Removes the entry this created from your transactions"
                       >
                         <RotateCcw size={11} /> Undo — deletes the entry
@@ -973,7 +970,7 @@ export default function BankActivity() {
                     ) : (
                       <button
                         onClick={() => remove.mutate(txn.id)}
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <RotateCcw size={11} /> Undo
                       </button>
@@ -993,14 +990,14 @@ export default function BankActivity() {
                       <>
                         <button
                           onClick={() => { void recordTransfer(pair); }}
-                          className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                           title="Marks both rows dealt with. Adds nothing to your ledger."
                         >
                           <ArrowLeftRight size={11} /> Record — one movement
                         </button>
                         <button
                           onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                         >
                           <Link2 size={11} /> {pair.paidCard ? `Link to a ${pair.paidCard.name} payment` : 'Link to a transfer you track'}
                         </button>
@@ -1012,7 +1009,7 @@ export default function BankActivity() {
                         // Same write the batch accept performs — one definition, so the two can
                         // never drift into recording a link differently. See `acceptRuleInput`.
                         onClick={() => save.mutate(acceptRuleInput(txn, suggestion.rule!))}
-                        className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.rule.name}
                       </button>
@@ -1025,7 +1022,7 @@ export default function BankActivity() {
                     {!pair && showSuggestion && suggestion.plan && (
                       <button
                         onClick={() => save.mutate(acceptPlanInput(txn, suggestion.plan!.id))}
-                        className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.plan.name}
                       </button>
@@ -1033,7 +1030,7 @@ export default function BankActivity() {
                     {!pair && showSuggestion && suggestion.carCharge && (
                       <button
                         onClick={() => save.mutate(acceptCarInput(txn, suggestion.carCharge!.carFundId, suggestion.carCharge!.kind))}
-                        className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                       >
                         {/* Names the OBLIGATION, not just the car. A vehicle bills a payment and an
                             insurance premium every month and "Confirm: Civic" would not say which
@@ -1051,7 +1048,7 @@ export default function BankActivity() {
                         onClick={() => save.mutate(
                           acceptLedgerTxnInput(txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null),
                         )}
-                        className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                       >
                         <Link2 size={11} /> Matches your entry on {suggestion.ledgerTxn.date}
                       </button>
@@ -1063,7 +1060,7 @@ export default function BankActivity() {
                     {!pair && showSuggestion && (
                       <button
                         onClick={() => { setRejected(r => ({ ...r, [txn.id]: true })); setPicker(null); }}
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <X size={11} /> Not this
                       </button>
@@ -1076,7 +1073,7 @@ export default function BankActivity() {
                       <>
                         <button
                           onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                         >
                           <Link2 size={11} /> {hasLinks ? 'Link another bill' : 'Link to a bill'}
                         </button>
@@ -1088,7 +1085,7 @@ export default function BankActivity() {
                         {!hasLinks && (
                           <button
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'txn' ? null : { id: txn.id, kind: 'txn' }))}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                           >
                             <Link2 size={11} /> Link to an entry
                           </button>
@@ -1098,7 +1095,7 @@ export default function BankActivity() {
                         {pickablePlans.length > 0 && (
                           <button
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'plan' ? null : { id: txn.id, kind: 'plan' }))}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                           >
                             <Link2 size={11} /> {hasLinks ? 'Link another payment plan' : 'Link to a payment plan'}
                           </button>
@@ -1108,7 +1105,7 @@ export default function BankActivity() {
                         {pickableCarCharges.length > 0 && (
                           <button
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'car' ? null : { id: txn.id, kind: 'car' }))}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                           >
                             <Link2 size={11} /> {hasLinks ? 'Link another vehicle charge' : 'Link to a vehicle charge'}
                           </button>
@@ -1119,7 +1116,7 @@ export default function BankActivity() {
                         {plan?.ok && (
                           <button
                             onClick={() => importToLedger.mutate({ syncedTransactionId: txn.id, draft: plan.draft })}
-                            className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                           >
                             <Plus size={11} /> Add to my ledger
                           </button>
@@ -1152,7 +1149,7 @@ export default function BankActivity() {
                               // a wheel as Shopping in the very budget the Garage is meant to feed.
                               draft: { ...plan.draft, category: 'Car', car_build_item_id: value },
                             })}
-                            className="bg-secondary border border-border px-1.5 py-0.5 text-[11px] text-foreground max-w-full"
+                            className="bg-secondary border border-border px-1.5 py-0.5 text-xs text-foreground max-w-full"
                           />
                         )}
                       </>
@@ -1166,7 +1163,7 @@ export default function BankActivity() {
                     {!pair && !hasLinks && (
                       <button
                         onClick={() => save.mutate({ synced_transaction_id: txn.id, status: 'ignored' })}
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <EyeOff size={11} /> Ignore
                       </button>
@@ -1177,7 +1174,7 @@ export default function BankActivity() {
                     {links.length > 1 && (
                       <button
                         onClick={() => remove.mutate(txn.id)}
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                         title="Removes every decision on this charge, including its category"
                       >
                         <RotateCcw size={11} /> Undo all
@@ -1271,8 +1268,7 @@ export default function BankActivity() {
       {rows.length > visible.length && (
         <button
           onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-          className="w-full bg-secondary border border-border px-4 py-2 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors"
-          style={{ borderRadius: 'var(--radius)' }}
+          className="btn btn-secondary w-full px-4 py-2 text-xs font-medium"
         >
           Show {Math.min(PAGE_SIZE, rows.length - visible.length)} more
         </button>
