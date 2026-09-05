@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/react';
+import { render, fireEvent, cleanup, createEvent } from '@testing-library/react';
 import LiabilityTrajectoryChart from '../LiabilityTrajectoryChart';
 import type { LiabilityTrajectoryInput } from '@/lib/liability-trajectory';
 
@@ -60,6 +60,13 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
+/** A stationary tap, BUILT WITH THE REAL CONSTRUCTOR. The Safari tests stub `TouchEvent` to throw,
+ * and `fireEvent.touchStart` constructs one itself — so building the event first is what keeps the
+ * stub aimed at the component's replay rather than at the harness delivering the tap. */
+function tap(el: Element) {
+  return createEvent.touchStart(el, { touches: [{ clientX: 300, clientY: 110, identifier: 0 }] });
+}
+
 describe('LiabilityTrajectoryChart — touch selection', () => {
   it('replays a stationary tap as a touchmove, so Recharts selects a point the way it does on mouse hover', () => {
     const { container } = render(
@@ -80,6 +87,66 @@ describe('LiabilityTrajectoryChart — touch selection', () => {
 
     expect(touchMoveSeen).not.toBeNull();
     expect(touchMoveSeen!).toEqual({ clientX: 300, clientY: 110 });
+  });
+
+  /**
+   * SAFARI HAS `TouchEvent` AS AN INTERFACE AND NOT AS A CONSTRUCTOR. `new TouchEvent(...)` throws
+   * `TypeError: Illegal constructor` there, and iOS is the platform this whole fix exists for — so
+   * the first version of it threw out of a React touch handler, the ErrorBoundary around the chart
+   * caught the throw, and tapping a point DELETED THE GRAPH instead of selecting anything.
+   *
+   * jsdom implements the constructor, which is exactly why no test in this repo could see it. So
+   * these two stub Safari's behaviour directly rather than hoping the harness reproduces it.
+   */
+  it('SURVIVES a browser whose TouchEvent constructor throws — the chart must not come down', () => {
+    const { container } = render(
+      <LiabilityTrajectoryChart title="Student Loan Payoff Trajectory" debts={[STUDENT_LOAN]} storageKey="test:touch:safari" />,
+    );
+    const wrapper = container.querySelector('.recharts-wrapper')!;
+    const evt = tap(wrapper);
+    // ⚠️ RESTORED BY HAND, NOT WITH `vi.unstubAllGlobals()`. That clears EVERY stub including the
+    // `ResizeObserver` this file installs in `beforeAll`, and without it `ResponsiveContainer`
+    // mounts nothing at all — so the tests AFTER this one found no chart and failed for a reason
+    // that had nothing to do with what they assert.
+    const realTouchEvent = globalThis.TouchEvent;
+    vi.stubGlobal('TouchEvent', function () { throw new TypeError('Illegal constructor'); });
+    try {
+      // The throw used to escape here and take the chart with it.
+      expect(() => fireEvent(wrapper, evt)).not.toThrow();
+      expect(container.querySelector('.recharts-wrapper')).not.toBeNull();
+    } finally {
+      vi.stubGlobal('TouchEvent', realTouchEvent);
+    }
+  });
+
+  it('STILL SELECTS on that browser, via the mousemove path Recharts also listens to', () => {
+    const { container } = render(
+      <LiabilityTrajectoryChart title="Student Loan Payoff Trajectory" debts={[STUDENT_LOAN]} storageKey="test:touch:safari-select" />,
+    );
+    const wrapper = container.querySelector('.recharts-wrapper')!;
+    const evt = tap(wrapper);
+    // ⚠️ RESTORED BY HAND, NOT WITH `vi.unstubAllGlobals()`. That clears EVERY stub including the
+    // `ResizeObserver` this file installs in `beforeAll`, and without it `ResponsiveContainer`
+    // mounts nothing at all — so the tests AFTER this one found no chart and failed for a reason
+    // that had nothing to do with what they assert.
+    const realTouchEvent = globalThis.TouchEvent;
+    vi.stubGlobal('TouchEvent', function () { throw new TypeError('Illegal constructor'); });
+    try {
+      let moveSeen: { clientX: number; clientY: number } | null = null;
+      wrapper.addEventListener('mousemove', (e) => {
+        const m = e as MouseEvent;
+        moveSeen = { clientX: m.clientX, clientY: m.clientY };
+      });
+
+      fireEvent(wrapper, evt);
+
+      // Degrading to "no throw" would leave a tap doing nothing at all on iOS, which is the
+      // original complaint. The tap must still reach Recharts' selection machinery.
+      expect(moveSeen).not.toBeNull();
+      expect(moveSeen!).toEqual({ clientX: 300, clientY: 110 });
+    } finally {
+      vi.stubGlobal('TouchEvent', realTouchEvent);
+    }
   });
 
   it('does nothing on a tap with no touches (e.g. a trailing touchend) — no phantom selection', () => {
