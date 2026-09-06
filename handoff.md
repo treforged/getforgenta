@@ -1137,6 +1137,15 @@ working thing.
   deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
   column, change the trigger too, and prove it by writing that column alone.
 
+### ⛔ COMMISSION PROGRAMME — STAGE 1 DONE, AND IT STOPS STAGE 2's PREMISE
+`docs/commission-stage-1-numbers.md` (2026-09-06). **Lifetime gross revenue is $4.99 and it is
+Tre's own card** — one charge ever, 0 refunds, 0 disputes. All 8 live subscriptions redeem the
+100%-off-forever coupon `8G9evoSQ` (`times_redeemed: 8`). Prices are $9.99/mo and $89.99/yr;
+**`subscription_tiers` says $9/$90 and is stale — do not quote it.** There is no web trial, so
+"trial-to-paid" has no funnel. ⚠️ `is_comp` and `purchase_provider` are COLUMN DEFAULTS on all
+11 rows — never read them as facts. Stage 2 was not started: a percentage payout is currently a
+percentage of zero, and that is Sam's call to make before design work continues.
+
 ### 8. Still open from earlier, unchanged
 - Chase Pay Over Time modelled as free (section above) — money surface, not started.
 - Push notification SENDER (section above) — storage half built.
@@ -1161,7 +1170,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 19:08 by handoff_hook. Everything below this heading is
+_Written 2026-09-05 21:19 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1181,14 +1190,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
+74f6e842 docs(perf): the cold-start chunking lever does not exist in this version — four attempts, each disproved by the build
+26c9658b docs(nav): the navigation plan, ranked by encounters per session
+7dce33b5 [mobile]: the menu moves to the TOP RIGHT — Jakob's Law, and the drawer follows it
+caf582a6 [dashboard]: a Trophy Case — the badges existed and there was nowhere to see them
+e763d22a docs(handoff): push — eleven eliminated hypotheses, each with how it was killed
+21f35eee docs(handoff): push — what is proven, what is exhausted, and two corrections to my own reasoning
 529ae594 [push]: an attempt is visible while it is still an attempt — my 30s window recorded nothing
 8975c23f [push]: a token that arrives late is SAVED, not thrown away — and this file caused that
-3fe5bd08 [ios]: print entitlement VALUES from the shipped binary, not just the keys
-9cfb901c [ios]: read the entitlements out of the SHIPPED binary, and record what iOS actually said
-ec67489f [push]: register() was racing its own listeners — the bug behind 31 timeouts
-fce36189 [push]: record WHICH BUILD produced a registration outcome — 29 measurements could not say
-8561f0d0 [ios]: aps-environment was `development` — my error — and the build now proves the profile carries push
-deac9832 [settings]: the toggle knob stays in its track, notifications move to the top, and the section collapses
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

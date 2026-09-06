@@ -108,6 +108,15 @@ section states reasoning, not measurement, and says so.
   ⚠️ **AND CLOSE IT IN THE RESUME QUEUE, not only in the section above it.** The i18n item went
   stale within the hour of shipping because the top of `handoff.md` was updated and queue item 5
   was not. The queue is what a cold session reads first, so it is the copy that has to be right.
+- ⚠️ **A WIDGET THAT WILL NOT RENDER: CHECK WHICH DASHBOARD TAB YOU ARE ON, FIRST.**
+  The dashboard's customisable widget stack lives under the **Overview** tab only. On 2026-09-06
+  the new Trophy Case looked absent and was chased through three wrong layers in order — the data
+  (`achievements` rows), then the merge (`mergeSavedLayout`), then the query (`useAchievements`).
+  **All three were correct.** The dashboard was simply on the **Accounts** tab, which does not
+  render the stack at all. Registration is provable without a browser
+  (`grep -n "<id>" src/lib/dashboard-widgets.ts src/pages/Dashboard.tsx`), so when that grep is
+  green the next thing to doubt is the SURFACE, not the code. This is the same rule as grepping
+  for the caller — aim the check at the right object — pointed at a UI tab.
 
 
 ## SYSTEM EXECUTION OVERRIDE
