@@ -14,6 +14,7 @@ import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rat
 import { planSupersededConnections, planProviderDisconnects, findOrphanedAccounts } from "../_shared/supersede-connection.ts";
 import { planAccountRetirement } from "../_shared/retire-accounts.ts";
 import { plaidProvider } from "../_shared/providers/plaid.ts";
+import { decideBankLink, consumeFreeBankLink, FREE_LINK_USED_MESSAGE } from "../_shared/bank-link-entitlement.ts";
 
 const MAX_LINKED  = 10;
 const RATE_LIMIT  = { windowMs: 60_000, max: 10 };
@@ -62,29 +63,24 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Premium gate
-    const { data: sub } = await supabase
-      .from("user_subscriptions")
-      .select("plan, subscription_status")
-      .eq("user_id", userId)
-      .maybeSingle();
-    const isActive = sub?.plan === "premium" &&
-      ["active", "trialing"].includes(sub?.subscription_status ?? "");
-    if (!isActive) {
-      return new Response(JSON.stringify({ error: "Premium subscription required" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Defense-in-depth cap. Counts connections across every provider so an
-    // Akoya fallback also occupies a slot.
-    const { count } = await supabase
-      .from("financial_connections")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-    if ((count ?? 0) >= MAX_LINKED) {
-      return new Response(JSON.stringify({ error: `Maximum ${MAX_LINKED} linked institutions allowed` }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Entitlement gate — the FIRST connection is free, the SECOND is where premium starts.
+    // See `../_shared/bank-link-entitlement.ts` for why, and for the measured numbers.
+    //
+    // ⚠️ THIS IS THE GATE THAT MATTERS. The one in plaid-create-link-token is a courtesy so a
+    // person is told before Plaid's modal opens rather than after; a caller can skip it and
+    // POST a public_token straight here, so the decision is re-made at the point an item is
+    // actually created. Defense in depth across every provider, so an Akoya fallback occupies
+    // a slot too.
+    const decision = await decideBankLink(supabase, userId, MAX_LINKED);
+    const grantTier = decision.allowed ? decision.tier : null;
+    if (!decision.allowed) {
+      return new Response(JSON.stringify({
+        error: decision.reason === "free_link_used"
+          ? FREE_LINK_USED_MESSAGE
+          : `Maximum ${MAX_LINKED} linked institutions allowed`,
+        code: decision.reason,
+      }), {
+        status: decision.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -198,6 +194,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to save linked bank" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // The free link is spent HERE and nowhere earlier: an item now exists, which is the thing
+    // Plaid bills for. It is deliberately AFTER the insert — consuming it before would let a
+    // failed insert cost somebody their one free connection for a bank they never got.
+    // Unlinking does NOT return it; that is the whole point of the durable record, because the
+    // row above is hard-deleted on unlink and a count-based gate would be a retry loop.
+    if (grantTier === "free") {
+      await consumeFreeBankLink(supabase, userId, "plaid", item_id);
     }
 
     // ── SUPERSEDE THE OLD LINK TO THIS SAME BANK ────────────────────────────────

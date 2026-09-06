@@ -15,6 +15,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
+import { decideBankLink, consumeFreeBankLink, FREE_LINK_USED_MESSAGE } from "../_shared/bank-link-entitlement.ts";
 import {
   encryptTokenSet,
   exchangeAuthorizationCode,
@@ -96,12 +97,18 @@ Deno.serve(async (req) => {
     const connector = stateRow.connector;
     if (!connector) return json({ error: "Connection request is missing its institution" }, 400, cors);
 
-    const { count } = await db
-      .from("financial_connections")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-    if ((count ?? 0) >= MAX_LINKED) {
-      return json({ error: `Maximum ${MAX_LINKED} linked institutions allowed` }, 422, cors);
+    // Entitlement gate — the FIRST connection is free, the SECOND is where premium starts.
+    // This function had NO premium gate at all before 2026-09-06; only `akoya-auth-url` did,
+    // so the ceiling here was the only thing standing between a caller and an Akoya
+    // connection. Now both are decided in one place. See `../_shared/bank-link-entitlement.ts`.
+    const linkDecision = await decideBankLink(db, userId, MAX_LINKED);
+    if (!linkDecision.allowed) {
+      return json({
+        error: linkDecision.reason === "free_link_used"
+          ? FREE_LINK_USED_MESSAGE
+          : `Maximum ${MAX_LINKED} linked institutions allowed`,
+        code: linkDecision.reason,
+      }, linkDecision.status, cors);
     }
 
     // ── Exchange ─────────────────────────────────────────────────────────────
@@ -135,6 +142,13 @@ Deno.serve(async (req) => {
     if (upsertErr) {
       console.error("financial_connections upsert failed:", upsertErr.message);
       return json({ error: "Failed to save the connection" }, 500, cors);
+    }
+
+    // Spend the free link only once a connection actually exists, and only if this account
+    // was on the free tier when the decision was made. After the upsert, never before: a
+    // failed upsert must not cost somebody their one free bank.
+    if (linkDecision.tier === "free") {
+      await consumeFreeBankLink(db, userId, "akoya", connector);
     }
 
     return json(

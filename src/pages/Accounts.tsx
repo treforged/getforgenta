@@ -141,6 +141,22 @@ const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savin
 export default function Accounts({ embedded = false }: { embedded?: boolean } = {}) {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
+  /**
+   * THE FIRST BANK IS FREE; THE SECOND IS WHERE PREMIUM STARTS (2026-09-06).
+   *
+   * Measured: only 2 of 31 accounts ever linked a bank, and both had premium already, because
+   * the button below was hidden from everyone else. Twenty-nine accounts were asked for $89.99
+   * for automatic bank sync without ever seeing it work on their own money.
+   *
+   * ⚠️ THE CLIENT CANNOT BE THE GATE and is not trying to be. The durable record of a spent free
+   * link lives in `free_bank_link_grants`, which is revoked from `authenticated` on purpose, so
+   * this page cannot see it. A free user who linked and then UNLINKED will see the button and be
+   * refused by the server with 402 and the real reason. That is the correct trade: the server
+   * owns the money decision, and the client only avoids offering what it can already tell will
+   * fail. See `supabase/functions/_shared/bank-link-entitlement.ts`.
+   */
+  const FREE_LINK_LIMIT = 1;
+  const bankLinkCeiling = isPremium ? 10 : FREE_LINK_LIMIT;
   const { data: accounts, add, update, remove, reorder, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
@@ -1075,10 +1091,10 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h3 className="text-sm font-semibold flex items-center gap-1.5"><Link2 size={14} className="text-primary" /> Linked Banks</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Auto-sync balances from your bank accounts (premium)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Auto-sync balances from your bank accounts. Your first bank is free.</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {isPremium && plaidItems.length < 10 && (
+              {plaidItems.length < bankLinkCeiling && (
                 <PlaidLinkButton
                   onSuccess={handlePlaidSuccess}
                   onProcessing={setPlaidSyncing}
@@ -1088,14 +1104,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             </div>
           </div>
 
-          {isPremium && (
+          {plaidItems.length < bankLinkCeiling && (
             <AkoyaFallbackPrompt
               institution={akoyaFallback}
               onDismiss={() => setAkoyaFallback(null)}
             />
           )}
 
-          {isPremium && plaidItems.length > 0 && (() => {
+          {plaidItems.length > 0 && (() => {
             const mostRecent = plaidItems
               .map(i => i.last_synced_at)
               .filter(Boolean)
@@ -1127,7 +1143,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           {/* Manual escape hatch. Plaid only reports a connectivity error code
               when it recognizes the failure — a user who gives up on a stalled
               login exits cleanly, and would otherwise never be offered Akoya. */}
-          {isPremium && !akoyaFallback && plaidItems.length < 10 && (
+          {!akoyaFallback && plaidItems.length < bankLinkCeiling && (
             <details className="text-xs text-muted-foreground">
               <summary className="cursor-pointer hover:text-foreground select-none">
                 Trouble connecting {AKOYA_INSTITUTIONS.map(i => i.displayName).join(' or ')}?
@@ -1150,15 +1166,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             </details>
           )}
 
-          {!isPremium ? (
-            <PremiumGate
-              isPremium={false}
-              title="Auto-Sync Bank Balances"
-              features={['Connect up to 10 institutions', 'Balances sync daily and on demand', 'Flows into Forecast & Net Worth automatically']}
-            >
-              <div className="h-44" />
-            </PremiumGate>
-          ) : plaidLoading ? (
+          {plaidLoading ? (
             <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 size={12} className="animate-spin" /> Loading linked banks…
             </div>
@@ -1250,6 +1258,23 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                 );
               })}
             </div>
+          )}
+
+          {/* ⚠️ THE PAYWALL IS THE SECOND BANK NOW, AND IT SITS BELOW THE LIST RATHER THAN IN
+              PLACE OF IT. It used to be the whole section's `!isPremium` branch, so a free
+              account saw a locked panel and nothing else. Rendering it here instead means a
+              free account that has used its one free link still sees the bank it linked, its
+              sync status and its accounts, and is offered premium for the NEXT one. Taking the
+              list away to show the offer would be taking information away to sell something,
+              which is the one thing this redesign does not do. */}
+          {!isPremium && plaidItems.length >= FREE_LINK_LIMIT && (
+            <PremiumGate
+              isPremium={false}
+              title="Connect another bank"
+              features={['Connect up to 10 institutions', 'Balances sync daily and on demand', 'Flows into Forecast & Net Worth automatically']}
+            >
+              <div className="h-44" />
+            </PremiumGate>
           )}
         </div>
       )}

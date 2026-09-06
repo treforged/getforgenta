@@ -22,6 +22,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 import { akoyaCredentials, akoyaIdpBase } from "../_shared/providers/akoya.ts";
+import { decideBankLink, FREE_LINK_USED_MESSAGE } from "../_shared/bank-link-entitlement.ts";
 
 const MAX_LINKED = 10;
 const RATE_LIMIT = { windowMs: 60_000, max: 10 };
@@ -84,22 +85,22 @@ Deno.serve(async (req) => {
     if (jwtErr || !user) return json({ error: "Unauthorized" }, 401, cors);
     const userId = user.id;
 
-    const { data: sub } = await db
-      .from("user_subscriptions")
-      .select("plan, subscription_status")
-      .eq("user_id", userId)
-      .maybeSingle();
-    const isActive = sub?.plan === "premium" &&
-      ["active", "trialing"].includes(sub?.subscription_status ?? "");
-    if (!isActive) return json({ error: "Premium subscription required" }, 403, cors);
-
-    const { count } = await db
-      .from("financial_connections")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-    if ((count ?? 0) >= MAX_LINKED) {
-      return json({ error: `Maximum ${MAX_LINKED} linked institutions allowed` }, 422, cors);
+    // The FIRST connection is free on Akoya exactly as on Plaid. If this gate stayed
+    // premium-only, the fallback provider would refuse the same person the primary one
+    // just let through — and Akoya is the fallback precisely for banks Plaid cannot reach,
+    // so it would be refused at the moment it is most needed.
+    // See `../_shared/bank-link-entitlement.ts`.
+    const linkDecision = await decideBankLink(db, userId, MAX_LINKED);
+    if (!linkDecision.allowed) {
+      return json({
+        error: linkDecision.reason === "free_link_used"
+          ? FREE_LINK_USED_MESSAGE
+          : `Maximum ${MAX_LINKED} linked institutions allowed`,
+        code: linkDecision.reason,
+      }, linkDecision.status, cors);
     }
+
+    // The MAX_LINKED ceiling is inside `decideBankLink` above, counted across every provider.
 
     const body = await req.json().catch(() => ({}));
     const institutionKey = typeof body?.institution === "string" ? body.institution : "";

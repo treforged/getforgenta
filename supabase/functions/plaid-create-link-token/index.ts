@@ -14,6 +14,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
+import { decideBankLink, FREE_LINK_USED_MESSAGE } from "../_shared/bank-link-entitlement.ts";
 
 const MAX_LINKED = 10;
 const RATE_LIMIT = { windowMs: 60_000, max: 10 };
@@ -72,33 +73,43 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // 4.1 — Gate: premium only
-    const { data: sub } = await supabase
-      .from("user_subscriptions")
-      .select("plan, subscription_status")
-      .eq("user_id", userId)
-      .maybeSingle();
+    // 4.1 — Gate: the FIRST connection is free, the SECOND is where premium starts.
+    //
+    // Until 2026-09-06 this returned 403 to everyone without premium, so the only 2 of 31
+    // accounts that ever linked a bank did it BECAUSE they already had premium. Twenty-nine
+    // were asked for $89.99 for automatic bank sync without ever seeing it work on their own
+    // money, and zero have ever paid. Premium keeps all 10 institutions — the free tier gained
+    // one, premium lost nothing.
+    //
+    // ⚠️ THIS IS A READ, NOT A WRITE. The grant is CONSUMED in plaid-exchange-token, once an
+    // item actually exists: Plaid bills on the item, and somebody who opens Link and backs out
+    // has cost nothing. Burning their one free link on an abandoned flow would be charging them
+    // for our own modal.
+    //
+    // ⚠️ A RELINK IS NOT A NEW LINK and must not be gated. It carries `plaid_item_id`, and
+    // refusing it would strand a free user whose bank needs re-auth with a connection they
+    // cannot repair — taking away something they already have, which this change must not do.
+    // The count of live connections is unchanged by a relink, so an ungated relink cannot be
+    // used to obtain a second one.
+    let gateBody: Record<string, unknown> = {};
+    try { gateBody = await req.clone().json(); } catch { /* no body */ }
+    const isRelink = typeof gateBody.plaid_item_id === "string" && gateBody.plaid_item_id.length > 0;
 
-    const isActive = sub?.plan === "premium" &&
-      ["active", "trialing"].includes(sub?.subscription_status ?? "");
-    if (!isActive) {
-      return new Response(JSON.stringify({ error: "Premium subscription required" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 4.3 — Enforce max 10 linked institutions.
-    // Counts every provider, not just Plaid, so an Akoya fallback connection
-    // still occupies a slot.
-    const { count } = await supabase
-      .from("financial_connections")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    if ((count ?? 0) >= MAX_LINKED) {
-      return new Response(JSON.stringify({ error: `Maximum ${MAX_LINKED} linked institutions allowed` }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isRelink) {
+      // Counts every provider, not just Plaid, so an Akoya fallback connection still occupies
+      // a slot — both for the premium ceiling and for the single free one.
+      const decision = await decideBankLink(supabase, userId, MAX_LINKED);
+      if (!decision.allowed) {
+        return new Response(JSON.stringify({
+          error: decision.reason === "free_link_used"
+            ? FREE_LINK_USED_MESSAGE
+            : `Maximum ${MAX_LINKED} linked institutions allowed`,
+          code: decision.reason,
+        }), {
+          status: decision.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Accept optional redirect_uri, plaid_item_id and hosted-link opt-in from client
