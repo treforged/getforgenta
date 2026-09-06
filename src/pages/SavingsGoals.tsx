@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { LUMP_SUM_AUTO_EXTRA_NOTE, lumpSumsBlocked } from '@/lib/lump-sum-guard';
 import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
@@ -152,8 +153,9 @@ function GoalLumpSumModal({
   );
 }
 
-function GoalLumpSumPanel({
+export function GoalLumpSumPanel({
   lumpSums, onSave, liquidCash, currentAmount, monthlyContrib, targetAmount, isRothIra, apyRate = 0,
+  autoExtraOn,
 }: {
   lumpSums: GoalLumpSum[];
   onSave: (lumps: GoalLumpSum[]) => void;
@@ -163,6 +165,8 @@ function GoalLumpSumPanel({
   targetAmount: number;
   isRothIra?: boolean;
   apyRate?: number;
+  /** The goal's PERSISTED `auto_extra` switch — see `lump-sum-guard.ts` for why, and why not. */
+  autoExtraOn?: boolean;
 }) {
   const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; id: string; date: string; amount: string }>(null);
 
@@ -219,14 +223,29 @@ function GoalLumpSumPanel({
 
   const handleRemove = (id: string) => onSave(lumpSums.filter(ls => ls.id !== id));
 
+  const blocked = lumpSumsBlocked(autoExtraOn);
+
   return (
     <div className="space-y-2 border-t border-border/30 pt-3 mt-1">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Planned Contributions</span>
-        <button onClick={() => setModal({ mode: 'add' })} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
+        <button
+          onClick={() => setModal({ mode: 'add' })}
+          disabled={blocked}
+          className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <Plus size={10} /> Add
         </button>
       </div>
+
+      {/* ⚠️ THIS PAGE HAD NO GUARD AT ALL UNTIL 2026-09-06, while the vehicles panel did. A goal
+          with the sweep switched on still offered an Add button, and entering an amount would
+          have changed neither cash nor the goal's total — a control that appears to do nothing.
+          Same sentence as `LumpSumPanel`, from one constant, so the two surfaces cannot describe
+          the same rule differently. */}
+      {blocked && (
+        <p className="text-[10px] text-muted-foreground">{LUMP_SUM_AUTO_EXTRA_NOTE}</p>
+      )}
 
       {isRothIra && Object.keys(rothByYear).length > 0 && (
         <div className="space-y-1.5 p-2 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
@@ -252,7 +271,7 @@ function GoalLumpSumPanel({
         </div>
       )}
 
-      {lumpSums.length === 0 && (
+      {!blocked && lumpSums.length === 0 && (
         <p className="text-[10px] text-muted-foreground">No planned contributions yet.</p>
       )}
 
@@ -959,6 +978,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
               </div>
               {!isDemo && (
                 <GoalLumpSumPanel
+                  autoExtraOn={g.auto_extra === true}
                   lumpSums={goalLumps}
                   onSave={lumps => handleSaveLumpSums(g.id!, lumps)}
                   liquidCash={liquidCash}

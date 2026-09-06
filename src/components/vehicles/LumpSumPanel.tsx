@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LUMP_SUM_AUTO_EXTRA_NOTE } from '@/lib/lump-sum-guard';
 import { Plus, X, Edit2, Check } from 'lucide-react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { formatCurrency } from '@/lib/calculations';
@@ -205,10 +206,7 @@ export default function LumpSumPanel({
       </div>
 
       {autoExtraOn && (
-        <p className="text-[10px] text-muted-foreground">
-          Extra payments here are handled automatically from your left-over cash, so manual ones are
-          turned off. Change that under "Where the extra money goes".
-        </p>
+        <p className="text-[10px] text-muted-foreground">{LUMP_SUM_AUTO_EXTRA_NOTE}</p>
       )}
 
       {!autoExtraOn && !hasLumps && (

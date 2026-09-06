@@ -1137,6 +1137,22 @@ working thing.
   deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
   column, change the trigger too, and prove it by writing that column alone.
 
+### ✅ LUMP-SUM AUTO-EXTRA GUARD — THE TEST WAS ALREADY GREEN AND HONEST; THE GAP WAS A SURFACE.
+⚠️ **The handoff said "test written, guard not built". Both halves were wrong.**
+`forecast-engine.lumpSumDoubleCount.test.ts` passes 5/5 and is mutation-checked, and it MEASURED
+that Tre's stated reason does not hold: with auto-extra on, a lump sum drops auto-extra by exactly
+its own amount and **ending cash is unchanged to the cent**. There is no double-count. The rule is
+kept for the reason he did not give — with the sweep on, the control is **inert**, which is the
+"control that lies" shape from the other direction.
+**The real gap was that only ONE of the two lump-sum panels had the guard.** `LumpSumPanel`
+(vehicles) had it and both callers passed it; `GoalLumpSumPanel` on the Savings Goals page did not,
+and that page did not mention `auto_extra` anywhere. Now shared through `src/lib/lump-sum-guard.ts`
+so the two surfaces cannot describe the same rule differently.
+⚠️ **NOT verified in a live browser**: `GoalLumpSumPanel` renders only when `!isDemo`, and this
+desk's sign-in is gone. jsdom is legitimate here (a `disabled` attribute, no geometry) but it is
+not the app. ⚠️ **And the test renders the component directly, so it CANNOT catch the call site
+dropping the prop** — that wiring is verified by a deliberate-typo tsc probe and by reading only.
+
 ### ✅ NAV ITEM 3 — BACK ON PUSHED SCREENS, SHIPPED `b43e1bb1`. One case NOT browser-verified.
 `BackButton.tsx`, `src/lib/nav-back.ts`, `src/lib/nav-routes.ts`. Pressed at 390px:
 `/dashboard` IDENTITY (idx 0) → Settings BACK 44×44 at left=9 (idx 1) → press → `/dashboard`
