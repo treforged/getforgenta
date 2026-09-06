@@ -1137,6 +1137,23 @@ working thing.
   deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
   column, change the trigger too, and prove it by writing that column alone.
 
+### ✅ RECONCILIATION IS WIRED — and the MATCHING half was already built. NOT browser-verified.
+⚠️ `transaction-reconciliation.ts` had **zero callers** — my own work failing this repo's own
+caller-grep gate. Wiring it found the more important thing: **`bank-activity-queue.ts` has paired
+bank charges to hand-typed ledger rows for ages** (the `ledgerTxn` suggestion). What was missing was
+never the match. Accepting one writes only a POINTER (`status: 'linked_txn'`), so **the typed figure
+survives untouched — $50 typed, $52.30 charged, rows linked, ledger keeps $50 for ever.**
+Now: `describeReconciliation` (extracted so the screen and the matcher cannot disagree about the
+same two numbers) surfaces the gap, the row's button reads **"Link and correct $50.00 → $52.30"**
+showing BOTH figures before the press, and accepting also patches the ledger row.
+⚠️ **"Accept all suggested" now EXCLUDES discrepant rows** — `isBulkAcceptable`. Its stated
+invariant is that it *cannot create money*, and linking in bulk without correcting would leave the
+wrong figure under a button the person believes settled it. Tested and mutation-checked.
+⚠️ **NOT VERIFIED IN A BROWSER, AND THIS IS A MONEY SURFACE.** `BankActivity` does not mount in
+demo (no synced charges), and the sign-in is gone. The page was confirmed to render with **no
+runtime errors and no error boundary**, but the new control was never seen. **First thing to check
+when the sign-in is back.**
+
 ### ✅ LUMP-SUM AUTO-EXTRA GUARD — THE TEST WAS ALREADY GREEN AND HONEST; THE GAP WAS A SURFACE.
 ⚠️ **The handoff said "test written, guard not built". Both halves were wrong.**
 `forecast-engine.lumpSumDoubleCount.test.ts` passes 5/5 and is mutation-checked, and it MEASURED

@@ -142,17 +142,38 @@ export function proposeReconciliation(
   const match = tight ?? wideMatch(accountId, typedAmount, planned.date, isInflow, syncedTxns);
   if (!match) return null;
 
-  const actualAmount = Math.abs(Number(match.txn.amount));
+  return describeReconciliation(planned, match.txn, match.confidence);
+}
+
+/**
+ * The proposal for a pair somebody ELSE already decided on.
+ *
+ * ⚠️ EXTRACTED 2026-09-06 SO THE COMPARISON HAS ONE DEFINITION. `bank-activity-queue.ts` has
+ * matched charges to hand-typed ledger rows since long before this file existed — the
+ * `ledgerTxn` suggestion — and `BankActivity` needs to say **how far apart** that pair is without
+ * running the match a second time. Recomputing "do these differ?" at the call site is how two
+ * screens end up disagreeing about the same two numbers.
+ *
+ * It performs no matching and applies no gates: the caller has already decided these two rows go
+ * together. `proposeReconciliation` above is the version that decides.
+ */
+export function describeReconciliation(
+  planned: PlannedTransaction,
+  synced: MatchableTransaction,
+  confidence: MatchConfidence,
+): ReconciliationProposal {
+  const typedAmount = Math.abs(Number(planned.amount));
+  const actualAmount = Math.abs(Number(synced.amount));
   return {
     planned,
-    synced: match.txn,
-    confidence: match.confidence,
+    synced,
+    confidence,
     typedAmount,
     actualAmount,
     typedDate: planned.date,
-    actualDate: match.txn.date,
+    actualDate: synced.date,
     amountDiffers: Math.abs(actualAmount - typedAmount) > CENT,
-    dateDiffers: match.txn.date !== planned.date,
+    dateDiffers: synced.date !== planned.date,
   };
 }
 
@@ -240,4 +261,28 @@ export function reconciledPatch(proposal: ReconciliationProposal): {
     // proposal being offered again on the next render.
     origin: 'synced',
   };
+}
+
+/**
+ * Whether a charge may be settled by the BULK "Accept all suggested" button.
+ *
+ * ⚠️ THE INVARIANT THIS PROTECTS IS STATED ON THE BUTTON ITSELF: *"THIS CANNOT CREATE MONEY, BY
+ * CONSTRUCTION. It only ever writes `linked_rule` and `linked_txn`"* (`BankActivity.tsx`). A
+ * correction changes an AMOUNT, so it can never happen inside a bulk action.
+ *
+ * ⚠️ BUT THE OTHER OPTION IS WORSE, WHICH IS WHY THIS EXISTS RATHER THAN NOTHING. Linking a
+ * discrepant pair in bulk WITHOUT the correction would leave the typed guess standing under a
+ * button the person believes settled the row — a silently wrong number produced by pressing
+ * "accept". So those rows are held back for a per-row decision that shows both figures, which is
+ * this module's "propose, never perform" rule applied to the bulk path.
+ *
+ * A row with no suggestion is not acceptable either; that is the pre-existing rule, unchanged.
+ */
+export function isBulkAcceptable(
+  hasSuggestion: boolean,
+  discrepancy: ReconciliationProposal | undefined | null,
+): boolean {
+  if (!hasSuggestion) return false;
+  if (!discrepancy) return true;
+  return !(discrepancy.amountDiffers || discrepancy.dateDiffers);
 }

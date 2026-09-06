@@ -162,3 +162,106 @@ describe('what it proposes, and the number it corrects', () => {
     expect(JSON.stringify(bankRows)).toBe(bankBefore);
   });
 });
+
+// ── THE COMPARISON, REUSED BY THE SCREEN THAT ALREADY DID THE MATCHING ──────────────────────────
+//
+// ⚠️ ADDED 2026-09-06, when this module was found to have ZERO CALLERS — the exact "exported,
+// documented, never called" shape this repo's own caller-grep gate exists to catch, in this
+// repo's own work.
+//
+// ⚠️ AND THE MATCHING HALF TURNED OUT TO BE ALREADY BUILT. `bank-activity-queue.ts` has paired
+// bank charges with hand-typed ledger rows since long before this file existed — the `ledgerTxn`
+// suggestion. What was missing was never the match: accepting one writes a POINTER
+// (`status: 'linked_txn'`) and nothing else, so the typed figure survives untouched. Tre types
+// $50, the bank charges $52.30, the rows are linked, and the ledger keeps $50 for ever with
+// nothing ever telling him. `describeReconciliation` is what lets that screen SAY the difference
+// without running a second match, so the two cannot disagree about the same two numbers.
+
+import { describeReconciliation, isBulkAcceptable } from '@/lib/transaction-reconciliation';
+
+const typed = (amount: number, date: string) => ({
+  id: 'planned-1', amount, date, type: 'expense',
+  payment_source: 'acct-1', origin: 'manual',
+});
+const charged = (amount: number, date: string) => ({
+  id: 'charge-1', account_id: 'acct-1', amount, date, pending: false,
+});
+
+describe('describeReconciliation', () => {
+  it('⚠️ flags the case the whole feature exists for: typed $50, charged $52.30', () => {
+    const p = describeReconciliation(typed(50, '2026-09-01'), charged(52.3, '2026-09-01'), 'strong');
+    expect(p.amountDiffers).toBe(true);
+    expect(p.typedAmount).toBe(50);
+    expect(p.actualAmount).toBe(52.3);
+    // The BANK's figure is the one that wins — it is what actually left the account.
+    expect(reconciledPatch(p).amount).toBe(52.3);
+  });
+
+  it('⚠️ does NOT flag a pair that agrees — no correction, nothing to interrupt anyone with', () => {
+    const p = describeReconciliation(typed(50, '2026-09-01'), charged(50, '2026-09-01'), 'exact');
+    expect(p.amountDiffers).toBe(false);
+    expect(p.dateDiffers).toBe(false);
+  });
+
+  it('reports a date difference on its own, with the amount untouched', () => {
+    const p = describeReconciliation(typed(50, '2026-09-01'), charged(50, '2026-09-03'), 'strong');
+    expect(p.amountDiffers).toBe(false);
+    expect(p.dateDiffers).toBe(true);
+    expect(reconciledPatch(p).date).toBe('2026-09-03');
+  });
+
+  it('⚠️ a sub-cent difference is the SAME money, not a correction to show somebody', () => {
+    // Floating point on `numeric` columns must not produce a "correct $50.00 → $50.00" button.
+    const p = describeReconciliation(typed(50, '2026-09-01'), charged(50.004, '2026-09-01'), 'exact');
+    expect(p.amountDiffers).toBe(false);
+  });
+
+  it('compares MAGNITUDES, so a stored sign convention cannot invent a difference', () => {
+    const p = describeReconciliation(typed(50, '2026-09-01'), charged(-50, '2026-09-01'), 'exact');
+    expect(p.amountDiffers).toBe(false);
+  });
+
+  it('handles the string amounts a numeric column actually returns', () => {
+    const p = describeReconciliation(
+      { ...typed(0, '2026-09-01'), amount: '50.00' },
+      { ...charged(0, '2026-09-01'), amount: '52.30' },
+      'strong',
+    );
+    expect(p.typedAmount).toBe(50);
+    expect(p.actualAmount).toBe(52.3);
+    expect(p.amountDiffers).toBe(true);
+  });
+
+  it('marks the corrected row as no longer a prediction, so it is not offered again', () => {
+    const p = describeReconciliation(typed(50, '2026-09-01'), charged(52.3, '2026-09-02'), 'strong');
+    expect(reconciledPatch(p).origin).toBe('synced');
+    expect(reconciledPatch(p).id).toBe('planned-1');
+  });
+});
+
+describe('isBulkAcceptable — keeping "Accept all" unable to create money', () => {
+  const agreeing = describeReconciliation(typed(50, '2026-09-01'), charged(50, '2026-09-01'), 'exact');
+  const differing = describeReconciliation(typed(50, '2026-09-01'), charged(52.3, '2026-09-01'), 'strong');
+  const laterDate = describeReconciliation(typed(50, '2026-09-01'), charged(50, '2026-09-03'), 'strong');
+
+  it('a plain suggestion is still bulk-acceptable — the pre-existing rule is unchanged', () => {
+    expect(isBulkAcceptable(true, undefined)).toBe(true);
+    expect(isBulkAcceptable(true, agreeing)).toBe(true);
+  });
+
+  it('⚠️ a row whose AMOUNT disagrees is held back for a per-row decision', () => {
+    // Accepting it in bulk would either change an amount inside a button that promises it cannot,
+    // or link the pair and leave the typed guess standing. Both are wrong; the row waits.
+    expect(isBulkAcceptable(true, differing)).toBe(false);
+  });
+
+  it('⚠️ a DATE-only disagreement is held back too', () => {
+    // A settled date moves money between months in the forecast, so it is not cosmetic.
+    expect(isBulkAcceptable(true, laterDate)).toBe(false);
+  });
+
+  it('no suggestion is never acceptable', () => {
+    expect(isBulkAcceptable(false, undefined)).toBe(false);
+    expect(isBulkAcceptable(false, differing)).toBe(false);
+  });
+});

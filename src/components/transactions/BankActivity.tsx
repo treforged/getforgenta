@@ -46,6 +46,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/calculations';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/plaid-category-map';
+import { describeReconciliation, reconciledPatch, isBulkAcceptable } from '@/lib/transaction-reconciliation';
 import { useCrowdCategories } from '@/hooks/useCrowdCategories';
 import { resolveCategorySuggestion, describeSuggestionSource, CROWD_PRIVACY_NOTE } from '@/lib/crowd-category';
 import { normalizeMerchant } from '@/lib/merchant-memory';
@@ -278,9 +279,54 @@ export default function BankActivity() {
    * Scoped to the filtered list rather than the whole queue on purpose. A batch button that acts on
    * rows the user cannot see is a button whose blast radius they cannot check before pressing it.
    */
+  /**
+   * A LEDGER SUGGESTION WHOSE NUMBERS DISAGREE WITH THE BANK, keyed by charge id.
+   *
+   * ⚠️ THIS IS THE DEFECT THE WHOLE PAIRING EXISTS FOR, and until 2026-09-06 nothing said it out
+   * loud. Tre: *"sometimes i will add a transaction that day … then it should merge when the real
+   * transaction shows."* Accepting a `ledgerTxn` suggestion writes a POINTER (`linked_txn`) and
+   * nothing else — so he types $50, the charge is $52.30, the two rows are linked, and **the
+   * ledger keeps $50 for ever with nothing ever telling him.** The link was built; the correction
+   * was not.
+   *
+   * The comparison comes from `describeReconciliation` rather than being recomputed here, so this
+   * screen and `proposeReconciliation` cannot disagree about whether two numbers differ.
+   */
+  const discrepancyByCharge = useMemo(() => {
+    const out: Record<string, ReturnType<typeof describeReconciliation>> = {};
+    for (const t of rows) {
+      const led = queue.suggestions[t.id]?.ledgerTxn;
+      if (!led) continue;
+      const proposal = describeReconciliation(
+        {
+          id: led.id, amount: led.amount, date: led.date, type: led.type,
+          payment_source: led.payment_source ?? null, origin: led.origin ?? 'manual',
+        },
+        { id: t.id, account_id: t.account_id, amount: t.amount, date: t.date, pending: false },
+        // The pair is already decided by `buildReviewQueue`; nothing is being matched here.
+        'strong',
+      );
+      if (proposal.amountDiffers || proposal.dateDiffers) out[t.id] = proposal;
+    }
+    return out;
+  }, [rows, queue.suggestions]);
+
+  /**
+   * The rows "Accept all suggested" would act on: what is ON SCREEN and carries a suggestion.
+   *
+   * Scoped to the filtered list rather than the whole queue on purpose. A batch button that acts on
+   * rows the user cannot see is a button whose blast radius they cannot check before pressing it.
+   *
+   * ⚠️ AND A ROW WHOSE NUMBERS DISAGREE IS EXCLUDED, deliberately. This button's stated
+   * invariant is that it CANNOT CREATE MONEY — it only writes `linked_rule` and `linked_txn`. A
+   * correction changes an amount, so it can never live inside a bulk action; but linking those rows
+   * in bulk WITHOUT the correction would leave the wrong figure standing under a button the person
+   * believes settled them. So they are held back for a per-row decision that shows both figures,
+   * which is the "propose, never perform" rule of `transaction-reconciliation.ts`.
+   */
   const acceptable = useMemo(
-    () => rows.filter(t => queue.suggestions[t.id]),
-    [rows, queue.suggestions],
+    () => rows.filter(t => isBulkAcceptable(!!queue.suggestions[t.id], discrepancyByCharge[t.id])),
+    [rows, queue.suggestions, discrepancyByCharge],
   );
 
   /** Rules a charge may be linked to by hand — see `review-link-options.ts` for why active only. */
@@ -1045,13 +1091,32 @@ export default function BankActivity() {
                         // `linked_txn` is an EXCLUSIVE status, so it lands ON the exclusive row —
                         // the row that owns the category. `save` writes every column including the
                         // nulls, so omitting this would silently clear the user's label.
-                        onClick={() => save.mutate(
-                          acceptLedgerTxnInput(txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null),
-                        )}
+                        onClick={() => {
+                          const fix = discrepancyByCharge[txn.id];
+                          save.mutate(
+                            acceptLedgerTxnInput(txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null),
+                          );
+                          // ⚠️ THE CORRECTION, WHICH IS THE HALF THAT WAS MISSING. The bank is the
+                          // authority on what actually left the account; the typed figure was
+                          // always a prediction. Without this the two rows are linked and the
+                          // ledger keeps the guess for ever, which is a silently wrong number on a
+                          // money page — the failure mode this repo treats as the worst one.
+                          if (fix) updateLedgerTxn.mutate(reconciledPatch(fix));
+                        }}
                         className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
-                        <Link2 size={11} /> Matches your entry on {suggestion.ledgerTxn.date}
+                        <Link2 size={11} />{' '}
+                        {discrepancyByCharge[txn.id]
+                          // ⚠️ BOTH FIGURES, BEFORE THE PRESS. A button that says only "matches"
+                          // and then changes an amount is a control that did more than it said.
+                          ? `Link and correct ${formatCurrency(discrepancyByCharge[txn.id].typedAmount)} → ${formatCurrency(discrepancyByCharge[txn.id].actualAmount)}`
+                          : `Matches your entry on ${suggestion.ledgerTxn.date}`}
                       </button>
+                    )}
+                    {!pair && showSuggestion && discrepancyByCharge[txn.id]?.dateDiffers && (
+                      <span className="text-[10px] text-muted-foreground self-center">
+                        dated {discrepancyByCharge[txn.id].typedDate} → {discrepancyByCharge[txn.id].actualDate}
+                      </span>
                     )}
 
                     {/* "Not this" is a RE-TARGET, not a dismissal (Tre, 2026-08-09). Rejecting the
