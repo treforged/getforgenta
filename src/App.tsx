@@ -23,6 +23,9 @@ import { supabase } from '@/lib/supabase';
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import Analytics from "@/components/shared/Analytics";
 import ResumeRecovery from "@/components/shared/ResumeRecovery";
+import { AppLockProvider } from "@/hooks/useAppLock";
+import AppLockScreen from "@/components/shared/AppLockScreen";
+import AppLockSetupModal from "@/components/shared/AppLockSetupModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
 import { AI_ADVISOR_ENABLED, ERROR_TEST_ENABLED } from "@/lib/feature-flags";
@@ -507,7 +510,32 @@ const App = () => (
                 <MoneyDisplaySync />
                 <DeepLinkHandler />
                 <ResumeRecovery />
-                <AppRoutes />
+                {/* ⚠️ THE APP LOCK IS MOUNTED HERE, AND UNTIL 2026-09-06 IT WAS MOUNTED NOWHERE.
+                    `AppLockContext` (359 lines), `AppLockScreen` and `AppLockSetupModal` were all
+                    written, exported and documented, and rendered by NOTHING — the fourth feature
+                    in this repo found built and never called. `AuthContext` even carries a comment
+                    saying so, and that native therefore ran the same 10-minute sign-out leash as
+                    the browser "until [mounting] is taken".
+
+                    Tre took it (2026-09-06): "just require a pin at some point we can develop
+                    that." This is that decision, and nothing more — the lock's own logic is
+                    unchanged.
+
+                    NATIVE ONLY. The web branch below deliberately does not mount it: a PIN over a
+                    browser tab is not the control that a shared computer needs, and the 10-minute
+                    idle sign-out stays the right answer there.
+
+                    ⚠️ IT CANNOT LOCK ANYBODY OUT BY BEING MOUNTED. The lock is strictly opt-in —
+                    `AppLockProvider` reads `forged:lock_enabled` and leaves `isLocked` false unless
+                    it is `'1'`, so an existing user sees exactly what they saw before until they
+                    choose to set a PIN. That matters because Tre's other requirement was that "app
+                    updates should also not lock a user out", and the state lives in Capacitor
+                    `Preferences`, which survives a WebView storage clear. */}
+                <AppLockProvider>
+                  <AppRoutes />
+                  <AppLockScreen />
+                  <AppLockSetupModal />
+                </AppLockProvider>
                 <BlackScreenDebug />
               </ViewedProfileProvider>
             </SubscriptionProvider>
