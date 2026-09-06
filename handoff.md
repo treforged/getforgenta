@@ -45,48 +45,70 @@ Also learned, and worth keeping: `index.css:845` forces `font-size: 16px !import
 input, textarea and select (iOS zooms below that), so a font-size class on any select in this
 app is inert.
 
-## ⚠️ PUSH NOTIFICATIONS — APNs STILL DOES NOT WORK, AND EVERY CODE HYPOTHESIS IS EXHAUSTED.
+## ⛔ PUSH: EVERYTHING IN OUR CONTROL IS VERIFIED CORRECT, AND APPLE DOES NOT ANSWER.
 
-**Do not start here believing it is nearly done.** As of 2026-09-05 23:10Z: `push_sends` holds
-**ZERO rows across ALL users**, Tre has **no device token**, and his row reads
-`outcome timeout | attempts 46 | app_build 686 | detail permission=granted`.
+**Read this before touching push. The point of it is to stop you re-running an eleven-hour
+evening.** As of 2026-09-06 00:45Z: `push_sends` holds **ZERO rows across ALL users**, there are
+**ZERO iOS tokens on the entire system**, and Tre's row reads
+`outcome timeout | attempts 57 | app_build 686 | detail permission=granted`.
 
-**WHAT IS PROVEN CORRECT — each read from the artifact, not inferred. Do not re-check these.**
-- `aps-environment => production` AND `get-task-allow => false` **in the exported IPA**, read with
-  `codesign -d --entitlements` (a CI step now asserts this every build and fails without it).
-- The provisioning profile carries `aps-environment` (a second CI step decodes and asserts it).
-- Permission is `granted` — MEASURED from `checkPermissions()`, not deduced from which branch ran.
-- `registrationError` **never fires**; the error text is captured now and is always null.
-- The listeners are awaited before `register()`, and a late token is saved rather than discarded.
-- The registration JS ships in the **WEB bundle**, not the binary — the app is a WebView on
-  getforgenta.com, so a fix reaches a phone on the next app open with **no TestFlight install**.
+**The device asks Apple for a token. Apple says nothing — no token, and no error.** That is the
+whole remaining fact.
 
-**SIX FIXES SHIPPED TONIGHT, ALL REAL, NONE OF THEM THE CAUSE:** the missing `aps-environment`
-(`c1cff973`), `development` where a TestFlight build needs `production` (`8561f0d0`), the
-`register()`-races-its-own-listeners bug (`ec67489f`), the late token being thrown away
-(`8975c23f`), build attribution and the provider error text (`fce36189`), and a `pending` row plus
-retry-on-resume (`529ae594`).
+### ⛔ ELEVEN HYPOTHESES, ALL DEAD BY EVIDENCE. DO NOT REOPEN ONE WITHOUT NEW INFORMATION.
 
-**⚠️ THE NEXT STEP IS ENVIRONMENTAL, NOT CODE.** APNs uses port 5223 and some networks block it,
-which produces exactly this signature: `register()` accepted, no token, **no error**. The cheap
-test is wifi OFF, cellular on, force-quit and reopen. It had not been run when this was written.
+| # | Hypothesis | How it was killed |
+|---|---|---|
+| 1 | He is on an old build | `app_build` recorded from `App.getInfo()` — reads **686**, the fixed one |
+| 2 | `aps-environment` missing | Added `c1cff973`; symptom unchanged |
+| 3 | It is `development`, not `production` | Fixed `8561f0d0`; symptom unchanged |
+| 4 | The profile lacks the capability | CI step decodes the profile and asserts it — **present** |
+| 5 | Xcode dropped it at export | CI step runs `codesign -d --entitlements` on the exported IPA — **`production`**, and `get-task-allow => false`, so properly distribution-signed |
+| 6 | `register()` races its own listeners | Real bug, fixed `ec67489f`; symptom unchanged |
+| 7 | A late token was discarded | Real bug, fixed `8975c23f`; symptom unchanged |
+| 8 | Permission is not granted | **MEASURED** from `checkPermissions()` — `permission=granted`, not inferred |
+| 9 | `INITIAL_SESSION` is not handled | `AuthContext.tsx:248` handles both events, with a comment recording `7108311a` |
+| 10 | The app resumed, so sign-in never re-ran | Tre swipes it out of the switcher — real cold starts |
+| 11 | The network blocks APNs (port 5223) | Tested on **cellular with wifi off**, app foregrounded 60s — `pending` at 00:26 → `timeout` at 00:44 |
 
-**⚠️ TWO CORRECTIONS TO MY OWN REASONING, so they are not repeated:**
-1. I claimed the 30s wait window "recorded nothing" and sent us down a wrong branch. **Rows WERE
-   being written** — attempts went 41 → 46 at 22:47:35Z. The read that looked like silence was
-   taken between attempts. I built a theory on a stale timestamp.
-2. `INITIAL_SESSION` is NOT missing from the registration path (`AuthContext.tsx:248` handles both
-   events), and the "iOS resumed the app so sign-in never re-ran" theory is dead — Tre swipes the
-   app out of the switcher, so those were real cold starts.
+### ⚠️ THE `.p8` CANNOT BE THE CAUSE, SO DO NOT "FIX" IT AND BELIEVE THE RESULT.
+`APNS_AUTH_KEY_P8`, `APNS_KEY_ID` and `APNS_TEAM_ID` are how **our server authenticates to APNs
+when SENDING**. Minting a device token is purely the OS talking to Apple, using the entitlement
+and the app identity — **our server key is not involved at all**. If somebody later changes those
+and a token appears, treat it as a coincidence and find the real reason.
 
-**WHAT `pending` IS FOR.** Written the instant `register()` is called, so the three states are
-distinguishable: **no row** = the handler never ran; **`pending`** = it ran and the app closed
-before the provider answered; **anything else** = it ran and resolved. It is instrumentation, not
-a fix — that distinction was previously inferable only, and inference is what cost this evening.
+### ⇢ THE NEXT STEP IS APPLE'S DIAGNOSTICS, AND IT IS OUTSIDE THIS DESK
+The device console during a registration attempt shows the actual APNs subsystem error — the thing
+we spent an evening inferring from silence. That needs a Mac with the iPhone attached, or
+Console.app over the network. **This desk cannot do it from Windows, and saying so is the honest
+end of the thread rather than a twelfth theory.**
 
-**Also unbuilt and worth knowing: there is no Trophy Case.** All five `Trophy` references are a
-lucide ICON inside `LearnCard`. Tre earned `lesson:what-a-cash-floor-is` and asked where
-achievements live; there is no page and no route. Unbuilt slice, not an unwired one.
+Two free checks for his list, neither yet done, neither worth waking him for: **Low Power Mode**,
+and any restriction under **Settings → Forgenta**. Both can interfere with background networking.
+
+### What IS built and working, so it is not rebuilt
+The sender (`push-send`, 291 lines, `x-cron-secret` only, dry-run default true), the APNs/FCM
+transport with dead-token retirement, the `push-send-daily` cron (DRY RUN — appending
+`?dry_run=0` is what turns delivery on), per-user/per-platform dedupe, and **FCM proven end to end
+without delivering anything**: `?check=1` uses `validate_only` and returned `android_checked: 7,
+android_ok: 7, delivered: 0`. **Android is proven; only APNs is not.**
+
+### ⚠️ TWO THINGS ABOUT MY OWN REASONING, recorded so they are not repeated
+1. I claimed the 30s wait window "recorded nothing" and had sent us down a wrong branch. **Rows
+   WERE being written** — attempts went 41 → 46 at 22:47:35Z; the read that looked like silence
+   was taken between attempts. I built a theory on a stale timestamp and stated it as cause.
+2. **The registration JS ships in the WEB bundle, not the binary.** The app is a WebView on
+   getforgenta.com, so a JS fix reaches a phone on the next app open with **no TestFlight
+   install**. Six installs were requested tonight and most were unnecessary. Check the served
+   chunk before asking for one.
+
+`pending` is what made the last test readable: **no row** = the handler never ran; **`pending`** =
+it ran and the app closed before the provider answered; **anything else** = it resolved.
+
+### Also unbuilt: there is no Trophy Case
+All five `Trophy` references are a lucide ICON inside `LearnCard`. Tre earned
+`lesson:what-a-cash-floor-is` and asked where achievements live. There is no page and no route —
+an unbuilt slice, not an unwired one.
 
 ## ⇢ FIRST UP — RECONCILE A PLANNED TRANSACTION WITH ITS REAL PLAID TWIN.
 
