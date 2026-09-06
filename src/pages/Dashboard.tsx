@@ -80,6 +80,7 @@ import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
   X, Car, Shield, Check, FileDown, LayoutDashboard, Building2, PiggyBank, ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -188,6 +189,17 @@ export default function Dashboard() {
    * ONCE and is then stripped — see `dashboard-tab.ts` for why an unknown value must not default.
    */
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>('tre:dashboard:activeTab', 'overview');
+  /**
+   * Whether "Spending by Category" is showing every category or only the top eight. Tre,
+   * 2026-09-02: his tab said "4 more" and those four "cannot be seen".
+   *
+   * WARNING: REACT STATE, NOT `<details>`, AND THAT IS A RECORDED DEAD END RATHER THAN A
+   * PREFERENCE. See NotificationSettings.tsx: `group-open:` and three other ways of styling a
+   * `<details>` open state SILENTLY produced nothing in this codebase, five attempts in total.
+   * A conditional class and two different glyphs cannot fail quietly - the wrong icon is visible.
+   * Remembered per device, so somebody who opens it once does not open it every visit.
+   */
+  const [showAllCategories, setShowAllCategories] = usePersistedState('tre:dashboard:showAllCategories', false);
   const [searchParams, setSearchParams] = useSearchParams();
   const askedTab = dashboardTabFromSearch(searchParams);
   useEffect(() => {
@@ -1267,18 +1279,31 @@ export default function Dashboard() {
                   <div className="space-y-3">
                     {top.map((entry, i) => renderRow(entry, i))}
                     {rest.length > 0 && (
-                      <details className="group">
-                        <summary className="flex items-center justify-between pt-1.5 border-t border-border/40 cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAllCategories(v => !v)}
+                          aria-expanded={showAllCategories}
+                          className="btn btn-ghost flex w-full items-center justify-between pt-1.5 border-t border-border/40 select-none"
+                        >
                           <span className="flex items-center gap-1.5">
-                            <ChevronDown size={11} className="shrink-0" />
-                            <span className="text-[10px] text-muted-foreground">+{rest.length} more</span>
+                            {showAllCategories
+                              ? <ChevronUp size={11} className="shrink-0" />
+                              : <ChevronDown size={11} className="shrink-0" />}
+                            <span className="text-[10px] text-muted-foreground">
+                              {showAllCategories
+                                ? 'Show fewer'
+                                : `Show ${rest.length} more ${rest.length === 1 ? 'category' : 'categories'}`}
+                            </span>
                           </span>
                           <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
-                        </summary>
-                        <div className="space-y-3 pt-3">
-                          {rest.map((entry, i) => renderRow(entry, i + top.length))}
-                        </div>
-                      </details>
+                        </button>
+                        {showAllCategories && (
+                          <div className="space-y-3 pt-3">
+                            {rest.map((entry, i) => renderRow(entry, i + top.length))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
