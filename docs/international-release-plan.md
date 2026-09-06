@@ -15,6 +15,27 @@ done, and I am not going to guess at them.**
 Sam bet this would be the item that breaks. It is, and the sharpest part is not a
 formatting nicety — it is a control that lies.
 
+> ## ✅ CORRECTED 2026-09-06 — THE TWO SECTIONS BELOW ARE NO LONGER TRUE
+>
+> Both were accurate when written on 2026-09-03. **The currency picker works now**, and anyone
+> quoting this file on currency will be wrong.
+>
+> - `MoneyDisplaySync` (`src/components/shared/MoneyDisplaySync.tsx`) is **mounted in `App.tsx` at
+>   lines 507 and 526** and calls `setMoneyDisplay({ currency, locale: browserLocale() })`.
+> - `formatCurrency` reads `moneyDisplay.locale` and `moneyDisplay.currency`, so **the locale is no
+>   longer hardcoded to `en-US` either** — the second section below is fixed by the same change.
+> - Covered by `src/lib/__tests__/money-display.test.ts` (GBP, EUR/de-DE, EUR/en-IE, JPY) and
+>   `MoneyDisplaySync.test.tsx`.
+>
+> **A UK user sees £ rendered correctly today.** What still blocks them is BANK LINKING, not money
+> formatting — `country_codes: ["US"]` is hardcoded in `plaid-create-link-token/index.ts:129` and
+> `plaid-exchange-token/index.ts:167`, so a UK bank cannot be linked at all. That is the finding
+> this document should be read for now.
+>
+> Found by grepping the CALLERS rather than trusting this file — the repo's own rule, pointed at
+> the repo's own record, which is the direction that catches a document describing shipped work as
+> missing.
+
 ### The Settings currency picker does nothing
 
 `src/pages/Settings.tsx:505` offers **USD, EUR and GBP**. Selecting EUR or GBP

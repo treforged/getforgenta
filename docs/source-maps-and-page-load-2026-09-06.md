@@ -74,3 +74,53 @@ Measured from `npm run build` and the live `index.html`:
 **The cache hit rate is the biggest lever and it is a SERVER/CDN setting, not a code change** —
 hashed asset filenames are immutable and should be cached hard. That is the next thing to measure,
 and it is where the answer to "is it a coding thing or a server thing?" currently points: **server.**
+
+---
+
+## ✅ SHIPPED AND VERIFIED — hashed assets are now `immutable`
+
+`dc88b9f1`, deployment `getforgenta-gb0bp7lyy` (READY, 11s).
+
+**Before**, measured on the live site:
+
+```
+GET /assets/index-B3KJm5MQ.js
+Cache-Control: public, max-age=14400, must-revalidate
+```
+
+Four hours, then revalidate — on files whose names carry a content hash and can never change. With
+one entry chunk plus 13 `modulepreload` links, that is **14 conditional requests per returning
+visitor for bytes that are provably identical**.
+
+**After**, read back off the live site rather than off the config:
+
+```
+GET https://getforgenta.com/assets/index-B3KJm5MQ.js?cb=<random>   (Cache-Control: no-cache)
+Cache-Control: public, max-age=31536000, immutable
+cf-cache-status: MISS
+```
+
+### ⚠️ The first verification LOOKED LIKE A FAILURE and was not
+
+The plain request after deploying still said `max-age=14400` — with `cf-cache-status: HIT` and
+`Age: 785`. That was **Cloudflare replaying a copy it had cached before the deploy**, not the new
+header failing to apply. Two things separated it:
+
+1. The **origin** `*.vercel.app` URL returns `302` (deployment protection), so it cannot be used as
+   the control here.
+2. A **cache-busted** request through Cloudflare returned the new header immediately.
+
+**A stale CDN copy and a change that did not take look identical from the outside.** Bust the cache
+before concluding a header did not apply — the same family as reading truncated output as absence.
+
+**No Cloudflare dashboard change is needed.** The commit hedged that Browser Cache TTL might be
+overriding at a fixed 4 hours; the cache-busted read disproves it — Cloudflare is respecting the
+origin's headers. That hedge is withdrawn.
+
+`index.html` keeps `max-age=0, must-revalidate`, which is what makes the long asset TTL safe: the
+HTML is always fresh and it is what names the new hashes.
+
+**Honest scope:** this helps RETURNING visitors and the request count Cloudflare is reporting. It
+does nothing for a first-time visitor, whose cost is the bytes themselves — `vendor-charts`
+(115 kB gz), `vendor-react` (73 kB gz) and `vendor-supabase` (54 kB gz). That is the next lever, and
+it is a code change rather than a header.

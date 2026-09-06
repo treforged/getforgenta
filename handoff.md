@@ -1438,7 +1438,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-06 00:46 by handoff_hook. Everything below this heading is
+_Written 2026-09-06 01:07 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1449,14 +1449,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+28ee7c74 docs(perf): the original TypeScript is downloadable from getforgenta.com
+9279942a docs(vercel): CONFIRMED - a docs-only commit is now Canceled in 3s, not built
+5e7e9429 docs(vercel): deploys are green again, and the SKIP itself is still unconfirmed
+c92bd45e fix(vercel): my $comment block broke TWO production deploys - schema rejects it
+c6df74c4 docs(handoff): RESTRICT the Firebase Android key, do not rotate it
 048c6fc4 ci(vercel): docs-only commits no longer store a full production build
 82603be2 docs(cost): Plaid is now a variable cost that grows with SIGNUPS, not with customers
 b5974df0 docs(handoff): Sunday 2026-09-13, the akoya gap on its own, and the engine as an option
-fdc237cd docs(legal): the repo was PUBLIC with no licence at all, which is the weakest position
-104529d2 docs(handoff): the free first bank link is DEPLOYED, and its acceptance is not met
-0eaedbef [billing]: the first linked bank is free — the paywall moves to the second
-ff49219d [transactions]: the app had no search box anywhere, and now the ledger has one
-7247f54a docs(handoff): the verification pass RAN — check 2 passes in both directions
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
