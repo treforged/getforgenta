@@ -1137,6 +1137,21 @@ working thing.
   deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
   column, change the trigger too, and prove it by writing that column alone.
 
+### ✅ NAV ITEM 3 — BACK ON PUSHED SCREENS, SHIPPED `b43e1bb1`. One case NOT browser-verified.
+`BackButton.tsx`, `src/lib/nav-back.ts`, `src/lib/nav-routes.ts`. Pressed at 390px:
+`/dashboard` IDENTITY (idx 0) → Settings BACK 44×44 at left=9 (idx 1) → press → `/dashboard`
+IDENTITY (idx 0). **Back REPLACES the identity badge because the gap between the badge (ends x=90)
+and the centred wordmark (starts x=110) is 19px** — measured, not chosen. ⚠️ **The fresh-entry
+fallback is NOT browser-verified**: loading `/settings` directly while signed out redirects to
+`/auth`. Mutation-verified unit tests only.
+
+### ⚠️ THE DEV SIGN-IN WENT AWAY AT ~21:42 ON 2026-09-05, MID-SESSION.
+`localStorage` lost its `sb-*-auth-token` between a successful measurement at 21:29 and the next at
+21:42; the tab is now on `/auth`. Cause unknown — do NOT blame the measuring iframe without
+evidence. **`/demo` needs no credentials and renders the same chrome**, which is how nav item 3 was
+verified, so this only blocks checks that need Tre's REAL data. `dev-signin` skill: sign-in is
+manual once, in the Claude-controlled Chrome, at `http://localhost:8080` and no other origin.
+
 ### ⛔ THE FUNNEL: THE PAYMENT STEP IS NOT WHERE IT FAILS. READ BEFORE ANY PRICING WORK.
 `docs/checkout-funnel-2026-09-06.md` (`ad408802`). 31 signed up → 12 set an income → 4 recorded a
 transaction → **2 linked a bank** → 5 external people ever opened a checkout → 3 ever saw $89.99
