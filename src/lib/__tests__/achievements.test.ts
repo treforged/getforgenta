@@ -46,6 +46,21 @@ describe('resolveAchievement', () => {
     expect(r.name).toBe('Founder');
   });
 
+  it('⚠️ does NOT claim the holder paid — measured 2026-09-06, not one of them has', () => {
+    // Three live accounts hold `og_founder`, all minted in the same instant on 2026-09-03 (a
+    // backfill), none with a non-comp subscription, and `og_members` — the cohort table the badge
+    // mirrors — holds ZERO rows after the "OG place requires real money" tightening. The old
+    // wording, "One of the first hundred people to pay for Forgenta", was false for every single
+    // holder, on the one screen whose job is to report somebody's own history truthfully.
+    const r = resolveAchievement({ achievement_id: 'og_founder', earned_at: at('2026-09-03T20:24:25Z') });
+    // ⚠️ THE FIRST VERSION OF THIS REGEX COULD NOT FAIL. Written through a shell heredoc,
+    expect(r.description).not.toMatch(/pay|paid|purchas/i);
+    // nothing at all — `not.toMatch` passed against a description that DID say "pay". Lint's
+    // no-control-regex caught it; the green run did not. Mutation-checked after fixing.
+    expect(r.description).not.toMatch(/pay|paid|purchas/i);
+    expect(r.description).toMatch(/founding cohort/i);
+  });
+
   it('⚠️ SHOWS an unrecognised badge rather than dropping or renaming it', () => {
     // Dropping it makes somebody's trophy case quietly wrong; inventing a name presents a label
     // nobody chose as though somebody had.

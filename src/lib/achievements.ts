@@ -78,7 +78,26 @@ export function resolveAchievement(row: AchievementRow): ResolvedAchievement {
     return {
       ...base,
       name: 'Founder',
-      description: 'One of the first hundred people to pay for Forgenta.',
+      // ⚠️ THIS DESCRIPTION USED TO SAY "One of the first hundred people to PAY for Forgenta",
+      // AND THAT WAS FALSE FOR EVERY PERSON HOLDING IT. Measured 2026-09-06: three live accounts
+      // hold `og_founder`, all three minted in the same instant on 2026-09-03 20:24:25 — a
+      // backfill, not three organic events — and **none of them has a non-comp subscription**.
+      // `og_members`, the cohort table the badge is supposed to mirror, holds **0 rows**: the
+      // 2026-09-05 "OG place requires real money" tightening emptied it correctly, because a
+      // 100%-off subscription is not a purchase. The badges were left behind.
+      //
+      // So the app was telling three real people something about their own history that its own
+      // database contradicts, on a screen whose entire job is to report that history. The wording
+      // now says only what is actually true of everyone who holds it — the badge was granted to
+      // the founding cohort — and claims nothing about payment.
+      //
+      // ✅ DECIDED BY TRE, 2026-09-06 (relayed through Sam): **KEEP THE BADGE. DO NOT REVOKE IT
+      // AND DO NOT BACKFILL `og_members`.** The false claim was the wording and it is gone; the
+      // three holders keep what they were given. **This is settled — do not re-open it** on the
+      // strength of `og_members` reading 0, which is correct and is not evidence against the
+      // badge. Revoking a visible badge from a real person is a promise broken, and it would buy
+      // nothing now that the description claims nothing about payment.
+      description: "Granted to Forgenta's founding cohort.",
       kind: 'founder',
       known: true,
     };

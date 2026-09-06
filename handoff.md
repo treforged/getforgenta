@@ -1137,6 +1137,33 @@ working thing.
   deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
   column, change the trigger too, and prove it by writing that column alone.
 
+### ⬜ THE SIGNED-IN VERIFICATION PASS — `docs/signed-in-verification-pass.md`
+Four checks, in press order, that CANNOT be done from demo or signed out: BankActivity's
+"Link and correct $X → $Y" (money — do it first), `GoalLumpSumPanel`'s auto-extra guard, the
+identity badge in partner view, and back-from-a-deep-link. Written 2026-09-06 because three slices
+shipped that day unverified for the same reason. ⚠️ Record results BY NAME, and write "not
+reachable" rather than "passed" for anything that could not be run.
+
+### ⛔ THE FOUNDER BADGE CLAIMED A PAYMENT NOBODY MADE. Wording fixed; THE DATA IS TRE'S CALL.
+Measured 2026-09-06: **3 live accounts hold `og_founder`, all minted in the SAME INSTANT on
+2026-09-03 20:24:25** — a backfill, not three organic events — and **none has a non-comp
+subscription**. **`og_members` holds 0 rows**: the 2026-09-05 "OG place requires real money"
+tightening emptied it correctly (a 100%-off subscription is not a purchase) and the badges were
+left behind. The Trophy Case shipped that day was therefore telling three real people *"One of the
+first hundred people to PAY for Forgenta"*, which its own database contradicts.
+Wording now claims nothing about payment. ✅ **SETTLED BY TRE, 2026-09-06 (via Sam): KEEP THE BADGE, DO NOT
+BACKFILL `og_members`.** Do not re-open it — `og_members` reading 0 is correct and is not evidence
+against the badge now that the description claims nothing about payment.
+⚠️ **AND THE WHOLE OG MACHINERY HAS NOTHING TO ACT ON.** `og_members` 0, `og_billing_consent` 0,
+`og_consent_tokens` 0, `og_anniversary_runs` **0 — it has never run**. Turning the consent cron on
+today would email nobody. The queue item "OG surfaces not built" is stale: the gate, the web
+confirmation page and the email are all built; what is missing is members.
+
+### ✅ STALE QUEUE LINE CORRECTED: `useLumpSumTransfers` was ALREADY REMOVED on 2026-09-05,
+with a tombstone at `useSupabaseData.ts:510` explaining why (0 rows, 0 users, no writer, no
+reader). The table is kept deliberately — empty makes keeping it free and dropping it permanent.
+Nothing to do here.
+
 ### ✅ RECONCILIATION IS WIRED — and the MATCHING half was already built. NOT browser-verified.
 ⚠️ `transaction-reconciliation.ts` had **zero callers** — my own work failing this repo's own
 caller-grep gate. Wiring it found the more important thing: **`bank-activity-queue.ts` has paired
