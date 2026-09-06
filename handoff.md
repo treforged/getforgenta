@@ -13,6 +13,33 @@ with a hand-typed entry — so it becomes runnable the moment one appears.
 
 ---
 
+## ⚠️ THE ASKS LEDGER IS BADLY STALE, AND IT IS DANGEROUS IN THIS DIRECTION
+
+Measured 2026-09-06. **SIX of the eight open getforgenta asks I opened today were already
+SHIPPED**, several with a test file and a source comment quoting Tre's own words. Each was found
+by one `grep -rli "<his words>" src/` before writing a line of code:
+
+| Ask, as the ledger still had it | Where it actually lives |
+| --- | --- |
+| Repeat intervals for planned items | `20260905_recurring_rules_custom_interval.sql` + 2 test files |
+| GENERAL OPERATIONS balance in forecast pop-ups | `forecast-engine.ts:327` + `forecast-engine.nonFundingLiquid.test.ts` |
+| Hide "cash floor set" when AUTOMATIC | `Dashboard.tsx:1024`, `MonthlyBreakdownTable.tsx` |
+| Transfers on the HOMEPAGE | `Dashboard.tsx:1336`, commit `0f92da5c` |
+| SECURITY tab symmetry | `Settings.securityControls.test.tsx` |
+| The rent grace period | `sync-cutoff.ts:123` + `pay-schedule.debitGracePeriod.test.ts` |
+
+**This is the failure mode the repo already names, at scale.** A session that trusts an open `[ ]`
+rebuilds a working feature on top of itself, and the rebuild passes its own tests. **The check is
+one command and it costs nothing: grep for Tre's OWN WORDS**, which this codebase puts in the
+comment above the code that answers them. That convention is what made all six findable in a
+single pass, and it is worth keeping for exactly this reason.
+
+Two still genuinely open and NOT closed on a partial grep, because a half-match is its own
+confident blank: "transfer RULES and anything generated from a GOAL must show in Transactions",
+and the /debt STUDENT LOANS chart breaking on mobile.
+
+---
+
 ## ✅ SHIPPED 2026-09-06 - a card's FIRST payment due date. `26781c63`, on origin/main.
 
 Tre's ask: "maybe make it a feature for cards to set there first due date." `payment_due_day` is
@@ -1477,25 +1504,29 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-06 01:49 by handoff_hook. Everything below this heading is
+_Written 2026-09-06 07:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (1 file(s)):**
+
+```
+M src/pages/Dashboard.tsx
+```
 
 - **Recent commits:**
 
 ```
+650e361a [auth]: a device in DAILY USE went untrusted at 30 days and nobody was told
+5069c716 docs(handoff): the second half shipped, and 'fifteen sites' was wrong
+46c338d9 [cards]: a card can be OPEN and owe nothing yet - the minimum now waits for the first bill
+8fff6ab9 fix(tasks): Graph Sync is REFUSED by the scheduler - it is not a logging bug
+aec77eb0 docs(handoff): the src hold is over, and the first-due-date slice is half of what it looks like
+26781c63 [cards]: a new card's first payment is not on its steady due day
 595eb953 docs(perf): CORRECTION - first-visit weight is fine, and vendor-charts is not eager
 4fa2fd9d perf(cache): VERIFIED immutable on the live site - and the first check lied
-dc88b9f1 perf(cache): hashed assets were told to revalidate every 4 hours
-28ee7c74 docs(perf): the original TypeScript is downloadable from getforgenta.com
-9279942a docs(vercel): CONFIRMED - a docs-only commit is now Canceled in 3s, not built
-5e7e9429 docs(vercel): deploys are green again, and the SKIP itself is still unconfirmed
-c92bd45e fix(vercel): my $comment block broke TWO production deploys - schema rejects it
-c6df74c4 docs(handoff): RESTRICT the Firebase Android key, do not rotate it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
