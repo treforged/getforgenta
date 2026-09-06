@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   syncedTransactions: [] as unknown[],
   realTransactions: [] as unknown[],
   savingsGoals: [] as unknown[],
+  forecastRows: [] as unknown[],
 }));
 
 /** A row the user actually typed. Settled money: it must look exactly as it always has. */
@@ -79,7 +80,11 @@ vi.mock('@/hooks/useSupabaseData', () => ({
 }));
 
 vi.mock('@/contexts/CardProjectionContext', () => ({
-  useCardProjectionContext: () => ({ cardProjection: null, forecastFundingAccountId: null }),
+  useCardProjectionContext: () => ({
+    cardProjection: null, forecastFundingAccountId: null,
+    // The engine's own per-month named list of ranked automatic extra — see auto-extra-ledger-rows.ts.
+    projections: { data: mocks.forecastRows },
+  }),
 }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));
@@ -129,7 +134,7 @@ function rentRow(): HTMLElement {
   return el as HTMLElement;
 }
 
-beforeEach(() => { localStorage.clear(); mocks.syncedTransactions = []; mocks.savingsGoals = []; });
+beforeEach(() => { localStorage.clear(); mocks.syncedTransactions = []; mocks.savingsGoals = []; mocks.forecastRows = []; });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 
@@ -215,5 +220,42 @@ describe('a savings goal contribution shows in the ledger', () => {
     mocks.savingsGoals = [{ ...MOVE_FUND_GOAL, linked_rule_ids: ['rule-rent'] }];
     renderInAugust();
     expect(within(ledger()).queryByText('Move Fund Contribution')).toBeNull();
+  });
+});
+
+// ── AUTO EXTRA REACHES THE LEDGER ───────────────────────────────────────────────────────────────
+//
+// Tre, 2026-09-02: AUTO EXTRA PAYMENTS and TRANSFERS must show in Transactions. The Forecast month
+// drawer itemised the ranked surplus and the CSV export listed it; this page showed none of it,
+// while the money left checking every month.
+//
+// Pressed on the PAGE, because the lib was never the gap — the wiring was.
+
+describe('the ranked automatic extra shows in the ledger', () => {
+  it('renders a goal reserve as a named row', () => {
+    mocks.realTransactions = [GROCERIES];
+    mocks.forecastRows = [
+      { autoExtraItems: [{ id: 'goal-move', name: 'Move Fund', kind: 'goal', amount: 250 }] },
+    ];
+    renderInAugust();
+    expect(within(ledger()).getByText('Move Fund — Extra Contribution')).toBeTruthy();
+  });
+
+  it('calls a liability reserve a payment, not a contribution', () => {
+    mocks.realTransactions = [GROCERIES];
+    mocks.forecastRows = [
+      { autoExtraItems: [{ id: 'sl-1', name: 'Student Loan', kind: 'loan', amount: 100 }] },
+    ];
+    renderInAugust();
+    expect(within(ledger()).getByText('Student Loan — Extra Payment')).toBeTruthy();
+  });
+
+  // A month that reserves nothing must add nothing. Every user who has ranked nothing is this case,
+  // so a stray row here would appear for almost everybody.
+  it('adds nothing when the engine reserved nothing', () => {
+    mocks.realTransactions = [GROCERIES];
+    mocks.forecastRows = [{ autoExtraItems: [] }];
+    renderInAugust();
+    expect(within(ledger()).queryByText(/Extra (Contribution|Payment)/)).toBeNull();
   });
 });

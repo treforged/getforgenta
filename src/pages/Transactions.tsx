@@ -7,6 +7,7 @@ import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, useSavingsGoals, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { buildDatedGoalTransferRules, isGoalTransferRuleId } from '@/lib/goal-transfer-rules';
+import { buildAutoExtraLedgerRows } from '@/lib/auto-extra-ledger-rows';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
@@ -85,7 +86,7 @@ export default function Transactions() {
   const { data: transactions, add, update, remove, loading: transactionsLoading } = useTransactions();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, loading: rulesLoading } = useRecurringRules();
-  const { cardProjection, forecastFundingAccountId } = useCardProjectionContext();
+  const { cardProjection, forecastFundingAccountId, projections } = useCardProjectionContext();
   const { data: reconciliations } = useAccountReconciliations();
   const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan, loading: paymentPlansLoading } = usePaymentPlans();
   const { data: carFunds } = useCarFunds();
@@ -276,6 +277,34 @@ export default function Transactions() {
     }));
   }, [reconciliations]);
 
+  // AUTO EXTRA PAYMENTS AND TRANSFERS (Tre, 2026-09-02). The ranked surplus the engine diverts to a
+  // goal, car fund or loan is real money leaving checking, and this page showed none of it — the
+  // Forecast month drawer itemised it, the CSV export listed it, the ledger did not.
+  //
+  // Read off the engine's OWN named list (`autoExtraItems`), which is the same field those two
+  // surfaces read, so there is no second allocation and no second total to drift.
+  //
+  // ⚠️ A CREDIT CARD'S SURPLUS IS NOT IN THIS LIST AND MUST NOT BE ADDED. `AutoExtraReserveKind`
+  // has no `card`; card surplus rides in `perCardAdjusted` and is already on this page as a debt
+  // payment row. Adding it here too would show the same money leaving twice.
+  const autoExtraTransactions: EnrichedTransaction[] = useMemo(
+    () => buildAutoExtraLedgerRows(projections?.data ?? [], new Date(), PROJECTION_MONTHS).map(r => ({
+      id: r.id,
+      date: r.date,
+      type: 'expense' as const,
+      amount: r.amount,
+      category: r.kind === 'loan' || r.kind === 'liability' ? 'Debt' : 'Savings',
+      note: r.label,
+      payment_source: normalizeSource(forecastFundingAccountId),
+      isGenerated: true,
+      isDebtPayment: false,
+      // A goal or car fund receives this money; a loan retires it. Only the former is a transfer,
+      // and calling a debt payment one would put it in the wrong half of every cash breakdown.
+      isTransfer: r.kind === 'goal' || r.kind === 'car_fund',
+    })),
+    [projections, forecastFundingAccountId, normalizeSource],
+  );
+
   const planTransactions = useMemo(() => generatePaymentPlanTransactions(paymentPlans), [paymentPlans]);
   const carLoanTransactions = useMemo(() => generateCarLoanTransactions(carFunds ?? []), [carFunds]);
 
@@ -292,8 +321,9 @@ export default function Transactions() {
       ...reconciliationTxns,
       ...planTransactions,
       ...carLoanTransactions,
+      ...autoExtraTransactions,
     ].sort((a, b) => shownDate(b).localeCompare(shownDate(a)));
-  }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions, carLoanTransactions]);
+  }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions, carLoanTransactions, autoExtraTransactions]);
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
