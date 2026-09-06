@@ -13,6 +13,43 @@ with a hand-typed entry — so it becomes runnable the moment one appears.
 
 ---
 
+## ⏰ SUNDAY 2026-09-13 — REMIND TRE, in his own words
+
+He asked for this reminder himself, and it is the ONLY thing standing between the free
+first bank link and being verified. Word it to him exactly like this:
+
+> **Link a bank on an account that is NOT premium, then try a second one and confirm it is
+> blocked.**
+
+That is the unmet acceptance for `0eaedbef`. It cannot be done from this desk: Linked Banks
+is `!isDemo` so `/demo` cannot show it, and a real link needs bank credentials no session may
+handle. Sam has the same date in `Desktop\TASKS.md` and the Asks Ledger, so the nightly asks
+push carries it if no session is open.
+
+## 🔎 SEPARATE FINDING — `akoya-exchange-token` had NO entitlement gate at all
+
+Not part of the paywall change, and deliberately written here rather than buried inside it.
+Until 2026-09-06 that function checked only the `MAX_LINKED` ceiling: no premium check, no
+subscription check, nothing. `akoya-auth-url` had the premium gate and the exchange did not,
+so the ceiling was the only thing between a caller and an Akoya connection. It is gated now
+via `decideBankLink`, but **the gap existed in production and is worth knowing about when
+auditing the other providers** — the question to ask of any new provider is not "does the
+start of the flow check entitlement" but "does the step that CREATES the connection check it".
+
+## 💭 COSTED OPTION, NOT A PLAN — moving the engines server-side
+
+Tre asked whether the debt calculation code can be hidden. Recorded as an option with its cost
+named, so nobody reads it as scheduled work:
+- **Making the repo private would hide nothing.** `forecast-engine.ts` (2,920 lines),
+  `credit-card-engine.ts` (2,840) and `useCardProjection.ts` (2,521) are CLIENT-side and ship
+  inside the browser bundle to every visitor of getforgenta.com.
+- **Only moving the maths to the server actually hides it**, and that is a large build: it is
+  the same engine `docs/push-runbook.md` already names as the blocker for server-computable
+  notifications, so the two would share the work.
+- **The licence is the cheap half and it is DONE** — the repo was public with `licenseInfo`
+  null and no LICENSE file, which is the weakest position available. Now explicit and
+  proprietary.
+
 ## 2026-09-06 — the paywall moved, and the app finally has a search box
 
 Two commits, `ff49219d` and `0eaedbef`. `origin/main` 0/0, both verified by CONTENTS.
@@ -1373,33 +1410,25 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 22:42 by handoff_hook. Everything below this heading is
+_Written 2026-09-06 00:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
-
-```
-M .claude/settings.json
- M supabase/.temp/cli-latest
-?? .claude/settings.json.bak-deadpath-20260903
-?? .github/workflows/handoff.md
-?? deno.lock
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+fdc237cd docs(legal): the repo was PUBLIC with no licence at all, which is the weakest position
+104529d2 docs(handoff): the free first bank link is DEPLOYED, and its acceptance is not met
+0eaedbef [billing]: the first linked bank is free — the paywall moves to the second
+ff49219d [transactions]: the app had no search box anywhere, and now the ledger has one
 7247f54a docs(handoff): the verification pass RAN — check 2 passes in both directions
 555854bc docs: I published "written by nothing" and it was false — truncated grep, read as absence
 72f82c28 [cards]: a 0% Pay Over Time plan is not a free plan — the fee now reaches the engine
 54d06a1d docs(verification): the sign-in is REVOKED mid-session, not wiped — 49 of 50 keys survived
-abdef191 [achievements]: the Founder badge claimed a payment none of its holders made
-b7913fc0 [transactions]: a linked bank row now CORRECTS the amount somebody guessed
-797db4a9 [goals]: the auto-extra guard was on one of the two lump-sum panels
-5a2f519e docs(handoff): nav item 3, and the dev sign-in that went away mid-session
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
