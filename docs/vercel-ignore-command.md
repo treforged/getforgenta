@@ -77,3 +77,14 @@ the same false-green family as a test that exercises a mock instead of the code.
 
 **After changing `vercel.json`, watch the deployment reach READY.** Do not treat a valid-JSON check,
 or a successful `git push`, as evidence that the config was accepted.
+
+## Status in production
+
+- `c92bd45e` (the fix removing `$comment`) deployed **READY** — deploys work again.
+- ⚠️ **The SKIP itself is not yet confirmed in production.** Everything above proves the command's
+  exit codes locally and proves the config is now accepted. Whether Vercel actually declines to
+  build a docs-only commit is confirmed by watching the next docs-only push: it should appear in
+  the deployment list as **CANCELED**, or not appear at all — **not** as READY.
+- **Two deployments went to ERROR** while `$comment` was present: `048c6fc4` (`ci(vercel)`) and
+  `c6df74c4` (`docs(handoff)`). Both were config rejections, not build failures. `getforgenta.com`
+  stayed up on the previous READY build throughout, and returned 200 the whole time.
