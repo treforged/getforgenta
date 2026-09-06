@@ -13,6 +13,29 @@ with a hand-typed entry — so it becomes runnable the moment one appears.
 
 ---
 
+## ✅ SHIPPED 2026-09-06 - a card's FIRST payment due date. `26781c63`, on origin/main.
+
+Tre's ask: "maybe make it a feature for cards to set there first due date." `payment_due_day` is
+a day of month and describes a steady state; month one is not one. Now `accounts.first_payment_due_date`
+(date, nullable, live - applied and read back from `information_schema`, and its CHECK was proven
+to FIRE on a bad row before being believed), the pure `src/lib/first-payment-due.ts`, an Accounts
+form field, and ONE engine site: the due-month decision at `credit-card-engine.ts:~1262`.
+16 tests, all mutation-checked. `test:tz` green in three zones, 3887 passed.
+
+⛔ **WHAT IS NOT BUILT, and do not read the field as doing it.** A card still owes its MINIMUM in
+every month from `cardStartMonths` onward, including months before its first payment is due. The
+first due date currently moves only the statement-card first-payment month. Gating the obligation
+needs a second month-offset map threaded through the FIFTEEN `cardStartMonths` call sites in
+`credit-card-engine.ts` - deliberately not done in one pass on a money engine without live-data
+verification. **That is the next slice on this thread.**
+
+✅ **ALSO CLOSED, ALREADY BUILT:** the user-chosen repeat intervals ask (asks.md line 3) is DONE
+end to end - `20260905_recurring_rules_custom_interval.sql`, `scheduling.ts`, `pay-schedule.ts`,
+`BudgetControl.tsx`, plus `scheduling.customInterval.test.ts` and `BudgetControl.customInterval.test.tsx`.
+Found by grepping for the caller before building, which is the rule that exists for exactly this.
+
+---
+
 ## 🔐 RESTRICT the Firebase Android API key — DO NOT ROTATE IT
 
 Found by Ruby's gitleaks scan of 4,731 commits, which was otherwise **CLEAR** — no live exposed
@@ -290,11 +313,21 @@ hard half — `amountConfidence` (exact/strong tolerances), `DATE_WINDOW_DAYS = 
   **He was right, for a reason he did not have — tell him, or he keeps a wrong model of his own
   forecast.** NOT BUILT YET; only the test is.
 
-## ⚠️ `src/**` COMMITS ARE ON HOLD (Sam, 2026-09-05) until Tre's APNs test lands.
+## ✅ THE `src/**` HOLD IS OVER - do not reinstate it from this file's history.
+Written 2026-09-06 by Ada. The section below is kept for its REASON, which still stands, but the
+hold itself is dead: five `src/**` pushes between 02:08 and 04:19 on 2026-09-06 each ran
+`android-build.yml` to `success` (runs 34005691437, 34006159803, 34006829317, 34010612324,
+34011182423). Verified with `gh run list`, not assumed. Push on green, as everywhere else.
+
+<details><summary>The hold as written, and why it existed</summary>
+
+### ⚠️ `src/**` COMMITS WERE ON HOLD (Sam, 2026-09-05) until Tre's APNs test lands.
 Non-`src` work (migrations, docs, handoff) ships normally. **`9f72c935` is committed and NOT
 pushed.** The hold exists because VERSION is now 6.6.0 and `android-build.yml` deploys to **Google
 Play production at a 10% staged rollout auto-promoting after 24 hours** on any `src/**` push —
 shipping the build that changes the permission flow before the first real-device evidence exists.
+
+</details>
 
 ## 📱 TESTFLIGHT 6.6, BUILD 676 — uploaded, waiting on Tre's iOS test.
 Install, Settings → Notifications → "Alerts about your money" ON, accept the iOS prompt.
@@ -1438,7 +1471,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-06 01:07 by handoff_hook. Everything below this heading is
+_Written 2026-09-06 01:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1449,14 +1482,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+595eb953 docs(perf): CORRECTION - first-visit weight is fine, and vendor-charts is not eager
+4fa2fd9d perf(cache): VERIFIED immutable on the live site - and the first check lied
+dc88b9f1 perf(cache): hashed assets were told to revalidate every 4 hours
 28ee7c74 docs(perf): the original TypeScript is downloadable from getforgenta.com
 9279942a docs(vercel): CONFIRMED - a docs-only commit is now Canceled in 3s, not built
 5e7e9429 docs(vercel): deploys are green again, and the SKIP itself is still unconfirmed
 c92bd45e fix(vercel): my $comment block broke TWO production deploys - schema rejects it
 c6df74c4 docs(handoff): RESTRICT the Firebase Android key, do not rotate it
-048c6fc4 ci(vercel): docs-only commits no longer store a full production build
-82603be2 docs(cost): Plaid is now a variable cost that grows with SIGNUPS, not with customers
-b5974df0 docs(handoff): Sunday 2026-09-13, the akoya gap on its own, and the engine as an option
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
