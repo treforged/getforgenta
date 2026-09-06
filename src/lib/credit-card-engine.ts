@@ -1226,6 +1226,24 @@ export function simulateVariablePayoff(
     cards.map(c => [c.id, cardStartMonthOffset(c.startDate, now)]),
   );
 
+  // Month index before which a card owes NO minimum, because its first statement has not been
+  // billed yet. This is NOT cardStartMonths: a card can be fully OPEN, carry a balance and accrue
+  // interest while owing nothing at all, which is the ordinary state of month one (Robinhood Gold
+  // opened in September, first payment 10 October). 0 for every card with no recorded first
+  // payment due date, so nothing changes for the cards that have always worked.
+  const noMinDueBeforeMonth = new Map<string, number>(
+    cards.map(c => [c.id, firstPaymentDueMonthOffset(c.firstDueDate, now) ?? 0]),
+  );
+  /**
+   * "No minimum is owed by this card in month m." A deliberate sibling of `m0MinSettled` rather
+   * than a second mechanism: both say the same thing for different reasons (already paid before
+   * the sim started / not billed yet), so they are applied at exactly the same five sites and can
+   * never drift apart. The card still accrues interest and still holds its balance - suppressing
+   * a minimum is not the same as pretending the debt is absent.
+   */
+  const minSuppressed = (card: CardData, m: number): boolean =>
+    (m === 0 && !!card.m0MinSettled) || m < (noMinDueBeforeMonth.get(card.id) ?? 0);
+
   // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
   const paidOffCards = new Set<string>();
 
@@ -1391,8 +1409,8 @@ export function simulateVariablePayoff(
         const instMinPay = upfrontDueFor(card, instBal);
         // Manual cards reserve their exact contract revolving min (possibly $0) instead of the
         // formula, so the floor never protects a minimum the lender isn't actually charging.
-        const revMinPay = (m === 0 && card.m0MinSettled)
-          ? 0 // Q11: this cycle's revolving min was already paid pre-sim — see m0MinDueSettled
+        const revMinPay = minSuppressed(card, m)
+          ? 0 // already paid pre-sim (Q11, m0MinDueSettled), or not billed yet (first due date)
           : (card.minPaymentIsManual ? revolvingMinDue(card, revBal) : calcMinPayment(revBal, card.apr));
         perCardMinPayments.get(card.id)!.push(bal > 0 ? (revMinPay + instMinPay) : 0);
       }
@@ -1549,7 +1567,7 @@ export function simulateVariablePayoff(
         const isbT = isbTargetThisMonth.get(c.id);
         if (isbT !== undefined) return s + isbT + instMinPay;
         // Q11: settled cards have no month-0 revolving min to reserve (cycle already paid).
-        const revMin = (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
+        const revMin = minSuppressed(c, m) ? 0 : revolvingMinDue(c, revBal);
         return s + revMin + instMinPay;
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
@@ -1938,7 +1956,7 @@ export function simulateVariablePayoff(
         const owed = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owed - instBal);
-        const min = (m === 0 && card.m0MinSettled) ? 0 : revolvingMinDue(card, revOwed);
+        const min = minSuppressed(card, m) ? 0 : revolvingMinDue(card, revOwed);
         if (remainingForMins >= min) {
           payments.set(card.id, min);
           remainingForMins -= min;
@@ -1991,7 +2009,7 @@ export function simulateVariablePayoff(
         const owedStep5 = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owedStep5 - instBal);
-        const baseMin = (m === 0 && card.m0MinSettled) ? 0 : revolvingMinDue(card, revOwed);
+        const baseMin = minSuppressed(card, m) ? 0 : revolvingMinDue(card, revOwed);
         const min = Math.min(baseMin, remaining);
         payments.set(card.id, min);
         remaining -= min;
@@ -2035,7 +2053,10 @@ export function simulateVariablePayoff(
     // Pinned cards are exempt — a below-minimum pin is an explicit user command (see param JSDoc).
     for (const card of [...debtCards, ...backlogCards]) {
       if (pinnedThisMonth.has(card.id)) continue;
-      if (m === 0 && card.m0MinSettled) continue; // Q11: no forced month-0 min to enforce
+      // No minimum to enforce when none is owed: already paid before the sim started (Q11), or
+      // not billed yet (the card's recorded first payment due date). Reserving $0 upstream is not
+      // enough on its own - this guard would otherwise put the minimum straight back.
+      if (minSuppressed(card, m)) continue;
       const owed = owedForCard(card.id);
       const instBal = installmentBals.get(card.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);

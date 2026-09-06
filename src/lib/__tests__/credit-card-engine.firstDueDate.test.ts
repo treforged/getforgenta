@@ -68,3 +68,46 @@ describe('simulateVariablePayoff - first payment due date', () => {
     expect(sim.monthlyPayments.get('new')![0]).toBe(400);
   });
 });
+
+// A card can be OPEN and owe nothing yet. `cardStartMonths` answers whether the card exists;
+// this answers whether it has been billed. A revolving card with no payment preference is used
+// here so the only thing under test is the MINIMUM, not the statement pin above.
+describe('simulateVariablePayoff - no minimum is owed before the first payment is due', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-14T12:00:00'));
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  // Manual minimum so the assertion is an exact contract figure, not the 2% formula.
+  const revolver = (overrides: Partial<CardData> = {}) => makeCard({
+    id: 'rev', name: 'Revolver', balance: 2000, apr: 24,
+    minPayment: 60, minPaymentIsManual: true, targetPayment: 60, dueDay: 20,
+    ...overrides,
+  });
+
+  // No spare cash above the floor, so the ONLY thing that can be paid is a required minimum.
+  const run = (cards: CardData[]) =>
+    simulateVariablePayoff(cards, 3000, 3000, 'avalanche', 0, 0, 4, flatEvents(4, 1000, 1000), ...PAD);
+
+  it('a card first billed in month 2 owes its minimum from month 2, and nothing before it', () => {
+    const mins = run([revolver({ firstDueDate: '2026-09-10' })]).perCardMinPayments.get('rev')!;
+    expect(mins[0]).toBe(0);
+    expect(mins[1]).toBe(0);
+    expect(mins[2]).toBe(60);
+  });
+
+  it('the same card with no first due date owes its minimum from month 0 - what this replaces', () => {
+    const mins = run([revolver()]).perCardMinPayments.get('rev')!;
+    expect(mins[0]).toBe(60);
+    expect(mins[1]).toBe(60);
+  });
+
+  it('suppressing the minimum does not make the debt vanish - the balance still grows', () => {
+    const sim = run([revolver({ firstDueDate: '2026-09-10' })]);
+    expect(sim.monthlyPayments.get('rev')![0]).toBe(0);
+    expect(sim.monthlyBalances.get('rev')![0]).toBeGreaterThan(2000);
+  });
+});
