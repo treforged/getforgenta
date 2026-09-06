@@ -124,3 +124,46 @@ HTML is always fresh and it is what names the new hashes.
 does nothing for a first-time visitor, whose cost is the bytes themselves — `vendor-charts`
 (115 kB gz), `vendor-react` (73 kB gz) and `vendor-supabase` (54 kB gz). That is the next lever, and
 it is a code change rather than a header.
+
+---
+
+## ❌ CORRECTION — first-visit weight is NOT the problem, and I said it was
+
+I wrote that `vendor-charts` (115 kB gz) is "loaded on pages that show no charts" and named it as
+the next lever. **That is wrong.** `vendor-charts` is **not** in the eager path at all — the
+`manualChunks`/rolldown fix recorded in `vite.config.ts` already solved exactly that, and I repeated
+the problem it fixed as if it were current. The comment in that file describes the fix in the past
+tense; I read the symptom and not the fix.
+
+**Measured instead of assumed** — every file `index.html` eagerly loads, gzipped:
+
+| gzipped | file |
+|---|---|
+| 85.6 kB | `index` (entry) |
+| 72.4 kB | `vendor-react` |
+| 53.3 kB | `vendor-supabase` |
+| 43.4 kB | `vendor-motion` |
+| 17.1 kB | `index.css` |
+| 9.3 kB | `vendor-icons` |
+| 9.0 kB | `vendor-query` |
+| 8.5 kB | `vendor-utils` |
+| <4 kB each | 7 others |
+
+**Total: 305,163 bytes — 298 kB gzipped across 15 files.**
+
+For a React + Supabase app that is unremarkable, and there is no single obviously wrong item in it:
+
+- `vendor-react` is the framework.
+- `vendor-supabase` is needed on load to answer "is this person signed in".
+- `vendor-motion` **is genuinely used on the first-paint path** — `framer-motion` is imported by
+  both `App.tsx` and `Landing.tsx`, so it is not dead weight. Removing it is a design change, not
+  an optimisation.
+- The CSS is **17 kB gzipped**, so Tailwind is purging correctly. Not a problem.
+
+**So the honest verdict on "we need to speed up page loading — is it a coding thing or a server
+thing?" is: it was a SERVER thing, and it is fixed.** The 4-hour revalidation on immutable assets
+was the real defect. First-visit bytes are fine and there is no cheap win left in them.
+
+The only remaining nit is small and worth naming rather than acting on: `push-registration` and
+`push-store` (2.1 kB gz combined) are eager, so a visitor who has never signed in downloads push
+code. Not worth a refactor.
