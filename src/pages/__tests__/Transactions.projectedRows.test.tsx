@@ -28,6 +28,7 @@ import { render, cleanup, fireEvent, within } from '@testing-library/react';
 const mocks = vi.hoisted(() => ({
   syncedTransactions: [] as unknown[],
   realTransactions: [] as unknown[],
+  savingsGoals: [] as unknown[],
 }));
 
 /** A row the user actually typed. Settled money: it must look exactly as it always has. */
@@ -71,6 +72,8 @@ vi.mock('@/hooks/useSupabaseData', () => ({
     add: { mutate: vi.fn(), mutateAsync: vi.fn() }, update: { mutate: vi.fn() }, remove: { mutate: vi.fn() },
   }),
   useCarFunds: () => ({ data: [] }),
+  // A goal's own monthly_contribution is generated into the ledger stream (goal-transfer-rules.ts).
+  useSavingsGoals: () => ({ data: mocks.savingsGoals }),
   useSyncedTransactions: () => ({ data: mocks.syncedTransactions }),
   useSyncedTransactionReviewsQuery: () => ({ data: [] }),
 }));
@@ -126,7 +129,7 @@ function rentRow(): HTMLElement {
   return el as HTMLElement;
 }
 
-beforeEach(() => { localStorage.clear(); mocks.syncedTransactions = []; });
+beforeEach(() => { localStorage.clear(); mocks.syncedTransactions = []; mocks.savingsGoals = []; });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 
@@ -176,5 +179,41 @@ describe('the totals stop mixing settled and projected money silently', () => {
     renderInAugust();
     // The rent is answered by a real charge, so nothing on screen is projected any more.
     expect(document.body.textContent ?? '').not.toContain('projected');
+  });
+});
+
+// ── THE GOAL CONTRIBUTION REACHES THE LEDGER ────────────────────────────────────────────────────
+//
+// Tre: transfer RULES and anything generated from a GOAL must show in Transactions. Transfer rules
+// already did. A savings goal's `monthly_contribution` is not a `recurring_rules` row at all, so
+// nothing generated it here — Budget Control listed it, the forecast moved the cash out of checking
+// every month, and this page, the one that claims to show what will happen, said nothing.
+//
+// This test presses on the PAGE rather than the lib, because the lib was never the gap: the wiring
+// was. Drop `goalTransferRules` from the merge call in Transactions.tsx and this goes red, which is
+// the only thing that proves the row is actually reaching a person.
+
+const MOVE_FUND_GOAL = {
+  id: 'goal-move', user_id: 'u1', name: 'Move Fund', target_amount: 6000, current_amount: 500,
+  monthly_contribution: 200, contribution_start_date: '2026-01-12', linked_account: 'acc-1',
+  linked_rule_id: null, linked_rule_ids: [] as string[], lump_sum_payments: [],
+};
+
+describe('a savings goal contribution shows in the ledger', () => {
+  it('renders the goal contribution as a projected row', () => {
+    mocks.realTransactions = [GROCERIES];
+    mocks.savingsGoals = [MOVE_FUND_GOAL];
+    renderInAugust();
+    const row = realRow('Move Fund Contribution');
+    expect(within(row).getByText('Projected')).toBeTruthy();
+  });
+
+  // The double-count guard, pressed on the page. A goal funded by a real recurring rule is already
+  // on screen as that rule; a second row would show the same money leaving twice.
+  it('does NOT render a second row when a real rule already funds the goal', () => {
+    mocks.realTransactions = [GROCERIES];
+    mocks.savingsGoals = [{ ...MOVE_FUND_GOAL, linked_rule_ids: ['rule-rent'] }];
+    renderInAugust();
+    expect(within(ledger()).queryByText('Move Fund Contribution')).toBeNull();
   });
 });

@@ -60,6 +60,8 @@ vi.mock('@/hooks/useSupabaseData', async () => {
       add: { mutate: vi.fn(), mutateAsync: vi.fn() }, update: { mutate: vi.fn() }, remove: { mutate: vi.fn() },
     }),
     useCarFunds: () => ({ data: [] }),
+    // A goal's own monthly_contribution is generated into the ledger stream (goal-transfer-rules.ts).
+    useSavingsGoals: () => ({ data: [] }),
     useSyncedTransactions: () => ({ data: [] }),
     useSyncedTransactionReviewsQuery: () => ({ data: [] }),
     useAllSyncedTransactions: () => ({ data: [BANK_CHARGE], isLoading: false }),

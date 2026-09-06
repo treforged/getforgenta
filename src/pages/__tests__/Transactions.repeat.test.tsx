@@ -61,6 +61,8 @@ vi.mock('@/hooks/useSupabaseData', () => ({
     remove: { mutate: vi.fn(), isPending: false },
   }),
   useCarFunds: () => ({ data: [] }),
+  // A goal's own monthly_contribution is generated into the ledger stream (goal-transfer-rules.ts).
+  useSavingsGoals: () => ({ data: [] }),
   // `useMatchedOccurrences` reads these two: the month-scoped bank rows and the read-only view of
   // the reviews. Empty here, which is the no-bank-connection path — nothing in this file is about
   // matching, and an empty index leaves every ledger row exactly as it was.

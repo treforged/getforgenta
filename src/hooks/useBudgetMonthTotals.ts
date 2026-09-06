@@ -10,6 +10,7 @@ import {
   buildIncomeRules, buildFixedRules, buildVariableRules, buildManualDebtRules, buildDebtRules, buildTransferRules,
   type BudgetRule, type BudgetBuckets, type BudgetTotals,
 } from '@/lib/budget-month-totals';
+import { buildGoalTransferRules, GOAL_RULE_PREFIX } from '@/lib/goal-transfer-rules';
 import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 
 /**
@@ -205,39 +206,25 @@ export function useBudgetMonthTotals(): BudgetMonthTotalsResult {
    * transfer that has not begun yet exactly as it does for a dated rule. `due_day` is deliberately
    * null — a goal contribution has no day of the month, and inventing one prints a date the user
    * never set.
+   *
+   * The synthesis itself lives in `src/lib/goal-transfer-rules.ts`, because Transactions renders the
+   * same contributions and a second copy of the precedence filter above is a double-count waiting to
+   * happen. What stays HERE is the auto-extra decoration, which only Budget Control shows.
    */
-  const goalTransferRules = useMemo((): BudgetRule[] => savingsGoals
-    .filter(g => {
-      const ruleIds = (g.linked_rule_ids ?? []).length > 0
-        ? (g.linked_rule_ids ?? [])
-        : g.linked_rule_id ? [g.linked_rule_id] : [];
-      if (ruleIds.some(id => rules.some(r => r.id === id))) return false;
-      return Number(g.monthly_contribution) > 0;
-    })
-    .map(g => ({
-      id: `goal:${g.id}`,
-      name: `${g.name} Contribution`,
-      amount: Number(g.monthly_contribution),
-      rule_type: 'transfer',
-      frequency: 'monthly',
-      due_day: null,
-      due_month: null,
-      category: 'Savings',
-      start_date: g.contribution_start_date ?? null,
-      end_date: null,
-      payment_source: null,
-      deposit_account: g.linked_account ?? null,
-      notes: 'From Savings Goals',
-      active: true,
-      isGoalTransfer: true,
-      extraThisMonth: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0),
-      // Only when THIS month has none. A month with an extra states its own figure; adding "and
-      // another one in March" beside it is noise. A month without one used to say nothing at all,
-      // and on his live data that silence covers a goal 40 of whose next 60 months take an extra.
-      nextExtra: autoExtraForGoalAtMonth(autoExtraByGoal, g.id ?? '', 0) > 0
-        ? null
-        : nextAutoExtraForGoal(autoExtraByGoal, g.id ?? ''),
-    })), [savingsGoals, rules, autoExtraByGoal]);
+  const goalTransferRules = useMemo((): BudgetRule[] =>
+    buildGoalTransferRules(savingsGoals, rules).map(g => {
+      // The lib mints `goal:<id>`; the auto-extra maps are keyed by the RAW goal id.
+      const goalId = g.id.slice(GOAL_RULE_PREFIX.length);
+      const extraThisMonth = autoExtraForGoalAtMonth(autoExtraByGoal, goalId, 0);
+      return {
+        ...g,
+        extraThisMonth,
+        // Only when THIS month has none. A month with an extra states its own figure; adding "and
+        // another one in March" beside it is noise. A month without one used to say nothing at all,
+        // and on his live data that silence covers a goal 40 of whose next 60 months take an extra.
+        nextExtra: extraThisMonth > 0 ? null : nextAutoExtraForGoal(autoExtraByGoal, goalId),
+      };
+    }), [savingsGoals, rules, autoExtraByGoal]);
 
   const manualDebtRules = useMemo(() => buildManualDebtRules(rules), [rules]);
 

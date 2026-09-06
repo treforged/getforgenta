@@ -5,7 +5,8 @@ import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react
 import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency } from '@/lib/calculations';
-import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
+import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, useSavingsGoals, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
+import { buildDatedGoalTransferRules, isGoalTransferRuleId } from '@/lib/goal-transfer-rules';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
@@ -194,13 +195,30 @@ export default function Transactions() {
   // `substituteMatchedLedgerRows` is what puts the real figures on it. Tre, 2026-08-24: "the real
   // one should actually show."
   const { index: matchedOccurrences } = useMatchedOccurrences();
+
+  // A savings goal's own `monthly_contribution` is money that leaves checking every month, and until
+  // 2026-09-06 this page was the one surface that never said so — Budget Control listed it, the
+  // forecast priced it, and the ledger showed nothing. Tre: transfer rules and anything generated
+  // from a GOAL must show in Transactions. Transfer RULES already did (`pay-schedule.ts`, `isTransfer`);
+  // goal contributions are not `recurring_rules` rows at all, so nothing generated them here.
+  //
+  // ⚠️ The base synthesis leaves `due_day` null on purpose and a LEDGER ROW MUST HAVE A DATE, which
+  // is what `buildDatedGoalTransferRules` adds — from the goal's own `contribution_start_date`, a
+  // date the user set. It lives in the lib rather than here so the tests exercise the derivation
+  // this page actually uses instead of a copy of it.
+  const { data: savingsGoals } = useSavingsGoals();
+  const goalTransferRules = useMemo(
+    () => buildDatedGoalTransferRules(savingsGoals ?? [], rules) as unknown as RuleRow[],
+    [savingsGoals, rules],
+  );
+
   const baseTxns: EnrichedTransaction[] = useMemo(() => {
     return substituteMatchedLedgerRows(
-      mergeWithGeneratedTransactionsForHorizon(transactions, rules, accounts, PROJECTION_MONTHS)
+      mergeWithGeneratedTransactionsForHorizon(transactions, [...rules, ...goalTransferRules], accounts, PROJECTION_MONTHS)
         .map(t => ({ ...t, isGenerated: Boolean(t.isGenerated), isDebtPayment: false })),
       matchedOccurrences,
     );
-  }, [transactions, rules, accounts, matchedOccurrences]);
+  }, [transactions, rules, goalTransferRules, accounts, matchedOccurrences]);
 
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
@@ -454,6 +472,15 @@ export default function Transactions() {
   };
 
   const handleEditClick = (t: EnrichedTransaction) => {
+    // ⚠️ A GOAL CONTRIBUTION HAS NO `recurring_rules` ROW TO EDIT. Its occurrence carries a synthetic
+    // `goal:<id>` ruleId, so `rules.find` returns nothing and the "edit the rule" branch would open a
+    // dialog whose button silently does nothing (`handleEditRule` returns early on a null rule) —
+    // exactly the control-that-lies shape this app refuses elsewhere. Send them where the amount
+    // actually lives instead. Editing THIS occurrence only still works, so that route stays open.
+    if (t.isGenerated && isGoalTransferRuleId(t.ruleId)) {
+      toast.info('This comes from a savings goal — change the contribution on the Savings Goals page.');
+      return;
+    }
     if (t.isGenerated && t.ruleId) {
       const rule = rules.find(r => r.id === t.ruleId);
       setEditChoiceId(t.id);
