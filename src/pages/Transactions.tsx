@@ -18,7 +18,7 @@ import BankActivity from '@/components/transactions/BankActivity';
 import { useBankReviewQueue, reviewBadgeCount } from '@/hooks/useBankReviewQueue';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
-import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split } from 'lucide-react';
+import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split, Search, X } from 'lucide-react';
 import { planDraftFromTransaction } from '@/lib/payment-plan-from-transaction';
 import {
   parseTransactionRepeat,
@@ -43,6 +43,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { matchesTransactionSearch } from '@/lib/transaction-search';
 
 // LAZY, not a plain import. Budget Control was its own route chunk until today; importing it
 // statically here would fold it into the Activity chunk, so every visit to the planning ledger —
@@ -94,6 +95,11 @@ export default function Transactions() {
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterSource, setFilterSource] = useState('all');
+  // Free text, ANDed with the four selects above rather than replacing any of them
+  // (`docs/screens-jakobs-law.md` item 1). Deliberately NOT persisted: a remembered
+  // search would reopen the page showing a fraction of the ledger with no obvious
+  // reason, which is the same failure as a filter you cannot see.
+  const [searchText, setSearchText] = useState('');
 
   // Month filter: 'YYYY-MM' | 'all'
   const currentMonthStr = toLocalDateStr(new Date()).slice(0, 7);
@@ -316,9 +322,13 @@ export default function Transactions() {
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterCategory !== 'all' && t.category !== filterCategory) return false;
       if (filterSource !== 'all' && t.payment_source !== filterSource) return false;
+      // The ACCOUNT the row displays is the resolved source label ("Northvale Checking"), not the
+      // raw `account` field - so that resolved name is what goes in the haystack. Searching the raw
+      // field would miss the only account name the person can actually see on the row.
+      if (!matchesTransactionSearch({ note: t.note, category: t.category, account: getSourceLabel(t.payment_source) }, searchText)) return false;
       return true;
     });
-  }, [allTransactions, filterMonth, filterType, filterCategory, filterSource]);
+  }, [allTransactions, filterMonth, filterType, filterCategory, filterSource, searchText, getSourceLabel]);
 
   // A hand-entered row the app also generates charges its month twice — Tre's Sep 2026 car payment
   // is the live case. Scanned off the RAW ledger plus the three generators, not off `allTransactions`
@@ -1059,6 +1069,35 @@ export default function Transactions() {
             </div>
           )}
         </div>
+
+      {/* SEARCH, above the four selects and full width on a phone.
+          It goes FIRST because that is where every ledger people already use puts it, and because
+          until 2026-09-06 this app had no text search at all - measured, `type="search"` appeared
+          zero times in `src/`. See `docs/screens-jakobs-law.md` item 1.
+          ⚠️ It ADDS to the four filters below rather than replacing any of them: all five are ANDed
+          in `filtered`, so nothing a person could do before is gone. */}
+      <div className="relative w-full">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <input
+          type="search"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          placeholder="Search transactions"
+          aria-label="Search transactions"
+          className="w-full bg-secondary border border-border pl-8 pr-8 py-2 text-xs text-foreground min-h-[36px]"
+          style={{ borderRadius: 'var(--radius)' }}
+        />
+        {searchText !== '' && (
+          <button
+            type="button"
+            onClick={() => setSearchText('')}
+            aria-label="Clear search"
+            className="absolute right-1 top-1/2 -translate-y-1/2 icon-btn text-muted-foreground hover:text-foreground"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>

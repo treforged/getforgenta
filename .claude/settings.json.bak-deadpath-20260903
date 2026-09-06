@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -ExecutionPolicy Bypass -File \"C:/Users/tvonh/Desktop/TRE-Forged/getforgenta/scripts/sync-graph-to-obsidian.ps1\" -SkipRebuild",
+            "command": "powershell -ExecutionPolicy Bypass -File \"C:/Users/tvonh/Desktop/getforgenta/scripts/sync-graph-to-obsidian.ps1\" -SkipRebuild",
             "timeout": 60
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/tvonh/Desktop/TRE-Forged/getforgenta/.claude/hooks/context-gate.mjs\"",
+            "command": "node \"C:/Users/tvonh/Desktop/getforgenta/.claude/hooks/context-gate.mjs\"",
             "timeout": 15,
             "statusMessage": "context-gate: checking context usage"
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/tvonh/Desktop/TRE-Forged/getforgenta/.claude/hooks/lean-fix-router.mjs\"",
+            "command": "node \"C:/Users/tvonh/Desktop/getforgenta/.claude/hooks/lean-fix-router.mjs\"",
             "timeout": 10
           }
         ]

@@ -1322,17 +1322,16 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-05 21:19 by handoff_hook. Everything below this heading is
+_Written 2026-09-05 22:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M .claude/settings.json
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.json.bak-deadpath-20260903
 ?? .github/workflows/handoff.md
@@ -1342,14 +1341,14 @@ M .claude/settings.json
 - **Recent commits:**
 
 ```
-74f6e842 docs(perf): the cold-start chunking lever does not exist in this version — four attempts, each disproved by the build
-26c9658b docs(nav): the navigation plan, ranked by encounters per session
-7dce33b5 [mobile]: the menu moves to the TOP RIGHT — Jakob's Law, and the drawer follows it
-caf582a6 [dashboard]: a Trophy Case — the badges existed and there was nowhere to see them
-e763d22a docs(handoff): push — eleven eliminated hypotheses, each with how it was killed
-21f35eee docs(handoff): push — what is proven, what is exhausted, and two corrections to my own reasoning
-529ae594 [push]: an attempt is visible while it is still an attempt — my 30s window recorded nothing
-8975c23f [push]: a token that arrives late is SAVED, not thrown away — and this file caused that
+7247f54a docs(handoff): the verification pass RAN — check 2 passes in both directions
+555854bc docs: I published "written by nothing" and it was false — truncated grep, read as absence
+72f82c28 [cards]: a 0% Pay Over Time plan is not a free plan — the fee now reaches the engine
+54d06a1d docs(verification): the sign-in is REVOKED mid-session, not wiped — 49 of 50 keys survived
+abdef191 [achievements]: the Founder badge claimed a payment none of its holders made
+b7913fc0 [transactions]: a linked bank row now CORRECTS the amount somebody guessed
+797db4a9 [goals]: the auto-extra guard was on one of the two lump-sum panels
+5a2f519e docs(handoff): nav item 3, and the dev sign-in that went away mid-session
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
