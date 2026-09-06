@@ -1,0 +1,30 @@
+Copyright (c) 2026 TRE Forged LLC. All rights reserved.
+
+Forgenta and its source code, including without limitation the forecast,
+credit-card, debt-payoff and floor-protection engines, are the proprietary and
+confidential property of TRE Forged LLC, a Florida limited liability company.
+
+NO LICENSE IS GRANTED. This repository is published for transparency and for
+review. Publication is not a grant of rights. You may view this code. You may
+not copy, modify, merge, publish, distribute, sublicense, sell, host, or create
+derivative works from any part of it, and you may not use it — in whole or in
+part, in source or in compiled form — in any product or service, commercial or
+otherwise, without the prior written permission of TRE Forged LLC.
+
+Forking on GitHub for the sole purpose of proposing a change back to this
+repository is permitted. Any other fork, mirror, or redistribution is not.
+
+"Forgenta", "TRE Forged" and the associated marks and logos are trademarks of
+TRE Forged LLC and are not licensed by this file or by any contribution to this
+repository.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL TRE FORGED LLC
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Forgenta is a budgeting and forecasting tool. It is not a financial adviser, and
+nothing it produces is financial, investment, tax or legal advice.
+
+Permission requests: contact@treforged.com
