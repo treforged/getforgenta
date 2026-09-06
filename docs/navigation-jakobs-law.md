@@ -1,7 +1,8 @@
 # Navigation, measured against the apps people already use
 
 Written 2026-09-06 at Tre's request. **This is a plan, not a build.** One slice has shipped
-(the hamburger moved to the top right, `7dce33b5`); everything else below is unbuilt and ranked.
+(the hamburger moved to the top right, `7dce33b5`) and item 1 has now shipped too; the rest below
+is unbuilt and ranked.
 
 ## The argument, in one paragraph
 
@@ -48,15 +49,25 @@ Instagram would be cargo-culting. Each row below says which it is.
 Ranked by **encounters per session**, not by how wrong each one is. A wrong home for settings
 costs once a month; a wrong bottom bar costs every session.
 
-### 1. Identity has no home — *every session, unanswered*
-There is no avatar and no account indicator anywhere in the chrome. In partner view this stops
-being cosmetic: **whose money am I looking at** is answerable only by noticing a banner.
-- **Do:** an identity affordance in the top bar. It has a natural home now that the hamburger has
-  vacated the LEFT.
-- **Acceptance:** a rendered frame at 390px showing the current account without opening a menu,
-  and a second frame in partner view showing a DIFFERENT identity. Tap target ≥44px.
-- ⚠️ Constraint 1 applies: the partner-view banner stays until the new affordance is proven, and
-  is only removed in a change that shows the same fact more prominently.
+### 1. ✅ SHIPPED — identity now has a home in the vacated top-left
+`src/components/layout/IdentityBadge.tsx` + `src/lib/identity-badge.ts`, wired into
+`MobileTopBar.tsx`. **Measured at 390px in a same-origin iframe on Tre's real signed-in account:**
+label `"TRE"`, initials `T`, accessible name `"Signed in as TRE"`, **70×44px at left=9**; the
+hamburger still **44×44 at 13px from the right edge**; **no overlap**, and page horizontal
+scroll **0**.
+- ⚠️ **THE PARTNER-VIEW FRAME WAS NOT OBTAINED, and that half of the acceptance is UNMET.**
+  Tre's account has no partner linked — the drawer offers no switch — so partner view is not
+  reachable on real data from this desk. The partner branches are covered by unit tests instead,
+  including the load-bearing one (an unnamed partner must still read as NOT-YOU), which was
+  **mutation-verified**: making it fall through to the signed-in user's own identity turns that
+  test red. A unit test is not a rendered frame; do not record this as visually verified.
+- ⚠️ Constraint 1 held: **the partner-view banner stays.** A 44px badge in a corner does not
+  show the fact more prominently than a banner does, so it does not earn the banner's removal.
+- **One job, deliberately:** the badge always goes to Settings. Making it switch back out of
+  partner view would give one control two behaviours depending on the state it is itself
+  reporting, and the banner already offers that switch.
+- **It never invents a name.** An email is used for the INITIAL only, never the label — a guessed
+  identity on a finance screen is the most expensive thing this chrome can say.
 
 ### 2. The bottom bar's shape — *every session, seen constantly*
 Five destinations is already right and the labels are already there. Only the **shape** differs: a

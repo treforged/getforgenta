@@ -8,6 +8,7 @@ import { useDemoSession } from '@/hooks/useDemoSession';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { usePartnerLinkStatus } from '@/hooks/usePartnerLink';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
+import IdentityBadge from '@/components/layout/IdentityBadge';
 
 /**
  * The narrow-viewport top bar: a hamburger at the far LEFT that is on screen on every route, at
@@ -79,6 +80,13 @@ export default function MobileTopBar() {
             `ml-auto` rather than `justify-end` on the row: the brand is ABSOLUTELY centred, so it
             is not a flex sibling and a `justify-*` change would silently do nothing the day
             somebody adds a second child. */}
+        {/* ⚠️ THE VACATED TOP-LEFT NOW ANSWERS "WHOSE MONEY IS THIS" — item 1 of
+            `docs/navigation-jakobs-law.md`, ranked first on encounters per session. It is the only
+            question in that plan that is unanswered on every screen of every session, and partner
+            view makes it a real one. It renders BEFORE the `ml-auto` trigger, so the hamburger
+            still sits hard right whether or not this is present. */}
+        <IdentityBadge />
+
         <button
           onClick={() => setOpen(!open)}
           aria-label="Open menu"
