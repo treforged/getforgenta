@@ -29,8 +29,22 @@ $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
 # contend for the repo, and late enough to capture a day's edits.
 $Trigger = New-ScheduledTaskTrigger -Daily -At 8:00PM
 
+# ⚠️ THE POWER FLAGS ARE SET EXPLICITLY BECAUSE THE DEFAULTS REFUSE THE TASK.
+#
+# `New-ScheduledTaskSettingsSet` defaults BOTH `-DisallowStartIfOnBatteries` and
+# `-StopIfGoingOnBatteries` to TRUE. They were never named here, so the defaults
+# applied silently — and on 2026-09-06 the live task's last run (2026-09-05 20:00:01)
+# came back `LastTaskResult 2147946720` = 0x800710E0, "the operator or administrator
+# has refused the request". That is the power-condition refusal: the task never
+# started powershell.exe at all.
+#
+# WHICH IS WHY IT LOOKED LIKE A LOGGING BUG AND IS NOT. The sync script logs every
+# run, including its no-op and failure paths, and `scripts/graph-sync.log` is 357 KB
+# of exactly that. Nothing was missing from the log — the SCRIPT NEVER RAN, so there
+# was nothing to write. A checker reading log mtime was reporting the truth.
 $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
-    -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+    -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+    -DisallowStartIfOnBatteries:$false -StopIfGoingOnBatteries:$false
 
 Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Settings $Settings `
     -Description "Rebuilds the graphify knowledge graph when src/ or supabase/ changed and mirrors GRAPH_REPORT.md + wiki/ into the Obsidian vault. Logs to scripts/graph-sync.log." `
