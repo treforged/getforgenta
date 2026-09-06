@@ -1,3 +1,18 @@
+# handoff.md — FIRST UP NEXT TIME
+
+⛔ **THE ONE THING: ENTER TRE'S THREE CHASE PAY OVER TIME PLANS.** It is the largest number left
+on the board — **$2,101.39 of 0% principal is being charged 27.49%, about $577/yr of interest he
+will not pay** — and every line of code it needs shipped 2026-09-06 (`72f82c28`). It is blocked
+ONLY on his three confirmation emails. When they arrive: Accounts → Prime Visa → Rate Tiers, one
+tier per plan — balance, **0** APR, the plan end date, the monthly instalment, the monthly fee,
+and tick **Fixed term**. Do NOT invent the figures from the handoff's summary.
+
+**Second, if that is still waiting:** run `docs/signed-in-verification-pass.md` check 1. It is the
+only unverified thing that can change a stored amount, and it needs a pending bank row that pairs
+with a hand-typed entry — so it becomes runnable the moment one appears.
+
+---
+
 # Handoff — Forgenta
 
 > **This file is a SNAPSHOT, not a log.** It was 1,075,335 bytes on 2026-09-01,

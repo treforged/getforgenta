@@ -53,7 +53,9 @@ document.body.appendChild(f);
 ## 1. `BankActivity` — "Link and correct" (⚠️ money, do this first)
 
 **Why it is first:** it is the only unverified item that can change a stored amount.
-Shipped `b7913fc0`. **Does not mount in demo** — there are no synced charges.
+Shipped `b7913fc0`. ⚠️ **DATA-only, not demo-only** — corrected after the first run: it DOES mount
+signed in and renders "0 awaiting a decision". It needs a pending bank row that pairs with a typed
+entry, which is rarer than being signed in.
 
 1. Go to **Transactions → the bank review surface** on a signed-in account with synced charges.
 2. Find a charge whose suggestion is *your own typed entry* and whose amounts disagree.
@@ -79,8 +81,10 @@ Shipped `797db4a9`. **Does not render in demo** (`{!isDemo && …}`).
 4. On a goal with `auto_extra` OFF, Add must be **usable**.
 
 ⚠️ **The unit test cannot catch a call-site regression** — it renders the component directly, so
-`autoExtraOn={g.auto_extra === true}` going missing turns nothing red. **Step 1 is the only check
-that covers it.**
+`autoExtraOn={g.auto_extra === true}` going missing turns nothing red. **THIS check — step 2 — is
+the only thing that covers it**, and it only covers it if you look at goals on BOTH sides of the
+flag: a call site dropping the prop renders every goal unguarded, which looks normal until you
+notice that the guarded ones are missing.
 
 ## 3. The identity badge in partner view
 
@@ -111,3 +115,45 @@ Tick these off in `handoff.md` **by name**, and say which ones you actually pres
 recorded is a pass somebody repeats. If a check cannot be run — no partner linked, no discrepant
 charge — write **"not reachable"**, never "passed": the whole point of this file is that
 unverified and verified stopped being told apart on 2026-09-06.
+
+---
+
+## Results, 2026-09-06 (first run, on Tre's real signed-in account)
+
+Recorded by name, as this file requires. Two of four ran; two could not.
+
+### 1. `BankActivity` "Link and correct" — **NOT REACHABLE**
+`BankActivity` **does** mount signed in and renders — *"0 awaiting a decision / Nothing needs a
+decision"* — so the note that it is demo-only was too strong: it is DATA-only. But the queue is
+empty, so the control has nothing to appear on, and a discrepant charge was deliberately **not
+manufactured against real money**. "Accept all suggested" is absent for the same reason. ⚠️ The
+19-charge merchant-memory bulk apply is a DIFFERENT control and is not evidence for this one.
+**Still unverified. First thing to run when a bank row pairs with a typed entry.**
+
+### 2. `GoalLumpSumPanel` auto-extra guard — **PASS, on all four goals, both directions**
+Stronger than a pass on the guarded state alone, because the same screen showed both outcomes and
+they match the database exactly:
+
+| Goal | `auto_extra` | What the panel showed |
+|---|---|---|
+| Move fund, then emergency fund | `true` | guard note, Add disabled |
+| Roth IRA | `true` | guard note, Add disabled |
+| Brokerage | `true` | guard note, Add disabled |
+| **401K Roth** | **`false`** | **Add usable, "No planned contributions yet"** |
+
+⚠️ **THIS IS THE CHECK THE UNIT TEST CANNOT DO, AND IT PASSED.** If the call site were dropping
+`autoExtraOn`, **all four** would render unguarded. Exactly the three rows with `auto_extra = true`
+are guarded, which proves `autoExtraOn={g.auto_extra === true}` is wired AND reading the right
+field. `401K Roth` looking different is the guard working, not failing.
+
+### 3. Identity badge in partner view — **NOT REACHABLE**
+Own-account half confirmed again on real data (the bar renders `T` + `TRE`). No partner is linked
+to this account, so partner view cannot be entered from here.
+
+### 4. Back from a deep link — **not run this pass.**
+
+### ⬜ One thing seen but NOT read, so not a finding
+In "Where the extra money goes", `401K Roth` appears to carry the same `SHARE` / `AUTO EXTRA`
+labels as goals whose `auto_extra` is `true`, while its own flag is `false`. That is a DIFFERENT
+surface (`surplus-ranking`), the label may legitimately mean "eligible" rather than "on", and
+nobody has read the row. Recorded so it is checked, not repaired blind.
