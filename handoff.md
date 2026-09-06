@@ -13,6 +13,57 @@ with a hand-typed entry — so it becomes runnable the moment one appears.
 
 ---
 
+## 2026-09-06 — the paywall moved, and the app finally has a search box
+
+Two commits, `ff49219d` and `0eaedbef`. `origin/main` 0/0, both verified by CONTENTS.
+Gates each time: `npx tsc --noEmit` clean, `npm run lint` 0 errors, `npm run test:tz`
+**3871 passed / 1 skipped** across all three zones.
+
+**THE FIRST LINKED BANK IS NOW FREE, AND IT IS DEPLOYED.** `0eaedbef`. Four edge functions
+deployed and verified live by contents — `plaid-exchange-token` now contains `decideBankLink`
+and no longer contains `Premium subscription required`. Migration applied and locked down:
+`free_bank_link_grants`, RLS on, **0 grants to anon/authenticated, 0 policies**.
+- **Why it could not be a column on `profiles`:** `profiles_update_own` lets any signed-in user
+  UPDATE their own row, so a marker there is clearable by the account it constrains — with the
+  anon key that ships in the bundle — and every clear mints another Plaid item Tre pays for.
+- **Why it is not a `count(financial_connections)`:** unlinking HARD-deletes that row, so a
+  count-based gate is a retry loop. The grant is durable and unlinking does not return it.
+- **Consumed at EXCHANGE, after the insert.** Plaid bills on the item; an abandoned Link flow
+  costs nothing and must not spend somebody's one free bank.
+- ⚠️ **ACCEPTANCE UNMET, DO NOT RECORD IT AS DONE:** a rendered frame of a NON-PREMIUM account
+  completing a real link, and proof the second is gated. Linked Banks is `!isDemo`, so `/demo`
+  cannot show it, and a real link needs bank credentials this desk must not handle.
+
+**NEXT UP, and it is queued to ship WITH the above (Tre, via Sam):** track Plaid's cost as a
+business expense. Two halves, not to be merged — (1) a real recurring row in his own ledger
+beside `Claude` and `Google Workspace`, **amount left blank rather than invented** if the Plaid
+dashboard is unreachable from this desk; (2) what one free link actually costs and what 100
+signups would cost, since the free-first-link decision makes spend grow with signups rather than
+with paying customers. Apple revenue is confirmed **zero**, so Plaid is the largest real running
+cost against no income.
+
+**The app had no text search anywhere.** `ff49219d`. Measured: `type="search"` appeared **0**
+times in `src/`. The ledger has one now — verified in a real 390px iframe, 31 rows → 5 on "gas",
+18 on "northvale", AND semantics, clear restores 31; 12 tests, three mutation-verified.
+⚠️ **It covers the LEDGER half only** — `BankActivity` takes no props and owns its own queries,
+so the bank rows are NOT searched. Found by the acceptance test itself: "Ridgeline", a merchant
+visible on screen, matched 0.
+
+**`docs/screens-jakobs-law.md`** extends the Jakob's Law method to the screens, ranked by
+encounters per session, and says plainly that **no screen change fixes the measured 9-of-31
+day-one retention** — every notification the app ships is LOCAL, so nothing reaches a dormant
+person. The server-side sender is the item above all of these.
+
+**Also open, from Sam, unstarted:** mobile logs the user out (a PIN is the direction Tre wants;
+the dev sign-in died with exactly ONE key removed of fifty, which is token revocation and may be
+the same root cause); the lesson deep link still does not open and delivery has stopped
+altogether; seven notifications for one event; the toggle knob sits outside its container; which
+onboarding step to cut (unblocked, but no signups since, so the columns are empty for want of
+traffic); OG seats never reused and `seats_left` computed from the wrong thing; 44px tap targets
+on BankActivity and BudgetControl, folded into the screen-level plan.
+
+---
+
 # Handoff — Forgenta
 
 > **This file is a SNAPSHOT, not a log.** It was 1,075,335 bytes on 2026-09-01,
