@@ -118,7 +118,10 @@ describe('mergeSavedLayout', () => {
     // The saved widget keeps its place relative to the defaults: everything that precedes it in
     // DEFAULT_LAYOUT lands before it, and everything that follows it lands after. `learn` was
     // added after it on 2026-09-02, so it is the tail now.
-    expect(merged[merged.length - 1]).toBe('learn');
-    expect(merged[merged.length - 2]).toBe('debt_recommendations');
+    // `achievements` was added on 2026-09-06, directly after `learn`, so it is the tail now.
+    // ⚠️ Still pinned to a NAMED id rather than loosened to "the last one": this assertion exists
+    // to catch a new widget landing in the wrong place, and `toBeDefined()` would catch nothing.
+    expect(merged[merged.length - 1]).toBe('achievements');
+    expect(merged[merged.length - 2]).toBe('learn');
   });
 });

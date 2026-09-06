@@ -9,7 +9,8 @@ export type WidgetId =
   | 'goal_progress'
   | 'advanced_analytics'
   | 'debt_recommendations'
-  | 'learn';
+  | 'learn'
+  | 'achievements';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -88,6 +89,15 @@ export const WIDGET_META: WidgetMeta[] = [
     id: 'learn',
     label: 'Learn',
     description: 'Short financial lessons with an achievement for each one you finish, and a streak for reading consistently',
+  },
+  {
+    // ⚠️ ADDED 2026-09-06 BECAUSE THERE WAS NOWHERE TO SEE A BADGE. Tre asked "where is the
+    // achievements section?" having earned one that evening and held another since 09-03; the app
+    // showed a checkmark on one lesson row and nothing else. Placed directly after Learn, which is
+    // where the badges are earned — a trophy case somewhere else is a second thing to find.
+    id: 'achievements',
+    label: 'Achievements',
+    description: 'Every badge you have earned — lessons finished, socials tapped through, and the founder badge',
   },
 ];
 

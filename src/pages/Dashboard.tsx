@@ -71,6 +71,7 @@ import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
 import LearnCard from '@/components/dashboard/LearnCard';
+import TrophyCase from '@/components/dashboard/TrophyCase';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
@@ -1477,6 +1478,11 @@ export default function Dashboard() {
       // safe to render for an account whose money data is still loading.
       case 'learn':
         return <LearnCard key="learn" />;
+
+      // Where the badges Learn mints actually live. Reads only `achievements`, so like Learn it is
+      // safe to render while this page's money figures are still loading.
+      case 'achievements':
+        return <TrophyCase key="achievements" />;
 
       default:
         return null;
