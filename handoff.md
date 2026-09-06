@@ -34,9 +34,56 @@ one command and it costs nothing: grep for Tre's OWN WORDS**, which this codebas
 comment above the code that answers them. That convention is what made all six findable in a
 single pass, and it is worth keeping for exactly this reason.
 
-Two still genuinely open and NOT closed on a partial grep, because a half-match is its own
-confident blank: "transfer RULES and anything generated from a GOAL must show in Transactions",
-and the /debt STUDENT LOANS chart breaking on mobile.
+✅ **BOTH OF THE TWO THAT WERE STILL OPEN ARE NOW CLOSED — 2026-09-06.** So the count is EIGHT of
+eight, and seven of them needed no new feature code. See the two sections directly below.
+
+---
+
+## ✅ SHIPPED 2026-09-06 — a savings goal moved money monthly and the ledger never said so. `eef7dadd`.
+
+`origin/main` 0/0, verified by CONTENTS. Gates: `npx tsc --noEmit` clean, `npm run lint` 0 errors,
+`npm run test:tz` **3911 passed / 1 skipped** across all three zones.
+
+**The ask split in half, and only one half was real.** Transfer RULES already showed —
+`pay-schedule.ts:1436` marks a `transfer`/`investment` rule `isTransfer` and `Transactions.tsx:1241`
+renders the destination. **A GOAL contribution is not a `recurring_rules` row at all**, so nothing
+generated it there: `savings_goals.monthly_contribution` was synthesised inline inside
+`useBudgetMonthTotals` and lived only there. Budget Control listed it, the forecast moved that cash
+out of checking every month and priced the plan around it, and **Transactions had ZERO references to
+savings goals.** A person reading their own ledger could not see $200/mo leaving.
+
+Now shared through `src/lib/goal-transfer-rules.ts`, called by both surfaces. Three things not to
+re-derive:
+- **ONE precedence filter, not two.** A goal already funded by a real rule is skipped because it is
+  on screen as that rule; a second copy of that filter is a double-count waiting to happen. A link
+  to a DELETED rule still synthesises — the money still leaves.
+- **`due_day` stays null in the base synthesis** (Budget Control shows no day on purpose), and
+  `buildDatedGoalTransferRules` derives the ledger date from the goal's own
+  `contribution_start_date`. It lives in the lib so the tests exercise what ships, not a copy.
+- ⚠️ **A goal occurrence carries a synthetic `goal:<id>` ruleId**, so `rules.find` misses and the
+  "edit the recurring rule" button would have silently done nothing. Guarded.
+
+⚠️ **FOUR EXISTING TEST FILES BROKE — 25 failures — because they mock `useSupabaseData` and
+`useSavingsGoals` was absent from every mock.** Caught by the gate, not by reading. Any new data
+hook added to `Transactions.tsx` will do this again; patch the four `Transactions.*.test.tsx` mocks
+in the same commit.
+
+⚠️ **NOT VERIFIED IN A BROWSER.** Tre is signed out at the console, so nothing could render today.
+jsdom is legitimate here (text and presence, no geometry) but a rendered frame is still owed.
+
+## ✅ CLOSED, ALREADY FIXED — the /debt STUDENT LOANS chart "breaking" on mobile. `1d4fd3bd`.
+
+Found by reading rather than rebuilding. **"Breaks" was exact and worse than it sounded:** Safari
+implements the `TouchEvent` INTERFACE but not its CONSTRUCTOR, so `new TouchEvent(...)` threw
+`TypeError: Illegal constructor` out of a React touch handler, the chart's `ErrorBoundary` caught
+it, and **the graph VANISHED.** A tap did not fail to select a point — it deleted the chart. The
+replay can no longer throw and falls back to a synthetic `mousemove`, which reaches the same
+recharts machinery. **jsdom implements the constructor, so no test in this repo could ever have
+seen it.**
+
+⚠️ **AND A STALE LINE CORRECTED WHILE HERE:** this file said only the Credit Card tab is inside an
+`ErrorBoundary` and a throw in the other four `LiabilityTrajectoryChart` usages would blank `/debt`.
+**All five are wrapped** — `DebtPayoff.tsx:480, 499, 539, 651, 724`. Do not rebuild that.
 
 ---
 
@@ -1504,29 +1551,37 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-06 07:22 by handoff_hook. Everything below this heading is
+_Written 2026-09-06 11:11 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
+- **Uncommitted (9 file(s)):**
 
 ```
-M src/pages/Dashboard.tsx
+M src/App.tsx
+ M src/hooks/useBudgetMonthTotals.ts
+ M src/pages/Transactions.tsx
+ M src/pages/__tests__/Transactions.matchedOccurrence.test.tsx
+ M src/pages/__tests__/Transactions.mergedTab.test.tsx
+ M src/pages/__tests__/Transactions.projectedRows.test.tsx
+ M src/pages/__tests__/Transactions.repeat.test.tsx
+?? src/lib/__tests__/goal-transfer-rules.test.ts
+?? src/lib/goal-transfer-rules.ts
 ```
 
 - **Recent commits:**
 
 ```
+e93a5e22 docs(handoff): six of eight open asks were already shipped
+f795773a [dashboard]: the categories behind "4 more" could not actually be seen
 650e361a [auth]: a device in DAILY USE went untrusted at 30 days and nobody was told
 5069c716 docs(handoff): the second half shipped, and 'fifteen sites' was wrong
 46c338d9 [cards]: a card can be OPEN and owe nothing yet - the minimum now waits for the first bill
 8fff6ab9 fix(tasks): Graph Sync is REFUSED by the scheduler - it is not a logging bug
 aec77eb0 docs(handoff): the src hold is over, and the first-due-date slice is half of what it looks like
 26781c63 [cards]: a new card's first payment is not on its steady due day
-595eb953 docs(perf): CORRECTION - first-visit weight is fine, and vendor-charts is not eager
-4fa2fd9d perf(cache): VERIFIED immutable on the live site - and the first check lied
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
