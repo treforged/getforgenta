@@ -1254,8 +1254,11 @@ transaction → **2 linked a bank** → 5 external people ever opened a checkout
 premium-gated (`plaid-create-link-token/index.ts:83`), so 29 of 31 have been asked to pay $89.99
 for a feature they have never seen work, with no trial to see it with.** Checkout itself is NOT
 broken — 8 sessions completed through the same code. ⚠️ Do not quote
-`onboarding_completed` (a FLOOR, two completion stores), `onboarding_started_at` or
-`onboarding_furthest_step` (written by nothing). ⚠️ `profiles` has 49 rows for 31 users — 18 are
+`onboarding_completed` (a FLOOR, two completion stores). ⚠️ **CORRECTION:** I first wrote that
+`onboarding_started_at` / `onboarding_furthest_step` are "written by nothing" — FALSE.
+`recordFurthestStep` (`Onboarding.tsx:98`) writes both and shipped 2026-09-05 in `821dc985`; the
+columns are empty because there have been NO SIGNUPS since. I made that error by piping a
+multi-pattern grep through `head -20`, where `onboarding_completed`'s 30 hits hid the other two. ⚠️ `profiles` has 49 rows for 31 users — 18 are
 orphans with no `auth.users` row, so it is never a headcount. **Commission programme SHELVED by
 Sam on this evidence.**
 

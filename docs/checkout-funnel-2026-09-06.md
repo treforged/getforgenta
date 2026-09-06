@@ -30,10 +30,20 @@ The payment step is not where this fails. It is the last and smallest loss in th
 ⚠️ **These rows are measured from the DATA, not from a flag.** `profiles.onboarding_completed`
 says 6 of 31 finished setup, and that figure is a FLOOR rather than a count: `onboarding-state.ts`
 documents two completion stores, and a user who finished the old route wizard carries only a
-`localStorage` key until their next visit migrates it. `onboarding_started_at` and
-`onboarding_furthest_step` are **written by nothing** — same shape as `profiles.is_premium`
-(`20260906_profiles_is_premium_is_derived.sql`), so their zeroes mean "never recorded", not "nobody
-started". Do not quote them.
+`localStorage` key until their next visit migrates it.
+
+⚠️ **CORRECTION, made the same day by the author.** This section first said
+`onboarding_started_at` and `onboarding_furthest_step` are "written by nothing", the same shape as
+`profiles.is_premium`. **THAT WAS FALSE.** Both are written by `recordFurthestStep`
+(`Onboarding.tsx:98`), which is correct code — monotonic, ordered against *this user's own* step
+sequence, and writing `started_at` exactly once. It shipped **2026-09-05 in `821dc985`**, and there
+have been **no signups since**, so the columns are empty for want of traffic rather than for want of
+a writer. Their zeroes still cannot be quoted as "nobody started" — but the reason is the opposite
+of the one first given, and the instrumentation is already there for the next thirty signups.
+
+**How the error was made, because it generalises:** a multi-pattern `grep` piped through
+`head -20`. `onboarding_completed` has 30 hits and saturated the window; the other two patterns
+have 9 and 10 hits and never appeared. **Truncated output was read as absence.**
 
 ## The checkout sessions themselves
 
@@ -110,11 +120,10 @@ August that was zero of four.
 
 1. **Let people see bank sync before paying.** A trial, a limited free link, or moving the paywall
    later. This is a product and pricing decision with real Plaid cost attached, so it is his.
-2. **Every abandoned setup so far is unrecoverable evidence.** At least 25 of 31 people did not
-   finish, and the app recorded no step for any of them — the two columns that would have said
-   where they stopped (`onboarding_started_at`, `onboarding_furthest_step`) are written by nothing.
-   Making them real costs little and turns the next 30 signups into evidence instead of another
-   guess.
+2. **Every abandoned setup BEFORE 2026-09-05 is unrecoverable evidence** — at least 25 of 31
+   people did not finish and no step was recorded. **This is already fixed going forward**:
+   `recordFurthestStep` shipped 2026-09-05 (`821dc985`) and writes both columns. Nothing to build;
+   the next signup starts producing the data.
 3. ⚠️ **`profiles` holds 49 rows for 31 users — 18 have no `auth.users` row at all.** Orphans from
    deleted accounts. Not a funnel problem, but it means "49 profiles" is never a headcount, and
    any query joining the two must say which side it counts. Deleting them is destructive and is

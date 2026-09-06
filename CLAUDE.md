@@ -108,6 +108,18 @@ section states reasoning, not measurement, and says so.
   ⚠️ **AND CLOSE IT IN THE RESUME QUEUE, not only in the section above it.** The i18n item went
   stale within the hour of shipping because the top of `handoff.md` was updated and queue item 5
   was not. The queue is what a cold session reads first, so it is the copy that has to be right.
+- ⚠️ **NEVER PIPE A MULTI-PATTERN GREP THROUGH `head` AND READ THE GAPS AS ABSENCE.**
+  On 2026-09-05 a single `grep -rn "a\|b\|c" src/ | head -20` was used to decide which of three
+  columns had writers. Pattern `a` (`onboarding_completed`) has **30 hits** and filled the window;
+  `b` and `c` have **9 and 10** and never appeared. The conclusion drawn — "written by nothing" —
+  was **published in a doc and relayed to Tre**, and was false: `recordFurthestStep`
+  (`Onboarding.tsx:98`) writes both, shipped the day before in `821dc985`. The columns were empty
+  for want of TRAFFIC, not for want of a writer.
+  **Truncated output is not evidence of absence.** When the question is "does anything reference
+  X", count per pattern and never truncate:
+  `for p in a b c; do echo -n "$p: "; grep -rn "$p" src/ | wc -l; done`
+  This is the caller-grep rule's blind spot: that rule fixes the SYMBOL you search for, this one
+  fixes the OUTPUT you read. Both have now produced a confidently wrong claim in this repo.
 - ⚠️ **A WIDGET THAT WILL NOT RENDER: CHECK WHICH DASHBOARD TAB YOU ARE ON, FIRST.**
   The dashboard's customisable widget stack lives under the **Overview** tab only. On 2026-09-06
   the new Trophy Case looked absent and was chased through three wrong layers in order — the data
