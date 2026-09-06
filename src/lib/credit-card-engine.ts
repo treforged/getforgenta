@@ -10,6 +10,7 @@ import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import { cardStartMonthOffset, isSimCardOpenAsOf } from './card-start-date';
+import { firstPaymentDueMonthOffset } from './first-payment-due';
 import {
   parseTranches, trancheInterestBreakdown, allocatePaymentAcrossTranches,
   type BalanceTranche,
@@ -65,6 +66,12 @@ export type CardData = {
   paymentPreference: 'statement' | 'full' | null;
   autopayFullBalance: boolean;
   dueDay: number | null;
+  /**
+   * `accounts.first_payment_due_date` - the FIRST payment's due date on a newly opened
+   * card, when it does not fall on `dueDay`. Null/absent on every card whose first cycle
+   * is already behind it, which is almost all of them. See first-payment-due.ts.
+   */
+  firstDueDate?: string | null;
   startDate?: string;
   statementBalancePhase: boolean;
   statementBalance: number | null;
@@ -557,6 +564,7 @@ export function buildCardData(
       color: getCardColor(colorStartIndex + i),
       paymentPreference, autopayFullBalance,
       dueDay: acct.payment_due_day ?? null,
+      firstDueDate: acct.first_payment_due_date ?? null,
       startDate: acct.card_start_date || undefined,
       statementBalancePhase, statementBalance,
       installmentBalance: Math.max(0, Number(acct.installment_balance) || 0),
@@ -1255,7 +1263,11 @@ export function simulateVariablePayoff(
   for (const c of cards) {
     if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) continue;
     if ((cardStartMonths.get(c.id) ?? 0) > 0) continue;
-    const dueMonth = c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1;
+    // A newly opened card's FIRST payment is not on its steady cycle day, and can be a whole
+    // month out (Robinhood Gold opened in September, first payment 10 October). When the user has
+    // recorded that date it names the due month outright; otherwise fall back to the bare day.
+    const dueMonth = firstPaymentDueMonthOffset(c.firstDueDate, now)
+      ?? (c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1);
     manualStatementByCard.set(c.id, { dueMonth, amount: Math.max(0, c.statementBalance) });
   }
 

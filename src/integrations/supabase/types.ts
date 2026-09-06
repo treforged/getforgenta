@@ -78,6 +78,7 @@ export type Database = {
           name_is_manual: boolean
           notes: string | null
           payment_due_day: number | null
+          first_payment_due_date: string | null
           payment_preference: string | null
           plaid_account_id: string | null
           plaid_item_id: string | null
@@ -117,6 +118,7 @@ export type Database = {
           name_is_manual?: boolean
           notes?: string | null
           payment_due_day?: number | null
+          first_payment_due_date?: string | null
           payment_preference?: string | null
           plaid_account_id?: string | null
           plaid_item_id?: string | null
@@ -156,6 +158,7 @@ export type Database = {
           name_is_manual?: boolean
           notes?: string | null
           payment_due_day?: number | null
+          first_payment_due_date?: string | null
           payment_preference?: string | null
           plaid_account_id?: string | null
           plaid_item_id?: string | null

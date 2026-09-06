@@ -124,7 +124,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '', annual_fee: '', annual_fee_date: '' };
+const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '', first_payment_due_date: '', annual_fee: '', annual_fee_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 /**
@@ -533,6 +533,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       min_payment_is_manual: a.account_type === 'credit_card' && a.min_payment_is_manual ? 'true' : '',
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
+      first_payment_due_date: a.first_payment_due_date || '',
       apr_start_date: a.apr_start_date || '',
       card_start_date: a.card_start_date || '',
       annual_fee: a.annual_fee != null ? String(a.annual_fee) : '',
@@ -576,6 +577,10 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       ...(LIABILITY_TYPES.includes(form.account_type) ? { payment_due_day: dueDayVal } : {}),
       ...(form.account_type === 'credit_card' ? {
         card_start_date: form.card_start_date || null,
+        // The FIRST payment's date, when it is not the steady due day. Written as null when
+        // blank so clearing the field really clears the column - a card whose first cycle has
+        // passed must stop carrying a date that no longer describes anything.
+        first_payment_due_date: form.first_payment_due_date || null,
         // A fee with no date has no month to land in, and the DB check rejects the pair - so an
         // amount typed without a date is stored as no fee at all rather than failing the save.
         annual_fee: form.annual_fee !== '' && form.annual_fee_date ? parseFloat(form.annual_fee) || 0 : 0,
@@ -1361,6 +1366,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             ] : []),
             ...(form.account_type === 'credit_card' ? [
               { key: 'card_start_date', label: 'Start Date (future cards)', type: 'date' as const, hint: 'Leave blank for existing cards. Set a future date to begin purchases from that month.' },
+              { key: 'first_payment_due_date', label: 'First Payment Due Date', type: 'date' as const, hint: 'Only if the first payment is not on the due day above - a new card often bills a month out. Every month after uses the due day.' },
               { key: 'annual_fee', label: 'Annual Fee', type: 'number' as const, placeholder: '0', step: '0.01', hint: 'Charged to this card every year, so the forecast stops reading better than the card costs. Leave blank if it has none.' },
               { key: 'annual_fee_date', label: 'First Annual Fee Date', type: 'date' as const, hint: 'The date of the first charge. It repeats on that month every year. Required if a fee is set.' },
             ] : []),
