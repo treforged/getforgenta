@@ -19,6 +19,10 @@ export interface TrancheFormRow {
   /** The contractual instalment this tranche must receive monthly, or '' for none.
    * See `BalanceTranche.min_payment` — absent, null and 0 all mean "no schedule". */
   min_payment: string;
+  /** A flat MONTHLY fee in dollars, or '' for none. See `BalanceTranche.monthly_fee`. */
+  monthly_fee: string;
+  /** True when the plan's term cannot be shortened by paying more. See `BalanceTranche.fixed_term`. */
+  fixed_term: boolean;
 }
 
 /**
@@ -30,6 +34,14 @@ export interface TrancheFormRow {
  * dropped it one line later, and `rowsToTranches` could not write it back — so saving a card for
  * ANY reason (a rename, a balance edit) binned its instalment schedule. Tre's Prime Visa carried
  * $524.40/mo of Chase Equal Pay minimums through that whole window on luck alone.
+ *
+ * ⚠️ **AND IT HAPPENED AGAIN, IN THIS FILE, TO TWO MORE FIELDS.** `monthly_fee` and `fixed_term`
+ * were added to `BalanceTranche`, parsed by `parseTranches`, normalised, and given their own test
+ * file — and never added here, so a Pay Over Time fee could not be entered and would have been
+ * **erased by any save** if one were ever written by hand. Fixed 2026-09-06.
+ * **A warning in a comment did not prevent the repeat, so there is now a TEST**:
+ * `tranche-form.roundTrip.test.ts` asserts the round trip preserves every field the reader
+ * produces, and fails when a new one is added to `BalanceTranche` and not to `TranchePayload`.
  */
 // A `type`, not an `interface`, on purpose: only a type alias gets the implicit index signature
 // that makes it assignable to the generated `Json` column type in integrations/supabase/types.ts.
@@ -40,12 +52,14 @@ export type TranchePayload = {
   apr: number;
   promo_end_date?: string;
   min_payment?: number;
+  monthly_fee?: number;
+  fixed_term?: boolean;
 };
 
 export const DEFAULT_TRANCHE_LABEL = 'Promo balance';
 
 export function newTrancheRow(): TrancheFormRow {
-  return { id: crypto.randomUUID(), label: '', balance: '', apr: '', promo_end_date: '', min_payment: '' };
+  return { id: crypto.randomUUID(), label: '', balance: '', apr: '', promo_end_date: '', min_payment: '', monthly_fee: '', fixed_term: false };
 }
 
 /** Stored jsonb -> editable rows. Anything `parseTranches` rejects never reaches the form. */
@@ -57,6 +71,8 @@ export function tranchesToRows(raw: unknown): TrancheFormRow[] {
     apr: String(t.apr),
     promo_end_date: t.promo_end_date ?? '',
     min_payment: t.min_payment != null && t.min_payment > 0 ? String(t.min_payment) : '',
+    monthly_fee: t.monthly_fee != null && t.monthly_fee > 0 ? String(t.monthly_fee) : '',
+    fixed_term: t.fixed_term === true,
   }));
 }
 
@@ -90,6 +106,8 @@ export function rowsToTranches(rows: readonly TrancheFormRow[]): TrancheRowsResu
       apr: row.apr,
       promo_end_date: row.promo_end_date.trim(),
       min_payment: row.min_payment.trim(),
+      monthly_fee: row.monthly_fee.trim(),
+      fixed_term: row.fixed_term,
     }]);
     if (!parsed) { invalidRows.push(i + 1); return; }
     out.push({
@@ -100,6 +118,10 @@ export function rowsToTranches(rows: readonly TrancheFormRow[]): TrancheRowsResu
       // Absent, not null and not '' — see TranchePayload.
       ...(parsed.promo_end_date ? { promo_end_date: parsed.promo_end_date } : {}),
       ...(parsed.min_payment != null && parsed.min_payment > 0 ? { min_payment: parsed.min_payment } : {}),
+      ...(parsed.monthly_fee != null && parsed.monthly_fee > 0 ? { monthly_fee: parsed.monthly_fee } : {}),
+      // `false` is the default for every existing row, so writing it would add a key to every
+      // tranche on the card for no information. Only `true` is worth storing.
+      ...(parsed.fixed_term === true ? { fixed_term: true } : {}),
     });
   });
 

@@ -369,7 +369,39 @@ desk that is simply absent from a stuck-check.
 target file has not moved in 30 minutes" is the signal.** Compare mtime against now; that is the
 whole test. And prefer an `llm` shim call, which returns and ends — an agent can sit.
 
-## ⚠️ CHASE PAY OVER TIME IS MODELLED AS FREE, AND IT IS NOT. Money surface, not started.
+## ✅ CHASE PAY OVER TIME — THE CODE HALF IS DONE. The DATA half is Tre's.
+
+⚠️ **"Not started" was wrong, and so was the sweep that said so.** The 2026-09-05 caller gate
+grepped for `payOverTime` / `pay_over_time`, found nothing, and recorded the item as unbuilt. **The
+feature is called `monthly_fee`.** A caller-grep is only as good as the symbol you grep for.
+
+What was actually true, in three layers:
+1. `monthly_fee` and `fixed_term` existed on `BalanceTranche`, were parsed, normalised and had
+   their own test file. Correct.
+2. **`credit-card-engine.ts` threw the fee away at the boundary** — it read `monthlyInterest` and
+   `totalMonthlyInterest` while `trancheInterestBreakdown` was already computing `monthlyCost` and
+   `totalMonthlyCost`. Computed, tested, discarded. Fixed; mutation-verified.
+3. **`tranche-form.ts` dropped both fields**, so a fee could not be ENTERED and would have been
+   **erased by any save**. That is the SECOND time this file has done exactly that — `min_payment`
+   from `ef75f6d5` to 2026-08-22 — and a warning comment did not prevent the repeat, so there is
+   now `tranche-form.roundTrip.test.ts` which fails on the next field somebody forgets.
+4. `BalanceTrancheEditor` had no inputs. Now has a Monthly Plan Fee box and a Fixed term checkbox,
+   both pressed in tests.
+
+⚠️ **NO NUMBER MOVES TODAY.** Measured: 3 accounts, 6 tranche rows, **zero carry a fee**. The
+change only takes effect once a plan is entered, and parity holds to the cent for anything without
+one.
+
+### ⬜ STILL OPEN AND IT IS TRE'S — the three plans are MISSING from `balance_tranches`
+$2,101.39 of 0% instalment principal sits in the untranched remainder at 27.49% — **~$577/yr of
+interest he will not pay** — and $284.40 of fees have nowhere to live until the rows exist.
+**I did not enter them:** that is his data off three confirmation emails I do not have, and
+inventing tranche rows on a live financial account from a summary is not something to do
+unattended. He can now type them in: balance, 0% APR, the plan end date, the monthly instalment,
+the monthly fee, and tick Fixed term.
+
+<details><summary>The original finding, 2026-09-05</summary>
+
 
 Reconciled 2026-09-05 against three plan-confirmation emails. **Two errors pointing in OPPOSITE
 directions, which is why nothing looked wrong.**
@@ -400,6 +432,8 @@ tranche is close but is a floor, not a ceiling.
 **The fix:** a FEE concept on the tranche — a flat monthly amount, not a rate, because that is how
 Pay Over Time charges — plus the payoff math including it. A 0% tranche is not a free tranche.
 Same confident-zero as the null APR, on the same card.
+
+</details>
 
 ## HIS LIVE NUMBERS, 2026-09-05 — useful, and they go stale fast
 

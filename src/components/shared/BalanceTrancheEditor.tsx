@@ -20,7 +20,11 @@ type Props = {
 export default function BalanceTrancheEditor({ rows, onChange, accountBalance }: Props) {
   const overage = trancheOverage(rows, accountBalance);
 
-  const patch = (id: string, field: keyof TrancheFormRow, value: string) =>
+  // ⚠️ `string | boolean` since 2026-09-06: every field on a tranche row was a string until
+  // `fixed_term` arrived, which is genuinely a checkbox rather than a typed number. Widening the
+  // parameter is honest; storing "true"/"false" as strings to keep the old signature would push a
+  // parse into `tranche-form.ts` for no reason.
+  const patch = (id: string, field: keyof TrancheFormRow, value: string | boolean) =>
     onChange(rows.map(r => (r.id === id ? { ...r, [field]: value } : r)));
 
   return (
@@ -127,6 +131,44 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
                 <p className="text-[10px] text-muted-foreground mt-1">
                   For a fixed plan (Chase Equal Pay, Citi Flex). Leave blank for an ordinary promo rate.
                 </p>
+              </div>
+              {/* ⚠️ A 0% PLAN IS NOT A FREE PLAN, and until 2026-09-06 there was nowhere to say so.
+                  `monthly_fee` existed on the stored shape, was parsed and was tested — and had no
+                  input, so a Chase Pay Over Time fee could not be entered at all. Measured on Tre's
+                  Prime Visa: $284.40 across three plans, 13.5% of principal, invisible.
+                  A FLAT MONTHLY AMOUNT, not a rate, because that is how the product charges. */}
+              <div>
+                <label className="text-[9px] text-muted-foreground uppercase">Monthly Plan Fee (optional)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={row.monthly_fee}
+                  onChange={e => patch(row.id, 'monthly_fee', e.target.value)}
+                  placeholder="e.g. 13.85"
+                  className="w-full mt-1 px-2 py-1.5 bg-background border border-border rounded text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Chase Pay Over Time and similar charge a flat fee instead of interest. A 0% plan
+                  with a fee is not free.
+                </p>
+              </div>
+              {/* Paired with the fee because they describe the same product. See
+                  BalanceTranche.fixed_term: Chase sends any surplus to the HIGHEST-rate balance, so
+                  a 0% plan cannot be prepaid and the model must not project that it can. */}
+              <div>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={row.fixed_term}
+                    onChange={e => patch(row.id, 'fixed_term', e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Fixed term — paying extra cannot finish this plan early. The card sends surplus
+                    to the highest-rate balance instead.
+                  </span>
+                </label>
               </div>
             </div>
           </div>

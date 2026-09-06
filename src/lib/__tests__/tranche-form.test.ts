@@ -17,7 +17,8 @@ const STORED = [{
 }];
 
 const row = (over: Partial<TrancheFormRow> = {}): TrancheFormRow => ({
-  id: 'row-1', label: 'Balance transfer', balance: '5000', apr: '8', promo_end_date: '', min_payment: '', ...over,
+  id: 'row-1', label: 'Balance transfer', balance: '5000', apr: '8', promo_end_date: '', min_payment: '',
+  monthly_fee: '', fixed_term: false, ...over,
 });
 
 describe('tranchesToRows', () => {
@@ -30,6 +31,11 @@ describe('tranchesToRows', () => {
       apr: '7.99',
       promo_end_date: '2028-01-04',
       min_payment: '',
+      // Added 2026-09-06 with the fields themselves. An unset fee is an EMPTY BOX, not a '0' the
+      // user then has to delete, and `fixed_term` defaults to false because that is what every
+      // stored row means by its absence.
+      monthly_fee: '',
+      fixed_term: false,
     }]);
   });
 

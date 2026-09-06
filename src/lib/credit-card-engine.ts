@@ -300,6 +300,13 @@ function liveTranches(card: CardData, bals: readonly number[]): LiveTranche[] {
  * into the ledger so a promo tranche compounds at its own rate. They can disagree by a cent —
  * `total` rounds the sum, `lineInterest` rounds each line — and that cent lands in the implicit
  * remainder, which is where standard-rate money belongs anyway.
+ *
+ * ⚠️ THE NAME SAYS INTEREST AND BOTH FIGURES ARE INTEREST **PLUS FEES**, since 2026-09-06. It is
+ * kept because renaming it would touch four call sites and every test that pins this arithmetic,
+ * for no gain in correctness — but do not read "interest" here as excluding a Pay Over Time fee.
+ * A card with no tranches, or no tranche carrying a `monthly_fee`, returns exactly what it always
+ * did: `monthlyCost` equals `monthlyInterest` when the fee is absent, so the parity rule at the top
+ * of `balance-tranches.ts` holds to the cent.
  */
 export function trancheInterestFor(
   card: CardData, bals: readonly number[], revBal: number, asOf: string,
@@ -315,9 +322,22 @@ export function trancheInterestFor(
   const lineInterest = [...zeros];
   breakdown.lines.forEach((line, i) => {
     const idx = live[i]?.index;
-    if (idx !== undefined) lineInterest[idx] = Math.round(line.monthlyInterest * 100) / 100;
+    // ⚠️ `monthlyCost`, NOT `monthlyInterest` — A 0% TRANCHE IS NOT A FREE TRANCHE.
+    // `trancheInterestBreakdown` has computed a per-tranche `monthlyFee` since the field was added,
+    // and this line THREW IT AWAY: the engine read `monthlyInterest` and the fee never reached a
+    // balance, a projection or a total. Measured on Tre's Prime Visa 2026-09-05 from three Chase
+    // Pay Over Time confirmation emails — $166.20 + $55.92 + $62.28 = **$284.40, 13.5% of
+    // principal, invisible to the forecast** because `apr: 0` reads as costless.
+    //
+    // ⚠️ AND CHARGING IT IS WHAT STOPS THE PLAN RETIRING TOO EARLY, which is the half that is
+    // easy to miss. A Pay Over Time instalment ALREADY CONTAINS the fee: 12 × $124.06 = $1,488.72
+    // against $1,322.50 principal + $166.20 fees = $1,488.70, to two cents. So a payment that
+    // reduced the tranche by its whole instalment would clear $1,322.50 of principal in about ten
+    // and a half months instead of twelve, and report a payoff date the card will not honour. The
+    // fee has to be CHARGED so the payment can cover it, exactly as interest is.
+    if (idx !== undefined) lineInterest[idx] = Math.round(line.monthlyCost * 100) / 100;
   });
-  return { total: Math.round(breakdown.totalMonthlyInterest * 100) / 100, lineInterest };
+  return { total: Math.round(breakdown.totalMonthlyCost * 100) / 100, lineInterest };
 }
 
 /**
