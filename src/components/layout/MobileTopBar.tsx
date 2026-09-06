@@ -72,12 +72,19 @@ export default function MobileTopBar() {
           there. This bar is `lg:hidden`, so it cannot be the inset's owner for the whole app, and
           for one build it carried the inset while `main` carried a second copy. */}
       <div className="lg:hidden relative flex items-center h-12 px-2 border-b border-border bg-card">
+        {/* ⚠️ TOP RIGHT, AND THAT IS JAKOB'S LAW RATHER THAN A PREFERENCE (Tre, 2026-09-06). People
+            spend nearly all their time in OTHER apps and arrive carrying a model of where things
+            live; Instagram — his own reference — puts the menu far top right. Every place we
+            differ costs a half-second of hesitation nobody reports and we never see.
+            `ml-auto` rather than `justify-end` on the row: the brand is ABSOLUTELY centred, so it
+            is not a flex sibling and a `justify-*` change would silently do nothing the day
+            somebody adds a second child. */}
         <button
           onClick={() => setOpen(!open)}
           aria-label="Open menu"
           aria-expanded={open}
           className={cn(
-            'flex items-center justify-center min-w-[44px] min-h-[44px] -my-0.5 transition-colors btn-press',
+            'ml-auto flex items-center justify-center min-w-[44px] min-h-[44px] -my-0.5 transition-colors btn-press',
             open ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           )}
         >
@@ -109,7 +116,13 @@ export default function MobileTopBar() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="absolute left-0 top-0 bottom-0 w-[min(78vw,300px)] bg-card border-r border-border shadow-xl overflow-y-auto"
+            /* ⚠️ THE DRAWER MOVED WITH THE TRIGGER, and this is a judgement call worth reversing
+               separately if it is wrong. A control on the RIGHT that opens a panel from the LEFT
+               is a worse mismatch than either consistent arrangement — the panel appears to come
+               from nowhere the finger just was. Instagram's top-right menu opens a right-hand
+               sheet, which is the model the law is about. Reverse this line alone to keep the
+               drawer on the left. */
+            className="absolute right-0 top-0 bottom-0 w-[min(78vw,300px)] bg-card border-l border-border shadow-xl overflow-y-auto"
             style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
             onClick={e => e.stopPropagation()}
           >
