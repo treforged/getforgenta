@@ -34,8 +34,12 @@ one command and it costs nothing: grep for Tre's OWN WORDS**, which this codebas
 comment above the code that answers them. That convention is what made all six findable in a
 single pass, and it is worth keeping for exactly this reason.
 
-✅ **BOTH OF THE TWO THAT WERE STILL OPEN ARE NOW CLOSED — 2026-09-06.** So the count is EIGHT of
-eight, and seven of them needed no new feature code. See the two sections directly below.
+✅ **ALL OF THEM ARE NOW CLOSED — 2026-09-06.** Eight of eight, plus the auto-extra ask below.
+Seven needed no new feature code at all; the three real holes were all on the same surface, and all
+the same shape: **money the engine already computed, that the LEDGER alone never showed.** Goal
+contributions, then the ranked auto-extra. If another "should show in Transactions" ask arrives,
+look there first — `Transactions.tsx` derives its stream from `recurring_rules` and nothing else
+unless a caller explicitly adds to it.
 
 ---
 
@@ -70,6 +74,26 @@ in the same commit.
 
 ⚠️ **NOT VERIFIED IN A BROWSER.** Tre is signed out at the console, so nothing could render today.
 jsdom is legitimate here (text and presence, no geometry) but a rendered frame is still owed.
+
+## ✅ SHIPPED 2026-09-06 — the monthly surplus swept into goals and loans was invisible in the ledger.
+
+`origin/main` 0/0, verified by CONTENTS. `npm run test:tz` **3922 passed / 1 skipped**, three zones.
+
+The engine's ranked surplus moves real cash out of checking every month. The Forecast month drawer
+itemised it, the CSV export listed it, and **`Transactions.tsx` had ZERO references to auto-extra
+anything.** Now `src/lib/auto-extra-ledger-rows.ts`, reading the engine's OWN named list
+(`ForecastMonthRow.autoExtraItems` — the `{id,name,kind,amount}` twin of `autoExtraByTarget` that
+the drawer and export already read), so there is no second allocation and no second total.
+
+⚠️ **THE DOUBLE-COUNT THAT WOULD HAVE BEEN EASY TO SHIP.** A credit card's ranked surplus is NOT in
+that list — `AutoExtraReserveKind` is `car_fund | goal | loan | liability` with **no `card`** — and
+card surplus rides inside `perCardAdjusted`, which this page ALREADY renders as a debt payment row.
+Emitting it here too would have shown the same money leaving twice, silently, on a money surface.
+**Anyone adding a `card` kind to the engine must exclude it here explicitly.**
+
+Two smaller decisions worth not re-arguing: the date is the LAST DAY of its month (a ranked extra is
+what is left after that month's obligations, not a payment on a chosen day), and `isTransfer` is
+true for a goal or car fund and FALSE for a loan — one receives money, the other retires debt.
 
 ## ✅ CLOSED, ALREADY FIXED — the /debt STUDENT LOANS chart "breaking" on mobile. `1d4fd3bd`.
 
