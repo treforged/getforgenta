@@ -1137,6 +1137,31 @@ working thing.
   deciding WHEN it runs was elsewhere. When a trigger function starts reading a new
   column, change the trigger too, and prove it by writing that column alone.
 
+### ⛔ THE FUNNEL: THE PAYMENT STEP IS NOT WHERE IT FAILS. READ BEFORE ANY PRICING WORK.
+`docs/checkout-funnel-2026-09-06.md` (`ad408802`). 31 signed up → 12 set an income → 4 recorded a
+transaction → **2 linked a bank** → 5 external people ever opened a checkout → 3 ever saw $89.99
+→ **0 ever paid it**. 39 sessions in all history, **31 of them Tre's own two emails**; last one
+**2026-05-18**, and 11 people have signed up since without opening one. **Bank linking is
+premium-gated (`plaid-create-link-token/index.ts:83`), so 29 of 31 have been asked to pay $89.99
+for a feature they have never seen work, with no trial to see it with.** Checkout itself is NOT
+broken — 8 sessions completed through the same code. ⚠️ Do not quote
+`onboarding_completed` (a FLOOR, two completion stores), `onboarding_started_at` or
+`onboarding_furthest_step` (written by nothing). ⚠️ `profiles` has 49 rows for 31 users — 18 are
+orphans with no `auth.users` row, so it is never a headcount. **Commission programme SHELVED by
+Sam on this evidence.**
+
+### ✅ `profiles.is_premium` — A DEAD COLUMN, NOT A COMPETING TRUTH. FIXED, `d785fbfe`.
+`user_subscriptions` is authoritative (`SubscriptionContext.tsx:56`). **Nothing reads or writes
+`profiles.is_premium`** — checked across `src/`, `supabase/`, `pg_policies`, `pg_proc`, `pg_views`.
+Backfilled (2 rows), commented as derived/deprecated, and the migration asserts itself. NOT
+dropped: irreversible, and a person's call. Undo is in the migration header.
+
+### ✅ IDENTITY AFFORDANCE — nav item 1, SHIPPED `dfb058ce`, one half of acceptance UNMET
+`IdentityBadge.tsx` + `src/lib/identity-badge.ts`. Measured 70×44 at left=9, 390px, real account.
+⚠️ **The partner-view frame was never obtained** — no partner is linked to Tre's account, so that
+state is unreachable on real data. Unit tests cover it (the unnamed-partner case is
+mutation-verified); a unit test is not a rendered frame. Do not record it as visually verified.
+
 ### ⛔ COMMISSION PROGRAMME — STAGE 1 DONE, AND IT STOPS STAGE 2's PREMISE
 `docs/commission-stage-1-numbers.md` (2026-09-06). **Lifetime gross revenue is $4.99 and it is
 Tre's own card** — one charge ever, 0 refunds, 0 disputes. All 8 live subscriptions redeem the
