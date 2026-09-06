@@ -22,12 +22,18 @@ to FIRE on a bad row before being believed), the pure `src/lib/first-payment-due
 form field, and ONE engine site: the due-month decision at `credit-card-engine.ts:~1262`.
 16 tests, all mutation-checked. `test:tz` green in three zones, 3887 passed.
 
-⛔ **WHAT IS NOT BUILT, and do not read the field as doing it.** A card still owes its MINIMUM in
-every month from `cardStartMonths` onward, including months before its first payment is due. The
-first due date currently moves only the statement-card first-payment month. Gating the obligation
-needs a second month-offset map threaded through the FIFTEEN `cardStartMonths` call sites in
-`credit-card-engine.ts` - deliberately not done in one pass on a money engine without live-data
-verification. **That is the next slice on this thread.**
+✅ **AND THE SECOND HALF IS SHIPPED TOO - `9c40be0` region, same window.** A card now owes NO
+minimum in the months before its first payment is due. `minSuppressed(card, m)` is the single
+predicate, borrowed from the existing `m0MinSettled` and applied at exactly the FIVE sites that
+one is applied at. **The handoff said fifteen sites; reading them showed twelve are about whether
+the card EXISTS and five about whether it OWES** - a useful correction to make out loud, because
+the fifteen was the reason the slice looked too big to do.
+
+⚠️ **A TEST FOUND THE FIFTH SITE AND IT MATTERS BEYOND THIS FEATURE.** Suppressing the
+RESERVATION was not enough: the minimum-enforcement guard at the end of Step 5 put the payment
+straight back, so `perCardMinPayments` read $0 while `monthlyPayments` read $60. **Reserving
+nothing and paying it anyway is the worst of both** - cash leaves that the floor was never told
+about. Any future change that zeroes a minimum must check that guard too.
 
 ✅ **ALSO CLOSED, ALREADY BUILT:** the user-chosen repeat intervals ask (asks.md line 3) is DONE
 end to end - `20260905_recurring_rules_custom_interval.sql`, `scheduling.ts`, `pay-schedule.ts`,
