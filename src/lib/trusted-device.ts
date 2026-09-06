@@ -54,11 +54,52 @@ export function getTrustedDeviceId(): string | null {
   }
 }
 
-/** Whether a trust record is still inside its lifetime. Pure, so the expiry rule is testable. */
-export function isTrustRecordFresh(device: Pick<TrustedDevice, 'trusted_at'>, now: number): boolean {
+/**
+ * Whether a trust record is still inside its lifetime. Pure, so the expiry rule is testable.
+ *
+ * ⚠️ MEASURED FROM THE LAST TIME THE DEVICE WAS SEEN, NOT FROM WHEN IT WAS GRANTED.
+ *
+ * It used to read `trusted_at` alone, which meant a phone in DAILY USE went quietly untrusted
+ * exactly 30 days after it was trusted — and dropped from the 12-hour idle leash back to the
+ * 10-minute one with no prompt, no warning and nothing on screen to explain it. Measured
+ * 2026-09-06 on Tre's own profile: iPhone `trusted_at` 2026-07-13 (expired 08-12, 55 days ago)
+ * and Windows PC `trusted_at` 2026-08-05 (expired 09-04). BOTH his devices had silently fallen
+ * back to the 10-minute timeout, which is exactly his report that the app "keeps logging out".
+ *
+ * Sliding the window on use keeps the security property that matters — a device nobody has
+ * touched for 30 days loses its trust — while not punishing the device someone uses every day.
+ * A record with no usable `last_seen` falls back to `trusted_at`, so old rows keep working.
+ */
+export function isTrustRecordFresh(
+  device: Pick<TrustedDevice, 'trusted_at'> & Partial<Pick<TrustedDevice, 'last_seen'>>,
+  now: number,
+): boolean {
   const grantedAt = new Date(device.trusted_at).getTime();
-  if (!Number.isFinite(grantedAt)) return false;
-  return now - grantedAt < TRUST_LIFETIME_MS;
+  const seenAt = device.last_seen ? new Date(device.last_seen).getTime() : NaN;
+  // The LATER of the two: a grant is fresh if either the grant or the last sighting is recent.
+  const candidates = [grantedAt, seenAt].filter(t => Number.isFinite(t));
+  if (candidates.length === 0) return false;
+  return now - Math.max(...candidates) < TRUST_LIFETIME_MS;
+}
+
+/**
+ * How stale `last_seen` must be before a sighting is written back.
+ *
+ * `isDeviceTrusted` runs on every session start, and a write on each one would be pure chatter on
+ * a row nothing reads that often. Half a day keeps the sliding window accurate to well inside the
+ * 30-day lifetime while costing at most two writes a day.
+ */
+export const TOUCH_THROTTLE_MS = 12 * 60 * 60 * 1000;
+
+/** Whether this sighting is worth persisting, given what the record already says. */
+export function shouldTouchLastSeen(
+  device: Pick<TrustedDevice, 'last_seen'> | undefined,
+  now: number,
+): boolean {
+  if (!device) return false;
+  const seenAt = new Date(device.last_seen).getTime();
+  if (!Number.isFinite(seenAt)) return true;
+  return now - seenAt >= TOUCH_THROTTLE_MS;
 }
 
 /**
@@ -76,8 +117,40 @@ export async function isDeviceTrusted(userId: string): Promise<boolean> {
     const devices = (data?.trusted_devices as TrustedDevice[] | null) ?? [];
     const device = devices.find(d => d.device_id === deviceId);
     if (!device) return false;
-    return isTrustRecordFresh(device, Date.now());
+    const now = Date.now();
+    const fresh = isTrustRecordFresh(device, now);
+
+    // Slide the window on a device that is genuinely still in use. Best effort and deliberately
+    // NOT awaited: the answer this function exists to give must not wait on a write, and a failed
+    // touch must never turn a trusted device into an untrusted one.
+    //
+    // Only when the record is still fresh. Touching an EXPIRED grant would silently renew trust
+    // that has already lapsed, which is the one thing the lifetime exists to prevent — re-trusting
+    // is a decision for the 2FA flow, not a side effect of a lookup.
+    if (fresh && shouldTouchLastSeen(device, now)) {
+      void touchTrustedDevice(userId, deviceId, devices, now);
+    }
+    return fresh;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Record that this device was seen, so an actively used device does not expire out from under its
+ * owner. Swallows its own errors — the caller has already returned.
+ */
+async function touchTrustedDevice(
+  userId: string,
+  deviceId: string,
+  devices: TrustedDevice[],
+  now: number,
+): Promise<void> {
+  try {
+    const seen = new Date(now).toISOString();
+    const next = devices.map(d => (d.device_id === deviceId ? { ...d, last_seen: seen } : d));
+    await supabase.from('profiles').update({ trusted_devices: next as never }).eq('user_id', userId);
+  } catch {
+    /* a missed sighting costs at most one throttle window */
   }
 }
