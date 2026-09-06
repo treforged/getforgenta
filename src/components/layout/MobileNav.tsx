@@ -25,7 +25,7 @@ import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 // Accounts, Plan and Goals are all PANELS of tabs already in this row (of Dashboard,
 // Transactions and Forecast respectively) rather than entries of their own — the "reduce how many
 // separate tabs, especially on mobile" ask. Their old routes still resolve as redirects.
-const PRIMARY = [
+export const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },

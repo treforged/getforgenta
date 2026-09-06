@@ -9,6 +9,8 @@ import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { usePartnerLinkStatus } from '@/hooks/usePartnerLink';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import IdentityBadge from '@/components/layout/IdentityBadge';
+import BackButton from '@/components/layout/BackButton';
+import { isPushedRoute } from '@/lib/nav-routes';
 
 /**
  * The narrow-viewport top bar: a hamburger at the far LEFT that is on screen on every route, at
@@ -85,7 +87,13 @@ export default function MobileTopBar() {
             question in that plan that is unanswered on every screen of every session, and partner
             view makes it a real one. It renders BEFORE the `ml-auto` trigger, so the hamburger
             still sits hard right whether or not this is present. */}
-        <IdentityBadge />
+        {/* ⚠️ BACK **REPLACES** IDENTITY, AND THAT IS MEASURED RATHER THAN CHOSEN. At 390px the
+            centred wordmark starts at x=110 and the identity badge ends at x=90 — a 19px gap
+            (same-origin iframe, 2026-09-06). A 44px control does not fit beside it, so the corner
+            shows BACK where there is somewhere to go back from and IDENTITY otherwise. Nothing is
+            lost: the pushed screens are Settings, the AI advisor and Premium, and Settings is
+            itself where the account lives. */}
+        {isPushedRoute(pathname) ? <BackButton /> : <IdentityBadge />}
 
         <button
           onClick={() => setOpen(!open)}

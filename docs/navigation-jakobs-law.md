@@ -78,15 +78,27 @@ full-width bar with a top border, versus the floating inset pill people now expe
   `pb-[calc(5.5rem+env(safe-area-inset-bottom))]`, so that padding must be re-measured, not assumed.
 - **Honest note:** this is the most visible item and the least broken one. It is polish.
 
-### 3. Back on iOS — *several times a session, in deep flows*
-Nothing in the chrome offers back. Android users have the OS gesture; iOS users have an edge swipe
-we never signal.
-- **Do:** a top-left chevron on pushed screens only — never on a tab root, where it would offer to
-  leave a place there is nothing to go back from.
-- **Acceptance:** a frame on a pushed screen showing the chevron and a frame on a tab root showing
-  none; pressing it returns to the previous route.
-- ⚠️ Interacts with rule 8 (`0982aa18`): scroll position is restored on POP, so an in-app back
-  must go through the router rather than `history.back()` on a fresh entry.
+### 3. ✅ SHIPPED — back on pushed screens
+`src/components/layout/BackButton.tsx`, `src/lib/nav-back.ts`, `src/lib/nav-routes.ts`.
+**Pressed in a browser at 390px, not merely rendered:** `/dashboard` corner = IDENTITY (idx 0) →
+drawer → Settings gives `/settings` corner = **BACK**, control **44×44 at left=9** (idx 1) →
+**pressing it returns to `/dashboard`** and the corner reverts to IDENTITY (idx 0).
+- **It REPLACES the identity badge rather than sitting beside it, and that is MEASURED.** At 390px
+  the centred wordmark starts at **x=110** and the badge ends at **x=90** — a **19px** gap. A 44px
+  control does not fit there, so stacking was impossible rather than merely inelegant. Nothing is
+  lost: the pushed screens are Settings, the AI advisor and Premium, and Settings is itself where
+  the account lives.
+- **An unknown route counts as pushed**, so a new screen gets its way out for free. The opposite
+  default ships a screen with no exit, which is the bug being fixed.
+- ⚠️ **THE FRESH-ENTRY CASE IS NOT BROWSER-VERIFIED.** `history.back()` on a deep link — a push
+  notification, a pasted URL, the native WebView's first navigation — leaves the APP. `nav-back.ts`
+  reads react-router's own `idx` (never `history.length`, which counts pages from before this app
+  loaded) and falls back to `/dashboard`. Loading `/settings` directly while signed out redirects
+  to `/auth`, so that path could not be reached from this desk; it is covered by mutation-verified
+  unit tests only. **A unit test is not a rendered frame.**
+- ⚠️ Rule 8 (`0982aa18`) held: back is `navigate(-1)`, which produces a POP, which is what the
+  scroll restoration listens for. A reconstructed path would PUSH and land at the top of a page the
+  person had scrolled down.
 
 ### 4. Top-bar centre says the APP, not the PLACE — *every session, low cost each time*
 The brand tells you which app you are in, which you already knew. The convention is that the
