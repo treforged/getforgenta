@@ -14,6 +14,30 @@ closes all of them; three separate re-derivations is what this file exists to pr
 - Sign in **manually, once**, in the Claude-controlled Chrome. Never script credential entry, never
   copy a token out of the browser, never write session material to disk — see the `dev-signin`
   skill. **Leave the tab open afterwards**; an open tab is what keeps the token refreshing.
+### ⚠️ The sign-in may be revoked *while you work*, and it looks like a wipe
+
+Diagnosed by Sam on 2026-09-06 after the 21:42 loss, and it changes what to do rather than only
+what to expect. Probed on the canonical origin: **50 `localStorage` keys present and writable —
+`forgenta:trusted_device_id`, `forged:onboarding_done_*`, every `tre:*` preference. Exactly ONE was
+gone: the `sb-*-auth-token`.**
+
+**One key of fifty is not loss, it is REVOCATION.** The Supabase client deletes that entry itself
+on an explicit `signOut()` **or when a refresh is rejected**. The leading hypothesis — **not a
+confirmed finding**, because console tracking starts when the tool is first called and the failing
+tab was gone by the time anyone looked — is **refresh-token rotation with two contexts holding one
+token**: the automated Chrome and Tre's own browser, whichever refreshes second getting rejected.
+
+What follows from it, whether or not the hypothesis holds:
+
+- **Arm `read_console_messages` on the parked tab BEFORE a long run.** The evidence only exists at
+  the moment of failure, and it has now been lost twice by looking afterwards.
+- **Leave the app tab parked and open** (step 5 of the `dev-signin` skill). An open tab is what
+  keeps the token refreshing, and closing tabs during cleanup is a plausible contributor.
+- **Re-probe the session immediately before a check you cannot repeat cheaply**, rather than
+  assuming a sign-in from twenty minutes ago is still live.
+- **Prefer ONE long-lived measuring frame to many short ones.** Creating and destroying same-origin
+  iframes multiplies the contexts that can attempt a refresh.
+
 - Measure at **390px** in a same-origin iframe rather than by eye. It is the house method and it
   produces numbers somebody else can check:
 
