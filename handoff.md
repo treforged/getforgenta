@@ -13,6 +13,34 @@ with a hand-typed entry — so it becomes runnable the moment one appears.
 
 ---
 
+## 🔐 RESTRICT the Firebase Android API key — DO NOT ROTATE IT
+
+Found by Ruby's gitleaks scan of 4,731 commits, which was otherwise **CLEAR** — no live exposed
+credential anywhere in getforgenta's GitHub history. Her evidence:
+`tre-forged-marketing/docs/evidence/2026-09-06_secret-scan-getforgenta.md` (commit `01bf307`).
+
+`android/app/google-services.json:18` carries the Firebase Android API key (`AIzaSy…`).
+**It ships inside every published APK by design, so it is NOT a leak.** Rotating it as though it
+were would break released builds and buy nothing. What it needs is an **Android app restriction in
+the Google Cloud console: package name plus release SHA-1.** Unrestricted is the default, and that
+default is the actual risk.
+
+**This desk cannot do it** — there is no authenticated Google Cloud tool here. It is in the Asks
+Ledger for Tre.
+
+**Two things that are NOT findings — do not chase them:** every `price_1T…` literal in
+`create-checkout` / `grant-promo-premium` is a Stripe PRICE id, public by design; and the
+`-----BEGIN PRIVATE KEY` in `src/lib/__tests__/push-transport.routing.test.ts:55` is a `btoa()`
+test fixture.
+
+⚠️ **The warning that generalises, and it is this repo's own testing rule wearing different
+clothes:** gitleaks with its DEFAULT rules **MISSED** a credential Ruby already knew was in that
+history. It only surfaced under a rule keying on argument position, because
+`page.fill('input[type="password"]', "<value>")` puts the keyword in the SELECTOR and the value
+after a comma. **If you ever run a scanner, first point it at a secret you know is there and
+confirm it finds it.** A clean report from an unproven scanner is the same false green as a test
+that cannot fail.
+
 ## ⏰ SUNDAY 2026-09-13 — REMIND TRE, in his own words
 
 He asked for this reminder himself, and it is the ONLY thing standing between the free
@@ -1410,7 +1438,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-06 00:22 by handoff_hook. Everything below this heading is
+_Written 2026-09-06 00:46 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1421,14 +1449,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+048c6fc4 ci(vercel): docs-only commits no longer store a full production build
+82603be2 docs(cost): Plaid is now a variable cost that grows with SIGNUPS, not with customers
+b5974df0 docs(handoff): Sunday 2026-09-13, the akoya gap on its own, and the engine as an option
 fdc237cd docs(legal): the repo was PUBLIC with no licence at all, which is the weakest position
 104529d2 docs(handoff): the free first bank link is DEPLOYED, and its acceptance is not met
 0eaedbef [billing]: the first linked bank is free — the paywall moves to the second
 ff49219d [transactions]: the app had no search box anywhere, and now the ledger has one
 7247f54a docs(handoff): the verification pass RAN — check 2 passes in both directions
-555854bc docs: I published "written by nothing" and it was false — truncated grep, read as absence
-72f82c28 [cards]: a 0% Pay Over Time plan is not a free plan — the fee now reaches the engine
-54d06a1d docs(verification): the sign-in is REVOKED mid-session, not wiped — 49 of 50 keys survived
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
