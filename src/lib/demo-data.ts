@@ -548,6 +548,17 @@ export const demoAccounts = [
   // for any unexpired promo whose standard APR beats the tranche's, so this one shows from now
   // until 2027-05-11.
   //
+  // ✅ VERIFIED ON PRODUCTION 2026-09-08 by Ruby, off the pixels, and it is the strongest single
+  // line the app produces. Note it prices BOTH options, which is not obvious from the code:
+  //   ⚠ $2,417 at 0% reprices to 24.74% on May 11, 2027 (+$50/mo)
+  //     — clearing it first needs $302/mo for 8 months
+  // `extraMonthlyInterest` is the cost of doing nothing and `requiredMonthlyPaydown` the cost of
+  // acting; together they make it a decision rather than a warning. Anything that changes this
+  // fixture must keep both halves reachable.
+  //
+  // ⚠️ It is FORWARD-LOOKING in three places at once and "8 months" shrinks as the date nears, so
+  // any published capture of it ages silently. Marketing gates that with `PROJECTION_SHOTS`.
+  //
   // It does NOT appear in the `UTILIZATION-ONLY (0%)` tile, and that tile reading $0 is CORRECT
   // rather than a regression. That figure comes from `installment_balance`, a separate ACCOUNT
   // COLUMN meaning an equal-pay plan that counts toward utilization and bears no interest

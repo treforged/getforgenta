@@ -75,6 +75,42 @@ in the same commit.
 ⚠️ **NOT VERIFIED IN A BROWSER.** Tre is signed out at the console, so nothing could render today.
 jsdom is legitimate here (text and presence, no geometry) but a rendered frame is still owed.
 
+## ✅ SHIPPED 2026-09-07/08 — two live defects on the PUBLIC demo, same root, opposite polarity.
+
+Both found by Ruby capturing `getforgenta.com/demo`, both fixed, **both verified on production by
+her afterwards** (she opened the frames rather than trusting the run).
+
+**`$19,007,108` of "total interest" on a $4,318 card.** Arithmetically honest: `projectCardVariable`
+walks `Math.max(months, 360)` months hunting a payoff, and a card whose purchases outrun its payment
+never clears, so thirty years compound into the total. Now reads **"Never pays off"**.
+
+**`PAYOFF ETA: Paid` for debt that never clears — the more serious one.** The aggregate was
+`Math.max(0, ...map(p => p.payoffMonth ?? 0))`, and **`?? 0` turns "never" into "immediately"**.
+Every card null gives 0, and 0 rendered as *Paid*. **The most alarming state the app can be in was
+displayed as the most reassuring one, on a debt payoff screen.** `/dashboard` was right,
+`/debt` was wrong. Now "Not within 5 years", via `aggregatePayoffEta` returning a tagged union so no
+caller can compare it back into arithmetic.
+
+Both rules live in `src/lib/card-interest-display.ts` so the tile, the premium bullet and the header
+cannot drift. **Machine-wide rule now: a coalescing default on a DISPLAYED value is a defect until
+proven otherwise** — with the qualifier this session earned, below.
+
+### ⚠️ FOUR WAYS A GREEN TEST WAS ABOUT NOTHING, and one was mine
+- **green-against-unreachable:** my card fixture set `paymentPreference: 'revolving'`, which is not
+  in the union. **Vitest does not typecheck, so it passed while exercising a branch production
+  cannot enter.** `tsc` caught it; no test could, because the test was the thing asserting it.
+- The `?? 0` rule's OWN failure mode: **`UTILIZATION-ONLY (0%)` reading $0 is CORRECT.** It reads
+  `installment_balance`, an account column no demo account sets — a different concept from a 0%
+  promo TRANCHE. A correct zero was nearly "fixed" into a wrong one. **"Proven otherwise" must
+  include *absent genuinely means zero here*.**
+
+### ✅ THE REPRICING CLIFF RENDERS, and it is the strongest line the app produces
+Looked for in the wrong element and reported missing. It is in `CardRateLine.tsx`, not a stats tile,
+and `promoExpiryWarnings` has **no time window**. Verified on production:
+> ⚠ $2,417 at 0% reprices to 24.74% on May 11, 2027 (+$50/mo) — clearing it first needs $302/mo for 8 months
+
+It prices **both options** — doing nothing and acting — so it is a decision, not a warning.
+
 ## ⛔ FIVE OF THE ITEMS I TOOK THIS SESSION WERE ALREADY BUILT. GREP BEFORE YOU BUILD.
 
 Counted 2026-09-07, and it is now the single highest-yield habit at this desk. Each was found by
@@ -1653,25 +1689,30 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-07 22:42 by handoff_hook. Everything below this heading is
+_Written 2026-09-08 13:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (2 file(s)):**
+
+```
+M handoff.md
+ M src/lib/demo-data.ts
+```
 
 - **Recent commits:**
 
 ```
+2ee8d022 [debt]: debt that never clears was displayed as "Paid"
+4a2b4a22 [debt]: $19,007,108 of "total interest" on a $4,318 card, live on the public demo
+27e43b99 test(security): prove the debug-console gate actually fails, rather than trusting it
+21eb2efe docs(review-moment): a competitor tactic evaluated, and this file already implements it better
+09a67952 docs(handoff): five of the items taken this session were already built
+394fb626 docs(funnel): the multi-page paywall tactic is parked with a trigger, not rejected
 46ab5ac5 docs(handoff): both notification defects, and the two shapes worth carrying
 e912e509 [notifications]: one event could become several, because every gate reads a history written too late
-1d9d27e2 [notifications]: the tap handler watched a channel that has never fired once
-1e7fecd9 docs(plaid): re-measured a day on - the ledger placeholder is now stale, not just approximate
-d9a79e44 [purchases]: "logIn() is never called" was recorded as a defect and is correct behaviour
-787b9749 docs(handoff): the source-sweep test shape, which generalises past charts
-cbbd489f [charts]: a tap selected nothing on five charts, and the fix existed in a sixth
-fee8a637 fix(backup): a line on every run, and a real exit code
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
