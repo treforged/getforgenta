@@ -54,7 +54,7 @@ import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { buildCashFloorWarning } from '@/lib/cash-floor-warning';
 import { selectPointOnTouch } from '@/lib/chart-touch';
-import { totalInterestLabel, interestSavingsBullet, NO_PAYOFF_EXPLANATION } from '@/lib/card-interest-display';
+import { totalInterestLabel, interestSavingsBullet, aggregatePayoffEta, NO_PAYOFF_EXPLANATION } from '@/lib/card-interest-display';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -1431,7 +1431,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
-                const simEta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
+                // ⚠️ NOT `p.payoffMonth ?? 0` — that turned "never pays off" into "paid at month
+                // zero" and rendered the header as "Paid". See aggregatePayoffEta.
+                const simAgg = aggregatePayoffEta(projections.map(p => p.payoffMonth));
+                const simEta = simAgg.kind === 'month' ? simAgg.month : 0;
                 // Payoff ETA = the month the interest-bearing revolving debt truly reaches $0
                 // (simRevolvingPayoffMonth), which is exactly the condition the Forecast page's CC
                 // Debt Free milestone gates on — so the two surfaces agree. Fall back to
@@ -1442,6 +1445,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     ? forecastRevolvingPayoffMonth
                     : simEta;
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
+                // "Never" outranks a zero: reaching this with no real payoff month anywhere means
+                // the debt does not clear, which must never be shown as the reassuring state.
+                if (simAgg.kind === 'never' && !((simRevolvingPayoffMonth ?? 0) > 0) && !((forecastRevolvingPayoffMonth ?? 0) > 0)) {
+                  return (
+                    <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive"
+                       title={NO_PAYOFF_EXPLANATION}>
+                      Not within {Math.round(PROJECTION_MONTHS / 12)} years
+                    </p>
+                  );
+                }
                 if (eta <= 0) {
                   return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>;
                 }

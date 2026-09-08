@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { totalInterestLabel, interestSavingsBullet, NO_PAYOFF_LABEL } from '../card-interest-display';
+import { totalInterestLabel, interestSavingsBullet, aggregatePayoffEta, NO_PAYOFF_LABEL } from '../card-interest-display';
 import { projectCardVariable, type CardData } from '../credit-card-engine';
 
 // $19,007,108 OF TOTAL INTEREST ON A $4,318 CARD, ON THE PUBLIC DEMO.
@@ -19,7 +19,10 @@ function makeCard(overrides: Partial<CardData>): CardData {
   return {
     id: 'card', name: 'Card', balance: 0, apr: 0, creditLimit: 5000,
     minPayment: 25, targetPayment: 25, monthlyNewPurchases: 0, monthlyRepayments: 0,
-    color: '#000', paymentPreference: 'revolving', autopayFullBalance: false,
+    // null = no statement/full preference, i.e. the plain revolving branch. NOT 'revolving',
+    // which is not a member of the union - tsc caught that after this test had already passed,
+    // which means it had been green against a value production can never produce.
+    color: '#000', paymentPreference: null, autopayFullBalance: false,
     dueDay: 1, statementBalancePhase: false, statementBalance: null,
     ...overrides,
   };
@@ -77,5 +80,36 @@ describe('interestSavingsBullet — the same divergence attached to a SALES clai
 
   it('still makes the real offer when there IS a real total', () => {
     expect(interestSavingsBullet(24, '$1,240')).toBe('Save $1,240 in total interest');
+  });
+});
+
+// ── "PAID" WAS SHOWN FOR DEBT THAT NEVER CLEARS ─────────────────────────────────────────────────
+//
+// `/debt` read `PAYOFF ETA: Paid` while `/dashboard` read `Not within 5 years` for the same data
+// (Ruby, 2026-09-08, who froze capture over the contradiction). Same root as the interest figure,
+// pointed the other way: the aggregate was `Math.max(0, ...map(p => p.payoffMonth ?? 0))`, and
+// `?? 0` turns "never" into "immediately". Every card null gave 0, and 0 rendered as Paid — the
+// most alarming state the app can be in, displayed as the most reassuring one.
+describe('aggregatePayoffEta', () => {
+  it('says NEVER when a card does not clear — the inversion this exists to stop', () => {
+    expect(aggregatePayoffEta([null]).kind).toBe('never');
+    // One bad card poisons the aggregate: the debt as a whole does not reach zero.
+    expect(aggregatePayoffEta([12, 24, null]).kind).toBe('never');
+    expect(aggregatePayoffEta([undefined]).kind).toBe('never');
+  });
+
+  it('takes the LAST card to clear when they all clear', () => {
+    expect(aggregatePayoffEta([12, 36, 24])).toEqual({ kind: 'month', month: 36 });
+  });
+
+  it('says PAID only when there is genuinely nothing left', () => {
+    // No cards at all is paid; a null is not.
+    expect(aggregatePayoffEta([]).kind).toBe('paid');
+    expect(aggregatePayoffEta([0]).kind).toBe('paid');
+  });
+
+  it('treats month 1 as a real payoff, not as nothing owed', () => {
+    // payoffMonth is 1-indexed. A `<= 0` test on a 1-indexed value is the neighbouring bug.
+    expect(aggregatePayoffEta([1])).toEqual({ kind: 'month', month: 1 });
   });
 });

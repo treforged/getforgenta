@@ -48,3 +48,31 @@ export function interestSavingsBullet(
     ? `Save ${formattedTotal} in total interest`
     : 'See what it takes to stop this card growing';
 }
+
+/**
+ * ⚠️ A CARD THAT NEVER PAYS OFF WAS BEING COUNTED AS PAID OFF AT MONTH ZERO.
+ *
+ * The `/debt` header read `PAYOFF ETA: Paid` while `/dashboard` read `Not within 5 years` for the
+ * same data (found by Ruby, 2026-09-08, who froze capture of that card over the contradiction).
+ * Three other figures on the card sided against "Paid".
+ *
+ * Same root as the total-interest divergence above, pointed the other way. The aggregate was
+ * `Math.max(0, ...projections.map(p => p.payoffMonth ?? 0))`, and `?? 0` turns "never" into
+ * "immediately": a null collapses to 0, `Math.max` keeps the largest, and when every card is null
+ * the result is 0, which the caller renders as **Paid**. The most alarming state the app can be in
+ * was displayed as the most reassuring one.
+ *
+ * `'never'` is returned rather than a sentinel number so no caller can accidentally compare it,
+ * and `'paid'` is reserved for genuinely having nothing left to pay.
+ */
+export type PayoffEta = { kind: 'paid' } | { kind: 'never' } | { kind: 'month'; month: number };
+
+export function aggregatePayoffEta(payoffMonths: readonly (number | null | undefined)[]): PayoffEta {
+  // Nothing to pay off is genuinely paid — an empty card list is not "never".
+  if (payoffMonths.length === 0) return { kind: 'paid' };
+  // ONE card that never clears makes the whole picture "never": the debt does not reach zero.
+  if (payoffMonths.some(m => m === null || m === undefined)) return { kind: 'never' };
+  const max = Math.max(...payoffMonths.map(m => m as number));
+  // payoffMonth is 1-INDEXED, so month 1 is this month; 0 or less means nothing was owed.
+  return max <= 0 ? { kind: 'paid' } : { kind: 'month', month: max };
+}
