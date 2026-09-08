@@ -1,15 +1,50 @@
 # handoff.md — FIRST UP NEXT TIME
 
-⛔ **THE ONE THING: ENTER TRE'S THREE CHASE PAY OVER TIME PLANS.** It is the largest number left
-on the board — **$2,101.39 of 0% principal is being charged 27.49%, about $577/yr of interest he
-will not pay** — and every line of code it needs shipped 2026-09-06 (`72f82c28`). It is blocked
-ONLY on his three confirmation emails. When they arrive: Accounts → Prime Visa → Rate Tiers, one
-tier per plan — balance, **0** APR, the plan end date, the monthly instalment, the monthly fee,
-and tick **Fixed term**. Do NOT invent the figures from the handoff's summary.
+⛔ **THE ONE THING: ENTER TRE'S THREE CHASE PAY OVER TIME PLANS.** Still the largest number left on
+the board — **$2,101.39 of 0% principal charged at 27.49%, about $577/yr of interest he will not
+pay** — and every line of code it needs shipped 2026-09-06 (`72f82c28`). Blocked ONLY on his three
+confirmation emails. Accounts → Prime Visa → Rate Tiers, one tier per plan: balance, **0** APR, the
+plan end date, the monthly instalment, the monthly fee, and tick **Fixed term**. Do NOT invent the
+figures from any summary in this file.
 
-**Second, if that is still waiting:** run `docs/signed-in-verification-pass.md` check 1. It is the
-only unverified thing that can change a stored amount, and it needs a pending bank row that pairs
-with a hand-typed entry — so it becomes runnable the moment one appears.
+**SECOND, and it is the cheapest real win left:** `docs/signed-in-verification-pass.md`. Several
+2026-09-07/08 fixes are shipped, gated and **never seen in a browser** — the console has been signed
+out for days. Nothing in that list needs new code, only a signed-in session.
+
+**THIRD, workable right now with no browser and no Tre:** **129 unused declarations** surfaced by
+turning `@typescript-eslint/no-unused-vars` to `warn` (2026-09-08). 59 are "defined but never used"
+(imports, params — mostly safe), 72 are locals. ⚠️ **Do not sweep them in one pass.** Some are hook
+results where removing the CALL changes what a page loads: `useTransactions()` in `BudgetControl.tsx`
+is left deliberately and says so in a comment. Work file by file, tsc after each.
+
+---
+
+## ⚠️ NINE ITEMS I TOOK ON 2026-09-07/08 WERE ALREADY BUILT. GREP BEFORE YOU BUILD — IT IS THE HIGHEST-YIELD HABIT HERE.
+
+Each found by ONE grep for the caller before writing a line. Without it each would have been rebuilt
+on top of itself, and **the rebuild would have passed its own tests**, which is what makes this
+expensive rather than merely wasteful.
+
+| The record said | What was actually there |
+| --- | --- |
+| Transfer rules must show in Transactions | Shipped — `pay-schedule.ts:1436`. Only the GOAL half was real |
+| /debt student-loans chart breaks on mobile | Fixed in `1d4fd3bd` |
+| Four charts lack an `ErrorBoundary` | All five wrapped — `DebtPayoff.tsx:480,499,539,651,724` |
+| Plaid cost tracking, both halves | Rule live in his ledger + `docs/plaid-cost-2026-09-06.md` |
+| `otherDebtPayment` never stops | Month-indexed and gated — `non-cc-liabilities.ts:398` |
+| Debug-console security gate | Built AND wired into three CI workflows |
+| Review prompt in onboarding | Already value-triggered, and stricter than the tactic suggested |
+| Budget totals → dashboard widget | `BudgetTotalsCard`, registered and mounted |
+| Remaining Cash tile deletion | Done in August — but its computation chain was left running |
+
+**And one in the OTHER direction, which is the same failure inverted:** "`logIn()` is never called"
+was recorded as a money-path defect and is **correct behaviour**. Building it would have changed a
+working money path on a false premise. **Test the premise, not just the presence.**
+
+**The habit:** `grep -rn "<symbol>" src/ | grep -v export` before the first edit, and search for the
+name the CODE has, not the name the ask uses (`monthly_fee`, not `payOverTime`).
+
+---
 
 ---
 
@@ -1689,30 +1724,25 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-08 13:26 by handoff_hook. Everything below this heading is
+_Written 2026-09-08 14:23 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
-
-```
-M handoff.md
- M src/lib/demo-data.ts
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+d3cf0626 [budget]: the Remaining Cash chain kept recomputing every render for a tile deleted in August
+579ab5a7 docs: the two demo defects, and the qualifier the `?? 0` rule needed
+f59e1f3d docs(demo): UTILIZATION-ONLY reading $0 is CORRECT, and the reprice cliff is not where it was looked for
 2ee8d022 [debt]: debt that never clears was displayed as "Paid"
 4a2b4a22 [debt]: $19,007,108 of "total interest" on a $4,318 card, live on the public demo
 27e43b99 test(security): prove the debug-console gate actually fails, rather than trusting it
 21eb2efe docs(review-moment): a competitor tactic evaluated, and this file already implements it better
 09a67952 docs(handoff): five of the items taken this session were already built
-394fb626 docs(funnel): the multi-page paywall tactic is parked with a trigger, not rejected
-46ab5ac5 docs(handoff): both notification defects, and the two shapes worth carrying
-e912e509 [notifications]: one event could become several, because every gate reads a history written too late
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
