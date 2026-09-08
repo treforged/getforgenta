@@ -576,38 +576,17 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     totals, toCurrentMonthAmount, subsAsRules, debtPaymentRules, liabilityPaymentRules,
     goalTransferRules, debtBreakdown, matched, autoMatchedRuleIds,
   } = useBudgetMonthTotals();
-  const { index: matchedOccurrences, occurrences: confirmedOccurrences } = matched;
+  const { index: matchedOccurrences } = matched;
 
-  // Auto-pull debt payments from Debt Payoff recommendations (with full params)
-  const { data: txns } = useTransactions();
-
-  // Base transaction stream (recurring rules merged with real DB transactions)
-  const baseTxns = useMemo(() =>
-    mergeWithGeneratedTransactions(txns || [], rules, accounts),
-    [txns, rules, accounts],
-  );
-
-  // Debt recommendations from the converged month-0 projection, by way of `useBudgetMonthTotals`
-  // -- calling `useMonth0DebtBreakdown` again here would re-run that derivation a second time.
-  const { recommendations: debtRecommendations } = debtBreakdown;
+  // ⚠️ `txns` IS NO LONGER READ, and the call is kept ON PURPOSE rather than deleted with the
+  // chain above. `useTransactions()` is a data hook, so removing the CALL changes what this page
+  // loads and warms, not just what it names — a different decision from deleting a dead `useMemo`,
+  // and one that wants a browser to confirm. Left for a session that has one.
+  useTransactions();
 
 
-  // Inject debt payment transactions into the stream
-  // ⚠️ CARD ROWS ONLY, deliberately. This feeds Remaining Cash On Hand through `remainingTxDebt`,
-  // and the engine's cash floor ALREADY holds the loan payment (`chain.carLoanPayment`) and the
-  // other-debt payment (`chain.otherDebtPayment`). Adding `liabilityPaymentRules` here would
-  // subtract that money a second time.
-  const debtPaymentTxns = useMemo(() => {
-    const fundId = profile?.default_deposit_account ||
-      accounts.find(a => a.account_type === 'checking' && a.active)?.id || null;
-    return createDebtPaymentTransactions(debtRecommendations, fundId);
-  }, [debtRecommendations, profile, accounts]);
 
-  // Full transaction stream with debt payments — single source of truth
-  const allMonthTransactions = useMemo(() =>
-    mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTxns),
-    [baseTxns, debtPaymentTxns],
-  );
+
 
   // §1A Stage B — "matched" badge.
   //
@@ -653,30 +632,13 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     debt: totalDebtPayments, transfers: totalTransfers, expenses: totalExpenses, remaining,
   } = totals;
 
-  const fundingAccount = useMemo(() => {
-    const defaultId = profile?.default_deposit_account;
-    if (defaultId) {
-      const acct = accounts.find(a => a.id === defaultId);
-      if (acct) return acct;
-    }
-    return accounts.find(a => a.account_type === 'checking' && a.active) || null;
-  }, [accounts, profile]);
-
-  // Remaining Cash On Hand — uses funding account + Transactions as single source of truth
-  const fundingAccountBalance = useMemo(() => {
-    if (fundingAccount) return Number(fundingAccount.balance);
-    const liquidTypes = ['checking', 'business_checking', 'cash'];
-    return accounts.filter(a => a.active && liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
-  }, [accounts, fundingAccount]);
-
-  const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
-  const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
-
-  const cashFloor = useMemo(() => resolveCashFloor(profile), [profile]);
-  const prePaycheckBillsTotal = useMemo(() =>
-    getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
-    [rules, payConfig, fundingAccount]);
+  // ⚠️ THE "REMAINING CASH ON HAND" CHAIN THAT STOOD HERE IS GONE, and its absence is the point.
+  // The tile it fed was DELETED on 2026-08-27 (see the tombstone further down: it was
+  // `debtSafeToPay`, which the Dashboard already shows as SAFE TO PAY). The six `useMemo`s behind
+  // it were left behind and kept recomputing every render for nobody — invisible because
+  // `@typescript-eslint/no-unused-vars` was `off`. Removed 2026-09-08 with zero call sites, proven
+  // by `npx eslint src/pages/BudgetControl.tsx`. If you need any of this again, the Dashboard
+  // computes the same chain from the same helpers.
 
   const allAccountOptions = useMemo(() => [
     { value: '', label: 'None' },

@@ -26,7 +26,7 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
-      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       // This codebase uses `any` pervasively (1200+ existing instances) - flag
       // for new code as a nudge without blocking on the existing baseline.
       '@typescript-eslint/no-explicit-any': 'warn',
