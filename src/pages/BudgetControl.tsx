@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Json, Tables } from '@/integrations/supabase/types';
-import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router';
 import { BudgetSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
@@ -8,7 +7,7 @@ import { formatCurrency } from '@/lib/calculations';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals, useCarFunds, type AccountRow, type RuleRow as RuleRowData } from '@/hooks/useSupabaseData';
+import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals, useCarFunds } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -17,20 +16,17 @@ import {
   Plus, Edit2, Trash2, Copy,
   CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { getDayName, countRuleOccurrencesInMonth, describeBiweeklyAnchor } from '@/lib/scheduling';
+import { getDayName, describeBiweeklyAnchor } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
-import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
 import { isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
-import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
+import { getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
-import { resolveCashFloor } from '@/lib/cash-floor';
 import { ruleCustomInterval } from '@/lib/scheduling';
 
 const emptyRuleForm = {
