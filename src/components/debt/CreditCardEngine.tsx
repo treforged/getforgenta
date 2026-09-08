@@ -54,6 +54,7 @@ import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { buildCashFloorWarning } from '@/lib/cash-floor-warning';
 import { selectPointOnTouch } from '@/lib/chart-touch';
+import { totalInterestLabel, interestSavingsBullet, NO_PAYOFF_EXPLANATION } from '@/lib/card-interest-display';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -2002,7 +2003,23 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   </div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}</p></div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
+                  <div>
+                    <p className="text-[9px] text-muted-foreground uppercase">Total Interest</p>
+                    {/* ⚠️ A CARD THAT NEVER PAYS OFF HAS NO TOTAL, AND PRINTING ONE IS A LIE THE
+                        SIZE OF THE HORIZON. `projectCardVariable` runs `Math.max(months, 360)`
+                        months, so when purchases outrun the payment the balance compounds for
+                        thirty years and the sum diverges — $19,007,108 on a $4,318 card, live on
+                        the public demo (found by Ruby, 2026-09-08). The figure was arithmetically
+                        honest and completely unreadable as information.
+                        The payoff label beside this one already says N/A in exactly this state
+                        (see `proj.payoffMonth` above); this tile disagreed with it. */}
+                    <p
+                      className="text-xs font-semibold text-destructive"
+                      title={totalInterestLabel(proj.payoffMonth) ? NO_PAYOFF_EXPLANATION : undefined}
+                    >
+                      {totalInterestLabel(proj.payoffMonth) ?? formatCurrency(proj.totalInterest, false)}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Payment preference selector */}
@@ -2232,7 +2249,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               features={[
                                 `${gatedMonths.length} more month${gatedMonths.length === 1 ? '' : 's'} remaining in ${getCalendarYearLabel(yearIdx)} for ${proj.card.name}`,
                                 'Page through all 5 years of projections, not just this one',
-                                `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
+                                // Same divergence as the Total Interest tile, and worse here: this
+                                // is a SALES claim. "Save $19,007,108 in total interest" is not a
+                                // benefit, it is an obviously false promise attached to a paywall.
+                                interestSavingsBullet(proj.payoffMonth, formatCurrency(proj.totalInterest, false)),
                                 'Override any month\'s payment and watch balances update live',
                               ]}
                             >
