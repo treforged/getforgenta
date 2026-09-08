@@ -540,6 +540,19 @@ export const demoAccounts = [
   // Figures chosen against spec §3: not round, and deliberately far from Tre's
   // own ($3,562 / $8,693 / $2,845 at 27.49% and 16.6%), with an invented issuer,
   // so a published screenshot cannot partially disclose his position.
+  //
+  // ⚠️ WHERE THIS SURFACES, because it was looked for in the wrong place on 2026-09-08 and
+  // reported as missing. The reprice line renders in `CardRateLine.tsx` — a gold ⚠ under the
+  // card's rate line on the expanded card in `/debt` — reading `balance_tranches` STRAIGHT off
+  // the account row via `promoExpiryWarnings`. There is no time window on that warning: it fires
+  // for any unexpired promo whose standard APR beats the tranche's, so this one shows from now
+  // until 2027-05-11.
+  //
+  // It does NOT appear in the `UTILIZATION-ONLY (0%)` tile, and that tile reading $0 is CORRECT
+  // rather than a regression. That figure comes from `installment_balance`, a separate ACCOUNT
+  // COLUMN meaning an equal-pay plan that counts toward utilization and bears no interest
+  // (`credit-utilization.ts:37`). No demo account sets it, and a 0% promo TRANCHE is a different
+  // thing entirely. Two concepts, two sources; do not "fix" one by feeding it the other.
   { id: 'd7', user_id: 'demo', name: 'Cobalt Rewards Card', account_type: 'credit_card', institution: 'Northvale Bank', balance: 4318, credit_limit: 12000, apr: 24.74, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement',
     balance_tranches: [
       { id: 'dt1', label: 'Balance transfer', balance: 2417, apr: 0, promo_end_date: '2027-05-11', min_payment: null },
