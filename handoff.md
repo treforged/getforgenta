@@ -16,6 +16,34 @@ and the EASY HALF IS GONE — what is left is the half that needs reading.** See
 
 ---
 
+## ❓ ONE QUESTION FOR TRE — LUMP-SUM TRANSFERS, and one line settles it
+
+Asked 2026-09-05, never answered, and it decides whether a shipped feature is finished or half
+finished.
+
+> **When you move a lump sum by hand — say $500 into the Prime Visa or into a savings goal — what
+> do you ACTUALLY do today?**
+>
+> **(a)** Move it in your bank, then add or edit a transaction in Forgenta so the app knows.
+> **(b)** Move it in your bank and type nothing — you expect the sync to pick it up.
+> **(c)** Type it into the lump-sum panel as a PLAN before you move it, then move it.
+> **(d)** Something else — say what.
+
+**Why it matters, and why nobody can answer it from the code.** The lump-sum panels are built and
+mounted on three surfaces — vehicle loans, savings cards (`LumpSumPanel`) and Savings Goals
+(`GoalLumpSumPanel`, `SavingsGoals.tsx:981`) — and the auto-extra double-count was settled on
+09-06 (`lump-sum-guard.ts`, measured, not assumed).
+
+**But every one of those panels records a PLANNED extra payment, not a real one.** Nothing
+reconciles the plan against the transfer when it actually lands via bank sync. Which of (a)–(d)
+he does is the difference between "the panel is finished" and "the panel needs a reconcile step",
+and it is a fact about his habit that no amount of reading the repo can establish.
+
+⚠️ `useLumpSumTransfers` has **zero callers** — verified by caller grep, not by the handoff. It is
+not evidence that anything is missing; it is a leftover.
+
+---
+
 ## ⚠️ UNUSED-VARS: 117 → 75, AND THE LINTER'S OBVIOUS FIX IS WRONG ON THE REST
 
 `a9517c8a` (35 import specifiers), `7e43c38f` (four bindings) and `1a042484` (three dead symbols). Gates on both: `npx tsc --noEmit`
@@ -1775,7 +1803,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-08 15:02 by handoff_hook. Everything below this heading is
+_Written 2026-09-08 20:52 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1786,14 +1814,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+931ffa54 docs(handoff): 78 -> 75 after the dead-symbol commit
+1a042484 [budget]: three dead symbols with a proven zero caller, each left a tombstone
+6bda30bd docs(handoff): the unused-vars backlog at 78, and Ruby's three questions answered
+7e43c38f [budget]: four unused bindings where DELETING them was the wrong fix
+a9517c8a [budget]: 35 unused import specifiers, and the one I deliberately left
 f1c7f0a2 [budget]: 15 unused imports, 8 of them orphaned by my own dead-code removal
 e1ac9650 docs(handoff): rewrite the top for Monday - three next actions, and the nine-item table
 d3cf0626 [budget]: the Remaining Cash chain kept recomputing every render for a tile deleted in August
-579ab5a7 docs: the two demo defects, and the qualifier the `?? 0` rule needed
-f59e1f3d docs(demo): UTILIZATION-ONLY reading $0 is CORRECT, and the reprice cliff is not where it was looked for
-2ee8d022 [debt]: debt that never clears was displayed as "Paid"
-4a2b4a22 [debt]: $19,007,108 of "total interest" on a $4,318 card, live on the public demo
-27e43b99 test(security): prove the debug-console gate actually fails, rather than trusting it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
