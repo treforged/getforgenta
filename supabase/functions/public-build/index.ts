@@ -35,6 +35,29 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitedResponse,
+} from "../_shared/rate-limit.ts";
+
+/**
+ * Per-IP rate limit, added 2026-09-09.
+ *
+ * ⚠️ **THIS IS NOT AN ENUMERATION FIX, AND SAYING SO MATTERS.** Enumeration was already closed
+ * in 2026-06/08: the token must be a well-formed UUID and must match EXACTLY, so guessing one is
+ * infeasible and no amount of looping helps. Anyone reading this limit as the thing that protects
+ * a share link has the wrong model of what protects it.
+ *
+ * What it actually protects is COST and ABUSE on the one endpoint an unauthenticated caller can
+ * reach and get real content back from. A person who legitimately holds a share link can re-fetch
+ * it without limit today, and every call spends a service-role DB round trip. 60/minute is far
+ * above what a human opening a shared build page does and far below a scrape loop.
+ *
+ * ⚠️ **IT FAILS OPEN**, by design, in `checkRateLimit` — a Supabase hiccup must not take shared
+ * build pages offline. So it is a brake, not a gate, and must never be counted as one.
+ */
+const IP_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
   "https://getforgenta.com",
@@ -99,6 +122,17 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // After the UUID check, so a malformed token costs no limiter round trip and cannot be used to
+  // burn a real visitor's allowance from the same IP.
+  const ipLimit = await checkRateLimit(
+    supabase,
+    `${getClientIp(req)}:public-build`,
+    IP_RATE_LIMIT,
+  );
+  if (!ipLimit.allowed) {
+    return rateLimitedResponse(corsHeaders, IP_RATE_LIMIT, ipLimit.resetAt);
+  }
 
   const { data: build, error: buildErr } = await supabase
     .from("car_builds")
