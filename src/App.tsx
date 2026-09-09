@@ -64,7 +64,9 @@ const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
 const Vehicles = lazy(() => import("@/pages/Vehicles"));
-const Builds = lazy(() => import("@/pages/Builds"));
+// `Builds` was a lazy ROUTE until it became a panel of the Garage (see the redirect below).
+// `Vehicles.tsx:11` now imports it eagerly, so this binding had no caller and no longer
+// code-split anything. Removed 2026-09-08; the page itself is untouched.
 const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
 const AkoyaOAuth = lazy(() => import("@/pages/AkoyaOAuth"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));

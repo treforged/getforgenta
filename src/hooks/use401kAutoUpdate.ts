@@ -20,16 +20,9 @@ type ProfileRow = Partial<Tables<'profiles'>> & { user_id: string };
 
 const DEFAULT_401K_APY = 7; // fallback if account has no apy_rate set
 
-function getDatesBetween(from: Date, to: Date): Date[] {
-  const dates: Date[] = [];
-  const cur = new Date(from);
-  cur.setDate(cur.getDate() + 1);
-  while (cur <= to) {
-    dates.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dates;
-}
+// `getDatesBetween(from, to)` -- every calendar day in an exclusive-start range -- lived here
+// and was called by nothing (`grep -rn getDatesBetween src/` returned 1 hit, its own
+// definition). `getPaychecksBetween` below is what this file actually uses. Removed 2026-09-08.
 
 function getPaychecksBetween(profile: ProfileRow, from: Date, to: Date): Date[] {
   const config = buildPayConfig(profile);
