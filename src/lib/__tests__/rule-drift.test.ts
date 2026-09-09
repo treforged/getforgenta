@@ -135,7 +135,7 @@ describe('detectRuleDrift', () => {
   });
 
   it('folds a reference number so one merchant is one run', () => {
-    const varied = STEADY.map(([d, a], i) =>
+    const varied = STEADY.map(([d, a]) =>
       [d, a] as [string, number]).map(([d, a], i) => ({ d, a, i }));
     const cs = varied.map(({ d, a, i }) => ({
       id: `v${i}`, merchant_name: `Landlord Co ${1000000000 + i}`, name: 'x',

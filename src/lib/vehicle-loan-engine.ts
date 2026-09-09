@@ -108,7 +108,7 @@ export function calculateScheduledPayment(loanAmount: number, apr: number, termM
 }
 
 export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanProjection {
-  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments, currentBalance, autoExtraByMonth } = input;
+  const { loanAmount, apr, termMonths, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments, currentBalance, autoExtraByMonth } = input;
   const r = apr / 100 / 12;
   const scheduled = calculateScheduledPayment(loanAmount, apr, termMonths);
   const effectivePmt = actualMonthlyPayment > 0 ? actualMonthlyPayment : scheduled;

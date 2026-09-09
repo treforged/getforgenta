@@ -2315,7 +2315,9 @@ export function generateRecommendations(
   strategy: 'avalanche' | 'snowball',
   monthlyTakeHome: number,
   monthlyExpenses: number,
-  paymentMode: 'variable' | 'consistent' = 'variable',
+  // Unused, but POSITIONAL — every caller after it passes by position, so this is renamed
+  // rather than removed.
+  _paymentMode: 'variable' | 'consistent' = 'variable',
   payConfig?: PayScheduleConfig,
   rules?: RuleRow[],
   fundingAccountId?: string | null,

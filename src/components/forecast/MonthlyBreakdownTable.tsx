@@ -144,7 +144,10 @@ export default function MonthlyBreakdownTable({
                 const lines = rawAmounts
                   .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.amt * scale, true), op: '−' as const, scaledAmt: c.amt * scale }))
                   .filter(c => c.scaledAmt > 0.005)
-                  .map(({ scaledAmt, ...c }) => c);
+                  // `scaledAmt` is DROPPED here on purpose — it is the sort/filter key above and
+                  // must not reach the rendered row. Renamed rather than deleted: deleting the
+                  // binding puts the key straight back into `...c`.
+                  .map(({ scaledAmt: _scaledAmt, ...c }) => c);
                 return lines.length > 0 ? lines : fallback;
               })()),
               { label: '  Adjusted to keep cash safely above your floor through upcoming bills. May be lower than the Debt Payoff tab\'s recommendation for the same month.', value: '' },
