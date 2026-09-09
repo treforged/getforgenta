@@ -15,7 +15,7 @@ import { getPaycheckGross } from '@/lib/pay-schedule';
 import { projectMilestonesWithGrowth, monthlyContribSplitForAccount, incomeMultipliersByMonth } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  Bar, ComposedChart, ReferenceLine,
+  Bar, ComposedChart,
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';

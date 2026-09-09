@@ -1,5 +1,5 @@
 import {
-  projectCardVariable, simulateVariablePayoff, buildPaymentLedger, CardData, PROJECTION_MONTHS,
+  projectCardVariable, buildPaymentLedger, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
 import type { SimResult, PaymentLedgerEntry } from '@/lib/credit-card-engine';
 import { firstRevolvingPayoffMonth } from '@/lib/revolving-payoff';

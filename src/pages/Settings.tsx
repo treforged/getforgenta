@@ -30,7 +30,6 @@ import { useTheme } from '@/hooks/useTheme';
 import type { ThemeChoice } from '@/lib/theme';
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
-import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';

@@ -28,7 +28,7 @@ import {
   computeEssentialMonthlyExpenses, isEssentialExpenseRule, type EssentialRule,
 } from '../essential-monthly-expenses';
 import {
-  buildSurplusRankRows, enforceStopOrder, moveSurplusRankRow, planAutoExtraDeselect,
+  buildSurplusRankRows, enforceStopOrder, moveSurplusRankRow,
   planSurplusRankWrites, setSurplusRankAutoExtra, type SurplusRankRow,
 } from '../surplus-ranking';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';

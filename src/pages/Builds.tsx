@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, Check as CheckIcon, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';

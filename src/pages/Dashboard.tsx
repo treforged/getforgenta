@@ -1,7 +1,6 @@
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { toast } from 'sonner';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
 import MetricCard from '@/components/shared/MetricCard';
 import AppTour from '@/components/shared/AppTour';
@@ -79,7 +78,7 @@ import { useWidgetSync } from '@/hooks/useWidgetSync';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
-  X, Car, Shield, Check, FileDown, LayoutDashboard, Building2, PiggyBank, ChevronDown,
+  X, Car, Shield, FileDown, LayoutDashboard, Building2, PiggyBank, ChevronDown,
   ChevronUp,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';

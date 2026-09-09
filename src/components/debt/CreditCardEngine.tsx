@@ -19,7 +19,7 @@ import {
   mergeWithGeneratedTransactions, generateMonthTransactionsFromRules,
   type TransactionLineItem,
 } from '@/lib/pay-schedule';
-import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
+import { generateScheduledEvents, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { ordinal } from '@/lib/ordinal';
@@ -32,7 +32,7 @@ import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/li
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X, Car, Landmark } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDebts, useAccounts, useProfile, useRecurringRules, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
+import { useDebts, useAccounts, useProfile, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
 import type { CarFund } from '@/lib/types';

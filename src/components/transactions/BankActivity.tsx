@@ -68,13 +68,12 @@ import {
   pickableCarCharges as buildPickableCarCharges, nearestLedgerOptions, amountLabel,
 } from '@/lib/review-link-options';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
-import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { buildDeck } from '@/lib/decision-deck';
 // The rows every decision writes. LIFTED OUT of this file (2026-08-14) so the Decision Deck writes
 // the SAME ones rather than a second copy that drifts — see `review-write-inputs.ts`. Behaviour is
 // unchanged on this path: they are the identical builders, at the identical call sites.
 import {
-  ruleOccurrence, acceptRuleInput, acceptPlanInput, acceptCarInput, acceptLedgerTxnInput,
+  acceptRuleInput, acceptPlanInput, acceptCarInput, acceptLedgerTxnInput,
 } from '@/lib/review-write-inputs';
 import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight, Layers } from 'lucide-react';
 

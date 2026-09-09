@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/consent-prefs';
+import { COOKIE_CATEGORIES } from '@/lib/consent-prefs';
 import { useConsentPrefs } from '@/hooks/useConsentPrefs';
-import { Shield, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import DeleteDataContent from '@/components/legal/DeleteDataContent';
 
 function CookiePreferencesInline() {

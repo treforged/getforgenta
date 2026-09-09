@@ -10,7 +10,7 @@ import { getBiweeklyDatesInMonth, getCustomIntervalDatesInMonth, occurrenceSurvi
 // `transaction-matching.ts` deliberately does not import this file.
 import { amountConfidence, daysBetween, DATE_WINDOW_DAYS } from './transaction-matching';
 import type { FloorMinLatch, FloorMinRegime } from './floor-min-latch';
-import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
 

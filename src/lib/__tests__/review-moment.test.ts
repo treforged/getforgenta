@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import {
   decideReviewPrompt, recordEvent, recordPrompt, parseReviewState,
 } from '@/lib/review-moment';
-import type { ReviewState, ValueEvent } from '@/lib/review-moment';
+import type { ReviewState } from '@/lib/review-moment';
 import { detectValueEvents } from '@/hooks/useValueMoments';
 
 const NOW = new Date('2026-09-02T21:00:00');

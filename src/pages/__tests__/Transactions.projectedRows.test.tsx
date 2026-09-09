@@ -23,7 +23,7 @@
 // what it was before, because the substitution must be invisible to anyone whose bank is not linked.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, fireEvent, within } from '@testing-library/react';
+import { render, cleanup, within } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
   syncedTransactions: [] as unknown[],

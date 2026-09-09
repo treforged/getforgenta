@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Edit2, Trash2, Car, TrendingDown, AlertTriangle, Undo2 } from 'lucide-react';
+import { Edit2, Trash2, Car, AlertTriangle, Undo2 } from 'lucide-react';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { buildAmortizationSchedule, type LumpSumPayment } from '@/lib/vehicle-loan-engine';

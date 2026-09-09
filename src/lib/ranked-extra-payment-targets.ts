@@ -29,7 +29,7 @@
  */
 
 import type { CardData } from './credit-card-engine';
-import type { CarFund, SavingsGoal } from './types';
+import type { CarFund } from './types';
 import { getStrategyPayoffOrder } from './debt-payoff-order';
 import {
   listDebtServiceLiabilities,

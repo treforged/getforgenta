@@ -35,7 +35,6 @@ import {
 import { getRuleOccurrenceDatesInMonth } from './pay-schedule';
 import { daysBetween } from './transaction-matching';
 import { suggestCategory } from './plaid-category-map';
-import type { Category } from './types';
 
 // Re-exported so this file stays the one place a caller has to know about: the thresholds and the
 // shape are the contract of what it returns, and they live next door only to keep this file short.

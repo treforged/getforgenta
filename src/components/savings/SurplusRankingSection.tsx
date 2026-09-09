@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowDown, ArrowUp, Banknote, Car, CreditCard, GripVertical, Landmark, Link2, Target, Unlink,
+  ArrowDown, ArrowUp, Banknote, Car, CreditCard, Landmark, Link2, Target, Unlink,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useIsTouch } from '@/hooks/use-mobile';
