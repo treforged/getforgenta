@@ -11,19 +11,20 @@ figures from any summary in this file.
 2026-09-07/08 fixes are shipped, gated and **never seen in a browser** — the console has been signed
 out for days. Nothing in that list needs new code, only a signed-in session.
 
-**THIRD, workable right now with no browser and no Tre: the unused-declaration backlog is at 78,
+**THIRD, workable right now with no browser and no Tre: the unused-declaration backlog is at 75,
 and the EASY HALF IS GONE — what is left is the half that needs reading.** See the section below.
 
 ---
 
-## ⚠️ UNUSED-VARS: 117 → 78, AND THE LINTER'S OBVIOUS FIX IS WRONG ON THE REST
+## ⚠️ UNUSED-VARS: 117 → 75, AND THE LINTER'S OBVIOUS FIX IS WRONG ON THE REST
 
-`a9517c8a` (35 import specifiers) and `7e43c38f` (four bindings). Gates on both: `npx tsc --noEmit`
+`a9517c8a` (35 import specifiers), `7e43c38f` (four bindings) and `1a042484` (three dead symbols). Gates on both: `npx tsc --noEmit`
 clean and run after EACH batch, `npm run lint` 0 errors, `npm run test:tz` **3957 passed / 1 skipped**
 in all three zones. `origin/main` 0/0, verified by CONTENTS.
 
-**WHAT IS LEFT IS NOT MORE OF THE SAME.** The 39 cleared were split out mechanically — a warning
-sitting on an `import` line. The remaining **78 are hook results, lazy route bindings, state setters
+**WHAT IS LEFT IS NOT MORE OF THE SAME.** The 42 cleared were split out mechanically — a warning
+sitting on an `import` line, a param, or a symbol with a PROVEN zero caller (counted per pattern,
+never truncated). The remaining **75 are hook results, lazy route bindings, state setters
 and destructures, where the deletion the linter invites changes what a page loads or renders.** Do
 not sweep them. `useTransactions()` in `BudgetControl.tsx` is still the worked example of one left
 deliberately with a comment saying why.
