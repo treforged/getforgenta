@@ -65,6 +65,28 @@ back from. That is a rate-limit gap, not a scraper problem, and it is a one-file
 
 **Recommendation: do nothing about scrapers. Add a rate limit to `public-build`.**
 
+### ✅ DONE AND VERIFIED LIVE, later the same day — `e63c72fe`
+
+This section originally ended "named, not built", and the section at the bottom of this file
+said so too. **It is built and deployed**, so both are corrected here rather than edited away.
+
+`public-build` now carries a 60/minute per-IP limit, placed after the UUID check so a malformed
+token costs no limiter round trip. Deployed with `supabase functions deploy public-build`.
+
+**Pressed, not assumed** — 70 live calls against the deployed function:
+
+```
+404 × 59   then   429 × 11
+```
+
+Exactly the configured limit. The three controls are unchanged after the deploy — unknown-but-
+valid UUID `404`, malformed `404`, absent `404` — so the function still works and the new import
+resolved.
+
+⚠️ **Still not an enumeration fix**, and the code comment says so at length. Enumeration was
+already closed; this protects cost and abuse. **And it fails open** by design, so it is a brake
+rather than a gate.
+
 ⚠️ **Measured, and it contradicts `robots.txt`:** that file claims "Cloudflare Bot Fight
 Mode and its managed ruleset" are on. Bot Fight Mode challenges non-browser automation, and
 **Scrapy, curl and python-requests all got a clean 200 with the full body today.** So Bot
@@ -265,6 +287,7 @@ worded so that one line settles it.
 - **No Cloudflare change**, and no reach for a Cloudflare credential this desk does not own.
 - **No source-map change.** It is a fork with a real cost on a money app, and the repo
   being public is the decision that comes first.
-- **The `public-build` rate limit is named, not built** — it is a real finding from this
-  pass rather than a briefed item, and it belongs in the queue rather than in a commit
-  nobody asked for.
+- ~~**The `public-build` rate limit is named, not built.**~~ **CORRECTED — it was built,
+  deployed and verified live the same day (`e63c72fe`).** See the section above. The four
+  other unlimited functions (`plaid-sync`, `plaid-sync-all`, `financial-sync`, `push-send`)
+  are all authenticated, so they stay named rather than built.
