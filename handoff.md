@@ -11,11 +11,61 @@ figures from any summary in this file.
 2026-09-07/08 fixes are shipped, gated and **never seen in a browser** — the console has been signed
 out for days. Nothing in that list needs new code, only a signed-in session.
 
-**THIRD, workable right now with no browser and no Tre:** **129 unused declarations** surfaced by
-turning `@typescript-eslint/no-unused-vars` to `warn` (2026-09-08). 59 are "defined but never used"
-(imports, params — mostly safe), 72 are locals. ⚠️ **Do not sweep them in one pass.** Some are hook
-results where removing the CALL changes what a page loads: `useTransactions()` in `BudgetControl.tsx`
-is left deliberately and says so in a comment. Work file by file, tsc after each.
+**THIRD, workable right now with no browser and no Tre: the unused-declaration backlog is at 78,
+and the EASY HALF IS GONE — what is left is the half that needs reading.** See the section below.
+
+---
+
+## ⚠️ UNUSED-VARS: 117 → 78, AND THE LINTER'S OBVIOUS FIX IS WRONG ON THE REST
+
+`a9517c8a` (35 import specifiers) and `7e43c38f` (four bindings). Gates on both: `npx tsc --noEmit`
+clean and run after EACH batch, `npm run lint` 0 errors, `npm run test:tz` **3957 passed / 1 skipped**
+in all three zones. `origin/main` 0/0, verified by CONTENTS.
+
+**WHAT IS LEFT IS NOT MORE OF THE SAME.** The 39 cleared were split out mechanically — a warning
+sitting on an `import` line. The remaining **78 are hook results, lazy route bindings, state setters
+and destructures, where the deletion the linter invites changes what a page loads or renders.** Do
+not sweep them. `useTransactions()` in `BudgetControl.tsx` is still the worked example of one left
+deliberately with a comment saying why.
+
+**THREE CASES WHERE DELETING WAS THE WRONG FIX, because they generalise past these files:**
+- **A REST-OMIT.** `MonthlyBreakdownTable.tsx:147` was `.map(({ scaledAmt, ...c }) => c)`. Deleting
+  the binding does not remove a variable, it **moves the KEY into `...c`** and puts a raw float into
+  the receipts a person reads. Renamed `scaledAmt: _scaledAmt`. **Prefixing with `_` alone would
+  ALSO have broken it** — it would omit a key that does not exist.
+- **A POSITIONAL PARAM.** `credit-card-engine.ts:2318` `paymentMode` has four positional params
+  after it; deleting it silently reassigns every caller's arguments. Renamed `_paymentMode`.
+- **A DOCUMENTED BINDING IS NOT DEAD CODE.** `useSupabaseData.ts:824` `merchantKey` is unused in
+  `mutationFn`, read as `vars.merchantKey` at `:868`, and the comment at `:819` says so. Left.
+
+⚠️ **AND THE REST-OMIT IS UNGUARDED — MEASURED, NOT ASSUMED.** I mutated it back to the naive
+`({ ...c }) => c` and ran the suite: **8 tests in `src/components/forecast` passed against the bug**,
+because they cover `ForecastHero` and **`MonthlyBreakdownTable` has no test file at all.** So the
+next cleanup pass will be invited to make this exact mistake by this exact linter and nothing will go
+red. **Writing that test needs a first render harness for the table — a slice, not a lint fix.**
+
+## ✅ ANSWERED FOR RUBY — au-062, au-070, au-071. Both written into `claudecontext/asks.md`.
+
+Written there rather than here because that is where she raised them, and a desk does not edit
+another desk's tree.
+
+**au-062: the `debt-unpinned` frame is NEITHER reading and cannot settle the post.** Two findings.
+(1) **"Statement Bal." is not a state** — `CreditCardEngine.tsx:1965-1967` renders it on
+`paymentPreference !== null`, a static echo of the stored account column that never touches the
+projection. It is a **green ✓ chip on what is only a setting**, which is why the frame was
+unreadable; that is a real UX defect and is NOT fixed. (2) **$25 is a month-2 CYCLING minimum**, not
+a month-0 reservation. Measured on the committed demo fixture: d7's `perCardMinPayments` is
+`[88.14, 38.22, 25, …]` and `monthlyBalances` `[1872.19, 942.43, 0, …]`. Both reconcile to their
+formulas exactly — `4318 × (1+24.74/1200) × 0.02 = 88.14` at `:214`, and
+`min(max(25, 0.02 × 942.43), 942.43) = 25` at `:1687`. **Her `4318 + 39.19 − 25 = 4332` describes no
+month the engine produces**: one crop, two rows.
+
+**au-070/au-071 ship with NO PICTURE, and the reason is structural.** The fixture card that would
+prove them is the one that breaks every pinned demo number; the one that breaks nothing proves
+nothing (a $0 card owes no minimum because it owes nothing, not because `minSuppressed` fired). Six
+test files import the demo fixture, two of them pinning the figures marketing itself quotes. **If
+those posts must ever be illustrated the path is a second capture-only persona behind a flag — never
+a third card in the live demo.** Not queued; nobody has asked for it.
 
 ---
 
@@ -1724,7 +1774,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-08 14:23 by handoff_hook. Everything below this heading is
+_Written 2026-09-08 15:02 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1735,14 +1785,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+f1c7f0a2 [budget]: 15 unused imports, 8 of them orphaned by my own dead-code removal
+e1ac9650 docs(handoff): rewrite the top for Monday - three next actions, and the nine-item table
 d3cf0626 [budget]: the Remaining Cash chain kept recomputing every render for a tile deleted in August
 579ab5a7 docs: the two demo defects, and the qualifier the `?? 0` rule needed
 f59e1f3d docs(demo): UTILIZATION-ONLY reading $0 is CORRECT, and the reprice cliff is not where it was looked for
 2ee8d022 [debt]: debt that never clears was displayed as "Paid"
 4a2b4a22 [debt]: $19,007,108 of "total interest" on a $4,318 card, live on the public demo
 27e43b99 test(security): prove the debug-console gate actually fails, rather than trusting it
-21eb2efe docs(review-moment): a competitor tactic evaluated, and this file already implements it better
-09a67952 docs(handoff): five of the items taken this session were already built
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
