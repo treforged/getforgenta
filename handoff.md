@@ -14,6 +14,15 @@ out for days. Nothing in that list needs new code, only a signed-in session.
 **THIRD, workable right now with no browser and no Tre: the unused-declaration backlog is at 75,
 and the EASY HALF IS GONE — what is left is the half that needs reading.** See the section below.
 
+**PHASE 17 FRIENDS/LEADERBOARD — Phase 2 shipped 2026-09-10, Phase 3 is next and is `72c7d48e`
+in `ask`.** ⚠️ **Do NOT re-scope Phases 0 and 1 as unbuilt** — they shipped 2026-08-26 and
+`friend-link` is really deployed (`401` unauthenticated vs `404` for a nonexistent function).
+Phase 2 is `src/lib/leaderboard-metrics.ts`, pure, mutation-tested, green in all three zones.
+Read `docs/friends-leaderboard-privacy-surface.md` before touching Phase 3 — it holds the two
+open forks and the reason `null` must never become `0` anywhere in this feature.
+⚠️ **0 friend_links, 0 shares, 0 snapshots** after two weeks live, so **Phase 3's empty state is
+the screen every user will actually see.** Build that first, not the ranking.
+
 ---
 
 ## ❓ ONE QUESTION FOR TRE — LUMP-SUM TRANSFERS, and one line settles it
@@ -1803,25 +1812,30 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-08 20:52 by handoff_hook. Everything below this heading is
+_Written 2026-09-10 10:12 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (2 file(s)):**
+
+```
+M handoff.md
+ M supabase/.temp/cli-latest
+```
 
 - **Recent commits:**
 
 ```
+e90d11ce docs: correct my own "named, not built" — the public-build limit is live
+e63c72fe [security]: rate-limit public-build, the one endpoint an anonymous caller can loop
+0d3860e6 docs: seven asks Tre never got an answer to, answered — two were already fixed
 931ffa54 docs(handoff): 78 -> 75 after the dead-symbol commit
 1a042484 [budget]: three dead symbols with a proven zero caller, each left a tombstone
 6bda30bd docs(handoff): the unused-vars backlog at 78, and Ruby's three questions answered
 7e43c38f [budget]: four unused bindings where DELETING them was the wrong fix
 a9517c8a [budget]: 35 unused import specifiers, and the one I deliberately left
-f1c7f0a2 [budget]: 15 unused imports, 8 of them orphaned by my own dead-code removal
-e1ac9650 docs(handoff): rewrite the top for Monday - three next actions, and the nine-item table
-d3cf0626 [budget]: the Remaining Cash chain kept recomputing every render for a tile deleted in August
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
