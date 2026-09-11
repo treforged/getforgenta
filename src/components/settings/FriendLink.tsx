@@ -5,6 +5,7 @@ import { UserPlus, Loader2, CheckCircle, UserMinus } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
 import { useFriendLink } from '@/hooks/useFriendLink';
 import { LeaderboardShareToggles } from './LeaderboardShareToggles';
+import { FriendsLeaderboard } from './FriendsLeaderboard';
 import { format } from 'date-fns';
 
 /**
@@ -141,6 +142,8 @@ export function FriendLink() {
           once a friendship exists: switches that publish to nobody are a control that appears to do
           nothing. */}
       {friends.length > 0 && <LeaderboardShareToggles />}
+
+      {friends.length > 0 && <FriendsLeaderboard friends={friends} />}
 
       {pendingInvites.map(pending => (
         <div
