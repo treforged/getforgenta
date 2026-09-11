@@ -26,18 +26,13 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import {
   buildPayConfig,
-  getRemainingIncomeThisMonth,
-  getMonthlyNetIncome,
-  getRemainingPaychecksThisMonth,
   getNextPaycheckDate,
-  getMinSafeCash,
   getAugmentedMinSafeCash,
   getPrePaycheckNextMonthBills,
   getRemainingTransactionIncomeThisMonth,
   getRemainingTransactionExpensesThisMonth,
   getRemainingTransactionDebtPaymentsThisMonth,
   mergeWithGeneratedTransactions,
-  generateCurrentMonthTransactionsFromRules,
   createDebtPaymentTransactions,
   mergeDebtPaymentsIntoStream,
 } from '@/lib/pay-schedule';
@@ -46,14 +41,13 @@ import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/l
 import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
-import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import {
   buildNetWorthBreakdown, totalsFromBreakdown, nonCardLiabilityTotal, sumBalanceByAccountType,
   isLiabilityAccountType,
   LIQUID_ACCOUNT_TYPES, INVESTMENT_ACCOUNT_TYPES, RETIREMENT_ACCOUNT_TYPES,
 } from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
-import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -104,7 +98,6 @@ const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 import { resolveCashFloor } from '@/lib/cash-floor';
-import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { isManualCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
@@ -268,7 +261,7 @@ export default function Dashboard() {
     return () => { window.__forgenta_dashboard_ready = false; };
   }, []);
 
-  const { cardProjection, pauseSavings, debtStrategy } = useCardProjectionContext();
+  const { cardProjection } = useCardProjectionContext();
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
@@ -316,10 +309,7 @@ export default function Dashboard() {
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
   // `paycheckNet` was here too: it was the retired Next Paycheck chip's VALUE and the income
   // drawer's first line, and Tre re-anchored the chip's DATE only. Gone with its last reader.
-  const remainingIncome = useMemo(() => getRemainingIncomeThisMonth(payConfig), [payConfig]);
-  const remainingPaychecks = useMemo(() => getRemainingPaychecksThisMonth(payConfig), [payConfig]);
   const nextPayday = useMemo(() => getNextPaycheckDate(payConfig), [payConfig]);
-  const monthlyNetIncome = useMemo(() => getMonthlyNetIncome(payConfig), [payConfig]);
 
   const accountMap = useMemo(() => {
     const map: Record<string, AccountRow> = {};
@@ -330,10 +320,6 @@ export default function Dashboard() {
     return map;
   }, [accounts]);
 
-  const generatedTransactions = useMemo(
-    () => generateCurrentMonthTransactionsFromRules(rules, accounts),
-    [rules, accounts],
-  );
 
   const baseTxns = useMemo(
     () => mergeWithGeneratedTransactions(transactions, rules, accounts),
@@ -354,49 +340,6 @@ export default function Dashboard() {
     [fundingAccountId],
   );
 
-  const monthlySavingsAndCar = useMemo(() => {
-    if (pauseSavings) return 0;
-    const retireIds = new Set<string>(
-      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
-    );
-    const now = new Date();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const activeTransferDests = new Set<string>(
-      rules.filter(r =>
-        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
-        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
-        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map(r => r.deposit_account as string),
-    );
-    // Handoff item 4b — month-0 gate, structural twin of CreditCardEngine.tsx's
-    // monthlySavingsAndCar. Only the goal-keyed cutoff belongs here: `activeTransferDests` above
-    // is a double-count GUARD, not a dollar sum, so gating it would drop a completed linked goal
-    // out of the guard and add its raw contribution back. Leave that set alone.
-    const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
-    const savingsTotal = goals.reduce((s, g) => {
-      if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
-      if (g.linked_account && retireIds.has(g.linked_account)) return s;
-      if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
-      const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
-      if (ownCutoff != null && ownCutoff <= 0) return s;
-      return s + Number(g.monthly_contribution);
-    }, 0);
-    const carTotal = carFunds.reduce((s, c) => {
-      if (c.phase === 'loan') return s;
-      const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-      const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
-      if (rem <= 0) return s;
-      let monthsToGoal = 12;
-      if (c.planned_purchase_date) {
-        const parts = (c.planned_purchase_date as string).split('-').map(Number);
-        const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-        monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-      }
-      return s + Math.min(rem / monthsToGoal, rem);
-    }, 0);
-    const carLoanTotal = getTotalCarLoanMonthly(carFunds);
-    return savingsTotal + carTotal + carLoanTotal;
-  }, [pauseSavings, goals, carFunds, accounts, rules]);
 
   // NOTE (finding §2.6): a `month0SavingsBreakdown` memo used to live here, re-deriving goal and
   // car-fund reserves from raw rows so the snapshot could itemize them — and a prior session
@@ -627,18 +570,7 @@ export default function Dashboard() {
   const cashFloor = resolveCashFloor(profile);
 
 
-  const month0SaveUpNote = useMemo(() => {
-    const event = cardProjection?.month0?.holdbackEvent;
-    const amount = cardProjection?.month0?.holdback;
-    if (!event || !amount) return null;
-    return { ...event, amount };
-  }, [cardProjection]);
 
-  const minSafeCash = useMemo(
-    () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId, new Date(),
-      automaticFloorComponents(isManualCashFloor(profile), accounts, carFunds, new Date())),
-    [rules, payConfig, cashFloor, fundingAccountId, profile, accounts, carFunds],
-  );
 
   const prePaycheckBills = useMemo(
     () => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId),
