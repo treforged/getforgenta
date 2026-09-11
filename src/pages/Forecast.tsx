@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useCallback, useEffect } from 'react';
+﻿import { useState, useMemo, useCallback } from 'react';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { Link } from 'react-router';
 import { ForecastSkeleton } from '@/components/shared/PageSkeleton';
@@ -92,12 +92,12 @@ function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
 export default function Forecast() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const { data: debts, loading: debtsLoading } = useDebts();
-  const { data: goals, loading: goalsLoading } = useSavingsGoals();
+  const { loading: debtsLoading } = useDebts();
+  const { loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: subs, loading: subsLoading } = useSubscriptions();
-  const { data: budgetItems, loading: budgetItemsLoading } = useBudgetItems();
+  const { loading: subsLoading } = useSubscriptions();
+  const { loading: budgetItemsLoading } = useBudgetItems();
   const { data: profile, loading: profileLoading } = useProfile();
   const { data: rules, loading: rulesLoading } = useRecurringRules();
   const { data: transactions, remove: removeTransaction, loading: transactionsLoading } = useTransactions();
@@ -116,14 +116,9 @@ export default function Forecast() {
     cardProjection: cardProjectionData,
     assumptions,
     setAssumptions,
-    pauseSavings,
-    debtStrategy,
     payConfig,
-    cashFloor,
-    forecastFundingAccountId,
     syncCutoffDate,
     scheduledEvents,
-    debtPayoffOptions,
   } = useCardProjectionContext();
   // Assumptions are settings, not the story, so the panel starts closed (DIRECTION.md: the
   // page leads with one number). Both disclosures persist through the same idiom the rest of
@@ -154,15 +149,6 @@ export default function Forecast() {
 
   const {
     projections,
-    monthlyAggregates,
-    debtPaymentsByMonth,
-    debtBalancesByMonth,
-    oneTimeByMonth,
-    ccOneTimeByMonth,
-    ccScheduledByMonth,
-    currentMonthRecommendedDebt,
-    forecastMonthEvents,
-    planExpensesByMonth,
     annualFederalWithheldFromBudget,
   } = useForecastProjections();
 
