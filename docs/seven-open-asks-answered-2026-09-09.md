@@ -152,6 +152,38 @@ while the repo is public**, which is the decision that has to come first.
 **Recommendation: leave it exactly as it is. Revisit only if he makes the repo private,
 and then take the `sourcesContent` option, not the "turn maps off" one.**
 
+### Follow-up, 2026-09-10 — he asked "why debt code public?"
+
+**Nobody ever decided to publish the debt engine. The repository has been public since it was
+created on 2026-03-22, and that default was never revisited.** There is no decision record in
+`docs/`, and nothing in the app, the deploy, or the Plaid compliance policy requires it —
+`grep` finds no reference to the GitHub repo anywhere in `src/` or `public/`.
+
+**But it is no longer free to reverse, and the cost is measured rather than guessed.** What
+public is currently buying, all verified today: **CodeQL code scanning** across three workflows
+(44 runs in 30 days), **secret scanning and push protection** (both read `enabled` on the repo),
+and **unlimited Actions minutes** (100 runs in 30 days). Both scanning features are free on
+public repositories and need paid GitHub Advanced Security on private ones. And the minutes
+stop being free:
+
+```
+iOS Build      12 runs × ~4 min   =  48 macOS minutes / month
+CodeQL (iOS)   12 runs × ~37 min  = 444 macOS minutes / month
+                            total   492, billed at 10× = 4,920
+```
+
+**~4,920 billable minutes a month against a 3,000-minute Pro allowance** — almost all of it the
+37-minute iOS CodeQL scan. Going private turns a free pipeline into a monthly bill, *and* drops
+the secret scanning that guards against exactly the leak class this repo has already had once.
+
+⚠️ **NOT VERIFIED: his plan tier.** `gh api users/treforged` returns `plan: null`, so 3,000 is
+the published Pro allowance, not a reading of his account. **The direction holds at any tier** —
+public is free, private is not — but check the number before spending against it.
+
+**So: public by default rather than by choice, and making it private now costs real money and
+real security tooling to close one of two doors — while the source maps would still serve the
+same TypeScript from his own domain.** That is a stronger case against than I had yesterday.
+
 ---
 
 ## 3. "this lesson says its in settings but its not, its in the debt tab" (09-05)
