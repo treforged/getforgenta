@@ -27,6 +27,24 @@ const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
 // working day (2026-08-13). Untrusted devices are unchanged.
 const TRUSTED_IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 const TRUSTED_IDLE_WARNING_MS = TRUSTED_IDLE_TIMEOUT_MS - 2 * 60 * 1000;
+// NATIVE GETS A WEEK, AND IT OUTRANKS THE TRUST GRANT (Tre, 2026-09-11: "set up the app on
+// mobile to not sign all the way out unless theve been inactive for a week").
+//
+// A week is defensible on a phone and is not defensible in a browser tab: the app is installed
+// on one personal device, behind the OS lock screen, where a tab can be on a machine anyone
+// walks up to. So native takes this leash and web is unchanged.
+//
+// It wins over `TRUSTED_IDLE_TIMEOUT_MS` on purpose. A trust grant lapses after 30 days of no
+// use, and a phone dropping from 12 hours back to 10 minutes with nothing on screen to explain
+// it is exactly the silent fallback measured on Tre's own iPhone (`trusted-device.ts`). Reading
+// the platform cannot go stale that way.
+//
+// ⚠️ WHAT IT COSTS, said plainly: `AppLockScreen` is exported and mounted by NOTHING, so on
+// native the device's own lock screen is the only thing standing between a picked-up phone and
+// a week of live access to this person's finances. Mounting the in-app PIN/biometric lock is a
+// separate decision and this constant makes it worth more than it was yesterday.
+const NATIVE_IDLE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
+const NATIVE_IDLE_WARNING_MS = NATIVE_IDLE_TIMEOUT_MS - 2 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 30 * 1000;  // check every 30 seconds
 const LAST_ACTIVITY_KEY = 'forged:last_activity';
 const REVIEWER_EMAIL = 'reviewer@getforgenta.com';
@@ -469,8 +487,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Resolved per check rather than captured once: trust can finish resolving, or be revoked
       // in Settings, while this interval is already running.
       const trusted = trustedRef.current;
-      const timeoutMs = trusted ? TRUSTED_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
-      const warningMs = trusted ? TRUSTED_IDLE_WARNING_MS : IDLE_WARNING_MS;
+      // Read per check for the same reason: a WebView is always native and always will be, but
+      // keeping both reads together keeps the three branches in one place.
+      const isNative = Capacitor.isNativePlatform();
+      const timeoutMs = isNative
+        ? NATIVE_IDLE_TIMEOUT_MS
+        : trusted ? TRUSTED_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
+      const warningMs = isNative
+        ? NATIVE_IDLE_WARNING_MS
+        : trusted ? TRUSTED_IDLE_WARNING_MS : IDLE_WARNING_MS;
       const idleMs = getIdleMs();
       if (idleMs >= timeoutMs) {
         // ⚠️ NO `removeItem` HERE ANY MORE, and no message yet. `signOutWithBroadcast` clears the
@@ -487,9 +512,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOutWithBroadcast()
           .then((signedOut) => {
             if (!signedOut) return reportRefusal();
-            toast.info(trusted
-              ? 'You were signed out after 12 hours of inactivity.'
-              : 'You were signed out due to 10 minutes of inactivity.');
+            // Three branches, because a toast naming the wrong duration is a confident wrong
+            // answer about why the person is looking at a sign-in screen.
+            toast.info(isNative
+              ? 'You were signed out after 7 days of inactivity.'
+              : trusted
+                ? 'You were signed out after 12 hours of inactivity.'
+                : 'You were signed out due to 10 minutes of inactivity.');
           })
           .catch((err) => {
             console.error('The idle sign-out threw:', err);

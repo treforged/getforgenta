@@ -20,7 +20,13 @@ import type { Session } from '@supabase/supabase-js';
 
 const NOW = 1_800_000_000_000;
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 const IDLE_TIMEOUT_MS = 10 * MINUTE;
+// Mirrors AuthContext's own constants. Spelled out rather than imported because the file does
+// not export them, and a test that imported the value it is asserting would assert nothing.
+const NATIVE_IDLE_TIMEOUT_MS = 7 * DAY;
+const NATIVE_IDLE_WARNING_MS = NATIVE_IDLE_TIMEOUT_MS - 2 * MINUTE;
 const IDLE_CHECK_INTERVAL_MS = 30_000;
 const LAST_ACTIVITY_KEY = 'forged:last_activity';
 
@@ -201,42 +207,77 @@ afterEach(() => {
   cleanup();
 });
 
-describe('the idle timeout runs on native, because nothing else was guarding the phone', () => {
-  it('signs a native app out after the same ten idle minutes as the web app', async () => {
+describe('native keeps the session for a WEEK, and the platform outranks the trust grant', () => {
+  // ⚠️ SUPERSEDED ON PURPOSE, 2026-09-11. Until today these four tests asserted that native ran
+  // the web leash — ten minutes untrusted, twelve hours trusted — and they were RIGHT about the
+  // code they covered. Tre asked for a week on mobile, so the assertions move with the
+  // behaviour rather than being deleted. What is NOT superseded is the reason the native branch
+  // exists at all: the phone must never be silently exempt from having a leash.
+  // ⚠️ NOT LOAD-BEARING ON ITS OWN, and measured rather than assumed: mutating the native branch
+  // of `timeoutMs` back to the web leash leaves THIS test green, because a ten-minute leash also
+  // signs out by day seven and the toast branch is a separate expression. Four of the five tests
+  // below go red on that mutant; this one covers the wording, and the next one covers the leash.
+  it('keeps a native app signed in for a week, then names the week in the toast', async () => {
     h.native = true;
     renderSignedIn();
     await waitForIdleWatcher();
 
-    await idleFor(IDLE_TIMEOUT_MS + MINUTE);
+    await idleFor(NATIVE_IDLE_TIMEOUT_MS + MINUTE);
 
     await waitFor(() => expect(h.toast.info).toHaveBeenCalledTimes(1));
-    expect(h.toast.info).toHaveBeenCalledWith('You were signed out due to 10 minutes of inactivity.');
+    expect(h.toast.info).toHaveBeenCalledWith('You were signed out after 7 days of inactivity.');
     expect(await screen.findByText('sign in')).toBeTruthy();
   });
 
-  it('leaves a native app alone at nine minutes, so the leash is the web leash and not a shorter one', async () => {
+  // The discriminating half. "Signs out after a week" is also true of something that signs out
+  // after ten minutes, so the leash is only proved by the app surviving a period that used to
+  // end it. Six days and 23 hours is past both old leashes and inside the new one.
+  it('is still signed in at six days and twenty-three hours, which both old leashes would have ended', async () => {
     h.native = true;
     renderSignedIn();
     await waitForIdleWatcher();
 
-    await idleFor(9 * MINUTE);
+    await idleFor(6 * DAY + 23 * HOUR);
 
     expect(h.signOut).not.toHaveBeenCalled();
     expect(screen.getByText('signed-in surface')).toBeTruthy();
   });
 
-  it('warns at eight minutes on native, the same two-minute notice a browser tab gets', async () => {
+  it('warns two minutes before the week is up, not two minutes before ten minutes', async () => {
     h.native = true;
     renderSignedIn();
     await waitForIdleWatcher();
 
-    await idleFor(8 * MINUTE + 30_000);
+    // ⚠️ `idleFor` sets the clock ABSOLUTELY from NOW, so these are two points on one timeline,
+    // not two durations added together.
+    await idleFor(10 * MINUTE);
+    expect(h.toast.warning).not.toHaveBeenCalled();
+
+    await idleFor(NATIVE_IDLE_WARNING_MS + 30_000);
 
     expect(h.toast.warning).toHaveBeenCalledWith('Your session will expire in 2 minutes due to inactivity.');
     expect(h.signOut).not.toHaveBeenCalled();
   });
 
-  it('still honours a trusted device on native: twelve hours, not ten minutes', async () => {
+  // THE ONE THAT MATTERS FOR TRE TODAY. His iPhone's trust grant lapsed on 2026-08-18
+  // (`last_seen` 07-19, 30-day lifetime), so the phone reads UNTRUSTED and re-trusting needs the
+  // 2FA flow. A week that were conditional on trust would ship and reach nobody.
+  it('gives an UNTRUSTED native device the full week, because a lapsed trust grant must not shorten it', async () => {
+    h.native = true;
+    h.trusted = false;
+    renderSignedIn();
+    await waitForIdleWatcher();
+    await act(async () => { await Promise.resolve(); });
+
+    await idleFor(13 * HOUR);
+    expect(h.signOut).not.toHaveBeenCalled();
+
+    await idleFor(NATIVE_IDLE_TIMEOUT_MS);
+    await waitFor(() => expect(h.toast.info).toHaveBeenCalledTimes(1));
+    expect(h.toast.info).toHaveBeenCalledWith('You were signed out after 7 days of inactivity.');
+  });
+
+  it('gives a TRUSTED native device the week too: the platform wins, it is not twelve hours', async () => {
     h.native = true;
     h.trusted = true;
     renderSignedIn();
@@ -244,12 +285,13 @@ describe('the idle timeout runs on native, because nothing else was guarding the
     // The trust probe is a network read; the leash it picks is only correct once it has answered.
     await act(async () => { await Promise.resolve(); });
 
-    await idleFor(30 * MINUTE);
+    await idleFor(13 * HOUR);
     expect(h.signOut).not.toHaveBeenCalled();
+    expect(h.toast.info).not.toHaveBeenCalledWith('You were signed out after 12 hours of inactivity.');
 
-    await idleFor(13 * 60 * MINUTE);
+    await idleFor(NATIVE_IDLE_TIMEOUT_MS);
     await waitFor(() => expect(h.toast.info).toHaveBeenCalledTimes(1));
-    expect(h.toast.info).toHaveBeenCalledWith('You were signed out after 12 hours of inactivity.');
+    expect(h.toast.info).toHaveBeenCalledWith('You were signed out after 7 days of inactivity.');
   });
 
   // Demo mode is covered by the same test: it never holds a user, so there is no account to sign
@@ -301,7 +343,10 @@ describe('coming back from the background, which is the only signal native can t
     await waitForIdleWatcher();
     await waitFor(() => expect(h.appStateHandlers.length).toBeGreaterThan(0));
 
-    await backgroundAndReturn(30 * MINUTE);
+    // Eight days, because the native leash is a week. This test is about WHERE the sign-out comes
+    // from — the resume signal rather than a timer tick — so the duration only has to be past the
+    // leash, and it moved when the leash did.
+    await backgroundAndReturn(8 * DAY);
 
     // ⚠️ NO TIMER TICK BETWEEN THOSE TWO LINES. The sign-out came from the resume signal alone.
     await waitFor(() => expect(h.toast.info).toHaveBeenCalledTimes(1));
@@ -316,7 +361,7 @@ describe('coming back from the background, which is the only signal native can t
     await waitForIdleWatcher();
     await waitFor(() => expect(h.appStateHandlers.length).toBeGreaterThan(0));
 
-    vi.setSystemTime(NOW + 30 * MINUTE);
+    vi.setSystemTime(NOW + 8 * DAY);
     await act(async () => {
       h.appStateHandlers.forEach(cb => cb({ isActive: true }));
       setVisibility('visible');
@@ -352,7 +397,7 @@ describe('coming back from the background, which is the only signal native can t
     // `toBeGreaterThan` here would stop noticing when a fourth arrives — which is the point.
     await waitFor(() => expect(h.appStateHandlers.length).toBe(3));
 
-    await backgroundAndReturn(30 * MINUTE);
+    await backgroundAndReturn(8 * DAY);
 
     expect(await screen.findByText('sign in')).toBeTruthy();
     await waitFor(() => expect(h.startAutoRefresh).toHaveBeenCalled());
@@ -361,7 +406,7 @@ describe('coming back from the background, which is the only signal native can t
     // the idle path had already ended the session.
     expect(h.toast.info).toHaveBeenCalledTimes(1);
     expect(h.signOut).not.toHaveBeenCalledWith({ scope: 'local' });
-    expect(h.toast.info).toHaveBeenCalledWith('You were signed out due to 10 minutes of inactivity.');
+    expect(h.toast.info).toHaveBeenCalledWith('You were signed out after 7 days of inactivity.');
   });
 });
 
@@ -389,7 +434,7 @@ describe('a sign-out that did not happen is never reported as one', () => {
     const stampBefore = localStorage.getItem(LAST_ACTIVITY_KEY);
     expect(stampBefore).not.toBeNull();
 
-    await idleFor(IDLE_TIMEOUT_MS + MINUTE);
+    await idleFor(NATIVE_IDLE_TIMEOUT_MS + MINUTE);
 
     await waitFor(() => expect(h.toast.error).toHaveBeenCalledTimes(1));
     // Still signed in, and told the truth about it.
@@ -404,7 +449,7 @@ describe('a sign-out that did not happen is never reported as one', () => {
     // current time, which is the actual bug, whereas `String(NOW)` conflated "restored" with
     // "mounted at exactly NOW".
     expect(localStorage.getItem(LAST_ACTIVITY_KEY)).toBe(stampBefore);
-    expect(Number(localStorage.getItem(LAST_ACTIVITY_KEY))).toBeLessThan(Date.now() - IDLE_TIMEOUT_MS);
+    expect(Number(localStorage.getItem(LAST_ACTIVITY_KEY))).toBeLessThan(Date.now() - NATIVE_IDLE_TIMEOUT_MS);
   });
 
   it('retries on the next check, and does not repeat the message every thirty seconds', async () => {
@@ -414,12 +459,12 @@ describe('a sign-out that did not happen is never reported as one', () => {
     renderSignedIn();
     await waitForIdleWatcher();
 
-    await idleFor(IDLE_TIMEOUT_MS + MINUTE);
+    await idleFor(NATIVE_IDLE_TIMEOUT_MS + MINUTE);
     await waitFor(() => expect(h.toast.error).toHaveBeenCalledTimes(1));
     const afterFirstAttempt = signOutAttempts();
 
     h.signOut.mockResolvedValue({ error: null });
-    await idleFor(IDLE_TIMEOUT_MS + 2 * MINUTE);
+    await idleFor(NATIVE_IDLE_TIMEOUT_MS + 2 * MINUTE);
 
     // It tried again on the very next check rather than waiting for a keystroke that, on an idle
     // phone, is never coming.
