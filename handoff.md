@@ -162,18 +162,33 @@ not evidence that anything is missing; it is a leftover.
 
 ---
 
-## ⚠️ UNUSED-VARS: 117 → 75, AND THE LINTER'S OBVIOUS FIX IS WRONG ON THE REST
+## ⚠️ UNUSED-VARS: 117 → 75 → 56, AND "THE REST IS THE HARD HALF" WAS NOT TRUE
 
 `a9517c8a` (35 import specifiers), `7e43c38f` (four bindings) and `1a042484` (three dead symbols). Gates on both: `npx tsc --noEmit`
 clean and run after EACH batch, `npm run lint` 0 errors, `npm run test:tz` **3957 passed / 1 skipped**
 in all three zones. `origin/main` 0/0, verified by CONTENTS.
 
-**WHAT IS LEFT IS NOT MORE OF THE SAME.** The 42 cleared were split out mechanically — a warning
-sitting on an `import` line, a param, or a symbol with a PROVEN zero caller (counted per pattern,
-never truncated). The remaining **75 are hook results, lazy route bindings, state setters
-and destructures, where the deletion the linter invites changes what a page loads or renders.** Do
-not sweep them. `useTransactions()` in `BudgetControl.tsx` is still the worked example of one left
-deliberately with a comment saying why.
+⚠️ **CORRECTED 2026-09-11 (`89c0088e`): the claim below that ALL 75 were the hard half was
+WRONG, and it was costing the backlog.** Nineteen of them — every one in `Forecast.tsx` — were
+INERT: an unused import, four `const { data: X, loading: XLoading }` where only the `loading`
+half is read, five names destructured off a context READ, and nine off `useForecastProjections`,
+which is a 41-line re-export that computes nothing. Removing them avoids no work and skips none.
+**A session trusting the old sentence would have left the cheapest third untouched on a false
+premise** — the same shape as a handoff calling shipped work pending, pointed the other way.
+So: **the remaining 56 still need reading, one at a time. But READ them — do not assume the
+label.** The rule is "no sweep", not "no progress".
+
+**WHAT IS LEFT IS NOT ALL THE SAME.** The 42+19 cleared were each split out after reading — a
+warning on an `import` line, a param, a symbol with a PROVEN zero caller (counted per pattern,
+never truncated), or a binding proven inert. Many of the remaining **56 are hook results, lazy
+route bindings, state setters and destructures, where the deletion the linter invites changes
+what a page loads or renders.** Do not sweep those. `useTransactions()` in `BudgetControl.tsx`
+is still the worked example of one left deliberately with a comment saying why.
+
+**NEXT, and it is a real simplification rather than a lint item:** `useForecastProjections` now
+has exactly ONE caller reading TWO of its thirteen returned fields. It is preserving a return
+shape for nobody. Deleting it and reading `CardProjectionContext` directly is a bigger change
+than a sweep, which is why it is named here rather than done quietly.
 
 **THREE CASES WHERE DELETING WAS THE WRONG FIX, because they generalise past these files:**
 - **A REST-OMIT.** `MonthlyBreakdownTable.tsx:147` was `.map(({ scaledAmt, ...c }) => c)`. Deleting
@@ -1921,7 +1936,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-11 11:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-11 11:39 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1936,14 +1951,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+acc6408b [mobile]: the app lock was mounted and still could not be switched on
+714ca7dc docs(handoff): close-out note from the ada-35568 session
+7e112543 docs(walk): the full-walk manifest, with what each press must PROVE
+6f757a9b [reviewer]: the reset has matched no account since April, and now it says so
 06932e63 docs(handoff): the two 09-11 asks - mobile session shipped, load times measured
 23c2dfca docs(perf): what is actually slow, measured - and three dead ends ruled out
 9f9bcc69 [auth]: a week on mobile, and the platform outranks the trust grant
 eb4d0b23 docs(handoff): Phase 17 complete, and the free-link gate at the top where it blocks
-5a5c6a32 [friends]: the leaderboard itself — empty state first, and ties said out loud
-050ec121 [friends]: the publisher — the caller that makes the leaderboard exist
-7b060f4b [accounts]: in-app notice that the first bank link is free, for the 29 who never linked
-b21e4758 docs(handoff): Phase 17 state table, and the publisher is the next slice
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
