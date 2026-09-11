@@ -18,6 +18,10 @@ import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
 import { isDeviceTrusted } from '@/lib/trusted-device';
 import { toLocalDateStr } from '@/lib/scheduling';
+import {
+  REVIEWER_EMAIL as REVIEWER_ACCOUNT_EMAIL,
+  REVIEWER_FIRST_RUN_PROFILE,
+} from '@/lib/reviewer-account';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
@@ -47,7 +51,9 @@ const NATIVE_IDLE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
 const NATIVE_IDLE_WARNING_MS = NATIVE_IDLE_TIMEOUT_MS - 2 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 30 * 1000;  // check every 30 seconds
 const LAST_ACTIVITY_KEY = 'forged:last_activity';
-const REVIEWER_EMAIL = 'reviewer@getforgenta.com';
+// ⚠️ Imported, never inlined. A rebrand find-and-replace rewrote this address on
+// 2026-04-27 and silently disabled the reset below for 136 days — see reviewer-account.ts.
+const REVIEWER_EMAIL = REVIEWER_ACCOUNT_EMAIL;
 
 type AuthContextType = {
   user: User | null;
@@ -105,10 +111,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [setIsDemo]);
 
   const resetReviewerAccount = useCallback(async (userId: string) => {
-    await supabase
+    // ⚠️ ASSERTS ITS OWN EFFECT. `.select()` returns the rows the UPDATE actually
+    // matched; without it an RLS refusal and a wrong user id both return no error and
+    // are indistinguishable from a reset that worked. A reset that silently does
+    // nothing is worse than no reset, because the onboarding walk that follows is
+    // then a green over nothing.
+    const { data: resetRows, error: resetErr } = await supabase
       .from('profiles')
-      .update({ founder_note_seen: false, onboarding_completed: false })
-      .eq('user_id', userId);
+      .update(REVIEWER_FIRST_RUN_PROFILE)
+      .eq('user_id', userId)
+      .select('user_id');
+    if (resetErr || !resetRows || resetRows.length === 0) {
+      console.error(
+        'Reviewer reset matched no profile row — the account is NOT in first-run state.',
+        resetErr,
+      );
+    }
     await supabase
       .from('financial_connections')
       .update({ last_synced_at: new Date().toISOString() })
