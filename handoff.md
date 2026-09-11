@@ -14,14 +14,41 @@ out for days. Nothing in that list needs new code, only a signed-in session.
 **THIRD, workable right now with no browser and no Tre: the unused-declaration backlog is at 75,
 and the EASY HALF IS GONE — what is left is the half that needs reading.** See the section below.
 
-**PHASE 17 FRIENDS/LEADERBOARD — Phase 2 shipped 2026-09-10, Phase 3 is next and is `72c7d48e`
-in `ask`.** ⚠️ **Do NOT re-scope Phases 0 and 1 as unbuilt** — they shipped 2026-08-26 and
-`friend-link` is really deployed (`401` unauthenticated vs `404` for a nonexistent function).
-Phase 2 is `src/lib/leaderboard-metrics.ts`, pure, mutation-tested, green in all three zones.
-Read `docs/friends-leaderboard-privacy-surface.md` before touching Phase 3 — it holds the two
-open forks and the reason `null` must never become `0` anywhere in this feature.
-⚠️ **0 friend_links, 0 shares, 0 snapshots** after two weeks live, so **Phase 3's empty state is
-the screen every user will actually see.** Build that first, not the ranking.
+**PHASE 17 FRIENDS/LEADERBOARD — THE NEXT SLICE IS THE PUBLISHER, and it is unblocked.**
+
+⚠️ **Do NOT re-scope any of this as unbuilt.** What exists, all mutation-tested and green in all
+three zones:
+
+| Piece | File | State |
+|---|---|---|
+| Schema + RLS | `supabase/migrations/20260826_friend_links.sql` | shipped 08-26 |
+| Invites + Settings card | `useFriendLink.ts`, `FriendLink.tsx` | shipped 08-26, `friend-link` really deployed (`401` vs `404` for a nonexistent fn) |
+| Metrics + bucketing | `src/lib/leaderboard-metrics.ts` | shipped 09-10 |
+| Ranking + row states | `src/lib/leaderboard-ranking.ts` | shipped 09-10 |
+| Opt-in switches | `useLeaderboardShares.ts`, `LeaderboardShareToggles.tsx` | shipped 09-10, mounted in `FriendLink.tsx` |
+| **Publisher** | — | ❌ **NEXT** |
+| **Leaderboard display** | — | ❌ waits on Tre's fork |
+
+**NEXT: `useLeaderboardPublisher`.** Nothing writes `leaderboard_snapshots` yet, so the switches
+turn on and still publish nothing. Take explicit inputs and mount it in **`Dashboard.tsx` beside
+`useNetWorthSnapshotRecorder()` at ~line 791, ABOVE the panel switch** — that block's own comment
+records why (a writer mounted inside a panel was orphaned once and recording silently died for
+months). Follow `useNotificationCheck`'s discipline exactly: **pass only what the page can source
+TRUTHFULLY and `null` for the rest.** Publishing a 0 for a metric whose input is missing is the
+`?? 0` defect, aimed at somebody else's screen.
+The `(user_id, metric, week)` unique key enforces the weekly cadence server-side, so the hook does
+not need its own scheduling — upsert and let the key refuse.
+
+**Read `docs/friends-leaderboard-privacy-surface.md` first.** It holds the two open forks and the
+reason `null` must never become `0` anywhere in this feature.
+
+⚠️ **0 friend_links, 0 shares, 0 snapshots** after two weeks live, so **the empty state is the
+screen every user will actually see.** `isEmptyRoom` and `hasComparableField` already exist for it,
+and `isEmptyRoom` is deliberately FALSE for zero friends — "your friends share nothing" and "you
+have no friends" are different messages.
+⚠️ **And a rank here is usually a TIE-BREAK, not a reading** — 5% buckets means 21 possible values,
+so ties are the common case. `buildLeaderboardRows` already gives ties a shared rank and sets
+`tied`; the display must say "tied", never number them 1, 2, 3.
 
 ---
 
@@ -1812,30 +1839,29 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-10 10:12 by handoff_hook. Everything below this heading is
+_Written 2026-09-10 17:35 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
-M handoff.md
- M supabase/.temp/cli-latest
+M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+7b66e0c3 docs(handoff): Phase 17 - Phase 2 shipped, Phase 3 next, and do not re-scope 0 and 1 as unbuilt
+6b29c29a [friends]: Phase 2 metrics — the bucketing that is the privacy boundary
 e90d11ce docs: correct my own "named, not built" — the public-build limit is live
 e63c72fe [security]: rate-limit public-build, the one endpoint an anonymous caller can loop
 0d3860e6 docs: seven asks Tre never got an answer to, answered — two were already fixed
 931ffa54 docs(handoff): 78 -> 75 after the dead-symbol commit
 1a042484 [budget]: three dead symbols with a proven zero caller, each left a tombstone
 6bda30bd docs(handoff): the unused-vars backlog at 78, and Ruby's three questions answered
-7e43c38f [budget]: four unused bindings where DELETING them was the wrong fix
-a9517c8a [budget]: 35 unused import specifiers, and the one I deliberately left
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
