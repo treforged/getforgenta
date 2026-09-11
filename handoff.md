@@ -14,7 +14,27 @@ out for days. Nothing in that list needs new code, only a signed-in session.
 **THIRD, workable right now with no browser and no Tre: the unused-declaration backlog is at 75,
 and the EASY HALF IS GONE — what is left is the half that needs reading.** See the section below.
 
-**PHASE 17 FRIENDS/LEADERBOARD — THE NEXT SLICE IS THE PUBLISHER, and it is unblocked.**
+⛔ **BLOCKED ON TRE, AND IT GATES A LIVE CLAIM: VERIFY THE FREE FIRST BANK LINK END TO END.**
+`free_bank_link_grants` holds **ZERO rows** — the free path has **never run in production**, because
+both existing linkers predate it and were premium. The Dashboard now shows **29 users** a notice
+saying their first connection is free. The entitlement IS imported by all four link functions, so it
+is **not unbuilt — it is untested against a real bank.** One real link on a non-premium account
+writes the first row and settles it. Tracked as `98a24254` (`ask list --needs-tre`).
+**Until that row exists, do not describe the free link as working anywhere a customer can read it.**
+
+**PHASE 17 FRIENDS/LEADERBOARD — ✅ COMPLETE 2026-09-11. All eight pieces shipped.**
+Schema, invites, metrics, ranking, opt-in switches, publisher, display. Every piece
+mutation-tested; `test:tz` green in all three zones (4055 passed).
+⚠️ **It reaches nobody yet, and that is expected, not broken:** 0 friendships, 0 opt-ins, 0
+snapshots. The empty state is the screen every user will see, and it is written for that.
+⚠️ **`debt_payoff` and `budget_adherence` are never published** — the Dashboard cannot source them
+truthfully, so they pass `null` and publish nothing. To add them, source them at the mount point in
+`Dashboard.tsx`; do **not** pass a zero.
+**Tre's one open fork here:** a friend with no display name falls back to a **masked email local
+part**, so `tre@…` renders as `tre`. Recommendation: show "A friend" and prompt for a display name
+on accept. See `docs/friends-leaderboard-privacy-surface.md`.
+
+<details><summary>Superseded: the publisher was the next slice (now shipped)</summary>
 
 ⚠️ **Do NOT re-scope any of this as unbuilt.** What exists, all mutation-tested and green in all
 three zones:
@@ -49,6 +69,8 @@ have no friends" are different messages.
 ⚠️ **And a rank here is usually a TIE-BREAK, not a reading** — 5% buckets means 21 possible values,
 so ties are the common case. `buildLeaderboardRows` already gives ties a shared rank and sets
 `tied`; the display must say "tied", never number them 1, 2, 3.
+
+</details>
 
 ---
 
@@ -1839,7 +1861,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-10 17:35 by handoff_hook. Everything below this heading is
+_Written 2026-09-10 21:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1854,14 +1876,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+b21e4758 docs(handoff): Phase 17 state table, and the publisher is the next slice
+9fc86064 [friends]: the opt-in switches — the precondition, built before the display
+fa8f19ff [friends]: Phase 3 ranking — a rank here is usually a tie-break, so say so
+ee0fba77 docs: retention — two channels are live, succeeding, and reach one person
 7b66e0c3 docs(handoff): Phase 17 - Phase 2 shipped, Phase 3 next, and do not re-scope 0 and 1 as unbuilt
 6b29c29a [friends]: Phase 2 metrics — the bucketing that is the privacy boundary
 e90d11ce docs: correct my own "named, not built" — the public-build limit is live
 e63c72fe [security]: rate-limit public-build, the one endpoint an anonymous caller can loop
-0d3860e6 docs: seven asks Tre never got an answer to, answered — two were already fixed
-931ffa54 docs(handoff): 78 -> 75 after the dead-symbol commit
-1a042484 [budget]: three dead symbols with a proven zero caller, each left a tombstone
-6bda30bd docs(handoff): the unused-vars backlog at 78, and Ruby's three questions answered
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
