@@ -4,6 +4,7 @@ import { useLocation } from 'react-router';
 import { UserPlus, Loader2, CheckCircle, UserMinus } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
 import { useFriendLink } from '@/hooks/useFriendLink';
+import { LeaderboardShareToggles } from './LeaderboardShareToggles';
 import { format } from 'date-fns';
 
 /**
@@ -135,6 +136,11 @@ export function FriendLink() {
           )}
         </div>
       )}
+
+      {/* What a friend can see, and it is nothing until one of these is switched on. Rendered only
+          once a friendship exists: switches that publish to nobody are a control that appears to do
+          nothing. */}
+      {friends.length > 0 && <LeaderboardShareToggles />}
 
       {pendingInvites.map(pending => (
         <div
