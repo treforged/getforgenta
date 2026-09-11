@@ -75,6 +75,9 @@ import TrophyCase from '@/components/dashboard/TrophyCase';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
+import { useLeaderboardPublisher } from '@/hooks/useLeaderboardPublisher';
+import { weeklyNetWorthDeltas } from '@/lib/leaderboard-publish';
+import { weekStart } from '@/lib/leaderboard-metrics';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import {
@@ -790,6 +793,37 @@ export default function Dashboard() {
    * Grep what a page WRITES before moving what it SHOWS.
    */
   useNetWorthSnapshotRecorder();
+
+  /**
+   * Publishes this week's leaderboard buckets. Mounted HERE for the same reason as the recorder
+   * above: it must run on every Dashboard visit regardless of which panel the user lands on, and a
+   * writer placed inside a panel has been orphaned in this file before.
+   *
+   * Only `goal_progress` and `savings_streak` are sourced, because those are the two this page
+   * genuinely holds. `debt_payoff` and `budget_adherence` pass `null` and therefore publish
+   * NOTHING - passing a zero would put a number a friend can read on a figure this page never
+   * computed. Same discipline as `useNotificationCheck` below.
+   */
+  const leaderboardDeltas = useMemo(
+    () => (netWorthSnapshots ? weeklyNetWorthDeltas(netWorthSnapshots, weekStart) : null),
+    [netWorthSnapshots],
+  );
+
+  useLeaderboardPublisher({
+    // Narrowed to the two fields the bucket needs, with `undefined` mapped to `null`: these rows
+    // are Partial, and `goalProgressBucket` treats absent as "no usable goal" rather than as 0.
+    goals: goals
+      ? goals.map(g => ({
+          current_amount: g.current_amount ?? null,
+          target_amount: g.target_amount ?? null,
+        }))
+      : null,
+    weeklyNetWorthDeltas: leaderboardDeltas,
+    revolvingPeak: null,
+    revolvingCurrent: null,
+    budgetCategories: null,
+    enabled: !isDemo && !essentialLoading && !netWorthSnapshotsLoading && !goalsLoading,
+  });
 
   useWidgetSync({
     monthEndCash,
