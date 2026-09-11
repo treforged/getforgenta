@@ -71,6 +71,17 @@ is **not unbuilt — it is untested against a real bank.** One real link on a no
 writes the first row and settles it. Tracked as `98a24254` (`ask list --needs-tre`).
 **Until that row exists, do not describe the free link as working anywhere a customer can read it.**
 
+> **CLOSE-OUT NOTE from the `ada-35568` session, 2026-09-11.** Three Ada sessions ran concurrently;
+> `d69f0c` survives and carries all three queues. **This session was NOT mid-slice when it stopped** —
+> Phase 17 finished, everything pushed, `origin/main` 0/0, tree clean but for the machine-written
+> snapshot. **Nothing it touched is half-built and nothing needs rebuilding.**
+> The one item it announced but **never started** is `f79b9663`, the 129 unused declarations — it is
+> untouched, so treat it as genuinely open. Everything else it did is closed in `ask` WITH evidence:
+> `2dbb8e50`, `c9b35277`, `20b850cc`, `72c7d48e`, `dbe49430`.
+> Still open and genuinely its own: **`98a24254`, the free-link verification**, at the top of this
+> file. The walk, reviewer-reset and load-time items belong to the other two Ada sessions, not this
+> one — it deliberately did not mark them.
+
 **PHASE 17 FRIENDS/LEADERBOARD — ✅ COMPLETE 2026-09-11. All eight pieces shipped.**
 Schema, invites, metrics, ranking, opt-in switches, publisher, display. Every piece
 mutation-tested; `test:tz` green in all three zones (4055 passed).
@@ -1910,7 +1921,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-11 00:20 by handoff_hook. Everything below this heading is
+_Written 2026-09-11 11:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1925,14 +1936,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+06932e63 docs(handoff): the two 09-11 asks - mobile session shipped, load times measured
+23c2dfca docs(perf): what is actually slow, measured - and three dead ends ruled out
+9f9bcc69 [auth]: a week on mobile, and the platform outranks the trust grant
 eb4d0b23 docs(handoff): Phase 17 complete, and the free-link gate at the top where it blocks
 5a5c6a32 [friends]: the leaderboard itself — empty state first, and ties said out loud
 050ec121 [friends]: the publisher — the caller that makes the leaderboard exist
 7b060f4b [accounts]: in-app notice that the first bank link is free, for the 29 who never linked
 b21e4758 docs(handoff): Phase 17 state table, and the publisher is the next slice
-9fc86064 [friends]: the opt-in switches — the precondition, built before the display
-fa8f19ff [friends]: Phase 3 ranking — a rank here is usually a tie-break, so say so
-ee0fba77 docs: retention — two channels are live, succeeding, and reach one person
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
