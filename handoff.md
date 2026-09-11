@@ -1,5 +1,54 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ✅ 2026-09-11 — TRE'S TWO ASKS: ONE SHIPPED, ONE MEASURED
+
+**ASK 1, MOBILE SESSION PERSISTENCE — SHIPPED, on `origin/main`, verified 0/0 by contents.**
+Native idle leash is now **7 days** (`NATIVE_IDLE_TIMEOUT_MS`) and **outranks the trust grant**.
+- **The server was never the problem, and this is the fact that stops the next session re-deriving
+  it:** `auth.sessions.not_after` is **NULL on every row** (no time-box) and a refresh token issued
+  2026-06-21 was **successfully exchanged 47 days later**. Supabase already allowed a week with
+  weeks to spare. **Nothing in Supabase config needs changing.**
+- **The cause was the app's own idle timeout** running the web leash on native — 10 minutes
+  untrusted, 12 hours trusted. That matches the 09-06 diagnosis exactly (a revocation, one
+  `sb-*-auth-token` gone, the other 50 localStorage keys present), because `signOut()` removes
+  precisely that key.
+- ⚠️ **His iPhone reads UNTRUSTED today.** `profiles.trusted_devices` has `last_seen`
+  **2026-07-19**, so the grant lapsed 08-18 and the phone has been on the **ten-minute** leash
+  since. The 09-06 sliding-window fix cannot rescue it — `isDeviceTrusted` only touches a record
+  that is still fresh. **A week conditional on trust would have shipped and reached nobody**, which
+  is why the leash is keyed on PLATFORM.
+- **What it costs, and it is a real trade:** `AppLockScreen` is exported and **mounted by nothing**,
+  so on native the device's own lock screen is now the only thing between a picked-up phone and a
+  week of live access to his finances. **Mounting the in-app PIN/biometric lock is now worth more
+  than it was** — that is the one judgement here worth putting to Tre.
+- Evidence: 5 tests, **4 red under mutation** (mutation asserted landed by sha256, file restored to
+  its exact pre-mutation hash). The 5th covers only the toast wording and is **marked in the file as
+  not load-bearing**, because it stays green on that mutant. Four older native tests had their
+  away-time moved past the new leash rather than the leash being weakened.
+  `tsc` clean, `lint` 0 errors, `test:tz` **4056 passed / 1 skipped** in all three zones.
+
+**ASK 2, LOAD TIMES — MEASURED, NOT FIXED.** Full write-up:
+`docs/load-times-measurement-2026-09-11.md`. Read it before touching performance.
+- **The control that settles it:** `reddit_scout_pending_runs` has **0 rows, 24 kB, served by an
+  index** — and averages **1404 ms** over 72 calls with **six 504s** in 24 hours. An indexed lookup
+  on an empty table is microseconds, so **the delay is the instance, not the query.**
+- **THREE DEAD ENDS, each ruled out by measurement — do not spend a day on any of them:**
+  **not the queries** (largest table 592 kB / 831 rows), **not the pool** (13 of 60, 1 active),
+  **not the bundle** (301 kB gzipped over 15 initial files, and the two biggest chunks are not on
+  the initial path). The bundle argument is also logical: **a fixed bundle cannot explain
+  "sometimes"** — it downloads the same every time.
+- **INFERRED, NOT MEASURED, and must not be repeated as established:** free plan +
+  `max_connections 60` makes burst-credit throttling on shared compute the best-supported cause.
+  No CPU-credit metric is exposed through the MCP tools here, so it is **unconfirmed**.
+- ⚠️ **I corrected myself before committing:** the draft said the Dashboard "renders nothing" behind
+  `essentialLoading`. **It does not** — `Dashboard.tsx:1554` returns a full skeleton with eight
+  metric tiles and a chart. The conclusion survives, but "stop the page blanking" would have been a
+  **rebuild of shipped code**. The remaining win is progressive per-widget rendering, and it is a
+  real slice, not a constant change.
+- **INSTRUMENT GAP, named rather than filled:** the 24h edge-log window holds almost no Forgenta
+  traffic — it is the expense tracker and other desks' pollers — so **there is no real page-load p95
+  for this app**, and no client-side trace was taken.
+
 ⛔ **THE ONE THING: ENTER TRE'S THREE CHASE PAY OVER TIME PLANS.** Still the largest number left on
 the board — **$2,101.39 of 0% principal charged at 27.49%, about $577/yr of interest he will not
 pay** — and every line of code it needs shipped 2026-09-06 (`72f82c28`). Blocked ONLY on his three
@@ -1861,7 +1910,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-10 21:00 by handoff_hook. Everything below this heading is
+_Written 2026-09-11 00:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1876,14 +1925,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+eb4d0b23 docs(handoff): Phase 17 complete, and the free-link gate at the top where it blocks
+5a5c6a32 [friends]: the leaderboard itself — empty state first, and ties said out loud
+050ec121 [friends]: the publisher — the caller that makes the leaderboard exist
+7b060f4b [accounts]: in-app notice that the first bank link is free, for the 29 who never linked
 b21e4758 docs(handoff): Phase 17 state table, and the publisher is the next slice
 9fc86064 [friends]: the opt-in switches — the precondition, built before the display
 fa8f19ff [friends]: Phase 3 ranking — a rank here is usually a tie-break, so say so
 ee0fba77 docs: retention — two channels are live, succeeding, and reach one person
-7b66e0c3 docs(handoff): Phase 17 - Phase 2 shipped, Phase 3 next, and do not re-scope 0 and 1 as unbuilt
-6b29c29a [friends]: Phase 2 metrics — the bucketing that is the privacy boundary
-e90d11ce docs: correct my own "named, not built" — the public-build limit is live
-e63c72fe [security]: rate-limit public-build, the one endpoint an anonymous caller can loop
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
