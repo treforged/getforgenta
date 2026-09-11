@@ -75,6 +75,19 @@ interface AppLockContextType {
   disableBiometric: () => Promise<void>;
   disableLock: () => Promise<void>;
   dismissSetupModal: () => void;
+  /**
+   * Open the PIN setup sheet ON PURPOSE, from Settings.
+   *
+   * ⚠️ WHY THIS EXISTS. Until now the ONLY route to enabling the lock was the
+   * automatic prompt in the SIGNED_IN effect, and it is a one-shot: dismissing it
+   * writes `setupPrompted`, which is cleared only by signing out. So a user who
+   * dismissed the sheet once could never turn a PIN on again. Worse, the prompt
+   * fires on `SIGNED_IN` and NOT on `INITIAL_SESSION` — the event a returning user
+   * actually gets — so somebody who simply stays signed in may never have been
+   * offered it at all. Deliberately does NOT consult `setupPrompted`: the whole
+   * point is to reach the sheet after that flag is set.
+   */
+  openSetupModal: () => void;
   lockNow: () => void;
 }
 
@@ -95,6 +108,7 @@ const AppLockContext = createContext<AppLockContextType>({
   disableBiometric: async () => {},
   disableLock: async () => {},
   dismissSetupModal: () => {},
+  openSetupModal: () => {},
   lockNow: () => {},
 });
 
@@ -329,6 +343,10 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     pSet(P.setupPrompted, '1');
   }, []);
 
+  const openSetupModal = useCallback(() => {
+    setShowSetupModal(true);
+  }, []);
+
   const lockNow = useCallback(() => {
     if (lockEnabled) setIsLocked(true);
   }, [lockEnabled]);
@@ -351,6 +369,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       disableBiometric,
       disableLock,
       dismissSetupModal,
+      openSetupModal,
       lockNow,
     }}>
       {children}

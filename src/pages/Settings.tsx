@@ -23,6 +23,7 @@ import SettingsSection from '@/components/settings/SettingsSection';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendLink } from '@/components/settings/FriendLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
+import { AppLockSettings } from '@/components/settings/AppLockSettings';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
 import NotificationSettings from '@/components/settings/NotificationSettings';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -684,6 +685,9 @@ export default function SettingsPage() {
 
           {/* Two-Factor Auth */}
           <TwoFactorAuth />
+          {/* Native-only; renders nothing on web. Until this landed, the app lock could
+              only be enabled by a one-shot prompt that a dismissal retired forever. */}
+          <AppLockSettings />
 
           <div className="border-t border-border" />
 
