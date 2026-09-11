@@ -8,6 +8,7 @@ import ProgressBar from '@/components/shared/ProgressBar';
 import CategoryIcon from '@/components/shared/CategoryIcon';
 import PremiumGate from '@/components/shared/PremiumGate';
 import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
+import FreeBankLinkNotice from '@/components/shared/FreeBankLinkNotice';
 import FounderNoteModal from '@/components/shared/FounderNoteModal';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
@@ -1541,6 +1542,10 @@ export default function Dashboard() {
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
+      {/* Free first bank link, for somebody who has never linked one. Fires on OPEN, so it
+          cannot reach a dormant user - it makes a return worth something rather than causing one.
+          See the component for what it reaches and what it cannot. */}
+      <FreeBankLinkNotice />
       {!isDemo && <SubscriptionExpiryBanner />}
 
       {!isDemo && showSecurityBanner && (
