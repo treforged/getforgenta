@@ -22,7 +22,7 @@ import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
 import { isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
-import { getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, type PayFrequency } from '@/lib/pay-schedule';
+import { getPaycheckNet, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
@@ -207,14 +207,6 @@ export const DEDUCTION_CATALOG: { label: string; mode: 'flat' | 'pct'; preTax: b
 
 // All catalog items in the Taxes group (indices 13-16) — used to enforce post-tax and suppress Tax Rate field
 const TAX_CATALOG_LABELS = new Set(DEDUCTION_CATALOG.slice(13, 17).map(c => c.label.toLowerCase()));
-
-const DEFAULT_DEDUCTIONS: PaycheckDeduction[] = [
-  { id: 'medical', label: 'Medical Insurance', value: 0, mode: 'flat', preTax: true },
-  { id: 'dental',  label: 'Dental Insurance',  value: 0, mode: 'flat', preTax: true },
-  { id: 'vision',  label: 'Vision Insurance',  value: 0, mode: 'flat', preTax: true },
-  { id: '401k',    label: '401(k) Traditional', value: 0, mode: 'pct',  preTax: true },
-  { id: 'hsa',     label: 'HSA',               value: 0, mode: 'flat', preTax: true },
-];
 
 const RULE_TYPE_OPTIONS = [
   { value: 'income', label: 'Income' },
@@ -544,7 +536,6 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     const paychecks = getPaychecksInMonth(payConfig, d.getFullYear(), d.getMonth());
     return paychecks.reduce((s, p) => s + p.net, 0);
   }, [payConfig]);
-  const remainingIncome = useMemo(() => getRemainingIncomeThisMonth(payConfig), [payConfig]);
   const remainingPaychecks = useMemo(() => getRemainingPaychecksThisMonth(payConfig), [payConfig]);
   const nextPayday = useMemo(() => getNextPaycheckDate(payConfig), [payConfig]);
 
@@ -569,10 +560,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
    */
   const {
     buckets: { incomeRules, fixedRules, variableRules, debtRules, transferRules },
-    totals, toCurrentMonthAmount, subsAsRules, debtPaymentRules, liabilityPaymentRules,
-    goalTransferRules, debtBreakdown, matched, autoMatchedRuleIds,
+    totals, toCurrentMonthAmount, debtPaymentRules, liabilityPaymentRules,
+    goalTransferRules, autoMatchedRuleIds,
   } = useBudgetMonthTotals();
-  const { index: matchedOccurrences } = matched;
 
   // ⚠️ `txns` IS NO LONGER READ, and the call is kept ON PURPOSE rather than deleted with the
   // chain above. `useTransactions()` is a data hook, so removing the CALL changes what this page
@@ -615,17 +605,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const subscriptionRules = useMemo(() => fixedRules.filter(r => r.isSub || r.category === 'Subscriptions'), [fixedRules]);
 
 
-  const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-  const nowYear = now.getFullYear();
-  const nowMonth = now.getMonth();
 
 
   // The five totals and the three sums over them, from the one hook. Same names the page has
   // always used, so nothing below this line had to change.
   const {
     income: totalRecurringIncome, fixed: totalFixedExpenses, variable: totalVariableExpenses,
-    debt: totalDebtPayments, transfers: totalTransfers, expenses: totalExpenses, remaining,
+    debt: totalDebtPayments, transfers: totalTransfers, remaining,
   } = totals;
 
   // ⚠️ THE "REMAINING CASH ON HAND" CHAIN THAT STOOD HERE IS GONE, and its absence is the point.
