@@ -454,7 +454,6 @@ export function buildCardData(
   return ccAccounts.map((acct, i) => {
     const acctKey = `account:${acct.id}`;
     const now = new Date();
-    const todayStr = toLocalDateStr(now);
 
     // monthlyNewPurchases is the card's RECURRING monthly spend estimate — it is re-applied to
     // every projected month by the simulation (cardPurchasesThisMonth falls back to it for m >= 1).
@@ -2072,7 +2071,6 @@ export function simulateVariablePayoff(
     for (const card of debtCards) {
       const startBal = balances.get(card.id) ?? 0;
       const interest = interestMap.get(card.id) ?? 0;
-      const purchases = cardPurchasesThisMonth(card);
       const pay = Math.round((payments.get(card.id) ?? 0) * 100) / 100;
       // Installment payment is mandatory and separate from the revolving cascade.
       const instPayThisMonth = installmentPayByCard.get(card.id) ?? 0;
@@ -2381,13 +2379,6 @@ export function generateRecommendations(
   const recommendedSafeMinimum = Math.max(userCashFloor, ppBills);
 
   const effectiveFundingBalance = fundingBalance ?? liquidCash;
-
-  const effectivePrimaryDueDay = primaryDueDay ?? (() => {
-    const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
-    if (revolving.length === 0) return 31;
-    const dueDays = revolving.map(c => c.dueDay || 31);
-    return Math.min(...dueDays);
-  })();
 
   // Declared without a seed on purpose: every branch of the if/else-if/else below assigns both,
   // so TS's definite-assignment check will flag any future branch that forgets to.

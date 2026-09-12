@@ -271,8 +271,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     syncedTransactions,
   } = inputs;
 
-    const _profTr = profile?.tax_rate;
-    const taxRate = _profTr != null ? Number(_profTr) : 22;
 
     const active = accounts.filter((a) => a.active);
     // FIX: Aligned with debt engine — only checking/business_checking/cash are "liquid"
@@ -307,7 +305,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     let totalLiabilityBal: number;
 
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
-    const goalLinkedAccountIds = new Set(goals.filter((g) => g.linked_account).map((g) => g.linked_account as string));
 
     // Per-account balance trackers — precise projected values for popup display
     const investAcctsForTrack = active.filter((a) => investTypes.includes(a.account_type));
@@ -364,7 +361,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     const paycheckGrossForForecast = payConfig
       ? (payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2 : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12 : payConfig.weeklyGross)
       : 0;
-    const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
     const retireAccountIds = new Set(retireAccounts.map((a) => a.id as string));
     const retireAcctIdSet = retireAccountIds; // alias for per-account tracking
     const payDeds: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
@@ -684,11 +680,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     const goalTransferCutoffs = buildGoalTransferCutoffs(goals, rules, accounts, nowDate);
     const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, nowDate);
 
-    const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s, c) => {
-      if (c.phase === 'loan') return s;
-      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-    }, 0);
     /**
      * The SAME scheduled payments `activeCarLoanByMonth` totals, split out per car fund.
      *
@@ -1594,8 +1585,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // Without this gate the toggle moved the Debt Payoff page's numbers and left the Forecast's
       // savings line untouched — measured 2026-08-25 on the real capture, toggling it changed the
       // forecast's total goal contribution by exactly $0.00 across all 36 months while the sim's
-      // cash walk had already dropped it. The two car-fund terms above (monthlyCarContrib,
-      // vehicleProjections) have always been gated the same way; goal contributions simply were
+      // cash walk had already dropped it. The car-fund term above (vehicleProjections, read per
+      // month through `getMonthCarContrib`) has always been gated the same way; goal contributions
+      // simply were not. (A flat `monthlyCarContrib` was named here until 2026-09-12; it was a
+      // superseded approximation that nothing read — the expense walk at the `baseExpenses` sum
+      // uses `getMonthCarContrib(i)`, so no car money was ever missing from the forecast.)
       // not. Zeroing here also empties `savingsGoalItems`, so step 4c credits no goal pool and the
       // month drawer shows no savings rows — a paused month must not grow a goal balance either.
       const savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[] = [];
