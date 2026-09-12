@@ -1,5 +1,32 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## 🔴 FIRST UP — THE GATE SCANS A BUNDLE THAT NEVER SHIPS. `2ce1c2f5` in the tracker.
+
+`capacitor.config.ts:8` sets `server.url = https://getforgenta.com`, so the native app
+loads the HOSTED site. The `dist/` that `check:leaked-keys` and `check:debug-console`
+inspect in both mobile workflows is never executed on a device. **The bundle customers
+actually run — the Vercel build — is scanned by nothing.** Verified live: its index
+chunk inlines the publishable key, exactly as it should. Wire the gate where that
+bundle is built, or accept the gap in writing.
+
+Two related facts found the same way, neither breaking anything today:
+- **The `VITE_SUPABASE_*` env block in both mobile workflows names secrets that do not
+  exist** (`gh secret list` — 17 secrets, none of them these; the run log prints all
+  three empty). Inert only because `server.url` bypasses the bundle. It becomes
+  load-bearing the moment anyone removes that line — the CI bundle's client chunk is
+  literally `throw Error("Missing environment variable: VITE_SUPABASE_URL")`.
+- **Neither mobile workflow reruns on a `scripts/**` change** — the paths filter is
+  `src/`, `android/`, `capacitor.config.ts`, `package.json`. So a change to a gate is
+  never exercised by the workflow that runs it. This push needed two manual
+  `gh workflow run` calls.
+
+## ✅ 2026-09-12 — THE LEAKED-KEY GATE'S LIVENESS RULE. `f7a23f72`, both workflows green.
+
+It blocked every mobile build with "COULD NOT LOOK" after reading 229 files. Liveness
+was tied to FINDING a key; it is now tied to having SCANNED, with a `selfTest()` canary
+that plants a key in a fixture we control. Not a detector hole — measured both ways.
+Detail in the commit body.
+
 ## ✅ 2026-09-12 — ADA SESSION CLOSE-OUT. Everything below is pushed, origin/main 0/0 by contents.
 
 **FIRST UP: nothing here is blocked on code.** The three open items all need Tre's own hands —
