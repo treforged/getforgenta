@@ -43,8 +43,11 @@
  * Usage:  node scripts/check-no-leaked-keys.mjs [distDir]
  * Exit 0  scanned something, found no non-publishable credential.
  * Exit 1  a credential was found — "I looked and it is broken".
- * Exit 2  could not look: no dist, no files, or no key of any kind found (which for
- *         a Supabase app means the scan was pointed at the wrong place).
+ * Exit 2  could not look: no dist, no files, nothing text-like, or the self-test could
+ *         not find a key it planted itself.
+ *
+ * ⚠️ LIVENESS IS "DID I READ ANYTHING", NEVER "DID I FIND A KEY". See selfTest() below
+ * for why that distinction cost every mobile build one evening.
  *
  * NOTE the 1-vs-2 split is a DELIBERATE divergence from the sibling
  * `check-no-debug-console.mjs`, which returns 1 for both. "I looked and it is broken"
@@ -52,8 +55,9 @@
  * read as a finding, and a CI log would say the wrong thing about the machine.
  */
 
-import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 /** A real key carries far more than this; the library's bare prefix literal carries none. */
 export const MIN_KEY_CHARS = 20;
@@ -133,14 +137,73 @@ export function scanDir(dir) {
  */
 export function exitCodeFor(result) {
   if (result.findings.length > 0) return 1;
-  // Nothing to look at, or a Supabase bundle with no key of any kind in it: either way
-  // this run is evidence about nothing and must not read as a pass.
-  if (result.textScanned === 0) return 2;
-  if (result.publishable === 0 && result.jwts.length === 0) return 2;
+  // "Could not look" is about whether anything was READ, and nothing else. A missing
+  // dist, an empty one, or one with no text-like file in it are the real could-not-look
+  // conditions; what the bundle happens to CONTAIN is not one of them.
+  if (result.filesScanned === 0 || result.textScanned === 0) return 2;
   return 0;
 }
 
+/**
+ * THE LIVENESS PROOF, and it is deliberately independent of production content.
+ *
+ * ⚠️ THIS REPLACES AN ASSUMPTION THAT WAS FALSE. Until 2026-09-11 liveness was "a real
+ * Supabase bundle always contains at least one key, so finding none means I scanned the
+ * wrong place". That blocked every mobile build on 2026-09-12 (runs 34664214419 /
+ * 34664214405) and it was not a false alarm about the SCANNER — it was a false PREMISE.
+ * `capacitor.config.ts` sets `server.url = https://getforgenta.com`, so the native app
+ * loads the hosted site and the `dist/` these workflows build is never executed on a
+ * device. CI holds no VITE_SUPABASE_* secrets (verified: the run log prints the env
+ * block with all three empty), so that bundle correctly contains no key at all.
+ *
+ * So liveness is asserted against a fixture we CONTROL: plant a key, and require the
+ * scanner to find exactly it. A scanner that cannot find a planted key has not earned
+ * the right to report a clean bundle as clean.
+ *
+ * Every credential-shaped string below is built at runtime by concatenation, never
+ * written as a literal — a guard whose own code trips it teaches the next person to
+ * loosen the guard.
+ *
+ * @returns {boolean} true only if the scanner found the planted key and nothing else.
+ */
+export function selfTest() {
+  const secPrefix = 'sb_' + 'secret_';
+  const pubPrefix = 'sb_' + 'publishable_';
+  const body = 'A1b2C3d4E5f6G7h8J9k0';
+  const dir = mkdtempSync(join(tmpdir(), 'leaked-keys-selftest-'));
+  try {
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    writeFileSync(
+      join(dir, 'assets', 'app.js'),
+      [
+        // supabase-js's own detection literal: a prefix-matcher would report this too.
+        'const isNew' + 'ApiKey = (k) => k.startsWith("' + pubPrefix + '") || k.startsWith("' + secPrefix + '");',
+        'const pub = "' + pubPrefix + body + 'QRST";',
+        'const oops = "' + secPrefix + body + 'MNOP";',
+      ].join('\n'),
+      'utf8',
+    );
+    const r = scanDir(dir);
+    return (
+      r.findings.length === 1 &&
+      r.findings[0].kind === 'supabase secret key' &&
+      r.publishable === 1 &&
+      r.textScanned === 1
+    );
+  } catch {
+    return false;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function main() {
+  if (!selfTest()) {
+    console.error('[leaked-keys] SELF-TEST FAILED - the scanner cannot find a planted key, so a clean result proves nothing.');
+    process.exit(2);
+  }
+  console.log('[leaked-keys] self-test: planted key found, scanner is live.');
+
   const dir = process.argv[2] ?? 'dist';
   const result = scanDir(dir);
   const code = exitCodeFor(result);
@@ -154,7 +217,7 @@ function main() {
   }
 
   if (code === 1) console.error(`[leaked-keys] FAIL - ${result.findings.length} credential(s) in the bundle.`);
-  else if (code === 2) console.error('[leaked-keys] COULD NOT LOOK - nothing scanned, or no key of any kind found. Wrong directory, or an unbuilt tree. This is NOT a pass.');
+  else if (code === 2) console.error('[leaked-keys] COULD NOT LOOK - nothing was read. Wrong directory, or an unbuilt tree. This is NOT a pass.');
   else console.log('[leaked-keys] OK - no non-publishable credential in the bundle.');
 
   process.exit(code);

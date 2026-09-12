@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scanDir, exitCodeFor, MIN_KEY_CHARS, ALLOW_MARKER } from '../check-no-leaked-keys.mjs';
+import { scanDir, exitCodeFor, selfTest, MIN_KEY_CHARS, ALLOW_MARKER } from '../check-no-leaked-keys.mjs';
 
 /**
  * ⚠️ EVERY CREDENTIAL-SHAPED STRING HERE IS BUILT AT RUNTIME, never written as a
@@ -69,8 +69,10 @@ beforeAll(() => {
 
   fixture('empty', {});
 
-  // A bundle with no key of ANY kind. For a Supabase app this means the scan was
-  // pointed somewhere wrong, and it must not read as a pass.
+  // A bundle with no key of ANY kind. This is NOT a could-not-look condition: the
+  // mobile workflows build a `dist/` that is never executed on a device (capacitor
+  // server.url points at the hosted site) and CI holds no VITE_SUPABASE_* secrets, so
+  // a keyless bundle is the normal, correct output there.
   fixture('no-keys-at-all', { 'app.js': 'export const x = 1;\n' });
 
   fixture('jwt-service-role', {
@@ -137,12 +139,38 @@ describe('check-no-leaked-keys — "could not look" is not "nothing found"', () 
     expect(exitCodeFor(scanDir(join(root, 'does-not-exist')))).toBe(2);
   });
 
-  it('exits 2 when no key of any kind is present — a Supabase bundle always has one', () => {
+  it('PASSES a bundle with no key of any kind — liveness is "did I read", not "did I find"', () => {
     const r = scanDir(dirs['no-keys-at-all']);
     expect(r.findings).toHaveLength(0);
+    expect(r.publishable).toBe(0);
+    expect(r.jwts).toHaveLength(0);
     expect(r.textScanned).toBeGreaterThan(0);
-    // Zero findings AND zero keys is evidence about nothing, so it must not be 0.
+    // The old rule returned 2 here and blocked every mobile build on 2026-09-12. It
+    // read something, and it found nothing wrong. That is a pass.
+    expect(exitCodeFor(r)).toBe(0);
+  });
+
+  it('still exits 2 when files exist but none is text-like', () => {
+    const d = fixture('binary-only', { 'logo.png': 'not really a png' });
+    const r = scanDir(d);
+    expect(r.filesScanned).toBeGreaterThan(0);
+    expect(r.textScanned).toBe(0);
     expect(exitCodeFor(r)).toBe(2);
+  });
+});
+
+describe('check-no-leaked-keys — the self-test is the liveness proof', () => {
+  it('finds a key it planted itself, against a fixture production cannot change', () => {
+    expect(selfTest()).toBe(true);
+  });
+
+  it('is a DISCRIMINATING check: a value-blind scanner would fail it', () => {
+    // The self-test asserts exactly one finding, so a scanner that matched the library
+    // prefix literal (two findings) or saw no key at all (zero) both fail it. Proven
+    // here by the same fixture shape, scanned for real.
+    const r = scanDir(dirs['both-sides']);
+    expect(r.findings).toHaveLength(1);
+    expect(r.publishable).toBe(1);
   });
 });
 
