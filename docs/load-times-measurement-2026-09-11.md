@@ -262,3 +262,65 @@ Stated as a range because the sample cannot separate the two cases.
 * ⚠️ **The sample is small — 85 timed requests over 24 h, and `transactions` has only
   3.** The percentages are indicative, not a rate. Do not quote 6% as a measured
   failure rate; quote it as what 5 of 85 looked like in one day.
+
+---
+
+# ADDENDUM 2, 2026-09-12 — §8.1 is TOO BROAD, and the safe slice is much smaller
+
+§8.1 said "let widgets resolve individually instead of behind one shared gate". Scoped
+against the code, **that recommendation is wrong for most of the Dashboard**, and
+implementing it as written would ship money computed from a half-loaded profile.
+
+## Why most tiles genuinely need the slow input
+
+`essentialLoading = txnLoading || acctLoading || profileLoading` (`Dashboard.tsx:307`),
+and `profiles` is the path with the 5082 ms p95. But `profile` is not decoration — it
+is load-bearing for the money itself:
+
+| line | use | what breaks if it renders early |
+|---|---|---|
+| 309 | `buildPayConfig(profile)` | every paycheck-derived figure |
+| 570 | `resolveCashFloor(profile)` | the floor every warning compares against |
+| 990, 1042 | `isManualCashFloor(profile)` | which floor components apply |
+| 330 | `profile.default_deposit_account` | which account the forecast funds from |
+
+Rendering those tiles before `profile` lands does not show a partial answer. It shows
+a **confident wrong one**, computed from an absent pay schedule and an absent cash
+floor — the exact defect class this repo has caught four times with `?? 0`. So
+"progressive widgets" is NOT a free win on the Overview panel, and anyone who reads
+§8.1 alone will build it that way.
+
+## The slice that IS safe, and it is one condition
+
+The Dashboard's tab state is **persisted** (`usePersistedState('tre:dashboard:activeTab')`),
+so whoever last used the Accounts tab lands there on every open. And that panel is:
+
+```tsx
+{activeTab === 'accounts' && (
+  <Suspense fallback={<div className="h-64" />}><Accounts embedded /></Suspense>
+)}
+```
+
+`Accounts embedded` is lazy-loaded and **owns its own nine queries** — the comment
+above it says so, and it reads neither `profile` nor `transactions` from Dashboard
+scope. Yet the early return at `Dashboard.tsx:1485` replaces the WHOLE page with a
+skeleton, so that panel waits on a `profiles` fetch whose p95 is 5 s and a
+`transactions` fetch it never reads.
+
+**So the honest scope is: do not gate a panel on inputs it does not consume** — not
+"resolve every widget individually". Concretely, the skeleton branch needs to be
+conditional on the Overview panel being the one in view, with the tab bar rendered
+above it either way.
+
+## Why it is NOT shipped in this commit
+
+It changes the first paint of the busiest money page, and this desk has no browser —
+the Chrome extension is not connected here. A change of that shape is exactly what
+"look at a rendered frame" exists for: a string comparison cannot see a header that
+now paints without its greeting, a panel that shifts, or a skeleton that flashes.
+Sam's session has a working extension and has offered to drive.
+
+**Ready to build the moment a browser is available.** What the pass must assert is a
+CHANGE, not the absence of an error: with `profileLoading` still true and the tab set
+to Accounts, the Accounts panel is IN THE DOCUMENT — and with the tab set to Overview
+it is still the skeleton, because that half must not regress.
