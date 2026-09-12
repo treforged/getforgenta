@@ -98,6 +98,12 @@ jobs:
       - name: Assert no debug console in the production bundle
         run: npm run check:debug-console
 
+      # Same stage, same reason: the bundle exists and has not been packaged yet.
+      # Exit 2 means the scan could not look (wrong dir / unbuilt tree) and fails the
+      # job deliberately - it must never read as a pass.
+      - name: Fail if the bundle ships a non-publishable credential
+        run: npm run check:leaked-keys
+
       - name: Sync Capacitor
         run: npx cap sync android
 
