@@ -190,3 +190,75 @@ directly. Do not repeat it as established.
 Explicitly NOT recommended: bundle splitting (§4), query optimisation or new
 indexes (§2), connection pooling changes (§3). All three were measured and all
 three are dead ends for this symptom.
+
+---
+
+# ADDENDUM, 2026-09-12 — the p95 §7 said did not exist, and the shape of the tail
+
+§7 named an instrument gap: *"there is no real page-load p95 for Forgenta itself"*.
+That gap is now closed. The first attempt returned an empty result and the field
+names were wrong, not the data — `edge_logs` holds 554 rows and the keys are
+`request.path` and `response.origin_time`, not `path`/`origin_time`. An empty result
+and a wrong query look identical, which is why the schema was probed before the
+emptiness was believed.
+
+## Per-path latency for Forgenta's own tables (edge_logs, 24 h)
+
+| path | calls | avg | **p50** | **p95** | max | 504s |
+|---|---|---|---|---|---|---|
+| `/rest/v1/profiles` | 33 | 1016 ms | **347 ms** | **5082 ms** | 6008 ms | **2** |
+| `/rest/v1/user_subscriptions` | 10 | 1665 ms | **348 ms** | **5133 ms** | 5161 ms | **2** |
+| `/rest/v1/transactions` | 3 | 1098 ms | 896 ms | 2216 ms | 2363 ms | 0 |
+| `/rest/v1/accounts` | 39 | 111 ms | **18 ms** | 227 ms | 2389 ms | 0 |
+| `/rest/v1/synced_transactions` | 10 | 688 ms | 98 ms | 2388 ms | 2427 ms | 0 |
+
+**`profiles` is 347 ms at the median and 5082 ms at p95 — a 14.6× spread.** The mean
+of 1016 ms describes neither. This is precisely the number the word "sometimes"
+was asking for, and precisely what an average was hiding.
+
+## The tail is BIMODAL, not long — which changes the diagnosis
+
+Across the four tables above (85 requests with a timing):
+
+```
+        <250ms   59   (69%)
+   250ms – 1s    12   (14%)
+      1 – 2.5s    8    (9%)
+    2.5 – 4.5s    1    (1%)   <- the middle is EMPTY
+       >= 4.5s    5    (6%)   <- pinned at the gateway ceiling, 2 of them 504
+```
+
+**One request in the entire 2.5–4.5 s band.** A degraded-but-working instance
+produces a smooth tail; this produces *fast, or stuck against a ~5 s ceiling*. So the
+better statement of the condition is not "the instance is sometimes slow" but
+**"a small fraction of requests stall until the gateway gives up, while the rest are
+fast"** — which is a different thing to fix and a different thing to measure.
+
+§6's burst-credit explanation remains the best-supported cause and remains
+**inferred**. This addendum sharpens the SHAPE of the symptom; it does not confirm
+the cause.
+
+## Why the Dashboard feels it more than any single number suggests
+
+`essentialLoading` waits on the slowest of THREE requests (transactions, accounts,
+profile). If roughly 6% of requests stall to the ceiling, the chance that at least one
+of three does is:
+
+* **~17%** if the stalls are independent
+* **~6%** if they are correlated — i.e. the instance stalls and all three hit it together
+
+⚠️ **Independence is assumed for the upper figure and is probably wrong**, since a
+shared-instance stall would bunch. So the honest range is **6–17% of Dashboard opens
+showing the skeleton for ~5 seconds**, and the truth is likely nearer the bottom.
+Stated as a range because the sample cannot separate the two cases.
+
+## What this does and does not license
+
+* It **raises the confidence** in recommendation §8.1 (let widgets resolve
+  individually): `accounts` has an 18 ms median and is gated behind `profiles`, whose
+  p95 is 5082 ms. A tile that could paint in 18 ms waits up to 5 s for a neighbour.
+* It does **not** license a fix aimed at latency in general. The median is already
+  fine; making fast requests faster addresses nothing Tre reported.
+* ⚠️ **The sample is small — 85 timed requests over 24 h, and `transactions` has only
+  3.** The percentages are indicative, not a rate. Do not quote 6% as a measured
+  failure rate; quote it as what 5 of 85 looked like in one day.
