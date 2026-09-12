@@ -241,30 +241,22 @@ export default function SurplusRankingSection({
 
   // ── Desktop drag ─────────────────────────────────────────
   //
-  // ⚠️ `dragIdRef` is a ref ON PURPOSE, for the reason `Builds.tsx` documents at its own phase-drag
-  // handlers: promoting it to state re-renders the dragged node mid-drag, which cancels the native
-  // HTML5 drag. It is written ONLY from DOM drag handlers (onDragStart / onDragEnd / onDrop) and
-  // read only from the same, so unlike Builds' pair it needs no `react-hooks/immutability` waiver.
+  // ⚠️ DRAG IS DEAD CODE ON THIS LIST, and that is DELIBERATE (Tre, 2026-08-26: "make the
+  // reorganizer arrows instead"). The handle went, and with it the `draggable` attribute — an
+  // element cannot start a drag without one — so `onDragStart` never fired, `dragIdRef` stayed
+  // null, `onDragOver` returned early on every pass and therefore never called preventDefault,
+  // and `onDrop` was unreachable. `onDragStart`/`onDragEnd` were deleted 2026-09-12 as genuinely
+  // dead. What is left below (dragIdRef, onDragOver, onDrop, draggingId, dragOverId) is still
+  // referenced by the row and is INERT BY DESIGN; the test suite pins `[draggable="true"]` at
+  // length 0 on both pointer and touch, which is what makes the absence intentional rather than
+  // a regression. The arrows are the reorder path on every device.
   const dragIdRef = useRef<string | null>(null);
-
-  function onDragStart(e: React.DragEvent, id: string) {
-    dragIdRef.current = id;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('surplus-rank-id', id);
-    setDraggingId(id);
-  }
 
   function onDragOver(e: React.DragEvent, id: string) {
     if (!dragIdRef.current || dragIdRef.current === id) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverId(id);
-  }
-
-  function onDragEnd() {
-    dragIdRef.current = null;
-    setDraggingId(null);
-    setDragOverId(null);
   }
 
   function onDrop(e: React.DragEvent, toId: string) {
@@ -514,8 +506,8 @@ export default function SurplusRankingSection({
                   `icon-btn` is the app's 44px tap target from index.css (the Builds tab adopted it
                   2026-08-24 after 24x24 arrows measured unhittable at 390x844). `min-w-[36px]`
                   narrows the pair back down because it is a VERTICAL stack and two 44px-wide cells
-                  would eat a quarter of a 390px row. Drag-and-drop still WORKS on the row itself
-                  for anyone who reaches for it; it is just no longer the only way in. */}
+                  would eat a quarter of a 390px row. The row's drag path is INERT and intentionally so - see the note at
+                  `dragIdRef` above; the arrows are the only reorder control, on every device. */}
               {readOnly || !canReorder ? (
                 <span className="w-9 shrink-0" />
               ) : (
