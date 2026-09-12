@@ -25,7 +25,6 @@ import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { buildForecastMonthDetail, getAbsoluteMonthIndex } from '@/lib/forecast-export';
 import { cumulativeSurplusesByCard } from '@/lib/step3-display';
-import { useForecastProjections } from '@/hooks/useForecastProjections';
 import { scanForDuplicateTransactions } from '@/lib/duplicate-transaction-detection';
 import { useDismissedDuplicates } from '@/hooks/useDismissedDuplicates';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
@@ -147,10 +146,13 @@ export default function Forecast() {
   }, [setHiddenSeries]);
 
 
-  const {
-    projections,
-    annualFederalWithheldFromBudget,
-  } = useForecastProjections();
+  // Read straight from the context. A 41-line re-export hook stood here until
+  // 2026-09-12: it computed nothing, and after that morning's Forecast cleanup it was
+  // handing this one caller TWO of its thirteen fields. Its own comment called it "a
+  // thin reader preserving the original return shape for its callers" — there was one
+  // caller, and it had stopped needing the shape.
+  const { projections, forecastInputsBundle } = useCardProjectionContext();
+  const { annualFederalWithheldFromBudget } = forecastInputsBundle;
 
   // A month charged twice by a hand-entered copy of a generated payment is a forecast bug the
   // forecast itself cannot see — it just reports the lower cash and, on Tre's data, trips the
