@@ -1,5 +1,50 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ✅ 2026-09-12 — ADA SESSION CLOSE-OUT. Everything below is pushed, origin/main 0/0 by contents.
+
+**FIRST UP: nothing here is blocked on code.** The three open items all need Tre's own hands —
+the bank-link end-to-end test (`98a24254`), the Chase Pay Over Time plans, and the SIGN-IN that
+blocks both browser passes. No desk can do any of them.
+
+**THE ONE SCOPED, DELIBERATELY UNBUILT SLICE** — `docs/load-times-measurement-2026-09-11.md`,
+ADDENDUM 2. Do NOT build "let widgets resolve individually" as the original §8.1 says: `profile`
+is both the 5-second path AND the input to `buildPayConfig`, `resolveCashFloor`,
+`isManualCashFloor` and the funding account, so rendering Overview tiles early shows a confident
+WRONG number. The safe slice is one condition — do not gate a panel on inputs it does not
+consume — and it needs a signed-in browser to verify first paint. Assert BOTH halves or the fix
+regresses the half that was right.
+
+**Shipped today** (each with its evidence in its own commit body):
+- **Reviewer reset** `scripts/reset-reviewer-account.mjs`, and the 136-day defect it exposed:
+  a 2026-04-27 rebrand rewrote `REVIEWER_EMAIL` so the in-app reset matched **0 rows** since April.
+- **App lock reachable**: mounted since 09-06 but only enableable via a one-shot `SIGNED_IN`
+  prompt; now has a Settings entry. Carried by **iOS build 732**; session persistence by **730**.
+- **Leaked-key build gate** `npm run check:leaked-keys`, wired into both native workflows, 9 tests.
+  Matches key VALUES not prefixes — supabase-js's own literal makes a prefix match go red on
+  every clean build.
+- **Unused declarations 117 → 11.** ⚠️ **The 11 left are ONE DECISION, not a remainder** — each
+  binding is its call's only consumer, so deleting it changes what a page FETCHES. Do not sweep
+  them to reach zero. Zero is not the goal; a defensible list is.
+- **`useForecastProjections` deleted** with before/after evidence in numbers, both directions
+  mutation-proven.
+- **Load-time p95 closed** the gap the doc itself named: `profiles` 347 ms median vs **5082 ms
+  p95**, and the tail is **BIMODAL** — one request in the whole 2.5–4.5 s band. "Fast, or stuck
+  until the gateway gives up" has a different fix from general slowness.
+- **Otto's five security checks: all pass**, live evidence, `docs/security-checklist-2026-09-12.md`.
+
+**Two near-misses worth more than the fixes, both recorded in commit bodies:**
+- `grep -rIl "sb_secret_" dist/` returns **2 files** and they are supabase-js's own detection
+  literal. **A prefix is not a key.** A false critical on the bundle would have cost more than
+  the leak that was not there.
+- I wired up a dead drag path in `SurplusRankingSection` and **the existing suite refused it** —
+  `[draggable="true"]` is pinned at 0 because Tre retired drag on 2026-08-26. The comments said
+  drag still worked; only the test knew the truth. **Do not "restore" it without asking him.**
+
+**Landing-page hero at `opacity: 0` is RESOLVED as an instrument artifact, not a defect** —
+`vendor-motion` loaded (46,006 bytes) and the inline `translateY(30px)` is framer's own `initial`
+value, so the library ran and the tween simply never advanced in a hidden tab. Nothing to fix.
+
+
 ## ✅ 2026-09-11 — TRE'S TWO ASKS: ONE SHIPPED, ONE MEASURED
 
 **ASK 1, MOBILE SESSION PERSISTENCE — SHIPPED, on `origin/main`, verified 0/0 by contents.**
@@ -1954,30 +1999,29 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-11 20:42 by handoff_hook. Everything below this heading is
+_Written 2026-09-11 21:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
-M handoff.md
- M supabase/.temp/cli-latest
+M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
-0490d8e4 [savings]: I nearly "fixed" a dead drag path that is dead ON PURPOSE
-d1ddfce3 [debt]: an inline edit that no control could reach, and a comment that said it ran
-32ffac4a [dashboard]: 8 dead computations, and a cascade that briefly made the count WORSE
-cd606bb4 [budget]: nine removed, five KEPT for a reason, and two the first pass created
-8e38e3ac docs(handoff): the unused-vars section said the rest was the hard half, and it was not
-89c0088e [forecast]: 19 inert bindings, and a correction to what the remaining backlog IS
-acc6408b [mobile]: the app lock was mounted and still could not be switched on
-714ca7dc docs(handoff): close-out note from the ada-35568 session
+01348c8f docs(perf): §8.1 was too broad - progressive widgets would ship wrong money
+ab721ba3 [security]: promote the leaked-key scan from a scratchpad to a real build gate
+2a081825 docs(handoff): Phase 17 verified against production, and the gap no suite can close
+db93c175 docs(security): five claimed vulnerabilities run against this tree - all five pass
+337da370 docs(perf): the p95 the measurement said it lacked, and the tail is BIMODAL
+d71ad2a4 [forecast]: delete the re-export hook, and assert the NUMBERS rather than the compile
+48c68556 [cleanup]: the backlog is down to 11, and every one that is left is a KEPT decision
+1ab13172 [engines]: seven dead locals in the money engines, and one I checked for a real bug first
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
