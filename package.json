@@ -13,6 +13,7 @@
     "test:tz": "node scripts/test-timezones.mjs",
     "check:debug-console": "node scripts/check-no-debug-console.mjs",
     "check:leaked-keys": "node scripts/check-no-leaked-keys.mjs",
+    "check:leaked-keys:live": "node scripts/check-no-leaked-keys.mjs --url https://getforgenta.com",
     "test:watch": "vitest",
     "version:next": "node scripts/next-version.mjs",
     "version:bump": "node scripts/next-version.mjs --write",

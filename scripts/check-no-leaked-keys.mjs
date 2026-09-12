@@ -40,7 +40,22 @@
  *   It stops the accident — an inlined env var, a pasted key, a misconfigured
  *   `VITE_` variable. It does not stop somebody determined.
  *
+ * ⚠️ WHICH ARTEFACT THIS READS — AND THE TWO ARE NOT INTERCHANGEABLE.
+ *   `check:leaked-keys`       reads the LOCAL `dist/`. `capacitor.config.ts` sets
+ *                             `server.url = https://getforgenta.com`, so the native app
+ *                             loads the hosted site and THIS BUNDLE IS NEVER EXECUTED ON
+ *                             A DEVICE. It is a cheap pre-ship check that catches a key
+ *                             accidentally inlined at build time. It is NOT coverage for
+ *                             the code users run, and must never be reported as such.
+ *   `check:leaked-keys:live`  reads the HOSTED deployment — index.html plus every
+ *                             same-origin asset it references. That is the bundle both
+ *                             the web app and the native app actually execute, and it is
+ *                             the only mode with coverage meaning.
+ * Every run prints `TARGET:` saying which it read. A gate whose scope is undocumented
+ * gets trusted past it.
+ *
  * Usage:  node scripts/check-no-leaked-keys.mjs [distDir]
+ *         node scripts/check-no-leaked-keys.mjs --url https://getforgenta.com
  * Exit 0  scanned something, found no non-publishable credential.
  * Exit 1  a credential was found — "I looked and it is broken".
  * Exit 2  could not look: no dist, no files, nothing text-like, or the self-test could
@@ -97,38 +112,107 @@ function roleOf(token) {
 }
 
 /**
+ * The per-source scan, shared by every target so a local directory and the live
+ * deployment cannot drift into judging the same bytes differently.
+ * @param {string} name  what to print in a finding — a path, or a URL
+ * @param {string} text  the whole source
+ * @param {{findings:any[], jwts:any[], publishable:number}} acc  mutated in place
+ */
+function scanSource(name, text, acc) {
+  text.split('\n').forEach((line, i) => {
+    // The escape keys on THIS LINE. A file-wide exemption is not offered on purpose.
+    if (line.includes(ALLOW_MARKER)) return;
+    for (const [kind, re] of VALUE_RULES) {
+      re.lastIndex = 0;
+      if (re.test(line)) acc.findings.push({ file: name, line: i + 1, kind });
+    }
+    PUBLISHABLE.lastIndex = 0;
+    acc.publishable += (line.match(PUBLISHABLE) ?? []).length;
+    JWT.lastIndex = 0;
+    for (const tok of line.match(JWT) ?? []) {
+      const role = roleOf(tok);
+      acc.jwts.push({ role, file: name });
+      if (role !== 'anon') acc.findings.push({ file: name, line: i + 1, kind: `JWT with role=${role}` });
+    }
+  });
+}
+
+/**
  * @returns {{findings: {file:string,line:number,kind:string}[], publishable:number,
- *            jwts:{role:string,file:string}[], filesScanned:number, textScanned:number}}
+ *            jwts:{role:string,file:string}[], filesScanned:number, textScanned:number,
+ *            target:string}}
  */
 export function scanDir(dir) {
-  const findings = [];
-  const jwts = [];
-  let publishable = 0;
+  const acc = { findings: [], jwts: [], publishable: 0 };
   let textScanned = 0;
 
   const files = existsSync(dir) ? walk(dir) : [];
   for (const file of files) {
     if (!TEXT_LIKE.test(file)) continue;
     textScanned++;
-    const lines = readFileSync(file, 'utf8').split('\n');
-    lines.forEach((line, i) => {
-      // The escape keys on THIS LINE. A file-wide exemption is not offered on purpose.
-      if (line.includes(ALLOW_MARKER)) return;
-      for (const [kind, re] of VALUE_RULES) {
-        re.lastIndex = 0;
-        if (re.test(line)) findings.push({ file, line: i + 1, kind });
-      }
-      PUBLISHABLE.lastIndex = 0;
-      publishable += (line.match(PUBLISHABLE) ?? []).length;
-      JWT.lastIndex = 0;
-      for (const tok of line.match(JWT) ?? []) {
-        const role = roleOf(tok);
-        jwts.push({ role, file });
-        if (role !== 'anon') findings.push({ file, line: i + 1, kind: `JWT with role=${role}` });
-      }
-    });
+    scanSource(file, readFileSync(file, 'utf8'), acc);
   }
-  return { findings, publishable, jwts, filesScanned: files.length, textScanned };
+  return { ...acc, filesScanned: files.length, textScanned, target: `local build directory "${dir}"` };
+}
+
+/**
+ * THE BUNDLE CUSTOMERS ACTUALLY EXECUTE.
+ *
+ * ⚠️ READ THIS BEFORE TRUSTING EITHER MODE. `capacitor.config.ts` sets
+ * `server.url = https://getforgenta.com`, so the native app loads the HOSTED site and
+ * the `dist/` the mobile workflows build is never executed on a device. scanDir() is a
+ * cheap pre-ship check on an artefact nobody runs; THIS is the one with coverage
+ * meaning. Neither substitutes for the other, and the run always prints which it read.
+ *
+ * Fetches the origin's index.html, then every same-origin asset it references, and
+ * scans all of it with the same rules as a local scan.
+ *
+ * @param {string} origin e.g. https://getforgenta.com
+ * @returns same shape as scanDir
+ */
+export async function scanUrl(origin) {
+  const base = origin.replace(/\/+$/, '');
+  const acc = { findings: [], jwts: [], publishable: 0 };
+  let textScanned = 0;
+
+  const get = async (url) => {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
+    return res.text();
+  };
+
+  let fetchErrors = 0;
+
+  let index;
+  try {
+    index = await get(`${base}/`);
+  } catch (e) {
+    // Unreachable is a COULD NOT LOOK, never a pass. Zero counts produce exit 2.
+    console.error(`[leaked-keys] could not fetch ${base}/ — ${e.message}`);
+    return { ...acc, filesScanned: 0, textScanned: 0, fetchErrors: 1, target: `live deployment ${base}` };
+  }
+
+  scanSource(`${base}/index.html`, index, acc);
+  textScanned++;
+
+  // Same-origin assets only: a third-party script is not this bundle and not ours to
+  // judge. Relative paths only, which is what Vite emits.
+  const refs = [...new Set([...index.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|mjs|css|json|webmanifest))"/g)].map(m => m[1]))];
+  for (const ref of refs) {
+    const url = `${base}${ref}`;
+    try {
+      scanSource(url, await get(url), acc);
+      textScanned++;
+    } catch (e) {
+      // ⚠️ A PARTIAL READ MUST NOT READ AS A PASS. One unfetchable chunk is exactly
+      // where a key would sit, so any failure forces COULD NOT LOOK rather than
+      // letting the chunks that did load stand in for the whole bundle.
+      fetchErrors++;
+      console.error(`[leaked-keys] could not fetch ${url} — ${e.message}`);
+    }
+  }
+
+  return { ...acc, filesScanned: refs.length + 1, textScanned, fetchErrors, target: `live deployment ${base}` };
 }
 
 /**
@@ -141,6 +225,10 @@ export function exitCodeFor(result) {
   // dist, an empty one, or one with no text-like file in it are the real could-not-look
   // conditions; what the bundle happens to CONTAIN is not one of them.
   if (result.filesScanned === 0 || result.textScanned === 0) return 2;
+  // A source that could not be read at all is a hole the size of a whole chunk, and a
+  // key would sit in exactly one chunk. Only scanUrl() sets this; a local scan has no
+  // such failure mode, so 0 is the truth there rather than a stand-in for "unknown".
+  if ((result.fetchErrors ?? 0) > 0) return 2;
   return 0;
 }
 
@@ -197,18 +285,24 @@ export function selfTest() {
   }
 }
 
-function main() {
+async function main() {
   if (!selfTest()) {
     console.error('[leaked-keys] SELF-TEST FAILED - the scanner cannot find a planted key, so a clean result proves nothing.');
     process.exit(2);
   }
   console.log('[leaked-keys] self-test: planted key found, scanner is live.');
 
-  const dir = process.argv[2] ?? 'dist';
-  const result = scanDir(dir);
+  const args = process.argv.slice(2);
+  const urlAt = args.indexOf('--url');
+  const result = urlAt === -1
+    ? scanDir(args[0] ?? 'dist')
+    : await scanUrl(args[urlAt + 1] ?? 'https://getforgenta.com');
   const code = exitCodeFor(result);
 
-  console.log(`[leaked-keys] ${dir}: ${result.filesScanned} files, ${result.textScanned} text-like scanned`);
+  // ⚠️ SAY WHICH ARTEFACT WAS READ, ON EVERY RUN. A gate whose scope is undocumented
+  // gets trusted past it, and these two targets are NOT interchangeable — see scanUrl.
+  console.log(`[leaked-keys] TARGET: ${result.target}`);
+  console.log(`[leaked-keys] ${result.filesScanned} files, ${result.textScanned} text-like scanned`);
   console.log(`[leaked-keys] publishable key occurrences: ${result.publishable} (expected)`);
   console.log(`[leaked-keys] JWTs: ${result.jwts.length}${result.jwts.length ? ` (roles: ${[...new Set(result.jwts.map(j => j.role))].join(', ')})` : ''}`);
 
@@ -217,13 +311,23 @@ function main() {
   }
 
   if (code === 1) console.error(`[leaked-keys] FAIL - ${result.findings.length} credential(s) in the bundle.`);
-  else if (code === 2) console.error('[leaked-keys] COULD NOT LOOK - nothing was read. Wrong directory, or an unbuilt tree. This is NOT a pass.');
-  else console.log('[leaked-keys] OK - no non-publishable credential in the bundle.');
+  else if (code === 2) console.error('[leaked-keys] COULD NOT LOOK - nothing was read, or a source could not be fetched. Wrong directory, an unbuilt tree, or an unreachable deployment. This is NOT a pass.');
+  else console.log(`[leaked-keys] OK - no non-publishable credential in ${result.target}.`);
 
-  process.exit(code);
+  // ⚠️ `process.exit()` HERE CRASHED NODE ON WINDOWS AND REPORTED 127, NOT 1 — measured
+  // 2026-09-12 against a planted key: the FOUND and FAIL lines printed correctly and the
+  // process then died on `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` while
+  // fetch's sockets were still closing. A gate that reports the wrong exit code on a
+  // real finding is worse than no gate. Setting `exitCode` lets the loop drain and
+  // preserves the verdict.
+  process.exitCode = code;
 }
 
 // Only run as a CLI. Importing this file for tests must not scan or exit.
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('check-no-leaked-keys.mjs')) {
-  main();
+  main().catch((e) => {
+    // An unexpected throw is a COULD NOT LOOK, never an accidental pass.
+    console.error(`[leaked-keys] COULD NOT LOOK - ${e?.stack ?? e}`);
+    process.exitCode = 2;
+  });
 }

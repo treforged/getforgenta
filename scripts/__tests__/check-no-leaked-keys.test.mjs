@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scanDir, exitCodeFor, selfTest, MIN_KEY_CHARS, ALLOW_MARKER } from '../check-no-leaked-keys.mjs';
+import { createServer } from 'node:http';
+import { scanDir, scanUrl, exitCodeFor, selfTest, MIN_KEY_CHARS, ALLOW_MARKER } from '../check-no-leaked-keys.mjs';
 
 /**
  * ⚠️ EVERY CREDENTIAL-SHAPED STRING HERE IS BUILT AT RUNTIME, never written as a
@@ -171,6 +172,97 @@ describe('check-no-leaked-keys — the self-test is the liveness proof', () => {
     const r = scanDir(dirs['both-sides']);
     expect(r.findings).toHaveLength(1);
     expect(r.publishable).toBe(1);
+  });
+});
+
+describe('check-no-leaked-keys — the LIVE deployment, which is the bundle users execute', () => {
+  /**
+   * The local `dist/` is not what runs on a device (capacitor `server.url`), so this
+   * mode is the one with coverage meaning. Served over real HTTP rather than mocked:
+   * a mock that agreed with the code would prove nothing about fetching.
+   */
+  const serve = (routes) => new Promise((resolve) => {
+    const srv = createServer((req, res) => {
+      const body = routes[req.url.split('?')[0]];
+      if (body === undefined) { res.writeHead(404); return res.end('no'); }
+      res.writeHead(200, { 'content-type': 'text/javascript' });
+      res.end(body);
+    });
+    srv.listen(0, '127.0.0.1', () => resolve({ srv, base: `http://127.0.0.1:${srv.address().port}` }));
+  });
+
+  const page = (...srcs) => '<!doctype html><html><head>'
+    + srcs.map(s => `<script type="module" src="${s}"></script>`).join('')
+    + '</head><body></body></html>';
+
+  it('passes a clean deployment and counts index.html plus every same-origin asset', async () => {
+    const { srv, base } = await serve({
+      '/': page('/assets/app.js', '/assets/vendor.js'),
+      '/assets/app.js': 'const pub = "' + FAKE_PUBLISHABLE + '";',
+      '/assets/vendor.js': LIBRARY_LITERAL,
+    });
+    try {
+      const r = await scanUrl(base);
+      expect(r.findings).toHaveLength(0);
+      expect(r.publishable).toBe(1);
+      expect(r.textScanned).toBe(3); // index + 2 assets
+      expect(r.target).toContain(base);
+      expect(exitCodeFor(r)).toBe(0);
+    } finally { srv.close(); }
+  });
+
+  it('FAILS on a secret key in a shipped chunk, naming the URL and line', async () => {
+    const { srv, base } = await serve({
+      '/': page('/assets/app.js'),
+      '/assets/app.js': 'const pub = "' + FAKE_PUBLISHABLE + '";\nconst oops = "' + FAKE_SECRET + '";',
+    });
+    try {
+      const r = await scanUrl(base);
+      expect(r.findings).toHaveLength(1);
+      expect(r.findings[0].kind).toBe('supabase secret key');
+      expect(r.findings[0].file).toBe(`${base}/assets/app.js`);
+      expect(r.findings[0].line).toBe(2);
+      expect(exitCodeFor(r)).toBe(1);
+    } finally { srv.close(); }
+  });
+
+  it('⚠️ A PARTIAL READ IS NOT A PASS — one unfetchable chunk forces exit 2', async () => {
+    // The chunks that DID load are clean, so a scanner that let them stand in for the
+    // whole bundle would report a confident green over the one file it never saw.
+    const { srv, base } = await serve({
+      '/': page('/assets/app.js', '/assets/missing.js'),
+      '/assets/app.js': 'const pub = "' + FAKE_PUBLISHABLE + '";',
+    });
+    try {
+      const r = await scanUrl(base);
+      expect(r.findings).toHaveLength(0);
+      expect(r.fetchErrors).toBe(1);
+      expect(r.textScanned).toBeGreaterThan(0);
+      expect(exitCodeFor(r)).toBe(2);
+    } finally { srv.close(); }
+  });
+
+  it('exits 2 when the deployment is unreachable rather than reporting it clean', async () => {
+    const { srv, base } = await serve({});
+    srv.close();
+    await new Promise(r => srv.on('close', r));
+    const r = await scanUrl(base);
+    expect(r.textScanned).toBe(0);
+    expect(exitCodeFor(r)).toBe(2);
+  });
+
+  it('ignores third-party scripts — a bundle we do not ship is not ours to judge', async () => {
+    const { srv, base } = await serve({
+      '/': '<!doctype html><script src="https://cdn.example.com/x.js"></script>'
+        + '<script type="module" src="/assets/app.js"></script>',
+      '/assets/app.js': 'const pub = "' + FAKE_PUBLISHABLE + '";',
+    });
+    try {
+      const r = await scanUrl(base);
+      expect(r.filesScanned).toBe(2); // index + the one same-origin asset
+      expect(r.fetchErrors).toBe(0);
+      expect(exitCodeFor(r)).toBe(0);
+    } finally { srv.close(); }
   });
 });
 

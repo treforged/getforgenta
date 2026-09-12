@@ -1,0 +1,53 @@
+name: Scan the bundle that actually ships
+
+# ⚠️ WHY THIS EXISTS, AND WHY THE OTHER SCAN IS NOT A SUBSTITUTE.
+#
+# `capacitor.config.ts` sets `server.url = https://getforgenta.com`, so the native app
+# loads the HOSTED site. The `dist/` that ios-build.yml and android-build.yml scan is
+# NEVER EXECUTED ON A DEVICE — it is a cheap pre-ship check on an artefact nobody runs.
+# Until 2026-09-12 nothing scanned the bundle customers actually execute. This does.
+#
+# TRIGGER: Vercel posts a `deployment_status` to this repo when a deploy finishes, so
+# this needs no deploy credential and no Vercel setting. It runs only on a SUCCESSFUL
+# Production deployment.
+#
+# ⚠️ IT SCANS THE CANONICAL ORIGIN, NOT `environment_url`. The per-deploy
+# `*.vercel.app` URL sits behind deployment protection and answers 302 to an
+# unauthenticated fetch (measured 2026-09-12) — a scan of that is a scan of a redirect.
+# getforgenta.com is public, is what the app loads, and is what the alias points at once
+# the deployment reports success.
+#
+# The scan is read-only: it fetches public URLs and holds no credential of any kind.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+  # A deploy can succeed while the alias is still switching, and a bundle can be
+  # replaced by a deploy this workflow never saw. A daily sweep catches both.
+  schedule:
+    - cron: '17 9 * * *'
+
+concurrency:
+  group: live-bundle-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    # `deployment_status` fires for every state; only a successful Production deploy is
+    # worth scanning. The other two triggers carry no deployment context, so they pass.
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No `npm ci`: the scanner is stdlib-only on purpose, so this job cannot be
+      # broken by a dependency and takes seconds.
+      - name: Scan the live bundle for a non-publishable credential
+        run: npm run check:leaked-keys:live
