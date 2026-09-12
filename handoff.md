@@ -87,6 +87,24 @@ Schema, invites, metrics, ranking, opt-in switches, publisher, display. Every pi
 mutation-tested; `test:tz` green in all three zones (4055 passed).
 ⚠️ **It reaches nobody yet, and that is expected, not broken:** 0 friendships, 0 opt-ins, 0
 snapshots. The empty state is the screen every user will see, and it is written for that.
+**VERIFIED 2026-09-12 by caller-grep and by querying production, not by re-reading this
+file.** Mount chain, with line numbers so nobody re-derives it: `Settings.tsx:634` renders
+`FriendLink`, which renders `LeaderboardShareToggles` (`:144`) and `FriendsLeaderboard`
+(`:146`), both gated on `friends.length > 0` — deliberate, and the comment says why: switches
+that publish to nobody are a control that appears to do nothing. `useLeaderboardPublisher` is
+mounted at `Dashboard.tsx:744` and its inputs map `undefined` to `null` with three metrics
+passed an explicit `null`, so nothing fabricates a zero onto a friend's screen.
+
+⚠️ **AND THE PUBLISHER'S HAPPY PATH HAS NEVER EXECUTED.** Production reads
+**0 invites, 0 friendships, 0 share rows, 0 snapshots** — note *invites* is zero too, which
+this file did not previously record, so not even the first step of the chain has run. With
+zero shares enabled the publisher is CORRECT to write nothing, which means a working
+publisher and a broken one produce exactly the same evidence today. That is the
+"a branch that only runs in the healthy state is untested until something is healthy" shape,
+and no green suite can close it. **One real invite accepted, with one share switched on,
+settles it** — and writing that row is production data, so it is Tre's to trigger, not a
+desk's to fake.
+
 ⚠️ **`debt_payoff` and `budget_adherence` are never published** — the Dashboard cannot source them
 truthfully, so they pass `null` and publish nothing. To add them, source them at the mount point in
 `Dashboard.tsx`; do **not** pass a zero.
@@ -1936,29 +1954,30 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-11 11:39 by handoff_hook. Everything below this heading is
+_Written 2026-09-11 20:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
+- **Uncommitted (2 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M handoff.md
+ M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+0490d8e4 [savings]: I nearly "fixed" a dead drag path that is dead ON PURPOSE
+d1ddfce3 [debt]: an inline edit that no control could reach, and a comment that said it ran
+32ffac4a [dashboard]: 8 dead computations, and a cascade that briefly made the count WORSE
+cd606bb4 [budget]: nine removed, five KEPT for a reason, and two the first pass created
+8e38e3ac docs(handoff): the unused-vars section said the rest was the hard half, and it was not
+89c0088e [forecast]: 19 inert bindings, and a correction to what the remaining backlog IS
 acc6408b [mobile]: the app lock was mounted and still could not be switched on
 714ca7dc docs(handoff): close-out note from the ada-35568 session
-7e112543 docs(walk): the full-walk manifest, with what each press must PROVE
-6f757a9b [reviewer]: the reset has matched no account since April, and now it says so
-06932e63 docs(handoff): the two 09-11 asks - mobile session shipped, load times measured
-23c2dfca docs(perf): what is actually slow, measured - and three dead ends ruled out
-9f9bcc69 [auth]: a week on mobile, and the platform outranks the trust grant
-eb4d0b23 docs(handoff): Phase 17 complete, and the free-link gate at the top where it blocks
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
