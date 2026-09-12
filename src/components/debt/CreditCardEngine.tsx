@@ -132,6 +132,13 @@ const PAYMENT_MODE_TIPS = {
 };
 
 export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
+  // ⚠️ BOTH BINDINGS ARE NOW UNUSED and the line is KEPT ON PURPOSE. Their only reader was
+  // `syncDebtAndAccount`, deleted 2026-09-12 with the never-wired inline target edit above it.
+  // This is the file's ONLY `useDebts()` call, so reducing it to a bare `useDebts();` — or
+  // removing it — changes what this component FETCHES and subscribes to, not just what it
+  // names. That is the same question `useTransactions()` in BudgetControl.tsx is left open on,
+  // and it wants a browser to answer. Two lint warnings are the cheaper price than a silent
+  // change to what the Debt page loads.
   const { update: updateDebt, add: addDebt } = useDebts();
   const { forecastInputsBundle, debtCashConverged, cardProjection: convergedCardProjection, projections: convergedProjections } = useCardProjectionContext();
   const { update: updateAccount } = useAccounts();
@@ -173,11 +180,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Trajectory chart horizon, in years. Defaults to '5' so the chart looks exactly as it did
   // before this filter existed; the other options just trim months off the tail.
   const [chartYears, setChartYears] = usePersistedState<'1' | '2' | '3' | '5'>('tre:debt:chart-years', '5');
-  const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [editingStatementBal, setEditingStatementBal] = useState<string | null>(null);
   const [statementBalInput, setStatementBalInput] = useState('');
 
-  const [targetInput, setTargetInput] = useState('');
   // Pinned per-month payments, persisted: these are deliberate user edits that the engine
   // re-converges around (Anomaly B), so losing them on reload/navigation/mobile-resume silently
   // threw away intentional planning work. Same store as 'tre:debt:paymentMode' above.
@@ -272,10 +277,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // from the liquid cash estimate since they don't draw from the funding account.
   // Falls back to defaultFunding so the filter is non-empty even before the persisted
   // value resolves (accounts still loading → fundingAccountId may be '').
-  const fundingAccountSources = useMemo(() => {
-    const id = resolvedFundingId;
-    return id ? new Set([id, `account:${id}`]) : new Set<string>();
-  }, [resolvedFundingId]);
 
   const monthlyTakeHome = useMemo(() => {
     const now = new Date();
@@ -359,13 +360,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // monthlyRevolvingBalances and perCardMinPayments to exactly match Forecast month 0.
 
   // Use the earliest card due day as the default window for the top-level display
-  const primaryDueDay = useMemo(() => {
-    const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
-    if (revolving.length === 0) return 31;
-    // Use the earliest due day among revolving cards
-    const dueDays = revolving.map(c => c.dueDay || 31);
-    return Math.min(...dueDays);
-  }, [cards]);
 
   // Computed income/expense breakdown for display — full month (day 31).
   // Only funding-account expenses are counted (CC purchases excluded) so estLiquidCash
@@ -1191,15 +1185,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
   }, [cards, projections]);
 
-  const interestAvoided = useMemo(() => {
-    const recommendedInterest = projections.reduce((s, p) => s + p.totalInterest, 0);
-    const minInterest = cards.reduce((s, c) => {
-      if (c.balance <= 0) return s;
-      const minPays = Array.from({ length: PROJECTION_MONTHS }, () => c.minPayment);
-      return s + projectCardVariable(c, minPays, PROJECTION_MONTHS, false).totalInterest;
-    }, 0);
-    return Math.max(0, minInterest - recommendedInterest);
-  }, [cards, projections]);
 
   // A card with a future card_start_date is not open yet — its limit is not available
   // credit (session 93's rule, same filter Dashboard's utilization tile uses). Both sides
@@ -1209,30 +1194,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
 
-  const syncDebtAndAccount = (card: CardData, updates: { min_payment?: number; target_payment?: number }) => {
-    const matchDebt = debts.find(d => d.name.toLowerCase() === card.name.toLowerCase());
-    if (matchDebt) {
-      updateDebt.mutate({ id: matchDebt.id, ...updates });
-    } else {
-      addDebt.mutate({
-        name: card.name, balance: card.balance, apr: card.apr,
-        min_payment: updates.min_payment ?? card.minPayment,
-        target_payment: updates.target_payment ?? card.targetPayment,
-        credit_limit: card.creditLimit,
-      });
-    }
-  };
 
-  const handleSaveTarget = (card: CardData) => {
-    const newTarget = parseFloat(targetInput);
-    if (isNaN(newTarget) || newTarget < card.minPayment) {
-      toast.error(`Target must be at least minimum payment (${formatCurrency(card.minPayment, false)})`);
-      return;
-    }
-    syncDebtAndAccount(card, { target_payment: newTarget });
-    setEditingTarget(null);
-    toast.success(`Target payment for ${card.name} updated to ${formatCurrency(newTarget, false)}`);
-  };
 
   const handleSaveStatementBal = (card: CardData, rawValue?: string) => {
     const val = (rawValue ?? statementBalInput).trim();

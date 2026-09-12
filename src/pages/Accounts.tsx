@@ -664,9 +664,15 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     // student loans, managed entirely through the debts table). Credit cards are deliberately
     // excluded: accounts.min_payment (just written above) is their sole source of truth for the
     // debt engine, and mirroring it into a same-named debts row would recreate the exact dual-
-    // source confusion this was meant to avoid. A credit card's debts row, if one exists for its
-    // separate target_payment feature, still gets created/kept in sync by
-    // CreditCardEngine.tsx's syncDebtAndAccount when the user sets a target payment.
+    // source confusion this was meant to avoid.
+    // ⚠️ CORRECTED 2026-09-12: this comment used to end by saying a credit card's debts row
+    // "still gets created/kept in sync by CreditCardEngine.tsx's syncDebtAndAccount when the
+    // user sets a target payment". That was FALSE. `syncDebtAndAccount`'s only caller was
+    // `handleSaveTarget`, which had ZERO callers of its own — an inline edit affordance that
+    // was never wired to a control — so the path could not run, and both are now deleted.
+    // A credit card's debts row is created and edited through the Debt Payoff page's form
+    // (DebtPayoff.tsx), which is the only route that writes target_payment. The EXCLUSION
+    // above is still right for the dual-source reason; only the reassurance was wrong.
     if (isLiability(form.account_type) && form.account_type !== 'credit_card' && form.min_payment) {
       const minPay = parseFloat(form.min_payment);
       if (!isNaN(minPay) && minPay > 0) {
