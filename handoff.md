@@ -1,6 +1,42 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## 🔴 FIRST UP — THE GATE SCANS A BUNDLE THAT NEVER SHIPS. `2ce1c2f5` in the tracker.
+## ✅ SETTLED 2026-09-12 — THE LEAKED-KEY GATE. `f7a23f72` + `17e98a30`. Do not re-derive any of this.
+
+**1. Until `17e98a30`, the hosted bundle had NEVER been scanned by anything.** Not a
+workflow, not a script, not a git hook, not the Vercel build (`vercel.json` sets no
+`buildCommand`, there is no `core.hooksPath` and no `.husky`). The two existing gates
+read the local `dist/` — which `capacitor.config.ts:8` (`server.url`) means the native
+app never executes. A gate over an artefact that never ships protects nothing.
+
+**2. The live scan's 403 from CI is Cloudflare refusing datacenter IPs — measured, not
+inferred.** Run `34671555484`: 403 from a GitHub runner; 200 from this machine with a
+bare `node` fetch, a browser UA, and no UA at all. So it is the IP, not the client.
+**Not a leak and not an outage.** Vercel's own `ssoProtection` is
+`all_except_custom_domains` — that is NOT the cause of this 403; it is why the
+per-deploy `*.vercel.app` URL 302s, which is a separate reason the scan targets the
+canonical origin. **The WAF allowance is Tre's call (ask `dea20ff6`) — do not attempt it.**
+
+**3. ⛔ DO NOT SOFTEN THE 403 TO A WARNING, SKIP OR PASS.** The instruction is written
+into `live-bundle-scan.yml` itself, not just here, because a future session seeing a
+permanently red check will reach for exactly that. A 403 that passes restores the false
+coverage this work removed. The automatic triggers are OFF instead: the workflow is
+dispatch-only, with the two commented-out triggers and the re-enable condition in its
+header. That is not the gate weakened — it never reports green falsely.
+
+**4. THE TWO MODES ARE NOT INTERCHANGEABLE.** `check:leaked-keys` reads local `dist/` —
+a cheap pre-ship check on a bundle nobody runs. `check:leaked-keys:live` reads the
+hosted deployment — the only mode with coverage meaning. Every run prints `TARGET:`.
+Never report the first as production coverage.
+
+**5. ⚠️ WHAT I DID NOT DO: the live scan has no scheduled home.** It runs on demand and
+nowhere else. Two options, left deliberately unchosen rather than half-built at
+midnight: (a) a scheduled run on this machine, which reaches the site fine — but it
+**must be S4U logon, because every Interactive scheduled task here dies with
+`0x800710E0`**, and a headless `node` script is S4U-compatible where anything opening a
+terminal is not; (b) leave it manual until the Cloudflare allowance lands and then
+re-enable the CI triggers. Nothing is lost by waiting; the scan exists and is proven.
+
+## ✅ CLOSED — "the gate scans a bundle that never ships". Shipped in `17e98a30`; `2ce1c2f5` closed with evidence. Kept below for the reasoning only — DO NOT rebuild it.
 
 `capacitor.config.ts:8` sets `server.url = https://getforgenta.com`, so the native app
 loads the HOSTED site. The `dist/` that `check:leaked-keys` and `check:debug-console`
@@ -2026,29 +2062,30 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-11 21:16 by handoff_hook. Everything below this heading is
+_Written 2026-09-11 23:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
+- **Uncommitted (2 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M handoff.md
+ M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+f3c8afd9 docs(handoff): the gate scans a bundle that never ships - first up next time
+f7a23f72 [security]: tie the leaked-key gate's liveness to having SCANNED, not to finding a key
+ab4a4e2c docs(handoff): Ada close-out - what shipped, the one scoped slice, and what needs Tre
 01348c8f docs(perf): §8.1 was too broad - progressive widgets would ship wrong money
 ab721ba3 [security]: promote the leaked-key scan from a scratchpad to a real build gate
 2a081825 docs(handoff): Phase 17 verified against production, and the gap no suite can close
 db93c175 docs(security): five claimed vulnerabilities run against this tree - all five pass
 337da370 docs(perf): the p95 the measurement said it lacked, and the tail is BIMODAL
-d71ad2a4 [forecast]: delete the re-export hook, and assert the NUMBERS rather than the compile
-48c68556 [cleanup]: the backlog is down to 11, and every one that is left is a KEPT decision
-1ab13172 [engines]: seven dead locals in the money engines, and one I checked for a real bug first
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
