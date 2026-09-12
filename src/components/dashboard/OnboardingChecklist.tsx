@@ -19,8 +19,9 @@ interface Props {
   plaidItems: PlaidItem[];
 }
 
-const CHECKLIST_KEYS = ['accounts', 'budget', 'debt', 'goals'] as const;
-type ChecklistKey = typeof CHECKLIST_KEYS[number];
+// Written as a plain union rather than derived from a `as const` array: nothing ever iterated
+// that array, so it shipped a runtime value purely to serve a compile-time need.
+type ChecklistKey = 'accounts' | 'budget' | 'debt' | 'goals';
 
 function getTourFlags(profile: Partial<Tables<'profiles'>>): Record<string, boolean> {
   return (profile?.tour_flags as Record<string, boolean>) ?? {};

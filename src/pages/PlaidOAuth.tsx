@@ -12,7 +12,6 @@ import { useNavigate } from 'react-router';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Capacitor } from '@capacitor/core';
 
 const PLAID_SCRIPT_SRC = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;

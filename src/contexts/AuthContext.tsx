@@ -43,10 +43,14 @@ const TRUSTED_IDLE_WARNING_MS = TRUSTED_IDLE_TIMEOUT_MS - 2 * 60 * 1000;
 // it is exactly the silent fallback measured on Tre's own iPhone (`trusted-device.ts`). Reading
 // the platform cannot go stale that way.
 //
-// ⚠️ WHAT IT COSTS, said plainly: `AppLockScreen` is exported and mounted by NOTHING, so on
-// native the device's own lock screen is the only thing standing between a picked-up phone and
-// a week of live access to this person's finances. Mounting the in-app PIN/biometric lock is a
-// separate decision and this constant makes it worth more than it was yesterday.
+// ⚠️ WHAT IT COSTS, said plainly. This used to read "`AppLockScreen` is exported and mounted by
+// NOTHING". That was true when written and is FALSE since 2026-09-06 (`ef2bb1b1`): the lock is
+// mounted in App.tsx, native-only. But the cost is only PARTLY discharged, so do not read the
+// correction as reassurance — the lock is strictly OPT-IN (`forged:lock_enabled`), so for anyone
+// who has not set a PIN the device's own lock screen is still the only thing between a picked-up
+// phone and a week of live access to this person's finances. Setting one became reachable from
+// Settings on 2026-09-12; before that the only route was a one-shot prompt on SIGNED_IN, which a
+// week-long leash makes rarer still — this constant and that prompt worked against each other.
 const NATIVE_IDLE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
 const NATIVE_IDLE_WARNING_MS = NATIVE_IDLE_TIMEOUT_MS - 2 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 30 * 1000;  // check every 30 seconds
@@ -104,11 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => { cancelled = true; teardown?.(); };
   }, []);
-
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setIsDemo(false);
-  }, [setIsDemo]);
 
   const resetReviewerAccount = useCallback(async (userId: string) => {
     // ⚠️ ASSERTS ITS OWN EFFECT. `.select()` returns the rows the UPDATE actually

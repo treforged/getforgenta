@@ -93,7 +93,7 @@ export default function BankActivity() {
   const { data: synced = [], isLoading } = useAllSyncedTransactions();
   const { crowd } = useCrowdCategories();
   const {
-    data: reviews, save, setCategory, remove, removeLink, importToLedger, undoImport,
+    save, setCategory, remove, removeLink, importToLedger, undoImport,
   } = useSyncedTransactionReviews();
   const { data: accounts } = useAccounts();
   const { data: rules } = useRecurringRules();

@@ -41,7 +41,6 @@ interface MatchEntry {
   matchedAccountId: string | null; // null = keep as new
 }
 
-const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 const ACCOUNT_TYPES = [
   { value: 'checking', label: 'Checking' },

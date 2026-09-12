@@ -549,7 +549,7 @@ const SYNCED_TXN_FETCH_SLACK_DAYS = 7;
 export function useSyncedTransactions(monthKey: string) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
-  const { viewedUserId, isPartnerView } = useViewedProfile();
+  const { viewedUserId } = useViewedProfile();
   return useQuery({
     queryKey: ['synced_transactions', isDemo ? 'demo' : (viewedUserId ?? user?.id), monthKey],
     enabled: isDemo || !!user,
@@ -617,7 +617,7 @@ const SYNCED_TXN_MAX_PAGES = 50;
 export function useAllSyncedTransactions() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
-  const { viewedUserId, isPartnerView } = useViewedProfile();
+  const { viewedUserId } = useViewedProfile();
   return useQuery({
     queryKey: ['synced_transactions', 'all', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
@@ -726,7 +726,7 @@ const asReviewInput = (row: SyncedTransactionReviewRow): ReviewInput => ({
 export function useSyncedTransactionReviewsQuery() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
-  const { viewedUserId, isPartnerView } = useViewedProfile();
+  const { viewedUserId } = useViewedProfile();
   return useQuery({
     queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
@@ -821,7 +821,7 @@ export function useSyncedTransactionReviews() {
     // rather than a caller having to remember to do both — the same reasoning that keeps the ledger
     // row and the `'imported'` decision in one act below. A caller that does not know the merchant
     // simply does not vote; nothing else changes.
-    mutationFn: async ({ syncedTransactionId, category, merchantKey }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null }) => {
+    mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null }) => {
       if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
       // The lookup moved off the cached `query.data` and onto the database for the same reason the
       // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
@@ -1594,7 +1594,7 @@ export function useCarBuildPhases(buildId: string | null) {
 export function useAllCarBuildItems() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
-  const { viewedUserId, isPartnerView } = useViewedProfile();
+  const { viewedUserId } = useViewedProfile();
 
   const query = useQuery({
     queryKey: ['car_build_items', 'all', isDemo ? 'demo' : (viewedUserId ?? user?.id)],

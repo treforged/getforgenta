@@ -617,7 +617,6 @@ export default function AiAdvisor() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const [activeEntries, setActiveEntries] = useState<ChatEntry[]>([]);
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
@@ -807,7 +806,7 @@ export default function AiAdvisor() {
     // populated by auth hydration after mount, so this branch has to react to
     // that transition rather than be decided once at mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!user || isDemo) { setConsentStatus('accepted'); setHistoryLoaded(true); return; }
+    if (!user || isDemo) { setConsentStatus('accepted'); return; }
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
     Promise.all([
@@ -861,7 +860,6 @@ export default function AiAdvisor() {
         profile?.ai_consent_accepted === true &&
         profile?.ai_consent_version === AI_CONSENT_VERSION;
       setConsentStatus(hasValidConsent ? 'accepted' : 'pending');
-      setHistoryLoaded(true);
     });
   }, [user, isDemo]);
 

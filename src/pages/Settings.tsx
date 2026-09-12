@@ -151,7 +151,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (location.hash === '#security' && !isDemo) setActiveTab('security');
   }, [location.hash, isDemo, setActiveTab]);
-  const { data: profile, loading, update } = useProfile();
+  const { data: profile, update } = useProfile();
   const { data: accounts } = useAccounts();
   const { subscription, isPremium, hasStripeCustomer, isLoading: subLoading, refetch: refetchSub } = useSubscription();
   const isNative = Capacitor.isNativePlatform();
@@ -186,8 +186,6 @@ export default function SettingsPage() {
   const [forceSignOutLoading, setForceSignOutLoading] = useState(false);
   const [forceSignOutConfirm, setForceSignOutConfirm] = useState(false);
 
-  const [signinPasskeyBusy, setSigninPasskeyBusy] = useState(false);
-  const [hasSigninPasskey, setHasSigninPasskey] = useState(false);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>([]);
 
   // Account security state
@@ -273,7 +271,6 @@ export default function SettingsPage() {
     setDirty(false);
   };
 
-  const depositAccounts = accounts.filter(a => ['checking', 'savings', 'high_yield_savings', 'business_checking'].includes(a.account_type as string) && a.active);
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== 'DELETE') return;
@@ -361,51 +358,6 @@ export default function SettingsPage() {
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to sign out all devices');
       setForceSignOutLoading(false);
-    }
-  };
-
-  const handleRegisterSigninPasskey = async () => {
-    if (!user) return;
-    setSigninPasskeyBusy(true);
-    try {
-      const userIdBytes = new TextEncoder().encode(user.id).buffer as ArrayBuffer;
-      const challenge = crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer;
-
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge,
-          rp: { name: 'Forgenta Budget OS', id: window.location.hostname },
-          user: { id: userIdBytes, name: user.email ?? user.id, displayName: profile?.display_name || user.email || 'User' },
-          pubKeyCredParams: [
-            { type: 'public-key', alg: -7 },   // ES256
-            { type: 'public-key', alg: -257 },  // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform',
-            userVerification: 'required',
-            residentKey: 'preferred',
-          },
-          timeout: 60000,
-        },
-      }) as PublicKeyCredential | null;
-
-      if (!credential) throw new Error('Passkey registration cancelled');
-
-      const rawId = new Uint8Array(credential.rawId);
-      const credId = btoa(String.fromCharCode(...rawId)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-
-      localStorage.setItem('forged:signin_passkey', JSON.stringify({ credId, email: user.email }));
-
-      setHasSigninPasskey(true);
-      toast.success('Sign-in passkey registered — use it on the login page');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      const lower = msg.toLowerCase();
-      if (!lower.includes('cancel') && !lower.includes('abort') && !lower.includes('not allowed')) {
-        toast.error(msg || 'Passkey registration failed');
-      }
-    } finally {
-      setSigninPasskeyBusy(false);
     }
   };
 
