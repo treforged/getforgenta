@@ -91,6 +91,22 @@ case — `preferenceCards` filters on `autopayFullBalance`, which is `balance <=
 branch governs cards with no carried balance. A card with a real balance is sized further
 down. The shipped fix settles unconditional cards off the top instead, before either path.
 
+### The statement-parsing measurement (`1829a127`, blocked) — what IS established
+
+- **The AI is `gemini-2.5-flash`** — `supabase/functions/ai-advisor/index.ts:26`, temperature
+  0.5, `maxOutputTokens` 8000, consent version `2026-04-30-gemini-2.5-flash`.
+- ⚠️ **THERE IS NO STATEMENT-PARSING CODE.** `ai-advisor` gives advice from account data and
+  parses no documents. So "measure what it actually does" against ISB / minimum / plans-due is
+  **aiming the check at an object that does not exist** — the real question is whether
+  `gemini-2.5-flash` can extract those fields at all.
+- **The three ground-truth numbers live ONLY in the ask text** — grepping the repo for
+  `1451.88`, `773.05`, `198.83` returns zero hits. They are not a fixture yet.
+- **Blocked on two artefacts, neither of which a desk should take:** his actual statement
+  (personal financial data) or `GEMINI_API_KEY` / spending his deployed quota.
+- **The way in:** build the known-answer harness against **synthetic** statements first. It needs
+  no personal data, it is the reusable instrument the feature must pass, and only the final
+  confirmation run needs his real document.
+
 ### Then: the Settings IA principle amendment (Account now exists at two levels)
 Everything below is DONE unless it says otherwise.
 
