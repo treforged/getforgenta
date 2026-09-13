@@ -1,37 +1,95 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ⚠️ WHY THIS DESK KEEPS STALLING — MEASURED 2026-09-13, NOT A PROMISE
+
+Tre, 2026-09-13: *"bro, it never resumed. Take a look and diagnose why this is going on for
+too long. It is too many times."* He is right that it is repeated, and the cause is
+mechanical rather than a lapse of discipline. **Two independent things must both hold for
+this desk to keep working, and the second one is dead on this machine.**
+
+**1. A turn ends the moment the session stops calling tools and writes prose.** There is no
+autonomous loop inside a session. So any report written at a commit boundary IS the stop —
+"continuing with the next item" is the last thing such a session ever does. This is the part
+a desk can control, and the rule is: keep making tool calls across slices, and report only
+when you need something or you have run out.
+
+**2. THE BACKSTOP THAT WAS SUPPOSED TO RESTART A STOPPED DESK CANNOT RUN AT ALL.** Measured
+live at 00:24 tonight, not read from the charter:
+
+```
+Claude Resume Loop         Ready  Interactive  9/13/2026 12:16:01 AM  0x800710E0
+Claude Session Watchdog    Ready  Interactive  9/13/2026 12:16:45 AM  0x800710E0
+Claude Usage Resume Watch  Ready  Interactive  9/13/2026 12:18:01 AM  0x800710E0
+```
+
+All three fired **tonight, in the exact minutes he was saying it never resumed**, and every
+one was refused. `0x800710E0` is the scheduler refusing an Interactive-logon task; the
+machine-wide charter records that **no Interactive task can run on this host, signed in or
+not**, and that the cause is still unknown after the logon-rights candidate was disproved.
+
+**So a stalled desk is not late — it is permanently stopped until Tre types.** The resume
+machinery provides ZERO coverage, and has provided none for days. That is why it is "too
+many times": the discipline failure and the missing safety net are two different faults, and
+fixing only the first leaves every future stall permanent.
+
+⚠️ **DO NOT "FIX" THIS BY CONVERTING THE THREE TASKS TO S4U.** They launch `wt.exe` tabs, and
+an S4U task runs in session 0 where a tab cannot appear. It would run, log, revive nothing,
+and **report success** — trading a visible failure for a silent one. This is owned by Sam
+(machine-level), not by this desk.
+
 ## 2026-09-13 — TRANSACTION MATCHING + NAV. All pushed, `origin/main` 0/0.
 
-**FIRST UP: the always-pay-full card toggle — the COLUMN EXISTS, the ENGINE WORK DOES NOT.**
+**FIRST UP: the unconditional-payment SHORTFALL never reaches a screen.** The column, the
+engine and the toggle are all DONE. See "THE TOGGLE" below.
 
-### ⚠️ THE TOGGLE: WHERE I GOT TO, AND WHY I STOPPED (read before touching the engine)
+### ✅ THE TOGGLE IS COMPLETE — column, engine and writer all shipped
 
-`accounts.payment_unconditional` boolean NOT NULL default false is **applied to the live DB**
-and in the generated types. Nothing reads it — the engine change was reverted deliberately.
+> ⚠️ **THIS SECTION SAID "THE ENGINE WORK DOES NOT EXIST" UNTIL 2026-09-13, AFTER THE ENGINE
+> WORK SHIPPED IN `fc38deef` THE SAME NIGHT.** The commit landed and the section above it was
+> never updated, so the next session was told to build a thing that was already built and
+> tested. This is the repo's own documented trap — a handoff section is a CLAIM — caught here
+> by grepping for the symbol before starting, not by reading the file. **Grep before you build.**
 
-**The defect is real and I found the exact line.** `credit-card-engine.ts` ~2435:
-`const actual = Math.round(Math.min(desired, preferencePool) * 100) / 100;`
-A tight month silently shrinks the payment and still reports a balanced plan. That is the
-app quietly reducing the one number the setting exists to guarantee.
+- `accounts.payment_unconditional` boolean NOT NULL default false — live DB + generated types
+  (`cb513215`).
+- The engine reads it: `credit-card-engine.ts:2537`. Unconditional cards are settled FIRST, off
+  the top, and are **not clamped to `remaining`** — so the payment never shrinks to fit the
+  month, which is the whole point of the setting (`fc38deef`). Tests:
+  `src/lib/__tests__/credit-card-engine.unconditionalPayment.test.ts`.
+- **The WRITER shipped 2026-09-13.** `CreditCardEngine.tsx`, in the payment-preference block:
+  "Always pay this, no matter what", offered only on `statement` and `full`.
+  **Until then NOTHING WROTE THE FLAG** — every card read `false` forever, so the feature was
+  unreachable for every user on every surface while three green gates said it worked. The
+  column, the engine and its tests were all real and all dead. **A feature with no writer is
+  the shape a green suite hides best.**
 
-**⚠️ BUT THAT LINE IS THE WRONG TARGET FOR HIS CASE, MEASURED TWICE.**
-`preferenceCards = payableCards.filter(c => c.autopayFullBalance)` and
-`autopayFullBalance = balance <= 0`. So that branch governs cards with NO carried balance.
-A card with a real balance — his case — is sized by the **revolving cascade** further down.
-I wrote the test against a $2,000 balance, watched the flag do nothing, re-aimed it at a
-zero-balance card, and then got no recommendation row at all. Two wrong aims in the repo's
-most complex money file is where I stopped rather than guess a third time.
+### ⚠️ WHAT IS STILL OPEN: the SHORTFALL is computed and never rendered (ask `db95d36a`)
 
-**So the next session starts by finding which path sizes a revolving card's payment**, not by
-editing 2435. `generateRecommendations` is ~2330; the cascade is below the `preferenceCards`
-loop.
+The engine computes `unconditionalShortfall` and `buildMonthlyDebtBreakdown` carries it
+through (`credit-card-engine.ts:2875`, with its own warning about the wholesale rebuild that
+ate it once already).
+
+**But BOTH renderers read a different path.** `CreditCardEngine.tsx:1777` and
+`DebtRecommendationsWidget.tsx:130` both render rows from `buildCardRecRows`, which is fed by
+`month0.perCardAdjusted` — shape `{id, name, payment, maxPayment}`, produced by the SIM
+(`useCardProjection`), not by `getPayoffRecommendations`.
+
+**So the shortfall is not being DROPPED there; it was never computed on that path.** Do not go
+looking for a missing field to pass through — that reading costs an hour. Making it render is
+engine work on the sim path, and re-deriving `desired − pool` at the display layer would put a
+number on screen that can disagree with the engine's, which is the failure the surrounding
+code comments already warn about.
 
 **Sam's ruling, already given, so do not re-ask:** if an unmissable plan minimum and a full
-balance payment cannot both be met, **the plan minimum wins and the full payment is reported
-short**. Show both, show the gap, never resolve it silently.
+balance payment cannot both be met, the plan minimum wins and the full payment is reported
+short. Show both, show the gap, never resolve it silently. **The shortfall must be a NUMBER**,
+and a test must assert the magnitude on a month where the cash genuinely does not fit.
 
-**And the shortfall must be a NUMBER**, not `isMinimumOnly`. A test must assert the magnitude
-and include a month where the cash genuinely does not fit.
+**Historical, kept because it cost two wrong aims:** `credit-card-engine.ts` ~2435's
+`Math.min(desired, preferencePool)` looks like the defect and is the WRONG target for his
+case — `preferenceCards` filters on `autopayFullBalance`, which is `balance <= 0`, so that
+branch governs cards with no carried balance. A card with a real balance is sized further
+down. The shipped fix settles unconditional cards off the top instead, before either path.
 
 ### Then: the Settings IA principle amendment (Account now exists at two levels)
 Everything below is DONE unless it says otherwise.
@@ -73,8 +131,12 @@ Forecast + doubled ⚠ + per-decision undo · `46e1a786` Account tab · `5d84b09
 Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_reviews_20260913`.
 
 ### Open / not done
-- **Sidebar hover-overlay** and **always-pay-full toggle** — not started. For the toggle,
-  the shortfall must SHOW as a shortfall; a quietly reduced payment is the app lying.
+- ✅ **Sidebar hover-overlay** shipped `872385d9`. ✅ **always-pay-full toggle** shipped in
+  three parts: column `cb513215`, engine `fc38deef`, writer 2026-09-13.
+- ⚠️ **STILL OPEN, the remaining half of the toggle: the SHORTFALL never renders** (ask
+  `db95d36a`). A quietly reduced payment is the app lying, and the engine already refuses to
+  reduce it — but the gap it reports reaches no screen. See the top of this file for why this
+  is sim-path engine work and not a missing passthrough.
 - **The payroll + variable-utility single-card prompts still ask.** The rule is built and
   tested; only the deck wiring remains.
 - **Per-ROW link button** has no durable undo (the batch does).

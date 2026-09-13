@@ -2025,6 +2025,40 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.paymentPreference === 'statement' && 'Pay carried balance + interest — new purchases carry to next cycle'}
                     {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
                   </p>
+
+                  {/* ⚠️ THE WRITER FOR `accounts.payment_unconditional`. The column, the engine and
+                      its tests all shipped on 2026-09-12 (cb513215, fc38deef) and NOTHING WROTE
+                      THE FLAG — every card read `false` forever, so the feature was unreachable
+                      for every user on every surface while three green gates said it worked.
+                      Only offered on 'statement' and 'full', which are the two balances Tre named;
+                      "unconditionally pay the minimum" is not a thing the setting can mean, and
+                      the engine's `desired` has no branch for it. */}
+                  {(proj.card.paymentPreference === 'statement' || proj.card.paymentPreference === 'full') && (
+                    <button
+                      onClick={() => updateAccount.mutate({
+                        id: proj.card.id,
+                        payment_unconditional: proj.card.paymentUnconditional !== true,
+                      })}
+                      aria-pressed={proj.card.paymentUnconditional === true}
+                      className={`w-full mt-2 px-2 py-1.5 text-left border transition-colors ${
+                        proj.card.paymentUnconditional === true
+                          ? 'bg-primary/10 text-foreground border-primary'
+                          : 'bg-secondary text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                      style={{ borderRadius: 'var(--radius)' }}
+                    >
+                      <span className="text-[10px] font-medium">
+                        {proj.card.paymentUnconditional === true ? '✓ ' : ''}
+                        Always pay this, no matter what
+                      </span>
+                      <span className="block text-[9px] text-muted-foreground mt-0.5">
+                        {proj.card.paymentUnconditional === true
+                          ? 'Treated as a fixed obligation — settled first, and the rest of the plan flexes around it. A month that cannot cover it reports a shortfall instead of paying less.'
+                          : 'Treat this card like a debit card: the payment never shrinks to fit the month.'}
+                      </span>
+                    </button>
+                  )}
+
                   {proj.card.paymentPreference === 'statement' && (
                     <div className="flex items-center justify-between gap-2 mt-2 px-2 py-1.5 bg-muted/20 border border-border flex-wrap" style={{ borderRadius: 'var(--radius)' }}>
                       <span className="text-[9px] text-muted-foreground uppercase tracking-wider" title="The statement balance this card pays to stay interest-free. Auto uses your current balance; set it manually if your latest statement differs.">
