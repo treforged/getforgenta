@@ -168,13 +168,16 @@ Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_rev
   recorded order (`deleteTransaction` before its charge's `removeReviews`, per `planDeckUndo`),
   and marking the record undone ONLY after every step lands. Four more tests, the two replay
   ones **proven red by mutation**, file restored byte-exactly by sha256.
-- 🔴 **`deck_decision` IS STILL WRITE-ONLY** (ask `629b76cc`, partially closed).
-  `DecisionDeck.tsx:454` records it and nothing offers it — the deck's own "Undo all" is
-  in-session and dies with the component, which is the very thing that record exists to outlive.
-  The same banner would serve it; it needs the deck's step kinds checked against this executor.
+- ✅ **`deck_decision` IS OFFERED TOO** — the same banner, the same executor. Its steps are the
+  same three kinds `planDeckUndo` builds in the same money-first order, so nothing in the
+  executor changed. `merchant_retro_pass` is deliberately NOT claimed here: its own panel offers
+  it, and two banners for one act would let a user press undo twice.
 
   **The finding, kept because it is the general lesson:** two of three durable undo kinds were
-  recorded to `public.applied_actions` and **no UI ever offered them.** `MerchantMemoryPanel.tsx:39` filters
+  recorded to `public.applied_actions` and **no UI ever offered them.** A green suite hides this
+  perfectly — the record is written, the steps are valid, the parser accepts them. **Writing the
+  record was never the promise; getting the numbers back was.** Grep for the CONSUMER, not only
+  for the caller. `MerchantMemoryPanel.tsx:39` filters
   `latest.kind === 'merchant_retro_pass'`, and that panel is the only consumer of the durable
   record anywhere. The deck's and the batch's own undos are IN-SESSION only.
   **So the batch comment "recorded to `public.applied_actions` so it can still be taken back

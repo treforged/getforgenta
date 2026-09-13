@@ -136,7 +136,22 @@ export default function BankActivity() {
    * except the one a person touches — and a green suite hides it perfectly, because every piece it
    * tests genuinely works. **Grep for the CONSUMER, not only for the caller.**
    */
-  const undoableLink = latestApplied && latestApplied.kind === 'link_confirm' ? latestApplied : null;
+  /**
+   * ⚠️ `deck_decision` IS HANDLED HERE TOO, AND IT IS NOT A WIDENING OF CONVENIENCE. The deck
+   * records its finished run so the undo OUTLIVES the deck — its own "Undo all" lives in component
+   * state and dies the moment the deck closes, which is precisely what that record exists to
+   * survive. It was written and never offered, so closing the deck still lost the run. The steps
+   * are the same three kinds `planDeckUndo` builds, in the same money-first order this executor
+   * already honours, so nothing below needed to change to support it.
+   *
+   * `merchant_retro_pass` is deliberately NOT claimed: `MerchantMemoryPanel` owns that one and
+   * offers it itself, and two banners for one act would let a user press undo twice — the second
+   * press trying to reverse work the first already reversed.
+   */
+  const undoableLink = latestApplied
+    && (latestApplied.kind === 'link_confirm' || latestApplied.kind === 'deck_decision')
+    ? latestApplied
+    : null;
   const [undoing, setUndoing] = useState(false);
 
   /**

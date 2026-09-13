@@ -217,8 +217,28 @@ describe('Bank Activity — a recorded link undo is actually offered and replaye
     expect(mocks.markUndone).not.toHaveBeenCalled();
   });
 
-  it('offers nothing for another kind of action', () => {
-    // The page must not claim it can reverse a merchant pass it has no executor path for.
+  it('offers a finished deck run too, because its own undo dies with the deck', () => {
+    // `deck_decision` was write-only for the same reason `link_confirm` was. The deck's in-session
+    // "Undo all" disappears when the deck closes — surviving that is the entire point of the
+    // durable record, and it was never offered anywhere.
+    mocks.latest = { ...STORED, kind: 'deck_decision', label: '6 charges decided' };
+    render(<BankActivity />);
+    expect(screen.getByText('6 charges decided')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy();
+  });
+
+  it('replays a deck run through the same executor', async () => {
+    mocks.latest = { ...STORED, kind: 'deck_decision', label: '6 charges decided' };
+    render(<BankActivity />);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('stx-1'));
+    await waitFor(() => expect(mocks.markUndone).toHaveBeenCalledWith('act-1'));
+  });
+
+  it('does NOT claim a merchant pass, which its own panel already offers', () => {
+    // Two banners for one act would let the user press undo twice, the second press trying to
+    // reverse work the first already reversed.
     mocks.latest = { ...STORED, kind: 'merchant_retro_pass' };
     render(<BankActivity />);
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
