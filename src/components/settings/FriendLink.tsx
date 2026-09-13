@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SettingsSectionHeading } from './SettingsSection';
 import { useLocation } from 'react-router';
-import { UserPlus, Loader2, CheckCircle, UserMinus } from 'lucide-react';
+import { UserPlus, Loader2, CheckCircle, UserMinus, AtSign } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
 import { useFriendLink } from '@/hooks/useFriendLink';
 import { LeaderboardShareToggles } from './LeaderboardShareToggles';
@@ -35,10 +35,11 @@ export function FriendLink() {
   const { search } = useLocation();
   const {
     loading, error, refetch, friends, pendingInvites, namesUnavailable,
-    invite, accept, revoke,
+    invite, inviteByUsername, accept, revoke,
   } = useFriendLink();
 
   const [email, setEmail] = useState('');
+  const [handle, setHandle] = useState('');
   // The invite email's accept link lands here with the code in the query string.
   const [code, setCode] = useState(
     () => new URLSearchParams(search).get('friend_code') ?? '',
@@ -175,6 +176,36 @@ export function FriendLink() {
 
       {/* The two ways in, kept together and directly under the list they add to. */}
       <h4 className="text-xs font-semibold pt-1">Add a friend</h4>
+
+      {/* ⚠️ HANDLE FIRST, EMAIL SECOND. Tre asked for usernames as the option precisely because
+          swapping email addresses to add a friend is the awkward part. The email path stays because
+          it is the only way to invite somebody who has no account yet. */}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex items-center gap-1 w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2"
+          style={{ borderRadius: 'var(--radius)' }}>
+          <AtSign size={12} className="text-muted-foreground shrink-0" />
+          <input
+            type="text"
+            value={handle}
+            onChange={e => setHandle(e.target.value)}
+            placeholder="Their username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-label="Friend's username"
+            className="flex-1 min-w-0 bg-transparent text-xs text-foreground outline-none"
+          />
+        </div>
+        <button
+          onClick={() => inviteByUsername.mutate(handle)}
+          disabled={inviteByUsername.isPending || !handle.trim()}
+          className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
+          style={{ borderRadius: 'var(--radius)' }}
+        >
+          {inviteByUsername.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
+          {inviteByUsername.isPending ? 'Sending…' : 'Add by username'}
+        </button>
+      </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <input

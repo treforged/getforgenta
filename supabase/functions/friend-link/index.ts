@@ -104,6 +104,17 @@ const bodySchema = z.discriminatedUnion("action", [
   // Loose on purpose: the code's real shape check happens inside the accept
   // handler so that a malformed code and a wrong code are indistinguishable to
   // the caller. A schema rejection here would be a 400 and would tell them.
+  // Invite by handle instead of by mailbox. Tre, 2026-09-13: "maybe we should do
+  // usernames instead or make that an option to add people by usernames."
+  //
+  // The bound is 64 rather than the client's USERNAME_MAX of 20, and the format
+  // rules are NOT restated here. Duplicating them in a second runtime is how two
+  // definitions of a valid handle drift apart; an over-long or malformed handle
+  // simply matches no row, which is the same outcome by a shorter path.
+  z.object({
+    action: z.literal("invite_username"),
+    username: z.string().min(1, "A username is required").max(64),
+  }).strict(),
   z.object({ action: z.literal("accept"), code: z.string().max(256) }).strict(),
   z.object({ action: z.literal("status") }).strict(),
 ]);
@@ -227,6 +238,74 @@ async function readLiveLinks(
 }
 
 // deno-lint-ignore no-explicit-any
+/**
+ * Invite by handle: resolve it to a mailbox, then hand off to the ordinary invite.
+ *
+ * ⚠️ THE RESOLUTION HAPPENS SERVER-SIDE AND THE ADDRESS NEVER COMES BACK. The caller learns only
+ * whether the invite was sent; they never see whose mailbox it went to. That matters because a
+ * handle is public by design and an email address is not — a lookup that returned the address would
+ * turn every username into a way of harvesting one.
+ *
+ * ⚠️ THE FORMAT RULES ARE NOT RESTATED HERE, deliberately. `src/lib/username.ts` owns them for the
+ * client, and a second copy in a second runtime is how two definitions of "valid" drift apart. A
+ * malformed handle matches no row and takes the not-found path, which is the same answer by a
+ * shorter route. All this does is normalise case and whitespace, because the unique index is on
+ * `lower(username)` and the caller may well have typed it with capitals.
+ *
+ * ⚠️ ENUMERATION IS BOUNDED BY THE SHARED INVITE BUDGET, NOT BY THIS MESSAGE. See the rate-limit
+ * note in the request handler. Five attempts an hour, and a miss costs the same as a hit, so saying
+ * "no account with that username" plainly is affordable — and the alternative, reporting a sent
+ * invite that was never sent, would be the app lying about an action the user took.
+ */
+async function handleInviteByUsername(
+  supabase: any,
+  userId: string,
+  userEmail: string,
+  rawUsername: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const handle = rawUsername.trim().toLowerCase();
+  if (!handle) {
+    return json({ error: "Enter a username." }, 400, corsHeaders);
+  }
+
+  const { data: match, error: lookupError } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("username", handle)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("friend-link invite_username: lookup failed:", lookupError.message);
+    return json({ error: "Something went wrong. Please try again." }, 500, corsHeaders);
+  }
+  if (!match?.user_id) {
+    return json({ error: "No account with that username." }, 404, corsHeaders);
+  }
+
+  // ⚠️ INVITING YOURSELF IS REFUSED BEFORE ANY MAIL IS SENT. Without this the ordinary invite path
+  // would happily create a link from someone to their own mailbox.
+  if (match.user_id === userId) {
+    return json({ error: "That is your own username." }, 400, corsHeaders);
+  }
+
+  const { data: target, error: adminError } = await supabase.auth.admin.getUserById(match.user_id);
+  if (adminError || !target?.user?.email) {
+    // A profile with no reachable mailbox. Nothing to send to, and the reason is not the caller's
+    // business — it is a fact about somebody else's account.
+    console.error(
+      "friend-link invite_username: no email for target:",
+      adminError?.message ?? "no email on user",
+    );
+    return json({ error: "That account cannot receive invites." }, 422, corsHeaders);
+  }
+
+  // Every cap, supersede and duplicate rule lives in `handleInvite`, and reusing it whole is the
+  // point: a second invite path with its own copy of the friend cap is a second place for the cap
+  // to be wrong.
+  return await handleInvite(supabase, userId, userEmail, target.user.email, corsHeaders);
+}
+
 async function readDisplayName(supabase: any, userId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from("profiles")
@@ -648,14 +727,32 @@ Deno.serve(async (req) => {
     const body = result.data;
 
     // Per-user limit, on top of the per-IP one already spent above.
-    const perUser: RateLimitConfig = body.action === "invite"
+    // ⚠️ `invite_username` SHARES THE INVITE BUDGET, AND THAT IS THE ENUMERATION DEFENCE.
+    //
+    // Every other action here is enumeration-safe by never looking anything up: the
+    // email invite writes a row and sends mail without ever asking whether that
+    // address has an account. A USERNAME invite cannot work that way — looking the
+    // handle up is the entire feature — so the response necessarily differs for a
+    // handle that exists. What bounds that is the budget.
+    //
+    // Giving it its own bucket would have handed every account a second, fresh
+    // allowance to guess with. Sharing `invite` means username attempts and email
+    // invites draw on ONE pool of 5 per hour, so an account can test at most five
+    // handles an hour — tighter than any dedicated lookup ceiling would have been.
+    //
+    // ⚠️ AND THE SLOT IS SPENT BEFORE THE LOOKUP, because this check runs ahead of
+    // the dispatch below. A miss therefore costs exactly what a hit costs. A limit
+    // that only charged for successes would bound nothing at all: the attacker is
+    // the one who keeps missing.
+    const rateLimitAction = body.action === "invite_username" ? "invite" : body.action;
+    const perUser: RateLimitConfig = rateLimitAction === "invite"
       ? INVITE_RATE_LIMIT
-      : body.action === "accept"
+      : rateLimitAction === "accept"
       ? ACCEPT_RATE_LIMIT
       : STATUS_RATE_LIMIT;
     const userLimit = await checkRateLimit(
       supabase,
-      `${userId}:friend-link:${body.action}`,
+      `${userId}:friend-link:${rateLimitAction}`,
       perUser,
     );
     if (!userLimit.allowed) {
@@ -664,6 +761,11 @@ Deno.serve(async (req) => {
 
     if (body.action === "invite") {
       return await handleInvite(supabase, userId, userEmail, body.email, corsHeaders);
+    }
+    if (body.action === "invite_username") {
+      return await handleInviteByUsername(
+        supabase, userId, userEmail, body.username, corsHeaders,
+      );
     }
     if (body.action === "accept") {
       return await handleAccept(

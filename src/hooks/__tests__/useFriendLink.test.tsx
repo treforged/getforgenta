@@ -87,7 +87,12 @@ import { useFriendLink } from '../useFriendLink';
 import { FriendLink } from '../../components/settings/FriendLink';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const read = (rel: string) => readFileSync(resolve(here, rel), 'utf8');
+// LINE ENDINGS NORMALISED ON READ. Several assertions below match multi-line snippets using a
+// bare newline escape. A working tree checked out (or rewritten by a tool) with CRLF made those
+// markers match NOTHING, and the failure reads as 'expected -1 to be greater than -1' - a guard
+// that silently stopped guarding, for a reason having nothing to do with the code it guards.
+const read = (rel: string) =>
+  readFileSync(resolve(here, rel), 'utf8').replace(/\r\n/g, '\n');
 const fnSrc = read('../../../supabase/functions/friend-link/index.ts');
 const rulesSrc = read('../../../supabase/functions/friend-link/link-rules.ts');
 const hookSrc = read('../useFriendLink.ts');
@@ -518,8 +523,13 @@ describe('the masked-name fallback', () => {
 
 // ── The Edge Function's disciplines, locked as source ────────────────────────
 
+// ⚠️ THE OPEN PAREN IS LOAD-BEARING — A PREFIX IS NOT A KEY. `handleInviteByUsername` was added on
+// 2026-09-13 and sorts BEFORE `handleInvite` in the file, so the old marker
+// ('async function handleInvite') matched the wrong function and sliced the wrong body. Every
+// assertion below then examined a function it was not written about, and two of them failed for a
+// reason that had nothing to do with what they were guarding.
 const inviteSrc = fnSrc.slice(
-  fnSrc.indexOf('async function handleInvite'),
+  fnSrc.indexOf('async function handleInvite('),
   fnSrc.indexOf('interface AcceptCandidate'),
 );
 const acceptSrc = fnSrc.slice(
@@ -738,7 +748,15 @@ describe('edge function: the guards, the reach, and the lens that does not exist
     expect(rateLimitAt).toBeGreaterThan(-1);
     expect(authAt).toBeGreaterThan(-1);
     expect(rateLimitAt).toBeLessThan(authAt);
-    expect(fnSrc).toContain('`${userId}:friend-link:${body.action}`');
+    expect(fnSrc).toContain('`${userId}:friend-link:${rateLimitAction}`');
+    // ⚠️ AND `invite_username` DELIBERATELY SHARES THE INVITE BUCKET. It is the one action here
+    // that must look something up, so it is the one that can be used to enumerate — and the thing
+    // bounding that is the budget it draws on. Its own bucket would have handed every account a
+    // second fresh allowance to guess with. Pinned as source because it is a security property
+    // that reads like a tidy-up and would be "simplified" away.
+    expect(fnSrc).toContain(
+      'const rateLimitAction = body.action === "invite_username" ? "invite" : body.action;',
+    );
     expect(fnSrc).toContain('INVITE_RATE_LIMIT: RateLimitConfig = { windowMs: HOUR_MS, max: 5 }');
     expect(fnSrc).toContain('ACCEPT_RATE_LIMIT: RateLimitConfig = { windowMs: HOUR_MS, max: 5 }');
   });

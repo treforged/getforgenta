@@ -32,6 +32,7 @@
  */
 
 import { useMemo } from 'react';
+import { normalizeUsername } from '@/lib/username';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -257,6 +258,29 @@ export function useFriendLink() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  /**
+   * Invite by handle rather than by mailbox.
+   *
+   * ⚠️ IT SHARES THE INVITE RATE-LIMIT BUDGET SERVER-SIDE, which is what bounds username
+   * enumeration — see the note in `supabase/functions/friend-link/index.ts`. Nothing here may
+   * "helpfully" pre-check whether a handle exists through PostgREST: that would be an unlimited
+   * lookup oracle sitting beside a deliberately limited one.
+   */
+  const inviteByUsername = useMutation({
+    mutationFn: async (username: string): Promise<InviteResponse> => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      return invokeFriendLink<InviteResponse>({
+        action: 'invite_username',
+        username: normalizeUsername(username),
+      });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: [FRIEND_LINKS_QUERY_KEY] });
+      toast.success(res.message ?? 'Invite sent. It expires in 7 days.');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const accept = useMutation({
     mutationFn: async (code: string): Promise<AcceptResponse> => {
       if (isDemo || !user) throw new Error('Demo mode');
@@ -305,5 +329,5 @@ export function useFriendLink() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { ...status, invite, accept, revoke };
+  return { ...status, invite, inviteByUsername, accept, revoke };
 }

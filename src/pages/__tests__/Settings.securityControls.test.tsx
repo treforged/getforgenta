@@ -144,6 +144,10 @@ vi.mock('@/hooks/useFriendLink', () => ({
     loading: false, error: null, refetch: vi.fn(),
     friends: [], pendingInvites: [], namesUnavailable: false,
     invite: { mutate: vi.fn(), isPending: false },
+    // Added 2026-09-13 with invite-by-username. A missing key here does not fail as "missing
+    // mock" — it fails as `Cannot read properties of undefined (reading 'isPending')` across
+    // EIGHT unrelated cases about 2FA and trusted devices, which is a long way from the cause.
+    inviteByUsername: { mutate: vi.fn(), isPending: false },
     accept: { mutate: vi.fn(), isPending: false },
     revoke: { mutate: vi.fn(), isPending: false },
   }),
