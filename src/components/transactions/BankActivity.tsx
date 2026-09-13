@@ -508,9 +508,16 @@ export default function BankActivity() {
   const acceptAllSuggested = async () => {
     setAccepting(true);
     let done = 0;
+    // ⚠️ THE REVERSAL IS BUILT AS THE BATCH RUNS, not afterwards. Each entry needs the category the
+    // charge had BEFORE its link was written, and once `save` has landed that value is gone from
+    // the row — re-deriving it later is exactly what made the $15 link unrecoverable. Appended only
+    // after a write succeeds, so a batch that stops half way records an undo for the half that
+    // actually happened and never offers to reverse a write that never landed.
+    const undoSteps: { write: 'removeReviews' | 'setCategory'; chargeId: string; category?: string | null }[] = [];
     try {
       for (const txn of acceptable) {
         const suggestion = queue.suggestions[txn.id];
+        const previousCategory = findExclusiveReview(reviewsByTxn[txn.id] ?? [])?.category_override ?? null;
         if (suggestion?.rule) {
           await save.mutateAsync(acceptRuleInput(txn, suggestion.rule));
         } else if (suggestion?.plan) {
@@ -529,6 +536,11 @@ export default function BankActivity() {
         } else {
           continue;
         }
+        undoSteps.push({ write: 'removeReviews', chargeId: txn.id });
+        // Only when there is something to put back. A write that changes nothing is still a write.
+        if (previousCategory !== null) {
+          undoSteps.push({ write: 'setCategory', chargeId: txn.id, category: previousCategory });
+        }
         done++;
       }
       if (done > 0) toast.success(`Linked ${done} ${done === 1 ? 'charge' : 'charges'}`);
@@ -537,6 +549,20 @@ export default function BankActivity() {
       // adds is how far the batch got, which that toast cannot know.
       if (done > 0) toast.message(`Stopped after ${done} of ${acceptable.length} — nothing else was changed`);
     } finally {
+      if (undoSteps.length > 0) {
+        try {
+          await recordApplied.mutateAsync({
+            kind: 'link_confirm',
+            label: `Linked ${done} ${done === 1 ? 'charge' : 'charges'}`,
+            steps: undoSteps as never,
+          });
+        } catch {
+          // The links LANDED; only the undo record failed. Said out loud rather than swallowed —
+          // silently having no undo is indistinguishable from success, which is the defect this
+          // whole line of work exists to remove.
+          toast.message('Linked, but the undo could not be saved.');
+        }
+      }
       setAccepting(false);
       setConfirmingAcceptAll(false);
     }

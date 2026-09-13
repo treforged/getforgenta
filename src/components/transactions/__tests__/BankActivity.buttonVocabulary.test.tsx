@@ -83,10 +83,13 @@ vi.mock('@/hooks/useBankReviewQueue', () => ({
 vi.mock('@/hooks/useCrowdCategories', () => ({ useCrowdCategories: () => ({ crowd: {} }) }));
 // These render BankActivity WITHOUT a QueryClientProvider, mocking each data hook instead, so a
 // real react-query hook throws "No QueryClient set". Mocked in the same shape as its neighbours.
+const appliedMocks = vi.hoisted(() => ({
+  record: { mutateAsync: vi.fn().mockResolvedValue(null) },
+}));
 vi.mock('@/hooks/useAppliedActions', () => ({
   useAppliedActions: () => ({
     actions: [], latest: null, isLoading: false,
-    record: { mutateAsync: vi.fn().mockResolvedValue(null) },
+    record: appliedMocks.record,
     markUndone: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
     stepsOf: () => [],
   }),
@@ -151,5 +154,38 @@ describe('Bank Activity — btn-vocabulary buttons still work', () => {
     await waitFor(() => expect(screen.queryByText('MERCHANT 100')).not.toBeNull());
     // The button describing "more to load" is gone now that everything is shown.
     expect(screen.queryByText(/Show \d+ more/i)).toBeNull();
+  });
+});
+
+/**
+ * THE BATCH'S UNDO IS RECORDED, not merely promised.
+ *
+ * "Accept all suggested" writes N link rows at once. Until 2026-09-12 closing the page made every
+ * one of them irreversible — the same defect as the deck run and the merchant pass, on the third
+ * of the three write paths.
+ *
+ * ⚠️ THIS ASSERTS THE STORED PLAN, NOT THAT A FUNCTION RAN. The mock resolves whatever it is given,
+ * so a test that only checked "record was called" would pass against an empty or wrong plan — and
+ * an undo record that reverses nothing is worse than none, because the button appears and does
+ * nothing.
+ */
+describe('Accept all records a durable reversal', () => {
+  it('stores a removeReviews step for every charge it actually linked', async () => {
+    appliedMocks.record.mutateAsync.mockClear();
+    needsDecision = [CHARGE_1, CHARGE_2];
+    allSynced = [CHARGE_1, CHARGE_2];
+    mocks.suggestions = { [CHARGE_1.id]: { rule: RULE }, [CHARGE_2.id]: { rule: RULE } };
+    render(<BankActivity />);
+
+    fireEvent.click(screen.getByText(/Accept all 2 suggested/i));
+    fireEvent.click(await screen.findByText(/Confirm — link 2/i));
+
+    await waitFor(() => expect(appliedMocks.record.mutateAsync).toHaveBeenCalled());
+    const arg = appliedMocks.record.mutateAsync.mock.calls[0][0] as {
+      kind: string; steps: { write: string; chargeId: string }[];
+    };
+    expect(arg.kind).toBe('link_confirm');
+    expect(arg.steps.filter(st => st.write === 'removeReviews').map(st => st.chargeId))
+      .toEqual([CHARGE_1.id, CHARGE_2.id]);
   });
 });
