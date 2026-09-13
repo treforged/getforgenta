@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      applied_actions: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          steps: Json
+          undone_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          label: string
+          steps: Json
+          undone_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          steps?: Json
+          undone_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       account_reconciliations: {
         Row: {
           account_id: string

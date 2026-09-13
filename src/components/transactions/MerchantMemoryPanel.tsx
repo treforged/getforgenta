@@ -14,6 +14,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Tag, RotateCcw } from 'lucide-react';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
+import { useAppliedActions } from '@/hooks/useAppliedActions';
+import { describeApplied } from '@/lib/applied-actions';
 import { planRetroactiveUndo, type RetroPass } from '@/lib/merchant-memory';
 
 interface MerchantMemoryPanelProps {
@@ -26,7 +28,14 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   /** The pass that was actually applied, kept so it can be undone as one act. */
-  const [applied, setApplied] = useState<RetroPass | null>(null);
+  /**
+   * ⚠️ THE UNDO IS NO LONGER HELD IN THIS COMPONENT, and that is the whole point of the change.
+   * It used to be `useState<RetroPass | null>`, so the copy below — "undoes in one press" — was
+   * true only while this panel was on screen. Navigate away or reload and the promise silently
+   * became false. It now comes from `public.applied_actions`, so it survives both.
+   */
+  const { latest, record, markUndone, stepsOf } = useAppliedActions();
+  const applied = latest && latest.kind === 'merchant_retro_pass' ? latest : null;
 
   const run = async () => {
     setBusy(true);
@@ -48,7 +57,26 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
         toast.message(`Stopped after ${done.writes.length} of ${snapshot.writes.length} — the rest were left alone`);
       }
     } finally {
-      setApplied(done.writes.length > 0 ? done : null);
+      if (done.writes.length > 0) {
+        // ⚠️ RECORDED HERE, NOT LATER, because the plan needs the PREVIOUS categories and they are
+        // only knowable now. Re-deriving a reversal after the fact is exactly what made the $15
+        // link unrecoverable. `done` holds only what actually landed, so a batch that stopped
+        // half way records an undo for the half that happened.
+        try {
+          await record.mutateAsync({
+            kind: 'merchant_retro_pass',
+            label: `Categorized ${done.writes.length} ${done.writes.length === 1 ? 'charge' : 'charges'} from merchants you have labeled before`,
+            steps: planRetroactiveUndo(done).map(step => ({
+              write: 'setCategory' as const, chargeId: step.chargeId, category: step.category,
+            })),
+          });
+        } catch {
+          // The writes LANDED; only the undo record failed. Say so rather than implying the pass
+          // did not happen — and never swallow it, because a silent failure here is precisely the
+          // "promised an undo it does not have" defect this work exists to remove.
+          toast.message('Applied, but the undo could not be saved — use Settings to change any of these.');
+        }
+      }
       setBusy(false);
       setConfirming(false);
     }
@@ -57,17 +85,23 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
   const undo = async () => {
     if (!applied) return;
     setBusy(true);
+    const steps = stepsOf(applied);
     let undone = 0;
     try {
-      for (const step of planRetroactiveUndo(applied)) {
+      for (const step of steps) {
+        if (step.write !== 'setCategory') continue;
         await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
         undone++;
       }
+      // ⚠️ MARKED ONLY AFTER THE REPLAY, and only on success. Marking first would retire the record
+      // while the writes were still in flight, so a failure half way would leave the user with a
+      // half-undone pass and no undo left to finish it.
+      await markUndone.mutateAsync(applied.id);
       toast.success(`Undone — ${undone} ${undone === 1 ? 'charge is' : 'charges are'} uncategorized again`);
     } catch {
-      toast.message(`Undid ${undone} of ${applied.writes.length} — the rest are unchanged`);
+      // Deliberately NOT marked undone: the remainder is still reversible and must stay offered.
+      toast.message(`Undid ${undone} of ${steps.length} — the rest are unchanged`);
     } finally {
-      setApplied(null);
       setBusy(false);
     }
   };
@@ -78,8 +112,10 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
     return (
       <div className="card-forged p-3 flex flex-wrap items-center gap-2">
         <Tag size={13} className="text-primary shrink-0" />
+        {/* The stored label already says what happened and how many, so it is shown rather than
+            recomputed here — one wording, written once at apply time, that a reload cannot lose. */}
         <p className="text-xs font-medium">
-          {applied.writes.length} {applied.writes.length === 1 ? 'charge' : 'charges'} categorized from what you had already decided.
+          {describeApplied(applied)}.
         </p>
         <button
           onClick={undo}
