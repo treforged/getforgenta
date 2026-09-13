@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
@@ -822,18 +823,20 @@ export default function Builds() {
                         : 'Private. Your maintenance log stays out of the share page.'}
                     </div>
                   </div>
-                  <button
-                    onClick={handleToggleMaintenancePublic}
-                    disabled={shareLoading}
-                    aria-pressed={activeBuild.maintenance_public}
-                    className="shrink-0 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors disabled:opacity-40"
-                    style={activeBuild.maintenance_public
-                      ? { background: 'hsl(var(--primary))', color: '#000', borderColor: 'hsl(var(--primary))' }
-                      : { color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', background: 'transparent' }
-                    }
-                  >
-                    {activeBuild.maintenance_public ? '✓ Public' : 'Private'}
-                  </button>
+                  {/* ⚠️ A SWITCH, NOT A PRESSED BUTTON (Tre, 2026-09-13): "they are weird to
+                      understand as is. they dont look like normal buttons." It read "✓ Public" /
+                      "Private", which is the ambiguity in its purest form — a single word that could
+                      equally be the current state or what a press would do. This one decides what
+                      STRANGERS can see on a public share link, so guessing wrong publishes his
+                      service history. */}
+                  <div className="shrink-0 pt-0.5">
+                    <ToggleSwitch
+                      checked={!!activeBuild.maintenance_public}
+                      disabled={shareLoading}
+                      onPress={handleToggleMaintenancePublic}
+                      label="Show the maintenance log on the public share link"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -848,18 +851,19 @@ export default function Builds() {
                         : 'Hidden. Prices are not sent to the share page at all — the parts list still shows.'}
                     </div>
                   </div>
-                  <button
-                    onClick={handleTogglePricingPublic}
-                    disabled={shareLoading}
-                    aria-pressed={activeBuild.pricing_public !== false}
-                    className="shrink-0 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors disabled:opacity-40"
-                    style={activeBuild.pricing_public !== false
-                      ? { background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' }
-                      : { color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', background: 'transparent' }
-                    }
-                  >
-                    {activeBuild.pricing_public !== false ? '✓ Shown' : 'Hidden'}
-                  </button>
+                  {/* Same change, same reason. ⚠️ NOTE THE DEFAULT: `pricing_public` is shown
+                      unless it is explicitly `false`, so the check is `!== false` and NOT a plain
+                      truthy test — an undefined column here must read as ON, which is what the
+                      comment above this block records. Getting that backwards would silently hide
+                      prices for every build that has never touched the setting. */}
+                  <div className="shrink-0 pt-0.5">
+                    <ToggleSwitch
+                      checked={activeBuild.pricing_public !== false}
+                      disabled={shareLoading}
+                      onPress={handleTogglePricingPublic}
+                      label="Show prices on the public share link"
+                    />
+                  </div>
                 </div>
               </div>
 

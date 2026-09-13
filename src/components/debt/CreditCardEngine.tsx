@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable, m0MinDueSettled,
@@ -2056,29 +2057,36 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       "unconditionally pay the minimum" is not a thing the setting can mean, and
                       the engine's `desired` has no branch for it. */}
                   {(proj.card.paymentPreference === 'statement' || proj.card.paymentPreference === 'full') && (
-                    <button
-                      onClick={() => updateAccount.mutate({
-                        id: proj.card.id,
-                        payment_unconditional: proj.card.paymentUnconditional !== true,
-                      })}
-                      aria-pressed={proj.card.paymentUnconditional === true}
-                      className={`w-full mt-2 px-2 py-1.5 text-left border transition-colors ${
-                        proj.card.paymentUnconditional === true
-                          ? 'bg-primary/10 text-foreground border-primary'
-                          : 'bg-secondary text-muted-foreground border-border hover:text-foreground'
-                      }`}
+                    /* ⚠️ A SWITCH, NOT A PRESSED BUTTON (Tre, 2026-09-13): "they are weird to
+                       understand as is. they dont look like normal buttons." This was a full-width
+                       button whose only state cue was a tint and a ✓ prefix, so working out what a
+                       press would do meant reading the label and then deciding whether it described
+                       the current state or the action. It sets a FIXED OBLIGATION on a money plan —
+                       the one place an ambiguous state is least affordable — and the same shared
+                       control now carries it as Notifications and the sharing switches do. */
+                    <div
+                      className="w-full mt-2 flex items-start justify-between gap-3 px-2 py-1.5 bg-secondary/40 border border-border"
                       style={{ borderRadius: 'var(--radius)' }}
                     >
-                      <span className="text-[10px] font-medium">
-                        {proj.card.paymentUnconditional === true ? '✓ ' : ''}
-                        Always pay this, no matter what
-                      </span>
-                      <span className="block text-[9px] text-muted-foreground mt-0.5">
-                        {proj.card.paymentUnconditional === true
-                          ? 'Treated as a fixed obligation — settled first, and the rest of the plan flexes around it. A month that cannot cover it reports a shortfall instead of paying less.'
-                          : 'Treat this card like a debit card: the payment never shrinks to fit the month.'}
-                      </span>
-                    </button>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-medium">Always pay this, no matter what</span>
+                        <span className="block text-[9px] text-muted-foreground mt-0.5">
+                          {proj.card.paymentUnconditional === true
+                            ? 'Treated as a fixed obligation — settled first, and the rest of the plan flexes around it. A month that cannot cover it reports a shortfall instead of paying less.'
+                            : 'Treat this card like a debit card: the payment never shrinks to fit the month.'}
+                        </span>
+                      </div>
+                      <div className="shrink-0 pt-0.5">
+                        <ToggleSwitch
+                          checked={proj.card.paymentUnconditional === true}
+                          onPress={() => updateAccount.mutate({
+                            id: proj.card.id,
+                            payment_unconditional: proj.card.paymentUnconditional !== true,
+                          })}
+                          label={`Always pay ${proj.card.name} in full, no matter what`}
+                        />
+                      </div>
+                    </div>
                   )}
 
                   {proj.card.paymentPreference === 'statement' && (
