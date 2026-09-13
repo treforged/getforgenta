@@ -137,13 +137,6 @@ export function FriendLink() {
         </div>
       )}
 
-      {/* What a friend can see, and it is nothing until one of these is switched on. Rendered only
-          once a friendship exists: switches that publish to nobody are a control that appears to do
-          nothing. */}
-      {friends.length > 0 && <LeaderboardShareToggles />}
-
-      {friends.length > 0 && <FriendsLeaderboard friends={friends} />}
-
       {pendingInvites.map(pending => (
         <div
           key={pending.id}
@@ -171,6 +164,9 @@ export function FriendLink() {
       {friends.length === 0 && pendingInvites.length === 0 && (
         <p className="text-xs text-muted-foreground italic">No friends yet.</p>
       )}
+
+      {/* The two ways in, kept together and directly under the list they add to. */}
+      <h4 className="text-xs font-semibold pt-1">Add a friend</h4>
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
@@ -214,6 +210,32 @@ export function FriendLink() {
           {accept.isPending ? 'Checking…' : 'Accept Invite'}
         </button>
       </div>
+
+      {/* ── What friends can see, and the board itself ───────────────────────────────────
+          ⚠️ MOVED BELOW THE INVITE FIELDS ON PURPOSE (Tre, 2026-09-13): "we need to keep, like,
+          the friends and, uh, email address slash invite code, put that above." They used to sit
+          between the friend list and the two inputs, which split one task — see who you are
+          connected to, then connect to someone else — across the whole card with two unrelated
+          panels in the middle. Adding a friend is the thing a person comes here to DO; the
+          sharing switches are what they adjust afterwards.
+
+          The headings are the other half of "it's not formatted well, honestly": before this the
+          card was six visually identical rows with no grouping, so the switches read as more
+          friends and the board read as more switches. Rendered only once a friendship exists,
+          which is unchanged — switches that publish to nobody are a control that appears to do
+          nothing. */}
+      {friends.length > 0 && (
+        <div className="space-y-3 pt-1 border-t border-border/60">
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold pt-2">What friends can see</h4>
+            <LeaderboardShareToggles />
+          </div>
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold">Leaderboard</h4>
+            <FriendsLeaderboard friends={friends} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
