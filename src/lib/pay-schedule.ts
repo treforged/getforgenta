@@ -34,6 +34,16 @@ export type EnrichedTransaction = {
   created_at?: string;
   updated_at?: string;
   car_build_item_id?: string | null;
+  /**
+   * `'manual'` for a row somebody typed, `'synced'` once a bank charge has confirmed it.
+   *
+   * ⚠️ IT WAS ALWAYS ON THE DATA AND NEVER ON THIS TYPE. `useTransactions` selects `*`, so every
+   * real ledger row has carried this column all along; only the display type omitted it. Declaring
+   * it is what lets a reader tell a typed estimate from a settled fact without a cast. ABSENT on
+   * GENERATED rows, which are a rule's output and were never typed by anyone — so `undefined` here
+   * means "not a hand-entered row", and any check must read it that way rather than defaulting it.
+   */
+  origin?: string | null;
   isGenerated?: boolean;
   isDebtPayment?: boolean;
   isCarLoanPayment?: boolean;

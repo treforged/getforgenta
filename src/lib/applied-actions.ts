@@ -24,7 +24,17 @@ export type AppliedActionKind =
    * 21 categories**, eight months of answers, measured 2026-09-13 rather than estimated. Anything
    * that destroys that much of someone's work without a way back is not a setting, it is a trap.
    */
-  | 'merchant_memory_clear';
+  | 'merchant_memory_clear'
+  /**
+   * "Link and correct", pressed from the LEDGER row instead of the bank queue.
+   *
+   * ⚠️ IT IS A SEPARATE KIND BECAUSE IT REVERSES A DIFFERENT AMOUNT OF WORK. `link_confirm` takes
+   * back a review row and, where one happened, a correction. This path never writes a review —
+   * it is only offered for a charge the user answered long ago — so its reversal is the ledger
+   * patch alone. Recording it as `link_confirm` would make an undo list claim a link was removed
+   * that was never made.
+   */
+  | 'ledger_reconcile';
 
 /** Put a charge's category back to what it was. `null` clears it, which is what `setCategory` does. */
 export interface SetCategoryStep {

@@ -28,7 +28,10 @@ import BankActivity from '@/components/transactions/BankActivity';
 import { useBankReviewQueue, reviewBadgeCount } from '@/hooks/useBankReviewQueue';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
-import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split, Search, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split, Search, X, Link2 } from 'lucide-react';
+import { useLedgerReconciliations } from '@/hooks/useLedgerReconciliations';
+import { reconciledPatch, reconciliationUndoStep } from '@/lib/transaction-reconciliation';
+import { useAppliedActions } from '@/hooks/useAppliedActions';
 import { planDraftFromTransaction } from '@/lib/payment-plan-from-transaction';
 import {
   parseTransactionRepeat,
@@ -389,6 +392,58 @@ export default function Transactions() {
   // A hand-entered row the app also generates charges its month twice — Tre's Sep 2026 car payment
   // is the live case. Scanned off the RAW ledger plus the three generators, not off `allTransactions`
   // (which already interleaves both halves), so the pairing sees exactly what it must compare.
+  /**
+   * THE TYPED ROW WHOSE REAL BANK CHARGE ALREADY LEFT THE QUEUE.
+   *
+   * Tre, 2026-09-05 and again 2026-09-13: a row he types ahead of time "should merge when the real
+   * transaction shows". It does — but only from Bank Activity, and only while that charge is still
+   * unanswered. Answer the charge and the offer is gone for good, leaving his figure standing
+   * against the bank's for ever. `useLedgerReconciliations` is scoped to exactly that gap and
+   * offers nothing the queue would also offer; see its header.
+   *
+   * ⚠️ THE FETCH IS ONE MONTH WIDE, SO "All Time" IS PARTIAL AND THAT IS DELIBERATE. It falls back
+   * to the current month rather than pulling a whole bank history onto a list screen, which means
+   * an older row only gets its offer once its own month is selected. Partial is honest here: an
+   * absent button says nothing, and the alternative was thousands of rows per render.
+   */
+  const reconcilable = useLedgerReconciliations(
+    filterMonth === 'all' ? currentMonthStr : filterMonth,
+    filtered,
+  );
+  const { record: recordApplied } = useAppliedActions();
+
+  /**
+   * Take the bank's figures onto the row the user typed, and record how to put theirs back.
+   *
+   * ⚠️ THE UNDO IS BUILT BEFORE THE WRITE AND RECORDED ONLY AFTER IT LANDS. Once the patch is in,
+   * the typed figure is gone — re-deriving it afterwards is exactly what made an earlier link
+   * unrecoverable — so `reconciliationUndoStep` is computed from the proposal while both numbers
+   * still exist. And a reversal recorded for a write that failed is a button that reports success
+   * and changes nothing, so the record happens after the await, never around it.
+   *
+   * ⚠️ NO `removeReviews` STEP, AND ITS ABSENCE IS CORRECT. This path writes no review row (it is
+   * only offered for a charge already answered), so there is nothing to un-review. A step here
+   * would delete a decision the user made months ago and never took back.
+   */
+  const linkToBankRow = useCallback(async (transactionId: string) => {
+    const proposal = reconcilable[transactionId];
+    if (!proposal) return;
+    const undoSteps = [reconciliationUndoStep(proposal, proposal.synced.id)];
+    try {
+      await update.mutateAsync(reconciledPatch(proposal));
+    } catch {
+      // `update`'s own onError has already said what went wrong, and nothing landed.
+      return;
+    }
+    await recordApplied.mutateAsync({
+      kind: 'ledger_reconcile',
+      label: proposal.amountDiffers
+        ? `Took your bank's ${formatCurrency(proposal.actualAmount)} over your ${formatCurrency(proposal.typedAmount)}`
+        : `Moved your entry to ${proposal.actualDate}, the date your bank used`,
+      steps: undoSteps,
+    });
+  }, [reconcilable, update, recordApplied]);
+
   const { dismissed: dismissedDuplicates, dismiss: dismissDuplicate } = useDismissedDuplicates();
   const duplicateCollisions = useMemo(() => scanForDuplicateTransactions({
     transactions,
@@ -1323,6 +1378,28 @@ export default function Transactions() {
                 <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive') : t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                   {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta, false) : formatCurrency(Number(t.amount), false)}
                 </span>
+                {/* ⚠️ BOTH FIGURES ON THE BUTTON, BEFORE THE PRESS — the same rule the queue's own
+                    "Link and correct" follows. A control that says "matches" and then silently
+                    changes an amount has done more than it said, and this one writes to a money
+                    row. When only the date moved, it says that instead of showing $8 → $8. */}
+                {reconcilable[t.id] && (
+                  <button
+                    onClick={() => void linkToBankRow(t.id)}
+                    className="btn btn-sm btn-ghost text-primary hover:text-primary/80 whitespace-nowrap"
+                    title={`Your bank shows this on ${reconcilable[t.id].actualDate}. Linking replaces your figure with the bank's and can be undone.`}
+                  >
+                    <Link2 size={11} />{' '}
+                    {/* ⚠️ CENTS, ALWAYS, AND THE REST OF THIS LIST DELIBERATELY HIDES THEM. Every
+                        other figure on the row uses `formatCurrency(x, false)`, which is right for
+                        scanning a column. It is WRONG here: the gap this button exists to close is
+                        usually a few cents, so rounding renders "Bank says $8" beside a typed $8 —
+                        a control that says nothing while appearing to say something. Caught by its
+                        own test rather than in review. */}
+                    {reconcilable[t.id].amountDiffers
+                      ? `Bank says ${formatCurrency(reconcilable[t.id].actualAmount)}`
+                      : `Dated ${reconcilable[t.id].actualDate}`}
+                  </button>
+                )}
                 {!isRecon && <button onClick={() => duplicateTransaction(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
                 {!isRecon && <button onClick={() => handleEditClick(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
                 {canConvertToPlan && (
