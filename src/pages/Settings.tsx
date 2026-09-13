@@ -33,6 +33,7 @@ import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
+import { coalesce } from '@/lib/coalesce-request';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -238,12 +239,24 @@ export default function SettingsPage() {
     }
   }, [profile]);
 
+  // ⚠️ DEPEND ON THE ID, NOT THE `user` OBJECT. MEASURED in edge_logs 2026-09-13: this exact
+  // request fired SIX times inside one burst —
+  //   ?select=id&referred_by=eq.<id>   x6 at 00:58:25
+  // — because `user` is a fresh object identity on each auth render, so the effect re-ran for a
+  // value that had not changed. `userId` is a string, so it compares by value and the request
+  // fires once. `coalesce` is the belt to that braces: any duplicates that still arrive together
+  // share one round trip instead of becoming independent draws against a ~6.5s p95 tail. This is
+  // the shape coalesce was actually built for — byte-identical concurrent requests — unlike the
+  // four different-column profile reads it was first pointed at, which it cannot collapse.
+  const userId = user?.id;
   useEffect(() => {
-    if (!user || isDemo) return;
-    const refCode = user.id.slice(0, 8);
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', refCode)
-      .then(({ count }) => setReferralCount(count ?? 0));
-  }, [user, isDemo]);
+    if (!userId || isDemo) return;
+    const refCode = userId.slice(0, 8);
+    void coalesce(`profiles:referral_count:${refCode}`, async () =>
+      await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', refCode))
+      .then(({ count }) => setReferralCount(count ?? 0))
+      .catch(() => setReferralCount(null));
+  }, [userId, isDemo]);
 
   const markDirty = () => setDirty(true);
 
