@@ -15,7 +15,19 @@ export interface Month0Result {
   holdbackEvent: { eventName: string; monthLabel: string } | null;
   cyclingPayment: number;
   revolvingPayment: number;
-  perCardAdjusted: { id: string; name: string; payment: number; maxPayment: number }[];
+  perCardAdjusted: {
+    id: string;
+    name: string;
+    payment: number;
+    maxPayment: number;
+    /**
+     * How far this month's cash falls short of an "always pay this, no matter what" payment,
+     * in dollars. ABSENT unless the card carries that setting AND the money genuinely does not
+     * fit — absent and 0 mean different things, so never default it.
+     * See `unconditional-payment.ts`.
+     */
+    unconditionalShortfall?: number;
+  }[];
   m0SafeFloor: number;
   /** Cash being set aside this month toward a saving-phase vehicle's down payment. Still the
    * user's own cash (hasn't left any account) — excluded from debt-payment capacity above, but

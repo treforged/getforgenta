@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight, Car, Landmark } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
+import { unconditionalShortfallLabel } from '@/lib/unconditional-payment';
 import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 
 type Props = {
@@ -147,6 +148,13 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                   <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
                     <CalendarDays size={8} /> {r.nextDueDate ? formatNextDue(r.nextDueDate) : NEXT_DUE_UNKNOWN}
                   </span>
+                  {r.unconditionalShortfall !== undefined && r.unconditionalShortfall > 0 && (
+                    // Same line, same wording as /debt — one constant, so the two surfaces cannot
+                    // describe the same gap differently.
+                    <span className="text-[9px] text-destructive font-medium">
+                      {unconditionalShortfallLabel(r.unconditionalShortfall)}
+                    </span>
+                  )}
                   {r.nextPayMonth === 1 && (
                     // Demoted, not deleted. A this-month amount that is still owed is the
                     // actionable number and stays legible; a $0 stays quiet, because there is

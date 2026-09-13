@@ -24,6 +24,7 @@ import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { ordinal } from '@/lib/ordinal';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
+import { unconditionalShortfallLabel } from '@/lib/unconditional-payment';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { buildCardRecRows, buildLoanRecommendations, buildOtherDebtRecommendations } from '@/lib/month0-debt-breakdown';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
@@ -1810,6 +1811,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <span className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center gap-0.5">
                         <CalendarDays size={8} /> {r.nextDueDate ? formatNextDue(r.nextDueDate) : NEXT_DUE_UNKNOWN}
                       </span>
+                      {r.unconditionalShortfall !== undefined && r.unconditionalShortfall > 0 && (
+                        // "Always pay this" is still being sent in full — the plan does not reduce
+                        // it — so this says what the month is missing, not that the payment shrank.
+                        // Silence here would be the app balancing the month on paper.
+                        <span className="text-[9px] sm:text-[10px] text-destructive font-medium">
+                          {unconditionalShortfallLabel(r.unconditionalShortfall)}
+                        </span>
+                      )}
                       {r.nextPayMonth === 1 && (
                         // Demoted, not deleted. A this-month amount that is still owed is the
                         // actionable number and stays legible; a $0 stays quiet, because there is

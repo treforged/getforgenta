@@ -22,6 +22,7 @@ import type { Tables } from '@/integrations/supabase/types';
 // `debt-payoff-order`.
 import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from './ranked-surplus-allocation';
 import { resolveCashFloor } from './cash-floor';
+import { unconditionalDesired } from './unconditional-payment';
 import { toLocalDateStr } from './scheduling';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
 // debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
@@ -2534,10 +2535,10 @@ export function generateRecommendations(
    */
   const unconditionalIds = new Set<string>();
   for (const card of sorted) {
-    if (card.paymentUnconditional !== true) continue;
-    const desired = card.paymentPreference === 'statement'
-      ? Math.max(0, card.balance)
-      : Math.max(0, card.balance) + card.monthlyNewPurchases;
+    // `unconditionalDesired` is the SHARED definition — the sim path settles against the
+    // very same expression, so "always pay this" cannot come to mean two different amounts
+    // on two surfaces. See unconditional-payment.ts for why that was a live defect.
+    const desired = unconditionalDesired(card);
     if (desired <= 0) continue;
     unconditionalIds.add(card.id);
     // ⚠️ NaN-SAFE ON PURPOSE. `remaining` derives from a chain of optional inputs, and under a

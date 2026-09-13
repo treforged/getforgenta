@@ -45,6 +45,7 @@ import type { CarFund } from '@/lib/types';
 import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { isManualCashFloor } from '@/lib/cash-floor';
+import { settleUnconditional } from '@/lib/unconditional-payment';
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { toLocalDateStr } from '@/lib/scheduling';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
@@ -2245,12 +2246,44 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Q11: a settled card's minimum isn't owed this month, so nothing is "protected" for it —
       // its whole natural payment is discretionary extra, not min + extra.
       const protectedMin = (c: CardData): number => (c.m0MinSettled ? 0 : c.minPayment);
+      // ⚠️ "ALWAYS PAY THIS, NO MATTER WHAT" IS SETTLED OFF THE TOP, BEFORE ANY SCALING.
+      //
+      // Everything below this line competes for `revolvingPayment` and shrinks silently when the
+      // month is tight — `Math.min(activeSimPay, …)` and the proportional `extraShare` both do
+      // exactly that, and then report a balanced plan. That quiet reduction is the lie the setting
+      // exists to prevent, so an unconditional card never enters the scaling at all.
+      //
+      // ⚠️ THIS PATH IS THE ONE USERS SEE. The engine's own unconditional block
+      // (`credit-card-engine.ts`) is on the one-shot `getPayoffRecommendations` path; /debt, the
+      // Dashboard widget and Forecast all render `perCardAdjusted` from HERE, and until 2026-09-13
+      // this file did not read `paymentUnconditional` anywhere — so the toggle changed a number no
+      // screen showed. Both paths now settle through `settleUnconditional`.
+      //
+      // ⚠️ CYCLING CARDS ARE EXCLUDED, on purpose: their cash comes out of `cyclingPayment`, not
+      // `revolvingPayment`, and they already pay in full. Including them would charge one payment
+      // to two pools and manufacture a shortfall that does not exist.
+      //
+      // ⚠️ NAMED LIMITATION: when TWO OR MORE unconditional cards together overdraw the pool, the
+      // per-card split of that overdraw depends on settlement order, and this settles in `cards`
+      // order while the one-shot path settles in debt-strategy order. The TOTAL shortfall is
+      // identical either way, and with a single unconditional card — the case the setting was
+      // asked for — so is the attribution.
+      const uncondCards = cards.filter(
+        c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) > 0,
+      );
+      const uncond = settleUnconditional(uncondCards, revolvingPayment);
+      // What is left for every other revolving card. Never negative: the overdraw is already
+      // recorded as a shortfall on the card that caused it, and the loops below cannot reason
+      // about a negative pool.
+      const scalablePool = uncond.remaining;
       const ccMinSumActive = cards.reduce((s, c) => {
+        if (uncond.byCard.has(c.id)) return s;
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         return revBal0 > 0 ? s + protectedMin(c) : s;
       }, 0);
-      const discretionaryPool = Math.max(0, revolvingPayment - ccMinSumActive);
+      const discretionaryPool = Math.max(0, scalablePool - ccMinSumActive);
       const naturalExtraTotal = cards.reduce((s, c) => {
+        if (uncond.byCard.has(c.id)) return s;
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
         const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
@@ -2262,8 +2295,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
         const perCardEntry = perCardPayments.find(p => p.id === c.id);
         const cyclingPay = perCardEntry?.payments[0] ?? activeSimPay;
+        const settled = uncond.byCard.get(c.id);
         let payment: number;
-        if (isCycling) {
+        if (settled) {
+          // NOT clamped to the pool, and NOT clamped to `activeSimPay` — the sim solved this month
+          // against a pool that did not know about the obligation, so capping here would reintroduce
+          // the reduction this block removes.
+          payment = Math.round(settled.payment);
+        } else if (isCycling) {
           payment = cyclingPay;
         } else {
           const extra = Math.max(0, activeSimPay - protectedMin(c));
@@ -2274,7 +2313,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           id: c.id,
           name: c.name,
           payment,
-          maxPayment: activeSimPay,
+          maxPayment: settled ? Math.max(activeSimPay, payment) : activeSimPay,
+          // Only ever present on a card the setting was turned on for. A row that carries no gap
+          // must carry no field — an absent shortfall and a $0 shortfall mean different things, and
+          // `?? 0` here would turn "this card has no such obligation" into "it fits exactly".
+          ...(settled && settled.shortfall > 0 ? { unconditionalShortfall: settled.shortfall } : {}),
         };
       });
 
@@ -2300,8 +2343,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // No §1A Stage C evidence: this is a CARD statement clearing, so the matcher would be
         // hunting a statement-sized card payment on the funding account it cannot identify — the
         // same transfer-linking gap documented on `m0MinDueSettled` in credit-card-engine.ts.
+        // The shortfall goes with the payment. Once the money has demonstrably left the account
+        // there is no gap left to warn about, and a $0 payment sitting beside "short $400" would
+        // be the row contradicting itself.
         return isCapturedInBalance(dueDateInMonth(m0MonthStr, card.dueDay), syncCutoffDate)
-          ? { ...pca, payment: 0 }
+          ? { id: pca.id, name: pca.name, payment: 0, maxPayment: pca.maxPayment }
           : pca;
       }) : perCardAdjusted;
       const revolvingPaymentFinal = perCardAdjustedFinal

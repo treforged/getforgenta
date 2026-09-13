@@ -79,6 +79,14 @@ export interface CardRecRow {
   nextDueDate: Date | null;
   reason: string;
   isMinimumOnly: boolean;
+  /**
+   * How far this month's cash falls short of this card's "always pay this, no matter what"
+   * payment. ABSENT on every ordinary card, and absent on an unconditional card whose payment
+   * fits — only a real gap carries a number. Straight through from `month0.perCardAdjusted`;
+   * never re-derived here, because a display-layer `desired − pool` can disagree with the
+   * engine's own figure and put two different shortfalls on two screens.
+   */
+  unconditionalShortfall?: number;
 }
 
 export interface CardRecRowsInput {
@@ -182,6 +190,9 @@ export function buildCardRecRows({
       nextDueDate,
       reason,
       isMinimumOnly,
+      ...(item.unconditionalShortfall !== undefined
+        ? { unconditionalShortfall: item.unconditionalShortfall }
+        : {}),
     };
   });
 }
