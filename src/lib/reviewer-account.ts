@@ -30,4 +30,18 @@ export const REVIEWER_EMAIL = 'reviewer@treforged.com';
 export const REVIEWER_FIRST_RUN_PROFILE = {
   founder_note_seen: false,
   onboarding_completed: false,
+  /**
+   * ⚠️ ADDED 2026-09-13, AND WITHOUT IT THE OTHER TWO ACHIEVE NOTHING.
+   *
+   * `Onboarding.tsx:237` treats a `display_name` as evidence that this user has
+   * already onboarded — it calls `markOnboardingComplete` and redirects to
+   * `/dashboard`. So clearing the two booleans above and leaving a name behind
+   * produced a reviewer who was flagged as first-run in the database and **could
+   * not reach the wizard**: measured 2026-09-13, `/onboarding` bounced straight
+   * back out. Clearing the name, the wizard rendered. Proven both ways.
+   *
+   * This is the ONE definition, so it fixes the in-app reset in `AuthContext`
+   * at the same time as the script.
+   */
+  display_name: null,
 } as const;

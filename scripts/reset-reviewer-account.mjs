@@ -83,12 +83,40 @@ function loadReviewerContract() {
     fail(2, 'Could not read REVIEWER_FIRST_RUN_PROFILE from src/lib/reviewer-account.ts.');
   }
 
+  // Strip comments first: the block carries a long JSDoc whose prose contains colons
+  // and words, and parsing that as data is how a comment becomes a column.
+  const body = blockMatch[1]
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '');
+
   const firstRun = {};
-  for (const [, key, value] of blockMatch[1].matchAll(/(\w+)\s*:\s*(true|false)/g)) {
-    firstRun[key] = value === 'true';
+  for (const [, key, value] of body.matchAll(/(\w+)\s*:\s*(true|false|null)/g)) {
+    firstRun[key] = value === 'null' ? null : value === 'true';
   }
   if (Object.keys(firstRun).length === 0) {
     fail(2, 'REVIEWER_FIRST_RUN_PROFILE parsed to zero columns — refusing to "reset" nothing.');
+  }
+
+  /**
+   * ⚠️ COUNT WHAT WAS DROPPED. This parser understands `true`, `false` and `null`
+   * and nothing else, so a future field like `onboarding_step: 0` would be skipped
+   * IN SILENCE and the reset would quietly stop covering it — the same shape as the
+   * rebrand drift this file exists to prevent, one level down.
+   *
+   * `display_name: null` was added to the contract on 2026-09-13 and the original
+   * `(true|false)` pattern would have dropped it exactly this way.
+   */
+  const declaredKeys = [...body.matchAll(/^\s*(\w+)\s*:/gm)].map((m) => m[1]);
+  const dropped = declaredKeys.filter((k) => !(k in firstRun));
+  if (dropped.length > 0) {
+    fail(
+      2,
+      `REVIEWER_FIRST_RUN_PROFILE declares ${declaredKeys.length} columns and this script ` +
+        `could only parse ${Object.keys(firstRun).length}.\n` +
+        `        Unparsed: ${dropped.join(', ')}\n` +
+        '        Refusing to run a reset that silently skips part of its own contract.\n' +
+        '        Teach the parser the new value shape in loadReviewerContract().',
+    );
   }
 
   return { email: emailMatch[1], firstRun };
@@ -200,12 +228,134 @@ async function main() {
     fail(1, 'Read-back disagrees with what was written — the account is NOT in first-run state.');
   }
 
+  line(true, 'database read-back', 'every first-run column holds its reset value');
+
+  // ── 4. ASSERT THE SCREEN, NOT THE ROW. ─────────────────────────────────────
+  if (process.argv.includes('--no-browser')) {
+    console.log(
+      '\n  --no-browser: the ROW was reset and read back, and NOTHING checked that the\n' +
+        '  wizard is reachable. That is the exact gap that made this script report success\n' +
+        '  while first run was unwalkable. Re-run without the flag before trusting a walk.\n',
+    );
+    process.exit(0);
+  }
+  await assertFirstRunScreen({ db, reviewer, baseUrl: process.env.APP_URL ?? 'http://localhost:8080' });
+
   console.log(
-    '\n  The reviewer account is verified in first-run state. Walk it now.\n' +
-      '  Browser-side flags are NOT cleared by this script: sign in as the reviewer\n' +
-      '  (AuthContext clears them) and RELOAD before walking /onboarding.\n',
+    '\n  The reviewer account is in first-run state AND the wizard was seen to render.\n' +
+      '\n  ⚠️ WALK /onboarding FIRST, BEFORE /dashboard. Loading the dashboard mounts\n' +
+      '  OnboardingChecklist, which computes allDone from the account\'s real data — the\n' +
+      '  reviewer already has accounts, so it calls markOnboardingComplete from a\n' +
+      '  useEffect with NO user interaction and re-completes onboarding in under a second.\n' +
+      '  That is a property of the app, not a bug in this reset, and it is why the reset\n' +
+      '  cannot be verified by reading the row back later.\n',
   );
   process.exit(0);
+}
+
+/**
+ * Open the app as the reviewer and REQUIRE the onboarding wizard to render.
+ *
+ * ⚠️ WHY THIS EXISTS, AND IT IS THE WHOLE POINT OF THE 2026-09-13 REWRITE.
+ * Every check above this one reads the DATABASE, and the database was never the
+ * thing in doubt. The reset wrote its columns correctly for months and the wizard
+ * was still unreachable, because `Onboarding.tsx:237` bounced any user carrying a
+ * `display_name`. **A read-back cannot see that**: it runs before the app does, so
+ * it verifies the write and not the outcome. A reset is verified by opening the app
+ * and seeing first run.
+ *
+ * ⚠️ ON THE CREDENTIAL, because this script's header promises never to store one.
+ * It still doesn't. The session is minted by the SERVICE ROLE for the reviewer TEST
+ * account through `generateLink` — no password is typed, read, or stored, the link
+ * is never printed, and the browser context is in-memory and destroyed on exit.
+ * Nothing is written to disk and no `storageState` is saved. This is only ever
+ * pointed at the reviewer id resolved above, which is the same id every write used.
+ *
+ * ⚠️ WHAT WAS AND WAS NOT EXERCISED WHEN THIS WAS WRITTEN (2026-09-13). Say it here
+ * rather than let a reader assume a green.
+ *   PROVEN RED: the two assertions below were run against an UNAUTHENTICATED context
+ *   as a negative control. The app redirected to `/auth`, `onWizard` and `hasWelcome`
+ *   both came back false, and the check failed — so it cannot mistake a login wall
+ *   for first run, and the Playwright plumbing runs.
+ *   NOT PROVEN GREEN: the magic-link path has never been executed. No
+ *   `SUPABASE_SERVICE_ROLE_KEY` exists on the machine this was written on, so the
+ *   happy path could not be reached. **The first person to run this with the key in
+ *   the environment is testing this function, not just the account** — if the link
+ *   hop or the 4s settle is wrong, it will fail here rather than at the assertion.
+ */
+async function assertFirstRunScreen({ db, reviewer, baseUrl }) {
+  let chromium;
+  try {
+    ({ chromium } = await import('@playwright/test'));
+  } catch {
+    fail(2, 'Could not load @playwright/test — cannot look at the screen. `npm i` first.');
+  }
+
+  // The dev server has to be up. A connection refused here is "could not look".
+  try {
+    const ping = await fetch(baseUrl, { redirect: 'manual' });
+    if (ping.status >= 500) fail(2, `${baseUrl} answered ${ping.status} — cannot look at the screen.`);
+  } catch (err) {
+    fail(2, `${baseUrl} is not serving (${err.message}). Run: node scripts/dev-session.mjs up`);
+  }
+
+  const { data: link, error: linkErr } = await db.auth.admin.generateLink({
+    type: 'magiclink',
+    email: reviewer.email,
+    options: { redirectTo: `${baseUrl}/dashboard` },
+  });
+  if (linkErr || !link?.properties?.action_link) {
+    fail(2, `Could not mint a reviewer session: ${linkErr?.message ?? 'no action_link'}`);
+  }
+
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (err) {
+    fail(2, `Could not launch a browser (${err.message}). Run: npx playwright install chromium`);
+  }
+
+  try {
+    const context = await browser.newContext();           // in-memory; never persisted
+    const page = await context.newPage();
+
+    await page.goto(link.properties.action_link, { waitUntil: 'domcontentloaded' });
+    // The magic-link hop lands on /dashboard. Give the app time to establish the
+    // session before asking it for a gated route.
+    await page.waitForTimeout(4000);
+
+    await page.goto(`${baseUrl}/onboarding`, { waitUntil: 'domcontentloaded' });
+    // ⚠️ The route gate renders NOTHING while the profile read is in flight and races
+    // a 10s timeout, so a short wait here photographs a blank page and calls it a
+    // failure. Measured 2026-09-13: up to ~16s to first paint on this instance.
+    await page.waitForTimeout(18000);
+
+    const url = page.url();
+    const body = (await page.locator('body').innerText().catch(() => '')) ?? '';
+
+    // Assert what a FIRST-RUN USER SEES, not merely that nothing threw. A page that
+    // renders an empty shell throws nothing and is exactly the failure being caught.
+    const onWizard = /\/onboarding/.test(url);
+    const hasWelcome = /Welcome to Forgenta|Let's set up your financial profile/i.test(body);
+
+    line(onWizard, 'the app stayed on /onboarding', onWizard ? url : `redirected to ${url}`);
+    line(hasWelcome, 'the wizard rendered its first step', hasWelcome ? 'Welcome step visible' : `body was ${body.length} chars`);
+
+    if (!onWizard || !hasWelcome) {
+      fail(
+        1,
+        'THE ROW SAYS FIRST-RUN AND THE SCREEN DOES NOT.\n' +
+          '        This is the failure the database read-back cannot see, and the reason this\n' +
+          '        check exists. Most likely a profile field the app reads as "already onboarded"\n' +
+          '        is still set — `display_name` did exactly this until 2026-09-13\n' +
+          '        (Onboarding.tsx:237). Add it to REVIEWER_FIRST_RUN_PROFILE.',
+      );
+    }
+  } finally {
+    // Always tear the context down, even on a failed assertion: a browser left running
+    // holds a live reviewer session, which is the one thing this must not leave behind.
+    await browser.close().catch(() => {});
+  }
 }
 
 main().catch((err) => {
