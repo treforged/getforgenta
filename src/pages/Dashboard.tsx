@@ -60,7 +60,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardOverviewStrip from '@/components/dashboard/DashboardOverviewStrip';
 import CalcDrawer from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
-import { buildPayoffTrajectory } from '@/lib/payoff-trajectory';
+import { buildPayoffTrajectory, formatMonthsAway } from '@/lib/payoff-trajectory';
 import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
@@ -1711,9 +1711,27 @@ export default function Dashboard() {
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
               <p className="text-xs font-semibold text-foreground">Jordan&apos;s Story — How it all connects</p>
+              {/* ⚠️ DERIVED, NOT WRITTEN DOWN — AND THE SENTENCE UNDERNEATH IS WHY IT MATTERS.
+                  This copy used to hardcode "$12,700 in CC debt" and "clears the cards in a little
+                  over a year", directly above "Every number here is live-calculated from the data
+                  below". Measured in Chrome on 2026-09-13: the tiles on that same screen read CC
+                  DEBT $6,482, and both /dashboard and /debt read "Not within 5 years". So the one
+                  sentence inviting a visitor to trust the numbers carried two figures the app
+                  contradicted inches away — on the SALES surface, to someone deciding whether this
+                  app is honest. ($12,700 was the RETIREMENT tile's value, which is how a hardcoded
+                  number goes stale without anybody noticing it moved.)
+
+                  Correcting the strings would have re-broken on the next demo-data change, which is
+                  the same failure with a later date on it. Both figures now come from exactly what
+                  the tiles read — `accountSummary.ccDebt` and `heroPayoff` — so they cannot drift.
+
+                  ⚠️ AND THE PAYOFF CLAUSE DISAPPEARS WHEN THERE IS NO PAYOFF, rather than softening.
+                  Demo currently has none inside the projection window; a claim about clearing the
+                  cards would be exactly the assertion the tiles deny. */}
               <p className="text-xs text-muted-foreground mt-0.5">
-                26 y/o with $12,700 in CC debt, a steady paycheck, and a plan that clears the cards in a little over a year.
-                Every number here is live-calculated from the data below.
+                26 y/o with {formatCurrency(accountSummary.ccDebt, false)} in CC debt and a steady paycheck
+                {heroPayoff ? `, on a plan that clears the cards ${formatMonthsAway(heroPayoff.monthsAway)}` : ''}.
+                {' '}Every number here is live-calculated from the data below.
               </p>
             </div>
           </div>
