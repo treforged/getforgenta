@@ -324,3 +324,97 @@ Sam's session has a working extension and has offered to drive.
 CHANGE, not the absence of an error: with `profileLoading` still true and the tab set
 to Accounts, the Accounts panel is IN THE DOCUMENT — and with the tab set to Overview
 it is still the skeleton, because that half must not regress.
+
+---
+
+# ADDENDUM 2, 2026-09-13 00:58 UTC — the re-measure after the dedupe, and it says my fix was aimed wrong
+
+The coalescer (`c0b1a18b`) deployed to production at **00:38:20 UTC**. This is the
+re-measure it was supposed to be judged by, reported the way it fell rather than the
+way it was hoped.
+
+## 1. The headline: p95 did NOT improve, and it CANNOT yet be attributed
+
+| window | `/rest/v1/profiles` p50 | p95 | calls |
+|---|---|---|---|
+| 2026-09-11 baseline (§ addendum 1) | 347 ms | **5082 ms** | 33 |
+| 2026-09-12 17:00 – 2026-09-13 01:00 | 214 ms | **6549 ms** | 206 |
+
+**Worse, not better — but the post-deploy sample is 4 requests at 00:41 and ~16 at
+00:58.** That is nowhere near enough for a p95, so the honest statement is *not
+attributable yet*, not *no improvement*.
+
+⚠️ **I nearly reported "zero post-deploy traffic".** A `having calls >= 5` in my own
+query filtered the post-deploy rows out, and an empty result looked exactly like an
+idle app — the same trap § addendum 1 recorded about `edge_logs` field names, walked
+into from the other direction. A direct `countIf` showed **30 rows since the deploy, 4
+of them `profiles`**. Check the filter before believing the emptiness.
+
+## 2. THE FIX IS AIMED AT THE WRONG PATTERN — measured, from the request strings
+
+Post-deploy, one page load issues these **within 6 milliseconds of each other**:
+
+```
+00:41:19.410  ?select=trusted_devices&user_id=eq.<uid>      1004 ms
+00:41:19.411  ?select=*&user_id=eq.<uid>                     996 ms
+00:41:19.412  ?select=timezone&user_id=eq.<uid>             1002 ms
+00:41:19.416  ?select=onboarding_completed&user_id=eq.<uid>  992 ms
+```
+
+`coalesce()` keys on **column + user id**, so those are FOUR DIFFERENT KEYS and it
+collapses **none** of them. The primitive is correct and its tests are honest; it is
+simply pointed at duplication that does not occur. Duplicate *identical* reads are not
+what this app does — **four different single-column reads of one row** are.
+
+**And three of the four are redundant outright:** `?select=*` already returns every
+column the other three ask for. The fix is not deduplication, it is making those
+helpers read the profile the app has ALREADY fetched (`['profile', userId]`) instead
+of issuing their own request.
+
+## 3. A genuine identical-duplicate, which the coalescer WOULD collapse
+
+```
+00:58:25  ?select=id&referred_by=eq.<id>   x6 in one burst
+```
+Six byte-identical requests. That is the referral count on Settings, and it does not
+go through `coalesce()`. Cheap, unambiguous next fix.
+
+## 4. My own noisy-neighbour hypothesis is DISPROVED, and it was attractive
+
+`/rest/v1/reddit_scout_pending_runs` — an unrelated workload on this instance — ran
+**72 calls, p50 5194 ms, 49 of them 504s**. It looks exactly like the cause. It is not:
+that traffic **stopped at 06:00 UTC** and the stalls continue all evening without it.
+Recorded because the next person will find it and reach the same wrong conclusion.
+
+## 5. What IS solid, and it is bigger than `profiles`
+
+Over 17:00 – 01:00 UTC, with no reddit_scout traffic:
+
+| path | calls | p50 | **p95** | ≥ 4.5 s |
+|---|---|---|---|---|
+| `/rest/v1/profiles` | 206 | 214 ms | **6549 ms** | 28 (13.6 %) |
+| `/rest/v1/accounts` | 32 | 550 ms | **6713 ms** | 7 |
+| `/rest/v1/debts` | 23 | 932 ms | **6742 ms** | 6 |
+| `/rest/v1/savings_goals` | 23 | 1375 ms | **6746 ms** | 5 |
+| `/rest/v1/user_subscriptions` | 16 | 508 ms | **6833 ms** | 4 |
+
+**Five tables of wildly different size and shape share a p95 within 284 ms of each
+other.** That is a shared ceiling, not per-table cost — and `accounts`, which was
+**p50 18 ms / p95 227 ms** on 09-11, is now 550 ms / 6713 ms. Whatever this is, it is
+instance-wide and it got worse; no change to `profiles` can fix it.
+
+**`profiles` is no longer the worst offender** — it now has the lowest p50 and the
+lowest stall rate of the five, on six times the volume. The framing that made it the
+target no longer holds. (The other four have 16–32 calls each, so their *rates* are
+noisy; the p95 agreement is the robust part.)
+
+## 6. What this means for the upgrade decision
+
+The free-plan shared-compute story remains **a hypothesis that fits, not a
+measurement** — nobody has measured contention, and the project reports
+`ACTIVE_HEALTHY` on Postgres 17.6. What is now stronger is that the effect is
+instance-wide rather than query- or table-specific, which is more consistent with
+shared compute than it was before. It is still not proof.
+
+**Do not pay yet.** The attributable client-side work — §2 and §3 above — has not been
+done, and paying first buys an improvement nobody can attribute.
