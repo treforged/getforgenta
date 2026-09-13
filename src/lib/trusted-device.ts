@@ -104,41 +104,75 @@ export function shouldTouchLastSeen(
 }
 
 /**
+ * Three answers, because two of them were being collapsed into one.
+ *
+ * `'untrusted'` means THE PROFILE WAS READ and this device is not on it. `'unknown'` means the
+ * read did not happen — offline, a 504, a timeout. They are not the same fact and they must not
+ * produce the same behaviour.
+ */
+export type DeviceTrust = 'trusted' | 'untrusted' | 'unknown';
+
+/**
+ * Whether THIS device is currently trusted by `userId`, distinguishing "no" from "could not look".
+ *
+ * ⚠️ WHY THIS EXISTS. `isDeviceTrusted` returns a boolean and maps every failure to `false`, which
+ * is right for the 2FA gate — a prompt you cannot skip is a safe failure — and wrong for the idle
+ * leash, where it silently shortens a trusted browser's session from 12 hours to 10 minutes and
+ * then tells the user they were signed out "due to 10 minutes of inactivity". True, and a
+ * misleading reason: the cause was one profile read that did not come back.
+ *
+ * That is not hypothetical here. This instance's `profiles` latency is BIMODAL — median 347ms
+ * against a p95 of 5082ms, with 504s in the same 24 hours (ask 73df5d2b) — so the read failing
+ * transiently is an ordinary event, not an edge case, and it lands on the one user-visible
+ * behaviour people notice most: being logged out.
+ *
+ * ⚠️ THE ERROR IS READ, NOT JUST THE DATA. `.single()` reports failure in `error` and leaves
+ * `data` null, so a caller that destructures only `data` sees an empty device list and concludes
+ * "not trusted" — the same wrong answer, reached without anything throwing.
+ */
+export async function readDeviceTrust(userId: string): Promise<DeviceTrust> {
+  const deviceId = getTrustedDeviceId();
+  // A device with no local pointer has genuinely never been trusted. That IS a reading.
+  if (!deviceId) return 'untrusted';
+  try {
+    const { data, error } = await coalesce(`profiles:trusted_devices:${userId}`, async () =>
+      await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single());
+    if (error || !data) return 'unknown';
+    const devices = (data.trusted_devices as TrustedDevice[] | null) ?? [];
+    const device = devices.find(d => d.device_id === deviceId);
+    if (!device) return 'untrusted';
+    const now = Date.now();
+    const fresh = isTrustRecordFresh(device, now);
+    if (fresh && shouldTouchLastSeen(device, now)) {
+      void touchTrustedDevice(userId, deviceId, devices, now);
+    }
+    // An EXPIRED grant is a real reading of "not trusted any more", not an unknown.
+    return fresh ? 'trusted' : 'untrusted';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
  * Whether THIS device is currently trusted by `userId` — the same test Auth runs to skip 2FA.
  *
  * Verified against the profile rather than trusting localStorage alone: the localStorage id is
  * only a pointer, and revoking a device from Settings must take effect here without touching this
  * machine. Fails closed — any error reads as "not trusted".
+ *
+ * ⚠️ KEPT FAIL-CLOSED ON PURPOSE. Callers that gate a SECURITY decision want exactly this: an
+ * unreadable profile must not skip 2FA. Only the idle leash needs the third state, and it uses
+ * `readDeviceTrust` directly — see AuthContext. Do not "simplify" this to return `unknown`.
  */
 export async function isDeviceTrusted(userId: string): Promise<boolean> {
-  const deviceId = getTrustedDeviceId();
-  if (!deviceId) return false;
-  try {
-    // Coalesced, NOT cached: two simultaneous trust checks share one round trip, but a later
-    // check always re-reads. A remembered answer here would keep a revoked device trusted.
-    const { data } = await coalesce(`profiles:trusted_devices:${userId}`, async () =>
-      await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single());
-    const devices = (data?.trusted_devices as TrustedDevice[] | null) ?? [];
-    const device = devices.find(d => d.device_id === deviceId);
-    if (!device) return false;
-    const now = Date.now();
-    const fresh = isTrustRecordFresh(device, now);
-
-    // Slide the window on a device that is genuinely still in use. Best effort and deliberately
-    // NOT awaited: the answer this function exists to give must not wait on a write, and a failed
-    // touch must never turn a trusted device into an untrusted one.
-    //
-    // Only when the record is still fresh. Touching an EXPIRED grant would silently renew trust
-    // that has already lapsed, which is the one thing the lifetime exists to prevent — re-trusting
-    // is a decision for the 2FA flow, not a side effect of a lookup.
-    if (fresh && shouldTouchLastSeen(device, now)) {
-      void touchTrustedDevice(userId, deviceId, devices, now);
-    }
-    return fresh;
-  } catch {
-    return false;
-  }
+  return (await readDeviceTrust(userId)) === 'trusted';
 }
+
+// The old boolean body lived here and was deleted on 2026-09-13 rather than kept beside its
+// replacement: it read only `data` and mapped every failure to `false`, which is the defect.
+// Its two behaviours that DID matter are preserved verbatim in `readDeviceTrust` above — the
+// coalesced-not-cached round trip (a remembered answer keeps a revoked device trusted) and the
+// unawaited touch that only ever slides a still-fresh grant.
 
 /**
  * Record that this device was seen, so an actively used device does not expire out from under its

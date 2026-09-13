@@ -101,7 +101,14 @@ vi.mock('@/lib/purchases', () => ({
 }));
 vi.mock('@/lib/monitoring', () => ({ identifyMonitoringUser: () => {} }));
 vi.mock('@/lib/analytics', () => ({ maybeTrackOAuthSignUp: () => {} }));
-vi.mock('@/lib/trusted-device', () => ({ isDeviceTrusted: async () => h.trusted }));
+// ⚠️ BOTH are mocked. AuthContext reads `readDeviceTrust` (three-state) since 2026-09-13 so that a
+// profile read which fails cannot silently shorten the idle leash; `isDeviceTrusted` stays exported
+// for the 2FA gate, which must keep failing closed. A mock supplying only the old boolean leaves
+// the new call `undefined` and every case here dies on the same unrelated error.
+vi.mock('@/lib/trusted-device', () => ({
+  isDeviceTrusted: async () => h.trusted,
+  readDeviceTrust: async () => (h.trusted ? 'trusted' : 'untrusted'),
+}));
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DemoProvider } from '@/contexts/DemoContext';

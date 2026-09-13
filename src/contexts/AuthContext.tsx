@@ -16,7 +16,7 @@ import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
-import { isDeviceTrusted } from '@/lib/trusted-device';
+import { readDeviceTrust } from '@/lib/trusted-device';
 import { toLocalDateStr } from '@/lib/scheduling';
 import {
   REVIEWER_EMAIL as REVIEWER_ACCOUNT_EMAIL,
@@ -479,8 +479,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     trustedRef.current = false;
     if (!user || isDemo) return;
     let cancelled = false;
-    isDeviceTrusted(user.id).then(trusted => {
-      if (!cancelled) trustedRef.current = trusted;
+    /**
+     * ⚠️ AN UNREADABLE PROFILE MUST NOT SHORTEN THE LEASH. This used to call `isDeviceTrusted`,
+     * which maps every failure to `false` — so one `profiles` read that did not come back took a
+     * trusted browser from 12 hours to 10 minutes and then told the person they were signed out
+     * "due to 10 minutes of inactivity". True, and the wrong reason.
+     *
+     * It is an ordinary event on this instance, not an edge case: `profiles` is BIMODAL, median
+     * 347ms against a p95 of 5082ms with 504s in the same day (ask 73df5d2b). So the most common
+     * cause of "it keeps logging me out" was the app failing to read its own trust record.
+     *
+     * `'unknown'` therefore leaves the previous answer standing rather than downgrading. It never
+     * UPGRADES on an unknown — a device starts untrusted and only a successful read can promote
+     * it, so a user who has never trusted this browser is unaffected by any of this.
+     */
+    void readDeviceTrust(user.id).then(trust => {
+      if (cancelled || trust === 'unknown') return;
+      trustedRef.current = trust === 'trusted';
     });
     return () => { cancelled = true; };
   }, [user, isDemo]);

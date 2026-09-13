@@ -70,7 +70,12 @@ vi.mock('@/lib/supabase', () => ({
 vi.mock('@/lib/purchases', () => ({ initRevenueCat: async () => {}, logOutRevenueCat: async () => {} }));
 vi.mock('@/lib/monitoring', () => ({ identifyMonitoringUser: () => {} }));
 vi.mock('@/lib/analytics', () => ({ maybeTrackOAuthSignUp: () => {} }));
-vi.mock('@/lib/trusted-device', () => ({ isDeviceTrusted: async () => false }));
+// `readDeviceTrust` is what AuthContext calls; 'untrusted' is the deliberate reading here — this
+// device has no grant — as distinct from 'unknown', which would mean the profile was unreadable.
+vi.mock('@/lib/trusted-device', () => ({
+  isDeviceTrusted: async () => false,
+  readDeviceTrust: async () => 'untrusted',
+}));
 
 import ResumeRecovery from '../ResumeRecovery';
 import { RESUME_STALE_MS } from '@/lib/app-resume';
