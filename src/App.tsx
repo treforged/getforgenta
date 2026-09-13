@@ -333,7 +333,11 @@ function AppRoutes() {
         <Route path="/garage" element={<Navigate to="/vehicles" replace />} />
         <Route path="/accounts" element={<AccountsRedirect />} />
         <Route path="/net-worth" element={<Navigate to="/dashboard?tab=accounts" replace />} />
-        <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Forecast"><Forecast /></ErrorBoundary></Suspense>} />
+        {/* Forecast is a PANEL of the Activity surface now, not a destination (Tre, 2026-09-12).
+            This redirect is load-bearing: `/forecast` is in the bottom nav's history, in
+            notification deep links, and in anything a user has bookmarked. Removing the route
+            instead would 404 all of them silently. */}
+        <Route path="/forecast" element={<Navigate to="/transactions?tab=forecast" replace />} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Settings"><SettingsPage /></ErrorBoundary></Suspense>} />
         <Route path="/ai" element={AI_ADVISOR_ENABLED
           ? <Suspense fallback={<PageLoader />}><ErrorBoundary label="Forgenta AI"><AiAdvisor /></ErrorBoundary></Suspense>

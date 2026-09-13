@@ -29,7 +29,6 @@ export const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
-  { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   { to: '/vehicles', icon: Car, label: 'Garage' },
 ];
 

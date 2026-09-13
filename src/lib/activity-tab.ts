@@ -39,7 +39,7 @@
  * `ACTIVITY_TAB_FALLBACK` — see below; the two are separate on purpose, so changing which pill is
  * first never silently changes which panel opens.
  */
-export const ACTIVITY_TABS = ['budget', 'transactions'] as const;
+export const ACTIVITY_TABS = ['budget', 'transactions', 'forecast'] as const;
 
 export type ActivityTab = (typeof ACTIVITY_TABS)[number];
 

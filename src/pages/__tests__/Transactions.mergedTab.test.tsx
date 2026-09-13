@@ -16,7 +16,7 @@
 //      rather than healing to Budget Control, which would move people without a word.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, within } from '@testing-library/react';
+import { render, screen, cleanup, within, fireEvent, waitFor } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
   needsDecision: [] as unknown[],
@@ -147,12 +147,36 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers(); });
 
 describe('Transactions — Planning and Bank Activity as one tab', () => {
-  it('offers two panels, not four', () => {
+  it('offers three panels, not four', () => {
     renderAt();
     const tabs = screen.getAllByRole('tab').map(t => t.textContent);
     // 'Plan' since 2026-08-27 (Tre: "rename Budget Control to Plan"). The tab ID is still
     // `budget` — only the label moved, so every persisted tab and deep link keeps working.
-    expect(tabs).toEqual(['Plan', 'Transactions']);
+    // 'Forecast' joined on 2026-09-12, moving off the bottom nav onto this row. The point of
+    // this test is unchanged: Planning and Bank Activity are still ONE panel between them, not
+    // two — which is what "not four" has always been guarding.
+    expect(tabs).toEqual(['Plan', 'Transactions', 'Forecast']);
+  });
+
+  /**
+   * PRESSED, not read. A pill that renders and selects nothing is the exact defect this portfolio
+   * has shipped before -- two handlers setting the same view, throwing nothing, passing every
+   * "press every button" check. So this asserts the SELECTION MOVES and the previous panel goes
+   * away, which a pill wired to the wrong id cannot fake.
+   */
+  it('pressing Forecast selects it and takes the Transactions panel off screen', async () => {
+    renderAt();
+    const forecast = screen.getByRole('tab', { name: /Forecast/i });
+    expect(forecast.getAttribute('aria-selected')).toBe('false');
+
+    fireEvent.click(forecast);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /Forecast/i }).getAttribute('aria-selected')).toBe('true');
+    });
+    // The CHANGE, not merely the absence of an error: the other panels are no longer selected.
+    expect(screen.getByRole('tab', { name: /^Plan$/i }).getAttribute('aria-selected')).toBe('false');
+    expect(screen.getByRole('tab', { name: /^Transactions$/i }).getAttribute('aria-selected')).toBe('false');
   });
 
   it('renders both halves on the one panel', () => {

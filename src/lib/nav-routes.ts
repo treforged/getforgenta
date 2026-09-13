@@ -9,17 +9,16 @@
  *
  * ── A TAB ROOT IS NEVER PUSHED, AND THAT IS THE WHOLE DISTINCTION ────────────
  * ⚠️ Offering "back" on a tab root would offer to leave a place there is nothing to go back from.
- * The five tab roots are the bottom bar's own destinations; `MobileNav`'s `PRIMARY` is the one
+ * The tab roots are the bottom bar's own destinations; `MobileNav`'s `PRIMARY` is the one
  * definition and `nav-routes.test.ts` asserts this list still matches it, so the two cannot drift
  * apart silently the day a sixth tab is added.
  */
 
-/** The bottom bar's five destinations. Asserted equal to `MobileNav`'s `PRIMARY` by its test. */
+/** The bottom bar's destinations. Asserted equal to `MobileNav`'s `PRIMARY` by its test. */
 export const TAB_ROOT_PATHS = [
   '/dashboard',
   '/transactions',
   '/debt',
-  '/forecast',
   '/vehicles',
 ] as const;
 

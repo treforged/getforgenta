@@ -20,8 +20,8 @@ import {
 } from '@/lib/activity-tab';
 
 describe('activity-tab', () => {
-  it('names exactly the two panels the page renders, in the order the row shows them', () => {
-    expect([...ACTIVITY_TABS]).toEqual(['budget', 'transactions']);
+  it('names exactly the three panels the page renders, in the order the row shows them', () => {
+    expect([...ACTIVITY_TABS]).toEqual(['budget', 'transactions', 'forecast']);
   });
 
   it('lands a fresh sign-in on Budget Control', () => {

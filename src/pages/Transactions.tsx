@@ -2,7 +2,15 @@ import { backdropAction } from '@/lib/form-dismiss';
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
-import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
+import { TransactionsSkeleton, PageSkeleton } from '@/components/shared/PageSkeleton';
+
+/**
+ * Forecast moved off the bottom nav and into this surface on 2026-09-12 (Tre: "the forecast
+ * section should be moved to the transactions tab"). LAZY on purpose: Forecast pulls the
+ * forecast engine and the chart vendor bundle, and a user who only ever opens Plan or
+ * Transactions should not pay for either. `/forecast` still resolves — it redirects here.
+ */
+const ForecastPanel = lazy(() => import('./Forecast'));
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, useSavingsGoals, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
@@ -837,6 +845,11 @@ export default function Transactions() {
       // also stops the pill row from repeating the surface's own new name back at it.
       { id: 'budget' as const, label: 'Plan', count: null as number | null },
       { id: 'transactions' as const, label: 'Transactions', count: reviewQueueCount },
+      // Forecast joined this row on 2026-09-12 (Tre: "the forecast section should be moved to the
+      // transactions tab"). It reads left to right as rules -> what happened -> what happens next,
+      // which is the same cause-then-effect ordering the first two already follow. Vacating the
+      // bottom nav is also what makes room for the Account tab without a sixth item on a 320px SE.
+      { id: 'forecast' as const, label: 'Forecast', count: null as number | null },
     ]).map(t => (
       <button
         key={t.id}
@@ -943,6 +956,12 @@ export default function Transactions() {
 
           ⚠️ `gap-6` rather than `stack-section`, for the same reason: `stack-section` is
           `> * + *`, which is DOM order, so the visual gap would land above the wrong half. */}
+      {activeTab === 'forecast' && (
+        <Suspense fallback={<PageSkeleton />}>
+          <ForecastPanel />
+        </Suspense>
+      )}
+
       {activeTab === 'transactions' && (
         <div className="flex flex-col gap-6">
           <div
