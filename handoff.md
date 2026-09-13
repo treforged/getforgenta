@@ -1,11 +1,60 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## 2026-09-13 LATE — FOUR SHIPPED. Read this before the sections below, which are now partly stale.
+## 2026-09-13 EVENING — FOUR MORE SHIPPED, AND TWO RECORDED "FACTS" WERE FALSE
 
-`origin/main` 0/0 by contents after each. `a4cff977` · `800069e4` · `ac0c0b6d` · `2ac54d45`.
-Gates each time: `npm run test:tz` all three zones (**4264 passed, 1 skipped**, up from 4225),
-`npx tsc --noEmit` clean, `npm run lint` 0 errors. Every commit proven RED by mutation, every
-mutated file restored byte-exactly and checked by sha256.
+`origin/main` 0/0 by CONTENTS after each push. `b710ddf4` (ledger-side link) · the money-in/paycheck
+fix · the unsourced-metrics fix · the global standing board. Gates each time: `npx tsc --noEmit`
+clean, `npm run lint` 0 errors, `npm run test:tz` all three zones (**4421 passed, 1 skipped**, up
+from 4384). Every commit mutation-proved RED, every mutated file restored byte-exactly by sha256 in
+a `finally`.
+
+### ⛔ TWO THINGS THIS FILE ASSERTED THAT MEASUREMENT DISPROVED. Do not re-derive them.
+
+1. **"Nothing merges his planned row with the real one, so his typed figure stands forever" — FALSE.**
+   SIX of his 18 hand-typed past-dated rows are already linked, every one through the Bank Activity
+   queue. The mechanism works and he uses it. The real defect was that the offer EXPIRES: "Link and
+   correct" renders only on an UNREVIEWED charge, so answering the charge destroys the only route to
+   the link, permanently. Closed by a ledger-side link (`b710ddf4`).
+2. **The Plaid settlement lag is NOT breaking the match.** Payroll settles exactly 2 days late
+   against a 5-day window, and the 08-07/14/21/28 paychecks are all linked. The 90-day average in
+   the old note is the 2026-08-08 backfill inflating it. It delays; it does not break.
+
+**A third correction, mine, mid-slice:** I measured the estimate band (10%/$5) against his ledger,
+saw it produce 5 candidates where the tight band produces 1, and concluded wiring it in would be a
+regression. Wrong — `tight ?? wideMatch` short-circuits, so a tight match can never be displaced.
+The measurement stood; the inference did not.
+
+### ⇢ FIRST UP: `d1a8a06a` — refunds are money-in but NOT income.
+
+Named residue of `81afa6d2`. A refund reverses an expense; treating it as income overstates earnings.
+Self-contained, and the queue work this evening has just been through every surrounding file.
+
+### The measured state of the friends/leaderboard feature, so nobody re-measures it
+
+- **49 profiles. Exactly ONE user (Tre's main) has enabled any metric**, written 19:03 2026-09-13 —
+  i.e. AFTER the toggle fix, so that fix works and saves. His SECOND account has no share rows at
+  all: its toggles were pressed before the fix and have not been pressed since. **That is why he sees
+  nothing on one side.** The friendship itself is real and accepted (18:40, `friend_links`).
+- **Only 2 of the 4 metrics can ever publish.** `Dashboard.tsx` passes `revolvingPeak`,
+  `revolvingCurrent` and `budgetCategories` as hardcoded `null`. Now declared in one place
+  (`UNSOURCED_METRICS`) and shown as unavailable rather than as a dead switch.
+- **`debt_payoff` cannot be rescued by a proxy.** No balance/statement/card-history table exists at
+  all (checked `information_schema`). `net_worth_snapshots.total_liabilities` includes the car loan,
+  so it would inflate a "debt paid off" score. Do not reach for it.
+- **The global board's cohort is 1 against a floor of 20**, so it says "not enough people yet" for
+  everybody. That is the privacy guarantee working, not a bug.
+
+### ⚠️ `REVOKE ... FROM PUBLIC` DOES NOT REMOVE SUPABASE'S DIRECT GRANT TO `anon`
+
+Supabase ships `alter default privileges in schema public grant all on functions to anon,
+authenticated, service_role`, so **every new function is born anonymously callable** and a revoke
+from PUBLIC does not touch it. `has_function_privilege('anon', ...)` read TRUE after the migration I
+believed had closed it. **Read the grant back after every function migration**; add an explicit
+`revoke execute ... from anon`.
+
+---
+
+## 2026-09-13 LATE — the previous session's four (kept; partly superseded above)
 
 **⇢ FIRST UP: MAKE THE SIM CONVERGE WITH AN UNCONDITIONAL OVERDRAW.** Measured in Chrome on
 2026-09-13, five reads over 25 seconds: with a card set to always-pay-full on a month that cannot
@@ -2422,35 +2471,7 @@ index existed), and a policy must be tested AS THE ROLE THAT WOULD ATTACK IT —
 probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger had made
 `current_user` the function owner.
 
-<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
-## Auto-snapshot
 
-_Written 2026-09-13 10:48 by handoff_hook. Everything below this heading is
-machine-generated and replaced each time; put durable notes above it._
-
-- **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
-
-- **Uncommitted (1 file(s)):**
-
-```
-M supabase/.temp/cli-latest
-```
-
-- **Recent commits:**
-
-```
-855a60ee docs(handoff): correcting 38b7d2b2 — that evidence came from REAL accounts, not demo
-dffada63 docs(handoff): what the browser walk found, and the convergence gap it left open
-38b7d2b2 [debt]: "Safe to Pay $7,991" against $2,526 of cash, and no warning at all
-aaeee75b [demo]: a refresh dropped you out of the demo and into your real accounts
-71396612 docs(handoff): auto-apply is wired; the browser walk is now what is overdue
-45ea5098 [auto-apply]: stop asking about a merchant you have answered 22 times
-b7342b3c docs(handoff): four shipped, and the sections they made stale are corrected in place
-2ac54d45 [auto-apply]: the outlier gate was inert by construction, so it read as a guarantee
-```
-
-<!-- AUTO-SNAPSHOT:END -->
 
 ## 2026-09-13 — THE BROWSER WALK RAN. Appended by Ada [63da04]; nothing above was edited.
 
@@ -2503,3 +2524,34 @@ within 5 years**. `$12,700` is the RETIREMENT tile's value.
 **The sentence inviting trust in the numbers is the one carrying two stale hardcoded ones.**
 Fix by DERIVING both from demo data at render — `accountSummary.ccDebt` and `heroState` are
 already in scope — because correcting the strings re-breaks the next time demo data changes.
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-13 17:24 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (2 file(s)):**
+
+```
+M handoff.md
+ M supabase/.temp/cli-latest
+```
+
+- **Recent commits:**
+
+```
+70978c45 [whats-new]: tell a returning user what changed, once, in their own language
+e068eb79 [friends]: the same refused write killed the PUBLISHER too, and the toggles become real switches
+a787279c [friends]: a unique username to connect by - schema, rules, and the enumeration guard
+a6c27d6b [friends]: put the friends and the invite fields above, and group the card so it reads as three things
+e6736663 [friends]: the sharing toggles wrote NOTHING and said nothing - one refused write explained every symptom
+81afa6d2 [queue]: stop asking what category his paycheck is - money in is not a spending question
+47e4a043 [auth]: "keep me logged in" - a profile read that failed was silently shortening the leash
+dafb8c24 [auto-apply]: an explicit undo outranks the inference - the user could not refuse a write they never watched
+```
+
+<!-- AUTO-SNAPSHOT:END -->
