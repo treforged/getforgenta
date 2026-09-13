@@ -3,6 +3,11 @@
 @plugin 'tailwindcss-animate';
 
 @custom-variant dark (&:is(.dark *));
+/* ⚠️ POINTER CAPABILITY, NOT WIDTH. Tre, 2026-09-12: "when it comes to desktop, when users have a
+   mouse, the sidebar selection of tabs should be auto retracted". A touch laptop at desktop width
+   must NOT get a rail that only opens on hover, because it has no hover to open it with — which
+   would leave it permanently showing icons and no labels. */
+@custom-variant fine-pointer (@media (hover: hover) and (pointer: fine));
 
 @utility container {
   margin-inline: auto;

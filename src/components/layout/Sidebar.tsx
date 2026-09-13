@@ -89,10 +89,31 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border h-screen sticky top-0 transition-all duration-200",
+        "hidden lg:block h-screen sticky top-0 shrink-0",
+        // ⚠️ THE FOOTPRINT NEVER CHANGES ON A MOUSE, and that is what makes the expansion an
+        // OVERLAY rather than a reflow. Tre: "it can partially cover where the items on the page
+        // are." If this element grew, every bounding box on the page would move instead.
+        "fine-pointer:w-16",
         collapsed ? "w-16" : "w-52"
       )}
     >
+      {/*
+        The panel. Out of flow on a mouse, so widening it covers the content rather than pushing it.
+
+        ⚠️ `focus-within` IS NOT DECORATION — without it this is mouse-only in the literal sense: a
+        keyboard user would tab through a column of unlabelled icons and never see a label.
+        ⚠️ AND IT CANNOT EAT CLICKS. Only 64px of it is ever on screen unhovered; the extra width
+        exists only while it is open, so content behind the rail stays clickable.
+      */}
+      <div
+        className={cn(
+          "flex flex-col bg-sidebar border-r border-sidebar-border h-screen transition-all duration-200 overflow-hidden",
+          "fine-pointer:absolute fine-pointer:inset-y-0 fine-pointer:left-0 fine-pointer:z-40",
+          "fine-pointer:w-16 fine-pointer:hover:w-52 fine-pointer:focus-within:w-52",
+          "fine-pointer:hover:shadow-xl fine-pointer:focus-within:shadow-xl",
+          collapsed ? "w-16" : "w-52"
+        )}
+      >
       {/* THE MARK SURVIVES THE COLLAPSE (Tre, 2026-09-01: "keep the logo still
           visible when you collapse the left side bar on desktop"). The whole
           brand link used to be dropped, which left a 64px rail with nothing in
@@ -146,6 +167,11 @@ export default function Sidebar() {
             <Link
               key={item.to}
               to={item.to}
+              // ⚠️ THE LABEL ELEMENT IS NOT RENDERED WHEN COLLAPSED, so without this the link's
+              // accessible name is EMPTY and a screen reader announces an unnamed link. That was
+              // already true of the manual collapse; the hover rail makes icon-only the DEFAULT on
+              // every mouse, which turns a latent defect into the normal case.
+              aria-label={item.label}
               title={badge !== null
                 ? `${badge} bank ${badge === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`
                 : undefined}
@@ -252,6 +278,7 @@ export default function Sidebar() {
             {!collapsed && <span>Sign Out</span>}
           </button>
         )}
+      </div>
       </div>
     </aside>
   );
