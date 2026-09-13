@@ -7,8 +7,10 @@ Gates each time: `npm run test:tz` all three zones (**4264 passed, 1 skipped**, 
 `npx tsc --noEmit` clean, `npm run lint` 0 errors. Every commit proven RED by mutation, every
 mutated file restored byte-exactly and checked by sha256.
 
-**⇢ FIRST UP: WIRE AUTO-APPLY. Both prerequisites are now met and the block is lifted** — see
-item 4 below for the one thing still to decide before it ships.
+**⇢ FIRST UP: THE FULL BROWSER WALK (`d235eb39`).** Six commits shipped tonight, **every one
+verified in jsdom only**, and one of them makes the app WRITE WITHOUT ASKING. The charter's own
+rule — a full walk after every major update, every press asserting a CHANGE, the reviewer account
+reset to onboarding first — is now overdue rather than optional.
 
 1. ✅ **`db95d36a` CLOSED — and the ask's premise was too kind.** It said the SHORTFALL never
    reached a screen. Measured first: `paymentUnconditional` occurred **ZERO times** in
@@ -44,8 +46,28 @@ item 4 below for the one thing still to decide before it ships.
    decision and this is where to start.** The remaining judgement is the one in the section
    below: the panel SHRINKS, it does not vanish.
 
-⚠️ **Nothing tonight was verified in a browser. jsdom only.** The full walk is still open
-(`d235eb39`).
+5. ✅ **`566472e8` CLOSED — auto-apply is WIRED (`45ea5098`).** The deck now accepts a remembered
+   link without asking when every gate agrees. **A third hole surfaced while wiring it, and it is
+   the lesson worth keeping: an ABSTAINING gate must not produce `auto`.**
+   `isOrdinaryForMerchant` returns true below its history floor — right for a SUGGESTION, and a
+   licence to write unwatched if you let it through. A merchant with no readable amounts was
+   auto-applying with **no amount test of any kind**. `linkMemoryVerdict` now returns
+   `ask`/`insufficient-amount-history`.
+   ⚠️ **`acceptCard(auto: boolean)` is a SEPARATE function from `onAccept` on purpose.**
+   `DecisionDeckCard` wires `onClick={onAccept}`, so a `(auto?: boolean)` parameter receives a
+   **MouseEvent** — every manual tap would have been recorded as auto-applied, with the prop typed
+   `() => void` so TypeScript says nothing. Do not "simplify" these back into one.
+   ⚠️ `duplicateThisPeriod` is computed from THIS RUN's cards only — narrower than its name, so it
+   can add a prompt but never skip one. Stated in the code.
+6. ✅ **`a22f6bb5` CLOSED — and the ask's attribution was WRONG, which is the useful part.** The
+   $15-against-$1,100 suggestion did NOT come from the matcher: its band is `max($0.05, 1% of
+   rule)` = **$11** on an $1,100 rent, so a $15 charge was never a candidate. It came from
+   merchant-link-memory, which offered on merchant history alone. Fixed in `857f8323`, pinned at
+   `merchant-link-memory.test.ts:188`. **Chasing "the matcher" would have found nothing wrong
+   there** — test the premise before the code.
+
+⚠️ **NOTHING TONIGHT WAS VERIFIED IN A BROWSER. jsdom only, across all six commits** — including
+the one that writes without asking. See FIRST UP.
 
 ## ⚠️ WHY THIS DESK KEEPS STALLING — MEASURED 2026-09-13, NOT A PROMISE
 
