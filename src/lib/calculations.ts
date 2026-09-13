@@ -74,6 +74,24 @@ export function formatYAxisTick(v: number): string {
     style: 'currency',
     currency: moneyDisplay.currency,
     notation: 'compact',
+    // ⚠️ BOTH BOUNDS ARE EXPLICIT, AND LEAVING THE MINIMUM OUT WAS A REAL BUG.
+    //
+    // The first version of this set only `maximumFractionDigits`. Under
+    // `notation: 'compact'`, ECMA-402 then leaves rounding on the compact default
+    // (`morePrecision`) instead of fraction-digit rounding — and ICU builds disagree
+    // about what that prints for an integral value. CI went red on 2026-09-13 with
+    // `$0.0`, `$66.0`, `$3.0k` and `$12.0k` where this machine printed `$0`, `$66`,
+    // `$3k` and `$12k`.
+    //
+    // THE TEST FAILURE WAS THE SMALL HALF. A format whose output depends on the ICU
+    // build means **the string a user sees depends on their browser**, and nobody had
+    // pinned which one was correct. Naming both bounds selects fraction-digit rounding
+    // explicitly, so every engine prints the same tick.
+    //
+    // Measured here on node v24.14.0 / ICU 78.2 / Unicode 17.0; CI's runner differs,
+    // which is precisely how this surfaced. `npm run test:tz` covers three time ZONES
+    // and only ever one ICU, so it cannot see this class of defect on its own.
+    minimumFractionDigits: 0,
     maximumFractionDigits: 1,
   }).format(v);
   // Only a standalone ASCII "K" — never a localised suffix like "Tsd." or "만".

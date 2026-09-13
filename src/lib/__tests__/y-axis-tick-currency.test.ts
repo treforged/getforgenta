@@ -46,6 +46,32 @@ describe('formatYAxisTick — the default US rendering is unchanged', () => {
   });
 });
 
+describe('formatYAxisTick — no padded fraction on an integral tick, on ANY ICU', () => {
+  /**
+   * ⚠️ THIS GROUP EXISTS BECAUSE CI WENT RED AND THIS MACHINE COULD NOT.
+   *
+   * The first fix set only `maximumFractionDigits`, which under `notation: 'compact'`
+   * leaves ECMA-402 on the compact rounding default — and ICU builds disagree there.
+   * GitHub's runner printed `$0.0`, `$66.0`, `$3.0k`, `$12.0k`; node v24.14.0 / ICU
+   * 78.2 printed `$0`, `$66`, `$3k`, `$12k`. Same code, same locale, different string.
+   *
+   * The exact-string cases above pin the house style but are blind to WHY it drifted.
+   * This one states the property directly — an integral amount never grows a `.0` —
+   * so it fails on whichever engine regresses rather than only on the one I happen to
+   * be running. `test:tz` varies the ZONE and never the ICU, so nothing else here
+   * covers this.
+   */
+  it.each([0, 66, 3000, 12000, 250000])('%i renders with no trailing .0', (input) => {
+    expect(formatYAxisTick(input)).not.toMatch(/\.0(?!\d)/);
+  });
+
+  it('a genuinely fractional tick KEEPS its one decimal', () => {
+    // The guard above must not be satisfied by dropping precision everywhere — that
+    // would turn $4.2k into $4k and quietly coarsen every chart.
+    expect(formatYAxisTick(4200)).toBe('$4.2k');
+  });
+});
+
 describe('formatYAxisTick — it follows the currency, which is the actual defect', () => {
   it('THE BUG: a EUR user gets € on the axis, not $', () => {
     setMoneyDisplay({ currency: 'EUR', locale: 'en-IE' });
