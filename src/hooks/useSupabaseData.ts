@@ -1449,7 +1449,7 @@ export function useCarBuilds() {
 
   const add = useMutation({
     mutationFn: async (item: { name: string; year?: number | null; make?: string | null; model?: string | null; notes?: string | null; sort_order?: number }) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_builds')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1464,7 +1464,7 @@ export function useCarBuilds() {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_builds'>>) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_builds')
         .update(sanitizePayload(item))
@@ -1478,7 +1478,7 @@ export function useCarBuilds() {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_builds')
         .delete()
@@ -1519,7 +1519,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const add = useMutation({
     mutationFn: async (item: { title: string; build_id: string; sort_order?: number }) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_build_phases')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1534,7 +1534,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_build_phases'>>) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_phases')
         .update(sanitizePayload(item))
@@ -1548,7 +1548,7 @@ export function useCarBuildPhases(buildId: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_phases')
         .delete()
@@ -1639,7 +1639,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const add = useMutation({
     mutationFn: async (item: { name: string; phase_id: string; build_id: string; brand?: string | null; price?: number | null; link?: string | null; sort_order?: number }) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_build_items')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1654,7 +1654,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_build_items'>>) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_items')
         .update(sanitizePayload(item))
@@ -1668,7 +1668,7 @@ export function useCarBuildItems(buildId: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_build_items')
         .delete()
@@ -1729,7 +1729,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
 
   const add = useMutation({
     mutationFn: async (item: Omit<Tables<'car_maintenance_logs'>, 'id' | 'user_id' | 'created_at'>) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { data, error } = await supabase
         .from('car_maintenance_logs')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
@@ -1744,7 +1744,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
 
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_maintenance_logs'>>) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_maintenance_logs')
         .update(sanitizePayload(item))
@@ -1758,7 +1758,7 @@ export function useCarMaintenanceLogs(buildId: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Not authenticated');
+      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : isDemo ? 'Demo mode' : 'Not authenticated');
       const { error } = await supabase
         .from('car_maintenance_logs')
         .delete()
