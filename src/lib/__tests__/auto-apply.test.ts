@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   autoApplyDecision, isOrdinaryForMerchant,
-  MIN_LINKS_TO_AUTO_APPLY, UNUSUAL_SD, MIN_HISTORY_FOR_OUTLIER, categoryMemoryVerdict,
+  MIN_LINKS_TO_AUTO_APPLY, UNUSUAL_SD, MIN_HISTORY_FOR_OUTLIER, categoryMemoryVerdict, splitPassByConfidence,
 } from '../auto-apply';
 
 /**
@@ -148,5 +148,37 @@ describe('categoryMemoryVerdict — the batch panel he wants gone', () => {
     for (const n of [0, 1, 3, 50]) {
       expect(categoryMemoryVerdict({ decidedCount: n, conflictingCount: 0 }).verdict).not.toBe('never');
     }
+  });
+});
+
+describe('splitPassByConfidence', () => {
+  const rules = {
+    PUBLIX: { decidedCount: 9, conflictingCount: 0 },   // settled habit
+    COSTCO: { decidedCount: 12, conflictingCount: 4 },  // genuinely two answers
+    NEWPLACE: { decidedCount: 1, conflictingCount: 0 }, // not yet a habit
+  };
+  const writes = [
+    { key: 'PUBLIX', chargeId: 'c1' },
+    { key: 'COSTCO', chargeId: 'c2' },
+    { key: 'NEWPLACE', chargeId: 'c3' },
+    { key: 'UNKNOWN', chargeId: 'c4' },
+  ];
+
+  it('auto-applies only the settled merchants', () => {
+    const { auto, ask } = splitPassByConfidence(writes, rules);
+    expect(auto.map(w => w.chargeId)).toEqual(['c1']);
+    expect(ask.map(w => w.chargeId)).toEqual(['c2', 'c3', 'c4']);
+  });
+
+  it('sends an UNKNOWN merchant to ask, never to auto', () => {
+    // Defaulting the other way would auto-apply on no evidence at all.
+    const { auto } = splitPassByConfidence([{ key: 'NOT_IN_RULES', chargeId: 'x' }], rules);
+    expect(auto).toEqual([]);
+  });
+
+  it('loses nothing — every write lands in exactly one side', () => {
+    const { auto, ask } = splitPassByConfidence(writes, rules);
+    expect(auto.length + ask.length).toBe(writes.length);
+    expect(new Set([...auto, ...ask].map(w => w.chargeId)).size).toBe(writes.length);
   });
 });

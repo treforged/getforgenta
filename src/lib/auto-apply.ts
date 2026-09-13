@@ -166,3 +166,34 @@ export function categoryMemoryVerdict(
     history: [],
   });
 }
+
+/**
+ * Split a retroactive category pass into the part the app should just do and the part it should
+ * still ask about.
+ *
+ * ⚠️ A PARTIAL AUTO-APPLY IS THE POINT, not a compromise. Tre's "this section shouldn't exist"
+ * applies to merchants he has labelled repeatedly and consistently. It does NOT apply to a
+ * merchant he has labelled two different ways — Costco is genuinely Groceries some weeks and
+ * Shopping others — and silently picking for him there would be a worse bug than the prompt, since
+ * he would never see it happen. So the panel shrinks to the genuinely ambiguous remainder rather
+ * than disappearing wholesale.
+ *
+ * ⚠️ A WRITE WHOSE MERCHANT RULE IS MISSING GOES TO `ask`. An unknown merchant is not a confident
+ * one, and defaulting the other way would auto-apply on no evidence at all.
+ */
+export function splitPassByConfidence<W extends { key: string }>(
+  writes: readonly W[],
+  rules: Readonly<Record<string, { decidedCount: number; conflictingCount: number }>> | undefined,
+): { auto: W[]; ask: W[] } {
+  const auto: W[] = [];
+  const ask: W[] = [];
+  for (const write of writes) {
+    // ⚠️ A MISSING RULES MAP SENDS EVERYTHING TO `ask`, it does not throw. This decides whether to
+    // write to someone's ledger without asking; the one safe direction when the evidence itself is
+    // absent is to ask, and a crash here would take the whole surface down with it.
+    const rule = rules?.[write.key];
+    if (rule && categoryMemoryVerdict(rule).verdict === 'auto') auto.push(write);
+    else ask.push(write);
+  }
+  return { auto, ask };
+}

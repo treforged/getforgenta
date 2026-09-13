@@ -27,13 +27,16 @@ const mocks = vi.hoisted(() => ({
     ],
     byMerchant: [{ key: 'COSTCO', label: 'Costco', category: 'Groceries', count: 2 }],
   },
+  // Both merchants deliberately UNSETTLED, so nothing auto-applies and these tests keep
+  // exercising the confirm path they were written for. The auto path has its own tests.
+  rules: {} as Record<string, { decidedCount: number; conflictingCount: number }>,
   latest: null as unknown,
   record: { mutateAsync: vi.fn().mockResolvedValue({ id: 'a1' }) },
   markUndone: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
 }));
 
 vi.mock('@/hooks/useMerchantMemory', () => ({
-  useMerchantMemory: () => ({ pass: mocks.pass, isLoading: false }),
+  useMerchantMemory: () => ({ pass: mocks.pass, rules: mocks.rules, isLoading: false }),
 }));
 vi.mock('@/hooks/useAppliedActions', () => ({
   useAppliedActions: () => ({
@@ -119,5 +122,61 @@ describe('undoing replays the stored plan', () => {
 
     await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledTimes(2));
     expect(mocks.markUndone.mutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * THE PROMPT DISAPPEARING — Tre, 2026-09-12: "this section shouldn't exist. it should auto apply."
+ *
+ * ⚠️ THESE ASSERT THE WRITES HAPPEN, not that the panel hid. A component that renders nothing and
+ * also does nothing would pass any "the prompt is gone" check, and would be the worse outcome: his
+ * charges silently left unlabelled instead of silently labelled.
+ */
+describe('auto-applying the settled merchants', () => {
+  beforeEach(() => {
+    mocks.latest = null;
+    // COSTCO settled; NEWPLACE labelled once, so not yet a habit.
+    mocks.pass = {
+      writes: [
+        { chargeId: 'c1', key: 'COSTCO', category: 'Groceries', previousCategory: null },
+        { chargeId: 'c2', key: 'NEWPLACE', category: 'Dining', previousCategory: null },
+      ],
+      byMerchant: [
+        { key: 'COSTCO', label: 'Costco', category: 'Groceries', count: 1 },
+        { key: 'NEWPLACE', label: 'New Place', category: 'Dining', count: 1 },
+      ],
+    } as never;
+    mocks.rules = {
+      COSTCO: { decidedCount: 9, conflictingCount: 0 },
+      NEWPLACE: { decidedCount: 1, conflictingCount: 0 },
+    };
+  });
+
+  it('writes the settled merchant with NO press at all', async () => {
+    render(<MerchantMemoryPanel setCategory={setCategory} />);
+    await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledWith(
+      { syncedTransactionId: 'c1', category: 'Groceries' },
+    ));
+    // And ONLY that one — the unsettled merchant is still his to decide.
+    expect(setCategory.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a durable undo for what it did without asking', async () => {
+    // The half he is NOT watching is the half that most needs to be reversible.
+    render(<MerchantMemoryPanel setCategory={setCategory} />);
+    await waitFor(() => expect(mocks.record.mutateAsync).toHaveBeenCalled());
+    const arg = mocks.record.mutateAsync.mock.calls[0][0] as { steps: { chargeId: string }[] };
+    expect(arg.steps.map(st => st.chargeId)).toEqual(['c1']);
+  });
+
+  it('still ASKS about the merchant labelled inconsistently — the panel shrinks, it does not vanish', async () => {
+    mocks.rules = {
+      COSTCO: { decidedCount: 12, conflictingCount: 4 },
+      NEWPLACE: { decidedCount: 1, conflictingCount: 0 },
+    };
+    render(<MerchantMemoryPanel setCategory={setCategory} />);
+    // Nothing auto-applied, and both remain on offer.
+    expect(await screen.findByText(/Apply to 2 past charges/i)).toBeTruthy();
+    expect(setCategory.mutateAsync).not.toHaveBeenCalled();
   });
 });
