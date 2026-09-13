@@ -2626,6 +2626,16 @@ export type Database = {
         Args: { p_metric: string; p_user_id: string }
         Returns: boolean
       }
+      leaderboard_global_stats: {
+        Args: { p_metric: string; p_scope?: string }
+        Returns: {
+          better_than_pct: number
+          cohort_size: number
+          median_bucket: number
+          min_cohort: number
+          your_bucket: number
+        }[]
+      }
       og_anniversary_last_run: {
         Args: never
         Returns: {

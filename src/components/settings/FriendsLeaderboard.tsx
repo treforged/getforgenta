@@ -4,6 +4,7 @@ import { useFriendLeaderboard } from '@/hooks/useFriendLeaderboard';
 import { hasComparableField, isEmptyRoom } from '@/lib/leaderboard-ranking';
 import type { LeaderboardFriendInput } from '@/lib/leaderboard-ranking';
 import { isMetricSourced, type LeaderboardMetric } from '@/lib/leaderboard-metrics';
+import { GlobalStandingCard } from './GlobalStandingCard';
 
 /**
  * The leaderboard itself, inside the Friends card.
@@ -85,6 +86,11 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
           </button>
         ))}
       </div>
+
+      {/* Where the same metric puts you against EVERYONE, under the friends it is about. Mounted
+          here rather than exported and left for later: an export with no caller is the defect this
+          repo found twice today, once in this very feature. */}
+      <GlobalStandingCard metric={metric} label={METRIC_LABELS[metric]} />
 
       {empty && (
         <p className="text-xs text-muted-foreground">

@@ -23,6 +23,25 @@ const state = {
   friends: [] as Array<{ userId: string; label: string }>,
 };
 
+// The friends board now also renders the GLOBAL standing card beneath it. That card owns a
+// `useQuery`, and this file renders without a QueryClientProvider, so it is stubbed here — these
+// cases are about the FRIENDS board. `GlobalStandingCard.test.tsx` is where the card is exercised
+// for real, and the case at the bottom of this file asserts it is actually mounted, so the stub
+// cannot quietly become a way of not rendering it at all.
+vi.mock('@/hooks/useGlobalLeaderboard', async () => {
+  const actual = await vi.importActual<typeof import('@/hooks/useGlobalLeaderboard')>(
+    '@/hooks/useGlobalLeaderboard',
+  );
+  return {
+    hasEnoughPeople: actual.hasEnoughPeople,
+    useGlobalLeaderboard: () => ({
+      data: { cohortSize: 1, minCohort: 20, yourBucket: 5, betterThanPct: null, medianBucket: null },
+      isLoading: false,
+      error: null,
+    }),
+  };
+});
+
 vi.mock('@/hooks/useFriendLeaderboard', () => ({
   useFriendLeaderboard: (friends: Array<{ userId: string; label: string }>, metric: LeaderboardMetric) => ({
     rows: buildLeaderboardRows(friends, state.snapshots, metric, WEEK),
@@ -130,5 +149,20 @@ describe('FriendsLeaderboard - a rank is not a tie-break', () => {
     expect(screen.getByText('1')).toBeTruthy();
     expect(screen.getByText('2')).toBeTruthy();
     expect(screen.queryByText(/\(tied\)/)).toBeNull();
+  });
+});
+
+/**
+ * ⚠️ THE GLOBAL CARD IS ACTUALLY MOUNTED HERE, and this is the case that stops the stub above from
+ * becoming a way of silently not rendering it. An export with no caller is the defect this feature
+ * already shipped once — `proposeReconciliation` sat exported, documented and uncalled for a week —
+ * so the mount is asserted rather than assumed.
+ */
+describe('FriendsLeaderboard - the global standing sits under the friends', () => {
+  it('renders the global card, and shows its floor as a wait rather than a score', () => {
+    render(<FriendsLeaderboard friends={[]} />);
+    expect(screen.getByText(/Everyone on Forgenta/)).toBeTruthy();
+    expect(screen.getByText(/until 20 are taking part/)).toBeTruthy();
+    expect(screen.queryByText(/ahead of/)).toBeNull();
   });
 });
