@@ -1,4 +1,5 @@
 import type { Json } from '@/integrations/supabase/types';
+import { coalesce } from '@/lib/coalesce-request';
 import type { NotificationKind } from '@/lib/notification-policy';
 
 /**
@@ -127,11 +128,12 @@ export async function loadPrefs(): Promise<NotificationPrefs> {
     const userId = auth?.user?.id;
     if (!userId) return (await readMirror()) ?? defaultPrefs();
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('notification_prefs')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const { data, error } = await coalesce(`profiles:notification_prefs:${userId}`, async () =>
+      await supabase
+        .from('profiles')
+        .select('notification_prefs')
+        .eq('user_id', userId)
+        .maybeSingle());
 
     if (error || !data) return (await readMirror()) ?? defaultPrefs();
 

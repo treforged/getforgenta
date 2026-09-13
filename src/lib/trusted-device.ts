@@ -16,6 +16,7 @@
 // native answer.
 
 import { supabase } from '@/lib/supabase';
+import { coalesce } from '@/lib/coalesce-request';
 
 export const TRUSTED_DEVICE_KEY = 'forgenta:trusted_device_id';
 
@@ -113,7 +114,10 @@ export async function isDeviceTrusted(userId: string): Promise<boolean> {
   const deviceId = getTrustedDeviceId();
   if (!deviceId) return false;
   try {
-    const { data } = await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single();
+    // Coalesced, NOT cached: two simultaneous trust checks share one round trip, but a later
+    // check always re-reads. A remembered answer here would keep a revoked device trusted.
+    const { data } = await coalesce(`profiles:trusted_devices:${userId}`, async () =>
+      await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single());
     const devices = (data?.trusted_devices as TrustedDevice[] | null) ?? [];
     const device = devices.find(d => d.device_id === deviceId);
     if (!device) return false;

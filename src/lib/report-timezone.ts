@@ -20,6 +20,7 @@
  * though `Intl` would accept it.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { coalesce } from '@/lib/coalesce-request';
 
 /** This browser's IANA zone, or null when the runtime will not say. */
 export function detectTimezone(): string | null {
@@ -48,11 +49,12 @@ export async function reportTimezone(userId: string): Promise<void> {
   if (!zone) return;
 
   try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('timezone')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const { data } = await coalesce(`profiles:timezone:${userId}`, async () =>
+      await supabase
+        .from('profiles')
+        .select('timezone')
+        .eq('user_id', userId)
+        .maybeSingle());
 
     if (data?.timezone === zone) return;
 
