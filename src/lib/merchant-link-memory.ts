@@ -157,6 +157,43 @@ export interface LinkableRule {
   id: string;
   name: string;
   active?: boolean;
+  /** The rule's expected amount, when known. Read only by `amountCouldSettle`. */
+  amount?: number | string | null;
+}
+
+/**
+ * The smallest fraction of a rule's amount that a charge may be and still be offered as settling it.
+ *
+ * ⚠️ CHOSEN, NOT DERIVED, AND THE DIFFERENCE MATTERS. Measured against Tre's own 75 accepted
+ * rule-links on 2026-09-13: median ratio 1.000, p05 0.290, and the LOWEST legitimate link is
+ * **0.113** — $11.32 of ANTHROPIC against a $100 "Claude" envelope. Genuine part-payments are
+ * common in his data ($150, $224.50, $350 and $600 all against the $1,100 "GF Half of
+ * Rent/Groceries" rule), so a bound anywhere near the median would refuse work he really does.
+ *
+ * The charge that prompted this was **$15 against $1,100 — a ratio of 0.0136**. There is exactly
+ * ONE such example, so this threshold cannot honestly be fitted; it is placed to clear every known
+ * good link with room (0.113 is 2.3x above it) while still refusing the known bad one (0.0136 is
+ * 3.7x below it). Re-derive it if more bad examples appear; do not tighten it toward the median to
+ * look decisive, because that would start refusing his part-payments.
+ */
+export const LINK_MEMORY_MIN_AMOUNT_RATIO = 0.05;
+
+/**
+ * Whether a charge of this size could plausibly settle a rule of that size.
+ *
+ * ⚠️ UNKNOWN AMOUNTS RETURN TRUE, i.e. this gate abstains rather than blocks. A caller that does
+ * not supply amounts gets exactly the old behaviour — the paycheck case this file was written for
+ * must not start going silent because a field was not plumbed through. A gate that fires on
+ * missing data would be refusing suggestions for a reason that has nothing to do with the money.
+ */
+export function amountCouldSettle(
+  chargeAmount: number | string | null | undefined,
+  ruleAmount: number | string | null | undefined,
+): boolean {
+  const charge = Math.abs(Number(chargeAmount));
+  const rule = Math.abs(Number(ruleAmount));
+  if (!Number.isFinite(charge) || !Number.isFinite(rule) || charge <= 0 || rule <= 0) return true;
+  return charge / rule >= LINK_MEMORY_MIN_AMOUNT_RATIO;
 }
 
 /** What the deck renders and writes when memory has something to offer. */
@@ -189,5 +226,12 @@ export function linkSuggestionFor<R extends LinkableRule>(
   if (!memory || memory.conflictingCount > 0) return null;
   const rule = rulesById[memory.ruleId];
   if (!rule || rule.active === false) return null;
+  // A charge far too small to have settled this rule => null. Tre, 2026-09-12, after one-tapping a
+  // $15 Zelle onto an $1,100 rent rule: "it shouldn't have been suggested in the first place
+  // considering the difference in amounts". Link memory knows only "this merchant, that rule" and
+  // says so in its own header — nothing here touched amounts, so an absurd pairing was offered with
+  // the same confidence as a good one. A bad suggestion beside good ones is worse than none,
+  // because the one-tap UI implies the app checked.
+  if (!amountCouldSettle(charge.amount, rule.amount)) return null;
   return { rule, memory };
 }

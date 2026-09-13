@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveMerchantLinks, merchantLinkFor, linkSuggestionFor, MIN_LINKS_TO_REMEMBER,
+  amountCouldSettle, LINK_MEMORY_MIN_AMOUNT_RATIO,
   type MerchantLinkReview,
 } from '../merchant-link-memory';
 
@@ -168,5 +169,84 @@ describe('linkSuggestionFor', () => {
   it('stays quiet when the remembered rule was retired — never resurrects a projection', () => {
     expect(linkSuggestionFor(card, null, rules, { [PAYCHECK]: { ...payrollRule, active: false } }))
       .toBeNull();
+  });
+});
+
+/**
+ * THE AMOUNT GUARD — Tre, 2026-09-12, after one-tapping a $15 Zelle onto an $1,100 rent rule:
+ * "it shouldn't have been suggested in the first place considering the difference in amounts."
+ *
+ * The half that matters most is the SECOND describe below. A guard that refuses ordinary work is
+ * a guard somebody switches off, so every one of his real low-ratio links is pinned here as a
+ * case that must STILL be offered. If a future tightening of the threshold breaks one of those,
+ * it fails loudly instead of quietly refusing his part-payments.
+ *
+ * ⚠️ These amounts are REAL rows from his history, measured 2026-09-13 across 75 accepted links.
+ */
+describe('amountCouldSettle', () => {
+  it('refuses the pairing that caused this — $15 against an $1,100 rule', () => {
+    expect(amountCouldSettle(-15, 1100)).toBe(false);
+  });
+
+  it('ABSTAINS on unknown amounts rather than blocking', () => {
+    // A caller that has not plumbed amounts through must get the old behaviour, not silence for a
+    // reason that has nothing to do with the money.
+    expect(amountCouldSettle(undefined, 1100)).toBe(true);
+    expect(amountCouldSettle(-15, null)).toBe(true);
+    expect(amountCouldSettle(0, 1100)).toBe(true);
+    expect(amountCouldSettle('not a number', 1100)).toBe(true);
+  });
+
+  it('ignores sign — an inflow settles a rule as readily as an outflow', () => {
+    expect(amountCouldSettle(-1100, 1100)).toBe(true);
+    expect(amountCouldSettle(1100, -1100)).toBe(true);
+  });
+
+  it('sits exactly where the threshold says, on both sides', () => {
+    expect(amountCouldSettle(100 * LINK_MEMORY_MIN_AMOUNT_RATIO, 100)).toBe(true);
+    expect(amountCouldSettle(100 * LINK_MEMORY_MIN_AMOUNT_RATIO - 0.01, 100)).toBe(false);
+  });
+});
+
+describe('the amount guard must not refuse work Tre really does', () => {
+  // charge, rule amount, what it is. Every row is a link he actually accepted.
+  const REAL_LINKS: ReadonlyArray<readonly [number, number, string]> = [
+    [11.32, 100, 'ANTHROPIC against the $100 Claude envelope — his LOWEST real ratio, 0.113'],
+    [150, 1100, 'a part-payment of GF Half of Rent/Groceries'],
+    [224.5, 1100, 'a part-payment of GF Half of Rent/Groceries'],
+    [350, 1100, 'a part-payment of GF Half of Rent/Groceries'],
+    [600, 1100, 'a part-payment of GF Half of Rent/Groceries'],
+    [51.51, 230, 'a Costco shop against the Groceries rule'],
+    [99.69, 170, 'a variable Duke Energy bill against Electricity'],
+    [1094, 1100, 'the full rent payment'],
+  ];
+
+  for (const [charge, rule, what] of REAL_LINKS) {
+    it(`still offers: ${what}`, () => {
+      expect(amountCouldSettle(charge, rule)).toBe(true);
+    });
+  }
+});
+
+describe('linkSuggestionFor, with amounts', () => {
+  const { charges, reviews } = payrollHistory(22);
+  const rules = deriveMerchantLinks(charges, reviews);
+
+  it('goes silent when the charge could not have settled the remembered rule', () => {
+    const byId = { [PAYCHECK]: { ...payrollRule, amount: 1100 } };
+    const tinyCharge = { id: 'new', name: PAYROLL, merchant_name: null, amount: -15 };
+    expect(linkSuggestionFor(tinyCharge, null, rules, byId)).toBeNull();
+  });
+
+  it('still offers when the amounts are plausible — the guard is not a blanket', () => {
+    const byId = { [PAYCHECK]: { ...payrollRule, amount: 848.46 } };
+    const realCharge = { id: 'new', name: PAYROLL, merchant_name: null, amount: 815.75 };
+    expect(linkSuggestionFor(realCharge, null, rules, byId)?.rule.name).toBe('Weekly Paycheck');
+  });
+
+  it('still offers when no amount is known — unchanged behaviour for existing callers', () => {
+    const byId = { [PAYCHECK]: payrollRule };
+    const card = { id: 'new', name: PAYROLL, merchant_name: null };
+    expect(linkSuggestionFor(card, null, rules, byId)?.rule.name).toBe('Weekly Paycheck');
   });
 });

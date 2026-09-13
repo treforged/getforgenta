@@ -36,6 +36,12 @@ export interface MerchantCharge {
   id: string;
   merchant_name?: string | null;
   name?: string | null;
+  /**
+   * The charge amount, when the caller has it. OPTIONAL so every existing caller keeps working —
+   * nothing in category memory reads it. `merchant-link-memory.ts` uses it for one purpose only:
+   * refusing to suggest a rule whose amount the charge could not plausibly settle.
+   */
+  amount?: number | string | null;
 }
 
 /** The fields of a review row merchant memory reads. */
