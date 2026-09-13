@@ -519,16 +519,28 @@ export default function SettingsPage() {
             </p>
           </div>
         </div>
+        {/*
+          ⚠️ `left-0` IS LOAD-BEARING ON BOTH KNOBS BELOW — the same defect, and the same fix, as
+          the notification toggles in `NotificationSettings.tsx`. Without a horizontal anchor an
+          `absolute` knob is laid out at its STATIC position, which inside a `<button>` is roughly
+          the CENTRE, and the translate then moves it from there instead of from the track's left
+          edge. The knob overhangs the track's rounded right cap and the pill reads as cut — the
+          "notch" Tre reported on 2026-09-12, for the third time across three screens.
+
+          Gated now, not just fixed: `src/lib/__tests__/absolute-translate-anchor.gate.test.ts`
+          fails the suite on any `absolute` + `translate-*` with no anchor on that axis, anywhere
+          in `src/`. It was proven RED on these two lines before this change.
+        */}
         <div className="flex items-center justify-between">
           <span className="text-xs">Show cents</span>
           <button onClick={() => { setShowCents(!showCents); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${showCents ? 'bg-primary' : 'bg-secondary'} relative`}>
-            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${showCents ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            <span className={`absolute top-0.5 left-0 w-3 h-3 rounded-full bg-background transition-transform ${showCents ? 'translate-x-4' : 'translate-x-0.5'}`} />
           </button>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs">Auto-generate recurring entries</span>
           <button onClick={() => { setAutoGenerateRecurring(!autoGenerateRecurring); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${autoGenerateRecurring ? 'bg-primary' : 'bg-secondary'} relative`}>
-            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${autoGenerateRecurring ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            <span className={`absolute top-0.5 left-0 w-3 h-3 rounded-full bg-background transition-transform ${autoGenerateRecurring ? 'translate-x-4' : 'translate-x-0.5'}`} />
           </button>
         </div>
       </div>
