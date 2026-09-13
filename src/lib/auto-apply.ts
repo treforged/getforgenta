@@ -33,6 +33,7 @@ export interface AutoApplyReasoned {
     | 'too-few-links'
     | 'duplicate-this-period'
     | 'unusual-for-this-merchant'
+    | 'insufficient-amount-history'
     | 'confident';
 }
 
@@ -165,7 +166,7 @@ export function linkMemoryVerdict(
   target?: { amount?: number | null } | null,
   duplicateThisPeriod?: boolean,
 ): AutoApplyReasoned {
-  return autoApplyDecision({
+  const verdict = autoApplyDecision({
     linkedCount: rule.linkedCount,
     conflictingCount: rule.conflictingCount,
     amount: charge.amount,
@@ -173,6 +174,27 @@ export function linkMemoryVerdict(
     history: rule.amounts,
     duplicateThisPeriod,
   });
+  /**
+   * ⚠️ AN ABSTAINING GATE MUST NOT PRODUCE `auto`. THIS IS THE WHOLE DIFFERENCE BETWEEN OFFERING
+   * AND ACTING.
+   *
+   * `isOrdinaryForMerchant` returns `true` below `MIN_HISTORY_FOR_OUTLIER` — "not enough to judge;
+   * do not pretend" — which is right for a SUGGESTION the user is about to look at. Acting on it
+   * without asking is a different claim entirely: it says the amount was checked and found
+   * ordinary, when in fact it was never checked.
+   *
+   * Without this, a merchant whose linked charges carry no readable amounts auto-applies with NO
+   * amount test of any kind — the same inert-gate shape as the missing `amounts` field, one level
+   * up, and reintroduced at exactly the moment the app starts writing unwatched. Insufficient
+   * evidence is a reason to ASK, never a reason to act.
+   *
+   * It is applied here and NOT inside `autoApplyDecision`, because `categoryMemoryVerdict` shares
+   * that function and its amount gates go inert CORRECTLY — a label has no amount to be unusual.
+   */
+  if (verdict.verdict === 'auto' && rule.amounts.length < MIN_HISTORY_FOR_OUTLIER) {
+    return { verdict: 'ask', reason: 'insufficient-amount-history' };
+  }
+  return verdict;
 }
 
 /**

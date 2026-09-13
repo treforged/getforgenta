@@ -85,6 +85,15 @@ export interface DeckDecision {
    */
   previousCategory: string | null;
   /**
+   * True when the APP made this decision, not the person.
+   *
+   * ⚠️ THE END SCREEN MUST NOT CREDIT THE USER FOR WRITES THEY NEVER MADE. Auto-apply exists to
+   * remove a prompt for an answer they have already given many times; it does not make the write
+   * theirs, and a summary reading "12 linked" over four they never saw is the app quietly
+   * overstating what was reviewed. Counted separately so the screen can say which.
+   */
+  autoApplied?: boolean;
+  /**
    * The ledger row an `'imported'` decision created, so the undo can delete it.
    *
    * ⚠️ WITHOUT THIS, UNDOING AN IMPORT IS A DOUBLE-COUNT. Deleting the charge's reviews returns it
@@ -245,6 +254,14 @@ export interface DeckSummary {
   ignored: number;
   /** Charges that became real ledger entries. Counted apart because this one moved money. */
   imported: number;
+  /**
+   * How many of the decisions above the APP made without asking.
+   *
+   * ⚠️ A SUBSET OF `total`, NOT AN ADDITIONAL CATEGORY — adding it to the others would double-count
+   * every auto-applied charge. It exists so the end screen can say plainly what the user did not
+   * personally decide.
+   */
+  autoApplied: number;
   total: number;
 }
 
@@ -254,6 +271,8 @@ export function deckSummary(decisions: readonly DeckDecision[]): DeckSummary {
     categorized: decisions.filter(d => d.kind === 'categorized').length,
     ignored: decisions.filter(d => d.kind === 'ignored').length,
     imported: decisions.filter(d => d.kind === 'imported').length,
+    /** Of the above, how many the app applied without asking. A SUBSET, never an extra column. */
+    autoApplied: decisions.filter(d => d.autoApplied === true).length,
     total: decisions.length,
   };
 }

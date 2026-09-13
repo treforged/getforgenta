@@ -173,7 +173,26 @@ describe('deckSummary — what the run actually did', () => {
       { chargeId: 'c2', kind: 'accepted', merchantLabel: 'B', detail: 'Fuel', previousCategory: null },
       { chargeId: 'c3', kind: 'ignored', merchantLabel: 'C', detail: 'ignored', previousCategory: null },
     ]);
-    expect(summary).toEqual({ accepted: 2, categorized: 0, ignored: 1, imported: 0, total: 3 });
+    expect(summary).toEqual({ accepted: 2, categorized: 0, ignored: 1, imported: 0, autoApplied: 0, total: 3 });
+  });
+
+  it('counts auto-applied decisions as a SUBSET, never as an extra column', () => {
+    // Adding it to the others would double-count every charge the app applied without asking, and
+    // the end screen would claim a run decided more than it did.
+    const summary = deckSummary([
+      { chargeId: 'c1', kind: 'accepted', merchantLabel: 'A', detail: 'Paycheck', previousCategory: null, autoApplied: true },
+      { chargeId: 'c2', kind: 'accepted', merchantLabel: 'B', detail: 'Rent', previousCategory: null },
+    ]);
+    expect(summary.accepted).toBe(2);
+    expect(summary.autoApplied).toBe(1);
+    expect(summary.total).toBe(2);
+  });
+
+  it('an absent flag is not auto-applied — the person decided it', () => {
+    const summary = deckSummary([
+      { chargeId: 'c1', kind: 'accepted', merchantLabel: 'A', detail: 'Rent', previousCategory: null },
+    ]);
+    expect(summary.autoApplied).toBe(0);
   });
 });
 

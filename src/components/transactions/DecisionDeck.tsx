@@ -32,8 +32,9 @@ import type { ObligationPlan } from '@/lib/charge-obligations';
 import { planLedgerImport, type LedgerDraft } from '@/hooks/useSupabaseData';
 import type { LinkOption } from '@/lib/review-link-options';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
-import { merchantRuleFor, merchantLabel } from '@/lib/merchant-memory';
+import { merchantRuleFor, merchantLabel, normalizeMerchant } from '@/lib/merchant-memory';
 import { linkSuggestionFor } from '@/lib/merchant-link-memory';
+import { linkMemoryVerdict } from '@/lib/auto-apply';
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
 import {
   planSuggestionAccept, ignoreInput, acceptRuleInput, acceptPlanInput, acceptCarInput,
@@ -233,7 +234,15 @@ export default function DecisionDeck({
     }
   }, []);
 
-  const onAccept = useCallback(() => {
+  /**
+   * ⚠️ THE `autoApplied` FLAG IS A SEPARATE FUNCTION, NOT A PARAMETER OF `onAccept`, AND THAT IS
+   * DELIBERATE. `DecisionDeckCard` wires the accept button as `onClick={onAccept}`, so React hands
+   * it a MouseEvent as the first argument — a truthy value. A `(auto?: boolean)` parameter would
+   * therefore mark EVERY manual tap as auto-applied, with the prop typed `() => void` so
+   * TypeScript says nothing. The end screen would then credit the app for work the person did,
+   * which is the same class of untruth as crediting the person for the app's.
+   */
+  const acceptCard = useCallback((autoApplied: boolean) => {
     if (!card || busy) return;
     // Built by the shared planner, never here. A suggestion the planner cannot route is not accepted
     // — no fallback, no guess.
@@ -249,8 +258,64 @@ export default function DecisionDeck({
       merchantLabel: merchantLabel(card.charge) || '—',
       detail: label ?? 'linked',
       previousCategory: currentCategoryOf(card.charge.id),
+      // Recorded on the decision so the end screen can say what the person did not personally do.
+      ...(autoApplied ? { autoApplied: true } : {}),
     });
   }, [card, busy, currentCategoryOf, decide, linkOffer, save]);
+
+  /** What every human control calls. Takes no arguments at all, so none can be smuggled in. */
+  const onAccept = useCallback(() => { acceptCard(false); }, [acceptCard]);
+
+  /**
+   * ⚠️ ACT WITHOUT ASKING, BUT ONLY WHERE EVERY GATE AGREES.
+   *
+   * Tre, on a payroll card answered the same way 25 times and asked a 26th, and on a utility bill
+   * that prompts every month: the app asking about something it has been told repeatedly is the
+   * prompt he wants gone. `autoApplyDecision` is the five-gate answer and `linkMemoryVerdict` is
+   * the one construction of its evidence — see auto-apply.ts for why assembling it by hand at a
+   * call site silently disables the outlier gate.
+   *
+   * ⚠️ REMEMBERED LINKS ONLY, NEVER THE MATCHER'S OWN SUGGESTION. `linkSuggestionFor` returns null
+   * whenever `card.suggestion` is set, so the two are already exclusive — but the reason matters:
+   * a matcher suggestion is the app's inference about THIS charge, while a link offer is the
+   * user's own repeated answer played back. Only the second is something they have already said.
+   *
+   * ⚠️ IT COULD ONLY SHIP BECAUSE THE UNDO BECAME DURABLE FIRST. An auto-applied decision is a
+   * write the user is not watching; until 2026-09-13 the deck recorded its reversal only on run
+   * completion, so closing the deck mid-run made it permanent. Removing a prompt AND the
+   * reversibility its own copy promises is not a trade this makes. Do not reverse that order for
+   * the remaining surfaces.
+   *
+   * ⚠️ ONCE PER CHARGE, claimed before the write. The effect re-runs on every render that touches
+   * `card`, and a second auto-apply on the same charge would write twice and record two decisions.
+   */
+  const autoApplied = useRef(new Set<string>());
+  const autoVerdict = useMemo(() => {
+    if (!card || !linkOffer) return null;
+    const amount = Number(card.charge.amount);
+    // An unreadable amount is not a reason to act — every amount gate would abstain, and acting on
+    // an abstention is precisely the inert-gate failure this whole line of work was about.
+    if (!Number.isFinite(amount)) return null;
+    // ⚠️ BOUNDED, AND THE BOUND IS STATED: "already seen this period" is computed from THIS RUN's
+    // cards, so a duplicate whose twin was decided in an earlier session is not caught. That makes
+    // the gate narrower than its name, never wider — it can only add a prompt, never skip one. The
+    // common shape is both charges sitting unreviewed together, which this does catch.
+    const key = normalizeMerchant(merchantLabel(card.charge));
+    const period = card.charge.date.slice(0, 7);
+    const duplicateThisPeriod = !!key && deck.some(c =>
+      c.charge.id !== card.charge.id
+      && c.charge.date.slice(0, 7) === period
+      && normalizeMerchant(merchantLabel(c.charge)) === key);
+    return linkMemoryVerdict(linkOffer.memory, { amount }, linkOffer.rule, duplicateThisPeriod);
+  }, [card, linkOffer, deck]);
+
+  useEffect(() => {
+    if (!card || busy || complete) return;
+    if (autoVerdict?.verdict !== 'auto') return;
+    if (autoApplied.current.has(card.charge.id)) return;
+    autoApplied.current.add(card.charge.id);
+    acceptCard(true);
+  }, [card, busy, complete, autoVerdict, acceptCard]);
 
   const onCategory = useCallback((category: Category) => {
     if (!card || busy) return;
@@ -617,6 +682,18 @@ export default function DecisionDeck({
                     labelled things, which is the one summary a user must not be given. */}
                 {summary.imported > 0 && (
                   <p>{summary.imported} added to your ledger as a build part</p>
+                )}
+                {/* ⚠️ SAID OUT LOUD, BECAUSE THE USER DID NOT DO THESE. Auto-apply removes a prompt
+                    for an answer they have already given many times; it does not make the write
+                    theirs. A summary reading "12 decided" over four they never saw is the app
+                    overstating what was reviewed — and the undo below is the reason it is safe to
+                    do at all, so the line names it. */}
+                {summary.autoApplied > 0 && (
+                  <p className="text-primary">
+                    {summary.autoApplied} {summary.autoApplied === 1 ? 'was' : 'were'} applied
+                    without asking, from links you have confirmed before — undo below takes them
+                    back too.
+                  </p>
                 )}
                 <p className="text-[10px]">
                   Nothing was added to your ledger and no projected number moved.

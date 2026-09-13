@@ -36,19 +36,36 @@ describe('linkMemoryVerdict — the outlier gate can now actually fire', () => {
     expect(v.reason).toBe('confident');
   });
 
-  it('THE REGRESSION GUARD: an empty history makes the gate abstain, not bind', () => {
-    // This is the pre-fix state, asserted deliberately so the difference is visible. `[]` looks
-    // like "no history yet" and behaves like "never check" — which is why assembling the evidence
-    // by hand at a call site is the thing `linkMemoryVerdict` exists to prevent.
-    const v = linkMemoryVerdict({ ...HABIT, amounts: [] }, { amount: 900 }, { amount: 2000 });
-    expect(v.verdict).toBe('auto');
+  it('AN ABSTAINING GATE MUST NOT PRODUCE `auto` — no history means ASK, not act', () => {
+    // The difference between OFFERING and ACTING. `isOrdinaryForMerchant` returns true below the
+    // floor — "not enough to judge; do not pretend" — which is right for a suggestion the user is
+    // about to read, and wrong as a licence to write unwatched: it would claim the amount was
+    // checked and found ordinary when it was never checked at all.
+    //
+    // ⚠️ THIS TEST USED TO ASSERT `auto` HERE, and the change is the point. A merchant whose
+    // linked charges carry no readable amounts would otherwise auto-apply with NO amount test of
+    // any kind — the inert-gate shape again, reintroduced at exactly the moment the app starts
+    // writing without asking.
+    const v = linkMemoryVerdict({ ...HABIT, amounts: [] }, { amount: 2000 }, { amount: 2000 });
+    expect(v.verdict).toBe('ask');
+    expect(v.reason).toBe('insufficient-amount-history');
   });
 
-  it('abstains just below the history floor and binds at it — the boundary, from a clean pair', () => {
+  it('the history floor is a DISCRIMINATING PAIR: one short asks, exactly enough acts', () => {
+    // Same ordinary amount on both sides, so the only difference is how much history there is.
+    const ordinary = { amount: 2000 };
     const below = Array.from({ length: MIN_HISTORY_FOR_OUTLIER - 1 }, () => 2000);
     const at = Array.from({ length: MIN_HISTORY_FOR_OUTLIER }, () => 2000);
-    expect(linkMemoryVerdict({ ...HABIT, amounts: below }, { amount: 900 }, { amount: 2000 }).verdict).toBe('auto');
-    expect(linkMemoryVerdict({ ...HABIT, amounts: at }, { amount: 900 }, { amount: 2000 }).verdict).toBe('ask');
+    expect(linkMemoryVerdict({ ...HABIT, amounts: below }, ordinary, ordinary).reason)
+      .toBe('insufficient-amount-history');
+    expect(linkMemoryVerdict({ ...HABIT, amounts: at }, ordinary, ordinary).verdict).toBe('auto');
+  });
+
+  it('an UNUSUAL amount at the floor is refused for being unusual, not for want of history', () => {
+    // The two refusals are distinguishable, so a reader of the reason can tell which gate fired.
+    const at = Array.from({ length: MIN_HISTORY_FOR_OUTLIER }, () => 2000);
+    expect(linkMemoryVerdict({ ...HABIT, amounts: at }, { amount: 900 }, { amount: 2000 }).reason)
+      .toBe('unusual-for-this-merchant');
   });
 
   it('a dead-constant merchant treats ANY difference as unusual', () => {
