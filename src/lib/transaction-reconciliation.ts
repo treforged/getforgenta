@@ -264,6 +264,44 @@ export function reconciledPatch(proposal: ReconciliationProposal): {
 }
 
 /**
+ * The exact reversal of `reconciledPatch`, built from the same proposal.
+ *
+ * ⚠️ IT LIVES HERE, BESIDE THE PATCH, ON PURPOSE. The two are a pair: add a field to
+ * `reconciledPatch` and this function is the next thing a reader sees, so a correction that writes
+ * a fourth column cannot silently gain an undo that restores only three. Every repeat defect in
+ * this repo has been a sibling path that diverged because it was somewhere else.
+ *
+ * ⚠️ THE PREVIOUS VALUES COME FROM THE PROPOSAL, NOT FROM THE ROW AFTER THE WRITE. Once the patch
+ * lands, the typed figure is gone — re-deriving it afterwards is precisely what made an earlier
+ * $15 link unrecoverable. `typedAmount` / `typedDate` / `planned.origin` are the values as they
+ * stood before the press, captured while they still exist.
+ *
+ * `origin` is READ rather than hardcoded to `'manual'`. Only manual rows are proposed today, so
+ * the two agree — but a constant here would be an assumption that survives the rule changing,
+ * and this step writes to a money row.
+ */
+export function reconciliationUndoStep(
+  proposal: ReconciliationProposal,
+  chargeId: string,
+): {
+  write: 'restoreTransaction';
+  chargeId: string;
+  transactionId: string;
+  amount: number;
+  date: string;
+  origin: string;
+} {
+  return {
+    write: 'restoreTransaction',
+    chargeId,
+    transactionId: proposal.planned.id,
+    amount: proposal.typedAmount,
+    date: proposal.typedDate,
+    origin: proposal.planned.origin,
+  };
+}
+
+/**
  * Whether a charge may be settled by the BULK "Accept all suggested" button.
  *
  * ⚠️ THE INVARIANT THIS PROTECTS IS STATED ON THE BUTTON ITSELF: *"THIS CANNOT CREATE MONEY, BY

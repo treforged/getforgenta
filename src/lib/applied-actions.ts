@@ -33,7 +33,34 @@ export interface DeleteTransactionStep {
   transactionId: string;
 }
 
-export type UndoStep = SetCategoryStep | RemoveReviewsStep | DeleteTransactionStep;
+/**
+ * Put a ledger row's amount, date and origin back to what the person had typed.
+ *
+ * ⚠️ WHY IT RESTORES THREE FIELDS AND NOT JUST THE AMOUNT. "Link and correct" writes
+ * `reconciledPatch` — amount, date AND origin, together — so a step that restored only the amount
+ * would be the same partial-undo lie one field over: the figure would come back while the date
+ * stayed the bank's and the row stayed marked `synced`, and the undo would report success.
+ * `transaction-reconciliation.ts` owns both the patch and its reversal for exactly that reason.
+ *
+ * ⚠️ AND THIS IS WHY THE BUTTON HAD NO UNDO UNTIL NOW. The three steps above cannot put an amount
+ * back, so recording a link-only reversal for that press would have handed the user a button that
+ * removes the link, leaves the corrected figure standing, and says it worked — on a money page.
+ * The honest absence was better than the confident lie, and this step is what ends it.
+ */
+export interface RestoreTransactionStep {
+  write: 'restoreTransaction';
+  chargeId: string;
+  transactionId: string;
+  amount: number;
+  date: string;
+  origin: string;
+}
+
+export type UndoStep =
+  | SetCategoryStep
+  | RemoveReviewsStep
+  | DeleteTransactionStep
+  | RestoreTransactionStep;
 
 /** A row of `public.applied_actions`, as the client sees it. */
 export interface AppliedActionRow {
@@ -80,6 +107,21 @@ export function parseUndoSteps(raw: unknown): UndoStep[] {
       const transactionId = step.transactionId;
       if (typeof transactionId === 'string' && transactionId) {
         out.push({ write: 'deleteTransaction', chargeId, transactionId });
+      }
+    } else if (step.write === 'restoreTransaction') {
+      // ⚠️ ALL FOUR FIELDS OR NOTHING. This step writes MONEY back, so a row missing one of them
+      // must produce no step at all rather than a write with `undefined` in it — a restore that
+      // sets an amount and leaves the date is the partial undo this step exists to prevent, and it
+      // would report success. `amount` must also be a real finite number: `NaN` survives a
+      // `typeof === 'number'` check and would reach the ledger.
+      const { transactionId, amount, date, origin } = step;
+      if (
+        typeof transactionId === 'string' && transactionId
+        && typeof amount === 'number' && Number.isFinite(amount)
+        && typeof date === 'string' && date
+        && typeof origin === 'string' && origin
+      ) {
+        out.push({ write: 'restoreTransaction', chargeId, transactionId, amount, date, origin });
       }
     }
   }

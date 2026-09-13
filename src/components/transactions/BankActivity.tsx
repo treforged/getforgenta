@@ -47,7 +47,8 @@ import { useAppliedActions } from '@/hooks/useAppliedActions';
 import { formatCurrency } from '@/lib/calculations';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/plaid-category-map';
-import { describeReconciliation, reconciledPatch, isBulkAcceptable } from '@/lib/transaction-reconciliation';
+import { describeReconciliation, reconciledPatch, reconciliationUndoStep, isBulkAcceptable } from '@/lib/transaction-reconciliation';
+import type { UndoStep } from '@/lib/applied-actions';
 import { useCrowdCategories } from '@/hooks/useCrowdCategories';
 import { resolveCategorySuggestion, describeSuggestionSource, CROWD_PRIVACY_NOTE } from '@/lib/crowd-category';
 import { normalizeMerchant } from '@/lib/merchant-memory';
@@ -174,9 +175,28 @@ export default function BankActivity() {
     let done = 0;
     try {
       for (const step of steps) {
+        // ⚠️ EVERY KIND IS NAMED, AND THE FINAL BRANCH IS `setCategory` BY NAME. This used to end in
+        // a bare `else` that assumed setCategory, so adding `restoreTransaction` would have sent a
+        // money-restore into `setCategory.mutateAsync` with an `undefined` category — a write that
+        // clears a label instead of putting an amount back, counted as `done`, and reported as a
+        // successful undo. A fallthrough `else` is a silent default for every step kind not yet
+        // written, which is the one place a default must never be silent.
         if (step.write === 'deleteTransaction') await undoImport.mutateAsync(step.transactionId);
         else if (step.write === 'removeReviews') await remove.mutateAsync(step.chargeId);
-        else await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
+        else if (step.write === 'restoreTransaction') {
+          // Amount, date and origin together — the whole of what "Link and correct" wrote.
+          await updateLedgerTxn.mutateAsync({
+            id: step.transactionId, amount: step.amount, date: step.date, origin: step.origin,
+          });
+        } else if (step.write === 'setCategory') {
+          await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
+        } else {
+          // Unreachable while `UndoStep` is exhausted above; `parseUndoSteps` already drops
+          // anything this app does not understand. THROWING rather than skipping is deliberate: a
+          // step nobody executed must not be counted as undone, or the record is marked complete
+          // with a reversal still outstanding.
+          throw new Error('unknown undo step');
+        }
         done++;
       }
       await markUndone.mutateAsync(undoableLink.id);
@@ -671,6 +691,15 @@ export default function BankActivity() {
      * because the pair model belongs to this list, not to linking.
      */
     also?: { chargeId: string; previousCategory: string | null; write: () => Promise<unknown> },
+    /**
+     * A NON-LINK write this same press performed, with the steps that reverse it.
+     *
+     * "Link and correct" also patches the ledger row's amount, date and origin, and that half is
+     * only reversible through `restoreTransaction`. It runs AFTER the link — corrected-but-not-
+     * linked leaves a changed amount with nothing explaining it — and its steps are appended ONLY
+     * if it landed, so the record never offers to reverse a write that did not happen.
+     */
+    alsoWrite?: { run: () => Promise<unknown>; undoSteps: UndoStep[] },
   ) => {
     try {
       await save.mutateAsync(input);
@@ -680,8 +709,7 @@ export default function BankActivity() {
       // this from recording a reversal for a write that never happened.
       return;
     }
-    const steps: { write: 'removeReviews' | 'setCategory'; chargeId: string; category?: string | null }[] =
-      [{ write: 'removeReviews', chargeId }];
+    const steps: UndoStep[] = [{ write: 'removeReviews', chargeId }];
     // Only when there is something to put back. A write that changes nothing is still a write.
     if (previousCategory !== null) {
       steps.push({ write: 'setCategory', chargeId, category: previousCategory });
@@ -699,6 +727,16 @@ export default function BankActivity() {
       } catch {
         // `save`'s own onError has spoken. The leg on screen DID land, so the undo below is still
         // recorded for it — a partial result with an accurate undo, rather than none at all.
+      }
+    }
+    if (alsoWrite) {
+      try {
+        await alsoWrite.run();
+        steps.push(...alsoWrite.undoSteps);
+      } catch {
+        // The mutation's own `onError` has spoken. The LINK landed, so the record below is still
+        // written for it — a partial result with an accurate undo beats no undo at all, and an
+        // undo that offered to restore an amount nothing changed would be the lie this avoids.
       }
     }
     try {
@@ -1309,23 +1347,33 @@ export default function BankActivity() {
                             );
                             return;
                           }
-                          // ⚠️ NO DURABLE UNDO ON THIS BRANCH, ON PURPOSE, AND THE ABSENCE IS THE
-                          // HONEST ANSWER UNTIL THE UNDO PLANNER CAN RESTORE AN AMOUNT.
-                          // `applied-actions.ts` supports exactly three steps — setCategory,
-                          // removeReviews, deleteTransaction — and NONE can put a ledger
-                          // transaction's amount back. Recording the link's undo here would give
-                          // the user a button that takes the link off, leaves the corrected figure
-                          // in place, and reports success: a PARTIAL undo presented as a complete
-                          // one, on a money page. That is worse than the current honest absence,
-                          // because it would tell them their numbers were restored when one of
-                          // them was not. Tracked separately; needs a `setAmount` step first.
-                          save.mutate(input);
-                          // ⚠️ THE CORRECTION, WHICH IS THE HALF THAT WAS MISSING. The bank is the
-                          // authority on what actually left the account; the typed figure was
-                          // always a prediction. Without this the two rows are linked and the
-                          // ledger keeps the guess for ever, which is a silently wrong number on a
-                          // money page — the failure mode this repo treats as the worst one.
-                          updateLedgerTxn.mutate(reconciledPatch(fix));
+                          // ⚠️ THIS BRANCH HAD NO DURABLE UNDO UNTIL `restoreTransaction` EXISTED,
+                          // and the absence was the honest answer rather than an oversight: the
+                          // three original steps could not put a ledger amount back, so recording a
+                          // link-only reversal would have handed the user a button that removes the
+                          // link, leaves the corrected figure standing, and reports success — a
+                          // partial undo presented as a complete one, on a money page. The step now
+                          // restores amount, date and origin together, which is the whole of what
+                          // `reconciledPatch` writes, so the undo is complete or it is not offered.
+                          //
+                          // ⚠️ THE CORRECTION ITSELF IS THE HALF THAT WAS MISSING BEFORE THAT. The
+                          // bank is the authority on what actually left the account; the typed
+                          // figure was always a prediction. Without it the rows link and the ledger
+                          // keeps the guess for ever — a silently wrong number on a money page.
+                          //
+                          // ⚠️ THE LINK GOES FIRST, exactly as it did before. Corrected-but-not-
+                          // linked leaves an amount changed with nothing explaining why; the helper
+                          // keeps that order and records the restore step ONLY if the correction
+                          // actually landed, the same rule the transfer-pair partner follows.
+                          void linkOneWithUndo(
+                            input, txn.id, exclusive?.category_override ?? null,
+                            `Linked and corrected ${formatCurrency(fix.typedAmount)} → ${formatCurrency(fix.actualAmount)}`,
+                            undefined,
+                            {
+                              run: () => updateLedgerTxn.mutateAsync(reconciledPatch(fix)),
+                              undoSteps: [reconciliationUndoStep(fix, txn.id)],
+                            },
+                          );
                         }}
                         className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
