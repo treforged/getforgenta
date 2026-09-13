@@ -1,7 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { useLeaderboardShares } from '@/hooks/useLeaderboardShares';
-import type { LeaderboardMetric } from '@/lib/leaderboard-metrics';
+import { isMetricSourced, type LeaderboardMetric } from '@/lib/leaderboard-metrics';
 
 /**
  * The per-metric sharing switches, rendered inside the Friends card.
@@ -70,6 +70,11 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
       </p>
       {METRICS.map((m) => {
         const on = isEnabled(m.id);
+        // ⚠️ A SWITCH NOTHING CAN FILL IS NOT OFFERED. Measured 2026-09-13: Tre had all four on and
+        // only two had ever published, because nothing computes the other two. A control that saves
+        // a preference the app can never act on is worse than an absent one — it reads as a broken
+        // feature rather than an unfinished one, which is exactly how he reported it.
+        const sourced = isMetricSourced(m.id);
         return (
           <div
             key={m.id}
@@ -79,6 +84,11 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
             <div className="min-w-0">
               <p className="text-xs font-medium">{m.label}</p>
               <p className="text-xs text-muted-foreground">Friends see {m.shows}.</p>
+              {!sourced && (
+                <p className="text-xs text-muted-foreground italic mt-0.5">
+                  Not ready yet — we are not measuring this one, so it would stay empty.
+                </p>
+              )}
             </div>
             {/* ⚠️ A SWITCH, NOT A BUTTON (Tre, 2026-09-13): "they are weird to understand as is.
                 they dont look like normal buttons." It used to read "Sharing" / "Off" inside a
@@ -92,8 +102,8 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
             <div className="flex items-center gap-2 shrink-0">
               {setEnabled.isPending && <Loader2 size={10} className="animate-spin text-muted-foreground" />}
               <ToggleSwitch
-                checked={on}
-                disabled={readOnly || setEnabled.isPending}
+                checked={sourced && on}
+                disabled={readOnly || !sourced || setEnabled.isPending}
                 onPress={() => setEnabled.mutate({ metric: m.id, enabled: !on })}
                 label={`Share ${m.label} with friends`}
               />

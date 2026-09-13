@@ -51,7 +51,10 @@ describe('LeaderboardShareToggles', () => {
   });
 
   it('shows only the metrics that are actually on as Sharing', () => {
-    state.enabled = new Set<LeaderboardMetric>(['debt_payoff']);
+    // Uses a SOURCED metric deliberately. This case used `debt_payoff`, which the app does not
+    // measure — see `UNSOURCED_METRICS`. A stale `enabled` flag there now renders OFF, which is the
+    // point of the case below, so asserting "on" here would be asserting the bug.
+    state.enabled = new Set<LeaderboardMetric>(['savings_streak']);
     render(<LeaderboardShareToggles />);
     const switches = screen.getAllByRole('switch');
     expect(switches.filter(s => s.getAttribute('aria-checked') === 'true')).toHaveLength(1);
@@ -101,5 +104,43 @@ describe('LeaderboardShareToggles', () => {
     render(<LeaderboardShareToggles readOnly />);
     fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
     expect(mutate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * ⚠️ A SWITCH NOTHING CAN FILL MUST NOT LOOK LIKE A SWITCH THAT IS WORKING.
+ *
+ * Measured on Tre's account, 2026-09-13: all four metrics `enabled`, a real accepted friendship,
+ * and only `goal_progress` and `savings_streak` had ever written a snapshot row. `debt_payoff` and
+ * `budget_adherence` publish nothing because nothing computes them — and `debt_payoff` cannot be
+ * rescued by a proxy, because no table in this database records a revolving balance over time.
+ *
+ * So his stale `enabled = true` must read as OFF rather than as "sharing". Drawing it on would be
+ * the app claiming to publish something it has never published, on a privacy control.
+ */
+describe('metrics the app cannot measure', () => {
+  it('renders an UNSOURCED metric as off even when a stale row says it is enabled', () => {
+    state.enabled = new Set<LeaderboardMetric>(['debt_payoff', 'budget_adherence']);
+    render(<LeaderboardShareToggles />);
+    const on = screen.getAllByRole('switch').filter(s => s.getAttribute('aria-checked') === 'true');
+    expect(on).toHaveLength(0);
+  });
+
+  it('refuses the press, so nobody can switch on something that would stay empty', () => {
+    render(<LeaderboardShareToggles />);
+    fireEvent.click(screen.getByLabelText('Share Debt paid down with friends'));
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('SAYS WHY, rather than showing a dead control with no explanation', () => {
+    render(<LeaderboardShareToggles />);
+    expect(screen.getAllByText(/Not ready yet/).length).toBeGreaterThan(0);
+  });
+
+  it('⚠️ LEAVES THE SOURCED METRICS FULLY WORKING — the control', () => {
+    // Without this, disabling everything would pass all three cases above.
+    render(<LeaderboardShareToggles />);
+    fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
+    expect(mutate).toHaveBeenCalledWith({ metric: 'goal_progress', enabled: true });
   });
 });

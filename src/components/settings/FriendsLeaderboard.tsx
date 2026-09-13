@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { useFriendLeaderboard } from '@/hooks/useFriendLeaderboard';
 import { hasComparableField, isEmptyRoom } from '@/lib/leaderboard-ranking';
 import type { LeaderboardFriendInput } from '@/lib/leaderboard-ranking';
-import type { LeaderboardMetric } from '@/lib/leaderboard-metrics';
+import { isMetricSourced, type LeaderboardMetric } from '@/lib/leaderboard-metrics';
 
 /**
  * The leaderboard itself, inside the Friends card.
@@ -64,7 +64,11 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(METRIC_LABELS) as LeaderboardMetric[]).map((m) => (
+        {/* ⚠️ ONLY THE METRICS THE APP ACTUALLY PUBLISHES GET A TAB. Two of the four have never
+            written a row for anyone, so their tab could only ever say "nobody is sharing this yet" —
+            a tab that is always empty teaches people the whole board is broken, which is how Tre
+            read it on 2026-09-13. `isMetricSourced` is the single declaration; see its header. */}
+        {(Object.keys(METRIC_LABELS) as LeaderboardMetric[]).filter(isMetricSourced).map((m) => (
           <button
             key={m}
             type="button"

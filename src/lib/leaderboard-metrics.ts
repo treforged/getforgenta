@@ -9,6 +9,36 @@
 export type LeaderboardMetric = 'goal_progress' | 'savings_streak' | 'debt_payoff' | 'budget_adherence';
 
 /**
+ * WHICH METRICS THE APP CAN ACTUALLY PUBLISH TODAY — a switch nothing can fill must not be offered.
+ *
+ * ⚠️ MEASURED ON TRE'S ACCOUNT, 2026-09-13. He had all FOUR metrics switched on and a real, accepted
+ * friendship, and only TWO rows had ever been written: `goal_progress` and `savings_streak`. The
+ * other two publish nothing because `Dashboard.tsx` passes `revolvingPeak`, `revolvingCurrent` and
+ * `budgetCategories` as a hardcoded `null` — honestly, and with a comment saying so, because that
+ * page does not hold those figures. So two of the four switches saved a preference the app could
+ * never act on, and he reported it the only way it presents: "the data is not showing".
+ *
+ * ⚠️ AND `debt_payoff` CANNOT BE RESCUED BY A PROXY. It is the share of your PEAK REVOLVING balance
+ * you have cleared, and nothing in this database records a revolving balance over time — there is no
+ * balance or statement history table at all (checked, not assumed). `net_worth_snapshots.
+ * total_liabilities` is the tempting stand-in and it is the wrong number: it includes the car loan,
+ * so every car payment would inflate a "debt paid off" score on a board other people read.
+ *
+ * So the honest state is UNAVAILABLE, said out loud, rather than a switch that silently does
+ * nothing. `budget_adherence` is sourceable in principle — the app has budgets, they are simply not
+ * wired to the page that publishes — and `debt_payoff` needs balance history captured first.
+ *
+ * ⚠️ ONE DECLARATION, READ BY BOTH THE SWITCHES AND THE BOARD. Two lists would drift within a
+ * release and put a switch back in front of someone with nothing behind it.
+ */
+export const UNSOURCED_METRICS: ReadonlyArray<LeaderboardMetric> = ['debt_payoff', 'budget_adherence'];
+
+/** True when something in the app actually computes and publishes this metric. */
+export function isMetricSourced(metric: LeaderboardMetric): boolean {
+  return !UNSOURCED_METRICS.includes(metric);
+}
+
+/**
  * Convert a fraction to a privacy bucket.
  *
  * Returns an integer in {0,5,10,...,100}. Input is clamped to [0,1]; non-finite
