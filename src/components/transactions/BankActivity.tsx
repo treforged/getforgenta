@@ -76,7 +76,7 @@ import { buildDeck } from '@/lib/decision-deck';
 import {
   acceptRuleInput, acceptPlanInput, acceptCarInput, acceptLedgerTxnInput,
 } from '@/lib/review-write-inputs';
-import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight, Layers } from 'lucide-react';
+import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight, Layers, Undo2 } from 'lucide-react';
 
 /** How many rows render before the "show more" cut. All history is browsable; not all at once. */
 const PAGE_SIZE = 100;
@@ -120,7 +120,59 @@ export default function BankActivity() {
       }));
   }, [buildItems, ledger]);
   const { data: paymentPlans } = usePaymentPlans();
-  const { record: recordApplied } = useAppliedActions();
+  const { record: recordApplied, latest: latestApplied, markUndone, stepsOf } = useAppliedActions();
+
+  /**
+   * The link this page can still take back.
+   *
+   * ⚠️ `link_confirm` WAS WRITE-ONLY UNTIL THIS EXISTED. Both the batch accept and the per-row
+   * buttons recorded a durable reversal to `public.applied_actions` — and NOTHING ANYWHERE READ
+   * IT BACK. `MerchantMemoryPanel` is the only other consumer of the durable record and it filters
+   * to `merchant_retro_pass`, so a `link_confirm` row landed in the table and no user ever saw a
+   * button for it. The batch's own comment said the run was "recorded so it can still be taken
+   * back afterwards": it was recorded, and it could not be taken back.
+   *
+   * That is the same shape as a feature with no writer, one layer along — complete at every level
+   * except the one a person touches — and a green suite hides it perfectly, because every piece it
+   * tests genuinely works. **Grep for the CONSUMER, not only for the caller.**
+   */
+  const undoableLink = latestApplied && latestApplied.kind === 'link_confirm' ? latestApplied : null;
+  const [undoing, setUndoing] = useState(false);
+
+  /**
+   * Replay one stored reversal.
+   *
+   * ⚠️ ORDER IS THE RECORDED ORDER, and `deleteTransaction` must precede its charge's
+   * `removeReviews` — the deck's `planDeckUndo` builds it that way for a reason: undone the other
+   * way round leaves spending counted twice AND the charge importable again. This executor honours
+   * whatever order the record carries rather than sorting it, so the planner stays the one place
+   * that decides.
+   *
+   * ⚠️ MARKED UNDONE ONLY AFTER EVERY STEP LANDS. Marking first would retire the record while the
+   * writes were in flight, so a failure half way would leave a half-undone link and no undo left
+   * to finish it.
+   */
+  const undoLink = async () => {
+    if (!undoableLink) return;
+    setUndoing(true);
+    const steps = stepsOf(undoableLink);
+    let done = 0;
+    try {
+      for (const step of steps) {
+        if (step.write === 'deleteTransaction') await undoImport.mutateAsync(step.transactionId);
+        else if (step.write === 'removeReviews') await remove.mutateAsync(step.chargeId);
+        else await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
+        done++;
+      }
+      await markUndone.mutateAsync(undoableLink.id);
+      toast.success('Undone — the link is off and your numbers are back');
+    } catch {
+      // Deliberately NOT marked undone: the remainder is still reversible and must stay offered.
+      toast.message(`Undid ${done} of ${steps.length} — the rest are unchanged`);
+    } finally {
+      setUndoing(false);
+    }
+  };
   const { data: carFunds } = useCarFunds();
 
   /**
@@ -665,6 +717,21 @@ export default function BankActivity() {
 
   return (
     <div className="space-y-4">
+      {/* ⚠️ FIRST, AND ABOVE THE TABS, because immediately after linking a charge "put it back" is
+          the only thing the user might want and it must not be behind anything — the same placement
+          rule the merchant panel's undo follows. The stored label already says what happened, so it
+          is shown rather than reconstructed: a second description of the same act is a second thing
+          that can disagree with it. */}
+      {undoableLink && (
+        <div className="card-forged p-3 flex flex-wrap items-center gap-2">
+          <Undo2 size={13} className="text-primary shrink-0" />
+          <span className="text-xs flex-1 min-w-0">{undoableLink.label}</span>
+          <button onClick={() => void undoLink()} disabled={undoing} className="btn btn-sm btn-secondary">
+            {undoing ? 'Undoing…' : 'Undo'}
+          </button>
+        </div>
+      )}
+
       {/* THE ENTRY POINT. "Needs a decision" is first and default; the archive is the other tab.
           Rendered as a two-button segment rather than a third dropdown because which population you
           are looking at is not the same kind of choice as which month — burying it in a select is

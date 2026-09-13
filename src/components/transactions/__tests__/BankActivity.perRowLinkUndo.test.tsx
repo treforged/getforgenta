@@ -23,6 +23,10 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn().mockResolvedValue(undefined),
   record: vi.fn().mockResolvedValue(null),
   updateLedgerTxn: vi.fn(),
+  remove: vi.fn().mockResolvedValue(undefined),
+  setCategory: vi.fn().mockResolvedValue(undefined),
+  markUndone: vi.fn().mockResolvedValue(undefined),
+  latest: null as Record<string, unknown> | null,
   reviews: [] as Record<string, unknown>[],
   suggestions: {} as Record<string, unknown>,
 }));
@@ -55,8 +59,8 @@ vi.mock('@/hooks/useSupabaseData', async () => {
     useSyncedTransactionReviews: () => ({
       data: mocks.reviews,
       save: { mutate: vi.fn(), mutateAsync: mocks.save },
-      setCategory: { mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(undefined) },
-      remove: { mutate: vi.fn(), mutateAsync: vi.fn() },
+      setCategory: { mutate: vi.fn(), mutateAsync: mocks.setCategory },
+      remove: { mutate: vi.fn(), mutateAsync: mocks.remove },
       removeLink: { mutate: vi.fn() },
       importToLedger: { mutate: vi.fn(), mutateAsync: vi.fn() },
       undoImport: { mutate: vi.fn(), mutateAsync: vi.fn() },
@@ -87,14 +91,19 @@ vi.mock('@/hooks/useBankReviewQueue', () => ({
 }));
 
 vi.mock('@/hooks/useCrowdCategories', () => ({ useCrowdCategories: () => ({ crowd: {} }) }));
-vi.mock('@/hooks/useAppliedActions', () => ({
-  useAppliedActions: () => ({
-    actions: [], latest: null, isLoading: false,
-    record: { mutateAsync: mocks.record },
-    markUndone: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
-    stepsOf: () => [],
-  }),
-}));
+vi.mock('@/hooks/useAppliedActions', async () => {
+  // `stepsOf` is the REAL `parseUndoSteps`. Stubbing it would leave the undo test agreeing with
+  // itself about a step shape the database never validates.
+  const applied = await import('@/lib/applied-actions');
+  return {
+    useAppliedActions: () => ({
+      actions: [], latest: mocks.latest, isLoading: false,
+      record: { mutateAsync: mocks.record },
+      markUndone: { mutateAsync: mocks.markUndone },
+      stepsOf: (row: { steps: unknown }) => applied.parseUndoSteps(row.steps),
+    }),
+  };
+});
 vi.mock('../DecisionDeck', () => ({ default: () => null }));
 vi.mock('../MerchantMemoryPanel', () => ({ default: () => null }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), message: vi.fn() } }));
@@ -104,8 +113,12 @@ import BankActivity from '../BankActivity';
 beforeEach(() => {
   mocks.reviews = [];
   mocks.suggestions = { [CHARGE.id]: { rule: RULE } };
+  mocks.latest = null;
   mocks.save.mockClear().mockResolvedValue(undefined);
   mocks.record.mockClear().mockResolvedValue(null);
+  mocks.remove.mockClear().mockResolvedValue(undefined);
+  mocks.setCategory.mockClear().mockResolvedValue(undefined);
+  mocks.markUndone.mockClear().mockResolvedValue(undefined);
   mocks.updateLedgerTxn.mockClear();
 });
 afterEach(cleanup);
@@ -154,5 +167,60 @@ describe('Bank Activity — a per-row link is durably undoable', () => {
 
     await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
     expect(mocks.record).not.toHaveBeenCalled();
+  });
+});
+
+// ⚠️ THE RECORD WAS WRITE-ONLY UNTIL THE SURFACE BELOW EXISTED. Both the batch and the per-row
+// buttons wrote `link_confirm` rows to `public.applied_actions`, and NOTHING READ THEM BACK —
+// MerchantMemoryPanel is the only other consumer and it filters to `merchant_retro_pass`. Every
+// test above passed against that, because they assert the record is WRITTEN. Writing it is not the
+// promise; getting the numbers back is. These assert the other half.
+describe('Bank Activity — a recorded link undo is actually offered and replayed', () => {
+  const STORED = {
+    id: 'act-1', user_id: 'u1', kind: 'link_confirm', label: 'Linked Rent',
+    created_at: new Date().toISOString(), undone_at: null,
+    steps: [
+      { write: 'removeReviews', chargeId: 'stx-1' },
+      { write: 'setCategory', chargeId: 'stx-1', category: 'Bills' },
+    ],
+  };
+
+  it('offers the stored undo', () => {
+    mocks.latest = STORED;
+    render(<BankActivity />);
+    expect(screen.getByText('Linked Rent')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy();
+  });
+
+  it('replays every step and only then marks the record undone', async () => {
+    mocks.latest = STORED;
+    render(<BankActivity />);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+    // The link comes off AND the previous label goes back. A press that did neither and still
+    // reported success is the exact failure this surface exists to remove.
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('stx-1'));
+    await waitFor(() => expect(mocks.setCategory).toHaveBeenCalledWith({
+      syncedTransactionId: 'stx-1', category: 'Bills',
+    }));
+    await waitFor(() => expect(mocks.markUndone).toHaveBeenCalledWith('act-1'));
+  });
+
+  it('does NOT mark the record undone when a step fails, so the rest stays offered', async () => {
+    mocks.latest = STORED;
+    mocks.remove.mockRejectedValue(new Error('network'));
+    render(<BankActivity />);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(1));
+    // Retiring the record here would leave a half-undone link with no undo left to finish it.
+    expect(mocks.markUndone).not.toHaveBeenCalled();
+  });
+
+  it('offers nothing for another kind of action', () => {
+    // The page must not claim it can reverse a merchant pass it has no executor path for.
+    mocks.latest = { ...STORED, kind: 'merchant_retro_pass' };
+    render(<BankActivity />);
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
   });
 });

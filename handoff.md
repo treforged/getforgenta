@@ -163,9 +163,18 @@ Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_rev
   ⚠️ **The batch's own comment asserted "Every row it did write is individually undoable"** —
   true of the batch's record, false of the buttons. **A comment stating a safety property a
   sibling path does not have is how the gap survived review.** Corrected in the same commit.
-- 🔴 **BIGGEST FINDING OF THE NIGHT — TWO OF THREE DURABLE UNDO KINDS ARE WRITE-ONLY**
-  (ask `629b76cc`). `link_confirm` and `deck_decision` are recorded to `public.applied_actions`
-  and **no UI ever offers them.** `MerchantMemoryPanel.tsx:39` filters
+- ✅ **`link_confirm` IS NOW OFFERED AND REPLAYED** (2026-09-13). BankActivity renders an undo
+  banner above the tabs for the latest `link_confirm`, executing all three step kinds in the
+  recorded order (`deleteTransaction` before its charge's `removeReviews`, per `planDeckUndo`),
+  and marking the record undone ONLY after every step lands. Four more tests, the two replay
+  ones **proven red by mutation**, file restored byte-exactly by sha256.
+- 🔴 **`deck_decision` IS STILL WRITE-ONLY** (ask `629b76cc`, partially closed).
+  `DecisionDeck.tsx:454` records it and nothing offers it — the deck's own "Undo all" is
+  in-session and dies with the component, which is the very thing that record exists to outlive.
+  The same banner would serve it; it needs the deck's step kinds checked against this executor.
+
+  **The finding, kept because it is the general lesson:** two of three durable undo kinds were
+  recorded to `public.applied_actions` and **no UI ever offered them.** `MerchantMemoryPanel.tsx:39` filters
   `latest.kind === 'merchant_retro_pass'`, and that panel is the only consumer of the durable
   record anywhere. The deck's and the batch's own undos are IN-SESSION only.
   **So the batch comment "recorded to `public.applied_actions` so it can still be taken back
