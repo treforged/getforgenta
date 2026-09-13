@@ -1713,12 +1713,51 @@ export function mergeDebtPaymentsIntoStream(
   const withoutInjected = baseTxns.filter(t => !t.isDebtPayment);
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const realDebtNotes = new Set(
-    withoutInjected
-      .filter(t => t.category === 'Debt Payments' && t.date?.startsWith(monthStr) && !t.isGenerated)
-      .map(t => (t.note || '').toLowerCase())
+  const realDebtRows = withoutInjected.filter(
+    t => t.category === 'Debt Payments' && t.date?.startsWith(monthStr) && !t.isGenerated,
   );
-  const uniqueGenerated = debtPaymentTxns.filter(g => !realDebtNotes.has((g.note || '').toLowerCase()));
+
+  const realDebtNotes = new Set(realDebtRows.map(t => (t.note || '').toLowerCase()));
+
+  /**
+   * ⚠️ THE NOTE ALONE COULD NEVER MATCH AN IMPORTED PAYMENT, SO THE MONTH DOUBLE-COUNTED IT.
+   *
+   * Tre: the checking debit and the card credit are "one event seen twice". This is the half of
+   * that which actually moves a number. A generated debt payment is written with the note
+   * `"<Card Name> Payment"` — "Prime Visa Payment". A row that came from the bank carries the
+   * PROVIDER'S DESCRIPTOR instead, and his real one reads
+   * `DISCOVER E-PAYMENT 0237 WEB ID: 2510020270`. Those two strings cannot be equal, so the
+   * generated projection survived beside the real payment and the month counted it twice.
+   *
+   * ⚠️ AND THE APP ITSELF CREATES THE ROWS THAT CANNOT MATCH. "Add to my ledger" is what copies a
+   * bank descriptor into `note`, so the dedupe key was guaranteed to miss exactly the rows the
+   * product's own button produces. A free-text field written by a provider is not an identity.
+   *
+   * The amount is the structural key. A Debt Payments row of the same amount, in the same month,
+   * is the payment the projection was predicting.
+   *
+   * ⚠️ EACH REAL ROW CANCELS AT MOST ONE PROJECTION, which is why this is a CONSUMABLE list and not
+   * a Set. Two cards owing $200 each produce two generated rows; one real $200 payment must retire
+   * one of them, not both, or the plan would silently forget a card he still owes.
+   *
+   * ⚠️ IT CAN ONLY EVER REMOVE A GENERATED ROW, NEVER A REAL ONE — so the worst case is dropping a
+   * projection that a real payment had already satisfied, which is the direction that under-states
+   * a plan rather than the one that invents money. The old behaviour failed the other way.
+   */
+  const unclaimedAmounts = realDebtRows
+    .map(t => Number(t.amount))
+    .filter(n => Number.isFinite(n) && n > 0);
+
+  const uniqueGenerated = debtPaymentTxns.filter(g => {
+    if (realDebtNotes.has((g.note || '').toLowerCase())) return false;
+    const amount = Number(g.amount);
+    if (!Number.isFinite(amount)) return true;
+    const i = unclaimedAmounts.findIndex(a => Math.abs(a - amount) <= 0.01);
+    if (i === -1) return true;
+    unclaimedAmounts.splice(i, 1);
+    return false;
+  });
+
   return [...withoutInjected, ...uniqueGenerated];
 }
 
