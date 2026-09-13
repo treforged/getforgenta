@@ -7,10 +7,35 @@ Gates each time: `npm run test:tz` all three zones (**4264 passed, 1 skipped**, 
 `npx tsc --noEmit` clean, `npm run lint` 0 errors. Every commit proven RED by mutation, every
 mutated file restored byte-exactly and checked by sha256.
 
-**⇢ FIRST UP: THE FULL BROWSER WALK (`d235eb39`).** Six commits shipped tonight, **every one
-verified in jsdom only**, and one of them makes the app WRITE WITHOUT ASKING. The charter's own
-rule — a full walk after every major update, every press asserting a CHANGE, the reviewer account
-reset to onboarding first — is now overdue rather than optional.
+**⇢ FIRST UP: MAKE THE SIM CONVERGE WITH AN UNCONDITIONAL OVERDRAW.** Measured in Chrome on
+2026-09-13, five reads over 25 seconds: with a card set to always-pay-full on a month that cannot
+cover it, `debtCashConverged` never becomes true, so **/debt's "at plan" interest has no figure at
+all**. The hero now NAMES that cause instead of saying "hasn't finished calculating" (`38b7d2b2`)
+— **the copy is fixed and the convergence is not, and nothing in that commit claims otherwise.**
+The fixed point assumes month-0 payments fit inside the pool; `m0FloorPins` now pins an
+overdrawn payment. That is engine work in `useCardProjection`'s refinement loop.
+
+### ⚠️ THE BROWSER WALK EARNED ITS KEEP IMMEDIATELY — read this before trusting a green suite
+Partial walk done (/demo → /dashboard → /debt, toggle pressed both ways). It found **two real
+defects that every gate had passed**, on work written hours earlier the same night:
+
+1. **"Safe to Pay $7,991" against $2,526 of liquid cash, with NO warning** (`38b7d2b2`). The old
+   predicate is `availableCash − minimumsDue < 0`, and an unconditional card is settled in FULL so
+   it is never a minimum left unmet — the subtraction came out large and POSITIVE. **The tile says
+   *Safe*.** The number proving the month did not fit was on the row underneath, unread.
+   **The tests written that night asserted the shortfall RENDERS. None asked what the tile beside
+   it was claiming.**
+2. **The convergence failure above**, visible only as a permanent "hasn't finished calculating".
+
+⚠️ **AND MY OWN FIRST FIX HAD A HOLE THE MUTATION FOUND.** Disabling the CALL SITE — passing `[]`
+where the rows' shortfalls belong — left **all 3,180 lib tests passing**, because the new test
+covered the HELPER and the defect lived entirely in the FEEDING.
+`month0-debt-breakdown.cashWarning.test.ts` is aimed at the wiring and fails on that mutation.
+**A test of a helper is not a test of the caller that forgot to call it.**
+
+**STILL OPEN on the walk (`d235eb39`):** the reviewer-account onboarding reset, every other route,
+and the Dashboard widget's re-wired banner — **that banner was changed and NOT exercised in a
+browser**, only /debt was.
 
 1. ✅ **`db95d36a` CLOSED — and the ask's premise was too kind.** It said the SHORTFALL never
    reached a screen. Measured first: `paymentUnconditional` occurred **ZERO times** in
@@ -2358,32 +2383,29 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-13 00:31 by handoff_hook. Everything below this heading is
+_Written 2026-09-13 10:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
-M handoff.md
- M src/components/transactions/BankActivity.tsx
- M supabase/.temp/cli-latest
-?? src/components/transactions/__tests__/BankActivity.perRowLinkUndo.test.tsx
+M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
-41597027 docs(handoff): why deck auto-apply is blocked, and why this desk keeps stalling
-e5acdb22 [cards]: the always-pay-full toggle gets a writer — the feature was unreachable
-a7aaa54f docs(handoff): auto-snapshot refresh at fc38deef
-fc38deef [cards]: unconditional payments settled off the top, and a field the rebuild was eating
-cb513215 [cards]: the unconditional-payment column, and why the engine half is NOT in this commit
-872385d9 [nav]: the desktop rail retracts to icons and expands over the page on hover
-766d5e69 docs(handoff): tonight's matching + nav work, and the four facts that live nowhere else
-46e1a786 [nav]: the Account tab, and the leaderboard becomes reachable at last
+71396612 docs(handoff): auto-apply is wired; the browser walk is now what is overdue
+45ea5098 [auto-apply]: stop asking about a merchant you have answered 22 times
+b7342b3c docs(handoff): four shipped, and the sections they made stale are corrected in place
+2ac54d45 [auto-apply]: the outlier gate was inert by construction, so it read as a guarantee
+ac0c0b6d [undo]: the deck recorded its undo only if you finished the run
+800069e4 [undo]: "Link and correct" gets the undo it was honestly refused
+a4cff977 [debt]: the always-pay-full toggle did nothing on the path users actually see
+9b5ed37e docs(handoff): what the statement-parsing measurement actually needs
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
