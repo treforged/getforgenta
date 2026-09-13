@@ -64,6 +64,28 @@ export interface MerchantLinkRule {
    * model, and a caller may decide that is too ambiguous to offer.
    */
   conflictingCount: number;
+  /**
+   * The amounts of this merchant's charges that were linked to `ruleId`, oldest-to-newest order
+   * not guaranteed and not needed — `isOrdinaryForMerchant` reads it as a population, not a series.
+   *
+   * ⚠️ THIS FIELD EXISTS BECAUSE A GATE WITHOUT IT COULD NOT BIND, AND READ AS A GUARANTEE.
+   * `autoApplyDecision`'s fifth gate — Tre's own "the difference is just so large that it makes
+   * sense to confirm" — calls `isOrdinaryForMerchant`, which abstains when it has fewer than
+   * `MIN_HISTORY_FOR_OUTLIER` amounts. With no amounts on the rule it abstained EVERY time, so the
+   * gate was inert by construction: it waved through the exact large-deviation case it was written
+   * to catch, while its presence in the list said otherwise.
+   *
+   * ⚠️ ONLY CHARGES LINKED TO THE WINNING RULE ARE COUNTED. Amounts from links that went somewhere
+   * else are a different population — folding them in would widen the spread with other
+   * obligations' figures and make a genuine outlier look ordinary, which fails in the permissive
+   * direction.
+   *
+   * ⚠️ AND THIS FILE'S HEADER STILL HOLDS: nothing here uses amounts to DECIDE anything. The
+   * suggestion is still merchant history alone. The amounts are carried so the CALLER that decides
+   * whether to act without asking has the evidence it claims to weigh — same evidence, different
+   * verb.
+   */
+  amounts: number[];
 }
 
 interface Link {
@@ -71,6 +93,8 @@ interface Link {
   label: string;
   ruleId: string;
   at: string;
+  /** The charge's amount, or null when the caller did not supply one. */
+  amount: number | null;
 }
 
 /**
@@ -101,8 +125,14 @@ export function deriveMerchantLinks(
       if (review.status !== 'linked_rule') continue;
       const ruleId = review.rule_id ?? null;
       if (!ruleId) continue;
+      // ⚠️ A MISSING OR UNPARSEABLE AMOUNT IS `null`, NEVER 0. A zero would be counted as a real
+      // charge of nothing, pulling the mean down and the spread up — so an absent figure would make
+      // the outlier test MORE permissive, which is the wrong direction to fail in. Nulls are
+      // dropped below, which correctly leaves the gate abstaining for want of evidence.
+      const raw = charge.amount == null ? Number.NaN : Number(charge.amount);
       (links[key] ??= []).push({
         key, ruleId, label: merchantLabel(charge), at: review.updated_at ?? '',
+        amount: Number.isFinite(raw) ? raw : null,
       });
     }
   }
@@ -131,6 +161,10 @@ export function deriveMerchantLinks(
       ruleId: winner,
       linkedCount,
       conflictingCount: list.length - linkedCount,
+      // The winning rule's own population, nulls dropped. See `MerchantLinkRule.amounts`.
+      amounts: list
+        .filter(l => l.ruleId === winner && l.amount !== null)
+        .map(l => l.amount as number),
     };
   }
   return rules;

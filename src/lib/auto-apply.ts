@@ -142,6 +142,40 @@ export function autoApplyDecision(e: AutoApplyEvidence): AutoApplyReasoned {
 }
 
 /**
+ * The verdict for a remembered LINK, built from the rule and the charge in front of the user.
+ *
+ * ⚠️ THIS EXISTS SO THE HISTORY CANNOT BE FORGOTTEN AT THE CALL SITE, and that is not a
+ * hypothetical: `MerchantLinkRule` carried no amounts at all until 2026-09-13, so gate 5 —
+ * `isOrdinaryForMerchant` — abstained on EVERY call through its `history.length <
+ * MIN_HISTORY_FOR_OUTLIER` guard. It was INERT BY CONSTRUCTION while appearing in the list of
+ * reasons the app might ask, which is the worst shape a limit can take: it waved through the exact
+ * large-deviation case Tre named in the ask, and its presence read as a guarantee.
+ *
+ * A caller assembling `AutoApplyEvidence` by hand can reintroduce that silently — passing `[]`
+ * looks like "no history yet" and behaves like "never check". One construction, so it cannot.
+ *
+ * ⚠️ THE CHARGE'S OWN AMOUNT IS EXCLUDED FROM ITS OWN HISTORY by construction: `rule.amounts` holds
+ * charges ALREADY linked, and the one being judged has not been. A population containing the
+ * outlier drags the mean toward it and inflates the spread, which makes an outlier look ordinary —
+ * failing permissively, in the direction that skips the prompt.
+ */
+export function linkMemoryVerdict(
+  rule: { linkedCount: number; conflictingCount: number; amounts: readonly number[] },
+  charge: { amount: number },
+  target?: { amount?: number | null } | null,
+  duplicateThisPeriod?: boolean,
+): AutoApplyReasoned {
+  return autoApplyDecision({
+    linkedCount: rule.linkedCount,
+    conflictingCount: rule.conflictingCount,
+    amount: charge.amount,
+    targetAmount: target?.amount ?? null,
+    history: rule.amounts,
+    duplicateThisPeriod,
+  });
+}
+
+/**
  * The same rule, applied to CATEGORY memory rather than link memory.
  *
  * ⚠️ THE AMOUNT GATES GO INERT HERE, AND THAT IS CORRECT RATHER THAN A SHORTCUT. A category is a
