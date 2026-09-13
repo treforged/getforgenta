@@ -2451,3 +2451,55 @@ b7342b3c docs(handoff): four shipped, and the sections they made stale are corre
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+## 2026-09-13 — THE BROWSER WALK RAN. Appended by Ada [63da04]; nothing above was edited.
+
+Three Ada sessions were live on this tree when this was written, so this is an APPEND. Sam
+stood this session down mid-walk; everything below is committed and pushed.
+
+**The Chrome extension is connected again**, so `d235eb39`'s old blocker is gone. Dev server
+up on 8080, reviewer verified in first-run state by query (`profiles.user_id =
+d3550fa8…`, `onboarding_completed=false`, `founder_note_seen=false`).
+
+⚠️ **THE CLAUDE CHROME IS SIGNED IN AS `tre@treforged.com` — HIS REAL FINANCIAL DATA.** Not
+the reviewer. No write control was pressed anywhere in this session for that reason. The walk
+ran on `/demo`, which is credential-free.
+
+### ✅ `aaeee75b` — a refresh dropped you out of the demo and into your real accounts
+`isDemo` was a plain `useState`. A reload ended the demo silently, and because `/demo`
+redirects to `/dashboard` the URL could not get back to it. For a signed-in visitor the same
+layout and headings came back carrying **real balances**, with the DEMO banner and its "Back
+to my account" exit both gone. Nothing threw.
+Now sessionStorage — which is exactly the lifetime the banner already promises ("resets when
+you close the tab"), so it makes existing copy true rather than changing it. Proven red by
+mutation, restored byte-exactly (sha256). `test:tz` green all three zones, **4299 passed, 1
+skipped**. Verified live in Chrome after the fix, at +4.4s, not only at +0.4s.
+
+⚠️ **NAMED RESIDUE, do not report the demo as fully sealed.** `AuthContext.tsx:311` calls
+`setIsDemo(false)` on the `SIGNED_IN` event. That is CORRECT on a real sign-in. I observed the
+demo clear once mid-session with no user action — consistent with Supabase re-emitting
+`SIGNED_IN` — and **could not reproduce it on demand** across repeated reloads and
+navigations afterwards. Recorded as unknown rather than explained away.
+
+### What the walk PROVED, and what it did not
+| Checked | Result |
+|---|---|
+| Dashboard Overview / Goals / Accounts | **Pass.** Panel body changes, not just the pill — hashes `953198664` / `-911732157` / `2067698804`, distinct headings each. |
+| Four legal routes share one component | **Pass.** 10481 / 7117 / 1407 / 6263 chars, four distinct hashes. |
+| Payoff figure on two surfaces | **Pass.** `/dashboard` and `/debt` both read "Not within 5 years" on the same data. The 2026-09-08 defect does not recur. |
+| **NOT walked** | first-run/onboarding (needs the reviewer signed in), every Settings toggle + reload survival, filter/range controls on `/transactions` `/forecast` `/goals` `/vehicles`. |
+
+⚠️ **A near-miss worth keeping.** The first press at the Overview/Goals pills landed at the
+wrong `y` — the page had scrolled since the screenshot — and Overview stayed active. The
+fingerprint was correctly unchanged, and reporting it then would have been a **false finding
+of the exact forged-glass shape**. Assert the control actually took the press before believing
+an unchanged panel. Coordinates from a screenshot go stale; read the box.
+
+### NEW, filed as `52634982` — the demo shop window contradicts itself
+`Dashboard.tsx:1710` tells the reader "26 y/o with $12,700 in CC debt … a plan that clears the
+cards in a little over a year. **Every number here is live-calculated from the data below.**"
+On that same screen the live tiles read **CC DEBT $6,482** and the payoff headline reads **Not
+within 5 years**. `$12,700` is the RETIREMENT tile's value.
+**The sentence inviting trust in the numbers is the one carrying two stale hardcoded ones.**
+Fix by DERIVING both from demo data at render — `accountSummary.ccDebt` and `heroState` are
+already in scope — because correcting the strings re-breaks the next time demo data changes.
