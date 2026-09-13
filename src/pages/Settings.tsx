@@ -151,6 +151,19 @@ export default function SettingsPage() {
   useEffect(() => {
     if (location.hash === '#security' && !isDemo) setActiveTab('security');
   }, [location.hash, isDemo, setActiveTab]);
+
+  // ⚠️ `/settings?friend_code=…` AND `?partner_code=…` ARE LIVE ACCEPT LINKS out of invite
+  // emails, and NOTHING was selecting a panel for them. PartnerLink and FriendLink read the
+  // query param and pre-fill the code field — but they rendered under Account Security while
+  // `activeTab` is PERSISTED and defaults elsewhere, so the pre-filled field sat on a tab the
+  // recipient was not looking at. The pre-fill worked and was invisible, which is why nothing
+  // ever reported it as broken. Moving both to Account (2026-09-12) puts them on the default
+  // tab, but a returning user whose last tab was Plan would still miss them — so the code
+  // selects the panel explicitly, exactly as `#security` does.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if ((params.get('friend_code') || params.get('partner_code')) && !isDemo) setActiveTab('account');
+  }, [location.search, isDemo, setActiveTab]);
   const { data: profile, update } = useProfile();
   const { data: accounts } = useAccounts();
   const { subscription, isPremium, hasStripeCustomer, isLoading: subLoading, refetch: refetchSub } = useSubscription();
@@ -636,16 +649,6 @@ export default function SettingsPage() {
 
           <div className="border-t border-border" />
 
-          {/* Partner Link (partner-linking design §4 Phase 1) */}
-          <PartnerLink />
-
-          <div className="border-t border-border" />
-
-          {/* Friends (friends-leaderboard plan §4 Phase 1) — free tier, no view
-              lens: a friend can never see a budget, only shared progress. */}
-          <FriendLink />
-
-          <div className="border-t border-border" />
 
           {/* Two-Factor Auth */}
           <TwoFactorAuth />
@@ -843,6 +846,25 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* People you are connected to. Tre, 2026-09-12: "friends should be in account, same as
+          partner linking should be in account." Both lived under Account Security, which read as
+          if linking a partner were a security control rather than a relationship. Sharing WHAT a
+          partner may see is still governed in Security — who you are connected to is Account. */}
+      {panel === 'account' && !isDemo && (
+        <div className="card-forged p-5 space-y-5">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
+
+          {/* Partner Link (partner-linking design §4 Phase 1) */}
+          <PartnerLink />
+
+          <div className="border-t border-border" />
+
+          {/* Friends (friends-leaderboard plan §4 Phase 1) — free tier, no view
+              lens: a friend can never see a budget, only shared progress. */}
+          <FriendLink />
+        </div>
+      )}
+
       {/* Support */}
       {panel === 'account' && !isDemo && (
         <div className="card-forged p-5 space-y-3">
@@ -912,7 +934,12 @@ export default function SettingsPage() {
       {/* Danger Zone — hidden in demo mode. Last card on Account, and deliberately so: the way
           out of the product sits at the bottom of the page about the account, not beside a
           preference someone is mid-way through changing. */}
-      {panel === 'account' && !isDemo && (
+      {/* Tre, 2026-09-12: "danger zone should be in security". Deleting an account is an
+          irreversible action ON the account, which is what Security governs — it is not a
+          category of its own, and it was never a peer of Profile. Moved by changing ONLY this
+          predicate: the block, its confirmation steps and its provider checks are untouched, so
+          the control is no easier to reach than it was. */}
+      {panel === 'security' && !isDemo && (
         <div className="card-forged p-5 space-y-4 border border-destructive/20">
           <h2 className="text-xs font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
 

@@ -152,6 +152,18 @@ async function renderSecurityTab() {
   await screen.findByText('Linked Accounts');
 }
 
+/**
+ * Partner Link and Friends moved to ACCOUNT on 2026-09-12 (Tre: "friends should be in account,
+ * same as partner linking should be in account"). Their shape coverage moved with them rather
+ * than being deleted -- a section that changes tab is exactly when its "does it still render
+ * properly" check matters most.
+ */
+async function renderAccountTab() {
+  render(<MemoryRouter><SettingsPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: /^Account$/ }));
+  await screen.findByText('Connections');
+}
+
 beforeEach(() => {
   state.identities = [{ provider: 'email' }, { provider: 'google', identity_data: { email: 'owner@gmail.com' } }];
   state.mfaFactors = { totp: [{ id: 'factor-1', friendly_name: 'Authenticator App', factor_type: 'totp', status: 'verified' }], phone: [] };
@@ -238,11 +250,12 @@ describe('the Security tab, one card, three remove controls', () => {
  * heading and an explaining sentence under it, so the next section cannot ship without one.
  */
 describe('the Security tab, one shape per section', () => {
+  // Partner Link and Friends are NOT here any more -- they moved to the Account tab. Their
+  // identical shape assertions live in "the Account tab, Connections" below, so this list
+  // shrinking never means coverage was dropped.
   const SECTIONS = [
     'Change Email',
     'Linked Accounts',
-    'Partner Link',
-    'Friends',
     'Two-Factor Authentication',
     'Trusted Devices',
     'Change Password',
@@ -268,12 +281,11 @@ describe('the Security tab, one shape per section', () => {
     }
   });
 
-  it('states what each security control actually shares, since that is what a person is deciding', async () => {
-    await renderSecurityTab();
-    // Spot-checked on the two whose consequence is least guessable from two words.
-    expect(screen.getByText(/read only/i)).toBeTruthy();
-    expect(screen.getByText(/never see your budget/i)).toBeTruthy();
-  });
+  // The "what does this actually share" spot-check used to live here, on /read only/ (Partner
+  // Link) and /never see your budget/ (Friends). BOTH of those sections moved to the Account tab
+  // on 2026-09-12, so this describe has no subject for it left. It moved WHOLE to "the Account
+  // tab, Connections" rather than being re-pointed at some other string to keep a green here --
+  // a test kept alive by swapping its subject is no longer the test that was reviewed.
 
   it('one button size across the tab — nothing left on the old px-3 py-2', () => {
     const src = readFileSync(path.resolve(here, '../Settings.tsx'), 'utf8');
@@ -325,5 +337,88 @@ describe('the Security tab, one shape per section', () => {
     for (const src of files) {
       expect(src).toMatch(/SettingsSection/);
     }
+  });
+});
+
+/**
+ * THE TWO SECTIONS THAT MOVED, ASSERTED IN THEIR NEW HOME.
+ *
+ * Moving a section is exactly when "it still renders" stops being obvious: it now sits inside a
+ * different card, under a different heading, with different siblings. These are the same shape
+ * assertions the Security tab applies to its own sections, pointed at Account.
+ */
+describe('the Account tab, Connections', () => {
+  for (const title of ['Partner Link', 'Friends']) {
+    it(`${title} renders under Account with a heading AND an explaining sentence`, async () => {
+      await renderAccountTab();
+
+      const heading = screen.getByText(title);
+      const row = heading.closest('div.flex.items-center.gap-2');
+      expect(row, `${title} has no heading row`).toBeTruthy();
+      const blurb = row!.nextElementSibling;
+      expect(blurb?.tagName, `${title} has no description under its heading`).toBe('P');
+      const text = (blurb?.textContent ?? '').trim();
+      expect(text.endsWith('.'), `${title}'s description is not a sentence: "${text}"`).toBe(true);
+      expect(text.split(/\s+/).length).toBeGreaterThanOrEqual(8);
+    });
+  }
+
+  it('states what each connection actually shares, since that is what a person is deciding', async () => {
+    await renderAccountTab();
+    // Spot-checked on the two whose consequence is least guessable from two words.
+    expect(screen.getByText(/read only/i)).toBeTruthy();
+    expect(screen.getByText(/never see your budget/i)).toBeTruthy();
+  });
+
+  it('does NOT render them on the Security tab any more', async () => {
+    await renderSecurityTab();
+    expect(screen.queryByText('Partner Link')).toBeNull();
+    expect(screen.queryByText('Friends')).toBeNull();
+  });
+});
+
+/**
+ * DANGER ZONE MOVED TO THE SECURITY TAB (Tre, 2026-09-12: "danger zone should be in security").
+ *
+ * Moving a DESTRUCTIVE control is the case where "it still renders" is worth least. The standing
+ * constraint is that it must not become EASIER to reach, so this presses the trigger and asserts
+ * the two-step gate is intact: revealing the confirm step must not delete anything, and the
+ * final button stays disabled until "DELETE" is typed exactly.
+ *
+ * Nothing here ever deletes an account -- the assertion is on the GATE, and the final button is
+ * deliberately never clicked in its enabled state.
+ */
+describe('Danger Zone, in its new home on the Security tab', () => {
+  it('renders under Security, not Account', async () => {
+    await renderSecurityTab();
+    expect(screen.getByText('Danger Zone')).toBeTruthy();
+
+    cleanup();
+    await renderAccountTab();
+    expect(screen.queryByText('Danger Zone')).toBeNull();
+  });
+
+  it('still takes TWO steps, and the second is gated on typing DELETE', async () => {
+    await renderSecurityTab();
+
+    // Step 1 -- the confirm UI is not present until the trigger is pressed.
+    expect(screen.queryByRole('button', { name: /Permanently delete my account/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Delete account/i }));
+
+    // Step 2 appeared -- an observable CHANGE, not merely the absence of an error.
+    const confirmBtn = await screen.findByRole('button', { name: /Permanently delete my account/i });
+    expect(screen.getByText(/permanent and irreversible/i)).toBeTruthy();
+
+    // ...and it is INERT until the exact word is typed. This is the half that would catch a move
+    // that accidentally dropped the gate.
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(true);
+
+    const field = screen.getByPlaceholderText(/DELETE/i);
+    fireEvent.change(field, { target: { value: 'delete' } });
+    expect((confirmBtn as HTMLButtonElement).disabled, 'lowercase must not arm it').toBe(true);
+
+    fireEvent.change(field, { target: { value: 'DELETE' } });
+    expect((confirmBtn as HTMLButtonElement).disabled, 'the exact word must arm it').toBe(false);
   });
 });
