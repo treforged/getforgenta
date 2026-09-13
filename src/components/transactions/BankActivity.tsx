@@ -43,6 +43,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useAppliedActions } from '@/hooks/useAppliedActions';
 import { formatCurrency } from '@/lib/calculations';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/plaid-category-map';
@@ -119,6 +120,7 @@ export default function BankActivity() {
       }));
   }, [buildItems, ledger]);
   const { data: paymentPlans } = usePaymentPlans();
+  const { record: recordApplied } = useAppliedActions();
   const { data: carFunds } = useCarFunds();
 
   /**
@@ -655,6 +657,10 @@ export default function BankActivity() {
           buildItems={unpaidBuildItems}
           importToLedger={importToLedger}
           undoImport={undoImport}
+          // Stores the finished run's reversal plan, so closing the deck no longer makes the run
+          // irreversible. Passed from here for the same reason the mutations above are: one write
+          // path, owned by the surface, not re-instantiated inside the child.
+          recordApplied={recordApplied.mutateAsync}
           // Cross-row analysis, computed once here. `planLedgerImport` refuses a transfer leg, but
           // only if it is told which charges are legs.
           transferLegIds={transferLegIds}

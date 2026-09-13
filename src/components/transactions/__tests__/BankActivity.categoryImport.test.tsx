@@ -84,6 +84,16 @@ vi.mock('@/hooks/useBankReviewQueue', () => ({
 }));
 
 vi.mock('@/hooks/useCrowdCategories', () => ({ useCrowdCategories: () => ({ crowd: {} }) }));
+// These render BankActivity WITHOUT a QueryClientProvider, mocking each data hook instead, so a
+// real react-query hook throws "No QueryClient set". Mocked in the same shape as its neighbours.
+vi.mock('@/hooks/useAppliedActions', () => ({
+  useAppliedActions: () => ({
+    actions: [], latest: null, isLoading: false,
+    record: { mutateAsync: vi.fn().mockResolvedValue(null) },
+    markUndone: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
+    stepsOf: () => [],
+  }),
+}));
 vi.mock('../DecisionDeck', () => ({ default: () => null }));
 vi.mock('../MerchantMemoryPanel', () => ({ default: () => null }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), message: vi.fn() } }));

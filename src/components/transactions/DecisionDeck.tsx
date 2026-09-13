@@ -18,9 +18,10 @@
 // it would renumber itself mid-run ("3 of 50" becoming "3 of 47") and slide unseen cards past the
 // user. The run's population and its total are whatever they were when it opened.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Undo2 } from 'lucide-react';
+import type { RecordAppliedInput } from '@/hooks/useAppliedActions';
 import DeckShell from '@/components/shared/DeckShell';
 import DeckEndCard from '@/components/shared/DeckEndCard';
 import { type Category } from '@/lib/types';
@@ -94,6 +95,15 @@ export interface DecisionDeckProps {
   importToLedger: { mutateAsync: (v: { syncedTransactionId: string; draft: LedgerDraft }) => Promise<unknown> };
   undoImport: { mutateAsync: (transactionId: string) => Promise<unknown> };
   /**
+   * Store the finished run's reversal plan so its undo outlives this component.
+   *
+   * ⚠️ A PROP, NOT A HOOK CALLED IN HERE, matching how every other write on this surface arrives.
+   * Reaching for `useAppliedActions()` directly coupled the deck to auth and Supabase and broke 35
+   * existing tests that render it with neither — the component's own convention was already the
+   * right answer. OPTIONAL, so a caller that does not supply it simply keeps the in-session undo.
+   */
+  recordApplied?: (input: RecordAppliedInput) => Promise<unknown>;
+  /**
    * Charges that are one leg of a transfer between the user's own accounts.
    *
    * ⚠️ PASSED IN, NEVER RE-DERIVED. Importing a transfer leg books a movement between the user's
@@ -127,7 +137,7 @@ const errorMessage = (e: unknown): string =>
 
 export default function DecisionDeck({
   cards, accountName, reviewsByCharge, rules, paymentPlans, carFunds, ledger,
-  buildItems, transferLegIds, save, setCategory, remove, importToLedger, undoImport, onClose,
+  buildItems, transferLegIds, save, setCategory, remove, importToLedger, undoImport, recordApplied, onClose,
 }: DecisionDeckProps) {
   // Snapshotted, deliberately — see this file's header. The prop may shrink under us as writes land.
   const [deck] = useState<readonly BankDeckCard[]>(cards);
@@ -422,6 +432,35 @@ export default function DecisionDeck({
       setBusy(false);
     }
   }, [remove, setCategory, undoImport, state.decisions, summary.total]);
+
+  /**
+   * ⚠️ THE RUN'S UNDO OUTLIVES THE DECK NOW. `undoAll` below reverses this run, but it only exists
+   * while this component is mounted — close the deck and the whole run became irreversible, which
+   * is half of what Tre meant by "There's no easy way to undo this action". The finished run is
+   * recorded to `public.applied_actions` so it can still be taken back afterwards.
+   *
+   * ⚠️ ONCE PER RUN, guarded by a ref rather than by state. The end screen re-renders for reasons
+   * that have nothing to do with deciding anything (a toast, a refetch, a resize), and a run
+   * recorded twice would offer two undos for one set of writes — pressing the second would try to
+   * reverse work the first already reversed.
+   */
+  const runRecorded = useRef(false);
+  useEffect(() => {
+    if (!complete || state.decisions.length === 0 || runRecorded.current) return;
+    runRecorded.current = true;
+    const steps = planDeckUndo(state.decisions);
+    if (steps.length === 0) return;
+    void recordApplied?.({
+      kind: 'deck_decision',
+      label: `${summary.total} ${summary.total === 1 ? 'charge' : 'charges'} decided`,
+      steps,
+    }).catch(() => {
+      // The decisions LANDED; only the durable record failed. The in-session "Undo all" below is
+      // still available, so this does not warrant interrupting the end screen with a toast — but
+      // it must not be reported as success either, so the ref is left true and nothing claims a
+      // durable undo exists.
+    });
+  }, [complete, state.decisions, summary.total, recordApplied]);
 
   /**
    * Undo the ONE decision just made, and go back to that card.
