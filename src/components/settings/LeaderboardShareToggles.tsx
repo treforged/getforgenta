@@ -85,8 +85,8 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
               aria-pressed={on}
               aria-label={`${on ? 'Stop sharing' : 'Share'} ${m.label}`}
               onClick={() => setEnabled.mutate({ metric: m.id, enabled: !on })}
-              style={{ borderRadius: 'var(--radius)' }}
-              className={`px-2.5 py-1 text-xs font-medium border transition-colors btn-press shrink-0 disabled:opacity-50 ${
+              
+              className={`px-2.5 py-1 text-xs font-medium border transition-colors btn-press shrink-0 disabled:opacity-50 rounded-nested-2 ${
                 on
                   ? 'border-primary/40 text-primary'
                   : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'

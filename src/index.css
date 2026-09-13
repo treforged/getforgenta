@@ -373,6 +373,27 @@
   @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
 }
 
+/* ── CORNER CONCENTRICITY ─────────────────────────────────────────────────────
+   Tre, 2026-09-12: "research corner concentricity and integrate this concept
+   into all my apps, current and future."
+
+   r_inner = max(0, r_outer − gap)
+
+   When a rounded child sits inside a rounded parent, the space between the two
+   arcs must stay constant around the corner. Reusing `var(--radius)` at BOTH
+   levels — which this app did in 90 files — guarantees a pinch wherever the
+   padding is smaller than the radius. These DERIVE the inner radius from the
+   token instead, so they stay correct if `--radius` ever changes, and `max(0px,…)`
+   handles the case where the child should simply be square.
+
+   Pick the one matching the PARENT's padding: a child of a `p-2` box takes
+   `rounded-nested-2`. Enforced by src/lib/__tests__/corner-concentricity.gate.test.ts.
+   ──────────────────────────────────────────────────────────────────────────── */
+@utility rounded-nested-1 { border-radius: max(0px, calc(var(--radius) - 0.25rem)); }
+@utility rounded-nested-2 { border-radius: max(0px, calc(var(--radius) - 0.5rem)); }
+@utility rounded-nested-3 { border-radius: max(0px, calc(var(--radius) - 0.75rem)); }
+@utility rounded-nested-4 { border-radius: max(0px, calc(var(--radius) - 1rem)); }
+
 @utility card-clickable {
   /* Clickable card — stronger border + press feedback */
   @apply cursor-pointer transition-all duration-200;

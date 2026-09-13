@@ -139,8 +139,7 @@ export function LinkedAccounts() {
                 <button
                   onClick={() => handleLink(provider.id)}
                   disabled={busy}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50 rounded-nested-2"
                 >
                   {busy ? <Loader2 size={10} className="animate-spin" /> : <Link2 size={10} />}
                   Link

@@ -1155,8 +1155,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                     value={dedDisplayValues[d.id] ?? String(d.value)}
                     onChange={e => setDedDisplayValues(prev => ({ ...prev, [d.id]: e.target.value }))}
                     onBlur={e => { const v = parseFloat(e.target.value); const n = isNaN(v) ? 0 : v; setDedDisplayValues(prev => ({ ...prev, [d.id]: String(n) })); updateDeduction(d.id, { value: n }); }}
-                    className="w-full bg-secondary border border-border px-2 py-1.5 text-sm text-foreground font-display font-bold text-right min-w-0"
-                    style={{ borderRadius: 'var(--radius)' }}
+                    className="w-full bg-secondary border border-border px-2 py-1.5 text-sm text-foreground font-display font-bold text-right min-w-0 rounded-nested-2"
                   />
                   {/* $/% toggle */}
                   <div className="flex gap-1">

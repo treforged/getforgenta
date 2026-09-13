@@ -110,8 +110,7 @@ export function PartnerLink() {
           <button
             onClick={() => revoke.mutate({ id: activeLink.id, exPartnerUserId: partnerUserId, kind: 'link' })}
             disabled={revoke.isPending}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
-            style={{ borderRadius: 'var(--radius)' }}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0 rounded-nested-2"
           >
             {revoke.isPending ? <Loader2 size={10} className="animate-spin" /> : <Unlink size={10} />}
             Unlink
@@ -143,8 +142,7 @@ export function PartnerLink() {
           <button
             onClick={() => revoke.mutate({ id: pendingInvite.id, exPartnerUserId: null, kind: 'invite' })}
             disabled={revoke.isPending}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
-            style={{ borderRadius: 'var(--radius)' }}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0 rounded-nested-2"
           >
             {revoke.isPending ? <Loader2 size={10} className="animate-spin" /> : null}
             Cancel invite

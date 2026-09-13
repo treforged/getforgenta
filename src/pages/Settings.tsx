@@ -693,8 +693,7 @@ export default function SettingsPage() {
                       </div>
                       <button
                         onClick={() => handleRevokeDevice(device.device_id)}
-                        className="btn btn-sm btn-outline text-muted-foreground hover:border-destructive/40 hover:text-destructive shrink-0"
-                        style={{ borderRadius: 'var(--radius)' }}
+                        className="btn btn-sm btn-outline text-muted-foreground hover:border-destructive/40 hover:text-destructive shrink-0 rounded-nested-2"
                       >
                         Revoke
                       </button>

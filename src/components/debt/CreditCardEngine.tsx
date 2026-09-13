@@ -1363,8 +1363,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
             <button
               onClick={handleAutoAdjust}
-              className="shrink-0 flex items-center gap-1 border border-primary/40 text-primary px-2 py-1 text-[9px] sm:text-[10px] font-medium btn-press hover:bg-primary/20"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="shrink-0 flex items-center gap-1 border border-primary/40 text-primary px-2 py-1 text-[9px] sm:text-[10px] font-medium btn-press hover:bg-primary/20 rounded-nested-2"
             >
               <RotateCcw size={10} /> Clear all
             </button>

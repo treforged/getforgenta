@@ -94,8 +94,7 @@ export function PhoneAuth() {
           </div>
           <button
             onClick={() => { setStep('idle'); setCurrentPhone(null); }}
-            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
-            style={{ borderRadius: 'var(--radius)' }}
+            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press rounded-nested-2"
           >
             Change
           </button>
