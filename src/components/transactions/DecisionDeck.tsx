@@ -104,6 +104,16 @@ export interface DecisionDeckProps {
    */
   recordApplied?: (input: RecordAppliedInput) => Promise<unknown>;
   /**
+   * Retire a durable record when the decision it describes is reversed IN SESSION.
+   *
+   * ⚠️ WITHOUT THIS, RECORDING PER DECISION WOULD BE A REGRESSION. "Undo last" and "Undo all"
+   * reverse the writes here and now; the stored row would survive them and go on offering to
+   * reverse work that has already been reversed. A record is truthful only while the decision it
+   * describes still stands. OPTIONAL for the same reason `recordApplied` is — a caller that
+   * supplies neither keeps the in-session undo and nothing claims a durable one exists.
+   */
+  markUndone?: (id: string) => Promise<unknown>;
+  /**
    * Charges that are one leg of a transfer between the user's own accounts.
    *
    * ⚠️ PASSED IN, NEVER RE-DERIVED. Importing a transfer leg books a movement between the user's
@@ -137,7 +147,8 @@ const errorMessage = (e: unknown): string =>
 
 export default function DecisionDeck({
   cards, accountName, reviewsByCharge, rules, paymentPlans, carFunds, ledger,
-  buildItems, transferLegIds, save, setCategory, remove, importToLedger, undoImport, recordApplied, onClose,
+  buildItems, transferLegIds, save, setCategory, remove, importToLedger, undoImport, recordApplied,
+  markUndone, onClose,
 }: DecisionDeckProps) {
   // Snapshotted, deliberately — see this file's header. The prop may shrink under us as writes land.
   const [deck] = useState<readonly BankDeckCard[]>(cards);
@@ -403,6 +414,27 @@ export default function DecisionDeck({
     setState(advanceDeck);
   }, [busy]);
 
+  /** chargeId -> the `applied_actions` row recording it, or null when there is none to retire. */
+  const recordedByCharge = useRef(new Map<string, string | null>());
+
+  /**
+   * Retire the durable rows for decisions that have just been reversed in session.
+   *
+   * ⚠️ A RECORD THAT OUTLIVES ITS DECISION IS WORSE THAN NO RECORD. It offers to reverse writes
+   * that are already reversed, and the user cannot tell the difference until they press it.
+   * Failures are swallowed on purpose: the data is already correct, and the row's own steps are
+   * idempotent enough that a stale offer is a nuisance rather than a corruption.
+   */
+  const retireRecords = useCallback(async (chargeIds: readonly string[]) => {
+    if (!markUndone) return;
+    for (const chargeId of chargeIds) {
+      const id = recordedByCharge.current.get(chargeId);
+      recordedByCharge.current.delete(chargeId);
+      if (!id) continue;
+      await markUndone(id).catch(() => undefined);
+    }
+  }, [markUndone]);
+
   /**
    * Undo everything this run wrote, newest first.
    *
@@ -423,6 +455,8 @@ export default function DecisionDeck({
         else await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
         done++;
       }
+      // Every decision is reversed, so every durable row describing one is now stale.
+      await retireRecords(state.decisions.map(d => d.chargeId));
       setUndone(true);
       toast.success(`Undone — ${summary.total} ${summary.total === 1 ? 'decision is' : 'decisions are'} reversed`);
     } catch (e) {
@@ -431,36 +465,62 @@ export default function DecisionDeck({
     } finally {
       setBusy(false);
     }
-  }, [remove, setCategory, undoImport, state.decisions, summary.total]);
+  }, [remove, setCategory, undoImport, state.decisions, summary.total, retireRecords]);
 
   /**
-   * ⚠️ THE RUN'S UNDO OUTLIVES THE DECK NOW. `undoAll` below reverses this run, but it only exists
-   * while this component is mounted — close the deck and the whole run became irreversible, which
-   * is half of what Tre meant by "There's no easy way to undo this action". The finished run is
-   * recorded to `public.applied_actions` so it can still be taken back afterwards.
+   * ⚠️ RECORDED AT THE MOMENT OF THE DECISION, NOT AT THE END OF THE RUN.
    *
-   * ⚠️ ONCE PER RUN, guarded by a ref rather than by state. The end screen re-renders for reasons
-   * that have nothing to do with deciding anything (a toast, a refetch, a resize), and a run
-   * recorded twice would offer two undos for one set of writes — pressing the second would try to
-   * reverse work the first already reversed.
+   * This used to be gated on `complete`, so the durable record only ever existed for a run somebody
+   * finished. Close the deck on card three and the three writes that had already landed became
+   * irreversible the instant the component unmounted — the exact thing Tre meant by "There's no
+   * easy way to undo this action", still true for every abandoned run.
+   *
+   * ⚠️ AND IT IS THE PREREQUISITE FOR AUTO-APPLY. An auto-applied decision is a write the user is
+   * NOT watching; under the old gate, closing the deck mid-run made it permanent. Removing a prompt
+   * while also removing the reversibility its own copy promises is the trade this ordering exists
+   * to refuse — durable undo first, auto-apply after.
+   *
+   * ⚠️ ONE ROW PER DECISION, AND THAT IS THE POINT RATHER THAN A SIDE EFFECT. The end-screen
+   * whole-run undo is what Tre called unreachable: it "lives on the END SCREEN, reverses the WHOLE
+   * run, and is offered once", which is no help at the moment one tap goes wrong. A row per
+   * decision means the banner on the list offers back exactly the decision just made.
+   *
+   * ⚠️ CLAIMED BEFORE THE AWAIT, by charge id, so a re-render mid-flight cannot record the same
+   * decision twice — two rows for one write would let the second undo reverse work the first
+   * already reversed. The claim is DROPPED again if the write fails, so a transient error does not
+   * permanently suppress the record for that charge.
    */
-  const runRecorded = useRef(false);
   useEffect(() => {
-    if (!complete || state.decisions.length === 0 || runRecorded.current) return;
-    runRecorded.current = true;
-    const steps = planDeckUndo(state.decisions);
-    if (steps.length === 0) return;
-    void recordApplied?.({
-      kind: 'deck_decision',
-      label: `${summary.total} ${summary.total === 1 ? 'charge' : 'charges'} decided`,
-      steps,
-    }).catch(() => {
-      // The decisions LANDED; only the durable record failed. The in-session "Undo all" below is
-      // still available, so this does not warrant interrupting the end screen with a toast — but
-      // it must not be reported as success either, so the ref is left true and nothing claims a
-      // durable undo exists.
-    });
-  }, [complete, state.decisions, summary.total, recordApplied]);
+    if (!recordApplied) return;
+    for (const decision of state.decisions) {
+      if (recordedByCharge.current.has(decision.chargeId)) continue;
+      const steps = planDeckUndo([decision]);
+      // An empty plan is not recorded — a row whose undo would do nothing is worse than no row.
+      // It is still CLAIMED, so this does not re-plan the same decision on every render.
+      recordedByCharge.current.set(decision.chargeId, null);
+      if (steps.length === 0) continue;
+      const name = deck.find(c => c.charge.id === decision.chargeId)?.charge.name;
+      void recordApplied({
+        kind: 'deck_decision',
+        label: name ? `Decided ${name}` : '1 charge decided',
+        steps,
+      })
+        .then(row => {
+          const id = (row as { id?: string } | null)?.id;
+          // The id is what lets an in-session undo retire this row. Without one the row still
+          // exists and is still correct; it simply cannot be retired from here, so a later "Undo
+          // all" leaves it offered. Recorded honestly as null rather than guessed.
+          if (id) recordedByCharge.current.set(decision.chargeId, id);
+        })
+        .catch(() => {
+          // The decision LANDED; only the durable record failed. The in-session undos below still
+          // work, so this does not warrant a toast on top of the mutation's own — but the claim is
+          // released so a later render can try again rather than silently never recording it.
+          recordedByCharge.current.delete(decision.chargeId);
+        });
+    }
+  }, [state.decisions, recordApplied, deck]);
+
 
   /**
    * Undo the ONE decision just made, and go back to that card.
@@ -490,6 +550,10 @@ export default function DecisionDeck({
         else if (step.write === 'removeReviews') await remove.mutateAsync(step.chargeId);
         else await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
       }
+      // Retired BEFORE the deck forgets the decision, for the same reason the data is reversed
+      // first: afterwards `decision` is gone from state and the row would be orphaned — still
+      // offered, describing a write that no longer stands.
+      await retireRecords([decision.chargeId]);
       const backTo = deck.findIndex(c => c.charge.id === decision.chargeId);
       setState(prev => revertLastDecision(prev, backTo >= 0 ? backTo : prev.index));
       toast.success('Undone — that charge is waiting on you again');
@@ -498,7 +562,7 @@ export default function DecisionDeck({
     } finally {
       setBusy(false);
     }
-  }, [state, deck, remove, setCategory, undoImport]);
+  }, [state, deck, remove, setCategory, undoImport, retireRecords]);
 
   /**
    * Keyboard: ← skip, → accept, 1-9 pick a chip, Esc back to the list.

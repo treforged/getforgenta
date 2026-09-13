@@ -883,6 +883,7 @@ export default function BankActivity() {
           // irreversible. Passed from here for the same reason the mutations above are: one write
           // path, owned by the surface, not re-instantiated inside the child.
           recordApplied={recordApplied.mutateAsync}
+          markUndone={markUndone.mutateAsync}
           // Cross-row analysis, computed once here. `planLedgerImport` refuses a transfer leg, but
           // only if it is told which charges are legs.
           transferLegIds={transferLegIds}
