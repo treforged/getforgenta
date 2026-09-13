@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useProfile } from '@/hooks/useSupabaseData';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { NEW_USER_STEPS, PREMIUM_STEPS } from '@/lib/tour-steps';
 
 export type TourVariant = 'new-user' | 'premium';
@@ -24,48 +24,84 @@ interface AppTourProps {
 
 export default function AppTour({ variant, onDone }: AppTourProps) {
   const [step, setStep] = useState(0);
-  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
+  /**
+   * ⚠️ READ THROUGH THE SHARED PROFILE QUERY, NOT THROUGH A REQUEST OF ITS OWN.
+   *
+   * `/rest/v1/profiles` is BIMODAL on this project — measured over 85 timed requests: median 347ms,
+   * p95 5082ms, with five pinned at the ~5s gateway ceiling and 2 of 33 calls returning 504. It is
+   * "fast, or stuck until the gateway gives up", and the table holds 49 rows with two indexes, so
+   * query cost cannot be the cause. That makes EVERY DUPLICATE REQUEST ANOTHER INDEPENDENT DRAW
+   * AGAINST A 5-SECOND TAIL, and the Dashboard waits on the slowest of the ones it fires.
+   *
+   * This component used to make TWO of its own — one here, one in `dismiss` — both for the same
+   * `tour_flags` on the same single row that `useProfile` already has cached. Going through the
+   * shared query means TanStack dedupes them into the one request the page was making anyway.
+   *
+   * ⚠️ AND IT NO LONGER CALLS `supabase.auth.getUser()`, which was a second round trip to learn
+   * something `useAuth` is already holding.
+   *
+   * ⚠️ NOTHING IS SHOWN WHILE THE PROFILE IS STILL LOADING. The old code only set `visible` after
+   * its read came back, so an absent answer never rendered the tour; `loading` preserves exactly
+   * that. Without it, somebody who dismissed the tour months ago would see it flash on every open
+   * while the profile was in flight — the tail this commit is about making that flash LONGER.
+   */
+  const { data: profile, loading: profileLoading, update } = useProfile();
+  const tourFlags = (profile?.tour_flags as Record<string, boolean> | null) ?? null;
+
+  /**
+   * ⚠️ WHETHER TO SHOW IS COMPUTED DURING RENDER, NOT SET FROM AN EFFECT.
+   *
+   * The first version of this change kept the old `setVisible(true)` inside the effect and lint
+   * refused it — "Calling setState synchronously within an effect can trigger cascading renders".
+   * That is the same rule that caught the what's-new dialog earlier today, and the fix is the same
+   * shape: derive during render, and let the effect do only the WRITE. Read once into state so a
+   * later `setItem` cannot change the answer mid-session and make the tour vanish under the user.
+   */
+  const [deviceDone] = useState(() => {
+    try {
+      return !!localStorage.getItem(LOCAL_KEY[variant]);
+    } catch {
+      // Private mode or blocked site data. Falling back to "not done" means the account is asked
+      // instead, which is the authoritative answer anyway.
+      return false;
+    }
+  });
+  const accountDone = tourFlags?.[FLAG_KEY[variant]] === true;
+  const ready = !profileLoading && !!profile;
+  const visible = !dismissed && !deviceDone && ready && !accountDone;
+
+  // The only effect: back-fill the device cache when the ACCOUNT already says done, so the next
+  // open takes the fast path and never consults the slow endpoint at all. A write, not a setState.
   useEffect(() => {
-    // Fast path: device cache says it's done — skip DB call
-    if (localStorage.getItem(LOCAL_KEY[variant])) return;
-
-    // Authoritative check: read from profiles.tour_flags (account-based, cross-device)
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from('profiles')
-        .select('tour_flags')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          const flags = (data?.tour_flags as Record<string, boolean>) ?? {};
-          if (flags[FLAG_KEY[variant]]) {
-            // DB says done — populate device cache and stay hidden
-            localStorage.setItem(LOCAL_KEY[variant], '1');
-          } else {
-            setVisible(true);
-          }
-        });
-    });
-  }, [variant]);
+    if (deviceDone || !ready || !accountDone) return;
+    try {
+      localStorage.setItem(LOCAL_KEY[variant], '1');
+    } catch { /* nothing to do; the account remains the source of truth */ }
+  }, [variant, deviceDone, ready, accountDone]);
 
   const steps = variant === 'premium' ? PREMIUM_STEPS : NEW_USER_STEPS;
   const current = steps[step];
   const isLast = step === steps.length - 1;
 
   const dismiss = async () => {
-    setVisible(false);
+    setDismissed(true);
     // Write to device cache immediately
     localStorage.setItem(LOCAL_KEY[variant], '1');
-    // Persist to DB so other devices see it too
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.from('profiles').select('tour_flags').eq('user_id', user.id).maybeSingle();
-      const existing = (data?.tour_flags as Record<string, boolean>) ?? {};
-      await supabase.from('profiles').update({
-        tour_flags: { ...existing, [FLAG_KEY[variant]]: true },
-      }).eq('user_id', user.id);
+    // Persist to the account so other devices see it too.
+    //
+    // ⚠️ THE EXISTING FLAGS COME FROM THE CACHED PROFILE, NOT FROM A FRESH READ. The old code did a
+    // select-then-update here, which is a second round trip against the same slow endpoint for a
+    // value already in hand. `tour_flags` is a MAP, so the spread is still required — writing only
+    // this key would clear every other one-time flag on the account.
+    try {
+      await update.mutateAsync({
+        tour_flags: { ...(tourFlags ?? {}), [FLAG_KEY[variant]]: true },
+      });
+    } catch {
+      // The device cache is already set, so the tour stays gone here. It may reappear on another
+      // device, which is a far better failure than blocking the dismissal on a 5-second request.
     }
     onDone?.();
   };
