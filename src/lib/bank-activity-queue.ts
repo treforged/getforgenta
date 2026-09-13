@@ -266,6 +266,45 @@ export interface ReviewQueue<C extends QueueCharge, R extends QueueRule, T exten
 }
 
 /**
+ * MONEY COMING IN IS NOT A SPENDING QUESTION.
+ *
+ * Tre, 2026-09-13: "why aren't these auto linking/sorting, that's the whole purpose of this, so
+ * users have to think less." Measured on his own data that day: of 37 rows waiting, **26 were not
+ * spending at all** — 9 were his Lockheed payroll, plus an IRS refund, HealthEquity, a Stripe
+ * credit and a dividend. The app was asking him what category his paycheck is, nine times. A
+ * paycheck has no spending category, so the question is pure friction and the answer it wants
+ * does not exist.
+ *
+ * ⚠️ AN INFLOW WITH A SUGGESTION STILL SHOWS, and that exception is the point rather than a hedge.
+ * This file's whole design (see the header) is that the queue carries rows THE APP HAS AN ANSWER
+ * FOR and is waiting on a yes/no. A paycheck the matcher has tied to an income rule is exactly
+ * that — one tap, and the link is what keeps the forecast's income right. Dropping those would
+ * trade one friction for a wrong number, and income rules are load-bearing in the projection.
+ *
+ * So only the UNANSWERED inflow goes: the app has nothing to propose, and the only thing left to
+ * ask is a category that cannot apply. It is still reachable in "All activity", which is where a
+ * row nobody needs to decide belongs.
+ *
+ * ⚠️ NAMED RESIDUE, NOT A SILENT DROP (Sam's condition, 2026-09-13). A REFUND is money in and is
+ * NOT income: it reverses an earlier charge, and the right treatment is to link it to the charge
+ * it reverses so the original spending stops being overstated. That link does not exist yet, so a
+ * refund is hidden by this filter along with the rest, and his category totals stay overstated by
+ * the refunded amount until it does. Stated here rather than implied away — it is a real cost of
+ * this change, in the direction nobody notices.
+ *
+ * ⚠️ NOT EXTENDED TO OUTFLOWS. A Zelle to a person and a gift look identical from here, so
+ * outbound transfers keep asking. Narrow on purpose.
+ */
+export function isUnansweredInflow(charge: Pick<QueueCharge, 'amount'>, hasSuggestion: boolean): boolean {
+  if (hasSuggestion) return false;
+  const amount = Number(charge.amount);
+  // A non-numeric amount is not evidence of anything — leave the row alone rather than hide it.
+  if (!Number.isFinite(amount)) return false;
+  // OUTFLOW POSITIVE, inflow negative. Zero is not an inflow.
+  return amount < 0;
+}
+
+/**
  * The review queue: what still needs a decision, across ALL months, best answers first.
  *
  * ⚠️ SORT ORDER IS LOAD-BEARING, NOT COSMETIC. A suggestion-carrying row is a one-click decision and
@@ -368,7 +407,7 @@ export function buildReviewQueue<C extends QueueCharge, R extends QueueRule, T e
     }
   }
 
-  const needsDecision = unhandled.slice().sort((a, b) => {
+  const needsDecision = unhandled.filter(c => !isUnansweredInflow(c, !!suggestions[c.id])).sort((a, b) => {
     const sa = suggestions[a.id] ? 0 : 1;
     const sb = suggestions[b.id] ? 0 : 1;
     if (sa !== sb) return sa - sb;
