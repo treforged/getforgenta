@@ -153,7 +153,39 @@ Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_rev
      `history.length < MIN_HISTORY_FOR_OUTLIER` guard — **INERT BY CONSTRUCTION**, silently
      waving through the large-deviation case Tre named in the ask itself. A limit that cannot
      bind reads as a guarantee. Plumb per-merchant amounts in, or do not claim that gate.
-- **Per-ROW link button** has no durable undo (the batch does).
+- ✅ **Per-ROW link buttons now have the durable undo the batch had** (2026-09-13). All eight
+  `save.mutate(accept…)` call sites in `BankActivity.tsx` wrote a link and recorded NOTHING;
+  they now go through one `linkOneWithUndo` helper, so the two paths cannot drift again. The
+  transfer-pair picker records the partner's reversal too, and only if the partner write
+  actually landed. Test: `BankActivity.perRowLinkUndo.test.tsx`, **proven red by mutation**
+  (both positive cases fail when the record call is disabled; the failure-case test correctly
+  stays green), file restored byte-exactly by sha256.
+  ⚠️ **The batch's own comment asserted "Every row it did write is individually undoable"** —
+  true of the batch's record, false of the buttons. **A comment stating a safety property a
+  sibling path does not have is how the gap survived review.** Corrected in the same commit.
+- 🔴 **BIGGEST FINDING OF THE NIGHT — TWO OF THREE DURABLE UNDO KINDS ARE WRITE-ONLY**
+  (ask `629b76cc`). `link_confirm` and `deck_decision` are recorded to `public.applied_actions`
+  and **no UI ever offers them.** `MerchantMemoryPanel.tsx:39` filters
+  `latest.kind === 'merchant_retro_pass'`, and that panel is the only consumer of the durable
+  record anywhere. The deck's and the batch's own undos are IN-SESSION only.
+  **So the batch comment "recorded to `public.applied_actions` so it can still be taken back
+  afterwards" is half true**: it is recorded, and it cannot be taken back, because nothing
+  renders a button for it. **This is the same shape as the always-pay-full toggle that had no
+  writer — a feature complete at every layer except the one the user touches — and it is the
+  second instance found in a single session.** Grepping for the CONSUMER is now as load-bearing
+  here as grepping for the caller.
+  ⚠️ **I nearly reported a different, wrong bug here.** `MerchantMemoryPanel.undo` skips every
+  step that is not `setCategory` (line 126), which looks exactly like a silent-failure defect —
+  until line 39 shows the panel only ever receives `merchant_retro_pass`, whose steps are all
+  `setCategory`. **The `continue` is correct.** Reading the executor without reading what feeds
+  it produces a confident finding about a bug that is not there.
+- ⚠️ **ONE per-row link is still uncovered, ON PURPOSE: "Link and correct"** (ask `da5c564e`).
+  It also patches the ledger transaction's AMOUNT, and `applied-actions.ts` has exactly three
+  step kinds — `setCategory`, `removeReviews`, `deleteTransaction` — **none of which can put an
+  amount back**. Recording the link's undo there would hand the user a button that removes the
+  link, leaves the corrected figure in place, and reports success: **a partial undo presented
+  as a complete one, on a money page.** Needs a `setAmount` step first. The honest absence is
+  better than the confident lie, and the code says so at the call site.
 - **NEEDS TRE: "Personal" is 25.5%** of all his labels. Catch-all he wants, or was the
   right category too hard to find? Decides the category generalisation. Do not guess.
 - **profiles p95 ~6.5s is INSTANCE-WIDE**, not a profiles problem — five tables share a p95
@@ -2226,30 +2258,32 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-12 23:54 by handoff_hook. Everything below this heading is
+_Written 2026-09-13 00:31 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M handoff.md
+ M src/components/transactions/BankActivity.tsx
  M supabase/.temp/cli-latest
+?? src/components/transactions/__tests__/BankActivity.perRowLinkUndo.test.tsx
 ```
 
 - **Recent commits:**
 
 ```
+41597027 docs(handoff): why deck auto-apply is blocked, and why this desk keeps stalling
+e5acdb22 [cards]: the always-pay-full toggle gets a writer — the feature was unreachable
+a7aaa54f docs(handoff): auto-snapshot refresh at fc38deef
 fc38deef [cards]: unconditional payments settled off the top, and a field the rebuild was eating
 cb513215 [cards]: the unconditional-payment column, and why the engine half is NOT in this commit
 872385d9 [nav]: the desktop rail retracts to icons and expands over the page on hover
 766d5e69 docs(handoff): tonight's matching + nav work, and the four facts that live nowhere else
 46e1a786 [nav]: the Account tab, and the leaderboard becomes reachable at last
-ba193ff3 [matching]: the 28-charge panel now auto-applies the settled merchants
-1e2744f9 [matching]: the same confidence rule, applied to category memory
-7b779365 [matching]: one confidence rule for all four of his cases — the decision layer
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

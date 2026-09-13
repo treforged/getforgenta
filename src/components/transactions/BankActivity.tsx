@@ -502,8 +502,13 @@ export default function BankActivity() {
    * Writes are SEQUENTIAL and STOP AT THE FIRST FAILURE. `save` is find-then-write per charge, so
    * firing them in parallel would race the read half against its own writes; and a batch that
    * ploughs on through a failing write would leave the user with a partial result and N toasts
-   * describing it. Every row it did write is individually undoable, which is what makes stopping
-   * safe rather than merely tidy.
+   * describing it. The batch records ONE undo covering every row it wrote, which is what makes
+   * stopping safe rather than merely tidy.
+   *
+   * ⚠️ THIS USED TO READ "Every row it did write is individually undoable". That was a claim about
+   * the per-row BUTTONS, and it was false — they wrote a link and recorded nothing at all until
+   * 2026-09-13. A comment asserting a safety property that a sibling code path does not have is
+   * how the gap survived review: it reads as a statement of fact about the file.
    */
   const acceptAllSuggested = async () => {
     setAccepting(true);
@@ -565,6 +570,77 @@ export default function BankActivity() {
       }
       setAccepting(false);
       setConfirmingAcceptAll(false);
+    }
+  };
+
+  /**
+   * ONE per-row link, with the SAME durable undo `acceptAllSuggested` records.
+   *
+   * ⚠️ THE PER-ROW BUTTONS HAD NO UNDO AT ALL, WHILE THE BATCH ABOVE HAD ONE, AND THE COMMENT ON
+   * THE BATCH ASSERTED THE OPPOSITE — "Every row it did write is individually undoable". That was
+   * true of the batch's own record and false of the eight `save.mutate(accept…)` call sites below
+   * it, which wrote a link and recorded nothing. Tre pressed one, it overwrote his live expected
+   * numbers, and there was nothing to press to get them back.
+   *
+   * The batch was made durable first and the single-row path was left behind, which is the shape
+   * this repo keeps finding: the surface that gets the careful treatment is the one somebody was
+   * thinking about, and the sibling that does the same write silently diverges.
+   *
+   * The undo steps are the batch's, verbatim and deliberately: `removeReviews` takes the link off,
+   * and `setCategory` puts back the label the exclusive row owned BEFORE the write, because `save`
+   * writes every column including the nulls. Captured from the caller BEFORE the write lands —
+   * once `save` has run, that value is gone from the row, and re-deriving it afterwards is exactly
+   * what made his $15 link unrecoverable.
+   */
+  const linkOneWithUndo = async (
+    input: Parameters<typeof save.mutateAsync>[0],
+    chargeId: string,
+    previousCategory: string | null,
+    label: string,
+    /**
+     * A SECOND write this press performed, and its reversal. The transfer-pair picker settles both
+     * legs of one movement — so an undo that took back only the leg on screen would leave the
+     * partner marked 'ignored' for a decision the user has just reversed. The caller supplies it
+     * because the pair model belongs to this list, not to linking.
+     */
+    also?: { chargeId: string; previousCategory: string | null; write: () => Promise<unknown> },
+  ) => {
+    try {
+      await save.mutateAsync(input);
+    } catch {
+      // `save`'s own `onError` has already said what went wrong in the user's language, and
+      // nothing landed — so there is nothing to offer an undo for. Returning here is what keeps
+      // this from recording a reversal for a write that never happened.
+      return;
+    }
+    const steps: { write: 'removeReviews' | 'setCategory'; chargeId: string; category?: string | null }[] =
+      [{ write: 'removeReviews', chargeId }];
+    // Only when there is something to put back. A write that changes nothing is still a write.
+    if (previousCategory !== null) {
+      steps.push({ write: 'setCategory', chargeId, category: previousCategory });
+    }
+    if (also) {
+      // ⚠️ THE PARTNER'S STEPS ARE ONLY RECORDED IF ITS WRITE ACTUALLY LANDED. A failed second
+      // write that still contributed an undo step would offer to reverse something that never
+      // happened — the same rule the batch above follows by appending only after each success.
+      try {
+        await also.write();
+        steps.push({ write: 'removeReviews', chargeId: also.chargeId });
+        if (also.previousCategory !== null) {
+          steps.push({ write: 'setCategory', chargeId: also.chargeId, category: also.previousCategory });
+        }
+      } catch {
+        // `save`'s own onError has spoken. The leg on screen DID land, so the undo below is still
+        // recorded for it — a partial result with an accurate undo, rather than none at all.
+      }
+    }
+    try {
+      await recordApplied.mutateAsync({ kind: 'link_confirm', label, steps: steps as never });
+    } catch {
+      // The link LANDED; only the undo record failed. Said out loud rather than swallowed —
+      // silently having no undo is indistinguishable from success, which is the defect this whole
+      // line of work exists to remove.
+      toast.message('Linked, but the undo could not be saved.');
     }
   };
 
@@ -1085,7 +1161,12 @@ export default function BankActivity() {
                       <button
                         // Same write the batch accept performs — one definition, so the two can
                         // never drift into recording a link differently. See `acceptRuleInput`.
-                        onClick={() => save.mutate(acceptRuleInput(txn, suggestion.rule!))}
+                        onClick={() => void linkOneWithUndo(
+                          acceptRuleInput(txn, suggestion.rule!),
+                          txn.id,
+                          exclusive?.category_override ?? null,
+                          `Linked ${suggestion.rule!.name}`,
+                        )}
                         className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.rule.name}
@@ -1098,7 +1179,12 @@ export default function BankActivity() {
                         picker's own — see `acceptPlanInput` / `acceptCarInput`. */}
                     {!pair && showSuggestion && suggestion.plan && (
                       <button
-                        onClick={() => save.mutate(acceptPlanInput(txn, suggestion.plan!.id))}
+                        onClick={() => void linkOneWithUndo(
+                          acceptPlanInput(txn, suggestion.plan!.id),
+                          txn.id,
+                          exclusive?.category_override ?? null,
+                          `Linked ${suggestion.plan!.name}`,
+                        )}
                         className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.plan.name}
@@ -1106,7 +1192,12 @@ export default function BankActivity() {
                     )}
                     {!pair && showSuggestion && suggestion.carCharge && (
                       <button
-                        onClick={() => save.mutate(acceptCarInput(txn, suggestion.carCharge!.carFundId, suggestion.carCharge!.kind))}
+                        onClick={() => void linkOneWithUndo(
+                          acceptCarInput(txn, suggestion.carCharge!.carFundId, suggestion.carCharge!.kind),
+                          txn.id,
+                          exclusive?.category_override ?? null,
+                          `Linked ${suggestion.carCharge!.vehicleName} ${suggestion.carCharge!.kind === 'insurance' ? 'car insurance' : 'car payment'}`,
+                        )}
                         className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
                         {/* Names the OBLIGATION, not just the car. A vehicle bills a payment and an
@@ -1124,15 +1215,35 @@ export default function BankActivity() {
                         // nulls, so omitting this would silently clear the user's label.
                         onClick={() => {
                           const fix = discrepancyByCharge[txn.id];
-                          save.mutate(
-                            acceptLedgerTxnInput(txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null),
+                          const input = acceptLedgerTxnInput(
+                            txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null,
                           );
+                          if (!fix) {
+                            // Link only, nothing to reverse but the link — so it gets the durable
+                            // undo every other per-row button now gets.
+                            void linkOneWithUndo(
+                              input, txn.id, exclusive?.category_override ?? null,
+                              `Linked your entry on ${suggestion.ledgerTxn!.date}`,
+                            );
+                            return;
+                          }
+                          // ⚠️ NO DURABLE UNDO ON THIS BRANCH, ON PURPOSE, AND THE ABSENCE IS THE
+                          // HONEST ANSWER UNTIL THE UNDO PLANNER CAN RESTORE AN AMOUNT.
+                          // `applied-actions.ts` supports exactly three steps — setCategory,
+                          // removeReviews, deleteTransaction — and NONE can put a ledger
+                          // transaction's amount back. Recording the link's undo here would give
+                          // the user a button that takes the link off, leaves the corrected figure
+                          // in place, and reports success: a PARTIAL undo presented as a complete
+                          // one, on a money page. That is worse than the current honest absence,
+                          // because it would tell them their numbers were restored when one of
+                          // them was not. Tracked separately; needs a `setAmount` step first.
+                          save.mutate(input);
                           // ⚠️ THE CORRECTION, WHICH IS THE HALF THAT WAS MISSING. The bank is the
                           // authority on what actually left the account; the typed figure was
                           // always a prediction. Without this the two rows are linked and the
                           // ledger keeps the guess for ever, which is a silently wrong number on a
                           // money page — the failure mode this repo treats as the worst one.
-                          if (fix) updateLedgerTxn.mutate(reconciledPatch(fix));
+                          updateLedgerTxn.mutate(reconciledPatch(fix));
                         }}
                         className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
                       >
@@ -1291,7 +1402,6 @@ export default function BankActivity() {
                     onPick={value => {
                       const picked = pickableRules.find(r => r.id === value);
                       if (!picked) return;
-                      save.mutate(acceptRuleInput(txn, picked));
                       // §1B TRANSFER PAIRS — naming what a movement was settles BOTH of its rows.
                       // Linking only the leg on screen would leave the other one in the queue as an
                       // orphan the user has already answered for, which is the noise this removes,
@@ -1300,14 +1410,27 @@ export default function BankActivity() {
                       // ⚠️ THIS STAYS AT THE CALL SITE, not inside `LinkPicker`. It is a fact about
                       // this LIST's transfer-pair model, not about linking a charge to a bill, and
                       // burying it in the shared picker would perform it on every surface.
-                      if (pair) {
-                        const partner = pair.out.id === txn.id ? pair.in : pair.out;
-                        save.mutate({
-                          synced_transaction_id: partner.id,
-                          status: 'ignored',
-                          category_override: findExclusiveReview(reviewsByTxn[partner.id] ?? [])?.category_override ?? null,
-                        });
-                      }
+                      const partner = pair ? (pair.out.id === txn.id ? pair.in : pair.out) : null;
+                      const partnerCategory = partner
+                        ? findExclusiveReview(reviewsByTxn[partner.id] ?? [])?.category_override ?? null
+                        : null;
+                      void linkOneWithUndo(
+                        acceptRuleInput(txn, picked),
+                        txn.id,
+                        exclusive?.category_override ?? null,
+                        `Linked ${picked.name}`,
+                        partner
+                          ? {
+                              chargeId: partner.id,
+                              previousCategory: partnerCategory,
+                              write: () => save.mutateAsync({
+                                synced_transaction_id: partner.id,
+                                status: 'ignored',
+                                category_override: partnerCategory,
+                              }),
+                            }
+                          : undefined,
+                      );
                       setPicker(null);
                     }}
                   />
@@ -1320,7 +1443,15 @@ export default function BankActivity() {
                     options={pickablePlans.map(p => ({ value: p.id, label: amountLabel(p.name, p.payment_amount) }))}
                     placeholder="Which plan does this pay?"
                     ariaLabel="Link this charge to a payment plan"
-                    onPick={value => { save.mutate(acceptPlanInput(txn, value)); setPicker(null); }}
+                    onPick={value => {
+                      void linkOneWithUndo(
+                        acceptPlanInput(txn, value),
+                        txn.id,
+                        exclusive?.category_override ?? null,
+                        `Linked ${pickablePlans.find(p => p.id === value)?.name ?? 'a payment plan'}`,
+                      );
+                      setPicker(null);
+                    }}
                   />
                 </div>
               )}
@@ -1334,7 +1465,12 @@ export default function BankActivity() {
                     onPick={value => {
                       // `<fundId>:<kind>` — see `pickableCarCharges` for why one value carries both.
                       const [carFundId, kind] = value.split(':');
-                      save.mutate(acceptCarInput(txn, carFundId, kind as CarChargeKind));
+                      void linkOneWithUndo(
+                        acceptCarInput(txn, carFundId, kind as CarChargeKind),
+                        txn.id,
+                        exclusive?.category_override ?? null,
+                        `Linked ${pickableCarCharges.find(o => o.value === value)?.label ?? 'a vehicle charge'}`,
+                      );
                       setPicker(null);
                     }}
                   />
@@ -1350,7 +1486,14 @@ export default function BankActivity() {
                     onPick={value => {
                       // The category is KEPT: `linked_txn` is exclusive and lands on the row that
                       // owns the label, so dropping it would wipe one the user set.
-                      save.mutate(acceptLedgerTxnInput(txn, value, exclusive?.category_override ?? null));
+                      // Link only — this picker performs no amount correction, so unlike the
+                      // "Link and correct" button it is fully reversible and records its undo.
+                      void linkOneWithUndo(
+                        acceptLedgerTxnInput(txn, value, exclusive?.category_override ?? null),
+                        txn.id,
+                        exclusive?.category_override ?? null,
+                        'Linked your entry',
+                      );
                       setPicker(null);
                     }}
                   />
