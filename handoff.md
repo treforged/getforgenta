@@ -137,8 +137,22 @@ Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_rev
   `db95d36a`). A quietly reduced payment is the app lying, and the engine already refuses to
   reduce it — but the gap it reports reaches no screen. See the top of this file for why this
   is sim-path engine work and not a missing passthrough.
-- **The payroll + variable-utility single-card prompts still ask.** The rule is built and
-  tested; only the deck wiring remains.
+- ⚠️ **The payroll + variable-utility single-card prompts still ask, and "only the deck
+  wiring remains" WAS WRONG — measured 2026-09-13 (ask `566472e8`, now blocked).** The rule
+  in `auto-apply.ts` is correct and tested, and `autoApplyDecision` has **zero callers**, so
+  the wiring really is missing. But wiring it as-is ships a feature that looks right and is
+  not. Two prerequisites, both measured:
+  1. **`DecisionDeck` records its durable undo ONLY on run completion** —
+     `DecisionDeck.tsx:449`, `if (!complete || …) return`. An auto-applied decision is a write
+     the user is NOT watching; if they close the deck mid-run it becomes irreversible. That is
+     "removing a prompt AND the reversibility its own copy promises", which is the ordering
+     item 2 below forbids. **Record at the moment of auto-apply, not at completion.**
+  2. **`MerchantLinkRule` carries no amount history** (`merchant-link-memory.ts:51`; its own
+     header says "Nothing here touches amounts"). So `autoApplyDecision`'s
+     `unusual-for-this-merchant` gate abstains through `isOrdinaryForMerchant`'s
+     `history.length < MIN_HISTORY_FOR_OUTLIER` guard — **INERT BY CONSTRUCTION**, silently
+     waving through the large-deviation case Tre named in the ask itself. A limit that cannot
+     bind reads as a guarantee. Plumb per-merchant amounts in, or do not claim that gate.
 - **Per-ROW link button** has no durable undo (the batch does).
 - **NEEDS TRE: "Personal" is 25.5%** of all his labels. Catch-all he wants, or was the
   right category too hard to find? Decides the category generalisation. Do not guess.
