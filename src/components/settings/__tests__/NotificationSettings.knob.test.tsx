@@ -27,8 +27,19 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+/**
+ * ⚠️ THE KNOB MOVED, AND THIS GATE GOT STRONGER FOR IT (2026-09-13).
+ *
+ * It used to read `NotificationSettings.tsx`, because that file held its own private switch. Tre
+ * then asked for "consistency across tabs" and the inventory found THREE distinct on/off controls
+ * in this app; the measured one here became the shared `ToggleSwitch` and the others now use it.
+ *
+ * So this file no longer guards one screen's toggle — it guards the ONLY switch in the app, and a
+ * regression here is a regression everywhere at once. That is the argument for consolidating
+ * rather than the cost of it.
+ */
 const SOURCE = readFileSync(
-  join(__dirname, '..', 'NotificationSettings.tsx'), 'utf8',
+  join(__dirname, '..', '..', 'shared', 'ToggleSwitch.tsx'), 'utf8',
 );
 
 /** The knob's own element, as written. */

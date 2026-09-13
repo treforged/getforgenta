@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { useLeaderboardShares } from '@/hooks/useLeaderboardShares';
 import type { LeaderboardMetric } from '@/lib/leaderboard-metrics';
 
@@ -79,27 +80,24 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
               <p className="text-xs font-medium">{m.label}</p>
               <p className="text-xs text-muted-foreground">Friends see {m.shows}.</p>
             </div>
-            <button
-              type="button"
-              disabled={readOnly || setEnabled.isPending}
-              aria-pressed={on}
-              aria-label={`${on ? 'Stop sharing' : 'Share'} ${m.label}`}
-              onClick={() => setEnabled.mutate({ metric: m.id, enabled: !on })}
-              
-              className={`px-2.5 py-1 text-xs font-medium border transition-colors btn-press shrink-0 disabled:opacity-50 rounded-nested-2 ${
-                on
-                  ? 'border-primary/40 text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
-              }`}
-            >
-              {setEnabled.isPending ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : on ? (
-                'Sharing'
-              ) : (
-                'Off'
-              )}
-            </button>
+            {/* ⚠️ A SWITCH, NOT A BUTTON (Tre, 2026-09-13): "they are weird to understand as is.
+                they dont look like normal buttons." It used to read "Sharing" / "Off" inside a
+                bordered box, so knowing what a press would do meant reading the word and then
+                deciding whether it described the current state or the action. These are PRIVACY
+                controls — they publish his financial progress to another person — so an ambiguous
+                state is least affordable here of anywhere in the app.
+
+                The shared `ToggleSwitch` is the same control Notifications already uses, which is
+                the point: one implementation, same on every tab. */}
+            <div className="flex items-center gap-2 shrink-0">
+              {setEnabled.isPending && <Loader2 size={10} className="animate-spin text-muted-foreground" />}
+              <ToggleSwitch
+                checked={on}
+                disabled={readOnly || setEnabled.isPending}
+                onPress={() => setEnabled.mutate({ metric: m.id, enabled: !on })}
+                label={`Share ${m.label} with friends`}
+              />
+            </div>
           </div>
         );
       })}

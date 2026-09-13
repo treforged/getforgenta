@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
@@ -223,7 +224,16 @@ export default function NotificationSettings() {
   );
 }
 
-/** The switch itself, extracted only so the master and the seven categories cannot drift apart. */
+/**
+ * ⚠️ THE LOCAL COPY WAS DELETED on 2026-09-13 and this file now uses the shared `ToggleSwitch`.
+ *
+ * Not a tidy-up: Tre asked for "consistency across tabs" after finding the sharing toggles
+ * unreadable, and the inventory found THREE distinct on/off controls in this app — a real switch
+ * (here), `aria-pressed` pill-buttons, and native checkboxes. This body was the good one, because
+ * it had been measured in a browser and carries the fix for the knob-outside-its-container defect
+ * he reported on eight toggles at once. So it became the shared component rather than being
+ * replaced by a new one, and the comment explaining `left-0` travelled with it.
+ */
 function Switch({ checked, onPress, disabled, label }: {
   checked: boolean;
   onPress: () => void;
@@ -231,29 +241,6 @@ function Switch({ checked, onPress, disabled, label }: {
   label: string;
 }) {
   return (
-    <button
-      onClick={onPress}
-      disabled={disabled}
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className={`shrink-0 w-8 h-4 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-secondary'} relative disabled:opacity-60`}
-    >
-      {/*
-        ⚠️ `left-0` IS LOAD-BEARING. Without it the knob is absolutely positioned with NO horizontal
-        anchor, so it starts from its STATIC position — roughly the centre of the button, because a
-        button centres its content — and the translate is applied from there. MEASURED in Chrome:
-        the ON knob's right edge sat **14px OUTSIDE** a 36px track. Tre saw it on eight toggles at
-        once and said we have shipped this before.
-
-        With the anchor, both states derive from the same origin and both fit, measured in the same
-        browser: OFF spans 2..16 and ON spans 18..32 inside a 36px track.
-
-        ⚠️ THE TRACK IS 36px, NOT THE 32px `w-8` IMPLIES — this app's root font is scaled, so every
-        rem-based number here is ~1.125x its nominal value. Reason about this control in MEASURED
-        pixels, never in the class names.
-      */}
-      <span className={`absolute top-0.5 left-0 w-3 h-3 rounded-full bg-background transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
-    </button>
+    <ToggleSwitch checked={checked} onPress={onPress} disabled={disabled} label={label} />
   );
 }

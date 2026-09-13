@@ -43,21 +43,24 @@ beforeEach(() => {
 describe('LeaderboardShareToggles', () => {
   it('defaults every metric to Off when no row exists', () => {
     render(<LeaderboardShareToggles />);
-    const offs = screen.getAllByText('Off');
-    expect(offs).toHaveLength(4);
-    expect(screen.queryByText('Sharing')).toBeNull();
+    // ⚠️ STATE COMES FROM `aria-checked` NOW, not from a word. The control is a switch, so the
+    // assertion reads the same thing a screen reader and a sighted user both read.
+    const switches = screen.getAllByRole('switch');
+    expect(switches).toHaveLength(4);
+    expect(switches.every(s => s.getAttribute('aria-checked') === 'false')).toBe(true);
   });
 
   it('shows only the metrics that are actually on as Sharing', () => {
     state.enabled = new Set<LeaderboardMetric>(['debt_payoff']);
     render(<LeaderboardShareToggles />);
-    expect(screen.getAllByText('Sharing')).toHaveLength(1);
-    expect(screen.getAllByText('Off')).toHaveLength(3);
+    const switches = screen.getAllByRole('switch');
+    expect(switches.filter(s => s.getAttribute('aria-checked') === 'true')).toHaveLength(1);
+    expect(switches.filter(s => s.getAttribute('aria-checked') === 'false')).toHaveLength(3);
   });
 
   it('turning one ON requests exactly that metric, enabled true', () => {
     render(<LeaderboardShareToggles />);
-    fireEvent.click(screen.getByLabelText('Share Savings goal progress'));
+    fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate).toHaveBeenCalledWith({ metric: 'goal_progress', enabled: true });
   });
@@ -65,15 +68,19 @@ describe('LeaderboardShareToggles', () => {
   it('turning one OFF requests enabled false - the direction that must never be wrong', () => {
     state.enabled = new Set<LeaderboardMetric>(['savings_streak']);
     render(<LeaderboardShareToggles />);
-    fireEvent.click(screen.getByLabelText('Stop sharing Savings streak'));
+    // ⚠️ THE LABEL NAMES THE SETTING, NOT THE ACTION, and does not flip with state: a switch
+    // announces its own on/off through `role` + `aria-checked`, so a label that also flipped
+    // would say the opposite of what the control reports.
+    fireEvent.click(screen.getByLabelText('Share Savings streak with friends'));
     expect(mutate).toHaveBeenCalledWith({ metric: 'savings_streak', enabled: false });
   });
 
   it('does NOT draw switches in the off position when the state could not be read', () => {
     state.error = new Error('nope');
     render(<LeaderboardShareToggles />);
-    expect(screen.queryByText('Off')).toBeNull();
-    expect(screen.queryByText('Sharing')).toBeNull();
+    // The point is unchanged and is the important one: an unreadable state must not be DRAWN as
+    // off, because that would claim nothing is being shared.
+    expect(screen.queryAllByRole('switch')).toHaveLength(0);
     expect(screen.getByText(/could not load your sharing settings/i)).toBeTruthy();
   });
 
@@ -92,7 +99,7 @@ describe('LeaderboardShareToggles', () => {
 
   it('cannot be pressed while read-only', () => {
     render(<LeaderboardShareToggles readOnly />);
-    fireEvent.click(screen.getByLabelText('Share Savings goal progress'));
+    fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
     expect(mutate).not.toHaveBeenCalled();
   });
 });
