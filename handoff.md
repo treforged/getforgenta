@@ -2150,7 +2150,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-12 22:45 by handoff_hook. Everything below this heading is
+_Written 2026-09-12 23:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -2166,14 +2166,14 @@ M handoff.md
 - **Recent commits:**
 
 ```
+fc38deef [cards]: unconditional payments settled off the top, and a field the rebuild was eating
+cb513215 [cards]: the unconditional-payment column, and why the engine half is NOT in this commit
+872385d9 [nav]: the desktop rail retracts to icons and expands over the page on hover
+766d5e69 docs(handoff): tonight's matching + nav work, and the four facts that live nowhere else
 46e1a786 [nav]: the Account tab, and the leaderboard becomes reachable at last
 ba193ff3 [matching]: the 28-charge panel now auto-applies the settled merchants
 1e2744f9 [matching]: the same confidence rule, applied to category memory
 7b779365 [matching]: one confidence rule for all four of his cases — the decision layer
-49cbe51a [undo]: the link batch is reversible too — the third and last destructive path
-04f44ad2 [undo]: a finished deck run stays reversible after the deck closes
-bb77c592 [undo]: the batch panel's "undoes in one press" is now true after a reload
-852be90a [undo]: a durable record of what was applied, and the plan that reverses it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
