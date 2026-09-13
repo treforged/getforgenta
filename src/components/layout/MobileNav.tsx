@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, TrendingUp, Car,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
@@ -30,6 +31,9 @@ export const PRIMARY = [
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
   { to: '/vehicles', icon: Car, label: 'Garage' },
+  // Rightmost, and it fits without a sixth item because Forecast moved into Transactions on the
+  // same day (Tre, 2026-09-12). Five icons is what a 320px SE holds; six is what breaks it.
+  { to: '/account', icon: User, label: 'Account' },
 ];
 
 /**

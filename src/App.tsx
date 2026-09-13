@@ -56,6 +56,7 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const DebtPayoff = lazy(() => import("@/pages/DebtPayoff"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
+const Account = lazy(() => import('./pages/Account'));
 const Premium = lazy(() => import("@/pages/Premium"));
 const PremiumSuccess = lazy(() => import("@/pages/PremiumSuccess"));
 const PremiumCancel = lazy(() => import("@/pages/PremiumCancel"));
@@ -338,6 +339,12 @@ function AppRoutes() {
             notification deep links, and in anything a user has bookmarked. Removing the route
             instead would 404 all of them silently. */}
         <Route path="/forecast" element={<Navigate to="/transactions?tab=forecast" replace />} />
+        {/* ⚠️ `/account` SINGULAR IS NOT `/accounts` PLURAL, and the one letter is load-bearing:
+            `/accounts` has meant BANK accounts since before this tab existed and still redirects to
+            the Dashboard's accounts panel. Named to match what Tre called the tab rather than
+            renamed for tidiness, and flagged here because the next person will read one as a typo
+            for the other. */}
+        <Route path="/account" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Account"><Account /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Settings"><SettingsPage /></ErrorBoundary></Suspense>} />
         <Route path="/ai" element={AI_ADVISOR_ENABLED
           ? <Suspense fallback={<PageLoader />}><ErrorBoundary label="Forgenta AI"><AiAdvisor /></ErrorBoundary></Suspense>

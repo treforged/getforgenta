@@ -20,6 +20,7 @@ export const TAB_ROOT_PATHS = [
   '/transactions',
   '/debt',
   '/vehicles',
+  '/account',
 ] as const;
 
 /**
