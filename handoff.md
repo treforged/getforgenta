@@ -1,5 +1,62 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## 2026-09-13 — TRANSACTION MATCHING + NAV. All pushed, `origin/main` 0/0.
+
+**FIRST UP: the desktop sidebar hover-overlay, then the always-pay-full card toggle.**
+Everything below is DONE unless it says otherwise.
+
+### The four things that live nowhere else — read these before touching matching
+
+1. **`merchant-link-memory.ts` offers on MERCHANT HISTORY ALONE.** Its own header says
+   "Nothing here touches amounts". That is why a $15 Zelle was suggested against an
+   $1,100 rent rule — and it is the SAME signal that should let the 25-link payroll card
+   stop asking. **Same evidence, wrong verb:** history decides the SUGGESTION, never the
+   ACTION. `auto-apply.ts` adds the terms history lacks.
+2. **AUTO-APPLY COULD ONLY SHIP BECAUSE THE UNDO BECAME DURABLE FIRST.** All three undos
+   used to live in React state, so the batch panel's "undoes in one press" was true only
+   while it was on screen. Auto-applying against that would have removed a prompt AND the
+   reversibility its own copy promises, for a write he is not watching. Order was:
+   durable undo → auto-apply. Do not reverse it for the remaining surfaces.
+3. **THE PANEL SHRINKS, IT DOES NOT VANISH**, against the literal "this section shouldn't
+   exist". Costco really is Groceries some weeks and Shopping others; picking silently
+   there is worse than asking because he never sees it. Sam has backed this.
+4. **The Settings grouping principle (`settings-ia.ts`, 5d84b09d) NEEDS AMENDING** — Account
+   now exists at two levels, a nav tab and a Settings panel. Say which belongs where.
+
+### Numbers — measured vs chosen, do not re-derive
+
+- **MEASURED** (`docs/matching-thresholds-measured-2026-09-13.md`): 26 categories offered,
+  **21 ever used, 11 cover 90.5%**, and the **9 visible chips already cover 83.9%** — so
+  "17 more" is the problem, not the chip row. Per-merchant CV spans **0.0%** (Apple,
+  Banner Life, CFX) to **111.5%** (Costco), which is why no fixed tolerance can work.
+  75 accepted links: median ratio 1.000, **lowest legitimate 0.113**, the bad pairing 0.0136.
+- **CHOSEN** and labelled as such: `LINK_MEMORY_MIN_AMOUNT_RATIO` 0.05,
+  `MIN_LINKS_TO_AUTO_APPLY` 3, `UNUSUAL_SD` 2.5, `MIN_HISTORY_FOR_OUTLIER` 5.
+
+### Done tonight
+`857f8323` amount floor · `852be90a` applied_actions table · `bb77c592` batch panel undo
+`04f44ad2` deck run undo · `49cbe51a` link batch undo · `7b779365`+`1e2744f9` the rule
+`ba193ff3` batch auto-applies · `65d477dd` Forecast→Transactions · `f418400f` sidebar
+Forecast + doubled ⚠ + per-decision undo · `46e1a786` Account tab · `5d84b09d` Settings IA
+`650f0775` corner concentricity · `33ff1318` notched toggles · `2c377599` PIN feedback
+Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_reviews_20260913`.
+
+### Open / not done
+- **Sidebar hover-overlay** and **always-pay-full toggle** — not started. For the toggle,
+  the shortfall must SHOW as a shortfall; a quietly reduced payment is the app lying.
+- **The payroll + variable-utility single-card prompts still ask.** The rule is built and
+  tested; only the deck wiring remains.
+- **Per-ROW link button** has no durable undo (the batch does).
+- **NEEDS TRE: "Personal" is 25.5%** of all his labels. Catch-all he wants, or was the
+  right category too hard to find? Decides the category generalisation. Do not guess.
+- **profiles p95 ~6.5s is INSTANCE-WIDE**, not a profiles problem — five tables share a p95
+  within 284ms. Free-plan shared compute is a HYPOTHESIS THAT FITS, not a measurement.
+  Do not pay before re-measuring.
+- Nothing tonight was verified in a browser. jsdom only.
+
+---
+
+
 ## ✅ SETTLED 2026-09-12 — THE LEAKED-KEY GATE. `f7a23f72` + `17e98a30`. Do not re-derive any of this.
 
 **1. Until `17e98a30`, the hosted bundle had NEVER been scanned by anything.** Not a
@@ -2062,7 +2119,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-11 23:48 by handoff_hook. Everything below this heading is
+_Written 2026-09-12 22:45 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -2078,14 +2135,14 @@ M handoff.md
 - **Recent commits:**
 
 ```
-f3c8afd9 docs(handoff): the gate scans a bundle that never ships - first up next time
-f7a23f72 [security]: tie the leaked-key gate's liveness to having SCANNED, not to finding a key
-ab4a4e2c docs(handoff): Ada close-out - what shipped, the one scoped slice, and what needs Tre
-01348c8f docs(perf): §8.1 was too broad - progressive widgets would ship wrong money
-ab721ba3 [security]: promote the leaked-key scan from a scratchpad to a real build gate
-2a081825 docs(handoff): Phase 17 verified against production, and the gap no suite can close
-db93c175 docs(security): five claimed vulnerabilities run against this tree - all five pass
-337da370 docs(perf): the p95 the measurement said it lacked, and the tail is BIMODAL
+46e1a786 [nav]: the Account tab, and the leaderboard becomes reachable at last
+ba193ff3 [matching]: the 28-charge panel now auto-applies the settled merchants
+1e2744f9 [matching]: the same confidence rule, applied to category memory
+7b779365 [matching]: one confidence rule for all four of his cases — the decision layer
+49cbe51a [undo]: the link batch is reversible too — the third and last destructive path
+04f44ad2 [undo]: a finished deck run stays reversible after the deck closes
+bb77c592 [undo]: the batch panel's "undoes in one press" is now true after a reload
+852be90a [undo]: a durable record of what was applied, and the plan that reverses it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
