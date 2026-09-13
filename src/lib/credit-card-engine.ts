@@ -179,6 +179,13 @@ export type RecommendationSummary = {
   projectedPayoffMonths: number;
   utilizationMilestones: { threshold: number; month: number | null }[];
   cashWarning: boolean;
+  /**
+   * The warning to SHOW, or null. Carried beside `cashWarning` because the two cases need
+   * different sentences: "Safe to Pay is less than minimums due" is simply untrue when the gap is
+   * an unconditional payment the plan is deliberately not reducing. A banner that fires with the
+   * wrong explanation gets dismissed as a glitch. See `cashWarningMessage`.
+   */
+  cashWarningText?: string | null;
   /** Ranked automatic extra payments held back from the card pool this month for opted-in goals
    * and car funds. `reserved` is 0 and `perTarget` empty when nothing is opted in. */
   autoExtra: AutoExtraReserve;
@@ -2752,6 +2759,8 @@ export type MonthlyDebtBreakdown = {
   autopayTotal: number;
   strategyLabel: string;
   cashWarning: boolean;
+  /** The sentence to show, or null. See `cashWarningMessage` — the two cases read differently. */
+  cashWarningText?: string | null;
   interestAvoided: number;
 };
 

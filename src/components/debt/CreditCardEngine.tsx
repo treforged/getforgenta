@@ -24,7 +24,7 @@ import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { ordinal } from '@/lib/ordinal';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
-import { unconditionalShortfallLabel } from '@/lib/unconditional-payment';
+import { unconditionalShortfallLabel, cashWarningMessage } from '@/lib/unconditional-payment';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { buildCardRecRows, buildLoanRecommendations, buildOtherDebtRecommendations } from '@/lib/month0-debt-breakdown';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
@@ -975,14 +975,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       .filter(c => !c.autopayFullBalance && c.balance > 0)
       .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
-    const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsdue) < 0;
+    // ⚠️ NOT DERIVED HERE. This used to open-code `availableCash - minimumsDue < 0`, which could
+    // not see an unconditional shortfall at all — measured in a browser 2026-09-13, Safe to Pay
+    // $0 → $7,991 with no warning. One derivation, and it carries its own wording, because the
+    // two cases need different sentences and a banner that fires with the wrong explanation gets
+    // dismissed as a glitch.
     // Row construction shared with the Dashboard widget (`buildCardRecRows`,
     // month0-debt-breakdown.ts) — the A.2 layout used to live inline here, and the widget had
     // its own older copy. One derivation, so the two surfaces cannot drift apart again.
     const recs = buildCardRecRows({
       perCardAdjusted: month0?.perCardAdjusted ?? [], cards, strategy, nextMonthSource, now,
     });
-    return { totalAvailableCash, totalMinimumsdue, cashWarning, strategyLabel, recs };
+    const cashWarningText = cashWarningMessage(
+      totalAvailableCash, totalMinimumsdue, recs.map(r => r.unconditionalShortfall),
+    );
+    return { totalAvailableCash, totalMinimumsdue, cashWarningText, strategyLabel, recs };
   }, [month0, cards, strategy, syncCutoffDate, perCardPaymentsScaled, perCardPayments]);
 
   // Active loan-phase vehicle loans, shown under the card rows — same builder as the Dashboard
@@ -1297,7 +1304,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4 sm:space-y-5">
-        <DebtHero interestThisMonth={interestThisMonth} interestAtPlan={interestAtPlan} />
+        <DebtHero
+          interestThisMonth={interestThisMonth}
+          interestAtPlan={interestAtPlan}
+          // Read from the SAME rows the shortfall line renders from, never re-derived — two
+          // answers about whether the month fits is how the page contradicts itself.
+          unconditionalShortfall={month0Recs.recs.some(r => (r.unconditionalShortfall ?? 0) > 0)}
+        />
 
         {/* Debt Payoff Trajectory Chart */}
         {debtChartData.length > 0 && (
@@ -1607,9 +1620,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             still owed this month is shown underneath it.
           </p>
 
-          {month0Recs.cashWarning && (
+          {month0Recs.cashWarningText && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(month0Recs.totalAvailableCash, false)}) is less than minimum payments due ({formatCurrency(month0Recs.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{month0Recs.cashWarningText}</span>
             </div>
           )}
 

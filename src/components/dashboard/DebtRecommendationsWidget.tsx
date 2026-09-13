@@ -18,6 +18,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
     totalAvailableCash,
     strategyLabel,
     cashWarning,
+    cashWarningText,
   } = debtBreakdown;
   // Optional on the type only because the deprecated one-shot path never builds it; this widget
   // is fed by useMonth0DebtBreakdown, which always does.
@@ -81,7 +82,11 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
           {hasRecs && cashWarning && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-4 text-[10px] text-destructive" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-              <span>Safe to Pay ({formatCurrency(totalAvailableCash, false)}) is less than minimums due ({formatCurrency(totalMinimumsDue, false)}). Review cash flow.</span>
+              {/* One sentence, chosen once in `cashWarningMessage`, so this widget and /debt cannot
+                  describe the same problem differently. The fallback is the OLD wording rather than
+                  nothing: a breakdown built by the deprecated one-shot path carries no text, and a
+                  silent banner would be worse than a slightly generic one. */}
+              <span>{cashWarningText ?? `Safe to Pay (${formatCurrency(totalAvailableCash, false)}) is less than minimums due (${formatCurrency(totalMinimumsDue, false)}). Review cash flow.`}</span>
             </div>
           )}
 

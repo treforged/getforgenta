@@ -33,6 +33,42 @@ export function unconditionalShortfallLabel(shortfall: number): string {
   return `${formatCurrency(shortfall, false)} short this month`;
 }
 
+/**
+ * The cash warning, decided once for every surface that shows one.
+ *
+ * ⚠️ IT TAKES TWO REASONS BECAUSE THE OLD ONE COULD NOT SEE THE SECOND, AND A BROWSER FOUND IT.
+ * On 2026-09-13, on the demo persona's genuinely tight month — $2,526 liquid against a $3,223 safe
+ * minimum — turning this setting on moved **Safe to Pay from $0 to $7,991 with no warning at all**.
+ * The old predicate is `availableCash − minimumsDue < 0`, and an unconditional card is settled in
+ * FULL, so it is never a minimum left unmet: the subtraction came out large and positive while the
+ * tile labelled *Safe* to Pay reported three times the cash on hand.
+ *
+ * ⚠️ AND THE WORDING HAS TO CHANGE WITH THE REASON. "Safe to Pay is less than minimum payments due"
+ * is simply untrue in the second case — the minimums are covered; the problem is that the plan has
+ * been told to send more than the month holds. A banner that fires with the wrong explanation is
+ * how a real warning gets dismissed as a glitch.
+ *
+ * Returns null when there is nothing to warn about.
+ */
+export function cashWarningMessage(
+  availableCash: number,
+  minimumsDue: number,
+  /** The per-card shortfalls on this month's rows. Only positives matter. */
+  shortfalls: readonly (number | undefined)[] = [],
+): string | null {
+  const short = shortfalls.reduce<number>((s, v) => s + (v && v > 0 ? v : 0), 0);
+  if (short > 0) {
+    return `This plan sends ${formatCurrency(availableCash, false)} because a card is set to always `
+      + `pay in full, which is ${formatCurrency(short, false)} more than this month covers. `
+      + `The payment is not being reduced — something else has to give.`;
+  }
+  if (Math.ceil(availableCash - minimumsDue) < 0) {
+    return `Safe to Pay (${formatCurrency(availableCash, false)}) is less than minimum payments due `
+      + `(${formatCurrency(minimumsDue, false)}). Not all minimums can be covered. Review cash flow urgently.`;
+  }
+  return null;
+}
+
 /** Per-card outcome of an unconditional settlement. */
 export interface UnconditionalSettlement {
   /** What the plan will actually send — the full desired amount, NEVER clamped to the pool. */

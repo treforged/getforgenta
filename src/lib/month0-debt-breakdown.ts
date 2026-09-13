@@ -21,6 +21,7 @@
  * payment — one derivation, or that happens again).
  */
 import { m0MinDueSettled } from '@/lib/credit-card-engine';
+import { cashWarningMessage } from '@/lib/unconditional-payment';
 import { isSimCardOpenAsOf } from '@/lib/card-start-date';
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { nextPaymentDueDate } from '@/lib/next-card-payment';
@@ -378,7 +379,25 @@ export function buildMonth0DebtBreakdown({
   // same reason one level along: `buildOtherDebtPaymentSchedule` has already taken their cash out of
   // `cashPreDebt` before Safe to Pay is computed at all.
   const totalRecommended = recommendations.reduce((s, r) => s + r.payment, 0);
-  const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsDue) < 0;
+  /**
+   * ⚠️ AN UNCONDITIONAL SHORTFALL IS A CASH WARNING, AND WITHOUT THIS CLAUSE IT WAS SILENT.
+   *
+   * Found in a browser on 2026-09-13, not by a test: on the demo persona's genuinely tight month —
+   * $2,526 liquid against a $3,223 safe minimum — turning on "always pay this" for Prime Visa moved
+   * **Safe to Pay from $0 to $7,991** with NO warning of any kind. The tile is labelled *Safe* to
+   * Pay, and it was reporting an amount three times the cash on hand as safe to send.
+   *
+   * The old condition could not catch it: `totalAvailableCash - totalMinimumsDue` was 7991 − 0, a
+   * large POSITIVE number, because an unconditional card is settled in full and is therefore never
+   * counted as a minimum left unmet. The number that proves the month does not fit was sitting on
+   * the row underneath, unread.
+   *
+   * `some(...)` rather than a sum, because one card that cannot be covered is already the answer.
+   */
+  const cashWarningText = cashWarningMessage(
+    totalAvailableCash, totalMinimumsDue, recommendations.map(r => r.unconditionalShortfall),
+  );
+  const cashWarning = cashWarningText !== null;
 
   return {
     recommendations,
@@ -387,6 +406,7 @@ export function buildMonth0DebtBreakdown({
     totalMinimumsDue,
     totalRecommended,
     totalAvailableCash,
+    cashWarningText,
     autopayTotal,
     strategyLabel,
     cashWarning,
