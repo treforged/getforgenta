@@ -109,3 +109,4 @@ src/lib/__tests__/fixtures/raw-rows.real*.json
 
 # single-instance lock for scripts/sync-graph-to-obsidian.ps1
 scripts/.graph-sync.lock
+PRIME-VISA-PLANS.private.txt
