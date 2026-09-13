@@ -1672,6 +1672,7 @@ export type Database = {
           updated_at: string
           user_id: string
           weekly_gross_income: number | null
+          username: string | null
         }
         Insert: {
           ai_consent_accepted?: boolean
@@ -1728,6 +1729,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           weekly_gross_income?: number | null
+          username?: string | null
         }
         Update: {
           ai_consent_accepted?: boolean
@@ -1784,6 +1786,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weekly_gross_income?: number | null
+          username?: string | null
         }
         Relationships: []
       }

@@ -6,6 +6,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useFriendLink } from '@/hooks/useFriendLink';
 import { LeaderboardShareToggles } from './LeaderboardShareToggles';
 import { FriendsLeaderboard } from './FriendsLeaderboard';
+import { UsernameClaim } from './UsernameClaim';
 import { format } from 'date-fns';
 
 /**
@@ -164,6 +165,13 @@ export function FriendLink() {
       {friends.length === 0 && pendingInvites.length === 0 && (
         <p className="text-xs text-muted-foreground italic">No friends yet.</p>
       )}
+
+      {/* ⚠️ YOUR OWN HANDLE FIRST, BECAUSE IT IS THE HALF THAT LETS SOMEBODY ADD *YOU*.
+          Tre, 2026-09-13: "maybe we should do usernames instead or make that an option to add
+          people by usernames." The validator, the migration and the unique index shipped in
+          `a787279c` and had NO CALLER anywhere in `src/` until this mount — a foundation nobody
+          could reach is indistinguishable from one that was never built. */}
+      <UsernameClaim />
 
       {/* The two ways in, kept together and directly under the list they add to. */}
       <h4 className="text-xs font-semibold pt-1">Add a friend</h4>
