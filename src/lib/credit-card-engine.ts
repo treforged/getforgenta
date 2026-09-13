@@ -74,6 +74,17 @@ export type CardData = {
   firstDueDate?: string | null;
   startDate?: string;
   statementBalancePhase: boolean;
+  /**
+   * TRUE when this card's payment is a FIXED obligation the forecast may not shrink.
+   *
+   * ⚠️ "DO AS MUCH AS POSSIBLE" APPLIES TO THE OTHER SPENDING, NOT TO THIS PAYMENT. Tre,
+   * 2026-09-12, turning a credit card into a debit card: "I will pay the full amount every single
+   * time on the twelfth, whatever that amount is at that time... And then all other calculations
+   * should adjust around that." A month that cannot afford it must report a SHORTFALL, never a
+   * smaller payment — a forecast that balances itself by quietly reducing the number he turned
+   * this on to guarantee is lying about it.
+   */
+  paymentUnconditional?: boolean;
   statementBalance: number | null;
   /** Remaining interest-free installment plan balance on this card (0 = none). */
   installmentBalance?: number;
@@ -144,6 +155,15 @@ export type PayoffRecommendation = {
   color: string;
   payment: number;
   isMinimumOnly: boolean;
+  /**
+   * How much of an UNCONDITIONAL payment this month cannot fund, in dollars. 0 when it fits, and
+   * absent entirely on an ordinary card.
+   *
+   * ⚠️ A NUMBER RATHER THAN A FLAG, because `isMinimumOnly` says "less than desired" and not "you
+   * are $340 short" — and on the ordinary path the payment has already been reduced to hide the
+   * gap, so there is nothing left to subtract.
+   */
+  unconditionalShortfall?: number;
   reason: string;
   estimatedLiquidCash?: number;
   dueDay?: number | null;
@@ -566,6 +586,7 @@ export function buildCardData(
       firstDueDate: acct.first_payment_due_date ?? null,
       startDate: acct.card_start_date || undefined,
       statementBalancePhase, statementBalance,
+      paymentUnconditional: acct.payment_unconditional === true,
       installmentBalance: Math.max(0, Number(acct.installment_balance) || 0),
       installmentMonthlyPayment: Math.max(0, Number(acct.installment_monthly_payment) || 0),
       // Multi-rate sub-balances. parseTranches drops anything malformed, so a card with no
@@ -2497,7 +2518,53 @@ export function generateRecommendations(
   // is no order to get wrong and no reason to strand the surplus, so none are excluded.
   const extraOrder = rankableForStrategy(sorted, strategy);
 
+  /**
+   * ⚠️ UNCONDITIONAL CARDS ARE SETTLED FIRST, OFF THE TOP, AND ARE NOT CLAMPED TO `remaining`.
+   *
+   * Everything below this competes for a pool: a minimum is `min(minPayment, remaining, balance)`
+   * and the cascade takes `min(remaining, maxExtra)`. Both shrink silently when the month is tight
+   * and still report a balanced plan — which is exactly the lie this setting exists to prevent.
+   *
+   * Taking them first is what makes "all other calculations should adjust around that" true: the
+   * pool the minimums and the cascade see is already net of this obligation, so the rest of the
+   * plan flexes and THIS does not.
+   *
+   * ⚠️ `remaining` IS ALLOWED TO GO NEGATIVE HERE and is clamped at zero only for the loops below.
+   * The overdraw is the shortfall; swallowing it would balance the month on paper.
+   */
+  const unconditionalIds = new Set<string>();
   for (const card of sorted) {
+    if (card.paymentUnconditional !== true) continue;
+    const desired = card.paymentPreference === 'statement'
+      ? Math.max(0, card.balance)
+      : Math.max(0, card.balance) + card.monthlyNewPurchases;
+    if (desired <= 0) continue;
+    unconditionalIds.add(card.id);
+    // ⚠️ NaN-SAFE ON PURPOSE. `remaining` derives from a chain of optional inputs, and under a
+    // sparse call (no rules, no transactions) it can arrive NaN — measured 2026-09-13, where it
+    // made the shortfall NaN and serialised as `null`. A shortfall is money shown to a person, so
+    // an unknown pool must read as "no shortfall established" rather than as a broken number.
+    const pool = Number.isFinite(remaining) ? Math.max(0, remaining) : 0;
+    const shortfall = Math.max(0, Math.round((desired - pool) * 100) / 100);
+    recs.push({
+      cardId: card.id, cardName: card.name, color: card.color,
+      payment: Math.round(desired * 100) / 100,
+      isMinimumOnly: false,
+      unconditionalShortfall: shortfall,
+      reason: card.paymentPreference === 'statement'
+        ? 'Always pay statement balance'
+        : 'Always pay full balance',
+      estimatedLiquidCash: cardEstimatedCash.get(card.id),
+      dueDay: card.dueDay,
+    });
+    remaining -= desired;
+  }
+  // The loops below cannot reason about a negative pool; the overdraw is already recorded as a
+  // shortfall on the card that caused it, and still reaches `cashWarning` through `safeToPayTotal`.
+  remaining = Math.max(0, remaining);
+
+  for (const card of sorted) {
+    if (unconditionalIds.has(card.id)) continue; // already settled in full, above
     const ms = manualStmtDueNow(card);
     // Q11: settled (non-ISB) card has no forced minimum this month — base is $0; the extra
     // allocation loop below can still direct optional paydown at it.
@@ -2522,6 +2589,7 @@ export function generateRecommendations(
   if (remaining > 0) {
     for (let i = 0; i < extraOrder.length && remaining > 0; i++) {
       const card = extraOrder[i];
+      if (unconditionalIds.has(card.id)) continue; // already paid in full; nothing to add
       const rec = recs.find(r => r.cardId === card.id)!;
       // statement preference: cap extra at current balance (don't pre-pay new purchases)
       // full or null: pay balance + anticipated new purchases (clear the card fully)
@@ -2631,6 +2699,8 @@ export type MonthlyDebtBreakdown = {
   recommendations: {
     cardId: string; cardName: string; color: string; payment: number; dueDay: number | null;
     reason: string; isMinimumOnly: boolean;
+    /** See `PayoffRecommendation.unconditionalShortfall`. Absent on an ordinary card. */
+    unconditionalShortfall?: number;
     // Next-payment fields (the /debt panel's A.2 layout), present when built from the converged
     // projection (`buildMonth0DebtBreakdown`/`buildCardRecRows`). The deprecated one-shot path has
     // no month-1 series to read, so they stay ABSENT there rather than being invented — a consumer
@@ -2797,6 +2867,12 @@ export function getMonthlyDebtBreakdown(
       dueDay: r.dueDay || null,
       reason: r.reason,
       isMinimumOnly: r.isMinimumOnly,
+      // ⚠️ THIS MAP REBUILDS THE ROW FIELD BY FIELD, so anything not named here is silently
+      // dropped. `unconditionalShortfall` reached this point as a correct number and arrived at
+      // the caller as `undefined` — the type above declares its OWN narrower shape, so tsc had
+      // nothing to complain about either. A writer that rebuilds a record wholesale loses every
+      // field nobody remembered; add new ones HERE as well as on `PayoffRecommendation`.
+      ...(r.unconditionalShortfall !== undefined ? { unconditionalShortfall: r.unconditionalShortfall } : {}),
     })),
     totalMinimumsDue: summary.totalMinimumsdue,
     totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
