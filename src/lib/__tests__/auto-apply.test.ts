@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   autoApplyDecision, isOrdinaryForMerchant,
-  MIN_LINKS_TO_AUTO_APPLY, UNUSUAL_SD, MIN_HISTORY_FOR_OUTLIER,
+  MIN_LINKS_TO_AUTO_APPLY, UNUSUAL_SD, MIN_HISTORY_FOR_OUTLIER, categoryMemoryVerdict,
 } from '../auto-apply';
 
 /**
@@ -122,5 +122,31 @@ describe('isOrdinaryForMerchant — why a fixed tolerance cannot work', () => {
     const sd = Math.sqrt(h.reduce((s, x) => s + (x - mean) ** 2, 0) / (h.length - 1));
     expect(isOrdinaryForMerchant(mean + UNUSUAL_SD * sd - 0.5, h)).toBe(true);
     expect(isOrdinaryForMerchant(mean + UNUSUAL_SD * sd + 0.5, h)).toBe(false);
+  });
+});
+
+describe('categoryMemoryVerdict — the batch panel he wants gone', () => {
+  it('auto-applies a merchant he has labelled enough times', () => {
+    expect(categoryMemoryVerdict({ decidedCount: 10, conflictingCount: 0 }))
+      .toEqual({ verdict: 'auto', reason: 'confident' });
+  });
+
+  it('still asks when he has labelled that merchant two different ways', () => {
+    // A Costco run really can be Groceries or Shopping. "Learn once" is the wrong model there and
+    // picking the more popular one silently is the coin flip the matcher already refuses.
+    expect(categoryMemoryVerdict({ decidedCount: 10, conflictingCount: 3 }))
+      .toEqual({ verdict: 'ask', reason: 'conflicting-history' });
+  });
+
+  it('still asks when once is not yet a habit', () => {
+    expect(categoryMemoryVerdict({ decidedCount: 1, conflictingCount: 0 }).verdict).toBe('ask');
+  });
+
+  it('NEVER returns `never` — a label has no amount that could be implausible', () => {
+    // The amount gates abstain by their own rules here. If this ever returns `never`, something
+    // has started applying money logic to a word.
+    for (const n of [0, 1, 3, 50]) {
+      expect(categoryMemoryVerdict({ decidedCount: n, conflictingCount: 0 }).verdict).not.toBe('never');
+    }
   });
 });

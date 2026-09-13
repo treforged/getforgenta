@@ -140,3 +140,29 @@ export function autoApplyDecision(e: AutoApplyEvidence): AutoApplyReasoned {
 
   return { verdict: 'auto', reason: 'confident' };
 }
+
+/**
+ * The same rule, applied to CATEGORY memory rather than link memory.
+ *
+ * ⚠️ THE AMOUNT GATES GO INERT HERE, AND THAT IS CORRECT RATHER THAN A SHORTCUT. A category is a
+ * label: it has no amount to fit and no money attached, so "could this charge have settled that?"
+ * is not a question about it. Passing no target and no history makes `amountCouldSettle` and
+ * `isOrdinaryForMerchant` both abstain by their own documented rules, leaving exactly the two
+ * terms that DO apply — has this merchant been labelled enough times, and has it been labelled
+ * two different ways.
+ *
+ * ⚠️ AND THE OUTLIER TEST IS DELIBERATELY NOT APPLIED. Asking "is this amount unusual?" before
+ * putting a LABEL on a charge would reintroduce the prompts this removes, for a change that moves
+ * no money and undoes in one press. Tre's complaint about that panel was solely that it asks.
+ */
+export function categoryMemoryVerdict(
+  rule: { decidedCount: number; conflictingCount: number },
+): AutoApplyReasoned {
+  return autoApplyDecision({
+    linkedCount: rule.decidedCount,
+    conflictingCount: rule.conflictingCount,
+    amount: 0,
+    targetAmount: null,
+    history: [],
+  });
+}
