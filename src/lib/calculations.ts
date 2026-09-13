@@ -46,12 +46,38 @@ export function formatCurrency(amount: number, showCents = true, currency?: stri
   }).format(amount);
 }
 
+/**
+ * Chart axis ticks — the compact form of `formatCurrency`, and it obeys the same
+ * display settings.
+ *
+ * ⚠️ THIS HARDCODED `$` UNTIL 2026-09-13, thirty lines below the paragraph above
+ * explaining that symbol AND position come from the locale. Found in a browser, not
+ * by a test: the reviewer account is set to EUR, and the debt trajectory chart drew
+ * `$0 … $6.0k` up the axis while all 23 money figures on the SAME screen read `€`.
+ * One user, one screen, two currencies — on a debt payoff page.
+ *
+ * It reached seven charts (Dashboard, Forecast, Savings Goals, Net Worth, vehicle
+ * loans and both debt charts) because they all share this one function, and it had
+ * NO test of any kind. A jsdom assertion on a formatted amount almost always pins
+ * the NUMBER; the symbol rides along unchecked, which is why a green suite hid this
+ * perfectly and a rendered frame did not.
+ *
+ * `notation: 'compact'` is what fixes it properly rather than swapping one hardcoded
+ * symbol for another: it places the symbol, picks the separators AND localises the
+ * magnitude suffix, so `de-DE` gets `1,5 Tsd. €` rather than a `k` glued to the
+ * wrong end of the string. The one cosmetic step after it is lowercasing a bare
+ * `K`, which keeps the existing en-US house style (`$1.5k`) byte-for-byte — every
+ * other locale's suffix is left exactly as Intl wrote it.
+ */
 export function formatYAxisTick(v: number): string {
-  const abs = Math.abs(v);
-  const sign = v < 0 ? '-' : '';
-  if (abs < 1000) return `${sign}$${abs}`;
-  if (abs < 10000) return `${sign}$${(abs / 1000).toFixed(1)}k`;
-  return `${sign}$${(abs / 1000).toFixed(0)}k`;
+  const formatted = new Intl.NumberFormat(moneyDisplay.locale, {
+    style: 'currency',
+    currency: moneyDisplay.currency,
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(v);
+  // Only a standalone ASCII "K" — never a localised suffix like "Tsd." or "만".
+  return formatted.replace(/(\d)K/, '$1k');
 }
 
 export function calculateMonthlyPayment(principal: number, apr: number, termMonths: number): number {
