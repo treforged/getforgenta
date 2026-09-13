@@ -110,6 +110,7 @@ export type Database = {
           payment_due_day: number | null
           first_payment_due_date: string | null
           payment_preference: string | null
+          payment_unconditional: boolean
           plaid_account_id: string | null
           plaid_item_id: string | null
           provider: string
@@ -150,6 +151,7 @@ export type Database = {
           payment_due_day?: number | null
           first_payment_due_date?: string | null
           payment_preference?: string | null
+          payment_unconditional?: boolean
           plaid_account_id?: string | null
           plaid_item_id?: string | null
           provider?: string
@@ -190,6 +192,7 @@ export type Database = {
           payment_due_day?: number | null
           first_payment_due_date?: string | null
           payment_preference?: string | null
+          payment_unconditional?: boolean
           plaid_account_id?: string | null
           plaid_item_id?: string | null
           provider?: string

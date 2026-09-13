@@ -2,7 +2,38 @@
 
 ## 2026-09-13 — TRANSACTION MATCHING + NAV. All pushed, `origin/main` 0/0.
 
-**FIRST UP: the desktop sidebar hover-overlay, then the always-pay-full card toggle.**
+**FIRST UP: the always-pay-full card toggle — the COLUMN EXISTS, the ENGINE WORK DOES NOT.**
+
+### ⚠️ THE TOGGLE: WHERE I GOT TO, AND WHY I STOPPED (read before touching the engine)
+
+`accounts.payment_unconditional` boolean NOT NULL default false is **applied to the live DB**
+and in the generated types. Nothing reads it — the engine change was reverted deliberately.
+
+**The defect is real and I found the exact line.** `credit-card-engine.ts` ~2435:
+`const actual = Math.round(Math.min(desired, preferencePool) * 100) / 100;`
+A tight month silently shrinks the payment and still reports a balanced plan. That is the
+app quietly reducing the one number the setting exists to guarantee.
+
+**⚠️ BUT THAT LINE IS THE WRONG TARGET FOR HIS CASE, MEASURED TWICE.**
+`preferenceCards = payableCards.filter(c => c.autopayFullBalance)` and
+`autopayFullBalance = balance <= 0`. So that branch governs cards with NO carried balance.
+A card with a real balance — his case — is sized by the **revolving cascade** further down.
+I wrote the test against a $2,000 balance, watched the flag do nothing, re-aimed it at a
+zero-balance card, and then got no recommendation row at all. Two wrong aims in the repo's
+most complex money file is where I stopped rather than guess a third time.
+
+**So the next session starts by finding which path sizes a revolving card's payment**, not by
+editing 2435. `generateRecommendations` is ~2330; the cascade is below the `preferenceCards`
+loop.
+
+**Sam's ruling, already given, so do not re-ask:** if an unmissable plan minimum and a full
+balance payment cannot both be met, **the plan minimum wins and the full payment is reported
+short**. Show both, show the gap, never resolve it silently.
+
+**And the shortfall must be a NUMBER**, not `isMinimumOnly`. A test must assert the magnitude
+and include a month where the cash genuinely does not fit.
+
+### Then: the Settings IA principle amendment (Account now exists at two levels)
 Everything below is DONE unless it says otherwise.
 
 ### The four things that live nowhere else — read these before touching matching
