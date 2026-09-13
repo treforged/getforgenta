@@ -120,6 +120,22 @@ browser**, only /debt was.
 ⚠️ **NOTHING TONIGHT WAS VERIFIED IN A BROWSER. jsdom only, across all six commits** — including
 the one that writes without asking. See FIRST UP.
 
+## 🔚 CLOSE-OUT — Ada `bb1d77`, 2026-09-13. Four Ada sessions were live; `a75c84` keeps the desk.
+
+Sam stood this session down: a dispatch loop of his had opened four Ada sessions on one tree and
+one ask queue. Nothing here is half-finished — **`origin/main` 0/0, nine commits, all gated.**
+
+**Closed with evidence:** `db95d36a`, `da5c564e`, `566472e8`, `a22f6bb5`, `60c2cec0`.
+**Filed:** `1e8c6f87` (the `/demo` drop-out, below).
+**Left OPEN deliberately — `d235eb39`, the full walk, is only PARTLY done.** Walked
+`/demo → /dashboard → /debt` and pressed the always-pay-full toggle both ways. **Not walked:** the
+reviewer-account onboarding reset, every other route, and the Dashboard widget's re-wired cash
+banner — **that banner was changed and never opened in a browser.** Do not close it as done.
+
+**The one thing a successor must not repeat:** see the `/demo` section below. Re-assert `isDemo`
+in the SAME evaluation as any write-shaped press. Checking once at the start is what cost me a
+write to real data.
+
 ## ⚠️ WHY THIS DESK KEEPS STALLING — MEASURED 2026-09-13, NOT A PROMISE
 
 Tre, 2026-09-13: *"bro, it never resumed. Take a look and diagnose why this is going on for
@@ -2409,7 +2425,7 @@ probe ran as `postgres` and proved nothing, because a SECURITY DEFINER trigger h
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-13 10:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-13 10:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -2424,14 +2440,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+855a60ee docs(handoff): correcting 38b7d2b2 — that evidence came from REAL accounts, not demo
+dffada63 docs(handoff): what the browser walk found, and the convergence gap it left open
+38b7d2b2 [debt]: "Safe to Pay $7,991" against $2,526 of cash, and no warning at all
+aaeee75b [demo]: a refresh dropped you out of the demo and into your real accounts
 71396612 docs(handoff): auto-apply is wired; the browser walk is now what is overdue
 45ea5098 [auto-apply]: stop asking about a merchant you have answered 22 times
 b7342b3c docs(handoff): four shipped, and the sections they made stale are corrected in place
 2ac54d45 [auto-apply]: the outlier gate was inert by construction, so it read as a guarantee
-ac0c0b6d [undo]: the deck recorded its undo only if you finished the run
-800069e4 [undo]: "Link and correct" gets the undo it was honestly refused
-a4cff977 [debt]: the always-pay-full toggle did nothing on the path users actually see
-9b5ed37e docs(handoff): what the statement-parsing measurement actually needs
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
