@@ -1,5 +1,52 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## 2026-09-13 LATE — FOUR SHIPPED. Read this before the sections below, which are now partly stale.
+
+`origin/main` 0/0 by contents after each. `a4cff977` · `800069e4` · `ac0c0b6d` · `2ac54d45`.
+Gates each time: `npm run test:tz` all three zones (**4264 passed, 1 skipped**, up from 4225),
+`npx tsc --noEmit` clean, `npm run lint` 0 errors. Every commit proven RED by mutation, every
+mutated file restored byte-exactly and checked by sha256.
+
+**⇢ FIRST UP: WIRE AUTO-APPLY. Both prerequisites are now met and the block is lifted** — see
+item 4 below for the one thing still to decide before it ships.
+
+1. ✅ **`db95d36a` CLOSED — and the ask's premise was too kind.** It said the SHORTFALL never
+   reached a screen. Measured first: `paymentUnconditional` occurred **ZERO times** in
+   `useCardProjection.ts`, `cardProjectionResim.ts` and `month0-debt-breakdown.ts`, so the
+   PAYMENT itself was still being silently scaled down on the only path users see. All three
+   shipped parts had landed on the one-shot `getPayoffRecommendations` path.
+   New `src/lib/unconditional-payment.ts` is the one derivation, called by BOTH. The gap rides
+   `perCardAdjusted` → `CardRecRow` → both renderers, wording from one shared constant.
+   ⚠️ **Named limitation, in the code:** with 2+ unconditional cards overdrawing, the per-card
+   split follows settlement order (`cards` order here, strategy order on the one-shot path). The
+   TOTAL is identical; with one such card so is the attribution.
+2. ✅ **`da5c564e` CLOSED — "Link and correct" has its undo.** New `restoreTransaction` step
+   restores **amount, date AND origin together**; restoring only the amount would be the same
+   partial-undo lie one field over, because `reconciledPatch` writes all three.
+   `reconciliationUndoStep` lives beside `reconciledPatch` so the pair cannot drift, and the lib
+   test compares KEY SETS so growing one without the other fails immediately.
+   ⚠️ **A second defect found while wiring it:** the undo executor ended in a bare `else` that
+   assumed `setCategory`. Any new step kind would have cleared a label instead of restoring an
+   amount, counted it done, and reported a successful undo. Every kind is named now.
+3. ✅ **Auto-apply prerequisite 1 — the deck recorded its undo ONLY on run completion.** Now
+   recorded at the moment of each decision, one row per decision, claimed by charge id before the
+   await. `markUndone` is a new optional prop and is what stops this being a regression: the
+   in-session undos retire the stored row, or it would go on offering to reverse work already
+   reversed.
+4. ✅ **Auto-apply prerequisite 2 — the outlier gate was INERT BY CONSTRUCTION.**
+   `MerchantLinkRule` carried no amounts, so `isOrdinaryForMerchant` abstained on every call and
+   waved through the exact large-deviation case it exists to catch. `MerchantLinkRule.amounts`
+   now carries the winning rule's own population (others excluded — a different obligation is a
+   different population; a missing amount is dropped, never counted as 0, because a zero makes
+   the gate MORE permissive). Use **`linkMemoryVerdict(rule, charge, target)`** — one
+   construction, so the wiring cannot pass `[]` and silently disable the gate again.
+   ⚠️ **`linkMemoryVerdict` has NO production caller yet. Wiring auto-apply is a separate
+   decision and this is where to start.** The remaining judgement is the one in the section
+   below: the panel SHRINKS, it does not vanish.
+
+⚠️ **Nothing tonight was verified in a browser. jsdom only.** The full walk is still open
+(`d235eb39`).
+
 ## ⚠️ WHY THIS DESK KEEPS STALLING — MEASURED 2026-09-13, NOT A PROMISE
 
 Tre, 2026-09-13: *"bro, it never resumed. Take a look and diagnose why this is going on for
@@ -63,7 +110,9 @@ engine and the toggle are all DONE. See "THE TOGGLE" below.
   column, the engine and its tests were all real and all dead. **A feature with no writer is
   the shape a green suite hides best.**
 
-### ⚠️ WHAT IS STILL OPEN: the SHORTFALL is computed and never rendered (ask `db95d36a`)
+### ✅ CLOSED 2026-09-13 LATE (`a4cff977`) — the shortfall renders. Kept for the REASONING only.
+> ⚠️ The diagnosis below is right that the sim path never computed it, and WRONG to imply the
+> payment was correct there: the sim did not read `paymentUnconditional` at all. See the top.
 
 The engine computes `unconditionalShortfall` and `buildMonthlyDebtBreakdown` carries it
 through (`credit-card-engine.ts:2875`, with its own warning about the wholesale rebuild that
@@ -149,8 +198,8 @@ Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_rev
 ### Open / not done
 - ✅ **Sidebar hover-overlay** shipped `872385d9`. ✅ **always-pay-full toggle** shipped in
   three parts: column `cb513215`, engine `fc38deef`, writer 2026-09-13.
-- ⚠️ **STILL OPEN, the remaining half of the toggle: the SHORTFALL never renders** (ask
-  `db95d36a`). A quietly reduced payment is the app lying, and the engine already refuses to
+- ✅ **SHIPPED `a4cff977` — the shortfall renders, and the payment is no longer scaled down.**
+  (Was: "STILL OPEN, the remaining half of the toggle" — ask `db95d36a`.) A quietly reduced payment is the app lying, and the engine already refuses to
   reduce it — but the gap it reports reaches no screen. See the top of this file for why this
   is sim-path engine work and not a missing passthrough.
 - ⚠️ **The payroll + variable-utility single-card prompts still ask, and "only the deck
@@ -207,7 +256,8 @@ Data fix: review `77b9d6dd` deleted, backed up in `backup.synced_transaction_rev
   until line 39 shows the panel only ever receives `merchant_retro_pass`, whose steps are all
   `setCategory`. **The `continue` is correct.** Reading the executor without reading what feeds
   it produces a confident finding about a bug that is not there.
-- ⚠️ **ONE per-row link is still uncovered, ON PURPOSE: "Link and correct"** (ask `da5c564e`).
+- ✅ **SHIPPED `800069e4` — "Link and correct" is covered.** (Was: "still uncovered, ON PURPOSE",
+  ask `da5c564e`. The reasoning below is why it waited, and is still worth reading.)
   It also patches the ledger transaction's AMOUNT, and `applied-actions.ts` has exactly three
   step kinds — `setCategory`, `removeReviews`, `deleteTransaction` — **none of which can put an
   amount back**. Recording the link's undo there would hand the user a button that removes the
