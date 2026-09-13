@@ -3,6 +3,7 @@ import { ArrowUpRight, AlertTriangle, Flag } from 'lucide-react';
 import {
   selectNextMilestone,
   classifyMilestoneTone,
+  milestoneText,
   type ForecastMilestone,
   type MilestoneTone,
 } from '@/lib/next-milestone';
@@ -79,9 +80,14 @@ function RemainingMilestones({ milestones }: { milestones: ForecastMilestone[] }
             : tone === 'positive'
               ? 'bg-success/10 text-success'
               : 'bg-secondary text-muted-foreground';
+          // The SAME icon source as the hero above. Before this, the hero drew a lucide glyph on
+          // top of the emoji already inside the string (two warnings side by side) while these
+          // chips drew none and showed the emoji alone — two paths, two different answers.
+          const ChipIcon = tone === 'negative' ? AlertTriangle : tone === 'positive' ? Flag : null;
           return (
-            <span key={i} className={`px-2 sm:px-3 py-1 text-xs font-medium ${chip}`} style={{ borderRadius: 'var(--radius)' }}>
-              {m.month}: {m.event}
+            <span key={i} className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 text-xs font-medium ${chip}`} style={{ borderRadius: 'var(--radius)' }}>
+              {ChipIcon && <ChipIcon size={11} className="shrink-0" aria-hidden />}
+              {m.month}: {milestoneText(m.event)}
             </span>
           );
         })}
@@ -124,7 +130,7 @@ export default function ForecastHero({ milestones, emptyReason }: Props) {
       </p>
       <p className={`text-sm mt-2 flex items-start gap-1.5 ${EVENT_TONE[tone]}`}>
         <Icon size={14} className="shrink-0 mt-0.5" aria-hidden />
-        <span>{milestone.event}</span>
+        <span>{milestoneText(milestone.event)}</span>
       </p>
       <RemainingMilestones milestones={rest} />
     </HeroShell>

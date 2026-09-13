@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Undo2 } from 'lucide-react';
 import DeckShell from '@/components/shared/DeckShell';
 import DeckEndCard from '@/components/shared/DeckEndCard';
 import { type Category } from '@/lib/types';
@@ -43,6 +44,7 @@ import {
 } from '@/lib/review-link-options';
 import {
   initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress, planDeckUndo,
+  lastDecision, revertLastDecision,
   deckSummary, deckChipRow, remainingCategories,
   type DeckCard, type DeckDecision,
 } from '@/lib/decision-deck';
@@ -422,6 +424,44 @@ export default function DecisionDeck({
   }, [remove, setCategory, undoImport, state.decisions, summary.total]);
 
   /**
+   * Undo the ONE decision just made, and go back to that card.
+   *
+   * ⚠️ WHY THIS EXISTS WHEN `undoAll` ALREADY DID. Tre, 2026-09-12, after one-tapping a $15 Zelle
+   * onto an $1,100 rent rule: "There's no easy way to undo this action." He was right, and the
+   * existing undo is why it reads as absent: it lives on the END SCREEN, reverses the WHOLE run,
+   * and is offered once. None of that helps at the moment a single tap goes wrong — which is the
+   * only moment the user knows it did. A mistake you cannot take back in place is a mistake you
+   * have to finish the deck to fix.
+   *
+   * ⚠️ THE CARD IS FOUND BY CHARGE ID, NOT BY `index - 1`. Skip advances the index without
+   * recording a decision, so one place back is not reliably the decided card.
+   *
+   * ⚠️ THE DATA IS REVERSED BEFORE THE RUN FORGETS THE DECISION. If the bookkeeping went first, a
+   * failed write would leave the deck claiming an undo that never happened — and the decision gone
+   * from `state.decisions`, so "Undo all" could not reach it either.
+   */
+  const undoLast = useCallback(async () => {
+    const decision = lastDecision(state);
+    if (!decision) return;
+    setBusy(true);
+    const steps = planDeckUndo([decision]);
+    try {
+      for (const step of steps) {
+        if (step.write === 'deleteTransaction') await undoImport.mutateAsync(step.transactionId);
+        else if (step.write === 'removeReviews') await remove.mutateAsync(step.chargeId);
+        else await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
+      }
+      const backTo = deck.findIndex(c => c.charge.id === decision.chargeId);
+      setState(prev => revertLastDecision(prev, backTo >= 0 ? backTo : prev.index));
+      toast.success('Undone — that charge is waiting on you again');
+    } catch (e) {
+      toast.message(`Could not undo that one. ${errorMessage(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [state, deck, remove, setCategory, undoImport]);
+
+  /**
    * Keyboard: ← skip, → accept, 1-9 pick a chip, Esc back to the list.
    *
    * ⚠️ → DOES NOTHING WHEN THERE IS NOTHING TO ACCEPT. Falling back to some other decision would
@@ -511,6 +551,27 @@ export default function DecisionDeck({
           buildItems={importPlan?.ok ? buildItems : []}
           onBuildPart={onBuildPart}
           />
+        )}
+        {/*
+          UNDO THE LAST DECISION, in place, while the user is still looking at the deck.
+          Tre, 2026-09-12: "There's no easy way to undo this action." There WAS an undo -- on the
+          end screen, reversing the whole run, offered once -- and none of that reaches the moment
+          a single tap goes wrong, which is the only moment anyone notices. Shown only while a card
+          is on screen and something has been decided, so it never competes with the end screen's
+          own "Undo all".
+        */}
+        {card && !complete && state.decisions.length > 0 && (
+          <div className="flex justify-center mt-3">
+            <button
+              type="button"
+              onClick={() => { void undoLast(); }}
+              disabled={busy}
+              className="btn btn-sm btn-ghost text-xs text-muted-foreground"
+              data-testid="deck-undo-last"
+            >
+              <Undo2 size={12} /> Undo that
+            </button>
+          </div>
         )}
     </DeckShell>
   );

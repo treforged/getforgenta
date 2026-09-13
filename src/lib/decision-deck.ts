@@ -130,6 +130,41 @@ export function recordDeckDecision<D>(state: DeckState<D>, decision: D): DeckSta
   };
 }
 
+/**
+ * The most recent decision, or null when nothing has been decided yet.
+ *
+ * Exists so a caller can undo ONE decision without reasoning about the array itself.
+ */
+export function lastDecision<D>(state: DeckState<D>): D | null {
+  return state.decisions.length > 0 ? state.decisions[state.decisions.length - 1] : null;
+}
+
+/**
+ * Take the most recent decision back off the run and return to the card it was about.
+ *
+ * ⚠️ THE CALLER SUPPLIES THE INDEX, AND THAT IS DELIBERATE — `state.index - 1` is WRONG. Skip
+ * advances the index via `advanceDeck` WITHOUT recording a decision, so after decide-skip-skip the
+ * card one place back is not the card that was decided. The caller knows the deck and can find the
+ * charge by id; this function will not guess. An out-of-range index is clamped rather than trusted,
+ * because a charge that has left the deck must not put the run on a card that does not exist.
+ *
+ * ⚠️ IT REMOVES THE DECISION FROM THE RUN, so the end screen's counts and its own "Undo all" stop
+ * offering to reverse something already reversed — the failure that would otherwise delete a review
+ * the user has since recreated.
+ *
+ * This does NOT write anything. Reversing the DATA is `planDeckUndo([decision])`; this is only the
+ * run's own bookkeeping, and the two are separate so a failed write never leaves the deck claiming
+ * an undo that did not happen.
+ */
+export function revertLastDecision<D>(state: DeckState<D>, backToIndex: number): DeckState<D> {
+  if (state.decisions.length === 0) return state;
+  return {
+    ...state,
+    index: Math.min(Math.max(0, backToIndex), state.total),
+    decisions: state.decisions.slice(0, -1),
+  };
+}
+
 export function isDeckComplete<D>(state: DeckState<D>): boolean {
   return state.index >= state.total;
 }

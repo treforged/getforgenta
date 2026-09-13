@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDeck, initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress,
-  planDeckUndo, orderCategoryChips, taughtCategoryOrder, deckSummary, CHIP_LIMIT,
+  planDeckUndo, lastDecision, revertLastDecision, orderCategoryChips, taughtCategoryOrder, deckSummary, CHIP_LIMIT,
   chargeDirection, MONEY_IN_CATEGORIES, deckChipRow, remainingCategories,
   type DeckDecision,
 } from '../decision-deck';
@@ -358,5 +358,66 @@ describe('remainingCategories — the rest of the list has to be reachable', () 
   it('keeps the app\'s own order, so the overflow is not a shuffled pile', () => {
     const more = remainingCategories(['Bills', 'Rent']);
     expect(more[0]).toBe('Mortgage');
+  });
+});
+
+/**
+ * UNDOING ONE DECISION, not the whole run.
+ *
+ * Tre, 2026-09-12: "There's no easy way to undo this action." An undo already existed -- on the
+ * END SCREEN, reversing the entire run, offered once. None of that reaches the moment a single tap
+ * goes wrong, which is the only moment anyone notices.
+ */
+describe('lastDecision / revertLastDecision', () => {
+  const cards = ['a', 'b', 'c', 'd'];
+  const decide = (state: ReturnType<typeof initialDeckState>, chargeId: string) =>
+    recordDeckDecision(state, { kind: 'accepted', chargeId, previousCategory: null } as never);
+
+  it('returns null when nothing has been decided', () => {
+    expect(lastDecision(initialDeckState(cards))).toBeNull();
+  });
+
+  it('gives back the most recent decision and drops it from the run', () => {
+    let state = decide(initialDeckState(cards), 'a');
+    state = decide(state, 'b');
+    expect((lastDecision(state) as { chargeId: string }).chargeId).toBe('b');
+
+    const reverted = revertLastDecision(state, 1);
+    expect(reverted.decisions).toHaveLength(1);
+    expect((reverted.decisions[0] as { chargeId: string }).chargeId).toBe('a');
+    expect(reverted.index).toBe(1);
+  });
+
+  it('is a no-op on an untouched run rather than stepping backwards into nothing', () => {
+    const fresh = initialDeckState(cards);
+    expect(revertLastDecision(fresh, 0)).toBe(fresh);
+  });
+
+  /**
+   * THE REASON THE CALLER SUPPLIES THE INDEX. `state.index - 1` is WRONG after a skip: skip
+   * advances the index without recording a decision, so the card one place back is not the card
+   * that was decided. This pins that the function honours the index it is given.
+   */
+  it('returns to the DECIDED card, not to index-1, after skips', () => {
+    let state = decide(initialDeckState(cards), 'a'); // index 1
+    state = advanceDeck(state);                        // skip -> index 2
+    state = advanceDeck(state);                        // skip -> index 3
+    expect(state.index).toBe(3);
+    // The decision was about card 'a', which sits at index 0 -- NOT at index-1 (2).
+    const reverted = revertLastDecision(state, 0);
+    expect(reverted.index).toBe(0);
+    expect(reverted.decisions).toHaveLength(0);
+  });
+
+  it('clamps an index that is out of range rather than trusting it', () => {
+    const state = decide(initialDeckState(cards), 'a');
+    expect(revertLastDecision(state, -5).index).toBe(0);
+    expect(revertLastDecision(state, 99).index).toBe(cards.length);
+  });
+
+  it('plans exactly the writes that reverse that ONE decision', () => {
+    const decision = { kind: 'accepted', chargeId: 'a', previousCategory: 'Groceries' } as never;
+    const steps = planDeckUndo([decision]);
+    expect(steps.map(s => s.write)).toEqual(['removeReviews', 'setCategory']);
   });
 });

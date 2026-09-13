@@ -31,9 +31,15 @@ const navItems = [
   // it makes more sense there."). `/goals` still resolves — it redirects to
   // `/dashboard?tab=goals` — so every bookmark and every in-app link keeps landing; what it
   // stopped being is a row of its own.
-  // Forecast ahead of Garage (Tre, 2026-08-27: "put forecast before the garage tab"), which is
-  // also the order the phone bar has always used.
-  { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
+  // Forecast is a PANEL of the Activity surface now, for the same reason and by the same route as
+  // Accounts, Plan and Goals above (Tre, 2026-09-12: "the forecast section should be moved to the
+  // transactions tab"). `/forecast` still resolves — it redirects to `/transactions?tab=forecast`.
+  //
+  // ⚠️ IT WAS REMOVED FROM `MobileNav` FIRST AND LEFT HERE, and that half-landed state is worse
+  // than not having started: the same destination existed twice, once as a rail row and once as a
+  // pill inside the surface it had moved into. The drift guard did not catch it because
+  // `nav-routes.test.ts` only compared TAB_ROOT_PATHS against `MobileNav`'s PRIMARY and never
+  // looked at this file. `nav-no-redirect-targets.test.ts` now covers BOTH navs.
   { to: '/vehicles', icon: Car, label: 'Garage' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/settings', icon: Settings, label: 'Settings' },

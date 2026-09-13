@@ -29,20 +29,20 @@ describe('ForecastHero — a positive next milestone', () => {
     expect(hero.className).toContain('text-foreground');
     // Gold is money-in-motion and primary actions only.
     expect(hero.className).not.toContain('text-primary');
-    expect(screen.getByText('Emergency Fund Complete! 🎯')).toBeTruthy();
+    expect(screen.getByText('Emergency Fund Complete!')).toBeTruthy();
     expect(screen.getByText('Next milestone')).toBeTruthy();
   });
 
   it('gives good news the success voice', () => {
     renderHero([GOAL, CC_FREE]);
-    expect(screen.getByText('Emergency Fund Complete! 🎯').parentElement?.className).toContain('text-success');
+    expect(screen.getByText('Emergency Fund Complete!').parentElement?.className).toContain('text-success');
   });
 
   it('keeps every remaining milestone reachable under the hero', () => {
     renderHero([GOAL, CC_FREE, NEGATIVE]);
     expect(screen.getByText('Then (2)')).toBeTruthy();
-    expect(screen.getByText('Jul 2028: CC Debt Free! 🎉')).toBeTruthy();
-    expect(screen.getByText('Sep 2026: ⚠️ Cash below safe minimum')).toBeTruthy();
+    expect(screen.getByText('Jul 2028: CC Debt Free!')).toBeTruthy();
+    expect(screen.getByText('Sep 2026: Cash below safe minimum')).toBeTruthy();
   });
 });
 
@@ -53,15 +53,15 @@ describe('ForecastHero — a negative next milestone', () => {
     expect(hero.className).toContain('text-5xl');
     expect(hero.className).toContain('font-display');
     expect(hero.className).toContain('text-destructive');
-    expect(screen.getByText('⚠️ Cash below safe minimum')).toBeTruthy();
+    expect(screen.getByText('Cash below safe minimum')).toBeTruthy();
     // The later, happier milestone is present but demoted to the strip, not the hero.
     expect(screen.queryByText('Mar 2027')).toBeNull();
-    expect(screen.getByText('Mar 2027: Emergency Fund Complete! 🎯')).toBeTruthy();
+    expect(screen.getByText('Mar 2027: Emergency Fund Complete!')).toBeTruthy();
   });
 
   it('gives bad news the destructive voice on the supporting line too', () => {
     renderHero([NEGATIVE, GOAL]);
-    expect(screen.getByText('⚠️ Cash below safe minimum').parentElement?.className).toContain('text-destructive');
+    expect(screen.getByText('Cash below safe minimum').parentElement?.className).toContain('text-destructive');
   });
 });
 
@@ -83,5 +83,42 @@ describe('ForecastHero — no milestones', () => {
   it('handles a missing milestones array the same way — no crash, no fake date', () => {
     renderHero(undefined, 'no-inputs');
     expect(screen.getByText('Nothing to project yet')).toBeTruthy();
+  });
+});
+
+/**
+ * THE GLYPH COUNT, RENDERED - the class of defect no string test catches.
+ *
+ * Tre, 2026-09-12, from a screenshot: the NEXT MILESTONE line showed TWO warning icons side by
+ * side, one a lucide SVG from this component and one the emoji carried inside the milestone
+ * STRING by `forecast-engine.ts`. The chip row underneath showed only one, because that path drew
+ * no icon of its own - the two paths disagreeing is what gave it away.
+ *
+ * WHY THE EMOJI IS NOT SIMPLY DELETED AT SOURCE: `classifyMilestoneTone` decides tone by looking
+ * for exactly those characters. Removing them from the engine would render every warning in the
+ * CALM colour - a worse bug than this one, and a silent one. So the data keeps its marker and the
+ * render layer strips it.
+ *
+ * These count what is actually in the DOM. A className assertion cannot see a doubled icon.
+ */
+describe('ForecastHero - one icon per milestone, from one source', () => {
+  const EMOJI = ['\u26A0', '\u{1F389}', '\u{1F3AF}', '\u{1F4B8}'];
+
+  it('prints NO tone emoji anywhere - drawing the icon is the component job', () => {
+    const { container } = renderHero([NEGATIVE, GOAL, CC_FREE]);
+    const text = container.textContent ?? '';
+    for (const marker of EMOJI) expect(text.includes(marker)).toBe(false);
+  });
+
+  it('draws exactly ONE icon on the hero line', () => {
+    renderHero([NEGATIVE]);
+    const line = screen.getByText('Cash below safe minimum').parentElement!;
+    expect(line.querySelectorAll('svg').length).toBe(1);
+  });
+
+  it('draws exactly ONE icon on a remaining-milestone chip, so both paths agree', () => {
+    renderHero([GOAL, NEGATIVE]);
+    const chip = screen.getByText(/Sep 2026: Cash below safe minimum/).closest('span')!;
+    expect(chip.querySelectorAll('svg').length).toBe(1);
   });
 });

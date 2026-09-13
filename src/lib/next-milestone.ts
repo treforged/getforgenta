@@ -42,6 +42,27 @@ const NEGATIVE_MARKERS = ['⚠️', '💸'] as const;
 /** Substrings that identify the engine's good-news milestones (~:1424-1430). */
 const POSITIVE_MARKERS = ['🎉', '🎯'] as const;
 
+/**
+ * The milestone's words, with the engine's tone glyph removed.
+ *
+ * ⚠️ THE GLYPH IS DATA HERE, NOT DECORATION, WHICH IS WHY IT IS STRIPPED AT RENDER RATHER THAN AT
+ * SOURCE. `NEGATIVE_MARKERS` and `POSITIVE_MARKERS` classify tone by looking for exactly these
+ * characters, so deleting them from `forecast-engine.ts` would silently reclassify every warning
+ * as NEUTRAL — a bad-news milestone rendered in the calm colour, which is the worst possible
+ * direction for this particular screen to be wrong in.
+ *
+ * ⚠️ WHY IT IS NEEDED AT ALL. Tre, 2026-09-12, from a screenshot: the NEXT MILESTONE line read
+ * "⚠ ⚠ Cash below safe minimum" — a lucide `AlertTriangle` from the component AND the emoji
+ * carried inside the string, two icons from two sources concatenated. The chip row below it showed
+ * only one, because that path drew no icon of its own. The two paths disagreed, which is the tell.
+ * Both now draw the component icon and neither prints the emoji, so they agree by construction.
+ */
+export function milestoneText(event: string): string {
+  let out = event;
+  for (const marker of [...NEGATIVE_MARKERS, ...POSITIVE_MARKERS]) out = out.split(marker).join('');
+  return out.replace(/\s+/g, ' ').trim();
+}
+
 export function classifyMilestoneTone(event: string): MilestoneTone {
   if (NEGATIVE_MARKERS.some((m) => event.includes(m))) return 'negative';
   if (POSITIVE_MARKERS.some((m) => event.includes(m))) return 'positive';
