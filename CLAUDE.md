@@ -73,6 +73,21 @@ section states reasoning, not measurement, and says so.
 - `npm run build` — needed when the change touches build config or `browserslist`.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
+- ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER
+  THAN IT LOOKS.** All nine workflows pin `node-version: 22`; this desk was on 24.14.0
+  on 2026-09-13. There was no `.nvmrc` and no `engines` field, so **no local gate had
+  ever run on the engine CI uses** — `.nvmrc` now says `22`, and it only helps if you
+  actually `nvm use`.
+  **The worked example, because it cost a red main:** `formatYAxisTick` used
+  `Intl.NumberFormat` with `notation: 'compact'` and only a MAXIMUM fraction digit.
+  ECMA-402 then leaves rounding on the compact default, and ICU builds disagree — Node
+  24 / ICU 78.2 printed `$3k`, CI's Node 22 printed `$3.0k`. Four tests passed here and
+  failed there. **The user-facing half is the real one: the tick a customer saw depended
+  on their browser's ICU.** Name BOTH `minimumFractionDigits` and `maximumFractionDigits`
+  on any `Intl` format whose exact string you assert or ship.
+  **And note what `test:tz` does NOT cover:** it varies the TIME ZONE three ways and the
+  ICU never. Anything locale- or currency-formatted is unguarded against this class
+  locally — only CI sees it.
 - ⚠️ **The real-data fixtures are gitignored, so the golden/convergence tests SKIP
   in CI.** A green badge says nothing about the money engine. Run `test:tz`
   locally.
