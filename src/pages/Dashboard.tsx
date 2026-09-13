@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
 import MetricCard from '@/components/shared/MetricCard';
 import AppTour from '@/components/shared/AppTour';
+import { WhatsNewDialog } from '@/components/shared/WhatsNewDialog';
 import ProgressBar from '@/components/shared/ProgressBar';
 import CategoryIcon from '@/components/shared/CategoryIcon';
 import PremiumGate from '@/components/shared/PremiumGate';
@@ -1507,6 +1508,10 @@ export default function Dashboard() {
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
       {!isDemo && <AppTour variant="new-user" />}
+      {/* What changed, for someone who was already here (Tre, 2026-09-13). Deliberately AFTER the
+          founder note and the tour in source order: those two are a new user's first run, and this
+          one refuses to render for a new user at all, so they can never stack up on one screen. */}
+      {!isDemo && <WhatsNewDialog />}
       <AccountUpdateReminder />
       {/* Free first bank link, for somebody who has never linked one. Fires on OPEN, so it
           cannot reach a dormant user - it makes a return worth something rather than causing one.
