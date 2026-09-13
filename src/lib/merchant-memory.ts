@@ -319,6 +319,39 @@ export function planMerchantRelabel(
 }
 
 /**
+ * What "clear all merchant memory" would actually destroy, and how to put each piece back.
+ *
+ * ⚠️ THERE IS NO MEMORY TO CLEAR SEPARATELY FROM THE USER'S OWN ANSWERS. A rule IS the
+ * `category_override` they recorded (see this file's header), so "forget every merchant" and
+ * "delete every category I have ever set" are THE SAME OPERATION. Measured on Tre's account
+ * 2026-09-13: 516 category decisions across 21 categories, eight months of labelling. Anyone
+ * reading the button as "clear a cache" is wrong by that much.
+ *
+ * Tre asked for it in those terms — "delete all saved data, and they can restart from scratch" —
+ * so the operation is right. What it must never be is quiet about the size.
+ *
+ * Returns one entry per charge that carries a category, each holding the value to restore. The
+ * caller writes `null` to clear and replays `previousCategory` to undo. Charges with no category
+ * are skipped: a write that changes nothing still costs a round trip and inflates the count shown
+ * to the user, which is the number they are deciding on.
+ */
+export function planMerchantMemoryClear(
+  charges: readonly MerchantCharge[],
+  reviewsByCharge: Readonly<Record<string, readonly MerchantReview[]>>,
+): MerchantRelabel[] {
+  const out: MerchantRelabel[] = [];
+  for (const charge of charges) {
+    // A charge with no readable merchant contributes to no rule, so clearing it would delete a
+    // label that no memory was ever derived from — outside what this button promises.
+    if (!normalizeMerchant(merchantLabel(charge))) continue;
+    const recorded = recordedCategory(reviewsByCharge[charge.id] ?? []);
+    if (!recorded) continue;
+    out.push({ chargeId: charge.id, previousCategory: recorded.category });
+  }
+  return out;
+}
+
+/**
  * The writes that undo a pass, in the order they should be made.
  *
  * Reversed, so a partially-applied undo unwinds the most recent write first and the two halves of a

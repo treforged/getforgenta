@@ -11,7 +11,20 @@
  */
 
 /** Which surface applied the action. Text in the DB so a new kind needs no migration. */
-export type AppliedActionKind = 'deck_decision' | 'merchant_retro_pass' | 'link_confirm';
+export type AppliedActionKind =
+  | 'deck_decision'
+  | 'merchant_retro_pass'
+  | 'link_confirm'
+  /**
+   * "Clear all merchant memory" from the Danger Zone.
+   *
+   * ⚠️ IT IS THE MOST DESTRUCTIVE BUTTON IN THE APP AND IT HAD TO BE THE MOST REVERSIBLE. There is
+   * no `merchant_rules` table — a rule IS the `category_override` the user recorded — so clearing
+   * the memory deletes their own labels. On Tre's account that is **516 category decisions across
+   * 21 categories**, eight months of answers, measured 2026-09-13 rather than estimated. Anything
+   * that destroys that much of someone's work without a way back is not a setting, it is a trap.
+   */
+  | 'merchant_memory_clear';
 
 /** Put a charge's category back to what it was. `null` clears it, which is what `setCategory` does. */
 export interface SetCategoryStep {

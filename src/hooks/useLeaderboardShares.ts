@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,8 +50,24 @@ export interface LeaderboardSharesState {
 /**
  * Turn one metric on or off.
  *
- * Upsert on the `(user_id, metric)` unique key rather than insert-or-update in two steps, so a
- * double tap cannot create a second row for the same metric.
+ * ⚠️ **UPDATE-THEN-INSERT, NOT UPSERT, AND THE UPSERT WAS A LIVE BUG.** Tre, 2026-09-13: "the
+ * buttons are not doing anything. They just kinda click and that's it." Measured against the
+ * production API the same day, signed in as him: the upsert returned **"permission denied for
+ * table leaderboard_shares"**, while an insert of the granted columns and an update of the granted
+ * columns both returned OK. `leaderboard_shares` had **ZERO rows** — every toggle he had ever
+ * pressed wrote nothing.
+ *
+ * THE CAUSE IS COLUMN-LEVEL GRANTS, WHICH ARE CORRECT AND DELIBERATE.
+ * `20260826_friend_links.sql` grants `insert (user_id, metric, enabled, updated_at)` but
+ * `update (enabled, updated_at)` — a row's identity is not editable, which is the right call. An
+ * upsert is `INSERT … ON CONFLICT DO UPDATE`, and PostgREST puts EVERY column it was given into
+ * the update, so the conflict path tried to update `user_id` and `metric` and was refused. The
+ * grant was never the problem; asking to update the key was.
+ *
+ * So the write is split to match the grants exactly: update the two mutable columns, and insert
+ * only when no row was matched. The double-tap safety the upsert was chosen for is preserved by
+ * the `(user_id, metric)` unique index — a racing insert loses on the key rather than creating a
+ * second row, and `23505` is treated as success because the row it wanted now exists.
  */
 function useSetLeaderboardShare() {
   const { user } = useAuth();
@@ -59,13 +76,27 @@ function useSetLeaderboardShare() {
   return useMutation({
     mutationFn: async ({ metric, enabled }: { metric: LeaderboardMetric; enabled: boolean }) => {
       if (!user) throw new Error('Not signed in');
-      const { error } = await supabase
+      const now = new Date().toISOString();
+
+      // Only the columns `update` is granted on. `.select('id')` is what makes "did a row exist?"
+      // answerable — without it the result carries no rows and the insert below could never be
+      // skipped, which would turn every second toggle into a duplicate-key error.
+      const { data: updated, error: updateError } = await supabase
         .from('leaderboard_shares')
-        .upsert(
-          { user_id: user.id, metric, enabled, updated_at: new Date().toISOString() },
-          { onConflict: 'user_id,metric' },
-        );
-      if (error) throw error;
+        .update({ enabled, updated_at: now })
+        .eq('user_id', user.id)
+        .eq('metric', metric)
+        .select('id');
+      if (updateError) throw updateError;
+      if ((updated?.length ?? 0) > 0) return;
+
+      // No row yet. Only the columns `insert` is granted on.
+      const { error: insertError } = await supabase
+        .from('leaderboard_shares')
+        .insert({ user_id: user.id, metric, enabled, updated_at: now });
+      // 23505 = another tap inserted it first. The user's intent is satisfied either way, and
+      // raising here would show an error for a switch that is now in the state they asked for.
+      if (insertError && insertError.code !== '23505') throw insertError;
     },
     onSuccess: () => {
       // Invalidate rather than patch the cache by hand. Turning a metric OFF is a privacy action,
@@ -73,6 +104,14 @@ function useSetLeaderboardShare() {
       // the row still says true - the one direction this must never be wrong in.
       queryClient.invalidateQueries({ queryKey: [LEADERBOARD_SHARES_QUERY_KEY] });
     },
+    /**
+     * ⚠️ WITHOUT THIS THE FAILURE WAS INVISIBLE, and that is why it survived to a live report.
+     * Every other mutation in this app surfaces its error; this one had no `onError` at all, so a
+     * refused write produced no toast, no console entry and no change — a button that "just kinda
+     * clicks". A privacy switch that silently fails is worse than one that errors: the user walks
+     * away believing they changed something.
+     */
+    onError: (e: Error) => toast.error(`Could not change sharing: ${e.message}`),
   });
 }
 

@@ -25,6 +25,7 @@ import { FriendLink } from '@/components/settings/FriendLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import { AppLockSettings } from '@/components/settings/AppLockSettings';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
+import ClearMerchantMemory from '@/components/settings/ClearMerchantMemory';
 import NotificationSettings from '@/components/settings/NotificationSettings';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useTheme } from '@/hooks/useTheme';
@@ -955,6 +956,13 @@ export default function SettingsPage() {
       {panel === 'security' && !isDemo && (
         <div className="card-forged p-5 space-y-4 border border-destructive/20">
           <h2 className="text-xs font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
+
+          {/* Tre, 2026-09-13: clearing merchant memory "should be part of a danger zone in that
+              section". It belongs here rather than beside the count for the reason the zone exists:
+              it deletes labels the user set themselves — 516 of them on his own account — and a
+              destructive action sitting next to a preference gets pressed by someone who thought
+              they were adjusting one. Renders nothing until something has been learned. */}
+          <ClearMerchantMemory />
 
           {deleteStep === 'hidden' && (() => {
             const provider = subscription?.purchase_provider;

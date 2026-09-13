@@ -103,6 +103,23 @@ vi.mock('@/hooks/useSupabaseData', () => ({
     update: { mutate: vi.fn(), isPending: false },
   }),
   useAccounts: () => ({ data: [] }),
+  // ClearMerchantMemory renders in the Danger Zone (Tre, 2026-09-13) and reads both of these.
+  // Empty data means it renders nothing, which is what this suite wants — it is about the
+  // security controls, and the clear has its own tests.
+  useAllSyncedTransactions: () => ({ data: [] }),
+  useSyncedTransactionReviews: () => ({ setCategory: { mutateAsync: vi.fn() } }),
+}));
+
+vi.mock('@/hooks/useMerchantMemory', () => ({
+  useMerchantMemory: () => ({ rules: {}, reviewsByCharge: {}, suppressed: {}, setSuppressed: vi.fn(), isLoading: false }),
+}));
+
+vi.mock('@/hooks/useAppliedActions', () => ({
+  useAppliedActions: () => ({
+    actions: [], latest: null, isLoading: false,
+    record: { mutateAsync: vi.fn() }, markUndone: { mutateAsync: vi.fn() },
+    stepsOf: () => [], undoneChargeIds: new Set<string>(), undoneUnknown: false,
+  }),
 }));
 
 vi.mock('@/hooks/useSubscription', () => ({
