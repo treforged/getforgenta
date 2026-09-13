@@ -15,6 +15,32 @@ all**. The hero now NAMES that cause instead of saying "hasn't finished calculat
 The fixed point assumes month-0 payments fit inside the pool; `m0FloorPins` now pins an
 overdrawn payment. That is engine work in `useCardProjection`'s refinement loop.
 
+### 🚨 A WALK ON `/demo` SILENTLY BECAME A WALK ON TRE'S REAL ACCOUNTS, AND MY WRITES WERE REAL
+
+**Read this before any browser verification in this repo.** On 2026-09-13 I opened `/demo`,
+confirmed the DEMO / "Jordan's finances" banner, and pressed the always-pay-full toggle to exercise
+the new shortfall path. **Several reloads later the page had dropped out of demo into his real
+account and I did not notice** — `isDemo` read false only when I happened to check it at the end.
+
+**The toggle press wrote `payment_unconditional = true` to his REAL Prime Visa** (balance
+$7,991.16). Confirmed in the database, **reverted to false, and verified: `select count(*) …
+where payment_unconditional is true` now returns 0.** Nothing else was touched — `applied_actions`,
+`synced_transaction_reviews` and `transactions` all show **0 rows** changed in the window; exactly
+one `accounts` row, the one reverted.
+
+⚠️ **SO THE FIGURES IN `38b7d2b2`'s COMMIT MESSAGE ARE WRONG ABOUT THEIR SOURCE.** It says "demo
+persona" and "demo data"; **$2,526 liquid, $3,223 safe minimum and $7,991 are HIS OWN numbers.**
+The DEFECTS it reports are real and the fix stands — but the provenance is misstated in the durable
+record, which is why it is corrected here rather than left.
+
+**The cause is a known live bug** — a peer session shipped `aaeee75b` *"a refresh dropped you out
+of the demo and into your real accounts"* the same hour. **It did not save me**, so either the fix
+does not cover this path or my tab predated it. **Do not treat the demo banner as a standing
+guarantee: re-assert `isDemo` immediately before every write-shaped press**, not once at the start.
+
+**The cheap habit that would have caught it:** read `isDemo` in the SAME evaluation as the press,
+and refuse to click if it is false.
+
 ### ⚠️ THE BROWSER WALK EARNED ITS KEEP IMMEDIATELY — read this before trusting a green suite
 Partial walk done (/demo → /dashboard → /debt, toggle pressed both ways). It found **two real
 defects that every gate had passed**, on work written hours earlier the same night:
