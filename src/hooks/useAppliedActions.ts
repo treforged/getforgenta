@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  offerableUndos, parseUndoSteps,
+  offerableUndos, parseUndoSteps, chargesWithUndoneDecision,
   type AppliedActionKind, type AppliedActionRow, type UndoStep,
 } from '@/lib/applied-actions';
 
@@ -39,12 +39,29 @@ export function useAppliedActions() {
     queryKey: [APPLIED_ACTIONS_KEY, userId],
     enabled: !!userId,
     queryFn: async (): Promise<AppliedActionRow[]> => {
+      /**
+       * ⚠️ UNDONE ROWS ARE FETCHED TOO, AND FILTERING THEM OUT HERE WAS A REAL DEFECT.
+       *
+       * This used to carry `.is('undone_at', null)`, which is right for the undo banner and
+       * silently wrong for everything else: `chargesWithUndoneDecision` reads exactly the rows
+       * that predicate removed, so it returned an EMPTY set in every case that mattered and the
+       * auto-apply guard built on it could never fire. Inert by construction — the same shape as
+       * the `MerchantLinkRule.amounts` gate, and it got past unit tests because they inject the
+       * set directly. A browser caught it: undo, then the charge re-applied 17 seconds later.
+       *
+       * The filtering now happens in the lib, where both readers can take the view they need —
+       * `offerableUndos` keeps the reversible ones, `chargesWithUndoneDecision` keeps the rest.
+       * Fetch wide, narrow at the point of use.
+       *
+       * The limit is raised because it now spans both populations: a user who has undone a lot
+       * would otherwise push their still-reversible actions out of a 20-row window and lose the
+       * undo banner — a filter change quietly costing a feature.
+       */
       const { data, error } = await supabase
         .from('applied_actions')
         .select('id, kind, label, steps, created_at, undone_at')
-        .is('undone_at', null)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
       if (error) throw error;
       return (data ?? []) as AppliedActionRow[];
     },
@@ -89,6 +106,29 @@ export function useAppliedActions() {
     actions: offerableUndos(query.data ?? []),
     /** The most recent one worth offering, or null. */
     latest: offerableUndos(query.data ?? [])[0] ?? null,
+    /**
+     * Charges the user has already taken back, so auto-apply does not redo them.
+     *
+     * ⚠️ Derived from the RAW rows, not from `actions` above — `offerableUndos` keeps only rows
+     * that are still reversible (`undone_at === null`), which is precisely the complement of what
+     * this needs. Reading it from `actions` would always yield an empty set and would look like
+     * a working guard.
+     */
+    undoneChargeIds: chargesWithUndoneDecision(query.data ?? []),
+    /**
+     * True while `undoneChargeIds` may be out of date — first load OR a refetch in flight.
+     *
+     * ⚠️ `isFetching`, NOT `isLoading`, AND THE DIFFERENCE IS THE WHOLE BUG. `markUndone`
+     * invalidates this query, so straight after an undo the cached set is STALE — it still
+     * says the charge was never undone. `isLoading` is false then, because data exists; only
+     * `isFetching` reports that the answer in hand is the pre-undo one.
+     *
+     * Measured in a browser 2026-09-13: with the durable guard in place but ungated, the deck
+     * re-applied the undone charge anyway, because the auto-apply effect ran on the render
+     * between the invalidate and the refetch landing. A guard that consults data which has not
+     * arrived yet is not a guard.
+     */
+    undoneUnknown: query.isFetching || query.isLoading,
     isLoading: query.isLoading,
     record,
     markUndone,

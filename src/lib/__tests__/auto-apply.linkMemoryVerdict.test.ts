@@ -19,10 +19,28 @@ import { deriveMerchantLinks, type MerchantLinkRule } from '../merchant-link-mem
 
 const HABIT = { linkedCount: 25, conflictingCount: 0 };
 
+/**
+ * Calls `linkMemoryVerdict` with the two arguments these cases do not vary.
+ *
+ * ⚠️ A HELPER, NOT A DEFAULT. `undoneChargeIds` is a REQUIRED parameter precisely so no
+ * production call site can forget it; every case below is about a different gate and passes
+ * an empty set, which is the honest "this charge has never been undone". The gate itself is
+ * exercised in its own describe block at the bottom — if it were only ever fed an empty set
+ * here, nothing would test it at all.
+ */
+const verdict = (
+  rule: { linkedCount: number; conflictingCount: number; amounts: readonly number[] },
+  charge: { amount: number },
+  target: { amount?: number | null } | null | undefined,
+  undone: ReadonlySet<string> = new Set(),
+) => linkMemoryVerdict(rule, { ...charge, id: 'charge-under-test' }, target, false, undone);
+
+
+
 describe('linkMemoryVerdict — the outlier gate can now actually fire', () => {
   it('ASKS about a wildly unusual amount, which the inert gate waved through', () => {
     const rule = { ...HABIT, amounts: [2000, 2010, 1995, 2005, 2000, 1998] };
-    const v = linkMemoryVerdict(rule, { amount: 900 }, { amount: 2000 });
+    const v = verdict(rule, { amount: 900 }, { amount: 2000 });
     expect(v.verdict).toBe('ask');
     expect(v.reason).toBe('unusual-for-this-merchant');
   });
@@ -31,7 +49,7 @@ describe('linkMemoryVerdict — the outlier gate can now actually fire', () => {
     // The control. Without it the test above is satisfied by a gate that asks about everything,
     // which would reintroduce every prompt this work exists to remove.
     const rule = { ...HABIT, amounts: [2000, 2010, 1995, 2005, 2000, 1998] };
-    const v = linkMemoryVerdict(rule, { amount: 2002 }, { amount: 2000 });
+    const v = verdict(rule, { amount: 2002 }, { amount: 2000 });
     expect(v.verdict).toBe('auto');
     expect(v.reason).toBe('confident');
   });
@@ -46,7 +64,7 @@ describe('linkMemoryVerdict — the outlier gate can now actually fire', () => {
     // linked charges carry no readable amounts would otherwise auto-apply with NO amount test of
     // any kind — the inert-gate shape again, reintroduced at exactly the moment the app starts
     // writing without asking.
-    const v = linkMemoryVerdict({ ...HABIT, amounts: [] }, { amount: 2000 }, { amount: 2000 });
+    const v = verdict({ ...HABIT, amounts: [] }, { amount: 2000 }, { amount: 2000 });
     expect(v.verdict).toBe('ask');
     expect(v.reason).toBe('insufficient-amount-history');
   });
@@ -56,15 +74,15 @@ describe('linkMemoryVerdict — the outlier gate can now actually fire', () => {
     const ordinary = { amount: 2000 };
     const below = Array.from({ length: MIN_HISTORY_FOR_OUTLIER - 1 }, () => 2000);
     const at = Array.from({ length: MIN_HISTORY_FOR_OUTLIER }, () => 2000);
-    expect(linkMemoryVerdict({ ...HABIT, amounts: below }, ordinary, ordinary).reason)
+    expect(verdict({ ...HABIT, amounts: below }, ordinary, ordinary).reason)
       .toBe('insufficient-amount-history');
-    expect(linkMemoryVerdict({ ...HABIT, amounts: at }, ordinary, ordinary).verdict).toBe('auto');
+    expect(verdict({ ...HABIT, amounts: at }, ordinary, ordinary).verdict).toBe('auto');
   });
 
   it('an UNUSUAL amount at the floor is refused for being unusual, not for want of history', () => {
     // The two refusals are distinguishable, so a reader of the reason can tell which gate fired.
     const at = Array.from({ length: MIN_HISTORY_FOR_OUTLIER }, () => 2000);
-    expect(linkMemoryVerdict({ ...HABIT, amounts: at }, { amount: 900 }, { amount: 2000 }).reason)
+    expect(verdict({ ...HABIT, amounts: at }, { amount: 900 }, { amount: 2000 }).reason)
       .toBe('unusual-for-this-merchant');
   });
 
@@ -72,28 +90,28 @@ describe('linkMemoryVerdict — the outlier gate can now actually fire', () => {
     // CFX tolls, Banner Life and Apple.com have a measured CV of 0.0%. A z-score would divide by
     // zero; exact agreement is the rule instead.
     const rule = { ...HABIT, amounts: [9.5, 9.5, 9.5, 9.5, 9.5] };
-    expect(linkMemoryVerdict(rule, { amount: 9.5 }, { amount: 9.5 }).verdict).toBe('auto');
-    expect(linkMemoryVerdict(rule, { amount: 10.5 }, { amount: 9.5 }).reason).toBe('unusual-for-this-merchant');
+    expect(verdict(rule, { amount: 9.5 }, { amount: 9.5 }).verdict).toBe('auto');
+    expect(verdict(rule, { amount: 10.5 }, { amount: 9.5 }).reason).toBe('unusual-for-this-merchant');
   });
 
   it('a wildly variable merchant is NOT questioned for ordinary variation', () => {
     // Costco's measured CV is 111.5%. A fixed dollar or percent tolerance cannot serve both this
     // merchant and Apple; judging against the merchant's own spread is what does.
     const rule = { ...HABIT, amounts: [40, 250, 90, 600, 120, 310] };
-    expect(linkMemoryVerdict(rule, { amount: 480 }, { amount: 200 }).verdict).toBe('auto');
+    expect(verdict(rule, { amount: 480 }, { amount: 200 }).verdict).toBe('auto');
   });
 
   it('the earlier gates still outrank it — an absurd pairing is never, not a question', () => {
     const rule = { ...HABIT, amounts: [1100, 1100, 1100, 1100, 1100] };
     // The $15-against-$1,100 case that started all of this.
-    expect(linkMemoryVerdict(rule, { amount: 15 }, { amount: 1100 }).verdict).toBe('never');
+    expect(verdict(rule, { amount: 15 }, { amount: 1100 }).verdict).toBe('never');
   });
 
   it('passes the target amount through, so gate 1 can judge the pairing at all', () => {
     // Omitting the target makes `amountCouldSettle` abstain; a caller that forgot it would lose
     // the implausible-amount gate as silently as the missing history lost the outlier one.
     const rule = { ...HABIT, amounts: [1100, 1100, 1100, 1100, 1100] };
-    expect(linkMemoryVerdict(rule, { amount: 15 }, null).verdict).not.toBe('never');
+    expect(verdict(rule, { amount: 15 }, null).verdict).not.toBe('never');
   });
 });
 
@@ -154,8 +172,56 @@ describe('deriveMerchantLinks — the amounts the gate reads come from real link
       history.map((a, i) => charge(`c${i}`, a)),
       Object.fromEntries(history.map((_, i) => [`c${i}`, linked('r1', String(i))])),
     );
-    const v = linkMemoryVerdict(only(rules), { amount: 850 }, { amount: 2000 });
+    const v = verdict(only(rules), { amount: 850 }, { amount: 2000 });
     expect(v.reason).toBe('unusual-for-this-merchant');
+  });
+});
+
+describe('AN EXPLICIT UNDO OUTRANKS THE INFERENCE — the charge the user already took back', () => {
+  /**
+   * ⚠️ MEASURED IN A BROWSER, NOT REASONED. On 2026-09-13 auto-apply linked a seeded utility
+   * charge, the undo was pressed, and the app re-applied the SAME charge seconds later —
+   * server timestamps: decision 15:48:59, the undo deleted that review row, a new review at
+   * 15:50:05 and a second `applied_actions` row at 15:50:07. Reproduced from a clean state.
+   *
+   * The undo was never broken. The guard was: `DecisionDeck` claimed each charge in a
+   * `useRef(new Set())`, which an undo-triggered refetch and remount resets, while the
+   * merchant history that produced `auto` is unchanged. An in-memory guard cannot answer a
+   * durable question.
+   *
+   * ⚠️ THE PAIR IS THE TEST. The same rule, the same ordinary amount, the same everything —
+   * only the undo history differs. Without the control below, a gate that simply asked about
+   * everything would satisfy the first case and quietly reinstate every prompt this feature
+   * exists to remove.
+   */
+  const SETTLED = { ...HABIT, amounts: [2000, 2010, 1995, 2005, 2000, 1998] };
+  const ordinary = { amount: 2002 };
+
+  it('ASKS about a charge whose decision the user undid', () => {
+    const v = verdict(SETTLED, ordinary, { amount: 2000 }, new Set(['charge-under-test']));
+    expect(v.verdict).toBe('ask');
+    expect(v.reason).toBe('previously-undone');
+  });
+
+  it('THE CONTROL: the identical charge auto-applies when nothing was undone', () => {
+    const v = verdict(SETTLED, ordinary, { amount: 2000 }, new Set());
+    expect(v.verdict).toBe('auto');
+    expect(v.reason).toBe('confident');
+  });
+
+  it('another charge being undone does not mute this one', () => {
+    // The guard is per charge. Keyed any wider — by merchant, say — one undo would switch the
+    // feature off for a habit the user never objected to.
+    const v = verdict(SETTLED, ordinary, { amount: 2000 }, new Set(['some-other-charge']));
+    expect(v.verdict).toBe('auto');
+  });
+
+  it('it is checked FIRST, so the user\'s own instruction is not overridden by a softer reason', () => {
+    // An unusual amount would otherwise answer 'unusual-for-this-merchant'. Both are `ask`, so
+    // only the REASON can tell you which gate spoke — and the person who pressed undo should
+    // be why, not a statistic about the merchant.
+    const v = verdict(SETTLED, { amount: 900 }, { amount: 2000 }, new Set(['charge-under-test']));
+    expect(v.reason).toBe('previously-undone');
   });
 });
 

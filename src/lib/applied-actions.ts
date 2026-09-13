@@ -162,6 +162,36 @@ export function offerableUndos(
 }
 
 /**
+ * Every charge the user has explicitly UNDONE, from the durable record.
+ *
+ * ⚠️ THIS EXISTS BECAUSE AN IN-MEMORY GUARD CANNOT ANSWER A DURABLE QUESTION. `DecisionDeck`
+ * kept its "already auto-applied this charge" claim in a `useRef(new Set())`, which is correct
+ * within one mount — and an undo triggers a refetch and a remount, so the Set came back empty
+ * while the merchant history that produced `auto` was unchanged. Measured in a browser on
+ * 2026-09-13: the undo deleted the link and auto-apply re-applied the same charge seconds
+ * later, leaving no way to refuse a write the user never watched.
+ *
+ * ⚠️ IT IS THE INVERSE OF `offerableUndos`, DELIBERATELY. That one returns rows still
+ * REVERSIBLE (`undone_at === null`) and therefore hides exactly the rows this needs. Reading it
+ * for this purpose would return the empty set in every case that matters — a filter that
+ * silently answers "nothing was undone" is the inert-gate shape this codebase keeps finding.
+ *
+ * Kind is not filtered: a charge the user took back is a charge the user took back, whether the
+ * record came from the deck, a link confirmation or a retro pass. Narrowing by kind would let
+ * the same charge be re-applied through a different surface.
+ */
+export function chargesWithUndoneDecision(rows: readonly AppliedActionRow[]): Set<string> {
+  const out = new Set<string>();
+  for (const row of rows) {
+    if (row.undone_at === null) continue;
+    // Through the validated parser, never the raw jsonb — `steps` is client-written and is a
+    // trust boundary. A malformed row contributes FEWER ids, never a wrong one.
+    for (const step of parseUndoSteps(row.steps)) out.add(step.chargeId);
+  }
+  return out;
+}
+
+/**
  * What to call an action in a list.
  *
  * Falls back to the count rather than to a generic word: "1 change" tells someone nothing, but it

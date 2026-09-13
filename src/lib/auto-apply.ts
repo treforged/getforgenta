@@ -34,6 +34,7 @@ export interface AutoApplyReasoned {
     | 'duplicate-this-period'
     | 'unusual-for-this-merchant'
     | 'insufficient-amount-history'
+    | 'previously-undone'
     | 'confident';
 }
 
@@ -162,10 +163,39 @@ export function autoApplyDecision(e: AutoApplyEvidence): AutoApplyReasoned {
  */
 export function linkMemoryVerdict(
   rule: { linkedCount: number; conflictingCount: number; amounts: readonly number[] },
-  charge: { amount: number },
-  target?: { amount?: number | null } | null,
-  duplicateThisPeriod?: boolean,
+  charge: { amount: number; id: string },
+  target: { amount?: number | null } | null | undefined,
+  duplicateThisPeriod: boolean,
+  /**
+   * Charge ids whose applied decision the user has already UNDONE — from the durable
+   * `applied_actions` record, not from component state. REQUIRED, and the charge's own
+   * id is taken above rather than a precomputed boolean, so this cannot be satisfied by
+   * a call site that forgot to look. Pass an empty Set only where no undo history exists.
+   */
+  undoneChargeIds: ReadonlySet<string>,
 ): AutoApplyReasoned {
+  /**
+   * ⚠️ AN EXPLICIT UNDO OUTRANKS THE INFERENCE. MEASURED IN A BROWSER 2026-09-13, AND THE
+   * UNDO WAS REAL BUT COULD NOT STICK.
+   *
+   * Auto-apply linked a charge, the user pressed Undo, and the app re-applied it within
+   * seconds — twice, reproduced from a clean state with server timestamps: decision at
+   * 15:48:59, undo deleted that review row, a NEW review appeared at 15:50:05 and a second
+   * `applied_actions` row at 15:50:07. So Undo genuinely removed the link and the feature
+   * immediately put it back, leaving the user no way to refuse a write they never watched.
+   *
+   * THE CAUSE WAS A GUARD WEAKER THAN THE THING IT GUARDED. `DecisionDeck` claimed each
+   * charge in a `useRef(new Set())` — correct within one mount, and the undo triggers a
+   * refetch and remount, so the Set came back empty while the merchant history that produced
+   * `auto` was unchanged. The undo became durable on 2026-09-13; the "do not do it again"
+   * did not, and an in-memory guard cannot answer a durable question.
+   *
+   * It is checked FIRST because it is the user's own instruction. Every gate below is the
+   * app reasoning about evidence; this one is a person having already said no.
+   */
+  if (undoneChargeIds.has(charge.id)) {
+    return { verdict: 'ask', reason: 'previously-undone' };
+  }
   const verdict = autoApplyDecision({
     linkedCount: rule.linkedCount,
     conflictingCount: rule.conflictingCount,

@@ -115,6 +115,26 @@ export interface DecisionDeckProps {
    */
   markUndone?: (id: string) => Promise<unknown>;
   /**
+   * Charges whose applied decision the user has already UNDONE, from `applied_actions`.
+   *
+   * ⚠️ REQUIRED, unlike the two props above, and the difference is deliberate. Those are
+   * optional because a caller that omits them simply keeps the in-session undo — nothing
+   * claims a durable one exists. Omitting THIS one would silently re-enable the defect it
+   * exists to stop: auto-apply redoing a decision the user explicitly reversed. A caller
+   * with no undo history passes an empty Set and says so.
+   */
+  undoneChargeIds: ReadonlySet<string>;
+  /**
+   * True while `undoneChargeIds` may be stale — a refetch is in flight, or it has not loaded.
+   *
+   * ⚠️ WITHOUT THIS THE GUARD ABOVE DOES NOT WORK, measured in a browser. Undoing invalidates
+   * the applied-actions query, and the auto-apply effect can run on the render BEFORE the
+   * refetch lands — consulting a set that still says the charge was never undone, and redoing
+   * it. Acting on evidence that has not arrived is the same error as acting on an abstaining
+   * gate, so the deck waits instead.
+   */
+  undoneUnknown: boolean;
+  /**
    * Charges that are one leg of a transfer between the user's own accounts.
    *
    * ⚠️ PASSED IN, NEVER RE-DERIVED. Importing a transfer leg books a movement between the user's
@@ -149,7 +169,7 @@ const errorMessage = (e: unknown): string =>
 export default function DecisionDeck({
   cards, accountName, reviewsByCharge, rules, paymentPlans, carFunds, ledger,
   buildItems, transferLegIds, save, setCategory, remove, importToLedger, undoImport, recordApplied,
-  markUndone, onClose,
+  markUndone, undoneChargeIds, undoneUnknown, onClose,
 }: DecisionDeckProps) {
   // Snapshotted, deliberately — see this file's header. The prop may shrink under us as writes land.
   const [deck] = useState<readonly BankDeckCard[]>(cards);
@@ -306,16 +326,30 @@ export default function DecisionDeck({
       c.charge.id !== card.charge.id
       && c.charge.date.slice(0, 7) === period
       && normalizeMerchant(merchantLabel(c.charge)) === key);
-    return linkMemoryVerdict(linkOffer.memory, { amount }, linkOffer.rule, duplicateThisPeriod);
-  }, [card, linkOffer, deck]);
+    return linkMemoryVerdict(
+      linkOffer.memory,
+      // The id rides along so the verdict can check the durable undo record ITSELF rather
+      // than trusting this call site to have looked — the same reason `memory` is passed
+      // whole instead of as a pre-chewed boolean.
+      { amount, id: card.charge.id },
+      linkOffer.rule,
+      duplicateThisPeriod,
+      undoneChargeIds,
+    );
+  }, [card, linkOffer, deck, undoneChargeIds]);
 
   useEffect(() => {
     if (!card || busy || complete) return;
+    // ⚠️ NEVER ACT WHILE THE UNDO RECORD IS UNKNOWN. Straight after an undo the cached set is
+    // the PRE-undo one, so acting here redoes exactly the decision the user just reversed —
+    // measured in a browser before this line existed. Waiting costs a render; acting costs the
+    // user their refusal.
+    if (undoneUnknown) return;
     if (autoVerdict?.verdict !== 'auto') return;
     if (autoApplied.current.has(card.charge.id)) return;
     autoApplied.current.add(card.charge.id);
     acceptCard(true);
-  }, [card, busy, complete, autoVerdict, acceptCard]);
+  }, [card, busy, complete, autoVerdict, acceptCard, undoneUnknown]);
 
   const onCategory = useCallback((category: Category) => {
     if (!card || busy) return;

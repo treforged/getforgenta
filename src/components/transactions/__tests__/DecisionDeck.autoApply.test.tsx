@@ -87,6 +87,8 @@ function setup(cards: BankDeckCard[]) {
       importToLedger={{ mutateAsync: vi.fn() }}
       undoImport={{ mutateAsync: vi.fn() }}
       transferLegIds={new Set()}
+      undoneChargeIds={new Set()}
+      undoneUnknown={false}
       save={save}
       setCategory={{ mutateAsync: vi.fn().mockResolvedValue(undefined) }}
       remove={{ mutateAsync: vi.fn().mockResolvedValue(undefined) }}

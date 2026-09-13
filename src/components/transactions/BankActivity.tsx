@@ -121,7 +121,12 @@ export default function BankActivity() {
       }));
   }, [buildItems, ledger]);
   const { data: paymentPlans } = usePaymentPlans();
-  const { record: recordApplied, latest: latestApplied, markUndone, stepsOf } = useAppliedActions();
+  const {
+    record: recordApplied, latest: latestApplied, markUndone, stepsOf,
+    // Charges the user has already taken back. Passed to the deck so auto-apply cannot
+    // redo a decision they explicitly reversed — see auto-apply.ts `previously-undone`.
+    undoneChargeIds, undoneUnknown,
+  } = useAppliedActions();
 
   /**
    * The link this page can still take back.
@@ -884,6 +889,8 @@ export default function BankActivity() {
           // path, owned by the surface, not re-instantiated inside the child.
           recordApplied={recordApplied.mutateAsync}
           markUndone={markUndone.mutateAsync}
+          undoneChargeIds={undoneChargeIds}
+          undoneUnknown={undoneUnknown}
           // Cross-row analysis, computed once here. `planLedgerImport` refuses a transfer leg, but
           // only if it is told which charges are legs.
           transferLegIds={transferLegIds}
