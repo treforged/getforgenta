@@ -31,6 +31,7 @@
 import { matchRuleOnDates, matchCharge, normalizePaymentSource, type MatchableTransaction } from './transaction-matching';
 import { findExclusiveReview, isHandledReview, isLinkStatus, type CarChargeKind } from './synced-transaction-review';
 import { getRuleOccurrenceDatesInMonth } from './pay-schedule';
+import { deriveMerchantLinks, linkSuggestionFor } from './merchant-link-memory';
 import {
   paymentPlanObligations, carChargeObligations, matchObligations,
   type ChargeObligation, type ObligationPlan,
@@ -51,6 +52,14 @@ export interface QueueCharge {
   amount: number | string;
   /** `YYYY-MM-DD`. */
   date: string;
+  /**
+   * What the bank called it. OPTIONAL, and read for ONE purpose: deciding whether this merchant is
+   * one the user has already linked repeatedly. Without it the queue cannot tell an inflow it has
+   * been taught about from one it has never seen — see the remembered-link guard in
+   * `buildReviewQueue`.
+   */
+  merchant_name?: string | null;
+  name?: string | null;
 }
 
 /** The fields of a `recurring_rules` row the queue reads. Structurally satisfied by `RuleRow`. */
@@ -93,6 +102,10 @@ export interface QueueReview {
    * `isChargeHandled`.
    */
   category_override?: string | null;
+  /** Which rule a `'linked_rule'` row was linked to. Read only to derive remembered links. */
+  rule_id?: string | null;
+  /** Breaks ties between two rules linked the same number of times. */
+  updated_at?: string | null;
 }
 
 /** A vehicle obligation a charge appears to settle — which car, and which of its two monthly bills. */
@@ -407,7 +420,41 @@ export function buildReviewQueue<C extends QueueCharge, R extends QueueRule, T e
     }
   }
 
-  const needsDecision = unhandled.filter(c => !isUnansweredInflow(c, !!suggestions[c.id])).sort((a, b) => {
+  /**
+   * ⚠️ AN INFLOW THE USER HAS ALREADY TAUGHT US ABOUT IS NOT AN "UNANSWERED" INFLOW, AND HIDING IT
+   * WAS A REGRESSION NEITHER CHANGE CAUSED ALONE.
+   *
+   * Tre, 2026-09-13: his weekly paycheck "should have auto-cleared and been recognised as his weekly
+   * paycheck". Measured on his account the same day: 2026-08-07, 08-14, 08-21 and 08-28 are all
+   * `linked_rule` to Weekly Paycheck — he linked the identical payroll BY HAND four weeks running —
+   * and 2026-09-04 sits unreviewed.
+   *
+   * Two good changes combined to cause it. The money-in exclusion (`isUnansweredInflow`) removes an
+   * inflow the matcher said nothing about, which is right: a Zelle from a friend is not a decision
+   * worth demanding. And link-memory auto-apply CLEARS a merchant answered the same way three times
+   * or more, which is also right. But the first runs FIRST and hides the charge before the second
+   * can ever see it — the deck builds its cards from `needsDecision`. So the one charge the app had
+   * enough evidence to clear silently was the one charge it threw away.
+   *
+   * The matcher cannot rescue this: his paycheck genuinely varies ($848.46, $815.75, $814.96) and
+   * the strong tolerance is 1%, which `merchant-link-memory.ts` forbids widening. Link memory is a
+   * different KIND of evidence — "you have told us what this merchant is, repeatedly" — and it is
+   * the only evidence available here.
+   *
+   * ⚠️ THIS RESTORES THE CHARGE, IT DOES NOT DECIDE IT. Every gate that governs an auto-apply still
+   * runs downstream, unchanged and unloosened: conflicting links, a retired rule, an implausible
+   * amount and the outlier test can all still refuse. Widening the queue is the smallest change
+   * that lets those gates get a look at the row at all.
+   */
+  const linkMemory = deriveMerchantLinks(charges, reviewsByCharge);
+  const rulesById: Record<string, R> = {};
+  for (const r of rules) rulesById[r.id] = r;
+  const hasRememberedLink = (c: C): boolean =>
+    !!linkSuggestionFor(c, suggestions[c.id], linkMemory, rulesById);
+
+  const needsDecision = unhandled.filter(
+    c => !isUnansweredInflow(c, !!suggestions[c.id] || hasRememberedLink(c)),
+  ).sort((a, b) => {
     const sa = suggestions[a.id] ? 0 : 1;
     const sb = suggestions[b.id] ? 0 : 1;
     if (sa !== sb) return sa - sb;

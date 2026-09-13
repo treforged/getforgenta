@@ -102,3 +102,102 @@ describe('buildReviewQueue — the filter is actually wired to the queue', () =>
     expect(needsDecision.map(c => c.id)).toContain('c-in');
   });
 });
+
+/**
+ * ⚠️ THE REGRESSION NEITHER CHANGE CAUSED ALONE.
+ *
+ * Tre, 2026-09-13: his weekly paycheck "should have auto-cleared and been recognised as his weekly
+ * paycheck". Measured on his account that day — 2026-08-07, 08-14, 08-21 and 08-28 are ALL
+ * `linked_rule` to Weekly Paycheck, four hand-links in four weeks, and 2026-09-04 sat unreviewed.
+ *
+ * The money-in exclusion above is right. Link-memory auto-apply is right. But the exclusion runs
+ * FIRST and threw away the one charge the app had enough evidence to clear silently — the deck
+ * builds its cards from `needsDecision`, so a hidden charge can never reach the gates that would
+ * have cleared it. He got silence where he asked for recognition.
+ *
+ * The matcher cannot rescue this and must not try: his paycheck genuinely varies ($848.46,
+ * $815.75, $814.96) against a 1% tolerance, and widening that band is forbidden outright.
+ */
+describe('an inflow the user has already taught us about is not unanswered', () => {
+  const PAYROLL_RULE = {
+    id: 'rule-paycheck', name: 'Weekly Paycheck', amount: 820, due_day: 5,
+    frequency: 'weekly', rule_type: 'income', payment_source: null,
+    deposit_account: ACCT, active: true,
+  };
+  /**
+   * His real descriptor. The trailing PPD ID CHANGES between months (4521893632 in August,
+   * 5521893632 in September) and `normalizeMerchant` strips it — verified by running the app's own
+   * normalizer on both strings, which key identically to "LOCKHEED MARTIN PAYROLL". An earlier
+   * draft interpolated the TEST id here instead, giving every charge a different merchant key and
+   * no memory at all.
+   */
+  const payroll = (id: string, date: string, amount: number, ppd = '4521893632') => ({
+    ...charge(id, date, amount),
+    name: `LOCKHEED MARTIN PAYROLL PPD ID: ${ppd}`, merchant_name: null,
+  });
+  /**
+   * ⚠️ THE AMOUNTS BELOW SIT OUTSIDE THE MATCHER'S 1% BAND ON PURPOSE, AND THE TEST IS WORTHLESS
+   * WITHOUT THAT. A first draft used -814.96 against an 820 rule — 0.6% out, well inside the strong
+   * tolerance — so `matchRuleOnDates` supplied a suggestion and the charge stayed in the queue for a
+   * reason that had nothing to do with link memory. It passed with the fix REMOVED. $848.46 against
+   * 820 is 3.5% out, which is his real spread and which the matcher genuinely cannot reach, so link
+   * memory is the only evidence that can keep this row.
+   */
+  /** Two prior weeks he answered by hand — `MIN_LINKS_TO_REMEMBER` is 2. */
+  const REMEMBERED = {
+    'p-aug1': [{ status: 'linked_rule', rule_id: 'rule-paycheck', updated_at: '2026-08-21T00:00:00Z' }],
+    'p-aug2': [{ status: 'linked_rule', rule_id: 'rule-paycheck', updated_at: '2026-08-28T00:00:00Z' }],
+  };
+
+  it('KEEPS the new paycheck in the queue, because this merchant has been linked before', () => {
+    const q = queueOf({
+      charges: [payroll('p-aug1', '2026-08-21', -814.97), payroll('p-aug2', '2026-08-28', -814.96),
+                payroll('p-sep', '2026-09-04', -848.46, '5521893632')],
+      reviewsByCharge: REMEMBERED,
+      rules: [PAYROLL_RULE],
+    });
+    expect(q.needsDecision.map(c => c.id)).toContain('p-sep');
+  });
+
+  it('⚠️ STILL HIDES AN INFLOW FROM A MERCHANT NOBODY HAS EVER LINKED — the control', () => {
+    // Without this, "keep everything" would pass the case above and undo the exclusion entirely.
+    const q = queueOf({
+      charges: [{ ...charge('z1', '2026-09-04', -100), name: 'Zelle payment from A FRIEND', merchant_name: null }],
+      reviewsByCharge: {},
+      rules: [PAYROLL_RULE],
+    });
+    expect(q.needsDecision.map(c => c.id)).not.toContain('z1');
+  });
+
+  it('⚠️ STILL HIDES IT WHEN THE REMEMBERED RULE HAS BEEN RETIRED', () => {
+    // Offering a charge whose only evidence points at a rule the user deliberately ended would
+    // resurrect a projection they killed. Silence is the safe direction.
+    const q = queueOf({
+      charges: [payroll('p-aug1', '2026-08-21', -814.97), payroll('p-aug2', '2026-08-28', -814.96),
+                payroll('p-sep', '2026-09-04', -848.46, '5521893632')],
+      reviewsByCharge: REMEMBERED,
+      rules: [{ ...PAYROLL_RULE, active: false }],
+    });
+    expect(q.needsDecision.map(c => c.id)).not.toContain('p-sep');
+  });
+
+  it('⚠️ STILL HIDES IT WHEN THE AMOUNT COULD NOT PLAUSIBLY SETTLE THE RULE', () => {
+    // A $15 inflow is not this $820 paycheck, however many times the merchant has been linked.
+    const q = queueOf({
+      charges: [payroll('p-aug1', '2026-08-21', -814.97), payroll('p-aug2', '2026-08-28', -814.96),
+                payroll('p-sep', '2026-09-04', -15, '5521893632')],
+      reviewsByCharge: REMEMBERED,
+      rules: [PAYROLL_RULE],
+    });
+    expect(q.needsDecision.map(c => c.id)).not.toContain('p-sep');
+  });
+
+  it('leaves OUTFLOW behaviour untouched — this widens one filter, not the queue', () => {
+    const q = queueOf({
+      charges: [{ ...charge('o1', '2026-09-04', 42.5), name: 'Some Shop', merchant_name: null }],
+      reviewsByCharge: {},
+      rules: [PAYROLL_RULE],
+    });
+    expect(q.needsDecision.map(c => c.id)).toContain('o1');
+  });
+});
