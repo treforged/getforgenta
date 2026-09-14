@@ -1,80 +1,85 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## Resume queue — 2026-09-14 NIGHT. Start at item 1.
+## Resume queue — 2026-09-14 LATE NIGHT. Start at item 1.
 
-`origin/main` 0/0 by CONTENTS after every push. Five commits:
-`89f99dd9` switches · `81ff4885` the red main · `c0eda27e` what's-new i18n ·
-`71acc433` handoff · `3b649028` Vercel analytics.
-Gates on the last: tsc clean, lint 0 errors, `npm run build` clean,
-`check:leaked-keys` exit 0, `test:tz` **4530 passed x3 zones** (4513 -> 4522 -> 4530,
-monotonically UP — checked against Sam's shrinking-suite warning; this chain is
-vitest, nothing shells out to python).
+`origin/main` 0/0 by CONTENTS after every push. Four commits this session:
+`7f0f3212` deferred-interest correction · `d7773424` country derivation +
+analytics measurement · `05081005` country-scope migration · `b50d8bfe` country
+board client half.
+Gates on the last: tsc clean, lint 0 errors, `check:leaked-keys` exit 0,
+`test:tz` **4565 passed x3 zones**, 445 files (4530 → 4558 → 4565, monotonically
+UP, and each rise equals the tests actually added).
 
-### 1. ⚠️ CHASE PAY OVER TIME — THE ANALYSIS IS DONE, THE WRITE IS NOT. DO NOT RE-DERIVE IT.
+### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
+Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
+`max-w-sm` while Spanish runs longer. Blocked on exactly one thing: the
+Claude-controlled Chrome is **SIGNED OUT** on `http://localhost:8080` (probed —
+no `sb-*-auth-token`, and the app redirects to `/auth`). `dev-signin` reserves
+that step for him and forbids scripting it. Everything else is ready: dev server
+runs detached on 8080, Spanish catalogue ships, language comes from
+`localStorage` so no UI hunt is needed.
 
-**THE MODEL ALREADY HANDLES THE THREE ENROLLED PLANS.** `BalanceTranche` in
-`src/lib/balance-tranches.ts` carries `apr: 0` + `monthly_fee` + `monthly_payment` +
-`promo_end_date` — added 2026-09-05 from the plan-confirmation emails, and its own
-comment names these very plans. So write them as tranches; nothing needs building.
+### 2. [x] CHASE PAY OVER TIME — CLOSED. THE WRITE WAS ALREADY DONE. Do not redo it.
+Verified by SQL against the live row (Prime Visa `9111bd9f`, written 09:00 ET
+2026-09-14, BEFORE the handoff said it had not been): three Pay Over Time
+tranches, `sum_min` **198.83** (the round-trip check PASSES), fee 23.70, balance
+2101.39, each `fixed_term: true`. Ask `573ecc2b` closed.
 
-From the real statement (Prime Visa XXXX-5630, 09/10/26), all ENROLLED, all started
-09/02/2026, 12 of 12 payments remaining, so `promo_end_date` = **2027-09-02**:
+⚠️ **AND THE DEFERRED-INTEREST FINDING WAS FALSE ABOUT TRE'S HOLDINGS.** Chase
+**Equal Pay is an equal-payment instalment, not deferred interest**, and the
+arithmetic settles it across all FIVE of his plans: remaining balance ÷ monthly
+instalment = months to `promo_end_date`, to three decimals — 5/5, 5.998/6,
+10/10, 9.999/10, 11/11. Five plans each retiring exactly at expiry is the
+product definition. `balance-tranches.ts` already recorded this on 2026-08-20
+and the newer note contradicted it without testing it. **The general gap is
+real and is now documented in `src/lib/balance-tranches.ts`; the exposure is
+zero.** Ask `644c712e` closed; correction filed to Sam as `3a17ffab`, because
+`8724d154` had already been escalated to Tre on the false premise.
 
-| plan | principal | fee | monthly payment |
-| --- | --- | --- | --- |
-| COSTCO WHSE #1649 | 368.89 | 4.66 | 35.41 |
-| Carnival Cruise Line Res | 410.00 | 5.19 | 39.36 |
-| PAYPAL ZETTLE | 1322.50 | 13.85 | 124.06 |
-| **TOTAL** | **2101.39** | **23.70** | **198.83** |
+### 3. [x] VERCEL PAGEVIEW — ANSWERED. IT IS ONE TOGGLE, AND IT IS TRE'S.
+`/_vercel/insights/script.js` serves REAL JavaScript on the live origin — and
+the negative control is what makes that meaningful: a made-up `/_vercel/` path
+returns `text/html` index.html from the SPA fallback, so a bare 200 proved
+nothing. A POSTed pageview is answered **200 OK**. The API still answers **404
+"Web Analytics not found"**. Those do not conflict: **the ingest endpoint is
+fire-and-forget and accepts-and-discards when the product is off, so a 200 there
+is NOT evidence of arrival.** Web Analytics is simply not enabled in the
+dashboard.
 
-**`198.83` IS THE ROUND-TRIP CHECK.** If the rows do not sum to it the parse is
-wrong, not the statement. (35.41 + 39.36 + 124.06 = 198.83 — verified by hand.)
+⚠️ **A DRIVEN BROWSER CANNOT MEASURE THIS AND REPORTS THE GATE AS BROKEN WHEN IT
+IS CORRECT** — two independent reasons, either sufficient: the automated Chrome
+sends `doNotTrack: '1'` AND `globalPrivacyControl: true`, and Vercel's own
+script self-disables on `navigator.webdriver`. Recorded in
+`VercelAnalytics.consent.test.tsx`. Do not chase it.
 
-⚠️ **AND THE ANSWER SAM ASKED FOR: THE MODEL DOES *NOT* HANDLE DEFERRED INTEREST.**
-Measured, not assumed. `deferred_interest_apr` exists ONLY as a LABEL —
-`trancheLabelForAprType` in
-`supabase/functions/_shared/providers/balance-tranche-seed.ts:39` maps it to the
-string "Deferred interest", and the seed emits `{label, balance, apr}` with no
-retroactive concept at all. `BalanceTranche` reprices a tranche to the standard APR
-**going forward** at `promo_end_date`. A deferred-interest promo does something
-categorically different: miss the date and **all** interest accrued since purchase is
-back-charged, computed on the ORIGINAL QUALIFYING AMOUNT, not the remaining balance.
+### 4. [x] COUNTRY LEADERBOARD — SHIPPED, both halves.
+Derived from browser locale/time zone, no IP geolocation, correctable, and
+leavable. `p_scope` now accepts `'country'`; anything else is still refused.
 
-So the two **Equal Pay Promo** items are a DIFFERENT INSTRUMENT and must NOT be
-written as ordinary tranches — that would understate the risk while LOOKING like
-coverage, which is the worst available outcome on a money surface:
-- 299.32 qualified / **249.43 remaining** / expires **02/07/2027** / promo min 49.89
-- 88.89 / expires **03/07/2027**
+⚠️ **THE MEASUREMENT THAT CHANGED THE DESIGN:** the plan was to backfill from
+`profiles.timezone`, already collected — it is **NULL for 45 of 49 profiles**, so
+that would have covered FOUR PEOPLE while reporting success. Derivation is
+client-side and coverage grows as people return.
 
-**Do NOT fold them into a total balance to make the arithmetic close.** Either model
-deferred interest properly (a real slice: a `deferred_interest` tranche kind plus a
-cliff the forecast can see) or record them and say plainly they are unmodelled.
+⚠️ **THE FIRST DB RUN COULD NOT HAVE FAILED** — global and country both returned
+cohort 0, so the scopes were indistinguishable. The real control seeded 31 real
+users, 19 US / 12 CA, and got **global 31 vs country 19, a strict subset**, then
+rolled itself back to the exact pre-state (1/0/0).
 
-⚠️ **THE WRITE TOUCHES TRE'S REAL LEDGER.** `accounts.balance_tranches` is jsonb on
-his live account. Back the current value up first and print the undo; it is reversible
-but it is production financial data. He gave the instruction via Sam ("do the pay over
-time for me"), so it is authorised — it is the CARE that is required, not permission.
-
-### 2. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG
-Resolution and completeness are gated (`whats-new.i18n.test.ts`,
-`whats-new.resolves.test.ts`); **FIT is not**. Spanish runs longer than English and
-`WhatsNewDialog` is `max-w-sm`. Needs a real browser — see the instrument warning below.
-
-### 3. ASSERT A VERCEL PAGEVIEW ACTUALLY ARRIVES
-`3b649028` mounts it consent-gated and both `_vercel/insights` and
-`_vercel/speed-insights` are in the built bundle — but **no pageview has been asserted
-as ARRIVING**, which is a network fact about the deployed origin. Ruby is blocked on
-this instrument; "the code is in" is not "you can measure". Accept analytics consent on
-the live site, then check the Vercel API stops answering 404.
-
-### 4. COUNTRY LEADERBOARD — UNBLOCKED, and the call is made
-Tre via Sam: *"do what you need to do... I just want it done."* **DERIVE the country
-from the browser locale/timezone at signup; do NOT ask.** Coarse ISO code on `profiles`,
-user-editable and optional, opt-out REMOVES them from the board rather than hiding them.
-No IP geolocation. `p_scope` already exists so it slots in without reshaping. Off state
-must look OFF — same standard as the sharing toggles.
+**Expect every country board to read "not enough people yet" for a long time** —
+a country cohort is a subset, so it reaches the floor of 20 strictly later. That
+is the floor working. **Do not lower it to make the screen look busier.**
 
 ### 5. Friends UI formatting (add-by-username already ships, friend-link v9)
+
+### NOT OPEN — `798c0ed9` is deliberately deferred, not forgotten
+Sam ranked it above the country work on 2026-09-14. **The correctness half is
+already fixed**: the stale row now says "Not updated this week" instead of
+"Private", so nothing asserts anything untrue about another person. What remains
+is a product question — server-side snapshot publishing — refused because it
+means a SECOND definition of money-adjacent bucket logic in Deno. Trigger to
+revisit is written on the ask: real participation, or the bucket functions
+extracted somewhere both runtimes can import.
 
 ---
 
