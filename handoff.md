@@ -1,5 +1,59 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## 2026-09-14 OVERDRIVE — three shipped. `origin/main` 0/0 by CONTENTS after every push.
+
+`89f99dd9` switches · `81ff4885` the red main · `c0eda27e` what's-new i18n.
+Gates each time: `npx tsc --noEmit` clean, `npm run lint` 0 errors,
+`npm run test:tz` all three zones 4522 passed / 1 skipped (was 4513).
+
+### ⚠️ MAIN WAS RED AND NO COMMIT CAUSED IT — read this before doubting a gate here
+`useAppliedActions.undoneCharges.test.tsx` hardcoded `created_at:
+'2026-09-13T15:48:59.000Z'` against `UNDO_OFFER_WINDOW_HOURS = 24`, so it aged out
+at 11:48 ET on 09-14 and two tests went red on their own. **A clock-dependent test
+fails when nobody touches anything**, which is the hardest failure to attribute —
+it sends you into the hook, `offerableUndos` and the auto-apply guard, all correct.
+Proven both ways with an injected `now` before anything was changed. Fixture is now
+`at(1)`; bumping the date would only re-arm it. Swept the family: one bomb, one file.
+
+### THE SWITCH COUNT WAS 3, NOT 1 — and the record said 1
+The 09-13 note "the others now use it" was FALSE when written. `ConsentBanner.tsx`
+and `Legal.tsx` still carried hand-rolled copies with a flat `bg-muted` OFF track
+and no border, on COOKIE CONSENT controls — off read as un-highlighted, which is
+exactly Tre's complaint — and the `Legal.tsx` copy had NO `aria-label` at all.
+Both now use the shared `ToggleSwitch`. **`one-switch.test.ts` WALKS `src/` and
+derives the file list**, so the next copy is caught; proven red with a planted
+mutant. It flagged itself on first run and the pattern is built by concatenation,
+because excluding `__tests__` would let a real switch hide in one.
+Measured in Chrome on `/privacy`, both states in one paint: ON knob 18.0..31.5,
+OFF 3.3..16.8, in a 36px track. No escape.
+
+### ⚠️ THE DRIVEN CHROME TAB IS `visibilityState: "hidden"` AND THAT FREEZES STYLE SETTLE
+A post-click read showed `aria-checked=true` with the track still dark and the knob
+still left — and two identical-class siblings computing DIFFERENT colours, which is
+impossible in a settled engine. That was the tell; the renderer then timed out
+twice. **An earlier round was worse: the dev server had DIED mid-session**, so those
+readings came through a dying instrument. Discarded, not reported as a defect.
+**So: take the both-states frame from ONE paint before any click, and never trust a
+post-transition computed style in a backgrounded tab.** Start the server detached
+(`Start-Process cmd /c "npm run dev"`), not from a Bash tool call — it dies with it.
+
+### CLOSED WITHOUT CODE
+- Overdrive item 6 (`Scan the bundle that actually ships` RED) is a FALSE ALARM.
+  Last red run finished 44 seconds BEFORE `9d628285` disabled its triggers. The two
+  states were already distinguishable. Ask `9a8286c5` closed with evidence.
+- Item 2's popup already shipped and is mounted; only the language half was missing.
+- Item 7 `.nvmrc` already said 22. Added `engines` + `check:node`, which WARNS and
+  exits 0 on purpose — a gate always red on this machine is one people stop reading.
+
+### NEXT UP
+1. **A RENDERED FRAME OF THE SPANISH DIALOG.** Spanish runs longer than English and
+   `WhatsNewDialog` is `max-w-sm`. Resolution and completeness are gated; FIT is not.
+2. Item 4, the Friends UI formatting half (add-by-username already ships, v9).
+3. Item 5 Plaid settlement lag — he raised it TWICE, and the recorded answer is "it
+   delays, it does not break". **Re-read what he actually asked before re-measuring**;
+   twice usually means the answer never reached him, not that it was wrong.
+
+
 ## 2026-09-13 NIGHT — FOURTEEN SHIPPED. Read the two correction blocks below before anything else.
 
 `origin/main` 0/0 by CONTENTS after every push. Gates each time: `npx tsc --noEmit` clean,
