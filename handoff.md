@@ -172,6 +172,44 @@ and `StatementImport.tsx`, have shipped since. **Verified by reading the code an
 its callers rather than trusting the record** — this repo's own rule, and the
 record was wrong in the "not built" direction again.
 
+### 0g. [x] SIX HAND-ROLLED SWITCHES SURVIVED THE CONSOLIDATION, AND THE GATE COULD NOT SEE THEM
+Tre's control-consistency rule says the acceptance evidence is a **COUNT** of
+distinct implementations. The count was reported as ONE and was **FOUR**: three
+in `ForecastAssumptionsPanel.tsx` (Annual Raise, Expected Bonus, Tax Return
+Estimator) and three in `Settings.tsx` (Show cents, Auto-generate recurring,
+Developer debug). All six now use the shared `ToggleSwitch`.
+
+⚠️ **THE EXISTING GATE WAS HONEST AND STILL REPORTED A CLEAN TREE FOR A DAY.**
+`one-switch.test.ts` matched `role="switch"` — so it could only ever find
+switches that had **already done the right thing**. The six had no `role`, no
+`aria-checked`, no `aria-label` and no `type="button"`, so a screen reader
+announced six plain buttons with no state, and the gate counted one
+implementation truthfully the whole time. **Its own header had DECLARED this
+blind spot in writing** ("a switch built without the switch role at all"), which
+is the part worth keeping: a stated limit is a to-do, not an absolution.
+
+Closed IN THAT FILE rather than in a new one — a second gate would have been the
+same duplication the gate exists to prevent. It now also counts switch-shaped
+MARKUP. Two of the six also hardcoded a `bg-white` knob, white in dark mode.
+
+⚠️ **THE MATCHER TOOK THREE VERSIONS AND THE POSITIVE CONTROL CAUGHT BOTH WRONG
+ONES**, which is the reusable lesson. Bounding each pattern with a "not a quote"
+class cannot cross the quote in `${on ? 'translate-x-4' : '...'}`, so it did not
+match even the CANONICAL switch and reported a clean tree **while detecting
+nothing**. Matching per FILE instead then flagged `AiAdvisor.tsx`, whose
+`translate-x-full` is a sliding DRAWER. The final form requires `absolute` +
+`rounded-full` + `translate-x-` **inside one `className`** — a drawer is `fixed`
+and carries no `rounded-full` there, so it is excluded by construction rather
+than by an exception list. Proven RED against the real defect; only the new
+markup half goes red on it, the role half stays green.
+
+⚠️ **AND I BROKE AN UNRELATED CONTROL DOING IT.** A regex aimed at the devDebug
+switch matched the FIRST `<button onClick={() => {` in the file and converted the
+"Copy link" button into a `ToggleSwitch`. `tsc` caught it. Repaired byte-exact —
+verified by `git diff` showing no line touching `inviteCopied`/`clipboard`.
+**Aim an edit at something unique to its target**, not at a shape the file
+repeats.
+
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
 `max-w-sm` while Spanish runs longer. Blocked on exactly one thing: the

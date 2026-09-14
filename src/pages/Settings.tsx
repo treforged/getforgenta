@@ -47,6 +47,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
 
@@ -560,15 +561,19 @@ export default function SettingsPage() {
         */}
         <div className="flex items-center justify-between">
           <span className="text-xs">Show cents</span>
-          <button onClick={() => { setShowCents(!showCents); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${showCents ? 'bg-primary' : 'bg-secondary'} relative`}>
-            <span className={`absolute top-0.5 left-0 w-3 h-3 rounded-full bg-background transition-transform ${showCents ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
+          <ToggleSwitch
+            checked={showCents}
+            onPress={() => { setShowCents(!showCents); markDirty(); }}
+            label="Show cents"
+          />
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs">Auto-generate recurring entries</span>
-          <button onClick={() => { setAutoGenerateRecurring(!autoGenerateRecurring); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${autoGenerateRecurring ? 'bg-primary' : 'bg-secondary'} relative`}>
-            <span className={`absolute top-0.5 left-0 w-3 h-3 rounded-full bg-background transition-transform ${autoGenerateRecurring ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
+          <ToggleSwitch
+            checked={autoGenerateRecurring}
+            onPress={() => { setAutoGenerateRecurring(!autoGenerateRecurring); markDirty(); }}
+            label="Auto-generate recurring entries"
+          />
         </div>
       </div>
 
@@ -1225,18 +1230,17 @@ export default function SettingsPage() {
                 Shows the DBG button overlay for inspecting Swift/JS lifecycle events.
               </p>
             </div>
-            <button
-              onClick={() => {
+            <ToggleSwitch
+              checked={devDebug}
+              onPress={() => {
                 const next = !devDebug;
                 setDevDebug(next);
                 if (next) localStorage.setItem(DEV_DEBUG_KEY, '1');
                 else localStorage.removeItem(DEV_DEBUG_KEY);
                 window.dispatchEvent(new CustomEvent('forgenta:dev-debug'));
               }}
-              className={`shrink-0 w-10 h-5 rounded-full transition-colors relative overflow-hidden ${devDebug ? 'bg-primary' : 'bg-secondary border border-border'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-background border border-border/50 transition-transform ${devDebug ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
+              label="Developer debug"
+            />
           </div>
         </div>
       )}

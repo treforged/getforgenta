@@ -4,6 +4,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { type PayScheduleConfig } from '@/lib/pay-schedule';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import ForecastYearlySummary from '@/components/forecast/ForecastYearlySummary';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import type { AssumptionsType } from '@/contexts/CardProjectionContext';
 
 /**
@@ -127,12 +128,11 @@ export default function ForecastAssumptionsPanel({
       {/* Income Growth / Annual Raise */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <button
-            onClick={() => setAssumptions(prev => ({ ...prev, incomeGrowthEnabled: !prev.incomeGrowthEnabled }))}
-            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${assumptions.incomeGrowthEnabled ? 'bg-primary' : 'bg-border'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${assumptions.incomeGrowthEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-          </button>
+          <ToggleSwitch
+            checked={assumptions.incomeGrowthEnabled}
+            onPress={() => setAssumptions(prev => ({ ...prev, incomeGrowthEnabled: !prev.incomeGrowthEnabled }))}
+            label="Annual raise"
+          />
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Annual Raise</p>
         </div>
         <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.incomeGrowthEnabled ? 'opacity-100' : 'opacity-50'}`}>
@@ -173,12 +173,11 @@ export default function ForecastAssumptionsPanel({
       {/* Bonus */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <button
-            onClick={() => setAssumptions(prev => ({ ...prev, bonusEnabled: !prev.bonusEnabled }))}
-            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${assumptions.bonusEnabled ? 'bg-primary' : 'bg-border'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${assumptions.bonusEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-          </button>
+          <ToggleSwitch
+            checked={assumptions.bonusEnabled}
+            onPress={() => setAssumptions(prev => ({ ...prev, bonusEnabled: !prev.bonusEnabled }))}
+            label="Expected bonus"
+          />
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Expected Bonus</p>
         </div>
         <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.bonusEnabled ? 'opacity-100' : 'opacity-50'}`}>
@@ -223,12 +222,11 @@ export default function ForecastAssumptionsPanel({
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setAssumptions(prev => ({ ...prev, taxReturnEnabled: !prev.taxReturnEnabled }))}
-              className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${assumptions.taxReturnEnabled ? 'bg-primary' : 'bg-border'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${assumptions.taxReturnEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-            </button>
+            <ToggleSwitch
+              checked={assumptions.taxReturnEnabled}
+              onPress={() => setAssumptions(prev => ({ ...prev, taxReturnEnabled: !prev.taxReturnEnabled }))}
+              label="Tax return estimator"
+            />
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tax Return Estimator</p>
           </div>
         </div>

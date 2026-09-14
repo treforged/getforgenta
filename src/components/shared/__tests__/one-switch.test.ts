@@ -22,10 +22,21 @@
 // real hand-rolled switch hide in a test directory, and a guard whose own code trips it teaches
 // the next person to loosen the guard. Concatenation removes the literal instead.
 //
-// WHAT THIS DOES NOT CATCH, said plainly: a switch built without the switch role at all (which
-// would be an accessibility defect this gate cannot see), a switch inside a third-party component,
-// and anything about how either state actually LOOKS — that needs a rendered frame. The geometry
-// contract is guarded separately in `NotificationSettings.knob.test.tsx`.
+// ⚠️ THE BLIND SPOT THIS FILE DECLARED WAS REAL, AND IT WAS HIDING SIX SWITCHES — closed
+// 2026-09-14. The header used to end by admitting it could not see "a switch built without the
+// switch role at all". That is not a hypothetical: three in `ForecastAssumptionsPanel.tsx` and
+// three in `Settings.tsx` had NO role, NO `aria-checked`, NO `aria-label` and no `type="button"`,
+// so a screen reader announced six plain buttons with no state — and this gate reported ONE
+// implementation, truthfully, the whole time. **A gate that can only find the controls which
+// already did the right thing will always report that everything did the right thing.**
+//
+// So it now counts switch-shaped MARKUP as well as the declared role. Two of the six also
+// hardcoded a `bg-white` knob, which stayed white in dark mode.
+//
+// WHAT IT STILL DOES NOT CATCH, said plainly: a switch inside a third-party component, one whose
+// classes arrive entirely from a variable, and anything about how either state actually LOOKS —
+// that needs a rendered frame. The geometry contract is guarded separately in
+// `NotificationSettings.knob.test.tsx`.
 
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -47,6 +58,30 @@ const FILES = walk(SRC);
 
 /** Built by concatenation so this file does not match itself — see the header. */
 const SWITCH_ROLE = new RegExp('role="' + 'switch"');
+
+/**
+ * A switch KNOB: absolutely positioned, pill-shaped, and it MOVES — all three inside the SAME
+ * `className`, which is what makes this specific rather than merely suggestive.
+ *
+ * ⚠️ SCOPED PER ATTRIBUTE ON PURPOSE, and both looser versions were tried first. Bounding each
+ * pattern with a "not a quote" class cannot cross the quote in `${on ? 'translate-x-4' : '...'}`,
+ * so it failed to match even the CANONICAL switch and reported a clean tree while detecting
+ * nothing. Matching per FILE instead then flagged `AiAdvisor.tsx`, whose `translate-x-full` is a
+ * sliding DRAWER with an unrelated `rounded-full` elsewhere in the file — and a gate that is wrong
+ * on ordinary work is one somebody switches off on the day it matters. A drawer is `fixed`, not
+ * `absolute`, and carries no `rounded-full` in the same attribute, so this excludes it by
+ * construction rather than by an exception list.
+ */
+const KNOB_CLASS = /absolute[\s\S]{0,200}?rounded-full[\s\S]{0,200}?translate-x-/;
+
+/** Every `className` in a file, so a match means "one attribute did all three". */
+function classNames(body: string): string[] {
+  return [...body.matchAll(/className=(?:\{`([\s\S]*?)`\}|"([^"]*)")/g)].map(m => m[1] ?? m[2] ?? '');
+}
+
+function hasSwitchMarkup(body: string): boolean {
+  return classNames(body).some(c => KNOB_CLASS.test(c));
+}
 
 /** The one file allowed to declare a switch. */
 const CANONICAL = join('components', 'shared', 'ToggleSwitch.tsx');
@@ -72,5 +107,29 @@ describe('the app has exactly one switch implementation', () => {
       extras,
       `${extras.length} hand-rolled switch(es) outside the shared component. Use <ToggleSwitch> instead: ${extras.join(', ')}`,
     ).toEqual([]);
+  });
+
+  it('⚠️ has switch-shaped MARKUP nowhere else either — the gap this file used to declare', () => {
+    const canonical = CANONICAL.split(sep).join(sep);
+    const drawing = FILES
+      .filter((f) => hasSwitchMarkup(readFileSync(f, 'utf8')))
+      .map((f) => relative(SRC, f));
+
+    // Positive control. Without it a broken pattern reports an empty list and reads as clean —
+    // which is exactly what the first version of this check did.
+    expect(drawing, 'the shared switch must draw a knob').toContain(canonical);
+
+    const extras = drawing.filter((f) => f !== canonical);
+    expect(
+      extras,
+      `${extras.length} file(s) draw a switch by hand. Use <ToggleSwitch>: ${extras.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('the canonical knob is theme-aware — never a hardcoded white', () => {
+    const body = readFileSync(join(SRC, CANONICAL), 'utf8');
+    // Two of the six hand-rolled copies used bg-white, so the knob stayed white in dark mode.
+    expect(body).toContain('bg-background');
+    expect(body).not.toContain('bg-white');
   });
 });
