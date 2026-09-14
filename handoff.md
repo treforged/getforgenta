@@ -72,6 +72,28 @@ is the floor working. **Do not lower it to make the screen look busier.**
 
 ### 5. Friends UI formatting (add-by-username already ships, friend-link v9)
 
+### 6. [~] REVENUE WITHOUT TRE'S SCREEN — BUILT AND PROVEN, ONE INPUT SHORT
+`bbef1fc4` adds `scripts/app-store-revenue.mjs` + a manual-only `revenue-report`
+workflow. **Exercised against Apple's real API, run `34904953976`:**
+`credential: OK (authenticated against /v1/apps)` — so the ES256 JWT minting
+works end to end and the key is valid — then **exit 2, `FAILED (no vendor
+number)`**, rather than printing a figure. The zero-vs-refusal rule held on its
+first real run.
+
+⚠️ **THE KEY'S SALES ROLE IS UNTESTED AND MUST NOT BE ASSUMED.** The run never
+reached the sales endpoint. "credential OK" means the key AUTHENTICATES, not
+that it may read sales — an upload-only key passes that same probe and fails at
+the next call with exit 4. The probe and the sales call are deliberately
+separate so those two causes can never be confused.
+
+Blocked on `APP_STORE_VENDOR_NUMBER` (ask `24480c62`): Apple requires it on
+every sales request and exposes **no API that returns it**. Not a credential.
+
+⚠️ `dsaEncoding: 'ieee-p1363'` is load-bearing and measured — 64 bytes as JWS
+requires, against Node's DER default of 72. A DER signature gets a flat 401 from
+Apple with no hint, which reads as a bad key and gets a good one rotated.
+
+
 ### NOT OPEN — `798c0ed9` is deliberately deferred, not forgotten
 Sam ranked it above the country work on 2026-09-14. **The correctness half is
 already fixed**: the stale row now says "Not updated this week" instead of
@@ -2788,29 +2810,30 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 17:48 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 18:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
+- **Uncommitted (2 file(s)):**
 
 ```
 M supabase/.temp/cli-latest
+?? scripts/handoff.md
 ```
 
 - **Recent commits:**
 
 ```
+e44d9a58 [handoff]: four shipped, and the Chase write was already done before the record said it was not
+b50d8bfe [leaderboard]: the country board, client half -- derived, correctable, and leavable
+05081005 [leaderboard]: the country scope, proven against a cohort that could tell the two apart
+d7773424 [leaderboard]: derive the country, never ask for it -- and record why a browser cannot measure analytics
+7f0f3212 [debt]: the deferred-interest gap is real and Tre's exposure to it is zero
+2a2a9838 [handoff]: the Chase analysis is done and the write is not - deferred interest is unmodelled
+3b649028 [analytics]: the dashboard was right — nothing had ever sent a pageview
 71acc433 [handoff]: three shipped, and main was red from a clock rather than a commit
-c0eda27e [whats-new]: the popup existed and spoke only English, which was the half that was missing
-81ff4885 [tests]: main went red at 11:48 this morning and no commit caused it
-89f99dd9 [switches]: the consolidation was recorded as done and two hand-rolled copies survived it
-9ca1e10c [handoff]: the fixture asserted a feature that did not exist, and the gates were green
-dc9e4058 [statements]: the promo regex never worked on a real PDF, and my own fixture hid it
-d3a3fac4 [handoff]: record the Sunday-night blank board and the unreachable stale state
-4f910beb [leaderboard]: the board emptied every Sunday night and called sharing friends "Private"
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
