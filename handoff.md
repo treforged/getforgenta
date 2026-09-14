@@ -295,6 +295,23 @@ which is 8 inline hits in 5 files — the 9th being the helper.
 **NOT BUILT: at 84% of the cap this is a 6-file refactor.** The count IS the
 acceptance evidence per Tre's rule, so it is recorded rather than half-built.
 
+⚠️ **AND "FILLED" IS ITSELF TWO SUB-SHAPES — read the markup before building one
+component for all 9.** Measured on the two ends:
+- **JOINED**: `ForecastAssumptionsPanel` wraps its segments in ONE bordered box
+  with `overflow-hidden`; the segments carry no border of their own. That is a
+  true segmented control.
+- **SEPARATE**: `BudgetControl`'s four are individually bordered buttons in a
+  `flex gap-1`, each rounded on its own. That is a filled PILL PAIR — closer to
+  the outlined row already consolidated than to the joined block.
+
+**So the next session decides between two components, not one.** Building a
+single one with a `joined` flag is precisely the flag-configured component this
+whole pass has been refusing, and it would be the fourth time the count said one
+control where the markup said two.
+
+**THE STANDING LESSON FROM ALL FOUR MISCOUNTS: a class search tells you where to
+LOOK, never what the control IS. Open the markup before you commit to a shape.**
+
 ⚠️ **AND MY OWN FIRST DIFF SHIPPED A COIN TOSS DRESSED AS AN OVERRIDE — caught in
 review, before the commit.** Three call sites passed `flex-nowrap` and `!gap-1.5`
 through `className` to beat the component's own `flex-wrap gap-2`. **Tailwind
