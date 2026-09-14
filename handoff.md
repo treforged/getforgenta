@@ -210,6 +210,24 @@ verified by `git diff` showing no line touching `inviteCopied`/`clipboard`.
 **Aim an edit at something unique to its target**, not at a shape the file
 repeats.
 
+### 0h. NEXT SLICE, MEASURED AND NOT STARTED — segmented controls, `e6cb3311`
+Same rule as the switches, applied to the next control kind: **11 instances
+across 7 files, and NO shared component** (`src/components/shared/` has 46 files
+and none of them is one). Transactions x2, Accounts, CreditCardEngine x2,
+MaintenanceFormModal, DebtPayoff, Forecast, ForecastAssumptionsPanel.
+
+**They are drift, not seven designs** — two sampled share the idiom verbatim,
+`px-3 py-1 text-xs font-medium border btn-press` with a `border-primary` active
+state.
+
+⚠️ **NOT STARTED ON PURPOSE.** At 82% of the cap the usage hook says start no new
+slice, and this is a 7-file refactor. **Judge the split FIRST**: a filter pill row
+(`all|income|expense`) may not be the same control as a mode selector
+(`pct|flat`), and forcing all 11 into one component would be the mirror of the
+defect. The segmented control has the same accessibility contract the switches had
+lost — `role="radiogroup"`/`radio` with `aria-checked`, or a tablist — and 11
+hand-rolled copies is more surface for that than six.
+
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
 `max-w-sm` while Spanish runs longer. Blocked on exactly one thing: the
@@ -3049,7 +3067,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 18:51 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 19:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3065,14 +3083,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+b3fd02a8 [design]: six hand-rolled switches survived the consolidation, and the gate could not see them
+7874613f [handoff]: the pdf.js fixture is a round trip now, and the extractor still has no coverage at all
+f05d498f [statement]: the pdf.js extraction fixture was a hand-transcribed constant agreeing with itself
+74c6f5a8 [handoff]: reconcile the two FK counts - both right, different questions, and my sweep had a blind spot
+17115831 [handoff]: the retention denominator was wrong, and 110 rows of deleted users' financial data are why
 2e37a47f [handoff]: half of the profiles-latency ask is a false premise, and the fix list names the wrong three files
 6b4a2e88 [handoff]: the friends formatting pass is done, and the desk is now fully Tre-blocked
 dedfa915 [friends]: three fields on one screen, two implementations, and one had no focus state at all
-ddefaa41 [handoff]: the friends formatting item surfaced a whole-app theme defect first
-12ebe70c [theme]: dark mode never declared color-scheme, so every native popup was drawn light
-fbe89644 [handoff]: revenue reader is built and proven against Apple, one input short
-bbef1fc4 [revenue]: read App Store proceeds from Apple, instead of asking Tre to read his screen
-e44d9a58 [handoff]: four shipped, and the Chase write was already done before the record said it was not
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
