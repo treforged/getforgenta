@@ -16,6 +16,36 @@
 // WHAT THIS DOES NOT CATCH, said plainly: whether a pageview actually ARRIVES at Vercel. That is
 // a network fact about a deployed origin and no unit test can see it — it needs the live site and
 // the Vercel API answering something other than 404. Named rather than implied.
+//
+// ⚠️ THAT NETWORK FACT WAS MEASURED ON 2026-09-14, AND THE ANSWER IS THAT NOTHING IS RETAINED.
+// Recorded here so nobody re-derives it, and because two instruments manufacture a FALSE defect
+// on the way to it:
+//
+//   1. The live production deployment DOES carry this component (commit 3b649028, deployed), and
+//      https://getforgenta.com/_vercel/insights/script.js serves REAL JavaScript —
+//      `application/javascript`, 3,106 bytes. The negative control is what makes that meaningful:
+//      a made-up path under `/_vercel/` returns `text/html` index.html from the SPA fallback, so
+//      a bare 200 would have proved nothing.
+//   2. A pageview POSTed directly to `/_vercel/insights/view` is answered **200 OK**.
+//   3. And the Vercel Web Analytics API still answers **404 "Web Analytics not found"** for the
+//      project, for every window queried.
+//
+// Those are not in conflict. The ingest endpoint is FIRE-AND-FORGET: it accepts and discards when
+// the product is not enabled on the project, so **a 200 there is not evidence of arrival** — it
+// is an endpoint designed never to fail. The API 404 is the authoritative read, and it means
+// WEB ANALYTICS IS NOT ENABLED IN THE VERCEL DASHBOARD. That is one toggle on Tre's account, and
+// it is the only thing still standing between this code and a number Ruby can work to.
+//
+// ⚠️ AND A DRIVEN BROWSER CANNOT MEASURE THIS AT ALL — it reports the gate as broken when the
+// gate is correct. Two independent reasons, either one sufficient:
+//   • the Claude-controlled Chrome sends `navigator.doNotTrack === '1'` AND
+//     `navigator.globalPrivacyControl === true`, so `hasTrackingOptOutSignal()` is true and this
+//     component correctly renders nothing; and
+//   • Vercel's own script self-disables on `navigator.webdriver`, which any automated browser
+//     sets — `if (navigator.webdriver || navigator.userAgent.includes("Headless")) return`.
+// So "no _vercel script in the DOM and no request on the live site" is the CORRECT behaviour
+// under automation, and reading it as a defect would send the next session into this gate, which
+// is fine. Do not chase it there.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
