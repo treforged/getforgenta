@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import MoneyDisplaySync from '@/components/shared/MoneyDisplaySync';
+import CountrySync from '@/components/shared/CountrySync';
 import PushTapHandler from '@/components/shared/PushTapHandler';
 import { useTheme } from '@/hooks/useTheme';
 import ConnectionNotice from '@/components/shared/ConnectionNotice';
@@ -522,6 +523,7 @@ const App = () => (
                 {/* Sets the money singleton from the profile BEFORE the routes render, so the
                     first paint is already in the user's currency rather than flashing dollars. */}
                 <MoneyDisplaySync />
+                <CountrySync />
                 <DeepLinkHandler />
                 <ResumeRecovery />
                 {/* ⚠️ THE APP LOCK IS MOUNTED HERE, AND UNTIL 2026-09-06 IT WAS MOUNTED NOWHERE.
@@ -566,6 +568,7 @@ const App = () => (
                 {/* Sets the money singleton from the profile BEFORE the routes render, so the
                     first paint is already in the user's currency rather than flashing dollars. */}
                 <MoneyDisplaySync />
+                <CountrySync />
                 <DeepLinkHandler />
                 <ResumeRecovery />
                 <AppRoutes />

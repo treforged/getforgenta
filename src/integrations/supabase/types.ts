@@ -1665,6 +1665,7 @@ export type Database = {
           referred_by: string | null
           show_cents: boolean | null
           tax_rate: number | null
+          country_code: string | null
           timezone: string | null
           tour_flags: Json
           trusted_devices: Json | null
@@ -1722,6 +1723,7 @@ export type Database = {
           referred_by?: string | null
           show_cents?: boolean | null
           tax_rate?: number | null
+          country_code?: string | null
           timezone?: string | null
           tour_flags?: Json
           trusted_devices?: Json | null
@@ -1779,6 +1781,7 @@ export type Database = {
           referred_by?: string | null
           show_cents?: boolean | null
           tax_rate?: number | null
+          country_code?: string | null
           timezone?: string | null
           tour_flags?: Json
           trusted_devices?: Json | null

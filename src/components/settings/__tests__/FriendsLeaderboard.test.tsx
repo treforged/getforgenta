@@ -28,6 +28,13 @@ const state = {
 // cases are about the FRIENDS board. `GlobalStandingCard.test.tsx` is where the card is exercised
 // for real, and the case at the bottom of this file asserts it is actually mounted, so the stub
 // cannot quietly become a way of not rendering it at all.
+vi.mock('@/hooks/useSupabaseData', () => ({
+  // The card reads the profile for `country_code` and the opt-out flag. Mocked rather than wrapped
+  // in a QueryClientProvider so these tests keep asserting the RENDERED SENTENCES, which is what
+  // they were written for -- the privacy wording is the thing that must not regress.
+  useProfile: () => ({ data: { country_code: 'US', tour_flags: {} }, loading: false, update: { mutate: vi.fn() } }),
+}));
+
 vi.mock('@/hooks/useGlobalLeaderboard', async () => {
   const actual = await vi.importActual<typeof import('@/hooks/useGlobalLeaderboard')>(
     '@/hooks/useGlobalLeaderboard',

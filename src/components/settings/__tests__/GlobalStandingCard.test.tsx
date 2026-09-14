@@ -20,6 +20,13 @@ const state = vi.hoisted(() => ({
   error: null as unknown,
 }));
 
+vi.mock('@/hooks/useSupabaseData', () => ({
+  // The card reads the profile for `country_code` and the opt-out flag. Mocked rather than wrapped
+  // in a QueryClientProvider so these tests keep asserting the RENDERED SENTENCES, which is what
+  // they were written for -- the privacy wording is the thing that must not regress.
+  useProfile: () => ({ data: { country_code: 'US', tour_flags: {} }, loading: false, update: { mutate: vi.fn() } }),
+}));
+
 vi.mock('@/hooks/useGlobalLeaderboard', async () => {
   const actual = await vi.importActual<typeof import('@/hooks/useGlobalLeaderboard')>(
     '@/hooks/useGlobalLeaderboard',

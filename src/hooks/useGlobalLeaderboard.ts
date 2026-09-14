@@ -16,6 +16,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import type { LeaderboardMetric } from '@/lib/leaderboard-metrics';
 
+/**
+ * Which cohort a standing is measured against.
+ *
+ * ⚠️ THE SERVER REFUSES ANYTHING ELSE RATHER THAN FALLING BACK TO 'global', and this type exists so
+ * the client cannot casually send a third value. A scope that quietly widens would put a heading
+ * saying "your country" over a number that is not about their country, and nothing on screen would
+ * ever reveal the substitution.
+ */
+export type LeaderboardScope = 'global' | 'country';
+
 export interface GlobalStanding {
   /** How many people opted this metric in AND have a bucket this week. */
   cohortSize: number;
@@ -40,7 +50,7 @@ export function hasEnoughPeople(s: GlobalStanding | null | undefined): boolean {
   return !!s && s.betterThanPct !== null;
 }
 
-export function useGlobalLeaderboard(metric: LeaderboardMetric) {
+export function useGlobalLeaderboard(metric: LeaderboardMetric, scope: LeaderboardScope = 'global') {
   const { user } = useAuth();
   const { isDemo } = useDemo();
 
@@ -48,11 +58,14 @@ export function useGlobalLeaderboard(metric: LeaderboardMetric) {
     // Demo serves no global standing: every figure behind it would be fabricated, and unlike the
     // fixture feeds elsewhere this one would be a claim about OTHER REAL PEOPLE.
     enabled: !isDemo && !!user,
-    queryKey: ['leaderboard_global_stats', user?.id, metric],
+    // ⚠️ `scope` IS IN THE KEY. Without it, switching Global -> Your country would re-render the
+    // PREVIOUS cohort's numbers under the new heading until the refetch landed — a cached global
+    // percentage labelled as a country one, which is the same lie as a silently widened scope.
+    queryKey: ['leaderboard_global_stats', user?.id, metric, scope],
     queryFn: async (): Promise<GlobalStanding | null> => {
       const { data, error } = await supabase.rpc('leaderboard_global_stats', {
         p_metric: metric,
-        p_scope: 'global',
+        p_scope: scope,
       });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
