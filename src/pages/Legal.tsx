@@ -147,11 +147,26 @@ function PrivacyContent() {
               either way. This sentence therefore describes the code path that EXISTS and the
               consent it is gated behind, which is true whether or not the key is currently
               configured. It is the false absolute that had to go. */}
+          {/* ⚠️ VERCEL WAS ADDED 2026-09-14 AND THIS IS A CHANGE OF PRACTICE, NOT A CORRECTION.
+              The 09-13 edit above fixed a sentence that was FALSE about what the app already did.
+              This one names a SECOND analytics processor that did not previously receive anything:
+              `@vercel/analytics` was never installed and `@vercel/speed-insights` was installed and
+              never mounted, so neither had ever sent a request in its life.
+
+              It ships gated identically to Google — `VercelAnalytics.tsx` mounts only on accepted
+              analytics consent and reuses `hasTrackingOptOutSignal()` rather than reimplementing
+              it, so GPC/DNT suppresses it too and Section 8a stays true. Mounting IS the gate:
+              without consent the components never render, so no vendor script is fetched at all.
+
+              If anyone reverses the code, REVERSE THIS SENTENCE IN THE SAME COMMIT. A policy naming
+              a processor that receives nothing is the mirror of the defect fixed on 09-13, and it
+              is the half people forget because it reads as harmless. */}
           <p><span className="text-foreground font-medium">Usage data:</span> Basic interaction logs (page
-          navigation, feature usage) used to improve the service. We use Google Analytics for aggregate usage
-          measurement, and only if you accept analytics cookies — it is never loaded otherwise, and never loaded
-          at all if your browser sends a Global Privacy Control or Do Not Track signal. See Section 8a. Your
-          financial data is never sent to it.</p>
+          navigation, feature usage) used to improve the service. We use Google Analytics and Vercel Analytics
+          (including Vercel Speed Insights, which measures page performance) for aggregate usage measurement,
+          and only if you accept analytics cookies — they are never loaded otherwise, and never loaded at all if
+          your browser sends a Global Privacy Control or Do Not Track signal. See Section 8a. Your financial
+          data is never sent to either of them.</p>
           <p><span className="text-foreground font-medium">Payment data:</span> On web, billing is processed by
           Stripe. On iOS, billing is processed by Apple. On Android, billing is processed by Google Play.
           Subscription state across platforms is managed by RevenueCat. We store only platform-specific customer
@@ -298,8 +313,8 @@ function PrivacyContent() {
         <h2 className="font-display font-semibold text-base">8a. Do Not Track &amp; Global Privacy Control</h2>
         <p className="text-muted-foreground leading-relaxed">
           Forgenta honors browser-level opt-out signals. If your browser or extension sends a Global Privacy
-          Control (GPC) signal or a Do Not Track (DNT) header, we do not load Google Analytics and no analytics
-          events are sent, even if you previously accepted analytics cookies. The signal takes precedence over
+          Control (GPC) signal or a Do Not Track (DNT) header, we do not load Google Analytics or Vercel
+          Analytics, and no analytics events are sent, even if you previously accepted analytics cookies. The signal takes precedence over
           your stored cookie preference. Essential functionality (authentication, security, and your saved
           financial data) is unaffected, as it is required to operate the service and is not tracking.
         </p>

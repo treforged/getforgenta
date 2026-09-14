@@ -22,6 +22,7 @@ import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
 import ConsentBanner from "@/components/shared/ConsentBanner";
 import Analytics from "@/components/shared/Analytics";
+import VercelAnalytics from "@/components/shared/VercelAnalytics";
 import ResumeRecovery from "@/components/shared/ResumeRecovery";
 import { AppLockProvider } from "@/hooks/useAppLock";
 import AppLockScreen from "@/components/shared/AppLockScreen";
@@ -570,6 +571,8 @@ const App = () => (
                 <AppRoutes />
                 <ConsentBanner />
                 <Analytics />
+                {/* Google above, Vercel below — different vendors, same consent gate. */}
+                <VercelAnalytics />
               </ViewedProfileProvider>
             </SubscriptionProvider>
           </AuthProvider>
