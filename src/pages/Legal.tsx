@@ -124,8 +124,33 @@ function PrivacyContent() {
           institution name, account names, masked account numbers (last 4 digits), balances, and any transaction
           data the provider returns. Connecting a bank account is entirely optional. See Section 6 for full
           details.</p>
+          {/* ⚠️ THIS SENTENCE USED TO READ "We do not use third-party analytics trackers." IT WAS
+              FALSE. `src/lib/analytics.ts` loads Google Analytics 4 and sends two events, and it is
+              CALLED — `Analytics.tsx` → `initGA`, `AuthContext` → `maybeTrackOAuthSignUp`,
+              `Auth.tsx` → `trackSignUp`. Section 8a below already describes that behaviour
+              correctly, so the policy contradicted itself and one half of the contradiction was
+              untrue, on a privacy policy for a financial app.
+
+              This is a CORRECTION TO A DISCLOSURE, not a change of practice: nothing the app does
+              is different, it is now described accurately. Any decision to add ANOTHER analytics
+              provider is a separate, outward-facing call and is not made here.
+
+              ⚠️ CHECK THE CALLERS BEFORE EDITING THIS AGAIN. My own first pass concluded GA was not
+              installed, from a grep too narrow to find `src/lib/analytics.ts`; a second, wider one
+              found it fully wired. A privacy claim is exactly the kind of sentence that gets
+              "tidied" back to the comfortable version by somebody who looked once.
+
+              ⚠️ WHAT I COULD NOT VERIFY: whether `VITE_GA_MEASUREMENT_ID` is actually set in
+              production. `initGA` is a no-op without it, and Cloudflare's challenge blocks reading
+              the deployed bundle from outside, so I could not settle it — a 403 is not evidence
+              either way. This sentence therefore describes the code path that EXISTS and the
+              consent it is gated behind, which is true whether or not the key is currently
+              configured. It is the false absolute that had to go. */}
           <p><span className="text-foreground font-medium">Usage data:</span> Basic interaction logs (page
-          navigation, feature usage) used to improve the service. We do not use third-party analytics trackers.</p>
+          navigation, feature usage) used to improve the service. We use Google Analytics for aggregate usage
+          measurement, and only if you accept analytics cookies — it is never loaded otherwise, and never loaded
+          at all if your browser sends a Global Privacy Control or Do Not Track signal. See Section 8a. Your
+          financial data is never sent to it.</p>
           <p><span className="text-foreground font-medium">Payment data:</span> On web, billing is processed by
           Stripe. On iOS, billing is processed by Apple. On Android, billing is processed by Google Play.
           Subscription state across platforms is managed by RevenueCat. We store only platform-specific customer
