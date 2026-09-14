@@ -1,5 +1,68 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## 2026-09-13 NIGHT — FOURTEEN SHIPPED. Read the two correction blocks below before anything else.
+
+`origin/main` 0/0 by CONTENTS after every push. Gates each time: `npx tsc --noEmit` clean,
+`npm run lint` 0 errors, `npm run test:tz` all three zones — **4496 passed, 1 skipped**, up from
+4384 at the start of the evening. Every commit mutation-proved RED, every mutated file restored
+byte-exactly by sha256 in a `finally`.
+
+### ⇢ FIRST UP: `b31f9b1a` — PDF upload for statements.
+
+The parser and the confirm-before-write UI SHIP and work on pasted text, wired beside each card's
+interest-saving balance. Upload is a different way IN to the same parser, not a different feature.
+It needs **pdf.js (~350KB)** in an app that currently ships no PDF dependency — take that
+deliberately. Also replace the reconstructed test fixture with REAL extracted statement text the
+first time one is available: it pins the captions Sam named, not the true column layout.
+
+### ⛔ FIVE CLAIMS DISPROVED BY MEASUREMENT. Do not re-derive any of them.
+
+1. **"Nothing merges his planned row with the real one" — FALSE.** SIX of 18 typed rows are already
+   linked. The defect was that the offer EXPIRED: "Link and correct" renders only on an UNREVIEWED
+   charge, so answering it — which he must do — destroyed the only route to the link. Closed by a
+   ledger-side link (`b710ddf4`).
+2. **The Plaid settlement lag is NOT breaking the match.** Payroll settles exactly 2 days late
+   against a 5-day window. It delays; it does not break.
+3. **"Category totals stay overstated by refunds" — FALSE.** NOTHING computes category spend from
+   `synced_transactions`; every consumer was grepped. Ask dropped with the reasoning.
+4. **"Debt payments double-count via the bank rows" — FALSE.** `transfer-pair-detection` paired all
+   three of his real card payments, including the two Plaid labels `INCOME` on the card leg, and
+   the queue collapses them. The REAL defect was in the ledger and is fixed — see below.
+5. **The privacy policy's "We do not use third-party analytics trackers" — FALSE.** GA4 is loaded
+   and called from three places. Disclosure corrected; practice unchanged.
+
+### ⚠️ THREE DEFECT SHAPES THIS SESSION PRODUCED, ALL NOW GATED
+
+- **A dedupe keyed on a free-text NOTE the app's own button fills with a bank descriptor**, so a
+  card payment counted twice. A provider-written string is not an identity.
+- **Twelve write paths could reach a real account from DEMO mode** — the whole car-builds family.
+  `add` inserted REAL rows while a visitor browsed fixtures. 57/57 guarded, gate in
+  `demoWriteGuard.test.ts`. When a read path gets a demo branch, the writes beside it need one in
+  the same commit.
+- **`revoke ... from public` does NOT remove Supabase's direct `anon` grant.** Every new function is
+  born anonymously callable. Read the grant back after every function migration.
+
+### The measured state of friends / leaderboard, so nobody re-measures it
+
+- **49 accounts, exactly ONE sharing anything** (Tre's main, written 19:03 — i.e. AFTER the toggle
+  fix, so that fix works). His SECOND account has no share rows at all: its toggles were pressed
+  before the fix and have not been pressed since. **That is why one side shows nothing.**
+- **Only 2 of the 4 metrics can ever publish**; `debt_payoff` cannot be rescued by a proxy because
+  no balance history table exists and `total_liabilities` includes the car loan.
+- **The global board's cohort is 1 against a floor of 20**, so it says "not enough people yet" for
+  everybody. That is the guarantee working.
+- Username claim ships; **invite by username ships and is DEPLOYED** (friend-link v9), bounded by
+  sharing the 5/hour invite budget with the slot spent BEFORE the lookup.
+
+### ⚠️ CATEGORIES: THE TRAP IS IN THE OBVIOUS FIX (`d9ab0509`)
+
+26 offered, 19 ever used, 7 never. **Do not drop the unused ones.** Only THREE accounts have any
+transactions, so zero usage is a fact about a 3-user sample — and Rent, Mortgage and Utilities are
+among the most common categories in personal finance. I proposed dropping them and corrected myself
+before anyone acted on it.
+
+---
+
 ## 2026-09-13 EVENING — FOUR MORE SHIPPED, AND TWO RECORDED "FACTS" WERE FALSE
 
 `origin/main` 0/0 by CONTENTS after each push. `b710ddf4` (ledger-side link) · the money-in/paycheck
@@ -2528,30 +2591,29 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-13 17:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-13 18:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
-M handoff.md
- M supabase/.temp/cli-latest
+M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+c249e0ad [demo]: twelve write paths could reach a real account from demo mode, and now none can
+2eebc966 [ui]: the three remaining on/off SETTINGS become switches - and the checkboxes deliberately stay
+4451be89 [handoff]: correct two recorded 'facts' that measurement disproved
+56c37b0d [leaderboard]: where you stand against everyone, as an aggregate that cannot name anybody
+8273b4fb [leaderboard]: two of the four switches could never publish anything, and now say so
+67c1a8f4 [queue]: the money-in filter was hiding the one charge the app could have cleared itself
+b710ddf4 [transactions]: the merge offer used to expire with the bank charge - now it survives
 70978c45 [whats-new]: tell a returning user what changed, once, in their own language
-e068eb79 [friends]: the same refused write killed the PUBLISHER too, and the toggles become real switches
-a787279c [friends]: a unique username to connect by - schema, rules, and the enumeration guard
-a6c27d6b [friends]: put the friends and the invite fields above, and group the card so it reads as three things
-e6736663 [friends]: the sharing toggles wrote NOTHING and said nothing - one refused write explained every symptom
-81afa6d2 [queue]: stop asking what category his paycheck is - money in is not a spending question
-47e4a043 [auth]: "keep me logged in" - a profile read that failed was silently shortening the leash
-dafb8c24 [auto-apply]: an explicit undo outranks the inference - the user could not refuse a write they never watched
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
