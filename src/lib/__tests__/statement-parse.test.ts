@@ -158,3 +158,52 @@ describe('what a confirmed parse would write', () => {
     expect(statementPatch(parseStatement('nothing useful here'))).toEqual({});
   });
 });
+
+/**
+ * ⚠️ THE SHAPE pdf.js ACTUALLY RETURNS, CAPTURED RATHER THAN IMAGINED — and it caught a real defect.
+ *
+ * Measured 2026-09-14: a genuine PDF carrying these captions, put through real pdf.js, comes back as
+ * ONE LINE of 184 characters, space-separated, with not a newline in it. The reconstructed fixture
+ * above uses caption-per-line with runs of spaces, which is how a statement LOOKS and is not how it
+ * EXTRACTS.
+ *
+ * Every money field parsed identically from both — those match on adjacency. But `promoRates` came
+ * back EMPTY from the real text while the reconstruction found the promo, because the promo regex
+ * was anchored to a line start. **The hand-built fixture asserted a feature that did not work.**
+ * That is exactly the limit the commit stated and this is it closing.
+ *
+ * Keep BOTH shapes. A statement pasted by hand really does have line breaks; one extracted from a
+ * PDF really does not. Losing either loses a case the other cannot see.
+ */
+const REAL_PDF_EXTRACTION =
+  'CHASE PRIME VISA STATEMENT New Balance $8,189.99 Interest Saving Balance $1,451.88 Minimum Payment Due $773.05 Total Plans Payment Due $198.83 Equal Pay Promo 0.00% Purchase APR 27.24%';
+
+describe('the shape real pdf.js returns — one line, no newlines', () => {
+  const parsed = parseStatement(REAL_PDF_EXTRACTION);
+
+  it('has no newlines at all, which is the whole point of this fixture', () => {
+    expect(REAL_PDF_EXTRACTION).not.toContain('\n');
+  });
+
+  it('reads every money figure from the single-line form', () => {
+    expect(parsed.newBalance).toBe(8189.99);
+    expect(parsed.interestSavingBalance).toBe(1451.88);
+    expect(parsed.minimumPaymentDue).toBe(773.05);
+    expect(parsed.totalPlansPaymentDue).toBe(198.83);
+    expect(parsed.flexibleFinancingBalance).toBe(6738.11);
+  });
+
+  it('⚠️ FINDS THE PROMO — the case the reconstructed fixture said passed and did not', () => {
+    expect(parsed.promoRates).toEqual([{ label: 'Equal Pay Promo', aprPercent: 0 }]);
+  });
+
+  it('⚠️ STILL DOES NOT MISTAKE THE ORDINARY APRs FOR PLANS, with no line breaks to help it', () => {
+    // `Purchase APR 27.24%` sits on the same line as the promo now. Without the keyword requirement
+    // a rate-hunting regex would take it, and tell somebody they have financing they do not have.
+    expect(parsed.promoRates.map(p => p.aprPercent)).not.toContain(27.24);
+  });
+
+  it('produces the same patch the paste path produces', () => {
+    expect(statementPatch(parsed)).toEqual(statementPatch(parseStatement(PRIME_VISA)));
+  });
+});

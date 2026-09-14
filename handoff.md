@@ -2629,7 +2629,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-13 20:58 by handoff_hook. Everything below this heading is
+_Written 2026-09-13 21:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -2644,14 +2644,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+d3a3fac4 [handoff]: record the Sunday-night blank board and the unreachable stale state
+4f910beb [leaderboard]: the board emptied every Sunday night and called sharing friends "Private"
+6e2306d7 [handoff]: every remaining ask is blocked on Tre, and each blocker is named
+f1b9a1fe [undo]: gate the query shape, because the browser press does not stop it coming back
+12b2094b [statements]: upload the PDF, not just its text
 1a3d1766 [handoff]: fourteen shipped, five recorded claims disproved
 9285c68e [statements]: read the figures off a statement instead of typing four of them
 6e56ecb7 [legal]: the privacy policy said we use no analytics trackers while loading one
-7ca71ee6 [perf]: the tour stops making its own requests against a 5-second tail
-575cbfc4 [friends]: add a friend by their username, bounded by the invite budget
-f8d08182 [friends]: the username foundation gets the caller it shipped without
-a85cb372 [demo]: the shop window contradicted its own tiles, inches away
-a97612e8 [ledger]: a card payment was counted twice, because the dedupe key was a free-text note
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

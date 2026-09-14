@@ -111,7 +111,21 @@ function firstAmount(text: string, captions: readonly string[]): number | null {
  * not a plan — a statement is full of rates, including the purchase APR and the cash-advance APR,
  * and treating those as promos would tell somebody they have financing plans they do not have.
  */
-const PROMO_LINE = /^[^\S\n]*([A-Za-z][A-Za-z0-9 &/'-]{2,40}?(?:promo|promotion|plan|equal pay)[A-Za-z ]{0,20})[^\S\n]*[.:]*[^\S\n]*([0-9]{1,2}\.[0-9]{2})\s*%/gim;
+/**
+ * ⚠️ NOT ANCHORED TO A LINE START, AND THAT ANCHOR IS EXACTLY WHAT A RECONSTRUCTED FIXTURE HID.
+ *
+ * The first version began `^[^\S\n]*` with the `m` flag, which requires the label to open a line.
+ * That is true of a statement as a human reads it and FALSE of what pdf.js actually returns: real
+ * extraction of a real PDF put the whole page on ONE line, space-separated — measured 2026-09-14,
+ * 184 characters, every caption and figure present and not a newline among them. Every money field
+ * still parsed, because those match on adjacency. The promo rows silently found NOTHING, and the
+ * hand-built fixture said they worked.
+ *
+ * The label is bounded instead of anchored: it must END in a promo word, is lazy so it takes the
+ * shortest run that does, and its character class excludes `$` `.` `,` and `%` — so it cannot reach
+ * back across a preceding amount and swallow an unrelated caption.
+ */
+const PROMO_LINE = /([A-Za-z][A-Za-z0-9 &/'-]{0,40}?(?:promo|promotion|plan|equal pay)[A-Za-z ]{0,20}?)[^\S\n]*[.:]*[^\S\n]*([0-9]{1,2}\.[0-9]{2})\s*%/gi;
 
 function promoRates(text: string): PromoRate[] {
   const out: PromoRate[] = [];
