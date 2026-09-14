@@ -265,6 +265,36 @@ Gate `one-segmented-control.test.ts`, proven RED by restoring the actual
 `Accounts.tsx` defect. Its allowance list carries **a written reason per entry**,
 because an inventory defined by exclusion grows invisibly.
 
+### 0i. THE FILLED GROUP IS THE NEXT SLICE — **9 instances, 6 files**, measured
+**NOT 3. My "three instances" in item 0h was a FOURTH under-count**, corrected
+here before anyone builds on it. The filled, joined group — active segment
+`bg-primary text-primary-foreground`, inactive `bg-secondary` — is:
+
+| File | Count |
+| --- | --- |
+| `BudgetControl.tsx` | **4** (two pairs: `flat\|pct`, `preTax true\|false`) |
+| `Transactions.tsx` | 1 (`upfront\|monthly_charge`) |
+| `SavingsGoals.tsx` | 1 |
+| `ForecastAssumptionsPanel.tsx` | 1 (`pct\|flat`) |
+| `CreditCardEngine.tsx` | 1 |
+| `MaintenanceFormModal.tsx` | 1 (via a local `modeBtnCls` helper) |
+
+⚠️ **WHY EVERY EARLIER SEARCH MISSED THEM, and it is a different reason each
+time.** `BudgetControl`'s four are written as **explicit adjacent buttons, not a
+`.map()`**, so no `as const).map(` search could ever reach them.
+`MaintenanceFormModal`'s classes live **inside a helper function**, so no
+className scan sees them either. **Four searches, four different blind spots** —
+which is the argument for measuring the rendered shape rather than an idiom.
+
+⚠️ **AND DO NOT GATE THIS ON `bg-primary text-primary-foreground` ALONE — I
+nearly did.** That is the ordinary PRIMARY BUTTON style: **84 hits across 46
+files**. A gate on it would have cried wolf on the entire app. The discriminator
+is that class **paired with `bg-secondary` in the SAME className** (the ternary),
+which is 8 inline hits in 5 files — the 9th being the helper.
+
+**NOT BUILT: at 84% of the cap this is a 6-file refactor.** The count IS the
+acceptance evidence per Tre's rule, so it is recorded rather than half-built.
+
 ⚠️ **AND MY OWN FIRST DIFF SHIPPED A COIN TOSS DRESSED AS AN OVERRIDE — caught in
 review, before the commit.** Three call sites passed `flex-nowrap` and `!gap-1.5`
 through `className` to beat the component's own `flex-wrap gap-2`. **Tailwind
@@ -3115,7 +3145,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 19:13 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 19:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3131,14 +3161,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+da9fc797 [design]: one filter-pill row, six copies consolidated, and my own inventory was wrong three times
+6ab02eec [handoff]: segmented controls are the next consistency count - 11 across 7 files, measured not started
 b3fd02a8 [design]: six hand-rolled switches survived the consolidation, and the gate could not see them
 7874613f [handoff]: the pdf.js fixture is a round trip now, and the extractor still has no coverage at all
 f05d498f [statement]: the pdf.js extraction fixture was a hand-transcribed constant agreeing with itself
 74c6f5a8 [handoff]: reconcile the two FK counts - both right, different questions, and my sweep had a blind spot
 17115831 [handoff]: the retention denominator was wrong, and 110 rows of deleted users' financial data are why
 2e37a47f [handoff]: half of the profiles-latency ask is a false premise, and the fix list names the wrong three files
-6b4a2e88 [handoff]: the friends formatting pass is done, and the desk is now fully Tre-blocked
-dedfa915 [friends]: three fields on one screen, two implementations, and one had no focus state at all
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
