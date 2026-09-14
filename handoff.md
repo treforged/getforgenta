@@ -11,10 +11,13 @@ Gates on the last: tsc clean, lint 0 errors, `check:leaked-keys` exit 0,
 `test:tz` **4575 passed x3 zones**, 447 files (4530 → 4558 → 4565 → 4570 → 4575,
 monotonically UP, and each rise equals the tests actually added).
 
-**EVERYTHING STILL OPEN ON THIS DESK NEEDS TRE.** Four items, two of them one
+**EVERYTHING STILL OPEN ON THIS DESK NEEDS TRE — now SIX items.** Two are one
 click: the App Store vendor number (`24480c62`) and Vercel Web Analytics
-(`f8450452`). The other two are sign-ins nobody may script — the dev session
-(**`5150b9e9`**) and the reviewer account (`a40f1e23`).
+(`f8450452`). Two are sign-ins nobody may script — the dev session
+(**`5150b9e9`**) and the reviewer account (`a40f1e23`). **Two are new and one of
+them is the most serious thing on this desk:** `21ec776d`, deleted accounts
+still holding financial data (item 0c), and `832dc26f`, a plaintext secret in
+`cron.job` (item 0d).
 
 ⚠️ **THE DEV-SIGN-IN ASK WAS DELETED BY TWO DESKS DEDUPLICATING AGAINST EACH
 OTHER, and the refiled id is `5150b9e9`.** Ada filed `ad33e848` and Sam filed
@@ -50,7 +53,7 @@ routing them onto `useProfile` is a refactor rather than a rewire. Judge that
 against the ask's own conclusion that the ~5s ceiling is likelier the FREE-plan
 shared compute, which is Tre's money call.
 
-### 0b. A RETENTION SIGNAL FOUND BY ACCIDENT — worth handing to Sam, needs one query
+### 0b. [x] RETENTION SIGNAL — MEASURED AND HANDED TO SAM. Do not re-run it.
 `profiles.timezone` is written by `reportTimezone`, which is genuinely CALLED
 (`AuthContext.tsx:300`) under `event === 'SIGNED_IN' || 'INITIAL_SESSION'` — so
 it fires on **any app open with a session**, not just a fresh sign-in. It shipped
@@ -68,6 +71,55 @@ reasoned-from-two-facts, not measured end to end. One query settles it:
 `select count(*), count(*) filter (where timezone is not null) from public.profiles;`
 This is also why the country derivation is client-side: `country_code` will fill
 at exactly this rate, as people return.
+
+✅ **SETTLED 2026-09-14. THE COUNT WAS RIGHT AND THE DENOMINATOR WAS WRONG.**
+`profiles`: 49 total, timezone set on 4, NULL on 45 — the 45/49 was exact. But
+**`profiles` joins `auth.users` at only 31 rows: 18 profiles are ORPHANS with no
+auth user.** 49 was never the user count, so 45/49 must not be quoted as a
+retention figure in either direction.
+
+**AGAINST THE 31 REAL ACCOUNTS: 3 have opened since 2026-09-05, 28 have not.**
+Most recent sign-in 2026-09-13 14:39 ET. **Signups in the last 30 days: 0.**
+Reconciled two ways — timezone-written = 3, and `last_sign_in_at >= 09-05` = 3,
+measured separately. ⚠️ **Those two are NOT fully independent**: a returning user
+with a live session fires `INITIAL_SESSION` without bumping `last_sign_in_at`.
+They agree, which is worth something; it is not proof.
+
+⚠️ **SAM'S CONFOUND IS RESOLVED — 6 NULL rows had `updated_at` after 09-05, and
+none of them is an app open.** Two are orphans (no user existed). Of the other
+four, **TWO SHARE `updated_at` 2026-09-13 15:04:28.813920 TO THE MICROSECOND**
+while their last sign-ins are 2026-08-16 and 2026-05-12 — three months apart.
+Two people cannot open the app in the same microsecond: that is a bulk-write
+signature. His "a migration would bump all 49, not 6" was sound reasoning on too
+strong a premise — **a TARGETED backfill bumps a subset.** Residue, named: the
+two singles (09-05 21:36, 09-14 18:20) are unattributed; I did not find the
+writer. Filed `5ebd5050`.
+
+### 0c. ⚠️ DELETED ACCOUNTS LEAVE FINANCIAL DATA BEHIND — `21ec776d`, NEEDS TRE
+Found while fixing the denominator above. Of **39** public tables carrying
+`user_id`, **27 have an FK to `auth.users` ON DELETE CASCADE and 12 do not** —
+and **every orphan row in the database sits in those 12, with not one among the
+27.** The constraint predicts the outcome exactly, which is what makes it a
+cause rather than a coincidence. **110 orphan rows:** `recurring_rules` 90/436,
+`profiles` 18/49, `user_subscriptions` 2/11. All 18 orphan profiles carry a
+`display_name` AND income figures; the recurring rules carry bill and income
+amounts. **The app is intended to be sold, so this is a data-retention exposure,
+not untidiness** — and it silently corrupts any metric computed off `profiles`,
+which is exactly how the 45/49 denominator went wrong.
+
+**NOTHING HAS BEEN TOUCHED, and the fix is irreversible:** the 12 FKs cannot be
+added while the orphans exist, so adding them REQUIRES deleting 110 rows of real
+people's data. Recommended order — snapshot all 110 into a locked-down backup
+schema revoked from `anon`/`authenticated` (the pattern this repo already used
+for the PITR gap), then delete, then add the constraints. The other 9
+unconstrained tables are clean today and equally unprotected.
+
+### 0d. A PLAINTEXT SECRET IN `cron.job` — `832dc26f`, low severity, needs Tre
+Three **inactive** `reddit-scout` jobs (13, 14, 19) embed an `x-webhook-secret`
+literal in their command text. **Every ACTIVE job on this database already reads
+from `vault.decrypted_secrets`**, so the correct pattern is established and
+these three predate it. Rotation is a credential action, so it is Tre's — and it
+must come first, or a rewrite just preserves a burned secret.
 
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
@@ -2908,7 +2960,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 18:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 18:51 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -2924,14 +2976,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+2e37a47f [handoff]: half of the profiles-latency ask is a false premise, and the fix list names the wrong three files
+6b4a2e88 [handoff]: the friends formatting pass is done, and the desk is now fully Tre-blocked
+dedfa915 [friends]: three fields on one screen, two implementations, and one had no focus state at all
+ddefaa41 [handoff]: the friends formatting item surfaced a whole-app theme defect first
+12ebe70c [theme]: dark mode never declared color-scheme, so every native popup was drawn light
+fbe89644 [handoff]: revenue reader is built and proven against Apple, one input short
+bbef1fc4 [revenue]: read App Store proceeds from Apple, instead of asking Tre to read his screen
 e44d9a58 [handoff]: four shipped, and the Chase write was already done before the record said it was not
-b50d8bfe [leaderboard]: the country board, client half -- derived, correctable, and leavable
-05081005 [leaderboard]: the country scope, proven against a cohort that could tell the two apart
-d7773424 [leaderboard]: derive the country, never ask for it -- and record why a browser cannot measure analytics
-7f0f3212 [debt]: the deferred-interest gap is real and Tre's exposure to it is zero
-2a2a9838 [handoff]: the Chase analysis is done and the write is not - deferred interest is unmodelled
-3b649028 [analytics]: the dashboard was right — nothing had ever sent a pageview
-71acc433 [handoff]: three shipped, and main was red from a clock rather than a commit
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
