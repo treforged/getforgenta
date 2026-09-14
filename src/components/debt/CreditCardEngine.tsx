@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
+import { StatementImport } from './StatementImport';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable, m0MinDueSettled,
@@ -31,7 +32,7 @@ import { buildCardRecRows, buildLoanRecommendations, buildOtherDebtRecommendatio
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
-import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X, Car, Landmark } from 'lucide-react';
+import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X, Car, Landmark, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
@@ -143,7 +144,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // change to what the Debt page loads.
   const { update: updateDebt, add: addDebt } = useDebts();
   const { forecastInputsBundle, debtCashConverged, cardProjection: convergedCardProjection, projections: convergedProjections } = useCardProjectionContext();
-  const { update: updateAccount } = useAccounts();
+  const { data: accountRows, update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
   const { items: plaidItems } = usePlaidItems();
   const { isPremium } = useSubscription();
@@ -183,6 +184,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // before this filter existed; the other options just trim months off the tail.
   const [chartYears, setChartYears] = usePersistedState<'1' | '2' | '3' | '5'>('tre:debt:chart-years', '5');
   const [editingStatementBal, setEditingStatementBal] = useState<string | null>(null);
+  /** Which card's statement reader is open, by account id. */
+  const [statementImportCard, setStatementImportCard] = useState<string | null>(null);
   const [statementBalInput, setStatementBalInput] = useState('');
 
   // Pinned per-month payments, persisted: these are deliberate user edits that the engine
@@ -2124,6 +2127,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               <RotateCcw size={10} />
                             </button>
                           )}
+                          {/* Tre, 2026-09-12: read the figures off the statement instead of typing
+                              four of them. Mounted HERE, beside the interest-saving balance, because
+                              that is the field he named and the one this most often fills. */}
+                          <button
+                            onClick={() => setStatementImportCard(proj.card.id)}
+                            className="text-muted-foreground hover:text-primary"
+                            aria-label={`Read a statement for ${proj.card.name}`}
+                            title="Read the figures off your statement"
+                          >
+                            <FileText size={10} />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2324,6 +2338,22 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           })}
         </div>
       </div>
+
+      {/* Tre, 2026-09-12: read a statement instead of typing four figures off it. Rendered from the
+          RAW account row rather than the simulated card, because what it proposes are account
+          COLUMNS — `statement_balance`, `min_payment`, `installment_balance` — and the sim's shapes
+          are derived from those, not the other way round. */}
+      {statementImportCard && (() => {
+        const row = (accountRows ?? []).find(a => a.id === statementImportCard);
+        if (!row) return null;
+        return (
+          <StatementImport
+            card={row}
+            onApply={patch => updateAccount.mutateAsync({ id: row.id, ...patch })}
+            onClose={() => setStatementImportCard(null)}
+          />
+        );
+      })()}
     </TooltipProvider>
   );
 }
