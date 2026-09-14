@@ -107,6 +107,23 @@ amounts. **The app is intended to be sold, so this is a data-retention exposure,
 not untidiness** — and it silently corrupts any metric computed off `profiles`,
 which is exactly how the 45/49 denominator went wrong.
 
+⚠️ **THE 39/27/12 AND SAM'S 40/29/11 ARE BOTH RIGHT, ABOUT DIFFERENT QUESTIONS —
+reconciled exactly, so nobody re-derives it.** There are **31** FK constraints to
+`auth.users` in `public`, all 31 ON DELETE CASCADE, across **29 distinct
+tables**. But only **27** of those 29 have a `user_id` COLUMN: `friend_links` and
+`partner_links` key on `inviter_id` and `accepted_by` instead, two constraints
+each. And Sam's 40th table is a **VIEW**, which cannot carry an FK at all. So for
+the claim as written — tables with a `user_id` column — **39 tables, 27
+constrained, 12 not** stands.
+
+⚠️ **AND THAT EXPOSES THE BOUNDARY OF MY OWN SWEEP: it was scoped to columns
+named `user_id`, so any table referencing a user by another name was never
+checked.** Swept those afterwards: `friend_links.revoked_by`,
+`partner_links.revoked_by` and `push_send_runs.scoped_user_id` reference users
+with NO FK. **0 orphans in all three — but two of the three columns are entirely
+unpopulated, so that zero is not evidence they are safe**, only that nothing has
+used them yet.
+
 **NOTHING HAS BEEN TOUCHED, and the fix is irreversible:** the 12 FKs cannot be
 added while the orphans exist, so adding them REQUIRES deleting 110 rows of real
 people's data. Recommended order — snapshot all 110 into a locked-down backup
