@@ -119,6 +119,33 @@ function minPaymentOf(raw: unknown): number | null {
   return positiveOrNull(raw);
 }
 
+/**
+ * ⚠️ WHAT THIS MODULE DOES **NOT** MODEL: DEFERRED INTEREST. Measured 2026-09-14.
+ *
+ * A tranche here reprices FORWARD at `promo_end_date` — before the date it pays `apr`, after it
+ * it pays the card's standard rate. A DEFERRED-INTEREST promo ("no interest if paid in full by
+ * ...") does something categorically different: miss the date and ALL interest accrued since the
+ * purchase is back-charged at once, computed on the ORIGINAL QUALIFYING AMOUNT rather than on
+ * whatever is left. There is no shape here that can express that cliff, and
+ * `deferred_interest_apr` in `supabase/functions/_shared/providers/balance-tranche-seed.ts`
+ * is only a LABEL string — the seed emits `{label, balance, apr}` with no retroactive concept.
+ * Modelling it properly is a real slice: a distinct tranche kind plus a cliff the forecast can
+ * see. Writing one as an ordinary tranche would understate the risk while LOOKING like coverage,
+ * which is the worst available outcome on a money surface. So: do not.
+ *
+ * ⚠️ AND THE CLAIM THAT TRE HOLDS TWO OF THESE IS FALSE — corrected here because it was recorded
+ * as a finding on 2026-09-14 and would otherwise have bought a build nobody needs. Chase **Equal
+ * Pay** is an equal-payment instalment, not a deferred-interest promo, and the arithmetic on his
+ * live Prime Visa settles it across all five of his plans: remaining balance divided by the
+ * monthly instalment equals the number of months left to `promo_end_date`, to three decimals —
+ * 5/5, 5.998/6, 10/10, 9.999/10, 11/11. Five independent plans each sized to retire EXACTLY at
+ * expiry is the product definition, and a deferred-interest minimum bears no such relation to its
+ * own expiry date. They are correctly modelled by `min_payment`; nothing is unmodelled.
+ *
+ * The gap above is real and the exposure is zero. Both halves have to be said together, because
+ * recording only the gap invites the build, and recording only the correction loses the gap.
+ */
+
 /** Shared by `min_payment` and `monthly_fee`: zero, negative and unparseable all read as absent. */
 function positiveOrNull(raw: unknown): number | null {
   const n = Number(raw);
