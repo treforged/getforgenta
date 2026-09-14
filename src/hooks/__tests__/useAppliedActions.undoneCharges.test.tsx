@@ -59,12 +59,32 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 import { useAppliedActions } from '@/hooks/useAppliedActions';
 
+/**
+ * ⚠️ `created_at` IS RELATIVE TO NOW, AND IT USED TO BE A HARDCODED INSTANT.
+ *
+ * It read `'2026-09-13T15:48:59.000Z'` — the moment the defect was captured. `offerableUndos`
+ * only offers rows newer than `UNDO_OFFER_WINDOW_HOURS` (24), so this fixture aged out of the
+ * window at 2026-09-14T15:48:59Z and TWO tests here went red on their own, with nothing in the
+ * product having changed. Measured at the time of the fix: the row was 29.81 hours old.
+ *
+ * Proven both ways before touching it — the SAME row, through the SAME function, differing only
+ * in the injected `now`: offered at `2026-09-13T15:49:30Z`, dropped at `2026-09-14T21:37:00Z`.
+ * So the window was the discriminator and the hook was never at fault.
+ *
+ * A test that passes on the day it is written and fails a day later is a CLOCK dependency wearing
+ * a fixture's clothes, and bumping the date would only re-arm it. The window itself is still
+ * covered deterministically in `src/lib/__tests__/applied-actions.test.ts`, which injects `now`
+ * and pins `UNDO_OFFER_WINDOW_HOURS + 1` — so making this fixture always-fresh removes no
+ * coverage. Same `at(hoursAgo)` idiom as that file, deliberately.
+ */
+const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3600_000).toISOString();
+
 const row = (id: string, chargeId: string, undoneAt: string | null) => ({
   id,
   kind: 'deck_decision',
   label: 'Decided CITY POWER & LIGHT',
   steps: [{ write: 'removeReviews', chargeId }],
-  created_at: '2026-09-13T15:48:59.000Z',
+  created_at: at(1),
   undone_at: undoneAt,
 });
 
@@ -78,7 +98,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('useAppliedActions — the undone rows must survive the fetch', () => {
   it('THE CAUSE: the query does not filter undone rows away', async () => {
-    state.rows = [row('a1', 'charge-1', '2026-09-13T15:49:00.000Z')];
+    state.rows = [row('a1', 'charge-1', at(0.5))];
     const { result } = renderHook(() => useAppliedActions(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -88,7 +108,7 @@ describe('useAppliedActions — the undone rows must survive the fetch', () => {
   });
 
   it('THE OUTCOME: an undone decision names its charge', async () => {
-    state.rows = [row('a1', 'charge-1', '2026-09-13T15:49:00.000Z')];
+    state.rows = [row('a1', 'charge-1', at(0.5))];
     const { result } = renderHook(() => useAppliedActions(), { wrapper });
     await waitFor(() => expect(result.current.undoneChargeIds.size).toBe(1));
     expect(result.current.undoneChargeIds.has('charge-1')).toBe(true);
@@ -107,7 +127,7 @@ describe('useAppliedActions — the undone rows must survive the fetch', () => {
 
   it('the two views split one fetch: reversible rows are offered, undone rows are remembered', async () => {
     state.rows = [
-      row('a1', 'charge-1', '2026-09-13T15:49:00.000Z'),
+      row('a1', 'charge-1', at(0.5)),
       row('a2', 'charge-2', null),
     ];
     const { result } = renderHook(() => useAppliedActions(), { wrapper });
