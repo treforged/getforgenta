@@ -35,6 +35,24 @@ jsdom cannot decode a PDF, so `extractPdfText` is mocked and only the wiring is 
 fixture is reconstructed from the captions Sam named, not captured text. Replace it the first time a
 real extraction is available.
 
+### ⚠️ THE FRIENDS BOARD EMPTIED EVERY SUNDAY NIGHT AND LIED WHILE IT DID (fixed 2026-09-14)
+
+Measured at 01:10 UTC, which was **21:10 SUNDAY** for Tre: `date_trunc('week', now())` had rolled to
+2026-09-14, the newest snapshot was week 2026-09-07, current-week rows in the whole table were ZERO.
+The board went blank on a Sunday evening — and the RLS policy returned only current-week rows, so a
+friend's older row never reached the client and the row fell through to **"Private"**, a false claim
+about somebody else's privacy choice.
+
+**`stale` ("Not updated this week") was UNREACHABLE IN PRODUCTION while its unit tests stayed green** —
+the branch was always right; the DATABASE made it dead. Policy now admits the last four weeks, with
+both consent gates unchanged and verified live plus three controls (stranger sees 0, the bound binds,
+both predicates still present). **Do not delete `stale` as dead code.**
+
+Also closed the residue I had named and not fixed: `is_metric_shared` answered about ANY user id.
+Revoking EXECUTE would have broken the policy — an RLS expression runs as the querying user — so the
+guard went in the body, and `leaderboard_global_stats` now reads `leaderboard_shares` directly
+because a global cohort is legitimately made of strangers.
+
 ### ⛔ FIVE CLAIMS DISPROVED BY MEASUREMENT. Do not re-derive any of them.
 
 1. **"Nothing merges his planned row with the real one" — FALSE.** SIX of 18 typed rows are already
