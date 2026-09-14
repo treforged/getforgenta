@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { X, ChevronDown, ChevronUp, Shield } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/consent-prefs';
 import { useConsentPrefs } from '@/hooks/useConsentPrefs';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 
 // ---------------------------------------------------------------------------
 // Preferences modal
@@ -107,25 +108,18 @@ function PreferencesModal({
                     )}
                   </button>
 
-                  {/* Toggle switch */}
-                  <button
-                    role="switch"
-                    aria-checked={value}
-                    aria-label={`${cat.label} cookies ${cat.required ? '(required)' : value ? 'enabled' : 'disabled'}`}
+                  {/*
+                    THE shared switch. This was a THIRD hand-rolled copy until 2026-09-14 — the
+                    consolidation recorded on 2026-09-13 named it as done and had not touched it.
+                    Its OFF track was a flat `bg-muted` with no border, so off read as
+                    un-highlighted rather than OFF, on a COOKIE CONSENT control.
+                  */}
+                  <ToggleSwitch
+                    checked={value}
+                    onPress={toggle ?? (() => {})}
                     disabled={cat.required}
-                    onClick={toggle}
-                    className={`relative inline-flex h-5 w-9 shrink-0 items-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${
-                      cat.required ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                    } ${value ? 'bg-primary' : 'bg-muted'}`}
-                    style={{ borderRadius: '9999px' }}
-                  >
-                    <span
-                      className={`block h-3.5 w-3.5 bg-white shadow-sm transition-transform ${
-                        value ? 'translate-x-4' : 'translate-x-0.5'
-                      }`}
-                      style={{ borderRadius: '9999px' }}
-                    />
-                  </button>
+                    label={`${cat.label} cookies${cat.required ? ' (required)' : ''}`}
+                  />
                 </div>
 
                 {isOpen && (

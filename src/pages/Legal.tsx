@@ -5,6 +5,7 @@ import { COOKIE_CATEGORIES } from '@/lib/consent-prefs';
 import { useConsentPrefs } from '@/hooks/useConsentPrefs';
 import { Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import DeleteDataContent from '@/components/legal/DeleteDataContent';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 
 function CookiePreferencesInline() {
   const { consent, acceptAll, rejectNonEssential, saveCustom } = useConsentPrefs();
@@ -62,16 +63,16 @@ function CookiePreferencesInline() {
                     <span className="text-xs font-medium">{cat.label}</span>
                     {isExpanded ? <ChevronUp size={11} className="text-muted-foreground shrink-0" /> : <ChevronDown size={11} className="text-muted-foreground shrink-0" />}
                   </button>
-                  <button
-                    role="switch"
-                    aria-checked={value}
+                  {/*
+                    Shared switch. This copy also carried NO `aria-label` at all, so a screen
+                    reader announced an unnamed switch on the privacy page.
+                  */}
+                  <ToggleSwitch
+                    checked={value}
+                    onPress={toggle ?? (() => {})}
                     disabled={cat.required}
-                    onClick={toggle}
-                    className={`relative inline-flex h-5 w-9 shrink-0 items-center transition-colors ${cat.required ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${value ? 'bg-primary' : 'bg-muted'}`}
-                    style={{ borderRadius: '9999px' }}
-                  >
-                    <span className={`block h-3.5 w-3.5 bg-white shadow-sm transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} style={{ borderRadius: '9999px' }} />
-                  </button>
+                    label={`${cat.label} cookies${cat.required ? ' (required)' : ''}`}
+                  />
                 </div>
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t border-border/40 pt-2 space-y-1">

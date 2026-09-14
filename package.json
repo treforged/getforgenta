@@ -3,6 +3,9 @@
   "private": true,
   "version": "2.56.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0 <23.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,7 +13,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:tz": "node scripts/test-timezones.mjs",
+    "check:node": "node scripts/check-node-engine.mjs",
+    "test:tz": "npm run check:node && node scripts/test-timezones.mjs",
     "check:debug-console": "node scripts/check-no-debug-console.mjs",
     "check:leaked-keys": "node scripts/check-no-leaked-keys.mjs",
     "check:leaked-keys:live": "node scripts/check-no-leaked-keys.mjs --url https://getforgenta.com",

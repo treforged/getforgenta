@@ -2651,29 +2651,34 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-13 21:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 17:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M package.json
+ M src/components/shared/ConsentBanner.tsx
+ M src/pages/Legal.tsx
+ M supabase/.temp/cli-latest
+?? scripts/check-node-engine.mjs
+?? src/components/shared/__tests__/one-switch.test.ts
 ```
 
 - **Recent commits:**
 
 ```
+9ca1e10c [handoff]: the fixture asserted a feature that did not exist, and the gates were green
+dc9e4058 [statements]: the promo regex never worked on a real PDF, and my own fixture hid it
 d3a3fac4 [handoff]: record the Sunday-night blank board and the unreachable stale state
 4f910beb [leaderboard]: the board emptied every Sunday night and called sharing friends "Private"
 6e2306d7 [handoff]: every remaining ask is blocked on Tre, and each blocker is named
 f1b9a1fe [undo]: gate the query shape, because the browser press does not stop it coming back
 12b2094b [statements]: upload the PDF, not just its text
 1a3d1766 [handoff]: fourteen shipped, five recorded claims disproved
-9285c68e [statements]: read the figures off a statement instead of typing four of them
-6e56ecb7 [legal]: the privacy policy said we use no analytics trackers while loading one
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
