@@ -7,13 +7,33 @@
 4384 at the start of the evening. Every commit mutation-proved RED, every mutated file restored
 byte-exactly by sha256 in a `finally`.
 
-### ⇢ FIRST UP: `b31f9b1a` — PDF upload for statements.
+### ⇢ FIRST UP: NOTHING IS BUILDABLE WITHOUT TRE. Read this before looking for work.
 
-The parser and the confirm-before-write UI SHIP and work on pasted text, wired beside each card's
-interest-saving balance. Upload is a different way IN to the same parser, not a different feature.
-It needs **pdf.js (~350KB)** in an app that currently ships no PDF dependency — take that
-deliberately. Also replace the reconstructed test fixture with REAL extracted statement text the
-first time one is available: it pins the captions Sam named, not the true column layout.
+Seventeen shipped. Every remaining ask is blocked on him, and each blocker is a real one rather than
+a parking label:
+
+- **`d0f54114` country leaderboard** — needs his call on collecting a new piece of personal data to
+  fill a per-country cohort when the GLOBAL cohort is 1 of 49. Recommendation on file: wait, or
+  derive coarsely from `profiles.timezone`, which is already collected. `p_scope` already exists so
+  it slots in with no reshaping.
+- **`5d6dbada` browser undo** — BankActivity's per-row `linkOneWithUndo` and the batch panel need a
+  signed-in REVIEWER session. The seed exists (`scripts/seed-reviewer-deck.sql`); pressing undo in a
+  Chrome signed into Tre's own account writes to his real ledger, which already happened once this
+  week. ONE manual sign-in unblocks it. The query-shape half IS done and gated.
+- **`d9ab0509` categories + dashboard IA** — he asked for ONE pass, not two. Measured and filed.
+- **`0e289ce7` Vercel Analytics** — a second tracker changes what the privacy policy promises.
+- **`73df5d2b` profiles p95** — the remaining half is the FREE-plan shared compute, a money call.
+- **`1829a127` measure the dev AI** — blocked upstream.
+
+**Statement reading is COMPLETE, both doors.** Parser, paste, and PDF upload all ship and are wired
+beside each card's interest-saving balance. pdf.js is a dynamic import verified as its own build
+chunk with a LOCAL worker asset — never a CDN, because a statement decoded by a third-party script
+is what that dialog's copy promises does not happen.
+
+⚠️ **THE FIRST REAL STATEMENT PUT THROUGH IT IS THE TEST THAT MATTERS, AND IT HAS NOT HAPPENED.**
+jsdom cannot decode a PDF, so `extractPdfText` is mocked and only the wiring is proven; the parser's
+fixture is reconstructed from the captions Sam named, not captured text. Replace it the first time a
+real extraction is available.
 
 ### ⛔ FIVE CLAIMS DISPROVED BY MEASUREMENT. Do not re-derive any of them.
 
@@ -2591,7 +2611,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-13 18:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-13 20:58 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -2606,14 +2626,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
-c249e0ad [demo]: twelve write paths could reach a real account from demo mode, and now none can
-2eebc966 [ui]: the three remaining on/off SETTINGS become switches - and the checkboxes deliberately stay
-4451be89 [handoff]: correct two recorded 'facts' that measurement disproved
-56c37b0d [leaderboard]: where you stand against everyone, as an aggregate that cannot name anybody
-8273b4fb [leaderboard]: two of the four switches could never publish anything, and now say so
-67c1a8f4 [queue]: the money-in filter was hiding the one charge the app could have cleared itself
-b710ddf4 [transactions]: the merge offer used to expire with the bank charge - now it survives
-70978c45 [whats-new]: tell a returning user what changed, once, in their own language
+1a3d1766 [handoff]: fourteen shipped, five recorded claims disproved
+9285c68e [statements]: read the figures off a statement instead of typing four of them
+6e56ecb7 [legal]: the privacy policy said we use no analytics trackers while loading one
+7ca71ee6 [perf]: the tour stops making its own requests against a 5-second tail
+575cbfc4 [friends]: add a friend by their username, bounded by the invite budget
+f8d08182 [friends]: the username foundation gets the caller it shipped without
+a85cb372 [demo]: the shop window contradicted its own tiles, inches away
+a97612e8 [ledger]: a card payment was counted twice, because the dedupe key was a free-text note
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
