@@ -70,7 +70,29 @@ rolled itself back to the exact pre-state (1/0/0).
 a country cohort is a subset, so it reaches the floor of 20 strictly later. That
 is the floor working. **Do not lower it to make the screen look busier.**
 
-### 5. Friends UI formatting (add-by-username already ships, friend-link v9)
+### 5. Friends UI formatting — OPENED IT AND FOUND SOMETHING BIGGER FIRST (`12ebe70c`)
+**Dark mode never declared `color-scheme`, so EVERY native popup in the app was
+drawn in light chrome on a near-black panel** — select lists, date pickers,
+number spinners, scrollbars, autofill. 147 form controls, every screen, every
+user on the default theme.
+
+Measured in Chrome on the LIVE site: with `.dark` applied, body computed
+`rgb(5, 5, 5)` while `color-scheme` computed **light**. `.light` had always
+declared it; `:root` and `.dark` never did.
+
+⚠️ **CSS ON THE CONTROL CANNOT FIX THIS**, which is why it survived every visual
+review. Those popups are drawn by the OS; `background-color` styles the CLOSED
+control and does nothing to the list it drops open. It is the exact defect Tre
+reported on treforged.com and asked to be prevented "anywhere".
+
+Gate `src/__tests__/color-scheme.test.ts`, proven red twice against the REAL
+defect. A source scan is the honest instrument — jsdom has no OS control layer,
+so a computed-style check there would be green over nothing — and the test says
+so. Verified in the built CSS, not just the source.
+
+**The formatting pass itself is still open** and is the next thing here.
+
+
 
 ### 6. [~] REVENUE WITHOUT TRE'S SCREEN — BUILT AND PROVEN, ONE INPUT SHORT
 `bbef1fc4` adds `scripts/app-store-revenue.mjs` + a manual-only `revenue-report`
