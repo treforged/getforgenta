@@ -1,0 +1,53 @@
+# Reads REAL App Store proceeds, so nobody asks Tre to sign in and read a number off his screen.
+#
+# ⚠️ MANUAL ONLY, ON PURPOSE. No schedule and no push trigger. This job exists to answer a question
+# when somebody asks it, and a cron that runs it daily would spend Apple's rate limit and this
+# account's CI minutes to produce a number nobody is reading. Add a schedule when there is a
+# consumer for it, not before.
+#
+# ⚠️ A ZERO AND A REFUSAL MUST NOT LOOK THE SAME. The script exits non-zero with a distinct code for
+# every failure cause -- missing input (2), bad credential (3), key lacks the Sales role (4), no
+# report for that date (5), unparseable (6) -- so a red run means something specific rather than
+# "revenue was nothing". Do not add `continue-on-error` here; that would recreate exactly the
+# silent-zero this was written to prevent.
+name: Revenue report
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Report date, YYYY-MM-DD. Blank uses two days ago, because Apple lags.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  revenue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No `npm ci`. The script uses only Node built-ins (crypto, zlib, fetch), so installing the
+      # repo's dependencies would add minutes and a supply-chain surface for nothing.
+      - name: Read App Store proceeds
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          # Not a credential -- it identifies the selling entity and grants nothing on its own --
+          # but it is held as a secret so the account number does not sit in a public repo's logs.
+          APP_STORE_VENDOR_NUMBER: ${{ secrets.APP_STORE_VENDOR_NUMBER }}
+        run: |
+          # The secrets are passed through the ENVIRONMENT, never on the command line: argv is
+          # readable from the process table by anything else on the runner.
+          if [ -n "${{ inputs.date }}" ]; then
+            node scripts/app-store-revenue.mjs --date "${{ inputs.date }}"
+          else
+            node scripts/app-store-revenue.mjs
+          fi
