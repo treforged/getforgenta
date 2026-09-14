@@ -1,0 +1,15 @@
+{
+  "dialogLabel": "What's new in Forgenta",
+  "title": "What's new",
+  "close": "Close what's new",
+  "dismiss": "Got it",
+  "lines": {
+    "2026-09-13": [
+      "Your sharing switches now save — and they look like switches.",
+      "Friends leaderboards fill in once you turn sharing on.",
+      "We stopped asking what category your paycheck is.",
+      "You stay signed in longer on your own device.",
+      "Charts now show amounts in your own currency."
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "dialogLabel": "Novedades de Forgenta",
+  "title": "Novedades",
+  "close": "Cerrar novedades",
+  "dismiss": "Entendido",
+  "lines": {
+    "2026-09-13": [
+      "Tus controles para compartir ahora se guardan, y por fin parecen interruptores.",
+      "Las tablas de amigos se llenan en cuanto activas el compartir.",
+      "Dejamos de preguntarte en qué categoría va tu sueldo.",
+      "Tu sesión dura más en tu propio dispositivo.",
+      "Los gráficos ahora muestran los montos en tu moneda."
+    ]
+  }
+}

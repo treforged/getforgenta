@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useDemo } from '@/contexts/DemoContext';
+import { useTranslation } from 'react-i18next';
 import { CURRENT_RELEASE, shouldShowWhatsNew, whatsNewFlag } from '@/lib/whats-new';
 
 export function WhatsNewDialog() {
@@ -33,6 +34,21 @@ export function WhatsNewDialog() {
   const [dismissed, setDismissed] = useState(false);
 
   const flags = (profile?.tour_flags as Record<string, boolean> | null) ?? {};
+  /**
+   * ⚠️ ENGLISH STAYS THE SOURCE OF TRUTH AND IS PASSED AS `defaultValue`.
+   *
+   * `CURRENT_RELEASE.lines` in `src/lib/whats-new.ts` is still the canonical copy — it is what
+   * the content gates in `whats-new.test.ts` read, and moving it into a catalogue would have
+   * turned those assertions into checks on key strings rather than on sentences a person reads.
+   *
+   * So a release whose lines nobody has translated yet renders ENGLISH, never `lines.2026-09-13.0`.
+   * A visible raw key is the worst outcome available here: the dialog exists to reassure a
+   * returning user that the app is being looked after.
+   */
+  const { t } = useTranslation('whatsNew');
+  const line = (i: number, english: string) =>
+    t(`lines.${CURRENT_RELEASE.version}.${i}`, { defaultValue: english });
+
   const alreadySeen = flags[whatsNewFlag(CURRENT_RELEASE.version)] === true;
   const hasOnboarded = profile?.onboarding_completed === true;
   const ready = !isDemo && !loading && !!profile;
@@ -64,19 +80,19 @@ export function WhatsNewDialog() {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="What's new in Forgenta"
+      aria-label={t('dialogLabel')}
     >
       <div className="card-forged w-full max-w-sm p-5 space-y-3" style={{ borderRadius: 'var(--radius)' }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles size={14} className="text-primary shrink-0" />
-            <h2 className="text-sm font-semibold">What's new</h2>
+            <h2 className="text-sm font-semibold">{t('title')}</h2>
           </div>
           {/* ⚠️ ONE TAP TO DISMISS. A returning user opened the app to do something; this is an
               aside, not a gate, and it blocks nothing but its own overlay. */}
           <button
             onClick={close}
-            aria-label="Close what's new"
+            aria-label={t('close')}
             className="shrink-0 text-muted-foreground hover:text-foreground transition-colors btn-press"
           >
             <X size={14} />
@@ -84,15 +100,15 @@ export function WhatsNewDialog() {
         </div>
 
         <ul className="space-y-2">
-          {CURRENT_RELEASE.lines.map(line => (
-            <li key={line} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
+          {CURRENT_RELEASE.lines.map((english, i) => (
+            <li key={english} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
               <span className="mt-1.5 w-1 h-1 rounded-full bg-primary shrink-0" />
-              <span>{line}</span>
+              <span>{line(i, english)}</span>
             </li>
           ))}
         </ul>
 
-        <button onClick={close} className="btn btn-md btn-primary w-full">Got it</button>
+        <button onClick={close} className="btn btn-md btn-primary w-full">{t('dismiss')}</button>
       </div>
     </div>
   );

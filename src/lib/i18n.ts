@@ -3,15 +3,24 @@ import { initReactI18next } from 'react-i18next';
 
 import enLanding from '@/locales/en/landing.json';
 import esLanding from '@/locales/es/landing.json';
+import enWhatsNew from '@/locales/en/whatsNew.json';
+import esWhatsNew from '@/locales/es/whatsNew.json';
 
 /**
- * THE TRANSLATION SCAFFOLD — one library, one namespace, one real language.
+ * THE TRANSLATION SCAFFOLD — one library, two namespaces, one other real language.
  *
- * ⚠️ SCOPE, DELIBERATELY SMALL. This translates the `landing` namespace and nothing
- * else. Every other surface still renders its English literals, unchanged, and that
- * is not an oversight: a half-translated screen is worse than an English one, so a
- * surface is either fully in the catalogue or it is not in it at all. The next
- * surface adds a namespace file per locale and nothing here has to change.
+ * ⚠️ SCOPE, STILL DELIBERATELY SMALL. This translates `landing` and `whatsNew`.
+ * Every other surface still renders its English literals, unchanged, and that is not
+ * an oversight: a half-translated screen is worse than an English one, so a surface
+ * is either fully in the catalogue or it is not in it at all. Adding a surface is a
+ * namespace file per locale plus the two lines below.
+ *
+ * ⚠️ `whatsNew` WAS THE SECOND SURFACE, and it was chosen because it is the one a
+ * returning user meets FIRST. The dialog shipped 2026-09-13 rendering hardcoded
+ * English; Tre asked for it "in their own language". Its English copy still lives in
+ * `src/lib/whats-new.ts` as the source of truth and is passed as `defaultValue`, so a
+ * release whose lines nobody has translated yet renders English rather than a raw
+ * key — the failure mode of a missing translation must never be a visible key.
  *
  * ⚠️ ARABIC AND RTL ARE A SEPARATE SLICE. `dir` is set on <html> below so the
  * plumbing is in place, but no RTL locale is registered, because mirroring the
@@ -99,8 +108,8 @@ export function setLanguage(code: string): void {
 
 void i18n.use(initReactI18next).init({
   resources: {
-    en: { landing: enLanding },
-    es: { landing: esLanding },
+    en: { landing: enLanding, whatsNew: enWhatsNew },
+    es: { landing: esLanding, whatsNew: esWhatsNew },
   },
   lng: resolveInitialLanguage(),
   fallbackLng: DEFAULT_LANGUAGE,
