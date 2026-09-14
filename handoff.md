@@ -138,6 +138,40 @@ from `vault.decrypted_secrets`**, so the correct pattern is established and
 these three predate it. Rotation is a credential action, so it is Tre's — and it
 must come first, or a rewrite just preserves a burned secret.
 
+### 0e. [x] THE STATEMENT PARSER'S pdf.js FIXTURE IS NOW A ROUND TRIP, not a transcript
+`npm run check:pdf-extraction` — generates a PDF from the same captions, extracts
+with REAL pdf.js, compares against `REAL_PDF_EXTRACTION`. **It independently
+reproduced the earlier hand measurement exactly: 184 characters, zero newlines**,
+so that figure now has two routes to it instead of one. Proven RED by mutating one
+digit of the pinned constant (exit 1, and DISCRIMINATING — same length, so it
+compares content not length); proven **exit 2, never 1**, when pdf.js cannot load;
+restored byte-exact by sha256 both times.
+
+**Why it was needed:** the pinned constant is HAND-TRANSCRIBED, so it was a claim
+about what pdf.js did on 2026-09-14 rather than a check on what it does now — and
+`pdfjs-dist` floats on `^6.3.289`. An upgrade changing text-item segmentation would
+leave that string agreeing with itself while the parser silently stopped reading
+real statements.
+
+⚠️ **AND THE GAP IT LEAVES IS BIGGER THAN THE GAP IT CLOSED — `0d9f8fae`.**
+`extractPdfText` has **NO automated coverage of any kind** and cannot get any in
+this harness. Measured over three approaches: the MAIN build (what `pdf-text.ts`
+imports) reaches `hashOriginal.toHex`, and `Uint8Array.prototype.toHex` is
+**undefined on Node 24.14.0**; the LEGACY build self-polyfills and runs in plain
+node but fails under vite's transform, including through `vi.mock('pdfjs-dist')`.
+So the page loop, the `MAX_PAGES` cap, the error mapping and `task.destroy()` are
+untested, and the item-join in the script is DUPLICATED from `pdf-text.ts`. A
+browser harness is the only route that would exercise the build production loads.
+
+### 0f. [x] ASK `1829a127` CLOSED — ITS PREMISE WAS STALE, AND NO MODEL WAS USED
+"Measure the dev AI before building statement parsing on it" is answered by **not
+building on it**: `statement-parse.ts` is a deterministic label parser with no AI
+in the path, written that way because Tre called the dev AI suboptimal. The 09-13
+note said no statement-parsing code existed; 211 lines of it, plus `pdf-text.ts`
+and `StatementImport.tsx`, have shipped since. **Verified by reading the code and
+its callers rather than trusting the record** — this repo's own rule, and the
+record was wrong in the "not built" direction again.
+
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
 `max-w-sm` while Spanish runs longer. Blocked on exactly one thing: the
