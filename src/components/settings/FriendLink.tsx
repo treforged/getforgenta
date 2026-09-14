@@ -3,6 +3,7 @@ import { SettingsSectionHeading } from './SettingsSection';
 import { useLocation } from 'react-router';
 import { UserPlus, Loader2, CheckCircle, UserMinus, AtSign } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
+import { FIELD_INPUT, FIELD_INPUT_BARE, FIELD_WRAPPER, FIELD_RADIUS } from '@/components/shared/field-classes';
 import { useFriendLink } from '@/hooks/useFriendLink';
 import { LeaderboardShareToggles } from './LeaderboardShareToggles';
 import { FriendsLeaderboard } from './FriendsLeaderboard';
@@ -94,7 +95,7 @@ export function FriendLink() {
         <button
           onClick={refetch}
           className="px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
-          style={{ borderRadius: 'var(--radius)' }}
+          style={FIELD_RADIUS}
         >
           Try again
         </button>
@@ -113,7 +114,7 @@ export function FriendLink() {
             <div
               key={friend.linkId}
               className="flex items-center justify-between bg-secondary/40 border border-border px-3 py-2.5"
-              style={{ borderRadius: 'var(--radius)' }}
+              style={FIELD_RADIUS}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <CheckCircle size={12} className="text-primary shrink-0" />
@@ -143,7 +144,7 @@ export function FriendLink() {
         <div
           key={pending.id}
           className="flex items-center justify-between bg-secondary/40 border border-border px-3 py-2.5"
-          style={{ borderRadius: 'var(--radius)' }}
+          style={FIELD_RADIUS}
         >
           <div className="min-w-0">
             <p className="text-xs font-medium truncate">Invite sent to {pending.invitee_email}</p>
@@ -181,8 +182,8 @@ export function FriendLink() {
           swapping email addresses to add a friend is the awkward part. The email path stays because
           it is the only way to invite somebody who has no account yet. */}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="flex items-center gap-1 w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2"
-          style={{ borderRadius: 'var(--radius)' }}>
+        <div className={FIELD_WRAPPER}
+          style={FIELD_RADIUS}>
           <AtSign size={12} className="text-muted-foreground shrink-0" />
           <input
             type="text"
@@ -193,14 +194,14 @@ export function FriendLink() {
             autoCorrect="off"
             spellCheck={false}
             aria-label="Friend's username"
-            className="flex-1 min-w-0 bg-transparent text-xs text-foreground outline-none"
+            className={FIELD_INPUT_BARE}
           />
         </div>
         <button
           onClick={() => inviteByUsername.mutate(handle)}
           disabled={inviteByUsername.isPending || !handle.trim()}
           className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
-          style={{ borderRadius: 'var(--radius)' }}
+          style={FIELD_RADIUS}
         >
           {inviteByUsername.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
           {inviteByUsername.isPending ? 'Sending…' : 'Add by username'}
@@ -213,14 +214,14 @@ export function FriendLink() {
           value={email}
           onChange={e => setEmail(e.target.value)}
           placeholder="Friend's email address"
-          className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
-          style={{ borderRadius: 'var(--radius)' }}
+          className={FIELD_INPUT}
+          style={FIELD_RADIUS}
         />
         <button
           onClick={() => invite.mutate(email)}
           disabled={invite.isPending || !email.trim()}
           className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
-          style={{ borderRadius: 'var(--radius)' }}
+          style={FIELD_RADIUS}
         >
           {invite.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
           {invite.isPending ? 'Sending…' : 'Send Invite'}
@@ -236,14 +237,14 @@ export function FriendLink() {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground font-mono focus:outline-hidden focus:ring-1 focus:ring-ring"
-          style={{ borderRadius: 'var(--radius)' }}
+          className={`${FIELD_INPUT} font-mono`}
+          style={FIELD_RADIUS}
         />
         <button
           onClick={() => accept.mutate(code)}
           disabled={accept.isPending || !code.trim()}
           className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
-          style={{ borderRadius: 'var(--radius)' }}
+          style={FIELD_RADIUS}
         >
           {accept.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
           {accept.isPending ? 'Checking…' : 'Accept Invite'}
