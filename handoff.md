@@ -35,6 +35,28 @@ jsdom cannot decode a PDF, so `extractPdfText` is mocked and only the wiring is 
 fixture is reconstructed from the captions Sam named, not captured text. Replace it the first time a
 real extraction is available.
 
+### ⚠️ A FIXTURE BUILT FROM HOW A DOCUMENT *LOOKS*, TESTED AGAINST HOW IT *EXTRACTS*
+
+The statement reader shipped with the limit stated: no real PDF had been through it. I put one
+through, and it came back RED.
+
+Every money figure was correct. **`promoRates` was EMPTY.** Real pdf.js returns the page as ONE
+184-character line with no newlines; my reconstructed fixture used caption-per-line, because that is
+how a statement reads on paper. The promo regex was anchored `^`/`m`, so it needed the label to open
+a line — true of the reconstruction, never true of reality. **The money fields survived only because
+they match on ADJACENCY, which holds in both shapes**, so the single property that differed between
+the two worlds was the only thing that broke.
+
+⚠️ **THE MUTATION ASYMMETRY IS THE INSTRUMENT WORTH REUSING.** Restoring the old regex kills exactly
+ONE case — the real-PDF promo — and leaves the reconstruction's promo test PASSING. **A mutation that
+kills one fixture and spares another measures which fixture is real.** Both are kept on purpose: a
+pasted statement genuinely has line breaks, an extracted one genuinely does not.
+
+⚠️ **STILL NOT CLOSED, and do not let the above be read as closing it:** `extractPdfText` is still
+exercised only through a mock (jsdom has no worker, no canvas); the PDF was synthetic, without a real
+statement's columns and page furniture; and the extraction ran through NODE's pdf.js — same library,
+different entry path. **No real bank statement has been through the app.**
+
 ### ⚠️ THE FRIENDS BOARD EMPTIED EVERY SUNDAY NIGHT AND LIED WHILE IT DID (fixed 2026-09-14)
 
 Measured at 01:10 UTC, which was **21:10 SUNDAY** for Tre: `date_trunc('week', now())` had rolled to
