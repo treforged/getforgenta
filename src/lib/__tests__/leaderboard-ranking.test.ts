@@ -74,6 +74,23 @@ describe('buildLeaderboardRows - a rank must be a reading, not a tie-break', () 
   });
 });
 
+/**
+ * ⚠️ `stale` WAS UNREACHABLE IN PRODUCTION UNTIL 2026-09-14, AND THESE TESTS WERE GREEN THROUGHOUT.
+ *
+ * The branch below is correct and always was. What made it dead was the DATABASE: the RLS policy
+ * `leaderboard_snapshots_select_friend` returned only rows for the CURRENT week, so a friend's
+ * older snapshot never reached the client and the row fell through to the no-snapshot branch —
+ * labelling a sharing friend **"Private"**, a false statement about somebody else's privacy choice.
+ *
+ * Measured at 01:10 UTC on 2026-09-14, which was 21:10 SUNDAY in Tre's timezone: current-week rows
+ * in the whole table, ZERO. The board went blank on a Sunday evening and mislabelled everyone on it.
+ * The policy now admits the last four weeks; the consent gates (friendship, metric shared, both
+ * evaluated live) are unchanged.
+ *
+ * ⚠️ SO DO NOT DELETE `stale` AS DEAD CODE. It was, for a database reason rather than a code one,
+ * and a green unit test over a state the database could never produce is exactly the shape that
+ * invites the deletion.
+ */
 describe('buildLeaderboardRows - absent, private and stale are three different things', () => {
   it('shows a friend with no snapshot as private, not as 0', () => {
     const [row] = buildLeaderboardRows(friends('a'), [], 'goal_progress', WEEK);
