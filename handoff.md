@@ -2,13 +2,19 @@
 
 ## Resume queue — 2026-09-14 LATE NIGHT. Start at item 1.
 
-`origin/main` 0/0 by CONTENTS after every push. Four commits this session:
+`origin/main` 0/0 by CONTENTS after every push. Seven code commits this session:
 `7f0f3212` deferred-interest correction · `d7773424` country derivation +
 analytics measurement · `05081005` country-scope migration · `b50d8bfe` country
-board client half.
+board client half · `bbef1fc4` revenue reader · `12ebe70c` **the dark-mode
+`color-scheme` defect** · `dedfa915` friends field consolidation.
 Gates on the last: tsc clean, lint 0 errors, `check:leaked-keys` exit 0,
-`test:tz` **4565 passed x3 zones**, 445 files (4530 → 4558 → 4565, monotonically
-UP, and each rise equals the tests actually added).
+`test:tz` **4575 passed x3 zones**, 447 files (4530 → 4558 → 4565 → 4570 → 4575,
+monotonically UP, and each rise equals the tests actually added).
+
+**EVERYTHING STILL OPEN ON THIS DESK NEEDS TRE.** Four items, two of them one
+click: the App Store vendor number (`24480c62`) and Vercel Web Analytics
+(`f8450452`). The other two are sign-ins nobody may script — the dev session
+(`ad33e848`) and the reviewer account (`a40f1e23`).
 
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
@@ -90,7 +96,24 @@ defect. A source scan is the honest instrument — jsdom has no OS control layer
 so a computed-style check there would be green over nothing — and the test says
 so. Verified in the built CSS, not just the source.
 
-**The formatting pass itself is still open** and is the next thing here.
+**THE FORMATTING PASS IS NOW DONE TOO** (`dedfa915`). The count was **2
+implementations across 3 ADJACENT fields**, and the drift had already cost a real
+accessibility defect: the username input carried `outline-none` with NOTHING
+replacing it, so **the first field in "Add a friend" had no visible focus state**
+— a keyboard or switch user landed on an invisible cursor, while the two fields
+directly beneath it were fine. The screen looks consistent until somebody presses
+Tab, and nobody presses Tab in a screenshot.
+
+Consolidated into `src/components/shared/field-classes.ts`. Two constants, not
+one, because the fix differs by shape: a ring on an input INSIDE a wrapper draws
+inside the box, so the wrapper takes `focus-within` — and `focus-within` rather
+than `focus`, since a wrapper never receives focus itself and `focus:` would
+never match.
+
+Gate proven red against the defect that ACTUALLY shipped (3 of 5 fail), plus two
+adjacent ways back in. ⚠️ My own first version of that gate was aimed at the
+source TEXT and failed on correct code, because the ring arrives by
+interpolation; it asserts resolved values now.
 
 
 
