@@ -1,6 +1,84 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## 2026-09-14 OVERDRIVE — three shipped. `origin/main` 0/0 by CONTENTS after every push.
+## Resume queue — 2026-09-14 NIGHT. Start at item 1.
+
+`origin/main` 0/0 by CONTENTS after every push. Five commits:
+`89f99dd9` switches · `81ff4885` the red main · `c0eda27e` what's-new i18n ·
+`71acc433` handoff · `3b649028` Vercel analytics.
+Gates on the last: tsc clean, lint 0 errors, `npm run build` clean,
+`check:leaked-keys` exit 0, `test:tz` **4530 passed x3 zones** (4513 -> 4522 -> 4530,
+monotonically UP — checked against Sam's shrinking-suite warning; this chain is
+vitest, nothing shells out to python).
+
+### 1. ⚠️ CHASE PAY OVER TIME — THE ANALYSIS IS DONE, THE WRITE IS NOT. DO NOT RE-DERIVE IT.
+
+**THE MODEL ALREADY HANDLES THE THREE ENROLLED PLANS.** `BalanceTranche` in
+`src/lib/balance-tranches.ts` carries `apr: 0` + `monthly_fee` + `monthly_payment` +
+`promo_end_date` — added 2026-09-05 from the plan-confirmation emails, and its own
+comment names these very plans. So write them as tranches; nothing needs building.
+
+From the real statement (Prime Visa XXXX-5630, 09/10/26), all ENROLLED, all started
+09/02/2026, 12 of 12 payments remaining, so `promo_end_date` = **2027-09-02**:
+
+| plan | principal | fee | monthly payment |
+| --- | --- | --- | --- |
+| COSTCO WHSE #1649 | 368.89 | 4.66 | 35.41 |
+| Carnival Cruise Line Res | 410.00 | 5.19 | 39.36 |
+| PAYPAL ZETTLE | 1322.50 | 13.85 | 124.06 |
+| **TOTAL** | **2101.39** | **23.70** | **198.83** |
+
+**`198.83` IS THE ROUND-TRIP CHECK.** If the rows do not sum to it the parse is
+wrong, not the statement. (35.41 + 39.36 + 124.06 = 198.83 — verified by hand.)
+
+⚠️ **AND THE ANSWER SAM ASKED FOR: THE MODEL DOES *NOT* HANDLE DEFERRED INTEREST.**
+Measured, not assumed. `deferred_interest_apr` exists ONLY as a LABEL —
+`trancheLabelForAprType` in
+`supabase/functions/_shared/providers/balance-tranche-seed.ts:39` maps it to the
+string "Deferred interest", and the seed emits `{label, balance, apr}` with no
+retroactive concept at all. `BalanceTranche` reprices a tranche to the standard APR
+**going forward** at `promo_end_date`. A deferred-interest promo does something
+categorically different: miss the date and **all** interest accrued since purchase is
+back-charged, computed on the ORIGINAL QUALIFYING AMOUNT, not the remaining balance.
+
+So the two **Equal Pay Promo** items are a DIFFERENT INSTRUMENT and must NOT be
+written as ordinary tranches — that would understate the risk while LOOKING like
+coverage, which is the worst available outcome on a money surface:
+- 299.32 qualified / **249.43 remaining** / expires **02/07/2027** / promo min 49.89
+- 88.89 / expires **03/07/2027**
+
+**Do NOT fold them into a total balance to make the arithmetic close.** Either model
+deferred interest properly (a real slice: a `deferred_interest` tranche kind plus a
+cliff the forecast can see) or record them and say plainly they are unmodelled.
+
+⚠️ **THE WRITE TOUCHES TRE'S REAL LEDGER.** `accounts.balance_tranches` is jsonb on
+his live account. Back the current value up first and print the undo; it is reversible
+but it is production financial data. He gave the instruction via Sam ("do the pay over
+time for me"), so it is authorised — it is the CARE that is required, not permission.
+
+### 2. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG
+Resolution and completeness are gated (`whats-new.i18n.test.ts`,
+`whats-new.resolves.test.ts`); **FIT is not**. Spanish runs longer than English and
+`WhatsNewDialog` is `max-w-sm`. Needs a real browser — see the instrument warning below.
+
+### 3. ASSERT A VERCEL PAGEVIEW ACTUALLY ARRIVES
+`3b649028` mounts it consent-gated and both `_vercel/insights` and
+`_vercel/speed-insights` are in the built bundle — but **no pageview has been asserted
+as ARRIVING**, which is a network fact about the deployed origin. Ruby is blocked on
+this instrument; "the code is in" is not "you can measure". Accept analytics consent on
+the live site, then check the Vercel API stops answering 404.
+
+### 4. COUNTRY LEADERBOARD — UNBLOCKED, and the call is made
+Tre via Sam: *"do what you need to do... I just want it done."* **DERIVE the country
+from the browser locale/timezone at signup; do NOT ask.** Coarse ISO code on `profiles`,
+user-editable and optional, opt-out REMOVES them from the board rather than hiding them.
+No IP geolocation. `p_scope` already exists so it slots in without reshaping. Off state
+must look OFF — same standard as the sharing toggles.
+
+### 5. Friends UI formatting (add-by-username already ships, friend-link v9)
+
+---
+
+## 2026-09-14 OVERDRIVE — what shipped, and the two instrument traps
 
 `89f99dd9` switches · `81ff4885` the red main · `c0eda27e` what's-new i18n.
 Gates each time: `npx tsc --noEmit` clean, `npm run lint` 0 errors,
@@ -2705,34 +2783,29 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 17:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 17:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
-M package.json
- M src/components/shared/ConsentBanner.tsx
- M src/pages/Legal.tsx
- M supabase/.temp/cli-latest
-?? scripts/check-node-engine.mjs
-?? src/components/shared/__tests__/one-switch.test.ts
+M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+71acc433 [handoff]: three shipped, and main was red from a clock rather than a commit
+c0eda27e [whats-new]: the popup existed and spoke only English, which was the half that was missing
+81ff4885 [tests]: main went red at 11:48 this morning and no commit caused it
+89f99dd9 [switches]: the consolidation was recorded as done and two hand-rolled copies survived it
 9ca1e10c [handoff]: the fixture asserted a feature that did not exist, and the gates were green
 dc9e4058 [statements]: the promo regex never worked on a real PDF, and my own fixture hid it
 d3a3fac4 [handoff]: record the Sunday-night blank board and the unreachable stale state
 4f910beb [leaderboard]: the board emptied every Sunday night and called sharing friends "Private"
-6e2306d7 [handoff]: every remaining ask is blocked on Tre, and each blocker is named
-f1b9a1fe [undo]: gate the query shape, because the browser press does not stop it coming back
-12b2094b [statements]: upload the PDF, not just its text
-1a3d1766 [handoff]: fourteen shipped, five recorded claims disproved
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
