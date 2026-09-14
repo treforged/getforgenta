@@ -670,6 +670,23 @@ so size and variant are separated here and the 44px floor is stated once.
 
 @layer base {
   :root {
+    /* ⚠️ WITHOUT THIS, EVERY NATIVE POPUP IN THE APP RENDERS IN LIGHT CHROME ON A NEAR-BLACK PANEL.
+       `.light` below has always declared `color-scheme`; the DEFAULT (dark) palette never did, so
+       it fell back to `light`. Measured in Chrome on the live site 2026-09-14: with `.dark` applied
+       the body computed `rgb(5, 5, 5)` while `color-scheme` computed `light`.
+
+       This is not cosmetic and CSS on the control cannot fix it. The open `<select>` list, the date
+       picker, the number spinners, the scrollbars and Chrome's autofill repaint are drawn by the
+       OPERATING SYSTEM, not by the page — `color-scheme` is the only lever the page has over them.
+       So a `<select>` could be perfectly themed while closed and drop open a white list with a blue
+       highlight, which is exactly the defect Tre reported on treforged.com: "why is it a white box.
+       then the drop down looks so shit. make sure current and future code anywhere [doesn't look]
+       this bad."
+
+       Kept on BOTH `:root` and `.dark`. They carry the same palette today, but `:root` is what
+       applies before the theme script runs — leaving it off there gives a flash of light-chrome
+       controls on first paint. */
+    color-scheme: dark;
     --background: 0 0% 2%;
     --foreground: 214 32% 91%;
     --card: 0 0% 7%;
@@ -802,6 +819,8 @@ so size and variant are separated here and the 44px floor is stated once.
   }
 
   .dark {
+    /* See the note on `:root` above: this is the lever over OS-drawn controls. */
+    color-scheme: dark;
     --background: 0 0% 2%;
     --foreground: 214 32% 91%;
     --card: 0 0% 7%;
