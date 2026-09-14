@@ -12,6 +12,16 @@
 // that a field the statement did not state is absent from the patch rather than sent as a zero.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+// ⚠️ THE EXTRACTOR IS MOCKED AND THAT LIMIT IS REAL. jsdom cannot decode a PDF — no worker, no
+// canvas — so what these cases prove is the WIRING: that a chosen file reaches the extractor, that
+// its text lands in the textarea the person can see and correct, and that a failure is shown rather
+// than swallowed. They prove nothing about pdf.js's own decoding.
+const pdf = vi.hoisted(() => ({ extract: vi.fn() }));
+vi.mock('@/lib/pdf-text', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/pdf-text')>('@/lib/pdf-text');
+  return { ...actual, extractPdfText: pdf.extract };
+});
+
 import { StatementImport } from '../StatementImport';
 
 /** Sam's real extraction from the Prime Visa PDF, in the shape the parser reads. */
@@ -42,7 +52,17 @@ const paste = (text: string) =>
 beforeEach(() => {
   onApply.mockReset().mockResolvedValue({});
   onClose.mockReset();
+  pdf.extract.mockReset().mockResolvedValue(STATEMENT);
 });
+
+/** A File the picker will accept. Its bytes are never read — the extractor is mocked. */
+const pdfFile = () => new File(['%PDF-1.4'], 'statement.pdf', { type: 'application/pdf' });
+
+function choose(file: File) {
+  const input = screen.getByLabelText('Statement PDF') as HTMLInputElement;
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  fireEvent.change(input);
+}
 afterEach(cleanup);
 
 const renderIt = () =>
@@ -126,5 +146,56 @@ describe('what it refuses', () => {
     fireEvent.click(screen.getByText(/^Apply 4 figures$/));
     await waitFor(() => expect(onApply).toHaveBeenCalled());
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('uploading a PDF is a second door into the same parser', () => {
+  it('puts the extracted text into the textarea the person can see and correct', async () => {
+    renderIt();
+    choose(pdfFile());
+    await waitFor(() =>
+      expect((screen.getByLabelText('Statement text') as HTMLTextAreaElement).value).toContain('Interest Saving Balance'),
+    );
+  });
+
+  it('finds the same figures a paste would — one parser, two doors', async () => {
+    renderIt();
+    choose(pdfFile());
+    await waitFor(() => expect(screen.getByText('$1,451.88')).toBeTruthy());
+    fireEvent.click(screen.getByText(/^Apply 4 figures$/));
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(onApply).toHaveBeenCalledWith({
+      statement_balance: 1451.88,
+      min_payment: 773.05,
+      installment_balance: 6738.11,
+      installment_monthly_payment: 198.83,
+    });
+  });
+
+  it('⚠️ STILL WRITES NOTHING ON ITS OWN — a file changes the text, not the card', async () => {
+    renderIt();
+    choose(pdfFile());
+    await waitFor(() => expect(pdf.extract).toHaveBeenCalled());
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  it('⚠️ SHOWS WHY A FILE COULD NOT BE READ, rather than looking like an empty statement', async () => {
+    const { PdfReadError } = await vi.importActual<typeof import('@/lib/pdf-text')>('@/lib/pdf-text');
+    pdf.extract.mockRejectedValue(new PdfReadError('That PDF is password protected. Open it and paste the text instead.'));
+    renderIt();
+    choose(pdfFile());
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/password protected/);
+  });
+
+  it('⚠️ LETS THE SAME FILE BE PICKED AGAIN AFTER A FAILURE — the control', async () => {
+    // A file input does not fire `change` for an identical value, so without clearing it a retry is
+    // silently ignored and the button reads as dead.
+    const { PdfReadError } = await vi.importActual<typeof import('@/lib/pdf-text')>('@/lib/pdf-text');
+    pdf.extract.mockRejectedValueOnce(new PdfReadError('That file could not be read as a PDF.'));
+    renderIt();
+    choose(pdfFile());
+    await screen.findByRole('alert');
+    expect((screen.getByLabelText('Statement PDF') as HTMLInputElement).value).toBe('');
   });
 });

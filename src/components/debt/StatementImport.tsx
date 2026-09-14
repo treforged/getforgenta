@@ -12,15 +12,19 @@
 // ⚠️ NO MODEL. `@/lib/statement-parse` is a parser over labelled text; see its header for why that
 // is his instruction rather than my preference.
 //
-// ⚠️ PASTE, NOT PDF UPLOAD, AND THE GAP IS NAMED RATHER THAN PAPERED OVER. He asked for "add or
-// upload". Reading a PDF in the browser needs a new dependency (pdf.js, ~350KB) in an app that
-// currently ships none, which is a decision worth taking deliberately rather than as a side effect
-// of this slice. Pasting the text works today, needs nothing, and exercises the same parser the
-// upload path would use — so the upload becomes a different way IN, not a different feature.
-import { useMemo, useState } from 'react';
-import { FileText, X } from 'lucide-react';
+// ⚠️ UPLOAD AND PASTE ARE TWO DOORS INTO ONE PARSER, not two features. A chosen PDF is turned into
+// text by `@/lib/pdf-text` and then dropped into the SAME textarea the person could have pasted
+// into — so what they confirm is always text they can see and correct. A reader that went straight
+// from a file to a set of figures would be asking them to trust an extraction they never saw.
+//
+// ⚠️ pdf.js IS LOADED ONLY WHEN A FILE IS PICKED. It is ~350KB in an app that shipped no PDF
+// dependency; a dynamic import keeps it out of the main bundle so it costs nothing to everybody who
+// never opens this. That is what made the dependency affordable — see `pdf-text.ts`.
+import { useMemo, useRef, useState } from 'react';
+import { FileText, X, Upload, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { parseStatement, statementPatch, isEmptyParse } from '@/lib/statement-parse';
+import { extractPdfText, PdfReadError } from '@/lib/pdf-text';
 
 interface CardLike {
   id: string;
@@ -49,6 +53,27 @@ interface Row {
 export function StatementImport({ card, onApply, onClose }: Props) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [readError, setReadError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file) return;
+    setReading(true);
+    setReadError(null);
+    try {
+      // Straight into the textarea, deliberately: the person sees exactly what was extracted and
+      // can fix it before anything is proposed.
+      setText(await extractPdfText(file));
+    } catch (e) {
+      setReadError(e instanceof PdfReadError ? e.message : 'That file could not be read.');
+    } finally {
+      setReading(false);
+      // Cleared so picking the SAME file again re-runs; without this a retry after an error is
+      // silently ignored, which reads as the button being dead.
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   const figures = useMemo(() => parseStatement(text), [text]);
   const patch = useMemo(() => statementPatch(figures), [figures]);
@@ -108,9 +133,29 @@ export function StatementImport({ card, onApply, onClose }: Props) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Paste the text of your statement. Nothing is sent anywhere — it is read here on your device,
-          and nothing changes until you press Apply.
+          Upload your statement PDF, or paste its text. Nothing is sent anywhere — it is read here on
+          your device, and nothing changes until you press Apply.
         </p>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          aria-label="Statement PDF"
+          onChange={e => void pickFile(e.target.files?.[0])}
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={reading}
+          className="btn btn-sm btn-ghost w-full"
+        >
+          {reading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}{' '}
+          {reading ? 'Reading your statement…' : 'Choose a PDF'}
+        </button>
+
+        {/* Said out loud. A file that could not be read must not look like a file that said nothing. */}
+        {readError && <p role="alert" className="text-xs text-destructive">{readError}</p>}
 
         <textarea
           value={text}
