@@ -58,6 +58,7 @@ import { toLocalDateStr } from '@/lib/scheduling';
 import { buildCashFloorWarning } from '@/lib/cash-floor-warning';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { totalInterestLabel, interestSavingsBullet, aggregatePayoffEta, NO_PAYOFF_EXPLANATION } from '@/lib/card-interest-display';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -1323,19 +1324,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
                 <CreditCard size={12} className="shrink-0" /> <span className="truncate">Credit Card Debt Payoff Trajectory</span>
               </h3>
-              <div className="flex gap-1.5 shrink-0">
-                {(['1', '2', '3', '5'] as const).map(y => (
-                  <button
-                    key={y}
-                    onClick={() => setChartYears(y)}
-                    aria-pressed={chartYears === y}
-                    className={`px-2.5 py-1 text-[10px] font-medium border btn-press whitespace-nowrap ${chartYears === y ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    {y}Y
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                label="Chart range in years"
+                size="sm"
+                gap="tight"
+                className="shrink-0"
+                value={chartYears}
+                onSelect={setChartYears}
+                options={(['1', '2', '3', '5'] as const).map(y => ({ value: y, label: `${y}Y` }))}
+              />
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={visibleChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} onTouchStart={selectPointOnTouch}>
@@ -2185,18 +2182,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <div className="w-full">
                           {/* Year navigator — one card open at a time, so this paging through
                               the full 5-year window never has to compete with another card's. */}
-                          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-0.5">
-                            {(['1', '2', '3', '4', '5'] as const).map(yr => (
-                              <button
-                                key={yr}
-                                onClick={(e) => { e.stopPropagation(); setAccordionYear(yr); }}
-                                className={`px-2.5 py-1 text-[10px] font-medium border btn-press whitespace-nowrap ${accordionYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-                                style={{ borderRadius: 'var(--radius)' }}
-                              >
-                                {getCalendarYearLabel(parseInt(yr, 10))}
-                              </button>
-                            ))}
-                          </div>
+                          <SegmentedControl
+                            label="Card schedule year"
+                            size="sm"
+                            gap="tight"
+                            wrap={false}
+                            className="mb-2 overflow-x-auto pb-0.5"
+                            value={accordionYear}
+                            onSelect={(yr, e) => { e.stopPropagation(); setAccordionYear(yr); }}
+                            options={(['1', '2', '3', '4', '5'] as const).map(yr => ({
+                              value: yr,
+                              label: getCalendarYearLabel(parseInt(yr, 10)),
+                            }))}
+                          />
                           {yearMonths.length === 0 ? (
                             <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                               <CheckCircle2 size={14} className="shrink-0" />

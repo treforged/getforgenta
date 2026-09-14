@@ -57,6 +57,7 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { matchesTransactionSearch } from '@/lib/transaction-search';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 
 // LAZY, not a plain import. Budget Control was its own route chunk until today; importing it
 // statically here would fold it into the Activity chunk, so every visit to the planning ledger —
@@ -1235,11 +1236,16 @@ export default function Transactions() {
           <option value="all">All Time</option>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {(['all', 'income', 'expense'] as const).map(t => (
-          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
+        <SegmentedControl
+          label="Filter transactions by type"
+          value={filterType}
+          onSelect={setFilterType}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'income', label: 'Income' },
+            { value: 'expense', label: 'Expense' },
+          ]}
+        />
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Categories</option>
           {ALL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}

@@ -210,7 +210,7 @@ verified by `git diff` showing no line touching `inviteCopied`/`clipboard`.
 **Aim an edit at something unique to its target**, not at a shape the file
 repeats.
 
-### 0h. NEXT SLICE, MEASURED AND NOT STARTED — segmented controls, `e6cb3311`
+### 0h-OLD (superseded, kept only so the id resolves)
 Same rule as the switches, applied to the next control kind: **11 instances
 across 7 files, and NO shared component** (`src/components/shared/` has 46 files
 and none of them is one). Transactions x2, Accounts, CreditCardEngine x2,
@@ -227,6 +227,54 @@ slice, and this is a 7-file refactor. **Judge the split FIRST**: a filter pill r
 defect. The segmented control has the same accessibility contract the switches had
 lost — `role="radiogroup"`/`radio` with `aria-checked`, or a tablist — and 11
 hand-rolled copies is more surface for that than six.
+
+### 0h. [x] SEGMENTED CONTROLS — SPLIT INTO KINDS, THEN CONSOLIDATED. `e6cb3311`
+`SegmentedControl` now serves the **outlined filter-pill row**: Transactions,
+Accounts, Forecast, CreditCardEngine's chart-year row, its accordion-year row,
+and LiabilityTrajectoryChart. **Six migrated.**
+
+**Two real defects were already in the drift**, which is why this was a component
+and not a tidy-up. `Accounts.tsx` passed an **EMPTY inactive class** where every
+other row used `border-border text-muted-foreground`, so its unselected pills had
+no border and no muted text. And **four of the copies announced nothing about
+which pill was selected** — only CreditCardEngine's year row had `aria-pressed`.
+Same family as the six switches that shipped with no `role="switch"`.
+
+⚠️ **MY OWN INVENTORY WAS WRONG THREE TIMES, AND THAT IS THE REUSABLE PART.**
+The first count searched `as const).map(` and said **11 across 7 files**. That
+idiom is not the control, it is one way of writing one:
+- it **MISSED** CreditCardEngine's accordion year row (found only by grepping the
+  CLASS), and then **missed three more** — LiabilityTrajectoryChart, Legal,
+  ForecastAssumptionsPanel — which only the rendered-shape gate found;
+- it **COUNTED** `DebtPayoff`, which maps a tuple to render `card-forged` CARDS
+  and is not a pill row at all.
+
+**A negative is bounded by what you searched, not by what exists** — and each
+widening of the search found more. The gate matches the rendered SHAPE for that
+reason.
+
+**THE SPLIT WAS THE REAL WORK, and it is a refusal as much as a build.** Three
+kinds exist, not one: outlined pills (consolidated); **joined FILLED groups**
+(`pct|flat`, `upfront|monthly_charge`, MaintenanceFormModal's mode row) — a single
+block with a filled active segment, a genuinely different control, **still
+open**; and rows with per-option **icons + tooltips** (CreditCardEngine strategy
+and payment-mode). Folding either into `SegmentedControl` would have produced a
+component configured by flags rather than one that means something.
+
+Gate `one-segmented-control.test.ts`, proven RED by restoring the actual
+`Accounts.tsx` defect. Its allowance list carries **a written reason per entry**,
+because an inventory defined by exclusion grows invisibly.
+
+⚠️ **AND MY OWN FIRST DIFF SHIPPED A COIN TOSS DRESSED AS AN OVERRIDE — caught in
+review, before the commit.** Three call sites passed `flex-nowrap` and `!gap-1.5`
+through `className` to beat the component's own `flex-wrap gap-2`. **Tailwind
+utilities in the same group have EQUAL specificity, so the winner is decided by
+the order Tailwind emits them in its stylesheet — not by the order they appear in
+the class string.** `!gap-1.5` only worked because `!important` forced it, and
+**reaching for `!important` was the tell that the API was missing something**
+rather than that the override was clever. Replaced with explicit `wrap` and `gap`
+props. **A source gate cannot see this** — every class name is present and
+correct — so it would have needed a rendered frame, or this read.
 
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is

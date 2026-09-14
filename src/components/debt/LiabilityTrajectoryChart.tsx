@@ -7,6 +7,7 @@ import { buildLiabilityTrajectory, type LiabilityTrajectoryInput } from '@/lib/l
 // The tap fix now lives in one place because five other charts need it too - see chart-touch.ts
 // for the Safari `Illegal constructor` crash a second copy would be a second chance to reintroduce.
 import { selectPointOnTouch } from '@/lib/chart-touch';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 
 /**
  * THE PAYOFF TRAJECTORY THE NON-CARD DEBT TABS NEVER HAD.
@@ -67,19 +68,15 @@ export default function LiabilityTrajectoryChart({ title, debts, storageKey, ico
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
           <Icon size={12} className="shrink-0" /> <span className="truncate">{title}</span>
         </h3>
-        <div className="flex gap-1.5 shrink-0">
-          {YEAR_OPTIONS.map(y => (
-            <button
-              key={y}
-              onClick={() => setChartYears(y)}
-              aria-pressed={chartYears === y}
-              className={`px-2.5 py-1 text-[10px] font-medium border btn-press whitespace-nowrap ${chartYears === y ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {y}Y
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Chart range in years"
+          size="sm"
+          gap="tight"
+          className="shrink-0"
+          value={chartYears}
+          onSelect={setChartYears}
+          options={YEAR_OPTIONS.map(y => ({ value: y, label: `${y}Y` }))}
+        />
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={rows} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} onTouchStart={selectPointOnTouch}>

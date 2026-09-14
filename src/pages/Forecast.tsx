@@ -37,6 +37,7 @@ import { isManualCashFloor } from '@/lib/cash-floor';
 import ReceiptsDisclosure from '@/components/forecast/ReceiptsDisclosure';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { selectPointOnTouch } from '@/lib/chart-touch';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -499,11 +500,15 @@ export default function Forecast() {
       {/* Year Filter — premium only */}
       {!freePreview && (
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full pb-1">
-          {(['all', '1', '2', '3', '4', '5'] as const).map(yr => (
-            <button key={yr} onClick={() => setFilterYear(yr)} className={`px-3 sm:px-4 py-1 sm:py-1.5 text-xs font-medium border btn-press whitespace-nowrap ${filterYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
-              {yr === 'all' ? 'All 60 Months' : getCalendarYearLabel(parseInt(yr, 10))}
-            </button>
-          ))}
+          <SegmentedControl
+            label="Filter forecast by year"
+            value={filterYear}
+            onSelect={setFilterYear}
+            options={(['all', '1', '2', '3', '4', '5'] as const).map(yr => ({
+              value: yr,
+              label: yr === 'all' ? 'All 60 Months' : getCalendarYearLabel(parseInt(yr, 10)),
+            }))}
+          />
         </div>
       )}
 

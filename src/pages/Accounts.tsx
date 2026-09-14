@@ -36,6 +36,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 interface MatchEntry {
   plaidAccount: PlaidSyncedAccount & { plaid_account_id?: string };
   matchedAccountId: string | null; // null = keep as new
@@ -940,11 +941,16 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
          control it read as a stray group rather than as the second half of one
          header, which is the alignment half of Tre's 2026-09-01 note. */
       <div className="flex gap-2 justify-center">
-        {(['all', 'assets', 'liabilities'] as const).map(t => (
-          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : ''}`} style={{ borderRadius: 'var(--radius)' }}>
-            {t === 'all' ? 'All Accounts' : t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
+        <SegmentedControl
+          label="Filter accounts by type"
+          value={filterType}
+          onSelect={setFilterType}
+          options={[
+            { value: 'all', label: 'All Accounts' },
+            { value: 'assets', label: 'Assets' },
+            { value: 'liabilities', label: 'Liabilities' },
+          ]}
+        />
       </div>
 
       )}
