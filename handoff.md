@@ -14,7 +14,60 @@ monotonically UP, and each rise equals the tests actually added).
 **EVERYTHING STILL OPEN ON THIS DESK NEEDS TRE.** Four items, two of them one
 click: the App Store vendor number (`24480c62`) and Vercel Web Analytics
 (`f8450452`). The other two are sign-ins nobody may script — the dev session
-(`ad33e848`) and the reviewer account (`a40f1e23`).
+(**`5150b9e9`**) and the reviewer account (`a40f1e23`).
+
+⚠️ **THE DEV-SIGN-IN ASK WAS DELETED BY TWO DESKS DEDUPLICATING AGAINST EACH
+OTHER, and the refiled id is `5150b9e9`.** Ada filed `ad33e848` and Sam filed
+`0af0c215` one second apart off the same message; each then dropped theirs as a
+duplicate of the other's, so the item vanished while both believed it was
+tracked. Both read `"status": "dropped"` — checked, not inferred. **A drop
+reports on itself and never on what survives**, and neither desk can see the
+hole from its own queue. Now a machine-wide rule (`rules/common/testing.md`,
+`e4c16c4`): whoever dedupes must `ask show` the survivor afterwards.
+
+### 0. ⚠️ HALF (a) OF `73df5d2b` IS A FALSE PREMISE — DO NOT "FIX" IT
+The ask says the remaining dashboard-path profile selects are in
+`useDashboardLayout`, `useRetirementAutoUpdate` and `AuthContext`. **All three
+are wrong**, and it is the SAME misclassification that ask already corrected
+once for the overall count (writes counted as reads) — it simply survived in the
+still-open list.
+
+Classified every `.from('profiles')` in `src/` by the call that FOLLOWS it —
+**12 selects, 21 writes, 1 unclassified**:
+- `useDashboardLayout` — 1 access, an **UPDATE** (debounced layout persist). It
+  already reads from the shared `useProfile`.
+- `useRetirementAutoUpdate` — 2 accesses, both **UPDATEs**. Also already reads
+  from the shared hook.
+- `AuthContext` — its 1 select and 1 update are **both inside
+  `resetReviewerAccount`**, which is reviewer-only and never on the dashboard
+  path at all.
+
+**The two REAL dashboard-path single-column selects are `src/lib/onboarding-state.ts`
+(`onboarding_completed`) and `src/lib/report-timezone.ts` (`timezone`)** — neither
+named in the ask. Both are already mitigated (a timeout race and a `coalesce`
+respectively), and **both are module-level async functions, not hooks**, so
+routing them onto `useProfile` is a refactor rather than a rewire. Judge that
+against the ask's own conclusion that the ~5s ceiling is likelier the FREE-plan
+shared compute, which is Tre's money call.
+
+### 0b. A RETENTION SIGNAL FOUND BY ACCIDENT — worth handing to Sam, needs one query
+`profiles.timezone` is written by `reportTimezone`, which is genuinely CALLED
+(`AuthContext.tsx:300`) under `event === 'SIGNED_IN' || 'INITIAL_SESSION'` — so
+it fires on **any app open with a session**, not just a fresh sign-in. It shipped
+`ad9fe324`, **2026-09-05** (both the module and its call site, same commit).
+
+Measured earlier tonight: **timezone is NULL for 45 of 49 profiles.** Given the
+guard above, that is not a bug — it means **45 of 49 accounts have not opened the
+app since 2026-09-05.** So that column is an accidental but reliable
+"opened-since" marker, and it is a retention number rather than a data defect.
+
+⚠️ **NOT YET CONFIRMED WITH A CLEAN QUERY** — the verifying SQL was blocked by
+the handoff gate before it ran. The 45/49 figure comes from an earlier
+`group by timezone` on the same table, so treat the DORMANCY READING as
+reasoned-from-two-facts, not measured end to end. One query settles it:
+`select count(*), count(*) filter (where timezone is not null) from public.profiles;`
+This is also why the country derivation is client-side: `country_code` will fill
+at exactly this rate, as people return.
 
 ### 1. A RENDERED FRAME OF THE SPANISH WHAT'S-NEW DIALOG — NEEDS ONE SIGN-IN FROM TRE
 Resolution and completeness are gated; **FIT is not**, and `WhatsNewDialog` is
