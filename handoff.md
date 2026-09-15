@@ -218,6 +218,19 @@ sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven 
 
 ## Resume queue — 2026-09-15 (Ada, second session). ORDERED. Each item is a POINTER, not a report.
 
+> ⚠️ **PAUSED ON THE 5h USAGE CAP (90%, resets 14:00 Eastern), 2026-09-15, third session.**
+> **FIRST ACTION ON RESUME: `git push origin main`, then verify BY CONTENTS** — the last two
+> handoff commits are committed LOCALLY ONLY, because the cap hook forbids pushing. Everything
+> before them is on `origin/main` 0/0.
+> Items **2, 4, 5** are CLOSED with evidence this session; **6 and 7** are recorded as blocked with
+> their causes measured; **8** was stopped mid-count and is labelled partial. Item **1** and the
+> `reddit-scout` delete (`3d6e26a0`) are Tre's hands.
+> Gates at the pause: tsc clean, lint 0 errors / 34 warnings, `test:tz` **4613 ×3 zones over 454
+> files** (UP from 4604 — the rise is the 9 new tests), `check:rail` PASS, `check:account` PASS
+> with **3** segments.
+> **Blocked-to-Sam, recorded here because messaging is blocked under the cap:** nothing is waiting
+> on a decision — only on the window and on Tre's two items.
+
 **Eight commits, all on origin/main 0/0 BY CONTENTS.** `2f45062c` `0d2152c4` `9635c38e` `417c9ee3`
 plus the handoff commits and the squeeze-gate fix. Gates last run: tsc clean, lint 0 errors / 34
 warnings, `test:tz` **4604 x3 zones, 453 files**, `check:rail` PASS (19 glyphs/cell), `check:account`
