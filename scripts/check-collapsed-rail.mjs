@@ -233,6 +233,8 @@ async function measure() {
     const wrappedText = [];
     const rows = [];
     let textNodes = 0;
+    let glyphs = 0;
+    const clippedGlyphs = [];
     for (const el of panel.querySelectorAll('*')) {
       const style = getComputedStyle(el);
       if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') continue;
@@ -257,11 +259,84 @@ async function measure() {
         const lines = lh > 0 ? r.height / lh : 1;
         if (lines > 1.4) wrappedText.push({ text: own.slice(0, 40), h: Math.round(r.height), lh: Math.round(lh), lines: Math.round(lines * 10) / 10 });
       }
+      /**
+       * ⚠️ GLYPHS, WHICH THIS CHECK WAS BLIND TO UNTIL 2026-09-15 (Tre, ask 98830520 items 2
+       * and 4). Everything above inventories OWN TEXT. The lightning bolt beside Debt Payoff is
+       * an `<svg>` and carries none, so it was never examined - and it overran the rail's content
+       * box by 5.8px, which is the "cut off partially kind of weirdly" he reported. The check
+       * printed "clipped 0" about it, at both widths, in both states, every run.
+       *
+       * So a glyph is anything VISIBLE with a box and no element children: icons, the badge dot,
+       * the numeric badge. It is defined by SHAPE - a leaf with a rendered box - rather than by a
+       * class or a tag list, because a hand-named inventory is blind to whatever nobody added to
+       * it, and this repo has three recorded cases of exactly that.
+       */
+      const isLeaf = el.children.length === 0;
+      if (isLeaf && (el.tagName === 'svg' || !own)) {
+        glyphs += 1;
+        if (r.right > rail.right + 0.5 || r.left < rail.left - 0.5) {
+          clippedGlyphs.push({
+            tag: el.tagName.toLowerCase(),
+            near: (el.closest('a, button')?.getAttribute('aria-label') || '?').slice(0, 24),
+            left: Math.round(r.left), right: Math.round(r.right),
+          });
+        }
+      }
       if (el.matches('a, button')) {
         rows.push({ h: Math.round(r.height), label: (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 30) });
       }
     }
-    return { rail: { left: Math.round(rail.left), right: Math.round(rail.right), width: Math.round(rail.width) }, clipped, wrappedText, rows, textNodes };
+    /**
+     * ⚠️ THE HORIZONTAL SCROLLBAR, MEASURED RATHER THAN EYEBALLED. Tre reported it as a separate
+     * defect; it is the SAME one - anything overflowing the 72px rail makes the scrolling nav
+     * scrollable sideways. Measured on his own machine before the fix: the numeric badge ran to
+     * 80.3px against a rail ending at 72, and the nav reported exactly 9px of horizontal overflow.
+     * Keeping this assertion means the scrollbar cannot come back silently even if the cause
+     * changes.
+     */
+    const nav = panel.querySelector('nav');
+    const navOverflowX = nav ? nav.scrollWidth - nav.clientWidth : null;
+    /**
+     * ⚠️ AND THE RAIL ROOT ITSELF, WHICH IS WHERE TRE'S SCROLLBAR ACTUALLY APPEARS. The nav is one
+     * child; the header row is another, and it overflowed by its own 2px for an unrelated reason.
+     * Asserting only the nav would have fixed half the bug and reported the whole of it.
+     * The root carries `overflow-x: hidden`, so an overflow here is SILENTLY clipped rather than
+     * scrolled - which is why nothing in the app complained for as long as it did.
+     */
+    const railOverflowX = panel.scrollWidth - panel.clientWidth;
+    /**
+     * Every badge must sit inside the icon box it is anchored to. A dot nudged out of its wrapper
+     * is 2px of overflow that no per-element rail check can see, because the dot is still inside
+     * the RAIL - it is its own parent it escapes.
+     */
+    const escapedBadges = [];
+    for (const wrap of panel.querySelectorAll('span.relative')) {
+      const wr = wrap.getBoundingClientRect();
+      if (wr.width === 0) continue;
+      for (const kid of wrap.children) {
+        const kr = kid.getBoundingClientRect();
+        if (kr.width === 0 || kid.tagName === 'svg') continue;
+        if (kr.right > wr.right + 0.5 || kr.left < wr.left - 0.5 || kr.top < wr.top - 0.5 || kr.bottom > wr.bottom + 0.5) {
+          escapedBadges.push({
+            near: (wrap.closest('a, button')?.getAttribute('aria-label') || '?').slice(0, 24),
+            badge: [Math.round(kr.left), Math.round(kr.right)],
+            wrapper: [Math.round(wr.left), Math.round(wr.right)],
+          });
+        }
+      }
+    }
+    /**
+     * Whether this RUN exercised the numeric badge at all. It renders only when the signed-in
+     * account has bank charges waiting, so on an account with an empty queue there is nothing to
+     * measure - and "no badge was clipped" would be true because no badge existed. Printed rather
+     * than asserted, so a reader can tell coverage from a clean result.
+     */
+    const badgePresent = !!Array.from(panel.querySelectorAll('span'))
+      .find((s) => /^\d+$/.test(s.textContent.trim()) && s.getBoundingClientRect().width > 0);
+    return {
+      rail: { left: Math.round(rail.left), right: Math.round(rail.right), width: Math.round(rail.width) },
+      clipped, wrappedText, rows, textNodes, glyphs, clippedGlyphs, navOverflowX, railOverflowX, escapedBadges, badgePresent,
+    };
   });
 }
 
@@ -293,16 +368,23 @@ for (const width of WIDTHS) {
     await page.screenshot({ path: `rail-${width}-${state}.png` });
     examinedCells += 1;
 
-    console.log(`${cell.padEnd(28)} rail ${String(m.rail.width).padStart(4)}px . text els ${String(m.textNodes).padStart(2)} . rows ${String(m.rows.length).padStart(2)} . clipped ${m.clipped.length} . wrapped ${m.wrappedText.length}`);
+    console.log(`${cell.padEnd(28)} rail ${String(m.rail.width).padStart(4)}px . text els ${String(m.textNodes).padStart(2)} . glyphs ${String(m.glyphs).padStart(2)} . rows ${String(m.rows.length).padStart(2)} . clipped ${m.clipped.length}+${m.clippedGlyphs.length} . wrapped ${m.wrappedText.length} . overflowX rail ${m.railOverflowX}/nav ${m.navOverflowX} . numeric badge ${m.badgePresent ? 'present' : 'ABSENT (not exercised)'}`);
 
     // CONTROL 3, per cell - "0 clipped" and "0 examined" are the same zero.
     if (m.rows.length === 0) { await browser.close(); fail(2, `${cell}: 0 interactive rows found in the rail - nothing was compared.`); }
+    // ...and the same again for the glyph inventory added on 2026-09-15. Every glyph assertion
+    // below is an ABSENCE, so an inventory of zero would satisfy all of them.
+    if (m.glyphs === 0) { await browser.close(); fail(2, `${cell}: 0 glyphs found in the rail - the icon/badge assertions examined nothing.`); }
 
     // Only a NARROW rail can clip or wrap. A wide one has room, and asserting against it
     // would be a green that proves nothing about the state Tre reported.
     if (m.rail.width > 100) { console.log(`   (rail is expanded here - not the state under test)`); continue; }
 
     for (const c of m.clipped) findings.push({ cell, kind: 'CLIPPED', detail: `right=${c.right} past rail right=${m.rail.right}  ${JSON.stringify(c.text)}` });
+    for (const g of m.clippedGlyphs) findings.push({ cell, kind: 'CLIPPED GLYPH', detail: `<${g.tag}> beside ${JSON.stringify(g.near)} spans ${g.left}..${g.right} against a rail of ${m.rail.left}..${m.rail.right}` });
+    if (m.navOverflowX > 0) findings.push({ cell, kind: 'H-SCROLLBAR', detail: `the rail's nav scrolls ${m.navOverflowX}px sideways - something in it is wider than the ${m.rail.width}px rail` });
+    if (m.railOverflowX > 0) findings.push({ cell, kind: 'H-SCROLLBAR', detail: `the RAIL ROOT overflows by ${m.railOverflowX}px (scrollWidth ${m.rail.width + m.railOverflowX} against clientWidth ${m.rail.width - 1}) - this is the strip Tre sees bottom-left` });
+    for (const b of m.escapedBadges) findings.push({ cell, kind: 'BADGE OUTSIDE ITS ICON', detail: `beside ${JSON.stringify(b.near)} the badge spans ${b.badge.join('..')} against a wrapper of ${b.wrapper.join('..')}` });
     for (const w of m.wrappedText) findings.push({ cell, kind: 'WRAPPED', detail: `${w.lines} lines (${w.h}px over a ${w.lh}px line-height)  ${JSON.stringify(w.text)}` });
   }
   // Leave the rail as we found it for the next width.

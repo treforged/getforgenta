@@ -47,12 +47,36 @@ export function useFriendLeaderboard(
   // changed at midnight on Sunday would refetch every open tab at the same instant.
   const week = useMemo(() => weekStart(new Date()), []);
 
-  const friendIds = useMemo(() => friends.map((f) => f.userId).sort(), [friends]);
+  /**
+   * ⚠️ YOU ARE ON YOUR OWN LEADERBOARD (Tre, 2026-09-15, ask a6c2de42). The board was built from
+   * `friends` alone, so the one person it could never place was the person reading it - measured on
+   * his account the same day: `leaderboard_shares` had goal_progress enabled and
+   * `leaderboard_snapshots` held his bucket for the exact metric and week the card was showing, and
+   * the card still rendered a single row for the other person. A board that cannot say where YOU
+   * stand is not a leaderboard, and "the friends leaderboard is not showing" was the fairest
+   * description of it from outside.
+   *
+   * Self goes FIRST in the participant list. `buildLeaderboardRows` is stable within equal values,
+   * so on a tie your own row sorts above the friend you tied with rather than below them for
+   * reasons the reader cannot see.
+   *
+   * ⚠️ AND SELF IS SUBJECT TO THE SAME RULES AS EVERYONE ELSE. No snapshot for this week reads as
+   * `private`, not as zero - the honest answer when you have opted in but nothing has published
+   * yet, and the same answer a friend in that state gets.
+   */
+  const participants = useMemo<LeaderboardFriendInput[]>(
+    () => (user ? [{ userId: user.id, label: 'You' }, ...friends] : [...friends]),
+    [user, friends],
+  );
+
+  // The ids actually asked for, self included. Sorted so the query key is stable across renders.
+  const friendIds = useMemo(() => participants.map((f) => f.userId).sort(), [participants]);
 
   const query = useQuery({
     queryKey: [FRIEND_LEADERBOARD_QUERY_KEY, isDemo ? 'demo' : user?.id, metric, friendIds.join(',')],
     // Nothing to ask for until there is a friendship, so an empty list costs no request.
-    enabled: !isDemo && !!user && friendIds.length > 0,
+    // A board of one is not a board, so self alone does not trigger a request.
+    enabled: !isDemo && !!user && friends.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,7 +92,7 @@ export function useFriendLeaderboard(
   const rows = useMemo(
     () =>
       buildLeaderboardRows(
-        friends,
+        participants,
         (query.data ?? []).map((s) => ({
           userId: s.user_id,
           metric: s.metric as LeaderboardMetric,
@@ -78,7 +102,7 @@ export function useFriendLeaderboard(
         metric,
         week,
       ),
-    [friends, query.data, metric, week],
+    [participants, query.data, metric, week],
   );
 
   return {

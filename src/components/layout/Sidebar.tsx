@@ -70,6 +70,23 @@ const navItems = [
  */
 const RAIL_LABEL = 'fine-pointer:hidden fine-pointer:group-hover:inline fine-pointer:group-focus-within:inline';
 
+/**
+ * `RAIL_LABEL` for a label row that is itself a FLEX container. The plain constant restores
+ * `display: inline` on hover, which would collapse this row's own flex layout - the numeric badge
+ * uses `ml-auto` and has nothing to push against once the parent stops being a flex box.
+ */
+const RAIL_LABEL_FLEX = 'fine-pointer:hidden fine-pointer:group-hover:flex fine-pointer:group-focus-within:flex';
+
+/**
+ * The mirror of `RAIL_LABEL`: visible ONLY while the rail is narrow on a mouse.
+ *
+ * ⚠️ IT STARTS `hidden` ON PURPOSE. A coarse pointer has no hover to expand into, so on touch the
+ * manual `collapsed` flag is the only signal — and this class must contribute nothing there. The
+ * caller adds it only when `collapsed` is false; when it is true the dot is shown outright, for
+ * both pointer kinds.
+ */
+const RAIL_ONLY = 'hidden fine-pointer:block fine-pointer:group-hover:hidden fine-pointer:group-focus-within:hidden';
+
 export default function Sidebar() {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
@@ -148,9 +165,22 @@ export default function Sidebar() {
           repeats what the tab title already says. The mark shrinks 34 -> 24 and
           the padding tightens to px-2 so that 8 + 24 + gap + a 16px chevron + 8
           lands inside the rail rather than wrapping. */}
+      {/*
+        ⚠️ THE HEADER SIZED ITSELF BY `collapsed` WHILE THE RAIL SIZED ITSELF BY CSS - the same
+        disagreement described above, and the one that survived the first fix because the header's
+        geometry is padding and a pixel height rather than a label. Measured 2026-09-15: at rest on
+        a mouse it asked for px-3 (12) + a 34px mark + a 25px button + px-3 (12) = 83px inside a
+        71px rail, and its right edge landed at 72.5 against a rail ending at 72. That 2px IS half
+        of the horizontal scrollbar Tre reported bottom-left (ask 98830520 item 2).
+
+        So the narrow geometry now follows the rail on BOTH signals: `collapsed` for touch, the
+        `fine-pointer` variants for a mouse. 8 + 24 + 25 + 8 = 65 and it fits.
+      */}
       <div className={cn(
         "flex items-center justify-between h-14 border-b border-sidebar-border",
-        collapsed ? "px-2 gap-1" : "px-3",
+        collapsed
+          ? "px-2 gap-1"
+          : "px-3 fine-pointer:px-2 fine-pointer:group-hover:px-3 fine-pointer:group-focus-within:px-3",
       )}>
         <Link
           to={brandTo}
@@ -161,7 +191,15 @@ export default function Sidebar() {
             src="/logo-transparent.png"
             alt="Forgenta"
             // Kept in proportion with the mobile bar's mark, which went 22 -> 30.
-            style={{ height: collapsed ? 24 : 34, width: collapsed ? 24 : 34, objectFit: 'contain' }}
+            // ⚠️ THE SIZE IS A CLASS, NOT AN INLINE STYLE, so that it can follow the rail's CSS
+            // width on a mouse. An inline height can only ever follow React state, and state is
+            // exactly what disagreed with the rail - see the header comment above for the 83px.
+            className={cn(
+              'object-contain shrink-0',
+              collapsed
+                ? 'h-6 w-6'
+                : 'h-[34px] w-[34px] fine-pointer:h-6 fine-pointer:w-6 fine-pointer:group-hover:h-[34px] fine-pointer:group-hover:w-[34px] fine-pointer:group-focus-within:h-[34px] fine-pointer:group-focus-within:w-[34px]',
+            )}
             draggable={false}
           />
           {!collapsed && (
@@ -214,12 +252,30 @@ export default function Sidebar() {
                   job of this affordance. */}
               <span className="relative shrink-0">
                 <item.icon size={16} />
-                {collapsed && badge !== null && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
+                {/* ⚠️ THE DOT NOW FOLLOWS THE RAIL'S WIDTH, NOT THE `collapsed` FLAG (Tre,
+                    2026-09-15, ask 98830520 item 3: "the notification number on Transactions must
+                    stay visible when compressed"). It was gated on `collapsed` alone, which is
+                    FALSE at rest on any mouse — so in the narrow rail there was no dot AND no
+                    number, and the only badge a mouse user ever had was one clipped out of sight.
+                    See RAIL_ONLY for why the coarse-pointer case still rides on `collapsed`. */}
+                {badge !== null && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      // ⚠️ `top-0 right-0`, NOT `-top-0.5 -right-0.5`. A `w-2` dot nudged half a
+                      // step out of a 16px wrapper lands its right edge 2.3px OUTSIDE that
+                      // wrapper - measured 2026-09-15 - and that is the other half of the
+                      // horizontal scrollbar. Inside the wrapper it still reads as a corner
+                      // marker, and it is the only nav icon box whose scrollWidth used to differ
+                      // from its clientWidth.
+                      'absolute top-0 right-0 w-2 h-2 bg-primary rounded-full',
+                      !collapsed && RAIL_ONLY,
+                    )}
+                  />
                 )}
               </span>
               {!collapsed && (
-                <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                <span className={cn('flex items-center gap-1.5 flex-1 min-w-0', RAIL_LABEL_FLEX)}>
                   <span className="truncate">{item.label}</span>
                   {item.highlight && !active && <Zap size={10} className="text-primary fill-primary shrink-0" />}
                   {badge !== null && (
