@@ -1,128 +1,80 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-15 (Ada, SEVENTH session). QUEUE ITEM 1 IS CLOSED.
+## FIRST UP - 2026-09-15 (Ada, SEVENTH session). THE BOUNCE IS REMOVED AND THE EXPOSURE IS CLOSED.
 
-`9a6f1e43` onboarding completion is ATTRIBUTED, `40489985` the correction to it. Both on
-origin/main 0/0 BY CONTENTS. Ask closed with evidence: `ac098dec`. New ask filed: `c2a7da61`.
+`9a6f1e43` attribution · `40489985` its correction · pdf coverage · `d779ea9d` the bounce removed.
+All on origin/main 0/0 BY CONTENTS. Asks closed: `ac098dec`, `0d9f8fae`, `3d6e26a0`, `cebedd1e`,
+`c2a7da61`, `0512d777`.
 
-### 1. CLOSED `ac098dec` - THE QUERY WAS RUN FIRST, AND IT REFUTED THE ASK'S OWN FRAMING
+### 1. TRE DECIDED: "remove the bounce" - DONE, `d779ea9d`
+It was a MIGRATION for accounts that finished setup on an older surface and never got the flag
+written; `display_name` was the tell. **`Auth.tsx:493` sets `display_name` AT SIGNUP**, so the tell
+stopped separating legacy from brand-new and new users were skipping setup entirely.
+The rule is now the pure export **`shouldLeaveOnboarding`** - it lived in a `useEffect` and so had
+never been tested. Proven red three ways including reinstating the real bounce AND a dead gate
+returning false for everybody. `legacy_name` retired (33 profiles checked ALL NULL first, so
+nothing stored is orphaned); the attribution gate is what caught it was unwired.
 
-The previous session said *"fixing the recorder is the prerequisite"* and then said that
-framing was probably wrong. **It was wrong, and the unrun query settles it.** All three rows
-carrying a `furthest_step` started **2026-09-13 or later**; the recorder shipped 2026-09-04.
-So `recordFurthestStep` is FINE - there is simply no traffic through the wizard.
-**No recorder fix was built.** Measuring before redesigning cost one query and saved a build.
-
-**TWO FIGURES IN THE INHERITED RECORD WERE WRONG, and one of them was mine to correct:**
-- **The bounce exposure is 9 accounts, not 25.** 26 profiles are not completed; 9 of those
-  carry a `display_name`. 25 was never a count of anything.
-- **There are FIVE writers of `onboarding_completed`, not the one the handoff named.**
-
-**THE REAL DEFECT WAS THAT COMPLETION WAS UNATTRIBUTED.** Five paths set the same bare
-boolean and they mean five different things - `wizard` (handleFinish, the only one that means
-a person walked it), `skipped`, `legacy_name`, `checklist` (allDone computed from REAL DATA in
-a useEffect, zero clicks), `cache_restore`. Two of the five mark an account complete having
-pressed nothing, which is exactly why every metric on the column has measured HAVING A NAME.
-New `profiles.onboarding_completed_via` records which. Existing rows stay NULL on purpose - a
-guessed attribution reads identically to a measured one. **Behaviour is unchanged**; this
-makes the funnel readable, it does not redesign it.
-
-⚠️ **MY OWN GATE WAS BLIND TO THE ONE PATH THAT MATTERS, and that is the lesson to carry.**
-`handleFinish` writes the flag DIRECTLY inside a wider profile update (`Onboarding.tsx:307`)
-and never calls `markOnboardingComplete`. A gate that discovered call sites by the function
-name could not see it - **strongest exactly where it was needed least.** It now matches direct
-writes too. In the same pass I had attributed `'wizard'` to the SKIP button, because I took a
-line number out of the gate's own output without reading the function around it.
-
-⚠️ **AND THE GATE REPORTED PASS WHILE BROKEN, FROM MY OWN TOOLING.** Writing the matcher
-through a shell heredoc turned the JS word boundary into a literal BACKSPACE byte (0x08), so
-the regex hunted for a string that cannot occur. **My "non-ascii bytes: 0" check could not see
-it, because 0x08 is BELOW 127** - the check was aimed at the wrong half of the byte range.
-Now scanning for CONTROL characters too, and building escapes from explicit codepoints.
-**The shell mangled backslashes three separate times in this session**; prefer line-index
-edits or a file write over string matching with escapes in it.
-
-**GATE:** `npm run check:onboarding-attribution`. Call sites AND vocabulary are DERIVED from
-source. **Proven red six ways**, every restore byte-exact by sha256: the direct finish write
-losing its attribution, a dropped argument, a variable instead of a literal, a declared path
-wired to nothing, a SECOND canonical sink appearing, and a renamed union (exit 2). Exit 1
-means the code is wrong; exit 2 means the instrument is. Exactly ONE canonical sink is
-permitted and asserted, rather than banned or excluded by filename.
-
-**Also found:** the test mock was DISCARDING the update payload, so no test could see WHAT was
-written - the same shape that let the PMF write ship green while writing nothing.
-
-### 2. CLOSED `0d9f8fae` - extractPdfText HAD ZERO COVERAGE, AND THE BLOCKER'S BOTH HALVES WERE WRONG
-
-6 real tests, driving REAL PDF bytes through the REAL parser - `pdfjs-dist` is NOT stubbed.
-Page loop, the `MAX_PAGES` cap (15 in, 12 out, so the NUMBER discriminates), the newline-per-page
-join, the oversize guard (asserts `arrayBuffer` was never called, or the guard is decorative), and
-the corrupt-file sentence. Proven load-bearing by five mutations, every restore byte-exact.
-**Production code is UNTOUCHED** - `pdf-text.ts` is byte-identical. **Suite count went UP**,
-4651 to 4657 and 459 files to 460.
-
-⚠️ **THE BLOCKER NAMED ITS OWN NEXT STEP AND RECORDED IT AS IMPOSSIBLE - "no nvm on this
-machine".** The premise was TRUE and the conclusion was not: **a portable Node 22 needs no
-installer.** Downloaded, sha256 verified against the published `SHASUMS256.txt`, `node.exe`
-extracted alone (the full zip exceeds Windows' path limit on npm's nested modules), deleted after.
-**Test the premise, and then test the INFERENCE drawn from it - they fail separately.**
-
-⚠️ **AND THE RECORDED REASONING WAS BACKWARDS.** It said the failure "probably still holds, since
-`toHex` is newer than Node 22" - which implies Node 24 HAS it. **Measured with a control: `toHex`
-is undefined on 22.21.1 AND on 24.14.0**, so the Node version was never the discriminator, and the
-MAIN build parses fine in plain node on both. The real cause: **vite resolves the BROWSER build,
-which calls `toHex`, a real browser API node lacks.** A four-line polyfill, defined ONLY when
-absent, unlocks the PRODUCTION build under vitest in both environments.
-
-⚠️ **A THIRD OBSTACLE NOBODY HAD NAMED WAS THE ACTUAL BLOCKER.** `workerSrc` comes from
-`new URL(..., import.meta.url)` - **a VITE BUILD-TIME REWRITE that vitest does not perform** - so
-it resolved beside the SOURCE file and every parse died as the generic sentence. Empty fails too;
-pdf.js v6 refuses. Pinned to the real `node_modules` artefact in `src/test-setup.ts`.
-
-**TWO GAPS, STATED IN THE FILE HEADER RATHER THAN IMPLIED:** the `PasswordException` branch is
-UNTESTED - **a hand-bolted `/Encrypt` entry is not an encrypted PDF, and pdf.js ignored it and
-parsed the file happily, so that test passed for the wrong reason until it was checked**; and the
-worker line is not exercised, so nothing there is evidence it resolves to a LOCAL asset rather
-than a third party - the feature's privacy promise, a bundling fact, browser-only.
+### 2. THE REDDIT-SCOUT EXPOSURE IS CLOSED WITHOUT TRE, `3d6e26a0`
+The ask said deletion needed a CLI token this machine lacks. **It did not need deletion** - the MCP
+has `deploy_edge_function`, so v39 is a TOMBSTONE that reads NO secrets and returns 410.
+⚠️ **`verify_jwt: true` WAS NOT THE FIX, AND THIS IS THE PART TO REMEMBER.** It was already on at
+v38. **The publishable ANON KEY is a valid JWT for this project and ships in the web client**, so
+`verify_jwt` only means "a JWT this project signed". MEASURED after the deploy: anon key -> **410**
+(it reached the body), no header -> 401, control function answered normally. Before v39 that reach
+hit a body reading ANTHROPIC_API_KEY, RESEND_API_KEY and SUPABASE_SERVICE_ROLE_KEY behind one
+burned header check. Divergence recorded in `supabase/functions/reddit-scout/PRODUCTION-IS-TOMBSTONED.md`.
 
 ### RESUME QUEUE - START AT ITEM 1
 
-1. **`c2a7da61` THE LEGACY BOUNCE IS FIRING ON BRAND-NEW ACCOUNTS.** `Onboarding.tsx:228`
-   waves through anyone with a `display_name`, justified in its own comment as "the account
-   predates the flag entirely". **That premise is false today**: `Auth.tsx:493` sets
-   `display_name` at signup, so a new user who types their name never sees the wizard. An
-   account created 2026-09-15 02:26 was bounced at 13:45 the same day - 11 hours old.
-   ✅ **NO LONGER INFERENCE - PROVEN BY ELIMINATION, ask `0512d777`.** Both bounced accounts
-   were tested against the other three paths and only the bounce survives: `checklist` needs
-   `allDone` and both have `gross_income` false, 0 debts and 0 savings_goals; `cache_restore`
-   needs a prior completion to have written the cache; `wizard` needs `furthest_step='finish'`.
-   **Honest caveat: the 09-15 account has 9 accounts, matching the reviewer account's known
-   shape, so REAL users confirmed affected is 1, not 2.** The mechanism holds either way.
-   ⚠️ **AND THIS IS WHY I DID NOT JUST FIX IT.** Narrowing the bounce to "created before the
-   flag existed" needs a cutoff date, and `onboarding_completed` PREDATES the migrations folder
-   - there is no sourced date, and inventing one is the unsourced-constant trap. Removing the
-   bounce outright is defensible on the code's OWN comment (a user left in the wizard "can skip
-   it in one tap", and `skipped` is now attributed so that is recorded honestly) but it changes
-   what ~24 not-completed accounts see on next sign-in. **My recommendation is to remove it:**
-   a false "not onboarded" costs one tap; a false "onboarded" costs a user their setup and
-   every metric its meaning. **It is a PRODUCT call, not a bug fix** - the bounce exists
-   so a genuinely-legacy user is not trapped in a wizard they already completed. Narrowing it
-   to accounts created before the flag is the obvious shape. Tre's PMF eligibility gate is
-   `onboarding_completed`, so it currently selects for having a name.
-2. **Where users DROP is still unknown, and it is a TRAFFIC problem, not a code one.** The
-   step column is populated for 3 of 33 because only 3 accounts have ever opened the wizard.
-   Do not build funnel analytics over 3 rows. One datapoint worth having: the single account
-   that ever reached `finish` did NOT complete - it saw the last screen and did not press the
-   button.
-3. **`f22f17b1` the native iOS plugin. BLOCKED ON TRE, do NOT start Swift here** - no Xcode on
-   this machine. The premise does not hold as briefed: a `UIVisualEffectView` is a SIBLING of
-   the WKWebView, so below it never sees app content and above it covers that surface's own
-   web-rendered content. The architecture that works needs a SECOND transparent WKWebView.
-   Recorded in `CLAUDE.md` under DECIDED. His call: (a) accept the two-webview cost, (b) scope
-   native material to a surface whose content can be native, (c) stay on the shipped CSS.
-4. `e72a8df4` rotate the reddit-scout webhook secret, `3d6e26a0` delete the edge function -
-   both NEEDS TRE, both live exposures rather than tidying. `a40f1e23` reviewer sign-in.
-   `7dd28827` the App Store key is upload-only and needs the Sales and Reports role.
+1. **VERIFY THE BOUNCE REMOVAL AGAINST THE RUNNING APP - I did not finish this, the handoff gate
+   cut it off mid-call.** `npm run walk:routes` PASSED (27/27 signed in) and `/onboarding ->
+   /dashboard` confirms the PAIRED case (a completed account still leaves). **What is NOT yet
+   verified is the case that changed**: an account with a `display_name` and
+   `onboarding_completed = false` must now STAY on the wizard.
+   ⚠️ **DO NOT VERIFY THIS BY READING THE DATABASE.** This repo already records a reviewer reset
+   that read back clean because the verifier finished before the app undid it. **Open the app and
+   see the wizard.** Tre signed into `reviewer@treforged.com` on localhost:8080 (dev server was up).
+   Note the walker runs as `deck-walk@forgenta.test`, a DIFFERENT account - `.env.deck-walk.local`.
+   The query I was running when blocked:
+
+       select u.email, p.onboarding_completed, p.onboarding_completed_via,
+              p.onboarding_furthest_step,
+              (p.display_name is not null and p.display_name <> '') as has_display_name
+       from auth.users u join public.profiles p on p.user_id = u.id
+       where u.email in ('reviewer@treforged.com','deck-walk@forgenta.test') order by u.email;
+
+2. **`e72a8df4` ROTATE `REDDIT_SCOUT_SECRET` - still Tre's, but it now guards NOTHING.** The
+   tombstone reads no secrets, so this dropped from "live exposure" to hygiene. **Do NOT redeploy
+   the real reddit-scout body before this is rotated** - that puts three credentials back behind
+   the same burned guard.
+3. **`a40f1e23` reviewer sign-in** - Ada previously called this the highest-value item in Tre's
+   queue. He has now signed into reviewer on localhost, so re-read the ask: part of its premise may
+   already be satisfied. **TEST THE PREMISE BEFORE BUILDING.**
+4. **`f22f17b1` native iOS - BLOCKED ON TRE, do NOT start Swift** (no Xcode here). A
+   `UIVisualEffectView` is a SIBLING of the WKWebView, so below it never sees app content and above
+   it covers that surface's own web content; the working architecture needs a SECOND transparent
+   WKWebView. Recorded in `CLAUDE.md` under DECIDED.
+5. **`7dd28827`** the App Store key is upload-only and needs the Sales and Reports role - Tre's.
+6. **`798c0ed9`** leaderboard freshness: deliberately deferred with a stated trigger (real
+   participation, or the bucket functions extracted somewhere both runtimes import). Trigger has
+   NOT fired at 1 sharing user. Not work.
+
+### THINGS THAT COST ME TIME - READ BEFORE REPEATING THEM
+
+- **THE SHELL MANGLES BACKSLASHES IN HEREDOCS, three separate times this session.** A JS ``
+  became a literal BACKSPACE (0x08) inside a regex, and the gate reported **PASS** while hunting a
+  string that cannot occur. **"non-ASCII: 0" did not catch it because 0x08 is BELOW 127.** Scan for
+  CONTROL characters, build escapes from explicit codepoints, and prefer line-index edits.
+- **A GATE THAT FINDS CANDIDATES BY THE FUNCTION NAME IS BLIND TO THE PATH THAT DOES NOT CALL IT.**
+  `handleFinish` writes `onboarding_completed` DIRECTLY - the one path that means somebody really
+  onboarded - and my first gate could not see it.
+- **`--reporter=basic` DOES NOT EXIST in this vitest.** Both arms of a mutation died at startup and
+  the "red" was the harness, not the test.
+- **`$?` AFTER A PIPE is the last command's status.** `npx tsc --noEmit | tail` reported 0 over real
+  errors.
+- **A hand-bolted `/Encrypt` entry is NOT an encrypted PDF** - pdf.js ignored it and parsed happily,
+  so that test passed for the wrong reason until it was checked.
 
 ## ⇢ FIRST UP — 2026-09-15 (Ada, FIFTH session). ITEMS A AND B ARE BOTH SHIPPED.
 
