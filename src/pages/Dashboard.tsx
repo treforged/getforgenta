@@ -17,7 +17,7 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useNetWorthSnapshots, useBudgetItems, type AccountRow } from '@/hooks/useSupabaseData';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { substituteSettledOccurrences } from '@/lib/matched-occurrence-display';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
@@ -71,6 +71,7 @@ import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import { useLeaderboardPublisher } from '@/hooks/useLeaderboardPublisher';
+import { buildBudgetCategories } from '@/lib/leaderboard-budget';
 import { weeklyNetWorthDeltas } from '@/lib/leaderboard-publish';
 import { weekStart } from '@/lib/leaderboard-metrics';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
@@ -211,6 +212,7 @@ export default function Dashboard() {
   const { data: accounts, loading: acctLoading } = useAccounts();
   const { data: profile, loading: profileLoading } = useProfile();
   const { data: netWorthSnapshots, loading: netWorthSnapshotsLoading } = useNetWorthSnapshots();
+  const { data: budgetItems, loading: budgetItemsLoading } = useBudgetItems();
 
   useRetirementAutoUpdate(profile as Parameters<typeof useRetirementAutoUpdate>[0], accounts, isDemo, isPremium);
   const { data: debts, loading: debtsLoading } = useDebts();
@@ -742,6 +744,11 @@ export default function Dashboard() {
     [netWorthSnapshots],
   );
 
+  const leaderboardBudgetCategories = useMemo(
+    () => buildBudgetCategories(budgetItems, expenseModel.byCategory, new Date()),
+    [budgetItems, expenseModel.byCategory],
+  );
+
   useLeaderboardPublisher({
     // Narrowed to the two fields the bucket needs, with `undefined` mapped to `null`: these rows
     // are Partial, and `goalProgressBucket` treats absent as "no usable goal" rather than as 0.
@@ -754,8 +761,16 @@ export default function Dashboard() {
     weeklyNetWorthDeltas: leaderboardDeltas,
     revolvingPeak: null,
     revolvingCurrent: null,
-    budgetCategories: null,
-    enabled: !isDemo && !essentialLoading && !netWorthSnapshotsLoading && !goalsLoading,
+    // `budget_items` is the BUDGETED half; `expenseModel.byCategory` is the SPENT half. Neither
+    // table carries both, and the helper pro-rates the budget to the day - see its header for why
+    // a whole-month comparison would publish an inflated score for most of every month.
+    budgetCategories: leaderboardBudgetCategories,
+    enabled:
+      !isDemo &&
+      !essentialLoading &&
+      !netWorthSnapshotsLoading &&
+      !goalsLoading &&
+      !budgetItemsLoading,
   });
 
   useWidgetSync({

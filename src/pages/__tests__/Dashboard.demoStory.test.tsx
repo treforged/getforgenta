@@ -33,6 +33,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useAccounts: () => ({ data: [ACCOUNT, CARD], loading: false }),
   useProfile: () => ({ data: { onboarding_completed: true, founder_note_seen: true }, loading: false }),
   useNetWorthSnapshots: () => ({ data: [], loading: false }),
+  useBudgetItems: () => ({ data: [], loading: false }),
   useDebts: () => ({ data: [], loading: false }),
   useSavingsGoals: () => ({ data: [], loading: false }),
   useCarFunds: () => ({ data: [], loading: false }),

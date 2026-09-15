@@ -249,43 +249,41 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    AFTER the drop** — a backup verified at write time is verified against the moment nothing had
    happened yet.
 
-4. **`f05b9c82` the remaining leaderboard stats — ENUMERATED 2026-09-15. THE GUARD IS CORRECT; it
-   is not the bug Sam flagged. Two of four render no tile, deliberately.**
-   `UNSOURCED_METRICS` (`src/lib/leaderboard-metrics.ts:34`) is ONE declaration read by all three
-   consumers — `FriendsLeaderboard.tsx:75`, `GlobalStandingCard.tsx:34`,
-   `LeaderboardShareToggles.tsx:77` — so the switches and the board cannot drift apart. A metric
-   with no source gets NO tile, never a zero. That is the house rule working, not a guard to relax.
-   **Why the two are unsourced, verified at the call site rather than taken from the comment:**
-   `Dashboard.tsx:755-757` passes `revolvingPeak: null`, `revolvingCurrent: null` and
-   `budgetCategories: null` as literals, and `buildPublishPlan` (`leaderboard-publish.ts:144-151`)
-   returns `null` for both metrics on a null input. The comment was accurate, not stale.
-   **Measured against the database the same day** (control: `public.profiles` returned 56 columns,
-   so the read is real):
-   * `debt_payoff` — **NOT SOURCEABLE.** No table in `public` matches `%balance%` or `%statement%`,
-     so no revolving-balance history exists to compute "share of peak cleared" from. Confirms the
-     header's claim independently. `net_worth_snapshots.total_liabilities` remains the wrong
-     stand-in: it includes the car loan, so a car payment would inflate a debt score other people
-     read.
-   * `budget_adherence` — **SOURCEABLE, and this is the only finishable half of this item.**
-     ⚠️ **I OVERSTATED THIS AN HOUR EARLIER AND THE COMMIT BEFORE THIS ONE CARRIES THE WRONG
-     REASON.** I wrote that `budget_items` has "3 of the columns `budgetAdherenceBucket` wants".
-     It does not. Its columns are `amount, category, created_at, id, label, updated_at, user_id`
-     (read from `src/integrations/supabase/types.ts`) — **there is no `spent` column at all.** My
-     `shape_cols=3` count had matched `amount`, `category` and `user_id`, three columns that
-     happen to be in my search list, and I read a COUNT as a SHAPE. A count can certify a wrong
-     parse; only reading the column names settles it.
-     **The conclusion survives, by a different route, and the route is the deliverable.**
-     `budget_items` is the BUDGETED side only. The SPENT side already exists in the same
-     component: `Dashboard.tsx:453`, `expenseModel.byCategory`, a `Record<string, number>` of
-     spend per category. So the join is budgeted-from-`budget_items` against
-     spent-from-`expenseModel.byCategory`, both keyed on `category`.
-     **The cost to weigh before building it:** `useBudgetItems` (`useSupabaseData.ts:1150`) exists
-     and is NOT currently mounted on the Dashboard, so wiring adds a query to the busiest page in
-     the app for the sake of one leaderboard tile. Decide that deliberately.
-     Whatever the route, drop `budget_adherence` from `UNSOURCED_METRICS` in the SAME commit as
-     the wiring — never separately, or a switch appears in front of someone with nothing behind it.
-   **NOT STARTED** — measured under a tight 5h cap and deliberately not begun. The numbers above are
-   paid for; do not re-measure them.
+4. **[x] `f05b9c82` — `budget_adherence` IS WIRED AND LIVE. `debt_payoff` is impossible and stays
+   off. 2026-09-15.**
+   The guard was never the bug: `UNSOURCED_METRICS` is one declaration read by all three consumers
+   (`FriendsLeaderboard.tsx:75`, `GlobalStandingCard.tsx:34`, `LeaderboardShareToggles.tsx:77`), so
+   a metric with no source gets NO tile rather than a false zero. Sam read it as a defect; it was
+   the house rule working.
+   **What shipped:** `src/lib/leaderboard-budget.ts` joins `budget_items` (BUDGETED) against
+   `expenseModel.byCategory` (SPENT) on category, mounted at `Dashboard.tsx` via `useBudgetItems`,
+   and `budget_adherence` left `UNSOURCED_METRICS` **in the same commit** — never separately, or a
+   switch appears in front of somebody with nothing behind it.
+   ⚠️ **THE BUDGET IS PRO-RATED TO THE DAY, and that is the product decision in this slice.**
+   `byCategory` is MONTH-TO-DATE. Scored against a whole-month allowance, almost everybody is "on
+   track" on the 2nd of the month, and that figure is published to a board other people read. A
+   metric that is systematically inflated for most of its life is worse than no metric, because it
+   looks like a measurement. The test that pins it asserts the INVERSION: $200 spent by day 15 of
+   a 30-day month against a $300 budget buckets to **0** pro-rated and **100** un-pro-rated.
+   ⚠️ **`budget_items` HAS NO `spent` COLUMN** — `amount, category, created_at, id, label,
+   updated_at, user_id`. An earlier entry of mine said otherwise, having counted matching column
+   names instead of reading them. The spend half comes from the expense model and nowhere else.
+   **Evidence:** `tsc` clean; `npm run lint` 0 errors / 34 warnings (unchanged); `npm run test:tz`
+   **4613 x3 zones over 454 files, up from 4604** — the count ROSE by exactly the 9 new tests,
+   which is the only version of the shrinking-suite check that works. Proven red TWICE by mutation
+   with byte-exact restores verified by sha256 (`dcaee5e2...`): removing `* elapsed` kills 1,
+   dropping the zero-spend default kills 2.
+   ⚠️ **THE GATE FOUND A SECOND COPY OF THE LIST.** Wiring the metric turned
+   `LeaderboardShareToggles.test.tsx` red because the TEST hand-named
+   `['debt_payoff', 'budget_adherence']`. It now DERIVES the set from `UNSOURCED_METRICS`, with a
+   `length > 0` guard so it cannot quietly become a test of nothing once every metric is wired.
+   **`debt_payoff` STAYS OFF and re-measuring will not move it:** no table in `public` matches
+   `%balance%` or `%statement%` (checked with a positive control — `public.profiles` returned 56
+   columns), so no revolving-balance history exists. `net_worth_snapshots.total_liabilities`
+   remains the wrong stand-in: it includes the car loan, so a car payment would inflate a debt
+   score other people read. It needs balance history captured first.
+   **NOT verified in a browser** — no rendered frame of the new tile, and the publish path was not
+   exercised against a live account. That is the residue; say so rather than implying coverage.
 
 5. **`1a805cf2` the AI advisor into the Account tab, AFTER the Leaderboard section.** Unblocked now
    that the leaderboard split is clean. ⚠️ `AI_ADVISOR_ENABLED` gates `/ai` in `src/App.tsx` — SHOW

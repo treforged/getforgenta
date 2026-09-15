@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LeaderboardShareToggles } from '../LeaderboardShareToggles';
-import type { LeaderboardMetric } from '@/lib/leaderboard-metrics';
+import { UNSOURCED_METRICS, type LeaderboardMetric } from '@/lib/leaderboard-metrics';
 
 /**
  * These assert the PRIVACY DEFAULT, which is the one thing about this control that must never be
@@ -111,16 +111,21 @@ describe('LeaderboardShareToggles', () => {
  * ⚠️ A SWITCH NOTHING CAN FILL MUST NOT LOOK LIKE A SWITCH THAT IS WORKING.
  *
  * Measured on Tre's account, 2026-09-13: all four metrics `enabled`, a real accepted friendship,
- * and only `goal_progress` and `savings_streak` had ever written a snapshot row. `debt_payoff` and
- * `budget_adherence` publish nothing because nothing computes them — and `debt_payoff` cannot be
- * rescued by a proxy, because no table in this database records a revolving balance over time.
+ * and only `goal_progress` and `savings_streak` had ever written a snapshot row. So his stale
+ * `enabled = true` must read as OFF rather than as "sharing". Drawing it on would be the app
+ * claiming to publish something it has never published, on a privacy control.
  *
- * So his stale `enabled = true` must read as OFF rather than as "sharing". Drawing it on would be
- * the app claiming to publish something it has never published, on a privacy control.
+ * ⚠️ THE UNSOURCED SET IS DERIVED FROM `UNSOURCED_METRICS`, NEVER TYPED OUT HERE. It was
+ * hand-named until 2026-09-15, and wiring `budget_adherence` turned this suite red for the one
+ * reason a suite must never go red: the TEST held a second copy of the list. A hand-named
+ * inventory is blind to the entry somebody just changed.
  */
 describe('metrics the app cannot measure', () => {
   it('renders an UNSOURCED metric as off even when a stale row says it is enabled', () => {
-    state.enabled = new Set<LeaderboardMetric>(['debt_payoff', 'budget_adherence']);
+    // The set is DERIVED, so this keeps testing whatever is unsourced today. The guard below is
+    // what stops it quietly becoming a test of nothing once every metric is wired.
+    expect(UNSOURCED_METRICS.length).toBeGreaterThan(0);
+    state.enabled = new Set<LeaderboardMetric>(UNSOURCED_METRICS);
     render(<LeaderboardShareToggles />);
     const on = screen.getAllByRole('switch').filter(s => s.getAttribute('aria-checked') === 'true');
     expect(on).toHaveLength(0);

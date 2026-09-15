@@ -13,25 +13,35 @@ export type LeaderboardMetric = 'goal_progress' | 'savings_streak' | 'debt_payof
  *
  * ⚠️ MEASURED ON TRE'S ACCOUNT, 2026-09-13. He had all FOUR metrics switched on and a real, accepted
  * friendship, and only TWO rows had ever been written: `goal_progress` and `savings_streak`. The
- * other two publish nothing because `Dashboard.tsx` passes `revolvingPeak`, `revolvingCurrent` and
- * `budgetCategories` as a hardcoded `null` — honestly, and with a comment saying so, because that
- * page does not hold those figures. So two of the four switches saved a preference the app could
- * never act on, and he reported it the only way it presents: "the data is not showing".
+ * other two published nothing because `Dashboard.tsx` passed `revolvingPeak`, `revolvingCurrent`
+ * and `budgetCategories` as hardcoded `null` — honestly, and with a comment saying so. So two of
+ * the four switches saved a preference the app could never act on, and he reported it the only way
+ * it presents: "the data is not showing".
  *
- * ⚠️ AND `debt_payoff` CANNOT BE RESCUED BY A PROXY. It is the share of your PEAK REVOLVING balance
- * you have cleared, and nothing in this database records a revolving balance over time — there is no
- * balance or statement history table at all (checked, not assumed). `net_worth_snapshots.
- * total_liabilities` is the tempting stand-in and it is the wrong number: it includes the car loan,
- * so every car payment would inflate a "debt paid off" score on a board other people read.
+ * ✅ `budget_adherence` WAS FIXED ON 2026-09-15 and left this list in the SAME commit as its
+ * wiring. `Dashboard.tsx` now joins `budget_items` (the BUDGETED side) against
+ * `expenseModel.byCategory` (the SPENT side) through `buildBudgetCategories` in
+ * `leaderboard-budget.ts`. ⚠️ Neither source carries both halves — `budget_items` has no `spent`
+ * column — and the helper PRO-RATES the budget to the day, because `byCategory` is month-to-date
+ * and scoring it against a whole-month allowance would publish a flattering figure for most of
+ * every month.
+ * **Dropping a metric from this list and wiring it must always be ONE commit.** Split them and a
+ * switch appears in front of somebody with nothing behind it — the exact defect this list exists
+ * to prevent.
  *
- * So the honest state is UNAVAILABLE, said out loud, rather than a switch that silently does
- * nothing. `budget_adherence` is sourceable in principle — the app has budgets, they are simply not
- * wired to the page that publishes — and `debt_payoff` needs balance history captured first.
+ * ⚠️ `debt_payoff` STAYS, AND CANNOT BE RESCUED BY A PROXY. It is the share of your PEAK REVOLVING
+ * balance you have cleared, and nothing in this database records a revolving balance over time —
+ * no table in `public` matches `%balance%` or `%statement%` (re-checked against the database on
+ * 2026-09-15 with a positive control, not assumed). `net_worth_snapshots.total_liabilities` is the
+ * tempting stand-in and it is the wrong number: it includes the car loan, so every car payment
+ * would inflate a "debt paid off" score on a board other people read. It needs balance history
+ * captured first. Until then the honest state is UNAVAILABLE, said out loud, rather than a switch
+ * that silently does nothing.
  *
  * ⚠️ ONE DECLARATION, READ BY BOTH THE SWITCHES AND THE BOARD. Two lists would drift within a
  * release and put a switch back in front of someone with nothing behind it.
  */
-export const UNSOURCED_METRICS: ReadonlyArray<LeaderboardMetric> = ['debt_payoff', 'budget_adherence'];
+export const UNSOURCED_METRICS: ReadonlyArray<LeaderboardMetric> = ['debt_payoff'];
 
 /** True when something in the app actually computes and publishes this metric. */
 export function isMetricSourced(metric: LeaderboardMetric): boolean {
