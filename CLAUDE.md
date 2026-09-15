@@ -375,6 +375,30 @@ Always plan first.
 
 ---
 
+## DECIDED — DO NOT RE-OPEN ON A DATE
+
+Decisions Tre has already made in this repo. Re-opening one costs him a round trip to say the
+same thing twice, and a decision recorded in only one place reads as an open item for ever —
+which is exactly what happened to the one below.
+
+### STAY ON FREE SUPABASE COMPUTE (`d9e5961c`, approved 2026-09-15)
+Cost-first is his explicit goal. **Do not re-open this on a date or because latency looks bad in
+a measurement.** Re-open it when ONE of two things happens, and say WHICH:
+  1. a PAYING user complains, or
+  2. the latency tail blocks a sale.
+Background on what was actually measured, including the honest caveat that the free-plan
+shared-compute story is *"a hypothesis that fits, not a"* proven cause:
+`docs/load-times-measurement-2026-09-11.md`.
+
+### NATIVE iOS MATERIAL IS A FORK, NOT A BACKLOG ITEM (`f22f17b1`, blocked 2026-09-15)
+The CSS panel identity is SHIPPED (`cdede2f0`). The NATIVE half is blocked on his call, on new
+information rather than the cost he already overruled: a `UIVisualEffectView` is a SIBLING of the
+WKWebView, so below it blurs the native background and sees no app content, and above it samples
+the web content correctly but covers that surface's own web-rendered icons, labels and figures.
+The architecture that works needs a SECOND transparent WKWebView for chrome content. **Analysis,
+not measurement** — this machine has no Xcode, so the instrument that would settle it is a
+simulator or device build. Do not start Swift here on the assumption it can be verified.
+
 ## SYSTEM CONTEXT (ALWAYS CONSIDER)
 
 This application depends on tightly coupled systems:
