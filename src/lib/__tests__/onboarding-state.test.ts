@@ -16,12 +16,15 @@
 import { describe, expect, it, beforeEach, vi, afterEach } from 'vitest';
 
 const updateEq = vi.fn();
+// The payload was discarded by the mock, so no test could see WHAT was written - which is how
+// a dropped column ships green. Captured here so the attribution can actually be asserted.
+const updatePayloads: Array<Record<string, unknown>> = [];
 const selectMaybeSingle = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: () => ({
-      update: () => ({ eq: updateEq }),
+      update: (payload: Record<string, unknown>) => { updatePayloads.push(payload); return { eq: updateEq }; },
       select: () => ({ eq: () => ({ maybeSingle: selectMaybeSingle }) }),
     }),
   },
@@ -43,6 +46,7 @@ const USER = 'user-abc';
 beforeEach(() => {
   localStorage.clear();
   updateEq.mockReset();
+  updatePayloads.length = 0;
   selectMaybeSingle.mockReset();
 });
 
@@ -171,21 +175,34 @@ describe('fetchOnboardingCompleted', () => {
 describe('markOnboardingComplete', () => {
   it('writes the profile and the cache together', async () => {
     updateEq.mockResolvedValue({ error: null });
-    await expect(markOnboardingComplete(USER)).resolves.toEqual({ ok: true });
+    await expect(markOnboardingComplete(USER, 'wizard')).resolves.toEqual({ ok: true });
     expect(readOnboardingCache(USER)).toBe(true);
+  });
+
+  it('records WHICH path completed onboarding, not just that it did', async () => {
+    // The flag alone is unreadable as a funnel: four call sites set it and only `wizard`
+    // means a person walked the wizard. Asserting the PAYLOAD, because a mock that resolves
+    // { error: null } is green whether or not the column was written at all.
+    updateEq.mockResolvedValue({ error: null });
+    await markOnboardingComplete(USER, 'legacy_name');
+    expect(updatePayloads).toHaveLength(1);
+    expect(updatePayloads[0]).toEqual({
+      onboarding_completed: true,
+      onboarding_completed_via: 'legacy_name',
+    });
   });
 
   it('does NOT cache completion when the profile write fails', async () => {
     // A failed save must not look like a finished setup on this device.
     updateEq.mockResolvedValue({ error: { message: 'permission denied' } });
-    const result = await markOnboardingComplete(USER);
+    const result = await markOnboardingComplete(USER, 'wizard');
     expect(result.ok).toBe(false);
     expect(readOnboardingCache(USER)).toBe(false);
   });
 
   it('reports a thrown client error as a failure', async () => {
     updateEq.mockRejectedValue(new Error('offline'));
-    await expect(markOnboardingComplete(USER)).resolves.toMatchObject({ ok: false });
+    await expect(markOnboardingComplete(USER, 'wizard')).resolves.toMatchObject({ ok: false });
     expect(readOnboardingCache(USER)).toBe(false);
   });
 });

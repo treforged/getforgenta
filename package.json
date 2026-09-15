@@ -30,7 +30,8 @@
     "version:staleness": "node scripts/version-staleness.mjs",
     "check:username": "node scripts/check-username-change.mjs",
     "check:ai-gate": "node scripts/check-ai-gate.mjs",
-    "check:pmf": "node scripts/check-pmf-survey.mjs"
+    "check:pmf": "node scripts/check-pmf-survey.mjs",
+    "check:onboarding-attribution": "node scripts/check-onboarding-attribution.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

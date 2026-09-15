@@ -235,7 +235,7 @@ export default function Onboarding() {
           return;
         }
         if (data.display_name) {
-          markOnboardingComplete(user.id).then(({ ok }) => {
+          markOnboardingComplete(user.id, 'legacy_name').then(({ ok }) => {
             if (!ok || cancelled) return;
             qc.setQueryData(onboardingQueryKey(user.id), true);
             leave();
@@ -420,7 +420,7 @@ export default function Onboarding() {
   const skip = async () => {
     if (!user) { navigate('/dashboard'); return; }
     setSaving(true);
-    const { ok } = await markOnboardingComplete(user.id);
+    const { ok } = await markOnboardingComplete(user.id, 'wizard');
     setSaving(false);
     if (!ok) {
       toast.error("We couldn't save that. Please try again.");

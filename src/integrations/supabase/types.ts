@@ -1685,6 +1685,7 @@ export type Database = {
           notification_prefs: Json | null
           onboarding_completed: boolean
           onboarding_furthest_step: string | null
+          onboarding_completed_via: string | null
           onboarding_started_at: string | null | null
           onboarding_step: number | null
           paycheck_day: number | null
@@ -1743,6 +1744,7 @@ export type Database = {
           notification_prefs?: Json | null
           onboarding_completed?: boolean
           onboarding_furthest_step?: string | null
+          onboarding_completed_via?: string | null
           onboarding_started_at?: string | null | null
           onboarding_step?: number | null
           paycheck_day?: number | null
@@ -1801,6 +1803,7 @@ export type Database = {
           notification_prefs?: Json | null
           onboarding_completed?: boolean
           onboarding_furthest_step?: string | null
+          onboarding_completed_via?: string | null
           onboarding_started_at?: string | null | null
           onboarding_step?: number | null
           paycheck_day?: number | null

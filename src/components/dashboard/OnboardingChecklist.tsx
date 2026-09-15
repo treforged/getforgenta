@@ -113,7 +113,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
   useEffect(() => {
     if (!allDone || markedRef.current || !user) return;
     markedRef.current = true;
-    markOnboardingComplete(user.id).then(({ ok }) => {
+    markOnboardingComplete(user.id, 'checklist').then(({ ok }) => {
       if (!ok) {
         markedRef.current = false;
         return;

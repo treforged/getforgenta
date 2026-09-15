@@ -79,7 +79,13 @@ describe('useOnboardingStatus — who gets sent to /onboarding', () => {
     profileRow = { onboarding_completed: false };
     const { result } = renderHook(() => useOnboardingStatus(), { wrapper });
     expect(result.current.status).toBe('onboarded'); // immediately — no wait, no flash of the wizard
-    await waitFor(() => expect(updatesFor(USER_ID)).toContainEqual({ onboarding_completed: true }));
+    // Tightened rather than loosened: the migration write now records WHICH path completed the
+    // account, and this one is the cache restore. Asserting the whole payload keeps the
+    // attribution load-bearing - `toMatchObject` here would pass with the column dropped.
+    await waitFor(() => expect(updatesFor(USER_ID)).toContainEqual({
+      onboarding_completed: true,
+      onboarding_completed_via: 'cache_restore',
+    }));
   });
 
   it('never gates when the profile could not be read', async () => {

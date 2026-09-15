@@ -137,14 +137,39 @@ export async function fetchOnboardingCompleted(userId: string): Promise<boolean 
 }
 
 /**
+ * Which code path set `onboarding_completed`. Four call sites write the flag and they mean four
+ * different things, so a bare boolean cannot be read as a funnel: `legacy_name` and `checklist`
+ * both mark an account complete having pressed NOTHING in the wizard. Only `wizard` means a
+ * person walked it.
+ *
+ * NULL in the database means the flag predates this attribution (7 accounts at 2026-09-15). It is
+ * deliberately not backfilled - a guessed attribution is indistinguishable from a measured one.
+ */
+export type OnboardingCompletionPath =
+  /** Walked the wizard to the end and pressed finish. The only value that means onboarded. */
+  | 'wizard'
+  /** Legacy migration: carried a display_name, so /onboarding waved them through. Pressed nothing. */
+  | 'legacy_name'
+  /** The dashboard checklist computed all four items done from real data. Zero clicks. */
+  | 'checklist'
+  /** This device's cache said complete, so the profile flag was written back to agree. */
+  | 'cache_restore';
+
+/**
  * Record completion in both stores. The cache is written ONLY after the profile write lands, so a
  * failed save can never leave this device believing setup is finished.
+ *
+ * `via` is REQUIRED rather than defaulted: a default is what lets a new call site silently join
+ * the population that already made this column unreadable.
  */
-export async function markOnboardingComplete(userId: string): Promise<{ ok: boolean; error?: string }> {
+export async function markOnboardingComplete(
+  userId: string,
+  via: OnboardingCompletionPath,
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const { error } = await supabase
       .from('profiles')
-      .update({ onboarding_completed: true })
+      .update({ onboarding_completed: true, onboarding_completed_via: via })
       .eq('user_id', userId);
     if (error) return { ok: false, error: error.message };
     writeOnboardingCache(userId);
@@ -160,5 +185,5 @@ export async function markOnboardingComplete(userId: string): Promise<{ ok: bool
  */
 export function applyOnboardingResolution(userId: string, resolution: OnboardingResolution): void {
   if (resolution.writeCache) writeOnboardingCache(userId);
-  if (resolution.writeProfile) void markOnboardingComplete(userId);
+  if (resolution.writeProfile) void markOnboardingComplete(userId, 'cache_restore');
 }
