@@ -216,6 +216,70 @@ sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven 
 
 
 
+## Resume queue — 2026-09-15 (Ada, THIRD session). ORDERED. Each item is a POINTER, not a report.
+
+**On origin/main 0/0 by contents.** Today, in order: the `founder_waitlist` answer, the
+`reddit-scout` exposure, `budget_adherence` wired, Forgenta AI as a gated Account section, item 6's
+premise disproved, item 8's inventory, and the friends usernames-only removal.
+Gates on the last commit: tsc clean, lint **0 errors / 34 warnings** (unchanged all day),
+`test:tz` **4614 x3 zones over 454 files** — UP from 4604 this morning, and the rise is exactly the
+tests added.
+
+1. **DEPLOY `friend-link`. THIS IS THE HALF-FINISHED ONE AND IT IS NAMED IN ITS OWN COMMIT.**
+   The UI path is gone and pushed, but **the DEPLOYED function still accepts the `invite` action**,
+   so the email path is live server-side until it is redeployed. `mcp__claude_ai_Supabase__deploy_edge_function`,
+   project `mdtosrbfkextcaezuclh`, slug `friend-link`, files `supabase/functions/friend-link/index.ts`
+   and `link-rules.ts`. **Then verify by CALLING it** — an `invite` body must be refused by schema
+   validation, and an `invite_username` body must still work. `verify_jwt` on that function is
+   `true`, so the check needs a signed-in token.
+   ⚠️ The migration IS already applied (`invitee_username`, nullable), so the new code has the
+   column it needs. Deploying is therefore safe in either order, but **not deploying leaves the
+   removal half-done**.
+
+2. **`6eeb8fe3` — THE DB HALF IS REFUSED, WITH EVIDENCE. Do not re-open it on the brief's say-so.**
+   `invite_username` (`friend-link/index.ts:305`) resolves the handle to the target's email and
+   calls **the same `handleInvite`**, so `invitee_email` is the delivery address AND the
+   accept-time identity check (`:575`) for the path that REPLACED email. It is NOT NULL. Dropping
+   it or `friend_links_one_pending` breaks every username invite and every accept.
+   Snapshot exists anyway: `backup.friend_links_invitee_email_20260915`, 1 row, md5
+   `a0fa9e6e9e3e7e3228d6a94ff6b6c8ce`; anon and authenticated hold **no USAGE** on schema `backup`
+   (control: anon on `public` reads true).
+   **Left undone on purpose:** the empty state still does not say that inviting someone with no
+   account is no longer possible. That capability is genuinely gone and the screen should admit it
+   rather than looking like a missing feature.
+
+3. **`8ea2d86a` is SAM'S, not yours — but do not run `triage_asks.py --all` again.** It
+   false-cleared two of Tre's asks from this desk: it printed "(found in asks.md)" for an ask whose
+   text appears **zero** times in that file (checked with both apostrophes). Pass explicit ids.
+
+4. **`196f5929` check:rail's badge** — premise disproved, see its own section. **No seed needed**
+   (`/demo` renders a real badge, 48), **and ABSENT at 72px is CORRECT** (it degrades to a dot).
+   The blocker is a harness state: after the width loop the rail measures 72px on `/demo` and will
+   not open, while the positive control opens the same rail to 234px on `/dashboard` in the same
+   run. **Next move: run the demo pass in a FRESH CONTEXT BEFORE the width loop.** Keep a
+   `badgePresent` assertion or it goes green by absence. **Do not commit it red.**
+
+5. **`b9fe1d41` seg-item radius** — inventory complete: **21 caller occurrences across 8 files**
+   (not 15). ⚠️ `borderRadius: 'var(--radius)'` appears **541 times across 96 files app-wide** and
+   that is NOT this item's number; quoting it turns a contained consolidation into an imaginary
+   rewrite. Needs a rendered frame.
+
+6. **`2e52390b` / `3d6e26a0` reddit-scout** — decided DELETE, blocked on a credential only. Sam
+   confirmed and bounded it: 18 of 35 deployed functions have `verify_jwt=false`, so **that flag
+   alone is not the finding** — the combination is. Rotation does not close it.
+
+7. **`f22f17b1` native iOS material** — long track, unchanged, behind everything above.
+
+### ⚠️ INSTRUMENT TRAPS MEASURED TODAY — each one cost a wrong conclusion
+* **`$?` after a pipe is the pipe's status.** `npx tsc --noEmit 2>&1 | head -5; echo $?` printed
+  `tsc=0` over five real type errors. Run the command alone when you want its code.
+* **A JSX comment is an EXPRESSION.** `{/* … */}` placed inside `{cond && ( … )}` before the
+  element makes two siblings and breaks the parse; the browser gate then reports **0 segments**,
+  which reads exactly like a product defect.
+* **`check-mobile-squeeze` exits 2 on its FIRST run after a source edit** while Vite recompiles.
+* **`element.matches(':hover')` reads TRUE before the `:hover` WIDTH rule applies.** Use
+  `npm run check:rail`.
+
 ## Resume queue — 2026-09-15 (Ada, second session). ORDERED. Each item is a POINTER, not a report.
 
 > ⚠️ **PAUSED ON THE 5h USAGE CAP (90%, resets 14:00 Eastern), 2026-09-15, third session.**
@@ -3934,7 +3998,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 12:04 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 14:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3952,14 +4016,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+f94a4d32 [handoff]: FOR SAM - the keep-going hook and the cap hook contradict each other, and the loop spends the reserved budget
+e7a14df7 [handoff]: item 8's inventory finished with read-only tools - 21 callers across 8 files, and 541 is NOT the override count
+45b579fe [handoff]: pause banner at the top of the queue - push first on resume, two commits are local only
+1b524179 [handoff]: paused on the 5h cap mid-count on item 8 - the partial numbers, labelled partial
+d14a8352 [handoff]: item 6's premise was wrong twice - no seed is needed, and ABSENT in the collapsed rail is correct
 43171178 [account]: Forgenta AI as a third section, behind the same policy gate as /ai
 c9f9f631 [leaderboard]: wire budget_adherence, pro-rated to the day, and drop it from UNSOURCED_METRICS in the same commit
 0ebd1b96 [handoff]: correcting my own evidence - I read a COUNT as a SHAPE on budget_items
-fb4a8c01 [handoff]: the leaderboard guard is doing its job - two of four metrics are unsourced on purpose
-db91d6d8 [handoff]: reddit-scout is not dead code - it is an unauthenticated live function holding three credentials
-fc9baf37 [handoff]: Ellis's founder_waitlist blocker settled - the table is FORGENTA's, and its zero is ambiguous
-41258f2a [handoff]: ordered resume queue - nine pointers, and the one query I was a call short of
-382d4db7 [handoff]: a committed gate was red on main over the element its own comment exempts
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
