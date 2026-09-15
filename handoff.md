@@ -216,6 +216,81 @@ sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven 
 
 
 
+## Resume queue — 2026-09-15 (Ada, second session). ORDERED. Each item is a POINTER, not a report.
+
+**Eight commits, all on origin/main 0/0 BY CONTENTS.** `2f45062c` `0d2152c4` `9635c38e` `417c9ee3`
+plus the handoff commits and the squeeze-gate fix. Gates last run: tsc clean, lint 0 errors / 34
+warnings, `test:tz` **4604 x3 zones, 453 files**, `check:rail` PASS (19 glyphs/cell), `check:account`
+PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes).
+
+1. **ANSWER TRE IF HE IS STILL THERE — `7a19ac46`.** `98830520` item 1: which desktop sidebar
+   SECTION does not match the mobile-sized page. He is at localhost:8080 and can point. Mobile is
+   the REFERENCE; do not reconcile by changing mobile. Items 2/3/4 are fixed (one bug), 5 is moot.
+
+2. **FINISH `da0ce630` — I was one tool call from the answer when the handoff gate fired.**
+   Ellis asks which database the live `/founder-waitlist` edge function WRITES to;
+   `public.founder_waitlist` does NOT exist in treforged-site (`zyvqoefbgsgkbdoydopt`). Run exactly
+   this against FORGENTA (`mdtosrbfkextcaezuclh`) and reply to Ellis:
+   ```sql
+   select to_regclass('public.founder_waitlist') is not null as exists_here,
+          to_regclass('public.profiles') is not null as control,
+          case when to_regclass('public.founder_waitlist') is not null
+               then (select count(*) from public.founder_waitlist) end as row_count;
+   ```
+   The `control` column is load-bearing: "table not found" and "the query cannot see this schema"
+   are the same NULL otherwise. **Until it is settled nobody quotes a founders signup number** — a
+   count from the wrong project is indistinguishable from zero signups.
+
+3. **`6eeb8fe3` remove add-friend-by-email.** MEASURED, NOT STARTED — see its own section above for
+   the five live numbers so you do not pay for them again. Surface to remove: the `invite` action at
+   `useFriendLink.ts:249`, `invitee_email` on `FriendLinkRow` and its select list, the pending-invite
+   card in `FriendLink.tsx`, the email field, the `friend-link` edge function's `invite` action, and
+   the index **`friend_links_one_pending`** = `btree (inviter_id, lower(invitee_email))` — that index
+   IS the "does this address have an account" lookup his ask is about.
+   ⚠️ **The column drop is the one irreversible step and it holds a real person's address.**
+   Snapshot the row into a locked-down table, drop, then **verify the snapshot by reading it back
+   AFTER the drop** — a backup verified at write time is verified against the moment nothing had
+   happened yet.
+
+4. **`f05b9c82` the remaining leaderboard stats.** ENUMERATE how many render "not ready"; a stat that
+   cannot be computed honestly gets NO tile, never a zero. `isMetricSourced` currently offers only
+   `goal_progress` and `savings_streak` while all four are enabled in the DB — Sam flagged it, I read
+   it as the guard doing its job. Say which it is rather than changing it silently.
+
+5. **`1a805cf2` the AI advisor into the Account tab, AFTER the Leaderboard section.** Unblocked now
+   that the leaderboard split is clean. ⚠️ `AI_ADVISOR_ENABLED` gates `/ai` in `src/App.tsx` — SHOW
+   in the commit that it still holds, and **if there turns out to be no real gate, say so as a
+   finding** rather than assuming one exists. This feature talks to users about their money.
+
+6. **`196f5929` — the one gate assertion never proven red.** `check:rail`'s badge-containment check
+   is not exercised, because the walk account's bank review queue is empty so the numeric badge never
+   renders. The check PRINTS `numeric badge ABSENT (not exercised)` per cell so nobody reads a clean
+   result as coverage. Seed a review-queue row for `deck-walk@forgenta.test`, then prove it red by
+   restoring `-right-0.5` on the dot.
+
+7. **`2e52390b` remove the dead `reddit-scout` edge function, or say why it stays.** Nothing schedules
+   it (8 active cron jobs, none reddit, positive control in the same read) but
+   `supabase/functions/reddit-scout/index.ts` is still deployable. Check whether it is DEPLOYED
+   (`list_edge_functions`) as well as present in the tree — different facts — and read its
+   `verify_jwt` first.
+
+8. **`b9fe1d41` the `seg-item` radius drift.** It declares a 9999px pill and **all 15 callers override
+   it inline** with `var(--radius)`. Visual across 8 surfaces, so it wants a rendered frame and
+   probably Tre's eye — do not change it blind.
+
+9. **`f22f17b1` native iOS material.** Tre OVERRULED the CSS recommendation: *"I want native iOS
+   material."* Capacitor plugin + native build. The cost to design around: a native view is a SIBLING
+   of the WebView, so every glass surface's frame must cross the bridge on every scroll, resize and
+   rotation. Long track, behind everything above.
+
+### ⚠️ TWO THINGS THAT WILL WASTE YOUR TIME IF NOBODY TELLS YOU
+* **`check-mobile-squeeze` exits 2 on its FIRST run after any source edit** ("only 8 text-bearing
+  elements") while Vite recompiles. It is behaving correctly — it refuses to call a half-rendered
+  page clean — but budget a wasted run, or fix it to wait on content rather than a timeout.
+* **`element.matches(':hover')` reads TRUE while the `:hover` WIDTH rule has not applied.** An
+  in-page hover made the rail measure 72px and I nearly recorded "hover expansion is broken".
+  Playwright reads 234px with all 9 labels. Use `npm run check:rail` for that question.
+
 ## Resume queue — 2026-09-15 (Ada), OVERDRIVE. Four commits, all on origin/main 0/0 by CONTENTS.
 
 `38725a19` route walk · `e445b0ca` the narrow sidebar · `31769d45` real glass ·
@@ -3718,7 +3793,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 11:22 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 11:41 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3736,14 +3811,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+382d4db7 [handoff]: a committed gate was red on main over the element its own comment exempts
+f2ae4744 [gate]: the squeeze check's grid exemption could never fire, so main was red
+a6890f10 [handoff]: seven asks closed with evidence, and the Reddit Scout question answered from the scheduler
 a141bf4b [handoff]: 6eeb8fe3 measured but deliberately not started - stopped clean at the 5h cap
 417c9ee3 [gate]: check:username stops poisoning its own next run
 2ec1c8f6 [handoff]: username changes shipped, and its probe found three defects before any reached a user
 9635c38e [username]: you can change your handle, twice every seven days
 b2ee3248 [handoff]: two commits shipped - the leaderboard now places the reader, and the collapsed rail stops overflowing
-0d2152c4 [leaderboard][sidebar]: you are on your own board, and the rail stops overflowing
-2f45062c [leaderboard]: the friends board shows its rows, and stops showing twice
-fc156a3f [handoff]: the AI advisor gets a home in the Account tab, and giving it one must not ship it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
