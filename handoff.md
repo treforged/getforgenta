@@ -60,10 +60,45 @@ caught that it had nothing left to read, and `Sidebar.iconOnlyNames` hand-named 
 repointed at the shared list rather than relaxed.
 `7a19ac46` is closed too — it was the NEEDS-TRE half, and his clarification removed the need.
 
-### NEXT UP, in order
-2. `f05b9c82` the remaining leaderboard stats — ENUMERATE how many render "not ready".
-3. `1a805cf2` the AI advisor into the Account tab after the Leaderboard section.
-4. `f22f17b1` native iOS material (Tre overruled the recommendation).
+### ⇢ RESUME QUEUE — START AT ITEM 1
+
+1. **`f05b9c82` THE REMAINING LEADERBOARD STATS — TAKEN, MEASURED, NOT BUILT. START HERE.**
+   **THE ENUMERATION HE ASKED FOR IS DONE: exactly ONE of the four renders "not ready" —
+   `debt_payoff`.** `UNSOURCED_METRICS` in `src/lib/leaderboard-metrics.ts` holds only that one;
+   `budget_adherence` was wired on 2026-09-15. Confirmed against the live database with a positive
+   control in the same read (56 public tables, so a zero is a real absence): `leaderboard_snapshots`
+   holds rows for `savings_streak` (2), `goal_progress` (2), `budget_adherence` (1), latest week
+   2026-09-14 — **and none for `debt_payoff`.**
+
+   ⚠️ **A PREMISE IN THAT FILE IS FALSE, AND I WAS CUT OFF BEFORE MEASURING THE REPLACEMENT.**
+   Its header says *"no table in `public` matches `%balance%` or `%statement%`"*. Four do:
+   `accounts`, `debts`, `liabilities`, and crucially **`account_reconciliations`**, whose columns
+   are `user_id, account_id, source_table, effective_date, actual_balance, projected_balance` —
+   **a DATED, PER-ACCOUNT BALANCE HISTORY, which is exactly what `debt_payoff` was recorded as
+   lacking.**
+   ⚠️ **DO NOT BUILD ON IT YET.** The read that settles it is one query, and it is unrun:
+
+       select source_table, count(*), count(distinct user_id), count(distinct account_id),
+              min(effective_date), max(effective_date)
+       from public.account_reconciliations group by source_table;
+
+   **Cash accounts only → the original refusal stands**, and `debt_payoff` needs balance capture
+   built before the metric. **Rows covering CARDS → the metric is buildable today**, and the
+   header's refusal (plus its correct warning that `net_worth_snapshots.total_liabilities` includes
+   the car loan and would inflate the score) must be REWRITTEN with the measurement, not deleted.
+   **Either way: dropping a metric from `UNSOURCED_METRICS` and wiring it is ONE commit**, or a
+   switch appears in front of somebody with nothing behind it. And his bar stands — a stat that
+   cannot be computed honestly gets NO TILE, never a zero.
+
+2. `1a805cf2` the AI advisor into the Account tab after the Leaderboard section. ⚠️ **Re-measure
+   the premise first**: `AiAdvisor` is ALREADY mounted in Account's `ai` section and `/ai` is no
+   longer a rail row (`1df1e5bf`), so this may be largely done — grep before building.
+   `AI_ADVISOR_ENABLED` must be shown still holding; if there is no real gate, say so as a finding.
+3. `f22f17b1` native iOS material. Tre OVERRULED the recommendation: "I want native iOS material."
+   The cost is that a native view is a SIBLING of the WebView, so every glass frame crosses the
+   bridge on every scroll/resize/rotation.
+4. `e72a8df4` rotate the reddit-scout webhook secret, `3d6e26a0` delete the edge function — both
+   NEEDS TRE, both still open, both live exposures rather than tidying.
 
 ---
 
