@@ -74,7 +74,7 @@ export default function MobileTopBar() {
       {/* ⚠️ NO SAFE-AREA INSET HERE. `DashboardLayout`'s sticky wrapper owns it — see the comment
           there. This bar is `lg:hidden`, so it cannot be the inset's owner for the whole app, and
           for one build it carried the inset while `main` carried a second copy. */}
-      <div className="lg:hidden relative flex items-center h-12 px-2 border-b border-border bg-card">
+      <div className="lg:hidden relative flex items-center h-12 px-2 border-b border-border glass">
         {/* ⚠️ TOP RIGHT, AND THAT IS JAKOB'S LAW RATHER THAN A PREFERENCE (Tre, 2026-09-06). People
             spend nearly all their time in OTHER apps and arrive carrying a model of where things
             live; Instagram — his own reference — puts the menu far top right. Every place we

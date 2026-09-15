@@ -111,3 +111,4 @@ src/lib/__tests__/fixtures/raw-rows.real*.json
 scripts/.graph-sync.lock
 PRIME-VISA-PLANS.private.txt
 rail-*.png
+glass-*.png

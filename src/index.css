@@ -193,6 +193,51 @@
    app chrome and sits at `z-40` precisely so that every overlay floor in the app (the
    lowest any `modal-overlay` call site uses is `z-50`) paints over the tab bar instead of
    under it. Do not raise the tab bar back to `z-50`. */
+/* ── Glass ────────────────────────────────────────────────────────────────────
+   Tre, 2026-09-15, with an Instagram reel: *"give my app the iphone glass effect.
+   to integrate it wherever possible."*
+
+   ⚠️ THE REEL'S TOOL CANNOT BE USED HERE, AND SAYING SO IS THE POINT. It teaches
+   `expo-glass-effect`, whose caption is explicit that it renders "the real native
+   iOS 26 Liquid Glass material, not a fake blur". That is an Expo / React Native
+   package. Forgenta is React 19 + Vite inside a Capacitor WebView — measured, not
+   assumed: package.json carries no `expo*` and no `react-native*` dependency at
+   all. So the package is not installable and there is no route to Apple's native
+   material from this app.
+
+   WHAT IS AVAILABLE IS NOT A CONSOLATION PRIZE. `backdrop-filter` samples the
+   REAL pixels behind the element and blurs and saturates them, so a panel using
+   it genuinely takes its tint from whatever passes underneath. It is not a
+   painted gradient pretending to be glass — which is the thing the reel is
+   actually arguing against. What it is not is Apple's material, and this app
+   should never claim that it is.
+
+   The four properties, agreed with Vera (forged-glass) on 2026-09-15 so that the
+   two products read as one family even though only this one can be genuinely
+   translucent:
+     1. TINT INHERITANCE — the fill is derived from what is behind it.
+     2. A SPECULAR EDGE — a light inner top border, so the panel has a lit edge
+        rather than a drawn outline.
+     3. CONCENTRIC RADII — r_inner = r_outer − gap, the standing rule.
+     4. FLOATING, NOT FLUSH — for panels that can be inset.
+
+   ⚠️ THE FALLBACK IS OPAQUE, DELIBERATELY. Without `backdrop-filter` the
+   translucent fill would let body text show straight through app chrome — a
+   navigation bar you cannot read is worse than one that is not fashionable. The
+   nested `@supports not` restores the solid card colour for any engine that
+   lacks it, and both webkit and unprefixed forms are queried because iOS shipped
+   the prefixed one for years. */
+@utility glass {
+  background-color: hsl(var(--card) / 0.62);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: inset 0 1px 0 0 hsl(0 0% 100% / 0.28);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: hsl(var(--card));
+  }
+}
+
 @utility modal-overlay {
   position: fixed;
   inset: 0;
@@ -257,6 +302,11 @@
 
 @utility seg-track {
   @apply flex flex-wrap items-center gap-1 p-1 border border-border bg-secondary/50;
+  /* GLASS. The track was already translucent (`bg-secondary/50`) and simply let the
+     page colour show through flat. `backdrop-filter` makes that translucency real —
+     it now takes its tint from whatever scrolls under it. See `@utility glass`. */
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   @apply max-w-full overflow-x-auto;
   border-radius: 9999px;
   scrollbar-width: none;

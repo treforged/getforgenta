@@ -85,6 +85,13 @@ section states reasoning, not measurement, and says so.
   full: every other assertion is an absence, and deleting a label satisfies all of them.
   Proven red by the real shipped defect ("FORGENTA" ending at 139px in a 72px rail;
   "Sign Out" on 2 lines) at both widths.
+- `npm run check:glass` — proves the app's glass chrome is REALLY translucent, by
+  screenshotting a pinned bar's own box before and after scrolling content underneath it
+  and requiring the pixels to change. A painted fill and real `backdrop-filter` are
+  identical in a class list, a computed style and a single screenshot; only this tells
+  them apart. Its still-frame control proves the comparator can say "no change", and the
+  scroller is FOUND and asserts its own movement — the app scrolls an inner container,
+  so `window.scrollTo` moved nothing and the first run accused a working feature.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER

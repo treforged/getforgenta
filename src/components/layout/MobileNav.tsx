@@ -76,7 +76,7 @@ export default function MobileNav() {
     // the bottom of the viewport". `z-40` is the layer the sticky TOP bar already uses
     // (`DashboardLayout`), so the two ends of the chrome now agree.
     <nav
-      className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card"
+      className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border glass"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="grid grid-cols-5 items-stretch px-2 py-2 min-h-[72px]">
