@@ -43,9 +43,24 @@ Gates on `2e562f10`: tsc 0, lint **0 errors / 34 warnings**, `test:tz` **4630 ×
 files** (up 4, exactly the tests added), `walk:routes` 27/27 + 18 link targets declared,
 `check:account` PASS, `check:friend-read` PASS.
 
+### C. ✅ `25de22e9` / `98830520` item 1 — THE TWO NAVIGATIONS WERE DIFFERENT SETS, `1df1e5bf`
+Measured: the rail declared **7** destinations against the phone bar's **5** — three desktop-only
+(`/ai`, `/settings`, `/premium`), one mobile-only (`/account`), and two shared destinations with
+DIFFERENT LABELS at different widths.
+**Fixed BY CONSTRUCTION**: new `src/lib/primary-nav.ts` is mapped by both components, so they
+cannot drift. ⚠️ **A test comparing two hand-declared lists had already been tried here and
+failed** — `nav-routes.test.ts` never read the rail, so Forecast existed twice for days.
+⚠️ **REACHABILITY WAS CHECKED BEFORE REMOVING ANYTHING**: `/settings` is linked from Account
+(now in the list at both widths), `/premium` has 17 in-app links including every `PremiumGate`,
+`/ai` is mounted inline in Account's Forgenta AI section and had ZERO in-app links besides the rail
+row. **Upgrade is now less prominent on desktop** — stated, not hidden; it is the trade the ask
+asks for, and mobile has always been on the other side of it.
+**Two existing gates went red and were RIGHT to**: `nav-no-redirect-targets`'s blind-scan assertion
+caught that it had nothing left to read, and `Sidebar.iconOnlyNames` hand-named five labels. Both
+repointed at the shared list rather than relaxed.
+`7a19ac46` is closed too — it was the NEEDS-TRE half, and his clarification removed the need.
+
 ### NEXT UP, in order
-1. **`25de22e9` — Tre clarified `98830520` item 1**, so the sidebar/mobile mismatch no longer needs
-   guessing. Read that ask before anything else.
 2. `f05b9c82` the remaining leaderboard stats — ENUMERATE how many render "not ready".
 3. `1a805cf2` the AI advisor into the Account tab after the Leaderboard section.
 4. `f22f17b1` native iOS material (Tre overruled the recommendation).
