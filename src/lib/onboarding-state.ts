@@ -146,8 +146,14 @@ export async function fetchOnboardingCompleted(userId: string): Promise<boolean 
  * deliberately not backfilled - a guessed attribution is indistinguishable from a measured one.
  */
 export type OnboardingCompletionPath =
-  /** Walked the wizard to the end and pressed finish. The only value that means onboarded. */
+  /**
+   * Walked the wizard and pressed finish. The only value that means onboarded.
+   * NOTE: this one is written DIRECTLY by `Onboarding.handleFinish`, not through this
+   * function - completion rides along with that profile update so the two cannot disagree.
+   */
   | 'wizard'
+  /** Pressed "skip" in the wizard. A deliberate choice, and NOT the same as finishing it. */
+  | 'skipped'
   /** Legacy migration: carried a display_name, so /onboarding waved them through. Pressed nothing. */
   | 'legacy_name'
   /** The dashboard checklist computed all four items done from real data. Zero clicks. */

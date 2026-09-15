@@ -18,6 +18,14 @@
  * from a clean repo are the same zero. Exit 2 says "the instrument is broken", exit 1 says
  * "the code is wrong", and those must never be confused with each other.
  *
+ * TWO WRITER SHAPES, AND THE SECOND IS THE ONE THAT MATTERS. Most paths call
+ * markOnboardingComplete(userId, via). The real finish path instead sets
+ * `onboarding_completed: true` DIRECTLY in a wider profile update, so completion cannot
+ * disagree with the rest of that write. A gate that knew only the function call was blind
+ * to exactly the path that means a person walked the wizard - it discovered candidates by a
+ * marker only the compliant carry. So direct writes of the flag are matched too, and each
+ * must sit beside an `onboarding_completed_via` literal.
+ *
  * WHAT IT DOES NOT CATCH. It is line-based, not a TypeScript parser: a call split across
  * lines, or one whose `via` is a variable resolved elsewhere, is invisible to it. It cannot
  * check that a value is the RIGHT one for its call site - only that one was passed. It says
@@ -113,6 +121,31 @@ function extractCallSites(filePath, content) {
       continue;
     }
 
+    // SHAPE 2: a direct write of the flag. Its `via` is on a NEARBY line inside the same
+    // object literal, not in an argument list, so it is matched over a small window rather
+    // than on one line.
+    if (/\bonboarding_completed\s*:\s*true\b/.test(line)) {
+      const near = lines.slice(i, i + 12).join(String.fromCharCode(10));
+      const viaMatch = /\bonboarding_completed_via\s*:\s*'([^']*)'/.exec(near);
+      // THE CANONICAL SINK. markOnboardingComplete writes the CALLER'S `via` through, so its
+      // own line carries an identifier rather than a literal. That is legitimate exactly once.
+      // Asserting 'exactly one, and here is which' beats forbidding it: a blanket ban would be
+      // worked around, and excluding the file BY NAME would be blind to a second sink added
+      // anywhere else.
+      const sinkMatch = /\bonboarding_completed_via\s*:\s*([A-Za-z_$][\w$]*)/.exec(near);
+      if (!viaMatch && sinkMatch) {
+        sites.push({ file: filePath, line: i + 1, value: null, error: null, sink: sinkMatch[1] });
+        continue;
+      }
+      if (!viaMatch) {
+        sites.push({ file: filePath, line: i + 1, value: null,
+          error: 'sets onboarding_completed directly with no onboarding_completed_via beside it' });
+      } else {
+        sites.push({ file: filePath, line: i + 1, value: `'${viaMatch[1]}'`, error: null });
+      }
+      continue;
+    }
+
     const regex = /markOnboardingComplete\s*\(([^)]*)\)/g;
     let match;
     while ((match = regex.exec(line)) !== null) {
@@ -177,7 +210,7 @@ async function main() {
 
   // Print each call site
   for (const site of allSites) {
-    const val = site.value ?? 'null';
+    const val = site.sink ? `(canonical sink, writes '${site.sink}')` : (site.value ?? 'MISSING');
     console.log(`${site.file}:${site.line} -> ${val}`);
   }
 
@@ -185,7 +218,11 @@ async function main() {
   // first one costs a run per defect, and "FAIL" with no subject is a wall rather than a
   // decision.
   const failures = [];
-  for (const site of allSites) {
+  const sinks = allSites.filter(s => s.sink);
+  if (sinks.length !== 1) {
+    failures.push(`expected exactly 1 canonical sink (a via written from a variable), found ${sinks.length}`);
+  }
+  for (const site of allSites.filter(s => !s.sink)) {
     if (site.error) {
       failures.push(`${site.file}:${site.line} ${site.error}`);
       continue;
@@ -195,7 +232,7 @@ async function main() {
       failures.push(`${site.file}:${site.line} passes '${inner}', which is not a declared OnboardingCompletionPath`);
     }
   }
-  const used = new Set(allSites.filter(s => !s.error).map(s => s.value.slice(1, -1)));
+  const used = new Set(allSites.filter(s => !s.error && !s.sink).map(s => s.value.slice(1, -1)));
   for (const d of declared) {
     if (!used.has(d)) {
       failures.push(`declared path '${d}' is used by no call site (removed, or never wired)`);

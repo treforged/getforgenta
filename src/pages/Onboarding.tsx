@@ -20,6 +20,7 @@ import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { readReferral, clearReferral, resolveReferrerForSignup } from '@/lib/referral';
 import {
   markOnboardingComplete,
+  type OnboardingCompletionPath,
   readOnboardingCache,
   writeOnboardingCache,
 } from '@/lib/onboarding-state';
@@ -304,6 +305,11 @@ export default function Onboarding() {
       // leave a finished setup marked unfinished (or worse, the reverse).
       const { error: profileError } = await supabase.from('profiles').update({
         onboarding_completed: true,
+        // The ONLY write that means a person walked the wizard. It is written here rather than
+        // through `markOnboardingComplete` for the reason above, so `check:onboarding-attribution`
+        // matches direct writes of the flag too - a gate that only knew the function call could
+        // not see this path at all, which is the one that matters most.
+        onboarding_completed_via: 'wizard' satisfies OnboardingCompletionPath,
         display_name: cleanDisplayName,
         weekly_gross_income: wg,
         gross_income: gross,
@@ -420,7 +426,7 @@ export default function Onboarding() {
   const skip = async () => {
     if (!user) { navigate('/dashboard'); return; }
     setSaving(true);
-    const { ok } = await markOnboardingComplete(user.id, 'wizard');
+    const { ok } = await markOnboardingComplete(user.id, 'skipped');
     setSaving(false);
     if (!ok) {
       toast.error("We couldn't save that. Please try again.");
