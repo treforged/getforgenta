@@ -225,9 +225,44 @@ export const CATEGORY_EMOJI: Record<string, string> = {
   Groceries: '🛒', Gas: '⛽', Dining: '🍽️', Shopping: '🛍️', Entertainment: '🎮',
   Subscriptions: '📺', Health: '💊', Personal: '🧴', Travel: '✈️', Car: '🚗',
   Education: '📚', Pets: '🐾', Clothing: '👕', Gifts: '🎁',
-  Savings: '🐷', Investing: '📈', Business: '💼', 'Debt Payments': '💳',
+  Savings: '🐷', Investing: '📈', Business: '💼', 'Business Contributions': '🏦', 'Debt Payments': '💳',
   Income: '💰', Other: '📦',
 };
+
+/**
+ * The 26 categories, grouped for the PICKER only. Nothing here changes what a
+ * category IS or what any row stores - this is ordering and labelling.
+ *
+ * WHY. Tre, 2026-09-14: "too many categories". Measured across all users: 19 of
+ * the 26 have ever been used and 7 never have. The 7 were NOT removed, and the
+ * reasoning matters more than the decision - only three accounts have any
+ * transactions at all, so "zero usage" is a fact about a three-user sample, not
+ * about the category. Rent, Mortgage and Utilities are among the most common
+ * categories in personal finance; dropping them from a budgeting app on that
+ * evidence would be a real regression. Rarity in a small corpus is not evidence.
+ *
+ * So the reversible half ships: 26 options are made SCANNABLE at the point of
+ * use. Reducing the SET rewrites rows on every account and needs a merge map -
+ * a data migration plus a product judgement, and not this file's to make.
+ *
+ * Every picker reads THIS, so there is one ordering rather than five. The gate
+ * in `__tests__/category-groups.test.ts` asserts each category appears exactly
+ * once across the groups, so a category added to CATEGORIES and forgotten here
+ * fails rather than silently vanishing from every picker in the app.
+ */
+export const CATEGORY_GROUPS: readonly { label: string; categories: readonly Category[] }[] = [
+  { label: 'Everyday',        categories: ['Groceries', 'Dining', 'Shopping', 'Entertainment', 'Personal', 'Clothing'] },
+  { label: 'Transport',       categories: ['Car', 'Gas', 'Travel'] },
+  { label: 'Home & Bills',    categories: ['Bills', 'Rent', 'Mortgage', 'Utilities', 'Insurance', 'Subscriptions'] },
+  { label: 'Health & Family', categories: ['Health', 'Pets', 'Education', 'Gifts'] },
+  { label: 'Money',           categories: ['Income', 'Savings', 'Investing', 'Debt Payments', 'Business', 'Business Contributions'] },
+  { label: 'Everything else', categories: ['Other'] },
+];
+
+/** The same 26 categories in grouped order, flattened - for anything wanting a plain list. */
+export const CATEGORIES_GROUPED_FLAT: readonly Category[] =
+  CATEGORY_GROUPS.flatMap(g => g.categories);
+
 
 export type CarBuild = {
   id: string;

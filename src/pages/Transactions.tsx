@@ -17,7 +17,8 @@ import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliati
 import { buildDatedGoalTransferRules, isGoalTransferRuleId } from '@/lib/goal-transfer-rules';
 import { buildAutoExtraLedgerRows } from '@/lib/auto-extra-ledger-rows';
 import { usePersistedState } from '@/hooks/usePersistedState';
-import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
+import { CATEGORY_EMOJI } from '@/lib/types';
+import CategoryOptions, { categoryFieldOptions } from '@/components/shared/CategoryOptions';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactionsForHorizon, type EnrichedTransaction } from '@/lib/pay-schedule';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
@@ -66,7 +67,8 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 // this back.
 const BudgetControl = lazy(() => import('@/pages/BudgetControl'));
 
-const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
+// ALL_CATEGORIES used to hoist Income to the top of a flat 26-option list. The
+// grouped picker supersedes that: Income now leads the 'Money' group.
 
 // `repeat` is the Repeats select, and it is the ONE field that changes what a save writes: anything
 // other than 'none' creates a recurring rule instead of this row. See `lib/transaction-to-rule.ts`.
@@ -852,7 +854,7 @@ export default function Transactions() {
     fields.push(
       { key: 'type', label: 'Type', type: 'select', options: [{ value: 'expense', label: 'Expense' }, { value: 'income', label: 'Income' }] },
       { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01' },
-      { key: 'category', label: 'Category', type: 'select', options: ALL_CATEGORIES.map(c => ({ value: c, label: c })) },
+      { key: 'category', label: 'Category', type: 'select', options: categoryFieldOptions() },
       { key: 'payment_source', label: editId?.startsWith('rule:') ? 'Account' : 'Payment Source', type: 'select', options: paymentSourceOptions },
       { key: 'note', label: repeatChoice === 'none' ? 'Note' : 'Note (becomes the rule name)', type: 'text', placeholder: 'What was this for?' },
     );
@@ -1248,7 +1250,7 @@ export default function Transactions() {
         />
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Categories</option>
-          {ALL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          <CategoryOptions />
         </select>
         <select value={filterSource} onChange={e => setFilterSource(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Sources</option>
@@ -1571,7 +1573,7 @@ export default function Transactions() {
                   className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <CategoryOptions exclude={['Income']} />
                 </select>
               </div>
               <div>

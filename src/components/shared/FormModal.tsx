@@ -9,7 +9,8 @@ export type Field = {
   label: string;
   type: 'text' | 'number' | 'date' | 'select' | 'checkbox';
   placeholder?: string;
-  options?: { value: string; label: string }[];
+  /** `group` is optional; when ANY option carries one the select renders <optgroup>s. */
+  options?: { value: string; label: string; group?: string }[];
   required?: boolean;
   clearable?: boolean;
   step?: string;
@@ -114,7 +115,15 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {f.required && <option value="" disabled>{f.placeholder || 'Select…'}</option>}
-                  {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {f.options?.some(o => o.group)
+                    ? [...new Map((f.options ?? []).map(o => [o.group ?? '', null])).keys()].map(g => (
+                        <optgroup key={g} label={g}>
+                          {(f.options ?? []).filter(o => (o.group ?? '') === g).map(o => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                    : f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : f.type === 'checkbox' ? (
                 // Checkbox values ride the same string-valued form state: 'true' when checked,

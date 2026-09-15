@@ -45,7 +45,8 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAppliedActions } from '@/hooks/useAppliedActions';
 import { formatCurrency } from '@/lib/calculations';
-import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
+import { CATEGORY_EMOJI } from '@/lib/types';
+import CategoryOptions from '@/components/shared/CategoryOptions';
 import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/plaid-category-map';
 import { describeReconciliation, reconciledPatch, reconciliationUndoStep, isBulkAcceptable } from '@/lib/transaction-reconciliation';
 import type { UndoStep } from '@/lib/applied-actions';
@@ -1163,7 +1164,7 @@ export default function BankActivity() {
                       style={{ borderRadius: 'var(--radius)' }}
                       aria-label="Category"
                     >
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      <CategoryOptions />
                     </select>
                     {/* ⚠️ THE SOURCE IS NAMED, ALWAYS. "You said this" and "other people say this"
                         are different promises, and a dropdown that renders them identically makes

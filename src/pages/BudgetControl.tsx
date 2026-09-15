@@ -17,7 +17,7 @@ import {
   CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { getDayName, describeBiweeklyAnchor } from '@/lib/scheduling';
-import { CATEGORIES } from '@/lib/types';
+import { categoryFieldOptions } from '@/components/shared/CategoryOptions';
 import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
 import { isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
@@ -790,7 +790,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     if (form.frequency === 'yearly') {
       fields.push({ key: 'due_month', label: 'Due Month (1-12)', type: 'number' });
     }
-    fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
+    fields.push({ key: 'category', label: 'Category', type: 'select', options: categoryFieldOptions() });
     
     // On a biweekly rule this existing field is doing a second job — it is the phase anchor
     // `resolveBiweeklyAnchor` already prefers — so it is relabeled to say what it actually
