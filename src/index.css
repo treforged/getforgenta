@@ -134,9 +134,42 @@
   color: hsl(var(--gold));
 }
 
+/* ── The panel identity ───────────────────────────────────────────────────────
+   Tre, 2026-09-15: *"App panels should get the glass identity also. I do want that."*
+   He is deliberately changing the opaque/square/flat panel identity recorded above, having
+   been given its rationale. The SQUARE corners do not change - only the material does.
+
+   This is the same four-property vocabulary agreed with Vera for `@utility glass`, applied
+   one level down. Two of the four are visible on a flat page and two are not, and saying
+   which is the honest part:
+     TINT INHERITANCE - real, but only where something actually passes under a panel:
+       content scrolling beneath pinned chrome, a modal over the page, a nested card. On an
+       empty stretch of background there is nothing to sample and the panel reads as before.
+       That is what translucency IS, not a shortfall.
+     SPECULAR EDGE - visible everywhere, and on this app's flat background it is the half
+       that actually carries the identity.
+     CONCENTRIC RADII - unchanged; `var(--radius)` already governs, see corner-concentricity.
+     FLOATING - unchanged; panels keep their existing insets.
+
+   ⚠️ THE FILL IS `--panel-glass`, NOT `--card`, AND THAT IS THE WHOLE TRAP. A panel here is
+   LIGHTER than the page (7% on 2%), so transparency composites it DOWNWARD - `--card` at
+   0.72 measures 5.49% in a rendered frame and every panel in the app quietly loses contrast. `--panel-glass` is
+   pre-compensated so the composite returns to 7%. See the token for the arithmetic.
+
+   ⚠️ THE FALLBACK IS OPAQUE `--card`, for the same reason `@utility glass` is: without
+   `backdrop-filter` the translucent fill lets whatever is behind show straight through a
+   panel holding money figures. Both the prefixed and unprefixed forms are queried. */
 @utility card-forged {
-  @apply bg-card border border-border;
+  @apply border border-border;
+  background-color: hsl(var(--panel-glass) / 0.72);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: inset 0 1px 0 0 hsl(0 0% 100% / 0.18);
   border-radius: var(--radius);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: hsl(var(--card));
+  }
 }
 
 /* ── Segmented control ────────────────────────────────────────────────────────
@@ -740,6 +773,20 @@ so size and variant are separated here and the 44px floor is stated once.
     --background: 0 0% 2%;
     --foreground: 214 32% 91%;
     --card: 0 0% 7%;
+    /* THE TRANSLUCENT PANEL FILL, AND IT IS LIGHTER THAN `--card` ON PURPOSE.
+       A panel is LIGHTER than the page here (7% on 2%), so making it translucent
+       composites it DOWNWARD: `--card` at 0.72 over the page MEASURES 5.49% in a rendered frame, and every
+       panel in the app would lose contrast against the background it sits on. 9% at 0.72
+       over 2% lands back on 7% - the panel keeps exactly the separation it has today AND
+       now samples whatever passes under it. Change the alpha in `card-forged` and this
+       number has to move with it.
+
+       MEASURED IN A RENDERED FRAME, not computed: /dashboard at 390px, dark, sampling the
+       panel's own pixels - shipped 18/255 = 7.06%, the naive `--card` fill 14/255 = 5.49%.
+       The sampler carried a positive control (it had to be able to report a difference, and
+       it did, 4/255). In LIGHT mode the two are identical by construction, so that same
+       control correctly refuses there - it is not a dark-mode-only sampler bug. */
+    --panel-glass: 0 0% 9%;
     --card-foreground: 214 32% 91%;
     --popover: 0 0% 7%;
     --popover-foreground: 214 32% 91%;
@@ -821,6 +868,11 @@ so size and variant are separated here and the 44px floor is stated once.
     --background: 0 0% 96%;
     --foreground: 0 0% 12%;
     --card: 0 0% 100%;
+    /* Light mode cannot be compensated the same way - the card is already 100% and there
+       is nothing above it - so the composite lands at 98.9% on a 96% page rather than
+       100%. That is a 1.1-point loss against a 4-point separation, and the specular edge
+       and border carry the boundary. Recorded rather than hidden. */
+    --panel-glass: 0 0% 100%;
     --card-foreground: 0 0% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 12%;
@@ -874,6 +926,20 @@ so size and variant are separated here and the 44px floor is stated once.
     --background: 0 0% 2%;
     --foreground: 214 32% 91%;
     --card: 0 0% 7%;
+    /* THE TRANSLUCENT PANEL FILL, AND IT IS LIGHTER THAN `--card` ON PURPOSE.
+       A panel is LIGHTER than the page here (7% on 2%), so making it translucent
+       composites it DOWNWARD: `--card` at 0.72 over the page MEASURES 5.49% in a rendered frame, and every
+       panel in the app would lose contrast against the background it sits on. 9% at 0.72
+       over 2% lands back on 7% - the panel keeps exactly the separation it has today AND
+       now samples whatever passes under it. Change the alpha in `card-forged` and this
+       number has to move with it.
+
+       MEASURED IN A RENDERED FRAME, not computed: /dashboard at 390px, dark, sampling the
+       panel's own pixels - shipped 18/255 = 7.06%, the naive `--card` fill 14/255 = 5.49%.
+       The sampler carried a positive control (it had to be able to report a difference, and
+       it did, 4/255). In LIGHT mode the two are identical by construction, so that same
+       control correctly refuses there - it is not a dark-mode-only sampler bug. */
+    --panel-glass: 0 0% 9%;
     --card-foreground: 214 32% 91%;
     --popover: 0 0% 7%;
     --popover-foreground: 214 32% 91%;
