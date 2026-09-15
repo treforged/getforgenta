@@ -29,14 +29,38 @@ export type LeaderboardMetric = 'goal_progress' | 'savings_streak' | 'debt_payof
  * switch appears in front of somebody with nothing behind it — the exact defect this list exists
  * to prevent.
  *
- * ⚠️ `debt_payoff` STAYS, AND CANNOT BE RESCUED BY A PROXY. It is the share of your PEAK REVOLVING
- * balance you have cleared, and nothing in this database records a revolving balance over time —
- * no table in `public` matches `%balance%` or `%statement%` (re-checked against the database on
- * 2026-09-15 with a positive control, not assumed). `net_worth_snapshots.total_liabilities` is the
- * tempting stand-in and it is the wrong number: it includes the car loan, so every car payment
- * would inflate a "debt paid off" score on a board other people read. It needs balance history
- * captured first. Until then the honest state is UNAVAILABLE, said out loud, rather than a switch
- * that silently does nothing.
+ * ⚠️ `debt_payoff` STAYS, AND THE REASON RECORDED HERE UNTIL 2026-09-15 WAS FALSE. It is the
+ * share of your PEAK REVOLVING balance you have cleared, so it needs a SERIES of dated balances per
+ * card. The old header said no table in `public` matches `%balance%` or `%statement%`. Four do, and
+ * `account_reconciliations` (`user_id, account_id, source_table, effective_date, actual_balance,
+ * projected_balance`) is exactly the dated per-account balance history this metric was recorded as
+ * lacking - AND IT ALREADY CARRIES DEBT ROWS, `source_table = 'debts'`.
+ *
+ * ⚠️ THE REFUSAL SURVIVES THE CORRECTION, FOR A DIFFERENT REASON: THERE IS NO HISTORY, ONLY
+ * POINTS. Measured against the live database on 2026-09-15, with a positive control in the same
+ * read (56 public tables, and the cash arm returns non-zero, so a zero here is a real absence):
+ *
+ *     select source_table, count(*), count(distinct user_id), count(distinct account_id),
+ *            min(effective_date), max(effective_date)
+ *       from public.account_reconciliations group by source_table;
+ *
+ *   accounts  33 rows / 2 users / 10 accounts / 2026-03-27 .. 2026-07-05
+ *   debts      2 rows / 1 user  /  2 accounts / 2026-08-22 .. 2026-08-22
+ *
+ * and the discriminating count: accounts with MORE THAN ONE `effective_date` is **7 for `accounts`
+ * and 0 for `debts`**. One dated point per card cannot yield a peak, and a peak computed from a
+ * single sample is always 100% cleared or 0% - a flattering number on a board other people read.
+ * This is sparse BY CONSTRUCTION, not by bad luck: rows are written only by a user-initiated
+ * reconcile (`useAccountReconciliations().add`), never by an automatic capture.
+ *
+ * ⚠️ `net_worth_snapshots.total_liabilities` remains the tempting stand-in and remains the wrong
+ * number: it includes the car loan, so every car payment would inflate a "debt paid off" score.
+ *
+ * SO THE WORK IS BALANCE CAPTURE FIRST - a second dated point per card, written without the user
+ * remembering to reconcile - and the metric second. Until then the honest state is UNAVAILABLE,
+ * said out loud, rather than a switch that silently does nothing. WHAT WOULD CHANGE THIS ANSWER:
+ * the `debts` arm of that query showing accounts with more than one `effective_date`. Re-run it
+ * rather than trusting this paragraph; it is a claim about data, and data moves.
  *
  * ⚠️ ONE DECLARATION, READ BY BOTH THE SWITCHES AND THE BOARD. Two lists would drift within a
  * release and put a switch back in front of someone with nothing behind it.
