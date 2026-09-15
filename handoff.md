@@ -1,5 +1,83 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## Resume queue — 2026-09-14 (Ada). TWO ITEMS CLOSED. NO CODE CHANGED, AND THAT IS THE RESULT.
+
+Nothing was committed to `src/` this session, deliberately: both items closed on a
+MEASUREMENT that said the code was not the problem. Read the two blocks below
+before re-opening either.
+
+### 1. `ef4dbcda` — CLOSED. Piper's test account exists, and the signed-in arm is now REAL.
+Her premise was TESTED FIRST, not taken: `reach.campaign` read **4 rows, 1 distinct
+owner** (`a72f416e`), with a positive control (`public.profiles` 31 rows / 31 distinct)
+proving the distinct-count could have returned more than one. So her arm C
+("campaigns I do not own = 0") was **vacuous**, and option (b) was right.
+
+* **Account:** `reach-rls-probe@forgenta.test`, id `4e870984-fbaa-4e0f-950d-b7622a432732`.
+* **Created through the PUBLIC `/auth/v1/signup` endpoint**, then the email confirmed by
+  one targeted SQL update. **There is no `SUPABASE_SERVICE_ROLE_KEY` on this machine**
+  — re-measured, not remembered — so the auth admin API was not available, and
+  hand-forging `auth.users` rows was refused in favour of letting GoTrue build the row
+  (correct password hash, 1 identity row). A `profiles` row was auto-created by the
+  trigger, so **`profiles` is now 32, not 31** — anyone reading user counts should
+  subtract this account.
+* **It owns ONE `reach.campaign` row**, so the table is **5 rows / 2 owners** and the
+  filter must now SUBTRACT 4. That is the whole point of option (b).
+* **MEASURED SIGNED-IN, the evidence that did not exist before:** sign-in HTTP 200,
+  token issued · ARM A read of `/rest/v1/campaign` with `Accept-Profile: reach`
+  **HTTP 200, rows = 1 of 5** · ARM C rows visible not owned by me = **0** · ARM B
+  anonymous **42501 permission denied for schema reach**.
+* **Grants agree with behaviour** (so neither instrument is lying here): `anon` schema
+  USAGE false / campaign SELECT false, `authenticated` true / true.
+* **Credentials: `.env.reach-test.local`**, proven ignored (`git check-ignore` →
+  `.gitignore:34 .env.*.local`) and absent from `git status`. Passed to Piper as a
+  PATH, never a value, in ask `02f035eb`. Her tree was not touched.
+* **UNDO:** delete auth user `4e870984` — it cascades the campaign row and the profile.
+
+**Migration `0006` was ALREADY APPLIED.** The brief said it was waiting; it was not.
+Proven behaviourally rather than from the migrations table: `authenticated` reads,
+`anon` is refused at the schema grant, and 3 policies exist on `campaign`, `click`
+and `tracked_link`. `rate_limit` is RLS-on with no policy — deny-all, read as
+deliberate, and Piper was asked to say so if it is not.
+
+### 2. `73df5d2b` — CLOSED with a DECISION: it is COMPUTE CONTENTION, not query cost.
+The fork was "fast-or-stuck" versus "generally slow". Measured in
+`pg_stat_statements`, PostgREST-shaped statements only:
+
+| bucket | shapes | calls | weighted mean | worst single EXECUTION |
+| --- | --- | --- | --- | --- |
+| `profiles` | 76 | 28,476 | **8.41 ms** | 3,334 ms |
+| every other app query (control) | 491 | 134,579 | **12.10 ms** | 2,641 ms |
+
+**`profiles` is FASTER PER CALL THAN THE AVERAGE QUERY**, and the multi-second tail
+appears in BOTH buckets — so it is machine-wide, not a profiles defect. A
+single-row-by-`user_id` select against a 31-row table cannot spend 3.3s executing;
+that is CPU starvation on the FREE shared-burstable plan.
+
+⚠️ **STATED LIMIT: `pg_stat_statements` times EXECUTION ONLY.** It excludes connection
+acquisition and pooler/PostgREST queueing, which is exactly where the rest of the gap
+to the ~5s gateway ceiling sits. So this proves the time is **not inside query
+execution**; it does not prove nothing is slow.
+
+**Half (a) is CONFIRMED DEAD — re-verified today rather than trusted from this file:**
+`useDashboardLayout:31` is an UPDATE, `useRetirementAutoUpdate:118` and `:159` are
+UPDATEs, and `AuthContext`'s only select (`:136`) is inside `resetReviewerAccount`,
+which starts at `:112` — reviewer-only, never on the dashboard path. **Zero
+dashboard-path profiles selects remain in those three files**, and removing selects
+cannot recover time the query never spent.
+
+**Half (b) is now its own Tre item, `d9e5961c`:** upgrade off free shared-burstable
+compute, or accept the tail. Recommendation recorded there — upgrade if the app is
+to be sold, accept it while the user count is 31.
+
+### Still waiting on Tre, unchanged
+`cd516cd3` App Store vendor number (unblocks `7dd28827`) · `a40f1e23` reviewer sign-in
+· `5d6dbada` dev sign-in · `e72a8df4` rotate the reddit-scout secret · `d9ab0509`
+the category merge map · **`d9e5961c` the compute plan (new)**.
+
+**Still deferred with a trigger, and NOT parked:** `0d9f8fae` (extractPdfText — no
+harness runs the production pdf.js build) and `798c0ed9` (leaderboard freshness).
+
+
 ## Resume queue — 2026-09-15. THE QUEUE IS DOWN TO TRE-ITEMS. Read this first.
 
 Four code commits this session, `origin/main` 0/0 by CONTENTS after each:
@@ -3237,7 +3315,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 19:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-14 22:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3253,14 +3331,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+a05d3cf3 [handoff]: the queue is down to Tre-items, and three instruments lied today
+e2d7e461 [design]: one grouped category picker, five hand-rolled copies consolidated, and one category had no icon
+b8385fb4 [security]: the three dead reddit-scout cron jobs held a plaintext webhook secret - unscheduled
+557118d5 [privacy]: the 108 orphan rows are snapshotted and gone, and the 11 constraints are now validated
+c49cfd58 [privacy]: deleting a user now removes their financial data by EVERY route, not just the app's
+97cced0d [handoff]: 'filled' is two sub-shapes, so the next slice decides between two components not one
+a4fbd757 [handoff]: the filled-group count is 9 across 6 files, not 3 - and four searches had four different blind spots
 da9fc797 [design]: one filter-pill row, six copies consolidated, and my own inventory was wrong three times
-6ab02eec [handoff]: segmented controls are the next consistency count - 11 across 7 files, measured not started
-b3fd02a8 [design]: six hand-rolled switches survived the consolidation, and the gate could not see them
-7874613f [handoff]: the pdf.js fixture is a round trip now, and the extractor still has no coverage at all
-f05d498f [statement]: the pdf.js extraction fixture was a hand-transcribed constant agreeing with itself
-74c6f5a8 [handoff]: reconcile the two FK counts - both right, different questions, and my sweep had a blind spot
-17115831 [handoff]: the retention denominator was wrong, and 110 rows of deleted users' financial data are why
-2e37a47f [handoff]: half of the profiles-latency ask is a false premise, and the fix list names the wrong three files
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
