@@ -1,5 +1,80 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## Resume queue — 2026-09-15. THE QUEUE IS DOWN TO TRE-ITEMS. Read this first.
+
+Four code commits this session, `origin/main` 0/0 by CONTENTS after each:
+`c49cfd58` cascade FKs · `557118d5` orphan backfill + validate ·
+`b8385fb4` cron plaintext secret removed · `e2d7e461` grouped category picker.
+Gates on the last: tsc clean, lint **0 errors** (warnings 37 → 34),
+`test:tz` **4590 passed ×3 zones, 449 files** — against a baseline **measured on
+this tree at 4581 / 447**, so the rise is exactly the 9 tests added. The
+handoff's old "4575" was stale by six; it was measured, not repeated.
+
+### FIRST UP: there is nothing actionable left on this desk without Tre.
+Every open item below is either his hands or a fork in intent. Do NOT invent
+work; check `python ~/.claude/bin/asks.py list --owner Ada` for anything new,
+and read the two blocks marked ⚠️ before touching either subject.
+
+**Waiting on Tre, and only Tre:**
+| id | what he must do |
+| --- | --- |
+| `cd516cd3` | `APP_STORE_VENDOR_NUMBER` (+ a Resend key) — a value only App Store Connect can give him. Unblocks `7dd28827`, which is BUILT and already authenticated against Apple's real API. |
+| `a40f1e23` | reviewer-account sign-in — the highest-value item here; nothing may script it. |
+| `5d6dbada` | dev sign-in, to browser-verify the per-row and batch link undo. |
+| `e72a8df4` | rotate the reddit-scout webhook secret — burned, though never reachable from the client key. |
+| `d9ab0509` | the merge map: does Rent/Mortgage/Utilities fold into Bills? Clothing into Shopping? Reducing the SET rewrites rows on every account. |
+| `73df5d2b` | the remaining half forks on a fix decision. |
+
+**Deliberately deferred, each with a stated trigger — these are NOT forgotten:**
+`0d9f8fae` (extractPdfText, no harness that runs the production pdf.js build) and
+`798c0ed9` (leaderboard freshness; revisit when sharing participation is real).
+
+### ⚠️ DELETED-ACCOUNT DATA: SETTLED. Do not re-derive it, and do not "fix" the UI.
+Two things a future session will otherwise redo, because the ask said both were
+broken and only one was:
+* **The delete-account edge function was NEVER at fault.** Its `USER_TABLES`
+  already covers all 11 FK-less base tables carrying `user_id`. The hole was
+  every OTHER delete path — the Supabase dashboard, the auth admin API — because
+  those tables had no foreign key to `auth.users` at all. Fixed in `c49cfd58`:
+  11 `ON DELETE CASCADE` constraints, and all 11 now read `convalidated = true`.
+* **The "irreversible" warning ALREADY EXISTED.** `Settings.tsx`, in the
+  `deleteStep === 'confirm'` block, above a type-DELETE gate. That half of the
+  ask was refused as a false premise. Nothing to build.
+* Orphans: **108 measured, not the 110 in the ask** — 18 `profiles`, 90
+  `recurring_rules`, every other FK-less table 0. Snapshotted to
+  `orphan_backup_20260914` (service-role only, anon and authenticated USAGE both
+  false), proven by md5 BEFORE the delete, and the snapshot re-read UNCHANGED
+  afterwards as its own step. `user_subscriptions` is KEPT and anonymised, per
+  Tre's carve-out, and deliberately has no cascade.
+* `plaid_items` IS A VIEW. A first pass included it, derived from
+  `information_schema.columns`, which does not distinguish a view from a table.
+  Postgres refused it loudly, which is the only reason it was caught. Derive
+  table lists from `pg_class` with `relkind='r'`.
+
+### ⚠️ THE INSTRUMENT LIED THREE TIMES TODAY. Assume yours does too.
+Each of these would have produced a confident, wrong, *reported* claim:
+* `has_table_privilege('anon','cron.job','SELECT')` returns **TRUE**, which reads
+  like a client-key leak. It answers a TABLE-privilege question and knows nothing
+  about schema USAGE. Behaviourally, anon and authenticated both get
+  `42501 permission denied for schema cron`; only a privileged connection ever
+  saw that secret. **Severity corrected DOWNWARD by measuring.**
+* A per-table policy query reported **"NO POLICIES"** for all four `reach` tables
+  — it was a correlated `pg_roles` lookup returning NULL inside `string_agg`. A
+  schema-wide count showed 3 policies. Without that control I would have sent
+  Piper a CRITICAL saying her migration was about to expose the data.
+* Two successive scripts comparing `CATEGORIES` to `CATEGORY_EMOJI` were wrong;
+  a control asserting a known-present key reads as present caught both.
+**Pair every "nothing is wrong" reading with something that SHOULD match.**
+
+### Also done, and not this desk's to finish
+Piper's `reach` migration `0006` is applied to this project and item 24 is ALIVE —
+owner **4 rows**, other signed-in user **0 rows** (refused by RLS, not by 42501),
+service_role 4 rows as the control. Her verifier now reads 9 PASS / 0 FAIL /
+1 UNKNOWN. Recorded as ask `1f5c9a59` because `SendMessage` reported delivery
+unconfirmed. The seven `backup/*` branches now exist on origin (verified by SHA,
+scanned clean of secrets first — it is a PUBLIC repo).
+
+
 ## Resume queue — 2026-09-14 LATE NIGHT. Start at item 1.
 
 `origin/main` 0/0 by CONTENTS after every push. Seven code commits this session:
