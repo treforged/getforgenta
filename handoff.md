@@ -1,5 +1,94 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## Resume queue — 2026-09-15 (Ada), OVERDRIVE. Four commits, all on origin/main 0/0 by CONTENTS.
+
+`38725a19` route walk · `e445b0ca` the narrow sidebar · `31769d45` real glass ·
+`4b217aea` the Account sections. Gates on the last: tsc clean, lint **0 errors**
+(34 warnings, unchanged all night), `test:tz` **4592 passed ×3 zones, 449 files**
+against a baseline **measured on this tree this morning at 4590** — so the rise is
+exactly the 2 tests added.
+
+### TRE'S NEW STANDING RULE, and it binds every desk
+His words, typed here: *"test everything yourself on localhost before you push
+commits. make this a permanent rule for all managers."* And a minute later, which is
+the sharper half: *"There's no point in implementing a broken item and then trying to
+tell me about it when it's still broken. Fix it yourself and always test beforehand."*
+Relayed to Sam AND filed as ask `69bb858b`, because `SendMessage` reported delivery
+unconfirmed. **Every commit below was exercised on localhost before it was made.**
+
+### FOUR NEW GATES, and every one was proven RED before it was trusted
+| command | what it measures | proven red by |
+| --- | --- | --- |
+| `npm run walk:routes` | all 27 routes render SIGNED IN; every in-app link target resolves to a declared route | a renamed route, a failing lazy chunk |
+| `npm run check:rail` | the narrow sidebar clips nothing and wraps nothing, at 1440 and 1024, in both states | the real shipped defect |
+| `npm run check:glass` | the glass is REALLY translucent, not painted | the property removed; an opaque fill with the blur still declared |
+| `npm run check:account` | every Account segment switches to a DIFFERENT body | both handlers on one state; both branches on one view |
+
+### ⚠️ THE REEL'S TOOL CANNOT BE USED HERE. Do not re-derive this.
+`expo-glass-effect` renders iOS 26's native Liquid Glass and is an **Expo / React
+Native** package. `package.json` carries **zero `expo*` and zero `react-native*`** —
+this app is React 19 + Vite in a Capacitor WebView. Not installable, and Apple's
+material is not reachable from here. What shipped is `@utility glass`
+(`backdrop-filter`), which samples the REAL pixels behind an element — the honest
+form, and never to be described as Apple's material.
+**Scoped on purpose:** NOT app-wide. None of the 11 existing `backdrop-blur` files is
+a panel; they are all modal scrims. So panel glass is an **identity change**, not a
+restyle, and "forged" currently means opaque, square and flat by intention. Four-point
+vocabulary agreed with Vera (forged-glass): tint inheritance, specular edge,
+concentric radii, floating not flush.
+
+### ⚠️ MY OWN INSTRUMENTS WERE WRONG FOUR TIMES TODAY. Assume yours are.
+Each would have produced a confident, reported, wrong claim:
+* **A ratio against neighbours could not see the defect it was built for.**
+  `check:rail` first compared each row to 1.5× the MEDIAN row height. "Sign Out"
+  wrapped to 48px against a 36px median — **1.33×** — and slipped under the bar, so
+  the check reported "0 wrapped" in a frame that plainly shows the words stacked.
+  Wrapping is now read from **each element's own line-height**.
+* **`window.scrollTo` moves nothing in this app.** `DashboardLayout` scrolls an inner
+  `overflow-y-auto` container, so `check:glass` first reported the nav FLAT at exactly
+  **0.00** — which is what a painted fill looks like AND what two screenshots of a page
+  that never moved look like. **It accused a working feature.** The scroller is now
+  FOUND and the scroll asserts its own effect, exiting 2 (could not test) not 1.
+* **`focus-within:w-52` held the rail OPEN while the check asked whether it was shut.**
+  Clicking collapse leaves the button focused, so the rail measured 234px — reading as
+  "the collapse control does the opposite of its name". Blur before measuring.
+* **A gate that went QUIET on the change it exists to catch.** Removing
+  `backdrop-filter` dropped the pinned count to zero and `check:glass` exited **2**.
+  Missing pinned glass is now a **failure**.
+**And the route walk's blind spot is structural, not a bug:** the route list is DERIVED
+from `src/App.tsx`, so a RENAME moves the app and the check together. Measured — that
+mutation passed. The link half exists for exactly that, and only it can see a rename.
+
+### ⚠️ THE MODAL RACE IS UNWINNABLE. Settle the dialogs in the ACCOUNT.
+The signed-in dashboard raises the tour, the founder note and What's New in sequence,
+each with a backdrop that intercepts clicks and sits across every frame, and a fresh
+one appears after a viewport change. Every browser check here now PATCHes
+`profiles.tour_flags` + `founder_note_seen` through the walk account's own RLS session
+first, deriving the What's New key from `src/lib/whats-new.ts` rather than typing it.
+Do not go back to clicking them away.
+
+### FIRST UP NEXT TIME
+1. `d05ef59a` — the 2FA banner on /dashboard at 390px squeezes its headline to one
+   word per line because "Secure my account" does not shrink. Found in a rendered
+   frame; it is the second thing a new user sees.
+2. `b9fe1d41` — `seg-item` declares a 9999px pill and **all 15 callers override it
+   inline** with `var(--radius)`. The utility and every caller disagree. Visual across
+   8 surfaces, so it wants a frame and probably Tre's eye.
+3. Sam asked for a one-paragraph ESTIMATE (not a build) of what the real iOS
+   `UIGlassEffect` would take: a Capacitor plugin plus a native build.
+
+### Still Tre's, unchanged
+`cd516cd3` (App Store vendor number), `a40f1e23` (reviewer-account sign-in),
+`e72a8df4` (rotate the reddit-scout secret), `d9ab0509` (the category merge map).
+`73df5d2b` is **DONE** — the older queue below still lists it as waiting on him, and
+that is stale. Its remaining half (a) is dead: re-measured today, every
+dashboard-path `profiles` access other than the shared `useProfile` is an UPDATE or
+sits inside `resetReviewerAccount`. The one real extra SELECT is
+`onboarding-state.ts`, and consolidating it would be WRONG — it is the route gate, a
+deliberate bounded race that runs before the gated route mounts.
+
+
+
 ## Resume queue — 2026-09-14 (Ada), LATER. THE DECK IS WALKED IN A REAL BROWSER NOW.
 
 `5d6dbada` was blocked on a human sign-in for days. It is not any more, and **not
@@ -3413,30 +3502,31 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-14 22:13 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 10:23 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
+M handoff.md
+ M supabase/.temp/cli-latest
 ?? scripts/handoff.md
 ```
 
 - **Recent commits:**
 
 ```
+31769d45 [design]: real glass on the mobile chrome, and a check that can tell it from paint
+e445b0ca [design]: the narrow sidebar stops clipping the wordmark and stacking "Sign Out"
+38725a19 [verify]: every route is opened signed in, in a real browser, and the links are held to the router
+ed54f735 [verify]: the batch panel undo is pressed too, and the mutation proved a record-only check would have passed a broken one
+46d5dedb [verify]: the decision deck is walked in a real browser, and the block was removed rather than escalated
+a65065d2 [handoff]: two items closed on measurements that said the code was not the problem
 a05d3cf3 [handoff]: the queue is down to Tre-items, and three instruments lied today
 e2d7e461 [design]: one grouped category picker, five hand-rolled copies consolidated, and one category had no icon
-b8385fb4 [security]: the three dead reddit-scout cron jobs held a plaintext webhook secret - unscheduled
-557118d5 [privacy]: the 108 orphan rows are snapshotted and gone, and the 11 constraints are now validated
-c49cfd58 [privacy]: deleting a user now removes their financial data by EVERY route, not just the app's
-97cced0d [handoff]: 'filled' is two sub-shapes, so the next slice decides between two components not one
-a4fbd757 [handoff]: the filled-group count is 9 across 6 files, not 3 - and four searches had four different blind spots
-da9fc797 [design]: one filter-pill row, six copies consolidated, and my own inventory was wrong three times
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
