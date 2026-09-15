@@ -165,6 +165,7 @@ const toastFns = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: 
 vi.mock('sonner', () => ({ toast: toastFns }));
 
 import SettingsPage from '../Settings';
+import AccountPage from '../Account';
 
 async function renderSecurityTab() {
   render(<MemoryRouter><SettingsPage /></MemoryRouter>);
@@ -178,8 +179,19 @@ async function renderSecurityTab() {
  * same as partner linking should be in account"). Their shape coverage moved with them rather
  * than being deleted -- a section that changes tab is exactly when its "does it still render
  * properly" check matters most.
+ *
+ * ⚠️ AND ON 2026-09-15 THEY LEFT THIS PAGE ENTIRELY. They had been rendering on BOTH Settings and
+ * `/account` -- duplicated rather than moved. So the shape assertions follow them again, to the
+ * ACCOUNT PAGE, and what Settings keeps is a pointer card. Re-pointing these at Settings to keep
+ * a green would be asserting the old IA over the shipped one.
  */
-async function renderAccountTab() {
+async function renderAccountPage() {
+  render(<MemoryRouter><AccountPage /></MemoryRouter>);
+  await screen.findByText('Connections');
+}
+
+/** Settings' own Account panel keeps a POINTER, because people who knew where these were will look. */
+async function renderSettingsAccountTab() {
   render(<MemoryRouter><SettingsPage /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: /^Account$/ }));
   await screen.findByText('Connections');
@@ -368,10 +380,10 @@ describe('the Security tab, one shape per section', () => {
  * different card, under a different heading, with different siblings. These are the same shape
  * assertions the Security tab applies to its own sections, pointed at Account.
  */
-describe('the Account tab, Connections', () => {
+describe('the Account PAGE, Connections', () => {
   for (const title of ['Partner Link', 'Friends']) {
-    it(`${title} renders under Account with a heading AND an explaining sentence`, async () => {
-      await renderAccountTab();
+    it(`${title} renders on /account with a heading AND an explaining sentence`, async () => {
+      await renderAccountPage();
 
       const heading = screen.getByText(title);
       const row = heading.closest('div.flex.items-center.gap-2');
@@ -385,7 +397,7 @@ describe('the Account tab, Connections', () => {
   }
 
   it('states what each connection actually shares, since that is what a person is deciding', async () => {
-    await renderAccountTab();
+    await renderAccountPage();
     // Spot-checked on the two whose consequence is least guessable from two words.
     expect(screen.getByText(/read only/i)).toBeTruthy();
     expect(screen.getByText(/never see your budget/i)).toBeTruthy();
@@ -395,6 +407,20 @@ describe('the Account tab, Connections', () => {
     await renderSecurityTab();
     expect(screen.queryByText('Partner Link')).toBeNull();
     expect(screen.queryByText('Friends')).toBeNull();
+  });
+
+  /**
+   * ⚠️ AND NOT ON SETTINGS' OWN ACCOUNT TAB EITHER — that was the duplicate. What is left is a
+   * pointer, so somebody who knows these used to be in Settings is told where they went rather
+   * than finding an empty card. The pointer is asserted PRESENT as well as the forms ABSENT:
+   * deleting the whole card would satisfy an absence-only test.
+   */
+  it('Settings keeps a pointer to /account, and neither form renders there any more', async () => {
+    await renderSettingsAccountTab();
+    expect(screen.queryByText('Partner Link')).toBeNull();
+    expect(screen.queryByText('Friends')).toBeNull();
+    expect(screen.getByText(/Partners and friends now live on your Account page\./)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Go to Account/i }).getAttribute('href')).toBe('/account');
   });
 });
 
@@ -415,7 +441,7 @@ describe('Danger Zone, in its new home on the Security tab', () => {
     expect(screen.getByText('Danger Zone')).toBeTruthy();
 
     cleanup();
-    await renderAccountTab();
+    await renderSettingsAccountTab();
     expect(screen.queryByText('Danger Zone')).toBeNull();
   });
 

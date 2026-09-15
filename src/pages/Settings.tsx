@@ -6,7 +6,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Capacitor } from '@capacitor/core';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal, User } from 'lucide-react';
 
 const DEV_EMAIL = 'tre@treforged.com';
@@ -20,8 +20,6 @@ interface TrustedDevice {
 }
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
 import SettingsSection from '@/components/settings/SettingsSection';
-import { PartnerLink } from '@/components/settings/PartnerLink';
-import { FriendLink } from '@/components/settings/FriendLink';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import { AppLockSettings } from '@/components/settings/AppLockSettings';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
@@ -124,6 +122,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const location = useLocation();
+  const navigate = useNavigate();
   const { choice: themeChoice, resolved: resolvedTheme, choose: chooseTheme } = useTheme();
 
   // ── Panels ────────────────────────────────────────────────────────────────────────────
@@ -156,17 +155,26 @@ export default function SettingsPage() {
   }, [location.hash, isDemo, setActiveTab]);
 
   // ⚠️ `/settings?friend_code=…` AND `?partner_code=…` ARE LIVE ACCEPT LINKS out of invite
-  // emails, and NOTHING was selecting a panel for them. PartnerLink and FriendLink read the
-  // query param and pre-fill the code field — but they rendered under Account Security while
-  // `activeTab` is PERSISTED and defaults elsewhere, so the pre-filled field sat on a tab the
-  // recipient was not looking at. The pre-fill worked and was invisible, which is why nothing
-  // ever reported it as broken. Moving both to Account (2026-09-12) puts them on the default
-  // tab, but a returning user whose last tab was Plan would still miss them — so the code
-  // selects the panel explicitly, exactly as `#security` does.
+  // emails, and the forms they point at no longer live on this page — they are on `/account`
+  // (2026-09-15). An email already in somebody's inbox cannot be edited, so this route must keep
+  // working for as long as any unexpired invite exists, and invites last 7 days.
+  //
+  // The original defect is worth keeping in view because it is the one this must not recreate:
+  // `PartnerLink` and `FriendLink` read the query param and pre-fill the code field, but the
+  // selected tab is PERSISTED, so a recipient whose last tab was something else landed on a
+  // pre-filled field they never saw. The pre-fill worked and was invisible, which is why nothing
+  // ever reported it as broken. `/account` now has the same guard for the same reason.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if ((params.get('friend_code') || params.get('partner_code')) && !isDemo) setActiveTab('account');
-  }, [location.search, isDemo, setActiveTab]);
+    // ⚠️ REDIRECT, DO NOT SELECT A TAB. The forms moved to `/account`, but every invite already
+    // in somebody's inbox points at `/settings?friend_code=…`, and an email cannot be edited after
+    // it is sent. Selecting a tab here would now select a tab that holds a POINTER rather than the
+    // code field, so the recipient would arrive at the right page and find nothing to paste into.
+    // The search string is carried across verbatim, because the code IS the search string.
+    if ((params.get('friend_code') || params.get('partner_code')) && !isDemo) {
+      navigate(`/account${location.search}`, { replace: true });
+    }
+  }, [location.search, isDemo, navigate]);
   const { data: profile, update } = useProfile();
   const { data: accounts } = useAccounts();
   const { subscription, isPremium, hasStripeCustomer, isLoading: subLoading, refetch: refetchSub } = useSubscription();
@@ -864,22 +872,27 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* People you are connected to. Tre, 2026-09-12: "friends should be in account, same as
-          partner linking should be in account." Both lived under Account Security, which read as
-          if linking a partner were a security control rather than a relationship. Sharing WHAT a
-          partner may see is still governed in Security — who you are connected to is Account. */}
+      {/* ⚠️ CONNECTIONS LIVE ON THE ACCOUNT PAGE, AND ONLY THERE. Tre, 2026-09-12: "friends should
+          be in account, same as partner linking should be in account."
+
+          They were MOVED to `/account` and also LEFT HERE, so `PartnerLink` and `FriendLink`
+          rendered on two surfaces at once — the same duplicate-rather-than-move that
+          `FriendsLeaderboard` shipped with and that `a0328857` fixed. Two live copies of an invite
+          form is not a tidiness problem: each keeps its own pending-invite state, so cancelling an
+          invite on one screen leaves the other showing it.
+
+          A POINTER rather than nothing, because somebody who knows these were in Settings needs to
+          be told where they went. Sharing WHAT a partner may see is still governed in Security;
+          WHO you are connected to is the Account page. */}
       {panel === 'account' && !isDemo && (
-        <div className="card-forged p-5 space-y-5">
+        <div className="card-forged p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
-
-          {/* Partner Link (partner-linking design §4 Phase 1) */}
-          <PartnerLink />
-
-          <div className="border-t border-border" />
-
-          {/* Friends (friends-leaderboard plan §4 Phase 1) — free tier, no view
-              lens: a friend can never see a budget, only shared progress. */}
-          <FriendLink />
+          <p className="text-xs text-muted-foreground">
+            Partners and friends now live on your Account page.
+          </p>
+          <Link to="/account" className="text-xs text-primary hover:underline font-medium">
+            Go to Account
+          </Link>
         </div>
       )}
 

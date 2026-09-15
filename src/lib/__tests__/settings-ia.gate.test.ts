@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   SETTINGS_IA,
+  ACCOUNT_PAGE_ONLY,
   TRACKED_COMPONENTS,
   declaredPanelFor,
   type SettingsPanelKey,
@@ -126,7 +127,45 @@ describe('Settings information architecture', () => {
     const panelOf = (item: string) => found.find(f => f.item === item)?.panel;
 
     expect(panelOf('Danger Zone')).toBe('security');
-    expect(panelOf('FriendLink')).toBe('account');
-    expect(panelOf('PartnerLink')).toBe('account');
+    // Connections is the POINTER card left behind where the two forms used to be. The forms
+    // themselves are asserted on `/account` below — see ACCOUNT_PAGE_ONLY.
+    expect(panelOf('Connections')).toBe('account');
+  });
+
+  /**
+   * ⚠️ MOVED MEANS MOVED — ONE MOUNT, NOT TWO.
+   *
+   * `PartnerLink` and `FriendLink` were declared under the Settings `account` panel and were
+   * rendering on BOTH Settings and the Account page: duplicated rather than moved, the same shape
+   * `a0328857` fixed for `FriendsLeaderboard`. Each copy keeps its own pending-invite state, so
+   * cancelling an invite on one screen leaves the other showing it.
+   *
+   * The presence half is the POSITIVE CONTROL for the absence half. "Not in Settings" is satisfied
+   * perfectly by the component not existing anywhere, which is how a moved section silently becomes
+   * a deleted one.
+   */
+  describe('the two sections that moved OFF this page', () => {
+    const ACCOUNT_PAGE = join(process.cwd(), 'src', 'pages', 'Account.tsx');
+
+    for (const comp of ACCOUNT_PAGE_ONLY) {
+      it(`${comp} is mounted on /account exactly once, and not at all in Settings`, () => {
+        const account = readFileSync(ACCOUNT_PAGE, 'utf8');
+        const settings = readFileSync(SETTINGS, 'utf8');
+        const mounts = (s: string) => (s.match(new RegExp(`<${comp}\\b`, 'g')) ?? []).length;
+
+        expect(mounts(account), `${comp} is not mounted on /account — a section that moved must arrive somewhere`).toBe(1);
+        expect(mounts(settings), `${comp} still renders in Settings — that is the duplicate, not the move`).toBe(0);
+      });
+    }
+
+    it('Settings still redirects the live invite links to /account, carrying the code', () => {
+      const settings = readFileSync(SETTINGS, 'utf8');
+      // Invite emails already sent point at `/settings?friend_code=…` and cannot be edited;
+      // invites last 7 days. Dropping this strands every outstanding invite.
+      expect(settings).toMatch(/friend_code/);
+      expect(settings).toMatch(/partner_code/);
+      expect(settings, 'the redirect must carry the search string — the code IS the search string')
+        .toMatch(/navigate\(`\/account\$\{location\.search\}`/);
+    });
   });
 });

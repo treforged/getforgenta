@@ -425,9 +425,18 @@ describe('the hook is never lensed — a friend is not a partner', () => {
     );
   });
 
-  it('is mounted in Settings beside the partner card, and the card is free-tier', () => {
-    expect(settingsSrc).toContain("import { FriendLink } from '@/components/settings/FriendLink';");
-    expect(settingsSrc).toContain('<FriendLink />');
+  /**
+   * ⚠️ IT MOVED TO `/account` ON 2026-09-15, AND "MOVED" MEANS IT LEFT SETTINGS.
+   * It had been rendering on both pages at once — two invite forms, each with its own pending
+   * state. The Settings half is asserted ABSENT here and the Account half PRESENT, because
+   * absence alone is satisfied by the card existing nowhere.
+   * `src/lib/__tests__/settings-ia.gate.test.ts` holds the same pair as the IA gate.
+   */
+  it('is mounted on the Account page and NOT in Settings, and the card is free-tier', () => {
+    const accountSrc = read('../../pages/Account.tsx');
+    expect(accountSrc).toContain("import { FriendLink } from '@/components/settings/FriendLink';");
+    expect(accountSrc).toContain('<FriendLink />');
+    expect(settingsSrc).not.toContain('<FriendLink />');
     // No premium gate on the card: the cap is the function's, so the number lives once.
     expect(componentSrc).not.toContain('useSubscription');
     expect(componentSrc).not.toContain('isPremium');

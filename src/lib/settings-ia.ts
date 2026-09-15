@@ -59,8 +59,6 @@ export const SETTINGS_IA: Readonly<Record<SettingsPanelKey, readonly string[]>> 
     'Profile',
     'Invite a Friend',
     'Connections',
-    'PartnerLink',
-    'FriendLink',
     'Support',
   ],
   security: [
@@ -83,6 +81,30 @@ export const SETTINGS_IA: Readonly<Record<SettingsPanelKey, readonly string[]>> 
     'Developer',
   ],
 };
+
+/**
+ * SECTIONS THAT LIVE ON `/account` AND NOWHERE ELSE — the second half of the same declaration.
+ *
+ * ⚠️ THIS IS A RE-STATEMENT OF THE IA, NOT A RELAXATION OF IT. `PartnerLink` and `FriendLink`
+ * were declared under the Settings `account` panel above until 2026-09-15, when they were found
+ * rendering on BOTH `src/pages/Settings.tsx` and `src/pages/Account.tsx` — duplicated rather than
+ * moved, the same shape `FriendsLeaderboard` shipped with and `a0328857` fixed. Two live copies of
+ * an invite form is not a tidiness problem: each keeps its own pending-invite state, so cancelling
+ * an invite on one screen leaves the other still showing it.
+ *
+ * Deleting the two entries above would have satisfied the gate and declared nothing. They are
+ * declared HERE instead, so the gate can assert the stronger pair: each of these renders on the
+ * Account PAGE exactly once, and ZERO times in Settings. Re-adding one to Settings fails a check
+ * rather than waiting for somebody to notice two invite forms.
+ *
+ * Settings keeps a POINTER card (heading `Connections`, declared under `account` above) plus a
+ * redirect, because `/settings?friend_code=…` is in already-sent invite emails that cannot be
+ * edited, and invites last 7 days.
+ */
+export const ACCOUNT_PAGE_ONLY: readonly string[] = [
+  'PartnerLink',
+  'FriendLink',
+];
 
 /** The settings components the gate tracks by name (they render no heading of their own). */
 export const TRACKED_COMPONENTS: readonly string[] = [

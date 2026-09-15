@@ -1,5 +1,5 @@
-import { Link } from 'react-router';
-import { lazy, Suspense } from 'react';
+import { Link, useLocation } from 'react-router';
+import { lazy, Suspense, useEffect } from 'react';
 import { User, Settings as SettingsIcon, Trophy, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
@@ -82,6 +82,26 @@ export default function Account() {
   // production, and the persisted value names a section that no longer has a segment. Reading it
   // back unchecked would leave the bar with nothing selected while a body rendered underneath.
   const activeSection: AccountSection = SECTION_AVAILABLE[section] ? section : 'profile';
+
+  /**
+   * ⚠️ AN INVITE EMAIL LANDS HERE, AND THE SECTION IS PERSISTED, SO ARRIVING IS NOT ENOUGH.
+   *
+   * `friend-link` and `partner-link` mail an accept URL carrying `?friend_code=` / `?partner_code=`.
+   * `FriendLink` and `PartnerLink` read that param themselves and pre-fill the code field — but
+   * `account-section` remembers whatever the user last chose, so somebody whose last section was
+   * Leaderboard would land on a pre-filled field they never see. That is the exact defect
+   * `Settings.tsx` recorded and fixed for its own tabs on 2026-09-12: **the pre-fill worked and was
+   * invisible, which is why nothing ever reported it as broken.**
+   *
+   * Deliberately NOT keyed on `section` — it must fire when the recipient ARRIVES on the link, and
+   * never again while they click around afterwards.
+   */
+  const { search } = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get('friend_code') || params.get('partner_code')) setSection('profile');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   return (
     <div className="py-4 lg:py-6 max-w-2xl mx-auto stack-section overflow-x-hidden">
