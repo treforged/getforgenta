@@ -25,7 +25,19 @@ bank charges waiting and the walk account's queue is empty, so that assertion ha
 red. The check PRINTS `numeric badge ABSENT (not exercised)` per cell so nobody reads a clean
 result as coverage. Seed a review-queue row for the @forgenta.test account to close it.
 
-### ⚠️ THREE INSTRUMENT LESSONS FROM THIS SESSION
+### ⚠️ MY OWN GATE POISONED ITS OWN NEXT RUN, AND IT WAS GREEN THROUGHOUT
+`check:username` seeded a handle and cleared it in a trailing line, so **cleanup ran only on the
+SUCCESS path** — and each leftover spent one of the account's two-per-week allowance. After two,
+the account cannot change its username for seven days and the gate fails for a reason unrelated to
+the code.
+**And the teardown I added to fix it was defeated by the feature it tests**: `username_changes` has
+no DELETE policy (deliberately — a user who can delete their own history defeats the limit), so the
+DELETE silently affected zero rows, and the reset-to-null was REFUSED as a third change. **Both
+calls returned without error and neither did anything.** The gate now writes NOTHING; the walk
+account keeps `@walkprobe` permanently. Proven by a RED run followed by a GREEN one and then reading
+the database back: history_rows 0. Fixed in `0f0…` (see `git log`).
+
+### ⚠️ FOUR INSTRUMENT LESSONS FROM THIS SESSION
 * **A TEST ASSERTED THE DEFECT AND PASSED FOR DAYS.** `"says nobody is sharing, rather than drawing
   an empty table"` REQUIRED the friend's name to be absent — enforcing exactly what Tre reported as
   broken, and contradicting two headers in the source it was testing.
@@ -53,8 +65,35 @@ New gate `npm run check:username`, proven red on the TRUE pre-fix code. ⚠️ I
 limit itself (three real changes would leave a week-long lockout on the walk account); the trigger is
 proven against the live database instead.
 
-### NEXT, in Sam's order
-1. `6eeb8fe3` remove add-friend-by-email, usernames only — remove the STORAGE and INDEX too.
+### `6eeb8fe3` REMOVE ADD-BY-EMAIL — MEASURED, NOT STARTED. Start here.
+Stopped at the 5h cap before writing code, so **nothing is half-done**. What is already measured
+against the live database, so the next session does not pay for it again:
+
+| fact | value |
+| --- | --- |
+| `friend_links` rows, total | **1** |
+| accepted, unrevoked | **1** (Tre's own link) |
+| **live pending EMAIL invites** | **0** — so removing the path strands nobody |
+| rows carrying an `invitee_email` | **1** |
+| people with a username | **2** |
+
+The email surface to remove: `invite` action in `useFriendLink.ts:249`, `invitee_email` on the
+`FriendLinkRow` type and its select list, the pending-invite card in `FriendLink.tsx`, the email
+field, the `friend-link` edge function's `invite` action — and the INDEX
+**`friend_links_one_pending`**, which is `btree (inviter_id, lower(invitee_email))`. That index is
+literally the "does this address have an account" lookup his ask is about.
+
+⚠️ **THE COLUMN DROP IS THE ONE IRREVERSIBLE STEP, and it holds a real person's address.** His ask
+is explicit that hiding the field while keeping the column is not what he wants, so it should go —
+but **snapshot the row into a locked-down backup table first and then drop**, the pattern this
+repo already used for the §1 table rename. Verify the snapshot by reading it back AFTER the drop,
+not before: a backup verified only at write time is verified against the moment nothing had
+happened yet.
+**Privacy line for the commit body, from his ask:** an email lookup lets anyone test whether a
+given address has an account.
+
+### NEXT, after that
+1. ~~`6eeb8fe3`~~ (above) remove add-friend-by-email, usernames only — remove the STORAGE and INDEX too.
    Privacy line for the commit body: an email lookup lets anyone test whether an address has an
    account.
 3. `f05b9c82` the remaining leaderboard stats. ENUMERATE how many render "not ready". A stat that
