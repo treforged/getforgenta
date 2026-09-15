@@ -1,50 +1,27 @@
 import { Link, useLocation } from 'react-router';
 import {
-  LayoutDashboard, ArrowLeftRight, Landmark,
-  Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  TrendingUp, Home, Sparkles, Zap, Car, ArrowLeft, Eye,
+  Crown, LogOut, ChevronLeft, ChevronRight,
+  Home, Zap, ArrowLeft, Eye,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/hooks/useSubscription';
 import { useDemoSession } from '@/hooks/useDemoSession';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { usePartnerLinkStatus } from '@/hooks/usePartnerLink';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
+import { PRIMARY_NAV } from '@/lib/primary-nav';
 
-const navItems = [
-  // Accounts is a PANEL of the Dashboard now, not a row here — Tre, 2026-08-18: "we need to reduce
-  // how many separate tabs". The rail lost the row; the surface lost nothing.
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  // Plan (formerly "Budget Control") is a PANEL of this surface now, for the same reason and on the
-  // same day. `/budget` still resolves — it redirects to `/transactions?tab=budget` — so every
-  // bookmark and every in-app link keeps landing; what it stopped being is a row of its own.
-  // 'Transactions' since 2026-08-27 (Tre: "rename activity in the tab section to Transactions").
-  // Still ONE name at every width — `MobileNav` says the same thing, and its header carries the
-  // width trade that comes with the longer word.
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
-  { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
-  // Goals is a PANEL of the Dashboard now, for the same reason and by the same route as Accounts
-  // and Budget Control (Tre, 2026-08-20: "move the goals section to the home/command center tab …
-  // it makes more sense there."). `/goals` still resolves — it redirects to
-  // `/dashboard?tab=goals` — so every bookmark and every in-app link keeps landing; what it
-  // stopped being is a row of its own.
-  // Forecast is a PANEL of the Activity surface now, for the same reason and by the same route as
-  // Accounts, Plan and Goals above (Tre, 2026-09-12: "the forecast section should be moved to the
-  // transactions tab"). `/forecast` still resolves — it redirects to `/transactions?tab=forecast`.
-  //
-  // ⚠️ IT WAS REMOVED FROM `MobileNav` FIRST AND LEFT HERE, and that half-landed state is worse
-  // than not having started: the same destination existed twice, once as a rail row and once as a
-  // pill inside the surface it had moved into. The drift guard did not catch it because
-  // `nav-routes.test.ts` only compared TAB_ROOT_PATHS against `MobileNav`'s PRIMARY and never
-  // looked at this file. `nav-no-redirect-targets.test.ts` now covers BOTH navs.
-  { to: '/vehicles', icon: Car, label: 'Garage' },
-  ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
-  { to: '/settings', icon: Settings, label: 'Settings' },
-  { to: '/premium', icon: Crown, label: 'Upgrade' },
-];
+/**
+ * ⚠️ DERIVED, NOT DECLARED — the rail and the phone bar are ONE list now.
+ *
+ * Tre, 2026-09-15: the selections on a big screen were different from the selections on mobile,
+ * and mobile is the reference. This file used to declare its own seven destinations against the
+ * phone bar's five. See `src/lib/primary-nav.ts` for the measured mismatch, for what the rail
+ * lost, and for where each lost destination is still reached from.
+ */
+const navItems = PRIMARY_NAV;
+
 
 /**
  * A LABEL THAT VANISHES WHILE THE RAIL IS NARROW.
@@ -91,7 +68,6 @@ export default function Sidebar() {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
   const { isDemo, isPreview, leaveDemo } = useDemoSession();
-  const { isPremium } = useSubscription();
   const [collapsed, setCollapsed] = useState(false);
 
   /**
@@ -218,11 +194,10 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-        {navItems.filter(item => {
-          if (isDemo && item.to === '/premium') return false;
-          if (isPremium && item.to === '/premium') return false;
-          return true;
-        }).map(item => {
+        {/* No filter: every destination in PRIMARY_NAV is for every user at every width. The
+            `/premium` row this used to hide for demo and premium users is no longer a rail row —
+            Upgrade is reached from the contextual `PremiumGate` links instead. */}
+        {navItems.map(item => {
           const active = pathname === item.to;
           const badge = item.to === '/transactions' ? reviewQueueCount : null;
           return (

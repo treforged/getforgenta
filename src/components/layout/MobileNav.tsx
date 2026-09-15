@@ -1,10 +1,7 @@
 import { Link, useLocation } from 'react-router';
-import {
-  LayoutDashboard, ArrowLeftRight, Landmark, TrendingUp, Car,
-  User,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
+import { PRIMARY_NAV } from '@/lib/primary-nav';
 
 // The bottom bar is a 5-column grid of five destinations. It used to be four plus a "More" button;
 // the button's panel became the top-left hamburger drawer on 2026-08-18 (Tre: "make settings
@@ -26,15 +23,13 @@ import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 // Accounts, Plan and Goals are all PANELS of tabs already in this row (of Dashboard,
 // Transactions and Forecast respectively) rather than entries of their own — the "reduce how many
 // separate tabs, especially on mobile" ask. Their old routes still resolve as redirects.
-export const PRIMARY = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
-  { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
-  { to: '/vehicles', icon: Car, label: 'Garage' },
-  // Rightmost, and it fits without a sixth item because Forecast moved into Transactions on the
-  // same day (Tre, 2026-09-12). Five icons is what a 320px SE holds; six is what breaks it.
-  { to: '/account', icon: User, label: 'Account' },
-];
+/**
+ * ⚠️ RE-EXPORTED, NOT DECLARED. The destinations now live in `src/lib/primary-nav.ts` so the
+ * desktop rail and this bar map over ONE list and cannot drift apart — Tre, 2026-09-15: the
+ * selections on a big screen were different from the selections on mobile. Existing importers of
+ * `PRIMARY` keep working; what changed is where the list comes from.
+ */
+export const PRIMARY = PRIMARY_NAV;
 
 /**
  * TAPPING THE TAB YOU ARE ALREADY ON RETURNS YOU TO THE TOP.

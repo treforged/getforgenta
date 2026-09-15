@@ -28,9 +28,14 @@ import { join } from 'node:path';
 
 const ROOT = process.cwd();
 const APP = join(ROOT, 'src', 'App.tsx');
+/**
+ * ⚠️ ONE FILE NOW, AND THAT IS THE FIX RATHER THAN A NARROWING. Both navigations declared their own
+ * destination arrays until 2026-09-15; they now map over `src/lib/primary-nav.ts`, so the single
+ * list IS both navs. Scanning the two components would find nothing and read as clean — which is
+ * exactly what the blind-scan assertion below caught when this gate was left pointing at them.
+ */
 const NAVS = [
-  join(ROOT, 'src', 'components', 'layout', 'MobileNav.tsx'),
-  join(ROOT, 'src', 'components', 'layout', 'Sidebar.tsx'),
+  join(ROOT, 'src', 'lib', 'primary-nav.ts'),
 ];
 
 /** Every path App.tsx maps straight to a `<Navigate>` — i.e. a route that is not a destination. */

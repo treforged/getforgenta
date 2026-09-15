@@ -22,6 +22,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Sidebar from '../Sidebar';
+import { PRIMARY_NAV } from '@/lib/primary-nav';
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false, leaveDemo: vi.fn() }) }));
@@ -46,10 +47,17 @@ const renderRail = () => {
 afterEach(cleanup);
 
 describe('the desktop rail, collapsed to icons', () => {
+  it('has destinations to check at all — an empty list would pass every assertion below', () => {
+    expect(PRIMARY_NAV.length).toBeGreaterThan(3);
+  });
+
   it('names EVERY navigation row, even with no label text on screen', () => {
     renderRail();
 
-    for (const name of ['Dashboard', 'Transactions', 'Debt Payoff', 'Garage', 'Settings']) {
+    // ⚠️ DERIVED, NEVER HAND-NAMED. This list used to be five literals, and it went stale the
+    // moment the rail's destinations changed on 2026-09-15 — a hand-named inventory is blind to
+    // the row nobody added to it, and here it was blind to the rows that LEFT as well.
+    for (const { label: name } of PRIMARY_NAV) {
       const link = screen.getByRole('link', { name });
       expect(link, `${name} has no accessible name`).toBeTruthy();
       expect(link.getAttribute('href')).toBeTruthy();
