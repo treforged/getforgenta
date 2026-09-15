@@ -26,7 +26,8 @@
     "test:watch": "vitest",
     "version:next": "node scripts/next-version.mjs",
     "version:bump": "node scripts/next-version.mjs --write",
-    "version:staleness": "node scripts/version-staleness.mjs"
+    "version:staleness": "node scripts/version-staleness.mjs",
+    "check:username": "node scripts/check-username-change.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
