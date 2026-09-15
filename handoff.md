@@ -227,19 +227,16 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    SECTION does not match the mobile-sized page. He is at localhost:8080 and can point. Mobile is
    the REFERENCE; do not reconcile by changing mobile. Items 2/3/4 are fixed (one bug), 5 is moot.
 
-2. **FINISH `da0ce630` — I was one tool call from the answer when the handoff gate fired.**
-   Ellis asks which database the live `/founder-waitlist` edge function WRITES to;
-   `public.founder_waitlist` does NOT exist in treforged-site (`zyvqoefbgsgkbdoydopt`). Run exactly
-   this against FORGENTA (`mdtosrbfkextcaezuclh`) and reply to Ellis:
-   ```sql
-   select to_regclass('public.founder_waitlist') is not null as exists_here,
-          to_regclass('public.profiles') is not null as control,
-          case when to_regclass('public.founder_waitlist') is not null
-               then (select count(*) from public.founder_waitlist) end as row_count;
-   ```
-   The `control` column is load-bearing: "table not found" and "the query cannot see this schema"
-   are the same NULL otherwise. **Until it is settled nobody quotes a founders signup number** — a
-   count from the wrong project is indistinguishable from zero signups.
+2. **[x] `da0ce630` ANSWERED — 2026-09-15, one query.** Against FORGENTA
+   (`mdtosrbfkextcaezuclh`): `exists_here=true`, `control` (`public.profiles`) `=true`,
+   `row_count=0`. The control came back non-null, so that is a real read and not a schema the
+   query cannot see. The table is ABSENT from treforged-site, so FORGENTA is the only project
+   holding it and any successful write from the live function lands there.
+   ⚠️ **0 rows does NOT mean zero demand.** A count of 0 cannot tell "nobody signed up" from
+   "the function never writes" — the two are the same zero. Nobody quotes a founders number
+   until ONE test submission is seen to land. Closed with that evidence; relayed to Ellis as
+   ask `fdef9bed` (every `Ellis` row in the roster was OFFLINE, so a message would have been
+   accepted by the server and read by nobody — the tracker is the record).
 
 3. **`6eeb8fe3` remove add-friend-by-email.** MEASURED, NOT STARTED — see its own section above for
    the five live numbers so you do not pay for them again. Surface to remove: the `invite` action at
