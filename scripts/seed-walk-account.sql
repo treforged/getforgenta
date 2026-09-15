@@ -116,7 +116,66 @@ where v.user_id = (select id from walk_source)
   and (select count(*) from walk_target) = 1
 on conflict (id) do nothing;
 
+
 commit;
+
+-- =================== SECOND FIXTURE: THE UNDECIDED MERCHANT ===================
+-- The clone above gives the deck ONE auto-appliable charge. Two of the three undo
+-- controls need more than that, and each needs a different shape:
+--
+--   * walk-row-link-undo.mjs needs a charge the deck CANNOT decide for itself, so
+--     BankActivity offers the per-row "Link to a bill" opener. A merchant with no
+--     history is exactly that.
+--   * walk-batch-undo.mjs needs a RETRO PASS to exist, and planRetroactivePass only
+--     writes for a charge with NO recorded category whose merchant the account HAS
+--     labelled before (merchant-memory.ts:265). So the same merchant needs both
+--     decided and undecided charges - three of each here, which clears the
+--     confidence split rather than landing in the ambiguous half.
+--
+-- Amounts and dates are unremarkable on purpose: nothing here should trip an outlier
+-- gate, because the thing under test is the undo, not the matcher.
+
+begin;
+
+create temporary view walk_t as
+  select id from auth.users
+   where email = 'deck-walk@forgenta.test' and email like '%@forgenta.test';
+
+insert into synced_transactions (id, user_id, connection_id, account_id, provider_transaction_id, amount, date, pending, name, merchant_name, category)
+select md5('walk-nh-' || v.n)::uuid, (select id from walk_t),
+       (select id from financial_connections where user_id = (select id from walk_t) limit 1),
+       (select id from accounts where user_id = (select id from walk_t) order by created_at limit 1),
+       'WALK-NH-' || v.n, v.amt, v.dt, false, 'NORTHSIDE HARDWARE', 'Northside Hardware', 'Shopping'
+from (values (1, 41.10, date '2026-05-04'), (2, 88.75, date '2026-06-08'), (3, 23.40, date '2026-07-19'),
+             (4, 57.30, date '2026-08-21'), (5, 12.99, date '2026-09-02'),
+             (6, 64.20, date '2026-09-12')) as v(n, amt, dt)
+where (select count(*) from walk_t) = 1
+on conflict (id) do nothing;
+
+-- Three DECIDED, which is what forms the merchant rule the pass reads.
+insert into synced_transaction_reviews (id, user_id, synced_transaction_id, status, category_override)
+select md5('walk-nh-rev-' || v.n)::uuid, (select id from walk_t), md5('walk-nh-' || v.n)::uuid,
+       'categorized', 'Shopping'
+from (values (1), (2), (3)) as v(n)
+where (select count(*) from walk_t) = 1
+on conflict (id) do nothing;
+
+commit;
+
+-- RE-ARM BETWEEN RUNS. Each walk consumes what it presses, which is the product being
+-- correct rather than a fixture defect - an undone decision must not be re-applied. All
+-- three scripts print the re-arm they need; this is the one the batch walk wants:
+--
+--   delete from applied_actions
+--    where user_id = (select id from auth.users where email = 'deck-walk@forgenta.test');
+--   delete from synced_transaction_reviews
+--    where synced_transaction_id in (
+--      select md5('walk-nh-' || n)::uuid from (values (4), (5), (6)) as x(n));
+--
+-- It needs a PRIVILEGED connection: DELETE on applied_actions is refused by RLS even for
+-- the row's own owner (measured, HTTP 403), because undo MARKS that trail rather than
+-- erasing it.
+
 
 -- ============================ TEARDOWN ============================
 -- Exact, not heuristic: every id is derived from the source id the same way.

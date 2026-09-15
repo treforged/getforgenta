@@ -68,10 +68,26 @@ Same lesson three times, and it is the reason this section exists rather than a 
   HTTP 403). It is an append-only trail that undo MARKS. So re-arming needs a privileged
   connection, which is why the scripts print the SQL instead of doing it.
 
+### ALL THREE UNDO CONTROLS ARE NOW BROWSER-PROVEN — the batch panel included
+`scripts/walk-batch-undo.mjs` presses **"Undo all"** on `MerchantMemoryPanel`. PASS:
+the pass auto-applied 3 charges (`Categorized 3 charges from merchants you have labeled
+before`), and the press marked that id undone **and returned the 3 charges to having no
+category** — categorised reviews 6 → 3.
+
+⚠️ **THE SECOND HALF OF THAT ASSERTION IS THE ONE THAT EARNED ITS KEEP.** Mutating the
+panel's replay loop to skip `setCategory` — a single `!==` to `===`, non-throwing —
+produced a run where the pass WAS marked undone and **all 6 categorisations stayed**. A
+check that read only `applied_actions` would have passed it, and the user would have
+been told their bulk write was taken back while every row it wrote was still there.
+Restored byte-exact, sha `a683b917…`, green again.
+
+The batch fixture needs a shape the clone does not provide: `planRetroactivePass`
+(`merchant-memory.ts:265`) writes only for a charge with NO recorded category whose
+merchant the account HAS labelled before. So `seed-walk-account.sql` now adds six
+Northside Hardware charges, three decided and three not — and that block was RUN from
+the committed file, not just written into it.
+
 ### Still NOT covered, said plainly
-* **The BATCH panel undo (`MerchantMemoryPanel`) is still jsdom-only.** It is the one
-  control of the three that has never been pressed. Filed separately; the surface now
-  exists, so it is cheap.
 * Both checks assert **database rows, not a rendered frame**. A visual regression in the
   undo banner passes them.
 * The reviewer-account walk (`a40f1e23`) is **unchanged and still Tre's**. This removes
