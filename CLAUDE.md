@@ -92,6 +92,12 @@ section states reasoning, not measurement, and says so.
   them apart. Its still-frame control proves the comparator can say "no change", and the
   scroller is FOUND and asserts its own movement — the app scrolls an inner container,
   so `window.scrollTo` moved nothing and the first run accused a working feature.
+- `npm run check:account` — presses every segment of the Account tab's section bar on a
+  phone and asserts the section actually CHANGED: a different body, each section carrying
+  its own marker and not the other's, and `aria-selected` moving. Segments are found BY
+  ROLE, never by a hand-written label list. Proven red twice — both handlers setting the
+  same state, and both branches resolving to the same view with aria still correct, which
+  is the forged-glass dead-tab shape that throws nothing and passes every smoke test.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER
