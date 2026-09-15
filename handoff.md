@@ -230,6 +230,20 @@ sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven 
 > with **3** segments.
 > **Blocked-to-Sam, recorded here because messaging is blocked under the cap:** nothing is waiting
 > on a decision — only on the window and on Tre's two items.
+>
+> ⚠️ **MACHINE-LEVEL DEFECT FOR SAM: `keep_going_hook.py` AND `usage_cap_hook.py` CONTRADICT EACH
+> OTHER, AND THE LOOP SPENDS THE BUDGET THE CAP IS PROTECTING.** Measured here 2026-09-15: the cap
+> hook fired *"USAGE CAP REACHED - STOP WORKING NOW… then stop taking turns"*, reserving the
+> remainder for scheduled trading routines that hold live order authority. The keep-going hook then
+> blocked the Stop **five times in a row** with *"this turn is not finished - START it"*, because
+> **it counts open asks and cannot see the cap at all.**
+> **Each refusal costs another turn out of the window the cap hook just said must not be spent** —
+> so the guard against overspending is itself driving the overspend. That is the same shape as a
+> guard causing the failure it was built to prevent, already recorded in the casebook.
+> **THE FIX IS ONE CHECK, NOT A JUDGEMENT CALL:** `keep_going_hook.py` must read the cap first and
+> allow the Stop when the window is exhausted — a desk that is out of budget is not a desk that is
+> slacking. Until then a capped session has no way to end cleanly except by ignoring a blocking
+> hook, which trains every desk to ignore that hook.
 
 **Eight commits, all on origin/main 0/0 BY CONTENTS.** `2f45062c` `0d2152c4` `9635c38e` `417c9ee3`
 plus the handoff commits and the squeeze-gate fix. Gates last run: tsc clean, lint 0 errors / 34
