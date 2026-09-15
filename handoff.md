@@ -1,5 +1,57 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ⇢ FIRST UP — 2026-09-15 (Ada, FIFTH session). ITEMS A AND B ARE BOTH SHIPPED.
+
+`3ebf4d79` the friend_links grant + a real-PostgREST gate · `2e562f10` the Account-tab IA
+reconciliation. Both on origin/main 0/0 BY CONTENTS. Asks closed with evidence: `6a85c2cd`,
+`ad4f33ab`, `c4cdcc58` (all three thirds).
+
+### A. ✅ THE FRIENDS CARD — ONE MISSING COLUMN GRANT, AND NO TEST HERE COULD SEE IT
+`invitee_username` was added on 2026-09-15 by a migration that did not extend the column-scoped
+SELECT grant from `20260826_friend_links.sql`. `cc8aecb1` put it in the hook's select list, so
+every signed-in user's own read answered 403/42501. **Confirmed before fixing**: 8 granted columns
+against the hook's 9.
+⚠️ **THE HYPOTHESIS IN THE PREVIOUS HANDOFF WAS EXACTLY RIGHT** — recorded because a confident
+un-run hypothesis is usually the thing that wastes a session, and this one saved one.
+⚠️ **AND VERIFYING IT BY SQL WOULD HAVE LIED.** Every SQL tool here runs as service_role and
+bypasses column grants entirely. `set local role authenticated` DOES enforce them (proven by a
+control: `invite_code_hash` still 42501 under the switch), but the page is what settled it.
+**New gate `npm run check:friend-read`**, wired into package.json: signs in with a real JWT,
+DERIVES the column list from `useFriendLink.ts`, performs that exact read, requires a 403/42501 on
+`invite_code_hash` as a positive control, and then opens /account, presses Profile and asserts the
+error text ABSENT *and* the card PRESENT with every `friend_links` response 200.
+Proven red with the real defect class (`revoked_by` in the list): 403/42501 and the live page
+showing "Could not load your friends." with statuses `[403,403]`.
+⚠️ **TWO INSTRUMENT TRAPS MEASURED WHILE BUILDING IT.** The card's "Friends" heading renders WHILE
+THE QUERY IS IN FLIGHT, so waiting on text measured the loading state and recorded ZERO reads —
+indistinguishable from a denial. And **demo mode disables this query outright** (`enabled: !isDemo`),
+so a demo run shows "Loading..." for ever and measures nothing; the flag is cleared and then
+ASSERTED off.
+
+### B. ✅ `c4cdcc58`'s LAST THIRD — ONE MOUNT, AND THE INVITE LINKS STILL LAND
+The saved patch is applied and deleted. `PartnerLink`/`FriendLink` now render on `/account` only;
+Settings keeps a pointer card and **redirects `/settings?friend_code=…` to `/account` carrying the
+search string**, because those URLs are in already-sent emails and invites last 7 days.
+**The IA gate was RE-STATED, not weakened**: `settings-ia.ts` gained `ACCOUNT_PAGE_ONLY`, and the
+gate asserts exactly-one-on-`/account` AND zero-in-Settings. Deleting the two map entries would
+have gone green and declared nothing.
+**THE PRE-FILL IS PROVEN END TO END FOR THE FIRST TIME** — it could not be until A was fixed:
+with the persisted section parked on `leaderboard`, `/settings?friend_code=PROBE-CODE-1234` landed
+on `/account?friend_code=PROBE-CODE-1234`, section `["Profile"]`, input value `PROBE-CODE-1234`.
+
+Gates on `2e562f10`: tsc 0, lint **0 errors / 34 warnings**, `test:tz` **4630 ×3 zones over 456
+files** (up 4, exactly the tests added), `walk:routes` 27/27 + 18 link targets declared,
+`check:account` PASS, `check:friend-read` PASS.
+
+### NEXT UP, in order
+1. **`25de22e9` — Tre clarified `98830520` item 1**, so the sidebar/mobile mismatch no longer needs
+   guessing. Read that ask before anything else.
+2. `f05b9c82` the remaining leaderboard stats — ENUMERATE how many render "not ready".
+3. `1a805cf2` the AI advisor into the Account tab after the Leaderboard section.
+4. `f22f17b1` native iOS material (Tre overruled the recommendation).
+
+---
+
 ## ⇢ FIRST UP — 2026-09-15 (Ada, second session). Two commits, both on origin/main 0/0 BY CONTENTS.
 
 `2f45062c` the leaderboard pair · `0d2152c4` self-on-board + the sidebar overflow + a widened gate.
