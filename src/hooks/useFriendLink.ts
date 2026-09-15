@@ -46,11 +46,11 @@ export const FRIEND_LINKS_QUERY_KEY = 'friend_links';
 /** The columns the client is actually granted. `invite_code_hash` has no client path. */
 export type FriendLinkRow = Pick<
   Tables<'friend_links'>,
-  'id' | 'inviter_id' | 'invitee_email' | 'expires_at' | 'accepted_by' | 'accepted_at' | 'revoked_at' | 'created_at'
+  'id' | 'inviter_id' | 'invitee_email' | 'invitee_username' | 'expires_at' | 'accepted_by' | 'accepted_at' | 'revoked_at' | 'created_at'
 >;
 
 const FRIEND_LINK_COLUMNS =
-  'id, inviter_id, invitee_email, expires_at, accepted_by, accepted_at, revoked_at, created_at';
+  'id, inviter_id, invitee_email, invitee_username, expires_at, accepted_by, accepted_at, revoked_at, created_at';
 
 const FUNCTION_TIMEOUT_MS = 15_000;
 const FUNCTION_UNAVAILABLE =
@@ -74,7 +74,9 @@ interface AcceptResponse {
 /** The `status` action's shape. Only the names are used here — the rows come from the table. */
 interface StatusResponse {
   friends?: { link_id: string; user_id: string; display_name: string }[];
-  pending?: { link_id: string; invitee_email: string; expires_at: string }[];
+  /** ⚠️ THE HANDLE, NOT THE ADDRESS - see the disclosure note in the friend-link function.
+   *  `null` for invites written before 2026-09-15, which recorded no handle. */
+  pending?: { link_id: string; invitee_username: string | null; expires_at: string }[];
 }
 
 /**
@@ -246,17 +248,11 @@ export function useFriendLink() {
   const qc = useQueryClient();
   const status = useFriendLinkStatus();
 
-  const invite = useMutation({
-    mutationFn: async (email: string): Promise<InviteResponse> => {
-      if (isDemo || !user) throw new Error('Demo mode');
-      return invokeFriendLink<InviteResponse>({ action: 'invite', email: email.trim() });
-    },
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: [FRIEND_LINKS_QUERY_KEY] });
-      toast.success(res.message ?? 'Invite sent. It expires in 7 days.');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  /*
+   * ⚠️ THE `invite`-BY-EMAIL MUTATION WAS REMOVED ON 2026-09-15. Tre: "remove adding friends by
+   * email address; usernames only." The server action is gone too, so re-adding a caller here
+   * would fail schema validation rather than silently work.
+   */
 
   /**
    * Invite by handle rather than by mailbox.
@@ -329,5 +325,5 @@ export function useFriendLink() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { ...status, invite, inviteByUsername, accept, revoke };
+  return { ...status, inviteByUsername, accept, revoke };
 }

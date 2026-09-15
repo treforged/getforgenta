@@ -35,10 +35,9 @@ export function FriendLink() {
   const { search } = useLocation();
   const {
     loading, error, refetch, friends, pendingInvites, namesUnavailable,
-    invite, inviteByUsername, accept, revoke,
+    inviteByUsername, accept, revoke,
   } = useFriendLink();
 
-  const [email, setEmail] = useState('');
   const [handle, setHandle] = useState('');
   // The invite email's accept link lands here with the code in the query string.
   const [code, setCode] = useState(
@@ -146,7 +145,13 @@ export function FriendLink() {
           style={FIELD_RADIUS}
         >
           <div className="min-w-0">
-            <p className="text-xs font-medium truncate">Invite sent to {pending.invitee_email}</p>
+            {/* ⚠️ THE HANDLE, NEVER THE ADDRESS. This used to print `invitee_email`, which for a
+                username invite is a mailbox the inviter never typed and had no other way to learn.
+                Invites written before 2026-09-15 recorded no handle, so they read generically -
+                a masked address would still be part of an address this caller never typed. */}
+            <p className="text-xs font-medium truncate">
+              {pending.invitee_username ? `Invite sent to @${pending.invitee_username}` : 'Invite sent'}
+            </p>
             <p className="text-xs text-muted-foreground">
               Expires {format(new Date(pending.expires_at), 'MMM d, yyyy')}. They accept
               from the email, signed in with that address.
@@ -177,9 +182,13 @@ export function FriendLink() {
       {/* The two ways in, kept together and directly under the list they add to. */}
       <h4 className="text-xs font-semibold pt-1">Add a friend</h4>
 
-      {/* ⚠️ HANDLE FIRST, EMAIL SECOND. Tre asked for usernames as the option precisely because
-          swapping email addresses to add a friend is the awkward part. The email path stays because
-          it is the only way to invite somebody who has no account yet. */}
+      {/* ⚠️ USERNAMES ONLY, since 2026-09-15. Tre: "remove adding friends by email address;
+          usernames only."
+          THE CAPABILITY THIS COSTS, said out loud rather than discovered later: you can no longer
+          invite somebody who has NO ACCOUNT YET. The email field was the only path that worked
+          before the other person signed up. Adding a friend now requires them to have an account
+          and to have claimed a username. That is what the ask asked for; it is still a loss, and
+          the empty state should eventually say so rather than looking like a missing feature. */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className={FIELD_WRAPPER}
           style={FIELD_RADIUS}>
@@ -204,26 +213,6 @@ export function FriendLink() {
         >
           {inviteByUsername.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
           {inviteByUsername.isPending ? 'Sending…' : 'Add by username'}
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="Friend's email address"
-          className={FIELD_INPUT}
-          style={FIELD_RADIUS}
-        />
-        <button
-          onClick={() => invite.mutate(email)}
-          disabled={invite.isPending || !email.trim()}
-          className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
-          style={FIELD_RADIUS}
-        >
-          {invite.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
-          {invite.isPending ? 'Sending…' : 'Send Invite'}
         </button>
       </div>
 

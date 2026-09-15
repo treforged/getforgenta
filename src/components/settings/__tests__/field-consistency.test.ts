@@ -38,7 +38,10 @@ describe('FriendLink text fields are one field, not several', () => {
     // ⚠️ Assert the inventory is NON-EMPTY first. A regex that stopped matching — after a refactor
     // to a different element, say — would make every assertion below vacuously true, and
     // "0 violations" would be indistinguishable from "0 inputs were examined".
-    expect(found.length).toBeGreaterThanOrEqual(3);
+    // 2 since 2026-09-15: the email-invite field was removed (usernames only), leaving the
+    // username field and the invite-code field. The floor tracks the real count deliberately -
+    // a floor left above it would fail every run, and one left far below it stops guarding.
+    expect(found.length).toBeGreaterThanOrEqual(2);
 
     const handRolled = found.filter(el => /className="[^"]*(?:bg-secondary|bg-transparent)/.test(el));
     expect(handRolled, `hand-rolled field classes:\n${handRolled.join('\n\n')}`).toEqual([]);

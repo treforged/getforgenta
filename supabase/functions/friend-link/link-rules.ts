@@ -25,6 +25,9 @@ export interface LiveLinkRow {
   id: string;
   inviter_id: string;
   invitee_email: string;
+  /** The HANDLE the inviter typed, for rows written from 2026-09-15. `null` for older rows,
+   *  which predate it - see the disclosure note on `handleInvite` in index.ts. */
+  invitee_username: string | null;
   accepted_at: string | null;
   accepted_by: string | null;
   expires_at: string;

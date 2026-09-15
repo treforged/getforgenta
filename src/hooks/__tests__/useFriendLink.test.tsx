@@ -118,7 +118,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 const ACCEPTED_LINK = {
   id: 'link-1',
   inviter_id: 'owner-1',
-  invitee_email: 'friend@example.com',
+  invitee_email: 'friend@example.com', invitee_username: null,
   expires_at: '2099-01-01T00:00:00Z',
   accepted_by: 'friend-2',
   accepted_at: '2026-08-20T00:00:00Z',
@@ -178,7 +178,7 @@ describe('invite / accept — the Edge Function being down is a first-class stat
       error: new Error('Failed to send a request to the Edge Function'),
     });
     const { result } = renderHook(() => useFriendLink(), { wrapper });
-    await expect(result.current.invite.mutateAsync('friend@example.com'))
+    await expect(result.current.inviteByUsername.mutateAsync('friendhandle'))
       .rejects.toThrow(/unavailable/i);
     expect(toastError).toHaveBeenCalled();
   });
@@ -196,8 +196,21 @@ describe('invite / accept — the Edge Function being down is a first-class stat
       }),
     });
     const { result } = renderHook(() => useFriendLink(), { wrapper });
-    await expect(result.current.invite.mutateAsync('friend@example.com'))
+    await expect(result.current.inviteByUsername.mutateAsync('friendhandle'))
       .rejects.toThrow(/Free accounts can have 5 friends/);
+  });
+
+  it('⚠️ THE HOOK NO LONGER EXPOSES AN EMAIL-INVITE MUTATION — against the REAL hook, not a mock', () => {
+    /**
+     * Tre, 2026-09-15: "remove adding friends by email address; usernames only." The sibling file
+     * mocks this hook, so an absence asserted there would only prove the mock lacks the key. This
+     * one renders the real hook.
+     * The positive control is in the same assertion block: `inviteByUsername` must still be there,
+     * or "no invite mutation" would also pass on a hook that returned nothing at all.
+     */
+    const { result } = renderHook(() => useFriendLink(), { wrapper });
+    expect('invite' in result.current).toBe(false);
+    expect(typeof result.current.inviteByUsername.mutateAsync).toBe('function');
   });
 
   it('accept passes the code through and succeeds on an ok response', async () => {
@@ -265,7 +278,7 @@ describe('friend names — resolved by the function, never invented here', () =>
       ...ACCEPTED_LINK,
       inviter_id: 'friend-2',
       accepted_by: 'owner-1',
-      invitee_email: 'owner@example.com',
+      invitee_email: 'owner@example.com', invitee_username: null,
     }];
     tracedInvokeMock.mockResolvedValue({ data: null, error: new Error('down') });
     const { result } = renderHook(() => useFriendLink(), { wrapper });
@@ -288,7 +301,7 @@ describe('friend names — resolved by the function, never invented here', () =>
 const PENDING_ROW = {
   id: 'link-p',
   inviter_id: 'owner-1',
-  invitee_email: 'invited@example.com',
+  invitee_email: 'invited@example.com', invitee_username: 'invitedhandle',
   expires_at: '2026-09-02T12:00:00Z',
   accepted_by: null,
   accepted_at: null,
@@ -319,11 +332,19 @@ describe('the Settings card, rendered', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('says plainly that it has no friends yet, and offers both ways in', async () => {
+  it('says plainly that it has no friends yet, and offers the USERNAME path and no email path', async () => {
     renderCard();
     expect(await screen.findByText('No friends yet.')).toBeTruthy();
-    expect(screen.getByPlaceholderText("Friend's email address")).toBeTruthy();
-    expect(screen.getByText('Send Invite')).toBeTruthy();
+    /**
+     * ⚠️ THE ABSENCE IS THE ASSERTION, and it needs the presence beside it. Tre removed adding
+     * friends by email on 2026-09-15, so the email field must be GONE - but "the field is absent"
+     * is also true of a card that failed to render at all, which is why the username field and the
+     * accept field are asserted present in the same test.
+     */
+    expect(screen.queryByPlaceholderText("Friend's email address")).toBeNull();
+    expect(screen.queryByText('Send Invite')).toBeNull();
+    expect(screen.getByPlaceholderText('Their username')).toBeTruthy();
+    expect(screen.getByText('Add by username')).toBeTruthy();
     expect(screen.getByText('Accept Invite')).toBeTruthy();
     // Free tier: no upgrade wall anywhere on this card.
     expect(screen.queryByText(/Premium/i)).toBeNull();
@@ -341,10 +362,29 @@ describe('the Settings card, rendered', () => {
     renderCard();
     expect(await screen.findByText('Sam')).toBeTruthy();
     expect(screen.getByText('Remove')).toBeTruthy();
-    expect(screen.getByText('Invite sent to invited@example.com')).toBeTruthy();
+    /**
+     * ⚠️ THE HANDLE IS SHOWN AND THE ADDRESS IS NOT, and both halves are asserted. Before
+     * 2026-09-15 this card printed `invitee_email`, which for a username invite is a mailbox the
+     * inviter never typed and had no other way to learn. Asserting only the absence would also
+     * pass on a card that rendered no invite at all.
+     */
+    expect(screen.getByText('Invite sent to @invitedhandle')).toBeTruthy();
+    expect(screen.queryByText(/invited@example\.com/)).toBeNull();
     expect(screen.getByText(/Expires Sep \d, 2026/)).toBeTruthy();
     expect(screen.getByText('Cancel invite')).toBeTruthy();
     expect(screen.queryByText('No friends yet.')).toBeNull();
+  });
+
+  it('a LEGACY invite with no recorded handle is named generically, never by a masked address', async () => {
+    // Rows written before 2026-09-15 carry no handle. A masked address would still be part of an
+    // address this caller never typed, so the card says nothing about who it went to.
+    state.selectRows = [{ ...PENDING_ROW, invitee_username: null }];
+    tracedInvokeMock.mockResolvedValue({ data: { friends: [], pending: [] }, error: null });
+    renderCard();
+    expect(await screen.findByText('Invite sent')).toBeTruthy();
+    expect(screen.queryByText(/invited@example\.com/)).toBeNull();
+    expect(screen.queryByText(/invited/)).toBeNull();
+    expect(screen.getByText('Cancel invite')).toBeTruthy();
   });
 
   it('pre-fills the code from the invite email\'s link', async () => {
@@ -381,7 +421,7 @@ describe('the hook is never lensed — a friend is not a partner', () => {
     expect(hookCode).not.toContain("select('*')");
     expect(hookCode).not.toContain('invite_code_hash');
     expect(hookSrc).toContain(
-      "'id, inviter_id, invitee_email, expires_at, accepted_by, accepted_at, revoked_at, created_at'",
+      "'id, inviter_id, invitee_email, invitee_username, expires_at, accepted_by, accepted_at, revoked_at, created_at'",
     );
   });
 
@@ -402,13 +442,13 @@ const DEAD = '2026-08-01T00:00:00Z';
 
 function pending(id: string, email: string, expires = LIVE, inviter = 'owner-1'): LiveLinkRow {
   return {
-    id, inviter_id: inviter, invitee_email: email,
+    id, inviter_id: inviter, invitee_email: email, invitee_username: null,
     accepted_at: null, accepted_by: null, expires_at: expires,
   };
 }
 function friend(id: string, email: string, other = 'friend-2', inviter = 'owner-1'): LiveLinkRow {
   return {
-    id, inviter_id: inviter, invitee_email: email,
+    id, inviter_id: inviter, invitee_email: email, invitee_username: null,
     accepted_at: '2026-08-20T00:00:00Z',
     accepted_by: inviter === 'owner-1' ? other : 'owner-1',
     expires_at: DEAD,
@@ -444,7 +484,7 @@ describe('the free-tier cap (plan §4)', () => {
 
   it('counts a friendship somebody else started — the cap is friendships, not invites sent', () => {
     const inbound: LiveLinkRow = {
-      id: 'x', inviter_id: 'friend-2', invitee_email: 'owner@example.com',
+      id: 'x', inviter_id: 'friend-2', invitee_email: 'owner@example.com', invitee_username: null,
       accepted_at: '2026-08-20T00:00:00Z', accepted_by: 'owner-1', expires_at: DEAD,
     };
     expect(summarizeInviteSlots([inbound], 'owner-1', 'new@example.com', NOW).used).toBe(1);
@@ -495,7 +535,7 @@ describe('supersede — one outstanding invite per (inviter, mailbox)', () => {
   it('knows an existing friendship by user id, from either direction', () => {
     expect(isFriendOf([friend('a', 'f@example.com', 'friend-2')], 'owner-1', 'friend-2')).toBe(true);
     const inbound: LiveLinkRow = {
-      id: 'x', inviter_id: 'friend-2', invitee_email: 'owner@example.com',
+      id: 'x', inviter_id: 'friend-2', invitee_email: 'owner@example.com', invitee_username: null,
       accepted_at: '2026-08-20T00:00:00Z', accepted_by: 'owner-1', expires_at: DEAD,
     };
     expect(isFriendOf([inbound], 'owner-1', 'friend-2')).toBe(true);

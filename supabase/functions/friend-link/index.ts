@@ -96,11 +96,22 @@ const GENERIC_FRIEND_NAME = "A Forgenta member";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * ⚠️ THE `invite` ACTION WAS REMOVED ON 2026-09-15. Tre: "remove adding friends by email address;
+ * usernames only." Adding a friend now goes through `invite_username` and nothing else.
+ *
+ * `handleInvite` BELOW IS KEPT and is now an INTERNAL function with exactly one caller,
+ * `handleInviteByUsername`. It is not dead code and must not be deleted: it owns the friend cap,
+ * the supersede rule and the invite-code write, and a second copy of those is a second place for
+ * the cap to be wrong. What is gone is the public action that let a caller name the mailbox.
+ *
+ * ⚠️ `invitee_email` AND `friend_links_one_pending` ALSO STAY, and the reason is not sentiment.
+ * `invite_username` resolves the handle to the target's address and writes it as the delivery
+ * address, and `handleAccept` compares it against the accepting user's own mailbox - so the column
+ * is the identity check for the path that REPLACED email, not a remnant of the path being removed.
+ * It is NOT NULL. Dropping it breaks every username invite and every accept.
+ */
 const bodySchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("invite"),
-    email: z.string().email("A valid email address is required").max(320),
-  }).strict(),
   // Loose on purpose: the code's real shape check happens inside the accept
   // handler so that a malformed code and a wrong code are indistinguishable to
   // the caller. A schema rejection here would be a 400 and would tell them.
@@ -227,7 +238,7 @@ async function readLiveLinks(
 ): Promise<LiveLinkRow[] | undefined> {
   const { data, error } = await supabase
     .from("friend_links")
-    .select("id, inviter_id, invitee_email, accepted_at, accepted_by, expires_at")
+    .select("id, inviter_id, invitee_email, invitee_username, accepted_at, accepted_by, expires_at")
     .or(`inviter_id.eq.${userId},accepted_by.eq.${userId}`)
     .is("revoked_at", null);
   if (error) {
@@ -303,7 +314,7 @@ async function handleInviteByUsername(
   // Every cap, supersede and duplicate rule lives in `handleInvite`, and reusing it whole is the
   // point: a second invite path with its own copy of the friend cap is a second place for the cap
   // to be wrong.
-  return await handleInvite(supabase, userId, userEmail, target.user.email, corsHeaders);
+  return await handleInvite(supabase, userId, userEmail, target.user.email, corsHeaders, handle);
 }
 
 async function readDisplayName(supabase: any, userId: string): Promise<string | null> {
@@ -376,6 +387,17 @@ async function handleInvite(
   userEmail: string,
   rawInviteeEmail: string,
   corsHeaders: Record<string, string>,
+  /**
+   * The HANDLE the caller actually typed, echoed back to them by `status`.
+   *
+   * ⚠️ THIS EXISTS TO STOP A DISCLOSURE, not for display convenience. `status` used to return
+   * `invitee_email` raw, justified by a comment reading "echoes back only what this caller typed".
+   * That was true while typing an address was the only way to invite. Once `invite_username`
+   * existed it was FALSE: the caller typed a handle and the app handed back a stranger's mailbox -
+   * an address they had no other way to learn. Now the row records the handle, and that is what
+   * goes back.
+   */
+  inviteeUsername: string,
 ): Promise<Response> {
   const inviteeEmail = normalizeEmail(rawInviteeEmail);
   if (inviteeEmail === normalizeEmail(userEmail)) {
@@ -453,6 +475,7 @@ async function handleInvite(
     .insert({
       inviter_id: userId,
       invitee_email: inviteeEmail,
+      invitee_username: inviteeUsername,
       invite_code_hash: inviteCodeHash,
     })
     .select("id, expires_at")
@@ -625,8 +648,16 @@ async function handleStatus(
       // this caller is the one who typed that address. In the other direction
       // `invitee_email` is the CALLER'S own mailbox, and masking it would label
       // the friend with the viewer's address.
+      /**
+       * ⚠️ THE HANDLE FIRST, and the masked address only for rows that predate it. The masked
+       * local part is derived from `invitee_email`, which since `invite_username` may be an
+       * address this caller never typed - so it is no longer a safe default, only a legacy one.
+       * A friend who set no display name and was invited by handle is now named by that handle.
+       */
       display_name: names.get(friendId) ??
-        (iInvited ? maskEmailLocal(row.invitee_email) : GENERIC_FRIEND_NAME),
+        (iInvited
+          ? (row.invitee_username ?? maskEmailLocal(row.invitee_email))
+          : GENERIC_FRIEND_NAME),
     });
   }
 
@@ -641,11 +672,18 @@ async function handleStatus(
       row.inviter_id === userId &&
       Date.parse(row.expires_at) > now
     )
-    // Echoes back only what this caller typed. Says nothing about whether that
-    // address has an account, and carries no part of the code.
+    /**
+     * ⚠️ THE HANDLE, NEVER THE ADDRESS. This used to return `invitee_email` raw under a comment
+     * saying it echoed back only what the caller typed - true when typing an address was the only
+     * way in, and false from the moment `invite_username` shipped, because then the caller typed a
+     * handle and got back a mailbox they had no other way to learn.
+     * Rows written before 2026-09-15 have no handle recorded, so they report `null` and the client
+     * names the invite generically. Showing a masked address there would still be disclosing part
+     * of an address this caller never typed.
+     */
     .map((row) => ({
       link_id: row.id,
-      invitee_email: row.invitee_email,
+      invitee_username: row.invitee_username ?? null,
       expires_at: row.expires_at,
     }));
 
@@ -759,9 +797,6 @@ Deno.serve(async (req) => {
       return rateLimitedResponse(corsHeaders, perUser, userLimit.resetAt);
     }
 
-    if (body.action === "invite") {
-      return await handleInvite(supabase, userId, userEmail, body.email, corsHeaders);
-    }
     if (body.action === "invite_username") {
       return await handleInviteByUsername(
         supabase, userId, userEmail, body.username, corsHeaders,

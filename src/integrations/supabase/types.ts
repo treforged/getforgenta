@@ -1052,6 +1052,7 @@ export type Database = {
           id: string
           invite_code_hash: string
           invitee_email: string
+          invitee_username: string | null
           inviter_id: string
           revoked_at: string | null
           revoked_by: string | null
@@ -1064,6 +1065,7 @@ export type Database = {
           id?: string
           invite_code_hash: string
           invitee_email: string
+          invitee_username: string | null
           inviter_id: string
           revoked_at?: string | null
           revoked_by?: string | null
@@ -1076,6 +1078,7 @@ export type Database = {
           id?: string
           invite_code_hash?: string
           invitee_email?: string
+          invitee_username?: string | null
           inviter_id?: string
           revoked_at?: string | null
           revoked_by?: string | null

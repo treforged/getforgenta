@@ -16,14 +16,12 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 
 const mocks = vi.hoisted(() => ({
   inviteByUsername: vi.fn(),
-  invite: vi.fn(),
 }));
 
 vi.mock('@/hooks/useFriendLink', () => ({
   useFriendLink: () => ({
     loading: false, error: null, refetch: vi.fn(),
     friends: [], pendingInvites: [], namesUnavailable: false,
-    invite: { mutate: mocks.invite, isPending: false },
     inviteByUsername: { mutate: mocks.inviteByUsername, isPending: false },
     accept: { mutate: vi.fn(), isPending: false },
     revoke: { mutate: vi.fn(), isPending: false },
@@ -51,7 +49,6 @@ const addButton = () => screen.getByText('Add by username');
 
 beforeEach(() => {
   mocks.inviteByUsername = vi.fn();
-  mocks.invite = vi.fn();
 });
 afterEach(cleanup);
 
@@ -69,23 +66,33 @@ describe('adding a friend by username', () => {
     expect(mocks.inviteByUsername).not.toHaveBeenCalled();
   });
 
-  it('⚠️ DOES NOT SEND IT DOWN THE EMAIL PATH — two different actions, two different servers rules', () => {
+  /*
+   * ⚠️ A TEST WAS DELETED HERE ON 2026-09-15, deliberately, rather than left green.
+   * It asserted that pressing "Add by username" did not call the EMAIL mutation. That mutation no
+   * longer exists, and this file MOCKS the hook - so keeping it would have meant keeping an
+   * `invite` key in the mock that the real hook does not return, and asserting a mock function
+   * nothing could ever call. That is a test which is green about a shape that cannot exist, kept
+   * alive only by the mock agreeing with it.
+   * The durable guard lives in `useFriendLink.test.tsx`, against the REAL hook.
+   */
+
+  it('THE EMAIL PATH IS GONE — usernames only, with a positive control beside the absence', async () => {
+    /**
+     * ⚠️ THIS TEST USED TO ASSERT THE OPPOSITE. It was the control proving both buttons were not
+     * wired to one mutation, and it named the email path "the only way to invite somebody who has
+     * no account yet". Tre removed that path on 2026-09-15 ("usernames only"), and THAT CAPABILITY
+     * IS GENUINELY GONE - a friend must now have an account and a claimed handle.
+     *
+     * The absence alone would also pass on a card that rendered nothing, so the username path is
+     * exercised in the same test and must still fire.
+     */
     renderCard();
+    expect(screen.queryByPlaceholderText("Friend's email address")).toBeNull();
+    expect(screen.queryByText('Send Invite')).toBeNull();
+
     fireEvent.change(handleField(), { target: { value: 'jordan' } });
     fireEvent.click(addButton());
-    expect(mocks.invite).not.toHaveBeenCalled();
-  });
-
-  it('leaves the email path working and separate', async () => {
-    // The control. Without it, wiring both buttons to the username mutation would pass everything
-    // above while breaking the only way to invite somebody who has no account yet.
-    renderCard();
-    fireEvent.change(screen.getByPlaceholderText("Friend's email address"), {
-      target: { value: 'someone@example.com' },
-    });
-    fireEvent.click(screen.getByText('Send Invite'));
-    await waitFor(() => expect(mocks.invite).toHaveBeenCalledWith('someone@example.com'));
-    expect(mocks.inviteByUsername).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.inviteByUsername).toHaveBeenCalledWith('jordan'));
   });
 
   it('⚠️ NEVER QUERIES THE DATABASE ITSELF — the supabase mock throws if it tries', () => {
