@@ -222,6 +222,73 @@ sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven 
 
 
 
+## ⚠️ FIRST UP — 2026-09-15 (Ada, FOURTH session). A LIVE BREAK IS ITEM A. READ IT FIRST.
+
+Shipped today and on origin/main 0/0 by contents: `8f683f56` friend-link v10 + the capability line,
+`5449b8f4` the rail badge gate, `359b93d2` the segmented control's one shape, `621bf96e` the
+dashboard quick look, `dfa3104a` this file. Asks closed with evidence: `6eeb8fe3`, `196f5929`,
+`b9fe1d41`, `30c2df81`. Gates on the last green commit: tsc 0, lint **0 errors / 34 warnings**,
+`test:tz` **4626 ×3 zones over 456 files**, `walk:routes` 27/27, `check:rail` and `check:account`
+PASS.
+
+### A. `6a85c2cd` — THE FRIENDS CARD IS BROKEN FOR EVERY SIGNED-IN USER. FIX THIS BEFORE ANYTHING ELSE.
+**Measured in a real browser, signed in, against the production database.** `/account` → Profile
+renders **“Could not load your friends.”** with a Try again button. The client's own PostgREST read
+
+    GET /rest/v1/friend_links?select=id,inviter_id,invitee_email,invitee_username,…
+    403  {"code":"42501","message":"permission denied for table friend_links"}
+
+fires twice. **THE EDGE FUNCTION IS NOT THE PROBLEM** — a direct signed-in call to `friend-link`
+`action:"status"` returned `200 {"friends":[],"pending":[]}` in the same session. This is
+`useFriendLink`'s DIRECT read.
+
+**HYPOTHESIS, NOT CONFIRMED — the SQL was blocked by the handoff gate before it ran.**
+`invitee_username` was added on 2026-09-15 and the hook's select list was extended to include it in
+`cc8aecb1`; the column-level GRANT on `friend_links` for `authenticated` was probably never
+extended to the new column, and Postgres answers `42501` for a column the role does not hold.
+**Confirm before fixing:**
+
+    select grantee, privilege_type, column_name from information_schema.column_privileges
+    where table_schema='public' and table_name='friend_links'
+      and grantee in ('anon','authenticated') order by 1,2,3;
+
+then diff it against the select list in `src/hooks/useFriendLink.ts`.
+⚠️ **VERIFY THE FIX BY OPENING THE PAGE, never by re-running the query yourself** — the MCP SQL
+tool runs as **service_role**, which bypasses column grants and would report clean over a card that
+is still broken for every user.
+⚠️ **WHY NOTHING CAUGHT IT: no test in this repo performs a real PostgREST select.** `cc8aecb1`
+shipped green — 4614 tests, tsc 0, lint 0 — over a card broken for everybody. Consider whether the
+fix should carry a check that actually reads the table as `authenticated`.
+
+### B. `c4cdcc58`'s LAST THIRD — THE SLICE IS WRITTEN AND IT IS RED. `ia-slice-NOT-COMMITTED.patch`
+**The duplication is real and measured**: `PartnerLink` and `FriendLink` render on **BOTH**
+`src/pages/Account.tsx` (section `profile`) and `src/pages/Settings.tsx` (panel `account`) — the
+same duplicated-rather-than-moved shape `a0328857` fixed for `FriendsLeaderboard`. Two live copies
+of an invite form each keep their own pending-invite state.
+
+**I wrote the fix, gated it, and it went RED, so I did NOT commit it.** The diff is saved at the
+repo root as **`ia-slice-NOT-COMMITTED.patch`** (146 lines, `git apply` it) and the working tree is
+back to green. What it does: removes the Settings copy, leaves a pointer to `/account` in its
+place, **redirects `/settings?friend_code=…` to `/account` keeping the search string**, and makes
+Account force its section to `profile` when an accept param is present.
+
+⚠️ **THE REDIRECT IS LOAD-BEARING AND IS ALREADY PROVEN TO WORK.** Invite emails mail
+`${APP_URL}/settings?friend_code=…` and an email cannot be edited after it is sent; invites last 7
+days. Measured with the persisted section parked on `leaderboard` first: the redirect lands on
+`/account?friend_code=…` and the Profile segment becomes selected. **Do not drop that half.**
+
+**THE 6 FAILURES ARE TESTS ASSERTING THE OLD IA, and updating them is the rest of the job:**
+`Settings.securityControls.test.tsx` (3 — Partner Link / Friends render under the Settings Account
+tab), `useFriendLink.test.tsx` (1 — “is mounted in Settings beside the partner card”), and
+`settings-ia.gate.test.ts` (2 — “declares nothing twice, and nothing that no longer renders”,
+“keeps the three moves Tre asked for”). **That last gate is the interesting one: read it before
+changing it — it exists to stop exactly this kind of edit, so satisfying it must mean re-stating
+the IA, not weakening the gate.**
+
+⚠️ **AND DO A. FIRST.** The pre-fill could not be verified end to end because the friends card is
+throwing 403 — the code field never rendered. The redirect half is proven; **the pre-fill half is
+NOT**, and it cannot be until A. is fixed.
+
 ## Resume queue — 2026-09-15 (Ada, THIRD session). ORDERED. Each item is a POINTER, not a report.
 
 0. **`c4cdcc58` TRE-APPROVED IA PASS — TWO THIRDS DONE, `621bf96e`. START HERE.**
@@ -4145,7 +4212,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 14:29 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 14:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4163,14 +4230,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+dfa3104a [handoff]: c4cdcc58 is two thirds done - the Account tab IA reconciliation is the unstarted third
+621bf96e [dashboard]: the quick look - spending rolls up to six groups, the 26 categories sit one press behind it
+359b93d2 [ui]: the segmented control is one shape again - 17 inline radius overrides removed
+5449b8f4 [gate]: check:rail can finally see the numeric badge - it was unreachable by construction
 8f683f56 [friends]: deploy the usernames-only function, and let the screen admit the capability it lost
 210f1a1f [handoff]: third session's resume queue - the friend-link DEPLOY is the half-finished item
 cc8aecb1 [friends]: usernames only - remove the email invite path, and stop handing the inviter someone else's address
 f94a4d32 [handoff]: FOR SAM - the keep-going hook and the cap hook contradict each other, and the loop spends the reserved budget
-e7a14df7 [handoff]: item 8's inventory finished with read-only tools - 21 callers across 8 files, and 541 is NOT the override count
-45b579fe [handoff]: pause banner at the top of the queue - push first on resume, two commits are local only
-1b524179 [handoff]: paused on the 5h cap mid-count on item 8 - the partial numbers, labelled partial
-d14a8352 [handoff]: item 6's premise was wrong twice - no seed is needed, and ABSENT in the collapsed rail is correct
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
