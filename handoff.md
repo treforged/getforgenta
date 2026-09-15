@@ -84,6 +84,22 @@ localhost:8080 as the reviewer account once and leave the tab open — I drive i
 there."* Tonight I drove his PERSONAL Chrome session read-only for the whole session without ever
 touching a password. One tap, not a task. `a40f1e23` stays open because the tap is his.
 
+### ⚠️ A COMMITTED GATE WAS RED ON MAIN AND NOBODY HAD RE-RUN IT — fixed, `d05ef59a` closed
+`check-mobile-squeeze` was FAILING on origin/main over **the exact element its own comment declares
+out of scope**. The multi-column-grid exemption was written for "above floor / monthly burn" by name
+and **could never fire for it**: the walk-out loop stops at the first full-width ancestor without
+testing it, and on /dashboard that ancestor IS the two-column grid.
+**The control that separates "fixed" from "blinded"** — with the exemption disabled the detector
+immediately finds the tile again, same numbers, exit 1. So the measurement is intact.
+⚠️ **AND WHAT I COULD NOT PROVE, stated rather than implied:** re-proving it against the ORIGINAL
+2FA defect failed — removing `min-w-0` PASSED, because `39fe3c3e` moved the button under the text so
+that property is no longer load-bearing. Reproducing the real defect needs the beside-the-text
+layout back. The evidence is the exemption control, not a re-proof.
+⚠️ **Its first run after ANY source edit reliably exits 2** ("only 8 text-bearing elements") while
+Vite recompiles. Correct behaviour — it refuses to call a half-rendered page clean — but it wastes a
+run every time and should wait on content rather than a timeout. Same family as the sleep I removed
+from `check:username`.
+
 ### `6eeb8fe3` REMOVE ADD-BY-EMAIL — MEASURED, NOT STARTED. Start here.
 Stopped at the 5h cap before writing code, so **nothing is half-done**. What is already measured
 against the live database, so the next session does not pay for it again:
