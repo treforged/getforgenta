@@ -53,9 +53,40 @@ measuring the fill and not the theme.
 `check:glass` now lists 26 panels as *"not measurable by scrolling: in normal flow"*. On this
 app's flat background the SPECULAR EDGE is the half that carries the identity. Said, not implied.
 
+### 4. ✅ `03c8de4f` — THE SEAN ELLIS SURVEY, `853f7d70`, AND IT ALMOST SHIPPED RECORDING NOTHING
+One question, the three canonical answers, free-text follow-up asked ONLY of *very disappointed*.
+New `public.pmf_responses` with own-scoped RLS and no DELETE grant. New gate **`npm run check:pmf`**.
+⚠️ **THE FIRST LIVE RUN RENDERED, ACCEPTED THE PRESS, ADVANCED TO THE FOLLOW-UP AND WROTE NO
+ROW.** My own grant tightening an hour earlier had revoked UPDATE, an upsert is
+`INSERT ... ON CONFLICT DO UPDATE`, PostgREST refused it, and the component swallowed the error.
+**SIX JSDOM TESTS PASSED THROUGHOUT** — a mock resolves `{ error: null }`. **The screen was
+identical before and after the fix; only reading the table told them apart.**
+`check:pmf` exists for exactly that: it seeds the OPPOSITE sentiment, presses, requires the view to
+change AND reads the row back. Proven red with the real defect — removing the write leaves the
+screen output byte-for-byte identical and the gate exits 1. An earlier red (revoking UPDATE) broke
+the FIXTURE too and correctly exited 2 rather than 1.
+⚠️ **THE FREE TIER DREW THE 7-DAY WINDOW WITH MILLISECOND DIVISION** — 6.958 days across a
+spring-forward transition, so an account is silently skipped one week a year in every US timezone.
+It uses this repo's DST-safe `daysBetween`; the test for that exact pair fails on the free-tier
+arithmetic, one of eight.
+⚠️ **40% IS A CITATION, NOT A RESULT**, and is absent from the product. **Measured: 6 of 33
+accounts qualify today, and the binding constraint is `onboarding_completed` (true for 7 of 33),
+not the 7-day bar.** A proportion over 6 people is not a PMF verdict — the free-text answers are
+the output worth having at this size, and that number says the priority is onboarding completion.
+
 ### ⇢ RESUME QUEUE — START AT ITEM 1
 
-1. **`f22f17b1` SECOND HALF — the native iOS plugin. NOT STARTED.** Capacitor plugin wrapping
+1. **`f22f17b1` SECOND HALF — the native iOS plugin. BLOCKED ON TRE, do NOT start Swift here.**
+   ⚠️ **THE PREMISE WAS TESTED AND IT DOES NOT HOLD AS BRIEFED.** A `UIVisualEffectView` is a
+   SIBLING of the WKWebView, so there are two z-orders and neither works: BELOW it blurs the native
+   background and never sees app content; ABOVE it samples the web content correctly and then
+   COVERS that surface's own web-rendered icons, labels and figures. The architecture that works
+   needs a SECOND transparent WKWebView for chrome content — not the plugin he was quoted, and it
+   multiplies the cost he was weighing when he overruled. **ANALYSIS, NOT MEASUREMENT: this machine
+   has no Xcode, so the instrument that would settle it is a simulator or device build.** Recorded
+   in `CLAUDE.md` under DECIDED and in ask `f22f17b1`. His call: (a) accept the two-webview cost,
+   (b) scope native material to a surface whose content can be native, (c) stay on the shipped CSS.
+   ORIGINAL BRIEF, for whoever takes it: Capacitor plugin wrapping
    `UIVisualEffectView`/`UIGlassEffect`, Swift bridge, JS shim. Tre OVERRULED the recommendation
    not to, having been given the honest cost in this desk's own words: a week, permanently two
    implementations, for a lighting effect; a native view is a SIBLING of the WebView, so every
@@ -4384,7 +4415,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 15:44 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 16:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4401,14 +4432,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+514bc057 [handoff]: f22f17b1's CSS half is shipped (cdede2f0) - the native iOS plugin is what is left
+cdede2f0 [ui]: the app panels get the glass identity - and the naive version would have DARKENED every one of them
+13c784b2 [handoff]: queue items 1 and 2 are closed - the debt_payoff premise was false and the refusal survives; the AI flag now has a build-level gate
+84c6c0e4 [ai]: prove AI_ADVISOR_ENABLED is false in a REAL production build, not in a constant
+b18d6dd1 [leaderboard]: debt_payoff's recorded refusal was built on a false premise - the table exists, the HISTORY does not
 4d813895 [handoff]: resume queue - f05b9c82 is ONE metric (debt_payoff), and a premise in leaderboard-metrics.ts is false
 dcf66e3a [handoff]: the two navigations are one list now - 1df1e5bf, and 7a19ac46 no longer needs Tre
 1df1e5bf [nav]: the desktop rail and the phone bar are ONE list - the selections differed at the two widths
-399d37bb [handoff]: items A and B are both shipped - the grant, the real-PostgREST gate, and one mount for the invite forms
-2e562f10 [ia]: Partner Link and Friends were on TWO pages at once - one mount, and the invite links still land
-3ebf4d79 [friends]: the Friends card was 403 for every signed-in user - one missing column grant
-09c83420 [handoff]: a LIVE 403 breaks the friends card for every user, and the last third of c4cdcc58 is written but red
-dfa3104a [handoff]: c4cdcc58 is two thirds done - the Account tab IA reconciliation is the unstarted third
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
