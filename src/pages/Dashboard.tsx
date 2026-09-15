@@ -12,6 +12,8 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import FreeBankLinkNotice from '@/components/shared/FreeBankLinkNotice';
 import FounderNoteModal from '@/components/shared/FounderNoteModal';
+import PmfSurveyModal from '@/components/shared/PmfSurveyModal';
+import { PMF_SEEN_FLAG, isEligibleForPmf } from '@/lib/pmf-survey';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
 import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
@@ -269,6 +271,7 @@ export default function Dashboard() {
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
+  const [pmfVisible, setPmfVisible] = useState(false);
   const onboardingInitRef = useRef(false);
 
   useEffect(() => {
@@ -300,6 +303,20 @@ export default function Dashboard() {
     if (profile?.founder_note_seen === false && !alreadySeenThisSession) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFounderNoteVisible(true);
+    }
+
+    // THE PMF SURVEY, and it is deliberately the LAST thing that can claim this slot.
+    // ⚠️ THE `else` IS LOAD-BEARING: the founder note and the survey are both one-shot modals on
+    // this page, and rendering both mounts two `ModalShell`s over each other. A brand-new account
+    // cannot see the survey anyway (it is 7 days old at the earliest, see `isEligibleForPmf`), so
+    // in practice they never collide - but "in practice" is how two modals end up stacked the one
+    // time the assumption stops holding.
+    else if (isEligibleForPmf({
+      onboardingCompleted: profile?.onboarding_completed === true,
+      accountCreatedAt: profile?.created_at ?? null,
+      alreadySeen: ((profile?.tour_flags as Record<string, boolean> | null) ?? {})[PMF_SEEN_FLAG] === true,
+    })) {
+      setPmfVisible(true);
     }
   }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile]);
 
@@ -1548,6 +1565,7 @@ export default function Dashboard() {
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
+      {pmfVisible && <PmfSurveyModal onDismiss={() => setPmfVisible(false)} />}
       {!isDemo && <AppTour variant="new-user" />}
       {/* What changed, for someone who was already here (Tre, 2026-09-13). Deliberately AFTER the
           founder note and the tour in source order: those two are a new user's first run, and this

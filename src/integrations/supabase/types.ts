@@ -1619,6 +1619,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pmf_responses: {
+        Row: {
+          created_at: string
+          id: string
+          sentiment: string
+          survey_version: string
+          user_id: string
+          would_miss: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sentiment: string
+          survey_version: string
+          user_id: string
+          would_miss?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sentiment?: string
+          survey_version?: string
+          user_id?: string
+          would_miss?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_consent_accepted: boolean
