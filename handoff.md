@@ -39,11 +39,22 @@ result as coverage. Seed a review-queue row for the @forgenta.test account to cl
 * And `waitFor(rows).toHaveLength(2)` returns INSTANTLY here — rows are built from the participant
   list before the query resolves. Wait on the VALUE.
 
+### `23c07655` USERNAME CHANGES — ✅ DONE, `9635c38e`
+No duplicate existed: `a43f10fc` was the CLAIM form and is genuinely finished. **The first finding
+was that there was NO WAY TO CHANGE A HANDLE AT ALL** — read-only once claimed — so a limit alone
+would have been a gate in front of a wall. The limit is a **Postgres trigger**, because
+`20260913_profile_usernames` grants `update (username)` to every authenticated user and a handle can
+be PATCHed straight to PostgREST without the app running.
+**Its acceptance probe found three defects before any reached a user**, all recorded in the
+migration headers: `23502` on clearing a handle, a **clear-and-reclaim bypass my own "first claim is
+free" rule opened**, and `to_char(...,'OF')` emitting `+00`, which ECMA-262 cannot parse — so every
+refusal arrived as `Invalid Date` and lost the unlock time, the exact half he asked for.
+New gate `npm run check:username`, proven red on the TRUE pre-fix code. ⚠️ It does NOT exercise the
+limit itself (three real changes would leave a week-long lockout on the walk account); the trigger is
+proven against the live database instead.
+
 ### NEXT, in Sam's order
-1. `23c07655` username changes twice per rolling 7 days — FIND the earlier ask and close it rather
-   than filing a duplicate. The real test is the THIRD attempt in the window, and the refusal must
-   say when it unlocks.
-2. `6eeb8fe3` remove add-friend-by-email, usernames only — remove the STORAGE and INDEX too.
+1. `6eeb8fe3` remove add-friend-by-email, usernames only — remove the STORAGE and INDEX too.
    Privacy line for the commit body: an email lookup lets anyone test whether an address has an
    account.
 3. `f05b9c82` the remaining leaderboard stats. ENUMERATE how many render "not ready". A stat that
