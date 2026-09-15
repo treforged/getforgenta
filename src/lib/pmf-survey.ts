@@ -54,6 +54,15 @@ export const MIN_DAYS = 7;
 /**
  * Whether this account should be asked.
  *
+ * ⚠️ `onboardingCompleted` IS A WEAKER FILTER THAN ITS NAME SUGGESTS, measured 2026-09-15 a few
+ * hours after this file shipped. Of 33 accounts, 7 carry `onboarding_completed`, and FIVE of those
+ * seven have no `onboarding_furthest_step` at all; exactly ONE account has ever reached `finish`.
+ * `Onboarding.tsx` marks the flag complete for anyone arriving with a `display_name`, so the
+ * column largely records HAVING A NAME rather than having been onboarded. This gate is therefore
+ * not harmful - the 7-day bar still excludes the newest accounts, which is the part that protects
+ * the answer - but it does not mean what it reads like. Tracked as ask `ac098dec`; when the flag
+ * becomes trustworthy this check gets stronger for free, and no code here needs to change.
+ *
  * ⚠️ THE ELAPSED DAYS GO THROUGH `daysBetween`, NOT THROUGH MILLISECOND DIVISION, and this repo
  * has a standing rule about exactly that. `(now - created) / 86_400_000` is 6.958 across a spring
  * DST transition, so an account created on 2026-03-05 and asked on 2026-03-12 reads as SIX days
