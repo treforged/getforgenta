@@ -1,5 +1,23 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## FIRST UP - 2026-09-15 (Ada, EIGHTH session). THE BOUNCE REMOVAL IS VERIFIED IN A BROWSER.
+
+`1323450a`, on origin/main 0/0 BY CONTENTS. `npm run check:onboarding-stay` is the new gate.
+**FIRST UP NEXT TIME: nothing here is mine.** Every queue item below is Tre's or deliberately
+deferred - read the queue before assuming there is work, and if he has answered one of his, start
+there. The desk closed itself out on Sam's confirmation with NO successor, deliberately: a warm
+desk on a repo nobody is working is what the charter warns about.
+
+⚠️ **THE TWO THINGS TO CARRY FORWARD, both now in `~/.claude/rules/common/testing.md`:**
+1. **`shouldLeaveOnboarding` HAD NO PRODUCTION CALLER** while carrying six passing assertions - the
+   effect restated the rule inline. An extraction done FOR testability is the highest-risk shape
+   for this, because extracting and wiring are two steps and only the first has a test watching it.
+   **Grep for the caller of anything you have just TESTED, not only of anything you are scoping.**
+2. **ARM B OF THE NEW GATE CANNOT BE DRIVEN RED**, and the file says so in its own header. A
+   finished account leaves by TWO independent mechanisms (`ProtectedRoute` writes the device cache,
+   and Onboarding's FIRST branch leaves on it before the rule is consulted). **Only ARM A is
+   evidence about the rule.** Do not "fix" ARM B into looking symmetrical.
+
 ## FIRST UP - 2026-09-15 (Ada, SEVENTH session). THE BOUNCE IS REMOVED AND THE EXPOSURE IS CLOSED.
 
 `9a6f1e43` attribution · `40489985` its correction · pdf coverage · `d779ea9d` the bounce removed.
