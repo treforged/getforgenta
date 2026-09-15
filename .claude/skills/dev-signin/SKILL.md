@@ -105,3 +105,31 @@ Automating sign-in itself. There is no credential-free way to create a session
 from nothing, and creating one from stored credentials would put a durable
 credential to real financial data on disk. The manual-once model is the design,
 not a limitation to engineer around.
+
+## The one carve-out, and why it does not weaken the rule (added 2026-09-14)
+
+**`@forgenta.test` accounts may have their sign-in scripted. Nothing else may.**
+
+The rule above exists for a stated reason: a stored credential to a REAL account
+is a durable credential to Tre's money. That reason does not apply to a throwaway
+account created for a walk, and it is worth writing down rather than leaving the
+next session to either break the rule quietly or stay blocked by it.
+
+- `.test` is an **IANA-reserved TLD**. It can never be a real mailbox, so an
+  address ending in it cannot belong to a person, and the credential cannot be a
+  credential to anybody's money.
+- The carve-out is **enforced in code, not by intention**:
+  `scripts/walk-deck-undo.mjs` refuses to sign in as anything not matching
+  `/@forgenta\.test$/` and exits 2. **If that check is removed, the rule above is
+  back in force in full.**
+- Credentials still live in a gitignored `.env.*.local`, never in the repo, never
+  in a commit message, and never passed to another desk as a value — only as a
+  path.
+
+**What this unblocked:** the Decision Deck's auto-apply and durable undo had been
+verified in jsdom only, and could not be walked, because demo mode throws on every
+mutation, Tre's own account is real money, and the reviewer account needs him.
+A fourth surface — a throwaway account carrying a clone of the reviewer fixture
+(`scripts/seed-walk-account.sql`) — is neither. It does **not** replace the
+reviewer-account walk, which is still his and still the higher-value one; it
+removes the cases that never needed him.

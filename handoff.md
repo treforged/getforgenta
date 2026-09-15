@@ -1,5 +1,87 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## Resume queue — 2026-09-14 (Ada), LATER. THE DECK IS WALKED IN A REAL BROWSER NOW.
+
+`5d6dbada` was blocked on a human sign-in for days. It is not any more, and **not
+because Tre signed in** — the fork it was stuck on was removed.
+
+### The block, and why it was real
+Three surfaces, all refusing: **demo mode** throws on every mutation by construction;
+**Tre's own account** is real money (that accident already happened once); the
+**reviewer account** is correctly seeded and only he can sign into it.
+
+### The fourth surface
+**`deck-walk@forgenta.test`** (`0c44347d`), created through the PUBLIC signup endpoint,
+carrying a CLONE of the reviewer fixture via **`scripts/seed-walk-account.sql`**.
+Clone verified against the reviewer AS THE CONTROL: accounts 9=9, recurring_rules
+16=16, financial_connections 1=1, synced_transactions 7=7, reviews 6=6.
+
+**The scripted sign-in is a CARVE-OUT, not a breach of `dev-signin`.** That rule exists
+to keep a credential to REAL money off disk. `.test` is an IANA-reserved TLD that can
+never be a real mailbox, so it cannot. **It is enforced in code, not by intention:**
+both scripts refuse any address not matching `/@forgenta\.test$/`. Recorded in
+`.claude/skills/dev-signin/SKILL.md` — **which is GITIGNORED, so that record exists on this
+machine only and will not reach a fresh clone.** The enforcement is in the committed
+scripts, so it survives either way. **Remove that check and the rule is back in force.**
+
+### What is now MEASURED that was jsdom-only before
+* **Auto-apply fires in a real browser.** On first load it wrote a review row (6 → 7)
+  and an undoable `applied_action`. Neither was inserted by me.
+* **`scripts/walk-deck-undo.mjs`** — presses the auto-apply undo. PASS.
+* **`scripts/walk-row-link-undo.mjs`** — presses **BankActivity's per-row
+  `linkOneWithUndo`** (`BankActivity.tsx:688`, opener at `:1424`), picks a destination,
+  then presses undo. PASS: created `link_confirm / Linked 401k Contribution`, undo
+  marked that id undone.
+* Both read `applied_actions` **through the signed-in user's own PostgREST session**,
+  so RLS is exercised by the check rather than bypassed.
+
+### PROVEN RED, and both restores were byte-exact
+| mutation | result |
+| --- | --- |
+| `recordApplied` at `BankActivity.tsx:749` removed (link writes, records nothing) | exit 1, "wrote no applied_action" |
+| `.update({ undone_at: null })` in `useAppliedActions.ts:97` — non-throwing, so a smoke test passes it | exit 1, naming the row |
+| both restored | `BankActivity.tsx` sha `822fc15e…`, `useAppliedActions.ts` sha `c7d8bf83…`, `git status src/` empty, green again |
+
+### ⚠️ THREE WRONG INSTRUMENTS IN ONE SLICE, and every one produced a CONFIDENT wrong answer
+Same lesson three times, and it is the reason this section exists rather than a tidy
+"it passed":
+1. **A live COUNT cannot see this.** The first check compared not-undone counts and
+   reported **FAIL on a press that had worked** — auto-apply creates a fresh live action
+   in the same load that the press undid an old one. Both checks now assert **specific
+   row ids**.
+2. **`.last()` picked the wrong `<select>`.** The page carries six unrelated selects and
+   the picker is inserted in DOM ORDER, not appended — so the matcher grabbed the "All
+   Sources" filter and reported **"the picker offers no destinations"** while the picker
+   was open with 16. The picker is now found by its own prompt option.
+3. **Buttons vs `<option>`.** Before that, the same step diffed BUTTON labels and read
+   zero, because the options are `<option>` elements with zero width and height. **A
+   zero from a matcher aimed at the wrong element type and a zero from a broken control
+   are the same zero.**
+
+### Two things the next session needs to know
+* **THE FIXTURE IS SINGLE-USE, AND THAT IS THE PRODUCT BEING CORRECT.** Once a decision
+  is undone the app deliberately does not re-apply that charge, so a successful run
+  leaves nothing to press and the next run exits **2** (could not test), never 1. Both
+  scripts print the exact re-arm SQL. **Re-arm is TWO deletes, not one** — clearing
+  `applied_actions` alone leaves the charge LINKED and auto-apply has nothing to offer.
+* **`DELETE` on `applied_actions` is refused by RLS even for the row's owner** (measured,
+  HTTP 403). It is an append-only trail that undo MARKS. So re-arming needs a privileged
+  connection, which is why the scripts print the SQL instead of doing it.
+
+### Still NOT covered, said plainly
+* **The BATCH panel undo (`MerchantMemoryPanel`) is still jsdom-only.** It is the one
+  control of the three that has never been pressed. Filed separately; the surface now
+  exists, so it is cheap.
+* Both checks assert **database rows, not a rendered frame**. A visual regression in the
+  undo banner passes them.
+* The reviewer-account walk (`a40f1e23`) is **unchanged and still Tre's**. This removes
+  the cases that never needed him; it does not replace the one that does.
+
+### Two test accounts now exist, and they move the user count
+`reach-rls-probe@forgenta.test` and `deck-walk@forgenta.test`. **`profiles` reads 33,
+not 31** — subtract both before quoting a user number anywhere. Deleting either auth
+user cascades all of its data (that is what `c49cfd58` built).
+
 ## Resume queue — 2026-09-14 (Ada). TWO ITEMS CLOSED. NO CODE CHANGED, AND THAT IS THE RESULT.
 
 Nothing was committed to `src/` this session, deliberately: both items closed on a
