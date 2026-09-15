@@ -1,5 +1,56 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ⇢ FIRST UP — 2026-09-15 (Ada, SIXTH session). QUEUE ITEMS 1 AND 2 ARE BOTH CLOSED.
+
+`b18d6dd1` the debt_payoff refusal, re-measured · `84c6c0e4` a production-build gate on
+`AI_ADVISOR_ENABLED`. Both on origin/main 0/0 BY CONTENTS. Asks closed with evidence:
+`f05b9c82`, `1a805cf2`.
+
+### 1. ✅ `f05b9c82` — THE RECORDED REASON WAS FALSE; THE REFUSAL SURVIVES ANYWAY
+The unrun query is run. **`account_reconciliations` DOES carry debt rows** (`source_table='debts'`),
+so the header's *"no table in `public` matches `%balance%` or `%statement%`"* was simply false —
+four tables do, and that one is a dated per-account balance history.
+⚠️ **AND THE METRIC IS STILL NOT BUILDABLE, for a different and measured reason.** The
+discriminating count is accounts with MORE THAN ONE `effective_date`: **7 for `accounts`, 0 for
+`debts`** (33 rows / 2 users vs 2 rows / 1 user, all on 2026-08-22; positive control 56 public
+tables, and the cash arm is non-zero, so the debt zero is a real absence). A peak-revolving metric
+needs a SERIES; one point per card is always 100% or 0%. Sparse **by construction** — rows are
+written only by a user-initiated reconcile (`useAccountReconciliations().add`), never automatically.
+**So `debt_payoff` stays in `UNSOURCED_METRICS`, and the work is BALANCE CAPTURE FIRST, the metric
+second.** The header now carries the query, the numbers, and what would change the answer, so the
+next session re-runs it instead of trusting the paragraph.
+
+### 2. ✅ `1a805cf2` — THE PREMISE WAS ALREADY SATISFIED; THE GATE WAS WHAT WAS MISSING
+Re-measured before building, as the queue said to: `AiAdvisor` is **already** mounted at
+`Account.tsx:188` in an `ai` section ordered AFTER `leaderboard`, and `/ai` is no longer a rail row
+(`1df1e5bf`). Nothing to move.
+What was missing is EVIDENCE the flag holds. `AI_ADVISOR_ENABLED` is `import.meta.env.DEV`, and
+mounting the advisor forwards transactions, debts, goals, accounts and car funds to the
+`ai-advisor` edge function — **a vitest can stub `import.meta.env` and prove nothing about what
+ships.** New **`npm run check:ai-gate`** builds and asserts the shipped `SECTION_AVAILABLE` literal
+reads `ai:!1`, matched BY SHAPE because the minifier renames the binding every build. Measured:
+`$={profile:!0,leaderboard:!0,ai:!1}` in `Account-MS4Tl0BO.js`, 113 js assets examined.
+⚠️ **THE FIRST RED DID NOT DISCRIMINATE, AND THAT IS THE LESSON.** `vite build --mode
+development` leaves `import.meta.env.DEV` FALSE — `vite build` forces `NODE_ENV=production` — so
+that run came back GREEN and proved nothing. **A non-discriminating red looks exactly like a broken
+gate.** The real red is `ai: true` in `Account.tsx` → `ai:!0`, exit 1, source restored byte-exact by
+sha256. The CONTROL was proven separately by breaking the matcher → exit 2.
+⚠️ **STATED RESIDUE**: the minifier does NOT fold `SECTION_AVAILABLE.ai` away, so the dead
+segment and the lazy `AiAdvisor` chunk are still EMITTED. That is bundle weight, not a data flow.
+
+### ⇢ RESUME QUEUE — START AT ITEM 1
+
+1. `f22f17b1` native iOS material. Tre OVERRULED the recommendation: "I want native iOS material."
+   The cost is that a native view is a SIBLING of the WebView, so every glass frame crosses the
+   bridge on every scroll/resize/rotation.
+2. `e72a8df4` rotate the reddit-scout webhook secret, `3d6e26a0` delete the edge function — both
+   NEEDS TRE, both still open, both live exposures rather than tidying.
+3. **Optional, and stated rather than done:** the dead AI segment and the `AiAdvisor` chunk still
+   ship (see item 2's residue). Folding them out would need `SECTION_AVAILABLE.ai` to be a direct
+   constant rather than an object property. No user impact; bundle weight only.
+
+---
+
 ## ⇢ FIRST UP — 2026-09-15 (Ada, FIFTH session). ITEMS A AND B ARE BOTH SHIPPED.
 
 `3ebf4d79` the friend_links grant + a real-PostgREST gate · `2e562f10` the Account-tab IA
@@ -4314,16 +4365,15 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 14:54 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 15:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
-M supabase/.temp/cli-latest
 ?? scripts/handoff.md
 ?? squeeze-dashboard.png
 ?? squeeze-thin-dashboard.png
@@ -4332,14 +4382,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+4d813895 [handoff]: resume queue - f05b9c82 is ONE metric (debt_payoff), and a premise in leaderboard-metrics.ts is false
+dcf66e3a [handoff]: the two navigations are one list now - 1df1e5bf, and 7a19ac46 no longer needs Tre
+1df1e5bf [nav]: the desktop rail and the phone bar are ONE list - the selections differed at the two widths
+399d37bb [handoff]: items A and B are both shipped - the grant, the real-PostgREST gate, and one mount for the invite forms
+2e562f10 [ia]: Partner Link and Friends were on TWO pages at once - one mount, and the invite links still land
+3ebf4d79 [friends]: the Friends card was 403 for every signed-in user - one missing column grant
+09c83420 [handoff]: a LIVE 403 breaks the friends card for every user, and the last third of c4cdcc58 is written but red
 dfa3104a [handoff]: c4cdcc58 is two thirds done - the Account tab IA reconciliation is the unstarted third
-621bf96e [dashboard]: the quick look - spending rolls up to six groups, the 26 categories sit one press behind it
-359b93d2 [ui]: the segmented control is one shape again - 17 inline radius overrides removed
-5449b8f4 [gate]: check:rail can finally see the numeric badge - it was unreachable by construction
-8f683f56 [friends]: deploy the usernames-only function, and let the screen admit the capability it lost
-210f1a1f [handoff]: third session's resume queue - the friend-link DEPLOY is the half-finished item
-cc8aecb1 [friends]: usernames only - remove the email invite path, and stop handing the inviter someone else's address
-f94a4d32 [handoff]: FOR SAM - the keep-going hook and the cap hook contradict each other, and the loop spends the reserved budget
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
