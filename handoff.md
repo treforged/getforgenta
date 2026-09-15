@@ -1,5 +1,41 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ⇢ FIRST UP — TRE IS AT HIS SCREEN, IN CHROME, WAITING (2026-09-15, handed over mid-task)
+
+**Do this before anything else.** He is showing defects on his own localhost:8080 and the
+predecessor was cut by the handoff gate one call into attaching.
+
+1. **Attach to Chrome.** ONE ToolSearch call:
+   `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__get_page_text`
+   then `tabs_context_mcp` FIRST. **Measured a moment ago: the MCP group held exactly ONE
+   tab, `chrome://newtab/` (tabId 1527590848) — his own tab is NOT in the group**, so open
+   or use your own and never navigate one he is looking at. Say which tab you are on.
+2. **DO NOT START A DEV SERVER.** `localhost:8080` is already live (his words, via Sam).
+3. ⚠️ **THAT BROWSER IS SIGNED IN AS HIS PERSONAL ACCOUNT, not the reviewer.** Everything
+   you see is HIS real money until he says he switched. **"no friends on this account" and
+   "the section is broken" look identical from outside** — check WHICH ACCOUNT before
+   concluding anything about an empty leaderboard. Read only; mutate nothing.
+
+### His six, in Sam's order
+| id | what |
+| --- | --- |
+| `a6c2de42` | the friends leaderboard is not showing; should be its own section INSIDE Leaderboard. Unreachable / empty / erroring are three different defects — prove REACHABILITY first |
+| `a0328857` | leaderboard content is ALSO appearing in the Account section — a regression against `4b217aea`; the move may have DUPLICATED rather than relocated. Assert BOTH directions: present in Leaderboard, **ABSENT** from Account |
+| `23c07655` | username changes: twice per rolling 7 days. He says he asked before — FIND the earlier ask and close it rather than filing a duplicate. The real test is the THIRD attempt in the window, and the refusal must say when it unlocks |
+| `6eeb8fe3` | remove add-friend-by-email, usernames only. Remove the STORAGE and INDEX too — hiding the field while keeping the column is not what he asked. Privacy win for the commit body: an email lookup lets anyone test whether an address has an account |
+| `f05b9c82` | finish the remaining leaderboard stats. ENUMERATE how many render "not ready". A stat that cannot be computed honestly gets NO tile, never a zero |
+| `f22f17b1` | ⚠️ **TRE OVERRULED THE RECOMMENDATION: "I want native iOS material."** The CSS estimate said don't; he said do. It needs a Capacitor plugin + native build, and the cost is that a native view is a SIBLING of the WebView, so every glass surface's frame must be pushed across the bridge on every scroll/resize/rotation. Behind the five above |
+
+Also untriaged and NOT this desk's: *"Put the link to my C5 build right under the car image
+on my website"* — that is **treforgedwebsite (Ellis)**. Route it; do not build it here.
+
+### Shipped this session, all on origin/main 0/0 by CONTENTS
+`38725a19` route walk · `e445b0ca` sidebar · `31769d45` glass · `4b217aea` Account
+sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven RED first:
+`walk:routes`, `check:rail`, `check:glass`, `check:account`, `check-mobile-squeeze.mjs`.
+
+
+
 ## Resume queue — 2026-09-15 (Ada), OVERDRIVE. Four commits, all on origin/main 0/0 by CONTENTS.
 
 `38725a19` route walk · `e445b0ca` the narrow sidebar · `31769d45` real glass ·
