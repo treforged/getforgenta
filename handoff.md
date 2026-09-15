@@ -26,6 +26,19 @@ predecessor was cut by the handoff gate one call into attaching.
 | `f05b9c82` | finish the remaining leaderboard stats. ENUMERATE how many render "not ready". A stat that cannot be computed honestly gets NO tile, never a zero |
 | `f22f17b1` | ⚠️ **TRE OVERRULED THE RECOMMENDATION: "I want native iOS material."** The CSS estimate said don't; he said do. It needs a Capacitor plugin + native build, and the cost is that a native view is a SIBLING of the WebView, so every glass surface's frame must be pushed across the bridge on every scroll/resize/rotation. Behind the five above |
 
+### `1a805cf2` — THE AI ADVISOR MOVES INTO THE ACCOUNT TAB, AFTER THE LEADERBOARD SECTION
+His words: *"that AI advisor that's only for localhost right now, that's going to go into
+the profile tab um, after the leaderboard."* Section order becomes: the existing account
+sections, then Leaderboard, then AI Advisor.
+**SEQUENCE IT BEHIND `a0328857` AND `a6c2de42`** — placing it now means positioning against
+a layout that is about to change.
+⚠️ **IT IS LOCALHOST-ONLY TODAY AND GIVING IT A HOME MUST NOT SHIP IT.** `AI_ADVISOR_ENABLED`
+gates the `/ai` route in `src/App.tsx` — find where that flag comes from, keep it, and SHOW
+in the commit that it still holds. **And if it turns out there is no real gate — if
+"localhost only" is an accident of how it is currently reached — SAY SO as a finding rather
+than assuming one exists.** That is larger work, and this feature talks to users about their
+money.
+
 ### AND `98830520` — FIVE MORE ON THE DESKTOP SIDEBAR. `47239c60` was closed TOO EARLY.
 Same surface, seen properly on his screen. Mobile is the REFERENCE for item 1 — do not
 reconcile by changing mobile.
