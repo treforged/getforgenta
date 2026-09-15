@@ -224,6 +224,42 @@ sections · `39fe3c3e` the 2FA banner squeeze. Five new gates, every one proven 
 
 ## Resume queue — 2026-09-15 (Ada, THIRD session). ORDERED. Each item is a POINTER, not a report.
 
+0. **`c4cdcc58` TRE-APPROVED IA PASS — TWO THIRDS DONE, `621bf96e`. START HERE.**
+   His ask was three things in ONE pass: *generalize the categories*, *make the dashboard a quick
+   look*, *push detail to where it belongs* — **and reconcile it with the Account tab IA.** The
+   first three shipped; **the Account tab reconciliation has NOT been started.**
+
+   **WHAT SHIPPED, and why it touched no data.** A DISPLAY rollup: `rollUpByGroup` in
+   `src/lib/types.ts` folds a `byCategory` breakdown into the six `CATEGORY_GROUPS`, and the
+   dashboard leads with those instead of 8 of 26 categories. **No category deleted, no row
+   rewritten, no migration** — which is what lets his own caution (reducing the SET rewrites rows
+   on every account; keep the 7 unused ones without evidence beyond a three-user sample) cost
+   nothing. Undo is deleting one memo and its two call sites.
+
+   ⚠️ **THE OBVIOUS IMPLEMENTATION WOULD HAVE LOST MONEY ON SCREEN.** `byCategory` is **not**
+   keyed only by `CATEGORIES` — the expense model mints its own keys, and /demo carries
+   **`Auto Loan Interest`**, in no `CATEGORIES` entry. A rollup that walked `CATEGORY_GROUPS` and
+   summed each group's categories would have **dropped it from the on-screen total** while every
+   “groups cover categories” test stayed green. Found by reading the live breakdown, not the type.
+   `rollUpByGroup` maps by NAME, with an explicit synthetic table and a real group for anything
+   unrecognised; the total is asserted equal to the flat total.
+
+   ⚠️ **TWO DEFECTS CAME OUT OF A RENDERED FRAME AND NOTHING IN THIS REPO COULD HAVE SEEN
+   EITHER**: `CategoryIcon` is keyed by CATEGORY, so every GROUP row drew a `···` fallback glyph;
+   and three rows replacing eight left the card **half blank** beside its taller sibling
+   (`items-start`). Both were invisible to tsc, lint and 4626 tests.
+
+   **Pressed, and the press asserts a CHANGE**: 3 rows → 12, `aria-expanded` false → true, and
+   `Auto Loan Interest` — the exact key the naive rollup would have dropped — present in the
+   detail. Reds proven both ways with byte-exact restores. Gates: tsc 0, lint 0/34, `test:tz`
+   **4626 ×3 over 456 files** (up 8, exactly the tests added), `walk:routes` PASS 27/27.
+
+   **NEXT, and it is the unstarted third**: reconcile with the **Account tab IA**. Read
+   `src/pages/Account.tsx`'s section bar (Profile / Leaderboard / Forgenta AI) against what the
+   dashboard now shows, and decide what belongs where. **Do not close `c4cdcc58` until that is
+   done** — it was approved as one pass and closing it on the two easy thirds is the shape this
+   file keeps warning about.
+
 **On origin/main 0/0 by contents.** Today, in order: the `founder_waitlist` answer, the
 `reddit-scout` exposure, `budget_adherence` wired, Forgenta AI as a gated Account section, item 6's
 premise disproved, item 8's inventory, and the friends usernames-only removal.
