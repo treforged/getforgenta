@@ -366,9 +366,23 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    **Do NOT treat rotating the secret as the fix.** Rotation leaves an unauthenticated, uncalled
    function holding three credentials on the public internet. Delete first; rotate anyway.
 
-8. **`b9fe1d41` the `seg-item` radius drift.** It declares a 9999px pill and **all 15 callers override
-   it inline** with `var(--radius)`. Visual across 8 surfaces, so it wants a rendered frame and
-   probably Tre's eye — do not change it blind.
+8. **`b9fe1d41` the `seg-item` radius drift — STARTED, MEASUREMENT INCOMPLETE. Stopped by the 5h
+   cap mid-count, so take the numbers below as PARTIAL.**
+   Established: the declaration is `@utility seg-item` at `src/index.css:329` (`seg-item-active` at
+   :358), and there are **21 occurrences of `seg-item` across `src/`**. The queue said 15 callers —
+   so either the count grew or the earlier figure was wrong. **Re-derive it; do not inherit either
+   number.** One of the 21 is mine: `Account.tsx` gained a third segment today carrying the same
+   inline override as its neighbours, so the drift has one more instance than when it was filed.
+   ⚠️ **DO NOT COUNT THE OVERRIDES WITH A LINE-BASED GREP.** `style={{ borderRadius:
+   'var(--radius)' }}` sits on its OWN LINE, so `grep 'seg-item' | grep -c borderRadius` returns
+   **0** — a confident zero about an override that is present on every caller I have read. Count
+   per FILE over the whole text, never per line. (Same family as the truncated multi-pattern grep
+   already recorded in this repo's CLAUDE.md.)
+   **Still the deliverable:** if every caller overrides the declared 9999px pill with
+   `var(--radius)`, the DECLARATION is wrong rather than the callers, and the fix is to change the
+   one declaration and delete the overrides — provable without an eye by comparing computed
+   `border-radius` before and after on a rendered page. Visual across 8 surfaces, so a rendered
+   frame settles the correctness half and Tre's eye settles the taste half.
 
 9. **`f22f17b1` native iOS material.** Tre OVERRULED the CSS recommendation: *"I want native iOS
    material."* Capacitor plugin + native build. The cost to design around: a native view is a SIBLING
