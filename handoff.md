@@ -225,16 +225,58 @@ Gates on the last commit: tsc clean, lint **0 errors / 34 warnings** (unchanged 
 `test:tz` **4614 x3 zones over 454 files** — UP from 4604 this morning, and the rise is exactly the
 tests added.
 
-1. **DEPLOY `friend-link`. THIS IS THE HALF-FINISHED ONE AND IT IS NAMED IN ITS OWN COMMIT.**
-   The UI path is gone and pushed, but **the DEPLOYED function still accepts the `invite` action**,
-   so the email path is live server-side until it is redeployed. `mcp__claude_ai_Supabase__deploy_edge_function`,
-   project `mdtosrbfkextcaezuclh`, slug `friend-link`, files `supabase/functions/friend-link/index.ts`
-   and `link-rules.ts`. **Then verify by CALLING it** — an `invite` body must be refused by schema
-   validation, and an `invite_username` body must still work. `verify_jwt` on that function is
-   `true`, so the check needs a signed-in token.
-   ⚠️ The migration IS already applied (`invitee_username`, nullable), so the new code has the
-   column it needs. Deploying is therefore safe in either order, but **not deploying leaves the
-   removal half-done**.
+1. ~~**DEPLOY `friend-link`**~~ ✅ **DONE 2026-09-15 (Ada, FOURTH session) — version 10 is live, and
+   `6eeb8fe3` IS NOW COMPLETE.** The server half was the last open piece; the empty-state copy that
+   the previous session left undone on purpose shipped with it.
+
+   **Verified BY CALLING the deployed function**, signed in as the walk account, three cases chosen
+   to discriminate rather than to pass:
+   | case | result |
+   | --- | --- |
+   | control — `status` | **200** `{"friends":[],"pending":[]}` — the function is alive and answering |
+   | `{"action":"invite","email":…}` | **400** `Invalid discriminator value. Expected 'invite_username' \| 'accept' \| 'status'` |
+   | `{"action":"invite_username","username":"zzz-no-such-handle-zzz"}` | **404** `No account with that username.` |
+
+   **The 400 body is the assertion, not the status.** It ENUMERATES the actions the deployed schema
+   accepts and `invite` is not among them — a bare 400 would have been satisfied by any malformed
+   body. And the 404 proves `invite_username` still DISPATCHES and reaches the `profiles` resolver:
+   a schema rejection would have returned the discriminator message instead.
+
+   ⚠️ **THE DEPLOY TAKES SIX FILES, NOT THE TWO THIS QUEUE NAMED.** A deploy replaces the whole
+   bundle, so `_shared/cors.ts`, `_shared/rate-limit.ts`, `_shared/tracer.ts` and
+   `friend-link/invite-code.ts` must go up too or the function loses its own imports. The two named
+   here were only the two that DIFFERED. Derive the list from what is deployed
+   (`get_edge_function`), never from a sentence.
+
+   ⚠️ **THE CLI CANNOT DEPLOY FROM THIS MACHINE** — `supabase functions deploy` exits
+   `LegacyPlatformAuthRequiredError`, no `SUPABASE_ACCESS_TOKEN` anywhere and no stored credential.
+   The MCP tool is the only route, and it needs every file's contents inline.
+
+   ⚠️ **DEPLOYED `index.ts` IS NOT BYTE-IDENTICAL TO LOCAL, AND THE DIFFERENCE IS THREE COMMENTS.**
+   Read back and compared file by file: **5 of 6 byte-identical**, `index.ts` differs by **1 byte**
+   across three `// ── …` separator rules (`Shared reads`, `Actions`, `Entry point`) where the
+   hand-transcribed copy miscounted box-drawing characters. **Zero semantic difference — every
+   difference is inside a comment.** Recorded HERE because the next session that diffs deployed
+   against local will otherwise read it as a stale deploy and redeploy for nothing. Not corrected,
+   deliberately: a second live deploy of a working function to fix three dashes is the riskier move.
+
+   ⚠️ **WHAT THE CALLS DID NOT EXERCISE**, said rather than implied: the walk account has no
+   pending invites, so `status` returned `pending: []` and the **disclosure fix** — `pending` rows
+   carrying `invitee_username` instead of `invitee_email` — is proven only by the source diff and
+   by the unit tests, never by a live row. Exercising it needs a real pending invite, which sends
+   real mail to a real person.
+
+   **AND THE SCREEN NOW ADMITS WHAT THE PRODUCT LOST.** `FriendLink.tsx` says *"They need a
+   Forgenta account and a username. You cannot invite someone who has not signed up yet."*
+   **It is ALWAYS on, not only in the empty state** — somebody who already has one friend is the
+   person most likely to go looking for the email field. Test:
+   `FriendLink.inviteByUsername.test.tsx`, which renders twice, with a friend present the second
+   time and a positive control asserting that friend really rendered.
+   **Proven RED by the mutation that a reviewer would have approved** — the note gated on the empty
+   state, inside a fragment so it still compiles: **1 failed | 4 passed**, and the failure is mine.
+   ⚠️ My FIRST attempt at that mutation put the `<p>` beside an existing element inside
+   `{cond && (…)}`, which is a JSX parse error — `Tests no tests`, exit 1. **That red proved
+   nothing**; it is instrument trap #2 at the bottom of this queue, hit while trying to obey it.
 
 2. **`6eeb8fe3` — THE DB HALF IS REFUSED, WITH EVIDENCE. Do not re-open it on the brief's say-so.**
    `invite_username` (`friend-link/index.ts:305`) resolves the handle to the target's email and

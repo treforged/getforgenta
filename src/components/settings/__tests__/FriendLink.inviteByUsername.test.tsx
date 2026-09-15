@@ -16,12 +16,15 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 
 const mocks = vi.hoisted(() => ({
   inviteByUsername: vi.fn(),
+  // Defaults to the empty list every other case in this file assumes. One case below sets it, so
+  // that a note rendered ONLY in the empty state can be told apart from one that is always on.
+  friends: [] as { linkId: string; userId: string; label: string }[],
 }));
 
 vi.mock('@/hooks/useFriendLink', () => ({
   useFriendLink: () => ({
     loading: false, error: null, refetch: vi.fn(),
-    friends: [], pendingInvites: [], namesUnavailable: false,
+    friends: mocks.friends, pendingInvites: [], namesUnavailable: false,
     inviteByUsername: { mutate: mocks.inviteByUsername, isPending: false },
     accept: { mutate: vi.fn(), isPending: false },
     revoke: { mutate: vi.fn(), isPending: false },
@@ -49,6 +52,7 @@ const addButton = () => screen.getByText('Add by username');
 
 beforeEach(() => {
   mocks.inviteByUsername = vi.fn();
+  mocks.friends = [];
 });
 afterEach(cleanup);
 
@@ -93,6 +97,26 @@ describe('adding a friend by username', () => {
     fireEvent.change(handleField(), { target: { value: 'jordan' } });
     fireEvent.click(addButton());
     await waitFor(() => expect(mocks.inviteByUsername).toHaveBeenCalledWith('jordan'));
+  });
+
+  // ⚠️ THE CAPABILITY THE PRODUCT LOST, STATED ON THE SCREEN. Removing the email field removed
+  // the only way to invite somebody who has NO ACCOUNT YET. Without this line the missing field
+  // reads as a missing feature, and the user's own conclusion is that the app is broken.
+  // The mocked hook renders friends: [] AND pendingInvites: [], so this case would also be
+  // satisfied by an empty-state-only note - which is why the SECOND assertion re-renders with a
+  // friend present and requires the line to survive. An empty-state note passes the first and
+  // fails the second.
+  it('says you cannot invite someone without an account, and says it even when you HAVE a friend', () => {
+    const line = () => screen.getByText(/cannot invite someone who has not signed up yet/i);
+
+    renderCard();
+    expect(line()).toBeTruthy();
+    cleanup();
+
+    mocks.friends = [{ linkId: 'l1', userId: 'u1', label: 'Jordan' }];
+    renderCard();
+    expect(screen.getByText('Jordan')).toBeTruthy(); // positive control: the friend really rendered
+    expect(line()).toBeTruthy();
   });
 
   it('⚠️ NEVER QUERIES THE DATABASE ITSELF — the supabase mock throws if it tries', () => {

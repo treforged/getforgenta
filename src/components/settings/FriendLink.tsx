@@ -188,7 +188,16 @@ export function FriendLink() {
           invite somebody who has NO ACCOUNT YET. The email field was the only path that worked
           before the other person signed up. Adding a friend now requires them to have an account
           and to have claimed a username. That is what the ask asked for; it is still a loss, and
-          the empty state should eventually say so rather than looking like a missing feature. */}
+          the screen SAYS SO below rather than looking like a missing feature.
+
+          ⚠️ THE LINE IS ALWAYS ON, NOT ONLY WHEN THE LIST IS EMPTY. Somebody who already has one
+          friend and is trying to add a second is the person who most needs to be told why there is
+          no email field - and an empty-state-only note is invisible to them. A capability the
+          product no longer has must be stated where the attempt is made. */}
+      <p className="text-xs text-muted-foreground">
+        They need a Forgenta account and a username. You cannot invite someone who has not signed
+        up yet.
+      </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className={FIELD_WRAPPER}
           style={FIELD_RADIUS}>
