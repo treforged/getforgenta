@@ -318,11 +318,32 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    far as its premium gate — the walk account is not premium, so the signed-in premium body is
    unwalked.
 
-6. **`196f5929` — the one gate assertion never proven red.** `check:rail`'s badge-containment check
-   is not exercised, because the walk account's bank review queue is empty so the numeric badge never
-   renders. The check PRINTS `numeric badge ABSENT (not exercised)` per cell so nobody reads a clean
-   result as coverage. Seed a review-queue row for `deck-walk@forgenta.test`, then prove it red by
-   restoring `-right-0.5` on the dot.
+6. **`196f5929` — THE PREMISE WAS WRONG AND THE SEED IS UNNECESSARY. Attempted 2026-09-15, backed
+   out clean; `check:rail` is GREEN on main. Read this before touching it.**
+   The queue said: seed a bank-review row for `deck-walk@forgenta.test` so the numeric badge
+   renders, then prove the containment assertion red by restoring `-right-0.5`. **Two things
+   measured today say that plan was aimed at the wrong object.**
+   * **NO SEED IS NEEDED. `/demo` already renders a real badge**, measured with a throwaway probe:
+     `title="48 bank charges have a suggested match waiting for you"`, text `Transactions48`. No
+     credentials, no database write, nothing to clean up. **Do not write rows into the production
+     database for this** — the cheaper instrument was one navigation away.
+   * ⚠️ **"numeric badge ABSENT" IN THE COLLAPSED RAIL IS CORRECT BEHAVIOUR, NOT MISSING DATA.**
+     At 72px the badge deliberately degrades to a DOT. So the numeric badge can only be exercised
+     in the OPEN rail, and the original plan — seed, then restore `-right-0.5` at 72px — would
+     have been chasing an assertion that cannot fire there. **Read as a data problem it sends the
+     next person seeding rows to fix a feature that works.**
+   **WHAT ACTUALLY BLOCKS IT, and it is a HARNESS state rather than a product one:** a demo pass
+   added after the width loop measured the rail at **72px** and could not open it — neither a
+   chevron press nor `page.mouse.move(30, 300)`. The same hover at the same point in the same run
+   opens the rail to **234px with all 9 labels** on the signed-in dashboard (the positive control
+   proves it every run). **So the thing that breaks the hover is navigating to `/demo`, not the
+   collapse preference** — which was my first theory and it was wrong.
+   **NEXT MOVE, in order of promise:** run the demo pass in a FRESH CONTEXT BEFORE the width loop,
+   where the probe already showed the rail open and the badge present; or move the mouse away and
+   back after the navigation. **Do not commit the pass until it is green** — this repo has had a
+   committed gate sitting red on main once already, and it cost a session.
+   **The presence assertion is the load-bearing half whenever it is rebuilt:** every badge check is
+   an ABSENCE, so without `badgePresent` the pass goes green the day the badge stops rendering.
 
 7. **`2e52390b` reddit-scout — MEASURED 2026-09-15, and it is WORSE than "dead code". DECIDED:
    REMOVE IT. Blocked on a credential, not on a judgement.**
@@ -3864,7 +3885,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 11:41 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 12:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3882,14 +3903,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+43171178 [account]: Forgenta AI as a third section, behind the same policy gate as /ai
+c9f9f631 [leaderboard]: wire budget_adherence, pro-rated to the day, and drop it from UNSOURCED_METRICS in the same commit
+0ebd1b96 [handoff]: correcting my own evidence - I read a COUNT as a SHAPE on budget_items
+fb4a8c01 [handoff]: the leaderboard guard is doing its job - two of four metrics are unsourced on purpose
+db91d6d8 [handoff]: reddit-scout is not dead code - it is an unauthenticated live function holding three credentials
+fc9baf37 [handoff]: Ellis's founder_waitlist blocker settled - the table is FORGENTA's, and its zero is ambiguous
+41258f2a [handoff]: ordered resume queue - nine pointers, and the one query I was a call short of
 382d4db7 [handoff]: a committed gate was red on main over the element its own comment exempts
-f2ae4744 [gate]: the squeeze check's grid exemption could never fire, so main was red
-a6890f10 [handoff]: seven asks closed with evidence, and the Reddit Scout question answered from the scheduler
-a141bf4b [handoff]: 6eeb8fe3 measured but deliberately not started - stopped clean at the 5h cap
-417c9ee3 [gate]: check:username stops poisoning its own next run
-2ec1c8f6 [handoff]: username changes shipped, and its probe found three defects before any reached a user
-9635c38e [username]: you can change your handle, twice every seven days
-b2ee3248 [handoff]: two commits shipped - the leaderboard now places the reader, and the collapsed rail stops overflowing
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
