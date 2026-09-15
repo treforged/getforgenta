@@ -74,9 +74,49 @@ accounts qualify today, and the binding constraint is `onboarding_completed` (tr
 not the 7-day bar.** A proportion over 6 people is not a PMF verdict — the free-text answers are
 the output worth having at this size, and that number says the priority is onboarding completion.
 
+### 5. ✅ `03c8de4f` ALSO SHIPPED — AND THE REAL FIND OF THE SESSION IS BELOW IT
+
+`853f7d70` the Sean Ellis survey · `b18d6dd1` `84c6c0e4` `cdede2f0` earlier. All on origin/main
+0/0 BY CONTENTS. Asks closed with evidence: `f05b9c82`, `1a805cf2`, `c688968f`, `f797506b`,
+`cd516cd3`, `03c8de4f`. Blocked WITH measurements: `f22f17b1`, `7dd28827`, `0d9f8fae`.
+
+⚠️ **`cd516cd3` WAS STALE AND MY OWN BLOCK REASON REPEATED THE STALE CLAIM** before I ran the
+command. `APP_STORE_VENDOR_NUMBER` **is** set (2026-09-15T00:23:47Z). Running it is what caught it.
+
+### ⇢ THE FIND — ask `ac098dec`. ONBOARDING IS NOT HAPPENING, AND THE COLUMN LIES
+
+Measured against the live database, 2026-09-15. **33 profiles. 7 marked `onboarding_completed`,
+and FIVE of those seven have NO `onboarding_furthest_step` at all. Exactly ONE account in the
+product's history has ever reached `finish`.** Only `welcome` and `finish` have ever been recorded.
+**CAUSE, in the code:** `Onboarding.tsx:237` bounces anyone carrying a `display_name` — flag false
+plus name set calls `markOnboardingComplete` and leaves, marking the account onboarded having done
+none of it. **EXPOSURE: 25 of 33 accounts** are one visit to `/onboarding` away from exactly that.
+**So every metric built on `onboarding_completed` measures HAVING A NAME.** That includes the PMF
+eligibility gate shipped hours earlier; corrected in place in `pmf-survey.ts` (the 7-day bar still
+binds, so it is weaker than advertised rather than harmful).
+
+⚠️ **AND I NEARLY BUILT A FIX FOR A WORKING THING — READ THIS BEFORE TOUCHING THE RECORDER.**
+My own ask says *"fixing the recorder is the prerequisite"*. **That framing is probably WRONG.**
+`recordFurthestStep` fires from a `useEffect` on EVERY `step` change (`Onboarding.tsx:264`) and
+looks correct. The likelier explanation is that it is RECENT (`821dc985`, 2026-09-04) and there is
+almost no traffic through the wizard, because the 25 bounced accounts predate it. **THE QUERY THAT
+SETTLES IT WAS BLOCKED BY THE HANDOFF GATE MID-RUN and is UNRUN:**
+
+    select onboarding_furthest_step, onboarding_started_at, created_at, onboarding_completed
+    from public.profiles where onboarding_furthest_step is not null
+    order by onboarding_started_at nulls last;
+
+**If those 3 rows are all recent, the recorder is fine and the defect is the BOUNCE, not the
+writer.** Do not build a recorder fix until that read says otherwise.
+
 ### ⇢ RESUME QUEUE — START AT ITEM 1
 
-1. **`f22f17b1` SECOND HALF — the native iOS plugin. BLOCKED ON TRE, do NOT start Swift here.**
+1. **`ac098dec` THE ONBOARDING FUNNEL. START HERE — it outranks every feature on this queue.**
+   Run the unrun query above FIRST; it decides whether the work is the recorder or the bounce.
+   Then MEASURE BEFORE REDESIGNING: where users drop is unknown, because the step column is
+   populated for 3 of 33. Sam was told and is offline, so the message is queued — the ask is the
+   record. My recommendation, stated so it can be overruled: make the funnel measurable, then look.
+2. **`f22f17b1` SECOND HALF — the native iOS plugin. BLOCKED ON TRE, do NOT start Swift here.**
    ⚠️ **THE PREMISE WAS TESTED AND IT DOES NOT HOLD AS BRIEFED.** A `UIVisualEffectView` is a
    SIBLING of the WKWebView, so there are two z-orders and neither works: BELOW it blurs the native
    background and never sees app content; ABOVE it samples the web content correctly and then
