@@ -339,10 +339,41 @@ tests added.
    Green after both restores: `demo numeric badge pass rail 234px . numeric badges 1 ["48"]`,
    4 width/state cells, tsc 0, lint 0 errors / 34 warnings.
 
-5. **`b9fe1d41` seg-item radius** — inventory complete: **21 caller occurrences across 8 files**
-   (not 15). ⚠️ `borderRadius: 'var(--radius)'` appears **541 times across 96 files app-wide** and
-   that is NOT this item's number; quoting it turns a contained consolidation into an imaginary
-   rewrite. Needs a rendered frame.
+5. ~~**`b9fe1d41` seg-item radius**~~ ✅ **DONE 2026-09-15 (Ada, FOURTH session). 17 inline
+   overrides removed across 7 files; the segmented control is one shape again.**
+
+   ⚠️ **THE ASK'S COUNT WAS WRONG AND THE ERROR POINTED THE WRONG WAY.** It said “15 seg-item
+   buttons” and “EVERY caller then overrides it”, and concluded the utility's pill was dead code.
+   Counted rather than read: **18 call sites, 17 with the override and ONE without** —
+   `Transactions.tsx:915`. **The odd one out was the CORRECT one.** So this was never “the utility
+   is dead code”, it was one surface disagreeing with seventeen — and the fix was to delete the
+   overrides rather than add an eighteenth.
+
+   ⚠️ **AND IT IS ARITHMETIC, NOT TASTE, SO IT DID NOT NEED TRE'S EYE.** Measured live on /demo at
+   1440: track 42px high, radius `9999px`, padding 4.5px → effective `r_outer` 21px, gap 4.5px.
+   **4.5 < 21, so `corner-concentricity` BINDS**, and `r_inner = 21 − 4.5 = 16.5px`. The item is
+   31px high, so anything at or above 15.5px renders as a pill — **the concentric answer IS the
+   oval**, which is also what he asked for on 2026-08-18 (*“ovals like copilot and monarch do”*).
+   The override rendered **12px**, 4.5px short, which SWELLS the gap at each corner.
+
+   **RENDERED FRAMES, both states, deviceScaleFactor 2**, plus the computed radius read off the
+   live page: **`borderTopLeftRadius` 12px before → 9999px after**, item height unchanged at 31px.
+
+   **NEW GATE `src/components/shared/__tests__/seg-item-radius.test.ts`**, modelled on
+   `one-switch.test.ts`: it WALKS `src/` rather than naming files, and carries a positive control
+   that fails if it finds no call sites at all. **Proven red BOTH ways**, one failing test each,
+   byte-exact restores: restoring a single real override → red; renaming the utility so the walker
+   finds nothing → red rather than a clean tree. Its limit is stated in its own header — a source
+   gate cannot see a rendered corner, which is why the frames exist.
+
+   ⚠️ **A SWEEP SCRIPT REWROTE THREE WHOLE FILES ON ITS FIRST RUN** (Accounts 2830 lines,
+   Settings 2497, DebtPayoff 1609 — against 49 lines of real change). Reverted with
+   `git checkout HEAD -- <file>` and redone per file with the diff checked after each. **The tell
+   was `--stat`, not the content**: every hunk I spot-checked looked correct while the file was
+   being rewritten end to end. Check the SIZE of a mechanical diff, not only its hunks.
+
+   Gates: tsc 0, lint 0 errors / 34 warnings, `test:tz` **4618 ×3 zones over 455 files** (up 3,
+   exactly the tests added), `check:account` PASS (all 3 sections switch, bar still glass).
 
 6. **`2e52390b` / `3d6e26a0` reddit-scout** — decided DELETE, blocked on a credential only. Sam
    confirmed and bounded it: 18 of 35 deployed functions have `verify_jwt=false`, so **that flag

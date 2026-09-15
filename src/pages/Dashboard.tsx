@@ -1671,20 +1671,17 @@ export default function Dashboard() {
       <div className="stack-row">
       <PanelBar>
         <button onClick={() => setActiveTab('overview')}
-          className={`seg-item btn-press ${activeTab === 'overview' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'overview' ? 'seg-item-active' : ''}`}>
           <LayoutDashboard size={13} /> Overview
         </button>
         {/* Goals sits ahead of Accounts (Tre, 2026-08-27: "move goals before accounts on the
             dashboard"). Pill order only — each panel still owns its own content below. */}
         <button onClick={() => setActiveTab('goals')}
-          className={`seg-item btn-press ${activeTab === 'goals' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'goals' ? 'seg-item-active' : ''}`}>
           <PiggyBank size={13} /> Goals
         </button>
         <button onClick={() => setActiveTab('accounts')}
-          className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}>
           <Building2 size={13} /> Accounts
         </button>
       </PanelBar>

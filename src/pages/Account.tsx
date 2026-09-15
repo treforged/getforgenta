@@ -114,23 +114,20 @@ export default function Account() {
         <button onClick={() => setSection('profile')}
           aria-selected={activeSection === 'profile'}
           role="tab"
-          className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}>
           <User size={13} /> Profile
         </button>
         <button onClick={() => setSection('leaderboard')}
           aria-selected={activeSection === 'leaderboard'}
           role="tab"
-          className={`seg-item btn-press ${activeSection === 'leaderboard' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeSection === 'leaderboard' ? 'seg-item-active' : ''}`}>
           <Trophy size={13} /> Leaderboard
         </button>
         {SECTION_AVAILABLE.ai && (
           <button onClick={() => setSection('ai')}
             aria-selected={activeSection === 'ai'}
             role="tab"
-            className={`seg-item btn-press ${activeSection === 'ai' ? 'seg-item-active' : ''}`}
-            style={{ borderRadius: 'var(--radius)' }}>
+            className={`seg-item btn-press ${activeSection === 'ai' ? 'seg-item-active' : ''}`}>
             <Sparkles size={13} /> Forgenta AI
           </button>
         )}

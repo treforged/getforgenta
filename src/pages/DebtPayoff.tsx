@@ -421,28 +421,23 @@ export default function DebtPayoff() {
       {/* Tabs */}
       <PanelBar>
         <button onClick={() => setActiveTab('cards')}
-          className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}>
           <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className={`seg-badge ${activeTab === 'cards' ? 'seg-badge-active' : ''}`}>{openCreditCards.length}</span>}
         </button>
         <button onClick={() => setActiveTab('auto')}
-          className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}>
           <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className={`seg-badge ${activeTab === 'auto' ? 'seg-badge-active' : ''}`}>{activeAutoLoans.length}</span>}
         </button>
         <button onClick={() => setActiveTab('mortgage')}
-          className={`seg-item btn-press ${activeTab === 'mortgage' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'mortgage' ? 'seg-item-active' : ''}`}>
           <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className={`seg-badge ${activeTab === 'mortgage' ? 'seg-badge-active' : ''}`}>{mortgageDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('student')}
-          className={`seg-item btn-press ${activeTab === 'student' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'student' ? 'seg-item-active' : ''}`}>
           <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className={`seg-badge ${activeTab === 'student' ? 'seg-badge-active' : ''}`}>{studentDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('other')}
-          className={`seg-item btn-press ${activeTab === 'other' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'other' ? 'seg-item-active' : ''}`}>
           <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className={`seg-badge ${activeTab === 'other' ? 'seg-badge-active' : ''}`}>{otherDebts.length}</span>}
         </button>
       </PanelBar>

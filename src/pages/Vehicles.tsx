@@ -122,13 +122,11 @@ export default function Vehicles() {
       <PanelBar>
         {/* Builds leads the row (Tre, 2026-08-27: "put builds first on garage page"). */}
         <button onClick={() => setActiveTab('builds')}
-          className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}>
           <Wrench size={13} /> Builds
         </button>
         <button onClick={() => setActiveTab('vehicles')}
-          className={`seg-item btn-press ${activeTab === 'vehicles' ? 'seg-item-active' : ''}`}
-          style={{ borderRadius: 'var(--radius)' }}>
+          className={`seg-item btn-press ${activeTab === 'vehicles' ? 'seg-item-active' : ''}`}>
           <Car size={13} /> Vehicles
           {roster.length > 0 && <span className={`seg-badge ${activeTab === 'vehicles' ? 'seg-badge-active' : ''}`}>{roster.length}</span>}
         </button>

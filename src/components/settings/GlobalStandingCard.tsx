@@ -158,7 +158,6 @@ export function GlobalStandingCard({ metric, label }: { metric: LeaderboardMetri
             role="tab"
             aria-selected={scope === key}
             className={`seg-item btn-press ${scope === key ? 'seg-item-active' : ''}`}
-            style={{ borderRadius: 'var(--radius)' }}
           >
             <Icon size={13} /> {scopeLabel}
           </button>

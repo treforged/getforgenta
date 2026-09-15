@@ -468,8 +468,7 @@ export default function SettingsPage() {
         <PanelBar>
           {panels.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setActiveTab(key)}
-              className={`seg-item btn-press ${panel === key ? 'seg-item-active' : ''}`}
-              style={{ borderRadius: 'var(--radius)' }}>
+              className={`seg-item btn-press ${panel === key ? 'seg-item-active' : ''}`}>
               <Icon size={13} /> {label}
             </button>
           ))}
