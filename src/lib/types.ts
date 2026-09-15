@@ -263,6 +263,70 @@ export const CATEGORY_GROUPS: readonly { label: string; categories: readonly Cat
 export const CATEGORIES_GROUPED_FLAT: readonly Category[] =
   CATEGORY_GROUPS.flatMap(g => g.categories);
 
+/**
+ * THE GROUP A SPEND KEY ROLLS UP INTO, for the dashboard's quick look.
+ *
+ * Tre, 2026-09-15: *"generalize the categories, make the dashboard a quick look, push detail to
+ * where it belongs."* This is the generalising half, and it deliberately changes NOTHING about
+ * what a category IS or what any row stores — no migration, no rewritten rows, reversible by
+ * deleting the caller. The 26 categories stay; the dashboard just stops leading with all of them.
+ *
+ * ⚠️ THE KEYS ARE NOT ALL CATEGORIES, AND ASSUMING THEY WERE WOULD HAVE LOST MONEY.
+ * `monthlyExpenseModel.byCategory` is keyed by whatever a transaction stores PLUS synthetic keys
+ * the model mints itself — measured on /demo, the breakdown carries **`Auto Loan Interest`**,
+ * which appears in no `CATEGORIES` entry. A rollup that only walked `CATEGORY_GROUPS` would have
+ * silently dropped it from the totals. So this maps by NAME with an explicit table for the
+ * synthetic keys and a named home for everything it does not recognise — an unknown key is
+ * reported, never discarded.
+ */
+const SYNTHETIC_CATEGORY_GROUP: Readonly<Record<string, string>> = {
+  /* The model adds this itself (`monthly-expense-model.ts`), splitting a car payment so that only
+     the interest counts as spending. Filed under Transport rather than Money so a car's running
+     costs stay in one place on the quick look; one line to move if that reads wrong. */
+  'Auto Loan Interest': 'Transport',
+};
+
+/** Where an unrecognised key lands. It is a real group, so nothing is dropped or hidden. */
+export const UNGROUPED_LABEL = 'Everything else';
+
+/** Built once from CATEGORY_GROUPS — never a second hand-written list of the same mapping. */
+const GROUP_OF: Readonly<Record<string, string>> = Object.fromEntries(
+  CATEGORY_GROUPS.flatMap(g => g.categories.map(c => [c as string, g.label])),
+);
+
+export function categoryGroupOf(name: string): string {
+  return GROUP_OF[name] ?? SYNTHETIC_CATEGORY_GROUP[name] ?? UNGROUPED_LABEL;
+}
+
+export interface CategoryGroupTotal {
+  label: string;
+  value: number;
+  /** The keys that rolled into it, largest first — this is the detail, one press away. */
+  parts: { name: string; value: number }[];
+}
+
+/**
+ * Roll a `byCategory` breakdown up to its groups, largest first.
+ *
+ * ⚠️ THE TOTAL IS PRESERVED EXACTLY. Every input key lands in exactly one group, so the sum of
+ * the groups equals the sum of the input — asserted in the tests, because a rollup that quietly
+ * loses a key is a money figure that is wrong on a dashboard and right nowhere else.
+ * Zero-valued keys are kept rather than filtered: the caller decides what to show.
+ */
+export function rollUpByGroup(byCategory: Record<string, number>): CategoryGroupTotal[] {
+  const groups = new Map<string, CategoryGroupTotal>();
+  for (const [name, value] of Object.entries(byCategory)) {
+    const label = categoryGroupOf(name);
+    const g = groups.get(label) ?? { label, value: 0, parts: [] };
+    g.value += value;
+    g.parts.push({ name, value });
+    groups.set(label, g);
+  }
+  const out = [...groups.values()];
+  for (const g of out) g.parts.sort((a, b) => b.value - a.value);
+  return out.sort((a, b) => b.value - a.value);
+}
+
 
 export type CarBuild = {
   id: string;

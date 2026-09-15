@@ -7,6 +7,7 @@ import AppTour from '@/components/shared/AppTour';
 import { WhatsNewDialog } from '@/components/shared/WhatsNewDialog';
 import ProgressBar from '@/components/shared/ProgressBar';
 import CategoryIcon from '@/components/shared/CategoryIcon';
+import { rollUpByGroup } from '@/lib/types';
 import PremiumGate from '@/components/shared/PremiumGate';
 import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import FreeBankLinkNotice from '@/components/shared/FreeBankLinkNotice';
@@ -832,6 +833,22 @@ export default function Dashboard() {
     [expenseBreakdown],
   );
 
+  /**
+   * THE QUICK LOOK. Tre, 2026-09-15: "generalize the categories, make the dashboard a quick look,
+   * push detail to where it belongs."
+   *
+   * Six groups instead of twenty-six categories, and the individual categories move BEHIND the
+   * expander that already existed rather than off the page - detail one press away, not deleted.
+   * Nothing here changes what a category IS or rewrites a row; it is a display rollup and the
+   * undo is deleting this memo and its two call sites.
+   *
+   * ⚠️ `rollUpByGroup` KEEPS KEYS THAT ARE NOT CATEGORIES. `expenseBreakdown` carries synthetic
+   * keys the expense model mints itself - `Auto Loan Interest` is in the /demo breakdown and in no
+   * CATEGORIES entry - so a rollup that walked CATEGORY_GROUPS would have dropped it from the
+   * total on screen. The totals below are asserted equal in `category-rollup.test.ts`.
+   */
+  const categoryGroupData = useMemo(() => rollUpByGroup(expenseBreakdown), [expenseBreakdown]);
+
   const cashFlowData = useMemo(() => {
     const months = [];
     const nowDate = new Date();
@@ -1221,10 +1238,10 @@ export default function Dashboard() {
 
       case 'transactions_spending':
         return (
-          <div key="transactions_spending" className="grid lg:grid-cols-2 gap-5">
+          <div key="transactions_spending" className="grid lg:grid-cols-2 gap-5 items-start">
             <div className="card-forged p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spending by Category</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spending</h3>
                 {categoryData.length > 0 && (
                   <span className="text-xs font-bold font-display text-foreground">
                     {formatCurrency(categoryData.reduce((s, c) => s + c.value, 0), false)}
@@ -1233,9 +1250,10 @@ export default function Dashboard() {
               </div>
               {categoryData.length > 0 ? (() => {
                 const total = categoryData.reduce((s, c) => s + c.value, 0);
-                const top = categoryData.slice(0, 8);
-                const rest = categoryData.slice(8);
-                const renderRow = ({ name, value }: { name: string; value: number }, i: number) => {
+                // The quick look is the GROUPS; the expander holds every individual category.
+                const top = categoryGroupData.map(g => ({ name: g.label, value: g.value }));
+                const rest = categoryData;
+                const renderRow = ({ name, value }: { name: string; value: number }, i: number, isGroup = false) => {
                   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
                   const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
                   return (
@@ -1243,7 +1261,12 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                          <CategoryIcon category={name} size={11} className="shrink-0" />
+                          {/* ⚠️ ONLY FOR A REAL CATEGORY. `CategoryIcon` is keyed by category name, so a
+                              GROUP label matches nothing and it renders a "..." fallback beside every
+                              row - which is exactly what the first rendered frame of this change showed.
+                              No assertion in this repo could have seen it; the coloured dot already
+                              identifies a group row. */}
+                          {!isGroup && <CategoryIcon category={name} size={11} className="shrink-0" />}
                           <span className="text-xs font-medium truncate">{name}</span>
                         </div>
                         <div className="flex items-center gap-2.5 shrink-0 ml-2">
@@ -1259,7 +1282,7 @@ export default function Dashboard() {
                 };
                 return (
                   <div className="space-y-3">
-                    {top.map((entry, i) => renderRow(entry, i))}
+                    {top.map((entry, i) => renderRow(entry, i, true))}
                     {rest.length > 0 && (
                       <div>
                         <button
@@ -1275,10 +1298,13 @@ export default function Dashboard() {
                             <span className="text-[10px] text-muted-foreground">
                               {showAllCategories
                                 ? 'Show fewer'
-                                : `Show ${rest.length} more ${rest.length === 1 ? 'category' : 'categories'}`}
+                                : `Show the ${rest.length} ${rest.length === 1 ? 'category' : 'categories'} behind these`}
                             </span>
                           </span>
-                          <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
+                          {/* Deliberately no figure here. It used to total the HIDDEN rows, which were
+                              money the rows above did not show. The categories behind the expander are
+                              now the SAME money as the groups, so repeating the total would read as a
+                              second, additional amount. */}
                         </button>
                         {showAllCategories && (
                           <div className="space-y-3 pt-3">
