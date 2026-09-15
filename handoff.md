@@ -62,7 +62,7 @@ burned header check. Divergence recorded in `supabase/functions/reddit-scout/PRO
 
 ### THINGS THAT COST ME TIME - READ BEFORE REPEATING THEM
 
-- **THE SHELL MANGLES BACKSLASHES IN HEREDOCS, three separate times this session.** A JS ``
+- **THE SHELL MANGLES BACKSLASHES IN HEREDOCS, three separate times this session - INCLUDING IN THIS VERY SENTENCE, whose escape was eaten on the first write.** A JS `\b (word boundary)`
   became a literal BACKSPACE (0x08) inside a regex, and the gate reported **PASS** while hunting a
   string that cannot occur. **"non-ASCII: 0" did not catch it because 0x08 is BELOW 127.** Scan for
   CONTROL characters, build escapes from explicit codepoints, and prefer line-index edits.
