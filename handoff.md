@@ -65,6 +65,25 @@ New gate `npm run check:username`, proven red on the TRUE pre-fix code. ⚠️ I
 limit itself (three real changes would leave a week-long lockout on the walk account); the trigger is
 proven against the live database instead.
 
+### QUEUE CLEARED OF WHAT WAS ALREADY TRUE — 7 asks closed with evidence at the end of the session
+`e73b2da6` self-row · `0536fb3c` the contradicting sentence · `98830520` (items 2/3/4 fixed, 5 moot,
+**item 1 carried as `7a19ac46`**) · `b33ba840` the dev server · `32f41119` / `f885d016` notices ·
+`c099afe3` the Reddit Scout question · `26cdb035` the two sign-in answers.
+
+**`c099afe3` — HIS RECOLLECTION WAS RIGHT, and the answer came from the scheduler rather than from
+anyone's memory:** `cron.job` holds **8 active jobs and none is reddit**, with a positive control in
+the same read (the query CAN see `cron.job`, 8 rows named) so the zero is a real absence.
+⚠️ **TWO THINGS SURVIVE THAT THE DELETION DOES NOT FIX:** `supabase/functions/reddit-scout/index.ts`
+is still in the repo and still deployable (filed as `2e52390b`), and **the webhook secret is still
+BURNED** — it sat as plaintext in `cron.job.command` where any DB reader could see it, and deleting
+the job does not unburn an already-exposed secret. So `e72a8df4` (rotate it) is NOT satisfied by the
+jobs being gone.
+
+**`26cdb035` — the sign-in answer, and this session proved the shape:** *"In Chrome, sign in at
+localhost:8080 as the reviewer account once and leave the tab open — I drive it read-only from
+there."* Tonight I drove his PERSONAL Chrome session read-only for the whole session without ever
+touching a password. One tap, not a task. `a40f1e23` stays open because the tap is his.
+
 ### `6eeb8fe3` REMOVE ADD-BY-EMAIL — MEASURED, NOT STARTED. Start here.
 Stopped at the 5h cap before writing code, so **nothing is half-done**. What is already measured
 against the live database, so the next session does not pay for it again:
@@ -3683,7 +3702,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 10:46 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 11:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -3701,14 +3720,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+a141bf4b [handoff]: 6eeb8fe3 measured but deliberately not started - stopped clean at the 5h cap
+417c9ee3 [gate]: check:username stops poisoning its own next run
+2ec1c8f6 [handoff]: username changes shipped, and its probe found three defects before any reached a user
+9635c38e [username]: you can change your handle, twice every seven days
+b2ee3248 [handoff]: two commits shipped - the leaderboard now places the reader, and the collapsed rail stops overflowing
+0d2152c4 [leaderboard][sidebar]: you are on your own board, and the rail stops overflowing
+2f45062c [leaderboard]: the friends board shows its rows, and stops showing twice
 fc156a3f [handoff]: the AI advisor gets a home in the Account tab, and giving it one must not ship it
-b16b3e41 [handoff]: 98830520 - the sidebar ask was closed too early, and two of its five are probably one bug
-05034771 [handoff]: Tre is at his screen in Chrome - that is item one, and the account he is signed into decides what an empty leaderboard means
-39fe3c3e [design]: the 2FA banner stops squeezing its headline to one word per line on a phone
-024f1784 [handoff]: four gates, four wrong instruments, and the reel tool that cannot run here
-4b217aea [design]: the leaderboard is its own section of the Account tab, behind the bar the app already uses
-31769d45 [design]: real glass on the mobile chrome, and a check that can tell it from paint
-e445b0ca [design]: the narrow sidebar stops clipping the wordmark and stacking "Sign Out"
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
