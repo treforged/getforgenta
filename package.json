@@ -17,6 +17,7 @@
     "check:account": "node scripts/check-account-sections.mjs",
     "check:glass": "node scripts/check-glass.mjs",
     "check:rail": "node scripts/check-collapsed-rail.mjs",
+    "check:friend-read": "node scripts/check-friend-read.mjs",
     "walk:routes": "node scripts/walk-every-route.mjs",
     "test:tz": "npm run check:node && node scripts/test-timezones.mjs",
     "check:debug-console": "node scripts/check-no-debug-console.mjs",

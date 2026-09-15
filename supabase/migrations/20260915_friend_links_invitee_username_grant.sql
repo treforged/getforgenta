@@ -1,0 +1,19 @@
+-- Grant `authenticated` SELECT on friend_links.invitee_username.
+--
+-- ⚠️ THIS FIXES A LIVE BREAK FOR EVERY SIGNED-IN USER. 20260915_friend_links_invitee_username.sql
+-- added the column and did not extend the column-scoped SELECT grant written in
+-- 20260826_friend_links.sql. `cc8aecb1` then put `invitee_username` into useFriendLink's explicit
+-- select list, so the client's own PostgREST read answered
+--     403 {"code":"42501","message":"permission denied for table friend_links"}
+-- and /account -> Profile rendered "Could not load your friends." for everybody.
+--
+-- ⚠️ THE COLUMN ALLOWLIST IS THE POINT AND IT STAYS. `invite_code_hash` still has no
+-- client-readable path, and this adds nothing else: no insert, no delete, no wider update.
+-- `invitee_username` is the handle the INVITER typed, returned only to rows RLS already lets that
+-- caller see - it discloses nothing the status payload does not already echo back.
+--
+-- ⚠️ A COLUMN GRANT IS INVISIBLE TO service_role, which is what every SQL tool here runs as. The
+-- fix was verified by opening the page signed in, never by re-running the query.
+--
+-- Undo: revoke select (invitee_username) on public.friend_links from authenticated;
+grant select (invitee_username) on public.friend_links to authenticated;
