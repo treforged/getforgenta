@@ -285,10 +285,38 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    **NOT verified in a browser** — no rendered frame of the new tile, and the publish path was not
    exercised against a live account. That is the residue; say so rather than implying coverage.
 
-5. **`1a805cf2` the AI advisor into the Account tab, AFTER the Leaderboard section.** Unblocked now
-   that the leaderboard split is clean. ⚠️ `AI_ADVISOR_ENABLED` gates `/ai` in `src/App.tsx` — SHOW
-   in the commit that it still holds, and **if there turns out to be no real gate, say so as a
-   finding** rather than assuming one exists. This feature talks to users about their money.
+5. **[x] `1a805cf2` — Forgenta AI is a THIRD SECTION of the Account tab, after Leaderboard, GATED
+   ON THE SAME FLAG AS `/ai`. 2026-09-15.**
+   **The gate is real, and I checked before building rather than after.** `AI_ADVISOR_ENABLED` is
+   `import.meta.env.DEV` (`src/lib/feature-flags.ts`), false in every `vite build`, and it exists
+   for a POLICY reason: mounting `AiAdvisor` reads the user's transactions, debts, goals, accounts
+   and car funds and forwards them to the `ai-advisor` edge function. Putting it on this page
+   ungated would have shipped that data flow ahead of the policy meant to govern it. So the segment
+   reads the same constant through `SECTION_AVAILABLE`.
+   **In production the bar still has TWO segments.** It is deliberately NOT a third tab rendering
+   an "unavailable" screen — a dead tab that throws nothing and does nothing passes every smoke
+   test ever written, and this portfolio has shipped one before.
+   **MEASURED IN THE BUILT BUNDLE, not inferred from the source:** `dist/assets/Account-*.js`
+   contains `V={profile:!0,leaderboard:!0,ai:!1}`, and `V[r]?r:'profile'` — so the segment cannot
+   render and a persisted `ai` selection falls back to Profile instead of leaving the bar with
+   nothing selected.
+   ⚠️ **AND THE HONEST RESIDUE, WHICH IS ABOUT MY OWN CODE:** the `/ai` route's guard FOLDS AWAY at
+   build (the constant does not survive minification). Mine does not — routing it through an object
+   property leaves a runtime read and ships the label string in the Account chunk. **The data flow
+   is equally gated; the guard is weaker in KIND.** If that matters, read `AI_ADVISOR_ENABLED`
+   directly at the JSX site rather than through `SECTION_AVAILABLE`.
+   **Evidence:** `tsc` clean; lint 0 errors / 34 warnings (unchanged); `test:tz` 4613 x3 zones;
+   **`npm run check:account` PASS with 3 segments**, each carrying its own marker and not another's.
+   ⚠️ **THE GATE REFUSED THE SEGMENT BEFORE IT REFUSED ANYTHING ELSE** — its unknown-segment branch
+   fired on the first run: *"is not one this check knows a marker for - add it here rather than
+   letting it go unasserted"*. That branch is why a new tab cannot slip in unmeasured.
+   Proven RED by mutation (replacing `<AiAdvisor />` with a placeholder →
+   *"does not contain its own marker"*), restored byte-exact, sha256 `7c96af57...`.
+   **The Suspense fallback deliberately does not say "Forgenta AI"**, so the marker proves the lazy
+   chunk MOUNTED rather than that the page is still loading it.
+   **NOT covered:** no rendered frame was inspected, and the advisor itself was exercised only as
+   far as its premium gate — the walk account is not premium, so the signed-in premium body is
+   unwalked.
 
 6. **`196f5929` — the one gate assertion never proven red.** `check:rail`'s badge-containment check
    is not exercised, because the walk account's bank review queue is empty so the numeric badge never

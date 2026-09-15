@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
-import { User, Settings as SettingsIcon, Trophy } from 'lucide-react';
+import { lazy, Suspense } from 'react';
+import { User, Settings as SettingsIcon, Trophy, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFriendLink } from '@/hooks/useFriendLink';
@@ -8,8 +9,37 @@ import PanelBar from '@/components/shared/PanelBar';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendLink } from '@/components/settings/FriendLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
-type AccountSection = 'profile' | 'leaderboard';
+/**
+ * ⚠️ `lazy`, NOT A STATIC IMPORT, and for the same reason `App.tsx` does it. A static import here
+ * would pull the advisor into the Account chunk for every user - including every production user,
+ * where the feature is deliberately OFF - which is the opposite of what the gate is for.
+ */
+const AiAdvisor = lazy(() => import('./AiAdvisor'));
+
+type AccountSection = 'profile' | 'leaderboard' | 'ai';
+
+/**
+ * ⚠️ THE AI SECTION IS GATED ON THE SAME FLAG AS THE `/ai` ROUTE, and that is not a formality.
+ *
+ * Tre asked for the advisor to sit in this tab after the Leaderboard section (2026-09-15).
+ * `AI_ADVISOR_ENABLED` is `import.meta.env.DEV`, so it is FALSE in every shipped build while the
+ * data-sharing policy and the account-level controls are unfinished - see `feature-flags.ts`.
+ * Mounting `AiAdvisor` reads the user's transactions, debts, goals, accounts and car funds and
+ * forwards them to the `ai-advisor` edge function, so putting it on this page UNGATED would ship
+ * that data flow ahead of the policy that is supposed to govern it. It is the same gate, read from
+ * the same constant, so flipping that one line turns this on too and nothing here needs revisiting.
+ *
+ * In production the bar therefore has TWO segments, exactly as before. It is NOT a tab that renders
+ * an "unavailable" screen: a dead tab that throws nothing and does nothing passes every smoke test
+ * ever written, and this portfolio has shipped one before.
+ */
+const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
+  profile: true,
+  leaderboard: true,
+  ai: AI_ADVISOR_ENABLED,
+};
 
 /**
  * ACCOUNT — who you are and who you are connected to, promoted to a tab of its own.
@@ -48,6 +78,10 @@ export default function Account() {
   const { data: profile } = useProfile();
   const { friends } = useFriendLink();
   const [section, setSection] = usePersistedState<AccountSection>('account-section', 'profile');
+  // A stored section can outlive its availability: choose `ai` in development, build for
+  // production, and the persisted value names a section that no longer has a segment. Reading it
+  // back unchecked would leave the bar with nothing selected while a body rendered underneath.
+  const activeSection: AccountSection = SECTION_AVAILABLE[section] ? section : 'profile';
 
   return (
     <div className="py-4 lg:py-6 max-w-2xl mx-auto stack-section overflow-x-hidden">
@@ -78,29 +112,40 @@ export default function Account() {
           honest form of the effect Tre asked for and why the reel's own package cannot be used. */}
       <PanelBar>
         <button onClick={() => setSection('profile')}
-          aria-selected={section === 'profile'}
+          aria-selected={activeSection === 'profile'}
           role="tab"
-          className={`seg-item btn-press ${section === 'profile' ? 'seg-item-active' : ''}`}
+          className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <User size={13} /> Profile
         </button>
         <button onClick={() => setSection('leaderboard')}
-          aria-selected={section === 'leaderboard'}
+          aria-selected={activeSection === 'leaderboard'}
           role="tab"
-          className={`seg-item btn-press ${section === 'leaderboard' ? 'seg-item-active' : ''}`}
+          className={`seg-item btn-press ${activeSection === 'leaderboard' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Trophy size={13} /> Leaderboard
         </button>
+        {SECTION_AVAILABLE.ai && (
+          <button onClick={() => setSection('ai')}
+            aria-selected={activeSection === 'ai'}
+            role="tab"
+            className={`seg-item btn-press ${activeSection === 'ai' ? 'seg-item-active' : ''}`}
+            style={{ borderRadius: 'var(--radius)' }}>
+            <Sparkles size={13} /> Forgenta AI
+          </button>
+        )}
       </PanelBar>
 
-      {section === 'profile' ? (
+      {activeSection === 'profile' && (
         <div className="card-forged p-5 space-y-5">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
           <PartnerLink />
           <div className="border-t border-border" />
           <FriendLink />
         </div>
-      ) : (
+      )}
+
+      {activeSection === 'leaderboard' && (
         /*
           ⚠️ RENDERED UNCONDITIONALLY, unlike its other mount. `FriendLink` gates this behind
           `friends.length > 0` — defensible there, because a board among controls you have not used
@@ -113,6 +158,18 @@ export default function Account() {
           </h2>
           <FriendsLeaderboard friends={friends} />
         </div>
+      )}
+
+      {/*
+        ⚠️ THE FALLBACK DELIBERATELY DOES NOT SAY "Forgenta AI". `check:account` asserts that
+        marker to prove the lazy chunk actually MOUNTED; if the fallback carried the same words, a
+        section still loading would satisfy the check and a chunk that never arrived would read as
+        a working section.
+      */}
+      {activeSection === 'ai' && (
+        <Suspense fallback={<div className="card-forged p-5 text-sm text-muted-foreground">Loading...</div>}>
+          <AiAdvisor />
+        </Suspense>
       )}
     </div>
   );

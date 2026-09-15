@@ -181,7 +181,14 @@ for (let i = 0; i < seen.length; i += 1) {
   }
 }
 // Each section must show its own marker and not the other's.
-const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard' };
+// ⚠️ "Forgenta AI" is the <h1> AiAdvisor renders in every one of its branches - signed out,
+// non-premium and premium - so this marker does not depend on the walk account's tier. The
+// Suspense fallback in Account.tsx deliberately does NOT contain those words, so this assertion
+// proves the lazy chunk MOUNTED rather than that the page is still loading it.
+// The AI segment only exists where AI_ADVISOR_ENABLED is true (dev). In a production build the
+// bar has two segments and this entry is simply never matched - which is correct, and is why the
+// unknown-segment failure above must stay: a segment nobody listed must never pass unasserted.
+const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', 'Forgenta AI': 'Forgenta AI' };
 for (const s of seen) {
   const key = Object.keys(markers).find((k) => s.label.includes(k));
   if (!key) { failures.push(`segment ${JSON.stringify(s.label)} is not one this check knows a marker for - add it here rather than letting it go unasserted.`); continue; }
