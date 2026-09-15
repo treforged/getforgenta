@@ -165,16 +165,28 @@ for (const route of ROUTES) {
        * squeeze is one level up. So walk out to the nearest ancestor that actually
        * spans the screen and ask what share of THAT the text was given.
        */
+      const isMultiColumnGrid = (node) => {
+        const cs = getComputedStyle(node);
+        return cs.display.includes('grid')
+          && cs.gridTemplateColumns.split(' ').filter(Boolean).length > 1;
+      };
       let column = el.parentElement;
       let insideMultiColumnGrid = false;
       while (column && column.getBoundingClientRect().width < innerWidth * 0.8) {
-        const cs = getComputedStyle(column);
-        if (cs.display.includes('grid') && cs.gridTemplateColumns.split(' ').filter(Boolean).length > 1) {
-          insideMultiColumnGrid = true;
-        }
+        if (isMultiColumnGrid(column)) insideMultiColumnGrid = true;
         column = column.parentElement;
       }
       if (!column) column = document.body;
+      /**
+       * ⚠️ AND TEST THE COLUMN ITSELF, WHICH THE LOOP NEVER REACHED. The loop STOPS at the
+       * first ancestor wide enough to be the page column - and on /dashboard that ancestor
+       * IS the two-column grid making the tile narrow. So the exemption below was written
+       * for "above floor / monthly burn" by name, and could never fire for it: the only
+       * node that could have set the flag was the one node the loop excluded by
+       * construction. Measured 2026-09-15 - the gate was RED on main over the exact
+       * element its own comment says is out of scope.
+       */
+      if (column !== document.body && isMultiColumnGrid(column)) insideMultiColumnGrid = true;
       /**
        * ⚠️ A MULTI-COLUMN GRID IS A DELIBERATE DECISION TO MAKE BOXES NARROW, so text
        * inside one is out of scope and saying so is the point. The metric tiles on
