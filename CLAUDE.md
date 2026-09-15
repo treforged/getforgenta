@@ -78,6 +78,13 @@ section states reasoning, not measurement, and says so.
   from `src/App.tsx`, which is why the link half exists: a RENAME moves the app and the
   check together, and only the links disagree. Proven red both ways (a renamed route, a
   failing lazy chunk) and restored byte-exact.
+- `npm run check:rail` — measures the desktop sidebar at 1440 and 1024, in BOTH states,
+  and asserts nothing in the narrow rail is clipped past its edge and no label sits on
+  more than one line — wrapping is read from each element's OWN line-height, never a pixel
+  constant. Its positive control HOVERS the rail and requires the labels to come back in
+  full: every other assertion is an absence, and deleting a label satisfies all of them.
+  Proven red by the real shipped defect ("FORGENTA" ending at 139px in a 72px rail;
+  "Sign Out" on 2 lines) at both widths.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER

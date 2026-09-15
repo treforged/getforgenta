@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "check:node": "node scripts/check-node-engine.mjs",
+    "check:rail": "node scripts/check-collapsed-rail.mjs",
     "walk:routes": "node scripts/walk-every-route.mjs",
     "test:tz": "npm run check:node && node scripts/test-timezones.mjs",
     "check:debug-console": "node scripts/check-no-debug-console.mjs",

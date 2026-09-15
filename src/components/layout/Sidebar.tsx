@@ -46,6 +46,30 @@ const navItems = [
   { to: '/premium', icon: Crown, label: 'Upgrade' },
 ];
 
+/**
+ * A LABEL THAT VANISHES WHILE THE RAIL IS NARROW.
+ *
+ * ⚠️ THE RAIL'S WIDTH AND THE RAIL'S CONTENT ARE DRIVEN BY DIFFERENT THINGS, AND THEY
+ * DISAGREED. The width is CSS - `fine-pointer:w-16`, widening to `w-52` only on hover or
+ * focus, so the expansion is an overlay and never a reflow. The content was React state:
+ * `collapsed`, which starts FALSE. So on any mouse, from the first paint, full-width
+ * labels rendered inside a 64px `overflow-hidden` rail. Measured 2026-09-15 at both 1440
+ * and 1024: the wordmark's box ended at 139px against a rail ending at 72 (Tre saw "FO"),
+ * and "Sign Out" sat on TWO lines - 36px over an 18px line-height - with its icon pushed
+ * out of sight. His words: "It needs to look overall clear."
+ *
+ * The nav labels escaped this only by accident: `flex-1 min-w-0 truncate` collapses them
+ * to zero width. That is a side effect, not an intention, and it is why the two labels
+ * built WITHOUT that combination were the two he reported.
+ *
+ * So visibility now follows the same signal the width does. On a fine pointer the label
+ * is hidden and comes back with hover or focus-within - `group-focus-within` is not
+ * decoration, it is what keeps a keyboard user from tabbing through unlabelled icons. On
+ * a coarse pointer nothing here applies and `collapsed` alone decides, which is correct:
+ * there is no hover to expand into on a touch device.
+ */
+const RAIL_LABEL = 'fine-pointer:hidden fine-pointer:group-hover:inline fine-pointer:group-focus-within:inline';
+
 export default function Sidebar() {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
@@ -107,7 +131,7 @@ export default function Sidebar() {
       */}
       <div
         className={cn(
-          "flex flex-col bg-sidebar border-r border-sidebar-border h-screen transition-all duration-200 overflow-hidden",
+          "group flex flex-col bg-sidebar border-r border-sidebar-border h-screen transition-all duration-200 overflow-hidden",
           "fine-pointer:absolute fine-pointer:inset-y-0 fine-pointer:left-0 fine-pointer:z-40",
           "fine-pointer:w-16 fine-pointer:hover:w-52 fine-pointer:focus-within:w-52",
           "fine-pointer:hover:shadow-xl fine-pointer:focus-within:shadow-xl",
@@ -141,10 +165,10 @@ export default function Sidebar() {
             draggable={false}
           />
           {!collapsed && (
-            <span className="font-display font-bold text-sm tracking-tight text-primary">FORGENTA</span>
+            <span className={cn("font-display font-bold text-sm tracking-tight text-primary", RAIL_LABEL)}>FORGENTA</span>
           )}
           {!collapsed && isDemo && (
-            <span className="text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1 py-0.5 rounded shrink-0">Demo</span>
+            <span className={cn("text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1 py-0.5 rounded shrink-0", RAIL_LABEL)}>Demo</span>
           )}
         </Link>
         <button
@@ -245,8 +269,8 @@ export default function Sidebar() {
             className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full btn-press"
             style={{ borderRadius: 'var(--radius)' }}
           >
-            {!collapsed && <span>Back to my account</span>}
-            {collapsed && <ArrowLeft size={16} />}
+            {!collapsed && <span className={cn('truncate', RAIL_LABEL)}>Back to my account</span>}
+            {collapsed && <ArrowLeft size={16} className="shrink-0" />}
           </button>
         ) : isDemo ? (
           <>
@@ -255,8 +279,8 @@ export default function Sidebar() {
               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              {!collapsed && <span>Sign Up Free</span>}
-              {collapsed && <Crown size={16} />}
+              {!collapsed && <span className={cn('truncate', RAIL_LABEL)}>Sign Up Free</span>}
+              {collapsed && <Crown size={16} className="shrink-0" />}
             </Link>
             {!collapsed && (
               <Link
@@ -264,8 +288,8 @@ export default function Sidebar() {
                 className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
               >
-                <Home size={16} />
-                <span>Main Page</span>
+                <Home size={16} className="shrink-0" />
+                <span className={cn('truncate', RAIL_LABEL)}>Main Page</span>
               </Link>
             )}
           </>
@@ -273,9 +297,10 @@ export default function Sidebar() {
           <button
             onClick={signOut}
             className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:text-destructive transition-colors w-full btn-press"
+            style={{ borderRadius: 'var(--radius)' }}
           >
-            <LogOut size={16} />
-            {!collapsed && <span>Sign Out</span>}
+            <LogOut size={16} className="shrink-0" />
+            {!collapsed && <span className={cn('truncate', RAIL_LABEL)}>Sign Out</span>}
           </button>
         )}
       </div>
