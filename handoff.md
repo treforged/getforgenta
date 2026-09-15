@@ -267,10 +267,23 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
      stand-in: it includes the car loan, so a car payment would inflate a debt score other people
      read.
    * `budget_adherence` — **SOURCEABLE, and this is the only finishable half of this item.**
-     `public.budget_items` exists (7 columns, 3 of them the shape `budgetAdherenceBucket` wants).
-     The work is wiring budgets into the Dashboard call site and dropping `budget_adherence` from
-     `UNSOURCED_METRICS` in the same commit — never separately, or a switch appears in front of
-     someone with nothing behind it.
+     ⚠️ **I OVERSTATED THIS AN HOUR EARLIER AND THE COMMIT BEFORE THIS ONE CARRIES THE WRONG
+     REASON.** I wrote that `budget_items` has "3 of the columns `budgetAdherenceBucket` wants".
+     It does not. Its columns are `amount, category, created_at, id, label, updated_at, user_id`
+     (read from `src/integrations/supabase/types.ts`) — **there is no `spent` column at all.** My
+     `shape_cols=3` count had matched `amount`, `category` and `user_id`, three columns that
+     happen to be in my search list, and I read a COUNT as a SHAPE. A count can certify a wrong
+     parse; only reading the column names settles it.
+     **The conclusion survives, by a different route, and the route is the deliverable.**
+     `budget_items` is the BUDGETED side only. The SPENT side already exists in the same
+     component: `Dashboard.tsx:453`, `expenseModel.byCategory`, a `Record<string, number>` of
+     spend per category. So the join is budgeted-from-`budget_items` against
+     spent-from-`expenseModel.byCategory`, both keyed on `category`.
+     **The cost to weigh before building it:** `useBudgetItems` (`useSupabaseData.ts:1150`) exists
+     and is NOT currently mounted on the Dashboard, so wiring adds a query to the busiest page in
+     the app for the sake of one leaderboard tile. Decide that deliberately.
+     Whatever the route, drop `budget_adherence` from `UNSOURCED_METRICS` in the SAME commit as
+     the wiring — never separately, or a switch appears in front of someone with nothing behind it.
    **NOT STARTED** — measured under a tight 5h cap and deliberately not begun. The numbers above are
    paid for; do not re-measure them.
 
