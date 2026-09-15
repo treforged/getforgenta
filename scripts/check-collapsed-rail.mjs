@@ -120,6 +120,99 @@ const browser = await chromium.launch();
 // The rail is `hidden lg:block`, so anything under 1024 has no rail at all and would
 // make this check green by absence. 1440 is a desktop; 1024 is the iPad width Tre named.
 const WIDTHS = [1440, 1024];
+
+// Declared here rather than beside the width loop: the demo badge pass below runs FIRST and
+// files into it, and a `const` read before its declaration is a TDZ crash, not a finding.
+const findings = [];
+
+/* -- THE NUMERIC BADGE PASS, and it runs FIRST, in its own context ----------------
+ *
+ * ⚠️ THE NUMERIC BADGE WAS UNREACHABLE BY THIS CHECK, BY CONSTRUCTION - not merely
+ * "not exercised". Two separate reasons, both measured on 2026-09-15:
+ *
+ *   1. IT ONLY RENDERS IN THE OPEN RAIL. At 72px the count degrades to a dot by design.
+ *      The width loop below `continue`s the moment `rail.width > 100`, so every cell that
+ *      COULD show a numeric badge skips the badge assertions, and every cell that runs
+ *      them is too narrow for the badge to exist. Measured on /demo: 72px -> no numeric
+ *      badge, 234px hovered -> "48".
+ *   2. `escapedBadges` WALKS `span.relative` CHILDREN, AND THIS BADGE HAS NO SUCH
+ *      ANCESTOR. Its chain is span(static) > span(static) > a > nav > the rail root. That
+ *      walk is right for the DOT, which is absolutely positioned inside an icon wrapper,
+ *      and blind to the count - a matcher that finds candidates by a marker only the other
+ *      badge carries. Building this pass on `measure()` would have gone green on a blind
+ *      matcher, which is worse than the gap it was closing.
+ *
+ * So the count gets its own containment rule, aimed at what can actually go wrong to it:
+ * it is a flex child with `ml-auto`, so it fails by running past the END of its own row.
+ *
+ * WHY /demo, AND WHY NO SEED. An earlier plan was to write a bank-review row for the walk
+ * account. That was refused: /demo renders a real badge with NO credentials and NO write to
+ * the production database. Seeding real rows to make a gate green is the expensive way to
+ * get the cheap thing.
+ *
+ * WHY A FRESH CONTEXT, AND WHY BEFORE THE LOOP. A demo pass placed AFTER the width loop
+ * measured the rail at 72px and would not open, in the same run where the positive control
+ * opened the same rail to 234px - so the navigation, not the collapse preference, is what
+ * broke the hover. A context that has never been anywhere else does not have that state.
+ */
+{
+  const demoCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const demo = await demoCtx.newPage();
+  await demo.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await demo.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
+    version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
+  })));
+  await demo.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await demo.waitForTimeout(7000);
+  await demo.mouse.move(30, 300);
+  await demo.waitForTimeout(1200);
+
+  const m = await demo.evaluate(() => {
+    const aside = document.querySelector('aside');
+    if (!aside) return { error: 'no <aside> on /demo - the rail did not mount, so nothing was measured.' };
+    const panel = aside.firstElementChild;
+    const rail = panel.getBoundingClientRect();
+    const badges = [];
+    for (const span of panel.querySelectorAll('span')) {
+      if (!/^\d+$/.test(span.textContent.trim())) continue;
+      const br = span.getBoundingClientRect();
+      if (br.width === 0) continue;
+      // The row the count belongs to. Containment is judged against THIS, not against the
+      // rail: a count inside the rail but hanging off the end of its own link is the defect.
+      const row = span.closest('a, button');
+      const rr = row ? row.getBoundingClientRect() : null;
+      badges.push({
+        text: span.textContent.trim(),
+        near: (row?.getAttribute('aria-label') || row?.textContent || '?').trim().slice(0, 28),
+        badge: [Math.round(br.left), Math.round(br.right)],
+        row: rr ? [Math.round(rr.left), Math.round(rr.right)] : null,
+        hasRow: !!row,
+        escapesRow: rr ? (br.right > rr.right + 0.5 || br.left < rr.left - 0.5) : false,
+        escapesRail: br.right > rail.right + 0.5 || br.left < rail.left - 0.5,
+      });
+    }
+    return { width: Math.round(rail.width), badges };
+  });
+  if (m.error) { await browser.close(); fail(2, m.error); }
+  await demo.screenshot({ path: 'rail-demo-badge.png' });
+  await demoCtx.close();
+
+  console.log(`demo numeric badge pass      rail ${String(m.width).padStart(4)}px . numeric badges ${m.badges.length}${m.badges.length ? ` ${JSON.stringify(m.badges.map((b) => b.text))}` : ''}`);
+
+  // CONTROL - every assertion below is an ABSENCE, and an absence is satisfied perfectly by
+  // there being no badge. The day /demo stops rendering one, this pass must SAY SO rather
+  // than go green. exit 2, because that is an instrument failure and not a product defect.
+  if (m.width < 150) { await browser.close(); fail(2, `the /demo rail measured ${m.width}px, so it never opened and the numeric badge could not render. The badge assertions examined nothing.`); }
+  if (m.badges.length === 0) { await browser.close(); fail(2, 'the open /demo rail shows NO numeric badge, so every badge assertion here examined nothing. /demo used to render one (48 bank charges waiting). Find out why it stopped before trusting a green from this check.'); }
+  const noRow = m.badges.filter((b) => !b.hasRow);
+  if (noRow.length) { await browser.close(); fail(2, `${noRow.length} numeric badge(s) sit in no <a> or <button>, so there is no row to judge containment against.`); }
+
+  for (const b of m.badges) {
+    if (b.escapesRow) findings.push({ cell: '/demo open rail', kind: 'NUMERIC BADGE OUTSIDE ITS ROW', detail: `beside ${JSON.stringify(b.near)} the count ${JSON.stringify(b.text)} spans ${b.badge.join('..')} against a row of ${b.row.join('..')}` });
+    if (b.escapesRail) findings.push({ cell: '/demo open rail', kind: 'NUMERIC BADGE OUTSIDE THE RAIL', detail: `beside ${JSON.stringify(b.near)} the count ${JSON.stringify(b.text)} spans ${b.badge.join('..')} against a rail ending at ${m.width}` });
+  }
+}
+
 const ctx = await browser.newContext({ viewport: { width: WIDTHS[0], height: 900 } });
 const page = await ctx.newPage();
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -351,7 +444,6 @@ async function pressCollapse() {
   await page.waitForTimeout(900);
 }
 
-const findings = [];
 let examinedCells = 0;
 
 for (const width of WIDTHS) {

@@ -18,12 +18,18 @@ before it was committed — his standing rule.
 **`98830520` item 1: which desktop sidebar SECTION does not match the mobile page?** He is at
 localhost and can point in one gesture. Mobile is the REFERENCE — do not reconcile by changing it.
 
-### ⚠️ THE GATE'S UNPROVEN HALF — `196f5929`, and it is named rather than implied
-`check:rail` now measures glyphs, the rail ROOT's overflow, and every badge against its own
-wrapper. **The NUMERIC badge was NOT exercised**: it renders only when the signed-in account has
-bank charges waiting and the walk account's queue is empty, so that assertion has never been proven
-red. The check PRINTS `numeric badge ABSENT (not exercised)` per cell so nobody reads a clean
-result as coverage. Seed a review-queue row for the @forgenta.test account to close it.
+### ✅ THE GATE'S UNPROVEN HALF — `196f5929` — CLOSED 2026-09-15 (FOURTH session)
+**This section was the SECOND session's, and it was wrong in both of its claims.** Kept and
+corrected rather than deleted, because the wrong diagnosis is the useful half.
+It said the numeric badge was unexercised *because the walk account's review queue is empty*, and
+that the fix was to *seed a review-queue row*. Both are false: `/demo` renders a real badge (“48”)
+with no credentials and no database write, and the badge was unreachable **by construction** — it
+renders only in the OPEN rail, which the width loop skips, and `escapedBadges` walks
+`span.relative` children, which the count does not have. **A gate that cannot see a thing and an
+account that has no data look identical from the outside.**
+Closed by the `demo numeric badge pass` in `check:rail`, proven red both ways. Full detail at
+queue item 4 below; the per-cell `numeric badge ABSENT (not exercised)` print stays, because ABSENT
+at 72px is correct behaviour rather than missing coverage.
 
 ### ⚠️ MY OWN GATE POISONED ITS OWN NEXT RUN, AND IT WAS GREEN THROUGHOUT
 `check:username` seeded a handle and cleared it in a trailing line, so **cleanup ran only on the
@@ -294,12 +300,44 @@ tests added.
    false-cleared two of Tre's asks from this desk: it printed "(found in asks.md)" for an ask whose
    text appears **zero** times in that file (checked with both apostrophes). Pass explicit ids.
 
-4. **`196f5929` check:rail's badge** — premise disproved, see its own section. **No seed needed**
-   (`/demo` renders a real badge, 48), **and ABSENT at 72px is CORRECT** (it degrades to a dot).
-   The blocker is a harness state: after the width loop the rail measures 72px on `/demo` and will
-   not open, while the positive control opens the same rail to 234px on `/dashboard` in the same
-   run. **Next move: run the demo pass in a FRESH CONTEXT BEFORE the width loop.** Keep a
-   `badgePresent` assertion or it goes green by absence. **Do not commit it red.**
+4. ~~**`196f5929` check:rail's badge**~~ ✅ **DONE 2026-09-15 (Ada, FOURTH session). `check:rail`
+   now carries a `demo numeric badge pass`, green, and proven RED BOTH WAYS.**
+
+   ⚠️ **THE BADGE WAS UNREACHABLE BY CONSTRUCTION, NOT MERELY “NOT EXERCISED” — and the second
+   reason was invisible until the DOM was read.** Two independent causes:
+   * **It only renders in the OPEN rail.** The width loop `continue`s the moment
+     `rail.width > 100`, so every cell that COULD show a count skips the badge assertions, and
+     every cell that runs them is too narrow for a count to exist.
+   * **`escapedBadges` walks `span.relative` children and this badge has no such ancestor.**
+     Measured chain: `span(static) > span(static) > a > nav > rail root`. That walk is right for
+     the DOT, which is absolutely positioned inside an icon wrapper, and **blind to the count** —
+     a matcher that finds its candidates by a marker only the OTHER badge carries. **Building the
+     new pass on `measure()` would have gone green on a blind matcher**, which is worse than the
+     gap it was closing.
+
+   So the count gets its own rule, aimed at how a flex child with `ml-auto` actually fails: by
+   running past the END of its own row. Judged against the row `<a>` first, the rail second.
+
+   **PREMISE TESTED BEFORE ANY CODE**, because this ask's premise had already been wrong twice.
+   Probe on `/demo`, no credentials and no database write: **72px → no numeric badge; 234px
+   hovered → “48”**, plus the ancestry above. Both halves of the previous refusal confirmed.
+
+   **PROVEN RED TWICE, AND THE TWO EXIT CODES ARE THE POINT:**
+   | mutation | result |
+   | --- | --- |
+   | `-mr-6` on the badge — a flex child hanging off its row | **exit 1**: `beside "Transactions" the count "48" spans 208..238 against a row of 9..224`, plus a second finding against the rail ending at 234 |
+   | `{false && badge !== null && (` — the badge stops rendering | **exit 2**: *“the open /demo rail shows NO numeric badge, so every badge assertion here examined nothing”* |
+
+   Both restored byte-exact by sha256. **Exit 2 rather than 1 on the control is deliberate**: a
+   product defect and a blind instrument must not arrive as the same diagnosis — an exit-1 defect
+   gets fixed, an exit-2 tooling fault gets re-run, then ignored.
+
+   ⚠️ **NO SEED WAS WRITTEN, and that refusal stands.** The earlier plan was to write a
+   bank-review row for the walk account. `/demo` renders a real badge with no credentials; seeding
+   production rows to make a gate green is the expensive way to get the cheap thing.
+
+   Green after both restores: `demo numeric badge pass rail 234px . numeric badges 1 ["48"]`,
+   4 width/state cells, tsc 0, lint 0 errors / 34 warnings.
 
 5. **`b9fe1d41` seg-item radius** — inventory complete: **21 caller occurrences across 8 files**
    (not 15). ⚠️ `borderRadius: 'var(--radius)'` appears **541 times across 96 files app-wide** and
@@ -4040,7 +4078,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 14:04 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 14:29 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4058,14 +4096,14 @@ M supabase/.temp/cli-latest
 - **Recent commits:**
 
 ```
+8f683f56 [friends]: deploy the usernames-only function, and let the screen admit the capability it lost
+210f1a1f [handoff]: third session's resume queue - the friend-link DEPLOY is the half-finished item
+cc8aecb1 [friends]: usernames only - remove the email invite path, and stop handing the inviter someone else's address
 f94a4d32 [handoff]: FOR SAM - the keep-going hook and the cap hook contradict each other, and the loop spends the reserved budget
 e7a14df7 [handoff]: item 8's inventory finished with read-only tools - 21 callers across 8 files, and 541 is NOT the override count
 45b579fe [handoff]: pause banner at the top of the queue - push first on resume, two commits are local only
 1b524179 [handoff]: paused on the 5h cap mid-count on item 8 - the partial numbers, labelled partial
 d14a8352 [handoff]: item 6's premise was wrong twice - no seed is needed, and ABSENT in the collapsed rail is correct
-43171178 [account]: Forgenta AI as a third section, behind the same policy gate as /ai
-c9f9f631 [leaderboard]: wire budget_adherence, pro-rated to the day, and drop it from UNSOURCED_METRICS in the same commit
-0ebd1b96 [handoff]: correcting my own evidence - I read a COUNT as a SHAPE on budget_items
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
