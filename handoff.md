@@ -1,5 +1,64 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## ⇢ FIRST UP — 2026-09-15 (Ada, second session). Two commits, both on origin/main 0/0 BY CONTENTS.
+
+`2f45062c` the leaderboard pair · `0d2152c4` self-on-board + the sidebar overflow + a widened gate.
+Everything below was exercised on **his own localhost, signed in as tre@treforged.com, READ ONLY**
+before it was committed — his standing rule.
+
+### DONE, with the measurement that settled each
+| ask | what it actually was |
+| --- | --- |
+| `a0328857` | ✅ `4b217aea` DUPLICATED rather than moved: `FriendLink` kept its own `FriendsLeaderboard` mount and `FriendLink` renders inside Account's **Profile** section. One mount now. Live: Profile has no global card, no "Week of". Sam independently confirmed on the running app |
+| `a6c2de42` | ✅ TWO defects. (1) rows were gated behind `!empty`, so a user WITH friends and nothing published saw a sentence and no board. (2) **the board was built from `friends` alone, so it could place everyone except the reader** — his shares row and his snapshot both existed for the exact metric and week on screen. Live now: `You 5%` / `Tre Private` |
+| `98830520` items 2,3,4 | ✅ **ONE BUG, and the arithmetic proves the link**: nav rows sized content by the `collapsed` FLAG while the rail sized itself by CSS, so at rest on a mouse the badge ran to 80.3px against a rail ending at 72 — and the nav reported exactly 9px of horizontal overflow. Plus two further 2px overflows on the rail ROOT (the header's 83-in-71, and the dot escaping its own 16px wrapper) |
+| `98830520` item 5 | ➖ MOOT, said rather than dropped: his fix was to put the bolt inside the Debt highlight. The bolt is no longer rendered at all in the narrow rail, so there is nothing to move |
+
+### ⚠️ STILL TRE'S, AND IT CANNOT BE GUESSED — `7a19ac46`
+**`98830520` item 1: which desktop sidebar SECTION does not match the mobile page?** He is at
+localhost and can point in one gesture. Mobile is the REFERENCE — do not reconcile by changing it.
+
+### ⚠️ THE GATE'S UNPROVEN HALF — `196f5929`, and it is named rather than implied
+`check:rail` now measures glyphs, the rail ROOT's overflow, and every badge against its own
+wrapper. **The NUMERIC badge was NOT exercised**: it renders only when the signed-in account has
+bank charges waiting and the walk account's queue is empty, so that assertion has never been proven
+red. The check PRINTS `numeric badge ABSENT (not exercised)` per cell so nobody reads a clean
+result as coverage. Seed a review-queue row for the @forgenta.test account to close it.
+
+### ⚠️ THREE INSTRUMENT LESSONS FROM THIS SESSION
+* **A TEST ASSERTED THE DEFECT AND PASSED FOR DAYS.** `"says nobody is sharing, rather than drawing
+  an empty table"` REQUIRED the friend's name to be absent — enforcing exactly what Tre reported as
+  broken, and contradicting two headers in the source it was testing.
+* **THE REACHABILITY SUITE COULD NOT HAVE CAUGHT THE DUPLICATE**: it stubs `FriendLink` out, and the
+  duplicate lived inside the real `FriendLink`. The new file renders the REAL card, and pairs the
+  absence with a POSITIVE CONTROL on the same marker — "not in Profile" and "this test cannot find
+  the board anywhere" are otherwise the same green.
+* **`element.matches(':hover')` READ TRUE WHILE THE `:hover` WIDTH RULE HAD NOT APPLIED.** A CDP
+  hover made the rail report 72px and I nearly recorded "hover expansion is broken". Playwright's
+  real hover reads **234px** with all 9 labels. Use `check:rail` for that question, not in-page JS.
+* And `waitFor(rows).toHaveLength(2)` returns INSTANTLY here — rows are built from the participant
+  list before the query resolves. Wait on the VALUE.
+
+### NEXT, in Sam's order
+1. `23c07655` username changes twice per rolling 7 days — FIND the earlier ask and close it rather
+   than filing a duplicate. The real test is the THIRD attempt in the window, and the refusal must
+   say when it unlocks.
+2. `6eeb8fe3` remove add-friend-by-email, usernames only — remove the STORAGE and INDEX too.
+   Privacy line for the commit body: an email lookup lets anyone test whether an address has an
+   account.
+3. `f05b9c82` the remaining leaderboard stats. ENUMERATE how many render "not ready". A stat that
+   cannot be computed honestly gets NO tile, never a zero. Note `isMetricSourced` currently offers
+   only goal_progress and savings_streak while all four are enabled in the DB — Sam flagged it and I
+   read it as the guard doing its job.
+4. `1a805cf2` the AI advisor into the Account tab AFTER the Leaderboard section. The leaderboard
+   split is now clean, so this is unblocked — but **`AI_ADVISOR_ENABLED` must be shown still
+   holding**, and if there is no real gate, SAY SO as a finding rather than assuming one exists.
+5. `f22f17b1` native iOS material. **Tre OVERRULED the recommendation: "I want native iOS
+   material."** Capacitor plugin + native build; the cost is that a native view is a SIBLING of the
+   WebView, so every glass frame must cross the bridge on every scroll/resize/rotation.
+
+---
+
 ## ⇢ FIRST UP — TRE IS AT HIS SCREEN, IN CHROME, WAITING (2026-09-15, handed over mid-task)
 
 **Do this before anything else.** He is showing defects on his own localhost:8080 and the
@@ -3574,31 +3633,32 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 10:23 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 10:46 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
-M handoff.md
- M supabase/.temp/cli-latest
+M supabase/.temp/cli-latest
 ?? scripts/handoff.md
+?? squeeze-dashboard.png
+?? squeeze-thin-dashboard.png
 ```
 
 - **Recent commits:**
 
 ```
+fc156a3f [handoff]: the AI advisor gets a home in the Account tab, and giving it one must not ship it
+b16b3e41 [handoff]: 98830520 - the sidebar ask was closed too early, and two of its five are probably one bug
+05034771 [handoff]: Tre is at his screen in Chrome - that is item one, and the account he is signed into decides what an empty leaderboard means
+39fe3c3e [design]: the 2FA banner stops squeezing its headline to one word per line on a phone
+024f1784 [handoff]: four gates, four wrong instruments, and the reel tool that cannot run here
+4b217aea [design]: the leaderboard is its own section of the Account tab, behind the bar the app already uses
 31769d45 [design]: real glass on the mobile chrome, and a check that can tell it from paint
 e445b0ca [design]: the narrow sidebar stops clipping the wordmark and stacking "Sign Out"
-38725a19 [verify]: every route is opened signed in, in a real browser, and the links are held to the router
-ed54f735 [verify]: the batch panel undo is pressed too, and the mutation proved a record-only check would have passed a broken one
-46d5dedb [verify]: the decision deck is walked in a real browser, and the block was removed rather than escalated
-a65065d2 [handoff]: two items closed on measurements that said the code was not the problem
-a05d3cf3 [handoff]: the queue is down to Tre-items, and three instruments lied today
-e2d7e461 [design]: one grouped category picker, five hand-rolled copies consolidated, and one category had no icon
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
