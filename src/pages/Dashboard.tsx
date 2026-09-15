@@ -1522,24 +1522,29 @@ export default function Dashboard() {
       {!isDemo && showSecurityBanner && (
         /* Tokens, not raw palette classes. `text-gold` is the warning tone this codebase
            actually has — `text-warning` generates no rule at all (see BalanceTrancheEditor). */
-        <div className="flex items-start justify-between gap-3 bg-secondary border border-border px-4 py-3" style={{ borderRadius: 'var(--radius)' }}>
-          <div className="flex items-start gap-3">
-            <Shield size={15} className="text-gold mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-gold">Your account has no two-factor protection</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Adding 2FA takes under a minute and significantly reduces the risk of unauthorized access.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link to="/settings#security" className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:bg-primary/90 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
+        /* ⚠️ THE ACTION SITS UNDER THE TEXT, NOT BESIDE IT, and that is a fix rather than a
+           preference. Measured at 390px on 2026-09-15: "Secure my account" carries `shrink-0`
+           and kept its ~190px, the text column had no `min-w-0`, and the headline came out on
+           FIVE lines in 84px - 23% of the 363px available - with the body text on eight. It
+           was legible, nothing overflowed and nothing threw, which is why it survived; it is
+           also the second thing a new user sees. The neighbouring "first bank connection"
+           banner already puts its button under its text, so this is the shape the app
+           already uses rather than a new one. `min-w-0` is what lets the text column give
+           ground at all. */
+        <div className="flex items-start gap-3 bg-secondary border border-border px-4 py-3" style={{ borderRadius: 'var(--radius)' }}>
+          <Shield size={15} className="text-gold mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-gold">Your account has no two-factor protection</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Adding 2FA takes under a minute and significantly reduces the risk of unauthorized access.
+            </p>
+            <Link to="/settings#security" className="mt-3 inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:bg-primary/90 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
               <Shield size={10} /> Secure my account
             </Link>
-            <button onClick={() => setShowSecurityBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-              <X size={13} />
-            </button>
           </div>
+          <button onClick={() => setShowSecurityBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0">
+            <X size={13} />
+          </button>
         </div>
       )}
 
