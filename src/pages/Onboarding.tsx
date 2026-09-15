@@ -265,13 +265,16 @@ export default function Onboarding() {
 
     supabase.from('profiles').select('onboarding_completed').eq('user_id', user.id).maybeSingle()
       .then(({ data, error }) => {
-        if (cancelled || error || !data) return;
-        if (data.onboarding_completed) {
-          writeOnboardingCache(user.id);
-          qc.setQueryData(onboardingQueryKey(user.id), true);
-          leave();
-          return;
-        }
+        if (cancelled) return;
+        // CALL THE EXPORTED RULE, do not restate it. Until 2026-09-15 this branch held its OWN copy
+        // of the same condition, so `shouldLeaveOnboarding` had six passing assertions and NO
+        // production caller - the suite was green over a function the app never ran, and the two
+        // copies were free to drift. It returns false on an error or a missing row, which is the
+        // same early return this used to make by hand.
+        if (!shouldLeaveOnboarding(data, error)) return;
+        writeOnboardingCache(user.id);
+        qc.setQueryData(onboardingQueryKey(user.id), true);
+        leave();
       });
 
     return () => { cancelled = true; };

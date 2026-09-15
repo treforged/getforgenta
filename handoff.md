@@ -27,22 +27,24 @@ burned header check. Divergence recorded in `supabase/functions/reddit-scout/PRO
 
 ### RESUME QUEUE - START AT ITEM 1
 
-1. **VERIFY THE BOUNCE REMOVAL AGAINST THE RUNNING APP - I did not finish this, the handoff gate
-   cut it off mid-call.** `npm run walk:routes` PASSED (27/27 signed in) and `/onboarding ->
-   /dashboard` confirms the PAIRED case (a completed account still leaves). **What is NOT yet
-   verified is the case that changed**: an account with a `display_name` and
-   `onboarding_completed = false` must now STAY on the wizard.
-   ⚠️ **DO NOT VERIFY THIS BY READING THE DATABASE.** This repo already records a reviewer reset
-   that read back clean because the verifier finished before the app undid it. **Open the app and
-   see the wizard.** Tre signed into `reviewer@treforged.com` on localhost:8080 (dev server was up).
-   Note the walker runs as `deck-walk@forgenta.test`, a DIFFERENT account - `.env.deck-walk.local`.
-   The query I was running when blocked:
-
-       select u.email, p.onboarding_completed, p.onboarding_completed_via,
-              p.onboarding_furthest_step,
-              (p.display_name is not null and p.display_name <> '') as has_display_name
-       from auth.users u join public.profiles p on p.user_id = u.id
-       where u.email in ('reviewer@treforged.com','deck-walk@forgenta.test') order by u.email;
+1. [x] **DONE - THE BOUNCE REMOVAL IS VERIFIED IN A REAL BROWSER.** `npm run check:onboarding-stay`
+   (`scripts/check-onboarding-stay.mjs`), a DISCRIMINATING PAIR on the walk account, both arms green:
+   ARM A `display_name='Walk Tester'` + `onboarding_completed=false` -> **stays on `/onboarding`**
+   with both wizard markers on screen; ARM B `onboarding_completed=true` -> **leaves to `/dashboard`**.
+   The profile is restored and the restore is READ BACK. Gates: tsc 0, eslint 0 errors, `test:tz`
+   **4,661 tests / 459 files green in all three zones**, `walk:routes` 27/27 + 17 links.
+   ⚠️ **AND THE WIRING WAS THE REAL FINDING: `shouldLeaveOnboarding` HAD NO PRODUCTION CALLER.**
+   The exported rule carried six passing assertions while the effect held its OWN copy of the same
+   condition - a green suite over a function the app never ran, and two copies free to drift. The
+   effect now calls the export.
+   ⚠️ **ARM B CANNOT BE DRIVEN RED BY MUTATING THE RULE, and that is a fact about the app.** With the
+   rule mutated to return false for everybody, ARM B still passed: `ProtectedRoute` mounts
+   `useOnboardingStatus`, which writes `forged:onboarding_done_<uid>`, and Onboarding's FIRST branch
+   leaves on that cache before the rule is consulted. A finished account leaves by TWO independent
+   mechanisms. **Only ARM A is evidence about the rule** - and ARM A was proven RED with the REAL
+   pre-fix defect (landed `/dashboard`, 0/2 markers), restored byte-exact by sha256.
+   Also measured: a case-SENSITIVE marker match read the wizard as missing, because the field label
+   is uppercased by CSS and `innerText` reports the RENDERED case.
 
 2. **`e72a8df4` ROTATE `REDDIT_SCOUT_SECRET` - still Tre's, but it now guards NOTHING.** The
    tombstone reads no secrets, so this dropped from "live exposure" to hygiene. **Do NOT redeploy
@@ -4390,7 +4392,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 16:53 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 17:25 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4407,14 +4409,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+ed860719 [handoff]: the backslash warning contained a literal backspace byte - the bug it warns about
+ea862c5c [handoff]: the bounce is removed and the reddit-scout exposure is closed
+d779ea9d [onboarding]: remove the display_name bounce - signing up with your name was skipping setup entirely
+d770a499 [handoff]: 0d9f8fae closed - extractPdfText has real coverage and the blocker was wrong twice
+37648c64 [pdf]: extractPdfText gets real coverage - the blocker said no harness could run it, and both halves were wrong
 52424d80 [handoff]: the bounce is proven by elimination, and the fix needs a date that does not exist
 42f3dc72 [handoff]: item 1 closed - the recorder was fine, completion was UNATTRIBUTED, and the bounce hits new accounts
 40489985 [onboarding]: the gate could not see the ONE path that means a person walked the wizard
-9a6f1e43 [onboarding]: attribute WHICH path completed onboarding - the boolean measured having a name
-22a34c7b [handoff]: the onboarding funnel is item 1, and the recorder premise is UNVERIFIED
-2fd95072 [survey]: say what onboarding_completed actually measures - it is not what the eligibility gate implies
-ffb228e1 [handoff]: the survey shipped (853f7d70) and the native iOS half is blocked on a tested premise
-853f7d70 [survey]: the Sean Ellis PMF question, and the first live run recorded NOTHING while looking perfect
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
