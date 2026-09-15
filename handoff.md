@@ -59,9 +59,20 @@ written - the same shape that let the PMF write ship green while writing nothing
    predates the flag entirely". **That premise is false today**: `Auth.tsx:493` sets
    `display_name` at signup, so a new user who types their name never sees the wizard. An
    account created 2026-09-15 02:26 was bounced at 13:45 the same day - 11 hours old.
-   ⚠️ **READ `onboarding_completed_via` BEFORE ACTING.** The attribution now records which
-   path fires and will settle this on the next signup; the above is inference, and the column
-   exists so nobody has to infer. **It is a PRODUCT call, not a bug fix** - the bounce exists
+   ✅ **NO LONGER INFERENCE - PROVEN BY ELIMINATION, ask `0512d777`.** Both bounced accounts
+   were tested against the other three paths and only the bounce survives: `checklist` needs
+   `allDone` and both have `gross_income` false, 0 debts and 0 savings_goals; `cache_restore`
+   needs a prior completion to have written the cache; `wizard` needs `furthest_step='finish'`.
+   **Honest caveat: the 09-15 account has 9 accounts, matching the reviewer account's known
+   shape, so REAL users confirmed affected is 1, not 2.** The mechanism holds either way.
+   ⚠️ **AND THIS IS WHY I DID NOT JUST FIX IT.** Narrowing the bounce to "created before the
+   flag existed" needs a cutoff date, and `onboarding_completed` PREDATES the migrations folder
+   - there is no sourced date, and inventing one is the unsourced-constant trap. Removing the
+   bounce outright is defensible on the code's OWN comment (a user left in the wizard "can skip
+   it in one tap", and `skipped` is now attributed so that is recorded honestly) but it changes
+   what ~24 not-completed accounts see on next sign-in. **My recommendation is to remove it:**
+   a false "not onboarded" costs one tap; a false "onboarded" costs a user their setup and
+   every metric its meaning. **It is a PRODUCT call, not a bug fix** - the bounce exists
    so a genuinely-legacy user is not trapped in a wizard they already completed. Narrowing it
    to accounts created before the flag is the obvious shape. Tre's PMF eligibility gate is
    `onboarding_completed`, so it currently selects for having a name.
