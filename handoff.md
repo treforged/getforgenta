@@ -265,11 +265,26 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    result as coverage. Seed a review-queue row for `deck-walk@forgenta.test`, then prove it red by
    restoring `-right-0.5` on the dot.
 
-7. **`2e52390b` remove the dead `reddit-scout` edge function, or say why it stays.** Nothing schedules
-   it (8 active cron jobs, none reddit, positive control in the same read) but
-   `supabase/functions/reddit-scout/index.ts` is still deployable. Check whether it is DEPLOYED
-   (`list_edge_functions`) as well as present in the tree — different facts — and read its
-   `verify_jwt` first.
+7. **`2e52390b` reddit-scout — MEASURED 2026-09-15, and it is WORSE than "dead code". DECIDED:
+   REMOVE IT. Blocked on a credential, not on a judgement.**
+   `list_edge_functions` on FORGENTA: slug `reddit-scout`, status **ACTIVE**, version 37,
+   **`verify_jwt: false`**. So it is deployed and reachable by anyone on the internet without a
+   Supabase JWT. Its only guard is a shared header, `x-webhook-secret` checked against
+   `REDDIT_SCOUT_SECRET` at `supabase/functions/reddit-scout/index.ts:754-756` — and **that secret
+   is BURNED**: it sat as a literal string in `cron.job.command` on three jobs (ask `e72a8df4`).
+   What the function holds in env: `ANTHROPIC_API_KEY`, `RESEND_API_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY` (lines 4-8). So anyone holding the burned secret can spend Tre's
+   Anthropic credit, send mail as `scout@treforged.com`, and reach the database with the
+   service-role key.
+   **Nothing calls it** — 8 active cron jobs, none reddit, positive control in the same read.
+   ⚠️ **I COULD NOT EXECUTE THE DELETE.** There is no delete-function tool in the Supabase MCP, and
+   the CLI has no token here: `npx supabase projects list` returns
+   `LegacyPlatformAuthRequiredError - Access token not provided`. **That is a credential, so it is
+   Tre's** — filed. The source stays in git, so the undo is one
+   `supabase functions deploy reddit-scout`; removing it is reversible and deleting it is the right
+   call regardless of the rotation.
+   **Do NOT treat rotating the secret as the fix.** Rotation leaves an unauthenticated, uncalled
+   function holding three credentials on the public internet. Delete first; rotate anyway.
 
 8. **`b9fe1d41` the `seg-item` radius drift.** It declares a 9999px pill and **all 15 callers override
    it inline** with `var(--radius)`. Visual across 8 surfaces, so it wants a rendered frame and
