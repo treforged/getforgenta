@@ -52,6 +52,39 @@ permitted and asserted, rather than banned or excluded by filename.
 **Also found:** the test mock was DISCARDING the update payload, so no test could see WHAT was
 written - the same shape that let the PMF write ship green while writing nothing.
 
+### 2. CLOSED `0d9f8fae` - extractPdfText HAD ZERO COVERAGE, AND THE BLOCKER'S BOTH HALVES WERE WRONG
+
+6 real tests, driving REAL PDF bytes through the REAL parser - `pdfjs-dist` is NOT stubbed.
+Page loop, the `MAX_PAGES` cap (15 in, 12 out, so the NUMBER discriminates), the newline-per-page
+join, the oversize guard (asserts `arrayBuffer` was never called, or the guard is decorative), and
+the corrupt-file sentence. Proven load-bearing by five mutations, every restore byte-exact.
+**Production code is UNTOUCHED** - `pdf-text.ts` is byte-identical. **Suite count went UP**,
+4651 to 4657 and 459 files to 460.
+
+⚠️ **THE BLOCKER NAMED ITS OWN NEXT STEP AND RECORDED IT AS IMPOSSIBLE - "no nvm on this
+machine".** The premise was TRUE and the conclusion was not: **a portable Node 22 needs no
+installer.** Downloaded, sha256 verified against the published `SHASUMS256.txt`, `node.exe`
+extracted alone (the full zip exceeds Windows' path limit on npm's nested modules), deleted after.
+**Test the premise, and then test the INFERENCE drawn from it - they fail separately.**
+
+⚠️ **AND THE RECORDED REASONING WAS BACKWARDS.** It said the failure "probably still holds, since
+`toHex` is newer than Node 22" - which implies Node 24 HAS it. **Measured with a control: `toHex`
+is undefined on 22.21.1 AND on 24.14.0**, so the Node version was never the discriminator, and the
+MAIN build parses fine in plain node on both. The real cause: **vite resolves the BROWSER build,
+which calls `toHex`, a real browser API node lacks.** A four-line polyfill, defined ONLY when
+absent, unlocks the PRODUCTION build under vitest in both environments.
+
+⚠️ **A THIRD OBSTACLE NOBODY HAD NAMED WAS THE ACTUAL BLOCKER.** `workerSrc` comes from
+`new URL(..., import.meta.url)` - **a VITE BUILD-TIME REWRITE that vitest does not perform** - so
+it resolved beside the SOURCE file and every parse died as the generic sentence. Empty fails too;
+pdf.js v6 refuses. Pinned to the real `node_modules` artefact in `src/test-setup.ts`.
+
+**TWO GAPS, STATED IN THE FILE HEADER RATHER THAN IMPLIED:** the `PasswordException` branch is
+UNTESTED - **a hand-bolted `/Encrypt` entry is not an encrypted PDF, and pdf.js ignored it and
+parsed the file happily, so that test passed for the wrong reason until it was checked**; and the
+worker line is not exercised, so nothing there is evidence it resolves to a LOCAL asset rather
+than a third party - the feature's privacy promise, a bundling fact, browser-only.
+
 ### RESUME QUEUE - START AT ITEM 1
 
 1. **`c2a7da61` THE LEGACY BOUNCE IS FIRING ON BRAND-NEW ACCOUNTS.** `Onboarding.tsx:228`
@@ -4405,7 +4438,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 16:33 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 16:53 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4422,14 +4455,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+52424d80 [handoff]: the bounce is proven by elimination, and the fix needs a date that does not exist
+42f3dc72 [handoff]: item 1 closed - the recorder was fine, completion was UNATTRIBUTED, and the bounce hits new accounts
+40489985 [onboarding]: the gate could not see the ONE path that means a person walked the wizard
+9a6f1e43 [onboarding]: attribute WHICH path completed onboarding - the boolean measured having a name
 22a34c7b [handoff]: the onboarding funnel is item 1, and the recorder premise is UNVERIFIED
 2fd95072 [survey]: say what onboarding_completed actually measures - it is not what the eligibility gate implies
 ffb228e1 [handoff]: the survey shipped (853f7d70) and the native iOS half is blocked on a tested premise
 853f7d70 [survey]: the Sean Ellis PMF question, and the first live run recorded NOTHING while looking perfect
-9891c799 [docs]: record the two decisions that were living only in an ask queue
-514bc057 [handoff]: f22f17b1's CSS half is shipped (cdede2f0) - the native iOS plugin is what is left
-cdede2f0 [ui]: the app panels get the glass identity - and the naive version would have DARKENED every one of them
-13c784b2 [handoff]: queue items 1 and 2 are closed - the debt_payoff premise was false and the refusal survives; the AI flag now has a build-level gate
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
