@@ -71,6 +71,13 @@ section states reasoning, not measurement, and says so.
   is the real gate.** A single-timezone run has missed a live money bug before.
 - `npx tsc --noEmit` and `npm run lint`.
 - `npm run build` — needed when the change touches build config or `browserslist`.
+- `npm run walk:routes` — opens EVERY route the router declares, SIGNED IN, in a real
+  browser and asserts each renders (not 404, not an ErrorBoundary, not blank, not bounced
+  to /auth); then requires every in-app `<a href="/…">` target it met to be a declared
+  route. Needs the dev server up and `.env.deck-walk.local`. The route list is DERIVED
+  from `src/App.tsx`, which is why the link half exists: a RENAME moves the app and the
+  check together, and only the links disagree. Proven red both ways (a renamed route, a
+  failing lazy chunk) and restored byte-exact.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER
