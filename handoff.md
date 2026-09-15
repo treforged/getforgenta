@@ -379,13 +379,21 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    **Do NOT treat rotating the secret as the fix.** Rotation leaves an unauthenticated, uncalled
    function holding three credentials on the public internet. Delete first; rotate anyway.
 
-8. **`b9fe1d41` the `seg-item` radius drift — STARTED, MEASUREMENT INCOMPLETE. Stopped by the 5h
-   cap mid-count, so take the numbers below as PARTIAL.**
-   Established: the declaration is `@utility seg-item` at `src/index.css:329` (`seg-item-active` at
-   :358), and there are **21 occurrences of `seg-item` across `src/`**. The queue said 15 callers —
-   so either the count grew or the earlier figure was wrong. **Re-derive it; do not inherit either
-   number.** One of the 21 is mine: `Account.tsx` gained a third segment today carrying the same
-   inline override as its neighbours, so the drift has one more instance than when it was filed.
+8. **`b9fe1d41` the `seg-item` radius drift — THE INVENTORY IS NOW COMPLETE. The fix itself is not
+   started, and it wants a rendered frame.**
+   **The declaration:** `@utility seg-item` at `src/index.css:329` (`seg-item-active` at :358).
+   **The callers, counted rather than estimated:** `seg-item` appears **23 times across 10 files**.
+   Two of those are the CSS declaration itself and one is `components/shared/PanelBar.tsx`, the
+   shared bar — so **21 caller occurrences across 8 page/component files**: `Account.tsx` (3),
+   `Accounts.tsx` (2), `Dashboard.tsx` (4), `DebtPayoff.tsx` (5), `Transactions.tsx` (1),
+   `Settings.tsx` (1), `Vehicles.tsx` (2), `GlobalStandingCard.tsx` (2). One of `Account.tsx`'s
+   three is mine, added today. **The queue's "15 callers" was wrong — use 21, and the 8 surfaces it
+   names are these 8 files.**
+   ⚠️ **DO NOT QUOTE 541 AS THE OVERRIDE COUNT.** `borderRadius: 'var(--radius)'` appears **541
+   times across 96 files** app-wide, and that is a fact about the whole app's inline-radius idiom,
+   not about `seg-item`. Most of those 541 are legitimate and unrelated. **The seg-item subset is
+   what this item is about**, and it has to be read inside the 8 files above — a whole-repo count
+   dropped into this item would turn a contained consolidation into an imaginary 541-site rewrite.
    ⚠️ **DO NOT COUNT THE OVERRIDES WITH A LINE-BASED GREP.** `style={{ borderRadius:
    'var(--radius)' }}` sits on its OWN LINE, so `grep 'seg-item' | grep -c borderRadius` returns
    **0** — a confident zero about an override that is present on every caller I have read. Count
