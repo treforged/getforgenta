@@ -70,10 +70,30 @@ beforeEach(() => {
 });
 
 describe('FriendsLeaderboard - the empty room', () => {
-  it('says nobody is sharing, rather than drawing an empty table', () => {
+  /**
+   * ⚠️ THIS CASE USED TO ASSERT THE DEFECT. It required `Alex` to be ABSENT when nobody was
+   * sharing, and passed for days while enforcing exactly the behaviour Tre reported on
+   * 2026-09-15 as "the friends leaderboard is not showing" (ask `a6c2de42`): with one friend
+   * and no published snapshot, the board rendered a sentence and no rows at all.
+   *
+   * It also contradicted two headers in the source it was testing — `FriendsLeaderboard`'s
+   * ("never by being left out") and `isEmptyRoom`'s ("collapsing them would tell someone with
+   * five friends to go and invite somebody"). The rows are the board; the sentence explains it.
+   */
+  it('still shows every friend as a row, with the sentence explaining why they read Private', () => {
     renderBoard();
     expect(screen.getByText(/nobody is sharing/i)).toBeTruthy();
-    expect(screen.queryByText('Alex')).toBeNull();
+    expect(screen.getByText('Alex')).toBeTruthy();
+    expect(screen.getByText('Bo')).toBeTruthy();
+    expect(screen.getAllByText('Private')).toHaveLength(2);
+  });
+
+  it('tells someone with NO friends that they have none, not that one of them is sharing', () => {
+    state.friends = [];
+    renderBoard();
+    expect(screen.getByText(/no friends yet/i)).toBeTruthy();
+    expect(screen.queryByText(/nothing to compare yet/i)).toBeNull();
+    expect(screen.queryByText(/nobody is sharing/i)).toBeNull();
   });
 
   it('explains that sharing is off until you turn it on', () => {

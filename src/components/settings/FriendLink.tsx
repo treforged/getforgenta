@@ -6,7 +6,6 @@ import { useDemo } from '@/contexts/DemoContext';
 import { FIELD_INPUT, FIELD_INPUT_BARE, FIELD_WRAPPER, FIELD_RADIUS } from '@/components/shared/field-classes';
 import { useFriendLink } from '@/hooks/useFriendLink';
 import { LeaderboardShareToggles } from './LeaderboardShareToggles';
-import { FriendsLeaderboard } from './FriendsLeaderboard';
 import { UsernameClaim } from './UsernameClaim';
 import { format } from 'date-fns';
 
@@ -270,10 +269,14 @@ export function FriendLink() {
             <h4 className="text-xs font-semibold pt-2">What friends can see</h4>
             <LeaderboardShareToggles />
           </div>
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold">Leaderboard</h4>
-            <FriendsLeaderboard friends={friends} />
-          </div>
+          {/* ⚠️ THE BOARD IS NO LONGER MOUNTED HERE (Tre, 2026-09-15, ask a0328857): it was
+              appearing in the Account tab's PROFILE section as well as in its own Leaderboard
+              section, because this card is mounted in both Account and Settings. `4b217aea` gave
+              the board its own section and MOVED nothing — it added a second mount, so the same
+              content rendered twice on one screen.
+
+              This card is where you MANAGE friends and what they can see; Account -> Leaderboard
+              is where you LOOK at the board. One mount, so the two cannot drift. */}
         </div>
       )}
     </div>

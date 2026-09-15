@@ -61,6 +61,9 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
 
   const comparable = hasComparableField(rows);
   const empty = isEmptyRoom(rows);
+  // "No friends yet" and "friends who all share nothing" are different facts and were collapsed
+  // into one branch, which is how the board disappeared for someone who HAS a friend.
+  const noFriends = rows.length === 0;
 
   return (
     <div className="space-y-2">
@@ -92,6 +95,12 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
           repo found twice today, once in this very feature. */}
       <GlobalStandingCard metric={metric} label={METRIC_LABELS[metric]} />
 
+      {noFriends && (
+        <p className="text-xs text-muted-foreground">
+          No friends yet. Add one and you will both see how you are getting on here.
+        </p>
+      )}
+
       {empty && (
         <p className="text-xs text-muted-foreground">
           Nobody is sharing {METRIC_LABELS[metric].toLowerCase()} yet. You each choose which of
@@ -99,8 +108,16 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
         </p>
       )}
 
-      {!empty &&
-        rows.map((row) => (
+      {/*
+        ⚠️ THE ROWS RENDER EVEN IN THE EMPTY ROOM (Tre, 2026-09-15, ask a6c2de42: "the friends
+        leaderboard is not showing"). They used to be gated behind `!empty`, so a person WITH
+        friends, none of whom had published, saw only the sentence above and no board at all -
+        exactly the invisibility the section was created to fix. That gate also contradicted this
+        file's own header ("never by being left out") and `isEmptyRoom`'s ("collapsing them would
+        tell someone with five friends to go and invite somebody"). The sentence stays as the
+        EXPLANATION for a board of `Private` rows, rather than as a replacement for it.
+      */}
+      {rows.map((row) => (
           <div
             key={row.userId}
             className="flex items-center justify-between gap-3 bg-secondary/40 border border-border px-3 py-2.5"
@@ -131,7 +148,10 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
           </div>
         ))}
 
-      {!empty && !comparable && (
+      {/* `!noFriends` is load-bearing: with no friends at all, `empty` is false and `comparable`
+          is false, so this line used to tell a person with nobody to compare against that "only
+          one of you is sharing" — a sentence about friends they do not have. */}
+      {!noFriends && !empty && !comparable && (
         <p className="text-xs text-muted-foreground italic">
           Only one of you is sharing this, so there is nothing to compare yet.
         </p>
