@@ -184,11 +184,11 @@ describe('markOnboardingComplete', () => {
     // means a person walked the wizard. Asserting the PAYLOAD, because a mock that resolves
     // { error: null } is green whether or not the column was written at all.
     updateEq.mockResolvedValue({ error: null });
-    await markOnboardingComplete(USER, 'legacy_name');
+    await markOnboardingComplete(USER, 'checklist');
     expect(updatePayloads).toHaveLength(1);
     expect(updatePayloads[0]).toEqual({
       onboarding_completed: true,
-      onboarding_completed_via: 'legacy_name',
+      onboarding_completed_via: 'checklist',
     });
   });
 

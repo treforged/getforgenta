@@ -3,7 +3,7 @@
 // jsdom purely so importing the page does not blow up on `localStorage` in the Supabase client at
 // module load. Nothing here renders anything: the rule under test is pure.
 import { describe, it, expect } from 'vitest';
-import { furthestStepPatch } from '../Onboarding';
+import { furthestStepPatch, shouldLeaveOnboarding } from '../Onboarding';
 
 /**
  * WHERE PEOPLE STOP IN ONBOARDING — Tre, 2026-09-02: "conversion is the metric".
@@ -78,5 +78,39 @@ describe('furthestStepPatch', () => {
 
   it('refuses to record a step that is not in the flow at all', () => {
     expect(furthestStepPatch('income', AT(), 'not_a_step' as never, FREE, AT)).toBeNull();
+  });
+});
+
+/**
+ * THE AUTO-SKIP RULE - who gets sent straight to the dashboard.
+ *
+ * Tre, 2026-09-15: "remove the bounce. whats it for?" It was a migration for accounts that
+ * finished setup on an older surface and never got the flag written; `display_name` was the tell
+ * that they had. `Auth.tsx` sets `display_name` AT SIGNUP, so the tell stopped working and new
+ * users were skipping setup entirely.
+ *
+ * THE PAIRED CASE IS LOAD-BEARING. "A user with a name stays in the wizard" is satisfied
+ * perfectly by a rule that returns false for EVERYBODY - which would trap every finished user in
+ * setup for ever. The completed case below is what separates the fix from that.
+ */
+describe('shouldLeaveOnboarding', () => {
+  it('does NOT wave through an account just because it has a display_name', () => {
+    expect(shouldLeaveOnboarding({ onboarding_completed: false, display_name: 'Tre' })).toBe(false);
+  });
+
+  it('still lets a genuinely completed account through - the opposite case', () => {
+    expect(shouldLeaveOnboarding({ onboarding_completed: true, display_name: null })).toBe(true);
+    expect(shouldLeaveOnboarding({ onboarding_completed: true, display_name: 'Tre' })).toBe(true);
+  });
+
+  it('keeps a brand-new account in the wizard', () => {
+    expect(shouldLeaveOnboarding({ onboarding_completed: false, display_name: null })).toBe(false);
+  });
+
+  it('treats a FAILED read as "stay", never as "leave"', () => {
+    // Waving somebody through on a network blip is the expensive direction: they never see setup.
+    expect(shouldLeaveOnboarding(null, { message: 'network' })).toBe(false);
+    expect(shouldLeaveOnboarding(null)).toBe(false);
+    expect(shouldLeaveOnboarding({ onboarding_completed: true }, { message: 'network' })).toBe(false);
   });
 });

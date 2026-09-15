@@ -142,6 +142,11 @@ export async function fetchOnboardingCompleted(userId: string): Promise<boolean 
  * both mark an account complete having pressed NOTHING in the wizard. Only `wizard` means a
  * person walked it.
  *
+ * `legacy_name` WAS a member and was RETIRED on 2026-09-15 with the display_name bounce it
+ * described. It was never written to a single row (33 profiles, all NULL at removal), so no
+ * stored value is orphaned by dropping it. Do not re-add it without re-adding a writer - the
+ * gate requires every declared path to be wired, which is how the removal was caught.
+ *
  * NULL in the database means the flag predates this attribution (7 accounts at 2026-09-15). It is
  * deliberately not backfilled - a guessed attribution is indistinguishable from a measured one.
  */
@@ -154,8 +159,6 @@ export type OnboardingCompletionPath =
   | 'wizard'
   /** Pressed "skip" in the wizard. A deliberate choice, and NOT the same as finishing it. */
   | 'skipped'
-  /** Legacy migration: carried a display_name, so /onboarding waved them through. Pressed nothing. */
-  | 'legacy_name'
   /** The dashboard checklist computed all four items done from real data. Zero clicks. */
   | 'checklist'
   /** This device's cache said complete, so the profile flag was written back to agree. */

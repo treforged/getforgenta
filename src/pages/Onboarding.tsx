@@ -185,6 +185,29 @@ function getInitialDisplayName(meta: Record<string, unknown> | undefined): strin
   return '';
 }
 
+/**
+ * Should the wizard send this account straight to the dashboard?
+ *
+ * EXTRACTED SO THE RULE CAN BE ASSERTED. It used to live inside a `useEffect`, where the only way
+ * to test it was to render the whole page - so it was never tested, and a wrong answer here is
+ * invisible until somebody signs up.
+ *
+ * WARNING: `display_name` IS DELIBERATELY IGNORED, and the parameter is kept ONLY so that stays
+ * visible. Until 2026-09-15 a non-empty `display_name` meant "leave", on the reasoning that such
+ * an account predated the flag. `Auth.tsx` sets `display_name` AT SIGNUP, so that tell stopped
+ * separating a legacy account from a brand-new one, and new users were skipping setup entirely.
+ *
+ * A FAILED read is not a "no". It returns false, which leaves the user in the wizard - they can
+ * skip in one tap - rather than waving through somebody who never onboarded.
+ */
+export function shouldLeaveOnboarding(
+  data: { onboarding_completed?: boolean | null; display_name?: string | null } | null,
+  error?: unknown,
+): boolean {
+  if (error || !data) return false;
+  return data.onboarding_completed === true;
+}
+
 export default function Onboarding() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
@@ -212,10 +235,24 @@ export default function Onboarding() {
     return () => { window.__forgenta_dashboard_ready = false; };
   }, []);
 
-  // Auto-skip for accounts that are already set up. Three ways that can be true, in order of
-  // certainty: this device remembers, the profile flag says so, or the account predates the flag
-  // entirely and has profile data (display_name is the tell). The last two are migrations — they
-  // write the completion back through the single store so this is the last time we have to guess.
+  // Auto-skip for accounts that are already set up. TWO ways that can be true: this device
+  // remembers, or the profile flag says so.
+  //
+  // ⚠️ THERE USED TO BE A THIRD, AND IT WAS REMOVED 2026-09-15 ON TRE'S CALL. Any account
+  // carrying a `display_name` was waved through and marked complete, on the reasoning that it
+  // "predates the flag entirely and has profile data (display_name is the tell)". THAT PREMISE
+  // STOPPED BEING TRUE: `Auth.tsx` sets `display_name` AT SIGNUP, so the tell no longer
+  // distinguishes a legacy account from a brand-new one, and a new user who typed their name
+  // never saw this wizard at all. Measured: an account created 2026-09-15 02:26 was waved
+  // through at 13:45 the same day, 11 hours old. 9 accounts sat one visit from the same thing,
+  // and every metric built on `onboarding_completed` was measuring HAVING A NAME - including the
+  // PMF survey's eligibility gate.
+  //
+  // The cost of removing it is bounded and small: a genuinely legacy user is shown the wizard and
+  // SKIPS IT IN ONE TAP, which is the trade the note below already called cheap. That skip is now
+  // recorded as `skipped` rather than silently becoming `wizard`, so it stays legible.
+  // DO NOT REINSTATE THIS ON A `display_name` TEST. If legacy accounts ever need waving through
+  // again, the signal has to be something signup does not also produce.
   //
   // A FAILED read is not a "no": it leaves the user in the wizard, which they can skip in one tap,
   // rather than either trapping them or waving through someone who never onboarded.
@@ -226,7 +263,7 @@ export default function Onboarding() {
 
     if (readOnboardingCache(user.id)) { leave(); return; }
 
-    supabase.from('profiles').select('onboarding_completed, display_name').eq('user_id', user.id).maybeSingle()
+    supabase.from('profiles').select('onboarding_completed').eq('user_id', user.id).maybeSingle()
       .then(({ data, error }) => {
         if (cancelled || error || !data) return;
         if (data.onboarding_completed) {
@@ -234,13 +271,6 @@ export default function Onboarding() {
           qc.setQueryData(onboardingQueryKey(user.id), true);
           leave();
           return;
-        }
-        if (data.display_name) {
-          markOnboardingComplete(user.id, 'legacy_name').then(({ ok }) => {
-            if (!ok || cancelled) return;
-            qc.setQueryData(onboardingQueryKey(user.id), true);
-            leave();
-          });
         }
       });
 
