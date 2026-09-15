@@ -38,15 +38,34 @@ sha256. The CONTROL was proven separately by breaking the matcher → exit 2.
 ⚠️ **STATED RESIDUE**: the minifier does NOT fold `SECTION_AVAILABLE.ai` away, so the dead
 segment and the lazy `AiAdvisor` chunk are still EMITTED. That is bundle weight, not a data flow.
 
+### 3. ✅ `f22f17b1`'s FIRST HALF — THE CSS PANEL IDENTITY, `cdede2f0`
+He asked for this half FIRST ("reversible, in front of him this week"); the native plugin is the
+longer track and is NOT started. `card-forged` now carries the glass vocabulary — ONE utility,
+194 call sites across 70 files. Square corners unchanged.
+⚠️ **THE OBVIOUS IMPLEMENTATION WOULD HAVE DARKENED EVERY PANEL IN THE APP.** A panel is
+LIGHTER than the page here (7% on 2%), so transparency composites DOWNWARD. Measured in a
+rendered frame, /dashboard at 390px, dark: shipped **18/255 = 7.06%** (identical to today's
+opaque panel) against the naive `--card` fill at **14/255 = 5.49%**. New `--panel-glass` token is
+pre-compensated per theme. The sampler carried a positive control and it fired; in LIGHT mode the
+two are identical by construction and the control correctly REFUSED, which is how I know it was
+measuring the fill and not the theme.
+⚠️ **TINT INHERITANCE IS ONLY OBSERVABLE WHERE SOMETHING PASSES UNDER A PANEL** —
+`check:glass` now lists 26 panels as *"not measurable by scrolling: in normal flow"*. On this
+app's flat background the SPECULAR EDGE is the half that carries the identity. Said, not implied.
+
 ### ⇢ RESUME QUEUE — START AT ITEM 1
 
-1. `f22f17b1` native iOS material. Tre OVERRULED the recommendation: "I want native iOS material."
-   The cost is that a native view is a SIBLING of the WebView, so every glass frame crosses the
-   bridge on every scroll/resize/rotation.
+1. **`f22f17b1` SECOND HALF — the native iOS plugin. NOT STARTED.** Capacitor plugin wrapping
+   `UIVisualEffectView`/`UIGlassEffect`, Swift bridge, JS shim. Tre OVERRULED the recommendation
+   not to, having been given the honest cost in this desk's own words: a week, permanently two
+   implementations, for a lighting effect; a native view is a SIBLING of the WebView, so every
+   glass surface needs its frame computed in JS and re-pushed on every scroll/resize/rotation/
+   keyboard event; iOS 26+ only; CSS stays as the fallback. **A dropped frame showing a panel
+   lagging its own content is the failure mode to gate for.**
 2. `e72a8df4` rotate the reddit-scout webhook secret, `3d6e26a0` delete the edge function — both
    NEEDS TRE, both still open, both live exposures rather than tidying.
 3. **Optional, and stated rather than done:** the dead AI segment and the `AiAdvisor` chunk still
-   ship (see item 2's residue). Folding them out would need `SECTION_AVAILABLE.ai` to be a direct
+   ship (see FIRST UP item 2's residue). Folding them out would need `SECTION_AVAILABLE.ai` to be a direct
    constant rather than an object property. No user impact; bundle weight only.
 
 ---
