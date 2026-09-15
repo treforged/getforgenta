@@ -1,145 +1,84 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## ⇢ FIRST UP — 2026-09-15 (Ada, SIXTH session). QUEUE ITEMS 1 AND 2 ARE BOTH CLOSED.
+## FIRST UP - 2026-09-15 (Ada, SEVENTH session). QUEUE ITEM 1 IS CLOSED.
 
-`b18d6dd1` the debt_payoff refusal, re-measured · `84c6c0e4` a production-build gate on
-`AI_ADVISOR_ENABLED`. Both on origin/main 0/0 BY CONTENTS. Asks closed with evidence:
-`f05b9c82`, `1a805cf2`.
+`9a6f1e43` onboarding completion is ATTRIBUTED, `40489985` the correction to it. Both on
+origin/main 0/0 BY CONTENTS. Ask closed with evidence: `ac098dec`. New ask filed: `c2a7da61`.
 
-### 1. ✅ `f05b9c82` — THE RECORDED REASON WAS FALSE; THE REFUSAL SURVIVES ANYWAY
-The unrun query is run. **`account_reconciliations` DOES carry debt rows** (`source_table='debts'`),
-so the header's *"no table in `public` matches `%balance%` or `%statement%`"* was simply false —
-four tables do, and that one is a dated per-account balance history.
-⚠️ **AND THE METRIC IS STILL NOT BUILDABLE, for a different and measured reason.** The
-discriminating count is accounts with MORE THAN ONE `effective_date`: **7 for `accounts`, 0 for
-`debts`** (33 rows / 2 users vs 2 rows / 1 user, all on 2026-08-22; positive control 56 public
-tables, and the cash arm is non-zero, so the debt zero is a real absence). A peak-revolving metric
-needs a SERIES; one point per card is always 100% or 0%. Sparse **by construction** — rows are
-written only by a user-initiated reconcile (`useAccountReconciliations().add`), never automatically.
-**So `debt_payoff` stays in `UNSOURCED_METRICS`, and the work is BALANCE CAPTURE FIRST, the metric
-second.** The header now carries the query, the numbers, and what would change the answer, so the
-next session re-runs it instead of trusting the paragraph.
+### 1. CLOSED `ac098dec` - THE QUERY WAS RUN FIRST, AND IT REFUTED THE ASK'S OWN FRAMING
 
-### 2. ✅ `1a805cf2` — THE PREMISE WAS ALREADY SATISFIED; THE GATE WAS WHAT WAS MISSING
-Re-measured before building, as the queue said to: `AiAdvisor` is **already** mounted at
-`Account.tsx:188` in an `ai` section ordered AFTER `leaderboard`, and `/ai` is no longer a rail row
-(`1df1e5bf`). Nothing to move.
-What was missing is EVIDENCE the flag holds. `AI_ADVISOR_ENABLED` is `import.meta.env.DEV`, and
-mounting the advisor forwards transactions, debts, goals, accounts and car funds to the
-`ai-advisor` edge function — **a vitest can stub `import.meta.env` and prove nothing about what
-ships.** New **`npm run check:ai-gate`** builds and asserts the shipped `SECTION_AVAILABLE` literal
-reads `ai:!1`, matched BY SHAPE because the minifier renames the binding every build. Measured:
-`$={profile:!0,leaderboard:!0,ai:!1}` in `Account-MS4Tl0BO.js`, 113 js assets examined.
-⚠️ **THE FIRST RED DID NOT DISCRIMINATE, AND THAT IS THE LESSON.** `vite build --mode
-development` leaves `import.meta.env.DEV` FALSE — `vite build` forces `NODE_ENV=production` — so
-that run came back GREEN and proved nothing. **A non-discriminating red looks exactly like a broken
-gate.** The real red is `ai: true` in `Account.tsx` → `ai:!0`, exit 1, source restored byte-exact by
-sha256. The CONTROL was proven separately by breaking the matcher → exit 2.
-⚠️ **STATED RESIDUE**: the minifier does NOT fold `SECTION_AVAILABLE.ai` away, so the dead
-segment and the lazy `AiAdvisor` chunk are still EMITTED. That is bundle weight, not a data flow.
+The previous session said *"fixing the recorder is the prerequisite"* and then said that
+framing was probably wrong. **It was wrong, and the unrun query settles it.** All three rows
+carrying a `furthest_step` started **2026-09-13 or later**; the recorder shipped 2026-09-04.
+So `recordFurthestStep` is FINE - there is simply no traffic through the wizard.
+**No recorder fix was built.** Measuring before redesigning cost one query and saved a build.
 
-### 3. ✅ `f22f17b1`'s FIRST HALF — THE CSS PANEL IDENTITY, `cdede2f0`
-He asked for this half FIRST ("reversible, in front of him this week"); the native plugin is the
-longer track and is NOT started. `card-forged` now carries the glass vocabulary — ONE utility,
-194 call sites across 70 files. Square corners unchanged.
-⚠️ **THE OBVIOUS IMPLEMENTATION WOULD HAVE DARKENED EVERY PANEL IN THE APP.** A panel is
-LIGHTER than the page here (7% on 2%), so transparency composites DOWNWARD. Measured in a
-rendered frame, /dashboard at 390px, dark: shipped **18/255 = 7.06%** (identical to today's
-opaque panel) against the naive `--card` fill at **14/255 = 5.49%**. New `--panel-glass` token is
-pre-compensated per theme. The sampler carried a positive control and it fired; in LIGHT mode the
-two are identical by construction and the control correctly REFUSED, which is how I know it was
-measuring the fill and not the theme.
-⚠️ **TINT INHERITANCE IS ONLY OBSERVABLE WHERE SOMETHING PASSES UNDER A PANEL** —
-`check:glass` now lists 26 panels as *"not measurable by scrolling: in normal flow"*. On this
-app's flat background the SPECULAR EDGE is the half that carries the identity. Said, not implied.
+**TWO FIGURES IN THE INHERITED RECORD WERE WRONG, and one of them was mine to correct:**
+- **The bounce exposure is 9 accounts, not 25.** 26 profiles are not completed; 9 of those
+  carry a `display_name`. 25 was never a count of anything.
+- **There are FIVE writers of `onboarding_completed`, not the one the handoff named.**
 
-### 4. ✅ `03c8de4f` — THE SEAN ELLIS SURVEY, `853f7d70`, AND IT ALMOST SHIPPED RECORDING NOTHING
-One question, the three canonical answers, free-text follow-up asked ONLY of *very disappointed*.
-New `public.pmf_responses` with own-scoped RLS and no DELETE grant. New gate **`npm run check:pmf`**.
-⚠️ **THE FIRST LIVE RUN RENDERED, ACCEPTED THE PRESS, ADVANCED TO THE FOLLOW-UP AND WROTE NO
-ROW.** My own grant tightening an hour earlier had revoked UPDATE, an upsert is
-`INSERT ... ON CONFLICT DO UPDATE`, PostgREST refused it, and the component swallowed the error.
-**SIX JSDOM TESTS PASSED THROUGHOUT** — a mock resolves `{ error: null }`. **The screen was
-identical before and after the fix; only reading the table told them apart.**
-`check:pmf` exists for exactly that: it seeds the OPPOSITE sentiment, presses, requires the view to
-change AND reads the row back. Proven red with the real defect — removing the write leaves the
-screen output byte-for-byte identical and the gate exits 1. An earlier red (revoking UPDATE) broke
-the FIXTURE too and correctly exited 2 rather than 1.
-⚠️ **THE FREE TIER DREW THE 7-DAY WINDOW WITH MILLISECOND DIVISION** — 6.958 days across a
-spring-forward transition, so an account is silently skipped one week a year in every US timezone.
-It uses this repo's DST-safe `daysBetween`; the test for that exact pair fails on the free-tier
-arithmetic, one of eight.
-⚠️ **40% IS A CITATION, NOT A RESULT**, and is absent from the product. **Measured: 6 of 33
-accounts qualify today, and the binding constraint is `onboarding_completed` (true for 7 of 33),
-not the 7-day bar.** A proportion over 6 people is not a PMF verdict — the free-text answers are
-the output worth having at this size, and that number says the priority is onboarding completion.
+**THE REAL DEFECT WAS THAT COMPLETION WAS UNATTRIBUTED.** Five paths set the same bare
+boolean and they mean five different things - `wizard` (handleFinish, the only one that means
+a person walked it), `skipped`, `legacy_name`, `checklist` (allDone computed from REAL DATA in
+a useEffect, zero clicks), `cache_restore`. Two of the five mark an account complete having
+pressed nothing, which is exactly why every metric on the column has measured HAVING A NAME.
+New `profiles.onboarding_completed_via` records which. Existing rows stay NULL on purpose - a
+guessed attribution reads identically to a measured one. **Behaviour is unchanged**; this
+makes the funnel readable, it does not redesign it.
 
-### 5. ✅ `03c8de4f` ALSO SHIPPED — AND THE REAL FIND OF THE SESSION IS BELOW IT
+⚠️ **MY OWN GATE WAS BLIND TO THE ONE PATH THAT MATTERS, and that is the lesson to carry.**
+`handleFinish` writes the flag DIRECTLY inside a wider profile update (`Onboarding.tsx:307`)
+and never calls `markOnboardingComplete`. A gate that discovered call sites by the function
+name could not see it - **strongest exactly where it was needed least.** It now matches direct
+writes too. In the same pass I had attributed `'wizard'` to the SKIP button, because I took a
+line number out of the gate's own output without reading the function around it.
 
-`853f7d70` the Sean Ellis survey · `b18d6dd1` `84c6c0e4` `cdede2f0` earlier. All on origin/main
-0/0 BY CONTENTS. Asks closed with evidence: `f05b9c82`, `1a805cf2`, `c688968f`, `f797506b`,
-`cd516cd3`, `03c8de4f`. Blocked WITH measurements: `f22f17b1`, `7dd28827`, `0d9f8fae`.
+⚠️ **AND THE GATE REPORTED PASS WHILE BROKEN, FROM MY OWN TOOLING.** Writing the matcher
+through a shell heredoc turned the JS word boundary into a literal BACKSPACE byte (0x08), so
+the regex hunted for a string that cannot occur. **My "non-ascii bytes: 0" check could not see
+it, because 0x08 is BELOW 127** - the check was aimed at the wrong half of the byte range.
+Now scanning for CONTROL characters too, and building escapes from explicit codepoints.
+**The shell mangled backslashes three separate times in this session**; prefer line-index
+edits or a file write over string matching with escapes in it.
 
-⚠️ **`cd516cd3` WAS STALE AND MY OWN BLOCK REASON REPEATED THE STALE CLAIM** before I ran the
-command. `APP_STORE_VENDOR_NUMBER` **is** set (2026-09-15T00:23:47Z). Running it is what caught it.
+**GATE:** `npm run check:onboarding-attribution`. Call sites AND vocabulary are DERIVED from
+source. **Proven red six ways**, every restore byte-exact by sha256: the direct finish write
+losing its attribution, a dropped argument, a variable instead of a literal, a declared path
+wired to nothing, a SECOND canonical sink appearing, and a renamed union (exit 2). Exit 1
+means the code is wrong; exit 2 means the instrument is. Exactly ONE canonical sink is
+permitted and asserted, rather than banned or excluded by filename.
 
-### ⇢ THE FIND — ask `ac098dec`. ONBOARDING IS NOT HAPPENING, AND THE COLUMN LIES
+**Also found:** the test mock was DISCARDING the update payload, so no test could see WHAT was
+written - the same shape that let the PMF write ship green while writing nothing.
 
-Measured against the live database, 2026-09-15. **33 profiles. 7 marked `onboarding_completed`,
-and FIVE of those seven have NO `onboarding_furthest_step` at all. Exactly ONE account in the
-product's history has ever reached `finish`.** Only `welcome` and `finish` have ever been recorded.
-**CAUSE, in the code:** `Onboarding.tsx:237` bounces anyone carrying a `display_name` — flag false
-plus name set calls `markOnboardingComplete` and leaves, marking the account onboarded having done
-none of it. **EXPOSURE: 25 of 33 accounts** are one visit to `/onboarding` away from exactly that.
-**So every metric built on `onboarding_completed` measures HAVING A NAME.** That includes the PMF
-eligibility gate shipped hours earlier; corrected in place in `pmf-survey.ts` (the 7-day bar still
-binds, so it is weaker than advertised rather than harmful).
+### RESUME QUEUE - START AT ITEM 1
 
-⚠️ **AND I NEARLY BUILT A FIX FOR A WORKING THING — READ THIS BEFORE TOUCHING THE RECORDER.**
-My own ask says *"fixing the recorder is the prerequisite"*. **That framing is probably WRONG.**
-`recordFurthestStep` fires from a `useEffect` on EVERY `step` change (`Onboarding.tsx:264`) and
-looks correct. The likelier explanation is that it is RECENT (`821dc985`, 2026-09-04) and there is
-almost no traffic through the wizard, because the 25 bounced accounts predate it. **THE QUERY THAT
-SETTLES IT WAS BLOCKED BY THE HANDOFF GATE MID-RUN and is UNRUN:**
-
-    select onboarding_furthest_step, onboarding_started_at, created_at, onboarding_completed
-    from public.profiles where onboarding_furthest_step is not null
-    order by onboarding_started_at nulls last;
-
-**If those 3 rows are all recent, the recorder is fine and the defect is the BOUNCE, not the
-writer.** Do not build a recorder fix until that read says otherwise.
-
-### ⇢ RESUME QUEUE — START AT ITEM 1
-
-1. **`ac098dec` THE ONBOARDING FUNNEL. START HERE — it outranks every feature on this queue.**
-   Run the unrun query above FIRST; it decides whether the work is the recorder or the bounce.
-   Then MEASURE BEFORE REDESIGNING: where users drop is unknown, because the step column is
-   populated for 3 of 33. Sam was told and is offline, so the message is queued — the ask is the
-   record. My recommendation, stated so it can be overruled: make the funnel measurable, then look.
-2. **`f22f17b1` SECOND HALF — the native iOS plugin. BLOCKED ON TRE, do NOT start Swift here.**
-   ⚠️ **THE PREMISE WAS TESTED AND IT DOES NOT HOLD AS BRIEFED.** A `UIVisualEffectView` is a
-   SIBLING of the WKWebView, so there are two z-orders and neither works: BELOW it blurs the native
-   background and never sees app content; ABOVE it samples the web content correctly and then
-   COVERS that surface's own web-rendered icons, labels and figures. The architecture that works
-   needs a SECOND transparent WKWebView for chrome content — not the plugin he was quoted, and it
-   multiplies the cost he was weighing when he overruled. **ANALYSIS, NOT MEASUREMENT: this machine
-   has no Xcode, so the instrument that would settle it is a simulator or device build.** Recorded
-   in `CLAUDE.md` under DECIDED and in ask `f22f17b1`. His call: (a) accept the two-webview cost,
-   (b) scope native material to a surface whose content can be native, (c) stay on the shipped CSS.
-   ORIGINAL BRIEF, for whoever takes it: Capacitor plugin wrapping
-   `UIVisualEffectView`/`UIGlassEffect`, Swift bridge, JS shim. Tre OVERRULED the recommendation
-   not to, having been given the honest cost in this desk's own words: a week, permanently two
-   implementations, for a lighting effect; a native view is a SIBLING of the WebView, so every
-   glass surface needs its frame computed in JS and re-pushed on every scroll/resize/rotation/
-   keyboard event; iOS 26+ only; CSS stays as the fallback. **A dropped frame showing a panel
-   lagging its own content is the failure mode to gate for.**
-2. `e72a8df4` rotate the reddit-scout webhook secret, `3d6e26a0` delete the edge function — both
-   NEEDS TRE, both still open, both live exposures rather than tidying.
-3. **Optional, and stated rather than done:** the dead AI segment and the `AiAdvisor` chunk still
-   ship (see FIRST UP item 2's residue). Folding them out would need `SECTION_AVAILABLE.ai` to be a direct
-   constant rather than an object property. No user impact; bundle weight only.
-
----
+1. **`c2a7da61` THE LEGACY BOUNCE IS FIRING ON BRAND-NEW ACCOUNTS.** `Onboarding.tsx:228`
+   waves through anyone with a `display_name`, justified in its own comment as "the account
+   predates the flag entirely". **That premise is false today**: `Auth.tsx:493` sets
+   `display_name` at signup, so a new user who types their name never sees the wizard. An
+   account created 2026-09-15 02:26 was bounced at 13:45 the same day - 11 hours old.
+   ⚠️ **READ `onboarding_completed_via` BEFORE ACTING.** The attribution now records which
+   path fires and will settle this on the next signup; the above is inference, and the column
+   exists so nobody has to infer. **It is a PRODUCT call, not a bug fix** - the bounce exists
+   so a genuinely-legacy user is not trapped in a wizard they already completed. Narrowing it
+   to accounts created before the flag is the obvious shape. Tre's PMF eligibility gate is
+   `onboarding_completed`, so it currently selects for having a name.
+2. **Where users DROP is still unknown, and it is a TRAFFIC problem, not a code one.** The
+   step column is populated for 3 of 33 because only 3 accounts have ever opened the wizard.
+   Do not build funnel analytics over 3 rows. One datapoint worth having: the single account
+   that ever reached `finish` did NOT complete - it saw the last screen and did not press the
+   button.
+3. **`f22f17b1` the native iOS plugin. BLOCKED ON TRE, do NOT start Swift here** - no Xcode on
+   this machine. The premise does not hold as briefed: a `UIVisualEffectView` is a SIBLING of
+   the WKWebView, so below it never sees app content and above it covers that surface's own
+   web-rendered content. The architecture that works needs a SECOND transparent WKWebView.
+   Recorded in `CLAUDE.md` under DECIDED. His call: (a) accept the two-webview cost, (b) scope
+   native material to a surface whose content can be native, (c) stay on the shipped CSS.
+4. `e72a8df4` rotate the reddit-scout webhook secret, `3d6e26a0` delete the edge function -
+   both NEEDS TRE, both live exposures rather than tidying. `a40f1e23` reviewer sign-in.
+   `7dd28827` the App Store key is upload-only and needs the Sales and Reports role.
 
 ## ⇢ FIRST UP — 2026-09-15 (Ada, FIFTH session). ITEMS A AND B ARE BOTH SHIPPED.
 
@@ -4455,7 +4394,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 16:06 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 16:33 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4472,14 +4411,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+22a34c7b [handoff]: the onboarding funnel is item 1, and the recorder premise is UNVERIFIED
+2fd95072 [survey]: say what onboarding_completed actually measures - it is not what the eligibility gate implies
+ffb228e1 [handoff]: the survey shipped (853f7d70) and the native iOS half is blocked on a tested premise
+853f7d70 [survey]: the Sean Ellis PMF question, and the first live run recorded NOTHING while looking perfect
+9891c799 [docs]: record the two decisions that were living only in an ask queue
 514bc057 [handoff]: f22f17b1's CSS half is shipped (cdede2f0) - the native iOS plugin is what is left
 cdede2f0 [ui]: the app panels get the glass identity - and the naive version would have DARKENED every one of them
 13c784b2 [handoff]: queue items 1 and 2 are closed - the debt_payoff premise was false and the refusal survives; the AI flag now has a build-level gate
-84c6c0e4 [ai]: prove AI_ADVISOR_ENABLED is false in a REAL production build, not in a constant
-b18d6dd1 [leaderboard]: debt_payoff's recorded refusal was built on a false premise - the table exists, the HISTORY does not
-4d813895 [handoff]: resume queue - f05b9c82 is ONE metric (debt_payoff), and a premise in leaderboard-metrics.ts is false
-dcf66e3a [handoff]: the two navigations are one list now - 1df1e5bf, and 7a19ac46 no longer needs Tre
-1df1e5bf [nav]: the desktop rail and the phone bar are ONE list - the selections differed at the two widths
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
