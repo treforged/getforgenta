@@ -43,14 +43,60 @@ const session = await (await fetch(`${url}/auth/v1/token?grant_type=password`, {
 })).json();
 if (!session.access_token) { console.error('sign-in failed'); process.exit(2); }
 
-// Give the walk account a handle so the "already have one" branch is the branch under test.
+/**
+ * THE WALK ACCOUNT KEEPS ITS HANDLE, AND THAT IS THE WHOLE TEARDOWN STORY.
+ *
+ * ⚠️ THE FIRST VERSION SEEDED A HANDLE AND CLEARED IT AFTERWARDS, AND ITS CLEANUP WAS DEFEATED
+ * BY THE VERY FEATURE IT TESTS. `username_changes` has no DELETE policy - deliberately, because a
+ * user who can delete their own history can defeat the limit - so the teardown's DELETE silently
+ * affected zero rows through the account's own session. The reset-to-null was then REFUSED as a
+ * third change, so the handle stayed too. Residue accumulated across runs until the walk account
+ * had spent its two changes and this gate would have started failing for a reason that has
+ * nothing to do with the code under test.
+ *
+ * So the gate no longer changes anything. It needs the account to HAVE a handle - that is the
+ * branch under test - and a handle it already has is just as good as one it seeded. The only
+ * write left is the FIRST claim on an account that has never had one, which the trigger gives
+ * away free, exactly once, for ever.
+ */
 const rest = { apikey: anon, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
-const seed = await fetch(`${url}/rest/v1/profiles?user_id=eq.${session.user.id}`, {
-  method: 'PATCH', headers: { ...rest, Prefer: 'return=representation' },
-  body: JSON.stringify({ username: 'walkprobe' }),
-});
-const seeded = await seed.json().catch(() => []);
-if (!seed.ok || !seeded.length) { console.error(`could not seed a handle (HTTP ${seed.status}) - nothing was tested`); process.exit(2); }
+const profRes = await fetch(`${url}/rest/v1/profiles?select=username&user_id=eq.${session.user.id}`, { headers: rest });
+if (!profRes.ok) { console.error(`reading the walk account's profile returned ${profRes.status} - nothing was tested`); process.exit(2); }
+let handleText = (await profRes.json())[0]?.username ?? null;
+if (!handleText) {
+  const claim = await fetch(`${url}/rest/v1/profiles?user_id=eq.${session.user.id}`, {
+    method: 'PATCH', headers: { ...rest, Prefer: 'return=representation' },
+    body: JSON.stringify({ username: 'walkprobe' }),
+  });
+  const claimed = await claim.json().catch(() => []);
+  // ASSERT THE WRITE LANDED. An RLS refusal and a wrong id both return no error, and are
+  // indistinguishable from a write that worked.
+  if (!claim.ok || !claimed.length) { console.error(`could not claim a handle (HTTP ${claim.status}) - nothing was tested`); process.exit(2); }
+  handleText = 'walkprobe';
+  console.log('walk account had no handle; claimed one (free first claim, once ever)');
+}
+console.log(`walk account handle: @${handleText}`);
+
+/**
+ * A single exit helper, so every failure closes the browser and SAYS WHY.
+ *
+ * ⚠️ THERE IS NOTHING TO UNDO, AND THE VERSION THAT DID HAVE A TEARDOWN WAS DEFEATED BY THE
+ * FEATURE IT TESTS. It seeded a handle and cleared it afterwards; `username_changes` has no DELETE
+ * policy - deliberately, since a user who can delete their own history can defeat the limit - so
+ * the cleanup's DELETE silently affected zero rows, and the reset-to-null was then REFUSED as a
+ * third change. Residue accumulated across runs until the walk account had spent its two changes,
+ * at which point this gate would have failed for a reason unrelated to the code under test. See
+ * the header above: the gate now writes nothing after the one free first claim.
+ *
+ * ⚠️ AND REPORT THE FAILURE RATHER THAN THROWING IT. An earlier red run exited 1 with an
+ * unhandled Playwright TimeoutError and a stack trace, which reads as a broken instrument rather
+ * than a finding - and a broken instrument gets re-run and then ignored.
+ */
+const done = async (code, msg) => {
+  if (msg) console.error(msg);
+  try { await browser?.close(); } catch { /* ignore */ }
+  process.exit(code);
+};
 
 const { chromium } = await import('@playwright/test');
 const browser = await chromium.launch();
@@ -69,7 +115,7 @@ await page.goto(`${BASE}/account`, { waitUntil: 'domcontentloaded' });
 await page.getByText(/Add friends to cheer each other on/i)
   .first().waitFor({ state: 'attached', timeout: 20000 })
   .catch(() => {});
-await page.getByText('@walkprobe').first().waitFor({ state: 'attached', timeout: 20000 })
+await page.getByText(`@${handleText}`).first().waitFor({ state: 'attached', timeout: 20000 })
   .catch(() => {});
 
 // Say WHERE we are before asserting what is on it: a bounce to /auth and a missing control are
@@ -78,16 +124,15 @@ console.log(`landed on ${page.url()}`);
 const friendsCard = await page.getByText(/Add friends to cheer each other on/i).count();
 console.log(`Friends card on screen: ${friendsCard}`);
 if (!friendsCard) {
-  console.error('FAIL: the Friends card did not render, so UsernameClaim was never mounted - nothing was tested.');
   console.error(page.url().includes('/auth') ? 'CAUSE: bounced to /auth - the seeded session did not take.' : 'CAUSE: unknown; the page rendered something else.');
-  await browser.close(); process.exit(2);
+  await done(2, 'FAIL: the Friends card did not render, so UsernameClaim was never mounted - nothing was tested.');
 }
-const handle = await page.getByText('@walkprobe').count();
+const handle = await page.getByText(`@${handleText}`).count();
 const change = page.getByRole('button', { name: /^change$/i });
 const changeCount = await change.count();
 console.log(`handle on screen: ${handle}   Change control: ${changeCount}`);
-if (!handle) { console.error('FAIL: the handle never rendered - nothing was tested'); await browser.close(); process.exit(2); }
-if (!changeCount) { console.error('FAIL: no Change control - the handle is still read-only'); await browser.close(); process.exit(1); }
+if (!handle) await done(2, 'FAIL: the handle never rendered - nothing was tested');
+if (!changeCount) await done(1, 'FAIL: no Change control - the handle is still read-only');
 
 await change.first().click();
 /**
@@ -99,19 +144,14 @@ await change.first().click();
 const field = page.getByLabel('Choose a username');
 const opened = await field.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
 if (!opened) {
-  console.error('FAIL: pressing Change did not open an edit field - the control is present but does nothing.');
   console.error('This is the dead-control shape: it throws no error, so every smoke test passes it.');
-  await browser.close(); process.exit(1);
+  await done(1, 'FAIL: pressing Change did not open an edit field - the control is present but does nothing.');
 }
 const seededValue = await field.inputValue();
 const save = await page.getByRole('button', { name: /^save$/i }).count();
 const cancel = await page.getByRole('button', { name: /^cancel$/i }).count();
-console.log(`after pressing Change: field="${seededValue}"  Save:${save}  Cancel:${cancel}`);
-if (seededValue !== 'walkprobe' || !save || !cancel) { console.error('FAIL: the edit state is not what the tests describe'); await browser.close(); process.exit(1); }
+console.log(`after pressing Change: field="${seededValue}" (must equal @${handleText} - seeded from the CURRENT handle, never from an email)  Save:${save}  Cancel:${cancel}`);
+if (seededValue !== handleText || !save || !cancel) await done(1, 'FAIL: the edit state is not what the tests describe');
 
-await browser.close();
-// Leave the account as it was found.
-await fetch(`${url}/rest/v1/profiles?user_id=eq.${session.user.id}`, {
-  method: 'PATCH', headers: rest, body: JSON.stringify({ username: null }),
-});
 console.log('PASS - the Change control is reachable on /account and opens a seeded, cancellable edit.');
+await done(0);
