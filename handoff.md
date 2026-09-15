@@ -26,6 +26,29 @@ predecessor was cut by the handoff gate one call into attaching.
 | `f05b9c82` | finish the remaining leaderboard stats. ENUMERATE how many render "not ready". A stat that cannot be computed honestly gets NO tile, never a zero |
 | `f22f17b1` | ⚠️ **TRE OVERRULED THE RECOMMENDATION: "I want native iOS material."** The CSS estimate said don't; he said do. It needs a Capacitor plugin + native build, and the cost is that a native view is a SIBLING of the WebView, so every glass surface's frame must be pushed across the bridge on every scroll/resize/rotation. Behind the five above |
 
+### AND `98830520` — FIVE MORE ON THE DESKTOP SIDEBAR. `47239c60` was closed TOO EARLY.
+Same surface, seen properly on his screen. Mobile is the REFERENCE for item 1 — do not
+reconcile by changing mobile.
+1. the desktop left sidebar's SECTIONING must match the mobile-sized page. **Ask him which
+   section he means rather than guessing** — he is at localhost and can point.
+2. a horizontal SCROLL BAR appears bottom-left when the sidebar is CONDENSED.
+3. the NOTIFICATION NUMBER on Transactions must stay visible when compressed.
+4. the LIGHTNING BOLT beside Debt is "cut off partially kind of weirdly" when compressed.
+5. **his own fix for 4, and try it first because it is cheap:** the Debt item already has a
+   highlight around it; putting the bolt INSIDE that highlight should sit it correctly.
+
+⚠️ **2 AND 4 ARE PROBABLY ONE BUG** — a glyph or badge overflowing the 72px rail clips the
+glyph AND produces the horizontal scrollbar. Check that before fixing them as two things,
+and say so if it is one: this portfolio has a recorded case of two fixes raising a count.
+**ACCEPTANCE is geometry, not a look:** frames at desktop and iPad in BOTH states, asserting
+the badge and bolt are fully INSIDE their container by measurement, plus
+`scrollWidth == clientWidth` so the scrollbar cannot come back silently. `npm run check:rail`
+is the harness to extend — it already measures clipping past the rail's edge at both widths
+and already carries the two traps (blur focus first, or `focus-within:w-52` holds the rail
+open; read wrapping from each element's own line-height, not a ratio against neighbours).
+Concentricity applies to the bolt-inside-highlight change: r_inner = r_outer − gap, only
+where gap < r_outer.
+
 Also untriaged and NOT this desk's: *"Put the link to my C5 build right under the car image
 on my website"* — that is **treforgedwebsite (Ellis)**. Route it; do not build it here.
 
