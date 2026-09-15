@@ -249,10 +249,30 @@ PASS, `check:username` PASS, `check-mobile-squeeze` PASS (667 elements, 5 routes
    AFTER the drop** — a backup verified at write time is verified against the moment nothing had
    happened yet.
 
-4. **`f05b9c82` the remaining leaderboard stats.** ENUMERATE how many render "not ready"; a stat that
-   cannot be computed honestly gets NO tile, never a zero. `isMetricSourced` currently offers only
-   `goal_progress` and `savings_streak` while all four are enabled in the DB — Sam flagged it, I read
-   it as the guard doing its job. Say which it is rather than changing it silently.
+4. **`f05b9c82` the remaining leaderboard stats — ENUMERATED 2026-09-15. THE GUARD IS CORRECT; it
+   is not the bug Sam flagged. Two of four render no tile, deliberately.**
+   `UNSOURCED_METRICS` (`src/lib/leaderboard-metrics.ts:34`) is ONE declaration read by all three
+   consumers — `FriendsLeaderboard.tsx:75`, `GlobalStandingCard.tsx:34`,
+   `LeaderboardShareToggles.tsx:77` — so the switches and the board cannot drift apart. A metric
+   with no source gets NO tile, never a zero. That is the house rule working, not a guard to relax.
+   **Why the two are unsourced, verified at the call site rather than taken from the comment:**
+   `Dashboard.tsx:755-757` passes `revolvingPeak: null`, `revolvingCurrent: null` and
+   `budgetCategories: null` as literals, and `buildPublishPlan` (`leaderboard-publish.ts:144-151`)
+   returns `null` for both metrics on a null input. The comment was accurate, not stale.
+   **Measured against the database the same day** (control: `public.profiles` returned 56 columns,
+   so the read is real):
+   * `debt_payoff` — **NOT SOURCEABLE.** No table in `public` matches `%balance%` or `%statement%`,
+     so no revolving-balance history exists to compute "share of peak cleared" from. Confirms the
+     header's claim independently. `net_worth_snapshots.total_liabilities` remains the wrong
+     stand-in: it includes the car loan, so a car payment would inflate a debt score other people
+     read.
+   * `budget_adherence` — **SOURCEABLE, and this is the only finishable half of this item.**
+     `public.budget_items` exists (7 columns, 3 of them the shape `budgetAdherenceBucket` wants).
+     The work is wiring budgets into the Dashboard call site and dropping `budget_adherence` from
+     `UNSOURCED_METRICS` in the same commit — never separately, or a switch appears in front of
+     someone with nothing behind it.
+   **NOT STARTED** — measured under a tight 5h cap and deliberately not begun. The numbers above are
+   paid for; do not re-measure them.
 
 5. **`1a805cf2` the AI advisor into the Account tab, AFTER the Leaderboard section.** Unblocked now
    that the leaderboard split is clean. ⚠️ `AI_ADVISOR_ENABLED` gates `/ai` in `src/App.tsx` — SHOW
