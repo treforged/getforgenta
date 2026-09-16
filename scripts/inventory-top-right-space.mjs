@@ -291,6 +291,8 @@ const browser = await chromium.launch();
 const rows = [];
 let examined = 0;
 let headersFound = 0;
+/** Routes whose two readings disagreed - reported, never averaged. */
+let unstable = 0;
 /** Per viewport: did hiding the rightmost title-row control make `rightGapPx` grow? */
 const redControl = {};
 
@@ -310,9 +312,28 @@ for (const vp of VIEWPORTS) {
     examined += 1;
     await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(4500);
-    const m = await page.evaluate(measure);
-    if (m) headersFound += 1;
-    rows.push({ viewport: vp.label, route, ...(m ?? { headerRows: null }) });
+    // ⚠️ MEASURED TWICE AND REQUIRED TO AGREE. A red control proves the probe CAN see the defect;
+    // it says nothing about whether the page has finished settling when it looks. Measured once,
+    // `/dashboard` read 14px on one run and 270px on the next with no code change between them -
+    // and variance across runs of identical code identifies the INSTRUMENT, not the product. A
+    // disagreement is reported as UNSTABLE rather than averaged: an average of two readings, one of
+    // which is of a half-rendered page, is a confident number with nothing behind it.
+    const first = await page.evaluate(measure);
+    await page.waitForTimeout(1500);
+    const second = await page.evaluate(measure);
+    const agree = first && second
+      && first.rightGapPx === second.rightGapPx
+      && first.headerRows === second.headerRows;
+    if (second) headersFound += 1;
+    if (first && second && !agree) unstable += 1;
+    rows.push({
+      viewport: vp.label, route,
+      ...(second ?? { headerRows: null }),
+      ...(first && second && !agree
+        ? { unstable: `${first.rightGapPx}/${second.rightGapPx}` }
+        : {}),
+    });
+    const m = agree ? second : null;
 
     // THE RED CONTROL, run on the FIRST route of each viewport that offers a title-row control.
     // Reloaded afterwards so the planted defect cannot reach the next route's reading.
@@ -359,7 +380,7 @@ console.log(`${pad('viewport', 9)}${pad('route', 15)}${pad('rows', 6)}${pad('hea
 console.log('-'.repeat(72));
 for (const r of rows) {
   console.log(
-    `${pad(r.viewport, 9)}${pad(r.route, 15)}${pad(r.headerRows, 6)}${pad(r.headerPx, 10)}${pad(r.rightGapPx, 10)}${pad(r.belowActions, 7)}${r.title ?? ''}`,
+    `${pad(r.viewport, 9)}${pad(r.route, 15)}${pad(r.headerRows, 6)}${pad(r.headerPx, 10)}${pad(r.rightGapPx, 10)}${pad(r.belowActions, 7)}${r.unstable ? `UNSTABLE ${r.unstable} ` : ''}${r.title ?? ''}`,
   );
 }
 
@@ -379,7 +400,13 @@ for (const [vp, r] of Object.entries(redControl)) {
   console.log(`  ${vp} ${r.route}: rightGap ${r.before} -> ${r.after}  ${r.grew ? 'DETECTED' : 'NOT DETECTED'}`);
 }
 
-const stacked = rows.filter((r) => (r.headerRows ?? 0) >= 2);
+if (unstable > 0) {
+  console.log(`
+⚠️  ${unstable} of ${examined} pairs gave two different readings and are marked UNSTABLE above.`);
+  console.log('   Those numbers are not evidence and must not be acted on. Everything else agreed twice.');
+}
+
+const stacked = rows.filter((r) => (r.headerRows ?? 0) >= 2 && !r.unstable);
 // POSITIVE CONTROL ON THE ROW COUNTER. If nothing anywhere stacks, this probe cannot tell a tidy
 // app from a counter that always returns 1, and reporting "no waste" would be the confident zero.
 if (stacked.length === 0) {

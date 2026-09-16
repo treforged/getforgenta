@@ -156,14 +156,26 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
       desktop.** Eight runs refused to print a trusted table and the ninth earned it. **The numbers
       below are the first from this probe that are evidence rather than output.**
    ✅ **PROMOTED: `scripts/inventory-top-right-space.mjs`, wired as `npm run check:topright`.**
+   11. FIXED - **THE READINGS WERE FLAKY AND A RED CONTROL DOES NOT CATCH THAT.** Proving the probe
+       can see the defect says nothing about whether the page had finished settling when it looked:
+       `/dashboard` phone read **14px on one run and 270px on the next with no code change**. Each
+       route is now measured TWICE, 1.5s apart, and a disagreement is printed as **UNSTABLE** rather
+       than averaged - an average of two readings, one of a half-rendered page, is a confident
+       number with nothing behind it. Result: **18 of 18 pairs, zero unstable**, red control still
+       DETECTED on both viewports. The numbers below are stable and repeatable.
    🚨 **AND THE INVENTORY VINDICATES HIS "some other tabs also have this issue" - THE WORST
       PHONE OFFENDERS ARE SCREENS HE DID NOT NAME:**
-        phone  /accounts  270px empty right of the title, 4 actions on the rows below
-        phone  /goals     270px, 4 actions below
-        phone  /account   244px, 3 actions below
-        phone  /settings   14px  <- the screen he DID name is fine on a phone
-        desktop /settings 306px, 9 actions below
-        desktop /account  306px, 8 actions below
+        phone   /dashboard  270px empty right of the title, 4 actions on the rows below
+        phone   /accounts   270px, 4 actions below
+        phone   /goals      270px, 4 actions below
+        phone   /account    244px, 3 actions below
+        phone   /settings    14px  <- the screen he DID name is FINE on a phone
+        desktop /settings   306px, 9 actions below
+        desktop /account    306px, 8 actions below
+      Everything else reads 14px (phone) or 36px (desktop), which is the column padding - content
+      reaches the edge and there is nothing to reclaim. **/dashboard, /accounts and /goals are one
+      shell ("Command Center") and all three read identically, which is corroboration rather than
+      three findings.**
       On a 390px phone, 270px empty beside the title while four controls sit on rows beneath it is
       the exact shape he described. **Settings is the desktop case; the phone cases are elsewhere.**
       **NEXT: lift those rows' actions onto the title row where they fit, re-run `check:topright`,
