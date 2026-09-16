@@ -335,16 +335,56 @@ describe('push registration', () => {
     expect(settled()[0].detail).toBe('permission=granted');
   });
 
-  it('carries the permission reading on a TIMEOUT too, which is the case that matters', async () => {
-    vi.useFakeTimers();
-    try {
-      h.initialPermission = 'granted';
-      h.answerWith = 'silence';
-      const pending = registerForPush(store);
-      await vi.advanceTimersByTimeAsync(31_000);
-      expect((await pending).outcome).toBe('timeout');
-      expect(settled()[0].detail).toBe('permission=granted');
-    } finally { vi.useRealTimers(); }
+  /**
+   * A `timeout` row now also says whether the DEVICE WAS ONLINE, and the two cases below are a
+   * discriminating pair rather than one assertion.
+   *
+   * ⚠️ WHY IT WAS ADDED: both recorded causes of the iOS failure are fixed AND SHIPPED — the
+   * `production` entitlement (`8561f0d0`) and the listener race (`ec67489f`) are both ancestors of
+   * build 854 — and on 2026-09-16 that build still recorded 152 consecutive `timeout` rows with
+   * `permission=granted`. A 153rd identical row says nothing, so the row had to learn to
+   * discriminate. `net=down` explains a timeout outright; `net=up` narrows it to "online and APNs
+   * still silent" WITHOUT clearing the network, because this probes ordinary HTTPS and not APNs'
+   * own port 5223.
+   *
+   * ⚠️ AND `fetch` IS STUBBED. Before this, the probe made a REAL network call from the test suite —
+   * the assertion happened to read `net=up` because the machine had internet, which would have made
+   * this test a flake that passes for a reason unrelated to the code.
+   */
+  const withFetch = async (impl: () => Promise<unknown>, run: () => Promise<void>) => {
+    const original = globalThis.fetch;
+    globalThis.fetch = impl as typeof globalThis.fetch;
+    try { await run(); } finally { globalThis.fetch = original; }
+  };
+
+  it('a TIMEOUT keeps the permission reading AND says the device was online', async () => {
+    await withFetch(async () => ({ ok: true }), async () => {
+      vi.useFakeTimers();
+      try {
+        h.initialPermission = 'granted';
+        h.answerWith = 'silence';
+        const pending = registerForPush(store);
+        await vi.advanceTimersByTimeAsync(31_000);
+        expect((await pending).outcome).toBe('timeout');
+        // The permission half is APPENDED to, never replaced — that substitution is exactly the
+        // regression this assertion caught while the probe was being written.
+        expect(settled()[0].detail).toBe('permission=granted net=up');
+      } finally { vi.useRealTimers(); }
+    });
+  });
+
+  it('a TIMEOUT with no network says so, which is the reading that ends the hunt', async () => {
+    await withFetch(async () => { throw new Error('offline'); }, async () => {
+      vi.useFakeTimers();
+      try {
+        h.initialPermission = 'granted';
+        h.answerWith = 'silence';
+        const pending = registerForPush(store);
+        await vi.advanceTimersByTimeAsync(31_000);
+        expect((await pending).outcome).toBe('timeout');
+        expect(settled()[0].detail).toBe('permission=granted net=down');
+      } finally { vi.useRealTimers(); }
+    });
   });
 
   it('⚠️ KEEPS the provider error text instead of discarding it', async () => {

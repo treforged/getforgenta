@@ -347,7 +347,14 @@ export async function registerForPush(
       await registrationHandle.remove().catch(() => {});
     }
 
-    if (settledAs.how === 'timeout') return done('timeout');
+    if (settledAs.how === 'timeout') {
+      // ⚠️ APPENDED, NEVER SUBSTITUTED. The permission reading is the load-bearing half of a
+      // `timeout` row — it is what says "the OS said yes and then went quiet" rather than "the user
+      // declined" — and passing a bare detail here would have REPLACED it. Caught by the existing
+      // test that calls that case "the one that matters", which is the argument for the test.
+      const reach = await probeReachability();
+      return done('timeout', null, `${permissionReading ?? ''} ${reach}`.trim());
+    }
     if (settledAs.how === 'error') return done('registration_error', null, settledAs.detail);
     if (!settledAs.value) return done('empty_token');
 
@@ -378,6 +385,53 @@ const LATE_TOKEN_NOTE = 'arrived after the wait window';
  * recorded. Raised from 10s because a first registration on a cold app over cellular is routinely
  * slower than that, but the survival of the listener is the fix and this is only the tuning.
  */
+/**
+ * Was the DEVICE online when registration timed out? Appended to a `timeout` row's detail.
+ *
+ * ⚠️ WHY THIS EXISTS: BOTH RECORDED CAUSES OF THIS FAILURE ARE FIXED AND SHIPPED, AND IT STILL
+ * FAILS. `aps-environment` has been `production` since `8561f0d0` and the listener race was fixed
+ * in `ec67489f`; **both are ancestors of build 854**, and on 2026-09-16 that build recorded 152
+ * consecutive `timeout` attempts with `permission=granted` on Tre's own iPhone. So the diagnosis on
+ * file is REFUTED by the device running the fix, and a 153rd identical row would say nothing new.
+ *
+ * The one candidate nobody has instrumented is the NETWORK. This repo already records that his home
+ * network blocks TestFlight and Tailscale; APNs holds a persistent connection on port 5223, which is
+ * exactly the kind of thing such a network drops. That would produce this signature precisely — the
+ * OS accepting `register()` and never answering.
+ *
+ * ⚠️ AND SAY WHAT IT CANNOT SEE, because a reading of `net=up` invites more than it has earned. This
+ * proves ORDINARY HTTPS works. It does NOT probe port 5223, so `net=up` narrows the field to "the
+ * device has internet and APNs still did not answer" rather than clearing the network. `net=down` is
+ * the conclusive one: it explains the timeout outright and no further hunt is warranted.
+ *
+ * Hits the app's OWN Supabase origin, which every session already contacts, so this adds no third
+ * party and discloses nothing new. Never throws, and never delays the caller beyond its own budget:
+ * a diagnosis that can break registration is worse than no diagnosis.
+ */
+async function probeReachability(): Promise<string> {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  if (!url) return 'net=unknown';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REACHABILITY_TIMEOUT_MS);
+    try {
+      // `auth/v1/health` answers without a session and without a key. Any HTTP answer at all — even
+      // a 4xx — proves the request left the device and came back, which is the whole question.
+      await fetch(`${url.replace(/\/+$/, '')}/auth/v1/health`, {
+        method: 'GET', signal: controller.signal, cache: 'no-store',
+      });
+      return 'net=up';
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return 'net=down';
+  }
+}
+
+/** Short on purpose: this runs AFTER a 30s wait the user is already not seeing. */
+export const REACHABILITY_TIMEOUT_MS = 5_000;
+
 export const REGISTRATION_TIMEOUT_MS = 30_000;
 
 /**
