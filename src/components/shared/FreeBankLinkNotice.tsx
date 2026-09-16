@@ -85,8 +85,20 @@ export default function FreeBankLinkNotice() {
           Connect one account and your balances and transactions update on their own, with no
           subscription. Premium is for connecting more than one.
         </p>
+        {/* ⚠️ THE CTA OPENS PLAID, IT DOES NOT MERELY NAVIGATE. Tre, 2026-09-16: "the connect a
+            bank, first connection is free, should automatically open plaid instead of just taking
+            the user to the page."
+
+            `tab=banks` selects the panel through the panel deep-link that already exists;
+            `connect=1` is the command `Accounts.tsx` honours once, strips, and passes to the
+            PlaidLinkButton as `autoOpen`. The `/accounts` redirect carries the whole query string.
+
+            It deliberately routes THROUGH that button rather than opening Plaid from here: its
+            `onSuccess` writes real financial accounts, and a second copy of that path would be two
+            writers that can disagree about the same money. Every existing guard therefore still
+            applies - the button is mounted only under the bank-link ceiling and never in demo. */}
         <Link
-          to="/accounts"
+          to="/accounts?tab=banks&connect=1"
           className="inline-block mt-2 px-2.5 py-1 text-xs font-medium border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
           style={{ borderRadius: 'var(--radius)' }}
         >

@@ -24,7 +24,7 @@
  * implementation.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapApp } from '@capacitor/app';
@@ -121,9 +121,15 @@ interface PlaidLinkButtonProps {
    * reported, which may be null if the user never got that far.
    */
   onInstitutionUnavailable?: (institutionName: string | null) => void;
+  /**
+   * Open Plaid immediately on mount, once, without waiting for a press. Set by a deep link that
+   * already expressed the intent - see the effect below. Never set it on a surface the user did
+   * not ask to connect from.
+   */
+  autoOpen?: boolean;
 }
 
-export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label, onInstitutionUnavailable }: PlaidLinkButtonProps) {
+export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label, onInstitutionUnavailable, autoOpen }: PlaidLinkButtonProps) {
   const [loading, setLoading] = useState(false);
 
   /**
@@ -423,6 +429,31 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
       toast.error(err instanceof Error ? err.message : 'Failed to open bank link');
     }
   }, [completeLink, runHostedLink, relinkItemId, onInstitutionUnavailable]);
+
+  /**
+   * ARRIVE WITH PLAID ALREADY OPENING. Tre, 2026-09-16: "the connect a bank, first connection is
+   * free, should automatically open plaid instead of just taking the user to the page."
+   *
+   * The dashboard notice's CTA carries `?connect=1`, `Accounts.tsx` honours it once and strips it,
+   * and it lands here. Reusing THIS component rather than opening Plaid from the notice is the
+   * whole point: `onSuccess` writes real financial accounts, so a second copy of that path is two
+   * writers that can disagree about the same money.
+   *
+   * ⚠️ ONE SHOT, GUARDED BY A REF AND NOT BY THE PROP. React may mount twice in StrictMode and the
+   * parent may re-render for unrelated reasons; either would open a second Plaid session over the
+   * first. The ref makes "already fired" a fact about this component instance rather than about a
+   * value the parent controls.
+   *
+   * It fires only where the button already renders, so every existing guard still applies - the
+   * caller mounts it only under the bank-link ceiling and never in demo mode. This adds a trigger,
+   * not a bypass.
+   */
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!autoOpen || autoOpened.current || disabled) return;
+    autoOpened.current = true;
+    void handleClick();
+  }, [autoOpen, disabled, handleClick]);
 
   const defaultLabel = relinkItemId ? 'Re-link Account' : 'Link Bank Account';
 

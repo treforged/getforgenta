@@ -456,6 +456,33 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
 
   const openAdd = (preType?: string) => { setForm({ ...emptyForm, account_type: preType ?? '' }); setTrancheRows([]); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
 
+  /**
+   * Deep-link command: `?connect=1` opens PLAID on arrival, rather than landing the user on a page
+   * and asking them to find a button. Tre, 2026-09-16: "the connect a bank, first connection is
+   * free, should automatically open plaid instead of just taking the user to the page."
+   *
+   * ⚠️ READ ONCE AT MOUNT AND STRIPPED, exactly like `panel=` above. If the param survived, a
+   * refresh or a back-navigation would re-open Plaid at a moment the user never asked for - and
+   * the param is in a URL they can bookmark or share. The value is captured into state BEFORE the
+   * strip so the render that follows still sees it.
+   *
+   * This only arms the button that already renders: it is mounted solely on the banks panel, only
+   * when under the bank-link ceiling, and never in demo. So the command adds a trigger, never a
+   * bypass - if the user is not eligible there is no button and nothing opens.
+   */
+  const [autoConnect] = useState(() => searchParams.get('connect') === '1');
+  useEffect(() => {
+    if (searchParams.get('connect') !== '1') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('connect');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // ⚠️ `connect=1` DOES NOT SELECT THE PANEL, and deliberately does not try to. The bank button
+  // lives only on the banks panel, so the link carries `tab=banks` alongside it and the EXISTING
+  // panel deep-link above honours it. A second mechanism for choosing the panel is how two
+  // selectors start disagreeing about which one is open.
+
   // Deep-link command: /accounts?new=1 opens the add-account form on arrival.
   // openAdd sets seven pieces of form state at once, so this is a one-shot mount
   // action driven by the URL (an external system), not derived state. Deps are
@@ -1113,6 +1140,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                   onSuccess={handlePlaidSuccess}
                   onProcessing={setPlaidSyncing}
                   onInstitutionUnavailable={handleInstitutionUnavailable}
+                  autoOpen={autoConnect}
                 />
               )}
             </div>
