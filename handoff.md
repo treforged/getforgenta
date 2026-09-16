@@ -123,7 +123,30 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
    3. FIXED - `headerPx` read **4872 on a phone**. The zone admitted any element whose TOP was in
       the band, so a long list container beginning under the title ran the whole page. Requiring
       the element to FIT the band brought every header to a plausible **217-258px**.
-   4. 🚨 **OPEN - `headerRows` IS STILL NOT A ROW COUNTER.** It reads 9-24 distinct tops in a
+   4. FIXED - `headerRows` counted distinct tops of EVERY leaf, so an icon, a label and a
+      baseline-shifted span inside ONE row each scored as a row (9-24 rows in a 240px band). Now
+      counted from the title plus INTERACTIVE items at 12px granularity: **2-4 on phone, 4-9 on
+      desktop**, which is readable as rows.
+   5. FIXED - bounding the band had EXCLUDED any header taller than it, so three phone routes
+      reported no header at all and the probe lost sight of exactly the tall headers it hunts.
+      Elements are now CLIPPED to the band rather than dropped: **18 of 18 pairs now report a
+      header**, against 15 before.
+   6. 🚨 **OPEN - `headerPx` IS NOW SATURATED AND MUST BE DROPPED OR REDEFINED.** Every route
+      reads **238-256px**, which is the band ceiling (`h1.bottom + 220`), not the header. **An
+      identical value across independent samples is a bug signature**, and this column now measures
+      the constant rather than the app. Either derive the header's end from the first real content
+      block, or delete the column - a saturated number that looks like a measurement is worse than
+      no column.
+   7. 🚨 **OPEN - NO PROVEN-RED CONTROL.** Nothing yet shows this probe CAN report waste where
+      waste exists. Until it has been driven red against a known-bad header, its quiet columns are
+      not evidence.
+   🔍 **ONE LEAD, EXPLICITLY FROM AN UNPROVEN INSTRUMENT AND NOT A FINDING:** phone `/debt`
+      reports **371px empty to the right of the title row on a 390px screen**, and `/settings` 75px.
+      If that survives a proven-red control it is a bigger instance of the exact thing he reported,
+      **on a screen he did not name** - which is the argument for the inventory. **Do not act on it
+      or repeat it to him until the probe is trustworthy.**
+   🗑️ **SUPERSEDED - the original fault 4, kept so the reasoning is not lost:** `headerRows` IS
+      NOT A ROW COUNTER. It reads 9-24 distinct tops in a
       ~240px band, which cannot be rows. It counts distinct rounded `top` values across every leaf,
       so icons, baselines and staggered items inside ONE row each score as a row. **Count bands of
       the header's own interactive items, not tops of all leaves** - and note the `below` column,

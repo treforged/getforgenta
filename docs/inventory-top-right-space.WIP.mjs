@@ -142,44 +142,56 @@ const measure = () => {
 
   // The header zone: the title's own row plus whatever sits immediately under it. Bounded, so this
   // can never drift into the page body the way the ancestor walk did.
-  // ⚠️ THE ELEMENT MUST FIT IN THE BAND, NOT MERELY START IN IT. Filtering on `top` alone admitted
-  // a long list container that begins under the title and runs the whole page, which is how this
-  // reported a 4872px "header" inside an 844px viewport and 11-24 rows in a 220px band. An element
-  // taller than the band is the page, not the header.
+  // ⚠️ CLAMPED TO THE BAND, NOT FILTERED OUT OF IT. Two versions of this were wrong in opposite
+  // directions. Filtering on `top` alone admitted a list container that begins under the title and
+  // runs the whole page - a 4872px "header" in an 844px viewport. REQUIRING the element to fit the
+  // band then EXCLUDED every header taller than the band, so three phone routes reported no header
+  // at all: the probe lost sight of exactly the tall headers it exists to find, and the
+  // "most routes have a header" control still passed 15 of 18 without noticing.
+  // So an element that overruns the band is KEPT and its box is clipped to it.
   const bandBottom = hb.bottom + HEADER_ZONE_PX;
-  const zone = leaves.filter((el) => {
-    const r = el.getBoundingClientRect();
-    return r.top >= hb.top - 8 && r.top < bandBottom && r.bottom <= bandBottom + 8;
+  const clip = (r) => ({
+    top: Math.max(r.top, hb.top), bottom: Math.min(r.bottom, bandBottom),
+    left: r.left, right: r.right,
   });
+  const zone = leaves
+    .filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top >= hb.top - 8 && r.top < bandBottom;
+    })
+    .map((el) => ({ el, r: clip(el.getBoundingClientRect()) }))
+    .filter(({ r }) => r.bottom - r.top >= 4);
   if (zone.length === 0) return null;
 
   // Where the content column actually reaches, taken from the widest thing in the zone rather than
   // from the viewport - a padded column's right edge is not the window's right edge.
-  const contentRight = Math.max(...zone.map((el) => el.getBoundingClientRect().right));
+  const contentRight = Math.max(...zone.map(({ r }) => r.right));
 
   // Anything sharing the title's vertical band: its centre sits inside the h1's own rows.
-  const onTitleRow = zone.filter((el) => {
-    const r = el.getBoundingClientRect();
-    const mid = r.top + r.height / 2;
+  const onTitleRow = zone.filter(({ r }) => {
+    const mid = r.top + (r.bottom - r.top) / 2;
     return mid >= hb.top - 4 && mid <= hb.bottom + 4;
   });
-  const titleRight = Math.max(...onTitleRow.map((el) => el.getBoundingClientRect().right), hb.right);
+  const titleRight = Math.max(...onTitleRow.map(({ r }) => r.right), hb.right);
 
-  const tops = [...new Set(zone.map((el) => Math.round(el.getBoundingClientRect().top / 6) * 6))]
-    .sort((a, b) => a - b);
+  // ⚠️ ROWS ARE COUNTED FROM INTERACTIVE ITEMS AND THE TITLE, NEVER FROM EVERY LEAF. Counting leaf
+  // tops reported 9-24 "rows" inside a 240px band, because an icon, a label and a baseline-shifted
+  // span inside ONE row each scored as a row. What a person reads as a second row is a row of
+  // CONTROLS under the title. 12px granularity, because items in one row differ by a few pixels.
+  const rowItems = zone.filter(({ el }) => el.matches('button, a, [role="button"], [role="tab"], h1'));
+  const tops = [...new Set(rowItems.map(({ r }) => Math.round(r.top / 12) * 12))].sort((a, b) => a - b);
 
   // Things BELOW the title row that a person clicks - the second row's actual payload. One small
   // control down there beside an empty top-right is the waste he photographed; two real actions is
   // the Dashboard layout he asked for himself.
-  const belowActions = zone.filter((el) => {
-    const r = el.getBoundingClientRect();
+  const belowActions = zone.filter(({ el, r }) => {
     if (r.top < hb.bottom - 4) return false;
     return el.matches('button, a, [role="button"], [role="tab"]');
   }).length;
 
   return {
     headerRows: tops.length,
-    headerPx: Math.round(Math.max(...zone.map((e) => e.getBoundingClientRect().bottom)) - hb.top),
+    headerPx: Math.round(Math.max(...zone.map(({ r }) => r.bottom)) - hb.top),
     rightGapPx: Math.round(contentRight - titleRight),
     belowActions,
     title: (h1.textContent || '').trim().slice(0, 24),
