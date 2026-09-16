@@ -30,8 +30,14 @@ public class GlassEffectPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "GlassEffectPlugin"
     public let jsName = "GlassEffect"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "apply", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise)
     ]
+
+    /// One effect view per caller-supplied id, so `apply` on an id already on screen MOVES that
+    /// view rather than stacking a second one over it.
+    private var effectViews: [String: UIVisualEffectView] = [:]
 
     /// Resolves `{ supported, iosVersion, echo }`.
     ///
@@ -54,6 +60,84 @@ public class GlassEffectPlugin: CAPPlugin, CAPBridgedPlugin {
                 "iosVersion": UIDevice.current.systemVersion,
                 "echo": echo
             ])
+        }
+    }
+
+    /// Put a native glass surface over the web view at a rect given in CSS points.
+    ///
+    /// ⚠️ THIS COVERS WHAT IS UNDERNEATH IT, WHICH IS THE WHOLE CONSTRAINT. The effect view is a
+    /// SIBLING of the WKWebView, not a layer inside it, so it can only be used on a surface with
+    /// NO web content of its own - any icon, label or figure the web app draws in that rect is
+    /// hidden behind the material. A surface that has its own content needs a second transparent
+    /// WKWebView for that content, which is an architecture decision and not this method's job.
+    ///
+    /// ⚠️ AND THE FRAME DOES NOT FOLLOW ANYTHING. Being a sibling, it knows nothing about scrolling,
+    /// resizing, rotation or the keyboard - the caller owns re-pushing the rect. That machinery is
+    /// deliberately NOT built yet (Sam, 2026-09-15): one static surface first, because it is the
+    /// cheapest thing that can answer whether this approach survives contact at all.
+    @objc func apply(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else {
+            call.reject("Missing id")
+            return
+        }
+        guard
+            let x = call.getDouble("x"),
+            let y = call.getDouble("y"),
+            let width = call.getDouble("width"),
+            let height = call.getDouble("height")
+        else {
+            call.reject("Missing frame")
+            return
+        }
+        let cornerRadius = call.getDouble("cornerRadius") ?? 0
+
+        guard #available(iOS 26.0, *) else {
+            call.reject("Requires iOS 26")
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard let host = self.bridge?.viewController?.view else {
+                call.reject("No view to attach to")
+                return
+            }
+
+            let frame = CGRect(x: x, y: y, width: width, height: height)
+            let view = self.effectViews[id] ?? UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+
+            // Load-bearing: the view sits OVER the web view, so without this it swallows every tap
+            // that lands on it and the app underneath stops responding.
+            view.isUserInteractionEnabled = false
+            view.frame = frame
+            view.layer.cornerRadius = CGFloat(cornerRadius)
+            view.layer.masksToBounds = true
+
+            // addSubview on a view already in this hierarchy re-adds it at the TOP, which is what
+            // an update wants anyway - so this is correct for both the new and the reused case.
+            host.addSubview(view)
+            self.effectViews[id] = view
+
+            call.resolve(["applied": true])
+        }
+    }
+
+    /// Take a surface away. Removing an id that is not there is NOT an error - a caller unmounting
+    /// twice, or unmounting something that never applied, is ordinary and must not throw at it.
+    @objc func remove(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else {
+            call.reject("Missing id")
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard let view = self.effectViews.removeValue(forKey: id) else {
+                call.resolve(["removed": false])
+                return
+            }
+            view.removeFromSuperview()
+            call.resolve(["removed": true])
         }
     }
 }

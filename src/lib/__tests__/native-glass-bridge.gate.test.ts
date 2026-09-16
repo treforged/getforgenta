@@ -97,6 +97,18 @@ describe('the web fallback never throws and echoes', () => {
     expect(result.echo).toBe('round-trip-token');
   });
 
+  it('apply RESOLVES falsy off-device rather than rejecting', async () => {
+    // A rejection here would be an unhandled promise in every browser and every Android device.
+    // The honest signal that native glass did not happen is the `false`, not an exception.
+    await expect(NativeGlass.apply({ id: 'x', x: 0, y: 0, width: 10, height: 10 })).resolves.toEqual({
+      applied: false,
+    });
+  });
+
+  it('remove resolves falsy for an id that was never applied', async () => {
+    await expect(NativeGlass.remove({ id: 'never-applied' })).resolves.toEqual({ removed: false });
+  });
+
   it('survives being called with no options', async () => {
     const result = await NativeGlass.isSupported();
     expect(result.supported).toBe(false);
