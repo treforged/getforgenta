@@ -110,9 +110,10 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
    and read frames at `--force-device-scale-factor=2` - at default scale a near-black `#18181b` has
    already read as BLUE on this machine and nearly became a filed palette defect.
 
-   ⚠️ **AN INVENTORY PROBE WAS STARTED AND IS PARKED AS `docs/inventory-top-right-space.WIP.mjs`
-   - IT IS NOT IN `scripts/` AND NOT WIRED TO A `check:` SCRIPT, DELIBERATELY. It does not work
-   yet, and a broken probe sitting among the working gates is worse than no probe.**
+   ✅ **THE INVENTORY PROBE IS BUILT, PROVEN RED AND SHIPPED: `npm run check:topright`.** It was
+   parked outside `scripts/` for TEN faults and nine runs before it earned promotion, and no number
+   from it was reported to anyone in the meantime. The fault log is kept below because every one of
+   them is a way a rendered-geometry probe can lie while looking healthy.
    Two instrument faults were found and FIXED in it; a third is open:
    1. FIXED - it climbed ancestors until it reached `main`, which on most routes IS the whole
       content column, so it reported **305 rows and a 4908px header inside an 844px viewport**,
@@ -147,7 +148,27 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
       re-renders in the gap and wipes the inline style, so the "after" reading came from a page that
       had already healed. Now one evaluation. **Same family as a reset whose verification runs
       before the app has had its say**, which this repo already records.
-   10. 🚨 **OPEN, AND IT IS IN THE METRIC AFTER ALL - `titleRight` IS MEASURING A CONTAINER.**
+   10. FIXED, AND THE PROBE IS NOW PROVEN. `titleRight` took the max right over every title-row
+       element, including the PADDED ROW WRAPPER holding the title and its controls - so it was
+       pinned to the column's inner edge and every route reported exactly its padding. Excluding
+       anything that STARTS left of the title's glyphs (a container, not content) closed it.
+   ✅ **RED CONTROL: DETECTED ON BOTH VIEWPORTS - `rightGap 14 -> 243` on phone, `36 -> 1225` on
+      desktop.** Eight runs refused to print a trusted table and the ninth earned it. **The numbers
+      below are the first from this probe that are evidence rather than output.**
+   ✅ **PROMOTED: `scripts/inventory-top-right-space.mjs`, wired as `npm run check:topright`.**
+   🚨 **AND THE INVENTORY VINDICATES HIS "some other tabs also have this issue" - THE WORST
+      PHONE OFFENDERS ARE SCREENS HE DID NOT NAME:**
+        phone  /accounts  270px empty right of the title, 4 actions on the rows below
+        phone  /goals     270px, 4 actions below
+        phone  /account   244px, 3 actions below
+        phone  /settings   14px  <- the screen he DID name is fine on a phone
+        desktop /settings 306px, 9 actions below
+        desktop /account  306px, 8 actions below
+      On a 390px phone, 270px empty beside the title while four controls sit on rows beneath it is
+      the exact shape he described. **Settings is the desktop case; the phone cases are elsewhere.**
+      **NEXT: lift those rows' actions onto the title row where they fit, re-run `check:topright`,
+      and confirm the red control still detects.**
+   🗑️ **SUPERSEDED - the original fault 10 text:** `titleRight` IS MEASURING A CONTAINER.
        The control still reads NOT DETECTED, and the reason is now located. Every route's gap equals
        its column padding exactly (14 phone / 36 desktop) EXCEPT desktop `/account` and `/settings`
        at 306 - a baseline that uniform means something always reaches the column's inner edge on
@@ -185,10 +206,8 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
       waste exists. Until it has been driven red against a known-bad header, its quiet columns are
       not evidence.
    🔍 **ONE LEAD, EXPLICITLY FROM AN UNPROVEN INSTRUMENT AND NOT A FINDING:** with the
-      reference edge fixed, **desktop `/account` and `/settings` read 306px empty against 36px on
-      every other desktop route** - stable across eight consecutive runs. ⚠️ **And note what
-      fault 10 implies about it: 36px is the PADDING, so the other routes are not "tidy", they are
-      UNMEASURED. The 306 is real; the 36 means nothing yet.** The earlier phone `/debt`
+      instrument now PROVEN (see fault 10), so this is no longer a lead - it is the inventory, and
+      it is recorded above. The earlier phone `/debt`
       371px reading came from the BROKEN reference and should be discarded, not carried forward.
       If that survives a proven-red control it is a bigger instance of the exact thing he reported,
       **on a screen he did not name** - which is the argument for the inventory. **Do not act on it

@@ -182,15 +182,6 @@ const measure = () => {
   const contentRight = column.getBoundingClientRect().right;
 
   // Anything sharing the title's vertical band: its centre sits inside the h1's own rows.
-  const onTitleRow = zone.filter(({ r }) => {
-    const mid = r.top + (r.bottom - r.top) / 2;
-    return mid >= hb.top - 4 && mid <= hb.bottom + 4;
-  });
-  // ⚠️ THE TITLE'S TEXT, NOT ITS BOX. An `<h1>` is a block element and usually fills the column, so
-  // using `hb.right` pinned this to the column's padding: every route read 14px on phone and 36px
-  // on desktop, which is the padding, not the emptiness. It also made the red control inert - the
-  // h1 held the edge no matter how many controls were hidden. A Range over the text gives the
-  // painted extent, which is what a person actually sees the title reach.
   // A Range over a BLOCK element's contents returns its LINE BOX, which is full width - so that
   // read `hb.right` all over again and the red control stayed inert. Measure the glyphs instead,
   // with the element's own computed font. Independent of layout, which is the property needed here.
@@ -201,6 +192,22 @@ const measure = () => {
   const textRight = cs1.textAlign === 'center'
     ? hb.left + (hb.width + textWidth) / 2
     : hb.left + textWidth;
+  // ⚠️ CONTENT ON THE TITLE ROW, NOT THE ROW ITSELF. This used to take every element whose centre
+  // sits in the title's band - which includes the PADDED ROW WRAPPER that holds the title and its
+  // controls. A wrapper reaches the column's inner edge by definition, so `titleRight` was pinned
+  // there and every route's gap came out as exactly its column padding: 14px on phone, 36px on
+  // desktop, a suspiciously uniform baseline that looked like a tidy app and was an unmeasured one.
+  // Anything starting LEFT of the title's glyphs spans the title and is a container, not content.
+  const onTitleRow = zone.filter(({ r }) => {
+    const mid = r.top + (r.bottom - r.top) / 2;
+    if (mid < hb.top - 4 || mid > hb.bottom + 4) return false;
+    return r.left >= textRight - 4;
+  });
+  // ⚠️ THE TITLE'S TEXT, NOT ITS BOX. An `<h1>` is a block element and usually fills the column, so
+  // using `hb.right` pinned this to the column's padding: every route read 14px on phone and 36px
+  // on desktop, which is the padding, not the emptiness. It also made the red control inert - the
+  // h1 held the edge no matter how many controls were hidden. A Range over the text gives the
+  // painted extent, which is what a person actually sees the title reach.
   const titleRight = Math.max(...onTitleRow.map(({ r }) => r.right), textRight);
 
   // ⚠️ ROWS ARE COUNTED FROM INTERACTIVE ITEMS AND THE TITLE, NEVER FROM EVERY LEAF. Counting leaf
