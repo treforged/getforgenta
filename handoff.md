@@ -1,6 +1,27 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-16 (Ada, TENTH session). DESIGN SWEEP DONE. ANDROID IS GREEN AT BUILD 839.
+## FIRST UP - 2026-09-16 (Ada, TENTH session). DESIGN SWEEP DONE. **iOS 849 IS IN TESTFLIGHT.**
+
+🚨 **TESTFLIGHT IS iOS, AND AN ORDINARY PUSH NEVER REACHES IT.** Tre, 2026-09-16: *"you need to
+push so i can see in test flight. remember that permanelty. this is the second or 3rd time over the
+past few weeks uve forgotten this."* **He was right in every detail.**
+
+    gh workflow run "iOS Build & Upload to App Store" --ref main
+
+**iOS BUILD 849 (version 6.6) UPLOADED 17:10Z**, run `35126037599`, event `workflow_dispatch`.
+Verified properly: step 20 `Upload to App Store Connect` conclusion **success**, and altool's own
+output reads `UPLOAD SUCCEEDED with no errors`. VERSION_CODE read from the run's log, not computed.
+
+⚠️ **TWO NUMBERS THAT ARE NOT THE ANSWER, AND BOTH LOOKED LIKE IT.**
+* **839 is ANDROID.** It appears nowhere in TestFlight. I reported it while he was waiting on iOS -
+  true, and unusable.
+* **iOS 848 WAS BUILT AND NEVER UPLOADED.** Run `35109958012` is **green** and carries a real
+  VERSION_CODE, and its step 20 reads **skipped**, because the event was `push`. Sam was about to
+  tell Tre to install it. **A skipped step does not fail a workflow**, so every signal said shipped.
+  **NEVER read a build number off a run's conclusion - read the UPLOAD STEP'S conclusion.**
+
+**Uploaded is still not installed.** TestFlight processes, then he updates. On origin / on a build /
+on his device remain three separate facts and only the first two are ours to assert.
 
 ⚠️ **839 IS ON A BUILD, NOT ON HIS DEVICE. DO NOT READ IT AS DELIVERED.** Three separate facts and
 only the first two are mine to assert: the commit is on origin, a build was cut from it and
@@ -8,7 +29,7 @@ succeeded, and that build is INSTALLED on his phone. The third needs him to upda
 here can measure it - a database read can say "probably", never "yes". **If a later session needs
 to know whether a fix is on his phone, the honest answer is still open until he says so.**
 
-**ANDROID BUILD 839 CARRIES EVERYTHING FROM TODAY** - run 35109143079 on `d500c0f3`, success,
+**ANDROID BUILD 839 (a SEPARATE platform, NOT TestFlight) carries everything from today** - run 35109143079 on `d500c0f3`, success,
 VERSION_CODE read from the run's own log rather than computed. The earlier run on `223af677`
 FAILED at the Play deploy step ("service is currently unavailable") and was **superseded, not
 retried**: merge-base proves the failed commit is an ANCESTOR of the green one, so re-running would
@@ -4543,7 +4564,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 10:44 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 13:07 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4560,14 +4581,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+40e7991a [docs]: a push does not reach TestFlight - dispatch the iOS workflow, permanently
+45669b71 [handoff]: 839 is on a build, not on his device - say so before somebody reads it as delivered
 2d05d73d [handoff]: android green at build 839, style half closed as a ratchet
 3b60e74c [design]: freeze the control-style count as a ceiling rather than rewrite 87 call sites
 acd43d36 [handoff]: consolidation started - the accessibility half shipped, the style half scoped
 d500c0f3 [a11y]: the username field had no visible focus state at all, for the second time
 2fa01717 [pmf]: the survey gate leaves a QUALIFYING row in the production table, so aggregates must not read the table
 694e4227 [handoff]: the design sweep landed - one systemic defect fixed, one consolidation left
-223af677 [design]: the tab strip pinched its own corners on every screen, and no source gate could see it
-a123afac [handoff]: refresh the machine auto-snapshot before closing out
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
