@@ -5101,7 +5101,7 @@ the gate because closing it means renaming a label nobody has agreed to.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 18:38 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 19:41 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5116,14 +5116,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+4a4c2e56 [docs]: name check:desktop-rail, and correct the uploads-today premise
+5e09af70 [desktop]: the rail pop-out paints over the page, and the pills stay centred
 569c1209 [handoff]: the net= reading is unmeasured for a new reason, and the pill fits
 2efe2cf1 [accounts]: the Balances/Banks pill fits at 390px instead of scrolling
 ba43bb37 [handoff]: two new asks from Tre at 18:22 - the net= reading and the truncated Balances pill
 2102ae43 [handoff]: auto-snapshot refresh
 f72653d1 [docs]: name check:topright in the gate list, with the two ways it misleads
 8193e3a9 [handoff]: iOS 859 uploaded and verified through all three gates
-aaf33b9e [money]: one movement is one rule - a card autopay was proposing $941 a month of phantom income
-8609ce26 [handoff]: iOS dispatched (run 35155768885) so 845db7ee finally reaches his phone
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
