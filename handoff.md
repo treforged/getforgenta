@@ -92,9 +92,46 @@ does NOT mean delete Account's Settings button; it is `hidden lg:inline-flex` an
 2026-09-16: *"the hamburger ... is only viewable and accessible from the account page."*
 Both are recorded in `MobileTopBar.tsx`. A session reading only the older comment would revert this.
 
-### RESUME QUEUE - START AT ITEM 1
+### RESUME QUEUE - START AT ITEM 1 (item 0 is DONE)
 
-0. [ ] 🚨 **MONEY CORRECTNESS - A TRANSFER TO HIS OWN LINKED ACCOUNT IS BOOKED AS SPENDING.**
+0. [x] **DONE - A TRANSFER TO HIS OWN ACCOUNT IS NO LONGER SPENDING.** `63085f10`, on origin, 0/0.
+   `rule_type` is now `proposal.transfer?.ruleType ?? proposal.direction`, and
+   `src/lib/transfer-rule-detection.ts` is what decides. Gates: tsc clean, lint 0 errors,
+   `test:tz` **466 files / 4725 tests** green in three zones (4712 -> 4725, +13 = the new tests;
+   the suite did not shrink). Proven red by mutation twice, restored byte-exact by sha256.
+   ⚠️ **THE INHERITED DESIGN WOULD NOT HAVE FIXED IT, and only the premise test caught that.**
+   The plan was to reuse `detectTransferPairs`. Measured: **the Fidelity account holds ZERO
+   `synced_transactions` rows** - Plaid returns holdings for it, not a feed - so there is no
+   inflow leg and nothing to pair. A pairing-only fix passes its own tests and leaves the number
+   untouched. **Linking the destination changed nothing, which is exactly what he reported.**
+   So there are TWO signals: the pair (both legs synced - covers card autopay), and the provider
+   explicitly saying `TRANSFER_OUT`/`TRANSFER` **while the row names exactly one other account he
+   owns**. The one-sided signal is deliberately the narrower: no self-match, no generic word
+   ("Savings Account" must not match every row saying SAVINGS), and silence when two accounts
+   match - he really does hold two called "Robinhood individual". A run must be UNANIMOUS.
+   ⚠️ **OUTFLOWS ONLY, AND THAT IS CORRECTNESS, NOT SCOPE.** `pay-schedule.ts:1437` gives any
+   non-income rule an expense-shaped transaction, so marking an INFLOW `transfer` would book
+   arriving money as a cost - strictly worse than today. Marking the incoming half needs that
+   function to learn a third shape first. **That is the residue; it is not done.**
+   ✅ **THE DB GATE THE PREDECESSOR COULD NOT RUN:** `recurring_rules.rule_type` has **no CHECK
+   constraint**, and `transfer` (4 rows) / `investment` (6 rows) are already in production.
+   🚨 **AND HE HAD ALREADY ACCEPTED THE BAD RULE, so the code fix alone would have left his
+   own number wrong.** Row `ebc1f0a4-ce8a-43ef-abe4-c22abd1af180` ("Fidelity", $25, created
+   2026-09-16 20:38:05Z) was live as `rule_type='expense'`, `deposit_account=null`. Repaired in
+   place to `rule_type='investment'`, `deposit_account='eb3f82fe-79ac-4d86-9e4a-2b626eda6ef6'`,
+   read back after the write. **UNDO, exact:**
+       update public.recurring_rules set rule_type='expense', deposit_account=null
+       where id='ebc1f0a4-ce8a-43ef-abe4-c22abd1af180';
+   **NO BUILD IS NEEDED FOR THAT HALF.** `isTransfer` has been derived from `rule_type` since
+   2026-08-19, so **build 854, which he has installed, computes it correctly from the repaired
+   row on his next refresh.** The CODE half only changes FUTURE proposals and is not in any
+   build - **iOS was deliberately NOT dispatched:** 849 and 854 both uploaded today, Apple caps
+   uploads per app per day, and nothing in this commit is visible without proposing a new rule.
+   Batch it with the next slice.
+
+<details><summary>The original diagnosis, kept because its premise was wrong in an instructive way</summary>
+
+0. [x] 🚨 **MONEY CORRECTNESS - A TRANSFER TO HIS OWN LINKED ACCOUNT IS BOOKED AS SPENDING.**
    Tre, 2026-09-16: *"i was suggested a rule for $25 coming out of my check to my fidelity
    account. even though my fidelity is link it made the rule into a variable expense and not a
    transfer like it should have. it's not tracking money moving out from one account to another."*
@@ -155,6 +192,8 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
    ⚠️ **MONEY MATH: highest effort, adversarial verification, and the test must assert a NUMBER**
    (that `living` spending FALLS by the transfer amount), never just that a label changed. A
    green test over a renamed field would leave the forecast exactly as wrong as it is now.
+
+</details>
 
 
 
