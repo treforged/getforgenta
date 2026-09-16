@@ -106,7 +106,18 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:block h-screen sticky top-0 shrink-0",
+        // ⚠️ `z-40` BELONGS ON THIS ELEMENT, NOT ONLY ON THE RAIL INSIDE IT - Tre, 2026-09-16,
+        // with a desktop screenshot: *"the pop out should go over the items, not behind."*
+        // MEASURED, because a z-index read cannot answer this and the class list looked correct:
+        // `elementFromPoint` at a point 12px inside the EXPANDED rail returned a <p> from an
+        // account card. `position: sticky` CREATES A STACKING CONTEXT even at `z-index: auto`,
+        // so the rail's own `z-40` only ranked it INSIDE this aside. In the root stacking context
+        // the aside sat at level 0 against `.card-forged`, which is also a level-0 stacking
+        // context because it carries a `backdrop-filter` - and between two level-0 contexts DOM
+        // ORDER decides. The content column comes after the aside, so every glass card on every
+        // desktop route painted over the pop-out. Raising the aside lifts its whole subtree.
+        // Stays BELOW the z-50 modals deliberately: an overlay must still cover the rail.
+        "hidden lg:block h-screen sticky top-0 shrink-0 z-40",
         // ⚠️ THE FOOTPRINT NEVER CHANGES ON A MOUSE, and that is what makes the expansion an
         // OVERLAY rather than a reflow. Tre: "it can partially cover where the items on the page
         // are." If this element grew, every bounding box on the page would move instead.

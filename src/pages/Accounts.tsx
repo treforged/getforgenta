@@ -952,7 +952,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         {!isDemo && (
           <button onClick={() => setActiveTab('banks')}
             className={`seg-item btn-press ${effectiveTab === 'banks' ? 'seg-item-active' : ''}`}>
-            <Link2 size={13} /> <span className="hidden sm:inline">Linked&nbsp;</span>Banks
+            <Link2 size={13} /> <span className="sm:hidden">Banks</span><span className="hidden sm:inline">Linked Banks</span>
             {plaidItems.length > 0 && <span className={`seg-badge ${effectiveTab === 'banks' ? 'seg-badge-active' : ''}`}>{plaidItems.length}</span>}
           </button>
         )}
@@ -967,7 +967,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
            list is the platform convention and the accessible name is kept. From `sm:` up there is
            room for both, so the words come back. Do NOT answer this by making the track wrap or by
            moving the button to its own row - he reported both of those shapes as defects. */
-        <div className="shrink-0 flex justify-end">
+        /* ⚠️ `shrink-0` ONLY ON A PHONE. This div is the pill's right-hand counterweight: the
+           spacer on the left is `flex-1`, so the pill is centred only while BOTH sides grow
+           equally - and matching the Overview/Goals/Accounts pill above it is the point. Making
+           this side `shrink-0` at every width is what pushed the whole group to the right on
+           desktop, which Tre reported from a screenshot within minutes of the phone fix landing.
+           On a phone the spacer is hidden and there is nothing to balance, so `shrink-0` is what
+           stops the button stealing width the pill needs. */
+        <div className="shrink-0 sm:flex-1 flex justify-end">
           <button onClick={() => openAdd()} aria-label="Add Account"
             className="btn btn-md btn-primary font-semibold whitespace-nowrap px-2 sm:px-4">
             <Plus size={14} /><span className="hidden sm:inline sm:ml-1.5">Add Account</span>
