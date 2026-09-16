@@ -1,88 +1,92 @@
-# handoff.md — FIRST UP NEXT TIME
+# handoff.md - FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-16 (Ada, TENTH session). DESIGN SWEEP DONE. **iOS 849 IS IN TESTFLIGHT.**
+## FIRST UP - 2026-09-16 (Ada, TENTH session). NAV IA CHANGED AND IT IS NOT YET WALKED IN A BROWSER.
 
-🚨 **TESTFLIGHT IS iOS, AND AN ORDINARY PUSH NEVER REACHES IT.** Tre, 2026-09-16: *"you need to
-push so i can see in test flight. remember that permanelty. this is the second or 3rd time over the
-past few weeks uve forgotten this."* **He was right in every detail.**
+**START AT RESUME ITEM 1: walk the new nav on a phone viewport.** Everything below is on
+origin/main, 0/0, tsc clean, test:tz 466 files green in three zones. Nothing is uncommitted.
 
+### WHAT SHIPPED TODAY, newest first
+* **`[nav]` Settings had THREE doors on a phone, now ONE.** Identity badge -> `/account`;
+  hamburger renders ONLY on the Account tab and goes straight to `/settings`; the drawer is
+  DELETED; Settings gained an ordinary **Sign Out** and Upgrade to Premium at the bottom.
+* **`[bank]` "Connect a bank" now OPENS PLAID** instead of dropping the user on a page.
+  `FreeBankLinkNotice` -> `/accounts?tab=banks&connect=1` -> `Accounts.tsx` reads it once, strips
+  it, passes `autoOpen` -> `PlaidLinkButton` fires once on mount, ref-guarded.
+* **`[design]` the tab strip pinched its corners on every screen**, plus two unclipped card lists.
+  New `npm run check:concentricity` (rendered, 3 viewports incl. 390px phone).
+* **`[a11y]` the username field had NO visible focus state**, second occurrence. New repo-wide
+  `focus-visible.gate.test.ts`.
+* **`[pmf]` the survey gate leaves a qualifying fixture row** in the production table.
+  `public.pmf_responses_real` excludes reserved TLDs.
+
+### 🚨 TESTFLIGHT: A PUSH NEVER UPLOADS. DISPATCH IT.
     gh workflow run "iOS Build & Upload to App Store" --ref main
+**iOS 849 uploaded 17:10Z** (run 35126037599). **TODAY'S LATER COMMITS ARE NOT IN ANY BUILD YET** -
+the nav change and the Plaid change both landed after 849 was cut. **Dispatch once, at the end, not
+per commit** - Apple caps uploads per app per day.
+⚠️ **Android 839 and iOS 848 were both WRONG ANSWERS to "is it on my phone".** 839 is Android and
+appears nowhere in TestFlight; 848 was BUILT and its upload step reads **skipped**, on a run whose
+conclusion reads **success**. **Read the UPLOAD STEP'S conclusion, never the run's.** Full detail in
+`CLAUDE.md`.
 
-**iOS BUILD 849 (version 6.6) UPLOADED 17:10Z**, run `35126037599`, event `workflow_dispatch`.
-Verified properly: step 20 `Upload to App Store Connect` conclusion **success**, and altool's own
-output reads `UPLOAD SUCCEEDED with no errors`. VERSION_CODE read from the run's log, not computed.
+### ⚠️ THE TRAP THAT NEARLY STRANDED DESKTOP, and it will catch the next person too
+`primary-nav.ts` records that **the desktop rail has NO Settings row** - dropped deliberately
+because "the Account page links to it". The hamburger is `lg:hidden`. So "only from the hamburger"
+does NOT mean delete Account's Settings button; it is `hidden lg:inline-flex` and
+`settings-reachable.gate.test.ts` holds both widths. **Do not simplify that breakpoint away.**
 
-⚠️ **TWO NUMBERS THAT ARE NOT THE ANSWER, AND BOTH LOOKED LIKE IT.**
-* **839 is ANDROID.** It appears nowhere in TestFlight. I reported it while he was waiting on iOS -
-  true, and unusable.
-* **iOS 848 WAS BUILT AND NEVER UPLOADED.** Run `35109958012` is **green** and carries a real
-  VERSION_CODE, and its step 20 reads **skipped**, because the event was `push`. Sam was about to
-  tell Tre to install it. **A skipped step does not fail a workflow**, so every signal said shipped.
-  **NEVER read a build number off a run's conclusion - read the UPLOAD STEP'S conclusion.**
-
-**Uploaded is still not installed.** TestFlight processes, then he updates. On origin / on a build /
-on his device remain three separate facts and only the first two are ours to assert.
-
-⚠️ **839 IS ON A BUILD, NOT ON HIS DEVICE. DO NOT READ IT AS DELIVERED.** Three separate facts and
-only the first two are mine to assert: the commit is on origin, a build was cut from it and
-succeeded, and that build is INSTALLED on his phone. The third needs him to update, and nothing
-here can measure it - a database read can say "probably", never "yes". **If a later session needs
-to know whether a fix is on his phone, the honest answer is still open until he says so.**
-
-**ANDROID BUILD 839 (a SEPARATE platform, NOT TestFlight) carries everything from today** - run 35109143079 on `d500c0f3`, success,
-VERSION_CODE read from the run's own log rather than computed. The earlier run on `223af677`
-FAILED at the Play deploy step ("service is currently unavailable") and was **superseded, not
-retried**: merge-base proves the failed commit is an ANCESTOR of the green one, so re-running would
-have published an older bundle - and `cancel-in-progress` means it could have killed the good run.
-No partial publish: Play deploys are an Edit TRANSACTION, and a run that dies before the commit
-publishes nothing.
-
-**FIRST UP NEXT TIME: the resume queue below. Items 2-4 are BLOCKED ON TRE.**
-
-`223af677` on origin/main, verified by contents 0/0.
-
-**FIRST UP NEXT TIME: the CONTROL-CONSISTENCY consolidation (new resume item 6).** It is the
-one genuine design finding left from the sweep and it is the one Tre named in his own words.
-
-### THE SWEEP FOUND ONE REAL DEFECT AND IT WAS SYSTEMIC
-`TabsList` is `rounded-md p-1`, `TabsTrigger` was `rounded-sm` - r_outer 10px, gap 4px,
-r_inner 8px, want 6px. The inner arc pinched the outer one on EVERY tab strip in the app.
-Fixed by DERIVING: `rounded-[max(0px,calc(var(--radius)-2px-0.25rem))]`. Measured 8px -> 5.5px
-on the real element. Also clipped two `card-forged divide-y` lists whose square first/last rows
-sat unclipped on the card's rounded corners.
-
-⚠️ **THE SOURCE GATE PASSED 12/12 WITH THAT DEFECT RESTORED, AND IT WAS RIGHT TO.** `TabsList`
-and `TabsTrigger` are separate components, never nested in one JSX tree; they meet only at a
-call site where no radius class is visible. **A design system's radius defects live ON the
-component boundary - the one place a per-file source scan cannot look.** That is why
-`npm run check:concentricity` now exists and measures RENDERED boxes.
-
-### THE NEW GATE, AND WHAT IT COST TO MAKE HONEST
-`scripts/check-concentricity.mjs` - 3 viewports (1440 / 768 / **390 phone**, Tre 2026-09-16
-"look at mobile viewport sizing as well"), 10 routes DERIVED from the app's own nav, via /demo
-so no credentials and no writes. Proven RED on the real defect (exit 1), GREEN after (exit 0),
-tabs.tsx restored byte-exact by sha256 both times. `judged === 0` exits 2.
-**Three false-positive classes were removed only by measuring:** children that draw no box
-(51 bogus findings), `<svg>` whose UA default is overflow:hidden (12 more), and children not
-at a corner - middle rows of a divide-y list (10 more). 74 -> 1 real finding.
-
-⚠️ **THE MOBILE ARM'S FIRST DESIGN WAS WRONG AND ITS OWN CONTROL CAUGHT IT.** It asked "does
-the page scroll sideways" via `documentElement.scrollWidth`. A planted 1200px box in a 390px
-viewport left the document at 390px, because this app's containers carry `overflow-x-hidden`.
-**scrollWidth is structurally blind here**, so "0 sideways scrolls across 30 cells" would have
-been a confident zero from an instrument that cannot see the thing it names. Re-aimed at the
-failure mode this app actually has - text silently clipped with no scrollbar to reveal it.
-
-### WHAT WAS SWEPT AND IS GENUINELY CLEAN (the negative, on the record)
-- **Form-control theming: 0 defects.** 0 bare controls in source repo-wide, 0 unthemed
-  rendered. An earlier "4 bare selects" was MY OWN matcher - two were inside JSDoc comments,
-  two used `className={className ?? '...'}`. Checked before reporting.
-- **`color-scheme`** is declared per theme and already gated.
-- **NOT COVERED:** /budget, /forecast, /goals are unreachable in demo; light theme is not
-  exercised (the app sets `color-scheme` INLINE alongside the class, so flipping the class is
-  not a theme switch - I measured that and nearly reported my own artifact as a defect).
+### ⚠️ TWO OF TRE'S OWN INSTRUCTIONS NOW CONFLICT, AND THE LATER ONE WINS
+2026-08-18: *"make settings accessible from a hamburger in the top left at all times."*
+2026-09-16: *"the hamburger ... is only viewable and accessible from the account page."*
+Both are recorded in `MobileTopBar.tsx`. A session reading only the older comment would revert this.
 
 ### RESUME QUEUE - START AT ITEM 1
+
+1. [ ] **WALK THE NEW NAV IN A BROWSER AT PHONE WIDTH. NOTHING HAS PRESSED IT.** The gate is a
+   SOURCE scan - jsdom has no layout and cannot evaluate an `lg:` breakpoint, so it proves the route
+   is declared and nothing about whether the hamburger is visible or tappable.
+   `node scripts/dev-session.mjs up`, then `/demo` at 390px. **Assert, in order:** the hamburger is
+   ABSENT on Home/Transactions/Debt/Garage; PRESENT on Account; pressing it lands on `/settings`;
+   Settings shows **Sign Out** at the bottom and it is NOT the "all devices" control; the identity
+   badge top-left goes to `/account`. Then at 1440px: the Account page's Settings button is VISIBLE.
+   ⚠️ **This is the check that matters most** - a safe-area bug once made this same hamburger
+   untappable and put Settings out of reach on every phone, throwing nothing.
+
+2. [ ] **THE LIQUID-GLASS BOTTOM TAB BAR - ASKED FOR, NOT STARTED.** Tre, 2026-09-16: *"i want the
+   bottom selection of tabs like the liquid glass instagram does. for iphone"*, with screenshots of
+   iOS 26 Instagram: a FLOATING, pill-shaped, translucent bar inset from the screen edges, not a
+   full-width bar pinned to the bottom. Surface is `src/components/layout/MobileNav.tsx`.
+   **The app already has a real translucency utility and a gate for it** - `@utility glass` in
+   `src/index.css` and `npm run check:glass`, which proves a bar is REALLY translucent by
+   screenshotting it before and after scrolling content underneath. Use both; a painted fill and a
+   real `backdrop-filter` are identical in a class list.
+   ⚠️ **Respect `env(safe-area-inset-bottom)`** and re-run `npm run check:rail` and
+   `npm run check:account`.
+
+3. [ ] **NATIVE GLASS IS RE-APPROVED AND THE BLOCKER IS NOW AN INSTRUMENT, NOT A DECISION.**
+   Tre, 2026-09-16: *"i want native glass. i just dont have access to a macbook rn. i can borrow a
+   friends at some point. maybe this weekend."* Ask `7bcea8d0`.
+   **Prepare everything that does not need a Mac so the borrowed session is spent MEASURING, not
+   installing.** The bridge exists (`24fa97cb`) and apply/remove compile (`4b9cc178`).
+   ⚠️ **TELL HIM THE ARCHITECTURE FINDING BEFORE HE SPENDS THE WEEKEND:** a native view ABOVE the
+   WebView samples app content correctly but COVERS that surface's own web-rendered icons and
+   figures; the shape that works needs a SECOND transparent WKWebView for chrome. That is analysis,
+   not measurement - and the Mac is what turns it into measurement.
+
+4. [ ] **DISPATCH THE iOS BUILD when items 1-2 are done**, then give him the iOS build number with
+   the upload step's conclusion verified. One dispatch, not one per commit.
+
+5. [ ] **Lower the control-style ceiling opportunistically.** `control-style-ratchet.gate.test.ts`
+   holds 36 input surfaces / 18 select surfaces. Consolidate only when a file is being touched
+   anyway - the wholesale rewrite was DECIDED AGAINST (money pages, cosmetic gain).
+
+6. [ ] **NOT MINE, ROUTED TO SAM:** an untriaged ask "Read scripts/daily-check-prompt.md and follow
+   it exactly" - that file exists only in `trading/`. It is **Wes's**. Left untriaged deliberately
+   rather than cleared: clearing it here is how a request disappears when both desks assume the
+   other has it.
+
+<details><summary>Older queue items, superseded</summary>
+
 
 1. [x] **DONE - the bridge compiles and its couplings are gated.** `24fa97cb`.
 2. [~] **THE CAPABILITY IS BUILT AND COMPILES; THE SURFACE HAS NO CANDIDATE.** `4b9cc178` adds
@@ -4592,3 +4596,5 @@ d500c0f3 [a11y]: the username field had no visible focus state at all, for the s
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+</details>
