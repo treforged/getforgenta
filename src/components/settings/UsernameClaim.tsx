@@ -28,6 +28,7 @@ import {
   USERNAME_MAX,
   USERNAME_UNAVAILABLE_MESSAGE,
 } from '@/lib/username';
+import { FIELD_WRAPPER, FIELD_INPUT_BARE, FIELD_RADIUS } from '@/components/shared/field-classes';
 
 /** Postgres unique-violation. The index is on `lower(username)`, so this IS "already taken". */
 const UNIQUE_VIOLATION = '23505';
@@ -149,8 +150,11 @@ export function UsernameClaim({ readOnly = false }: { readOnly?: boolean }) {
           : 'Pick a username so friends can add you without swapping email addresses.'}
       </p>
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 flex-1 min-w-0 bg-secondary border border-border px-2 py-1.5"
-          style={{ borderRadius: 'var(--radius)' }}>
+        {/* The SHARED wrapper, not a hand-rolled copy of it. This was built by hand and, like
+            FriendLink's username field before it, the wrapper carried no focus-within ring while
+            the input inside carried `outline-none` - so tabbing here landed on an invisible
+            cursor. Importing the constant is what stops that recurring a third time. */}
+        <div className={`${FIELD_WRAPPER} px-2 py-1.5`} style={FIELD_RADIUS}>
           <AtSign size={12} className="text-muted-foreground shrink-0" />
           <input
             value={draft}
@@ -161,7 +165,7 @@ export function UsernameClaim({ readOnly = false }: { readOnly?: boolean }) {
             aria-label="Choose a username"
             placeholder="yourname"
             autoComplete="off"
-            className="flex-1 min-w-0 bg-transparent text-xs text-foreground outline-none"
+            className={FIELD_INPUT_BARE}
           />
         </div>
         <button
