@@ -54,7 +54,20 @@ contents before starting. The grep-before-you-BUILD rule earning its keep.
 ### RESUME QUEUE - START AT ITEM 1
 
 1. [x] **DONE - the bridge compiles and its couplings are gated.** `24fa97cb`.
-2. [ ] **THE NATIVE MATERIAL ITSELF.** `UIVisualEffectView` / `UIGlassEffect` behind
+2. [~] **THE CAPABILITY IS BUILT AND COMPILES; THE SURFACE HAS NO CANDIDATE.** `4b9cc178` adds
+   `apply`/`remove` (UIVisualEffectView above the web view, `isUserInteractionEnabled = false` so it
+   does not swallow taps). Swift green on the runner. Frame-sync deliberately NOT built (Sam).
+   ⚠️ **AND I COULD NOT FIND A SURFACE TO PUT IT ON, which is the finding.** Sam authorised "one
+   surface with no web content of its own". Worked to the end, four cases: a pinned bar needs a
+   transparent CSS background to sample anything, and then the native view covers the bar's own
+   labels; left opaque it blurs a flat colour; a modal scrim covers its own dialog; a decorative
+   empty region has nothing under it to blur. **The app-lock cover in AppDelegate is the one
+   genuinely content-free native surface and it is a HARD NO** - it exists so the app-switcher
+   snapshot hides his financial data, and translucency defeats exactly that.
+   **SO THE SECOND TRANSPARENT WKWebView IS NOT ONE OPTION, IT IS THE ONLY SHAPE THAT WORKS** -
+   now reached constructively rather than asserted. Still analysis; this machine cannot measure it.
+   **Do not tag a v* build until there is something to look at.**
+3. [ ] **THE MATERIAL, ONCE THE ARCHITECTURE IS SETTLED.** `UIVisualEffectView` / `UIGlassEffect` behind
    `#available(iOS 26.0, *)`, added as a SIBLING of the WebView. **The expensive part is already
    named and has not got cheaper:** every glass surface needs its frame computed in JS and
    re-pushed on every scroll, resize, rotation and keyboard event. Start with ONE surface, not a
@@ -64,10 +77,10 @@ contents before starting. The grep-before-you-BUILD rule earning its keep.
    correctly but covers that surface's own web-rendered icons and figures. The architecture that
    works needs a SECOND transparent WKWebView for chrome content. **That is analysis, not
    measurement**, and the bridge now existing does not settle it.
-3. [ ] **NOTHING HAS RUN ON A DEVICE.** When the material is worth looking at, ship deliberately
+4. [ ] **NOTHING HAS RUN ON A DEVICE.** When the material is worth looking at, ship deliberately
    (`workflow_dispatch` or a `v*` tag) and report the BUILD NUMBER - `VERSION_CODE = run_number +
    100`. A mobile fix is not delivered until a build carries it.
-4. [ ] **NOT MINE, ROUTED TO SAM:** an untriaged ask "Read scripts/daily-check-prompt.md and follow
+5. [ ] **NOT MINE, ROUTED TO SAM:** an untriaged ask "Read scripts/daily-check-prompt.md and follow
    it exactly" landed in this desk's queue. That file exists only in `trading/` - it is **Wes's**.
    Left UNTRIAGED deliberately rather than cleared: clearing it here is how a request silently
    disappears when both desks assume the other has it.
@@ -4483,7 +4496,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 17:40 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 22:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4500,14 +4513,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+b518dfbd [handoff]: the xcode block is dead, and main was red before I arrived
+f8b0ff8f [pdf]: main was already red, and the cause breaks PDF import on every iOS below 18.2
+24fa97cb [ios]: the cheapest thing that can fail first - a native glass bridge with no glass in it
 ea3e2d5d [handoff]: the bounce removal is verified in a browser, and this desk closes out with an empty queue
 1323450a [onboarding]: the bounce removal is verified in a browser, and the tested rule had no caller
 ed860719 [handoff]: the backslash warning contained a literal backspace byte - the bug it warns about
 ea862c5c [handoff]: the bounce is removed and the reddit-scout exposure is closed
 d779ea9d [onboarding]: remove the display_name bounce - signing up with your name was skipping setup entirely
-d770a499 [handoff]: 0d9f8fae closed - extractPdfText has real coverage and the blocker was wrong twice
-37648c64 [pdf]: extractPdfText gets real coverage - the blocker said no harness could run it, and both halves were wrong
-52424d80 [handoff]: the bounce is proven by elimination, and the fix needs a date that does not exist
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
