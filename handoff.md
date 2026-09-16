@@ -4496,7 +4496,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 22:05 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 22:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4513,14 +4513,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+502be13f [handoff]: the capability compiles and the surface has no candidate
+4b9cc178 [ios]: the glass surface can be placed and removed - and the gate caught the drift in the wild
 b518dfbd [handoff]: the xcode block is dead, and main was red before I arrived
 f8b0ff8f [pdf]: main was already red, and the cause breaks PDF import on every iOS below 18.2
 24fa97cb [ios]: the cheapest thing that can fail first - a native glass bridge with no glass in it
 ea3e2d5d [handoff]: the bounce removal is verified in a browser, and this desk closes out with an empty queue
 1323450a [onboarding]: the bounce removal is verified in a browser, and the tested rule had no caller
 ed860719 [handoff]: the backslash warning contained a literal backspace byte - the bug it warns about
-ea862c5c [handoff]: the bounce is removed and the reddit-scout exposure is closed
-d779ea9d [onboarding]: remove the display_name bounce - signing up with your name was skipping setup entirely
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
