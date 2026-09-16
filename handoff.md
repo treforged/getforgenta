@@ -1,55 +1,49 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-15 (Ada, NINTH session). THE XCODE BLOCK IS DEAD AND MAIN IS GREEN AGAIN.
+## FIRST UP - 2026-09-16 (Ada, TENTH session). THE DESIGN SWEEP LANDED; THE GLASS QUEUE IS STILL BLOCKED ON TRE.
 
-`24fa97cb` the bridge · `f8b0ff8f` the PDF fix. Both on origin/main 0/0 BY CONTENTS.
-**FIRST UP NEXT TIME: resume queue item 2 - the native glass material itself.** Item 1 is done.
+`223af677` on origin/main, verified by contents 0/0.
 
-### THE ANSWER TO "YOU CAN FIND A WAY AROUND XCODE", AND IT CORRECTS SAM'S FRAMING
-`.github/workflows/ios-build.yml` runs `xcodebuild archive` on `macos-latest` **on every push to
-main touching `src/**` or `ios/**`**, and **its upload step is `skipped` by design** - the
-workflow's own comment says build on every push, ship on purpose (`workflow_dispatch` or a `v*`
-tag). So:
-* **The Swift compile gate is FREE and automatic.** No branch dance, no `workflow_dispatch`.
-* **Sam's constraint "do not spend a TestFlight build on a compile check" enforces itself here.**
-  It was worth checking rather than routing around.
-* **Measured green twice:** `Build IPA` + `Export IPA` succeeded on both commits.
-⚠️ **DO NOT GREP THAT LOG FOR A FILENAME TO PROVE A FILE COMPILED.** I did, got 0 for
-`GlassEffectPlugin.swift`, and nearly reported the file as not built. The control settles it:
-`AppDelegate.swift` and `ViewController.swift` score **0 too**, and they indisputably compiled. The
-log carries no per-file Swift lines for the App target. Honest evidence = the `Build IPA` step
-succeeding + the file being in the Sources build phase, which the gate asserts.
+**FIRST UP NEXT TIME: the CONTROL-CONSISTENCY consolidation (new resume item 6).** It is the
+one genuine design finding left from the sweep and it is the one Tre named in his own words.
 
-### 1. THE BRIDGE SMOKE TEST IS IN AND IT HAS NO GLASS IN IT, `24fa97cb`
-`GlassEffectPlugin.isSupported` resolves `{ supported, iosVersion, echo }`. `echo` is the
-round-trip proof. `src/lib/native-glass.ts` is the shim with a non-throwing web fallback.
-`native-glass-bridge.gate.test.ts` DERIVES both sides and asserts the three strings that join a
-Capacitor bridge, plus target membership in project.pbxproj. Four positive controls run FIRST
-because two empty sides agree perfectly. **Proven red 5 ways, every restore byte-exact.**
-⚠️ **IT DOES NOT PROVE THE BRIDGE ROUND-TRIPS. Only a device does.** The gate proves the
-couplings; the runner proves the Swift compiles; neither is a phone. Nothing has called
-`isSupported` on real hardware, and **no build has been shipped**, so that remains OPEN.
+### THE SWEEP FOUND ONE REAL DEFECT AND IT WAS SYSTEMIC
+`TabsList` is `rounded-md p-1`, `TabsTrigger` was `rounded-sm` - r_outer 10px, gap 4px,
+r_inner 8px, want 6px. The inner arc pinched the outer one on EVERY tab strip in the app.
+Fixed by DERIVING: `rounded-[max(0px,calc(var(--radius)-2px-0.25rem))]`. Measured 8px -> 5.5px
+on the real element. Also clipped two `card-forged divide-y` lists whose square first/last rows
+sat unclipped on the card's rounded corners.
 
-### 2. MAIN WAS ALREADY RED WHEN I ARRIVED, AND THE CAUSE WAS A REAL USER BUG, `f8b0ff8f`
-CI Tests was failing on `ea3e2d5d`, `ed860719`, `d770a499` - **two sessions closed out reporting
-`test:tz` green without noticing.** Five failures, all `Promise.try is not a function` from
-pdfjs-dist, because CI is Node 22 and this desk is Node 24.
-⚠️ **THE USER-FACING HALF IS THE REAL ONE.** `Promise.try` is V8 12.9 / Safari 18.2.
-`IPHONEOS_DEPLOYMENT_TARGET` is **15.0**, and a Capacitor app uses the system WKWebView - so PDF
-import, shipped four days ago, threw on **every iOS below 18.2**.
-⚠️ **BROWSERSLIST IS NOT THIS APP'S SUPPORT FLOOR** and that is why nothing caught it: no
-`browserslist` field, so the default resolves to `ios_saf 18.5+` - every target it names already
-has the method. **Before using a newish built-in, check the deployment target, not browserslist.**
-Fixed by `src/lib/promise-try-polyfill.ts`, installed lazily inside `extractPdfText` so it stays
-inside that file's deliberate dynamic-import trade. **Proven against the REAL failure**: with
-`Promise.try` deleted process-wide, the real `pdf-text.test.ts` reads 6 passed with the call and
-**5 failed | 1 passed without it - identical to CI's five.** CI now: `f8b0ff8f success`,
-`24fa97cb failure`.
+⚠️ **THE SOURCE GATE PASSED 12/12 WITH THAT DEFECT RESTORED, AND IT WAS RIGHT TO.** `TabsList`
+and `TabsTrigger` are separate components, never nested in one JSX tree; they meet only at a
+call site where no radius class is visible. **A design system's radius defects live ON the
+component boundary - the one place a per-file source scan cannot look.** That is why
+`npm run check:concentricity` now exists and measures RENDERED boxes.
 
-### 3. THE CSS PANEL IDENTITY WAS ALREADY SHIPPED - I DID NOT REBUILD IT
-Sam's brief carried "App panels should get the glass identity also" as an outstanding decision. It
-is **`cdede2f0`, on origin/main, `--panel-glass` 6 occurrences in `src/index.css`**, verified by
-contents before starting. The grep-before-you-BUILD rule earning its keep.
+### THE NEW GATE, AND WHAT IT COST TO MAKE HONEST
+`scripts/check-concentricity.mjs` - 3 viewports (1440 / 768 / **390 phone**, Tre 2026-09-16
+"look at mobile viewport sizing as well"), 10 routes DERIVED from the app's own nav, via /demo
+so no credentials and no writes. Proven RED on the real defect (exit 1), GREEN after (exit 0),
+tabs.tsx restored byte-exact by sha256 both times. `judged === 0` exits 2.
+**Three false-positive classes were removed only by measuring:** children that draw no box
+(51 bogus findings), `<svg>` whose UA default is overflow:hidden (12 more), and children not
+at a corner - middle rows of a divide-y list (10 more). 74 -> 1 real finding.
+
+⚠️ **THE MOBILE ARM'S FIRST DESIGN WAS WRONG AND ITS OWN CONTROL CAUGHT IT.** It asked "does
+the page scroll sideways" via `documentElement.scrollWidth`. A planted 1200px box in a 390px
+viewport left the document at 390px, because this app's containers carry `overflow-x-hidden`.
+**scrollWidth is structurally blind here**, so "0 sideways scrolls across 30 cells" would have
+been a confident zero from an instrument that cannot see the thing it names. Re-aimed at the
+failure mode this app actually has - text silently clipped with no scrollbar to reveal it.
+
+### WHAT WAS SWEPT AND IS GENUINELY CLEAN (the negative, on the record)
+- **Form-control theming: 0 defects.** 0 bare controls in source repo-wide, 0 unthemed
+  rendered. An earlier "4 bare selects" was MY OWN matcher - two were inside JSDoc comments,
+  two used `className={className ?? '...'}`. Checked before reporting.
+- **`color-scheme`** is declared per theme and already gated.
+- **NOT COVERED:** /budget, /forecast, /goals are unreachable in demo; light theme is not
+  exercised (the app sets `color-scheme` INLINE alongside the class, so flipping the class is
+  not a theme switch - I measured that and nearly reported my own artifact as a defect).
 
 ### RESUME QUEUE - START AT ITEM 1
 
@@ -80,6 +74,18 @@ contents before starting. The grep-before-you-BUILD rule earning its keep.
 4. [ ] **NOTHING HAS RUN ON A DEVICE.** When the material is worth looking at, ship deliberately
    (`workflow_dispatch` or a `v*` tag) and report the BUILD NUMBER - `VERSION_CODE = run_number +
    100`. A mobile fix is not delivered until a build carries it.
+6. [ ] **CONTROL CONSISTENCY - THE ONE REAL FINDING LEFT, AND TRE NAMED IT HIMSELF**
+   ("consistency across tabs", 2026-09-13). MEASURED 2026-09-16, brace-aware matcher:
+   **42 distinct text-input class signatures across 87 inputs; 18 distinct select signatures
+   across 44 selects.** The shared constant in `src/components/shared/field-classes.ts` is used
+   by **12 of 87**. `field-consistency.test.ts` enforces the rule on **ONE FILE** (FriendLink).
+   Most variants differ only in width/margin utilities over one shared core - so this is one
+   design hand-copied 40 times, not 40 designs. **The deliverable is CONSOLIDATION and the
+   COUNT is the acceptance evidence.** Do it in slices, money pages LAST, and widen the gate to
+   a repo-wide ratchet that can only go down.
+   ⚠️ **Discover candidates by the ELEMENT, never by the shared constant** - a hand-rolled
+   input is exactly the one that does not import it. That is the 2026-09-14 one-switch lesson.
+
 5. [ ] **NOT MINE, ROUTED TO SAM:** an untriaged ask "Read scripts/daily-check-prompt.md and follow
    it exactly" landed in this desk's queue. That file exists only in `trading/` - it is **Wes's**.
    Left UNTRIAGED deliberately rather than cleared: clearing it here is how a request silently
