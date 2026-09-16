@@ -98,6 +98,31 @@ section states reasoning, not measurement, and says so.
   ROLE, never by a hand-written label list. Proven red twice — both handlers setting the
   same state, and both branches resolving to the same view with aria still correct, which
   is the forged-glass dead-tab shape that throws nothing and passes every smoke test.
+- `npm run check:nav` — walks the nav IA at 390x844 and 1440x900, SIGNED IN. Asserts the
+  hamburger is absent on the four tab routes and present on Account; that it is **TAPPABLE**
+  (`elementFromPoint` at its own centre, because `viewport-fit=cover` once put it under the
+  notch and took the ONLY phone route to Settings with it — visible-and-covered passes every
+  visibility assertion ever written); that pressing it lands on `/settings`; that the identity
+  badge goes to `/account`; that Settings has one rendered ordinary Sign Out distinct from
+  Security's all-devices control; that the bottom bar is a FLOATING PILL inset from all three
+  edges; that **content clears it** (the bar's footprint and `DashboardLayout`'s bottom reserve
+  live in different files and nothing makes them agree); and that the desktop Settings button
+  renders, since the rail has no Settings row.
+  ⚠️ **EVERY ABSENCE IS PRECEDED BY A POSITIVE CONTROL**, because a zero from a broken selector
+  and a zero from a correct app are the same zero — three separate control failures in this
+  gate's first runs were all the instrument, not the app (a selector demanding an `<svg>` from a
+  badge that renders INITIALS; a sign-out count including a 0x0 box from the desktop rail's `lg:`
+  wrapper; a matcher reading the wrong one of Settings' four panels).
+  ⚠️ **AND IT FINDS THE BAR BY SHAPE, NEVER BY `rounded-full`.** Discovering candidates by the
+  correctness marker meant its red run printed "CONTROL FAILED" and exited 2 — an exit-2 tooling
+  fault gets re-run then ignored, where an exit-1 finding gets fixed. Do not "simplify" that
+  selector back.
+- ⚠️ **CLAUDE-IN-CHROME CANNOT SET A PHONE VIEWPORT HERE — measured 2026-09-16.**
+  `resize_window` returns *"Successfully resized … to 390x844"* while `window.innerWidth` stays
+  **1154** (and `outerWidth` reads 0). **The call succeeds and nothing happens**, which is the
+  `Start-ScheduledTask` family one domain over. So any ask to "walk it with Claude in Chrome" at a
+  phone width must be served by **Playwright** (`.env.deck-walk.local`, the pattern every
+  `check:*` script here uses). The extension remains fine for a desktop-width look.
 - 🚨 **A PUSH DOES NOT REACH TESTFLIGHT. YOU MUST DISPATCH THE iOS WORKFLOW BY HAND.**
   Tre, 2026-09-16: *"you need to push so i can see in test flight. remember that permanelty. this
   is the second or 3rd time over the past few weeks uve forgotten this."* **HE IS RIGHT, AND IT
