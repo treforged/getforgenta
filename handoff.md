@@ -120,10 +120,23 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
    2. FIXED - `HEADER_ZONE_PX` was declared in Node scope and the function runs IN THE PAGE, so it
       died with `is not defined`. **That is the LOUD version; a name that existed in both scopes
       would have captured the wrong value silently.**
-   3. 🚨 **OPEN - `headerPx` still reads 4872 on a phone.** The zone filter admits any element
-      whose TOP is in the header band, and a long list container starts there and runs the whole
-      page. The row count (11-24 in a 220px band) is implausible for the same reason. **Bound the
-      zone by the element's BOTTOM as well as its top, or intersect the rect with the band.**
+   3. FIXED - `headerPx` read **4872 on a phone**. The zone admitted any element whose TOP was in
+      the band, so a long list container beginning under the title ran the whole page. Requiring
+      the element to FIT the band brought every header to a plausible **217-258px**.
+   4. 🚨 **OPEN - `headerRows` IS STILL NOT A ROW COUNTER.** It reads 9-24 distinct tops in a
+      ~240px band, which cannot be rows. It counts distinct rounded `top` values across every leaf,
+      so icons, baselines and staggered items inside ONE row each score as a row. **Count bands of
+      the header's own interactive items, not tops of all leaves** - and note the `below` column,
+      which counts actions under the title row, already behaves sensibly and may be the better
+      signal on its own.
+   5. 🚨 **OPEN, AND IT IS THE FIX FOR 3 CREATING A NEW BLIND SPOT.** Bounding the band
+      EXCLUDES any header taller than it: `/transactions`, `/forecast` and `/goals` now report no
+      header at all on phone, where before they reported a wrong one. **A tall header is exactly
+      the waste being hunted, so the probe currently cannot see its own subject.** Clamp the rect
+      to the band instead of dropping the element.
+   ⚠️ **AND THE MAJORITY-OF-ROUTES CONTROL DID NOT CATCH 5** - 15 of 18 still passed it. A
+      control tuned to "most routes have a header" cannot notice that the three it lost are the
+      three that matter.
    ✅ **AND ONE APPARENT FAULT IS PROBABLY THE APP, NOT THE PROBE - CHECK BEFORE "FIXING" IT.**
    `/dashboard`, `/accounts` and `/goals` all report the title "Command Center", and `/forecast`
    reports "Transactions". That looks like a navigation-settling bug and may simply be true: those

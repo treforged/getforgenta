@@ -142,9 +142,14 @@ const measure = () => {
 
   // The header zone: the title's own row plus whatever sits immediately under it. Bounded, so this
   // can never drift into the page body the way the ancestor walk did.
+  // ⚠️ THE ELEMENT MUST FIT IN THE BAND, NOT MERELY START IN IT. Filtering on `top` alone admitted
+  // a long list container that begins under the title and runs the whole page, which is how this
+  // reported a 4872px "header" inside an 844px viewport and 11-24 rows in a 220px band. An element
+  // taller than the band is the page, not the header.
+  const bandBottom = hb.bottom + HEADER_ZONE_PX;
   const zone = leaves.filter((el) => {
     const r = el.getBoundingClientRect();
-    return r.top >= hb.top - 8 && r.top < hb.bottom + HEADER_ZONE_PX;
+    return r.top >= hb.top - 8 && r.top < bandBottom && r.bottom <= bandBottom + 8;
   });
   if (zone.length === 0) return null;
 
