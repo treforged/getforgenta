@@ -2,6 +2,12 @@
 
 ## FIRST UP - 2026-09-16 (Ada, TENTH session). DESIGN SWEEP DONE. ANDROID IS GREEN AT BUILD 839.
 
+⚠️ **839 IS ON A BUILD, NOT ON HIS DEVICE. DO NOT READ IT AS DELIVERED.** Three separate facts and
+only the first two are mine to assert: the commit is on origin, a build was cut from it and
+succeeded, and that build is INSTALLED on his phone. The third needs him to update, and nothing
+here can measure it - a database read can say "probably", never "yes". **If a later session needs
+to know whether a fix is on his phone, the honest answer is still open until he says so.**
+
 **ANDROID BUILD 839 CARRIES EVERYTHING FROM TODAY** - run 35109143079 on `d500c0f3`, success,
 VERSION_CODE read from the run's own log rather than computed. The earlier run on `223af677`
 FAILED at the Play deploy step ("service is currently unavailable") and was **superseded, not
@@ -4537,7 +4543,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 10:27 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 10:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4554,14 +4560,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+2d05d73d [handoff]: android green at build 839, style half closed as a ratchet
+3b60e74c [design]: freeze the control-style count as a ceiling rather than rewrite 87 call sites
+acd43d36 [handoff]: consolidation started - the accessibility half shipped, the style half scoped
+d500c0f3 [a11y]: the username field had no visible focus state at all, for the second time
 2fa01717 [pmf]: the survey gate leaves a QUALIFYING row in the production table, so aggregates must not read the table
 694e4227 [handoff]: the design sweep landed - one systemic defect fixed, one consolidation left
 223af677 [design]: the tab strip pinched its own corners on every screen, and no source gate could see it
 a123afac [handoff]: refresh the machine auto-snapshot before closing out
-502be13f [handoff]: the capability compiles and the surface has no candidate
-4b9cc178 [ios]: the glass surface can be placed and removed - and the gate caught the drift in the wild
-b518dfbd [handoff]: the xcode block is dead, and main was red before I arrived
-f8b0ff8f [pdf]: main was already red, and the cause breaks PDF import on every iOS below 18.2
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
