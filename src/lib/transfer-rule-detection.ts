@@ -73,6 +73,32 @@ function distinctiveWords(text: string): Set<string> {
   );
 }
 
+/**
+ * What `detectTransferLegs` answers.
+ *
+ * ⚠️ `mirroredInflows` EXISTS TO STOP A DOUBLE COUNT, and the double count is real - measured
+ * 2026-09-16 on a credit-card autopay fixture. One movement produced TWO proposals: the outflow
+ * from checking (correctly a transfer) AND **$941.01 a month of phantom INCOME** on the card,
+ * because the two banks name the same movement differently ("Payment to Chase card ending in 56"
+ * vs "Payment Thank You-Mobile") and `rules-from-history` groups by merchant. A user accepting both
+ * books income that does not exist, inflating the savings rate.
+ *
+ * It is PAIRS ONLY, never the one-sided name signal: a mirrored inflow is suppressed because its
+ * OUTFLOW TWIN already represents the movement. Where no twin was found there is nothing to be
+ * represented by, and suppressing the inflow would delete the movement entirely.
+ *
+ * ⚠️ An existing rule almost hid this. A merchant billing on two accounts already makes every
+ * claimant go quiet - so a fixture using ONE merchant name for both legs returns zero proposals for
+ * a reason unrelated to the question. The first probe did exactly that and read as "no double
+ * count". Only distinct names, which is the realistic case, exposes it.
+ */
+export interface TransferLegs {
+  /** Outflow legs that are movements between the user's own accounts. */
+  verdicts: Map<string, TransferVerdict>;
+  /** Inflow legs whose outflow twin is already proposed. Never proposed themselves. */
+  mirroredInflows: Set<string>;
+}
+
 /** What a charge is, when it is not spending. */
 export interface TransferVerdict {
   /** The value `recurring_rules.rule_type` must carry. Both satisfy `isTransfer` downstream. */
@@ -127,13 +153,17 @@ function namedOwnedAccount(
 export function detectTransferLegs(
   txns: readonly PairableTransfer[],
   accounts: readonly PairableAccount[],
-): Map<string, TransferVerdict> {
+): TransferLegs {
   const verdicts = new Map<string, TransferVerdict>();
-  if (accounts.length === 0) return verdicts;
+  const mirroredInflows = new Set<string>();
+  if (accounts.length === 0) return { verdicts, mirroredInflows };
 
   // SIGNAL A — both legs synced. Only the OUTFLOW leg is recorded; see the header.
   const pairByLeg = indexPairsByLeg(detectTransferPairs(txns, accounts));
   for (const [legId, pair] of pairByLeg) {
+    // The INFLOW half is recorded as mirrored so nothing proposes it as a second rule for the same
+    // movement - see {@link TransferLegs.mirroredInflows}, where the measured double count is.
+    if (legId === pair.in.id) mirroredInflows.add(legId);
     if (legId !== pair.out.id) continue;
     verdicts.set(legId, verdictFor(pair.toAccount, 'pair'));
   }
@@ -151,7 +181,7 @@ export function detectTransferLegs(
     verdicts.set(txn.id, verdictFor(destination, 'name'));
   }
 
-  return verdicts;
+  return { verdicts, mirroredInflows };
 }
 
 /**

@@ -154,6 +154,62 @@ describe('a standing transfer to an account the user owns is not spending', () =
   });
 });
 
+describe('one movement is ONE rule, not two', () => {
+  // ⚠️ THE DOUBLE COUNT IS REAL AND WAS MEASURED, NOT IMAGINED. A credit-card autopay posts twice -
+  // money leaves checking and arrives at the card - and the two banks name it differently ("Payment
+  // to Chase card ending in 56" vs "Payment Thank You-Mobile"). `rules-from-history` groups by
+  // merchant, so before this the same movement produced TWO proposals: a correct transfer out of
+  // checking AND $941.01 a month of PHANTOM INCOME on the card. Accepting both inflates income and
+  // the savings rate - the same family of defect as the one this file's first describe() fixes, and
+  // made more visible by fixing it.
+  //
+  // ⚠️ AND MY FIRST PROBE SAID THERE WAS NO DOUBLE COUNT, for a reason unrelated to the question.
+  // It used ONE merchant name for both legs, which trips the existing "a merchant billing on two
+  // accounts leaves every claimant silent" rule - so it returned zero proposals and read as clean.
+  // Only DISTINCT names, which is the realistic case, exposes it. A zero from a fixture that cannot
+  // contain the failure is a fact about the fixture.
+  const CARD = 'card-1';
+  const PAIR_ACCOUNTS: PairableAccount[] = [
+    { id: CHASE, name: 'CHASE CHECKING', account_type: 'checking' },
+    { id: CARD, name: 'Prime Visa', account_type: 'credit_card' },
+  ];
+  const autopay: HistoryCharge[] = [];
+  for (const [i, date] of ['2026-07-15', '2026-08-15', '2026-09-15'].entries()) {
+    autopay.push({
+      id: `out-${i}`, account_id: CHASE, amount: 941.01, date,
+      name: 'Payment to Chase card ending in 56', merchant_name: 'Chase Card Payment',
+      category: 'LOAN_PAYMENTS',
+    });
+    autopay.push({
+      id: `in-${i}`, account_id: CARD, amount: -941.01, date,
+      name: 'Payment Thank You-Mobile', merchant_name: 'Payment Thank You', category: 'INCOME',
+    });
+  }
+
+  it('RED ARM — with no accounts passed, the card leg is still proposed as phantom income', () => {
+    const shapes = proposeRulesFromHistory({ charges: autopay, rules: [], accounts: [] })
+      .map(p => `${p.direction}|${p.accountId}`);
+    expect(shapes).toContain(`income|${CARD}`); // $941.01 a month that does not exist
+    expect(shapes).toContain(`expense|${CHASE}`);
+  });
+
+  it('GREEN ARM — the mirrored inflow is not proposed, and the outflow is the transfer', () => {
+    const out = proposeRulesFromHistory({ charges: autopay, rules: [], accounts: PAIR_ACCOUNTS });
+    expect(out.map(p => `${p.direction}|${p.accountId}`)).toEqual([`expense|${CHASE}`]);
+    // Paired, not name-matched: both legs are synced here, so the strong signal is what fired.
+    expect(out[0].transfer?.via).toBe('pair');
+    expect(out[0].transfer?.ruleType).toBe('transfer');
+  });
+
+  it('an UNPAIRED inflow is still proposed — suppressing it would delete the movement', () => {
+    // Only the card's side exists. Nothing represents this money if the inflow is dropped, so the
+    // suppression is deliberately PAIRS ONLY and never the one-sided name signal.
+    const inflowOnly = autopay.filter(c => c.id.startsWith('in-'));
+    const out = proposeRulesFromHistory({ charges: inflowOnly, rules: [], accounts: PAIR_ACCOUNTS });
+    expect(out.map(p => p.direction)).toEqual(['income']);
+  });
+});
+
 describe('the guards that keep the one-sided signal narrow', () => {
   const run = (over: Partial<HistoryCharge>, accounts = ACCOUNTS) =>
     proposeRulesFromHistory({

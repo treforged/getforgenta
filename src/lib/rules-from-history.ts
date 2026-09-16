@@ -300,7 +300,7 @@ export function proposeRulesFromHistory(input: ProposalInput): RuleProposal[] {
 
   // Once for the whole history rather than per group — the pair detector is O(outs x ins) and the
   // population it wants is exactly `charges` ("every settled synced row, all accounts, all history").
-  const transferLegs = detectTransferLegs(charges, accounts);
+  const { verdicts: transferLegs, mirroredInflows } = detectTransferLegs(charges, accounts);
 
   // ⚠️ "STILL BILLING" IS INFERRED FROM THE ROWS, NOT FROM A CLOCK — `rule-drift.ts`'s reasoning,
   // and taking a `today` would make every test time-dependent. One month of slack, because a bill
@@ -311,6 +311,11 @@ export function proposeRulesFromHistory(input: ProposalInput): RuleProposal[] {
   const proposals: RuleProposal[] = [];
   for (const group of groupCharges(charges)) {
     if (covered.has(group.merchantKey)) continue;
+    // ⚠️ AN INFLOW WHOSE OUTFLOW TWIN IS ALREADY PROPOSED IS THE SAME MOVEMENT, NOT A SECOND ONE.
+    // Without this, one credit-card autopay yields two rules - the transfer out of checking AND
+    // phantom monthly INCOME on the card - because the two banks name it differently and this
+    // groups by merchant. Measured; see `TransferLegs.mirroredInflows`.
+    if (group.charges.every(c => mirroredInflows.has(c.id))) continue;
 
     const run = consecutiveRun(group);
     if (run.length < MIN_PROPOSAL_MONTHS) continue;
