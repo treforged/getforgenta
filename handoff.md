@@ -119,6 +119,39 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
    never consults it - which is exactly why his Fidelity being LINKED changed nothing.**
    **THE FIX:** when a charge is a transfer leg to an account the user owns, propose
    `rule_type: 'transfer'` (or `'investment'` for a brokerage) instead of a variable expense.
+   ---
+   **THE FIX IS FULLY DESIGNED - THESE ARE THE EXACT EDIT POINTS, ALL READ THIS SESSION:**
+   * `src/lib/transfer-pair-detection.ts` - `detectTransferPairs(txns, accounts)`,
+     `indexPairsByLeg(pairs)`, `legLooksLikeTransfer(leg, account)`. **Already written, already
+     correct, already used by BankActivity/DecisionDeck. Reuse it; do not write another.**
+   * `src/lib/rules-from-history.ts:266` `ProposalInput` already carries `charges` =
+     *"Every settled synced row, all accounts, all history"* - **exactly the population
+     `detectTransferPairs` wants** - but has **NO `accounts` field**. Add one (optional, so
+     existing callers keep compiling), and when it is present build a leg-id Set from
+     `indexPairsByLeg(detectTransferPairs(charges, accounts))`.
+   * `src/lib/rules-from-history.ts:~320` is where each proposal object is pushed. Mark the
+     proposal when its charges are transfer legs.
+   * `src/lib/rule-proposal.ts:52` `RuleProposal` - add the flag here (it is the type's home;
+     `rules-from-history.ts` only re-exports it at line 42).
+   * 🎯 **`src/lib/rule-proposal-write.ts:65` IS THE LINE THAT CAUSES THE BUG:**
+     `rule_type: proposal.direction`. Direction is income/expense, so an outflow is ALWAYS
+     written as an expense. This becomes
+     `rule_type: proposal.isTransfer ? 'transfer' : proposal.direction`, and that single change
+     is what makes `pay-schedule.ts:1446` return `isTransfer: true` and
+     `monthly-expense-model.ts:146` stop counting it as spending.
+   * Find the caller of `proposeRulesFromHistory` and pass `accounts` through.
+
+   ⛔ **ONE THING I COULD NOT VERIFY - CHECK IT FIRST, DO NOT ASSUME:** whether
+   `public.recurring_rules.rule_type` ACCEPTS the value `'transfer'` (a CHECK constraint or
+   enum could reject it). The query was blocked by the handoff gate before it ran. Run:
+       select rule_type, count(*) from public.recurring_rules group by rule_type;
+   plus the column's constraint. `pay-schedule.ts:1446` reads `rule_type === 'transfer' ||
+   'investment'`, so the app plainly EXPECTS those values - but "the reader expects it" is not
+   "the writer is allowed to store it", and that gap is exactly where this would fail silently.
+   ⚠️ Consider `'investment'` rather than `'transfer'` when the destination account is a
+   BROKERAGE (Fidelity is one) - both satisfy `isTransfer`, and the app already distinguishes
+   them.
+
    ⚠️ **MONEY MATH: highest effort, adversarial verification, and the test must assert a NUMBER**
    (that `living` spending FALLS by the transfer amount), never just that a label changed. A
    green test over a renamed field would leave the forecast exactly as wrong as it is now.
@@ -4669,7 +4702,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 16:25 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 16:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4684,14 +4717,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+acce8156 [handoff]: a transfer to his own linked account is booked as spending - diagnosed, queued first
+845db7ee [design]: the panel pill is one row that scrolls, and three headers stop wasting their top-right
 88eb3ece [handoff]: Tre has updated, but WHICH build is unsettled - and 849 carries none of today's work
 7af4dc44 [handoff]: auto-snapshot refresh
 97d518aa [docs]: the borrowed Mac needs no credentials - /demo renders the same chrome
 0de115fa [handoff]: iOS 854 is in TestFlight - verified at the STEP and at altool's own words, not at the run
 e7a574ac [docs]: name check:nav in the gate list, and record that Claude-in-Chrome cannot set a phone viewport
 71d20091 [docs]: a runbook for the borrowed MacBook, so that session measures instead of installs
-cb4d9366 [handoff]: the nav is walked and the glass pill shipped - next is the iOS upload STEP, not the run
-936c3cf8 [nav]: the phone tab bar is a floating liquid-glass pill now, not a bar stuck to the edge
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
