@@ -92,7 +92,52 @@ does NOT mean delete Account's Settings button; it is `hidden lg:inline-flex` an
 2026-09-16: *"the hamburger ... is only viewable and accessible from the account page."*
 Both are recorded in `MobileTopBar.tsx`. A session reading only the older comment would revert this.
 
-### RESUME QUEUE - START AT ITEM 1 (item 0 is DONE)
+### RESUME QUEUE - START AT ITEM A (items 0-4 below are DONE)
+
+A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
+   Tre, 2026-09-16 16:30: *"format the pill in the settings tab cleaner. and reduce the empty space
+   in the top right. some other tabs also have this issue. big blank spaces."*
+   ⚠️ **DO NOT MARK THIS DONE OFF `845db7ee` - I nearly did, and it is wrong twice.** That
+   commit landed **16:53 ET** and his ask is **16:30 ET**, so it cannot be an answer to what he was
+   looking at; and by ancestry it is **NOT in build 854** (head `936c3cf8`), so it is on origin and
+   on nobody's phone.
+   **THE DELIVERABLE IS AN INVENTORY.** His own words are "some other tabs also have this issue",
+   so the screen he named is a sample, not the scope. Every tab's top-right whitespace, a rendered
+   frame each, then fix what the inventory finds.
+   ⚠️ **INSTRUMENT: `resize_window` REPORTS SUCCESS AND MOVES NOTHING** - measured on two
+   desks today. Any phone-width check made with Claude-in-Chrome is silently taken at DESKTOP width.
+   Use Playwright with a real viewport (`.env.deck-walk.local`, the pattern every `check:*` uses),
+   and read frames at `--force-device-scale-factor=2` - at default scale a near-black `#18181b` has
+   already read as BLUE on this machine and nearly became a filed palette defect.
+
+B. [~] **NOTIFICATIONS - AND THE ORDER IS REGISTRATION, SENDER, CADENCE.** Ask `384ca151`
+   (`cb36caa1` was the duplicate, dropped; survivor verified live after the drop).
+   Tre wants a higher daily volume that is not spammy, suppressed while he is IN the app, still
+   firing when BACKGROUNDED. **Cadence is the last of three and is worthless without the first two.**
+   🚨 **BOTH RECORDED CAUSES OF THE iOS FAILURE ARE REFUTED BY THE BUILD RUNNING THE FIX.**
+   Checked by ancestry, not by the record: the `production` entitlement (`8561f0d0`) and the
+   listener race (`ec67489f`) are **both ancestors of `936c3cf8`, the head of build 854**, which he
+   has installed. That build recorded **152 consecutive `timeout` rows with `permission=granted`**,
+   latest 21:10Z on 2026-09-16, and `device_tokens` has never held a single iOS row.
+   **So the entitlements comment in `ios/App/App/App.entitlements` is now a WRONG CAUSE beside a
+   RIGHT FIX** - it names three Apple-portal steps as the remaining blocker, but signing SUCCEEDS,
+   which means the profile already carries the capability. Do not spend another session on it.
+   ✅ **WHAT SHIPPED TOWARD IT:** a `timeout` row now records `net=up`/`net=down`
+   (`probeReachability`), so the 153rd attempt names its own cause instead of repeating the 152nd.
+   **Its limit is written beside it: it probes ordinary HTTPS, NOT APNs' port 5223**, so `net=up`
+   narrows to "online and APNs still silent" and does not clear the network. `net=down` is
+   conclusive. His home network is already recorded as blocking TestFlight and Tailscale.
+   **NEXT:** read a fresh `push_registration_status` row from his device and branch on `net=`.
+   The sender is the second gate - all 13 `push_send_runs` since 2026-09-05 are `dry_run=true`.
+   **A cadence policy he has not vetoed:** max 3/day, quiet hours 21:00-08:00, dedupe per
+   (user, kind, day), never send "nothing happened".
+
+C. [ ] **THE INCOMING HALF OF A TRANSFER IS STILL SPENDING-SHAPED** - the residue item 0 left, and
+   it is named rather than implied. `pay-schedule.ts:1437` gives any non-income rule an
+   expense-shaped transaction, so `detectTransferLegs` records OUTFLOWS ONLY; marking an inflow
+   `transfer` today would book arriving money as a cost. That function needs a third shape first.
+
+
 
 0. [x] **DONE - A TRANSFER TO HIS OWN ACCOUNT IS NO LONGER SPENDING.** `63085f10`, on origin, 0/0.
    `rule_type` is now `proposal.transfer?.ruleType ?? proposal.direction`, and
