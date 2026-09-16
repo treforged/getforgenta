@@ -98,6 +98,33 @@ section states reasoning, not measurement, and says so.
   ROLE, never by a hand-written label list. Proven red twice — both handlers setting the
   same state, and both branches resolving to the same view with aria still correct, which
   is the forged-glass dead-tab shape that throws nothing and passes every smoke test.
+- 🚨 **A PUSH DOES NOT REACH TESTFLIGHT. YOU MUST DISPATCH THE iOS WORKFLOW BY HAND.**
+  Tre, 2026-09-16: *"you need to push so i can see in test flight. remember that permanelty. this
+  is the second or 3rd time over the past few weeks uve forgotten this."* **HE IS RIGHT, AND IT
+  HAS NOW COST HIM THREE ROUND TRIPS.** Treat this as standing law in this repo.
+
+      gh workflow run "iOS Build & Upload to App Store" --ref main
+
+  **THE MECHANISM, so nobody re-derives it wrongly a fourth time.** `ios-build.yml` triggers its
+  BUILD on every push to main touching `src/**`, `ios/**`, `capacitor.config.ts` or
+  `package.json` - but its upload step carries
+  `if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')`.
+  So **a push builds and does NOT upload.** That gate is deliberate and correct: Apple caps
+  uploads per app per day and this repo once burned the cap by sending ELEVEN builds to
+  TestFlight in one day. **Do not "fix" it by removing the condition** - dispatch instead.
+
+  ⚠️ **THE TRAP THAT CAUGHT ME, AND IT IS THE REASON THIS IS WORDED SO HARD.** On 2026-09-16 I
+  reported "Android is green at build 839" as though the day's work had reached his phone.
+  **839 IS ANDROID. TestFlight is iOS, and they are different workflows with different upload
+  rules** - Android's deploy step runs on a push, iOS's does not. A green Android run therefore
+  says NOTHING about TestFlight, and reporting one while he is waiting on the other reads as
+  delivery. **When he says TestFlight, he means iOS, and the only thing that satisfies it is a
+  dispatched iOS run that reached its upload step.**
+
+  **SO, WHENEVER WORK NEEDS TO REACH HIS PHONE:** push, then dispatch the iOS workflow, then
+  report the run and say plainly that an upload is not an install - he still has to update. The
+  three facts stay separate: on origin, on a build, on his device.
+
 - **SWIFT COMPILES ON A RUNNER, SO "NO LOCAL XCODE" NEVER MEANT "NO GATE."** Measured
   2026-09-15. `.github/workflows/ios-build.yml` runs `xcodebuild archive` + `-exportArchive` on
   `macos-latest` **on every push to main touching `src/**` or `ios/**`**, and
