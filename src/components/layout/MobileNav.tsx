@@ -70,11 +70,36 @@ export default function MobileNav() {
     // still left 33 of the 38px submit button behind the bar, which is exactly Tre's "cut off by
     // the bottom of the viewport". `z-40` is the layer the sticky TOP bar already uses
     // (`DashboardLayout`), so the two ends of the chrome now agree.
+    // ⚠️ IT FLOATS AS A PILL, INSET FROM THE EDGES — Tre, 2026-09-16: *"i want the bottom
+    // selection of tabs like the liquid glass instagram does. for iphone"*, with screenshots of
+    // iOS 26 Instagram. That shape is not a full-width bar with rounded corners: the bar is held
+    // OFF all three edges, so the page's own content passes underneath it on every side, which is
+    // what gives the material something to sample. `inset-x-0 bottom-0` was the opposite of it.
+    //
+    // ⚠️ THE SAFE-AREA INSET MOVED FROM `paddingBottom` TO THE BOTTOM OFFSET, and that is the
+    // whole difference between the two shapes rather than a tidy-up. A bar pinned to the edge has
+    // to ABSORB the home indicator as padding or its last row of pixels sits under it. A bar that
+    // floats CLEARS it instead — so the inset becomes part of how far up the bar sits, and the
+    // 0.75rem is the gap you see between the pill and the bottom of the screen. Left and right
+    // carry their own insets for the same reason: on a landscape notch the pill must not slide
+    // under the ear.
+    //
+    // ⚠️ `overflow-hidden` IS LOAD-BEARING, NOT TIDINESS. `backdrop-filter` establishes its own
+    // backdrop root and paints to the element's border box — so without a clip the blurred
+    // rectangle shows in the corners OUTSIDE the `rounded-full` border, and the pill reads as a
+    // rectangle with a pill drawn on it. This is the same family as the concentricity rule: the
+    // radius and the thing being clipped have to agree.
     <nav
-      className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border glass"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="lg:hidden fixed z-40 border border-border glass rounded-full shadow-lg shadow-black/25 overflow-hidden"
+      style={{
+        left: 'calc(0.75rem + env(safe-area-inset-left))',
+        right: 'calc(0.75rem + env(safe-area-inset-right))',
+        bottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+      }}
     >
-      <div className="grid grid-cols-5 items-stretch px-2 py-2 min-h-[72px]">
+      {/* Tighter than the pinned bar was: the pill's own 0.75rem gap now does the work the bar's
+          outer padding used to, and 64px still clears the 44px touch floor with room over. */}
+      <div className="grid grid-cols-5 items-stretch px-1.5 py-1.5 min-h-[64px]">
         {PRIMARY.map(item => {
           const active = pathname === item.to;
           return (

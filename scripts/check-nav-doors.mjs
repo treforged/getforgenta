@@ -283,6 +283,95 @@ if (after === '/settings') {
   }
 }
 
+// 7 - THE BOTTOM BAR IS A FLOATING PILL, AND CONTENT CLEARS IT.
+//
+// Tre, 2026-09-16: *"i want the bottom selection of tabs like the liquid glass instagram does.
+// for iphone"* - iOS 26 Instagram's bar is held OFF all the edges, not pinned to the bottom.
+//
+// ⚠️ THE CLEARANCE HALF IS THE ONE THAT SHIPS SILENTLY. The bar used to be pinned and absorb the
+// safe area as padding; it now floats, so the space it occupies is (gap + height) and the layout
+// reserves that separately, in `DashboardLayout`'s `pb-[calc(5.5rem+env(safe-area-inset-bottom))]`.
+// Those two numbers live in different files and nothing makes them agree. If the bar grows past
+// the reserve, the last row of every page hides behind it - and that throws nothing, renders
+// fine, and is invisible to every other gate in this repo. So this MEASURES the gap rather than
+// trusting the arithmetic: scroll a real page to its end and require the lowest text to sit above
+// the bar's top edge.
+//
+// ⚠️ THE BAR IS FOUND BY ITS SHAPE, NEVER BY `rounded-full`. The first version of this block
+// selected `nav[class*="rounded-full"]` - the CORRECTNESS MARKER - so when it was proven red by
+// restoring the old pinned bar, the selector matched nothing and the gate printed
+// "CONTROL FAILED: no bottom tab bar with a pill radius was found". That is the worst possible
+// output: an exit-2 "the instrument is broken" on exactly the day the defect is real, and a
+// tooling fault gets re-run and then ignored where a finding gets fixed. A gate that discovers
+// candidates by the property it is testing for can only ever measure the already-correct.
+// So: the bar is the rendered, fixed-position <nav> in the bottom half of the phone viewport -
+// a description true of the pinned bar and the pill alike - and the pill radius is then an
+// ASSERTION about what was found rather than a condition of finding it.
+await go(phone, '/dashboard');
+// ⚠️ WAIT FOR CONTENT BEFORE MEASURING CLEARANCE, or the control fires on TIMING rather than on
+// anything real. Seen once: a run reached the measurement before the dashboard's cards had
+// rendered, found no text inside `#scroll-main`, and correctly refused to report a clearance -
+// which is the right behaviour and the wrong reason. A control that fires on a slow load teaches
+// the reader to skim past it, which is precisely what a control must never do.
+try {
+  await phone.waitForFunction(() => {
+    const m = document.getElementById('scroll-main');
+    return !!m && (m.innerText || '').trim().length > 80;
+  }, { timeout: 20000 });
+} catch {
+  failures.push('the dashboard rendered no text inside #scroll-main within 20s, so the bar-clearance measurement below had nothing to measure against.');
+}
+const bar = await phone.evaluate(() => {
+  const nav = [...document.querySelectorAll('nav')].find((el) => {
+    const r = el.getBoundingClientRect();
+    return getComputedStyle(el).position === 'fixed'
+      && r.width > 0 && r.height > 0 && r.bottom > innerHeight / 2;
+  });
+  if (!nav) return { found: false };
+  const n = nav.getBoundingClientRect();
+  const main = document.getElementById('scroll-main');
+  if (main) main.scrollTop = main.scrollHeight;
+  return new Promise((resolve) => setTimeout(() => {
+    let lowest = null;
+    for (const el of (main ? main.querySelectorAll('*') : [])) {
+      const b = el.getBoundingClientRect();
+      if (b.width > 8 && b.height > 8 && (el.innerText || '').trim()) {
+        if (!lowest || b.bottom > lowest.bottom) lowest = { bottom: b.bottom, txt: (el.innerText || '').trim().slice(0, 40) };
+      }
+    }
+    resolve({
+      found: true,
+      left: Math.round(n.left), right: Math.round(n.right),
+      top: Math.round(n.top), bottom: Math.round(n.bottom), height: Math.round(n.height),
+      vw: innerWidth, vh: innerHeight,
+      radius: parseFloat(getComputedStyle(nav).borderTopLeftRadius) || 0,
+      lowestBottom: lowest ? Math.round(lowest.bottom) : null,
+      lowestTxt: lowest ? lowest.txt : null,
+      clearance: lowest ? Math.round(n.top - lowest.bottom) : null,
+    });
+  }, 1500));
+});
+if (!bar.found) {
+  failures.push('CONTROL FAILED: no rendered fixed-position <nav> was found in the bottom half of the 390px viewport - the phone has NO bottom tab bar at all, or this selector cannot see it. Nothing below about the bar was measured.');
+} else {
+  note(`tab bar: ${bar.left},${bar.top} -> ${bar.right},${bar.bottom} (${bar.height}px tall) in a ${bar.vw}x${bar.vh} viewport, radius ${Math.round(bar.radius)}px`);
+  note(`lowest content bottom=${bar.lowestBottom} (${JSON.stringify(bar.lowestTxt)}) . clearance to the bar = ${bar.clearance}px`);
+  // FLOATING: held off all three edges. A pinned bar reads left=0, right=vw, bottom=vh.
+  if (bar.left <= 0 || bar.right >= bar.vw || bar.bottom >= bar.vh) {
+    failures.push(`the tab bar is pinned to the viewport edges (left=${bar.left}, right=${bar.right}/${bar.vw}, bottom=${bar.bottom}/${bar.vh}), not floating. Tre asked for the iOS 26 Instagram shape, which is inset from every edge.`);
+  }
+  // PILL: `rounded-full` resolves to a very large radius; a rounded rectangle does not.
+  if (bar.radius < bar.height / 2) {
+    failures.push(`the tab bar's corner radius is ${Math.round(bar.radius)}px against a height of ${bar.height}px. A pill needs at least half its height; this is a rounded rectangle.`);
+  }
+  // CLEARANCE: the assertion that catches the silent one.
+  if (bar.clearance === null) {
+    failures.push('CONTROL FAILED: no rendered text was found inside #scroll-main, so the clearance figure above is not a measurement of anything.');
+  } else if (bar.clearance < 0) {
+    failures.push(`the lowest content on /dashboard (${JSON.stringify(bar.lowestTxt)}) ends ${-bar.clearance}px BELOW the top of the floating tab bar, so it is hidden behind the bar. DashboardLayout's bottom reserve no longer covers (gap + bar height).`);
+  }
+}
+
 // 1 - THE ABSENCES, now that the selector is proven able to find it.
 for (const path of NO_BURGER) {
   if (!(await go(phone, path))) continue;
