@@ -952,15 +952,25 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         {!isDemo && (
           <button onClick={() => setActiveTab('banks')}
             className={`seg-item btn-press ${effectiveTab === 'banks' ? 'seg-item-active' : ''}`}>
-            <Link2 size={13} /> Linked Banks
+            <Link2 size={13} /> <span className="hidden sm:inline">Linked&nbsp;</span>Banks
             {plaidItems.length > 0 && <span className={`seg-badge ${effectiveTab === 'banks' ? 'seg-badge-active' : ''}`}>{plaidItems.length}</span>}
           </button>
         )}
       </PanelBar>
       {embedded && (
-        <div className="flex-1 flex justify-end">
-          <button onClick={() => openAdd()} className="btn btn-md btn-primary font-semibold whitespace-nowrap">
-            <Plus size={14} /> Add Account
+        /* ⚠️ ICON-ONLY ON A PHONE, AND THAT IS WHAT MAKES THE PILL FIT - Tre, 2026-09-16:
+           *"that pill is kind of truncated and it should all show at once without scrolling."*
+           The two-segment track needs 286px; with the full-width button sharing the row it was
+           left 222px and SCROLLED, which is the right behaviour for Debt's five segments and the
+           wrong one here. 286 + 8 + 130 = 424 does not fit in a 390px phone's 358px of content,
+           so one of the two had to give, and the label is the cheaper thing to lose: `+` beside a
+           list is the platform convention and the accessible name is kept. From `sm:` up there is
+           room for both, so the words come back. Do NOT answer this by making the track wrap or by
+           moving the button to its own row - he reported both of those shapes as defects. */
+        <div className="shrink-0 flex justify-end">
+          <button onClick={() => openAdd()} aria-label="Add Account"
+            className="btn btn-md btn-primary font-semibold whitespace-nowrap px-2 sm:px-4">
+            <Plus size={14} /><span className="hidden sm:inline sm:ml-1.5">Add Account</span>
           </button>
         </div>
       )}

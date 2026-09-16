@@ -121,6 +121,39 @@ for (const route of ROUTES) {
       segs: kids.length,
       rows: new Set(boxes.map((b) => Math.round(b.top))).size,
       trackW: Math.round(tr.width),
+      // ⚠️ `trackW` IS THE TRACK'S OWN FITTED BOX, NOT THE ROOM IT HAS. `seg-track` is
+      // `width: fit-content` + `max-w-full`, so on a pill that FITS the box simply equals its
+      // content and `trackW - needed` is a constant of the `needed` formula - it read exactly
+      // 7px of "slack" on two different pills whose content differed by 46px. It only becomes a
+      // real measurement when `max-w-full` CLAMPS it, which is the overflow case. So the space
+      // the pill is competing for is the PARENT's content box, and that is what a fit test has
+      // to use. Measured, not reasoned: shortening a label moved `needed` 286->240 and `trackW`
+      // 293->247, leaving the difference unchanged.
+      // ⚠️ AND THE PARENT'S FULL WIDTH IS NOT IT EITHER. On the Accounts pill the parent is a
+      // flex row the pill SHARES with the "+ Add Account" button, so the parent reads the full
+      // 363px while the pill is competing for what the button leaves. The room is the parent's
+      // box minus every SIBLING that draws one, minus the gaps. That is the number that moved
+      // when the button went icon-only, and it is the only one of the three that did.
+      availW: (() => {
+        const p = t.parentElement;
+        if (!p) return null;
+        const cs = getComputedStyle(p);
+        const pw = p.getBoundingClientRect().width;
+        // ⚠️ ONLY SUBTRACT SIBLINGS WHEN THEY ACTUALLY SHARE THE ROW. In a plain block parent the
+        // "siblings" are the page's other sections stacked BELOW the pill, and subtracting them
+        // produced -363px of room on five routes. Measured, and it is the reason this guard
+        // exists rather than a tidier-looking formula.
+        if (cs.display !== 'flex' || cs.flexDirection.startsWith('column')) return Math.round(pw);
+        const gap = parseFloat(cs.columnGap) || 0;
+        let taken = 0;
+        let drawn = 0;
+        for (const sib of p.children) {
+          if (sib === t) { drawn += 1; continue; }
+          const w = sib.getBoundingClientRect().width;
+          if (w > 0) { taken += w; drawn += 1; }
+        }
+        return Math.round(pw - taken - gap * Math.max(0, drawn - 1));
+      })(),
       needed: Math.round(boxes.reduce((a, b) => a + b.width, 0) + 4 * kids.length),
       labels: kids.map((k) => (k.innerText || '').replace(/\s+/g, ' ').trim()).join(' | '),
       hasActive: !!active,
@@ -131,9 +164,27 @@ for (const route of ROUTES) {
   for (const t of tracks) {
     tracksSeen += 1;
     if (t.needed > t.trackW) overflowingSeen += 1;
-    console.log(`${route.padEnd(13)} ${t.segs} segs, ${t.rows} row(s), needs ${t.needed}px in ${t.trackW}px  [${t.labels}]`);
+    console.log(`${route.padEnd(13)} ${t.segs} segs, ${t.rows} row(s), needs ${t.needed}px, box ${t.trackW}px, row offers ${t.availW}px  [${t.labels}]`);
     if (t.rows > 1) {
       failures.push(`${route}: the pill wraps onto ${t.rows} rows (${t.segs} segments needing ${t.needed}px in ${t.trackW}px). A pill is one row - when it does not fit it must SCROLL. Segments: ${t.labels}`);
+    }
+    // ⚠️ A SMALL PILL MUST *FIT*, NOT SCROLL - Tre, 2026-09-16, with a screenshot of the
+    // Accounts tab: *"that pill is kind of truncated and it should all show at once without
+    // scrolling."* Scrolling is the RIGHT answer for Debt's five segments and the WRONG one for
+    // a two-segment pill, so this does not undo the nowrap work above - it draws the line.
+    // Scoped to <= 2 segments on purpose: /account has THREE needing 364px in 363px, over by one
+    // pixel, which is the same family but a different surface and a different label decision. It
+    // is recorded in handoff.md rather than swept in here, because a gate that also demands a
+    // label change nobody has agreed to is a gate somebody switches off.
+    if (t.segs <= 2 && t.needed > t.trackW) {
+      failures.push(`${route}: a ${t.segs}-segment pill SCROLLS - it needs ${t.needed}px and has ${t.trackW}px, so part of it is cut off. A pill this small must show all of itself at once; take the width back from whatever shares its row. Segments: ${t.labels}`);
+    } else if (t.segs <= 2 && t.availW !== null && t.availW - t.needed < 20) {
+      // Not a failure: it fits today. But the count badge is DATA - the walk account carries 5
+      // accounts where Tre carries 16, and a second digit is about 6px - so a pass with a few
+      // pixels in hand is a pass that fails on his phone. Printed rather than thrown, because
+      // where to draw that line is a judgement and a gate that is wrong on ordinary work is the
+      // one somebody switches off. Measured against the PARENT's width for the reason above.
+      console.log(`${' '.repeat(13)} TIGHT: ${t.availW - t.needed}px of room in its row - a two-digit count badge would eat most of that.`);
     }
     if (t.hasActive && t.activeVisible === false) {
       failures.push(`${route}: the SELECTED segment ${JSON.stringify(t.activeLabel)} is scrolled outside its own track, and there is no scrollbar to hint it exists. PanelBar's scroll-into-view is what makes flex-nowrap safe; without it this is worse than the wrap it replaced.`);
