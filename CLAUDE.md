@@ -98,6 +98,27 @@ section states reasoning, not measurement, and says so.
   ROLE, never by a hand-written label list. Proven red twice — both handlers setting the
   same state, and both branches resolving to the same view with aria still correct, which
   is the forged-glass dead-tab shape that throws nothing and passes every smoke test.
+- `npm run check:topright` — an INVENTORY, not a pass/fail gate, of how much of each tab's top-right
+  is empty, at 390x844 and 1440x900, signed in. Answers the "big blank spaces" class of complaint by
+  measurement instead of by opening whichever screen was reported.
+  ⚠️ **READ `onRow` BEFORE `rightGap`, OR EVERY OUTLIER LOOKS LIKE A TO-DO.** A large gap beside
+  an EMPTY title row (`onRow 0`) is usually deliberate: the Command Center stacks its four buttons
+  BELOW the title on a phone because **Tre asked for that on 2026-08-19**, after a `flex-row` at
+  390px drew them on top of the title. Acting on that 270px would have restored the bug he reported.
+  `colPx` exposes the other artefact — a `max-w-2xl mx-auto` page reports the CENTRING MARGIN, which
+  is how desktop `/account` and `/settings` read a confident 306px of waste they do not have.
+  ⚠️ **AND THE LESSON THAT GENERALISES PAST THIS FILE: A RED CONTROL PROVES DISCRIMINATION, NOT
+  STABILITY.** This gate was proven red both ways and was still lying — `/dashboard` read 14px on one
+  run and 270px on the next with no code change. A red-proof says the instrument CAN see the defect;
+  it says nothing about whether the page had finished settling when it looked. Every route is now
+  read TWICE and a disagreement prints **UNSTABLE** rather than being averaged, because averaging two
+  readings of a flaky instrument manufactures a number nobody measured. It took TEN instrument faults
+  and nine refused runs before any number from it was evidence; the faults are logged in `handoff.md`
+  because each is a way a rendered-geometry probe can lie while looking healthy.
+  **It does not cover:** colour, spacing, the look of the pill (that is `check:panel-rows`), whether
+  a header's buttons are the RIGHT buttons, anything below the header, and it corrects for neither
+  the centring artefact nor the 2-3 desktop routes that still drop out of a run — **a missing row
+  means "not measured", never "clean".**
 - `npm run check:nav` — walks the nav IA at 390x844 and 1440x900, SIGNED IN. Asserts the
   hamburger is absent on the four tab routes and present on Account; that it is **TAPPABLE**
   (`elementFromPoint` at its own centre, because `viewport-fit=cover` once put it under the
