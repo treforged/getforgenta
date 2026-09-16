@@ -5094,9 +5094,23 @@ carries BOTH `2efe2cf1` (the pill) and `aaf33b9e` (phantom income).
   expands (positive control), a point inside it is painted by the RAIL, and every
   panel pill shares one centre. Proven RED both ways with the REAL defects.
 
-**STILL OPEN AND NOT FIXED:** `/account` is 3 segments needing 364px in 363px at
-390px - the same family as the pill, over by ONE pixel, deliberately left out of
-the gate because closing it means renaming a label nobody has agreed to.
+**AND `/account` IS NOW FIXED TOO - `02155cee`, on origin 0/0.** It was 3 segments
+needing 364px in 363px, over by ONE pixel. **Fixed in the UTILITY, not the label:**
+`seg-item` drops `px-3.5` to `px-3` below `sm`, 4px per segment. Shortening
+"Forgenta AI" would have been worse twice - the label is what a person reads, and
+`check:account` asserts that exact string to prove a lazy chunk MOUNTED, so a
+rename would have traded a cosmetic defect for a blind gate.
+Every pill at 390px after: /account 351 in 363, /accounts 311 in 319 and 231 in
+322. **Debt (708) and Settings (417) still overflow and still scroll** - they
+cannot fit any phone, and they remain the gate's overflow positive control.
+The must-fit bar went from 2 segments to 3, **and only after the 3-segment case
+actually fit** - it was scoped to 2 earlier the same evening precisely because
+/account did not, since a gate demanding a fix nobody has made is one somebody
+switches off. Proven red with the real pre-fix padding.
+⚠️ **NOT DISPATCHED TO iOS, DELIBERATELY.** This is cosmetic and 862 went up
+about half an hour earlier carrying the money fix. Three uploads today is well
+inside Apple's cap (this repo once did eleven), but a fourth for a one-pixel
+change is not worth the slot - it rides the next build.
 
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
