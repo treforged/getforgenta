@@ -58,11 +58,22 @@ whether the approach survives contact at all.
 ```bash
 git clone https://github.com/treforged/getforgenta.git && cd getforgenta
 npm i
-# .env.local is NOT in the repo (gitignored). Copy it from the Windows desk, or the app
-# builds and runs signed out and nothing below can be exercised on a real screen.
 npm run build && npx cap sync ios
 open ios/App/App.xcodeproj       # the .xcodeproj — see the warning below
 ```
+
+Then in the running app, open **`/demo`**. That is the whole of the data setup.
+
+✅ **DO NOT COPY `.env.local` ONTO A BORROWED MACHINE. IT IS NOT NEEDED AND IT SHOULD NOT BE
+THERE.** An earlier draft of this file told you to, which was wrong twice over: it puts Tre's
+Supabase keys on somebody else's laptop, and it is not necessary, because **`/demo` needs no
+credentials and renders the same chrome.** Measured 2026-09-16 at 390x844 with an empty browser
+profile and no session in `localStorage`: the floating pill comes up at the identical rect
+(14,759, 363x71) with the identical radius and all five labels. **Every measurement below happens
+on chrome, and the chrome does not care who is signed in.**
+
+(If the app later needs real signed-in data for some other question, that is a reason to bring the
+question back to the Windows desk — not a reason to carry keys to a borrowed Mac.)
 
 Scheme: **App**.
 
