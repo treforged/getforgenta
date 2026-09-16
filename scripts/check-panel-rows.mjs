@@ -172,13 +172,16 @@ for (const route of ROUTES) {
     // Accounts tab: *"that pill is kind of truncated and it should all show at once without
     // scrolling."* Scrolling is the RIGHT answer for Debt's five segments and the WRONG one for
     // a two-segment pill, so this does not undo the nowrap work above - it draws the line.
-    // Scoped to <= 2 segments on purpose: /account has THREE needing 364px in 363px, over by one
-    // pixel, which is the same family but a different surface and a different label decision. It
-    // is recorded in handoff.md rather than swept in here, because a gate that also demands a
-    // label change nobody has agreed to is a gate somebody switches off.
-    if (t.segs <= 2 && t.needed > t.trackW) {
+    // ⚠️ RAISED FROM 2 TO 3 ONLY AFTER THE THREE-SEGMENT CASE ACTUALLY FIT. It was scoped to 2
+    // while /account needed 364px in 363px - over by one pixel - because a gate that demands a
+    // fix nobody has made is a gate somebody switches off. Trimming `seg-item` to `px-3` below
+    // `sm` took it to 351px, so the bar can now be where it belongs. Four and five segments are
+    // still allowed to scroll (Settings 417px, Debt 708px): a pill that cannot fit any phone
+    // must scroll, and those two are also the positive control for the overflow path below.
+    const MUST_FIT_UP_TO = 3;
+    if (t.segs <= MUST_FIT_UP_TO && t.needed > t.trackW) {
       failures.push(`${route}: a ${t.segs}-segment pill SCROLLS - it needs ${t.needed}px and has ${t.trackW}px, so part of it is cut off. A pill this small must show all of itself at once; take the width back from whatever shares its row. Segments: ${t.labels}`);
-    } else if (t.segs <= 2 && t.availW !== null && t.availW - t.needed < 20) {
+    } else if (t.segs <= MUST_FIT_UP_TO && t.availW !== null && t.availW - t.needed < 20) {
       // Not a failure: it fits today. But the count badge is DATA - the walk account carries 5
       // accounts where Tre carries 16, and a second digit is about 6px - so a pass with a few
       // pixels in hand is a pass that fails on his phone. Printed rather than thrown, because

@@ -373,7 +373,16 @@
 }
 
 @utility seg-item {
-  @apply flex shrink-0 items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap;
+  /* ⚠️ 2px LESS PADDING BELOW `sm`, AND IT IS THE LAST INSTANCE OF A DEFECT TRE REPORTED.
+     A three-segment pill (/account: Profile | Leaderboard | Forgenta AI) needed 364px in 363px
+     at 390px - over by ONE pixel, so it clipped and scrolled imperceptibly. Fixed here rather
+     than by shortening a label, because the label is the thing a person reads and the padding
+     is not; `check:account` also asserts the string "Forgenta AI" to prove a lazy chunk
+     mounted, so renaming it would have traded a cosmetic defect for a blind gate.
+     Applied to the UTILITY so every pill in the app gains the same 4px per segment - there is
+     one definition of a segment and this keeps it that way. The pills that legitimately
+     overflow (Debt needs 730px, Settings 435px) still overflow and still scroll. */
+  @apply flex shrink-0 items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-medium whitespace-nowrap;
   @apply text-muted-foreground transition-colors duration-150;
   @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60;
   @apply hover:text-foreground;
