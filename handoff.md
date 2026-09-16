@@ -94,6 +94,37 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
 
 ### RESUME QUEUE - START AT ITEM 1
 
+0. [ ] 🚨 **MONEY CORRECTNESS - A TRANSFER TO HIS OWN LINKED ACCOUNT IS BOOKED AS SPENDING.**
+   Tre, 2026-09-16: *"i was suggested a rule for $25 coming out of my check to my fidelity
+   account. even though my fidelity is link it made the rule into a variable expense and not a
+   transfer like it should have. it's not tracking money moving out from one account to another."*
+   Ask `a0dc44ba`. **DIAGNOSED IN FULL - do not re-derive it, and do NOT treat it as a label
+   bug: the rule really is created as an expense.** The chain, each link with evidence:
+   1. `src/lib/rules-from-history.ts` groups charges by `merchantKey|account_id|direction` and
+      has **no concept of transfers or owned accounts** - grepping that file for
+      transfer/internal/counterparty returns nothing relevant.
+   2. It takes its category from `suggestCategory(recent.category)` (line 334).
+   3. `src/lib/plaid-category-map.ts:62-73` maps `TRANSFER_IN`, `TRANSFER_OUT` and `TRANSFER`
+      to **`'Other'`** - an app EXPENSE category - with an honest comment that a transfer's
+      meaning "lives entirely in the counterparty".
+   4. `src/lib/pay-schedule.ts:1446` derives `isTransfer` from
+      `rule_type === 'transfer' || 'investment'`. The suggestion never sets `rule_type`, so
+      `isTransfer` is false and `src/lib/monthly-expense-model.ts:146` counts it in `living`.
+   **CONSEQUENCE, and it is why this outranks any layout work:** inflated expenses, understated
+   savings rate, and wrong inputs to the forecast engine and the cash floor. Every money page.
+   ✅ **THE PART THAT ALREADY EXISTS - REUSE IT, DO NOT REBUILD:**
+   `detectTransferPairs(synced, accounts)` + `indexPairsByLeg` already pair a debit in one
+   linked account against the credit in another (`BankActivity.tsx:317-320`), and
+   `DecisionDeck.tsx:464` already consumes it as `isTransferLeg`. **The suggestion path simply
+   never consults it - which is exactly why his Fidelity being LINKED changed nothing.**
+   **THE FIX:** when a charge is a transfer leg to an account the user owns, propose
+   `rule_type: 'transfer'` (or `'investment'` for a brokerage) instead of a variable expense.
+   ⚠️ **MONEY MATH: highest effort, adversarial verification, and the test must assert a NUMBER**
+   (that `living` spending FALLS by the transfer amount), never just that a label changed. A
+   green test over a renamed field would leave the forecast exactly as wrong as it is now.
+
+
+
 1. [x] **DONE - THE NAV IS WALKED IN A REAL BROWSER.** `5e6d779a`, `npm run check:nav`
    (`scripts/check-nav-doors.mjs`). Every assertion in the old item passed, measured: hamburger
    absent on Home/Transactions/Debt/Garage, present and TAPPABLE on Account (44x44 at 337,5,
@@ -4638,7 +4669,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 15:13 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 16:25 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4653,14 +4684,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+88eb3ece [handoff]: Tre has updated, but WHICH build is unsettled - and 849 carries none of today's work
+7af4dc44 [handoff]: auto-snapshot refresh
+97d518aa [docs]: the borrowed Mac needs no credentials - /demo renders the same chrome
 0de115fa [handoff]: iOS 854 is in TestFlight - verified at the STEP and at altool's own words, not at the run
 e7a574ac [docs]: name check:nav in the gate list, and record that Claude-in-Chrome cannot set a phone viewport
 71d20091 [docs]: a runbook for the borrowed MacBook, so that session measures instead of installs
 cb4d9366 [handoff]: the nav is walked and the glass pill shipped - next is the iOS upload STEP, not the run
 936c3cf8 [nav]: the phone tab bar is a floating liquid-glass pill now, not a bar stuck to the edge
-5e6d779a [nav]: the new nav IA is walked in a real browser now - nothing had pressed it
-368fec87 [handoff]: nav IA changed and is NOT yet walked - that is item 1
-4d6bc32b [nav]: Settings had three doors on a phone - now it has one, and Sign Out lives in it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
