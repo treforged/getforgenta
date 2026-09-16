@@ -125,6 +125,20 @@ section states reasoning, not measurement, and says so.
   report the run and say plainly that an upload is not an install - he still has to update. The
   three facts stay separate: on origin, on a build, on his device.
 
+  🚨 **AND THE RUN READS `success` WHILE THE UPLOAD IS `skipped`. THIS IS THE HALF THAT ACTUALLY
+  BITES, AND IT CAUGHT A SECOND DESK THE SAME HOUR.** A skipped step does not fail a workflow, so
+  a push run ends GREEN, carries a real VERSION_CODE in its log, and has sent nothing anywhere.
+  Every signal says shipped. On 2026-09-16 Sam read iOS **848** out of run `35109958012` - green,
+  real number - and was about to tell Tre to install it. Step 20 `Upload to App Store Connect`
+  reads **skipped**, because the event was `push`. There was nothing in TestFlight to open.
+  **This is `Start-ScheduledTask` succeeding while nothing runs, one domain over.**
+
+      gh run view <id> --json jobs   # then read the UPLOAD step's own conclusion
+
+  **NEVER report a build number from a run's conclusion. Read the UPLOAD STEP'S conclusion and
+  require `success`, never `skipped`.** A build number is evidence that a binary was COMPILED; only
+  that step says it left the machine.
+
 - **SWIFT COMPILES ON A RUNNER, SO "NO LOCAL XCODE" NEVER MEANT "NO GATE."** Measured
   2026-09-15. `.github/workflows/ios-build.yml` runs `xcodebuild archive` + `-exportArchive` on
   `macos-latest` **on every push to main touching `src/**` or `ios/**`**, and
