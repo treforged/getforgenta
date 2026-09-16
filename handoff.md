@@ -4981,7 +4981,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 17:55 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 18:12 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4996,14 +4996,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+8193e3a9 [handoff]: iOS 859 uploaded and verified through all three gates
+aaf33b9e [money]: one movement is one rule - a card autopay was proposing $941 a month of phantom income
+8609ce26 [handoff]: iOS dispatched (run 35155768885) so 845db7ee finally reaches his phone
+faa0aa86 [design]: the blank-space answer is a NEGATIVE result, and I nearly acted on four false positives
 5a81805b [design]: check:topright measures twice and requires agreement - the red control could not catch flakiness
 dcb9caa7 [design]: check:topright - an inventory of every tab's empty top-right, and it is proven red
 c677524c [handoff]: two more probe faults fixed; the last one is in the metric, and I had asserted it was not
 abca93c0 [handoff]: probe faults 6 and 7 fixed; the last one is in the PLANT, not the metric
-cbd650fb [handoff]: probe faults 4 and 5 fixed, 18/18 headers found - and headerPx is now saturated
-bcf33fbf [handoff]: probe fault 3 fixed, and fixing it exposed two more
-92634296 [handoff]: the blank-space probe is parked, not shipped - it is still lying
-219e6faa [handoff]: item 0 shipped; the iOS push diagnosis on file is refuted by the build running the fix
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
