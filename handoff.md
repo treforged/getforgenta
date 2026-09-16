@@ -5019,35 +5019,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 
 </details>
 
-<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
-## Auto-snapshot
 
-_Written 2026-09-16 18:12 by handoff_hook. Everything below this heading is
-machine-generated and replaced each time; put durable notes above it._
-
-- **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
-
-- **Uncommitted (1 file(s)):**
-
-```
-?? scripts/handoff.md
-```
-
-- **Recent commits:**
-
-```
-8193e3a9 [handoff]: iOS 859 uploaded and verified through all three gates
-aaf33b9e [money]: one movement is one rule - a card autopay was proposing $941 a month of phantom income
-8609ce26 [handoff]: iOS dispatched (run 35155768885) so 845db7ee finally reaches his phone
-faa0aa86 [design]: the blank-space answer is a NEGATIVE result, and I nearly acted on four false positives
-5a81805b [design]: check:topright measures twice and requires agreement - the red control could not catch flakiness
-dcb9caa7 [design]: check:topright - an inventory of every tab's empty top-right, and it is proven red
-c677524c [handoff]: two more probe faults fixed; the last one is in the metric, and I had asserted it was not
-abca93c0 [handoff]: probe faults 6 and 7 fixed; the last one is in the PLANT, not the metric
-```
-
-<!-- AUTO-SNAPSHOT:END -->
 
 
 ## 2026-09-16, LATE - Ada [ffdc831d], the dispatched successor
@@ -5088,7 +5060,70 @@ See the commit body. Two things worth carrying forward:
   label decision nobody has agreed to, and a gate that also demands that is a gate
   somebody switches off.
 
-**RESUME ITEM 3 unchanged:** `aaf33b9e` (phantom income) is in NO build. It is now
-joined by `2efe2cf1`. **Neither is on his phone**; both need a hand-dispatched iOS
-run, and three uploads already went out today (849, 854, 859) against Apple's daily
-cap. Next dispatch carries both.
+**RESUME ITEM 3 - DISPATCHED AND VERIFIED IN TESTFLIGHT AS iOS 862.**
+⚠️ **THE "THREE UPLOADS TODAY" PREMISE WAS WRONG AND I NEARLY MADE HIM WAIT A DAY
+ON IT.** The brief, my first note and Sam all said three uploads had gone out
+against Apple's daily cap. **Measured: TWO.** `gh run list` shows twelve iOS runs
+today and exactly **two `workflow_dispatch`** ones (35138359218, 35155768885);
+the other ten are `push` events, and **a push build never uploads** - its step 20
+is skipped by design. So a count of BUILDS was being read as a count of UPLOADS,
+which is the same trap as reading a run's conclusion for its upload step's.
+Dispatched run **35162714977**, run_number 762 -> **iOS build 862**, head
+`569c1209`. Verified the way this repo requires: step 20 conclusion **success**
+(never `skipped`), **one** `UPLOAD SUCCEEDED with no errors`, and **zero** `90382`
+outside the echoed script source. `git merge-base --is-ancestor` confirms it
+carries BOTH `2efe2cf1` (the pill) and `aaf33b9e` (phantom income).
+**An upload is not an install** - he still has to update.
+
+**NEW, SAME EVENING - TWO DESKTOP DEFECTS FROM ONE SCREENSHOT, both fixed in
+`5e09af70`, on origin 0/0.**
+* ⚠️ **THE RAIL POP-OUT PAINTED BEHIND THE PAGE, AND THE CLASS LIST WAS ALREADY
+  CORRECT.** The rail carries `z-40`. `position: sticky` creates a stacking
+  context even at `z-index: auto`, so that z-40 only ranked the rail INSIDE its
+  `<aside>`; in the root stacking context the aside sat at level 0 against
+  `.card-forged`, which is ALSO level-0 because it carries a `backdrop-filter`,
+  and between two level-0 contexts DOM ORDER decides. **No z-index read can find
+  this** - `elementFromPoint` 12px inside the expanded rail returned a `<p>` from
+  an account card. Fixed on the ASIDE, below the z-50 modals.
+* ⚠️ **AND I CAUSED THE SECOND ONE 40 MINUTES EARLIER.** `2efe2cf1` made the
+  "+ Add Account" side `shrink-0` to stop it stealing width on a phone. That side
+  is also the pill's right-hand counterweight, so **the group shifted 344px right
+  on desktop** - measured. Now `shrink-0 sm:flex-1`. **A fix measured at one
+  breakpoint is not a fix**, and the phone gate could not see it.
+* **NEW GATE `npm run check:desktop-rail`** (1440x900, signed in): the pop-out
+  expands (positive control), a point inside it is painted by the RAIL, and every
+  panel pill shares one centre. Proven RED both ways with the REAL defects.
+
+**STILL OPEN AND NOT FIXED:** `/account` is 3 segments needing 364px in 363px at
+390px - the same family as the pill, over by ONE pixel, deliberately left out of
+the gate because closing it means renaming a label nobody has agreed to.
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-16 18:38 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (1 file(s)):**
+
+```
+?? scripts/handoff.md
+```
+
+- **Recent commits:**
+
+```
+569c1209 [handoff]: the net= reading is unmeasured for a new reason, and the pill fits
+2efe2cf1 [accounts]: the Balances/Banks pill fits at 390px instead of scrolling
+ba43bb37 [handoff]: two new asks from Tre at 18:22 - the net= reading and the truncated Balances pill
+2102ae43 [handoff]: auto-snapshot refresh
+f72653d1 [docs]: name check:topright in the gate list, with the two ways it misleads
+8193e3a9 [handoff]: iOS 859 uploaded and verified through all three gates
+aaf33b9e [money]: one movement is one rule - a card autopay was proposing $941 a month of phantom income
+8609ce26 [handoff]: iOS dispatched (run 35155768885) so 845db7ee finally reaches his phone
+```
+
+<!-- AUTO-SNAPSHOT:END -->

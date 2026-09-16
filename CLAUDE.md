@@ -85,6 +85,18 @@ section states reasoning, not measurement, and says so.
   full: every other assertion is an absence, and deleting a label satisfies all of them.
   Proven red by the real shipped defect ("FORGENTA" ending at 139px in a 72px rail;
   "Sign Out" on 2 lines) at both widths.
+- `npm run check:desktop-rail` — at 1440x900, signed in: the desktop rail's POP-OUT paints OVER
+  the page, and every panel pill on the screen shares one centre. ⚠️ **A z-INDEX READ CANNOT
+  ANSWER THE FIRST HALF**, which is why it measures a painted pixel with `elementFromPoint`: the
+  rail already carried `z-40` and still lost, because `position: sticky` creates a stacking
+  context at `z-index: auto`, so that z-40 only ranked it INSIDE its `<aside>` — and in the root
+  context the aside sat at level 0 against `.card-forged`, itself level-0 via `backdrop-filter`,
+  where DOM order decides. Its positive control HOVERS and requires the rail to widen: without
+  that, "the rail is on top" is a claim about a 72px strip nothing overlaps. The centring half
+  exists because a phone fix (`shrink-0` on the button sharing the pill's row) shifted the group
+  344px right on desktop — **a fix measured at one breakpoint is not a fix.** Proven red both
+  ways with the real shipped defects. Does NOT cover colour, spacing, phone widths, other routes,
+  or whether a modal still covers the rail.
 - `npm run check:glass` — proves the app's glass chrome is REALLY translucent, by
   screenshotting a pinned bar's own box before and after scrolling content underneath it
   and requiring the pixels to change. A painted fill and real `backdrop-filter` are
