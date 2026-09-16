@@ -98,6 +98,35 @@ section states reasoning, not measurement, and says so.
   ROLE, never by a hand-written label list. Proven red twice — both handlers setting the
   same state, and both branches resolving to the same view with aria still correct, which
   is the forged-glass dead-tab shape that throws nothing and passes every smoke test.
+- **SWIFT COMPILES ON A RUNNER, SO "NO LOCAL XCODE" NEVER MEANT "NO GATE."** Measured
+  2026-09-15. `.github/workflows/ios-build.yml` runs `xcodebuild archive` + `-exportArchive` on
+  `macos-latest` **on every push to main touching `src/**` or `ios/**`**, and
+  `.github/workflows/codeql-ios.yml` runs a second, unsigned simulator build. Either one is a
+  red/green gate for Swift.
+  ⚠️ **AND THE UPLOAD STEP IS `skipped` BY DESIGN, so a push does NOT spend a TestFlight build** -
+  the workflow's own comment says it: build on every push, ship on purpose via `workflow_dispatch`
+  or a `v*` tag. So the compile gate is free and needs no branch dance.
+  **What it does NOT buy, and say so rather than letting it be assumed:** no simulator and no
+  interactive loop - each compile is a CI round-trip of minutes, so batch changes - and **no
+  device**, so SEEING anything still needs a build on Tre's phone (`VERSION_CODE = run_number + 100`).
+  ⚠️ **DO NOT GREP THAT LOG FOR A FILENAME TO PROVE A FILE COMPILED.** It carries no per-file Swift
+  lines for the App target: `GlassEffectPlugin.swift` scores 0 and **so do `AppDelegate.swift` and
+  `ViewController.swift`**, which indisputably compiled. The honest evidence is the `Build IPA` step
+  succeeding plus the file being in the Sources build phase - which
+  `native-glass-bridge.gate.test.ts` asserts, because a Swift file outside that phase compiles
+  nowhere and fails on a device as "not implemented on ios".
+- `npx vitest run src/lib/__tests__/native-glass-bridge.gate.test.ts` — the three strings that join
+  a Capacitor bridge (`jsName` <-> `registerPlugin('…')`, each `CAPPluginMethod` <-> the TS
+  interface, and target membership in project.pbxproj), all DERIVED from the files. Four positive
+  controls run first: two empty sides agree perfectly, so a broken regex would report a healthy
+  bridge. It does NOT prove the bridge round-trips; only a device does.
+- ⚠️ **BROWSERSLIST IS NOT THIS APP'S SUPPORT FLOOR.** There is no `browserslist` field, so the
+  default query resolves to `ios_saf 18.5+`, while `IPHONEOS_DEPLOYMENT_TARGET` is **15.0**. A
+  Capacitor app runs in the system WKWebView, so the installed base is three major iOS versions
+  older than anything browserslist names, and no local gate looks at that gap. It cost PDF import:
+  pdfjs-dist calls `Promise.try` (V8 12.9 / Safari 18.2), which threw on every iOS below 18.2 —
+  fixed by `src/lib/promise-try-polyfill.ts`. **Before using a newish built-in, check it against
+  the deployment target, not against browserslist.**
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER

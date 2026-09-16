@@ -1,5 +1,78 @@
 # handoff.md — FIRST UP NEXT TIME
 
+## FIRST UP - 2026-09-15 (Ada, NINTH session). THE XCODE BLOCK IS DEAD AND MAIN IS GREEN AGAIN.
+
+`24fa97cb` the bridge · `f8b0ff8f` the PDF fix. Both on origin/main 0/0 BY CONTENTS.
+**FIRST UP NEXT TIME: resume queue item 2 - the native glass material itself.** Item 1 is done.
+
+### THE ANSWER TO "YOU CAN FIND A WAY AROUND XCODE", AND IT CORRECTS SAM'S FRAMING
+`.github/workflows/ios-build.yml` runs `xcodebuild archive` on `macos-latest` **on every push to
+main touching `src/**` or `ios/**`**, and **its upload step is `skipped` by design** - the
+workflow's own comment says build on every push, ship on purpose (`workflow_dispatch` or a `v*`
+tag). So:
+* **The Swift compile gate is FREE and automatic.** No branch dance, no `workflow_dispatch`.
+* **Sam's constraint "do not spend a TestFlight build on a compile check" enforces itself here.**
+  It was worth checking rather than routing around.
+* **Measured green twice:** `Build IPA` + `Export IPA` succeeded on both commits.
+⚠️ **DO NOT GREP THAT LOG FOR A FILENAME TO PROVE A FILE COMPILED.** I did, got 0 for
+`GlassEffectPlugin.swift`, and nearly reported the file as not built. The control settles it:
+`AppDelegate.swift` and `ViewController.swift` score **0 too**, and they indisputably compiled. The
+log carries no per-file Swift lines for the App target. Honest evidence = the `Build IPA` step
+succeeding + the file being in the Sources build phase, which the gate asserts.
+
+### 1. THE BRIDGE SMOKE TEST IS IN AND IT HAS NO GLASS IN IT, `24fa97cb`
+`GlassEffectPlugin.isSupported` resolves `{ supported, iosVersion, echo }`. `echo` is the
+round-trip proof. `src/lib/native-glass.ts` is the shim with a non-throwing web fallback.
+`native-glass-bridge.gate.test.ts` DERIVES both sides and asserts the three strings that join a
+Capacitor bridge, plus target membership in project.pbxproj. Four positive controls run FIRST
+because two empty sides agree perfectly. **Proven red 5 ways, every restore byte-exact.**
+⚠️ **IT DOES NOT PROVE THE BRIDGE ROUND-TRIPS. Only a device does.** The gate proves the
+couplings; the runner proves the Swift compiles; neither is a phone. Nothing has called
+`isSupported` on real hardware, and **no build has been shipped**, so that remains OPEN.
+
+### 2. MAIN WAS ALREADY RED WHEN I ARRIVED, AND THE CAUSE WAS A REAL USER BUG, `f8b0ff8f`
+CI Tests was failing on `ea3e2d5d`, `ed860719`, `d770a499` - **two sessions closed out reporting
+`test:tz` green without noticing.** Five failures, all `Promise.try is not a function` from
+pdfjs-dist, because CI is Node 22 and this desk is Node 24.
+⚠️ **THE USER-FACING HALF IS THE REAL ONE.** `Promise.try` is V8 12.9 / Safari 18.2.
+`IPHONEOS_DEPLOYMENT_TARGET` is **15.0**, and a Capacitor app uses the system WKWebView - so PDF
+import, shipped four days ago, threw on **every iOS below 18.2**.
+⚠️ **BROWSERSLIST IS NOT THIS APP'S SUPPORT FLOOR** and that is why nothing caught it: no
+`browserslist` field, so the default resolves to `ios_saf 18.5+` - every target it names already
+has the method. **Before using a newish built-in, check the deployment target, not browserslist.**
+Fixed by `src/lib/promise-try-polyfill.ts`, installed lazily inside `extractPdfText` so it stays
+inside that file's deliberate dynamic-import trade. **Proven against the REAL failure**: with
+`Promise.try` deleted process-wide, the real `pdf-text.test.ts` reads 6 passed with the call and
+**5 failed | 1 passed without it - identical to CI's five.** CI now: `f8b0ff8f success`,
+`24fa97cb failure`.
+
+### 3. THE CSS PANEL IDENTITY WAS ALREADY SHIPPED - I DID NOT REBUILD IT
+Sam's brief carried "App panels should get the glass identity also" as an outstanding decision. It
+is **`cdede2f0`, on origin/main, `--panel-glass` 6 occurrences in `src/index.css`**, verified by
+contents before starting. The grep-before-you-BUILD rule earning its keep.
+
+### RESUME QUEUE - START AT ITEM 1
+
+1. [x] **DONE - the bridge compiles and its couplings are gated.** `24fa97cb`.
+2. [ ] **THE NATIVE MATERIAL ITSELF.** `UIVisualEffectView` / `UIGlassEffect` behind
+   `#available(iOS 26.0, *)`, added as a SIBLING of the WebView. **The expensive part is already
+   named and has not got cheaper:** every glass surface needs its frame computed in JS and
+   re-pushed on every scroll, resize, rotation and keyboard event. Start with ONE surface, not a
+   system. CSS stays the fallback and must keep working.
+   ⚠️ **AND READ `CLAUDE.md`'s "NATIVE iOS MATERIAL IS A FORK" NOTE BEFORE BUILDING** - a native
+   view BELOW the WebView blurs the native background and sees no app content; ABOVE it samples
+   correctly but covers that surface's own web-rendered icons and figures. The architecture that
+   works needs a SECOND transparent WKWebView for chrome content. **That is analysis, not
+   measurement**, and the bridge now existing does not settle it.
+3. [ ] **NOTHING HAS RUN ON A DEVICE.** When the material is worth looking at, ship deliberately
+   (`workflow_dispatch` or a `v*` tag) and report the BUILD NUMBER - `VERSION_CODE = run_number +
+   100`. A mobile fix is not delivered until a build carries it.
+4. [ ] **NOT MINE, ROUTED TO SAM:** an untriaged ask "Read scripts/daily-check-prompt.md and follow
+   it exactly" landed in this desk's queue. That file exists only in `trading/` - it is **Wes's**.
+   Left UNTRIAGED deliberately rather than cleared: clearing it here is how a request silently
+   disappears when both desks assume the other has it.
+
+
 ## FIRST UP - 2026-09-15 (Ada, EIGHTH session). THE BOUNCE REMOVAL IS VERIFIED IN A BROWSER.
 
 `1323450a`, on origin/main 0/0 BY CONTENTS. `npm run check:onboarding-stay` is the new gate.
@@ -4410,7 +4483,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 17:25 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 17:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4427,14 +4500,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+ea3e2d5d [handoff]: the bounce removal is verified in a browser, and this desk closes out with an empty queue
+1323450a [onboarding]: the bounce removal is verified in a browser, and the tested rule had no caller
 ed860719 [handoff]: the backslash warning contained a literal backspace byte - the bug it warns about
 ea862c5c [handoff]: the bounce is removed and the reddit-scout exposure is closed
 d779ea9d [onboarding]: remove the display_name bounce - signing up with your name was skipping setup entirely
 d770a499 [handoff]: 0d9f8fae closed - extractPdfText has real coverage and the blocker was wrong twice
 37648c64 [pdf]: extractPdfText gets real coverage - the blocker said no harness could run it, and both halves were wrong
 52424d80 [handoff]: the bounce is proven by elimination, and the fix needs a date that does not exist
-42f3dc72 [handoff]: item 1 closed - the recorder was fine, completion was UNATTRIBUTED, and the bounce hits new accounts
-40489985 [onboarding]: the gate could not see the ONE path that means a person walked the wizard
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
