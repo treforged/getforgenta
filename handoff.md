@@ -131,7 +131,28 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
       reported no header at all and the probe lost sight of exactly the tall headers it hunts.
       Elements are now CLIPPED to the band rather than dropped: **18 of 18 pairs now report a
       header**, against 15 before.
-   6. 🚨 **OPEN - `headerPx` IS NOW SATURATED AND MUST BE DROPPED OR REDEFINED.** Every route
+   6. FIXED - `headerPx` was saturated at the band ceiling (238-256 everywhere). Now measured to
+      the last ROW ITEM's bottom: **95-256, varying per route**, which is a reading rather than a
+      constant.
+   7. FIXED (the reference edge) - `contentRight` was the widest drawn element IN THE ZONE, which on
+      most routes IS the title row's own control. **Hiding that control lowered the reference and
+      the measured edge TOGETHER, so a planted defect was invisible.** Deriving a reference from the
+      thing being measured. Now taken from the LAYOUT - the content column, found by walking up from
+      the title while the ancestor still fits the viewport - which does not move when a button is
+      hidden. Phone now reads 14px and desktop 36px baseline, i.e. the column padding.
+   8. 🚨 **OPEN, AND IT IS THE LAST ONE: THE RED CONTROL STILL REPORTS NOT DETECTED, AND THE
+      FAULT IS IN THE PLANT, NOT THE METRIC.** The plant selects elements with `r.left >= hb.right`
+      - but `hb` is the `<h1>`'s BLOCK box and an `<h1>` fills its column, so that boundary is the
+      column edge and the plant hides essentially nothing. **Point the plant at `textRight` (the
+      glyph extent) instead of `hb.right` and it should go red immediately.**
+      Three narrowing steps are already done and should not be repeated: the plant was widened from
+      buttons-only to every element (a plant NARROWER than the metric reports "not detected" from a
+      probe that detects fine - the most expensive possible reading of a control); `titleRight` moved
+      off `hb.right`; and the glyph width is now measured with canvas `measureText`, **because a
+      `Range` over a BLOCK element's contents returns its full-width LINE BOX, not its text.**
+   ✅ **THE CONTROL IS DOING ITS JOB - it has refused to print a trusted table on every run, and
+      that refusal is the reason none of these numbers has been reported to anyone.**
+   🗑️ **SUPERSEDED - the original fault 6:** `headerPx` IS NOW SATURATED. Every route
       reads **238-256px**, which is the band ceiling (`h1.bottom + 220`), not the header. **An
       identical value across independent samples is a bug signature**, and this column now measures
       the constant rather than the app. Either derive the header's end from the first real content
@@ -140,8 +161,10 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
    7. 🚨 **OPEN - NO PROVEN-RED CONTROL.** Nothing yet shows this probe CAN report waste where
       waste exists. Until it has been driven red against a known-bad header, its quiet columns are
       not evidence.
-   🔍 **ONE LEAD, EXPLICITLY FROM AN UNPROVEN INSTRUMENT AND NOT A FINDING:** phone `/debt`
-      reports **371px empty to the right of the title row on a 390px screen**, and `/settings` 75px.
+   🔍 **ONE LEAD, EXPLICITLY FROM AN UNPROVEN INSTRUMENT AND NOT A FINDING:** with the
+      reference edge fixed, **desktop `/account` and `/settings` read 306px empty against 36px on
+      every other desktop route** - stable across five consecutive runs. The earlier phone `/debt`
+      371px reading came from the BROKEN reference and should be discarded, not carried forward.
       If that survives a proven-red control it is a bigger instance of the exact thing he reported,
       **on a screen he did not name** - which is the argument for the inventory. **Do not act on it
       or repeat it to him until the probe is trustworthy.**
@@ -4845,7 +4868,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 16:54 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 17:28 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4860,14 +4883,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-acce8156 [handoff]: a transfer to his own linked account is booked as spending - diagnosed, queued first
-845db7ee [design]: the panel pill is one row that scrolls, and three headers stop wasting their top-right
-88eb3ece [handoff]: Tre has updated, but WHICH build is unsettled - and 849 carries none of today's work
-7af4dc44 [handoff]: auto-snapshot refresh
-97d518aa [docs]: the borrowed Mac needs no credentials - /demo renders the same chrome
-0de115fa [handoff]: iOS 854 is in TestFlight - verified at the STEP and at altool's own words, not at the run
-e7a574ac [docs]: name check:nav in the gate list, and record that Claude-in-Chrome cannot set a phone viewport
-71d20091 [docs]: a runbook for the borrowed MacBook, so that session measures instead of installs
+cbd650fb [handoff]: probe faults 4 and 5 fixed, 18/18 headers found - and headerPx is now saturated
+bcf33fbf [handoff]: probe fault 3 fixed, and fixing it exposed two more
+92634296 [handoff]: the blank-space probe is parked, not shipped - it is still lying
+219e6faa [handoff]: item 0 shipped; the iOS push diagnosis on file is refuted by the build running the fix
+ce00b1a5 [push]: a timeout row now says whether the device was online, because both recorded causes are refuted
+1e16ab2c [handoff]: item 0 is done - the transfer fix, and why the inherited design could not have worked
+63085f10 [money]: a standing transfer to your own account is no longer counted as spending
+41116e6d [handoff]: the transfer fix is fully designed - exact edit points, and the one thing unverified
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
