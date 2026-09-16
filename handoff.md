@@ -5048,3 +5048,47 @@ abca93c0 [handoff]: probe faults 6 and 7 fixed; the last one is in the PLANT, no
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+
+## 2026-09-16, LATE - Ada [ffdc831d], the dispatched successor
+
+**RESUME ITEM 1 (net= reading) - ANSWERED, AND THE BRIEF'S REASON WAS WRONG.**
+`push_registration_status` reads `ios / pending / attempts 178 / build 859 /
+detail "permission=granted" / last_seen 2026-09-16 22:22:36Z`. There is no `net=`,
+so it is **not measured** - but NOT because he has not opened 859. He has, 178
+times, and 22:22:36Z is 18:22 Eastern, the minute he asked.
+**MECHANISM:** `probeReachability()` is called on one path only,
+`push-registration.ts:355`, inside `if (settledAs.how === 'timeout')`. The upsert
+conflicts on `(user_id, platform)`, so there is ONE row per user and the last
+write wins. `void done('pending')` is written the instant `register()` is called
+(line 308); the `timeout` write lands ~15s later. The row still reads `pending`,
+so on his most recent attempt the timeout write never landed - consistent with the
+app being backgrounded before the timer fired (iOS suspends JS timers), which is
+exactly what he did at 18:22 to send the message.
+**SO: he must open the app and LEAVE IT IN THE FOREGROUND for ~20s.** Do not say
+the network is cleared or blamed; neither is measured.
+⚠️ **WORTH A LOOK, NOT YET DONE:** build 854 shows 136 attempts also ending
+`pending`, while this file records 854 writing 152 consecutive `timeout` rows. So
+timeout writes DO land sometimes. **A probe that only ever runs 15 seconds after a
+foreground open is a weak instrument for a user who opens the app and switches
+away** - that is the next thing to fix if the reading stays absent.
+
+**RESUME ITEM 2 (truncated pill) - DONE, `2efe2cf1`, on origin/main 0/0.**
+See the commit body. Two things worth carrying forward:
+* ⚠️ **`check-panel-rows`'s FIT NUMBER WAS MEASURING NOTHING.** It compared
+  `needed` against the track's OWN box, and `seg-track` is `width: fit-content`,
+  so on a pill that fits the box just equals the content - it printed exactly 7px
+  of "slack" on two pills whose content differed by 46px. It is only a measurement
+  when `max-w-full` CLAMPS. Fixed in the same commit with `availW`, the room the
+  pill is actually offered. **A number that changes with the content looks like a
+  measurement and was an artefact of the formula.**
+* **`/account` is the same family and is NOT fixed:** 3 segments needing 364px in
+  363px, over by ONE pixel, so it scrolls imperceptibly. Left out of the gate
+  deliberately - fixing it means shortening "Forgenta AI" or "Leaderboard", a
+  label decision nobody has agreed to, and a gate that also demands that is a gate
+  somebody switches off.
+
+**RESUME ITEM 3 unchanged:** `aaf33b9e` (phantom income) is in NO build. It is now
+joined by `2efe2cf1`. **Neither is on his phone**; both need a hand-dispatched iOS
+run, and three uploads already went out today (849, 854, 859) against Apple's daily
+cap. Next dispatch carries both.
