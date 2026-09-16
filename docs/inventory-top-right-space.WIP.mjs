@@ -249,6 +249,12 @@ const plantEmptyTopRight = () => {
   const h1 = document.querySelector('h1');
   if (!h1) return false;
   const hb = h1.getBoundingClientRect();
+  // The same glyph measurement `measure` uses, so the plant and the metric share ONE boundary.
+  const cs1 = getComputedStyle(h1);
+  const ctx2d = document.createElement('canvas').getContext('2d');
+  ctx2d.font = `${cs1.fontStyle} ${cs1.fontWeight} ${cs1.fontSize} ${cs1.fontFamily}`;
+  const tw = ctx2d.measureText((h1.textContent || '').trim()).width;
+  const textRight = cs1.textAlign === 'center' ? hb.left + (hb.width + tw) / 2 : hb.left + tw;
   // ⚠️ THE PLANT MUST MATCH WHAT THE METRIC MEASURES. This used to hide only buttons and links,
   // while `titleRight` is the max over EVERYTHING on the title row - so an input, a badge or a
   // drawn wrapper kept holding the edge and the gap never moved. A plant narrower than the metric
@@ -258,7 +264,10 @@ const plantEmptyTopRight = () => {
     .map((el) => ({ el, r: el.getBoundingClientRect() }))
     .filter(({ r }) => {
       const mid = r.top + r.height / 2;
-      return r.width >= 4 && r.height >= 4 && mid >= hb.top - 4 && mid <= hb.bottom + 4 && r.left >= hb.right;
+      // ⚠️ `textRight`, NEVER `hb.right`. An `<h1>` is a block element and fills its column, so
+      // `hb.right` IS the column edge and nothing is ever right of it - the plant hid NOTHING and
+      // the control reported NOT DETECTED from a probe that was working.
+      return r.width >= 4 && r.height >= 4 && mid >= hb.top - 4 && mid <= hb.bottom + 4 && r.left >= textRight - 4;
     })
     .sort((a, b) => b.r.right - a.r.right);
   if (controls.length === 0) return false;
@@ -301,9 +310,21 @@ for (const vp of VIEWPORTS) {
     // THE RED CONTROL, run on the FIRST route of each viewport that offers a title-row control.
     // Reloaded afterwards so the planted defect cannot reach the next route's reading.
     if (m && redControl[vp.label] === undefined) {
-      const planted = await page.evaluate(plantEmptyTopRight);
+      // ⚠️ PLANT AND MEASURE IN ONE EVALUATION. Two separate `page.evaluate` calls leave a window in
+      // which React re-renders and wipes the inline style off the planted nodes, so the "after"
+      // reading was taken from a page that had already healed itself - which reads as NOT DETECTED
+      // from a probe that detects fine. Same family as a reset whose verification runs before the
+      // app has had its say.
+      const planted = await page.evaluate(
+        ([plantSrc, measureSrc]) => {
+          const plant = eval(`(${plantSrc})`);
+          const meas = eval(`(${measureSrc})`);
+          return plant() ? meas() : null;
+        },
+        [plantEmptyTopRight.toString(), measure.toString()],
+      );
       if (planted) {
-        const after = await page.evaluate(measure);
+        const after = planted;
         redControl[vp.label] = {
           route,
           before: m.rightGapPx,

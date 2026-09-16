@@ -140,8 +140,31 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
       thing being measured. Now taken from the LAYOUT - the content column, found by walking up from
       the title while the ancestor still fits the viewport - which does not move when a button is
       hidden. Phone now reads 14px and desktop 36px baseline, i.e. the column padding.
-   8. 🚨 **OPEN, AND IT IS THE LAST ONE: THE RED CONTROL STILL REPORTS NOT DETECTED, AND THE
-      FAULT IS IN THE PLANT, NOT THE METRIC.** The plant selects elements with `r.left >= hb.right`
+   8. FIXED (the plant's boundary) - it selected `r.left >= hb.right`, and `hb` is the `<h1>`'s
+      BLOCK box, which fills the column. So the boundary WAS the column edge and the plant hid
+      nothing. Now uses the glyph extent, shared with the metric.
+   9. FIXED (the plant's lifetime) - plant and measurement were two `page.evaluate` calls, and React
+      re-renders in the gap and wipes the inline style, so the "after" reading came from a page that
+      had already healed. Now one evaluation. **Same family as a reset whose verification runs
+      before the app has had its say**, which this repo already records.
+   10. 🚨 **OPEN, AND IT IS IN THE METRIC AFTER ALL - `titleRight` IS MEASURING A CONTAINER.**
+       The control still reads NOT DETECTED, and the reason is now located. Every route's gap equals
+       its column padding exactly (14 phone / 36 desktop) EXCEPT desktop `/account` and `/settings`
+       at 306 - a baseline that uniform means something always reaches the column's inner edge on
+       the title row. That something is a PADDED ROW WRAPPER: it survives the leaf filter (its child
+       does not fill it), it is counted in `titleRight` because that takes the max right over all
+       title-row elements, and the plant cannot hide it because its `left` is at the column's LEFT,
+       not right of the title.
+       **THE FIX: exclude from `titleRight` any element that SPANS the title** - one whose `left` is
+       left of `textRight`. A container is not content, and a gap measured to a container's edge can
+       never be anything but the padding. That also explains why the whole column has looked like a
+       constant.
+   ✅ **THE CONTROL HAS REFUSED TO PRINT A TRUSTED TABLE ON EVERY ONE OF EIGHT RUNS, and it was
+      right every time.** It first looked like a broken control, then like a weak plant; it was
+      neither. **No number from this probe has reached anyone**, which is the only reason eight
+      wrong readings cost nothing.
+   🗑️ **SUPERSEDED - the original fault 8, "the fault is in the plant, not the metric". It
+      was in both, and asserting where it was NOT is what cost two of the eight runs.** The plant selects elements with `r.left >= hb.right`
       - but `hb` is the `<h1>`'s BLOCK box and an `<h1>` fills its column, so that boundary is the
       column edge and the plant hides essentially nothing. **Point the plant at `textRight` (the
       glyph extent) instead of `hb.right` and it should go red immediately.**
@@ -163,7 +186,9 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
       not evidence.
    🔍 **ONE LEAD, EXPLICITLY FROM AN UNPROVEN INSTRUMENT AND NOT A FINDING:** with the
       reference edge fixed, **desktop `/account` and `/settings` read 306px empty against 36px on
-      every other desktop route** - stable across five consecutive runs. The earlier phone `/debt`
+      every other desktop route** - stable across eight consecutive runs. ⚠️ **And note what
+      fault 10 implies about it: 36px is the PADDING, so the other routes are not "tidy", they are
+      UNMEASURED. The 306 is real; the 36 means nothing yet.** The earlier phone `/debt`
       371px reading came from the BROKEN reference and should be discarded, not carried forward.
       If that survives a proven-red control it is a bigger instance of the exact thing he reported,
       **on a screen he did not name** - which is the argument for the inventory. **Do not act on it
