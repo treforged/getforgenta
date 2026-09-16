@@ -110,6 +110,29 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
    and read frames at `--force-device-scale-factor=2` - at default scale a near-black `#18181b` has
    already read as BLUE on this machine and nearly became a filed palette defect.
 
+   ⚠️ **AN INVENTORY PROBE WAS STARTED AND IS PARKED AS `docs/inventory-top-right-space.WIP.mjs`
+   - IT IS NOT IN `scripts/` AND NOT WIRED TO A `check:` SCRIPT, DELIBERATELY. It does not work
+   yet, and a broken probe sitting among the working gates is worse than no probe.**
+   Two instrument faults were found and FIXED in it; a third is open:
+   1. FIXED - it climbed ancestors until it reached `main`, which on most routes IS the whole
+      content column, so it reported **305 rows and a 4908px header inside an 844px viewport**,
+      with a NEGATIVE right gap. Impossible numbers, which is the only reason they were caught.
+   2. FIXED - `HEADER_ZONE_PX` was declared in Node scope and the function runs IN THE PAGE, so it
+      died with `is not defined`. **That is the LOUD version; a name that existed in both scopes
+      would have captured the wrong value silently.**
+   3. 🚨 **OPEN - `headerPx` still reads 4872 on a phone.** The zone filter admits any element
+      whose TOP is in the header band, and a long list container starts there and runs the whole
+      page. The row count (11-24 in a 220px band) is implausible for the same reason. **Bound the
+      zone by the element's BOTTOM as well as its top, or intersect the rect with the band.**
+   ✅ **AND ONE APPARENT FAULT IS PROBABLY THE APP, NOT THE PROBE - CHECK BEFORE "FIXING" IT.**
+   `/dashboard`, `/accounts` and `/goals` all report the title "Command Center", and `/forecast`
+   reports "Transactions". That looks like a navigation-settling bug and may simply be true: those
+   routes appear to be TABS of one shell. `handoff.md` already records that the widget stack lives
+   under the Overview tab only. **Verify which it is before rewriting the navigation half** - the
+   repo's own record is that chasing the wrong layer here cost three wrong diagnoses once already.
+   **NO NUMBER FROM THIS PROBE HAS BEEN REPORTED TO ANYONE**, and none should be until fault 3 is
+   closed and it has a positive control that can be shown to fail.
+
 B. [~] **NOTIFICATIONS - AND THE ORDER IS REGISTRATION, SENDER, CADENCE.** Ask `384ca151`
    (`cb36caa1` was the duplicate, dropped; survivor verified live after the drop).
    Tre wants a higher daily volume that is not spammy, suppressed while he is IN the app, still
