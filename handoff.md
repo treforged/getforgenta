@@ -129,6 +129,45 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
 
 </details>
 
+### RESUME QUEUE - START AT ITEM 1. TWO NEW ASKS FROM TRE, 18:22, HE IS WAITING ON BOTH.
+
+1. [ ] 🔎 **CHECK FOR A `net=` READING - ONE QUERY, DO IT FIRST.** Ask `4d923cfe`.
+   He asked directly at 18:22 and **he is on iOS 859**, which is the first build carrying
+   `probeReachability`. The previous session was blocked by the handoff gate before it could run it.
+
+       select platform, outcome, prompted, attempts, app_build, detail, last_seen_at
+       from public.push_registration_status order by last_seen_at desc limit 6;
+
+   **HOW TO READ IT, and do not overclaim:**
+   * `net=down` — conclusive. His network blocked the registration; the hunt ends. This repo
+     already records that his home network blocks TestFlight and Tailscale.
+   * `net=up` — narrows to "online and APNs still silent". **It does NOT clear the network**: the
+     probe hits ordinary HTTPS, not APNs' port 5223.
+   * **`permission=granted` with NO `net=` means he has not re-opened the app on 859 since
+     installing** — that is "not measured", never "nothing wrong". Say which of the three it is.
+   This is the unblock condition on `384ca151` (notifications). Cadence is worthless until a token
+   exists AND the sender stops being all `dry_run` (13 of 13 runs since 2026-09-05).
+
+2. [ ] 🎨 **THE BALANCES / LINKED BANKS PILL IS TRUNCATED.** Ask `c61a479a`.
+   His words: *"that pill is kind of truncated and it should all show at once without scrolling."*
+   Screenshot at 390px shows `Balances (16) | Linke…` cut off with **`+ Add Account` sitting over
+   it**.
+   ⚠️ **HE IS EXPLICITLY REJECTING THE FIX THAT SHIPPED.** `check:panel-rows` made a pill that
+   does not fit SCROLL rather than wrap — correct for Debt's five segments, and **not what he wants
+   here**. It must FIT. So this is not a regression of that work and must not be "fixed" by undoing
+   it; the two-segment case needs to fit where the five-segment case still scrolls.
+   **START AT** `src/pages/Accounts.tsx` (the Balances/Linked segmented control) and the `.seg-track`
+   rule. The width is being eaten by the count badge (`16`) and by `+ Add Account` sharing the row.
+   **GATE IT** with `npm run check:panel-rows` AND a rendered frame at 390x844.
+   ⚠️ **Claude-in-Chrome's `resize_window` REPORTS SUCCESS AND DOES NOTHING** — measured twice on
+   this machine. Use Playwright with a real viewport (`.env.deck-walk.local`).
+
+3. [ ] **THE PHANTOM-INCOME FIX IS IN NO BUILD.** `aaf33b9e` landed after 859 was cut, checked by
+   ancestry. Batch it into the next iOS dispatch; **do not tell him it is on his phone.**
+   Three uploads went out 2026-09-16 (849, 854, 859) and Apple caps per app per day.
+
+<details><summary>Previous queue (A/B/C), superseded by the two asks above - B and C are still live</summary>
+
 ### RESUME QUEUE - START AT ITEM A (items 0-4 below are DONE)
 
 A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
@@ -458,6 +497,8 @@ C. [ ] **THE INCOMING HALF OF A TRANSFER IS STILL SPENDING-SHAPED** - the residu
    reserve (88px) live in different files and nothing makes them agree. `check:nav` now scrolls
    /dashboard to its end and measures the real gap: **14px**. If you change the bar's height or
    gap, that margin is what you are spending.
+
+</details>
 
 3. [ ] **NATIVE GLASS IS RE-APPROVED AND THE BLOCKER IS NOW AN INSTRUMENT, NOT A DECISION.**
    Tre, 2026-09-16: *"i want native glass. i just dont have access to a macbook rn. i can borrow a
