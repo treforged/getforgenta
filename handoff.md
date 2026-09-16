@@ -1,6 +1,41 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-16 (Ada, ELEVENTH session). THE NAV IS WALKED AND THE GLASS PILL IS SHIPPED.
+## FIRST UP - 2026-09-16 (Ada, TWELFTH session). MONEY CORRECTNESS SHIPPED; iOS 859 IS UPLOADED.
+
+✅ **iOS BUILD 859 IS IN TESTFLIGHT** - run `35155768885`, `workflow_dispatch`, head `faa0aa86`,
+run_number 759 (859 = 759 + 100). **Verified through all three gates this repo requires, not one:**
+the RUN reads `success` (necessary, NOT sufficient - 848 also did); **step 20 `Upload to App Store
+Connect` reads `success`, never `skipped`**; and **altool's own `UPLOAD SUCCEEDED with no errors`
+appears once**. `90382` appears 3 times and **all three are in the echoed script SOURCE** (the
+comment, the `elif grep -q`, and its echo), none in output - so the cap branch did not fire.
+⚠️ **AN UPLOAD IS NOT AN INSTALL.** TestFlight still processes and Tre still has to update.
+
+**WHAT 859 CARRIES, checked by ancestry rather than by assumption:**
+* `63085f10` a transfer to your own account is no longer counted as spending - **YES**
+* `845db7ee` the panel pill and the three headers that stop wasting their top-right - **YES**
+  (this is the fix for the blank-space complaint, and until now it was in NO build)
+* `aaf33b9e` one movement is one rule (the phantom-income double count) - **NO, it landed after
+  the dispatch.** It needs the next build; do not tell him it is on his phone.
+
+### WHAT SHIPPED THIS SESSION
+* **`63085f10` MONEY: a standing transfer to an account he owns is no longer spending.** The
+  inherited design could not have worked - his Fidelity account has ZERO synced transactions, so
+  the pair detector had no second leg. Two signals now: the pair, and the provider saying
+  TRANSFER_OUT while the row names exactly one other account he owns. **His already-accepted bad
+  rule was repaired in the database**; undo in resume item 0.
+* **`aaf33b9e` MONEY: one movement is one rule.** A credit-card autopay was proposing a correct
+  transfer AND **$941.01 a month of phantom income**, because the two banks name the movement
+  differently and proposals group by merchant. Found by probing the residue the last commit named.
+* **`check:topright`, proven red** - an inventory of every tab's empty top-right. Ten faults and
+  nine refused runs before any number from it was evidence. **The answer is a NEGATIVE result:**
+  no route wastes top-right space by accident at 390px or 1440px, and the screen he named reads
+  14px on a phone.
+* **A `net=up`/`net=down` reading on iOS push timeouts**, because both recorded causes are in the
+  build that still fails.
+
+<details><summary>ELEVENTH session's FIRST UP, superseded</summary>
+
+## 2026-09-16 (Ada, ELEVENTH session). THE NAV IS WALKED AND THE GLASS PILL IS SHIPPED.
 
 ⚠️ **TRE SAYS HE INSTALLED "THE NEW VERSION" (2026-09-16 ~20:25Z) AND WHICH BUILD IS UNSETTLED.**
 854 finished uploading at 19:11:03Z, so it had ~73 minutes to process and IS plausibly what he has -
@@ -91,6 +126,8 @@ does NOT mean delete Account's Settings button; it is `hidden lg:inline-flex` an
 2026-08-18: *"make settings accessible from a hamburger in the top left at all times."*
 2026-09-16: *"the hamburger ... is only viewable and accessible from the account page."*
 Both are recorded in `MobileTopBar.tsx`. A session reading only the older comment would revert this.
+
+</details>
 
 ### RESUME QUEUE - START AT ITEM A (items 0-4 below are DONE)
 
