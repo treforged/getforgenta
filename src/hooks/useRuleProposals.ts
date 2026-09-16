@@ -11,7 +11,7 @@
 
 import { useMemo } from 'react';
 import {
-  useAllSyncedTransactions, useSyncedTransactionReviewsQuery, useRecurringRules,
+  useAllSyncedTransactions, useSyncedTransactionReviewsQuery, useRecurringRules, useAccounts,
 } from './useSupabaseData';
 import { proposeRulesFromHistory, type RuleProposal, type HistoryCharge, type ProposalRule } from '@/lib/rules-from-history';
 
@@ -27,10 +27,16 @@ export function useRuleProposals(): UseRuleProposalsResult {
   const charges = useAllSyncedTransactions();
   const reviews = useSyncedTransactionReviewsQuery();
   const rules = useRecurringRules();
+  const accounts = useAccounts();
 
-  // All three, because a proposal computed from some of the inputs is a wrong proposal offered
+  // All FOUR, because a proposal computed from some of the inputs is a wrong proposal offered
   // confidently — without the rules, every merchant looks uncovered.
-  const isLoading = charges.isLoading || reviews.isLoading || rules.loading;
+  // ⚠️ `accounts` IS IN THIS LIST FOR A SHARPER REASON THAN THE OTHER THREE. Loading and owning no
+  // accounts are indistinguishable downstream, and the difference is not a missing proposal but a
+  // WRONG one: with no accounts, `detectTransferLegs` can recognise nothing, so a transfer to the
+  // user's own brokerage would be offered as a variable expense — the exact defect this input
+  // exists to fix, re-created by a race.
+  const isLoading = charges.isLoading || reviews.isLoading || rules.loading || accounts.loading;
 
   const proposals = useMemo(() => {
     if (isLoading) return [];
@@ -38,8 +44,9 @@ export function useRuleProposals(): UseRuleProposalsResult {
       charges: (charges.data ?? []) as HistoryCharge[],
       rules: (rules.data ?? []) as ProposalRule[],
       links: reviews.data ?? [],
+      accounts: accounts.data ?? [],
     });
-  }, [isLoading, charges.data, rules.data, reviews.data]);
+  }, [isLoading, charges.data, rules.data, reviews.data, accounts.data]);
 
   return { proposals, isLoading, hasProposals: !isLoading && proposals.length > 0 };
 }

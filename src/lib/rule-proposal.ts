@@ -9,6 +9,7 @@ import { MIN_CONSECUTIVE_MONTHS, DRIFT_BAND_LOW, DRIFT_BAND_HIGH } from './rule-
 import type { MerchantCharge } from './merchant-memory';
 import type { QueueRule } from './bank-activity-queue';
 import type { Category } from './types';
+import type { TransferVerdict } from './transfer-rule-detection';
 
 /**
  * Consecutive months a merchant must have billed before it is worth proposing anything.
@@ -73,4 +74,18 @@ export interface RuleProposal {
   occurrences: number;
   /** The provider's category for the most recent charge, as a first draft. */
   category: Category;
+  /**
+   * Set when every charge in the run is money moving between accounts the user owns.
+   *
+   * ⚠️ THIS IS THE FIELD THAT STOPS A TRANSFER BEING COUNTED AS SPENDING, and it has to travel all
+   * the way to `rule_type` to do it: `pay-schedule.ts:1446` derives `isTransfer` from `rule_type`
+   * alone, and `monthly-expense-model.ts:146` reads `isTransfer` to decide whether an amount lands
+   * in `living` or in `transfers`. A proposal that merely LOOKED like a transfer on its card, while
+   * still writing `rule_type: 'expense'`, would leave every downstream figure exactly as wrong.
+   *
+   * Absent on ordinary proposals, so the field's absence is the existing behaviour unchanged.
+   * Computed by `detectTransferLegs` in `transfer-rule-detection.ts`; see that file for why the
+   * pair detector alone is not enough.
+   */
+  transfer?: TransferVerdict;
 }

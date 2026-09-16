@@ -13,10 +13,12 @@
 // proposal without its reason is a claim wearing a question mark. Same instinct as `describeDrift`.
 
 import { motion } from 'framer-motion';
-import { Check, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Check, ChevronRight, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { RuleProposal } from '@/lib/rules-from-history';
-import { describeCadence, describeEvidence } from '@/lib/rule-proposal-write';
+import {
+  describeCadence, describeEvidence, describeProposalKind, describeTransferDestination,
+} from '@/lib/rule-proposal-write';
 
 export interface RuleProposalCardProps {
   proposal: RuleProposal;
@@ -34,6 +36,10 @@ export default function RuleProposalCard({
   proposal, accountLabel, busy, error, reducedMotion, onAccept, onSkip,
 }: RuleProposalCardProps) {
   const income = proposal.direction === 'income';
+  // A transfer is neither money in nor a bill. It leaves the account, so it keeps the outflow sign,
+  // but it is not spending and the card must not call it a Bill — see `describeProposalKind`.
+  const isTransfer = !!proposal.transfer;
+  const destination = describeTransferDestination(proposal);
 
   return (
     <motion.div
@@ -45,8 +51,10 @@ export default function RuleProposalCard({
     >
       <div className="space-y-1">
         <p className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-          {income ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-          {income ? 'Money in' : 'Bill'}
+          {isTransfer
+            ? <ArrowLeftRight size={11} />
+            : income ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+          {describeProposalKind(proposal)}
         </p>
         <p className="text-lg font-semibold leading-tight break-words">{proposal.name}</p>
       </div>
@@ -60,6 +68,15 @@ export default function RuleProposalCard({
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">{describeCadence(proposal)}</span>
+        {destination && (
+          <span
+            data-testid="rule-proposal-destination"
+            className="text-[11px] text-muted-foreground bg-secondary border border-border px-2 py-0.5"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            {destination}
+          </span>
+        )}
         {accountLabel && (
           <span
             className="text-[11px] text-muted-foreground bg-secondary border border-border px-2 py-0.5"

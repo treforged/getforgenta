@@ -35,6 +35,8 @@ import {
 import { getRuleOccurrenceDatesInMonth } from './pay-schedule';
 import { daysBetween } from './transaction-matching';
 import { suggestCategory } from './plaid-category-map';
+import { detectTransferLegs, transferVerdictForRun } from './transfer-rule-detection';
+import type { PairableAccount } from './transfer-pair-detection';
 
 // Re-exported so this file stays the one place a caller has to know about: the thresholds and the
 // shape are the contract of what it returns, and they live next door only to keep this file short.
@@ -270,6 +272,17 @@ export interface ProposalInput {
   rules: readonly ProposalRule[];
   /** `synced_transaction_reviews` rows: the user's own "this charge settles that rule". */
   links?: readonly DriftRuleLink[];
+  /**
+   * Every account the user owns — what turns "a recurring outflow" into "money you moved yourself".
+   *
+   * OPTIONAL so existing callers keep compiling, and its absence means only that no proposal can be
+   * recognised as a transfer. ⚠️ A CALLER THAT HAS ACCOUNTS AND DOES NOT PASS THEM GETS THE OLD BUG
+   * BACK SILENTLY — every transfer proposed as a variable expense — so a caller must pass them, and
+   * must not compute proposals before they have LOADED. Loading is indistinguishable from owning no
+   * accounts here, which is the same confident-zero trap `useRuleProposals` already guards for its
+   * other three inputs.
+   */
+  accounts?: readonly PairableAccount[];
 }
 
 /**
@@ -280,10 +293,14 @@ export interface ProposalInput {
  * — the order in which accepting one changes the picture most.
  */
 export function proposeRulesFromHistory(input: ProposalInput): RuleProposal[] {
-  const { charges, rules, links = [] } = input;
+  const { charges, rules, links = [], accounts = [] } = input;
   if (charges.length === 0) return [];
 
   const covered = coveredMerchants(rules, charges, links);
+
+  // Once for the whole history rather than per group — the pair detector is O(outs x ins) and the
+  // population it wants is exactly `charges` ("every settled synced row, all accounts, all history").
+  const transferLegs = detectTransferLegs(charges, accounts);
 
   // ⚠️ "STILL BILLING" IS INFERRED FROM THE ROWS, NOT FROM A CLOCK — `rule-drift.ts`'s reasoning,
   // and taking a `today` would make every test time-dependent. One month of slack, because a bill
@@ -318,6 +335,14 @@ export function proposeRulesFromHistory(input: ProposalInput): RuleProposal[] {
 
     const cadence = fitting[0];
     const recent = group.charges.at(-1)!;
+    const runCharges = group.charges.filter(c => run.includes(monthOf(c.date)));
+    // ⚠️ THE RUN, NOT THE MOST RECENT CHARGE. One rule is written from the whole run, so the whole
+    // run has to agree — see `transferVerdictForRun`. The direction guard is belt and braces:
+    // `detectTransferLegs` records outflows only, so an income run cannot be unanimous anyway, but a
+    // transfer-typed INCOME rule would book arriving money as a cost and that is worth two checks.
+    const transfer = group.direction === 'expense'
+      ? transferVerdictForRun(runCharges.map(c => c.id), transferLegs) ?? undefined
+      : undefined;
     proposals.push({
       id: `${group.merchantKey}|${group.accountId}|${group.direction}`,
       name: titleCase(group.merchantLabel),
@@ -330,8 +355,9 @@ export function proposeRulesFromHistory(input: ProposalInput): RuleProposal[] {
       anchorDate,
       accountId: group.accountId,
       months: run,
-      occurrences: group.charges.filter(c => run.includes(monthOf(c.date))).length,
+      occurrences: runCharges.length,
       category: suggestCategory(recent.category),
+      transfer,
     });
   }
 

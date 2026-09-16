@@ -209,3 +209,45 @@ describe('nothing is written until the user says so', () => {
     expect(mocks.add.mutateAsync).not.toHaveBeenCalled();
   });
 });
+
+describe('a transfer proposal does not present itself as a bill', () => {
+  // ⚠️ WHAT WAS REPORTED HAS TWO HALVES AND ONLY ONE IS A NUMBER. `transfer-rule-money.test.ts`
+  // pins the number — living spending falls by the transfer amount. This pins the SURFACE: a $25
+  // contribution to a Fidelity brokerage rendered under the word "Bill", with a red down-arrow, is
+  // the app telling a person something false about their own money even once every total is right.
+  const investment = (): RuleProposal[] => [proposal({
+    id: 'p-fid', name: 'Fidelity', amount: 25,
+    transfer: {
+      ruleType: 'investment',
+      destination: { id: 'acct-fid', name: 'Fidelity Go Automated', account_type: 'brokerage' },
+      via: 'name',
+    },
+  })];
+
+  it('says Investment, names where the money went, and never says Bill', () => {
+    setup(investment());
+    // POSITIVE CONTROL ON THE HARNESS: an ordinary expense in this same deck DOES say Bill, so a
+    // "Bill is absent" assertion cannot be satisfied by a card that failed to render at all.
+    cleanup();
+    setup([proposal({ id: 'p-bill', name: 'Duke Energy' })]);
+    expect(screen.getByTestId('rule-proposal-card').textContent).toContain('Bill');
+
+    cleanup();
+    setup(investment());
+    const card = screen.getByTestId('rule-proposal-card');
+    expect(card.textContent).toContain('Investment');
+    expect(card.textContent).not.toContain('Bill');
+    expect(screen.getByTestId('rule-proposal-destination').textContent)
+      .toContain('Fidelity Go Automated');
+  });
+
+  it('accepts as `investment`, which is what keeps it out of living spending', () => {
+    setup(investment());
+    fireEvent.click(acceptCard());
+    return waitFor(() => {
+      expect(mocks.add.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ rule_type: 'investment', deposit_account: 'acct-fid' }),
+      );
+    });
+  });
+});
