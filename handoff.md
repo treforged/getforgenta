@@ -2,15 +2,14 @@
 
 ## FIRST UP - 2026-09-16 (Ada, ELEVENTH session). THE NAV IS WALKED AND THE GLASS PILL IS SHIPPED.
 
-**FIRST UP: confirm iOS run `35138359218` reached its UPLOAD STEP, then tell Tre the build
-number.** Everything is on origin/main, 0/0, tsc clean, lint 0 errors, test:tz **466 files /
-4712 tests green in three zones** (same count as the previous session - the suite did not shrink).
+**THE QUEUE IS EXHAUSTED. iOS 854 IS IN TESTFLIGHT** (run `35138359218`, altool
+`UPLOAD SUCCEEDED with no errors` at 19:10:56Z) and it carries everything below. Everything is on
+origin/main, 0/0, tsc clean, lint 0 errors, test:tz **466 files / 4712 tests green in three zones**
+(same count as the previous session - the suite did not shrink).
 
-**READ THE UPLOAD STEP'S OWN CONCLUSION, AND THEN ITS OUTPUT.** `gh run view 35138359218 --json jobs`
--> step 20 `Upload to App Store Connect` must read `success`, never `skipped`. And step 20 catches
-Apple's daily-cap error 90382 and still exits green, so the only sufficient evidence is altool's own
-`UPLOAD SUCCEEDED with no errors` in the log. The run was DISPATCHED (`workflow_dispatch`), which is
-what satisfies the upload condition; the push-triggered run on the same SHA was auto-cancelled.
+**FIRST UP NEXT TIME: item 5** (lower the control-style ceiling opportunistically) - or whatever
+Tre sends. **Item 3, native glass, is blocked on him borrowing a Mac**, and the no-Mac half is now
+done: `docs/native-glass-mac-session.md` is the runbook for that session.
 
 ### WHAT SHIPPED THIS SESSION
 * **`[nav]` the new nav IA is WALKED IN A REAL BROWSER** - `5e6d779a`, new `npm run check:nav`
@@ -116,17 +115,21 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
    figures; the shape that works needs a SECOND transparent WKWebView for chrome. That is analysis,
    not measurement - and the Mac is what turns it into measurement.
 
-4. [~] **DISPATCHED - run `35138359218`, `workflow_dispatch`, head `936c3cf8`.** One dispatch for
-   both commits, not one per commit (Apple caps uploads per app per day). **STILL TO DO: read the
-   UPLOAD STEP'S own conclusion and then its OUTPUT, and only then give Tre a build number.**
-
-       gh run view 35138359218 --json jobs   # step 20 'Upload to App Store Connect'
-
-   ⚠️ Step 20 must read `success`, never `skipped` - a skipped step does not fail a workflow, so a
-   push run ends GREEN carrying a real VERSION_CODE having sent nothing anywhere. **AND `success`
-   is not sufficient either**: that step catches Apple's daily-cap error 90382, prints a warning
-   and still exits green, so the only conclusive evidence is altool's own `UPLOAD SUCCEEDED with no
-   errors` in the log. `VERSION_CODE = run_number + 100`. **An upload is not an install** - say so.
+4. [x] **DONE - iOS 854 IS IN TESTFLIGHT.** Run `35138359218`, `workflow_dispatch`, head
+   `936c3cf8`, run_number 754, `VERSION_CODE=854` (= 754 + 100), marketing version 6.6.
+   Verified through all three gates this repo has learned to require, not one of them:
+   * the RUN reads `success` - **necessary and not sufficient**, it is what 848 also read;
+   * **step 20 `Upload to App Store Connect` reads `success`, not `skipped`** - the event was
+     `workflow_dispatch`, which is what satisfies the upload condition;
+   * **altool's own `UPLOAD SUCCEEDED with no errors`**, once, at 19:10:56Z. Checked because
+     step 20 swallows Apple's cap error 90382 into a warning and still exits green. `90382`
+     appears 3 times in the log and **all three are in the echoed script SOURCE**
+     (`elif grep -q '90382'` and its echo), none in output - so that branch did not fire.
+   854 carries the nav IA, the Plaid auto-open and the floating glass pill (confirmed: the
+   `rounded-full shadow-lg` bar is in `936c3cf8`).
+   ⚠️ **AN UPLOAD IS NOT AN INSTALL.** TestFlight still has to finish processing and Tre still has
+   to update. "On origin", "on a build" and "on his device" stay three separate facts and a desk
+   may assert only the first two.
 
 5. [ ] **Lower the control-style ceiling opportunistically.** `control-style-ratchet.gate.test.ts`
    holds 36 input surfaces / 18 select surfaces. Consolidate only when a file is being touched
