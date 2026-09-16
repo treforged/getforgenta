@@ -4627,31 +4627,29 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 14:36 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 15:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
 ?? scripts/handoff.md
-?? squeeze-dashboard.png
-?? squeeze-thin-dashboard.png
 ```
 
 - **Recent commits:**
 
 ```
+0de115fa [handoff]: iOS 854 is in TestFlight - verified at the STEP and at altool's own words, not at the run
+e7a574ac [docs]: name check:nav in the gate list, and record that Claude-in-Chrome cannot set a phone viewport
+71d20091 [docs]: a runbook for the borrowed MacBook, so that session measures instead of installs
+cb4d9366 [handoff]: the nav is walked and the glass pill shipped - next is the iOS upload STEP, not the run
+936c3cf8 [nav]: the phone tab bar is a floating liquid-glass pill now, not a bar stuck to the edge
+5e6d779a [nav]: the new nav IA is walked in a real browser now - nothing had pressed it
 368fec87 [handoff]: nav IA changed and is NOT yet walked - that is item 1
 4d6bc32b [nav]: Settings had three doors on a phone - now it has one, and Sign Out lives in it
-d4dd8f23 [bank]: "Connect a bank" opens Plaid instead of dropping the user on a page
-923fd51e [handoff]: iOS 849 is in TestFlight - and 839 and 848 were both the wrong answer
-a9f5dbed [docs]: the run reads success while the upload reads skipped - check the step, not the run
-40e7991a [docs]: a push does not reach TestFlight - dispatch the iOS workflow, permanently
-45669b71 [handoff]: 839 is on a build, not on his device - say so before somebody reads it as delivered
-2d05d73d [handoff]: android green at build 839, style half closed as a ratchet
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
