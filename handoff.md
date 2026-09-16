@@ -1,6 +1,16 @@
 # handoff.md — FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-16 (Ada, TENTH session). THE DESIGN SWEEP LANDED; THE GLASS QUEUE IS STILL BLOCKED ON TRE.
+## FIRST UP - 2026-09-16 (Ada, TENTH session). DESIGN SWEEP DONE. ANDROID IS GREEN AT BUILD 839.
+
+**ANDROID BUILD 839 CARRIES EVERYTHING FROM TODAY** - run 35109143079 on `d500c0f3`, success,
+VERSION_CODE read from the run's own log rather than computed. The earlier run on `223af677`
+FAILED at the Play deploy step ("service is currently unavailable") and was **superseded, not
+retried**: merge-base proves the failed commit is an ANCESTOR of the green one, so re-running would
+have published an older bundle - and `cancel-in-progress` means it could have killed the good run.
+No partial publish: Play deploys are an Edit TRANSACTION, and a run that dies before the commit
+publishes nothing.
+
+**FIRST UP NEXT TIME: the resume queue below. Items 2-4 are BLOCKED ON TRE.**
 
 `223af677` on origin/main, verified by contents 0/0.
 
@@ -83,7 +93,15 @@ failure mode this app actually has - text silently clipped with no scrollbar to 
    to a 1px gold ring. New repo-wide `focus-visible.gate.test.ts`, proven RED on the REAL defect
    (names UsernameClaim.tsx:159), restored byte-exact, 4 positive controls asserting both
    directions. **The old `field-consistency.test.ts` reads ONE FILE and could never have caught it.**
-   **STILL OPEN - the style half:** 42 distinct text-input class signatures across 87 inputs,
+   **STYLE HALF: DECIDED AND CLOSED AS A RATCHET, NOT A REWRITE.** `control-style-ratchet.gate.test.ts`
+   freezes the count at 36 input surfaces / 18 select surfaces; it may fall, never rise. Proven red
+   by planting one new surface. **The signature is the SURFACE** - layout utilities stripped, tokens
+   sorted - because 36 sounds like 36 designs and is not: almost all are the same
+   `bg-secondary border border-border ... text-foreground` differing only in padding and text size.
+   **I deliberately did NOT rewrite 87 call sites across the money pages for a cosmetic gain.**
+   Lower the ceiling opportunistically when a file is being touched anyway, and set the constant in
+   the same commit. Old scoping kept below for the numbers:
+   **(historical) the style half:** 42 distinct text-input class signatures across 87 inputs,
    18 across 44 selects, shared constant used by ~38 of 136 controls. Most differ only in
    width/margin over one core, so it is one design hand-copied, not 42 designs. Do it in slices,
    **money pages LAST**, and widen the gate to a ratchet that can only go down.
