@@ -95,6 +95,19 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
 ### RESUME QUEUE - START AT ITEM A (items 0-4 below are DONE)
 
 A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
+   🚀 **iOS DISPATCHED: run `35155768885`, `workflow_dispatch`, head `faa0aa86`** (22:04:10Z).
+   This is the third upload today (849, 854, this), and Apple caps uploads per app per day - the
+   repo once burned that cap with eleven in a day - so **do not dispatch again today without a
+   reason.** Dispatched because `845db7ee`, the fix for the very thing he complained about, is in
+   NO build, and no further layout edit can change that.
+   ⚠️ **VERIFY IT WITH ALL THREE GATES, NOT THE RUN'S CONCLUSION.** A push run reads `success`
+   with the upload step `skipped`, and the upload step itself swallows Apple's cap error 90382 into
+   a warning and still exits green:
+       gh run view 35155768885 --json jobs   # step 20 must read success, never skipped
+       gh run view 35155768885 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
+       # and if 90382 appears, check WHERE - three matches in the echoed script SOURCE are normal
+   **VERSION_CODE = run_number + 100**, and it is iOS he opens, not Android. **An upload is not an
+   install**; TestFlight still processes and he still has to update.
    Tre, 2026-09-16 16:30: *"format the pill in the settings tab cleaner. and reduce the empty space
    in the top right. some other tabs also have this issue. big blank spaces."*
    ⚠️ **DO NOT MARK THIS DONE OFF `845db7ee` - I nearly did, and it is wrong twice.** That
