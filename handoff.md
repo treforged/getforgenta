@@ -1,11 +1,53 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## FIRST UP - 2026-09-16 (Ada, TENTH session). NAV IA CHANGED AND IT IS NOT YET WALKED IN A BROWSER.
+## FIRST UP - 2026-09-16 (Ada, ELEVENTH session). THE NAV IS WALKED AND THE GLASS PILL IS SHIPPED.
 
-**START AT RESUME ITEM 1: walk the new nav on a phone viewport.** Everything below is on
-origin/main, 0/0, tsc clean, test:tz 466 files green in three zones. Nothing is uncommitted.
+**FIRST UP: confirm iOS run `35138359218` reached its UPLOAD STEP, then tell Tre the build
+number.** Everything is on origin/main, 0/0, tsc clean, lint 0 errors, test:tz **466 files /
+4712 tests green in three zones** (same count as the previous session - the suite did not shrink).
 
-### WHAT SHIPPED TODAY, newest first
+**READ THE UPLOAD STEP'S OWN CONCLUSION, AND THEN ITS OUTPUT.** `gh run view 35138359218 --json jobs`
+-> step 20 `Upload to App Store Connect` must read `success`, never `skipped`. And step 20 catches
+Apple's daily-cap error 90382 and still exits green, so the only sufficient evidence is altool's own
+`UPLOAD SUCCEEDED with no errors` in the log. The run was DISPATCHED (`workflow_dispatch`), which is
+what satisfies the upload condition; the push-triggered run on the same SHA was auto-cancelled.
+
+### WHAT SHIPPED THIS SESSION
+* **`[nav]` the new nav IA is WALKED IN A REAL BROWSER** - `5e6d779a`, new `npm run check:nav`
+  (`scripts/check-nav-doors.mjs`), 390x844 and 1440x900, signed in. Measured: hamburger absent on
+  the four tab routes, present and TAPPABLE on /account (44x44 at 337,5, hit-tested with
+  `elementFromPoint` because visible-and-covered is what put Settings out of reach on every notched
+  iPhone in 2026-08), press lands on /settings, badge -> /account, one ordinary Sign Out distinct
+  from the Security panel's all-devices control, desktop Settings button 101x33.
+  **Proven red twice on real prior states**, restored byte-exact.
+* **`[nav]` the phone tab bar is a FLOATING LIQUID-GLASS PILL** - `936c3cf8`. Inset 14/13/13px at
+  390x844, 71px tall, `rounded-full`. `npm run check:glass` measures **mean 255.00 per-pixel change
+  under scroll against 0.00 still-frame noise** - real `backdrop-filter`, not a painted fill.
+  The safe-area inset moved from `paddingBottom` to the BOTTOM OFFSET; `overflow-hidden` is
+  load-bearing or the blur paints a rectangle outside the pill.
+
+### ⚠️ THREE INSTRUMENT FAULTS FOUND THIS SESSION, ALL OF WHICH WOULD HAVE READ AS APP DEFECTS
+Written down because each is a trap the next session will meet in the same place.
+1. **CLAUDE-IN-CHROME CANNOT SET A PHONE VIEWPORT HERE.** `resize_window` returned
+   *"Successfully resized ... to 390x844"* and `window.innerWidth` stayed **1154**, twice.
+   `outerWidth` reads 0. **The call succeeds and nothing happens** - the same family as
+   `Start-ScheduledTask`. Tre's ask said to walk it with Claude-in-Chrome; it was walked with
+   PLAYWRIGHT instead, and that substitution is the reason the walk is trustworthy.
+2. **A SELECTOR THAT REQUIRED AN ICON FOUND NOTHING** - `IdentityBadge` renders INITIALS ("DW"),
+   not a `<svg>`, so requiring one asked for the one thing the control does not have. Its zero was
+   a fact about the selector.
+3. **A SIGN-OUT COUNT OF 2 WAS ONE REAL CONTROL AND ONE 0x0 BOX** - `Sidebar.tsx`'s own Sign Out
+   row is in the DOM at 390px inside an `lg:` wrapper. Every count in that gate now requires a
+   rendered box. And Settings is FOUR panels; the all-devices control lives in **Security** only.
+
+### ⚠️ AND THE GATE'S FIRST RED RUN BLAMED ITSELF - FIX THIS SHAPE WHEREVER IT APPEARS
+The bar assertions originally found the bar by `nav[class*="rounded-full"]` - **its own correctness
+marker** - so restoring the pinned bar printed *"CONTROL FAILED: no bar with a pill radius was
+found"* and exited 2. **An exit-2 tooling fault gets re-run and then ignored; an exit-1 finding gets
+fixed.** It now matches the rendered fixed-position `<nav>` in the bottom half of the viewport - true
+of both shapes - and the radius is an ASSERTION about what was found, not a condition of finding it.
+
+### WHAT SHIPPED EARLIER TODAY, newest first
 * **`[nav]` Settings had THREE doors on a phone, now ONE.** Identity badge -> `/account`;
   hamburger renders ONLY on the Account tab and goes straight to `/settings`; the drawer is
   DELETED; Settings gained an ordinary **Sign Out** and Upgrade to Premium at the bottom.
@@ -42,26 +84,27 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
 
 ### RESUME QUEUE - START AT ITEM 1
 
-1. [ ] **WALK THE NEW NAV IN A BROWSER AT PHONE WIDTH. NOTHING HAS PRESSED IT.** The gate is a
-   SOURCE scan - jsdom has no layout and cannot evaluate an `lg:` breakpoint, so it proves the route
-   is declared and nothing about whether the hamburger is visible or tappable.
-   `node scripts/dev-session.mjs up`, then `/demo` at 390px. **Assert, in order:** the hamburger is
-   ABSENT on Home/Transactions/Debt/Garage; PRESENT on Account; pressing it lands on `/settings`;
-   Settings shows **Sign Out** at the bottom and it is NOT the "all devices" control; the identity
-   badge top-left goes to `/account`. Then at 1440px: the Account page's Settings button is VISIBLE.
-   ⚠️ **This is the check that matters most** - a safe-area bug once made this same hamburger
-   untappable and put Settings out of reach on every phone, throwing nothing.
+1. [x] **DONE - THE NAV IS WALKED IN A REAL BROWSER.** `5e6d779a`, `npm run check:nav`
+   (`scripts/check-nav-doors.mjs`). Every assertion in the old item passed, measured: hamburger
+   absent on Home/Transactions/Debt/Garage, present and TAPPABLE on Account (44x44 at 337,5,
+   hit-tested with `elementFromPoint`), press -> `/settings`, badge -> `/account`, one rendered
+   ordinary Sign Out distinct from Security's all-devices control, desktop Settings button 101x33.
+   Proven red twice on real prior states, restored byte-exact.
+   ⚠️ **NOT walked with Claude-in-Chrome, which Tre's ask named** - its `resize_window` reports
+   success while `innerWidth` stays 1154, so it cannot set a phone viewport at all. Playwright,
+   signed in via `.env.deck-walk.local`, is the instrument that works here.
 
-2. [ ] **THE LIQUID-GLASS BOTTOM TAB BAR - ASKED FOR, NOT STARTED.** Tre, 2026-09-16: *"i want the
-   bottom selection of tabs like the liquid glass instagram does. for iphone"*, with screenshots of
-   iOS 26 Instagram: a FLOATING, pill-shaped, translucent bar inset from the screen edges, not a
-   full-width bar pinned to the bottom. Surface is `src/components/layout/MobileNav.tsx`.
-   **The app already has a real translucency utility and a gate for it** - `@utility glass` in
-   `src/index.css` and `npm run check:glass`, which proves a bar is REALLY translucent by
-   screenshotting it before and after scrolling content underneath. Use both; a painted fill and a
-   real `backdrop-filter` are identical in a class list.
-   ⚠️ **Respect `env(safe-area-inset-bottom)`** and re-run `npm run check:rail` and
-   `npm run check:account`.
+2. [x] **DONE - THE FLOATING LIQUID-GLASS PILL IS SHIPPED.** `936c3cf8`. Inset 14/13/13px at
+   390x844, 71px tall, `rounded-full`, real translucency measured by `npm run check:glass`
+   (mean 255.00 per-pixel change under scroll, 0.00 still-frame noise). `check:rail`,
+   `check:account` and `check:concentricity` re-run green. The safe-area inset moved from
+   `paddingBottom` to the BOTTOM OFFSET - that is the difference between a pinned bar and a
+   floating one, not a tidy-up.
+   ⚠️ **A NEW ASSERTION GUARDS THE THING NOTHING COVERED: CONTENT CLEARANCE.** The bar's footprint
+   (gap + height = 84px) and `DashboardLayout`'s `pb-[calc(5.5rem+env(safe-area-inset-bottom))]`
+   reserve (88px) live in different files and nothing makes them agree. `check:nav` now scrolls
+   /dashboard to its end and measures the real gap: **14px**. If you change the bar's height or
+   gap, that margin is what you are spending.
 
 3. [ ] **NATIVE GLASS IS RE-APPROVED AND THE BLOCKER IS NOW AN INSTRUMENT, NOT A DECISION.**
    Tre, 2026-09-16: *"i want native glass. i just dont have access to a macbook rn. i can borrow a
@@ -73,8 +116,17 @@ Both are recorded in `MobileTopBar.tsx`. A session reading only the older commen
    figures; the shape that works needs a SECOND transparent WKWebView for chrome. That is analysis,
    not measurement - and the Mac is what turns it into measurement.
 
-4. [ ] **DISPATCH THE iOS BUILD when items 1-2 are done**, then give him the iOS build number with
-   the upload step's conclusion verified. One dispatch, not one per commit.
+4. [~] **DISPATCHED - run `35138359218`, `workflow_dispatch`, head `936c3cf8`.** One dispatch for
+   both commits, not one per commit (Apple caps uploads per app per day). **STILL TO DO: read the
+   UPLOAD STEP'S own conclusion and then its OUTPUT, and only then give Tre a build number.**
+
+       gh run view 35138359218 --json jobs   # step 20 'Upload to App Store Connect'
+
+   ⚠️ Step 20 must read `success`, never `skipped` - a skipped step does not fail a workflow, so a
+   push run ends GREEN carrying a real VERSION_CODE having sent nothing anywhere. **AND `success`
+   is not sufficient either**: that step catches Apple's daily-cap error 90382, prints a warning
+   and still exits green, so the only conclusive evidence is altool's own `UPLOAD SUCCEEDED with no
+   errors` in the log. `VERSION_CODE = run_number + 100`. **An upload is not an install** - say so.
 
 5. [ ] **Lower the control-style ceiling opportunistically.** `control-style-ratchet.gate.test.ts`
    holds 36 input surfaces / 18 select surfaces. Consolidate only when a file is being touched
@@ -4565,10 +4617,14 @@ within 5 years**. `$12,700` is the RETIREMENT tile's value.
 Fix by DERIVING both from demo data at render — `accountSummary.ccDebt` and `heroState` are
 already in scope — because correcting the strings re-breaks the next time demo data changes.
 
+
+
+</details>
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 13:07 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 14:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4585,16 +4641,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+368fec87 [handoff]: nav IA changed and is NOT yet walked - that is item 1
+4d6bc32b [nav]: Settings had three doors on a phone - now it has one, and Sign Out lives in it
+d4dd8f23 [bank]: "Connect a bank" opens Plaid instead of dropping the user on a page
+923fd51e [handoff]: iOS 849 is in TestFlight - and 839 and 848 were both the wrong answer
+a9f5dbed [docs]: the run reads success while the upload reads skipped - check the step, not the run
 40e7991a [docs]: a push does not reach TestFlight - dispatch the iOS workflow, permanently
 45669b71 [handoff]: 839 is on a build, not on his device - say so before somebody reads it as delivered
 2d05d73d [handoff]: android green at build 839, style half closed as a ratchet
-3b60e74c [design]: freeze the control-style count as a ceiling rather than rewrite 87 call sites
-acd43d36 [handoff]: consolidation started - the accessibility half shipped, the style half scoped
-d500c0f3 [a11y]: the username field had no visible focus state at all, for the second time
-2fa01717 [pmf]: the survey gate leaves a QUALIFYING row in the production table, so aggregates must not read the table
-694e4227 [handoff]: the design sweep landed - one systemic defect fixed, one consolidation left
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
-
-</details>
