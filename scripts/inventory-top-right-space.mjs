@@ -171,6 +171,15 @@ const measure = () => {
   // So the edge comes from the LAYOUT: the content column, found by walking up from the title while
   // the ancestor still fits the viewport. That is a fact about the page's structure and does not
   // move when a button is hidden.
+  // ⚠️ TWO WALKS WERE WRONG IN OPPOSITE DIRECTIONS, AND THIS ONE'S LIMIT IS PRINTED RATHER THAN
+  // HIDDEN. Climbing only while the parent is the SAME width stops too early - the column ends up
+  // narrower than the title row itself and every gap comes out NEGATIVE. Climbing while the parent
+  // merely FITS the viewport crosses a `max-w-2xl mx-auto` wrapper, so on Account and Settings the
+  // reference became the full-width wrapper and the reading was the CENTRING MARGIN: a confident
+  // 306px of "waste" on two pages that have none.
+  // The fits-the-viewport walk is kept, because it is the one the red control can detect through -
+  // and `colPx` is REPORTED beside every row so a centred page is visible as a column much narrower
+  // than the viewport, instead of silently inflating its gap. Judge `rightGap` against `colPx`.
   let column = h1;
   while (
     column.parentElement
@@ -226,6 +235,14 @@ const measure = () => {
   }).length;
 
   return {
+    // ⚠️ IS THERE ANYTHING ON THE TITLE ROW AT ALL? Without this, `rightGapPx` cannot separate the
+    // two causes of a big gap, and EVERY top offender checked by hand turned out to be the benign
+    // one. A gap beside an EMPTY title row can be deliberate (the Command Center stacks its four
+    // buttons below on a phone because Tre asked for that on 2026-08-19, after they overlapped the
+    // title at 390px) or conditional (Settings' Save renders only when there are unsaved changes).
+    // A gap beside a title row that DOES hold something is real slack the layout is not using.
+    titleRowItems: onTitleRow.length,
+    colPx: Math.round(column.getBoundingClientRect().width),
     headerRows: tops.length,
     // ⚠️ MEASURED TO THE LAST ROW ITEM, NOT TO THE BAND. This used to take the lowest bottom in the
     // zone, and once elements were clipped to the band that became the BAND CEILING - every route
@@ -376,11 +393,11 @@ if (headersFound < examined / 2) {
 
 const pad = (s, n) => String(s ?? '-').padEnd(n);
 console.log(`\nTOP-RIGHT SPACE INVENTORY - ${examined} route/viewport pairs, ${headersFound} with a header\n`);
-console.log(`${pad('viewport', 9)}${pad('route', 15)}${pad('rows', 6)}${pad('headerPx', 10)}${pad('rightGap', 10)}${pad('below', 7)}title`);
+console.log(`${pad('viewport', 9)}${pad('route', 15)}${pad('rows', 6)}${pad('headerPx', 10)}${pad('colPx', 8)}${pad('rightGap', 10)}${pad('onRow', 7)}${pad('below', 7)}title`);
 console.log('-'.repeat(72));
 for (const r of rows) {
   console.log(
-    `${pad(r.viewport, 9)}${pad(r.route, 15)}${pad(r.headerRows, 6)}${pad(r.headerPx, 10)}${pad(r.rightGapPx, 10)}${pad(r.belowActions, 7)}${r.unstable ? `UNSTABLE ${r.unstable} ` : ''}${r.title ?? ''}`,
+    `${pad(r.viewport, 9)}${pad(r.route, 15)}${pad(r.headerRows, 6)}${pad(r.headerPx, 10)}${pad(r.colPx, 8)}${pad(r.rightGapPx, 10)}${pad(r.titleRowItems, 7)}${pad(r.belowActions, 7)}${r.unstable ? `UNSTABLE ${r.unstable} ` : ''}${r.title ?? ''}`,
   );
 }
 

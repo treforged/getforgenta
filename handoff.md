@@ -163,23 +163,30 @@ A. [ ] 🚨 **BIG BLANK SPACES - AND IT IS NOT ONLY SETTINGS.** Ask `387f4d00`.
        than averaged - an average of two readings, one of a half-rendered page, is a confident
        number with nothing behind it. Result: **18 of 18 pairs, zero unstable**, red control still
        DETECTED on both viewports. The numbers below are stable and repeatable.
-   🚨 **AND THE INVENTORY VINDICATES HIS "some other tabs also have this issue" - THE WORST
-      PHONE OFFENDERS ARE SCREENS HE DID NOT NAME:**
-        phone   /dashboard  270px empty right of the title, 4 actions on the rows below
-        phone   /accounts   270px, 4 actions below
-        phone   /goals      270px, 4 actions below
-        phone   /account    244px, 3 actions below
-        phone   /settings    14px  <- the screen he DID name is FINE on a phone
-        desktop /settings   306px, 9 actions below
-        desktop /account    306px, 8 actions below
-      Everything else reads 14px (phone) or 36px (desktop), which is the column padding - content
-      reaches the edge and there is nothing to reclaim. **/dashboard, /accounts and /goals are one
-      shell ("Command Center") and all three read identically, which is corroboration rather than
-      three findings.**
-      On a 390px phone, 270px empty beside the title while four controls sit on rows beneath it is
-      the exact shape he described. **Settings is the desktop case; the phone cases are elsewhere.**
-      **NEXT: lift those rows' actions onto the title row where they fit, re-run `check:topright`,
-      and confirm the red control still detects.**
+   12. FIXED - **A BIG `rightGap` IS NOT WASTE, AND I NEARLY ACTED ON FOUR THAT WERE NOT.** The new
+       `onRow` column is what separates them, and `colPx` exposes the second artefact:
+       * `onRow 0` - nothing is on the title row at all. Checked by hand, **every one was benign.**
+         The Command Center's four buttons sit BELOW the title on a phone because **Tre asked for
+         that on 2026-08-19**, after a `flex-row` at 390px drew them on top of the title; the
+         comment recording his instruction is still in `Dashboard.tsx`. "Fixing" that 270px would
+         have reverted his own decision and restored the overlap he reported.
+       * Desktop `/account` and `/settings` at 306px are the **`max-w-2xl mx-auto` CENTRING
+         MARGIN**, not slack - the walk climbs past the centring wrapper, which `colPx 1440` beside
+         a 672px content box now makes visible.
+       ⚠️ **SO THE ANSWER TO HIS ASK IS A NEGATIVE RESULT, AND IT IS A REAL ONE:** at 390px and
+       1440px, **no route wastes top-right space by accident.** The screen he named, Settings, was
+       fixed by `845db7ee` and now reads **14px on a phone** - the column padding, i.e. content
+       reaches the edge. ⚠️ **AND THAT FIX IS STILL IN NO BUILD**, which is the thing that
+       actually matters to him: by ancestry `845db7ee` is not in 854. **Dispatch iOS and he will
+       see it.**
+       **STATED LIMITS, so nobody trusts this past its reach:** two widths only; `colPx` exposes the
+       centring artefact but does not correct for it; and 2-3 desktop routes still drop out of a run
+       intermittently, so a missing row means "not measured", never "clean".
+   🗑️ **SUPERSEDED - the claim this replaced, kept because it was wrong in an instructive
+      way: "THE INVENTORY VINDICATES HIS 'some other tabs also have this issue'". It does not. The
+      numbers were real and the reading of them was wrong, which is the more dangerous half.**
+      **NEXT: nothing to lift. Dispatch the iOS workflow so `845db7ee` reaches his phone, and keep
+      `check:topright` as the gate that answers this class of complaint by measurement next time.**
    🗑️ **SUPERSEDED - the original fault 10 text:** `titleRight` IS MEASURING A CONTAINER.
        The control still reads NOT DETECTED, and the reason is now located. Every route's gap equals
        its column padding exactly (14 phone / 36 desktop) EXCEPT desktop `/account` and `/settings`
@@ -4924,7 +4931,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 17:28 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 17:55 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4939,14 +4946,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+5a81805b [design]: check:topright measures twice and requires agreement - the red control could not catch flakiness
+dcb9caa7 [design]: check:topright - an inventory of every tab's empty top-right, and it is proven red
+c677524c [handoff]: two more probe faults fixed; the last one is in the metric, and I had asserted it was not
+abca93c0 [handoff]: probe faults 6 and 7 fixed; the last one is in the PLANT, not the metric
 cbd650fb [handoff]: probe faults 4 and 5 fixed, 18/18 headers found - and headerPx is now saturated
 bcf33fbf [handoff]: probe fault 3 fixed, and fixing it exposed two more
 92634296 [handoff]: the blank-space probe is parked, not shipped - it is still lying
 219e6faa [handoff]: item 0 shipped; the iOS push diagnosis on file is refuted by the build running the fix
-ce00b1a5 [push]: a timeout row now says whether the device was online, because both recorded causes are refuted
-1e16ab2c [handoff]: item 0 is done - the transfer fix, and why the inherited design could not have worked
-63085f10 [money]: a standing transfer to your own account is no longer counted as spending
-41116e6d [handoff]: the transfer fix is fully designed - exact edit points, and the one thing unverified
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
