@@ -18,6 +18,8 @@
 
 /** Pages beyond this are ignored. A statement's figures are on the first page or two; a 200-page
  *  document is a mis-pick, and grinding through it would freeze the tab rather than fail. */
+import { ensurePromiseTry } from './promise-try-polyfill';
+
 const MAX_PAGES = 12;
 
 /** Bigger than any real statement. Refused before decoding rather than after. */
@@ -35,6 +37,13 @@ export async function extractPdfText(file: File): Promise<string> {
   if (file.size > MAX_PDF_BYTES) {
     throw new PdfReadError('That file is too large to read here.');
   }
+
+  // ⚠️ pdf.js 6.x CALLS `Promise.try`, WHICH THIS APP'S OLDEST SUPPORTED DEVICES DO NOT HAVE.
+  // The deployment target is iOS 15.0 and a Capacitor app renders in the system WKWebView, so on
+  // iOS 15 through 18.1 the method is missing and this feature threw `TypeError` on every file.
+  // Installed HERE rather than at app start so it stays inside the dynamic-import trade above -
+  // nobody who never opens this feature pays for it. See `promise-try-polyfill.ts`.
+  ensurePromiseTry();
 
   let pdfjs: typeof import('pdfjs-dist');
   try {
