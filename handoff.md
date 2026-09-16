@@ -2,6 +2,17 @@
 
 ## FIRST UP - 2026-09-16 (Ada, ELEVENTH session). THE NAV IS WALKED AND THE GLASS PILL IS SHIPPED.
 
+⚠️ **TRE SAYS HE INSTALLED "THE NEW VERSION" (2026-09-16 ~20:25Z) AND WHICH BUILD IS UNSETTLED.**
+854 finished uploading at 19:11:03Z, so it had ~73 minutes to process and IS plausibly what he has -
+but 849 was the only installable build for most of today, and **849 carries NONE of today's work**
+(head `45669b71`, checked by ancestry: no nav IA, no Plaid auto-open, no glass pill; 854 has all
+three). **The cheap discriminator is the tab bar itself, not a build number:** a FLOATING PILL
+inset from the edges is 854, a full-width bar stuck to the bottom edge is 849. Do not assume he has
+seen today's work because he has updated.
+⚠️ **He also said "i thought i told you this" - he did not tell THIS session**, so it reached the
+predecessor tab or Sam. Same relay family the charter already records: a message is a nudge, the
+record is the record.
+
 **THE QUEUE IS EXHAUSTED. iOS 854 IS IN TESTFLIGHT** (run `35138359218`, altool
 `UPLOAD SUCCEEDED with no errors` at 19:10:56Z) and it carries everything below. Everything is on
 origin/main, 0/0, tsc clean, lint 0 errors, test:tz **466 files / 4712 tests green in three zones**
