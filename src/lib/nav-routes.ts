@@ -24,6 +24,16 @@ export const TAB_ROOT_PATHS = [
 ] as const;
 
 /**
+ * The Account tab's path, named once so anything scoped to that tab moves with a rename.
+ *
+ * ⚠️ IT IS DERIVED FROM THE LIST, NOT RETYPED. `MobileTopBar` shows the hamburger only here, and
+ * the hamburger is the ONLY route to Settings on a phone - so a hand-typed '/account' that stopped
+ * matching after a rename would take Settings out of reach entirely and throw nothing. This repo
+ * has already paid for that exact shape once, when a bar's inset made the same button untappable.
+ */
+export const ACCOUNT_TAB_PATH = '/account' satisfies (typeof TAB_ROOT_PATHS)[number];
+
+/**
  * True when this route was navigated TO from somewhere else and a back affordance makes sense.
  *
  * ⚠️ Everything that is not a tab root counts, deliberately — including a route this list has

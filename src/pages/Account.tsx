@@ -116,10 +116,19 @@ export default function Account() {
           </div>
         </div>
         {/* Everything editable still lives in Settings. This tab is for finding things, not for
-            growing a second copy of every control — which is how two screens start disagreeing. */}
+            growing a second copy of every control — which is how two screens start disagreeing.
+
+            ⚠️ DESKTOP ONLY, AND REMOVING THE BREAKPOINT STRANDS SETTINGS ENTIRELY AT THAT WIDTH.
+            On a phone, Settings is reached through the hamburger on this tab (Tre, 2026-09-16:
+            "you can only get there from the hamburger page"), so a second button here is the
+            duplication he was reporting. But `primary-nav.ts` records that THE DESKTOP RAIL HAS NO
+            SETTINGS ROW - it was dropped deliberately, on the stated reasoning that "the Account
+            page links to it". That link is this one. The hamburger is `lg:hidden`, so deleting
+            this outright would leave desktop with no route to Settings at all.
+            `settings-reachable.gate.test.ts` holds both widths. */}
         <Link
           to="/settings"
-          className="btn btn-md btn-secondary shrink-0"
+          className="hidden lg:inline-flex btn btn-md btn-secondary shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
         >
           <SettingsIcon size={12} /> Settings

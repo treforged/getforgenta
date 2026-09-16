@@ -1256,6 +1256,44 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* ⚠️ SIGN OUT LIVES AT THE BOTTOM OF SETTINGS, WHICH IS WHERE INSTAGRAM PUTS IT.
+          Tre, 2026-09-16: "the hamburger should open the settings page, including the log out
+          button, like how instagram does it."
+
+          THIS PAGE HAD NO ORDINARY SIGN OUT. It carried "Sign Out All Devices" - a security
+          control that revokes every session - and the delete-account flow, but the everyday
+          "log me out of this phone" only existed inside the hamburger DRAWER, which today's
+          change removes. Without this block that action would have disappeared from the app on
+          mobile entirely, which is the one outcome a navigation change must never produce.
+
+          ⚠️ THE TWO SIGN-OUTS ARE DELIBERATELY DIFFERENT AND MUST NOT BE MERGED. This one ends
+          THIS session. The one in the security section ends EVERY session on every device and is
+          what you reach for after losing a phone. Same words, very different blast radius, so
+          they are kept apart and worded apart rather than tidied into one row.
+
+          Hidden in demo: a demo has no session to end, and the banner already offers the way out. */}
+      {!isDemo && (
+        <div className="card-forged overflow-hidden divide-y divide-border">
+          {!isPremium && (
+            <Link
+              to="/premium"
+              className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium w-full hover:bg-secondary transition-colors btn-press"
+            >
+              <Crown size={16} className="text-primary shrink-0" />
+              <span className="flex-1 min-w-0 text-left truncate">Upgrade to Premium</span>
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => { void supabase.auth.signOut(); }}
+            className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium w-full text-destructive hover:bg-destructive/10 transition-colors btn-press"
+          >
+            <LogOut size={16} className="shrink-0" />
+            <span className="flex-1 min-w-0 text-left truncate">Sign Out</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

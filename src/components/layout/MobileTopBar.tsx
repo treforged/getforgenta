@@ -1,16 +1,9 @@
 import { Link, useLocation } from 'react-router';
-import { Menu, Settings, Crown, LogOut, Home, X, Sparkles, Eye } from 'lucide-react';
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/hooks/useSubscription';
+import { Menu } from 'lucide-react';
 import { useDemoSession } from '@/hooks/useDemoSession';
-import { useViewedProfile } from '@/contexts/ViewedProfileContext';
-import { usePartnerLinkStatus } from '@/hooks/usePartnerLink';
-import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import IdentityBadge from '@/components/layout/IdentityBadge';
 import BackButton from '@/components/layout/BackButton';
-import { isPushedRoute } from '@/lib/nav-routes';
+import { isPushedRoute, ACCOUNT_TAB_PATH } from '@/lib/nav-routes';
 
 /**
  * The narrow-viewport top bar: a hamburger at the far LEFT that is on screen on every route, at
@@ -36,30 +29,19 @@ import { isPushedRoute } from '@/lib/nav-routes';
  */
 export default function MobileTopBar() {
   const { pathname } = useLocation();
-  const { signOut } = useAuth();
-  const { isDemo, isPreview, leaveDemo } = useDemoSession();
-  const { isPremium } = useSubscription();
+  const { isDemo } = useDemoSession();
 
-  // The partner-view switcher — same predicate as the sidebar's, so the two menus
-  // cannot disagree about whether there is a partner to view.
-  const { isPartnerView, switchTo, switchBack } = useViewedProfile();
-  const { partnerUserId, partnerLabel } = usePartnerLinkStatus();
-  const showPartnerSwitch = !isDemo && !!partnerUserId;
-
-  // The drawer stores the route it was opened on rather than a bare boolean, so it closes itself
-  // the moment the route changes — covering the links inside it, the bottom tabs, the back button
-  // and programmatic navigation alike, with no effect to reset it. Lifted verbatim from the "More"
-  // panel this replaces.
-  const [openedAt, setOpenedAt] = useState<string | null>(null);
-  const open = openedAt === pathname;
-  const setOpen = (next: boolean) => setOpenedAt(next ? pathname : null);
+  /**
+   * The hamburger belongs to the Account tab only. Compared against the shared `ACCOUNT_TAB_PATH`
+   * rather than a literal, so a rename moves the tab and this predicate together - a hand-typed
+   * '/account' here would silently stop matching and take the ONLY route to Settings with it.
+   *
+   * The trailing slash is normalised for the same reason `isPushedRoute` does it: links people
+   * paste and some native shells add one, and `/account/` is the same screen.
+   */
+  const onAccountTab = pathname.replace(/\/+$/, '') === ACCOUNT_TAB_PATH;
 
   const brandTo = isDemo ? '/' : '/dashboard';
-
-  const menuItems = [
-    { to: '/settings', icon: Settings, label: 'Settings' },
-    ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
-  ];
 
   return (
     <>
@@ -95,17 +77,28 @@ export default function MobileTopBar() {
             itself where the account lives. */}
         {isPushedRoute(pathname) ? <BackButton /> : <IdentityBadge />}
 
-        <button
-          onClick={() => setOpen(!open)}
-          aria-label="Open menu"
-          aria-expanded={open}
-          className={cn(
-            'ml-auto flex items-center justify-center min-w-[44px] min-h-[44px] -my-0.5 transition-colors btn-press',
-            open ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          <Menu size={20} />
-        </button>
+        {/* ⚠️ THE HAMBURGER IS ON THE ACCOUNT TAB AND NOWHERE ELSE, and this NARROWS an earlier
+            instruction rather than ignoring it. Tre, 2026-08-18: "make settings accessible from a
+            hamburger in the top left at all times" - built exactly that, visibility conditional on
+            nothing. Tre, 2026-09-16: "the hamburger should open its own page. and is only viewable
+            and accessible from the account page." Both are his; the later one wins. Do not restore
+            the unconditional version from the older comment alone.
+
+            IT GOES STRAIGHT TO SETTINGS, AND THE DRAWER IT REPLACED IS GONE. Tre clarified the
+            same day: "the hamburger should open the settings page, including the log out button,
+            like how instagram does it." Instagram's hamburger opens "Settings and activity" - ONE
+            page, with sign-out at the bottom of it - not an intermediate menu. An earlier attempt
+            here built that intermediate page and it was the wrong shape; it is deleted rather than
+            left dark. Settings is a pushed route, so it gets a back button and keeps the tab bar. */}
+        {onAccountTab && (
+          <Link
+            to="/settings"
+            aria-label="Open menu"
+            className="ml-auto flex items-center justify-center min-w-[44px] min-h-[44px] -my-0.5 text-muted-foreground hover:text-foreground transition-colors btn-press"
+          >
+            <Menu size={20} />
+          </Link>
+        )}
 
         <Link
           to={brandTo}
@@ -126,126 +119,6 @@ export default function MobileTopBar() {
         </Link>
       </div>
 
-      {open && (
-        <div
-          className="lg:hidden fixed inset-0 z-50 bg-background/60 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            /* ⚠️ THE DRAWER MOVED WITH THE TRIGGER, and this is a judgement call worth reversing
-               separately if it is wrong. A control on the RIGHT that opens a panel from the LEFT
-               is a worse mismatch than either consistent arrangement — the panel appears to come
-               from nowhere the finger just was. Instagram's top-right menu opens a right-hand
-               sheet, which is the model the law is about. Reverse this line alone to keep the
-               drawer on the left. */
-            className="absolute right-0 top-0 bottom-0 w-[min(78vw,300px)] bg-card border-l border-border shadow-xl overflow-y-auto"
-            style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Menu</span>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close menu"
-                className="p-1 text-muted-foreground hover:text-foreground icon-btn"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="p-2 space-y-1">
-              {showPartnerSwitch && (
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    if (isPartnerView) switchBack(); else switchTo(partnerUserId);
-                  }}
-                  className={cn(
-                    'flex items-center gap-2.5 px-3 py-3 text-sm font-medium transition-colors btn-press w-full',
-                    isPartnerView ? 'text-primary bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
-                  )}
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  <Eye size={16} />
-                  <span className="truncate">
-                    {isPartnerView ? 'Back to my account' : `View ${partnerLabel ?? 'partner'}`}
-                  </span>
-                </button>
-              )}
-              {menuItems.map(item => {
-                const active = pathname === item.to;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      'flex items-center gap-2.5 px-3 py-3 text-sm font-medium transition-colors btn-press w-full',
-                      active ? 'text-primary bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
-                    )}
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    <item.icon size={16} /> {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-
-            <div className="border-t border-border px-2 pt-2 space-y-1">
-              {/* Same predicate as the sidebar and the banner: a signed-in preview leaves, a
-                  visitor signs up. See `useDemoSession`. */}
-              {isPreview ? (
-                <button
-                  onClick={() => { setOpen(false); leaveDemo(); }}
-                  className="flex items-center gap-2 px-3 py-3 text-sm font-semibold text-primary hover:bg-primary/8 btn-press w-full"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  ← Back to my account
-                </button>
-              ) : isDemo ? (
-                <>
-                  <Link
-                    to="/auth"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 px-3 py-3 text-sm font-semibold text-primary hover:bg-primary/8 btn-press w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    Sign Up Free →
-                  </Link>
-                  <Link
-                    to="/"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary btn-press w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    <Home size={14} /> Main Page
-                  </Link>
-                </>
-              ) : (
-                <>
-                  {!isPremium && (
-                    <Link
-                      to="/premium"
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-2 px-3 py-3 text-sm font-medium text-foreground hover:bg-secondary btn-press w-full"
-                      style={{ borderRadius: 'var(--radius)' }}
-                    >
-                      <Crown size={14} className="text-primary" /> Upgrade to Premium
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => { setOpen(false); signOut(); }}
-                    className="flex items-center gap-2 px-3 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 btn-press w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    <LogOut size={14} /> Sign Out
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

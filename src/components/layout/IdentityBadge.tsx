@@ -21,7 +21,14 @@ import { resolveIdentity } from '@/lib/identity-badge';
  * prominently, and a 44px badge in a corner is not that. Two signals for a fact this expensive to
  * get wrong is the right number, not a duplication to clean up.
  *
- * ⚠️ ONE JOB: it goes to Settings, always, in every state. Making it switch back out of partner
+ * ⚠️ IT GOES TO THE ACCOUNT TAB, NOT TO SETTINGS. Tre, 2026-09-16: "pressing the user icon in the
+ * top left takes the user to settings. pressing the hamburger and settings also takes you there. to
+ * many places." Settings had THREE doors on a phone - this badge, the hamburger drawer, and the
+ * Account page's button. It now has ONE: Account -> hamburger -> Settings, which is Instagram's
+ * shape and what he asked for. Tapping your own avatar landing on your own profile is also the
+ * convention people arrive carrying, so this loses nothing and removes a door.
+ *
+ * ⚠️ ONE JOB: it goes to one place, always, in every state. Making it switch back out of partner
  * view would give one control two behaviours depending on a state the control itself is reporting
  * — and the banner already offers that switch. A badge that sometimes navigates and sometimes
  * mutates the session is worse than no badge.
@@ -45,7 +52,7 @@ export default function IdentityBadge() {
 
   return (
     <Link
-      to="/settings"
+      to="/account"
       aria-label={id.title}
       title={id.title}
       className={cn(
