@@ -74,7 +74,24 @@ failure mode this app actually has - text silently clipped with no scrollbar to 
 4. [ ] **NOTHING HAS RUN ON A DEVICE.** When the material is worth looking at, ship deliberately
    (`workflow_dispatch` or a `v*` tag) and report the BUILD NUMBER - `VERSION_CODE = run_number +
    100`. A mobile fix is not delivered until a build carries it.
-6. [ ] **CONTROL CONSISTENCY - THE ONE REAL FINDING LEFT, AND TRE NAMED IT HIMSELF**
+6. [~] **CONTROL CONSISTENCY - STARTED. THE ACCESSIBILITY HALF IS DONE; THE STYLE HALF IS NOT.**
+   **DONE:** `UsernameClaim.tsx` had **NO VISIBLE FOCUS STATE AT ALL** - it hand-rolled a copy of
+   the shared wrapper/input pair, so the input had `outline-none` and the wrapper had no
+   `focus-within` ring. A keyboard user tabbing into "Choose a username" landed on an invisible
+   cursor. **SECOND OCCURRENCE** - `field-classes.ts` exists because FriendLink had it on 09-13.
+   Measured in a browser both ways: hand-rolled stays box-shadow `none` through focus, shared goes
+   to a 1px gold ring. New repo-wide `focus-visible.gate.test.ts`, proven RED on the REAL defect
+   (names UsernameClaim.tsx:159), restored byte-exact, 4 positive controls asserting both
+   directions. **The old `field-consistency.test.ts` reads ONE FILE and could never have caught it.**
+   **STILL OPEN - the style half:** 42 distinct text-input class signatures across 87 inputs,
+   18 across 44 selects, shared constant used by ~38 of 136 controls. Most differ only in
+   width/margin over one core, so it is one design hand-copied, not 42 designs. Do it in slices,
+   **money pages LAST**, and widen the gate to a ratchet that can only go down.
+   ⚠️ **Discover candidates by the ELEMENT, never by the shared constant** - a hand-rolled control
+   is exactly the one that does not import it. 2026-09-14 one-switch lesson, and it is why the
+   focus gate above found this.
+
+   Original scoping, kept because the numbers are the acceptance evidence:
    ("consistency across tabs", 2026-09-13). MEASURED 2026-09-16, brace-aware matcher:
    **42 distinct text-input class signatures across 87 inputs; 18 distinct select signatures
    across 44 selects.** The shared constant in `src/components/shared/field-classes.ts` is used
@@ -4502,7 +4519,7 @@ already in scope — because correcting the strings re-breaks the next time demo
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 22:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 10:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -4519,14 +4536,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+2fa01717 [pmf]: the survey gate leaves a QUALIFYING row in the production table, so aggregates must not read the table
+694e4227 [handoff]: the design sweep landed - one systemic defect fixed, one consolidation left
+223af677 [design]: the tab strip pinched its own corners on every screen, and no source gate could see it
+a123afac [handoff]: refresh the machine auto-snapshot before closing out
 502be13f [handoff]: the capability compiles and the surface has no candidate
 4b9cc178 [ios]: the glass surface can be placed and removed - and the gate caught the drift in the wild
 b518dfbd [handoff]: the xcode block is dead, and main was red before I arrived
 f8b0ff8f [pdf]: main was already red, and the cause breaks PDF import on every iOS below 18.2
-24fa97cb [ios]: the cheapest thing that can fail first - a native glass bridge with no glass in it
-ea3e2d5d [handoff]: the bounce removal is verified in a browser, and this desk closes out with an empty queue
-1323450a [onboarding]: the bounce removal is verified in a browser, and the tested rule had no caller
-ed860719 [handoff]: the backslash warning contained a literal backspace byte - the bug it warns about
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
