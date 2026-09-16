@@ -447,17 +447,30 @@ export default function SettingsPage() {
 
   return (
     <div className="py-4 lg:py-6 max-w-2xl mx-auto stack-section overflow-x-hidden">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* ⚠️ ONE ROW AT EVERY WIDTH — Tre, 2026-09-16, with a screenshot: *"reduce the empty
+          space in the top right."* This was `flex-col ... sm:flex-row`, so below 640px the
+          title took a full row with NOTHING to its right and the Guide button took a second
+          row underneath. Measured at 390px: the header block was 76px tall to carry a 32px
+          title and one small button, and the entire top-right of the screen was empty — which
+          is exactly what he photographed.
+          The actions keep `shrink-0` and the title `min-w-0 truncate`, so when a long action
+          appears the TITLE gives up width rather than the button wrapping to a new line. That
+          ordering matters: a truncated heading still reads, a wrapped button is the defect
+          being removed. */}
+      <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <SettingsIcon size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Settings</h1>
+          <SettingsIcon size={18} className="text-primary shrink-0" />
+          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight truncate">Settings</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* ⚠️ SAVE STAYS OUTSIDE THE PANELS, and that is load-bearing: edits on one panel must
               still be savable after switching to another, or tabbing away would quietly discard
               typed work — the rule the backdrop-tap save was built on. */}
+          {/* `w-auto` below, not `w-full sm:w-auto`. In the row header above, a full-width
+              button at 390px would take the whole row and push the title out — the full-width
+              form only ever made sense while this header stacked. */}
           {dirty && !isDemo && (
-            <button onClick={handleSave} disabled={update.isPending} className="btn btn-md btn-primary w-full sm:w-auto" style={{ borderRadius: 'var(--radius)' }}>
+            <button onClick={handleSave} disabled={update.isPending} className="btn btn-md btn-primary w-auto" style={{ borderRadius: 'var(--radius)' }}>
               <Save size={12} /> {update.isPending ? 'Saving...' : 'Save Changes'}
             </button>
           )}

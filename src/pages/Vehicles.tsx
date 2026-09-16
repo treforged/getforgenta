@@ -89,10 +89,19 @@ export default function Vehicles() {
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      {/* ⚠️ ONE ROW AT EVERY WIDTH — Tre, 2026-09-16: *"reduce the empty space in the top right.
+          some other tabs also have this issue. big blank spaces."* This was `flex-col ...
+          sm:flex-row`, so below 640px the title took a row by itself with the whole top-right
+          empty and the Guide button sat on a second row. Measured at 390px: a 114px header block
+          for a 32px title, a one-line subtitle and one small button.
+          Safe to make a row HERE because the action cluster is a single Guide button. It was NOT
+          done on Dashboard, Forecast or SavingsGoals, which carry real multi-button action rows
+          where dropping to a second line is a considered choice — Dashboard's own comment says
+          so. Do not "finish the job" on those without measuring them. */}
+      <div className="flex flex-row items-center justify-between gap-3">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Garage</h1>
+            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight truncate">Garage</h1>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Every car you own or are saving for, its build and its servicing</p>
         </div>

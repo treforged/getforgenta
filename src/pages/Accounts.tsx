@@ -873,10 +873,16 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           small controls were eating ~108px of the fold. A control row belongs to its content
           (vertical-rhythm block in `src/index.css`). */}
       <div className="stack-row">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* ⚠️ ONE ROW AT EVERY WIDTH — Tre, 2026-09-16: *"reduce the empty space in the top right.
+          some other tabs also have this issue."* Was `flex-col ... sm:flex-row`, so on a phone
+          the title sat alone with an empty top-right and the Guide dropped to its own row.
+          Safe here because the only action is a single Guide button — and note it is already
+          conditional on `!embedded`, so when this page is hosted inside the Dashboard the row
+          has no action at all and a column bought nothing even then. */}
+      <div className="flex flex-row items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Accounts</h1>}
+            {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight truncate">Accounts</h1>}
           </div>
           {!embedded && <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>}
         </div>

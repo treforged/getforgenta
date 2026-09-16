@@ -189,6 +189,34 @@ const CLIPPED = () => {
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) continue;
 
+    // ⚠️ CONTENT INSIDE A GENUINELY SCROLLABLE ROW IS REACHABLE, NOT TRIMMED - and this arm
+    // is about content that is SILENTLY LOST, as its own header says: "the containers carry
+    // `overflow-x-hidden`, so content that does not fit is silently trimmed rather than
+    // causing a page scroll." A horizontal scroller is the opposite case, and it is the same
+    // category as the `text-overflow: ellipsis` exclusion above: a deliberate, reachable trim.
+    //
+    // Added 2026-09-16 when `seg-track` became `flex-nowrap` so the panel pill stops wrapping
+    // to a second row (Tre: "format the pill in the settings tab cleaner"). Debt's five
+    // segments then legitimately span 730px inside a 363px scrollable track, and this arm
+    // flagged the segment badge as cut off at 390px.
+    //
+    // ⚠️ THE CONDITION IS DELIBERATELY TIGHT, because this is a gate being changed to pass and
+    // the easy version of that is a gate that no longer catches anything. `overflow-x: auto`
+    // ALONE IS NOT ENOUGH: a container declaring auto that is NOT actually scrollable
+    // (`scrollWidth <= clientWidth`) still clips, and must still be reported. So the escape
+    // requires the ancestor to be scrollable IN FACT, measured, not merely declared - and the
+    // planted-box control below still has to fire, which is the evidence that this exclusion
+    // narrowed the arm rather than blunting it.
+    let inScroller = false;
+    for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      const as = getComputedStyle(a);
+      if (as.overflowX === 'auto' || as.overflowX === 'scroll') {
+        if (a.scrollWidth > a.clientWidth + 1) { inScroller = true; }
+        break;
+      }
+    }
+    if (inScroller) continue;
+
     let cutBy = null;
     if (r.right > vw + 1) cutBy = { what: 'the viewport', edge: vw };
     else {

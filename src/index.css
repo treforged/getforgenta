@@ -334,7 +334,20 @@
 }
 
 @utility seg-track {
-  @apply flex flex-wrap items-center gap-1 p-1 border border-border bg-secondary/50;
+  /* ⚠️ `flex-nowrap`, AND THAT IS THE WHOLE FIX FOR THE STRAY SECOND ROW — Tre, 2026-09-16,
+     with a screenshot of Settings: *"format the pill in the settings tab cleaner."* The track
+     used to be `flex-wrap`, so a set of segments wider than the viewport broke onto a second
+     line and the remainder read as a stray button floating under the pill rather than part of
+     it. Measured at 390px before the change: Settings needed 435px in 363px and rendered 2
+     rows, Debt needed 730px and rendered THREE, Account needed 364px in 363px and wrapped by
+     ONE PIXEL. Four of nine routes were wrapping.
+     A pill is one row. When the segments do not fit, the row SCROLLS — which is what the
+     `overflow-x-auto` below has always been for, and what every platform's segmented control
+     does. `whitespace-nowrap` on `seg-item` already stops a single label breaking.
+     ⚠️ SCROLLING ONLY WORKS BECAUSE THE ACTIVE SEGMENT IS SCROLLED INTO VIEW — see
+     `PanelBar.tsx`. Without that, nowrap would hide the selected segment offscreen on Debt,
+     which is worse than the wrap it replaced: a wrapped segment is at least visible. */
+  @apply flex flex-nowrap items-center gap-1 p-1 border border-border bg-secondary/50;
   /* GLASS. The track was already translucent (`bg-secondary/50`) and simply let the
      page colour show through flat. `backdrop-filter` makes that translucency real —
      it now takes its tint from whatever scrolls under it. See `@utility glass`. */

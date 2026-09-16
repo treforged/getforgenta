@@ -34,7 +34,8 @@
     "check:pmf": "node scripts/check-pmf-survey.mjs",
     "check:onboarding-attribution": "node scripts/check-onboarding-attribution.mjs",
     "check:onboarding-stay": "node scripts/check-onboarding-stay.mjs",
-    "check:nav": "node scripts/check-nav-doors.mjs"
+    "check:nav": "node scripts/check-nav-doors.mjs",
+    "check:panel-rows": "node scripts/check-panel-rows.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
