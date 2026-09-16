@@ -1299,7 +1299,7 @@ export default function Transactions() {
         </div>
       )}
 
-      <div className="card-forged divide-y divide-border">
+      <div className="card-forged divide-y divide-border overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-8 text-center"><p className="text-sm text-muted-foreground">No transactions found.</p></div>
         ) : filtered.map(t => {

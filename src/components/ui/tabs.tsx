@@ -27,7 +27,11 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+      // CONCENTRIC WITH ITS LIST, DERIVED RATHER THAN GUESSED. `TabsList` is `rounded-md p-1`,
+      // so r_outer = var(--radius) - 2px and the gap is 0.25rem. `rounded-sm` was
+      // var(--radius) - 4px — LARGER than r_outer - gap, which pinches the arcs at every
+      // corner of every tab strip in the app. See rules/common/corner-concentricity.md.
+      "inline-flex items-center justify-center whitespace-nowrap rounded-[max(0px,calc(var(--radius)-2px-0.25rem))] px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
       className
     )}
     {...props}

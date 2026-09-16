@@ -1020,7 +1020,7 @@ export default function BankActivity() {
         and both are undoable from the row.
       </p>
 
-      <div className="card-forged divide-y divide-border">
+      <div className="card-forged divide-y divide-border overflow-hidden">
         {visible.length === 0 ? (
           // An empty queue is a GOOD state and says so; an empty archive slice is just an empty
           // filter. Rendering the same neutral sentence for both would make "you are done" look
