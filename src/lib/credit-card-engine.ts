@@ -22,7 +22,7 @@ import type { Tables } from '@/integrations/supabase/types';
 // `debt-payoff-order`.
 import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from './ranked-surplus-allocation';
 import { resolveCashFloor } from './cash-floor';
-import { unconditionalDesired } from './unconditional-payment';
+import { unconditionalDesired, unconditionalShortfallWarning } from './unconditional-payment';
 import { toLocalDateStr } from './scheduling';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
 // debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
@@ -1019,6 +1019,17 @@ export interface SimResult {
   projectedCashByMonth: number[];
   debtPaymentTransactions: SimulatedDebtPayment[];
   warningMessages: { month: number; message: string }[];
+  /**
+   * Per-card per-month dollars by which an "always pay this, no matter what" card overdraws the
+   * cash the month actually has. The payment is STILL MADE IN FULL — that is the whole setting —
+   * so a positive value here means something else in the plan has to give, and the number is the
+   * size of the gap. 0 when it fits. Index-aligned with `monthlyBalances`.
+   *
+   * ⚠️ IT EXISTS SO THE OBLIGATION CANNOT BE SHIPPED WITHOUT THE REPORT. Making the amount
+   * mandatory in every month while staying silent about the gap starves the other cards quietly,
+   * which is the same lie as shrinking the payment — just pointed the other way.
+   */
+  monthlyUnconditionalShortfall: Map<string, number[]>;
 }
 
 export interface PaymentLedgerCardEntry {
@@ -1211,6 +1222,7 @@ export function simulateVariablePayoff(
       projectedCashByMonth: [],
       debtPaymentTransactions: [],
       warningMessages: [],
+      monthlyUnconditionalShortfall: new Map(),
     };
   }
 
@@ -1233,6 +1245,7 @@ export function simulateVariablePayoff(
   const monthlyMandatoryCyclingPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
   // Step-5 debt-cash-pool spend per card per month — see the SimResult field's JSDoc.
   const monthlyDebtCashPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  const monthlyUnconditionalShortfall = new Map<string, number[]>(cards.map(c => [c.id, []]));
   // A cycling card's accumulated backlog, end-of-month, post-payment — the unambiguous signal
   // for "does this card need avalanche priority / a reserved minimum in the floor," kept separate
   // from monthlyRevolvingBalances (which must stay a one-way 0-once-cycling signal — see the
@@ -1505,6 +1518,12 @@ export function simulateVariablePayoff(
     // uncovered remainder flows into graceUnpaid below and accrues at the card's standard rate —
     // the partial-ISB model — instead of the payment draining cash through the floor.
     const isbTargetThisMonth = new Map<string, number>();
+    /** Cards pinned by the "always pay this" SETTING this month, id -> their Step-5 share. */
+    const unconditionalPinned = new Map<string, number>();
+    /** The same cards' CYCLING mandatory share, which draws on a different pool (Step 2). */
+    const unconditionalMandatory = new Map<string, number>();
+    /** Overdraw of that mandatory share, measured at the pool it draws on. */
+    const unconditionalMandatoryShortfall = new Map<string, number>();
     if (paymentOverridesByMonth || manualStatementByCard.size > 0) {
       for (const card of cards) {
         const userRaw = paymentOverridesByMonth?.[card.id]?.[m];
@@ -1548,6 +1567,87 @@ export function simulateVariablePayoff(
         }
       }
     }
+    // ── "ALWAYS PAY THIS, NO MATTER WHAT" IS A PIN, IN EVERY MONTH ──────────────────
+    //
+    // Tre, 2026-09-17: "looking at the debts tab it doesn't seem like Robinhood is being paid at
+    // all when I look at the drop-down and even the chart shows like it's not being paid at all."
+    //
+    // WHY IT LOOKED UNPAID, measured. `unconditionalDesired` had exactly TWO callers and both
+    // settle MONTH 0 - `getPayoffRecommendations` and `useCardProjection`'s `perCardAdjusted`.
+    // This multi-month simulation, which is what draws the chart and fills the /debt dropdown,
+    // never read `paymentUnconditional` at all, so from month 1 the card was an ordinary
+    // revolving card. His `min_payment` is 0, so Step 5a paid it nothing and the surplus cascade
+    // decided everything: on his card shape at a frozen 2026-09-17 clock a cash-RICH month gave
+    // [0, 222.33, 0] and a cash-TIGHT month gave [0, 50, 50], with tighter giving 0 forever.
+    //
+    // IT IS REGISTERED AS A PIN RATHER THAN AS A SECOND MECHANISM, and that is the point. A pin
+    // is ALREADY deducted from both pools before either is sized (`pinnedStep5Total`, which the
+    // `mDebtCap` and `debtCashTargetByMonth` expressions subtract too), ALREADY sits outside the
+    // strategy sort and the surplus cascade, ALREADY survives the FLOOR_BREACHED branch, and is
+    // ALREADY exempt from the minimum-enforcement guard. Those are exactly the five sites this
+    // obligation needs, and this file already records what happens when one behaviour is
+    // expressed twice - see `minSuppressed` / `m0MinSettled`. "All other calculations adjust
+    // around it" IS a pin.
+    //
+    // AN EXPLICIT USER PIN OR A DUE-MONTH ISB WINS. Both are commands the user gave for THIS
+    // month; the setting is a standing preference. Same precedence the minimum guard already
+    // gives a below-minimum pin.
+    //
+    // NOT BILLED YET STILL MEANS NOTHING IS OWED - `notBilledYet`, the NARROW half, never
+    // `minSuppressed`. A card whose first statement has not cut owes nothing to pay in full, and
+    // collapsing the two would also stop every already-settled card taking surplus (see its
+    // JSDoc, and the September charge that took three separate fixes).
+    //
+    // ⚠️ IT COVERS A CYCLING CARD TOO, AND AN EARLIER DRAFT OF THIS BLOCK DID NOT.
+    // That draft excluded `paidOffCards` on the stated grounds that "a cycling card already pays
+    // in full", and MEASURED ON THIS FIXTURE THAT PREMISE IS FALSE IN EXACTLY THE MONTHS THAT
+    // MATTER. A card cleared in month 0 becomes cycling; if the month is then tight its statement
+    // is funded from a proportional pool and it pays PART of it, accruing backlog. Probed at
+    // income 1750 / expenses 1500: months 2-5 paid 50 while the card owed 200, 353.75, 511.34,
+    // 672.87 - Tre's exact complaint ("it doesn't seem like Robinhood is being paid at all"),
+    // reproduced one month later by the fix meant to end it.
+    // The pin mechanism already splits correctly across the two pools - `mandatoryShare` is
+    // deducted from the cycling pool via `pinnedMandatoryTotal` and `step5Share` from the Step-5
+    // pool - so this charges one payment to one pool, twice over, not one payment to two pools.
+    for (const card of cards) {
+      if (card.paymentUnconditional !== true) continue;
+      if (pinnedThisMonth.has(card.id) || isbTargetThisMonth.has(card.id)) continue;
+      if ((cardStartMonths.get(card.id) ?? 0) > m) continue;
+      if (notBilledYet(card, m)) continue;
+      if (paidOffCards.has(card.id)) {
+        // This cycle's statement PLUS every dollar of backlog - "in full" on a cycling card means
+        // nothing is carried, and a backlog IS carried debt.
+        const owedCycle = Math.round((paidOffDeferredPurchases.get(card.id) ?? 0) * 100) / 100;
+        const backlog = cyclingBacklog.get(card.id) ?? 0;
+        const pin = Math.round((owedCycle + backlog) * 100) / 100;
+        if (pin <= 0) continue;
+        const mandatoryShare = Math.round(Math.min(pin, owedCycle) * 100) / 100;
+        const step5Share = Math.round((pin - mandatoryShare) * 100) / 100;
+        pinnedThisMonth.set(card.id, { mandatoryShare, step5Share });
+        unconditionalPinned.set(card.id, step5Share);
+        unconditionalMandatory.set(card.id, mandatoryShare);
+        continue;
+      }
+      const bal = balances.get(card.id) ?? 0;
+      const instBal = installmentBals.get(card.id) ?? 0;
+      const { interest } = revolvingInterestFor(card);
+      // `statement` wants the balance as it stands; `full` also wants the purchases that land on
+      // it before the statement cuts. These are the same two expressions `cascadeTarget` uses, so
+      // the pin and the cascade cannot come to mean two different things by "always pay this".
+      const desired = card.paymentPreference === 'statement'
+        ? bal + interest
+        : bal + interest + cardPurchasesThisMonth(card);
+      const pin = Math.round(Math.max(0, desired) * 100) / 100;
+      if (pin <= 0) continue;
+      // The pin is the card's TOTAL payment; the mandatory installment share (paid via
+      // installmentCashCost, Step 2.5) comes out first and cannot be pinned away.
+      const instDue = Math.round(upfrontDueFor(card, instBal) * 100) / 100
+        + Math.round((installmentChargeByMonth?.[m]?.[card.id] ?? 0) * 100) / 100;
+      const step5Share = Math.max(0, Math.round((pin - instDue) * 100) / 100);
+      pinnedThisMonth.set(card.id, { mandatoryShare: 0, step5Share });
+      unconditionalPinned.set(card.id, step5Share);
+    }
+
     let pinnedStep5Total = 0;
     let pinnedMandatoryTotal = 0;
     for (const pin of pinnedThisMonth.values()) {
@@ -1626,6 +1726,16 @@ export function simulateVariablePayoff(
     // Pinned cycling cards' mandatory shares are paid outside the pool (fixed, below) — deduct
     // them here so the pool only funds the unpinned cards' distribution.
     let paidOffPool = Math.max(0, tentativeAvailAboveFloor - effectiveReservedForRevolving - pinnedMandatoryTotal);
+    // The cycling half of an unconditional obligation draws on THIS pool, not on Step 5's, so its
+    // gap has to be measured here where that pool exists. Same rule either side: the payment is
+    // still made in full (a pinned mandatory share is paid outside the pool, below) and the
+    // overdraw is reported rather than swallowed.
+    for (const [uid, share] of unconditionalMandatory) {
+      const poolForIt = Math.max(0, tentativeAvailAboveFloor - effectiveReservedForRevolving
+        - (pinnedMandatoryTotal - share));
+      const short = Math.max(0, Math.round((share - poolForIt) * 100) / 100);
+      if (short > 0) unconditionalMandatoryShortfall.set(uid, short);
+    }
     let paidOffCashCost = 0;
     const paidOffCardsThisMonth = [...cards].filter(c => paidOffCards.has(c.id));
 
@@ -1926,6 +2036,57 @@ export function simulateVariablePayoff(
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;
+    }
+
+    // ── THE GAP IS REPORTED, NEVER SWALLOWED ─────────────────────────────────
+    //
+    // Sam's month-0 ruling, now held in EVERY month: when an unmissable obligation and the cash
+    // the month has cannot both be satisfied, the OBLIGATION WINS AND THE GAP IS REPORTED AS A
+    // NUMBER. Never resolved silently in either direction - a payment that quietly shrinks to fit
+    // is the app lying about what it will send, and a payment that quietly holds while the other
+    // cards starve is the same lie pointed the other way.
+    //
+    // Measured against the pool BEFORE any pin is deducted, because `availableCash` above is
+    // already net of them and is clamped at zero - so it can no longer tell "it fits" from
+    // "it overdrew by four hundred dollars". Other pins are explicit user commands and are
+    // settled first, exactly as the pool sizing settles them.
+    //
+    // Attribution across several unconditional cards follows registration order, and the TOTAL is
+    // order-independent. With a single unconditional card - the case the setting was asked for -
+    // so is the attribution.
+    const unconditionalShortfallThisMonth = new Map<string, number>(unconditionalMandatoryShortfall);
+    if (unconditionalPinned.size > 0) {
+      const poolBeforePins = currentCash + monthIncome - monthExpenses - step5Floor
+        - paidOffCashCost + oneTimeNet - installmentCashCost;
+      let uncondPinTotal = 0;
+      for (const share of unconditionalPinned.values()) uncondPinTotal += share;
+      const otherPins = pinnedStep5Total - uncondPinTotal;
+      // NaN-SAFE ON PURPOSE, the same reason `settleUnconditional` is: this pool derives from a
+      // chain of optional inputs and can arrive NaN under a sparse call. A shortfall is money
+      // shown to a person, so an unknown pool reads as "no cash established" - the whole desired
+      // amount is short - rather than serialising as a broken number.
+      const base = Number.isFinite(poolBeforePins) ? poolBeforePins : 0;
+      let left = base - (Number.isFinite(otherPins) ? otherPins : 0);
+      for (const [cardId, share] of unconditionalPinned) {
+        const short = Math.max(0, Math.round((share - Math.max(0, left)) * 100) / 100);
+        if (short > 0) {
+          // A cycling card can be short on BOTH halves; the gap a person is owed is the whole
+          // amount the month could not cover, not whichever half was measured last.
+          const already = unconditionalShortfallThisMonth.get(cardId) ?? 0;
+          unconditionalShortfallThisMonth.set(cardId, Math.round((already + short) * 100) / 100);
+        }
+        left -= share;
+      }
+    }
+    {
+      let monthShort = 0;
+      for (const v of unconditionalShortfallThisMonth.values()) monthShort += v;
+      if (monthShort > 0) {
+        warningMessages.push({
+          month: m + 1,
+          message: unconditionalShortfallWarning(Math.round(monthShort * 100) / 100),
+        });
+      }
     }
 
     // Cap debt allocation in save-up months (look-ahead pre-pass set these to ccMinTotal).
@@ -2314,6 +2475,9 @@ export function simulateVariablePayoff(
           ? Math.round(Math.max(0, endBal - cardPurchasesThisMonth(card)) * 100) / 100
           : endBal;
         monthlyRevolvingBalances.get(card.id)!.push(revolvingBal);
+        monthlyUnconditionalShortfall.get(card.id)!.push(
+          unconditionalShortfallThisMonth.get(card.id) ?? 0,
+        );
       }
     }
 
@@ -2343,6 +2507,7 @@ export function simulateVariablePayoff(
     monthlyInterest,
     monthlyMandatoryCyclingPayment,
     monthlyDebtCashPayment,
+    monthlyUnconditionalShortfall,
     monthlyCyclingBacklog,
     projectedPayoffMonths,
     cashFloorBreaches,

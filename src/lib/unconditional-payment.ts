@@ -35,6 +35,22 @@ export function unconditionalShortfallLabel(shortfall: number): string {
 }
 
 /**
+ * The per-month wording of the gap in the SIMULATION, so the chart, the /debt dropdown and the
+ * month-0 tile cannot describe the same fact three ways.
+ *
+ * Deliberately a sibling of `cashWarningMessage` rather than a second phrasing of it: that one
+ * answers "what is wrong with THIS month's plan" on the tile and takes two competing reasons,
+ * this one answers "what happened in month N" in the simulation's own warning stream. Both say
+ * the payment is NOT being reduced, because that is the sentence a user needs - the number they
+ * see is what will actually be sent.
+ */
+export function unconditionalShortfallWarning(shortfall: number): string {
+  return `A card is set to always pay in full, and this month does not cover it by `
+    + `${formatCurrency(shortfall, false)}. The payment is not being reduced — something else `
+    + `has to give.`;
+}
+
+/**
  * The cash warning, decided once for every surface that shows one.
  *
  * ⚠️ IT TAKES TWO REASONS BECAUSE THE OLD ONE COULD NOT SEE THE SECOND, AND A BROWSER FOUND IT.

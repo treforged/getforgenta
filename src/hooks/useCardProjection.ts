@@ -2268,9 +2268,21 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // order while the one-shot path settles in debt-strategy order. The TOTAL shortfall is
       // identical either way, and with a single unconditional card — the case the setting was
       // asked for — so is the attribution.
-      const uncondCards = cards.filter(
-        c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) > 0,
-      );
+      // ⚠️ SELECTED ON THE LIVE BALANCE, NOT ON THE SIMULATION'S MONTH-0 BALANCE.
+      //
+      // It used to read `activeSim.monthlyRevolvingBalances[0] > 0`, and that became a circular
+      // test the moment the simulation learned about this setting (2026-09-17): the sim now PAYS
+      // the card in full in month 0, so its post-payment revolving balance is 0, so the card fell
+      // out of this filter, so it was settled as a CYCLING card - and its payment came back as
+      // 2037 (balance plus interest) with `unconditionalShortfall` UNDEFINED. The gap label
+      // vanished from the one array both /debt and the Dashboard widget render, which is the
+      // exact failure Sam's ruling exists to prevent.
+      //
+      // The live balance is the honest input: it says what the card owes BEFORE anything decides
+      // to pay it, so this classification can no longer be changed by the payment it produces.
+      // The cycling exclusion is unchanged in substance - a card already at $0 before this month
+      // has its cash come out of `cyclingPayment`, and is still excluded here.
+      const uncondCards = cards.filter(c => c.balance > 0);
       const uncond = settleUnconditional(uncondCards, revolvingPayment);
       // What is left for every other revolving card. Never negative: the overdraw is already
       // recorded as a shortfall on the card that caused it, and the loops below cannot reason
