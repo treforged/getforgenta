@@ -50,10 +50,24 @@ it against `src/pages/Account.tsx` before acting on it.
    **So Tre's followers ask has no browser-level acceptance evidence at all** - the gate that
    was supposed to provide it has never run. Running it is now item 1a.
 
-1a. [ ] ▶️ **RUN `npm run check:followers` FOR REAL, now that it parses.** Needs the dev server
-   and `.env.deck-walk.local`. This is the rendered-frame acceptance for ask `4cd881cd` that
-   nobody has ever actually had. Expect it to need fixing beyond the parse error - a script
-   that has never run once has never had any of its selectors exercised.
+1a. [x] ✅ **DONE - `check:followers` RAN GREEN FOR THE FIRST TIME, and the gate is proven red.**
+   Exit 0, real Chromium, signed in, against the dev server. Asserted: the section bar reads
+   exactly `["Profile","Leaderboard","Forgenta AI"]` with **no separate Followers segment** -
+   the one-tab scoping as an ENUMERATION rather than an intention; order username -> partner
+   linking -> followers; the public/private switch asserts a **CHANGE** (`aria-checked`
+   false -> true -> restored), never the absence of an error; knob measured inside its track in
+   both states; and the share link `/account?u=walkprobe` really loads and resolves a profile.
+   ⚠️ **PROVEN RED WITH A REAL HISTORICAL ARTEFACT, not a contrived mutation:** the `0e56306c`
+   version of the script, run against TODAY's app, exits **2** with
+   `CONTROL FAILED: no [role="tab"] reading "Followers"`. New gate green + old gate red on the
+   same app is what proves the instrument discriminates.
+   ⚠️ **AND THE "FABRICATED GREEN" READING WAS WRONG - I nearly recorded it.** Testing every
+   committed version settles it: `0e56306c` PARSES, `9e2e1918` does NOT, `c14e5d9f` does. The
+   gate genuinely ran green at `0e56306c`; the NEXT commit broke it by editing **the PASS
+   message describing that green**. Nobody wrote a green they had not seen.
+   **THE LESSON THAT GENERALISES: the last edit after a green run is the one nothing re-checks,
+   and a success-message edit is the most tempting kind - it feels like documentation rather
+   than code.** Same family as verifying a push by its output instead of by contents.
 
 1b. [ ] 🧹 **RESERVED-DOMAIN CONTAMINATION - ask `9a5035d7`/`ac92c1b8`, routed by Sam.**
    `auth.users` holds 33 rows with an email; **4 are RFC-reserved** (2 `@forgenta.test`,
