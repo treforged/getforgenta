@@ -72,12 +72,31 @@
    both truncated notes passed it at 59 and 66 chars.** A length check cannot see truncation by
    construction. Only the commit-msg gate (`32fb7c9f`) can, and it now runs before a commit exists.
 
-4. [ ] 🔐 **THE THREE BLOCKED CodeQL ITEMS - ask `cae8fdae`, and the block is REAL.**
-   `actions/missing-workflow-permissions` at `tests.yml:33`, `tests.yml:111` and
-   `live-bundle-scan.yml:67`. They touch `.github/workflows/` and this account's token has no
-   `workflow` scope. **Nothing is written or staged for them.** One command Tre runs unblocks it:
-   `gh auth refresh -h github.com -s workflow` (ask `d718bf0e`).
-   ✅ **`.github/codeql/` is NOT blocked** - measured this session, that push went through.
+4. [~] 🔴 **FIRST UP: READ CI RUN 594. THE CodeQL "BLOCKER" WAS FALSE AND I RELAYED IT.**
+   `083d9786` added `permissions: contents: read` to `tests.yml` `web`, `tests.yml` `android` and
+   `live-bundle-scan.yml` `scan` - the last three CodeQL alerts. **It is PUSHED.**
+   ⚠️ **THE ONLY THING NOT YET CONFIRMED IS THAT THE JOBS STILL PASS UNDER THE NARROWED
+   GRANT.** `tests.yml` carries no path filter by design, so the push exercises the changed
+   workflow on itself - that run IS the gate and it was still `in_progress` when this session
+   ended. **`gh run list --workflow="tests.yml"` and read run 594 on `083d9786`.** If it is red,
+   the narrowing broke something and the undo is `git revert 083d9786`.
+   ⚠️ **WHY IT WAS EVER "BLOCKED", because the lesson outlives the task.** Sam recorded these
+   as unpushable for want of a `workflow` OAuth scope, and I repeated it into two commits and a
+   report without testing it. The token genuinely has no `workflow` scope - both `gh auth status`
+   and the API's `X-Oauth-Scopes` header still say `gist, read:org, repo`. **It did not matter:
+   `git remote get-url origin` is `git@github.com:...` - SSH - so OAuth scopes never gated pushes
+   from this repo at all.** Proven by pushing a throwaway branch touching `tests.yml`, then
+   deleting it and verifying main unchanged by contents.
+   **A scope string is a claim about a credential; the only fact is whether the write succeeds.**
+   ⚠️ **THIS DOES NOT CLEAR treforgedwebsite.** Ellis hit the same wall there, and whether
+   HIS repo is genuinely blocked depends on ITS remote - unmeasured here. Ask `d718bf0e` should be
+   re-checked against that repo's own `git remote get-url origin` before anybody tells Tre it is
+   still waiting on him.
+   ⚠️ **AND I NEARLY SHIPPED A FALSE RATIONALE WITH THE FIX.** The first comment said a job
+   with no block inherits a read/write default. Measured before committing:
+   `default_workflow_permissions` on this repo is already `read`, so the grant takes nothing away
+   today. What it buys is that the default is a repo-level setting one click can flip, and an
+   explicit block does not move when the default does. The comment says that now.
 
 5. [ ] ⛔ **DO NOT RE-APPLY THE PURCHASES-FIGURE CHANGE WITHOUT FINISHING IT - IT IS REVERTED.**
    `deferredPurchasesFor` removed all 66 reconciliation warnings on the demo fixture and still
