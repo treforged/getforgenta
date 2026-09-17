@@ -33,6 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import type { Tables } from '@/integrations/supabase/types';
+import { writeBlockedError } from '@/lib/write-guard';
 
 export const PARTNER_LINKS_QUERY_KEY = 'partner_links';
 
@@ -191,7 +192,7 @@ export function usePartnerLink() {
 
   const invite = useMutation({
     mutationFn: async (email: string): Promise<InviteResponse> => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       return invokePartnerLink<InviteResponse>({ action: 'invite', email: email.trim() });
     },
     onSuccess: (res) => {
@@ -203,7 +204,7 @@ export function usePartnerLink() {
 
   const accept = useMutation({
     mutationFn: async (code: string): Promise<AcceptResponse> => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       return invokePartnerLink<AcceptResponse>({ action: 'accept', code: code.trim() });
     },
     onSuccess: (res) => {
@@ -221,7 +222,7 @@ export function usePartnerLink() {
   // (revoked_at, revoked_by) is the entire write surface the client holds.
   const revoke = useMutation({
     mutationFn: async ({ id }: RevokeVars) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       const { data, error } = await supabase
         .from('partner_links')
         .update({ revoked_at: new Date().toISOString(), revoked_by: user.id })

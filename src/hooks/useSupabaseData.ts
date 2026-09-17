@@ -34,7 +34,6 @@ import type { LedgerDraft } from '@/lib/synced-transaction-import';
 // MUTATIONS never touch the lens: every write stays pinned to `user.id` AND refuses
 // outright while the lens is on the partner, by the same guard shape demo mode uses.
 // The server enforces the same split — partner RLS policies are SELECT-only.
-const PARTNER_VIEW_READ_ONLY = "Read only: you are viewing your partner's budget";
 
 // ─── Accounts (Centralized) ──────────────────────────────
 
@@ -65,7 +64,7 @@ export function useAccounts() {
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'accounts'>, 'user_id'>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       // A new account goes to the END of the list. The column defaults to 0, which would put it
       // at the top — the opposite of the date-added order it replaced.
       const sort_order = item.sort_order ?? nextAccountSortOrder(query.data ?? []);
@@ -85,7 +84,7 @@ export function useAccounts() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'accounts'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('accounts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -94,7 +93,7 @@ export function useAccounts() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('accounts').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -107,7 +106,7 @@ export function useAccounts() {
    */
   const reorder = useMutation({
     mutationFn: async (rows: { id: string; sort_order: number }[]) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       if (rows.length === 0) return;
       const results = await Promise.all(
         rows.map(r =>
@@ -157,7 +156,7 @@ export function useRecurringRules() {
      * existing caller ignores the return value and passes no flag, so both are additive.
      */
     mutationFn: async ({ quiet: _quiet, ...item }: Omit<TablesInsert<'recurring_rules'>, 'user_id'> & { quiet?: boolean }): Promise<string> => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
@@ -179,7 +178,7 @@ export function useRecurringRules() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'recurring_rules'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
@@ -191,7 +190,7 @@ export function useRecurringRules() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('recurring_rules').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
       // Deleting a rule must also scrub its id from savings_goals.linked_rule_ids /
@@ -240,7 +239,7 @@ export function useAssets() {
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; type: string; value: number; notes?: string }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('assets').insert(sanitizePayload({ ...item, user_id: user.id, notes: item.notes || '' }));
       if (error) throw error;
     },
@@ -249,7 +248,7 @@ export function useAssets() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; name?: string; type?: string; value?: number; notes?: string }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('assets').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -258,7 +257,7 @@ export function useAssets() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('assets').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -286,7 +285,7 @@ export function useLiabilities() {
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; type: string; balance: number; apr?: number; notes?: string }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('liabilities').insert(sanitizePayload({ ...item, user_id: user.id, notes: item.notes || '', apr: item.apr || 0 }));
       if (error) throw error;
     },
@@ -295,7 +294,7 @@ export function useLiabilities() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'liabilities'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('liabilities').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -304,7 +303,7 @@ export function useLiabilities() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('liabilities').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -336,7 +335,7 @@ export function useDebts() {
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; balance: number; apr: number; min_payment: number; target_payment: number; credit_limit?: number }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('debts').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -345,7 +344,7 @@ export function useDebts() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'debts'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('debts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -354,7 +353,7 @@ export function useDebts() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('debts').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -389,7 +388,7 @@ export function useAccountReconciliations() {
       actual_balance: number;
       projected_balance: number;
     }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('account_reconciliations').insert({ ...item, user_id: user.id });
       if (error) throw error;
     },
@@ -417,7 +416,7 @@ export function useSavingsGoals() {
   });
   const add = useMutation({
     mutationFn: async (item: { name: string; target_amount: number; current_amount: number; monthly_contribution: number; target_date?: string | null }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('savings_goals').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -426,7 +425,7 @@ export function useSavingsGoals() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'savings_goals'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('savings_goals').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -435,7 +434,7 @@ export function useSavingsGoals() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('savings_goals').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -470,7 +469,7 @@ export function useCarFunds() {
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'car_funds'>, 'user_id'>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('car_funds').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -479,7 +478,7 @@ export function useCarFunds() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_funds'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       // `current_balance_override` is resolved, not stored — there is no such column. A caller
       // that spreads a whole CarFund into this mutation would otherwise send it and get a
       // schema error, so it is stripped here rather than depending on every call site.
@@ -493,7 +492,7 @@ export function useCarFunds() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('car_funds').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -662,6 +661,7 @@ export {
   findExclusiveReview, findReviewRowFor, applyReviewToSet, linkTarget,
 } from '@/lib/synced-transaction-review';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { PARTNER_VIEW_READ_ONLY, writeBlockedError } from '@/lib/write-guard';
 export type { ReviewStatus, ReviewInput, CarChargeKind } from '@/lib/synced-transaction-review';
 export { planLedgerImport } from '@/lib/synced-transaction-import';
 export type { LedgerDraft, ImportPlan, ImportContext } from '@/lib/synced-transaction-import';
@@ -775,7 +775,7 @@ export function useSyncedTransactionReviews() {
   // `rule_id` would read as linked to any query that checks the FK without the status.
   const save = useMutation({
     mutationFn: async (input: ReviewInput) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const problem = validateReviewInput(input);
       if (problem) throw new Error(problem);
       const existing = await fetchChargeReviews(user.id, input.synced_transaction_id);
@@ -822,7 +822,7 @@ export function useSyncedTransactionReviews() {
     // row and the `'imported'` decision in one act below. A caller that does not know the merchant
     // simply does not vote; nothing else changes.
     mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       // The lookup moved off the cached `query.data` and onto the database for the same reason the
       // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
       // fail silently or unactionably.
@@ -880,7 +880,7 @@ export function useSyncedTransactionReviews() {
   // that and hands back the exact row, precisely so the guard and the row cannot drift apart.
   const importToLedger = useMutation({
     mutationFn: async ({ syncedTransactionId, draft }: { syncedTransactionId: string; draft: LedgerDraft }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { data: inserted, error: insertError } = await supabase
         .from('transactions')
         .insert(sanitizePayload({ ...draft, user_id: user.id }))
@@ -953,7 +953,7 @@ export function useSyncedTransactionReviews() {
   // for free and returns the charge to unreviewed and re-importable.
   const undoImport = useMutation({
     mutationFn: async (transactionId: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('transactions').delete().eq('id', transactionId).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -968,7 +968,7 @@ export function useSyncedTransactionReviews() {
   // undoes a decision, and what makes an import re-importable after the ledger row is removed.
   const remove = useMutation({
     mutationFn: async (syncedTransactionId: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase
         .from('synced_transaction_reviews')
         .delete()
@@ -989,7 +989,7 @@ export function useSyncedTransactionReviews() {
   // whose meaning changed under it when the constraint was dropped.
   const removeLink = useMutation({
     mutationFn: async (reviewId: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase
         .from('synced_transaction_reviews')
         .delete()
@@ -1026,7 +1026,7 @@ export function useTransactions() {
   });
   const add = useMutation({
     mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string | null; car_build_item_id?: string | null; car_maintenance_log_id?: string | null }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' })).select().single();
       if (error) throw error;
       return data;
@@ -1036,7 +1036,7 @@ export function useTransactions() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'transactions'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('transactions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1047,7 +1047,7 @@ export function useTransactions() {
     // Accepts a bare id, or `{ id, silentSuccess }` when the delete is one half of a larger action
     // (N7's convert-to-plan) whose caller owns the single success toast. Errors always toast.
     mutationFn: async (vars: string | { id: string; silentSuccess?: boolean }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const id = typeof vars === 'string' ? vars : vars.id;
       const { error } = await supabase.from('transactions').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -1105,7 +1105,7 @@ export function useSubscriptions() {
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'subscriptions'>, 'user_id'>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('subscriptions').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -1114,7 +1114,7 @@ export function useSubscriptions() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'subscriptions'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('subscriptions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1123,7 +1123,7 @@ export function useSubscriptions() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('subscriptions').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1164,7 +1164,7 @@ export function useBudgetItems() {
   });
   const add = useMutation({
     mutationFn: async (item: Omit<TablesInsert<'budget_items'>, 'user_id'>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('budget_items').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -1173,7 +1173,7 @@ export function useBudgetItems() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'budget_items'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('budget_items').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1182,7 +1182,7 @@ export function useBudgetItems() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('budget_items').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1255,7 +1255,7 @@ export function useProfile() {
   });
   const update = useMutation({
     mutationFn: async (item: Partial<Tables<'profiles'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('profiles').update(sanitizePayload(item)).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1394,7 +1394,7 @@ export function usePaymentPlans() {
     // convert-to-plan pairs it with a transaction delete) show ONE toast for the whole action
     // instead of three. Errors always toast — only the success message is the caller's to own.
     mutationFn: async ({ silentSuccess: _, ...item }: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'> & { silentSuccess?: boolean }) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { data, error } = await supabase.from('payment_plans').insert(sanitizePayload({ ...item, user_id: user.id })).select().single();
       if (error) throw error;
       return data as unknown as PaymentPlan;
@@ -1404,7 +1404,7 @@ export function usePaymentPlans() {
   });
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'payment_plans'>>) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('payment_plans').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
@@ -1413,7 +1413,7 @@ export function usePaymentPlans() {
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      if (isDemo || isPartnerView || !user) throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode');
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       const { error } = await supabase.from('payment_plans').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },

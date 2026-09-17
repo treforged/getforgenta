@@ -40,6 +40,7 @@ import { tracedInvoke } from '@/lib/tracer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import type { Tables } from '@/integrations/supabase/types';
+import { writeBlockedError } from '@/lib/write-guard';
 
 export const FRIEND_LINKS_QUERY_KEY = 'friend_links';
 
@@ -264,7 +265,7 @@ export function useFriendLink() {
    */
   const inviteByUsername = useMutation({
     mutationFn: async (username: string): Promise<InviteResponse> => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       return invokeFriendLink<InviteResponse>({
         action: 'invite_username',
         username: normalizeUsername(username),
@@ -279,7 +280,7 @@ export function useFriendLink() {
 
   const accept = useMutation({
     mutationFn: async (code: string): Promise<AcceptResponse> => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       return invokeFriendLink<AcceptResponse>({ action: 'accept', code: code.trim() });
     },
     onSuccess: (res) => {
@@ -297,7 +298,7 @@ export function useFriendLink() {
   // (revoked_at, revoked_by) is the entire write surface the client holds.
   const revoke = useMutation({
     mutationFn: async ({ id }: RevokeVars) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       const { data, error } = await supabase
         .from('friend_links')
         .update({ revoked_at: new Date().toISOString(), revoked_by: user.id })

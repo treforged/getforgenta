@@ -18,6 +18,7 @@ import { resolveFundingAccountId } from '@/lib/funding-account';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { writeBlockedError } from '@/lib/write-guard';
 
 /**
  * Targets this app session has already switched `auto_extra` off for.
@@ -159,7 +160,7 @@ export function useSurplusRanking({ autoDeselect = true }: UseSurplusRankingOpti
 
   const save = useMutation({
     mutationFn: async (writes: SurplusRankWrites) => {
-      if (isDemo || !user) throw new Error('Demo mode');
+      if (isDemo || !user) throw writeBlockedError({ isDemo, user });
       // ── A STOP'S RANK AND TICK LIVE INSIDE `savings_goals.stages` ────────────
       //
       // So a stop write is READ-MODIFY-WRITE on one jsonb column, not a column patch, and every
