@@ -310,26 +310,43 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       for (let i = 0; i < PROJECTION_MONTHS; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        // ⚠️ MONTH 0 IS NOT ZERO — it carries card spend dated AFTER the sync cutoff.
+        // The old reasoning was "the live card balance already includes this month's
+        // purchases". That holds for spend that has POSTED and is false for spend still
+        // to come, and the whole of month 0 was skipped on it. Measured cost on Tre's own
+        // card (2026-09-17): Groceries $230 on the 13th had posted and sat inside the
+        // $211.62 balance, but EATING OUT $50 ON THE 28th was invisible everywhere — not
+        // in the September row, not in the balance, and not in the always-pay-in-full
+        // obligation. This is the same correction `oneTimeArr` below already carries for
+        // the funding side, where zeroing all of month 0 put Dashboard MONTH-END CASH
+        // $172.50 under Forecast END CASH.
+        // The cutoff is the SYNC cutoff, not today: the balance is only as current as the
+        // last sync, so "after the cutoff" is exactly "not in the balance yet". A rule
+        // occurrence the user has confirmed a real transaction already paid HAS posted, so
+        // it is excluded — the same evidence, and the same gate, the cash side applies.
+        const cutoff = syncCutoffDate ?? todayStr;
         const eventsInMonth = scheduledEvents.filter(e =>
-          e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
+          e.date.startsWith(monthKey) && (i > 0 || e.date > cutoff),
         );
         const cardPurchases: { [cardId: string]: number } = {};
-        if (i > 0) {
-          for (const card of cards) {
-            const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-            const scheduledAmt = eventsInMonth
-              .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
-              .reduce((s, e) => s + e.amount, 0);
-            const oneTimeCCAmt = transactions
-              .filter(t =>
-                !t.isGenerated &&
-                t.date?.startsWith(monthKey) &&
-                t.type === 'expense' &&
-                (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
-              )
-              .reduce((s, t) => s + Number(t.amount), 0);
-            cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
-          }
+        for (const card of cards) {
+          const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
+          const scheduledAmt = eventsInMonth
+            .filter(e =>
+              e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId) &&
+              (i > 0 || !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmed)),
+            )
+            .reduce((s, e) => s + e.amount, 0);
+          const oneTimeCCAmt = transactions
+            .filter(t =>
+              !t.isGenerated &&
+              t.date?.startsWith(monthKey) &&
+              (i > 0 || (t.date ?? '') > cutoff) &&
+              t.type === 'expense' &&
+              (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
+            )
+            .reduce((s, t) => s + Number(t.amount), 0);
+          cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
         }
         cardPurchasesPerMonth.push(cardPurchases);
       }

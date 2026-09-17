@@ -739,7 +739,11 @@ export function projectCardVariable(
    * Optional per-month purchase amounts for this card (index = m-1, same as monthlyPayments).
    * When provided, overrides card.monthlyNewPurchases so one-time CC transactions are
    * reflected in the Purchases column of the projection table.
-   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0) — should be 0.
+   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0).
+   * ⚠️ It is NO LONGER required to be 0. It carries card-routed spend dated after the sync
+   * cutoff — spend that is still to come this month and is therefore NOT in the live balance.
+   * The sim reads the SAME array element (`cardPurchasesThisMonth`, below), so the display and
+   * the sim move together and the divergence this flag guards against cannot open up.
    * purchasesPerMonth[1] corresponds to projection month 2 (sim month 1), etc.
    */
   purchasesPerMonth?: number[],
@@ -1450,7 +1454,10 @@ export function simulateVariablePayoff(
     };
 
     // Per-card CC purchases this month.
-    // Month 0 = 0: live card.balance already includes today's purchases.
+    // ⚠️ Month 0 is NOT 0 when the caller supplies cardPurchasesPerMonth. The live card.balance
+    // includes what has POSTED this month, not what is still to come, so month 0 carries
+    // card-routed spend dated after the sync cutoff. The `m === 0 ? 0` fallback below applies
+    // only when no per-month figures were supplied at all.
     // Returns 0 for cards that haven't reached their start month yet.
     const cardPurchasesThisMonth = (c: CardData): number => {
       if ((cardStartMonths.get(c.id) ?? 0) > m) return 0;
