@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { readReferral, clearReferral, resolveReferrerForSignup } from '@/lib/referral';
+import { attributionColumnsForSignup } from '@/lib/attribution';
 import {
   markOnboardingComplete,
   type OnboardingCompletionPath,
@@ -350,6 +351,9 @@ export default function Onboarding() {
         tax_rate: tr,
         paycheck_frequency: data.paycheckFrequency,
         ...(refCode ? { referred_by: refCode } : {}),
+        // Spread, so an unattributed signup writes NO acquisition columns rather than three
+        // nulls - "arrived directly" and "we erased what was there" are different facts.
+        ...attributionColumnsForSignup(),
       }).eq('user_id', user!.id);
       if (profileError) throw profileError;
       // Cleared only after the profile write above succeeded (it throws on error), so a failed

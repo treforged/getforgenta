@@ -1675,6 +1675,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          acquisition_source: string | null
+          acquisition_medium: string | null
+          acquisition_campaign: string | null
           ai_consent_accepted: boolean
           ai_consent_accepted_at: string | null
           ai_consent_version: string | null
@@ -1735,6 +1738,9 @@ export type Database = {
           visibility: string
         }
         Insert: {
+          acquisition_source?: string | null
+          acquisition_medium?: string | null
+          acquisition_campaign?: string | null
           ai_consent_accepted?: boolean
           ai_consent_accepted_at?: string | null
           ai_consent_version?: string | null
@@ -1795,6 +1801,9 @@ export type Database = {
           visibility?: string
         }
         Update: {
+          acquisition_source?: string | null
+          acquisition_medium?: string | null
+          acquisition_campaign?: string | null
           ai_consent_accepted?: boolean
           ai_consent_accepted_at?: string | null
           ai_consent_version?: string | null

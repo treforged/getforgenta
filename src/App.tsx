@@ -18,6 +18,7 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { ViewedProfileProvider } from "@/contexts/ViewedProfileContext";
 import BlackScreenDebug from "@/components/debug/BlackScreenDebug";
 import { captureReferral } from "@/lib/referral";
+import { captureAttribution } from "@/lib/attribution";
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
@@ -291,6 +292,9 @@ function CaptureReferral() {
   const { search } = useLocation();
   useEffect(() => {
     captureReferral(search);
+    // Campaign attribution rides the same hook for the same reason: a link that points anywhere
+    // but the home page must still attribute. Also first-touch-wins, so this is idempotent.
+    captureAttribution(search);
   }, [search]);
   return null;
 }
