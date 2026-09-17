@@ -156,6 +156,42 @@ it against `src/pages/Account.tsx` before acting on it.
    6 tests failed on the label change and were right to - it is queried by accessible name. The
    empty state now PINS the mutual requirement, which nothing asserted before.
 
+5. [x] ✅ **ACCOUNTS TEXT FIXED AND GATED (ask `25d10159`) - it was a WIDTH bug, fourth report.**
+   `npm run check:account-rows` measures at **390px and 150% root font**, because the defect does
+   not exist at the default size. Instrument is exact rather than a proxy: `break-word` splits a
+   word only when it cannot fit, so "no broken word" IS "container >= widest word", measured from
+   the element's own computed font. 9 lines measured, tightest now 198px for a 92px word.
+   **Proven red with the REAL pre-fix layout:** 6 of 9 too narrow, "Checking" needing 81px in a
+   78px column, **exit 1**. Byte-exact restore.
+   ⚠️ **I NEARLY SHIPPED IT WITH A CORRECTNESS-MARKER SELECTOR** (`basis-[11rem]`, the class the
+   FIX adds) - on the day the defect is real it would have found nothing and exited **2**,
+   reporting a broken instrument rather than a broken app. Now selects on three classes present
+   in EVERY version.
+   Also dropped the institution from each row: it is the GROUP HEADING directly above, so the
+   row was restating the longest string on its line for no information.
+
+5a. [ ] ⚠️ **THE DEBT-TAB HALF IS NOT REPRODUCED, AND I WILL NOT GUESS A FIX.** Tre reported
+   "a lot of empty space on the sides of some of these boxes" with a Debt screenshot.
+   **Measured on the walk account at 390px, at BOTH default and 150% text: right-hand gaps are
+   0-25px.** No large empty space found.
+   **THE LIKELY REASON IS THAT MY PROBE MEASURED THE WRONG THING** - it read the gap to the CARD'S
+   RIGHT EDGE, and his screenshot shows the hole is INTERIOR: under the card title, "NEXT $0" and
+   "due Oct 10" sit with empty space to their LEFT, in a label/value row. Re-aim the probe at the
+   distribution WITHIN the row (label column width vs value column width) rather than at the right
+   edge, and note his cards carry states the walk account may not have (a "$492 short this month"
+   warning line, a `saving` badge, `Partial statement`).
+   **Do not "tidy" the Debt cards without a measurement that reproduces what he saw** - three of
+   the four fixes to the accounts row failed because they treated a symptom.
+
+6. [ ] 🔎 **USERNAME TYPEAHEAD - ask `57ff2015`, from Tre.** "while searching for usernames, pop-up
+   suggestions of already created accounts."
+   ⚠️ **THIS IS ACCOUNT ENUMERATION BY CONSTRUCTION, so the shape matters more than the feature.**
+   `find_profile_by_username` is EXACT-MATCH by design and `follow_profiles` was written so it
+   CANNOT enumerate - a prefix-search endpoint walks the user base. Safe shape: suggest ONLY
+   profiles already `visibility = public`, minimum prefix length, rate-limited, returning username
+   and display name and nothing else. **A private account stays findable by exact username only,
+   or the feature silently downgrades a privacy setting people already chose.**
+
 2. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW FOR REAL.** The MOUNT is gone (tombstone in
    `FollowersPanel.tsx`); `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge
    function are still in the tree. Measured safe: **0 live unaccepted `friend_links`**, positive
