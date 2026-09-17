@@ -1,5 +1,85 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## FIRST UP - 2026-09-17 (Ada, THIRTEENTH session). TWO LIVE BUGS FROM TRE, BOTH FIXED AND SHIPPED.
+
+He was awake and testing on iOS 866 throughout. Both reports came in mid-session with screenshots.
+
+🚀 **iOS BUILD 870 DISPATCHED** - run `35173912269`, `workflow_dispatch`, head `c1217e81`.
+It carries BOTH fixes below. **Verify it through all three gates, never the run's conclusion:**
+the run reads `success` on a push while the upload step reads `skipped`, and the upload step
+itself swallows Apple's cap error 90382 into a warning and still exits green.
+
+    gh run view 35173912269 --json jobs   # step "Upload to App Store Connect" must read success
+    gh run view 35173912269 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
+
+⚠️ **AN UPLOAD IS NOT AN INSTALL.** TestFlight still processes and he still has to update.
+
+### WHAT SHIPPED THIS SESSION
+
+* **`3e763fa9` A SIGNED-OUT USER WAS TOLD THEY WERE IN "DEMO MODE".** His screenshot showed the
+  toast on the app-lock PIN screen; he then added *"it does the same if im past pin and go in and
+  out of app after a period of time"*.
+  **CHECK ANCESTRY FIRST AND IT SAVED AN HOUR:** build 866's head IS `121c000f`, the previous
+  session's fix for demo mode being RESTORED on a native launch. That fix is correct and was not
+  what he was seeing, so DemoContext was the wrong place to look.
+  **THE CAUSE WAS AN INTERNAL SENTINEL USED AS USER-FACING COPY**, 54 times across 5 files:
+  `throw new Error(isPartnerView ? PARTNER_VIEW_READ_ONLY : 'Demo mode')`. The ternary separates
+  partner view and NOTHING else, so `!user` fell through to the literal string `'Demo mode'`,
+  which `onError: toast.error(e.message)` showed verbatim. `ResumeRecovery` signs out locally
+  after a long background, so `user` goes null while every screen carries on - and the next write
+  told him he was looking at a demo of somebody else's money.
+  Fixed with ONE `writeBlockedError()` in `src/lib/write-guard.ts`, three distinct messages.
+  Gate: 7 assertions, a discriminating triple, proven red with the REAL pre-fix logic (4 of 7
+  fail), restored byte-exact.
+
+* **`c1217e81` AN ACCOUNT NAME IS NEVER TRUNCATED, AT ANY TEXT SIZE.** *"longer text truncates no
+  matter the size though so we need a solution."*
+  ⚠️ **THIRD REPORT OF THIS SAME DEFECT (09-02, 09-16, 09-17), AND THE FIRST TWO FIXES TREATED
+  THE SYMPTOM** - both added `line-clamp-2 break-words` and left comments saying it was fixed.
+  A clamp decides what to do once the column is ALREADY too narrow, so it cannot answer a WIDTH
+  problem; it guarantees truncation at exactly the text sizes he uses.
+  Cause: the name shared one flex row with the Auto-sync badge AND the balance, both `shrink-0`.
+  Fix: badge moved to the meta line (~90px back to the name), both clamps removed.
+  New `npm run check:truncation` measures rendered boxes at 390x844 at 100% and 150%.
+
+### ⚠️ TWO THINGS THE NEXT SESSION SHOULD KNOW
+
+1. **THE TRUNCATION GATE'S NAME HALF HAS NEVER BEEN OBSERVED FAILING.** All 9 red findings were
+   META lines; the walk account has no name long enough to clip even at 150%. It is
+   measured-and-not-truncated, NOT proven-able-to-fail. **Seed the walk account with a long
+   account name to close this** - until then it is the weaker assertion, and this repo already
+   records what a green-over-unreachable assertion costs.
+2. **THE TRIGGER FOR THE DEMO-MODE TOAST IS STILL UNIDENTIFIED.** The fix makes the message
+   honest; it does NOT stop a write being attempted while signed out. Something fires one with
+   no user press. `useNetWorthSnapshotRecorder` fires `upsert.mutate` from an effect and hangs
+   off the Accounts page, which is the leading candidate - and while building the truncation
+   gate, `/accounts` rendered "Your session has ended" before auth had hydrated, which is the
+   same shape. **Not confirmed. Do not write it up as the cause without measuring it.**
+
+### THE FOLLOWERS WORK - ITEM 3 - IS PART-BUILT AND NOT COMMITTED
+
+* **`94b343e0` SHIPPED:** `revoke execute ... from anon` on both follow RPCs. Measured why the
+  original migration's `revoke ... from public` did not cover it: `anon=X/postgres` is a DIRECT
+  grant from Supabase's default privileges, and revoking from PUBLIC does not touch it. anon now
+  gets `401 42501 permission denied` where it previously got a body-level refusal. Advisor's
+  `anon_security_definer_function_executable` went 3 -> 1, survivor is the pre-existing
+  `enforce_username_change_limit`. **The `authenticated` half still flags and that is correct.**
+* **UNCOMMITTED IN THE TREE:** `src/hooks/useFollows.ts` and `src/hooks/useAccountVisibility.ts`
+  (both tsc + lint clean, built by the free tier, reviewed and corrected - the executor wrote
+  react-query v4 and an early `return` that broke the Rules of Hooks; both fixed), plus the
+  additive `src/integrations/supabase/types.ts` entries for `follows`, `profiles.visibility` and
+  the two RPCs. **They have NO CALLERS yet**, which is why they are not committed.
+* **`FollowersPanel.tsx` IS DRAFTED BUT NOT INSTALLED** - the free-tier output is in the session
+  scratchpad (`out-ui.keep.txt`). It was parked to take Tre's two live bugs first.
+* **DESIGN DECISION ALREADY TAKEN, do not re-derive it:** the visibility switch goes in
+  **Settings**, not Account. `Account.tsx`'s own comment records the division - Settings is where
+  you MANAGE, Account is where you LOOK. Use the shared `ToggleSwitch` (`role="switch"`); there is
+  a one-switch gate and a second implementation will trip it.
+* **STILL TRUE:** do NOT wire follows into `leaderboard_snapshots_select_friend`. That widens who
+  can read another person's money data and is its own migration with its own review.
+
+<details><summary>TWELFTH session's FIRST UP, superseded</summary>
+
 ## FIRST UP - 2026-09-16 (Ada, TWELFTH session). MONEY CORRECTNESS SHIPPED; iOS 859 IS UPLOADED.
 
 ✅ **iOS BUILD 859 IS IN TESTFLIGHT** - run `35155768885`, `workflow_dispatch`, head `faa0aa86`,
@@ -5307,3 +5387,5 @@ in reverse order.
 
 **STILL LIVE inside that superseded block: items 3, 4 and 5.** Item 3 (the
 followers/following UI) is the next build and has NOT been started.
+
+</details>
