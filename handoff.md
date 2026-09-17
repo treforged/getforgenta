@@ -74,6 +74,32 @@ sense its an expensive pay up front"*. Done at the single source - `AKOYA_INSTIT
   AFTER the tab switch (which unmounts it), so it went red on a healthy app; and it asserted ZERO
   `<details>`, which would have demanded deleting the connections notice the product owes.
 
+### ✅ A REAL DEFECT FOUND BY REFUSING TO BUILD - "Reset to defaults" was racy (ask `e0104e7b`)
+**I was about to BUILD a "reset to the new default" offer. The premise check found the control
+already exists - Customize -> "Reset to defaults" - and then found it BROKEN.**
+* `resetLayout` set `initialized.current = false` before calling `setLayout`. That flag exists
+  ONLY to stop the init effect stamping the profile's saved layout over local state, so clearing
+  it re-arms exactly that effect. **The write is debounced 800ms, so any profile refetch inside
+  that window returns the PRE-RESET row, the effect applies it, and the reset snaps back on
+  screen - while the pending write still puts the default in the DATABASE.** Screen and database
+  disagree until a reload. The line bought nothing; `setLayout` already sets state and persists.
+* **THIS IS THE ONLY ROUTE TO THE NEW DEFAULT FOR A USER WITH A SAVED LAYOUT**, and the only two
+  such users are `tre@treforged.com` and `reviewer@treforged.com`. A racy reset made that route
+  unreliable for exactly the person most likely to press it.
+* **PROVEN RED AGAINST THE REAL SHIPPED CODE, not a mutation** - the gate was written before the
+  fix and failed exactly one case. Positive control asserts the saved layout loads first AND
+  disagrees with the default; a fourth case pins that an ordinary edit still persists after a
+  reset, so pinning `initialized` permanently true cannot pass.
+* **STATED LIMIT:** the Supabase write is mocked, the 800ms timing is not exercised, nothing
+  visual. It pins the state machine, which is where the defect lives.
+
+### ⚠️ ITEM 0b - SECOND iOS RUN `35283280523`, READ ITS UPLOAD STEP BEFORE SAYING ANYTHING
+Dispatched by hand on `143b3a4b`. **935 carries the dashboard default but with the RACY reset**,
+so the two are only useful together on his device - that is why a second build was spent rather
+than batching. Same verification as item 0 and no shortcut: step 20's OWN conclusion must read
+`success` (never `skipped`), altool must print `UPLOAD SUCCEEDED`, any `90382` must be in echoed
+script source, and the build number comes FROM THE LOG.
+
 3. [ ] **NEEDS TRE - `354e280a`: the privacy policy is now inaccurate about Akoya.** `Legal.tsx`
    s6 still says *"currently Fidelity - we also support Akoya LLC"*. **The direction is the SAFE
    one** - it over-discloses, warning of a sharing that cannot happen, which is not the risk
