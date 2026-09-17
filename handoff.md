@@ -137,6 +137,25 @@ it against `src/pages/Account.tsx` before acting on it.
    the walk account and refuses any email not ending `@forgenta.test`.
    **NOT COVERED:** the dashboard's Overview tab only, one viewport, no colour or spacing claims.
 
+4. [x] ✅ **DONE - THE FRIEND WORDING IS RETIRED, AND ONE OF THE THREE WAS A PRIVACY CLAIM.**
+   Item 4 named one stale string; a sweep for user-VISIBLE copy found three.
+   * `UsernameClaim`: "Friends can add you as" -> "People can find you at" (the form is gone).
+   * `FriendsLeaderboard` empty state: "No friends yet. **Add one**..." -> "Nobody here yet. When
+     you and someone else **follow each other**..." - it was instructing people to use a deleted
+     flow.
+   * ⚠️ `LeaderboardShareToggles`: "Share X with friends" -> **"with people you follow back"**.
+     **THE OBVIOUS SWEEP WOULD HAVE WRITTEN "followers", AND THAT IS FALSE.** I read the live
+     `active_friend_ids()` rather than assuming: its follows arm joins follows to ITSELF and
+     demands `accepted` in BOTH directions, so a one-way follower sees **nothing**. On a control
+     that publishes one person's financial progress to another, naming a wider audience than the
+     real one is the worst available error - and **the asymmetric model Tre asked for is exactly
+     what made the old word newly ambiguous.**
+   **DELIBERATELY NOT CHANGED:** `Builds.tsx` "so friends can view your plan" is a genuinely
+   PUBLIC link, where the word is colloquial and correct. A consistent sweep would have made it
+   wrong.
+   6 tests failed on the label change and were right to - it is queried by accessible name. The
+   empty state now PINS the mutual requirement, which nothing asserted before.
+
 2. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW FOR REAL.** The MOUNT is gone (tombstone in
    `FollowersPanel.tsx`); `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge
    function are still in the tree. Measured safe: **0 live unaccepted `friend_links`**, positive
@@ -5640,7 +5659,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 00:31 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 00:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5651,14 +5670,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+ccb5efea [handoff]: rendering the trophy case found what the server tests could not
+83322cc0 [achievements]: a granted badge was invisible - rendering it found that, tests did not
+54ece90f [handoff]: attribution shipped - utm_*, not ref, and both halves wired
+b4c22722 [attribution]: campaign attribution on signup, and it is not the ref parameter
+6101e9d0 [handoff]: real_user_ids measured and shipped; repointing is 1c
+25252dee [analytics]: real_user_ids - four test accounts were inflating every population
 68ba3b88 [handoff]: the followers gate ran for the first time, and it discriminates
 28aafd46 [handoff]: iOS 876 delivered, achievements shipped, and a seventh false premise
-c14e5d9f [achievements]: eleven badges you earn by using the app, granted server-side
-59aebc9d [handoff]: the resume queue, and two mistakes of my own
-a29eecd6 [chore]: drop a stray scripts/handoff.md that git add -A swept in
-9e2e1918 [social]: one Profile section, and a share link replaces add-a-friend
-e5a4dd7d [test]: gate the scoping half - followers live on one tab and nowhere else
-5035a6dc [handoff]: the name resolver already exists - the fifth false premise
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
