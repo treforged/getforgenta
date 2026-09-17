@@ -1,41 +1,111 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ RESUME QUEUE - START HERE. WORK IS PARKED ON A BRANCH.
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, FOURTEENTH session). THE BRANCH IS MERGED.
 
-Tre, 2026-09-17: **"friends should be followers and following just like instagram. it should
-only be on that tab."** That work is **half-done and parked on `followers-consolidation-wip`**
-(commit on origin, 0/0). **`main` is green and untouched.**
+`followers-consolidation-wip` is **merged to `main` and pushed** (`01bdc3a9`, verified by
+CONTENTS with a known-positive AND a negative control, 0/0 against origin). Gates on main:
+`tsc --noEmit` clean, vitest **4741 passed / 1 skipped across 468 files**, `check:followers`
+green in a real browser.
 
-🚨 **THE MIGRATION IS ALREADY APPLIED TO THE LIVE DATABASE.** The SQL file and the DB agree;
-only the UI half is unfinished. **Do not re-apply it. Do not assume it is pending.**
-Undo is at the bottom of `supabase/migrations/20260917_follows_become_the_friend_graph.sql`.
+1. [ ] 🚀 **VERIFY THE iOS BUILD REACHED TESTFLIGHT - run `35178581343`, `workflow_dispatch`,
+   head `01bdc3a9`.** Dispatched 03:32Z. It carries the followers UI (`0e56306c`) AND this
+   consolidation - neither was in 870.
+   ⚠️ **ALL THREE GATES, NEVER THE RUN'S CONCLUSION:**
 
-1. [ ] **CHECK OUT THE BRANCH AND MAKE 14 TESTS TELL THE NEW TRUTH.**
-       `git checkout followers-consolidation-wip` - then the three files below. They assert the
-       OLD information architecture (the friends card in the Account tab's PROFILE section), which
-       Tre has just changed. **REWRITE them to assert the NEW arrangement; do NOT delete the
-       assertions** - a test that asserts only an absence is satisfied by the feature being dead,
-       which this repo has already been bitten by.
-       * `src/pages/__tests__/Account.leaderboardReachable.test.tsx` (6)
-       * `src/pages/__tests__/Settings.securityControls.test.tsx` (3)
-       * `src/lib/__tests__/settings-ia.gate.test.ts` (1, a SOURCE scan for `<FriendLink />` in
-         `Account.tsx` - it is now mounted inside `FollowersPanel` instead)
-       Then: full suite, `npm run check:followers`, and merge to main.
+       gh run view 35178581343 --json jobs   # step 20 must read success, NEVER skipped
+       gh run view 35178581343 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
+       gh run view 35178581343 --log | grep -n '90382'   # must be SOURCE lines only
 
-2. [ ] **MEASURE THE OUTSTANDING FRIEND INVITES - I COULD NOT, AND IT DECIDES A DELETION.**
+   **This is the SECOND upload of the night** (870 went at ~02:0xZ), and Apple caps uploads per
+   app per day - so **if 90382 fires, that is the cap and NOT a defect**; say so plainly and try
+   tomorrow rather than hunting. **Do not dispatch a third without a new reason.**
+   **iOS build number = run_number + 100.** Name the iOS number, never Android's.
+   **An upload is not an install** - he still has to update.
 
-           select count(*) filter (where accepted_at is null and revoked_at is null and expires_at > now())
-             from public.friend_links;
+2. [ ] 🗑️ **THE FRIEND-LINK DELETION IS UNBLOCKED, AND I DELIBERATELY DID NOT DO IT.**
+   **MEASURED 2026-09-17 03:29Z, so do NOT re-measure:**
 
-       **If that is 0, the whole friend-link flow can be deleted** - `FriendLink.tsx`,
-       `useFriendLink.ts`, and the `friend-link` edge function - because `active_friend_ids()`
-       honours already-accepted links server-side regardless. **If it is not 0, leave it mounted**:
-       its emails land on `/account?friend_code=` and `FriendLink` is what reads that parameter,
-       so unmounting it makes every outstanding invite silently do nothing. I kept it mounted as
-       the conservative reading, on the Followers tab, which still satisfies "only on that tab".
+       live_unaccepted = 0   (accepted_at null, revoked_at null, expires_at > now)
+       total_rows = 1, accepted = 1, expired = 0      <- POSITIVE CONTROL
 
-3. [ ] **THE FOLLOWERS UI IS IN NO BUILD.** `0e56306c` landed after iOS 870 was dispatched.
-       Batch it with the branch work into ONE dispatch; Apple caps uploads per app per day.
+   The control is the point: a zero from a broken query and a zero from a clean table are the
+   same zero. The table is reachable and non-empty, so **the zero is real** - no outstanding
+   invite is stranded by unmounting `FriendLink`, and `active_friend_ids()` honours the one
+   already-accepted link server-side regardless.
+   **WHY I STOPPED THERE, and it is a judgement call rather than a blocker:** removing
+   `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge function is a large deletion
+   that also takes **59 passing assertions** with it, and nobody is waiting on it. What Tre IS
+   waiting on is the followers UI on his phone. Deleting it in the same breath would have
+   delayed the build for a cleanup. **Do it as its own slice, with its own gate, and leave a
+   tombstone saying what it was.**
+
+3. [ ] 🎨 **THE BALANCES / LINKED BANKS PILL IS TRUNCATED.** Ask `c61a479a`, still open.
+   *"that pill is kind of truncated and it should all show at once without scrolling."*
+   ⚠️ **HE IS REJECTING THE FIX THAT SHIPPED.** `check:panel-rows` made a pill that does not fit
+   SCROLL - right for Debt's five segments, wrong here. The two-segment case must FIT while the
+   five-segment case still scrolls. Start at `src/pages/Accounts.tsx` and `.seg-track`; the width
+   is eaten by the count badge and by `+ Add Account` sharing the row.
+   ⚠️ Claude-in-Chrome's `resize_window` reports success and does nothing - use Playwright.
+
+4. [ ] 🔎 **THE `net=` READING.** Ask `4d923cfe` - one query, `push_registration_status`.
+   `permission=granted` with NO `net=` means he has not re-opened the app since installing: that
+   is **not measured**, never "nothing wrong".
+
+### ⚠️ FOUR PREMISES IN THE LAST HANDOFF WERE FALSE. TEST THE ONES BELOW TOO.
+
+Every one of them was written by a careful session and every one would have cost real time. This
+is why a session inheriting a handoff tests the premises before acting on them.
+
+1. **"14 failing tests in THREE files, all encoding the old IA."** There were **10 in FIVE**, and
+   **nine of the ten shared one cause with nothing to do with the IA**: `Account.tsx` now calls
+   `useFollows` -> `useQueryClient`, so the page threw *"No QueryClient set"* before any assertion
+   could speak. **Rewriting those nine as IA failures would have deleted guards that still work.**
+   The two files it never named were `useFriendLink.test.tsx` and `Account.leaderboardOneMount`.
+2. **"`npm run check:followers` walks it in a real browser."** The script existed;
+   **the npm entry never did**, on this branch or on main. It exited *"Missing script"*. So the
+   gate had not been run since the day it was written. **A file present and unread is worse than
+   one absent** - absent is diagnosable, this read as covered. Wired in `5afd8a0`.
+3. **The one real IA failure was the interesting one.** `settings-ia.gate` scanned `Account.tsx`
+   for `<FriendLink />`, now mounted one level down inside `FollowersPanel`. It counted ZERO and
+   called the section deleted - the component-boundary blind spot. **The FALSE direction was the
+   dangerous one:** a zero reads as "a section that moved never arrived", which sends the next
+   session rebuilding a feature that works. Fixed by DERIVING the subtree from `Account.tsx`'s own
+   `@/components/settings/...` imports, and it now prints *"mounted N time(s) (where)"*.
+4. **A defect of my own, caught by a count and not by reading.** My replacement matcher emitted
+   a lone `\b` in a TEMPLATE LITERAL - which needs a DOUBLED backslash there. A lone one is a BACKSPACE character and matches nothing, so
+   `PartnerLink` read 0 as well. **A matcher returning zero for the thing you are checking AND for
+   something you know is fine is measuring the instrument.** Cause worth writing down: **this
+   machine's Bash heredoc collapses a DOUBLED backslash to a single one before python sees
+   it**, so build backslashes with `chr(92)` rather than by escaping them.
+
+### THE DESIGN DECISION THAT MUST NOT BE WEAKENED
+
+`active_friend_ids()` reads **MUTUAL follows only**. A one-directional follow must never grant
+access, or a public account exposes its buckets to any stranger who presses Follow. The
+leaderboard's data source moved with it - it reads `mutuals` from `useFollows`, not `friends`
+from `useFriendLink` - so the test mocks drive `mutuals`. **That is a security property wearing
+an IA costume; do not "simplify" it back to a single-direction list.**
+
+### PROVEN RED THREE WAYS (each restored byte-exact by sha256, never `git checkout` - there is
+uncommitted work in this tree)
+
+* `<FriendLink />` removed from `FollowersPanel` -> 2 gates red, *"mounted 0 time(s) (nowhere)"*.
+  **The mutation that matters:** it proves the scan really reaches one level down.
+* A **second** `<FriendLink />` added to `Account.tsx` -> 2 gates red, naming **both** files.
+  That is the real pre-move defect, not a contrived one.
+* The Followers segment set to the same section as Leaderboard - the forged-glass dead-tab shape
+  -> the reachability gate red.
+
+### STILL OPEN FROM BEFORE, UNCHANGED
+
+* **The follow lists show no names** - every row reads `A Forgenta member #<8 chars>`; there is no
+  server-side resolver. This is the biggest visible gap in the shipped feature.
+* **The truncation gate's NAME half has never been observed failing** - the walk account has no
+  name long enough to clip. Measured-and-not-truncated, NOT proven-able-to-fail. Seed the walk
+  account with a long name to close it.
+* **The demo-mode toast's trigger is still unidentified.** The fix made the message honest; it
+  does not stop a write being attempted while signed out. `useNetWorthSnapshotRecorder` is the
+  leading candidate and is **not confirmed** - do not write it up as the cause without measuring.
 
 ## FIRST UP - 2026-09-17 (Ada, THIRTEENTH session). TWO LIVE BUGS FROM TRE, BOTH FIXED AND SHIPPED.
 
