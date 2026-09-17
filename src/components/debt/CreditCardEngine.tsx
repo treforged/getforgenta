@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { isRuleOccurrenceConfirmed } from '@/lib/confirmed-capture';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
@@ -488,24 +489,47 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
       evMonthEvents.push({ income, expenses: cashExpenses });
 
+      // ⚠️ MONTH 0 IS NOT EMPTY, AND THIS IS THE SECOND COPY OF THAT RULE.
+      // `useCardProjection.ts` owns the same convention and was corrected first; this file
+      // computes its OWN purchases for the /debt projection rows (see `augmentedCCPurchases`
+      // below, which `projections` reads), so fixing only the other one left the $50 invisible on
+      // exactly the page Tre was looking at. Two writers, one rule - fix both or neither.
+      //
+      // The old reasoning was "the live card balance already includes this month's purchases".
+      // True of spend that has POSTED, false of spend still to come. Month 0 therefore carries
+      // card-routed spend dated AFTER THE SYNC CUTOFF - "after the cutoff" is exactly "not in the
+      // balance yet" - minus any occurrence the user has confirmed a real transaction already
+      // paid, which is the same evidence the cash side uses.
+      //
+      // ⚠️ DELIBERATELY ITS OWN FILTER rather than reusing `eventsInMonth`. That array also feeds
+      // month-0 `income` and `cashExpenses` on this page, and it is gated on `>= todayStr`;
+      // widening it to the sync cutoff would move the /debt cash model as a side effect of a
+      // purchases fix. Same rule, narrower blast radius.
+      const m0PurchaseCutoff = syncCutoffDate ?? todayStr;
+      const purchaseEvents = i > 0
+        ? eventsInMonth
+        : scheduledEvents.filter(e =>
+            e.date.startsWith(monthKey) &&
+            e.date > m0PurchaseCutoff &&
+            !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmedOccurrences),
+          );
+
       const cardPurchases: { [cardId: string]: number } = {};
-      if (i > 0) {
-        for (const card of cards) {
-          if (card.startDate) {
-            const startD = new Date(card.startDate + 'T00:00:00');
-            if (d < startD) continue; // no purchases before card's start date
-          }
-          const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-          cardPurchases[card.id] = eventsInMonth
-            .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
-            .reduce((s, e) => s + e.amount, 0);
+      for (const card of cards) {
+        if (card.startDate) {
+          const startD = new Date(card.startDate + 'T00:00:00');
+          if (d < startD) continue; // no purchases before card's start date
         }
+        const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
+        cardPurchases[card.id] = purchaseEvents
+          .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
+          .reduce((s, e) => s + e.amount, 0);
       }
       evCardPurchases.push(cardPurchases);
     }
 
     return { monthEvents: evMonthEvents, cardPurchasesPerMonth: evCardPurchases };
-  }, [rules, accounts, cards, pauseSavings]);
+  }, [rules, accounts, cards, pauseSavings, syncCutoffDate, confirmedOccurrences]);
 
   const variableSim = useMemo(() => {
     // Derive month 0 remaining income/expenses from allTransactions (today → EOM).
@@ -537,7 +561,31 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // ccPurchasesPerMonth from the outer useMemo only includes recurring rule events.
     // One-time future CC purchases (e.g. $410 Prime Visa in June) must be added here
     // so the simulation knows that month's purchases on that card.
-    const augmentedCCPurchases: { [cardId: string]: number }[] = [{}]; // month 0 = empty
+    // ⚠️ MONTH 0 IS SEEDED, NOT BLANK. It was `[{}]` - the second half of the same defect fixed in
+    // the rule loop above. It carries the month-0 rule spend computed there, plus one-time CC
+    // transactions dated after the sync cutoff (an earlier one has posted and is already inside
+    // the live balance, so counting it again would double it). The month-0 one-time arm mirrors
+    // `useForecastEngineInputs.oneTimeByMonth`, which has carried this same cutoff for the
+    // funding side since the day zeroing all of month 0 put Dashboard MONTH-END CASH $172.50
+    // under Forecast END CASH.
+    const m0Cutoff = syncCutoffDate ?? toLocalDateStr(now);
+    const m0CC: { [cardId: string]: number } = { ...(ccPurchasesPerMonth[0] ?? {}) };
+    {
+      const d0 = new Date(now.getFullYear(), now.getMonth(), 1);
+      const mk0 = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}`;
+      for (const card of cards) {
+        const cKey = `account:${card.id}`;
+        const oneTime = allTransactions
+          .filter(t =>
+            t.date && t.date.startsWith(mk0) && !t.isGenerated && t.date > m0Cutoff &&
+            t.type === 'expense' &&
+            (t.payment_source === card.id || t.payment_source === cKey),
+          )
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        if (oneTime) m0CC[card.id] = (m0CC[card.id] ?? 0) + oneTime;
+      }
+    }
+    const augmentedCCPurchases: { [cardId: string]: number }[] = [m0CC];
 
     for (let i = 1; i < PROJECTION_MONTHS; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
