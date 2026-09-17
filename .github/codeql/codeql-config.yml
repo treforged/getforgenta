@@ -6,3 +6,18 @@ name: "Forgenta CodeQL config"
 # via .gitattributes linguist-vendored).
 paths-ignore:
   - backups/**
+
+# ---------------------------------------------------------------------------------------
+# node_modules IS DELIBERATELY NOT LISTED HERE, AND THAT IS NOT AN OVERSIGHT.
+#
+# The eight open alerts in node_modules on 2026-09-17 were all java-kotlin - Capacitor's own
+# Android library source. Adding `node_modules/**` above would NOT have filtered one of them,
+# while looking exactly like a fix. GitHub's own wording: paths / paths-ignore apply "when you
+# run the CodeQL actions on an interpreted language (Python, Ruby, and JavaScript/TypeScript)
+# or when you analyze a compiled language WITHOUT BUILDING the code". codeql-android.yml uses
+# `build-mode: manual` and a real gradle build, so it is neither.
+#
+# They were dismissed instead, each carrying that reason, as third-party code this repo does
+# not write and cannot patch. If a future session is tempted to "just add node_modules here",
+# this paragraph is why it will change nothing - check the build-mode first.
+# ---------------------------------------------------------------------------------------

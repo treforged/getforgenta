@@ -161,7 +161,17 @@ const seenLinks = new Set();
 /** `/builds/share/:token` has to match `/builds/share/abc`, so params become a wildcard. */
 const routeMatchers = declared
   .filter((r) => r.path !== '*')
-  .map((r) => new RegExp('^' + r.path.replace(/:[^/]+/g, '[^/]+').replace(/\//g, '\\/') + '$'));
+  .map((r) => {
+    // ⚠️ ESCAPE EVERY METACHARACTER, NOT JUST THE SLASH. The old form escaped `/` alone, so
+    // any other regex metacharacter in a declared route passed straight through: `/a.b` matched
+    // `/aXb`, measured. Harmless today because no route carries one, and silently wrong the day
+    // one does - which is the entire failure mode of a check whose job is to say a route is
+    // unreachable. CodeQL reads the same thing as js/incomplete-sanitization (alert 37).
+    const escaped = r.path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    // `:` is deliberately NOT in that class, so `:token` survives the escape while the segment
+    // separators around it became `\/`. Turn each param back into a one-segment wildcard.
+    return new RegExp('^' + escaped.replace(/:[^\\/]+/g, '[^/]+') + '$');
+  });
 
 async function verdict(path) {
   await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
