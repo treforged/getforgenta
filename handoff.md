@@ -40,8 +40,12 @@ co-tenant card is paid off, while Tre said "larger once the CARDS ARE DOWN". Clo
 card's LIVE BALANCE in the months-1+ path - a change to a money engine's signature.
 
 1. [ ] **Await Sam on item 1's fork**, then ship the default. Everything else about it is measured.
-2. [ ] **Ask `44062af7` - the Accounts tab. MEASURED AND SCOPED, NOT BUILT. The measurement
-   REFUTES the obvious fix, so read it before touching anything.**
+2. [x] **Ask `44062af7` - the Accounts tab. SHIPPED `c4ec0b69`.** A group of one now renders no
+   heading and carries its institution on the row. Gate
+   `src/pages/__tests__/Accounts.soloGroupHeading.test.tsx`, 4 checks, proven red THREE ways.
+   iOS `workflow_dispatch` run **35277886403** - READ ITS UPLOAD STEP'S OWN CONCLUSION, never the
+   run's. **The measurement below is kept because it REFUTES the obvious fix** - do not let a
+   later session 'finish the job' by trimming the meta line.
    * ⚠️ **THE META LINE IS NOT THE OVERLOAD, however it looks in source.** It concatenates up to
      EIGHT facts with `·` separators, which makes it the obvious culprit - but on his 16 active
      accounts it averages **2.94 facts per row, max 5**, and `Since <apr_start_date>` renders on
