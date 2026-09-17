@@ -2,6 +2,60 @@
 
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FIRST session). START AT ITEM 1.
 
+> ## ⚠️ 2026-09-17, TWENTY-SECOND SESSION - ITEMS 1, 3 AND 4 BELOW ARE SUPERSEDED. READ THIS FIRST.
+>
+> **Superseded, not deleted**, so the premises that were once believed stay readable. The one
+> item still LIVE in the list below is **item 2**, and it is live in a changed form.
+>
+> **ITEM 1 - DONE.** His Groceries rule moved `due_day` 13 -> 19 (`ask 896ac884`, closed with
+> evidence). Read back after the write; the sibling income row "GF Half of Rent/Groceries" (day
+> 28) is untouched, which is what proves the write was selective rather than a blanket.
+> **UNDO:** `update recurring_rules set due_day = 13 where id = '0683bc28-acab-4e2f-8d9b-b23258061d80'`.
+> ⚠️ **The procedure in that ask named the column `day_of_month`. It is `due_day`** - the first
+> query errored 42703. A query specified in prose is an unverified claim about a schema.
+>
+> **ITEM 2 - STILL OPEN, BUT ITS STATED HYPOTHESIS IS DEAD.** His arithmetic is confirmed right.
+> Three things are now MEASURED and the third is the one that redirects the work:
+> 1. The identity **does** bind on a cycling row - the previous session's premise that both
+>    figures were "already correct, just different cycles" is FALSE. With Start = S + B,
+>    Payment P = p_s + p_b and B' = B + (S - p_s) - p_b, `End = purchases + B' = Start + purchases - P`.
+> 2. **The surplus-cascade hypothesis is refuted.** `balBeforePayment` is built over `debtCards`
+>    ONLY (credit-card-engine.ts ~1983), so a cycling card falls through `owedForCard` to
+>    `cyclingBacklog` and the cascade caps at the backlog. It cannot over-pay.
+> 3. Across four sim shapes every row reconciles at **residual 0.00** and payment **never**
+>    exceeds owed. **So the sim's own cycling path is not the source of the 542.**
+> **WHERE TO LOOK NEXT:** the join between the CONVERGED forecast run and the display. /debt takes
+> payments from `cardProjection.perCardPayments` and balances from the same result, and the
+> convergence re-runs allocation against the cash floor - a path NEITHER gate executes.
+> **His 2026-08-31 fixture cannot reproduce it** (it has his cycling card, Robinhood Gold at
+> $230/mo = the Groceries rule, UNDER-funded at 50 against 230 owed - the opposite failure), so
+> **the next step is a FRESH capture of his current data**, not more reading.
+>
+> **ITEMS 3 AND 4 - DONE, and 4 changed shape.** The sentence is removed (`ask cf468ddc` covers
+> both) because its premise was false, not only because it wrapped badly - see the long note at
+> its old call site. `check:debt-cycle-labels` was **re-aimed** from "the sentence renders" to
+> "the rendered rows reconcile", which is what item 4's draft reader was for; the draft is now
+> spliced in and `scripts/.rowreader-draft.js` can be deleted.
+> ⚠️ **AND THE RE-AIMED GATE HAS A MEASURED BLIND SPOT, written into its own header:** the rows it
+> reaches are **REVOLVING, not cycling**, because setting `payment_preference='full'` is necessary
+> but not sufficient - the walk card still carries ~$4,200 and revolves until that clears. So it
+> asserts the identity on the branch that already had a guard. **Do not quote its green as proof
+> his bug is fixed.** Closing that needs a zero-balance card with recurring purchases in the walk
+> fixture.
+>
+> **SHIPPED:** `9f09dec8` (the guard existed only in the revolving branch; the cycling branch
+> `continue`s before reaching it, so nothing here could ever notice his row - now one shared
+> function, two callers, plus `credit-card-engine.rowReconciliation.test.ts`) and the sentence
+> removal. Both pushed 0/0, verified by CONTENTS with a known-positive and an impossible-string
+> control in the same run. `test:tz` green all three zones, **477 files / 4760 tests** (count
+> recorded so a shrinking suite is visible).
+>
+> 🚫 **NO THIRD iOS BUILD WAS DISPATCHED TODAY, deliberately.** 900 and 903 already went up and
+> Apple caps uploads per app per day. More to the point, a build carrying only the sentence
+> removal would show him the same row still not adding up, with the explanation now gone - the
+> fix worth shipping is item 2, and it is not done. **This is a judgement call, not a rule: if he
+> wants the wrapping fixed on his phone before then, dispatch it.**
+
 **TRE IS AWAKE AND TESTING iOS 903 RIGHT NOW.** This session handed over on the LIFETIME tool-call
 gate (197 of 175), mid-conversation, with two of his messages unactioned. Items 1 and 2 are both
 HIS, both from the last ten minutes, and neither has been started.
@@ -6370,7 +6424,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 04:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 09:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6386,14 +6440,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+03f5a4eb [handoff]: twenty-first session - his /debt row does not reconcile, and he is right
+f9d17b2c [handoff]: iOS 903 carries both halves of the debt fix; five lessons recorded
 5196b381 [debt]: the row now says which cycle each column belongs to
 193b0802 [debt]: the SECOND copy of the month-0 rule - the one /debt actually reads
 c202d580 [docs]: the Mac runbook found the tab bar by the one selector this repo forbids
 e3014dac [handoff]: gh auth restored, iOS dispatched as 35198098895, month-0 purchases shipped
 2d3ac700 [debt]: month 0 stops hiding the spend that has not posted yet
 18f60dc1 [handoff]: friend-link flow deleted; the gate it was holding up is re-aimed and found a live focus-ring defect
-5a8c69b2 [settings]: delete the friend-link flow, and re-aim the gate it was quietly holding up
-9e48f3aa [handoff]: twentieth session - the month-0 purchases fix is built and measured, and deliberately held
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
