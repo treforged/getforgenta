@@ -32,6 +32,7 @@ import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
   Link2, Unlink, Loader2, RefreshCw, GripVertical, ArrowUp, ArrowDown, type LucideIcon,
+  ChevronDown,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -1241,18 +1242,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             );
           })()}
 
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Bank connections are powered by{' '}
-            <a href="https://plaid.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid</a>
-            , a trusted financial data platform used by thousands of apps. For a few institutions we also support{' '}
-            <a href="https://akoya.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya</a>
-            {' '}as an alternative. We never see your bank login credentials — authentication happens with your bank.{' '}
-            <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Privacy Policy</a>
-            {' · '}
-            <a href="https://plaid.com/legal/#end-user-services-agreement" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Terms</a>
-            {' · '}
-            <a href="https://akoya.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya Privacy Policy</a>
-          </p>
 
           {/* Manual escape hatch. Plaid only reports a connectivity error code
               when it recognizes the failure — a user who gives up on a stalled
@@ -1313,9 +1302,23 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                           {(() => {
                             const { text, isStale } = formatSyncStatus(item.last_synced_at);
                             return (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
                                 {isStale && <span className="w-1.5 h-1.5 rounded-full bg-gold shrink-0 inline-block" />}
-                                {text}
+                                {/* ⚠️ THE ACCOUNT COUNT WAS ALREADY COMPUTED HERE AND THROWN AWAY.
+                                    `linkedAccounts` existed only to decide whether a re-link was
+                                    needed. Tre, 2026-09-17, on this exact row: "there's a lot of
+                                    empty space between the bank name or company name in the link
+                                    thing on the right can we format it better". Measured at 390:
+                                    115px of a 325px row was blank. The honest way to close a gap
+                                    is to put something TRUE in it, and the number of accounts a
+                                    connection actually brought in is the one fact a person wants
+                                    from this row that it was not showing. */}
+                                <span className="truncate">
+                                  {linkedAccounts.length > 0 && (
+                                    <>{linkedAccounts.length} {linkedAccounts.length === 1 ? 'account' : 'accounts'} · </>
+                                  )}
+                                  {text}
+                                </span>
                               </p>
                             );
                           })()}
@@ -1373,6 +1376,36 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
               })}
             </div>
           )}
+
+          {/* ⚠️ MOVED BELOW THE LIST AND COLLAPSED ON 2026-09-17, NOT DELETED. Tre, of this
+              screen: "the information above, I don't know how much is needed necessarily to be
+              there like right in their face if we can clean it up in a way that makes more
+              sense". Five lines of provider provenance and four legal links sat between the
+              header and the banks, on every visit, above the thing he came to look at.
+
+              ⚠️ IT IS REASSURANCE YOU READ ONCE, AND A DISCLOSURE THE PRODUCT OWES — which is
+              exactly why it is a `<details>` rather than a cut. Every word and every link is
+              still here, one tap away and still on this screen; nothing was taken away to make
+              the page tidier, which this repo does not do. The summary states the substance
+              ("we never see your bank login") so the reassurance survives even unopened. */}
+          <details className="group">
+            <summary className="text-xs text-muted-foreground cursor-pointer list-none flex items-center gap-1.5 btn-press">
+              <ChevronDown size={12} className="shrink-0 transition-transform group-open:rotate-180" />
+              We never see your bank login — how connections work
+            </summary>
+            <p className="text-xs text-muted-foreground leading-relaxed mt-2">
+            Bank connections are powered by{' '}
+            <a href="https://plaid.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid</a>
+            , a trusted financial data platform used by thousands of apps. For a few institutions we also support{' '}
+            <a href="https://akoya.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya</a>
+            {' '}as an alternative. We never see your bank login credentials — authentication happens with your bank.{' '}
+            <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Privacy Policy</a>
+            {' · '}
+            <a href="https://plaid.com/legal/#end-user-services-agreement" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Terms</a>
+            {' · '}
+            <a href="https://akoya.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya Privacy Policy</a>
+            </p>
+          </details>
 
           {/* ⚠️ THE PAYWALL IS THE SECOND BANK NOW, AND IT SITS BELOW THE LIST RATHER THAN IN
               PLACE OF IT. It used to be the whole section's `!isPremium` branch, so a free
