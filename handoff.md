@@ -104,6 +104,18 @@ it against `src/pages/Account.tsx` before acting on it.
    response**, not two, and ask `40c56ca8` correctly stays blocked at n>=3. Do not write a
    positioning line off it.
 
+1d. [x] ✅ **DONE - CAMPAIGN ATTRIBUTION EXISTS (ask `c1912b0b`, from Ellis).** Before this, **no
+   link from treforged.com was attributable** once the visitor landed here.
+   **DECIDED: `utm_*`, NOT `ref`** - Ellis refused to reuse `ref` and left the call here, and he
+   was more right than he knew. `ref` is validated at the door as `^[0-9a-f]{8}$` because its
+   destination matches other USERS, so a campaign name would be **discarded silently**: the link
+   would look attributed and attribute nothing, which is worse than an honest zero.
+   Both halves wired (`captureAttribution` on every route; columns written at signup), because
+   capture with no consumer is exactly what he refused to ship. 16 tests, `test:tz` 4767 across
+   470 files, mutation proven both ways including a reproduction of the 2026-08-18 key-split bug.
+   **NOT DONE:** nothing REPORTS on the columns yet, attribution is **not retrospective**, and
+   tagging treforged.com links is Ellis's tree and his call - he can now, and could not before.
+
 2. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW FOR REAL.** The MOUNT is gone (tombstone in
    `FollowersPanel.tsx`); `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge
    function are still in the tree. Measured safe: **0 live unaccepted `friend_links`**, positive
