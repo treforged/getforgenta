@@ -7,20 +7,25 @@ CONTENTS with a known-positive AND a negative control, 0/0 against origin). Gate
 `tsc --noEmit` clean, vitest **4741 passed / 1 skipped across 468 files**, `check:followers`
 green in a real browser.
 
-1. [ ] 🚀 **VERIFY THE iOS BUILD REACHED TESTFLIGHT - run `35178581343`, `workflow_dispatch`,
-   head `01bdc3a9`.** Dispatched 03:32Z. It carries the followers UI (`0e56306c`) AND this
-   consolidation - neither was in 870.
-   ⚠️ **ALL THREE GATES, NEVER THE RUN'S CONCLUSION:**
+✅ **iOS BUILD 873 IS IN TESTFLIGHT** - run `35178581343`, `workflow_dispatch`, head `01bdc3a9`.
+**It carries the followers UI (`0e56306c`) AND this consolidation.** Neither was in 870.
 
-       gh run view 35178581343 --json jobs   # step 20 must read success, NEVER skipped
-       gh run view 35178581343 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
-       gh run view 35178581343 --log | grep -n '90382'   # must be SOURCE lines only
+**VERIFIED THROUGH ALL THREE GATES, NEVER THE RUN'S CONCLUSION:**
+* the RUN reads `success` - **necessary and NOT sufficient**, because a push run reads success
+  with the upload step `skipped`;
+* **step 20 `Upload to App Store Connect` reads `success`, never `skipped`**;
+* **altool's own words, `UPLOAD SUCCEEDED with no errors`, appear once.** `90382` appears **3
+  times and all three carry the echoed-command escape prefix** (`^[[36;1m`), so they sit in the
+  script SOURCE and none is in output - **the daily-cap branch did not fire.** That branch turns
+  a real cap into a warning and still exits green, which is why the step's conclusion alone is
+  not enough either.
+* **873 was READ FROM THE LOG** (`VERSION_CODE: 873`), not computed from the run number.
 
-   **This is the SECOND upload of the night** (870 went at ~02:0xZ), and Apple caps uploads per
-   app per day - so **if 90382 fires, that is the cap and NOT a defect**; say so plainly and try
-   tomorrow rather than hunting. **Do not dispatch a third without a new reason.**
-   **iOS build number = run_number + 100.** Name the iOS number, never Android's.
-   **An upload is not an install** - he still has to update.
+⚠️ **873 IS THE iOS NUMBER. Android is a different workflow with different upload rules** - a
+green Android run says nothing about TestFlight, and quoting one while he waits on the other
+reads as delivery. **An upload is not an install**; TestFlight still processes and he must update.
+
+1. [ ] **NOTHING IS BLOCKED ON THE BUILD.** Next real slice is item 3 below (the nameless rows).
 
 2. [ ] 🗑️ **THE FRIEND-LINK DELETION IS UNBLOCKED, AND I DELIBERATELY DID NOT DO IT.**
    **MEASURED 2026-09-17 03:29Z, so do NOT re-measure:**
@@ -5500,7 +5505,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 23:16 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 23:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5515,14 +5520,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+74ededc4 [handoff]: two carried items were already closed - the tracker disagreed and was right
+4c018f8d [handoff]: the branch is merged, and four premises in the last one were false
+01bdc3a9 [social]: friends become followers and following, on their own tab
+94684db7 [test]: wire check:followers so the gate can actually be run
+5f4e4bea [test]: the five suites tell the new truth - followers is its own section
+494396c0 [handoff]: refresh the machine-written auto-snapshot
 eae82bf0 [handoff]: friends-become-follows is parked on a branch, with the migration already live
-0f3c0624 [handoff]: the followers system is shipped, and 870 is verified in TestFlight
-0e56306c [social]: followers, following, requests, and a public/private account
-3261d2e8 [handoff]: two live bugs from Tre, both fixed, both in build 870
-c1217e81 [fix]: an account name is never truncated, at any text size
-3e763fa9 [fix]: a signed-out user was told they were in "Demo mode"
-94b343e0 [security]: the follow RPCs refuse anon at the GRANT, not only in the body
-970468d5 [handoff]: the security advisor ran, and both new RPCs refuse anon
+c206197d [wip][social]: friends become follows - MIGRATION IS APPLIED, 14 TESTS ARE RED
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
