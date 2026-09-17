@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
-import { User, Settings as SettingsIcon, Trophy, Sparkles, Users } from 'lucide-react';
+import { User, Settings as SettingsIcon, Trophy, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFollows } from '@/hooks/useFollows';
@@ -9,6 +9,7 @@ import PanelBar from '@/components/shared/PanelBar';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
 import { FollowersPanel } from '@/components/settings/FollowersPanel';
+import { UsernameClaim } from '@/components/settings/UsernameClaim';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 /**
@@ -18,7 +19,7 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
  */
 const AiAdvisor = lazy(() => import('./AiAdvisor'));
 
-type AccountSection = 'profile' | 'followers' | 'leaderboard' | 'ai';
+type AccountSection = 'profile' | 'leaderboard' | 'ai';
 
 /**
  * ⚠️ THE AI SECTION IS GATED ON THE SAME FLAG AS THE `/ai` ROUTE, and that is not a formality.
@@ -37,7 +38,6 @@ type AccountSection = 'profile' | 'followers' | 'leaderboard' | 'ai';
  */
 const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
   profile: true,
-  followers: true,
   leaderboard: true,
   ai: AI_ADVISOR_ENABLED,
 };
@@ -153,15 +153,6 @@ export default function Account() {
           className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}>
           <User size={13} /> Profile
         </button>
-        {/* Followers sits between Profile and Leaderboard: it is who you are connected to, which
-            is nearer "who you are" than "how you compare". Same seg-item markup as every other
-            surface - this adds a CALLER to PanelBar, never a second implementation. */}
-        <button onClick={() => setSection('followers')}
-          aria-selected={activeSection === 'followers'}
-          role="tab"
-          className={`seg-item btn-press ${activeSection === 'followers' ? 'seg-item-active' : ''}`}>
-          <Users size={13} /> Followers
-        </button>
         <button onClick={() => setSection('leaderboard')}
           aria-selected={activeSection === 'leaderboard'}
           role="tab"
@@ -179,36 +170,41 @@ export default function Account() {
       </PanelBar>
 
       {activeSection === 'profile' && (
-        <div className="card-forged p-5 space-y-5">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
-          {/*
-            ⚠️ THE FRIENDS CARD IS GONE FROM HERE (Tre, 2026-09-17: "friends should be followers
-            and following just like instagram. it should only be on that tab"). Adding people,
-            the people themselves, and what they can see all live in the FOLLOWERS section now -
-            one surface, the way Instagram has one.
-
-            ⚠️ PARTNER LINKING STAYS, AND IT IS NOT THE SAME THING. A partner shares a BUDGET -
-            one set of numbers, edited by two people, with a viewing lens. A follow is a
-            one-directional social connection that shares nothing by itself. Folding the two
-            together would be the one merge this change must not make.
-          */}
-          <PartnerLink />
-        </div>
-      )}
-
-      {activeSection === 'followers' && (
         /*
-          ⚠️ THE PUBLIC/PRIVATE SWITCH IS NOT IN THIS SECTION, AND THAT IS DELIBERATE. It lives in
-          the Connections card (`FriendLink` -> `AccountVisibilityToggle`), beside the sharing
-          toggles it belongs with - which is the PROFILE section of this tab AND the Account panel
-          in Settings, because that card is mounted in both.
+          ⚠️ ONE SECTION, IN TRE'S ORDER (2026-09-17: "The following tab and profile tab can be
+          combined now put what's on the followers tab below what's the partner linking that's on
+          the profile tab. Keep the username in change section at the top.").
 
-          ONE IMPLEMENTATION, TWO MOUNTS. That is this page's existing pattern, recorded above for
-          PartnerLink and FriendLink, and it is the reason there is nothing here to drift out of
-          step. A second copy of the switch on this section is exactly how two screens start
-          disagreeing about a privacy setting.
+          USERNAME first, then PARTNER LINKING, then the FOLLOWERS surface. That order is his
+          instruction, not a preference to re-derive - and it reads correctly too, because the
+          username is what every other control here refers to: people find you by it, and the
+          share link is built from it.
+
+          ⚠️ THE FOLLOWERS SEGMENT IS GONE, and its absence is the point ("the friend section
+          shouldn't exist anymore. Move it back up."). A stored `account-section` of 'followers'
+          now falls through `SECTION_AVAILABLE` to 'profile' - exactly what that guard was written
+          for, a persisted value naming a section with no segment.
+
+          ⚠️ PARTNER LINKING IS STILL NOT A FOLLOW, and stacking them does not merge them. A
+          partner shares a BUDGET - one set of numbers, edited by two people. A follow is
+          one-directional and shares nothing by itself; `active_friend_ids()` requires it to go
+          BOTH ways before anything is shown. They sit one above the other; they do not become
+          one control.
         */
-        <FollowersPanel currentUserId={user?.id} />
+        <>
+          {/* Username first - it is what people find you by, and what the share link is made of. */}
+          <div className="card-forged p-5 space-y-4">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Username</h2>
+            <UsernameClaim />
+          </div>
+
+          <div className="card-forged p-5 space-y-5">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
+            <PartnerLink />
+          </div>
+
+          <FollowersPanel currentUserId={user?.id} />
+        </>
       )}
 
       {activeSection === 'leaderboard' && (

@@ -88,15 +88,18 @@ describe('the leaderboard has one home on the Account tab', () => {
    * board mounted inside that card. So both sections are checked, and the section that owns the
    * card proves the card is live.
    */
-  it('does not render the board in Profile or Followers, even with a friend', () => {
+  it('does not render the board in the Profile section, even with a friend', () => {
     renderAccount();
     expect(screen.queryAllByTestId('leaderboard'), 'a board rendered in Profile').toHaveLength(0);
 
-    fireEvent.click(screen.getByRole('tab', { name: /Followers/i }));
-    // The real FriendLink is mounted here — proven by its own copy being on screen — so a null
-    // board is a fact about the mount and not about the card failing to render.
-    expect(screen.getByText(/Add friends to cheer each other on/i)).toBeTruthy();
-    expect(screen.queryAllByTestId('leaderboard'), 'a board rendered inside FriendLink').toHaveLength(0);
+    // ⚠️ THE CONTROL MOVED WITH THE CARD, AGAIN. It used to look for FriendLink's own copy; that
+    // card was removed on 2026-09-17 as a duplicate of "Find someone". The control is NOT dropped,
+    // because without one a null board is indistinguishable from the Profile section failing to
+    // render at all - which is the reading that would send somebody hunting in the wrong file.
+    // The real FollowersPanel is mounted here (only its children are stubbed), so its own heading
+    // is the honest proof that this section painted.
+    expect(screen.getByText(/Find someone/i), 'the Profile section did not render at all').toBeTruthy();
+    expect(screen.queryAllByTestId('leaderboard'), 'a board rendered inside the followers surface').toHaveLength(0);
   });
 
   it('POSITIVE CONTROL: the same marker IS found in the Leaderboard section', () => {
@@ -107,8 +110,6 @@ describe('the leaderboard has one home on the Account tab', () => {
 
   it('never renders it twice at once, whichever section is open', () => {
     renderAccount();
-    expect(screen.queryAllByTestId('leaderboard').length).toBeLessThanOrEqual(1);
-    fireEvent.click(screen.getByRole('tab', { name: /Followers/i }));
     expect(screen.queryAllByTestId('leaderboard').length).toBeLessThanOrEqual(1);
     openLeaderboard();
     expect(screen.queryAllByTestId('leaderboard')).toHaveLength(1);

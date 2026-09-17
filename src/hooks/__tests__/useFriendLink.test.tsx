@@ -432,21 +432,37 @@ describe('the hook is never lensed — a friend is not a partner', () => {
    * absence alone is satisfied by the card existing nowhere.
    * `src/lib/__tests__/settings-ia.gate.test.ts` holds the same pair as the IA gate.
    */
-  it('is mounted in the /account subtree and NOT in Settings, and the card is free-tier', () => {
-    // ⚠️ RESTATED 2026-09-17. Tre: "friends should be followers and following just like
-    // instagram. it should only be on that tab." The card is now mounted inside `FollowersPanel`,
-    // which the Account page mounts, so a scan of `Account.tsx` alone reads ZERO — and a zero
-    // here reads as "the card was deleted", which is the false alarm that sends somebody
-    // rebuilding a working feature. The PRESENT half is kept in full and pointed one level down.
+  it('is UNMOUNTED everywhere on purpose, and the component still exists', () => {
+    // ⚠️ THE ASSERTION FLIPPED ON 2026-09-17 AND IT MUST NOT BECOME ABSENCE-ONLY.
+    // Tre: "add a friend isn't [needed] anymore either that's the same thing as find someone
+    // we're only using usernames now instead of email". So zero mounts is now CORRECT - but a
+    // bare "it is not mounted" is satisfied just as well by somebody deleting the file, and this
+    // repo has been bitten by an absence that was really a disappearance.
+    //
+    // REMOVING THE MOUNT WAS MEASURED, NOT GUESSED: 0 live unaccepted friend_links, with a
+    // positive control in the same read (1 total row, 1 accepted) proving the query could count.
+    // active_friend_ids() honours the accepted link server-side regardless, so no friendship
+    // was lost and no outstanding invite was stranded.
     const accountSrc = read('../../pages/Account.tsx');
     const panelSrc = read('../../components/settings/FollowersPanel.tsx');
     const subtree = accountSrc + panelSrc;
-    expect(subtree).toContain("import { FriendLink } from './FriendLink';");
-    expect(subtree).toContain('<FriendLink />');
-    // Exactly one mount across the subtree: two copies each keep their own pending-invite state,
-    // which is the duplicate this assertion was written to stop, not a second move.
-    expect((subtree.match(/<FriendLink\b/g) ?? []).length).toBe(1);
+
+    // 1. Nobody mounts it any more - not the page, not the panel, not Settings.
+    expect((subtree.match(/<FriendLink\\b/g) ?? []).length,
+      'FriendLink is mounted again - "add a friend" was removed as a duplicate of "Find someone"').toBe(0);
     expect(settingsSrc).not.toContain('<FriendLink />');
+
+    // 2. POSITIVE CONTROL: it is an UNMOUNT, not a disappearance. The component is still here and
+    //    still under test, so the accept-URL path can be restored in one line if an invite shows
+    //    up. Without this the assertion above is satisfied by the file being deleted.
+    expect(componentSrc.length, 'FriendLink.tsx has gone - that is a deletion, not an unmount')
+      .toBeGreaterThan(0);
+    expect(componentSrc).toContain('friend_code');
+
+    // 3. The reason is written where the next reader will meet it, not only in a commit message.
+    expect(panelSrc, 'the tombstone explaining WHY the card went has been dropped')
+      .toMatch(/TOMBSTONE/);
+
     // No premium gate on the card: the cap is the function's, so the number lives once.
     expect(componentSrc).not.toContain('useSubscription');
     expect(componentSrc).not.toContain('isPremium');

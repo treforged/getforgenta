@@ -115,28 +115,49 @@ for (let i = 0; i < 20 && !ready; i += 1) {
 if (!ready) { console.error('FAIL: /account never reached a signed-in state with its section bar.'); process.exit(2); }
 await clearOverlays();
 
-// CONTROL: find the segment BY ROLE before pressing anything. A zero is the instrument, not the app.
-const tab = page.locator('[role="tab"]', { hasText: 'Followers' });
-if (await tab.count() === 0) {
-  console.error('CONTROL FAILED: no [role="tab"] reading "Followers" on /account.');
-  console.error('Tabs present: ' + JSON.stringify(await page.locator('[role="tab"]').allInnerTexts()));
+// ⚠️ 2026-09-17: THERE IS NO FOLLOWERS SEGMENT ANY MORE, AND THAT IS THE ASK, NOT A REGRESSION.
+// Tre: "the friend section shouldn't exist anymore. Move it back up. The following tab and
+// profile tab can be combined now put what's on the followers tab below what's the partner
+// linking that's on the profile tab. Keep the username in change section at the top."
+//
+// So the press this file was built around is gone. What it was really protecting - that the
+// followers surface is REACHED and really renders - is protected here instead by asserting the
+// surface is present from the first paint AND that Tre's ORDER holds. Deleting the reachability
+// half because the door changed would have thrown away the only thing standing between this
+// screen and the invisibility he originally reported.
+
+// CONTROL: the section bar itself still exists, so a missing "Followers" tab below is a fact
+// about the IA and not about a selector that stopped matching anything.
+const tabs = await page.locator('[role="tab"]').allInnerTexts();
+if (tabs.length === 0) {
+  console.error('CONTROL FAILED: no [role="tab"] at all on /account - the bar did not render.');
   process.exit(2);
 }
-
-const bodyBefore = await page.evaluate(() => document.body.innerText);
-await tab.first().click();
-await page.waitForTimeout(1200);
-const bodyAfter = await page.evaluate(() => document.body.innerText);
-
-if (bodyBefore === bodyAfter) {
-  console.error('FAIL: pressing Followers changed nothing. The section is unreachable.');
+if (tabs.some((t) => /followers/i.test(t))) {
+  console.error('FAIL: a "Followers" segment is back. It was merged into Profile on 2026-09-17.');
+  console.error('Tabs present: ' + JSON.stringify(tabs));
   process.exit(1);
 }
-if (await tab.first().getAttribute('aria-selected') !== 'true') {
-  console.error('FAIL: aria-selected did not move to the Followers segment.');
+console.log('  section bar: ' + JSON.stringify(tabs) + ' - no separate Followers segment');
+
+// THE ORDER IS PART OF THE ASK, so it is asserted as an ORDER. Three presence checks would pass
+// just as happily with the stack upside down.
+// ⚠️ MATCH CASE-INSENSITIVELY. These headings carry `uppercase`, and `innerText` REFLECTS CSS
+// text-transform - so `indexOf('Username')` reads -1 against a page rendering "USERNAME", and the
+// gate accuses a screen that is perfectly correct. That happened on this gate's first run.
+const order = await page.evaluate(() => {
+  const t = document.body.innerText.toLowerCase();
+  return { username: t.indexOf('username'), partner: t.indexOf('partner link'), followers: t.indexOf('find someone') };
+});
+for (const [k, v] of Object.entries(order)) {
+  if (v < 0) { console.error(`FAIL: "${k}" is not on the Profile section at all.`); process.exit(1); }
+}
+if (!(order.username < order.partner && order.partner < order.followers)) {
+  console.error('FAIL: wrong order. Tre asked for username, then partner linking, then followers.');
+  console.error('  measured: ' + JSON.stringify(order));
   process.exit(1);
 }
-console.log('  Followers segment: pressed, body changed, aria-selected moved');
+console.log('  order: username -> partner linking -> followers, as asked');
 
 // The panel's own controls must be IN the rendered tree, not merely constructed.
 const findBtn = page.locator('button', { hasText: 'Find' });
@@ -193,6 +214,70 @@ const restored = await sw.first().getAttribute('aria-checked');
 if (restored !== before) console.warn('  NOTE: could not restore the switch to ' + before + ' (now ' + restored + ').');
 else console.log('  switch restored to ' + before);
 
+// -- THE SHARE LINK, EXERCISED END TO END -------------------------------------
+//
+// Tre, 2026-09-17: "allow users to make a shareable link that makes it easy click and it loads
+// their profile into the app or add them into the app."
+//
+// A LINK THAT RENDERS IS NOT A LINK THAT WORKS. The only assertion worth having is that OPENING
+// it changes the screen - so this reads the link the app offers, navigates to it, and requires a
+// profile card to appear that was NOT there before.
+const shareInput = page.locator('input[aria-label="Your shareable profile link"]');
+if (await shareInput.count() === 0) {
+  console.error('CONTROL FAILED: no share-link field rendered. Either it regressed, or the walk');
+  console.error('account has no username - check the Username section above it.');
+  process.exit(2);
+}
+const shareLink = await shareInput.first().inputValue();
+const shareMatch = shareLink.match(/\/account\?u=(.+)$/);
+if (!shareMatch) {
+  console.error('FAIL: the share link is not an /account?u= link: ' + JSON.stringify(shareLink));
+  process.exit(1);
+}
+const shareUser = shareMatch[1];
+console.log('  share link offered: /account?u=' + shareUser);
+
+// ⚠️ THE FIRST VERSION OF THIS ASSERTION COULD NOT DISCRIMINATE, and it is worth saying why.
+// It counted matches for "@<username>" before and after. That reads 1 -> 1 on a PERFECTLY
+// WORKING link, because the username is already on screen in the Username section directly
+// above. A counter that cannot tell the two states apart is the instrument, not the app.
+//
+// So this asserts the MECHANISM and its RESULT, separately:
+//   1. the find field is PRE-FILLED from the URL - proof the link was consumed at all;
+//   2. a lookup RESULT appeared - proof it did not merely type into a box and stop.
+// The walk account's own link resolves to itself, which the app answers with a specific
+// sentence; a link to anybody else renders a follow button. Either satisfies (2), so this gate
+// does not quietly depend on the walk account being the only user.
+const findField = page.locator('input[aria-label="Find someone by username"]');
+if (await findField.count() === 0) {
+  console.error('CONTROL FAILED: no find field to pre-fill - the selector stopped matching.');
+  process.exit(2);
+}
+const fieldBefore = await findField.first().inputValue();
+
+await page.goto(BASE + '/account?u=' + shareUser, { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2500);
+await clearOverlays();
+
+const fieldAfter = await findField.first().inputValue();
+if (fieldAfter === fieldBefore || !fieldAfter.includes(shareUser)) {
+  console.error('FAIL: opening the share link did not pre-fill the find field.');
+  console.error('  before: ' + JSON.stringify(fieldBefore) + '  after: ' + JSON.stringify(fieldAfter));
+  process.exit(1);
+}
+
+const body = (await page.evaluate(() => document.body.innerText)).toLowerCase();
+const resolvedSelf = body.includes('cannot follow yourself');
+const resolvedOther = (await page.locator('button', { hasText: 'Follow' }).count()) > 0;
+if (!resolvedSelf && !resolvedOther) {
+  console.error('FAIL: the link pre-filled the field but no profile was resolved.');
+  console.error('It is a link that looks fine and does nothing - the exact shape this gate exists for.');
+  process.exit(1);
+}
+console.log('  opening it pre-filled ' + JSON.stringify(fieldBefore) + ' -> ' + JSON.stringify(fieldAfter)
+  + ' and resolved a profile (' + (resolvedSelf ? 'self' : 'followable') + ')');
+
 await browser.close();
-console.log('\nPASS: the Followers section is reachable, its controls render, and the public/private switch really flips.');
+console.log('\nPASS: the Profile section stacks username, partner linking and followers in Tre's order;
+      the public/private switch really flips; and the share link really loads a profile.');
 process.exit(0);

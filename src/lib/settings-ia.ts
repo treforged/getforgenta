@@ -103,7 +103,13 @@ export const SETTINGS_IA: Readonly<Record<SettingsPanelKey, readonly string[]>> 
  */
 export const ACCOUNT_PAGE_ONLY: readonly string[] = [
   'PartnerLink',
-  'FriendLink',
+  // ⚠️ `FriendLink` WAS HERE AND IS DELIBERATELY UNMOUNTED (Tre, 2026-09-17: "add a friend isn't
+  // [needed] anymore either that's the same thing as find someone we're only using usernames now
+  // instead of email"). It is no longer mounted ANYWHERE, so listing it here - where the gate
+  // means "mounted on /account exactly once" - would assert the opposite of the intent.
+  // `useFriendLink.test.tsx` holds the replacement assertion: zero mounts app-wide, AND the
+  // component still present and tested, so a deliberate unmount stays distinguishable from a
+  // file that quietly vanished.
 ];
 
 /** The settings components the gate tracks by name (they render no heading of their own). */

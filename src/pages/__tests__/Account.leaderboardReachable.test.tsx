@@ -120,32 +120,46 @@ describe('the Account tab', () => {
   });
 
   /**
-   * ⚠️ RESTATED 2026-09-17, NOT RELAXED. Tre: "friends should be followers and following just
-   * like instagram. it should only be on that tab." So the third thing is no longer a Friends
-   * CARD sharing the Profile section with Partner Link — it is a SECTION of its own. The old
-   * assertion (`getByText('Friends')` on first paint) would now be red for the right reason, and
-   * deleting it would have left nothing asserting that the third thing arrived anywhere at all.
+   * ⚠️ RESTATED AGAIN 2026-09-17 23:44, AND THE SECTION COUNT WENT DOWN RATHER THAN THE
+   * ASSERTION GOING AWAY. Tre: "the friend section shouldn't exist anymore. Move it back up. The
+   * following tab and profile tab can be combined now put what's on the followers tab below
+   * what's the partner linking that's on the profile tab. Keep the username in change section at
+   * the top."
    *
-   * Each segment is therefore PRESSED and its own content asserted. An absence-only rewrite here
-   * would be satisfied by all three sections being dead.
+   * So there is no Followers SEGMENT any more, and the three things he originally named are now
+   * STACKED in one Profile section. Dropping the assertion because the segment went would have
+   * left nothing checking that any of them arrived - and "it is not a tab any more" is satisfied
+   * perfectly by the whole surface being deleted.
+   *
+   * ⚠️ THE ORDER IS PART OF THE ASK, so it is asserted as an ORDER and not as three presences.
+   * Username first, then partner linking, then the followers surface. Three `getByText` calls
+   * would pass just as happily with the stack upside down.
    */
-  it('gathers the three things he named, each as its own reachable section', () => {
+  it('stacks the three things he named in his order, in one Profile section', () => {
     renderAccount();
-    // Who you are stays outside the sections, so it is on screen whichever one is open.
     expect(screen.getByText('Owner')).toBeTruthy();
 
-    // 1. Profile — the partner link lives here, and it is what is open from the first paint.
-    expect(screen.getByText('Partner Link')).toBeTruthy();
+    const body = document.body.textContent ?? '';
+    const iUsername = body.indexOf('Username');
+    const iPartner = body.indexOf('Partner Link');
+    const iFollowers = body.indexOf('Followers');
 
-    // 2. Followers — the people half, one press away and really a different view.
-    fireEvent.click(screen.getByRole('tab', { name: /Followers/i }));
-    expect(screen.getByTestId('followers-panel')).toBeTruthy();
-    expect(screen.queryByText('Partner Link')).toBeNull();
+    expect(iUsername, 'the Username section is missing').toBeGreaterThan(-1);
+    expect(iPartner, 'Partner Link is missing').toBeGreaterThan(-1);
+    expect(iFollowers, 'the Followers surface is missing').toBeGreaterThan(-1);
 
-    // 3. Leaderboard.
-    openLeaderboard();
-    expect(screen.getByTestId('leaderboard')).toBeTruthy();
-    expect(screen.queryByTestId('followers-panel')).toBeNull();
+    expect(iUsername, 'username must be at the top').toBeLessThan(iPartner);
+    expect(iPartner, 'the followers surface goes BELOW partner linking').toBeLessThan(iFollowers);
+  });
+
+  it('no longer offers a separate Followers segment', () => {
+    // The other half of "move it back up": it is not a tab, it is a block on the Profile section.
+    renderAccount();
+    expect(screen.queryByRole('tab', { name: /^Followers$/i })).toBeNull();
+    // POSITIVE CONTROL: the bar still exists and still has its other segments, so this is not
+    // passing because the whole PanelBar vanished.
+    expect(screen.getByRole('tab', { name: /Profile/i })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Leaderboard/i })).toBeTruthy();
   });
 
   it('sends editing to Settings rather than growing a second copy of every control', () => {

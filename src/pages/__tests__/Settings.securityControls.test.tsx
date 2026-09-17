@@ -419,16 +419,21 @@ describe('the Security tab, one shape per section', () => {
  * are kept in full and each one is now told WHICH DOOR TO OPEN first — the requirement that each
  * connection explains itself in a real sentence is unchanged, and is what these guard.
  */
-const SECTION_OF: Record<string, string | null> = { 'Partner Link': null, Friends: 'Followers' };
-const openSection = (name: string | null) => {
-  if (name) fireEvent.click(screen.getByRole('tab', { name: new RegExp(name, 'i') }));
-};
+// ⚠️ 2026-09-17 23:44: THERE IS NO LONGER A SECOND SECTION TO OPEN. Tre merged Followers into
+// Profile ("the following tab and profile tab can be combined now"), so everything this block
+// checks is on one screen from the first paint.
+//
+// ⚠️ AND "Friends" IS NO LONGER ONE OF THEM. The add-a-friend card was removed the same night as
+// a duplicate of "Find someone" ("we're only using usernames now instead of email"). Asserting it
+// still explains itself would assert a card that must not exist - so the LIST is what changed,
+// and the requirement that each surviving connection explains itself in a real sentence is
+// untouched. `useFriendLink.test.tsx` holds the assertion that its removal was an unmount and not
+// a deletion.
 
 describe('the Account PAGE, Connections', () => {
-  for (const title of ['Partner Link', 'Friends']) {
+  for (const title of ['Partner Link']) {
     it(`${title} renders on /account with a heading AND an explaining sentence`, async () => {
       await renderAccountPage();
-      openSection(SECTION_OF[title]);
 
       const heading = screen.getByText(title);
       const row = heading.closest('div.flex.items-center.gap-2');
@@ -445,9 +450,12 @@ describe('the Account PAGE, Connections', () => {
     await renderAccountPage();
     // Spot-checked on the two whose consequence is least guessable from two words. They now sit
     // one section apart, so each is asserted where it actually lives rather than dropping one.
+    // Partner Link's consequence is the one least guessable from two words, and it survives.
     expect(screen.getByText(/read only/i)).toBeTruthy();
-    openSection('Followers');
-    expect(screen.getByText(/never see your budget/i)).toBeTruthy();
+    // POSITIVE CONTROL: the followers surface really is on this same screen now, so the single
+    // assertion above is not passing because half the page failed to render.
+    expect(screen.getByText(/Find someone/i), 'the followers surface is not on the Account page')
+      .toBeTruthy();
   });
 
   it('does NOT render them on the Security tab any more', async () => {
@@ -465,7 +473,6 @@ describe('the Account PAGE, Connections', () => {
   it('Settings keeps a pointer to /account, and neither form renders there any more', async () => {
     await renderSettingsAccountTab();
     expect(screen.queryByText('Partner Link')).toBeNull();
-    expect(screen.queryByText('Friends')).toBeNull();
     expect(screen.getByText(/Partners and friends now live on your Account page\./)).toBeTruthy();
     expect(screen.getByRole('link', { name: /Go to Account/i }).getAttribute('href')).toBe('/account');
   });

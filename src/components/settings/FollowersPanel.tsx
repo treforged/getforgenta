@@ -13,15 +13,16 @@
  * "A Forgenta member #<8 chars>", which is honest; a bare uuid or an invented name would both
  * be worse.
  */
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import {
   useFollows,
   type FoundProfile,
 } from '@/hooks/useFollows';
-import { UserPlus, Check, X, AtSign } from 'lucide-react';
+import { UserPlus, Check, X, AtSign, Link2, Copy } from 'lucide-react';
+import { useLocation } from 'react-router';
+import { useProfile } from '@/hooks/useSupabaseData';
 import { AccountVisibilityToggle } from './AccountVisibilityToggle';
 import { LeaderboardShareToggles } from './LeaderboardShareToggles';
-import { FriendLink } from './FriendLink';
 import { FIELD_WRAPPER, FIELD_INPUT_BARE, FIELD_RADIUS } from '@/components/shared/field-classes';
 
 interface FollowersPanelProps {
@@ -55,25 +56,65 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
   const [foundProfile, setFoundProfile] = useState<FoundProfile | null>(null);
   const [findError, setFindError] = useState<string | null>(null);
   const [findMessage, setFindMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const { data: profile } = useProfile();
+  const location = useLocation();
 
-  const handleFind = async (e: FormEvent) => {
-    e.preventDefault();
+  /** The username people find you by. Null until claimed - the share link is gated on it. */
+  const myUsername = typeof profile?.username === 'string' ? profile.username : null;
+  const shareLink = myUsername ? `${window.location.origin}/account?u=${myUsername}` : null;
+
+  /**
+   * LOOK SOMEBODY UP BY USERNAME. Shared by the form and by the share-link handler below, so a
+   * link and a typed search cannot drift into behaving differently.
+   */
+  const lookUp = async (raw: string) => {
     setFindError(null);
     setFindMessage(null);
     setFoundProfile(null);
     try {
-      const result = await findByUsername(username.trim());
+      const result = await findByUsername(raw.trim());
       if (!result) {
         setFindMessage('No account with that username.');
         return;
       }
       setFoundProfile(result);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setFindError(msg);
+      setFindError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     }
   };
+
+  /**
+   * THE SHARE LINK, ARRIVING. Tre, 2026-09-17: "allow users to make a shareable link that makes
+   * it easy click and it loads their profile into the app or add them into the app."
+   *
+   * ⚠️ IT IS `/account?u=<username>` AND DELIBERATELY NOT A NEW PUBLIC ROUTE. A `/u/:username`
+   * page would be a new anonymous surface over `profiles`, needing its own RLS story and its own
+   * security review, to show something this panel already shows. This lands the visitor in the
+   * app they must be signed in to anyway, runs the SAME `find_profile_by_username` RPC the search
+   * box runs, and offers the SAME follow button - so it adds a doorway, never a new permission.
+   *
+   * It replaces the emailed `?friend_code=` accept URL on the same mechanism: a link that lands
+   * on this tab and does one thing.
+   */
+  const handledShare = useRef<string | null>(null);
+  useEffect(() => {
+    const target = new URLSearchParams(location.search).get('u');
+    if (!target) return;
+    // Deliberately keyed on the VALUE, not on a bare boolean: two different share links opened in
+    // one session must both work, and a `once` flag would silently swallow the second.
+    if (handledShare.current === target) return;
+    handledShare.current = target;
+    setUsername(target.replace(/^@/, ''));
+    void lookUp(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  const handleFind = async (e: FormEvent) => {
+    e.preventDefault();
+    void lookUp(username);
+  };
+
 
   /** Determine if a profile is already followed, pending, or is the current user. */
   const getFollowState = (profile: FoundProfile) => {
@@ -109,6 +150,61 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
         surface it governs.
       */}
       <AccountVisibilityToggle />
+
+      {/*
+        YOUR SHARE LINK (Tre, 2026-09-17: "allow users to make a shareable link that makes it easy
+        click and it loads their profile into the app or add them into the app").
+
+        ⚠️ IT IS GATED ON HAVING A USERNAME, and the empty state SAYS SO rather than hiding. The
+        link IS the username, so with no username there is nothing to copy - and a control that
+        silently vanishes teaches people the feature does not exist.
+
+        ⚠️ THE OFF/UNAVAILABLE STATE READS AS UNAVAILABLE, not as un-highlighted: it is a sentence
+        pointing at the Username section above it, on the same screen, which is where the fix is.
+      */}
+      <section className="space-y-2">
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Your share link
+        </h3>
+        {shareLink ? (
+          <div className="flex items-center gap-2">
+            <div className={`${FIELD_WRAPPER} flex-1 min-w-0`} style={FIELD_RADIUS}>
+              <Link2 size={14} className="text-muted-foreground shrink-0" />
+              <input
+                readOnly
+                value={shareLink}
+                aria-label="Your shareable profile link"
+                onFocus={(e) => e.currentTarget.select()}
+                className={FIELD_INPUT_BARE}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn btn-md btn-secondary shrink-0"
+              style={FIELD_RADIUS}
+              onClick={async () => {
+                // ⚠️ `navigator.clipboard` THROWS on an insecure origin and in some webviews, and
+                // it is not present at all in older ones. A copy button that throws is worse than
+                // one that does nothing, so the failure falls back to selecting the text - which
+                // is the thing the user was going to do by hand anyway.
+                try {
+                  await navigator.clipboard.writeText(shareLink);
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 2000);
+                } catch {
+                  setFindMessage('Could not copy automatically - the link is selected, copy it with your keyboard.');
+                }
+              }}
+            >
+              <Copy size={12} /> {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Claim a username above and your share link appears here.
+          </p>
+        )}
+      </section>
 
       {/* Find someone */}
       <section>
@@ -313,25 +409,27 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
         </>
       )}
       {/*
-        ⚠️ THE LEGACY FRIEND-INVITE PATH, KEPT REACHABLE ON PURPOSE - AND ON THIS TAB, which is
-        what "it should only be on that tab" asks for.
+        ⚠️ TOMBSTONE: THE "ADD A FRIEND" CARD WAS HERE AND IS GONE (Tre, 2026-09-17 23:47: "add a
+        friend isn't [needed] anymore either that's the same thing as find someone we're only
+        using usernames now instead of email").
 
-        Tre, 2026-09-17: "friends should be followers and following just like instagram." Follows
-        are now the social graph and `active_friend_ids()` reads MUTUAL FOLLOWS, so nothing new
-        needs this. But the `friend-link` function emails an accept URL that lands on
-        `/account?friend_code=...`, and `FriendLink` is the component that READS that parameter.
-        Unmounting it would make every outstanding invite silently do nothing - a link that
-        looks fine and is dead, which is the failure mode this repo refuses everywhere else.
+        It was `FriendLink` - invite by EMAIL, generating a `friend_links` row and a mailed accept
+        URL landing on `/account?friend_code=...`. "Find someone" above does the same job by
+        USERNAME, which is what he has chosen, so keeping both was two doors to one room.
 
-        ⚠️ I COULD NOT MEASURE HOW MANY INVITES ARE OUTSTANDING - the query was blocked mid-task -
-        so this is the CONSERVATIVE reading rather than a measured one, and it is cheap to undo.
-        Invites expire after 7 days. Once the newest outstanding one has expired, this mount and
-        the whole friend-link flow can go; `active_friend_ids()` keeps honouring already-accepted
-        links server-side either way, so no existing friendship is lost by removing it.
+        ⚠️ REMOVING IT WAS SAFE BECAUSE IT WAS MEASURED, not because it looked unused. On
+        2026-09-17 03:29Z: ZERO live unaccepted `friend_links` (accepted_at null, revoked_at null,
+        expires_at in the future), with a positive control in the same read - 1 total row, 1
+        accepted - proving the query could count rather than returning an empty answer from a
+        broken join. So no outstanding invite is stranded by this.
+
+        ⚠️ AND THE ONE ACCEPTED LINK STILL WORKS. `active_friend_ids()` honours accepted
+        `friend_links` server-side regardless of any UI, so that friendship is not lost.
+
+        The component, its hook and the `friend-link` edge function are still in the tree and
+        still tested - only the MOUNT is gone, which is the reversible half. Deleting them is a
+        separate slice; it takes 59 passing assertions with it and nobody is waiting on it.
       */}
-      <div className="space-y-2 pt-1 border-t border-border/60">
-        <FriendLink />
-      </div>
 
       {/*
         ⚠️ MOVED HERE FROM THE CONNECTIONS CARD (Tre, 2026-09-17: "it should only be on that
