@@ -44,8 +44,25 @@ export function useDashboardLayout() {
     [persist],
   );
 
+  /**
+   * ⚠️ THIS DELIBERATELY DOES NOT TOUCH `initialized`. It used to set it back to false, and that
+   * one line made the reset racy in a way the user sees.
+   *
+   * `initialized` exists to stop the effect above re-stamping the profile's saved layout over
+   * local state. Clearing it RE-ARMS exactly that. The write below is debounced 800ms, so any
+   * profile refetch landing inside that window hands back the PRE-RESET row, the effect applies
+   * it, and the layout the user just reset snaps back on screen - while the pending write still
+   * puts DEFAULT_LAYOUT in the database. Screen and database then disagree until a reload.
+   *
+   * The line bought nothing: `setLayout` already sets state AND persists. Removing it is the
+   * whole fix. Pinned by `useDashboardLayout.resetSticks.test.tsx`, which reproduces the race
+   * with a refetch that returns identical contents in a new object - which is what a refetch is.
+   *
+   * This matters more than a tidy-up right now: since 2026-09-17 this button is the ONLY route a
+   * user with a saved layout has to the current default, and the two profiles that have one are
+   * the CEO's and the review account's.
+   */
   const resetLayout = useCallback(() => {
-    initialized.current = false;
     setLayout(DEFAULT_LAYOUT);
   }, [setLayout]);
 
