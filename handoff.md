@@ -26,22 +26,24 @@
 - **I reported "the only two reconciliation warnings anywhere are Venture X". The real figure is
   277.** vitest SUPPRESSES stderr on a PASSING file, so an ordinary run shows a fraction.
 
-1. [ ] 🔴 **277 RECONCILIATION WARNINGS, 80 OF THEM ON HIS ROBINHOOD GOLD CARD - ask `c0858003`.**
-   The same class of defect he reported this morning ("Start 262, purchases 280, payment 542,
-   End 280" does not add up). **NOT caused by the due-date fix, and that is measured, not
-   assumed:** the full suite at `d9df4c84` and at `fa896f1a` both produce **277** distinct
-   warnings and the two sets are **byte-identical by diff**, with a negative control proving the
-   differ detects a one-line difference. Residuals on his Gold card run **-40.31 to +230**, $961.47
-   absolute across the projection; the worst is its FIRST month - `End 230 ≠ Start 0 + purch 0 +
-   int 0 − pay 0`, a row where the balance appears from nowhere. Most of the rest are the
-   interest-attributed-a-cycle-late pattern.
-   ⚠️ **N FINDINGS ARE NOT N PROBLEMS.** Roughly 180 of the 277 are synthetic cards (Stuck Card,
-   Cycling Card, Card B/C, Cobalt Rewards) that may be deliberate edge-case fixtures. Split them
-   before treating the number as a backlog. Real cards: Robinhood Gold 80, Prime Visa 15,
-   Venture X 4.
-   **HOW TO SEE THEM:** `npx vitest run --disable-console-intercept`. ⚠️ That flag **silently
-   ignores a file filter** and runs the whole suite - which briefly made one card's warnings look
-   like another's.
+1. [x] ✅ **THE 277 RECONCILIATION WARNINGS WERE A STALE FIXTURE, NOT A LIVE DEFECT** - ask
+   `c0858003` closed, `e4c25f07`. **My own framing of it was misleading and this is the
+   correction.** There is no "Robinhood Gold Card" in his data any more: it is the SAME ACCOUNT
+   (id `7b1e9a44`) renamed to "Robinhood Credit Card". What matters is what ELSE changed with the
+   name - in the 08-31 golden snapshot that card has balance 0, due day 12 and NO
+   `first_payment_due_date`, because the first-due-date feature shipped 2026-09-05, **after** the
+   capture. The 80 warnings describe a card in a state the app no longer produces.
+   **HIS CURRENT ROWS RECONCILE EXACTLY** - asserted now, not just read: the diagnostic captures
+   `projectCardVariable`'s own `console.warn` and requires ZERO non-reconciling rows for that
+   account on both of today's captures, and they are clean to within **1e-7**, not merely inside
+   the guard's $1 tolerance.
+   ⚠️ **MY FIRST TWO "CONTROLS" THERE WERE TAUTOLOGIES THAT COULD NOT FAIL.** They are
+   replaced by a real one: a third case runs the GOLDEN fixture and REQUIRES it to warn. Proven
+   red by a mutation that breaks a ROW rather than the checker; the golden control stayed green.
+   The ~180 synthetic warnings trace to named edge-case tests (`revolvingDustPayoff`,
+   `cyclingBalanceDisplay`, `card-interest-display`) - deliberate fixtures, not a backlog.
+   **Genuine residue left: Prime Visa 15 and Venture X 4 on the golden capture, same stale-fixture
+   caveat, NOT re-checked against today's rows.**
 
 2. [ ] 🧪 **ADOPT THE FRESH CAPTURE AS THE GOLDEN FIXTURE - its own task, do not bundle it.**
    Now with a measurement attached: the fresh capture turns exactly `floorDeficit`, `floorFlicker`
@@ -57,11 +59,18 @@
    = **`statement`** era. **Which is which is load-bearing** - an earlier draft of the diagnostic
    asserted the wrong one and was simply wrong.
 
-3. [ ] 📮 **DID THE TWO TRUNCATED RELEASE NOTES REACH A STORE LISTING - ask `4a91468d`.**
-   The half the new gate cannot touch, because a pushed message cannot be rewritten. Find out
-   whether either was PUBLISHED or is still in a draft the generator assembles at release time;
-   correct it at the source if unpublished. **A listing edit is Tre's call - it is outward-facing.**
-   ⚠️ Do not close this by pointing at `32fb7c9f`; they are different problems.
+3. [x] ✅ **THE TRUNCATED RELEASE NOTES DID REACH GOOGLE PLAY, AND ARE ALREADY SUPERSEDED** -
+   ask `4a91468d` closed. Measured from the workflow logs: run 782 published *"- The credit card
+   payoff rows no longer carry an explanation that"* and run 783 *"- Fixed a credit card
+   projection that charged one month of"*, both with **Deploy to Google Play (Production, staged
+   10%) -> success**. **iOS does NOT auto-publish** - its workflow only prints the note for Tre to
+   paste - so nothing truncated reached an Apple listing unless he pasted it.
+   **NO ACTION RECOMMENDED:** Play attaches notes to a specific versionCode, and runs 784, 785 and
+   786 have since deployed with complete ones, so the truncated text sits on superseded
+   10%-staged builds. A listing edit is outward-facing and therefore Tre's call.
+   ⚠️ **THE PART WORTH KEEPING: the workflow's existing guard is a 20-500 CHARACTER RANGE, and
+   both truncated notes passed it at 59 and 66 chars.** A length check cannot see truncation by
+   construction. Only the commit-msg gate (`32fb7c9f`) can, and it now runs before a commit exists.
 
 4. [ ] 🔐 **THE THREE BLOCKED CodeQL ITEMS - ask `cae8fdae`, and the block is REAL.**
    `actions/missing-workflow-permissions` at `tests.yml:33`, `tests.yml:111` and
