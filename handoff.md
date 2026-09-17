@@ -40,9 +40,27 @@ co-tenant card is paid off, while Tre said "larger once the CARDS ARE DOWN". Clo
 card's LIVE BALANCE in the months-1+ path - a change to a money engine's signature.
 
 1. [ ] **Await Sam on item 1's fork**, then ship the default. Everything else about it is measured.
-2. [ ] **Ask `44062af7` - the rest of the Accounts tab.** ⚠️ DO NOT ship a portfolio-wide blank-run
-   threshold gate: at 1440 nearly every `justify-between` row flags at 120px, so it would cry wolf
-   and be switched off within a week. Measure at 390 and fix by surface.
+2. [ ] **Ask `44062af7` - the Accounts tab. MEASURED AND SCOPED, NOT BUILT. The measurement
+   REFUTES the obvious fix, so read it before touching anything.**
+   * ⚠️ **THE META LINE IS NOT THE OVERLOAD, however it looks in source.** It concatenates up to
+     EIGHT facts with `·` separators, which makes it the obvious culprit - but on his 16 active
+     accounts it averages **2.94 facts per row, max 5**, and `Since <apr_start_date>` renders on
+     **ZERO** rows. Trimming it fixes a problem he does not have, and each field has a recorded
+     reason ("a value the user typed that the row refuses to show reads as a save that did not
+     happen"). **DO NOT TRIM IT.**
+   * ✅ **THE ACTUAL OVERLOAD IS GROUP CHROME.** 16 rows across **10 groups**, sizes
+     `4,2,2,2,1,1,1,1,1,1` - **SIX groups hold exactly ONE account.** So the Balances tab renders
+     **26 blocks**, six of which are a heading + count + divider labelling a single row. That is
+     chrome, not data, and it is his "lot of information which could be cleaned up".
+   * **THE FIX, AND IT LOSES NO FACT:** for a group of ONE, fold the institution onto that row's
+     meta line instead of giving it its own heading block. `Accounts.tsx:~1150` deliberately does
+     NOT repeat the institution on a row BECAUSE the heading carries it - so for a single-row
+     group the heading is the only carrier, and folding it in removes ~3 lines of chrome per
+     group while keeping every fact on screen.
+   * **ACCEPTANCE:** a RENDERED FRAME at 390 in BOTH themes, at 2x, plus a gate proven red. Use
+     **Playwright** - `resize_window` in claude-in-chrome reports success and does not resize.
+   * ⚠️ Still true: **DO NOT ship a portfolio-wide blank-run threshold gate.** At 1440 nearly
+     every `justify-between` row flags at 120px, so it would cry wolf and be switched off.
 3. [ ] **`6237167a` needs TRE, not a desk**: back-loading buys his floor relief in Oct/Nov/Dec and
    costs one month of card payoff. That is his trade, and both halves are now measured.
 
