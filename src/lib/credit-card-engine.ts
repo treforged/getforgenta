@@ -2393,9 +2393,31 @@ export function simulateVariablePayoff(
       // Fall back to monthlyNewPurchases for statement/autopay cards whose rules aren't tagged
       // with this card's payment_source (cardPurchasesThisMonth would be 0 → $0/$— display).
       if (finalBal === 0 && !paidOffCards.has(card.id)) {
-        const seedAmt = (card.paymentPreference === 'statement' || card.autopayFullBalance)
+        const nominalSeed = (card.paymentPreference === 'statement' || card.autopayFullBalance)
           ? Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases)
           : cardPurchasesThisMonth(card);
+        // ⚠️ NEVER BILL AGAIN WHAT THIS MONTH'S PAYMENT ALREADY PAID. `bbp` is
+        // startBal + interest + purchases, and a card only reaches finalBal === 0 by a payment
+        // that reached all the way through it - so everything `totalPay` covered BEYOND
+        // startBal + interest was this month's purchases, already settled in cash. Seeding the
+        // full purchase amount as next cycle's deferred statement charged it a SECOND time.
+        //
+        // Tre reported the visible half on 2026-09-17 from build 903: a /debt row reading
+        // Start 262, +280 purchases, payment 542, End 280 - "that doesnt add up ... it looks
+        // incorrect". It did not add up because it could not: the payment settled the statement
+        // AND the purchases, and the purchases were then carried into the next statement anyway.
+        // The row was the symptom; the cash was the defect. Measured on his own data, the card
+        // paid 834.27 at the transition and 280 again the next month for the same spend.
+        //
+        // WHAT THIS DELIBERATELY DOES NOT DO: it does not stop the cascade paying this month's
+        // purchases in the first place (cascadeTarget includes them for a non-statement card,
+        // and excludes them for a statement card). Paying a card down mid-cycle is a legitimate
+        // thing a person can do, and changing that target would re-plan every non-statement
+        // card's payoff. This fix only removes the DOUBLE charge, so it can never increase what
+        // anybody pays. The consequence is a genuine $0 statement the following month, which is
+        // correct: nothing was billed, because it was already paid.
+        const alreadyPaidPurchases = Math.max(0, Math.round((totalPay - startBal - interest) * 100) / 100);
+        const seedAmt = Math.max(0, Math.round((nominalSeed - alreadyPaidPurchases) * 100) / 100);
         paidOffDeferredPurchases.set(card.id, seedAmt);
       }
 

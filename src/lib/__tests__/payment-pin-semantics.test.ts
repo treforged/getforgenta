@@ -93,7 +93,25 @@ describe('payment pin semantics — the demo fixture', () => {
 
   it('RE-ORDERS cash rather than finding new money — and actually moves some', () => {
     const baseTotal = ledgerTotal(base);
-    expect(baseTotal).toBe(20268);
+    // ⚠️ RE-PINNED 20268 -> 20211 on 2026-09-17, and the $57 difference is a DEFECT THAT WAS
+    // FIXED, not a number that drifted. It is worth stating exactly, because a horizon total
+    // falling is otherwise indistinguishable from the plan quietly under-paying somebody.
+    //
+    // The engine used to charge one month's purchases TWICE at the revolving -> cycling
+    // transition. When a card is paid all the way to $0 the payment necessarily covered that
+    // month's purchases as well as the carried balance; the engine then seeded those same
+    // purchases as the NEXT cycle's deferred statement and collected them again.
+    //
+    // Measured here, on this fixture, at the one month it occurs — Summit Everyday Card, m=15:
+    //   startBal 547.24 + interest 8.66 + purchases 57.00 = bbp 612.90, and totalPay = 612.90.
+    // The payment lands exactly on bbp, so all 57.00 of purchases were settled in cash; the old
+    // seed of 57 billed them a second time. New seed 0. One card, one month, $57 — which is the
+    // whole of this delta, so nothing else moved.
+    //
+    // Tre reported the user-visible half of the same bug on 2026-09-17 from build 903: a /debt
+    // row reading Start 262, +280 purchases, payment 542, End 280. Regression coverage lives in
+    // credit-card-engine.rowReconciliation.test.ts.
+    expect(baseTotal).toBe(20211);
 
     // ⚠️ WHY THIS IS NO LONGER AN EXACT `<=`, measured rather than waved away. A $1000 pin raises
     // the 18-month total by $1.75 — and the per-month ledger says exactly where that comes from:
