@@ -1272,6 +1272,24 @@ export function simulateVariablePayoff(
   const minSuppressed = (card: CardData, m: number): boolean =>
     (m === 0 && !!card.m0MinSettled) || m < (noMinDueBeforeMonth.get(card.id) ?? 0);
 
+  /**
+   * "This card has not been billed yet in month m" - the NARROWER half of `minSuppressed`.
+   *
+   * ⚠️ THE TWO HALVES OF `minSuppressed` MUST NOT BE USED INTERCHANGEABLY, and the difference is
+   * exactly this: a card whose minimum was already settled before the sim started (`m0MinSettled`)
+   * CAN still take surplus cash this month - you may send it more than the minimum. A card whose
+   * first statement has not been billed cannot take anything at all, because there is nothing to
+   * pay yet. Reusing `minSuppressed` in the surplus cascade would silently stop the extra payment
+   * on every already-paid card, which is a different feature entirely.
+   *
+   * Tre, 2026-09-17: "The Robinhood payment is still showing like it's coming off in September."
+   * Suppressing the MINIMUM was not enough - the avalanche cascade was handing the card the
+   * whole balance out of surplus, so the row still showed a September payment after the
+   * unconditional fix. A card that has not been billed is excluded from the surplus cascade too.
+   */
+  const notBilledYet = (card: CardData, m: number): boolean =>
+    m < (noMinDueBeforeMonth.get(card.id) ?? 0);
+
   // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
   const paidOffCards = new Set<string>();
 
@@ -2056,6 +2074,9 @@ export function simulateVariablePayoff(
       // minimum — exclusion is from the surplus cascade only.
       for (const card of rankableForStrategy(strategyOrder, strategy)) {
         if (remaining <= 0) break;
+        // Nothing is owed on this card yet, so surplus cash goes to the next card in line rather
+        // than pre-paying a statement that has not been cut. See `notBilledYet`.
+        if (notBilledYet(card, m)) continue;
         const currentPayment = payments.get(card.id) ?? 0;
         const target = cascadeTarget(card);
         const maxExtra = Math.max(0, target - currentPayment);
