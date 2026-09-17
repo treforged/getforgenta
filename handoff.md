@@ -45,19 +45,38 @@
    **Genuine residue left: Prime Visa 15 and Venture X 4 on the golden capture, same stale-fixture
    caveat, NOT re-checked against today's rows.**
 
-2. [ ] 🧪 **ADOPT THE FRESH CAPTURE AS THE GOLDEN FIXTURE - its own task, do not bundle it.**
-   Now with a measurement attached: the fresh capture turns exactly `floorDeficit`, `floorFlicker`
-   and `convergence.realData` red and nothing else, and with the GOLDEN restored byte-exact
-   (sha256 `6ebe770c...`) all 7 real-fixture files pass 16/16 with the new engine in place - so
-   those three belong to the capture, not the code. Each number still needs re-pinning with
-   judgement.
-   ⚠️ **DO NOT WAVE THEM AWAY BY QUOTING THE RUNBOOK.** A FOURTH went red this morning -
-   `payment-pin-semantics` on the DEMO fixture - and that one was a real regression.
-   **Captures on disk now, all gitignored** (verified with a control proving the ignore check
-   discriminates): `raw-rows.real.json` 14:54Z statement-era, `...PRE-STATEMENT-...` 13:50Z,
-   `forecast-inputs.real.FRESH-2026-09-17.json` = **`full`** era, `...STATEMENT-2026-09-17.json`
-   = **`statement`** era. **Which is which is load-bearing** - an earlier draft of the diagnostic
-   asserted the wrong one and was simply wrong.
+2. [~] ⛔ **DO NOT ADOPT THE CAPTURE YET - IT IS BLOCKED BY THREE INVARIANTS, NOT THREE PINS.**
+   Ask `5409ffbc`. **The golden is RESTORED BYTE-EXACT (sha `6ebe770c...`) and the baseline is
+   green again** - nothing is left half-swapped.
+   **MEASURED, baseline first:** 12 files / 47 tests green on the 08-31 golden, so a red after the
+   swap could not be confused with a pre-existing one. Statement-era capture in: **4 failed / 43
+   passed.** The previous queue predicted exactly THREE (`floorDeficit`, `floorFlicker`,
+   `realData`). **There is a FOURTH - `manualISB` - which is exactly what that item's own warning
+   said to watch for.**
+   ⚠️ **THE REASON NOT TO ADOPT IS NOT CAUTION. THREE OF THE FOUR ARE INVARIANTS.**
+   `manualISB` asserts that convergence introduces no breach **the RAW ENGINE does not already
+   have**, and it computes `rawBreaches` itself as a control - so the failure means
+   `runDebtCashConvergence` **CREATES a Nov 2026 cash-floor breach** on his current rows.
+   `floorDeficit` and `floorFlicker` compare against the untouched capture the same way (an Apr
+   2027 breach the capture lacks; residue in Aug-Dec 2027). **Re-pinning those three means
+   RELAXING them, which is a gate going green by removing what it failed.** Only `realData`'s
+   payoff month (`Sep 2028` -> `Apr 2029`) is a value that can honestly be re-pinned.
+   **THE DISCRIMINATING RUN, because "the newer data is simply worse" had to be excluded:** the
+   FULL-era capture (`FRESH`) is far worse again - **8 failures, including CC Debt Free never
+   firing inside the horizon at all** - while the STATEMENT-era capture fails only these 4. **So
+   the statement capture is the right candidate** (it matches his live state; he moved the card
+   back on 09-17) **and its four reds are specific rather than general.**
+   ⚠️ **AND ADOPT `STATEMENT-2026-09-17`, NEVER `FRESH`.** The queue item said "the fresh
+   capture"; `FRESH` is the `full` era he has since LEFT, so adopting it would pin the baseline to
+   a state the app no longer produces - the same defect the 08-31 golden already has.
+   ⚠️ **I NEARLY CORRECTED A LABEL THAT WAS RIGHT.** I first told the two captures apart by
+   `autopayFullBalance` and got `false` for BOTH. The era field is `payment_preference` /
+   `paymentPreference`; read THERE, the previous session's `FRESH`=full / `STATEMENT`=statement
+   labelling is **correct**. A field that looks like it answers the question is not the field that
+   does.
+   **NEXT STEP IS A DIAGNOSIS, NOT A RE-PIN:** find why convergence introduces the Nov 2026
+   breach. **NOT MEASURED:** whether he would actually SEE it in the app - the test drives the
+   convergence loop directly at a +11d clock.
 
 3. [x] ✅ **THE TRUNCATED RELEASE NOTES DID REACH GOOGLE PLAY, AND ARE ALREADY SUPERSEDED** -
    ask `4a91468d` closed. Measured from the workflow logs: run 782 published *"- The credit card
@@ -6761,30 +6780,25 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 13:07 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 13:29 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
-
-```
-?? 0
-?? =
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+2771488c [handoff]: the due-date weighting was already built, and I nearly reported his split missing
+1611de46 [surplus]: pin Tre's due-date weighting - it was already emergent, and nothing named it
+fd01110b [handoff]: the CI gate was a CANCELLED run, and his GitHub refresh did not land
 fe469c2d [handoff]: the CodeQL blocker was false - a scope string is not a capability
 083d9786 [security]: least-privilege permissions on the last three CodeQL jobs
 340eea40 [handoff]: both open desk items closed by measurement, and one of them was my own bad framing
 e4c25f07 [debt]: the 277 reconciliation warnings are a STALE FIXTURE, not a live defect
 915bca18 [handoff]: twenty-third session - five commits, and two of my own claims corrected
-32fb7c9f [ci]: a wrapped Release-Note is now REFUSED before the commit exists
-e24d415b [debt]: his "$0 next payment" is correct - read off his own rows, both preferences
-a0f408a3 [security]: the last two CodeQL judgement calls - one fixed exactly, one dismissed with its reason
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
