@@ -144,13 +144,31 @@ index 82316168..7bcb31ac 100644
    not mine to pick. **It is separate from item 2**, which is a data correctness fix he asked for
    verbatim - that distinction is what let item 2 be built without waiting on him.
 
-4. [ ] 📨 **OTTO IS ANSWERED AND CLOSED OUT.** I replied this session; he acknowledged and wants
+4. [x] 📨 **OTTO IS ANSWERED AND CLOSED OUT.** I replied this session; he acknowledged and wants
    nothing back. `663274d7` stays NEEDS TRE - all five reel items are his App Store Connect
    console or already built; none is a code change here.
 
-5. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED** (section below). Nothing
-   renders `<FriendLink />`; the `?friend_code=` landing is alive on purpose; re-measure the
-   0 live unaccepted rows before deleting; keep `active_friend_ids()`.
+5. [x] 🗑️ **FRIEND-LINK FLOW DELETED - DONE, commit `5a8c69b2`, pushed 0/0 and verified by
+   contents with a control.** Re-measured first: **0 live unaccepted `friend_links`**, control
+   1 total / 1 accepted, so "none" could not be a query matching nothing. Four files deleted
+   (component, hook, 2 test files). The `?friend_code=` landing STAYS - it also serves
+   `?partner_code=` and `PartnerLink` is alive - and `active_friend_ids()`, the edge function and
+   the table were deliberately not touched.
+   ⚠️ **THE FINDING WAS BIGGER THAN THE DELETION, and the next person should know why.**
+   `field-consistency.test.ts` had exactly ONE subject: `FriendLink.tsx`. Deleting it as queued
+   would have **silently retired five assertions about focus rings** - nothing red, just a smaller
+   suite. Its subject list is now DERIVED from every `settings/*.tsx` carrying an `<input>`.
+   **Re-aiming it found a live user-facing defect on the first run:** `GlobalStandingCard`'s
+   country-code input (mounted via Account -> FriendsLeaderboard) had **no focus ring at all**.
+   Inventory: 11 settings inputs, 6 hand-rolled, 1 with no ring; all six now compose the shared
+   constants (`FIELD_INPUT_COMPACT`, `FIELD_BASE`, both guarded).
+   **And `control-style-ratchet` was punishing the consolidation** - it read className SOURCE
+   SPELLINGS, so importing a constant minted a new signature and the count ROSE 36 -> 38 on correct
+   work. It now resolves the constants; ceilings lowered to input **35** (real consolidation) and
+   select **17** (a corrected measurement, not progress - said separately on purpose).
+   **Predicted the suite must fall by exactly 61 + 5 = 66 and it landed on 4752 exactly**, so
+   nothing else vanished. Three further hand-named lists still named the file and were tombstoned.
+   Gates: tsc clean, lint 0 errors, `test:tz` **4754 passed across 477 files** in three timezones.
 
 6. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT**
    (`f22f17b1`, and Sam's `8a202850`).
