@@ -83,16 +83,17 @@ call on his own money page. **It is filed as NEEDS TRE and should be decided tog
 
 ### 🚨 ONE THING TO CHECK FIRST NEXT TIME
 
-**iOS run `35191187725`** (workflow_dispatch, head `08bcdfa8`) was DISPATCHED and was still
-`pending` on a queued macOS runner when this session reported. **It has NOT been verified.**
+**iOS run `35192375715`** (workflow_dispatch, head `f31d51db`) is DISPATCHED and QUEUED. **It has
+NOT been verified.** ⚠️ The earlier run `35191187725` was **CANCELLED** - superseded by later
+pushes - which is worth knowing: a dispatched run is not a run that survives the next push, and
+`cancelled` is neither success nor failure. Re-dispatch after the last commit, not before.
 
-    gh run view 35191187725 --json jobs -q '.jobs[].steps[] | "\(.number) \(.name) -> \(.conclusion)"'
+    gh run view 35192375715 --json jobs -q '.jobs[].steps[] | "\(.number) \(.name) -> \(.conclusion)"'
 
 **READ THE UPLOAD STEP'S OWN CONCLUSION, never the run's** - a run reads `success` with the upload
 step `skipped`, and the upload step itself swallows Apple's 90382 cap error into a warning and
 still exits green, so the only sufficient evidence is altool's `UPLOAD SUCCEEDED with no errors`
-appearing in the OUTPUT rather than in an echoed source line. It carries `08bcdfa8` (always-pay-in
--full every month) and `aaf33b9e` (phantom income). **Do not tell Tre it is on his phone until that
+appearing in the OUTPUT rather than in an echoed source line. It carries all three of this session's money fixes plus `aaf33b9e` (phantom income). **Do not tell Tre it is on his phone until that
 step is read.**
 
 ### What the EIGHTEENTH session did, with evidence
