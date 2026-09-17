@@ -19,6 +19,7 @@
  * not survive their next reload, which is strictly better than refusing to show it.
  */
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 export const DEMO_SESSION_KEY = 'forged:demo_session';
 
@@ -35,6 +36,29 @@ const DemoContext = createContext<DemoContextType>({
 export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [isDemo, setIsDemo] = useState<boolean>(() => {
     try {
+      // ⚠️ NEVER RESTORED ON NATIVE - Tre, 2026-09-16, on iOS 862: *"there is a notice stating
+      // demo mode when i got in."* He was opening his own account and was shown Jordan's
+      // fixture data, because `isDemo` had been restored from a previous launch.
+      //
+      // THE PERSISTENCE ABOVE IS CORRECT ON THE WEB AND HAS NO MEANING HERE. It exists so a
+      // browser RELOAD does not drop a visitor out of the demo, and it leans on sessionStorage
+      // having exactly a tab's lifetime - which is also what the banner promises in words:
+      // "resets when you close the tab." **A native app has no tab.** Its WKWebView is not
+      // closed and reopened the way a tab is, so a flag written once can greet the user on a
+      // later launch, and the copy that explains it is false there.
+      //
+      // ⚠️ THIS FIX DOES NOT DEPEND ON KNOWING EXACTLY HOW LONG iOS KEEPS sessionStorage, and
+      // that is deliberate: this desk cannot run the device, so the lifetime is a hypothesis.
+      // Refusing to restore is correct under BOTH readings - if the value never survives, this
+      // is a no-op; if it does, it is the fix. The `removeItem` is belt and braces, idempotent,
+      // and makes the state on disk match the state in memory.
+      //
+      // Entering the demo still works on native; it simply cannot be the state you ARRIVE in.
+      // A money app must never open on somebody else's numbers.
+      if (Capacitor.isNativePlatform()) {
+        try { window.sessionStorage.removeItem(DEMO_SESSION_KEY); } catch { /* storage gone */ }
+        return false;
+      }
       return window.sessionStorage.getItem(DEMO_SESSION_KEY) === 'true';
     } catch {
       return false;

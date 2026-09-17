@@ -11,7 +11,15 @@
 // deliberate: reading back the key you just wrote proves the write, not the recovery.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
+import { vi } from 'vitest';
+import { Capacitor } from '@capacitor/core';
 import { DemoProvider, useDemo, DEMO_SESSION_KEY } from '../DemoContext';
+
+// The platform is the whole discriminator here, so it is the one thing mocked.
+vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: vi.fn(() => false) } }));
+const setPlatform = (native: boolean) => {
+  (Capacitor.isNativePlatform as unknown as ReturnType<typeof vi.fn>).mockReturnValue(native);
+};
 
 function Probe() {
   const { isDemo, setIsDemo } = useDemo();
@@ -28,7 +36,7 @@ const flag = () => screen.getByTestId('flag').textContent;
 const press = (label: string) => act(() => { screen.getByText(label).click(); });
 const mount = () => render(<DemoProvider><Probe /></DemoProvider>);
 
-beforeEach(() => { window.sessionStorage.clear(); });
+beforeEach(() => { window.sessionStorage.clear(); setPlatform(false); });
 afterEach(cleanup);
 
 describe('demo mode survives a reload', () => {
@@ -85,5 +93,54 @@ describe('demo mode survives a reload', () => {
       proto.getItem = realGet;
       proto.setItem = realSet;
     }
+  });
+});
+
+/**
+ * ⚠️ THE WEB BEHAVIOUR ABOVE IS CORRECT AND MUST NOT BE TRADED AWAY FOR THIS ONE.
+ *
+ * Tre, 2026-09-16, on iOS 862: *"there is a notice stating demo mode when i got in."* He opened
+ * his own account and was shown Jordan's fixture data, because `isDemo` had been restored from a
+ * previous launch. The persistence exists so a browser RELOAD does not drop a visitor out of the
+ * demo, and it leans on sessionStorage having a TAB's lifetime - which the banner also promises
+ * in words. A native app has no tab.
+ *
+ * SO THIS IS A DISCRIMINATING PAIR AND BOTH ARMS ARE LOAD-BEARING. Deleting the persistence
+ * outright would pass the native arm and silently restore the 2026-09-13 defect, which is why
+ * the web arm is asserted in the same block rather than left to the suite above.
+ *
+ * ⚠️ WHAT THIS CANNOT PROVE: whether iOS actually keeps sessionStorage across a launch. This
+ * desk has no device, so that remains a hypothesis - and the fix is written so it does not
+ * matter, because refusing to restore is right either way. What IS proven here is that the app
+ * cannot OPEN in demo on native, which is the property a money app needs.
+ */
+describe('a native app never OPENS in demo', () => {
+  it('THE REGRESSION: a stored flag does not put a native launch into the demo', () => {
+    window.sessionStorage.setItem(DEMO_SESSION_KEY, 'true');
+    setPlatform(true);
+    mount();
+    expect(flag()).toBe('REAL');
+  });
+
+  it('and it clears the stale key, so storage and memory agree', () => {
+    window.sessionStorage.setItem(DEMO_SESSION_KEY, 'true');
+    setPlatform(true);
+    mount();
+    expect(window.sessionStorage.getItem(DEMO_SESSION_KEY)).toBeNull();
+  });
+
+  it('THE CONTROL: the same stored flag DOES restore on the web', () => {
+    window.sessionStorage.setItem(DEMO_SESSION_KEY, 'true');
+    setPlatform(false);
+    mount();
+    expect(flag()).toBe('DEMO');
+  });
+
+  it('entering the demo still works on native - it just cannot be where you arrive', () => {
+    setPlatform(true);
+    mount();
+    expect(flag()).toBe('REAL');
+    press('enter');
+    expect(flag()).toBe('DEMO');
   });
 });
