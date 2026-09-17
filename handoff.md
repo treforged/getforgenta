@@ -5241,7 +5241,48 @@ not a check. Enumerated them rather than assuming: all six are present and corre
    That is its own migration with its own review. **Until then the graph exists and grants
    nothing**, which is the safe state to hand over in.
 
+## 2026-09-17 - Ada. ITEMS 1 AND 2 ARE DONE. THE ADVISOR RAN AND IT IS NOT CLEAN.
+
+**ITEM 2 RESULT - the security advisor flagged BOTH new functions, and the verdict is
+"defence-in-depth gap, not a live leak". Do not read that as "clean".**
+
+    anon_security_definer_function_executable   WARN
+      public.find_profile_by_username(text)   callable by `anon` via /rest/v1/rpc/
+      public.request_follow(uuid)             callable by `anon` via /rest/v1/rpc/
+      (also flags the pre-existing enforce_username_change_limit - not new tonight)
+
+**MEASURED AGAINST THE LIVE REST SURFACE, not read off the source:**
+
+    anon -> request_follow            400  {"code":"P0001","message":"not signed in"}
+    anon -> find_profile_by_username  200  []
+    CONTROL leaderboard_global_stats  401  permission denied      <- anon genuinely blocked
+    CONTROL no_such_fn_xyz            404                         <- a bad name looks different
+
+The two controls are what make the readings mean anything: a 404 and a 401 prove the probe
+can distinguish "not there" and "not allowed" from "reached it".
+
+⚠️ **AND THE `[]` WAS AMBIGUOUS UNTIL IT WAS DISCRIMINATED.** An empty array is equally
+consistent with "the auth guard worked" and "that username does not exist" - the second
+would prove nothing. `profiles` holds 3 non-null usernames and `drforged` is one of them;
+**anon asking for `drforged`, a row that provably exists, still gets `[]`.** So the
+`where auth.uid() is not null` guard is what empties it. That is the discriminating pair.
+
+**SO: both functions are REACHABLE by anon and both REFUSE.** `request_follow` raises on
+`auth.uid() is null`; `find_profile_by_username` filters on it. No data crosses.
+
+**WHAT IS STILL WORTH DOING, and why it is not urgent:** the guard is INSIDE each function,
+so it protects only as long as nobody edits that line. `revoke execute on function
+public.request_follow(uuid), public.find_profile_by_username(text) from anon;` moves the
+refusal to the grant, where an edit to the body cannot remove it. **It is its own migration
+with its own read-back** - and note the advisor will still flag the `authenticated` half,
+which is correct and intended, so do not chase that one to zero.
+
 ### RESUME QUEUE - in order
+
+1. [x] **COMMIT AND PUSH the migration file.** Done by the predecessor; origin/main 0/0.
+2. [x] **Security advisor RUN** - result above. Not clean, not leaking. Follow-up: the
+   `revoke ... from anon` migration, which is now the cheapest real hardening available.
+<details><summary>the original wording of items 1-2, superseded</summary>
 
 1. [ ] **COMMIT AND PUSH the migration file.** It is applied; the repo does not know.
 2. [ ] **Run `mcp__claude_ai_Supabase__get_advisors --type security`.** This was the next
@@ -5259,5 +5300,10 @@ not a check. Enumerated them rather than assuming: all six are present and corre
    device here. `check:text-scale` proves everything scales TOGETHER; it cannot prove the
    device moves the root.
 
+</details>
+
 **THE UNDO for everything applied tonight is at the bottom of the migration file**, commented,
 in reverse order.
+
+**STILL LIVE inside that superseded block: items 3, 4 and 5.** Item 3 (the
+followers/following UI) is the next build and has NOT been started.
