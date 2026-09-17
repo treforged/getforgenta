@@ -7134,7 +7134,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 17:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 17:52 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7145,14 +7145,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+e8d279f7 [docs]: name check:accounts-groups in the gate list and close the stated limit in the handoff
+2cf880ad [accounts]: close my own stated limit - measure the group-chrome fix in a real browser at 390
+cb63a26b [handoff]: iOS build 929 carries the Accounts group-chrome fix, upload verified by altool
+508ff7f7 [handoff]: the Accounts group-chrome fix shipped in c4ec0b69
+c4ec0b69 [accounts]: a bank with one account gets no heading - its name moves onto the row
 e7ca62e2 [handoff]: the Accounts-tab overload is group chrome, not the meta line - measured
 11fb36d2 [handoff]: twenty-sixth session - the dashboard default cannot reach Tre, and back-loaded pacing was reverted on real-data evidence
 447d57ad [forecast]: record why back-loaded pacing cannot be wired as a slice, measured
-869d2ca7 [handoff]: the dashboard reorg is part-measured - 17 cards, and a default-layout change may not reach him
-ad358abe [handoff]: twenty-fifth session queue - dashboard reorg is first up, Customize stays
-89604ad4 [accounts]: fill the blank run in each linked-bank row and move the Plaid legal text below the list
-ec69f026 [dashboard]: move Learn into its own /account section and keep one next-lesson line on the home tab
-01134be0 [account]: give every badge its own icon and stop the achievements rows stranding their numbers
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

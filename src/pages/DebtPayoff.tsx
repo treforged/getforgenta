@@ -280,7 +280,10 @@ export default function DebtPayoff() {
     () => (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active && isCardOpenAsOf(a, new Date())),
     [accounts],
   );
-  const hasCreditCards = openCreditCards.length > 0;
+  // TOMBSTONE: `hasCreditCards` lived here and gated the Credit Card tab's count badge. The tab
+  // bar now derives every badge from its own `count > 0`, which is the same test written once
+  // instead of five times, so this had zero callers (grepped). Removed rather than left as an
+  // unused binding, which is a warning the next person has to re-decide about.
 
   const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
@@ -418,28 +421,59 @@ export default function DebtPayoff() {
       {/* The tab row and the panels it switches are ONE group (`stack-row`): a control row
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
-      {/* Tabs */}
+      {/*
+        ⚠️ A DEBT TAB YOU DO NOT HAVE IS NOT SHOWN. Tre, on the Accounts tab: "there's a lot of
+        information there which could be cleaned up and it just seems like a overwhelming amount
+        that the user really doesn't need to see upfront" — and "same thing on some of the other
+        pages like that tab". This is that sweep reaching this page.
+
+        MEASURED ACROSS ALL 33 USERS before anything was changed, because the previous two
+        candidates in this sweep both turned out to be the wrong fix:
+          mortgage        0 users
+          other liability 0 users
+          student loan    1 user
+          car fund        2 users
+          credit card     6 users
+        So the Mortgage and Other Debts tabs were rendered for EVERY user and were empty for
+        EVERY user, and Student Loans was empty for 32 of 33. Five tabs on a money page, of which
+        four led to an empty panel for almost everyone.
+
+        ⚠️ HIDING A TAB DOES NOT STRAND THE ABILITY TO ADD THAT DEBT, and that was checked rather
+        than assumed — it is the one thing that would have made this a regression. The "Add
+        Account" control above derives its `type` from the ACTIVE TAB, so at first reading the
+        Mortgage tab looked like the only route to adding a mortgage. It is not: `ACCOUNT_TYPES`
+        in `Accounts.tsx` offers mortgage, student_loan, auto_loan and other_liability in its own
+        type selector, so the tab is a convenience pre-selection and never the only door.
+
+        THE ACTIVE TAB IS ALWAYS KEPT even when empty, so a persisted tab or a deep link can
+        never leave the user on a panel whose tab has vanished — the row would otherwise
+        disagree with the panel below it. Cards is always shown: it is what this page is for,
+        and its own empty state is a real first-run screen rather than dead chrome.
+
+        DERIVED, NOT HAND-LISTED. The five buttons were five copies of one shape, which is how a
+        sixth debt type gets added to the page and forgotten by whatever else enumerates them.
+      */}
       <PanelBar>
-        <button onClick={() => setActiveTab('cards')}
-          className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}>
-          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className={`seg-badge ${activeTab === 'cards' ? 'seg-badge-active' : ''}`}>{openCreditCards.length}</span>}
-        </button>
-        <button onClick={() => setActiveTab('auto')}
-          className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}>
-          <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className={`seg-badge ${activeTab === 'auto' ? 'seg-badge-active' : ''}`}>{activeAutoLoans.length}</span>}
-        </button>
-        <button onClick={() => setActiveTab('mortgage')}
-          className={`seg-item btn-press ${activeTab === 'mortgage' ? 'seg-item-active' : ''}`}>
-          <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className={`seg-badge ${activeTab === 'mortgage' ? 'seg-badge-active' : ''}`}>{mortgageDebts.length}</span>}
-        </button>
-        <button onClick={() => setActiveTab('student')}
-          className={`seg-item btn-press ${activeTab === 'student' ? 'seg-item-active' : ''}`}>
-          <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className={`seg-badge ${activeTab === 'student' ? 'seg-badge-active' : ''}`}>{studentDebts.length}</span>}
-        </button>
-        <button onClick={() => setActiveTab('other')}
-          className={`seg-item btn-press ${activeTab === 'other' ? 'seg-item-active' : ''}`}>
-          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className={`seg-badge ${activeTab === 'other' ? 'seg-badge-active' : ''}`}>{otherDebts.length}</span>}
-        </button>
+        {([
+          { id: 'cards' as const, Icon: CreditCard, label: 'Credit Card Payoff', count: openCreditCards.length, always: true },
+          { id: 'auto' as const, Icon: Car, label: 'Auto Loans', count: activeAutoLoans.length, always: false },
+          { id: 'mortgage' as const, Icon: Landmark, label: 'Mortgage', count: mortgageDebts.length, always: false },
+          { id: 'student' as const, Icon: Landmark, label: 'Student Loans', count: studentDebts.length, always: false },
+          { id: 'other' as const, Icon: Landmark, label: 'Other Debts', count: otherDebts.length, always: false },
+        ])
+          .filter(t => t.always || t.count > 0 || activeTab === t.id)
+          .map(({ id, Icon, label, count }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`seg-item btn-press ${activeTab === id ? 'seg-item-active' : ''}`}
+            >
+              <Icon size={13} /> {label}
+              {count > 0 && (
+                <span className={`seg-badge ${activeTab === id ? 'seg-badge-active' : ''}`}>{count}</span>
+              )}
+            </button>
+          ))}
       </PanelBar>
 
       {activeTab === 'cards' && (
