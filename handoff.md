@@ -215,7 +215,36 @@ nothing.**
 the same shape and are **untested**. Any of them differing between Tre's browser and a fresh jsdom
 silently changes what the fixture pipeline computes, and **nothing anywhere records that.**
 
+### ✅ 9 - I INSTRUMENTED THE CASH CHAIN AND IT REFUTED MY OWN PREVIOUS PASS
+The capture embeds `month0`, so the chain could be diffed term by term against the harness on the
+same 31-Aug rows. **EVERY TERM MATCHES:** `endCash` 2454.88, `m0SafeFloor` 2294, `holdback` 159,
+`maxCapacity` 159, `carReserve` 0, `carReserveHeld` 0, `cyclingPayment` 0, `revolvingPayment` 0,
+`otherDebtPayment` 0, `vehicleInsurance` 0 - and at the top level `m0Income` 0, `m0Expenses` 0,
+`m0SafeFloor` 3003.8, the same `debtFundingAccountId`. **The only difference in the entire
+structure is `simRevolvingPayoffMonth`, 26 against 24.**
+
+⚠️ **SO "THE HARNESS HAS LESS MONTH-0 CASH" IS DEAD** - my own tidy story, written one pass
+after Sam warned me about exactly that. **Third tidy explanation to die on the next test tonight**,
+after the empty-rows misreading and `pauseSavings`.
+
+**WHAT SURVIVES AND WHERE IT POINTS:** the capacity gradient is still real (scaling cash moves the
+memo 0, 0, 99.89, 230, saturate), so the memo IS cash-sensitive **while the chain it would
+supposedly read is identical**. Together those say the divergence lives **inside the
+`currentMonthRecommendedDebt` memo** in `useForecastEngineInputs`, which computes its OWN
+`savingsTotal`, `carTotal`, `carLoanTotal` and its OWN `now0` independently of the provider - not
+in the provider's month-0 chain, which is now excluded by measurement.
+
+⚠️ **A NAME COLLISION THAT WILL MISLEAD THE NEXT READER.** `month0.safeToPayTotal` is **0 in
+BOTH**, while `currentMonthRecommendedDebt.safeToPayTotal` is 229.89 against 99.89. **Two different
+quantities share the name `safeToPayTotal`**, and reading the chain's one would say there is no
+divergence at all.
+
 ### WHAT IS ACTUALLY LEFT - START HERE
+**Instrument INSIDE the memo** - its `savingsTotal`, `carTotal`, `carLoanTotal`, `planExpenses` and
+`autoExtraTargets`. The provider chain is excluded by measurement; do not re-diff it.
+
+<details><summary>Superseded - the previous framing, refuted above</summary>
+
 **Instrument the month-0 cash chain and find which term is smaller in the harness** - that is now
 the whole question, and it is one number rather than a formula. Then: the two untested
 localStorage inputs above, the null-payoff dump, and the 24 -> 34 move.
@@ -228,6 +257,8 @@ decide whether it explains the 2 months. That single value is the whole remainin
 app and the harness, and until it closes, no attribution across these captures means anything and
 `5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
 giving 34 and null), then the 24 -> 34 move itself.
+
+</details>
 
 </details>
 
