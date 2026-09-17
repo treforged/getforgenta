@@ -59,6 +59,50 @@
 3. **The duplicate credit limit is gone from /debt**, gated by a rendered frame
    (`npm run check:debt-limits`, three controls, proven red with the real pre-fix file).
 
+### 💵 THE MISSING PURCHASES HAVE A NUMBER NOW: **$50** (ask `ec4c1a2b`)
+
+His routed rules are **Groceries $230 (day 13)** and **Eating Out $50 (day 28)** = **$280/month**,
+which is EXACTLY the 280 he sees for October - so **months 1+ are already real-data-driven and
+correct** (`cardPurchasesPerMonth` = scheduled card-routed rules PLUS real non-generated
+transactions).
+
+**MONTH 0 IS SKIPPED ENTIRELY** - the loop body is wrapped in `if (i > 0)`. The stated reason is
+that the live balance already includes current-month spending, and **that is true of spend that has
+POSTED and false of spend still to come.** Measured on his data on 2026-09-17: Groceries on the
+13th has posted and sits inside the 211.62, but **Eating Out $50 on the 28th is invisible
+everywhere** - not in the September row, not in the balance, not in the always-pay-in-full
+obligation.
+
+**THE FIX IS PRINCIPLED BUT NOT A ONE-LINER.** The discriminator already exists in the same
+expression (`i > 0 || e.date >= todayStr`), so month 0's correct set is card-routed spend dated
+AFTER today. What makes it more than a guard: `projectCardVariable`'s `skipFirstMonthPurchases` and
+its written contract that month-0 purchases are 0 exist to stop the display's running balance
+diverging from the sim by exactly one month of purchases - **so month 0 becoming non-zero has to be
+carried through the display reconciliation IN THE SAME CHANGE**, or the projection table drifts.
+
+### 💸 THE BACK-LOADED PACE - MEASURED ON HIS REAL GOAL, WAITING ON HIM (`9eba55a8`)
+
+The goal is real and it is the one he meant: **"Move fund, then emergency fund"**, target 5730,
+saved 106.44, due **2027-07-03**, `surplus_share` **50**, rank 1, auto_extra on. So wiring this
+changes his LIVE numbers.
+
+Remaining need 5623.56 over 10 months:
+
+    LEVEL        562.36 every month
+    BACK-LOADED  102.25 122.70 149.96 187.45 241.01 321.35 449.88 674.83 1124.71 2249.42
+
+First six months **1124.71** against level's **3374.14**; **$460.11 freed this month** toward Prime
+Visa; **both reach the target, 0.00 still owed either way.**
+
+⚠️ **THE CAVEAT THAT IS NOT IN THE ARITHMETIC:** the final month asks for **2249.42 in one
+go**, and the pace is a CEILING rather than a guarantee the cash exists. If July 2027 has no
+surplus that size the goal MISSES its date on a perfect schedule, where level would already have
+banked 3374.14 by month six. That is a risk judgement about his money, not something the engine
+settles - which is why it is his call and not a default.
+
+`pacedMonthlyCeiling` is committed, tested and **called from nowhere**; it returns the level
+allowance unchanged on every path it does not own, so today's behaviour is byte-identical.
+
 ### ⚠️ HIS REMAINING /debt QUESTION IS NOT AN ARITHMETIC BUG - START HERE (ask `dbdc6d54`)
 
 He reads: September balance 212, October purchases 280, October payment 492, **October end balance
