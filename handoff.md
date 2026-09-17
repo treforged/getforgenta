@@ -329,8 +329,22 @@ out **by assumption rather than by measurement: the code is not the same.**
 ⚠️ **THAT ALSO EXPLAINS WHY TEN PASSES FOUND NO DIFFERING INPUT. THERE IS NONE.** I was
 comparing two runs of **different programs** and hunting for a difference in their **data**.
 
+**FACT 3 HARDENED:** the **only non-test caller** of `serializeForecastCapture` in the tree is the
+recapture harness, and it is the only thing that stamps `capturedAt` from a dump's `dumpedAt`.
+And `__forecastInputs` - the browser method the golden test's header describes - **has never
+existed as live app code**: `git log -S` over `src/` returns one commit (`8f5d5199`) and the only
+file that has ever held the string is that test, as a comment.
+
+⚠️ **THE LIMIT, because this is the fact everything rests on:** a browser capture was done by
+pasting a console snippet, which is not committed, so code archaeology **cannot exclude it
+outright**. What it can say is that a snippet calls `serializeForecastCapture` with its DEFAULT
+`capturedAt` of `new Date()`, so for GOLDEN's `capturedAt` to equal the dump's `dumpedAt` **to the
+millisecond** somebody would have had to paste that exact ISO string by hand. **That is the
+improbability carrying the inference - improbability, not proof.**
+
 **STRONG INFERENCE, NOT PROOF.** The proving command is one line: check out the tree as of
-2026-09-01, run the probe on the same dump, expect **26** and **229.89**.
+2026-09-01, run the probe on the same dump, expect **26** and **229.89**. **Not run here** - it
+needs a worktree and a full install and the window was tightening.
 **FALSIFIER, named:** if the in-app capture path also stamps `capturedAt` from a dump, or if
 GOLDEN carries a field only a browser can produce, fact 3 collapses.
 
