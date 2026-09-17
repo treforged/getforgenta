@@ -1,5 +1,89 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, SIXTEENTH session). START AT ITEM 1.
+
+**Tre is awake and typing into THIS tab.** Anything below that describes the UI is perishable -
+check the file before acting on it.
+
+1. [ ] 📱 **READ THE iOS RUN, THEN TELL HIM THE BUILD NUMBER.** Run **`35186607590`**,
+   `workflow_dispatch`, head **`9350ef81`** - which carries EVERYTHING: the typeahead verification,
+   the debt payment-row fix, last night's accounts text fix, the trophy case, the attribution and
+   the copy changes. An earlier dispatch (`35185869217`, head `c7cf8468`) was **cancelled before
+   its upload step** so that one build could carry the debt fix as well; nothing was spent.
+
+       gh run view 35186607590 --json jobs   # step 20 must read success, never skipped
+       gh run view 35186607590 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
+       gh run view 35186607590 --log | grep -n '90382'   # SOURCE lines only, never output
+
+   **A run reading `success` with step 20 `skipped` has sent nothing anywhere**, and step 20 also
+   swallows Apple's daily-cap error 90382 into a warning and still exits green. Name the **iOS**
+   number (`VERSION_CODE = run_number + 100`), say it is an upload and not an install, and do not
+   quote an Android number at him - he opens TestFlight.
+
+2. [ ] 🎨 **THE ACCOUNTS PILL IS TRUNCATED (ask `c61a479a`, if still open).** *"that pill is kind of
+   truncated and it should all show at once without scrolling."* `Balances (16) | Linke…` cut off at
+   390px with `+ Add Account` over it.
+   ⚠️ **HE IS REJECTING THE FIX THAT SHIPPED:** `check:panel-rows` made an over-wide pill SCROLL,
+   which is right for Debt's five segments and wrong here. **The two-segment case must FIT while the
+   five-segment case still scrolls** - do not undo that work. Start at `src/pages/Accounts.tsx` and
+   the `.seg-track` rule; the width is eaten by the count badge and by `+ Add Account` sharing the
+   row. Gate with `npm run check:panel-rows` AND a rendered frame at 390x844 **via Playwright** -
+   Claude-in-Chrome's `resize_window` reports success and does not resize, measured twice here.
+
+3. [ ] 🪟 **NATIVE GLASS - HIS APPROVAL IS RECORDED BUT THE SCOPE IS INFERRED** (`f22f17b1`,
+   decision `68734368`). His sentence was cut off and does not restate the cost that changed: a
+   `UIVisualEffectView` is a SIBLING of the WKWebView, so the version that works needs a SECOND
+   transparent WKWebView for chrome. **Reconfirm in this tab before writing Swift.** Swift compiles
+   on the CI runner; a DEVICE is the blocker.
+
+4. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW.** `FriendLink.tsx`, `useFriendLink.ts` and the
+   `friend-link` edge function are still in the tree; the mount is already gone. Measured safe: 0
+   live unaccepted `friend_links`. It takes 59 assertions with it, so its own slice and its own
+   gate, and leave a tombstone.
+   ⚠️ **`active_friend_ids()` STILL READS `friend_links`** - keep that arm; delete the CLIENT flow.
+
+### What this session closed, with evidence
+
+* ✅ **THE USERNAME TYPEAHEAD IS VERIFIED (`c7cf8468`), AND IT HAD TURNED MAIN RED.**
+  `UsernameSuggestions` calls `useQuery` and mounts on the Account page, so
+  `Account.leaderboardOneMount.test.tsx` - which renders the real page with no QueryClientProvider -
+  lost all three arms INCLUDING its positive control to "No QueryClient set". CI run `35184682465`
+  at head `8aae3aa7`, same three names, same error. The app was never affected; there is one
+  provider at the root. Fixed by giving that page test the provider the real app has.
+  **The discriminating pair now discriminates**, measured against production inside a transaction
+  and rolled back: a PUBLIC account IS suggested while a PRIVATE account carrying the SAME `tr`
+  prefix is NOT, with both rows proven present. Also: 1-char none, `tr%` and `t_` none (wildcards
+  escaped), caller excluded, no-JWT none WITH a public row present so it is not a vacuum pass, anon
+  execute false / authenticated true. Rolled back and re-read from OUTSIDE: all three profiles
+  private, usernames unchanged. `pg_proc` body matches the migration on disk.
+  Ten tests across two gates, eight mutations each killing exactly one arm, restored byte-exact.
+  **NOT COVERED: no browser has seen a non-empty dropdown, because no profile is public** - and
+  making one public for a screenshot is a live write to a real row. The empty state is what a
+  browser shows today, and it is correct.
+* ✅ **THE DEBT EMPTY SPACE IS REPRODUCED AND FIXED (`9350ef81`).** Last session measured the gap to
+  the CARD'S right edge, found 0-25px, and recorded it as not reproduced. **The hole is INTERIOR and
+  only appears at 150% root font** - his size. Before: row 316px, description group 290px, payment
+  column WRAPS to its own line. After: one line, gap 12px. Cause: the row was `flex-wrap`, so the
+  description could never shrink - flex items wrap rather than shrink, which is why the `truncate`
+  already on it did nothing. New gate `npm run check:debt-rows`, proven red with the REAL pre-fix
+  file, exit 1.
+  ⚠️ **MY FIRST INSTRUMENT MANUFACTURED THE DEFECT EVERYWHERE** by comparing the two boxes' TOPS -
+  `items-center` gives different-height boxes different tops ON THE SAME LINE, so it reported 4 of 6
+  rows wrapped and would have sent me to "fix" healthy rows. Vertical OVERLAP is the honest test.
+  **LIMIT: the walk account has ONE card.** Tre's rows carry a shortfall warning, a saving badge and
+  Partial statement, each of which widens the description group - so this is the easy case.
+
+### The free-executor score for this session
+`ollama/qwen3:14b` **1/5** on a vitest draft: it ignored the brief entirely and returned a React
+component that read `profiles` with `ilike('%term%')` - the exact account-enumeration defect the
+feature exists to prevent. **Cause found: `llm.py --file <path>` passes the PATH, not the contents**,
+and the path was `ada-typeahead-brief.txt`, so it wrote a typeahead. `groq/openai/gpt-oss-120b` via
+**stdin** scored **4/5** on the same brief in 3.8s - correct structure, correct mocks, needed only
+`as any` removed and two assertions re-aimed at the resolved data rather than the call count.
+**Pipe the brief on stdin; `--file` is a filename argument.**
+
+<details><summary>Fifteenth session's queue - items 1 and 3 CLOSED above, 2 dispatched, 4 and 5 carried forward</summary>
+
 ## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, FIFTEENTH session). START AT ITEM 1.
 
 **Tre is awake and typing into THIS tab.** He tested iOS 876 tonight and sent two asks plus an
@@ -5785,5 +5869,7 @@ b4c22722 [attribution]: campaign attribution on signup, and it is not the ref pa
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+</details>
 
 </details>
