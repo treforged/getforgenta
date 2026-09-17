@@ -19,6 +19,20 @@ export interface WidgetMeta {
   id: WidgetId;
   label: string;
   description: string;
+  /**
+   * Whether this widget is ON for a user who has never customised their dashboard. Omitted means
+   * ON — a widget has to be deliberately opted OUT of the first-run stack, never accidentally.
+   *
+   * ⚠️ THIS ONLY EVER REACHES A USER WITH NO SAVED LAYOUT, and that is the whole population it is
+   * meant for. `mergeSavedLayout` preserves the stored `visible` flag for every widget a saved
+   * layout already knows, so changing this value cannot take a card away from somebody who has
+   * one. Measured 2026-09-17: 33 profiles, 31 with no saved layout — and the 2 that have one are
+   * `tre@treforged.com` and `reviewer@treforged.com`, so this default reaches 31 users and
+   * reaches NEITHER the CEO's own screen NOR the account the walk signs in as. Do not report a
+   * change here as tidying his dashboard; it will not. The honest route to his screen is an
+   * explicit "reset to the new default" he chooses, never a silent rewrite of his saved row.
+   */
+  defaultVisible?: boolean;
 }
 
 export const WIDGET_META: WidgetMeta[] = [
@@ -65,6 +79,26 @@ export const WIDGET_META: WidgetMeta[] = [
     id: 'transactions_spending',
     label: 'Transactions & Spending',
     description: "Recent transactions and this month's spending by category",
+    // ⚠️ OFF BY DEFAULT since 2026-09-17, and it is the ONLY widget defaulted off. Tre, on the
+    // dashboard: "it seems like the dashboard is getting to the point where it['s an] overload of
+    // information when it's supposed to be a quick snappy what needs to be paid next". This is the
+    // largest block in the stack — a two-column grid holding a category breakdown AND a
+    // transaction list — it renders UNCONDITIONALLY (no empty-guard, unlike `car_goal`), it
+    // answers neither "what needs to be paid next", and it is a duplicate route: /transactions
+    // owns both halves in full. One tap in Customize restores it.
+    //
+    // ⚠️ TWO WIDGETS WERE PROPOSED ALONGSIDE IT AND BOTH WERE REFUTED. Recorded here because the
+    // proposal rested on "the three he has never once mentioned", and for one of them the repo's
+    // own history says the opposite:
+    //   · `budget_totals` — he ASKED for it. 90b39aba, 2026-08-27, with a screenshot of Budget
+    //     Control's KPI row: "i wanted these moved to dashboard". Defaulting off a card he
+    //     personally placed here, on the grounds that he never asked for it, is the failure the
+    //     premise check exists to catch.
+    //   · `car_goal` — already self-hides. `Dashboard.tsx` case 'car_goal' opens
+    //     `if (!carGoalData) return null`, so for a user with no car goal it contributes nothing
+    //     to the overload, and for the 2 users who HAVE one it is a card they can use. The change
+    //     would have been a no-op for everyone it was aimed at and a loss for everyone else.
+    defaultVisible: false,
   },
   {
     id: 'goal_progress',
@@ -114,7 +148,10 @@ export function widgetLabel(id: WidgetId): string {
 
 export const DEFAULT_LAYOUT: WidgetConfig[] = WIDGET_META.map(w => ({
   id: w.id,
-  visible: true,
+  // Absent means ON. A widget is opted OUT of the first-run stack deliberately, at its own meta
+  // entry where the reason sits beside it — never by a separate list somebody has to remember to
+  // keep in step with this one.
+  visible: w.defaultVisible !== false,
 }));
 
 /**
