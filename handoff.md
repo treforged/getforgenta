@@ -7,137 +7,32 @@ reading and a truncated Balances pill. **Both are CLOSED with evidence** (`4d923
 `c61a479a`) - I checked the tracker rather than the prose. Where a hook's queue and the tracker
 disagree, the disagreement is the finding.
 
-1. [ ] 🔴 **THE gh TOKEN IS STILL DEAD - NOTHING REACHES HIS PHONE UNTIL HE FIXES IT.**
-   Ask `8c716442`. **I re-measured it myself this session rather than relaying it:**
-   `gh auth status` reads *"The token in default is invalid."* Otto reports the same from
-   reel-routine (his ask `50531340`, six commits stuck local) and Sam has confirmed it
-   independently - **three desks, one cause.**
-   **CONSEQUENCE: VERSION 6.7.0 IS ON ORIGIN AND IN NO BUILD**, because a push builds and never
-   uploads here. His hands only: `gh auth login -h github.com`. The moment it is back:
-       gh workflow run "iOS Build & Upload to App Store" --ref main
-   then read **step 20's OWN conclusion** (`success`, never `skipped`) AND altool's
-   `UPLOAD SUCCEEDED with no errors` - the step swallows Apple's 90382 cap error into a warning
-   and still exits green.
+1. [x] ✅ **gh AUTH RESTORED BY TRE ~04:05 ET, and iOS DISPATCHED.** Ask `8c716442` closed.
+   ⚠️ **HIS FIRST ATTEMPT DID NOT TAKE, and the reason is worth keeping:** he ran
+   `! gh auth login -h github.com` inside Claude Code and the token stayed invalid, because that
+   command is **INTERACTIVE** (protocol, then a browser code) and a `!` run has no TTY to answer
+   it. The two paths that work: a normal terminal window, or non-interactive
+   `echo <PAT> | gh auth login -h github.com --with-token` with `repo` + `workflow` scope.
+   🚀 **RUN `35198098895`, `workflow_dispatch`, head `2d3ac700`** - carries 6.7.0 AND everything
+   below. **VERIFY IT BY STEP 20's OWN CONCLUSION (`success`, never `skipped`) AND altool's
+   `UPLOAD SUCCEEDED with no errors`** - a push run reads green with the upload skipped, and the
+   upload step swallows Apple's 90382 cap error into a warning and still exits green.
 
-2. [ ] 💵 **THE MONTH-0 PURCHASES FIX IS BUILT AND MEASURED - FINISH THE 4 ASSERTIONS AND SHIP.**
-   Ask `ec4c1a2b`, which now carries the whole measurement. **Do not re-derive any of it.**
-   The diff is preserved verbatim below. `tsc` clean; `test:tz` **4812 passed / 4 failed** across
-   479 files, all four in `src/lib/__tests__/payment-pin-semantics.test.ts`.
-   ⚠️ **THOSE FOUR ARE NOT STALE NUMBERS TO REPASTE.** Two of that file's PROSE invariants moved:
-   pins no longer move the payoff date at all (14/14/15 -> 16/16/16), and "a pin never increases
-   total cash to debt" is breached by **$1.75 unrounded** - dust, but it breaches an exact
-   `toBeLessThanOrEqual`. That file's own header says read the failure before changing the number.
-   **THE HUGE DEMO SWING IS THE FIXTURE'S CLOCK, NOT THE FIX** - measured at three clocks:
-   `NOW=Sep 03` sweeps ~27 days into month 0 (ledger 20268), `Sep 17` almost nothing (19850),
-   `Sep 27` (19409). **On Tre's own data at Sep 17 the change is the $50 Eating Out and nothing
-   else** - exactly what he reported missing.
-   **ALREADY CHECKED, DO NOT CHASE IT:** d7's payments collapsing 764 -> 213 while its balance
-   climbs 415 -> 827 -> 1536 looks like the allocator starving a 24.74 percent card. It is not -
-   `clearsAt=7` shows the documented SAVE-UP-then-lump pattern.
-   **WHY IT WAS HELD RATHER THAN SHIPPED:** rewriting a money invariant at 04:00 on the page he
-   is testing, when **the dead gh token means no build could carry it to his phone tonight
-   anyway.** Holding cost nothing; shipping half-understood would have cost the invariant.
-
-<details><summary>THE PATCH - re-create with `git apply` (2 files, 94 lines)</summary>
-
-```diff
-diff --git a/src/hooks/useCardProjection.ts b/src/hooks/useCardProjection.ts
-index f727b745..840c4840 100644
---- a/src/hooks/useCardProjection.ts
-+++ b/src/hooks/useCardProjection.ts
-@@ -310,26 +310,43 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
-       for (let i = 0; i < PROJECTION_MONTHS; i++) {
-         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-+        // ⚠️ MONTH 0 IS NOT ZERO — it carries card spend dated AFTER the sync cutoff.
-+        // The old reasoning was "the live card balance already includes this month's
-+        // purchases". That holds for spend that has POSTED and is false for spend still
-+        // to come, and the whole of month 0 was skipped on it. Measured cost on Tre's own
-+        // card (2026-09-17): Groceries $230 on the 13th had posted and sat inside the
-+        // $211.62 balance, but EATING OUT $50 ON THE 28th was invisible everywhere — not
-+        // in the September row, not in the balance, and not in the always-pay-in-full
-+        // obligation. This is the same correction `oneTimeArr` below already carries for
-+        // the funding side, where zeroing all of month 0 put Dashboard MONTH-END CASH
-+        // $172.50 under Forecast END CASH.
-+        // The cutoff is the SYNC cutoff, not today: the balance is only as current as the
-+        // last sync, so "after the cutoff" is exactly "not in the balance yet". A rule
-+        // occurrence the user has confirmed a real transaction already paid HAS posted, so
-+        // it is excluded — the same evidence, and the same gate, the cash side applies.
-+        const cutoff = syncCutoffDate ?? todayStr;
-         const eventsInMonth = scheduledEvents.filter(e =>
--          e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
-+          e.date.startsWith(monthKey) && (i > 0 || e.date > cutoff),
-         );
-         const cardPurchases: { [cardId: string]: number } = {};
--        if (i > 0) {
--          for (const card of cards) {
--            const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
--            const scheduledAmt = eventsInMonth
--              .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
--              .reduce((s, e) => s + e.amount, 0);
--            const oneTimeCCAmt = transactions
--              .filter(t =>
--                !t.isGenerated &&
--                t.date?.startsWith(monthKey) &&
--                t.type === 'expense' &&
--                (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
--              )
--              .reduce((s, t) => s + Number(t.amount), 0);
--            cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
--          }
-+        for (const card of cards) {
-+          const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-+          const scheduledAmt = eventsInMonth
-+            .filter(e =>
-+              e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId) &&
-+              (i > 0 || !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmed)),
-+            )
-+            .reduce((s, e) => s + e.amount, 0);
-+          const oneTimeCCAmt = transactions
-+            .filter(t =>
-+              !t.isGenerated &&
-+              t.date?.startsWith(monthKey) &&
-+              (i > 0 || (t.date ?? '') > cutoff) &&
-+              t.type === 'expense' &&
-+              (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
-+            )
-+            .reduce((s, t) => s + Number(t.amount), 0);
-+          cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
-         }
-         cardPurchasesPerMonth.push(cardPurchases);
-       }
-diff --git a/src/lib/credit-card-engine.ts b/src/lib/credit-card-engine.ts
-index 82316168..7bcb31ac 100644
---- a/src/lib/credit-card-engine.ts
-+++ b/src/lib/credit-card-engine.ts
-@@ -739,7 +739,11 @@ export function projectCardVariable(
-    * Optional per-month purchase amounts for this card (index = m-1, same as monthlyPayments).
-    * When provided, overrides card.monthlyNewPurchases so one-time CC transactions are
-    * reflected in the Purchases column of the projection table.
--   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0) — should be 0.
-+   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0).
-+   * ⚠️ It is NO LONGER required to be 0. It carries card-routed spend dated after the sync
-+   * cutoff — spend that is still to come this month and is therefore NOT in the live balance.
-+   * The sim reads the SAME array element (`cardPurchasesThisMonth`, below), so the display and
-+   * the sim move together and the divergence this flag guards against cannot open up.
-    * purchasesPerMonth[1] corresponds to projection month 2 (sim month 1), etc.
-    */
-   purchasesPerMonth?: number[],
-@@ -1450,7 +1454,10 @@ export function simulateVariablePayoff(
-     };
- 
-     // Per-card CC purchases this month.
--    // Month 0 = 0: live card.balance already includes today's purchases.
-+    // ⚠️ Month 0 is NOT 0 when the caller supplies cardPurchasesPerMonth. The live card.balance
-+    // includes what has POSTED this month, not what is still to come, so month 0 carries
-+    // card-routed spend dated after the sync cutoff. The `m === 0 ? 0` fallback below applies
-+    // only when no per-month figures were supplied at all.
-     // Returns 0 for cards that haven't reached their start month yet.
-     const cardPurchasesThisMonth = (c: CardData): number => {
-       if ((cardStartMonths.get(c.id) ?? 0) > m) return 0;
-```
-
-</details>
+2. [x] 💵 **MONTH-0 PURCHASES - SHIPPED, commit `2d3ac700`**, pushed 0/0 and verified by contents
+   with a control. Ask `ec4c1a2b` closed with the full evidence.
+   His $50 Eating Out (due 28 Sep) was invisible in the September row, the balance AND the
+   always-pay-in-full obligation; month 0 now carries card-routed spend dated after the SYNC
+   CUTOFF. **Checked rather than assumed:** no double count (the cash side already excludes
+   card-routed rules in every month) and no sim/display divergence (both read the SAME array
+   element, so the drift `skipFirstMonthPurchases` guards against cannot open).
+   **THE FOUR PIN ASSERTIONS WERE DECIDED ON THEIR MERITS AND TWO ARE NOW STRICTLY STRONGER** -
+   the fixture shows a pin as a CUT (month 1, 1672) *and* a RAISE (month 4, 213); and the exact
+   `<=` on total debt cash, which held by luck of the old fixture, became an interest-scale bound
+   **plus the control it could not do - a pin that does NOTHING satisfied `<=` perfectly.**
+   The whole movement is accounted for: a $1000 pin pushes +2,860.84 in months 3-6 and month 7
+   returns -2,860.84, netting **0.00 to the cent**; the only unmatched movement is **+1.75 in
+   month 15**, the interest a different ordering costs. Two mutations, both restored byte-exact.
+   Gates: tsc clean, lint 0 errors, `test:tz` **4754 across 477 files** in three timezones.
 
 3. [ ] 🎨 **THE PRESENTATION HALF IS STILL HIS CALL** (`dbdc6d54`). What the September row shows
    and what the columns are called. Two readings lead to materially different screens, so it is
@@ -6427,10 +6322,14 @@ followers/following UI) is the next build and has NOT been started.
 
 </details>
 
+
+
+</details>
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 03:37 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 04:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6446,16 +6345,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+18f60dc1 [handoff]: friend-link flow deleted; the gate it was holding up is re-aimed and found a live focus-ring defect
+5a8c69b2 [settings]: delete the friend-link flow, and re-aim the gate it was quietly holding up
+9e48f3aa [handoff]: twentieth session - the month-0 purchases fix is built and measured, and deliberately held
+bdd166b0 [handoff]: nineteenth session - Tre is mid-conversation, the gh token is dead, and 6.7 is in no build
 68d382da [handoff]: the gh token expired mid-session - 6.7 is on origin and in no build
 8ee82275 [goals]: the label and the guide now say where the spare money goes; VERSION 6.7.0
 9104f1da [goals]: pin that a split rank already sends spare money where it saves the most
 45c4fcf9 [goals]: the level pace already back-loads itself - the ramp only buys a peak month 2.7x worse
-23a55a1a [handoff]: the missing September purchase is $50 and has a name; the pace profile measured on his real goal
-a5cc6e6b [handoff]: the first iOS run was cancelled by a later push; re-dispatched as 35192375715
-f31d51db [handoff]: the grace fix, the duplicate limit, and why his October row is a presentation problem rather than an arithmetic one
-a3da382d [debt]: the credit limit is stated once, not twice
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
-
-</details>
