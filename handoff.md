@@ -9,13 +9,20 @@ TWO COMMITS SHIPPED, AND **THE OVERLOAD SWEEP IS NOW FINISHED** - the predecesso
   old entry absent), 0/0. **iOS run `35282131731` dispatched by hand on that exact commit** -
   see item 0.
 
-### ⚠️ ITEM 0 - READ THE UPLOAD STEP'S OWN CONCLUSION BEFORE TELLING TRE ANYTHING
-`gh run view 35282131731 --json jobs` and read step 20 `Upload to App Store Connect`. It was
-`in_progress` when this handoff was written. **A run conclusion of `success` proves nothing** -
-on a push the upload step is `skipped` by design and the run is still green. Require the STEP to
-read `success`, then grep the log for altool's own `UPLOAD SUCCEEDED`, and check any `90382`
-matches are in the ECHOED SCRIPT SOURCE rather than in output. Read the build number FROM THE
-LOG, never computed. An upload is not an install; he still has to update.
+### ✅ ITEM 0 - iOS BUILD 935 IS IN TESTFLIGHT, VERIFIED THREE WAYS (run `35282131731`)
+Carries `55a17bca`, the Akoya removal. Dispatched BY HAND - a push builds and does not upload.
+* **Step 20 `Upload to App Store Connect`, its OWN conclusion: `success`** - not `skipped`. The
+  RUN conclusion was never used, because on a push that step is skipped by design and the run is
+  green anyway.
+* **altool's own words present: `UPLOAD SUCCEEDED with no errors`** (1 occurrence, control 46).
+  The step conclusion alone is not sufficient - it has a branch that turns Apple's daily-cap
+  error into a warning and still exits green.
+* **All THREE `90382` matches are in the ECHOED SCRIPT SOURCE** - log lines 2041 (a comment),
+  2051 (`elif grep -q`) and 2052 (the `::warning::` string). None in output, so the cap branch
+  never fired.
+* **Build 935, version 6.7, READ FROM THE LOG** (`VERSION_CODE=935`), not computed.
+* **An upload is not an install.** TestFlight still has to finish processing and he has to
+  update. The most that can honestly be said is "935 uploaded at 22:31; it is his to install".
 
 ### ✅ ITEM 1 - THE DASHBOARD DEFAULT SHIPPED, AND TWO OF THE THREE WERE REFUTED (`32f20f92`)
 Sam decided the fork: default `budget_totals`, `car_goal` and `transactions_spending` OFF. **Only
