@@ -45,38 +45,41 @@
    **Genuine residue left: Prime Visa 15 and Venture X 4 on the golden capture, same stale-fixture
    caveat, NOT re-checked against today's rows.**
 
-2. [~] ⛔ **DO NOT ADOPT THE CAPTURE YET - IT IS BLOCKED BY THREE INVARIANTS, NOT THREE PINS.**
-   Ask `5409ffbc`. **The golden is RESTORED BYTE-EXACT (sha `6ebe770c...`) and the baseline is
-   green again** - nothing is left half-swapped.
+2. [~] ⛔ **DO NOT ADOPT THE CAPTURE YET - THREE REDS REMAIN, AND THEY ARE THE THREE THE
+   PREVIOUS SESSION PREDICTED.** Ask `5409ffbc`. **The golden is byte-exact at sha `6ebe770c...`
+   and the baseline is green** - nothing is left half-swapped.
    **MEASURED, baseline first:** 12 files / 47 tests green on the 08-31 golden, so a red after the
-   swap could not be confused with a pre-existing one. Statement-era capture in: **4 failed / 43
-   passed.** The previous queue predicted exactly THREE (`floorDeficit`, `floorFlicker`,
-   `realData`). **There is a FOURTH - `manualISB` - which is exactly what that item's own warning
-   said to watch for.**
-   ⚠️ **THE REASON NOT TO ADOPT IS NOT CAUTION. THREE OF THE FOUR ARE INVARIANTS.**
-   `manualISB` asserts that convergence introduces no breach **the RAW ENGINE does not already
-   have**, and it computes `rawBreaches` itself as a control - so the failure means
-   `runDebtCashConvergence` **CREATES a Nov 2026 cash-floor breach** on his current rows.
-   `floorDeficit` and `floorFlicker` compare against the untouched capture the same way (an Apr
-   2027 breach the capture lacks; residue in Aug-Dec 2027). **Re-pinning those three means
-   RELAXING them, which is a gate going green by removing what it failed.** Only `realData`'s
-   payoff month (`Sep 2028` -> `Apr 2029`) is a value that can honestly be re-pinned.
+   swap could not be confused with a pre-existing one. Statement-era capture in: 4 failed.
+   ⚠️ **THE FOURTH RED WAS A FALSE ALARM IN THE TEST, AND I WROTE IT UP AS A MONEY DEFECT ON
+   HIS LIVE ROWS BEFORE MEASURING IT PROPERLY.** `manualISB` said convergence INTRODUCED a Nov
+   2026 floor breach. **It does not. Convergence strictly IMPROVED that scenario** - raw rows
+   flagged Oct, Nov AND Dec 2026; converged flagged Nov and Dec. It **removed October**, and Nov
+   2026 ending cash went 1948 -> 2081 against a 2605 floor the RAW row was already under.
+   **THE TEST COMPARED THE WRONG OBJECT.** A "below safe minimum" MILESTONE is a
+   **first-occurrence marker** - one per run, at the earliest breaching month - while
+   `row.belowSafeMinimum` is per-month. Comparing milestone months as SETS makes a **repaired
+   earliest breach** read as a **newly introduced** one. **Fixed and pushed**: both sides read off
+   the rows, which is what `floorDeficit` and `floorFlicker` already did, so there is one rule with
+   one implementation. Proven by a discriminating pair (old RED / new GREEN on the statement
+   capture), a **positive control** (a month raw never had, injected into the converged side,
+   still fails the assertion - so it is a fix, not a weakening), and unchanged on the golden.
+   ⚠️ **WHY I GOT IT WRONG, because it generalises:** I checked that the test HAD a raw-engine
+   control and accepted it without checking WHAT IT COMPARED. **A control that exists is not a
+   control that discriminates** - and the alarming reading is the one that gets written up fastest.
+   **WHAT ACTUALLY BLOCKS ADOPTION, now three:** `floorDeficit` and `floorFlicker` are **row-based
+   and therefore genuine** (a \$3,000 shock introduces an Apr 2027 breach the untouched capture
+   lacks; an \$8,000 shock leaves residue in Aug-Dec 2027), and `realData`'s payoff month
+   `Sep 2028` -> `Apr 2029`, **which is an honest re-pin** - re-pin it and say in the commit which
+   dump it was measured on, exactly as that file's own comment instructs.
    **THE DISCRIMINATING RUN, because "the newer data is simply worse" had to be excluded:** the
-   FULL-era capture (`FRESH`) is far worse again - **8 failures, including CC Debt Free never
-   firing inside the horizon at all** - while the STATEMENT-era capture fails only these 4. **So
-   the statement capture is the right candidate** (it matches his live state; he moved the card
-   back on 09-17) **and its four reds are specific rather than general.**
-   ⚠️ **AND ADOPT `STATEMENT-2026-09-17`, NEVER `FRESH`.** The queue item said "the fresh
-   capture"; `FRESH` is the `full` era he has since LEFT, so adopting it would pin the baseline to
-   a state the app no longer produces - the same defect the 08-31 golden already has.
-   ⚠️ **I NEARLY CORRECTED A LABEL THAT WAS RIGHT.** I first told the two captures apart by
-   `autopayFullBalance` and got `false` for BOTH. The era field is `payment_preference` /
-   `paymentPreference`; read THERE, the previous session's `FRESH`=full / `STATEMENT`=statement
-   labelling is **correct**. A field that looks like it answers the question is not the field that
-   does.
-   **NEXT STEP IS A DIAGNOSIS, NOT A RE-PIN:** find why convergence introduces the Nov 2026
-   breach. **NOT MEASURED:** whether he would actually SEE it in the app - the test drives the
-   convergence loop directly at a +11d clock.
+   FULL-era capture (`FRESH`) is far worse - **8 failures, CC Debt Free never firing in the
+   horizon** - while the statement-era capture fails only these.
+   ⚠️ **ADOPT `STATEMENT-2026-09-17`, NEVER `FRESH`.** `FRESH` is the `full` era he has LEFT,
+   so adopting it would pin the baseline to a state the app no longer produces - the same defect
+   the 08-31 golden already has.
+   ⚠️ **AND I NEARLY CORRECTED A LABEL THAT WAS RIGHT.** `autopayFullBalance` reads `false` in
+   BOTH captures, so it cannot tell them apart. The era field is `payment_preference` /
+   `paymentPreference`; read there, the previous session's labelling is **correct**.
 
 3. [x] ✅ **THE TRUNCATED RELEASE NOTES DID REACH GOOGLE PLAY, AND ARE ALREADY SUPERSEDED** -
    ask `4a91468d` closed. Measured from the workflow logs: run 782 published *"- The credit card
