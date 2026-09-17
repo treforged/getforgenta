@@ -1,5 +1,163 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTIETH session). START AT ITEM 1.
+
+**READ THIS FIRST: THE QUEUE A SessionStart HOOK INJECTS IS STALE.** It opens with a `net=`
+reading and a truncated Balances pill. **Both are CLOSED with evidence** (`4d923cfe`,
+`c61a479a`) - I checked the tracker rather than the prose. Where a hook's queue and the tracker
+disagree, the disagreement is the finding.
+
+1. [ ] 🔴 **THE gh TOKEN IS STILL DEAD - NOTHING REACHES HIS PHONE UNTIL HE FIXES IT.**
+   Ask `8c716442`. **I re-measured it myself this session rather than relaying it:**
+   `gh auth status` reads *"The token in default is invalid."* Otto reports the same from
+   reel-routine (his ask `50531340`, six commits stuck local) and Sam has confirmed it
+   independently - **three desks, one cause.**
+   **CONSEQUENCE: VERSION 6.7.0 IS ON ORIGIN AND IN NO BUILD**, because a push builds and never
+   uploads here. His hands only: `gh auth login -h github.com`. The moment it is back:
+       gh workflow run "iOS Build & Upload to App Store" --ref main
+   then read **step 20's OWN conclusion** (`success`, never `skipped`) AND altool's
+   `UPLOAD SUCCEEDED with no errors` - the step swallows Apple's 90382 cap error into a warning
+   and still exits green.
+
+2. [ ] 💵 **THE MONTH-0 PURCHASES FIX IS BUILT AND MEASURED - FINISH THE 4 ASSERTIONS AND SHIP.**
+   Ask `ec4c1a2b`, which now carries the whole measurement. **Do not re-derive any of it.**
+   The diff is preserved verbatim below. `tsc` clean; `test:tz` **4812 passed / 4 failed** across
+   479 files, all four in `src/lib/__tests__/payment-pin-semantics.test.ts`.
+   ⚠️ **THOSE FOUR ARE NOT STALE NUMBERS TO REPASTE.** Two of that file's PROSE invariants moved:
+   pins no longer move the payoff date at all (14/14/15 -> 16/16/16), and "a pin never increases
+   total cash to debt" is breached by **$1.75 unrounded** - dust, but it breaches an exact
+   `toBeLessThanOrEqual`. That file's own header says read the failure before changing the number.
+   **THE HUGE DEMO SWING IS THE FIXTURE'S CLOCK, NOT THE FIX** - measured at three clocks:
+   `NOW=Sep 03` sweeps ~27 days into month 0 (ledger 20268), `Sep 17` almost nothing (19850),
+   `Sep 27` (19409). **On Tre's own data at Sep 17 the change is the $50 Eating Out and nothing
+   else** - exactly what he reported missing.
+   **ALREADY CHECKED, DO NOT CHASE IT:** d7's payments collapsing 764 -> 213 while its balance
+   climbs 415 -> 827 -> 1536 looks like the allocator starving a 24.74 percent card. It is not -
+   `clearsAt=7` shows the documented SAVE-UP-then-lump pattern.
+   **WHY IT WAS HELD RATHER THAN SHIPPED:** rewriting a money invariant at 04:00 on the page he
+   is testing, when **the dead gh token means no build could carry it to his phone tonight
+   anyway.** Holding cost nothing; shipping half-understood would have cost the invariant.
+
+<details><summary>THE PATCH - re-create with `git apply` (2 files, 94 lines)</summary>
+
+```diff
+diff --git a/src/hooks/useCardProjection.ts b/src/hooks/useCardProjection.ts
+index f727b745..840c4840 100644
+--- a/src/hooks/useCardProjection.ts
++++ b/src/hooks/useCardProjection.ts
+@@ -310,26 +310,43 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
+       for (let i = 0; i < PROJECTION_MONTHS; i++) {
+         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
++        // ⚠️ MONTH 0 IS NOT ZERO — it carries card spend dated AFTER the sync cutoff.
++        // The old reasoning was "the live card balance already includes this month's
++        // purchases". That holds for spend that has POSTED and is false for spend still
++        // to come, and the whole of month 0 was skipped on it. Measured cost on Tre's own
++        // card (2026-09-17): Groceries $230 on the 13th had posted and sat inside the
++        // $211.62 balance, but EATING OUT $50 ON THE 28th was invisible everywhere — not
++        // in the September row, not in the balance, and not in the always-pay-in-full
++        // obligation. This is the same correction `oneTimeArr` below already carries for
++        // the funding side, where zeroing all of month 0 put Dashboard MONTH-END CASH
++        // $172.50 under Forecast END CASH.
++        // The cutoff is the SYNC cutoff, not today: the balance is only as current as the
++        // last sync, so "after the cutoff" is exactly "not in the balance yet". A rule
++        // occurrence the user has confirmed a real transaction already paid HAS posted, so
++        // it is excluded — the same evidence, and the same gate, the cash side applies.
++        const cutoff = syncCutoffDate ?? todayStr;
+         const eventsInMonth = scheduledEvents.filter(e =>
+-          e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
++          e.date.startsWith(monthKey) && (i > 0 || e.date > cutoff),
+         );
+         const cardPurchases: { [cardId: string]: number } = {};
+-        if (i > 0) {
+-          for (const card of cards) {
+-            const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
+-            const scheduledAmt = eventsInMonth
+-              .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
+-              .reduce((s, e) => s + e.amount, 0);
+-            const oneTimeCCAmt = transactions
+-              .filter(t =>
+-                !t.isGenerated &&
+-                t.date?.startsWith(monthKey) &&
+-                t.type === 'expense' &&
+-                (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
+-              )
+-              .reduce((s, t) => s + Number(t.amount), 0);
+-            cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
+-          }
++        for (const card of cards) {
++          const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
++          const scheduledAmt = eventsInMonth
++            .filter(e =>
++              e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId) &&
++              (i > 0 || !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmed)),
++            )
++            .reduce((s, e) => s + e.amount, 0);
++          const oneTimeCCAmt = transactions
++            .filter(t =>
++              !t.isGenerated &&
++              t.date?.startsWith(monthKey) &&
++              (i > 0 || (t.date ?? '') > cutoff) &&
++              t.type === 'expense' &&
++              (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
++            )
++            .reduce((s, t) => s + Number(t.amount), 0);
++          cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
+         }
+         cardPurchasesPerMonth.push(cardPurchases);
+       }
+diff --git a/src/lib/credit-card-engine.ts b/src/lib/credit-card-engine.ts
+index 82316168..7bcb31ac 100644
+--- a/src/lib/credit-card-engine.ts
++++ b/src/lib/credit-card-engine.ts
+@@ -739,7 +739,11 @@ export function projectCardVariable(
+    * Optional per-month purchase amounts for this card (index = m-1, same as monthlyPayments).
+    * When provided, overrides card.monthlyNewPurchases so one-time CC transactions are
+    * reflected in the Purchases column of the projection table.
+-   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0) — should be 0.
++   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0).
++   * ⚠️ It is NO LONGER required to be 0. It carries card-routed spend dated after the sync
++   * cutoff — spend that is still to come this month and is therefore NOT in the live balance.
++   * The sim reads the SAME array element (`cardPurchasesThisMonth`, below), so the display and
++   * the sim move together and the divergence this flag guards against cannot open up.
+    * purchasesPerMonth[1] corresponds to projection month 2 (sim month 1), etc.
+    */
+   purchasesPerMonth?: number[],
+@@ -1450,7 +1454,10 @@ export function simulateVariablePayoff(
+     };
+ 
+     // Per-card CC purchases this month.
+-    // Month 0 = 0: live card.balance already includes today's purchases.
++    // ⚠️ Month 0 is NOT 0 when the caller supplies cardPurchasesPerMonth. The live card.balance
++    // includes what has POSTED this month, not what is still to come, so month 0 carries
++    // card-routed spend dated after the sync cutoff. The `m === 0 ? 0` fallback below applies
++    // only when no per-month figures were supplied at all.
+     // Returns 0 for cards that haven't reached their start month yet.
+     const cardPurchasesThisMonth = (c: CardData): number => {
+       if ((cardStartMonths.get(c.id) ?? 0) > m) return 0;
+```
+
+</details>
+
+3. [ ] 🎨 **THE PRESENTATION HALF IS STILL HIS CALL** (`dbdc6d54`). What the September row shows
+   and what the columns are called. Two readings lead to materially different screens, so it is
+   not mine to pick. **It is separate from item 2**, which is a data correctness fix he asked for
+   verbatim - that distinction is what let item 2 be built without waiting on him.
+
+4. [ ] 📨 **OTTO IS ANSWERED AND CLOSED OUT.** I replied this session; he acknowledged and wants
+   nothing back. `663274d7` stays NEEDS TRE - all five reel items are his App Store Connect
+   console or already built; none is a code change here.
+
+5. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED** (section below). Nothing
+   renders `<FriendLink />`; the `?friend_code=` landing is alive on purpose; re-measure the
+   0 live unaccepted rows before deleting; keep `active_friend_ids()`.
+
+6. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT**
+   (`f22f17b1`, and Sam's `8a202850`).
+
+<details><summary>Nineteenth session's queue, superseded - items 1 and 2 of it are DONE</summary>
+
+
 ## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, NINETEENTH session). START AT ITEM 1.
 
 **TRE IS AWAKE AND TYPING INTO THIS DESK.** The eighteenth session handed over mid-conversation
@@ -6281,3 +6439,5 @@ a3da382d [debt]: the credit limit is stated once, not twice
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+</details>
