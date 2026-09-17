@@ -36,27 +36,33 @@ const DEFAULT_PATH = '/dashboard';
 /**
  * The query parameter `LearnCard` reads to open one lesson.
  *
- * A lesson has no URL of its own: it is local state (`openLessonId`) inside a dashboard card. A
- * param is the smallest honest way to address one from outside, and it makes lessons linkable in
- * general rather than only from a notification.
+ * A lesson has no URL of its own: it is local state (`openLessonId`) inside the card. A param is
+ * the smallest honest way to address one from outside, and it makes lessons linkable in general
+ * rather than only from a notification.
  */
 export const LESSON_PARAM = 'lesson';
 
+/** Where the Learn card lives as of 2026-09-17 — a SECTION of /account, not a dashboard widget. */
+const LEARN_PATH = '/account';
+
 /**
- * ⚠️ KNOWN HOLE, MEASURED 2026-09-05 AND NOT YET CLOSED. `?lesson=` is consumed by `LearnCard`,
- * which is a CUSTOMISABLE DASHBOARD WIDGET (`dashboard-widgets.ts`, id `learn`). It is on by
- * default and last in the default order — but a person who removes it from their dashboard makes
- * the param unconsumable, and the tap then lands on `/dashboard` and does nothing visible.
+ * ⚠️ THE HOLE THIS BLOCK USED TO DESCRIBE IS GONE BY CONSTRUCTION AS OF 2026-09-17, AND THE
+ * HISTORY IS KEPT BECAUSE IT EXPLAINS WHY THE DESTINATION MOVED.
  *
- * CLOSED 2026-09-05: `Dashboard.tsx` appends the `learn` widget for that render when the param is
- * present, so a link always has somewhere to land.
+ * It read: `?lesson=` is consumed by `LearnCard`, which was a CUSTOMISABLE DASHBOARD WIDGET, so a
+ * person who removed it made the param unconsumable and the tap landed on `/dashboard` and did
+ * nothing visible. That was patched on 2026-09-05 by appending the widget for one render — a real
+ * fix, and one explicitly labelled REASONED RATHER THAN MEASURED, because `/demo` cannot tell it
+ * working from it doing nothing.
  *
- * ⚠️ REASONED, NOT MEASURED, and the reason the obvious test fails is worth keeping. `/demo` looks
- * like the failing environment because the Learn card is absent there — but it is absent for a
- * DIFFERENT reason: `useLearnProgress` is `enabled: !isDemo && !!user`, so the card returns null on
- * its own loading guard whatever the layout says. Demo cannot tell this fix working from it doing
- * nothing. **What would verify it: a signed-in account with the Learn widget switched OFF, then
- * `/dashboard?lesson=what-a-cash-floor-is`.**
+ * Tre moved the Learn card into its own section of /account on 2026-09-17 ("not like the whole tab
+ * section ... the dashboard is getting to the point where it['s an] overload of information"). A
+ * SECTION cannot be removed and cannot be customised away, so there is no longer a layout in which
+ * the reader is absent. The append was deleted with the widget.
+ *
+ * ⚠️ MOVING THE CARD WITHOUT MOVING THIS ROUTE WOULD HAVE SILENTLY RE-OPENED THE ORIGINAL HOLE,
+ * for EVERY user rather than only those who had customised — a `learn_lesson` tap landing on a
+ * page with nothing to consume the param. That is why the two changes are one commit.
  */
 
 /**
@@ -77,14 +83,17 @@ export function routeForNotificationKey(key: string | null | undefined): Notific
       const lessonId = rest.join(':');
       return {
         path: lessonId
-          ? `${DEFAULT_PATH}?${LESSON_PARAM}=${encodeURIComponent(lessonId)}`
-          : DEFAULT_PATH,
+          ? `${LEARN_PATH}?${LESSON_PARAM}=${encodeURIComponent(lessonId)}`
+          : LEARN_PATH,
         recognised: true,
       };
     }
-    // The streak lives on the same card as the lessons, so the dashboard IS the destination —
-    // deliberately, not by falling through to the default.
+    // The streak lives on the same card as the lessons, so it follows them to /account —
+    // deliberately, not by falling through to the default. A streak notification landing on the
+    // dashboard would show the person a page that no longer carries their streak at all.
     case 'streak_risk':
+      return { path: LEARN_PATH, recognised: true };
+
     case 'weekly_checkin':
     case 'floor_risk':
     case 'milestone':

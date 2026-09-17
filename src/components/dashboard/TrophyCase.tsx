@@ -94,7 +94,13 @@ export default function TrophyCase() {
               <li key={a.id} className="flex items-start gap-2.5 rounded-lg bg-muted/30 p-2.5">
                 <div
                   className="p-1.5 bg-primary/10 border border-primary/20 shrink-0"
-                  style={{ borderRadius: 'var(--radius)' }}
+                  // ⚠️ DERIVED, NOT THE BARE TOKEN, AND THIS IS THE CASE WHERE THE RULE BINDS.
+                  // The tile above is `rounded-lg` (12px) with `p-2.5` (9px), so the gap is
+                  // SMALLER than the radius and the two arcs share corner space — unlike the
+                  // outer card, where 16px of padding against 12px puts them entirely clear.
+                  // Reusing `var(--radius)` here pinched the corner, and the concentricity gate
+                  // caught it. `max(0px, ...)` keeps it correct if the padding ever changes.
+                  style={{ borderRadius: 'max(0px, calc(var(--radius) - 0.625rem))' }}
                 >
                   <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
                 </div>

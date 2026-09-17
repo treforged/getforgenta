@@ -68,7 +68,7 @@ import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
-import LearnCard from '@/components/dashboard/LearnCard';
+import NextLessonRow from '@/components/dashboard/NextLessonRow';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
@@ -90,7 +90,6 @@ import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
 import { widgetLabel, type WidgetId } from '@/lib/dashboard-widgets';
-import { LESSON_PARAM } from '@/lib/notification-routes';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 // LAZY, not a plain import. Accounts was its own route chunk until today; importing it statically
 // folded ~40 kB of it into the Dashboard's chunk, i.e. every Overview paint paid for a panel most
@@ -233,32 +232,21 @@ export default function Dashboard() {
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
 
   /**
-   * ⚠️ A DEEP-LINKED LESSON MUST OPEN EVEN IF THE LEARN CARD IS HIDDEN.
+   * ⚠️ THE `?lesson=` APPEND IS GONE, AND ITS WHOLE PROBLEM WENT WITH IT (2026-09-17).
    *
-   * `?lesson=<id>` is consumed by `LearnCard`, and `learn` is a REMOVABLE widget. So a person who
-   * takes it off their dashboard taps "a 2-minute lesson" in a notification and lands here with
-   * nothing to consume the param — the tap does nothing, silently, which is the exact shape the
-   * deep-linking work exists to remove.
+   * It existed because `learn` was a REMOVABLE widget: somebody who took it off their dashboard
+   * taps "a 2-minute lesson" in a notification, lands here with nothing to consume the param, and
+   * nothing visible happens. The card was appended for one render so a link always had a landing
+   * place. It was also the one part of that work labelled REASONED RATHER THAN MEASURED, because
+   * `/demo` cannot distinguish the fix working from it doing nothing.
    *
-   * The card is appended for THIS RENDER ONLY, so a link always has somewhere to land and nobody's
-   * saved layout is edited behind their back.
-   *
-   * ⚠️ NOT VERIFIED IN A BROWSER, AND HERE IS EXACTLY WHY, because the obvious test does not work.
-   * `/demo` looks like the failing environment — the Learn card is absent there — but it is absent
-   * for a DIFFERENT reason: `useLearnProgress` is `enabled: !isDemo && !!user`, so the query never
-   * runs and `LearnCard` returns null on its own loading guard, whatever the layout says. Demo
-   * therefore cannot distinguish this fix working from it doing nothing, which makes it worse than
-   * no test. `DEFAULT_LAYOUT` also marks every widget visible, so a default account never hits
-   * this path either.
-   * **What WOULD verify it: a signed-in account with the Learn widget switched OFF in Customize,
-   * then `/dashboard?lesson=what-a-cash-floor-is`.** Until somebody does that, this is reasoned
-   * and not measured, and it is labelled that way rather than counted as evidence.
+   * The reader now lives in the Learn section of /account, which is NOT removable and NOT
+   * customisable, so `routeForNotificationKey` points `learn_lesson` there and Account forces
+   * that section when the param arrives. There is no layout in which the destination is absent,
+   * which is a stronger guarantee than the append ever gave — and it is measurable, which the
+   * append was not.
    */
-  const widgetsToRender = useMemo(() => (
-    searchParams.has(LESSON_PARAM) && !visibleWidgets.includes('learn')
-      ? ([...visibleWidgets, 'learn'] as WidgetId[])
-      : visibleWidgets
-  ), [visibleWidgets, searchParams]);
+  const widgetsToRender = visibleWidgets;
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
   useEffect(() => {
@@ -1522,12 +1510,11 @@ export default function Dashboard() {
           />
         );
 
-      // Learn: financial lessons + one achievement each. It reads and writes only
-      // `learn_progress`, so it needs nothing from this page's figures — which is also why it is
-      // safe to render for an account whose money data is still loading.
-      case 'learn':
-        return <LearnCard key="learn" />;
-
+      // ⚠️ THERE IS NO `learn` CASE ANY MORE. The card moved to the Learn section of /account on
+      // 2026-09-17 and `learn` left `dashboard-widgets.ts` with it; what remains on this page is
+      // `NextLessonRow`, rendered below the stack rather than inside it. A stale saved layout
+      // still naming `learn` is dropped by `mergeSavedLayout`, which filters every stored id
+      // against WIDGET_META — the same path the achievements widget took hours earlier.
 
       default:
         return null;
@@ -1823,6 +1810,17 @@ export default function Dashboard() {
           <Widget id={id} render={renderWidget} />
         </ErrorBoundary>
       ))}
+
+      {/* ⚠️ LAST, AND DELIBERATELY NOT A WIDGET. Tre, 2026-09-17: the Learn card moved to its own
+          section of /account because "the dashboard is getting to the point where it['s an]
+          overload of information when it's supposed to be a quick snappy what needs to be paid
+          next". What he asked to keep here is "the next up learning task but not like the whole
+          tab section", so this is one line and it cannot be customised away — it is the only
+          remaining route from this page into the loop. Its own boundary for the same reason every
+          widget has one: a crash here must not take the money cards with it. */}
+      <ErrorBoundary variant="widget" label="Next lesson">
+        <NextLessonRow />
+      </ErrorBoundary>
       </div>
       </div>
       )}

@@ -8,8 +8,7 @@ export type WidgetId =
   | 'transactions_spending'
   | 'goal_progress'
   | 'advanced_analytics'
-  | 'debt_recommendations'
-  | 'learn';
+  | 'debt_recommendations';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -82,13 +81,19 @@ export const WIDGET_META: WidgetMeta[] = [
     label: 'Debt Recommendations',
     description: 'Recommended debt payments this month — safe to pay, minimums, and per-card breakdown',
   },
-  {
-    // Added 2026-09-02. Last in the default order on purpose: it is the only card that is not
-    // about this user's own money, so it must never sit above the ones that are.
-    id: 'learn',
-    label: 'Learn',
-    description: 'Short financial lessons with an achievement for each one you finish, and a streak for reading consistently',
-  },
+  // ⚠️ THE LEARN WIDGET WAS REMOVED FROM THIS LIST ON 2026-09-17, hours after the achievements
+  // one and for the same stated reason. Tre: "we should put the learn section in the accounts tab
+  // as its own section instead of having it on the home overview dashboard maybe like the most or
+  // the next up learning task but not like the whole tab section because it seems like the
+  // dashboard is getting to the point where it['s an] overload of information when it's supposed
+  // to be a quick snappy what needs to be paid next". `LearnCard` is now the Learn SECTION of
+  // /account; what remains on the dashboard is `NextLessonRow`, one line, rendered BELOW this
+  // stack and deliberately not registered here - a removable "next up" line would reintroduce the
+  // deep-link hole that `notification-routes.ts` closed once already.
+  //
+  // Saved layouts still carrying 'learn' need no migration, for the same reason: `mergeSavedLayout`
+  // filters every stored id against WIDGET_META, so a stale entry is dropped on read.
+
   // ⚠️ THE ACHIEVEMENTS WIDGET WAS REMOVED FROM THIS LIST ON 2026-09-17, on Tre's instruction:
   // "achievements shouldn't be on the home overview tab. It should just go on its own tab in the
   // section in the account tab." The trophy case now lives as a SECTION of /account, after

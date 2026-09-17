@@ -59,6 +59,15 @@ export default function LearnCard() {
     setSearchParams(next, { replace: true });
   };
 
+  /**
+   * ⚠️ `open` READS `effectiveOpenId`, NOT `openLessonId`, AND IT DID NOT UNTIL 2026-09-17.
+   *
+   * The reader below already resolves from `effectiveOpenId`, so a deep-linked lesson's BODY
+   * opened correctly while its row went on reporting `aria-expanded="false"`. Nothing looked
+   * wrong on screen - the text was there - so only a screen reader, and the browser gate that
+   * found this, could see the row and its own body disagreeing. Found by asserting the state
+   * rather than the presence of the text.
+   */
   /** Hand-opened wins; the deep link is only the starting position. */
   const setOpenLesson = (id: string | null) => {
     clearLessonParam();
@@ -121,7 +130,7 @@ export default function LearnCard() {
           lesson={progress.next}
           read={false}
           isNext
-          open={openLessonId === progress.next.id}
+          open={effectiveOpenId === progress.next.id}
           onToggle={() => setOpenLesson(effectiveOpenId === progress.next!.id ? null : progress.next!.id)}
         />
       ) : (
@@ -150,7 +159,7 @@ export default function LearnCard() {
             lesson={lesson}
             read={readSet.has(lesson.id)}
             isNext={false}
-            open={openLessonId === lesson.id}
+            open={effectiveOpenId === lesson.id}
             onToggle={() => setOpenLesson(effectiveOpenId === lesson.id ? null : lesson.id)}
           />
         ))}

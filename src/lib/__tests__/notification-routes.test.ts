@@ -20,13 +20,15 @@ describe('routeForNotificationKey', () => {
   it('⚠️ takes a lesson notification to THAT lesson, which is the tap that failed', () => {
     const r = routeForNotificationKey('learn_lesson:cash-floor');
     expect(r.recognised).toBe(true);
-    expect(r.path).toBe(`/dashboard?${LESSON_PARAM}=cash-floor`);
+    expect(r.path).toBe(`/account?${LESSON_PARAM}=cash-floor`);
   });
 
   it('keeps a lesson id containing a colon intact rather than truncating it', () => {
     // Splitting on every colon would route to a DIFFERENT lesson, which is worse than not routing.
     const r = routeForNotificationKey('learn_lesson:money:basics');
-    expect(r.path).toBe(`/dashboard?${LESSON_PARAM}=money%3Abasics`);
+    // /account since 2026-09-17: the Learn card is a SECTION there rather than a dashboard
+    // widget, and a lesson link must land where the reader actually is.
+    expect(r.path).toBe(`/account?${LESSON_PARAM}=money%3Abasics`);
   });
 
   it('sends a bill to the ledger, where a bill is acted on', () => {
@@ -39,14 +41,22 @@ describe('routeForNotificationKey', () => {
       .toEqual({ path: '/dashboard?tab=accounts', recognised: true });
   });
 
-  it('routes the four dashboard kinds DELIBERATELY, not by falling through', () => {
-    for (const key of ['streak_risk:2026-09-05', 'weekly_checkin:2026-09-05',
-                       'floor_risk:2026-10', 'milestone:2026-10:debt_free']) {
+  it('routes the three dashboard kinds DELIBERATELY, not by falling through', () => {
+    for (const key of ['weekly_checkin:2026-09-05', 'floor_risk:2026-10',
+                       'milestone:2026-10:debt_free']) {
       const r = routeForNotificationKey(key);
       expect(r.path, key).toBe('/dashboard');
       // `recognised` is what separates "we meant this" from "we had no idea".
       expect(r.recognised, key).toBe(true);
     }
+  });
+
+  it('⚠️ sends the STREAK to /account, because the streak moved with the card it lives on', () => {
+    // It was a dashboard kind until 2026-09-17. Leaving it behind would have sent somebody who
+    // tapped "keep your streak" to a page that no longer shows their streak at all — the link
+    // works, and does nothing visible, which is this file's recurring defect.
+    expect(routeForNotificationKey('streak_risk:2026-09-05'))
+      .toEqual({ path: '/account', recognised: true });
   });
 
   it('⚠️ never returns nowhere — every kind of rubbish still opens something', () => {
@@ -63,9 +73,9 @@ describe('routeForNotificationKey', () => {
     expect(routeForNotificationKey(null).recognised).toBe(false);
   });
 
-  it('does not claim to recognise a lesson key with no id, but still opens the dashboard', () => {
+  it('does not claim to recognise a lesson key with no id, but still opens the Learn section', () => {
     const r = routeForNotificationKey('learn_lesson:');
-    expect(r.path).toBe('/dashboard');
+    expect(r.path).toBe('/account');
     // The KIND was recognised even though the detail was empty — that is a sender bug, not an
     // unknown kind, and conflating the two would send the wrong person looking.
     expect(r.recognised).toBe(true);

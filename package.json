@@ -41,6 +41,7 @@
     "check:debt-limits": "node scripts/check-debt-limits.mjs",
     "check:trophy-case": "node scripts/check-trophy-case.mjs",
     "check:achievements-layout": "node scripts/check-achievements-layout.mjs",
+    "check:learn-home": "node scripts/check-learn-home.mjs",
     "check:account-rows": "node scripts/check-account-rows.mjs",
     "check:debt-rows": "node scripts/check-debt-rows.mjs",
     "check:debt-cycle-labels": "node scripts/check-debt-cycle-labels.mjs",

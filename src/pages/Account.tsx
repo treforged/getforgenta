@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
-import { User, Settings as SettingsIcon, Trophy, Award, Sparkles } from 'lucide-react';
+import { User, Settings as SettingsIcon, Trophy, Award, Sparkles, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFollows } from '@/hooks/useFollows';
@@ -9,6 +9,7 @@ import PanelBar from '@/components/shared/PanelBar';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
 import TrophyCase from '@/components/dashboard/TrophyCase';
+import LearnCard from '@/components/dashboard/LearnCard';
 import { FollowersPanel } from '@/components/settings/FollowersPanel';
 import { UsernameClaim } from '@/components/settings/UsernameClaim';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
@@ -20,7 +21,7 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
  */
 const AiAdvisor = lazy(() => import('./AiAdvisor'));
 
-type AccountSection = 'profile' | 'leaderboard' | 'achievements' | 'ai';
+type AccountSection = 'profile' | 'leaderboard' | 'achievements' | 'learn' | 'ai';
 
 /**
  * ⚠️ THE AI SECTION IS GATED ON THE SAME FLAG AS THE `/ai` ROUTE, and that is not a formality.
@@ -41,6 +42,7 @@ const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
   profile: true,
   leaderboard: true,
   achievements: true,
+  learn: true,
   ai: AI_ADVISOR_ENABLED,
 };
 
@@ -109,6 +111,10 @@ export default function Account() {
   useEffect(() => {
     const params = new URLSearchParams(search);
     if (params.get('friend_code') || params.get('partner_code')) setSection('profile');
+    // Same rule, new arrival: `?lesson=` is consumed by `LearnCard`, which now lives in the Learn
+    // section. Without this, a notification tap lands on whatever section was last persisted and
+    // the lesson opens on a screen nobody is looking at — working, and invisible.
+    if (params.get('lesson')) setSection('learn');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
@@ -169,6 +175,14 @@ export default function Account() {
           role="tab"
           className={`seg-item btn-press ${activeSection === 'achievements' ? 'seg-item-active' : ''}`}>
           <Award size={13} /> Achievements
+        </button>
+        {/* AFTER Achievements, because the badges are what the lessons pay out — a reader who has
+            just seen an empty trophy case is one segment away from the thing that fills it. */}
+        <button onClick={() => setSection('learn')}
+          aria-selected={activeSection === 'learn'}
+          role="tab"
+          className={`seg-item btn-press ${activeSection === 'learn' ? 'seg-item-active' : ''}`}>
+          <GraduationCap size={13} /> Learn
         </button>
         {SECTION_AVAILABLE.ai && (
           <button onClick={() => setSection('ai')}
@@ -254,6 +268,29 @@ export default function Account() {
           behaviour change; what matters is that there is exactly ONE of it and one mount.
         */
         <TrophyCase />
+      )}
+
+      {activeSection === 'learn' && (
+        /*
+          ⚠️ THE LEARN CARD'S ONLY HOME AS OF 2026-09-17. It was a Dashboard Overview widget from
+          2026-09-02 until Tre moved it here: "we should put the learn section in the accounts tab
+          as its own section instead of having it on the home overview dashboard ... because it
+          seems like the dashboard is getting to the point where it['s an] overload of information
+          when it's supposed to be a quick snappy what needs to be paid next".
+
+          ⚠️ IT IS THE SAME COMPONENT, NOT A COPY, and there is exactly one mount — the same rule
+          the trophy case above it follows. What stays on the dashboard is `NextLessonRow`, a
+          single line naming the next lesson, which he asked for by name ("maybe like the most or
+          the next up learning task but not like the whole tab section").
+
+          ⚠️ THIS SECTION IS NOW THE LANDING PLACE FOR `?lesson=`, so it cannot be gated on
+          anything. `routeForNotificationKey` sends both `learn_lesson` and `streak_risk` to
+          /account, and the effect below forces this section when the param arrives — without
+          that, a tap would land on whichever section was last persisted and the reader would open
+          somewhere nobody is looking. That is the same invisible-prefill defect this page already
+          records for the invite links.
+        */
+        <LearnCard />
       )}
 
       {activeSection === 'ai' && (
