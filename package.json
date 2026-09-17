@@ -40,6 +40,7 @@
     "check:followers": "node scripts/check-followers.mjs",
     "check:trophy-case": "node scripts/check-trophy-case.mjs",
     "check:account-rows": "node scripts/check-account-rows.mjs",
+    "check:debt-rows": "node scripts/check-debt-rows.mjs",
     "check:panel-rows": "node scripts/check-panel-rows.mjs",
     "check:desktop-rail": "node scripts/check-desktop-rail.mjs",
     "check:text-scale": "node scripts/check-text-scale.mjs"
