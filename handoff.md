@@ -39,17 +39,23 @@ green in a real browser.
    delayed the build for a cleanup. **Do it as its own slice, with its own gate, and leave a
    tombstone saying what it was.**
 
-3. [ ] 🎨 **THE BALANCES / LINKED BANKS PILL IS TRUNCATED.** Ask `c61a479a`, still open.
-   *"that pill is kind of truncated and it should all show at once without scrolling."*
-   ⚠️ **HE IS REJECTING THE FIX THAT SHIPPED.** `check:panel-rows` made a pill that does not fit
-   SCROLL - right for Debt's five segments, wrong here. The two-segment case must FIT while the
-   five-segment case still scrolls. Start at `src/pages/Accounts.tsx` and `.seg-track`; the width
-   is eaten by the count badge and by `+ Add Account` sharing the row.
-   ⚠️ Claude-in-Chrome's `resize_window` reports success and does nothing - use Playwright.
+3. [x] ~~**THE BALANCES / LINKED BANKS PILL**~~ - **ALREADY DONE**, ask `c61a479a`, commit
+   `2efe2cf1`. The two-segment pill needed 286px in 222px; it now needs 240px in 322px, and below
+   `sm` the `+ Add Account` button is icon-only (aria-label kept). `check:panel-rows` 10 bars PASS,
+   3 still overflowing **which is correct** - Debt's five segments are meant to scroll.
+4. [x] ~~**THE `net=` READING**~~ - **ALREADY ANSWERED**, ask `4d923cfe`. `net=up`, read
+   01:35:23Z on build 862: ios / timeout / attempts 186 / `permission=granted net=up`.
+   ⚠️ **READ IT FOR WHAT IT IS.** `net=up` means ordinary HTTPS worked at the moment APNs did not
+   answer. **It does NOT clear the network** - the probe never touches port 5223, which is what
+   APNs holds its connection on. Both recorded causes are fixed and shipped, so a 5223-level block
+   is now the leading candidate rather than a guess. Cadence (`384ca151`) stays blocked: no token
+   exists and the sender is still all `dry_run`.
 
-4. [ ] 🔎 **THE `net=` READING.** Ask `4d923cfe` - one query, `push_registration_status`.
-   `permission=granted` with NO `net=` means he has not re-opened the app since installing: that
-   is **not measured**, never "nothing wrong".
+⚠️ **I CARRIED BOTH OF THOSE IN AS OPEN AND THEY WERE CLOSED HOURS EARLIER** - they came from a
+superseded queue, and the tracker disagreed with the handoff. **When a handoff and the tracker
+disagree, the disagreement IS the finding**, and the cheap check is one `asks.py show <id>`
+before spending a minute on the item. Left here marked rather than deleted, so the next session
+does not rediscover them a third time.
 
 ### ⚠️ FOUR PREMISES IN THE LAST HANDOFF WERE FALSE. TEST THE ONES BELOW TOO.
 
