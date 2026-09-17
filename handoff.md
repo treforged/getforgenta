@@ -9,7 +9,24 @@ hook so he sends you an update and Sam re-prompts; **perform the behaviour wheth
 exists yet** - message Sam your update AND what you want to work on next, then keep working
 without waiting for his answer.
 
-1. [~] 🔴 **FIRST UP - PART 3 OF HIS ACHIEVEMENTS ASK `f932a210`, IN FLIGHT.**
+1. [ ] 🔥 **FIRST UP - HE IS LOOKING AT THIS SCREEN RIGHT NOW. Ask `b4dad101`.**
+   Sent 2026-09-17 ~20:35, minutes after `df59cc52` put the trophy case on `/account`, verbatim:
+   *"format the achievements better give them better icon/images and space the amount so there's a
+   less intense space like on that achievements page because there's a lot of blank space in those
+   boxes"*.
+   **Three parts:** better ICONS/IMAGES per badge (today they are generic), TIGHTER SPACING inside
+   each badge box, and the boxes are too airy for their content.
+   **Surface:** `src/components/dashboard/TrophyCase.tsx` (still under `components/dashboard/`;
+   moving the file is a rename and was deliberately not bundled with the behaviour change).
+   ⚠️ **THIS IS THE FOURTH TIME HE HAS REPORTED WASTED SPACE IN A BOX** - accounts
+   descriptions, the debt purchases text, the settings pill, now this. **Treat the CLASS as the
+   finding rather than this one screen**, and `npm run check:topright` is the instrument this desk
+   already has for it. **Sam's two conditions for this class, given 2026-09-17: acceptance is a
+   RENDERED FRAME AT 2x IN BOTH THEMES** (a downscaled screenshot is a lossy instrument for
+   colour), **and measure whether corner-concentricity actually binds** - applied literally where
+   `gap >= r_outer` it flagged 17 sites here and would have squared every button.
+
+2. [~] 🔴 **PART 3 OF HIS ACHIEVEMENTS ASK `f932a210`, IN FLIGHT.**
    Parts 1 and 2 SHIPPED (`df59cc52`): the trophy case is off the Dashboard Overview and is now the
    **Achievements** segment of `/account`, after Leaderboard. Part 3 is *"add to leaderboard the
    ranking of people based on how many achievements they have"*.
@@ -34,7 +51,7 @@ without waiting for his answer.
    "First follower, 5 followers, 10 followers, Following, Following 5" on screen. His earlier ask
    for those is satisfied; do not rebuild them.
 
-2. [ ] 📱 **CONFIRM THE iOS BUILD REACHED TESTFLIGHT - run `35271194595`, dispatched
+3. [ ] 📱 **CONFIRM THE iOS BUILD REACHED TESTFLIGHT - run `35271194595`, dispatched
    2026-09-17 20:30Z.** It carries `df59cc52` (the achievements move), which he will look for.
    **READ THE UPLOAD STEP'S OWN CONCLUSION, NEVER THE RUN'S** - `gh run view 35271194595 --json
    jobs` and require step *"Upload to App Store Connect"* to read `success`, not `skipped`. It was
@@ -43,21 +60,21 @@ without waiting for his answer.
    documented trap. Then read altool's own *"UPLOAD SUCCEEDED with no errors"*, and check any
    90382 hits are echoed script source rather than real output. **An upload is not an install.**
 
-3. [ ] 🧪 **ADOPT THE CAPTURE - ONE JUDGEMENT LEFT, RE-PINS ALREADY MEASURED.** Ask
+4. [ ] 🧪 **ADOPT THE CAPTURE - ONE JUDGEMENT LEFT, RE-PINS ALREADY MEASURED.** Ask
    `5409ffbc`. Adopt **`STATEMENT-2026-09-17`, never `FRESH`**. Apply: `floorDeficit` shock
    **3000 -> 500**; `floorFlicker` shock **8000 -> 2000** and its hardcoded **`ABSORBED = 3000 ->
    ~840`**. Both are capacity facts, swept and recorded below. The remaining judgement is whether
    to re-pin `realData`'s payoff `Sep 2028 -> Apr 2029`, which is **UNEXPLAINED** - see the
    baseline in item 2's block below before deciding, and note I retracted two attributions of it.
 
-4. [ ] 📉 **A REAL FINDING FOR TRE, NOT A TEST FACT, AND NOBODY HAS TOLD HIM THE SECOND
+5. [ ] 📉 **A REAL FINDING FOR TRE, NOT A TEST FACT, AND NOBODY HAS TOLD HIM THE SECOND
    HALF.** Ask `5db705de`. His card debt has gone **$10,591 (07-03) -> $19,311 (09-17)**, +82%,
    while projected months-to-payoff went **11 -> 31**. And his absorbable April shock has fallen
    from **$3,000 to under $840** in sixteen days (ask `5409ffbc`). Both are measured from his own
    captures. **This is the product doing its job; consider surfacing it IN the app rather than
    only in a ledger.**
 
-5. [ ] 🧹 **`zz-diagnostic.robinhoodNextPayment.test.ts` is still named like scratch and is
+6. [ ] 🧹 **`zz-diagnostic.robinhoodNextPayment.test.ts` is still named like scratch and is
    not** - 7 real assertions. Renaming it is a separate, riskier change than the deletion already
    done (`e5baef36`); do it deliberately or leave it.
 
