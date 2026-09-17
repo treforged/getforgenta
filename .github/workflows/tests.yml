@@ -30,6 +30,17 @@ concurrency:
 
 jobs:
   web:
+    # LEAST PRIVILEGE, STATED AT THE JOB. Nothing here writes anything: it checks out,
+    # installs and runs. `actions/upload-artifact` uses the Actions runtime token rather than
+    # GITHUB_TOKEN, so it needs nothing here either.
+    # ⚠️ BE HONEST ABOUT WHAT THIS BUYS. Measured 2026-09-17, this repo's
+    # `default_workflow_permissions` is already `read`, so today this grants no less than the
+    # job already had. It is worth writing anyway for one reason: that default is a REPO-LEVEL
+    # SETTING that a single click can flip to read/write, and on that day every job with no
+    # block silently gains the ability to push. An explicit block does not move when the
+    # default does. (CodeQL: actions/missing-workflow-permissions)
+    permissions:
+      contents: read
     name: Web (typecheck, lint, vitest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -108,6 +119,17 @@ jobs:
           fi
 
   android:
+    # LEAST PRIVILEGE, STATED AT THE JOB. Nothing here writes anything: it checks out,
+    # installs and runs. `actions/upload-artifact` uses the Actions runtime token rather than
+    # GITHUB_TOKEN, so it needs nothing here either.
+    # ⚠️ BE HONEST ABOUT WHAT THIS BUYS. Measured 2026-09-17, this repo's
+    # `default_workflow_permissions` is already `read`, so today this grants no less than the
+    # job already had. It is worth writing anyway for one reason: that default is a REPO-LEVEL
+    # SETTING that a single click can flip to read/write, and on that day every job with no
+    # block silently gains the ability to push. An explicit block does not move when the
+    # default does. (CodeQL: actions/missing-workflow-permissions)
+    permissions:
+      contents: read
     name: Android (JVM unit tests)
     runs-on: ubuntu-latest
     timeout-minutes: 20
