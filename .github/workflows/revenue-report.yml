@@ -35,11 +35,44 @@ jobs:
 
       # No `npm ci`. The script uses only Node built-ins (crypto, zlib, fetch), so installing the
       # repo's dependencies would add minutes and a supply-chain surface for nothing.
+      # ⚠️ A SALES-AND-REPORTS KEY, AND DELIBERATELY NOT THE UPLOAD KEY.
+      # Until 2026-09-17 this job read APP_STORE_CONNECT_API_* - THE SAME THREE SECRETS
+      # `ios-build.yml` writes to a .p8 and hands to altool as --apiKey / --apiIssuer. Replacing
+      # those with a Sales-and-Reports key would have left this report working and TestFlight
+      # SILENTLY DEAD: the upload step swallows its own failures into a warning, so the run would
+      # still have gone green while Tre's only route to seeing a mobile fix was gone.
+      # An App Store Connect key's role cannot be edited after it is created, so the two purposes
+      # need two keys. These names exist so the upload key is never touched again.
+      #
+      # ⚠️ NO FALLBACK TO THE UPLOAD SECRETS, on purpose. A silent fallback makes a missing sales
+      # key look exactly like Apple's 403, which is the confusion that has already cost a day here.
+      # The guard below fails BY NAME on stderr instead.
+      - name: Require the sales key, by name
+        env:
+          SALES_KEY_ID: ${{ secrets.APP_STORE_CONNECT_SALES_KEY_ID }}
+          SALES_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_SALES_ISSUER_ID }}
+          SALES_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_SALES_KEY_CONTENT }}
+        run: |
+          missing=""
+          [ -n "$SALES_KEY_ID" ]      || missing="$missing APP_STORE_CONNECT_SALES_KEY_ID"
+          [ -n "$SALES_ISSUER_ID" ]   || missing="$missing APP_STORE_CONNECT_SALES_ISSUER_ID"
+          [ -n "$SALES_KEY_CONTENT" ] || missing="$missing APP_STORE_CONNECT_SALES_KEY_CONTENT"
+          if [ -n "$missing" ]; then
+            echo "FAIL: no Sales and Reports key is configured. Missing:$missing" >&2
+            echo "This is a DECISION, not a wall: mint a Sales-and-Reports key in App Store" >&2
+            echo "Connect and add it under those names. Do NOT reuse APP_STORE_CONNECT_API_*," >&2
+            echo "which ios-build.yml hands to altool for the TestFlight upload." >&2
+            exit 1
+          fi
+          echo "sales key present under all three APP_STORE_CONNECT_SALES_* names"
+
       - name: Read App Store proceeds
         env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          # Mapped onto the names the script already reads, so `app-store-revenue.mjs` is
+          # untouched and keeps failing by name on its own.
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_SALES_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_SALES_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_SALES_KEY_CONTENT }}
           # Not a credential -- it identifies the selling entity and grants nothing on its own --
           # but it is held as a secret so the account number does not sit in a public repo's logs.
           APP_STORE_VENDOR_NUMBER: ${{ secrets.APP_STORE_VENDOR_NUMBER }}
