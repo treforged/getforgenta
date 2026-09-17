@@ -6,7 +6,7 @@
  * `request_follow` RPC.  Declining a request or unfollowing simply removes the
  * row, which is why `removeFollow` performs a DELETE for both cases.
  */
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { writeBlockedError } from '@/lib/write-guard';
 
 export const FOLLOWS_QUERY_KEY = 'follows';
+export const FOLLOW_PROFILES_QUERY_KEY = 'follow_profiles';
 
 export interface FollowRow {
   id: string;
@@ -23,6 +24,13 @@ export interface FollowRow {
   status: 'pending' | 'accepted';
   created_at: string;
   responded_at: string | null;
+}
+
+/** A name for somebody in your own follow graph. */
+export interface FollowPerson {
+  user_id: string;
+  username: string | null;
+  display_name: string | null;
 }
 
 export interface FoundProfile {
@@ -97,6 +105,61 @@ export function useFollows() {
     return { following, followers, incomingRequests, outgoingRequests };
   }, [followsQuery.data, user?.id]);
 
+  /**
+   * NAMES FOR THE PEOPLE IN YOUR OWN GRAPH.
+   *
+   * ⚠️ WITHOUT THIS EVERY ROW READS "A Forgenta member #3f2a91c4". A `follows` row carries only
+   * user ids, so the id is all the client has; `follow_profiles()` is a SECURITY DEFINER RPC that
+   * returns a name ONLY for somebody the caller already has a follows row with. It adds a name to
+   * an id they can already see and cannot be used to enumerate anybody.
+   */
+  const profilesQuery = useQuery({
+    queryKey: [FOLLOW_PROFILES_QUERY_KEY, isDemo ? 'demo' : user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('follow_profiles');
+      if (error) throw error;
+      return (data ?? []) as FollowPerson[];
+    },
+    enabled: !isDemo && !!user,
+  });
+
+  /** id -> the best label we have. Built once per change, not per row. */
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of profilesQuery.data ?? []) {
+      // display_name first, then @username. Both can be null, and a row with neither keeps the
+      // honest fallback below rather than rendering an empty string.
+      const label = p.display_name?.trim() || (p.username ? `@${p.username}` : '');
+      if (label) m.set(p.user_id, label);
+    }
+    return m;
+  }, [profilesQuery.data]);
+
+  /**
+   * The label for a counterparty. Falls back to a short id reference rather than inventing a
+   * name or rendering a bare uuid - both of which are worse than saying plainly that the name
+   * is not known here.
+   */
+  const labelFor = useCallback(
+    (userId: string) => nameById.get(userId) ?? `A Forgenta member #${userId.slice(0, 8)}`,
+    [nameById],
+  );
+
+  /**
+   * MUTUAL follows - the people who also follow you back.
+   *
+   * ⚠️ THIS IS THE SET THAT CAN SEE YOUR PUBLISHED FIGURES, and mutuality is exactly why that is
+   * safe: each side followed deliberately, so the bilateral consent that `friend_links` had is
+   * preserved. A one-directional follow is NOT in here and must not be added - see
+   * supabase/migrations/20260917_follows_become_the_friend_graph.sql.
+   */
+  const mutuals = useMemo(() => {
+    const followingIds = new Set(following.map((r) => r.followee_id));
+    return followers
+      .filter((r) => followingIds.has(r.follower_id))
+      .map((r) => ({ userId: r.follower_id, label: labelFor(r.follower_id) }));
+  }, [followers, following, labelFor]);
+
   // ------------------------------------------------------------
   // Mutations
   // ------------------------------------------------------------
@@ -104,6 +167,9 @@ export function useFollows() {
   // Helper to invalidate the follows cache after any successful change.
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [FOLLOWS_QUERY_KEY, isDemo ? 'demo' : user?.id] });
+    // ⚠️ THE NAMES TOO. Without this a follow you have just made stays "A Forgenta member"
+    // until the next reload, because its profile row was not in the cached set.
+    queryClient.invalidateQueries({ queryKey: [FOLLOW_PROFILES_QUERY_KEY, isDemo ? 'demo' : user?.id] });
   };
 
   const requestFollowMutation = useMutation({
@@ -206,6 +272,8 @@ export function useFollows() {
     incomingRequests,
     outgoingRequests,
     isLoading: followsQuery.isLoading,
+    labelFor,
+    mutuals,
     requestFollow: requestFollowMutation.mutate,
     approveRequest: approveRequestMutation.mutate,
     removeFollow: removeFollowMutation.mutate,
