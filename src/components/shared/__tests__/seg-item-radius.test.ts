@@ -91,8 +91,30 @@ describe('the segmented control keeps one shape', () => {
 
   it('declares the pill exactly once, in the utility', () => {
     const css = readFileSync(join(SRC, 'index.css'), 'utf8');
-    const block = css.slice(css.indexOf('@utility seg' + '-item {'));
-    expect(block.slice(0, 600)).toContain('border-radius: 9999px');
+    const start = css.indexOf('@utility seg' + '-item {');
+    expect(start).toBeGreaterThan(-1);
+
+    // ⚠️ READ TO THE CLOSING BRACE, NOT TO A MAGIC 600 CHARACTERS. This used to slice a fixed
+    // window, and on 2026-09-16 a comment added INSIDE the utility pushed `border-radius` past
+    // character 600 and turned a correct file red. A gate that extracts before it asserts is
+    // only as good as its extraction, and an arbitrary constant silently decides what gets
+    // asserted - the failure said "the radius is missing" when the radius had not moved.
+    let depth = 0;
+    let end = start;
+    for (let i = css.indexOf('{', start); i < css.length; i += 1) {
+      if (css[i] === '{') depth += 1;
+      else if (css[i] === '}') { depth -= 1; if (depth === 0) { end = i; break; } }
+    }
+    const block = css.slice(start, end + 1);
+
+    // A control on the EXTRACTION itself: an empty or runaway slice must not be able to pass or
+    // to fail for the wrong reason. The utility is a few lines of CSS plus its comment, never
+    // the whole stylesheet.
+    expect(block.length).toBeGreaterThan(80);
+    expect(block.length).toBeLessThan(css.length / 2);
+    expect(block).toContain('@apply');
+
+    expect(block).toContain('border-radius: 9999px');
   });
 
   it('no call site overrides the radius inline', () => {
