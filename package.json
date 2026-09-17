@@ -15,6 +15,7 @@
     "test": "vitest run",
     "check:node": "node scripts/check-node-engine.mjs",
     "check:account": "node scripts/check-account-sections.mjs",
+    "check:accounts-groups": "node scripts/check-accounts-groups.mjs",
     "check:topright": "node scripts/inventory-top-right-space.mjs",
     "check:concentricity": "node scripts/check-concentricity.mjs",
     "check:truncation": "node scripts/check-account-truncation.mjs",
