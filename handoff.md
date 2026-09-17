@@ -5141,3 +5141,65 @@ f72653d1 [docs]: name check:topright in the gate list, with the two ways it misl
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+## 2026-09-16, LATE - the net= reading ARRIVED, and four more fixes
+
+**✅ THE `net=` READING EXISTS: `net=up`.** Row read 2026-09-17 01:35:23Z, 36 seconds
+after it was written: `ios / timeout / attempts 186 / build 862 /
+detail "permission=granted net=up"`. He installed 862 and left it in the foreground,
+which is exactly what the probe needed.
+⚠️ **READ IT FOR WHAT IT IS AND NOT MORE.** `net=up` means ordinary HTTPS worked at the
+moment APNs did not answer. **It does NOT clear the network** - the probe does not touch
+port 5223, which is what APNs holds a connection on. So the field narrows to "the device
+was online and APNs stayed silent", and **a 5223-level block is now the LEADING candidate
+rather than a guess**, because the two recorded causes are both fixed and shipped and
+plain internet is demonstrably fine. Ask 4d923cfe can close; 384ca151 (cadence) is still
+blocked - no token exists and the sender is still all `dry_run`.
+
+**`121c000f` - A NATIVE LAUNCH NEVER OPENS IN DEMO MODE. IN TESTFLIGHT AS iOS 866.**
+His words: *"there is a notice stating demo mode when i got in."* The banner renders only
+when `isDemo` is true, so he was shown Jordan's fixture data instead of his own money.
+`isDemo` is persisted in sessionStorage - correct on the web, and leaning on sessionStorage
+having a TAB's lifetime, which the banner copy promises in words. **A native app has no
+tab.** ⚠️ Whether iOS keeps it across a launch is a HYPOTHESIS with no device to settle it;
+the fix refuses to restore, which is right under both readings. Verified upload: run
+35171681913, step 20 `success`, one `UPLOAD SUCCEEDED with no errors`.
+
+**`ca62518f` - I TURNED MAIN RED IN `02155cee` AND DID NOT SEE IT.** The gates run before
+that push were the browser checks, tsc and lint - **not vitest**. `seg-item-radius.test.ts`
+sliced the first 600 characters after `@utility seg-item {`; the comment I added pushed
+`border-radius` past 600, so a correct file reported "the radius is missing". It now reads
+to the matching brace, with a control on the extraction itself. **Run vitest before pushing
+a CSS change, not only the browser gates.**
+
+**`0e32e841` - THE TYPE SCALE FOLLOWS THE DEVICE TEXT SIZE.** ⚠️ **Two comments in
+`index.css` already claimed this worked and neither mechanism delivers it** - `112.5%` is a
+percentage of the web view's 16px default, and `-webkit-text-size-adjust: none` does the
+OPPOSITE of what its comment said. `font: -apple-system-body` on `html.native` is the lever.
+Form controls moved to `max(16px, 1rem)`; toasts were the one thing measured pinned.
+New gate `npm run check:text-scale`, four instrument faults fixed before it reported
+anything - see CLAUDE.md.
+
+**`02155cee` - the last pill that did not fit a phone** (/account, 364px in 363px), fixed in
+the `seg-item` utility rather than by renaming a label.
+
+### RESUME QUEUE
+
+1. [ ] **THE FOLLOWER SYSTEM - the big one, scoped but NOT started.** Two messages from Tre:
+   an Instagram-style friend list, then *"maybe we should make a follower System ... you can
+   make a users account public or private. private would be friends only."*
+   ⚠️ **THIS IS AN ARCHITECTURE CHANGE, NOT A UI SLICE, AND THE PREMISE TO TEST FIRST IS
+   WHAT `friend_links` ALREADY MEANS.** Measured tonight: `friend_links` is MUTUAL,
+   email-invite, with a hashed 7-day code (`inviter_id`, `invitee_email`,
+   `invite_code_hash`, `accepted_by`, `revoked_at`). Follows are ASYMMETRIC. **These are
+   different relationships, and real rows exist.**
+   * Build it **ADDITIVELY beside `friend_links`**, never by migrating it - no existing real
+     friendship may break.
+   * `profiles` has **no visibility column** (checked: only `display_name`, `username`), so
+     that is new, and it must **default to private**.
+   * **Enforce it in RLS, not in the client.** `leaderboard_snapshots` is the data at stake -
+     another person's financial progress.
+   * A private account's follow is a REQUEST with an approval step; a public account's is not.
+2. [ ] **384ca151 notification cadence** - still blocked, now for a sharper reason: `net=up`.
+3. [ ] **Look at `push_registration_status` again if he reopens 866** - the probe only runs on
+   the `timeout` path, so a reading needs the app in the FOREGROUND for ~20s.

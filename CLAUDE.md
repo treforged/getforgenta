@@ -97,6 +97,20 @@ section states reasoning, not measurement, and says so.
   344px right on desktop — **a fix measured at one breakpoint is not a fix.** Proven red both
   ways with the real shipped defects. Does NOT cover colour, spacing, phone widths, other routes,
   or whether a modal still covers the rail.
+- `npm run check:text-scale` — Dynamic Type's measurable half: with the root at 150%, every
+  sampled text element must scale and nothing may overflow its box. ⚠️ **IT DOES NOT AND CANNOT
+  PROVE THE DEVICE HALF** — whether `font: -apple-system-body` follows the iOS slider needs an
+  iPhone, and this machine has none. What it protects is the half that rots silently: one
+  `font-size: 14px` added anywhere makes that text the only thing on screen that ignores the
+  user's choice, and nothing else would go red. **Four instrument faults were fixed before it
+  reported anything, and each is worth knowing:** "at least one element scaled" was not a
+  control (it passed with 2 of 174 pairs compared); matching samples BY INDEX made a re-render
+  look like instability, so the red run exited **2 UNSTABLE on a real defect** — the one
+  diagnosis nobody chases; a text→element map paired one `"$0"` with a different `"$0"`, so only
+  text unique in BOTH reads is compared and the dropped count is printed; and its first six
+  findings were all deliberate truncation or a 1px measuring node. Proven red by pinning
+  `text-[10px]` back to px (324 call sites), exit 1. Does NOT cover the device, vertical
+  clipping, other routes, or whether the larger size still looks right.
 - `npm run check:glass` — proves the app's glass chrome is REALLY translucent, by
   screenshotting a pinned bar's own box before and after scrolling content underneath it
   and requiring the pixels to change. A painted fill and real `backdrop-filter` are
