@@ -5424,32 +5424,29 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 22:20 by handoff_hook. Everything below this heading is
+_Written 2026-09-16 23:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
-M src/integrations/supabase/types.ts
 ?? scripts/handoff.md
-?? src/hooks/useAccountVisibility.ts
-?? src/hooks/useFollows.ts
 ```
 
 - **Recent commits:**
 
 ```
+eae82bf0 [handoff]: friends-become-follows is parked on a branch, with the migration already live
+0f3c0624 [handoff]: the followers system is shipped, and 870 is verified in TestFlight
+0e56306c [social]: followers, following, requests, and a public/private account
 3261d2e8 [handoff]: two live bugs from Tre, both fixed, both in build 870
 c1217e81 [fix]: an account name is never truncated, at any text size
 3e763fa9 [fix]: a signed-out user was told they were in "Demo mode"
 94b343e0 [security]: the follow RPCs refuse anon at the GRANT, not only in the body
 970468d5 [handoff]: the security advisor ran, and both new RPCs refuse anon
-4e45b965 [social]: the follow graph and account visibility, applied and additive
-92aa1631 [handoff]: net=up arrived, and the queue is the follower system
-0e32e841 [a11y]: the type scale follows the device text size, and a gate proves it moves
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
