@@ -274,7 +274,42 @@ capture lacks it.**
 **FIVE HYPOTHESES NOW DEAD BY MEASUREMENT:** the unpinned clock, the debounce, `pauseSavings`,
 "less month-0 cash", and the timezone.
 
+### ✅ 11 - EVERY INPUT IS IDENTICAL AND THE OUTPUT STILL DIFFERS. **THAT** IS THE FINDING.
+Compared every input the memo consumes, capture against dump, same instant, same zone:
+**accounts** (ids, types, balances), **rules** (amounts), **transactions** 83, **debts** 2,
+**syncedTransactions** 106, **goals** 4, **carFunds** 1, **budgetItems** 1, **all FIFTY profile
+keys**, **paymentPlans** 8, **ccIds** 5, `assumptions`, `cashFloor`, `payConfig`,
+`syncCutoffDate`, `forecastFundingAccountId`, and the entire month-0 chain. **EVERY ONE
+IDENTICAL.** The memo output is 229.89 against 99.89.
+
+⚠️ **CORRECTION TO THE PASS ABOVE, AND IT IS THE KIND THAT MATTERS.** `planExpenses` has
+**LEVERAGE** but **CANNOT BE THE DIVERGENCE** - `getMonthlyPlanCashExpenses` receives identical
+`paymentPlans`, identical `ccIds` and the same year and month. **I had found the term that carries
+the capacity, not the term that differs**, and saying "it lives in planExpenses" would have sent
+the next session to compare two identical values.
+
+**STRATEGY REFUTED, WITH A SUB-FINDING.** `tre:debt:strategy` was the one input never compared, it
+is localStorage, and avalanche against snowball reorders which card is paid first. Measured: the
+recommendation is **99.89 under default, avalanche AND snowball** - unmoved. But
+`simRevolvingPayoffMonth` **is** strategy-sensitive: **avalanche 24, snowball 25, browser 26.** So
+strategy moves the payoff by one month and reaches neither number by itself. **Sixth hypothesis
+dead.**
+
+✅ **SO THE HONEST STATE IS STRONGER THAN ANY CAUSE I WAS HUNTING: THE MEMO OUTPUT IS NOT
+REPRODUCIBLE FROM THE DUMP.** Identical inputs, different output - so the browser capture carries
+state the raw dump does not. **That is the fixture-pipeline defect in its strongest form**, and it
+is what `5409ffbc` should be blocked on.
+
+**SIX HYPOTHESES DEAD BY MEASUREMENT:** the unpinned clock, the debounce, `pauseSavings`, "less
+month-0 cash", the timezone, the payoff strategy.
+
 ### WHAT IS ACTUALLY LEFT - START HERE
+**Stop hunting a single differing input - there is none.** Find what the browser provider held
+that is not in the dump at all; the remaining candidates are react-query cache contents and
+in-session edits never persisted.
+
+<details><summary>Superseded - the previous framing, corrected above</summary>
+
 **The divergence is inside the memo and is carried by `planExpenses`.** Next: work out why month-0
 plan expenses consume more capacity in the harness than in the browser, on identical
 `payment_plans` rows - `getMonthlyPlanCashExpenses(paymentPlans, year, month, ccIds)` is the whole
@@ -299,6 +334,8 @@ decide whether it explains the 2 months. That single value is the whole remainin
 app and the harness, and until it closes, no attribution across these captures means anything and
 `5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
 giving 34 and null), then the 24 -> 34 move itself.
+
+</details>
 
 </details>
 
