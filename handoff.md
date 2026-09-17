@@ -6,21 +6,69 @@
 times in forty minutes, so treat anything below that describes the IA as perishable and check
 it against `src/pages/Account.tsx` before acting on it.
 
-0. [ ] 🚀 **NOTHING SINCE iOS 873 IS ON HIS PHONE, AND THAT IS THREE COMMITS OF HIS OWN ASKS.**
-   873 (run `35178581343`, head `01bdc3a9`) carries the followers UI and the first
-   consolidation, verified through all three gates. **Everything after it is origin-only:**
-   the merged Profile section, the removal of "add a friend", and the share link.
-   **DISPATCH ONE BUILD, do not push-and-hope:**
+0. [x] ✅ **DONE - iOS 876 IS IN TESTFLIGHT.** Run `35180770158`, `workflow_dispatch`, head
+   `59aebc9d`, version 6.6. Verified through all three gates rather than the run's conclusion:
+   step 20 `Upload to App Store Connect` -> **success** (never `skipped`); altool's own words
+   `UPLOAD SUCCEEDED with no errors` appear **once**; `90382` has three matches and **all three
+   are on echoed-command SOURCE lines**, none in output. All three of Tre's commits
+   (`9e2e1918`, `e5a4dd7d`, `a29eecd6`) proven ancestors of the build head by `git merge-base`,
+   with a reverse-direction control that correctly returned false.
+   **An upload is not an install** - he still has to update in TestFlight.
 
-       gh workflow run "iOS Build & Upload to App Store" --ref main
+1. [x] ✅ **DONE - ACHIEVEMENTS, commit `c14e5d9f`. The holders query settled it: a CONTENT gap.**
+   `achievements` held 5 rows across 4 distinct holders, three distinct ids, with non-zero
+   positive controls (33 profiles) - **so the plumbing was never broken**; a lesson badge and a
+   social badge had both been written by the client end to end. There was simply almost nothing
+   to earn. Eleven `milestone:` badges now exist, granted by
+   `public.claim_milestone_achievements()`.
+   * **SERVER-SIDE ON PURPOSE, and this is the part not to "simplify" later.** A milestone is a
+     claim the database can CHECK, which makes it the OPPOSITE of the two social badges - those
+     are self-asserted by necessity and are therefore allowed to unlock nothing. The client
+     INSERT policy is **deliberately NOT widened**: a client still cannot mint a milestone.
+   * **SQL owns the rule, TS owns the names**, and the THRESHOLD is returned by the same call
+     that decided a badge is unearned, so the target shown cannot drift from the target checked.
+   * **Evidence:** unauthenticated -> `42501` (a refusal, not an empty set); a real account
+     (7 connections, 4 goals, 670 reviews) -> 4 earned / 7 unearned with every progress number
+     matching its source table; run inside a transaction, **ROLLED BACK, and the table re-read
+     from outside: still 5 rows, 0 milestone rows** - no live user data written to make a gate
+     green. `test:tz` 4751 passed / 469 files, **up from 4744 by exactly the 7 added**. Mutation
+     killed 2 of 7 including the positive control; restored byte-exact by sha256.
+   * ⚠️ **FOUND BY RUNNING IT, NOT BY READING IT:** `earned_at` is both an OUT parameter and a
+     column, so the first two versions died on `42702 ambiguous`. Two readings showed nothing.
+   * **WHAT IS NOT COVERED:** no FOLLOWER milestone can be earned yet - `follows` still holds
+     zero rows - so the rule is unit-testable and has never been exercised against a real
+     follow. The trophy-case rendering is **not** gated on a rendered frame.
+   * `og_founder` untouched. Settled 2026-09-06. Do not re-open it.
 
-   ⚠️ **A PUSH BUILDS AND DOES NOT UPLOAD** - step 20 is gated to `workflow_dispatch` or a `v*`
-   tag, and a push run still reads `success` with that step `skipped`. Read the UPLOAD STEP'S
-   own conclusion, then altool's `UPLOAD SUCCEEDED with no errors`, then check `90382` appears
-   only on lines carrying the echoed-command escape prefix.
-   ⚠️ **870 AND 873 BOTH WENT OUT TONIGHT.** Apple caps uploads per app per day and this repo
-   once burned that cap with eleven. **One build, carrying everything.** Name the **iOS**
-   number (read `VERSION_CODE:` from the log, never Android's).
+   ⚠️ **AND A SEVENTH FALSE PREMISE, THIS ONE IN THE INHERITED HANDOFF'S OWN EVIDENCE LINE.**
+   It recorded `check:followers` as "green in a real browser". **`scripts/check-followers.mjs`
+   could not parse** - an unescaped apostrophe in `Tre's` inside a single-quoted string that
+   also spanned a line break, so `node --check` refuses the whole module and **the file has
+   never executed once**. That was also the single `error` failing the Tests workflow on main
+   (run `35180736251`, step 6 `Lint`). Proven against the COMMITTED version with a positive
+   control on the fixed one. Fixed in `c14e5d9f`; lint now 0 errors, 32 pre-existing warnings.
+   **So Tre's followers ask has no browser-level acceptance evidence at all** - the gate that
+   was supposed to provide it has never run. Running it is now item 1a.
+
+1a. [ ] ▶️ **RUN `npm run check:followers` FOR REAL, now that it parses.** Needs the dev server
+   and `.env.deck-walk.local`. This is the rendered-frame acceptance for ask `4cd881cd` that
+   nobody has ever actually had. Expect it to need fixing beyond the parse error - a script
+   that has never run once has never had any of its selectors exercised.
+
+1b. [ ] 🧹 **RESERVED-DOMAIN CONTAMINATION - ask `9a5035d7`/`ac92c1b8`, routed by Sam.**
+   `auth.users` holds 33 rows with an email; **4 are RFC-reserved** (2 `@forgenta.test`,
+   2 `@example.com`) and 29 are real. Any rate over a denominator of 33 is wrong and the error
+   is invisible because the number is plausible. Sam's TESTED predicate, whose first version was
+   wrong in the way the ask warns about:
+
+       email is not null
+       and email !~* '@(.*\.)?(test|example|invalid|localhost)$'
+       and email !~* '@(.*\.)?example\.(com|org|net)$'
+
+   **Take the 14 controls with it, not just the predicate** - the negative half is what caught
+   his bug, and `testa@gmail.com` must be KEPT while `@sub.example.net` is DROPPED.
+   **NOT MEASURED BY ANYONE YET:** whether those four contaminate getforgenta's own in-app
+   analytics. Measure before asserting either way.
 
 1. [ ] 🏆 **ACHIEVEMENTS - ask `6bd02bc3`, AND HE IS PARTLY RIGHT, SO DO NOT OPEN BY AGREEING OR
    BY DISAGREEING.** His words: *"I don't ever think you fulfilled my achievements, tracking
@@ -5557,29 +5605,25 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-16 23:36 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 00:08 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
-
-```
-?? scripts/handoff.md
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+59aebc9d [handoff]: the resume queue, and two mistakes of my own
+a29eecd6 [chore]: drop a stray scripts/handoff.md that git add -A swept in
+9e2e1918 [social]: one Profile section, and a share link replaces add-a-friend
+e5a4dd7d [test]: gate the scoping half - followers live on one tab and nowhere else
+5035a6dc [handoff]: the name resolver already exists - the fifth false premise
+bc2217c6 [handoff]: iOS 873 is in TestFlight, verified through all three gates
 74ededc4 [handoff]: two carried items were already closed - the tracker disagreed and was right
 4c018f8d [handoff]: the branch is merged, and four premises in the last one were false
-01bdc3a9 [social]: friends become followers and following, on their own tab
-94684db7 [test]: wire check:followers so the gate can actually be run
-5f4e4bea [test]: the five suites tell the new truth - followers is its own section
-494396c0 [handoff]: refresh the machine-written auto-snapshot
-eae82bf0 [handoff]: friends-become-follows is parked on a branch, with the migration already live
-c206197d [wip][social]: friends become follows - MIGRATION IS APPLIED, 14 TESTS ARE RED
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
