@@ -722,6 +722,46 @@ export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardPro
   };
 }
 
+/**
+ * Row reconciliation guard (dev only). Every displayed row must satisfy
+ *   End = Start + purchases + interest − payment
+ * and this holds on BOTH display branches, not just the revolving one.
+ *
+ * It is not obvious that it holds for a cycling (deferred/statement) row, where Start is last
+ * cycle's statement plus carried backlog and End is next cycle's owed — so here is the algebra.
+ * Write Start = S + B (statement + backlog), Payment P = p_s + p_b, and next cycle's backlog
+ * B' = B + (S − p_s) − p_b. Then
+ *   End = purchases + B' = purchases + (S + B) − P = Start + purchases − P.
+ * Interest joins on the same side as purchases. So the identity is exactly as binding on a
+ * cycling row as on a revolving one, and a residual means the payment came from a different
+ * model than the balance — the class of bug where a row shows money leaving that reduces nothing.
+ *
+ * ⚠️ WHY THIS IS A SHARED FUNCTION WITH TWO CALLERS RATHER THAN A SECOND COPY: the guard
+ * originally existed ONLY inline in the revolving branch, and the cycling branch `continue`s
+ * before ever reaching it. So the one display path that carries deferred-model bookkeeping —
+ * the path where a Start and an End belong to DIFFERENT billing cycles, which is the hardest
+ * place to eyeball an error — was the path with no check at all. Tre reported exactly that row
+ * on 2026-09-17 (Start 262 + purchases 280 − payment 542 = 0, displayed End 280) and nothing
+ * in the codebase had ever been able to notice it. Two copies of this rule is how one of them
+ * rots; keep it one function and call it from both branches.
+ */
+function warnIfRowDoesNotReconcile(
+  cardName: string, label: string,
+  startBalance: number, newPurchases: number, interest: number, payment: number, endBalance: number,
+): void {
+  if (!import.meta.env?.DEV) return;
+  const residual = Math.round((endBalance - (startBalance + newPurchases + interest - payment)) * 100) / 100;
+  // Tolerate sub-dollar noise from displaying whole-dollar-rounded payments; only flag a real
+  // model mismatch (e.g. an installment/plan payment that moves the balance but isn't shown in
+  // the payment column). $1 comfortably clears rounding while catching the hundreds-of-dollars
+  // divergences that motivated this guard.
+  if (Math.abs(residual) > 1) {
+    console.warn(
+      `[projectCardVariable] ${cardName} ${label} does not reconcile: End ${endBalance} ≠ Start ${startBalance} + purch ${newPurchases} + int ${interest} − pay ${payment} (residual ${residual})`,
+    );
+  }
+}
+
 export function projectCardVariable(
   card: CardData,
   monthlyPayments: number[],
@@ -839,6 +879,12 @@ export function projectCardVariable(
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
       totalInterest += cycleInterest;
       rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: cycleInterest, payment, endBalance: endBal, utilization });
+      // Only when BOTH ends are sim ground truth. Without cyclingOwedByMonth the row falls back
+      // to echoing the payment as the start and this month's purchases as the end, which are not
+      // claims about the same cycle and would cry wolf on every fallback projection.
+      if (trueOwedThisCycle !== undefined && trueOwedNextCycle !== undefined) {
+        warnIfRowDoesNotReconcile(card.name, label, cycleStartBal, newPurchases, cycleInterest, payment, endBal);
+      }
       continue;
     }
 
@@ -904,18 +950,14 @@ export function projectCardVariable(
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
     // Reconciliation guard (dev only): when we display the engine's ground-truth end balance, the
-    // row must satisfy End = Start + purchases + interest − payment. If it doesn't, the displayed
-    // payment came from a different model than the balance (the class of bug that produced balances
-    // dropping without matching payments). Surface it loudly instead of letting it pass silently.
-    if (import.meta.env?.DEV && trueEndBal !== undefined && m <= months) {
-      const residual = Math.round((bal - (startBal + newPurchases + interest - payment)) * 100) / 100;
-      // Tolerate sub-dollar noise from displaying whole-dollar-rounded payments; only flag a real
-      // model mismatch (e.g. an installment/plan payment that moves the balance but isn't shown in
-      // the payment column). $1 comfortably clears rounding while catching the hundreds-of-dollars
-      // divergences that motivated this guard.
-      if (Math.abs(residual) > 1) {
-        console.warn(`[projectCardVariable] ${card.name} ${label} does not reconcile: End ${bal} ≠ Start ${startBal} + purch ${newPurchases} + int ${interest} − pay ${Math.round(payment * 100) / 100} (residual ${residual})`);
-      }
+    // row must satisfy End = Start + purchases + interest − payment. See
+    // warnIfRowDoesNotReconcile — one function, called from this branch and the cycling one.
+    if (trueEndBal !== undefined && m <= months) {
+      warnIfRowDoesNotReconcile(
+        card.name, label,
+        Math.round(startBal * 100) / 100, newPurchases, interest,
+        Math.round(payment * 100) / 100, bal,
+      );
     }
     // Sim ground truth: revolving debt cleared this month → interest-free from here, mirroring
     // the cycling branch's payoffMonth assignment. Sub-dollar tolerance (same dust convention as
