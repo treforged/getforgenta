@@ -43,8 +43,10 @@ card's LIVE BALANCE in the months-1+ path - a change to a money engine's signatu
 2. [x] **Ask `44062af7` - the Accounts tab. SHIPPED `c4ec0b69`.** A group of one now renders no
    heading and carries its institution on the row. Gate
    `src/pages/__tests__/Accounts.soloGroupHeading.test.tsx`, 4 checks, proven red THREE ways.
-   iOS `workflow_dispatch` run **35277886403** - READ ITS UPLOAD STEP'S OWN CONCLUSION, never the
-   run's. **The measurement below is kept because it REFUTES the obvious fix** - do not let a
+   **iOS BUILD 929 IS IN TESTFLIGHT** - run 35277886403, upload step's OWN conclusion `success`
+   (not `skipped`), altool's own words `UPLOAD SUCCEEDED with no errors`, and the three 90382
+   matches were all in the ECHOED SCRIPT SOURCE rather than in output, so the daily-cap branch
+   never fired. 929 read from the log, not computed. An upload is not an install - he updates. **The measurement below is kept because it REFUTES the obvious fix** - do not let a
    later session 'finish the job' by trimming the meta line.
    * ⚠️ **THE META LINE IS NOT THE OVERLOAD, however it looks in source.** It concatenates up to
      EIGHT facts with `·` separators, which makes it the obvious culprit - but on his 16 active
