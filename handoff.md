@@ -80,7 +80,33 @@ its written contract that month-0 purchases are 0 exist to stop the display's ru
 diverging from the sim by exactly one month of purchases - **so month 0 becoming non-zero has to be
 carried through the display reconciliation IN THE SAME CHANGE**, or the projection table drifts.
 
-### 💸 THE BACK-LOADED PACE - MEASURED ON HIS REAL GOAL, WAITING ON HIM (`9eba55a8`)
+### 🛑 DO NOT SHIP THE BACK-LOADED RAMP - MEASURED, AND IT REVERSES THE PLAN (`9eba55a8`)
+
+**The app's EXISTING level pace already back-loads by itself.** It is recomputed every month
+against what is LEFT, so a goal that takes less early automatically gets more later - and it does
+so as a FLAT PLATEAU rather than a cliff. Measured on his goal (need 5623.56 over 10 months):
+
+    yields 4 months at 150   ->  flat 837.26/month afterwards   0.00 owed
+    yields 6 months at 150   ->  flat 1180.89/month             0.00 owed
+    gets NOTHING for 4 months ->  flat 937.26/month             0.00 owed
+    pure back-loaded ramp    ->  peaks at 2249.42
+
+**So the ramp's only distinguishing feature is a peak month 2.7x worse, for the same delay and the
+same deadline.** It concentrates the risk into one month that must be rich or the goal misses.
+
+**WHAT MATCHES HIS WORDS INSTEAD:** *"weighted toward whichever has the nearest due date"* is a
+**SPLIT-WEIGHT** change, not a pace change. While the card carries interest-bearing debt it should
+take more than 50% of the shared rank; the goal's existing ceiling absorbs the delay smoothly.
+**And it is self-limiting in a way the ramp is not** - once the card is paid off there is no
+interest left to save and the goal resumes its full share, whereas a time-based ramp keeps
+back-loading long after the card is gone.
+
+`pacedMonthlyCeiling` stays committed, tested and **called from nowhere**. It should probably be
+deleted rather than wired.
+
+<details><summary>The original measurement that led here</summary>
+
+### THE BACK-LOADED PACE - MEASURED ON HIS REAL GOAL (`9eba55a8`)
 
 The goal is real and it is the one he meant: **"Move fund, then emergency fund"**, target 5730,
 saved 106.44, due **2027-07-03**, `surplus_share` **50**, rank 1, auto_extra on. So wiring this
@@ -102,6 +128,8 @@ settles - which is why it is his call and not a default.
 
 `pacedMonthlyCeiling` is committed, tested and **called from nowhere**; it returns the level
 allowance unchanged on every path it does not own, so today's behaviour is byte-identical.
+
+</details>
 
 ### ⚠️ HIS REMAINING /debt QUESTION IS NOT AN ARITHMETIC BUG - START HERE (ask `dbdc6d54`)
 
@@ -6138,25 +6166,30 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 02:48 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 03:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (2 file(s)):**
+
+```
+?? 0
+?? =
+```
 
 - **Recent commits:**
 
 ```
+23a55a1a [handoff]: the missing September purchase is $50 and has a name; the pace profile measured on his real goal
+a5cc6e6b [handoff]: the first iOS run was cancelled by a later push; re-dispatched as 35192375715
+f31d51db [handoff]: the grace fix, the duplicate limit, and why his October row is a presentation problem rather than an arithmetic one
+a3da382d [debt]: the credit limit is stated once, not twice
+e321c9fc [debt]: a card paid in full accrues no interest - and that WAS the gap
 25a2bc1d [handoff]: account IA was already built and gated; the iOS run is dispatched and UNVERIFIED
 d8d6d7f1 [handoff]: eighteenth session - the always-pay-in-full obligation holds in every month, and two defects my own change had first
 08bcdfa8 [debt]: "always pay in full" holds in EVERY month, and the gap is reported
-c8504d8a [handoff]: seventeenth session - Tre is typing, and item 1 is a query he asked for and did not get
-64eca7e7 [goals]: the back-loaded pace, as arithmetic - wired nowhere yet, on purpose
-04f385cf [handoff]: always-pay-in-full stops at month 0, and that is his October zero
-36861a70 [handoff]: the revenue key is split off the upload key, and iOS 888 carries the money fixes
-de633d0f [ci]: the revenue report gets its own key - the upload key is never touched again
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
