@@ -58,6 +58,28 @@ check the file before acting on it.
 
 ### What this session closed, with evidence
 
+* ✅ **THE ROBINHOOD SEPTEMBER CHARGE TOOK THREE FIXES, AND THE SECOND ONE LOOKED COMPLETE.**
+  There are **three** ways a card can be handed money in month 0, and the first-payment-due-date
+  rule stopped only two of them:
+  1. the contract **minimum** - `minSuppressed`, five sites, since 2026-09-05;
+  2. **"always pay this in full"** - `unconditionalDesired`, fixed tonight;
+  3. **the avalanche SURPLUS CASCADE (Step 5b)** - stopped by nothing at all.
+  So after two fixes that each did exactly what they said, a cash-rich month still handed the card
+  its whole balance out of spare cash and the row still showed a September payment. **Tre reported
+  it again, which is the only reason it was found.**
+  ⚠️ **AND THE OBVIOUS THIRD FIX WAS WRONG.** Reusing `minSuppressed` in the cascade also stops
+  extra payments on every card carrying `m0MinSettled` - "already paid before the sim started",
+  which means the card CAN take more, not that it must take none. The cascade uses the narrower
+  `notBilledYet`, and the last test in `credit-card-engine.notBilledYet.test.ts` exists only to
+  hold the two apart: mutating the guard to `minSuppressed` kills that test and nothing else.
+  **His dashboard "$0 next payment" was the same bug wearing its other face** - due day 10, today
+  the 17th, so the row shows NEXT month, and the cascade had already paid the card off in
+  September. The gate asserts month 0 = 0 AND month 1 = the full balance.
+* ✅ **OWNERS CONTRIBUTION RAISED TO $145** on his explicit approval (was $130, against $140.90 of
+  monthly outflow). **UNDO:** `update public.recurring_rules set amount = 130 where id =
+  'e716c838-82e4-4ce9-9b32-38d4b8b7be49';` **The DAY was not changed** - he approved the amount and
+  did not answer the day; the recommendation is the 4th and the rule still sits on the 29th.
+
 * ✅ **"ALWAYS PAY THIS" WAS DEMANDING A PAYMENT THAT IS NOT OWED UNTIL OCTOBER.** Tre, on his own
   account: *"Robinhood is charging for this month ... when it doesn't start till October 10. that
   payment is causing a shortage of my account which is incorrect. I thought we set this up to be
