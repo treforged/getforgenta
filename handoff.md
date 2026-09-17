@@ -69,52 +69,40 @@ it against `src/pages/Account.tsx` before acting on it.
    and a success-message edit is the most tempting kind - it feels like documentation rather
    than code.** Same family as verifying a push by its output instead of by contents.
 
-1b. [ ] 🧹 **RESERVED-DOMAIN CONTAMINATION - ask `9a5035d7`/`ac92c1b8`, routed by Sam.**
-   `auth.users` holds 33 rows with an email; **4 are RFC-reserved** (2 `@forgenta.test`,
-   2 `@example.com`) and 29 are real. Any rate over a denominator of 33 is wrong and the error
-   is invisible because the number is plausible. Sam's TESTED predicate, whose first version was
-   wrong in the way the ask warns about:
+1b. [x] ✅ **DONE - `public.real_user_ids` ships the instrument.** Independently re-measured:
+   33 accounts with an email, **4 RFC-reserved** (2 `@forgenta.test`, 2 `@example.com`), **29
+   real** - agreeing with Ruby by a second route, and confirming Sam's memory note of 31 was
+   wrong because it filtered only the `.test` domain.
+   **ANSWERED THE HALF NOBODY HAD MEASURED** - does it reach getforgenta's own populations -
+   with a positive control (the reserved set returning 4, so a zero cannot come from a broken
+   join):
 
-       email is not null
-       and email !~* '@(.*\.)?(test|example|invalid|localhost)$'
-       and email !~* '@(.*\.)?example\.(com|org|net)$'
+       profiles               4 of 33   CONTAMINATED
+       pmf_responses          1 of  2   CONTAMINATED - half the sample
+       financial_connections  1 of 10   CONTAMINATED
+       leaderboard_snapshots  0 of  6   clean
+       leaderboard_shares     0 of  7   clean
+       achievements           0 of  5   clean
+       user_subscriptions     0 of 11   clean - REVENUE figures unaffected
+       device_tokens          0 of  9   clean - PUSH figures unaffected
 
-   **Take the 14 controls with it, not just the predicate** - the negative half is what caught
-   his bug, and `testa@gmail.com` must be KEPT while `@sub.example.net` is DROPPED.
-   **NOT MEASURED BY ANYONE YET:** whether those four contaminate getforgenta's own in-app
-   analytics. Measure before asserting either way.
+   **The clean rows are part of the result.** "Is revenue wrong too?" is otherwise a question
+   the next person has to re-derive, and an unstated negative reads exactly like a check nobody
+   ran.
+   ⚠️ **PROVEN RED:** removing the `(.*\.)?` subdomain allowance lets **five** addresses
+   survive, including `@forgenta.test` itself - and **the live count is 29 either way**, so only
+   the synthetic control can catch it. All 14 controls now run as an assertion INSIDE the
+   migration, and fail if they examine anything other than 14 cases.
+   **NOT DONE, and say so rather than letting it be assumed: no existing query has been
+   repointed at the view.** It is the instrument, not the fix - the contaminated counts above
+   are still being reported by whatever reads them today. That repointing is item 1c.
 
-1. [ ] 🏆 **ACHIEVEMENTS - ask `6bd02bc3`, AND HE IS PARTLY RIGHT, SO DO NOT OPEN BY AGREEING OR
-   BY DISAGREEING.** His words: *"I don't ever think you fulfilled my achievements, tracking
-   ask. There should be an achievement for multiple things. I asked a while ago and then I want
-   to make an achievement for milestones of followers/following."*
-   **WHAT I MEASURED BEFORE THE GATE STOPPED ME - use it, do not re-derive it:**
-   * The machinery EXISTS and is wired: `src/lib/achievements.ts` (122 lines),
-     `src/hooks/useAchievements.ts`, `src/hooks/useSocialAchievements.ts`,
-     `TrophyCase.tsx`. So "never built" is not the right description.
-   * **BUT ONLY THREE THINGS ARE EARNABLE**, and that is his real complaint: a `lesson:<id>`
-     badge per Learn lesson, a badge per SOCIAL LINK TAP, and `og_founder`. **NOTHING you can
-     earn by USING THE PRODUCT** - no card paid off, no goal hit, no streak, and no follower
-     milestone. "an achievement for multiple things" reads as exactly that gap.
-   * ⚠️ **THE ONE QUERY I DID NOT GET TO**, and it decides whether this is a content gap or a
-     plumbing gap - run it FIRST:
-
-         select achievement_id, count(*) as holders
-         from public.achievements group by achievement_id order by holders desc limit 20;
-
-     Put a positive control in the same read (a total row count), because a zero from a broken
-     query and a zero from an empty table are the same zero.
-   * ⚠️ **`og_founder` IS SETTLED AND MUST NOT BE RE-OPENED** - Tre decided 2026-09-06 to KEEP
-     the badge and NOT backfill `og_members`. Its own file says so at length. `og_members`
-     reading 0 is CORRECT and is not evidence against it.
-   * **FOLLOWER MILESTONES ARE THE NEW HALF**, and the honest caveat is that `public.follows`
-     currently has **ZERO ROWS**, so nothing can be earned yet and a gate asserting a real
-     milestone cannot pass on live data. Build it so the RULE is unit-testable without needing
-     a real follower.
-   * ⚠️ **AND SAY WHAT A BADGE ACTUALLY MEANS.** The file already records a badge that claimed
-     "one of the first hundred to PAY" about three people who never paid. The social badges
-     describe the TAP, never the follow, deliberately - this app cannot know whether somebody
-     followed. **Do not invent a claim the data cannot support.**
+1c. [ ] 📊 **REPOINT THE CONTAMINATED READERS AT `real_user_ids`.** Three surfaces measured
+   dirty: anything counting `profiles` as a user population, `pmf_responses`, and
+   `financial_connections`. **`pmf_responses` is the urgent one** - 1 of its 2 rows is
+   `deck-walk@forgenta.test` with an EMPTY `would_miss`, so the survey currently has **ONE real
+   response**, not two, and ask `40c56ca8` correctly stays blocked at n>=3. Do not write a
+   positioning line off it.
 
 2. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW FOR REAL.** The MOUNT is gone (tombstone in
    `FollowersPanel.tsx`); `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge
@@ -5619,7 +5607,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 00:08 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 00:31 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5630,14 +5618,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+68ba3b88 [handoff]: the followers gate ran for the first time, and it discriminates
+28aafd46 [handoff]: iOS 876 delivered, achievements shipped, and a seventh false premise
+c14e5d9f [achievements]: eleven badges you earn by using the app, granted server-side
 59aebc9d [handoff]: the resume queue, and two mistakes of my own
 a29eecd6 [chore]: drop a stray scripts/handoff.md that git add -A swept in
 9e2e1918 [social]: one Profile section, and a share link replaces add-a-friend
 e5a4dd7d [test]: gate the scoping half - followers live on one tab and nowhere else
 5035a6dc [handoff]: the name resolver already exists - the fifth false premise
-bc2217c6 [handoff]: iOS 873 is in TestFlight, verified through all three gates
-74ededc4 [handoff]: two carried items were already closed - the tracker disagreed and was right
-4c018f8d [handoff]: the branch is merged, and four premises in the last one were false
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
