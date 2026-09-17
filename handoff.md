@@ -1,5 +1,59 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ START HERE - 2026-09-17 (Ada, TWENTY-SEVENTH session), closed on the handoff gate
+
+**Everything below is committed and pushed, 0/0 vs origin.** Four commits this session:
+`32f20f92` (dashboard default), `55a17bca` (Akoya withdrawn), `143b3a4b` (reset-to-defaults race),
+plus handoff commits. Actionable ask queue is EMPTY; what remains is blocked or waiting on Tre.
+
+### DO THESE IN ORDER
+
+1. **VERIFY iOS RUN `35283280523`** - dispatched by hand on `143b3a4b`, still ARCHIVING at close.
+   `gh run view 35283280523 --json jobs`, read **step 20's OWN conclusion** (`success`, never
+   `skipped`), then grep the log for altool's `UPLOAD SUCCEEDED` and confirm every `90382` match
+   sits in ECHOED SCRIPT SOURCE. Build number FROM THE LOG. **Then tell Tre the number** - he is
+   waiting on it, and 935 alone is not enough because it carries the dashboard default WITH the
+   racy reset. An upload is not an install.
+2. **FINISH THE TWO BLOCKER RE-TESTS I STARTED AND DID NOT COMPLETE.** The gate cut the query off.
+   Both are trigger-based deferrals and I was measuring whether the triggers have FIRED rather
+   than accepting that they had not. **Run exactly this and act on the answer:**
+   ```sql
+   select (select count(*) from profiles) as total_profiles,
+          (select count(*) from profiles where coalesce(leaderboard_opt_in,false)) as sharers,
+          (select count(*) from follows) as follow_rows,
+          (select count(*) from subscriptions where status in ('active','trialing')) as active_subs;
+   ```
+   * `798c0ed9` - trigger is *"participation is real (more than a handful sharing)"*. **`sharers`
+     answers it.** A handful => the deferral stands, say so and why. Materially more => it is
+     live work and the deferral is stale.
+   * `b573d720` - trigger is **the first real App Store sale**. A run of 404s is the correct
+     answer for a zero-sales app on every date for ever, so it is not evidence about anything.
+     ⚠️ **`active_subs` is a PROXY, not the answer** - it cannot tell an Apple sale from a Stripe
+     one. If it is non-zero, check the SOURCE before declaring the trigger fired.
+   * **Verify the column name first** - I never got to run this, so `leaderboard_opt_in` is my
+     assumption, not a measurement. A wrong column errors loudly; a wrong ASSUMPTION about what
+     it means does not.
+3. **`80ea17f2` IS THE MOST VALUABLE ITEM ON THE QUEUE AND IT IS NOT REALLY BLOCKED.** It is a
+   MONEY question - a payoff-date difference between two captures - and the row already names a
+   valid method: **recapture from live rows at a clock whose month 0 matches, or compare at a
+   horizon offset that aligns the two month 0s and compare REMAINING MONTHS rather than absolute
+   dates.** The old method was retracted twice; the item is actionable via the new one. Read the
+   `why` field in full before starting - it records exactly why moving a capture's clock forward
+   produces an incoherent hybrid.
+4. **`5409ffbc`** - golden fixture. Re-test its three invariants before treating it as blocked.
+
+### WHAT A COLD SESSION WOULD OTHERWISE RE-DERIVE
+* ⚠️ **THE OVERLOAD SWEEP IS FINISHED. Do not restart it.** 5 surfaces: Accounts and Debt Payoff
+  had defects (fixed), **Budget Control refuted**, Forecast and Goals already clean. Detail below.
+* ⚠️ **THREE ASKS WERE FILED TONIGHT AS "NOT STARTED" AND ALL THREE WERE ALREADY BUILT** - I
+  trusted a stale handoff line instead of measuring. See the correction further down. **Test the
+  premise that would stop you testing.**
+* ⚠️ **INSTRUMENT TRAPS THAT COST ME TIME TONIGHT:** a bash heredoc collapsed `\\b` and python
+  turned it into a literal BACKSPACE, so a patch silently missed its anchor - **use the Edit tool
+  for anything with a regex or backslash**. A BACKTICK inside an `ask done --evidence` string was
+  executed by bash and ATE A WORD; reading the row back from outside the writer is what caught it.
+  And `npx tsc --noEmit | tail` still reports exit 0 over real errors - **read the OUTPUT**.
+
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-SEVENTH session). START AT ITEM 1.
 
 TWO COMMITS SHIPPED, AND **THE OVERLOAD SWEEP IS NOW FINISHED** - the predecessor left it open.
