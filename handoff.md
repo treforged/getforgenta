@@ -1,5 +1,60 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-SIXTH session). START AT ITEM 1.
+
+THIS SESSION SHIPPED ONE COMMIT AND TWO REFUSALS, AND THE REFUSALS ARE THE WORK.
+`447d57ad` - pushed, verified by contents with a positive AND a negative control, 0/0. It is
+DOCUMENTATION ONLY, in `src/lib/back-loaded-pace.ts`. No iOS dispatch: nothing customer-visible
+changed, so spending a TestFlight build would have bought nothing.
+
+### ⚠️ ITEM 1 (`0c375878`, dashboard reorg) - THE DEFAULT CANNOT REACH TRE. MEASURED.
+The predecessor's warning was right and WORSE than it stated. `profiles`: 33 total, **31 with no
+saved layout, 2 with one - and the 2 are `tre@treforged.com` (10 widgets, all visible) and
+`reviewer@treforged.com` (9, all visible)**. `WIDGET_META` holds exactly 10, so `mergeSavedLayout`
+preserves `visible: true` on every one of his. **A `DEFAULT_LAYOUT` edit reaches 31/33 users and
+reaches NEITHER the CEO's screen NOR the walk account anyone verifies with.**
+* FK is `profiles.user_id`. A join on `p.id` returns EMPTY - the recorded trap. `matched_control`
+  = 33 in the same query, which is the only reason the empty result was read as a bad join rather
+  than as "no such user".
+* **THE DUPLICATION HALF IS REFUTED AS STATED.** The strongest lead - a card payment in UPCOMING
+  THIS WEEK and again in DEBT RECOMMENDATIONS - is the same referent but DELIBERATE:
+  `Dashboard.tsx:520` adds `toScheduledObligations(debtPaymentTxns, 'Card payment')` because the
+  widget was "blind to card payments". **Removing either side re-opens a closed defect.**
+* **WHAT IS LEFT IS A FORK IN INTENT, NOT BUILD WORK** - which widgets ship OFF by default. Routed
+  to Sam with a recommendation (default the three he NEVER mentioned to off - `budget_totals`,
+  `car_goal`, `transactions_spending` - and leave all three he LIKES on). **Do not guess it.**
+* **DO NOT rewrite his saved profile row** to make a default reach him. That is destroying a saved
+  layout, which is the thing Sam refused when he kept Customize.
+
+### ⚠️ ITEM 2 (`6237167a`, move-fund pacing) - BUILT, GATED, REVERTED. READ THE FILE HEADER.
+`src/lib/back-loaded-pace.ts` already held the arithmetic, tested, with **ZERO production callers**
+(controls 23 and 10, so the zero was real). It was a WIRING job. Wired, it **regresses his real
+data** and was reverted; the three findings are in that file's header and in `447d57ad`'s body.
+The blocker, in one line: **`forecast-convergence.realData` reports "payoff month regressed:
+expected 'Oct 2028' to be 'Sep 2028'" - the CARD clears a month LATER**, against the very priority
+the feature exists to serve, and `floorDeficit` inflates converged savings 5418.48 vs raw 5381.70.
+Attributed rather than assumed: feature OFF at both call sites => all 4 pass; ON => 2 fail,
+identically under all three timezones.
+**A FIX IS NOT A WIRING SLICE.** `sharesRank` is static config, so it stays true after the
+co-tenant card is paid off, while Tre said "larger once the CARDS ARE DOWN". Closing that needs the
+card's LIVE BALANCE in the months-1+ path - a change to a money engine's signature.
+
+1. [ ] **Await Sam on item 1's fork**, then ship the default. Everything else about it is measured.
+2. [ ] **Ask `44062af7` - the rest of the Accounts tab.** ⚠️ DO NOT ship a portfolio-wide blank-run
+   threshold gate: at 1440 nearly every `justify-between` row flags at 120px, so it would cry wolf
+   and be switched off within a week. Measure at 390 and fix by surface.
+3. [ ] **`6237167a` needs TRE, not a desk**: back-loading buys his floor relief in Oct/Nov/Dec and
+   costs one month of card payoff. That is his trade, and both halves are now measured.
+
+⚠️ **TWO INSTRUMENT LESSONS FROM THIS SESSION, both of which nearly produced a wrong answer:**
+* **`npx tsc --noEmit | tail` printed two real errors and the shell reported `TSC_EXIT=0`.** Same
+  family as the piped vitest run the last session recorded. **Read the OUTPUT, never the code.**
+* **My own unshared CONTROL caught an off-by-one in my wiring** that no amount of reading would
+  have - `monthsUntilTargetDate` returns months BETWEEN, both pacers divide by `months + 1`. The
+  control existed only to prove the unshared path was untouched, and it found the bug in the
+  shared one.
+
+
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FIFTH session). START AT ITEM 1.
 
 SHIPPED THIS SESSION, all pushed and verified by contents with a control:
