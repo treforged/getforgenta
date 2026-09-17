@@ -5,20 +5,25 @@
 **Tre is awake and typing into THIS tab.** Anything below that describes the UI is perishable -
 check the file before acting on it.
 
-1. [ ] 📱 **READ THE iOS RUN, THEN TELL HIM THE BUILD NUMBER.** Run **`35186607590`**,
-   `workflow_dispatch`, head **`9350ef81`** - which carries EVERYTHING: the typeahead verification,
-   the debt payment-row fix, last night's accounts text fix, the trophy case, the attribution and
-   the copy changes. An earlier dispatch (`35185869217`, head `c7cf8468`) was **cancelled before
-   its upload step** so that one build could carry the debt fix as well; nothing was spent.
+1. [ ] 💸 **MOVE FUNDS: WEIGHT THE TRANSFERS TOWARD THE DUE DATE (ask `e016ff41`).**
+   Tre, 2026-09-17: *"can we push it to where it condenses to be as like it can have higher payments
+   or higher transfer rates closer to the due date instead of split evenly amongst all the dates
+   that way I can pay more of a credit card debt beforehand."* SCOPE: the MOVE FUNDS / transfer
+   suggestion, not the payment engine. **Find the even split and MEASURE it before changing any
+   money math** - this is the same surface family as the unconditional defect below, where the rule
+   existed and one path never read it.
 
-       gh run view 35186607590 --json jobs   # step 20 must read success, never skipped
-       gh run view 35186607590 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
-       gh run view 35186607590 --log | grep -n '90382'   # SOURCE lines only, never output
+<details><summary>Done this session - iOS 886 is in TestFlight, verified through all three gates</summary>
 
-   **A run reading `success` with step 20 `skipped` has sent nothing anywhere**, and step 20 also
-   swallows Apple's daily-cap error 90382 into a warning and still exits green. Name the **iOS**
-   number (`VERSION_CODE = run_number + 100`), say it is an upload and not an install, and do not
-   quote an Android number at him - he opens TestFlight.
+1. [x] ✅ **iOS 886 UPLOADED.** Run `35186607590`, `workflow_dispatch`, head `9350ef81`. Step 20
+   `Upload to App Store Connect` -> **success**; altool's `UPLOAD SUCCEEDED with no errors` appears
+   **once**; `90382` has three matches and **all three are echoed-command SOURCE lines**, none in
+   output. **An upload is not an install.** An earlier dispatch (`35185869217`, head `c7cf8468`) was
+   cancelled BEFORE its upload step so one build could also carry the debt fix - nothing was spent.
+   ⚠️ **886 does NOT carry the Robinhood money fix or the unconditional-payment change** - those
+   landed after it was cut. The next build must.
+
+</details>
 
 2. [ ] 👥 **FOLLOWERS / FOLLOWING, INSTAGRAM-SHAPED, ON THAT TAB ONLY.** Tre, 2026-09-16 23:07,
    verbatim: *"friends should be followers and following just like instagram. it should only be on
@@ -42,6 +47,32 @@ check the file before acting on it.
    ⚠️ **`active_friend_ids()` STILL READS `friend_links`** - keep that arm; delete the CLIENT flow.
 
 ### What this session closed, with evidence
+
+* ✅ **"ALWAYS PAY THIS" WAS DEMANDING A PAYMENT THAT IS NOT OWED UNTIL OCTOBER.** Tre, on his own
+  account: *"Robinhood is charging for this month ... when it doesn't start till October 10. that
+  payment is causing a shortage of my account which is incorrect. I thought we set this up to be
+  fixed."* **He was right on both counts, and they are different code.** The first-payment-due-date
+  rule has existed since 2026-09-05 and is wired into the MINIMUM path only (`minSuppressed`, five
+  sites); every existing test of it uses `paymentPreference: 'statement'`. **An unconditional card
+  is settled OFF THE TOP, before minimums and before the cascade, so it reaches none of those five
+  sites** - `unconditionalDesired` had no idea a due date existed. Measured on his exact shape at a
+  frozen clock: an empty month settled $211.62 and reported "$211.62 short this month"; after, the
+  card is not settled in September at all. Seven tests, positive control first, three mutations
+  including the code that really shipped, restored byte-exact.
+  ⚠️ **His `first_payment_due_date` was NULL**, so nothing could suppress anything on his row -
+  set to `2026-10-10` and read back. **UNDO:** `update public.accounts set first_payment_due_date =
+  null where id = '7b1e9a44-3c52-4f18-9d6a-8e2f5c71a903';`
+  The field's hint said *"only if the first payment is not on the due day above"* - which is why he
+  never filled it, because his first payment IS on the due day, a month later. Reworded.
+* ✅ **TRANSFER DAY ANSWERED (ask `0e1097c2`): THE 4TH.** Chase pays rent $2,070 + electricity
+  $185.86 on the 1st and life insurance $54 on the 3rd, so the 29th - where the Owners Contribution
+  rule sits today - leaves checking two days before its biggest bill. General Operations pays $7 on
+  the 1st (covered by the $10.03 already there) and **Claude $100 on the 6th**, which is the real
+  deadline, then $33.90 on the 12th.
+  ⚠️ **AND A SEPARATE FINDING HE NEEDS: $130 DOES NOT COVER THAT ACCOUNT.** Its own recurring
+  outflow is **$140.90/month**, funded by exactly ONE rule (control: 3 rules fund Chase) with no
+  other income, against a $10.03 balance - about $10.90/month of drain. **The amount is his call;
+  nothing was changed.**
 
 * ✅ **THE USERNAME TYPEAHEAD IS VERIFIED (`c7cf8468`), AND IT HAD TURNED MAIN RED.**
   `UsernameSuggestions` calls `useQuery` and mounts on the Account page, so
