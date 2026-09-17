@@ -114,12 +114,45 @@ dump from which the sim produces no payoff at all is not a small variance. The s
 **Settling is not the explanation** - adding an effect-settle loop changed nothing (6 passes,
 same values), so these are settled reads, not mid-convergence ones.
 
+### ✅ 6 - I CHASED THE 2, KILLED BOTH MY OWN LEADS, AND FOUND THE DIVERGENT INPUT
+**BOTH LEADS ARE DEAD, BY MEASUREMENT, AND THAT IS WORTH MORE THAN LEAVING THEM OPEN:**
+* **"The harness never pins a clock" - RETIRED.** My probe DID pin the dump instant and still
+  returned 24. The clock is controlled for.
+* **"Real timers and debounces a jsdom render never reaches" - RETIRED.** Settled with REAL
+  elapsed time (0, 50, 200, 500, 900, 1500, 2500, 4000ms cumulative, Date still frozen at the
+  capture instant) so any `setTimeout` debounce fires. **`payoff=24 converged=true` at every
+  single step, from the first read.** Control: the 17-Sep dump holds `34` just as flatly.
+
+**AND THE DUMP IS GENUINELY THE CAPTURE'S OWN INPUT**, which is what makes the disagreement real
+rather than a mismatched pair: `capturedAt` and `dumpedAt` are **the same instant**
+(`2026-09-01T00:20:11.665Z`), the 17 accounts are **identical including balances**, and the 31
+rules are **identical including amounts**.
+
+⚠️ **SO I DIFFED EVERY DERIVED INPUT, AND EXACTLY ONE DIVERGES.** `assumptions`, `cashFloor`,
+`payConfig`, `syncCutoffDate` and `forecastFundingAccountId` are all **IDENTICAL**. The odd one
+out is **`currentMonthRecommendedDebt`**:
+
+| | capture (browser) | harness |
+| --- | --- | --- |
+| Robinhood Gold Card `payment` | **229.89** | **99.89** |
+| `safeToPayTotal` | **229.89** | **99.89** |
+
+**Exactly $130.00 apart**, same `cardId`, same `dueDay`, same `reason` (Pay Statement Balance),
+same `isMinimumOnly`. This is a figure the user is SHOWN - it is the "safe to pay" total.
+
+⚠️ **CAUSALITY IS NOT ESTABLISHED AND MUST NOT BE ASSUMED. THE DIRECTION IS BACKWARDS:** the
+harness pays **less** ($99.89) and yet reaches payoff **earlier** (24 vs 26). A simple cascade
+would do the opposite, so either the $130 is not the cause of the 2-month gap, or it acts through
+the convergence/floor path rather than directly. **Do not write "the $130 causes the 2 months"
+into anything.** Note also that `130` is exactly the golden-era `Owners Contribution` monthly
+amount - **that may be coincidence and is recorded as a lead, not a finding.**
+
 ### WHAT IS ACTUALLY LEFT - START HERE
-**FIX THE 2 BEFORE ANYTHING ELSE.** Until the recapture harness reproduces a BROWSER capture from
-the same rows, no attribution across these captures means anything, and `5409ffbc` cannot be
-adopted. Two concrete leads: the harness **never pins a clock** (it runs at the real run date),
-and the browser captures were taken with real timers and debounces a jsdom render does not reach.
-Then the null-payoff dump, then the 24 -> 34 move itself.
+**Find why `currentMonthRecommendedDebt` differs on identical rows at an identical instant**, then
+decide whether it explains the 2 months. That single value is the whole remaining gap between the
+app and the harness, and until it closes, no attribution across these captures means anything and
+`5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
+giving 34 and null), then the 24 -> 34 move itself.
 
 Everything else on the ask queue is blocked on a named trigger or on Tre.
 
@@ -7524,7 +7557,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 18:33 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 18:52 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7535,14 +7568,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+e45c2403 [handoff]: the fixture harness and the browser disagree by two months on identical rows
+ef7847e1 [handoff]: iOS 937 uploaded and verified; both blocker triggers re-tested; 80ea17f2 located in the card sim
+828ea3bb [handoff]: closed on the handoff gate - verify iOS 35283280523 first, then the two blocker re-tests
+8f40fef7 [handoff]: a real defect found by refusing to build - Reset to defaults was racy
+143b3a4b [dashboard]: "Reset to defaults" was racy and could snap back - one line, found by testing a premise
+96392a9d [handoff]: correct a NOT-STARTED line that was false - the followers/following UI is built
 769e274c [handoff]: iOS 935 carries the Akoya removal - upload verified by altool's own words
 bed655c7 [handoff]: the overload sweep is FINISHED - 5 surfaces, 2 defects, 1 refutation, 2 already clean
-55a17bca [accounts]: withdraw the Akoya offer - he never bought it, so no user could ever complete it
-32f20f92 [dashboard]: the biggest card ships off for a new user - and two of the three proposed were refuted
-586e7d67 [handoff]: iOS 932 carries the Debt Payoff tab fix, upload verified by altool
-5062a6b4 [handoff]: the overload sweep reached Debt Payoff - 07875cc5, and the sweep is not finished
-07875cc5 [debt]: a debt type nobody has gets no tab on the Debt Payoff page
-e8d279f7 [docs]: name check:accounts-groups in the gate list and close the stated limit in the handoff
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
