@@ -202,14 +202,30 @@
    target beside a real deadline is a person's finances however ordinary it looks in a test. The
    assertions depend on the PRESENCE of a deadline, never on its value - grepped on origin, 0 hits.
 
-5. [ ] ⛔ **DO NOT RE-APPLY THE PURCHASES-FIGURE CHANGE WITHOUT FINISHING IT - IT IS REVERTED.**
-   `deferredPurchasesFor` removed all 66 reconciliation warnings on the demo fixture and still
-   broke `payment-pin-semantics`' invariant - a $400 pin moved the 18-month total by **$459**
-   against a ~$10 interest-scale bound, and that test's premise is that a pin RE-ORDERS cash
-   rather than finding new money. The open question is horizon artefact versus real money
-   creation. **Guessing on money math is the one thing this repo forbids.**
-   ✅ `payment-pin-semantics` is GREEN under this session's due-date change - the two must not be
-   conflated.
+5. [x] ✅ **THE REVERT WAS CORRECT, AND THE OPEN QUESTION IS ANSWERED AGAINST THE BENIGN
+   READING.** Ask `20c258a1`. **Still do not re-apply `deferredPurchasesFor` as it was.**
+   The question was *horizon artefact versus real money creation* for the $459 a $400 pin moved
+   the 18-month total. **Measured on the shipped engine** (demo fixture, `NOW` 2026-09-03, pinning
+   months 1-12 on the 24.74% card, ledger 60 months long), delta = pinned minus base:
+
+       PIN  $400   h12 -4078.38   h18/h24/h36/h48/h60  ALL -146.24
+       PIN  $600   h12 -1825.89   h18/h24/h36/h48/h60  ALL -453.25
+       PIN $1000   h12    +0.06   h18/h24/h36/h48/h60  ALL   +1.75
+
+   **The 12-month column is wild and everything from 18 on is identical to the cent** - extending
+   the horizon from 18 to 60 changes the delta by **exactly $0.00** in all three cases. The
+   reordering has fully settled by month 18, so a boundary at 18 cannot create or hide anything.
+   **Therefore the $459 was NOT a horizon artefact. It would have been real money creation.**
+   ⚠️ **STATED LIMIT, because this is an inference and not a measurement of the reverted code:**
+   `deferredPurchasesFor` exists in **NO commit** - it was reverted before committing - so the $459
+   itself cannot be re-measured, and **reconstructing the change would measure the reconstruction**,
+   which this repo already records as a trap. What IS measured is that the shipped engine's pin
+   deltas are horizon-insensitive past month 18.
+   ✅ **ALSO CHECKED AND NOT A DEFECT, because it looked like one:** the no-new-money assertion is
+   ONE-SIDED (`toBeLessThanOrEqual`), so -146 and -453 pass it. **That is correct rather than a
+   hole** - pinning more onto a 24.74% card early legitimately reduces total interest, so the
+   horizon total may FALL; what may never happen is it RISING beyond interest scale. The $600 pin
+   saving more than the $400 pin is exactly that.
 
 6. [ ] 📐 **THE RESIDUE THIS SESSION'S OWN FIX LEAVES, named rather than implied.**
    `purchasesAfterDueByMonth` is fed ONLY by the two sources that carry a date - scheduled rule
