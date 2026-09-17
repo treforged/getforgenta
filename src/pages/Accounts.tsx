@@ -1279,7 +1279,12 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           {/* Manual escape hatch. Plaid only reports a connectivity error code
               when it recognizes the failure — a user who gives up on a stalled
               login exits cleanly, and would otherwise never be offered Akoya. */}
-          {!akoyaFallback && plaidItems.length < bankLinkCeiling && (
+          {/* ⚠️ `AKOYA_INSTITUTIONS.length > 0` IS LOAD-BEARING, not defensive. The list is
+              deliberately EMPTY (see its own file — Tre has not bought Akoya), and without this
+              guard the summary below still renders, reading "Trouble connecting ?" with an empty
+              institution name and no buttons under it. An empty map does not remove a disclosure;
+              it leaves a broken one. */}
+          {AKOYA_INSTITUTIONS.length > 0 && !akoyaFallback && plaidItems.length < bankLinkCeiling && (
             <details className="text-xs text-muted-foreground">
               <summary className="cursor-pointer hover:text-foreground select-none">
                 Trouble connecting {AKOYA_INSTITUTIONS.map(i => i.displayName).join(' or ')}?
@@ -1429,14 +1434,35 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             <p className="text-xs text-muted-foreground leading-relaxed mt-2">
             Bank connections are powered by{' '}
             <a href="https://plaid.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid</a>
-            , a trusted financial data platform used by thousands of apps. For a few institutions we also support{' '}
-            <a href="https://akoya.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya</a>
-            {' '}as an alternative. We never see your bank login credentials — authentication happens with your bank.{' '}
+            , a trusted financial data platform used by thousands of apps.{' '}
+            {/* ⚠️ THE AKOYA SENTENCE IS DERIVED FROM THE OFFER, NOT WRITTEN BESIDE IT. With the
+                institution list empty (Tre has not bought Akoya) this claimed "for a few
+                institutions we also support Akoya as an alternative" about a route no user can
+                reach — a false statement in the one disclosure on the page whose whole job is
+                being true. Reading the same list that decides the offer means the sentence and
+                the button cannot drift: restore the entry and this comes back with it, which a
+                hand-written paragraph would not.
+                ⚠️ AND REMOVING THE PRIVACY LINK WAS CHECKED, NOT ASSUMED. A disclosure is owed
+                if any user's data actually reached Akoya. Measured 2026-09-17: 10 bank items,
+                ZERO Akoya-shaped, with the non-Akoya control reading 10 in the same query — so
+                the reader could have returned a positive and did not. Nobody's data is there. */}
+            {AKOYA_INSTITUTIONS.length > 0 && (
+              <>
+                For a few institutions we also support{' '}
+                <a href="https://akoya.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya</a>
+                {' '}as an alternative.{' '}
+              </>
+            )}
+            We never see your bank login credentials — authentication happens with your bank.{' '}
             <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Privacy Policy</a>
             {' · '}
             <a href="https://plaid.com/legal/#end-user-services-agreement" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Terms</a>
-            {' · '}
-            <a href="https://akoya.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya Privacy Policy</a>
+            {AKOYA_INSTITUTIONS.length > 0 && (
+              <>
+                {' · '}
+                <a href="https://akoya.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya Privacy Policy</a>
+              </>
+            )}
             </p>
           </details>
 

@@ -50,38 +50,58 @@ describe('classifyPlaidExit', () => {
   });
 });
 
-describe('findAkoyaInstitution', () => {
-  it('matches Fidelity by name, whatever Plaid calls it', () => {
+/**
+ * ⚠️ THE INSTITUTION LIST IS EMPTY BY DECISION SINCE 2026-09-17, so this block changed shape.
+ * Tre: "remove Connect Fidelity via Akoya btw since i never bought it." Two cases here used to
+ * assert that Fidelity MATCHED, and they are correctly red against the empty list. They were
+ * re-aimed rather than deleted, and rather than "fixed" by putting the entry back — restoring a
+ * shipped behaviour to suit a harness is the wrong direction, and this repo has caught itself
+ * doing it before.
+ *
+ * ⚠️ AND THE COVERAGE THAT WAS LOST IS NAMED, BECAUSE SILENCE HERE WOULD BE THE REAL DEFECT.
+ * With no entry in the list, `findAkoyaInstitution` returns null for EVERY input, so the cases
+ * below that assert null are now trivially true — they can no longer fail, and they are no
+ * longer evidence that the matcher works. Specifically UNTESTED while the list is empty:
+ *   · case-insensitive matching ('FIDELITY')
+ *   · multi-word institution names ('Fidelity Investments', 'Fidelity NetBenefits')
+ *   · the word boundary that makes 'Infidelity Savings' a NON-match
+ * Restoring any entry to `AKOYA_INSTITUTIONS` must restore those three cases in the same commit.
+ * The matcher code itself is untouched and still ships.
+ */
+describe('findAkoyaInstitution — no institution has an Akoya route', () => {
+  it('returns null for the names that used to match', () => {
+    // The real discriminator while the list is empty: these four are the exact strings the
+    // shipped matcher was written for, so an entry quietly returning fails here first.
     for (const name of ['Fidelity', 'FIDELITY', 'Fidelity Investments', 'Fidelity NetBenefits']) {
-      expect(findAkoyaInstitution(name)?.key).toBe('fidelity');
+      expect(findAkoyaInstitution(name)).toBeNull();
     }
   });
 
-  it('returns null for institutions with no Akoya route', () => {
+  it('VACUOUS WHILE THE LIST IS EMPTY: returns null for institutions with no Akoya route', () => {
     expect(findAkoyaInstitution('Chase')).toBeNull();
     expect(findAkoyaInstitution('Bank of America')).toBeNull();
   });
 
   it('returns null when the institution is unknown', () => {
-    // Plaid does not always report an institution on exit.
+    // Plaid does not always report an institution on exit. Unlike the case above this one stays
+    // meaningful with a populated list, because it exercises the null/empty guard rather than
+    // the matcher.
     expect(findAkoyaInstitution(null)).toBeNull();
     expect(findAkoyaInstitution(undefined)).toBeNull();
     expect(findAkoyaInstitution('')).toBeNull();
   });
 
-  it('does not match on a substring inside an unrelated word', () => {
-    // The matcher is word-bounded, so "Fidelityish Credit Union" is a match but
-    // an embedded run of letters is not.
+  it('VACUOUS WHILE THE LIST IS EMPTY: no substring match inside an unrelated word', () => {
     expect(findAkoyaInstitution('Infidelity Savings')).toBeNull();
   });
 });
 
-describe('getAkoyaInstitutionByKey', () => {
-  it('round-trips a supported key', () => {
-    expect(getAkoyaInstitutionByKey('fidelity')?.displayName).toBe('Fidelity');
+describe('getAkoyaInstitutionByKey — no key resolves', () => {
+  it('returns null for the key that used to round-trip', () => {
+    expect(getAkoyaInstitutionByKey('fidelity')).toBeNull();
   });
 
-  it('returns null for an unsupported key', () => {
+  it('VACUOUS WHILE THE LIST IS EMPTY: returns null for an unsupported key', () => {
     expect(getAkoyaInstitutionByKey('chase')).toBeNull();
   });
 });

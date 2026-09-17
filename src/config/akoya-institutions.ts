@@ -19,13 +19,25 @@ export interface AkoyaInstitution {
   matchers: RegExp[];
 }
 
-export const AKOYA_INSTITUTIONS: readonly AkoyaInstitution[] = [
-  {
-    key: 'fidelity',
-    displayName: 'Fidelity',
-    matchers: [/\bfidelity\b/i],
-  },
-];
+/**
+ * ⚠️ DELIBERATELY EMPTY SINCE 2026-09-17. Tre: "remove Connect Fidelity via Akoya btw since i
+ * never bought it. i cant even do it sense its an expensive pay up front".
+ *
+ * Akoya is a paid-up-front data network and this account has never purchased access, so every
+ * Akoya offer in the app was a control that could not complete for any user. Fidelity was the
+ * only entry, so emptying this list is the whole removal: `findAkoyaInstitution` can no longer
+ * match anything, and both fallback call sites render nothing because `AkoyaFallbackPrompt`
+ * already returns null for a null institution. The Accounts disclosure that MAPS this list is
+ * separately guarded on its length, because an empty map does not remove a disclosure — it
+ * leaves a broken one reading "Trouble connecting ?" with no buttons under it.
+ *
+ * THE PROVIDER IS KEPT, NOT DELETED — the edge functions, the `/akoya-oauth` callback route and
+ * the response normalizers all still work and are still tested. He said he has not bought it,
+ * not that he never will, and this list is the one place that decides whether a user is OFFERED
+ * the route. Restoring the offer is putting the entry back; that is why the removal was made
+ * here rather than by pulling the surfaces out one at a time.
+ */
+export const AKOYA_INSTITUTIONS: readonly AkoyaInstitution[] = [];
 
 /**
  * Resolves an institution name to a supported Akoya fallback, or null when the
