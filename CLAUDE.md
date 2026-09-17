@@ -145,6 +145,18 @@ section states reasoning, not measurement, and says so.
   a header's buttons are the RIGHT buttons, anything below the header, and it corrects for neither
   the centring artefact nor the 2-3 desktop routes that still drop out of a run — **a missing row
   means "not measured", never "clean".**
+- `npm run check:accounts-groups` - the Accounts tab's grouping, at 390x844, signed in, at 2x.
+  A group of ONE must render NO heading and carry its institution ON its row; a group of TWO OR
+  MORE must render a heading and NOT repeat it on its rows. **Either half alone is a defect** -
+  dropping the heading without moving the institution DELETES the bank name, which is the failure
+  the whole change had to avoid, and that is the mutation it is proven red against.
+  ⚠️ **GROUPS ARE READ OFF THE DOM WRAPPER, NEVER BY MATCHING HEADING TEXT AGAINST ROW TEXT.** The
+  first version did the latter and classified "a row mentioning no heading" as solo - which is
+  ALSO exactly what a correctly grouped row looks like, so it reported 9 solo groups where there
+  are 5 and printed an invented 171px saving. Same family as selecting on a correctness marker.
+  Measured: 9 rows in 7 groups, 110px of chrome saved, every meta line 242px with zero overflow.
+  Does NOT cover colour, theme, desktop widths, or whether the institution string is correct
+  (`Accounts.soloGroupHeading.test.tsx` owns that).
 - `npm run check:nav` — walks the nav IA at 390x844 and 1440x900, SIGNED IN. Asserts the
   hamburger is absent on the four tab routes and present on Account; that it is **TAPPABLE**
   (`elementFromPoint` at its own centre, because `viewport-fit=cover` once put it under the
