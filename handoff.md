@@ -90,6 +90,20 @@
    💰 **A REAL FINDING FOR TRE, not a test fact: his absorbable April shock has fallen from
    $3,000 to under $840 - about 72% - in sixteen days.** An unexpected $1,000 expense in Apr 2027
    now puts him under his safe minimum where $3,000 would not have.
+   ✅ **`floorFlicker` IS THE SAME FAMILY - PREDICTED, THEN MEASURED RATHER THAN ASSERTED.**
+   Swept on the statement capture: **$500** no new breach; **$1,000 and $2,000 Apr 2027 ONLY, so
+   the confinement invariant HOLDS**; $4,000 spills to Jun; $6,000 through Aug; $8,000 through Dec.
+   Monotonic and smooth. **CRUCIALLY `converged=true` AT EVERY SIZE** - the latch is what that file
+   exists to protect and it is **intact throughout**. The failing assertion is CONFINEMENT, which
+   degrades with capacity, not the latch. The spread threshold moved from above $8,000 on the
+   09-01 capture to **between $2,000 and $4,000**.
+   **RE-PIN: shock 8000 -> 2000**, and the hardcoded **`ABSORBED = 3000` -> ~840** - that constant
+   was measured on the 09-01 capture and is now simply false. `converged=true` needs no change.
+   📌 **SO ADOPTION IS NOW ONE JUDGEMENT, NOT THREE.** Re-pin `floorDeficit` (3000 -> 500) and
+   `floorFlicker` (8000 -> 2000, ABSORBED -> 840) with the measured numbers, then decide the one
+   thing that is genuinely open: **whether to re-pin an UNEXPLAINED seven-month payoff move.**
+   **The previous session's warning applies squarely to that last one, and I am leaving it
+   blocked rather than waving it through on a money app.**
    ⚠️ **THE PAYOFF MOVE IS UNEXPLAINED, AND I RETRACTED MY OWN "NINE MONTHS" THE SAME HOUR
    I MEASURED IT.** Ask `80ea17f2`, retracted in place. **Read this before re-running anything.**
    I isolated clock from data by running the SAME golden capture at TWO clocks and reported that
