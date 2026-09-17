@@ -5,13 +5,33 @@
 **Tre is awake and typing into THIS tab.** Anything below that describes the UI is perishable -
 check the file before acting on it.
 
-1. [ ] 💸 **MOVE FUNDS: WEIGHT THE TRANSFERS TOWARD THE DUE DATE (ask `e016ff41`).**
-   Tre, 2026-09-17: *"can we push it to where it condenses to be as like it can have higher payments
-   or higher transfer rates closer to the due date instead of split evenly amongst all the dates
-   that way I can pay more of a credit card debt beforehand."* SCOPE: the MOVE FUNDS / transfer
-   suggestion, not the payment engine. **Find the even split and MEASURE it before changing any
-   money math** - this is the same surface family as the unconditional defect below, where the rule
-   existed and one path never read it.
+1. [ ] 🚨 **"ALWAYS PAY THIS IN FULL" IS A MONTH-0-ONLY PROMISE (ask `88acfa0f`) - HIS OCTOBER $0.**
+   Tre: *"on the homepage overview tab the next payment still shows zero for due October 10."*
+   **MEASURED, on his card shape at a frozen 2026-09-17 clock** (unconditional, preference `full`,
+   `firstDueDate` 2026-10-10, against a competing $6,000 balance):
+
+       cash-RICH month   ->  [0, 222.33, 0]   correct, paid in full in October
+       cash-TIGHT month  ->  [0, 50, 50]      $50 a month forever; tighter still gives it $0
+
+   `unconditionalDesired` has exactly TWO callers and **both settle month 0**. From month 1 the sim
+   treats the card as an ordinary revolving card, and **his `min_payment` is 0** - so the cascade
+   decides, and in a tight October it decides nothing. The forecast tab looks right to him because
+   a later month happens to be rich enough.
+   ⚠️ **THIS IS A FORK, NOT A GUARD.** Sam's month-0 ruling is that the obligation wins and the gap
+   is REPORTED. The shortfall machinery is month-0 only, so extending the obligation WITHOUT
+   extending the report would silently starve other cards in tight months - the same lie in the
+   other direction. **Recommendation: honour it every month AND carry the shortfall per month.**
+   Real work in the engine's month model. Do not ship half of it.
+
+2. [ ] 💸 **MOVE FUNDS: DUE-DATE WEIGHTING, AND HE HAS DECIDED THE RULE (asks `e016ff41`,
+   `9eba55a8`).** A joined 50/50 split (`DEFAULT_SPLIT_SHARE`, `joinSurplusRankRow`) becomes
+   **due-date weighted**: the nearer-due target - the card - takes more EARLY to cut interest; the
+   far-out goal takes less early and **more later**. *"Just make sure they both still hit their
+   targets."* So it is a re-profiling over time, **not a re-ranking**: the goal is delayed, never
+   dropped, and the card is paid to the interest-saving point and not beyond, *"since we still need
+   to save up for the move."*
+   **ACCEPTANCE MUST ASSERT BOTH TARGETS ARE STILL MET**, not merely that the card got more - an
+   arm that only checks the card is satisfied by starving the goal.
 
 <details><summary>Done this session - iOS 886 is in TestFlight, verified through all three gates</summary>
 
