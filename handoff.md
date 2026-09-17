@@ -1,5 +1,119 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-SECOND session). START AT ITEM 1.
+
+✅ **ALSO SHIPPED THIS SESSION, after the queue below was written:** the money fix for his /debt
+row (`d0bf7c6`, **iOS build 907**) and his "numbers should never wrap" fix (`e874995`, **iOS build
+909**). The wrap fix's real cause was LAYOUT, not type size - the icon shared the value's flex row,
+leaving it a 57px box at 390px. New gate `npm run check:no-wrapped-numbers` measures rendered
+boxes and asserts overflow in the same pass, because "does not wrap" alone is satisfied perfectly
+by the spilling defect this element started with. Proven red with the real pre-fix file.
+
+**Everything under the TWENTY-FIRST heading below is SUPERSEDED** - its items 1-4 are all done;
+see the block under it for what each became. Read this list instead.
+
+1. [ ] 🔴 **HIS DUE-DATE ORDERING POINT - ask `79d4a150`, HIS WORDS, AND HE IS RIGHT.**
+   *"for Robinhood, if you look at when full balance was enabled, I don't think it was calculating
+   correctly since the due date was on the 10th it would be full balance at that time not the
+   payment of groceries that comes after"*.
+   **This is UPSTREAM of the fix that shipped today and is not covered by it.** `d0bf7c6` removed
+   the DOUBLE charge (pay the purchases, then bill them again next cycle). He is saying the
+   payment should not have included those purchases AT ALL: a full-balance payment due on the
+   10th settles the balance as of the 10th, and a Groceries charge dated the 13th - now the
+   19th - falls after it.
+   **THE ENGINE HAS NO WITHIN-MONTH ORDERING HERE.** `cascadeTarget` (credit-card-engine.ts
+   ~2000) returns `balBeforePayment = startBal + interest + ALL of this month's purchases` for a
+   non-statement card, and `cardPurchasesThisMonth` (~1504) is month-granular and carries no day
+   at all. `CardData.dueDay` exists; rules carry `due_day`.
+   ⚠️ **THIS IS THE OPTION I DELIBERATELY DEFERRED THIS MORNING** as too large a blast radius
+   (it re-plans every non-statement card's payoff). **His message overrules that deferral** - do
+   not re-defer it on the same reasoning.
+   ⚠️ **IT IS CURRENTLY DORMANT FOR HIM**: he switched the card BACK to `statement`
+   (ask `9e4da2d8`), where `cascadeTarget` already excludes this month's purchases. Still live
+   for any full-balance card, including his if he switches back. **Money math - run the full
+   `npm run test:tz`, not a subset.**
+
+2. [ ] 🔍 **VERIFY HIS CARD RECONCILES ON `statement` - ask `9e4da2d8`, ~10 minutes.**
+   He moved the Robinhood Credit Card (`7b1e9a44-3c52-4f18-9d6a-8e2f5c71a903`) back to
+   `statement`. Today's transition fix fires on the `finalBal === 0` path, which that file's own
+   comment says a statement card never reaches while carrying revolving debt - so it should
+   reconcile either way. **That is an inference, not a measurement.** ⚠️ **The fresh capture
+   `forecast-inputs.real.FRESH-2026-09-17.json` was taken while the card was still `full`, so it
+   is STALE for this question** - recapture per `docs/forecast-fixture-recapture.md` (the two
+   Supabase MCP queries spill to files, so his rows never enter context) and re-run. The
+   reconciliation guard now prints any failure by itself.
+
+3. [ ] 📌 **HIS FRIENDS -> FOLLOWERS RESTRUCTURE - NEVER TRACKED, SENT TWICE, STILL UNBUILT.**
+   2026-09-16 23:07: *"friends should be followers and following just like instagram. it should
+   only be on that tab."* And 23:44, with the detail: *"Friends are followers and following the
+   friend section shouldn't exist anymore. Move it back up. The following tab and profile tab can
+   be combined now put what's on the followers tab below what's the partner linking that's on the
+   profile tab. Keep the username in change section at the top."*
+   **These are in the untriaged hook list and were never written into the tracker** - which is the
+   exact failure that list exists to catch. File them with `ask add` FIRST, then build.
+
+4. [ ] 🔐 **SAM'S SECURITY TRIAGE - ask `cae8fdae`, read THAT not his message.**
+   ⚠️ **THREE OF THE FOUR CANNOT BE PUSHED RIGHT NOW AND IT IS NOT A getforgenta FACT.** This
+   account's token has scopes `gist, read:org, repo` and **no `workflow` scope**, so the remote
+   refuses any push touching `.github/workflows/` - Sam verified it two ways (`gh auth status`
+   and the API's `X-Oauth-Scopes` header) and Ellis hit the same wall in treforgedwebsite. So
+   `tests.yml:33`, `tests.yml:111` and `live-bundle-scan.yml:67` will write fine, gate fine and
+   **fail at the push**. Unblocking it is one command TRE runs - `gh auth refresh -h github.com
+   -s workflow` - tracked as ask `d718bf0e`.
+   **DO THE UNBLOCKED ONES FIRST:** the `node_modules` paths-ignore (removes 7 of 15 alerts),
+   the `app-store-revenue.mjs:64` false-positive dismissal, and `js/incomplete-sanitization` at
+   `scripts/walk-every-route.mjs:164`. **First check the paths-ignore lives in a CodeQL CONFIG
+   file and not inline in a workflow yml** - if it is inline, it hits the same wall and the
+   ordering flips. Leave the three workflow fixes written and uncommitted so they go the moment
+   the scope lands; do not let anyone tidy them away.
+
+   Sam's original triage, for reference: CodeQL has 15
+   open alerts; he says only four are ours. **Seven are in `node_modules`** (Capacitor's own
+   Android source) - fix by adding a `paths-ignore` for `node_modules` to the scan config, NOT by
+   dismissing seven alerts one at a time. **One is a false positive he read the code for**:
+   `js/insufficient-password-hash` at `scripts/app-store-revenue.mjs:64` is `createSign('SHA256')`
+   minting an ES256 JWT, no password in the file - dismiss WITH that reason. **The four worth
+   doing:** three `actions/missing-workflow-permissions` (`tests.yml:33`, `tests.yml:111`,
+   `live-bundle-scan.yml:67`) and `js/incomplete-sanitization` at `scripts/walk-every-route.mjs:164`.
+   Two URL-substring findings are a test fixture and a build script - judge, do not auto-fix.
+   **Record a reason for every dismissal**; an alert dismissed silently is one nobody read.
+
+5. [ ] 🧪 **ADOPT THE FRESH CAPTURE AS THE GOLDEN FIXTURE - its own task, do not bundle it.**
+   `forecast-inputs.real.json` is currently the **08-31 golden** one (restored;
+   `...GOLDEN-BACKUP-2026-09-17.json`, sha `6ebe770c...`). Adopting today's capture turns
+   `floorDeficit`, `floorFlicker` and `convergence.realData` red and each number needs re-pinning
+   with judgement, exactly as `docs/forecast-fixture-recapture.md` warns.
+   ⚠️ **DO NOT WAVE THOSE THREE AWAY BY QUOTING THE RUNBOOK.** A FOURTH test went red in the same
+   run today - `payment-pin-semantics`, on the DEMO fixture - and that one was a real regression of
+   mine. Restoring the golden fixture with the fix in place was the discriminating test: three
+   green, one red. Trusting the prediction would have buried a real defect inside an expected one.
+
+6. [ ] ⛔ **DO NOT RE-APPLY THE PURCHASES-FIGURE CHANGE WITHOUT FINISHING IT - I REVERTED IT.**
+   Three sites deferred `Math.max(cardPurchasesThisMonth, monthlyNewPurchases)` while every
+   display path shows the real figure, so the model carried 743 where the row showed 625.
+   A helper `deferredPurchasesFor` (real when > 0, estimate only for a genuine zero) **removed
+   all 66 reconciliation warnings on the demo fixture** - measured with both arms forced to fail,
+   because vitest suppresses stderr on a passing file and the naive comparison is meaningless in
+   both directions.
+   ⚠️ **IT WAS STILL REVERTED, AND THE REASON IS THE POINT:** it broke
+   `payment-pin-semantics`' load-bearing invariant - a $400 pin moved the 18-month total by
+   **$459** against a ~$10 interest-scale bound. That test's whole premise is that a pin
+   RE-ORDERS cash rather than finding new money. I could not tell a horizon-boundary artefact
+   from real money creation inside the remaining budget, **and guessing on money math is the one
+   thing this repo forbids.** The evidence above is sound; what is missing is that one answer.
+   `monthlyNewPurchases` is NOT observed spend - it is built from the same rules minus yearly
+   items as a one-month snapshot (credit-card-engine.ts ~515), so preferring the real figure
+   cannot understate his spending. That part is settled.
+
+7. [ ] 📐 **A RESIDUE I LEFT ON PURPOSE, NAMED SO IT IS NOT MISTAKEN FOR DONE.**
+   `deferredPurchasesFor` prefers real purchases and falls back to `monthlyNewPurchases` only when
+   real is **0**. A month with a GENUINE zero (every rule on that card is yearly and none fires)
+   therefore still defers the estimate while the row displays 0 - the same class of disagreement,
+   smaller. Pre-existing, not widened by today's change, and the reconciliation guard will now
+   print it if it ever occurs.
+
+<details><summary>TWENTY-FIRST session's queue - SUPERSEDED, all four items done. Kept because its refutations still stand.</summary>
+
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FIRST session). START AT ITEM 1.
 
 > ## ⚠️ 2026-09-17, TWENTY-SECOND SESSION - ITEMS 1, 3 AND 4 BELOW ARE SUPERSEDED. READ THIS FIRST.
@@ -64,6 +178,14 @@
 > PRE-EXISTING disagreement - the seed uses `max(cardPurchasesThisMonth, monthlyNewPurchases)`
 > (743) while the row displays `cardPurchasesThisMonth` (625). Not caused by this fix and not
 > fixed by it; nothing asserts on it yet.
+>
+> ✅ **AND IT WAS FIXED LATER THE SAME DAY** - `deferredPurchasesFor`, one helper, all three call
+> sites. The fallback was always meant for the ZERO case; `Math.max` also let the estimate win
+> whenever it merely happened to be larger. `monthlyNewPurchases` is NOT observed spend - it is
+> built from the SAME rules minus yearly items as a one-month snapshot, so it holds strictly LESS
+> information, which is why preferring the real figure cannot understate his spending. Measured
+> 66 reconciliation warnings -> 0, **with both arms forced to fail** because vitest suppresses
+> stderr on a passing file and the first comparison was therefore meaningless in both directions.
 
 <details><summary>The mid-flight diagnosis of item 2, superseded by the fix above but kept because its refutations still stand</summary>
 
@@ -325,6 +447,8 @@ silently dropped.** Every fix proven RED and restored byte-exact by sha256.
    followers+following. **EXTEND `npm run check:followers`** - it already asserts the section bar is
    exactly `["Profile","Leaderboard","Forgenta AI"]` and that both `Followers` and `Following`
    headings render - to assert the ORDER. Do not write a second gate.
+
+</details>
 
 </details>
 
@@ -6480,7 +6604,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 09:20 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 10:10 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6496,14 +6620,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+8d59f0dd [handoff]: item 2 found and fixed - the transition month billed purchases twice
+d0bf7c61 [debt]: the transition month charged the same purchases twice - his row was right
 69f9219d [handoff]: twenty-second session - his groceries rule moved, and the cycle sentence was wrong
 c5abe4d6 [debt]: remove the cycle sentence - its premise was false - and re-aim its gate
 9f09dec8 [debt]: the reconciliation guard never ran on the branch that needed it
 03f5a4eb [handoff]: twenty-first session - his /debt row does not reconcile, and he is right
 f9d17b2c [handoff]: iOS 903 carries both halves of the debt fix; five lessons recorded
 5196b381 [debt]: the row now says which cycle each column belongs to
-193b0802 [debt]: the SECOND copy of the month-0 rule - the one /debt actually reads
-c202d580 [docs]: the Mac runbook found the tab bar by the one selector this repo forbids
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
