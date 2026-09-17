@@ -35,17 +35,21 @@ code. The golden fixture is still in place; the fresh capture is NOT adopted.
 unblocked half of 4 are done; items 3, 5, 6, 7 and the BLOCKED half of 4 survive and are restated
 here. Read this list instead.
 
-1. [ ] 📌 **HIS FRIENDS -> FOLLOWERS RESTRUCTURE - ask `881971fd`, NOW TRACKED.** It was
-   sent twice on 2026-09-16 and had never reached the tracker until this session filed it. His
-   words, 23:07: *"friends should be followers and following just like instagram. it should only
-   be on that tab."* And 23:44: *"Friends are followers and following the friend section shouldn't
-   exist anymore. Move it back up. The following tab and profile tab can be combined now put
-   what's on the followers tab below what's the partner linking that's on the profile tab. Keep
-   the username in change section at the top."* The ask carries that as a five-point spec.
-   **This is the biggest unbuilt thing he has asked for and it is his own product surface.**
-   ⚠️ Grep for the CALLER before scoping any part of it as not built - this repo has found
-   four already-shipped features described as missing. Touches the Account tab section bar, so
-   `npm run check:account` must be proven red as well as green.
+1. [x] ✅ **HIS FRIENDS -> FOLLOWERS RESTRUCTURE WAS ALREADY BUILT - ask `881971fd` CLOSED.**
+   **I filed this as the biggest unbuilt thing he had asked for, and it was not unbuilt.** The
+   previous session's handoff said "NEVER TRACKED, SENT TWICE, STILL UNBUILT"; the first two were
+   true and the third was false. Caught by grepping for the CALLER before starting - the check
+   this repo mandates, and the one I had written into this very item as a warning to somebody else.
+   Commit `9e2e1918` implements all five points of his 23:44 message and `src/pages/Account.tsx`
+   quotes his words VERBATIM in the comment explaining the order. Measured, not read: the
+   Followers segment is gone (0 call sites, with a persisted-value guard falling through to
+   profile); Profile renders Username, then PartnerLink, then FollowersPanel in his order;
+   `FollowersPanel` carries both lists. Migration `c206197d`. Confirmed on origin by CONTENTS.
+   ⚠️ **THE ONE REAL RESIDUE, now ask `d848296c`:** `f8da9783` says in its own subject that
+   the username typeahead is **NOT YET VERIFIED**. Its claim is "public profiles only", and a leak
+   there shows one real person to another - so the check must assert BOTH arms, because
+   "suggests nobody" satisfies an absence-only test and is also what a broken query looks like.
+   **START HERE.**
 
 2. [ ] 🔧 **MY OWN Release-Note TRAILERS WRAPPED AND THE TAIL WAS DROPPED - ask `14c839df`.**
    Found while running `test:tz`, printed by the repo's own check on every single run. `d0bf7c6`
