@@ -1,6 +1,93 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ START HERE - 2026-09-17 (Ada, TWENTY-SEVENTH session), closed on the handoff gate
+## ⚠️ START HERE - 2026-09-17 (Ada, TWENTY-EIGHTH session)
+
+**THE PREVIOUS BLOCK'S FOUR ITEMS ARE ALL DONE. Nothing was committed by this session except this
+handoff - it measured, it did not build.** Tree was clean and 0/0 vs origin at `828ea3bb`.
+
+### ✅ 1 - iOS BUILD **937** IS UPLOADED (run `35283280523`, on `143b3a4b`, version 6.7)
+Verified the hard way, three ways, none of them the run conclusion:
+* **Step 20 `Upload to App Store Connect`, its OWN conclusion: `success`** - not `skipped`.
+* **`UPLOAD SUCCEEDED with no errors`** present once in the log; control `Upload` = 46 matches,
+  so the grep works and the 1 is real.
+* **All three `90382` matches are ECHOED SCRIPT SOURCE** - log lines 2043 (a comment), 2053
+  (`elif grep -q`), 2054 (the `::warning::` string). None in output; the cap branch never fired.
+* **`VERSION_CODE=937` READ FROM THE LOG**, not computed. 937 supersedes 935: it carries the
+  dashboard default AND the reset-to-defaults fix, which 935 did not.
+* An upload is not an install. TestFlight still processes and he still has to update.
+
+### ✅ 2 - BOTH BLOCKER TRIGGERS RE-TESTED. NEITHER HAS FIRED, AND THE INHERITED SQL WAS WRONG TWICE
+⚠️ **The query in the last handoff would not have answered either question.** Both table/column
+names in it were assumptions and both were false. Recorded so nobody re-derives them:
+* **`profiles.leaderboard_opt_in` DOES NOT EXIST.** The registry is the **`leaderboard_shares`**
+  table, one row per `(user_id, metric)` with an `enabled` boolean, and **no row means share
+  nothing**. So the honest count is DISTINCT `user_id` where enabled, never a row count -
+  **7 rows are 2 people.**
+* **`subscriptions` IS THE USER'S OWN TRACKED BILLS** - name, cost, billing, renewal_date. It is
+  Netflix, not Forgenta, and it has no `status` column. **App billing is `user_subscriptions`.**
+  Querying it would have measured a completely different object; it errored loudly here, which
+  is luck rather than design.
+* **`798c0ed9` - DEFERRAL STANDS.** 33 profiles, **2 distinct sharers** (up one in four days),
+  and the number nobody asked for: **`follows` = 0 rows.** Nobody follows anybody, so the friends
+  board has no population for a snapshot to be stale for.
+* **`b573d720` - TRIGGER HAS NOT FIRED, AND THE PROXY SAYS IT HAS.** 5 active subscriptions reads
+  as fired. **Every one of the five has `revenuecat_app_user_id` NULL**, and RevenueCat is the
+  Apple channel. The only active row with a real billing subscription id is **Stripe**, which
+  this ask already records cannot validate the App Store pipeline. The two rows that do carry a
+  RevenueCat id are both `canceled` on `free`.
+  **STATED LIMIT:** there is no purchase or receipt log anywhere in this database, so a lapsed
+  Apple sale cannot be told from a RevenueCat id created without a purchase. **App Store Connect
+  is authoritative and that is Tre's login, not a query.**
+
+### ✅ 3 - `80ea17f2` IS NOW **LOCATED**, AND THE ARMS THAT "EXONERATED" INCOME WERE MEASURING NOTHING
+Each capture run at **its own clock**, which is the method the row already named:
+
+| capture | month 0 | payoff | offset |
+| --- | --- | --- | --- |
+| GOLDEN (31 Aug) | Aug 2026 | Sep 2028 | **25** |
+| STATEMENT (17 Sep) | Sep 2026 | Jun 2029 | **33** |
+| FRESH (17 Sep, independent) | Sep 2026 | Jun 2029 | **33** |
+
+* **THE FIGURE IS 8 REMAINING MONTHS, NOT 9.** Nine is the absolute-date gap and double-counts
+  the month 0 that moved. FRESH agreeing with STATEMENT exactly is the reproducibility control.
+* **TWO NUMBERS IN THE ORIGINAL ROW ARE DEAD:** month-0 `debtPayment` is **$0 in BOTH** at their
+  own clocks, so the `$661 vs $0` contrast was purely the hybrid artefact.
+* ⚠️ **THE ATTRIBUTION ARMS WERE STRUCTURALLY INCAPABLE OF MOVING THE NUMBER.** Restoring the
+  golden paycheck (816.10 -> 848.89), the golden checking balance (560.61 -> 3123.76), and both
+  together **all returned 33, unmoved**. That reads as a clean exoneration of income and cash.
+  A fourth arm set the capture's frozen `cardProjectionData.simRevolvingPayoffMonth` from 34 to
+  26 and the payoff **snapped to offset 25, the golden number exactly.**
+  **THE MILESTONE IS READ OUT OF THE CAPTURE, NOT RECOMPUTED** - `calculateForecast` never
+  re-simulates the cards from balances, income or cash. **Without the fourth arm I would have
+  filed "not income, not cash" and sent the next session hunting in the engine.**
+* **NEXT STEP, NAMED:** the divergence lives in **`useCardProjection`**, which computed 26 on
+  31 Aug and 34 on 17 Sep. The forecast capture cannot answer it. The instrument that can is
+  **`recapture-forecast-fixture.test.tsx`**, which rebuilds a capture from `raw-rows.real.json`
+  and therefore RE-RUNS the sim. Drive it from both raw-row snapshots.
+* ⚠️ **REAL DATA MOVED AND MUST NOT BE MISREAD. THE RENT RISE IS NOT A RISE:** 1915 -> 2070 is
+  exactly the **155** of Internet (85), Smart Home (40) and Water/Sewer/Trash (30) folded into
+  the rent rule, whose new name says so. Reporting it as a 155 increase would have been wrong in
+  his favour. What genuinely moved: weekly pay 848.89 -> 816.10, checking 3123.76 -> 560.61, and
+  a new **Robinhood Credit Card carrying 274.27**.
+
+### ✅ 4 - `5409ffbc` ADOPTION STILL REFUSED, AND LOCATING (3) STRENGTHENS THE REFUSAL
+Invariants (1) floorDeficit and (2) floorFlicker are unchanged - capacity facts, ceiling ~839.80,
+`converged=true` at every shock size, re-pins already measured and recorded on the ask.
+**The refusal is now sharper:** the number invariant (3) would pin is an **output of
+`useCardProjection`**, not of the engine the golden test guards, and it is unexplained by 8
+months. Re-pinning it would write that into the repo's money baseline and make it the thing
+future work is measured against - the rewrite that passes the gate by lying to it. Unblocks when
+the sim is re-run from raw rows and the 26 -> 34 move is explained; then adopt all three in one
+commit.
+
+### WHAT IS ACTUALLY LEFT
+The actionable ask queue is empty and every remaining item is blocked on a named trigger or on
+Tre. The one piece of genuinely unblocked engineering is the **`useCardProjection` re-run in item
+3 - start there.** It is money, it is user-visible, and the instrument already exists.
+
+---
+
+## ⚠️ PREVIOUS - 2026-09-17 (Ada, TWENTY-SEVENTH session), closed on the handoff gate
 
 **Everything below is committed and pushed, 0/0 vs origin.** Four commits this session:
 `32f20f92` (dashboard default), `55a17bca` (Akoya withdrawn), `143b3a4b` (reset-to-defaults race),
