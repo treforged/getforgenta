@@ -77,6 +77,29 @@
    ⚠️ **ADOPT `STATEMENT-2026-09-17`, NEVER `FRESH`.** `FRESH` is the `full` era he has LEFT,
    so adopting it would pin the baseline to a state the app no longer produces - the same defect
    the 08-31 golden already has.
+   ✅ **SWEPT SINCE: TWO OF THE THREE ARE NOW ANSWERED.**
+   **`floorDeficit` IS A CAPACITY FACT, NOT A DEFECT** - settled by that file's OWN discriminator,
+   *"if the chain had regressed, $500 would breach too"*. On the statement capture: **$0 no new
+   breach** (control - the harness is not manufacturing breaches), **$500 ABSORBS**, $1,000 leaves
+   Apr 2027 short $160.20, $2,000 short $1,160.20, $3,000 short $2,160.20 + May $447.82. **The
+   shortfall rises exactly $1,000 per $1,000 above the ceiling** - the signature of an intact
+   mechanism with no slack left, where a regressed chain gives disproportionate shortfalls.
+   **Absorbable ceiling ~$839.80**, so the re-pin is **shock 3000 -> 500**, ceiling recorded, $0
+   control kept. `floorFlicker`'s $8,000 shock is untouched and is almost certainly the same
+   family - **sweep it the same way**.
+   💰 **A REAL FINDING FOR TRE, not a test fact: his absorbable April shock has fallen from
+   $3,000 to under $840 - about 72% - in sixteen days.** An unexpected $1,000 expense in Apr 2027
+   now puts him under his safe minimum where $3,000 would not have.
+   ⚠️ **STILL OPEN, AND DELIBERATELY NOT CALLED EITHER WAY: the payoff move
+   `Sep 2028` -> `Apr 2029`.** Card balances rose only **$198** (19,005 -> 19,203, 0.96%), and
+   $198 cannot push payoff seven months - **so it is NOT the capacity story `floorDeficit` turned
+   out to be.** But it is **not a defect either, on the evidence so far**: `manualISB` records a
+   measured case where **eleven days of clock moved payoff FIVE months** via a month-0 rollover
+   plus per-card payment reallocation - and the golden's `capturedAt` is `2026-09-01T00:20Z`,
+   **the evening of 31 August locally**, so its month 0 is AUGUST while the statement capture's is
+   SEPTEMBER. The two are not a clean comparison. **NEXT EXPERIMENT, the one that settled the
+   earlier case: the per-card month-0 payment and balance breakdown across both captures.** Until
+   that runs, seven months is UNEXPLAINED rather than WRONG.
    ⚠️ **AND I NEARLY CORRECTED A LABEL THAT WAS RIGHT.** `autopayFullBalance` reads `false` in
    BOTH captures, so it cannot tell them apart. The era field is `payment_preference` /
    `paymentPreference`; read there, the previous session's labelling is **correct**.
