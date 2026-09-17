@@ -1068,20 +1068,30 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      {/* WRAPS, NOT TRUNCATES (Tre, 2026-09-02: "we need to fix the
-                          truncation"). The name is how you tell two accounts apart, and on a
-                          phone the Auto-sync badge and the balance are both shrink-0, so
-                          "Robinhood individual" arrived as "Robinhoo...". That is worst exactly
-                          when it matters most - he had TWO accounts named "Robinhood individual"
-                          and could not tell them apart on the screen that lists them.
-                          `line-clamp-2` costs nothing on a short name and only grows the row when
-                          the name genuinely needs a second line. */}
-                      <p className="text-sm font-semibold line-clamp-2 break-words">{a.name}</p>
-                      {a.plaid_account_id && (
-                        <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none shrink-0" style={{ borderRadius: 'var(--radius)' }}>
-                          Auto-sync
-                        </span>
-                      )}
+                      {/* ⚠️ THE NAME GETS THE WHOLE LINE, AND IS NEVER CLAMPED. Third report of
+                          this same defect (Tre, 2026-09-02, 2026-09-16, and 2026-09-17 with
+                          three screenshots at three text sizes: *"longer text truncates no
+                          matter the size though so we need a solution"*).
+
+                          THE FIRST TWO FIXES TREATED THE SYMPTOM. They added `line-clamp-2
+                          break-words`, which decides what to do once the column is ALREADY too
+                          narrow - so the name still arrived as "Robinho od...", now broken
+                          mid-word. The cause was never the clamp: the name shared one flex row
+                          with the Auto-sync badge AND the balance, BOTH `shrink-0`, so it was
+                          handed whatever was left. At the largest text size that was about five
+                          characters, and `break-words` then split "Robinhood" itself.
+
+                          ⚠️ A CLAMP CANNOT BE THE ANSWER TO A WIDTH PROBLEM. `line-clamp-2`
+                          guarantees truncation at exactly the sizes where two lines are not
+                          enough, which is the accessibility setting he actually uses. So the
+                          clamp is gone: a name wraps to as many lines as it needs. A name is how
+                          you tell two accounts apart - he has TWO called "Robinhood individual" -
+                          so an unreadable name is a correctness defect, not a cosmetic one.
+
+                          The badge moved to the meta line below, where it belongs: "this account
+                          auto-syncs" is metadata about the account, not part of its name. That
+                          alone returns roughly 90px to the name on a 390px phone. */}
+                      <p className="text-sm font-semibold break-words">{a.name}</p>
                     </div>
                     <span className={`text-base font-display font-bold shrink-0 ${liability ? 'text-destructive' : 'text-success'}`}>
                       {liability ? '-' : ''}{formatCurrency(Number(a.balance), false)}
@@ -1096,12 +1106,25 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       lines instead of three, the icons form a straight column
                       down the right edge, and nothing is lost. */}
                   <div className="flex items-center justify-between gap-3">
-                  {/* Same reason, and worse here: four 44px action buttons sit shrink-0 on
-                      this line, so on a 390px phone the meta text had ~150px and rendered
-                      "Brokerage" as "Broke..." and "Credit card" as "Credit...". Clamped to two
-                      lines rather than moved, because moving the actions back to their own row
-                      would undo the density work from 2026-09-01. */}
-                  <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5 min-w-0">
+                  {/* ⚠️ THE CLAMP IS GONE HERE TOO, for the reason above. Four 44px action
+                      buttons sit `shrink-0` on this line, so on a 390px phone the meta text has
+                      roughly 150px, and clamping it to two lines rendered "Brokerage" as
+                      "Brok era..." - broken mid-word AND truncated. It now wraps to whatever it
+                      needs.
+
+                      THE TRADE, SAID PLAINLY: a long meta line makes a row taller, which spends
+                      some of the density Tre asked for on 2026-09-01 ("reduce all the excess
+                      spacing"). That ask was about EMPTY space, and this is text he asked to be
+                      able to read - so where the two pull against each other, readable wins. */}
+                  <p className="text-xs text-muted-foreground break-words mt-0.5 min-w-0">
+                    {/* Moved off the name's line. It reads the same here and costs the name
+                        nothing. `inline-flex` + `align-middle` so it sits on the text baseline
+                        and wraps with the sentence instead of forcing its own row. */}
+                    {a.plaid_account_id && (
+                      <span className="inline-flex align-middle mr-1.5 text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none" style={{ borderRadius: 'var(--radius)' }}>
+                        Auto-sync
+                      </span>
+                    )}
                     {TYPE_LABELS[a.account_type] || a.account_type}
                     {a.institution ? ` · ${a.institution}` : ''}
                     {a.apr ? ` · ${a.apr}% APR` : ''}

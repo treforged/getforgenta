@@ -17,6 +17,7 @@
     "check:account": "node scripts/check-account-sections.mjs",
     "check:topright": "node scripts/inventory-top-right-space.mjs",
     "check:concentricity": "node scripts/check-concentricity.mjs",
+    "check:truncation": "node scripts/check-account-truncation.mjs",
     "check:glass": "node scripts/check-glass.mjs",
     "check:rail": "node scripts/check-collapsed-rail.mjs",
     "check:friend-read": "node scripts/check-friend-read.mjs",
