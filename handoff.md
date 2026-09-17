@@ -80,10 +80,48 @@ future work is measured against - the rewrite that passes the gate by lying to i
 the sim is re-run from raw rows and the 26 -> 34 move is explained; then adopt all three in one
 commit.
 
-### WHAT IS ACTUALLY LEFT
-The actionable ask queue is empty and every remaining item is blocked on a named trigger or on
-Tre. The one piece of genuinely unblocked engineering is the **`useCardProjection` re-run in item
-3 - start there.** It is money, it is user-visible, and the instrument already exists.
+### ✅ 5 - I THEN RAN ITEM 3's OWN NEXT STEP, AND IT MOVED THE SUBJECT
+Built a **read-only** probe (renders the real `CardProjectionProvider` from a raw dump at that
+dump's own instant, writes nothing; golden md5 checked before and after, unchanged) and re-ran
+the sim on all three raw dumps:
+
+| raw dump | sim re-run | the capture froze |
+| --- | --- | --- |
+| 31 Aug (`raw-rows.real.BACKUP-2026-09-17.json`) | **24** | **26** |
+| 17 Sep statement (`raw-rows.real.json`) | **34** | 34 |
+| 17 Sep pre-statement (`...PRE-STATEMENT...`) | **null** | 34 |
+
+⚠️ **THE 34 IS A TAUTOLOGY AND I NEARLY REPORTED IT AS A POSITIVE CONTROL.** File sizes settle
+it: `GOLDEN-HOLD`, `GOLDEN-BACKUP`, `replaced-2026-09-17` and the live `forecast-inputs.real.json`
+are **all 321,545 bytes - one browser capture** - while `STATEMENT` (316,098) and `FRESH`
+(316,348) are **output of the recapture harness**. Re-running the harness on the 17-Sep rows
+reproduces a fixture the same harness wrote. It proves determinism and nothing else.
+
+⚠️ **THE ONLY GENUINE APP-VERSUS-HARNESS COMPARISON IS THE 31-AUG ONE, AND IT DISAGREES BY TWO
+MONTHS ON IDENTICAL ROWS** (browser 26, harness 24). **That outranks the original question**,
+because the fixture pipeline is what every real-data measurement in this repo reads.
+
+**THREE NUMBERS, ALL OF THEM TRUE, AND THEY MUST NOT BE COLLAPSED:**
+* **8** remaining months browser-to-harness - the figure in item 3, now known to be
+  **cross-instrument**.
+* **10** months harness-to-harness (24 -> 34) - **larger**, not smaller.
+* **2** months of instrument disagreement where the two can be compared at all.
+
+**SEPARATE RED FLAG:** the two 17-Sep dumps are **one hour apart** and give **34 and null**. A
+dump from which the sim produces no payoff at all is not a small variance. The sim also printed
+`[projectCardVariable] Venture X Jul 2028 does not reconcile: End 351.61 != Start 395 + purch 0
++ int 0 - pay 50 (residual 6.61)`.
+**Settling is not the explanation** - adding an effect-settle loop changed nothing (6 passes,
+same values), so these are settled reads, not mid-convergence ones.
+
+### WHAT IS ACTUALLY LEFT - START HERE
+**FIX THE 2 BEFORE ANYTHING ELSE.** Until the recapture harness reproduces a BROWSER capture from
+the same rows, no attribution across these captures means anything, and `5409ffbc` cannot be
+adopted. Two concrete leads: the harness **never pins a clock** (it runs at the real run date),
+and the browser captures were taken with real timers and debounces a jsdom render does not reach.
+Then the null-payoff dump, then the 24 -> 34 move itself.
+
+Everything else on the ask queue is blocked on a named trigger or on Tre.
 
 ---
 
