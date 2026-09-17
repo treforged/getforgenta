@@ -90,34 +90,29 @@
    💰 **A REAL FINDING FOR TRE, not a test fact: his absorbable April shock has fallen from
    $3,000 to under $840 - about 72% - in sixteen days.** An unexpected $1,000 expense in Apr 2027
    now puts him under his safe minimum where $3,000 would not have.
-   🔴 **THE PAYOFF MOVE IS NOW ISOLATED, AND IT IS THE BIGGEST THING ON THIS DESK.**
-   Ask `80ea17f2`. **At an IDENTICAL clock, his 09-17 rows project CC payoff NINE MONTHS later
-   than his 09-01 rows, on 0.96% more debt.**
-   **The raw comparison was seven months and I refused to call it anything**, because `manualISB`
-   records a measured case where eleven days of clock moved payoff FIVE months via a month-0
-   rollover - and the golden's `capturedAt` is `2026-09-01T00:20Z`, the **evening of 31 August
-   locally**, so its month 0 is August against the statement capture's September.
-   **THE CLEAN EXPERIMENT: the SAME data at TWO clocks**, so any move is the clock alone because
-   the rows are byte-identical between runs.
-
-       GOLDEN   @ 31 Aug (month0 Aug 2026)  payoff Sep 2028  18 passes  month0 debtPayment $0
-       GOLDEN   @ +17d   (month0 Sep 2026)  payoff Jul 2028  12 passes  month0 debtPayment $661
-       STATEMENT@ 17 Sep (month0 Sep 2026)  payoff Apr 2029  10 passes  month0 debtPayment $0
-
-   **(1) The clock alone moves payoff EARLIER** (Sep 2028 -> Jul 2028), so it was **MASKING** part
-   of the data effect rather than causing it. **(2) With clock and month 0 held identical, the
-   data alone is Jul 2028 -> Apr 2029 - NINE months on $198.** $198 cannot cost nine months.
-   **THE SHARPEST CORRELATE, and it is a correlate not a proven cause:** at that same clock and
-   month 0 the golden data pays **$661** to debt in month 0 and the statement data pays **$0**.
-   **Month-0 zero is NOT sufficient on its own** - GOLDEN at 31 Aug is also $0.
-   **LEADING CANDIDATE:** the Robinhood card's state change - balance 0 / `full` on the golden
-   versus **balance $274, `statement`, `statement_balance_phase` true, `first_payment_due_date`
-   2026-10-10**. A card with nothing due until October legitimately pays $0; **whether it should
-   also suppress payment to Prime Visa and Discover is the question.**
-   **NEXT EXPERIMENT: the per-card month-0 payment breakdown across both captures at the +17d
-   clock** - exactly what settled the earlier five-month case.
-   **NOT MEASURED:** whether he SEES Apr 2029 in the app today. This is the convergence loop over
-   a capture; his live app state was not read.
+   ⚠️ **THE PAYOFF MOVE IS UNEXPLAINED, AND I RETRACTED MY OWN "NINE MONTHS" THE SAME HOUR
+   I MEASURED IT.** Ask `80ea17f2`, retracted in place. **Read this before re-running anything.**
+   I isolated clock from data by running the SAME golden capture at TWO clocks and reported that
+   the data alone cost NINE months. **The next experiment killed it.** The per-card month-0
+   breakdown shows `GOLDEN @ +17d` paying Prime Visa **$511** and Discover **$150** in month 0,
+   while the statement capture pays **ZERO to every card**, with payments starting at month 1.
+   **THAT ZERO IS CORRECT BEHAVIOUR, NOT SUPPRESSION.** His September due days had already PASSED
+   by the 17th, so those payments are made and the forecast rightly starts from October - which is
+   also why the golden at ITS own clock (31 Aug, August due days passed) shows month-0 $0.
+   **The Robinhood `first_payment_due_date` theory is DEAD**: the zero applies to every card.
+   🔴 **THE FLAW, AND IT IS THE REUSABLE PART: A CAPTURE BAKES IN ITS OWN "ALREADY PAID THIS
+   MONTH" SETTLEMENT STATE, AND MOVING THE CLOCK DOES NOT MOVE IT.** `GOLDEN @ +17d` is an
+   INCOHERENT HYBRID - a 31-August snapshot pretending it is 17 September while still holding
+   September's payments as unmade. **Its Jul 2028 payoff is a fact about a state that has never
+   existed**, so nothing can be attributed to "the data".
+   **I built the control by varying the one input I could vary cheaply, and never asked whether
+   the SUBJECT stays VALID when you vary it.**
+   **SO: NOT nine months, NOT seven - UNKNOWN.** The only valid runs are each capture at its OWN
+   clock, and those differ in month 0 (Aug vs Sep), which is the original confound.
+   **A METHOD THAT WOULD WORK:** recapture from live rows at a clock whose month 0 matches, or
+   align the two month 0s and compare REMAINING MONTHS rather than absolute dates.
+   ⚠️ **SECOND RETRACTION ON THIS ITEM IN ONE SESSION.** Both came from accepting a control
+   without asking what it actually compared, or whether it could.
    ⚠️ **AND I NEARLY CORRECTED A LABEL THAT WAS RIGHT.** `autopayFullBalance` reads `false` in
    BOTH captures, so it cannot tell them apart. The era field is `payment_preference` /
    `paymentPreference`; read there, the previous session's labelling is **correct**.
