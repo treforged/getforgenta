@@ -104,6 +104,30 @@
    thing that is genuinely open: **whether to re-pin an UNEXPLAINED seven-month payoff move.**
    **The previous session's warning applies squarely to that last one, and I am leaving it
    blocked rather than waving it through on a money app.**
+   📈 **BASELINE ESTABLISHED, AND IT REFRAMES THE WHOLE QUESTION.** Ask `5db705de`.
+   Every capture on disk, EACH AT ITS OWN CLOCK, remaining months from its OWN month 0:
+
+       bak-07-03   clock 2026-07-03  month0 Jul 2026  payoff Jun 2027  REMAINING 11  CC $10,591
+       bak-07-15   clock 2026-07-15  month0 Jul 2026  payoff Aug 2027  REMAINING 13  CC $13,539
+       live-07-16  clock 2026-07-16  month0 Jul 2026  payoff Aug 2027  REMAINING 13  CC $13,751
+       GOLDEN      clock 2026-09-01  month0 Aug 2026  payoff Sep 2028  REMAINING 25  CC $19,113
+       STATEMENT   clock 2026-09-17  month0 Sep 2026  payoff Apr 2029  REMAINING 31  CC $19,311
+
+   **Payoff moves on EVERY recapture**, so a move between two captures is not by itself evidence
+   of anything - which is the baseline that was missing when I twice called this a defect.
+   💰 **THE HEADLINE IS NOT THE FIXTURE. HIS CARD DEBT HAS NEARLY DOUBLED IN TEN WEEKS** -
+   $10,591 -> $19,311 (+82%) - **while projected months-to-payoff went 11 -> 31 (+182%).** Payoff
+   time rising faster than balance is the expected amortisation shape, and it is also why a 1%
+   balance rise can cost 6 months at this end of the curve where a 28% rise cost 2 months at the
+   other.
+   ✅ **THREE CANDIDATE CAUSES ELIMINATED BY MEASUREMENT**, which is the other half of the value:
+   **(1) the clock** - a same-capture two-clock control is INVALID, retracted above;
+   **(2) the surplus split** - the Prime Visa / move-fund 50/50 at rank 1 is **IDENTICAL** in both
+   captures (same ranks, shares, target, date), so it did not change between them;
+   **(3) the Robinhood card** - ablated on the statement capture, balance to 0 and preference back
+   to `full`, **alone and together, recovers exactly ZERO months** (m31 in every arm).
+   ⚠️ **SO THE 6 MONTHS IS BOUNDED, NOT EXPLAINED, AND I AM NOT CALLING IT A DEFECT.**
+
    ⚠️ **THE PAYOFF MOVE IS UNEXPLAINED, AND I RETRACTED MY OWN "NINE MONTHS" THE SAME HOUR
    I MEASURED IT.** Ask `80ea17f2`, retracted in place. **Read this before re-running anything.**
    I isolated clock from data by running the SAME golden capture at TWO clocks and reported that
@@ -6849,7 +6873,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 13:29 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 15:35 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6860,14 +6884,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-2771488c [handoff]: the due-date weighting was already built, and I nearly reported his split missing
-1611de46 [surplus]: pin Tre's due-date weighting - it was already emergent, and nothing named it
-fd01110b [handoff]: the CI gate was a CANCELLED run, and his GitHub refresh did not land
-fe469c2d [handoff]: the CodeQL blocker was false - a scope string is not a capability
-083d9786 [security]: least-privilege permissions on the last three CodeQL jobs
-340eea40 [handoff]: both open desk items closed by measurement, and one of them was my own bad framing
-e4c25f07 [debt]: the 277 reconciliation warnings are a STALE FIXTURE, not a live defect
-915bca18 [handoff]: twenty-third session - five commits, and two of my own claims corrected
+08f441dc [test]: remove zz-tmp-diagnostic - 0 assertions, 7 console lines, and its own header says delete me
+7fcdb1c5 [handoff]: item 5 answered - the $459 was not a horizon artefact, so the revert was right
+1a8e8752 [handoff]: floorFlicker swept - same capacity family, and the latch is intact at every shock size
+23f3abc0 [handoff]: retracting my own nine months - a capture bakes in its settlement state, so the clock cannot be moved
+2a30538b [handoff]: isolated - his 09-17 rows project payoff NINE months later on 0.96% more debt
+53844d8d [handoff]: swept the shock - floorDeficit is capacity, and his buffer fell 72% in sixteen days
+c9bfcb5b [handoff]: correcting my own finding - the fourth red was a false alarm, not a money defect
+ceafd79a [test]: manualISB compared MILESTONES to decide a per-month question, and cried wolf
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
