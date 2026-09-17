@@ -69,7 +69,20 @@ for (const c of CASES) {
       // pinning the raw instant is what produced a $799 phantom divergence.
       vi.setSystemTime(capture.clock);
 
-      const proj = renderProjectionFromFixture(capture.inputs);
+      // CAPTURE the engine's own reconciliation warnings for this run. `projectCardVariable`
+      // emits them on console.warn, and vitest SUPPRESSES stderr on a PASSING file - which is
+      // exactly how a run that looked clean hid 277 of them from me earlier today.
+      const warned: string[] = [];
+      const spy = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => {
+        warned.push(a.map(String).join(' '));
+      });
+
+      let proj;
+      try {
+        proj = renderProjectionFromFixture(capture.inputs);
+      } finally {
+        spy.mockRestore(); // a spy left installed silences every later test in the file
+      }
 
       // POSITIVE CONTROL FIRST. A zero read off a card the harness never found and a zero read
       // off a card that genuinely pays nothing are the same zero.
@@ -103,6 +116,61 @@ for (const c of CASES) {
       // next time he spends money and then reads as a regression.
       expect(bals.length).toBeGreaterThan(2);
       expect(pay!.payments.length).toBeGreaterThan(2);
+
+      // ── THE ROW MUST ADD UP ─────────────────────────────────────────────────────────────
+      // This IS an assertion, not a reading. `projectCardVariable` warns whenever a displayed
+      // row breaks End = Start + purchases + interest - payment, which is precisely the defect
+      // he reported this morning ("Start 262, purchases 280, payment 542, End 280").
+      //
+      // ⚠️ THE GOLDEN 08-31 FIXTURE PRODUCES 80 OF THESE FOR THIS SAME ACCOUNT - under its old
+      // name, "Robinhood Gold Card" (same id 7b1e9a44, renamed since). In that snapshot the card
+      // has balance 0, due day 12 and NO `first_payment_due_date`, because the first-due-date
+      // feature shipped 2026-09-05, after the capture. So this assertion is the thing that tells
+      // a STALE-FIXTURE ARTEFACT apart from a live defect: if his CURRENT rows are clean, those
+      // 80 are about the fixture, not about the app.
+      const mine = warned.filter(w => w.includes(ROBINHOOD) && w.includes('does not reconcile'));
+      expect(mine, 'rows that do not add up: ' + mine.join(' | ')).toEqual([]);
+
+      // The POSITIVE CONTROL for that empty array is a separate case below, against the golden
+      // fixture, which is KNOWN to warn for this same account. An empty array here and a spy that
+      // never attached are otherwise the same result.
     });
   });
 }
+
+/**
+ * POSITIVE CONTROL FOR THE ASSERTION ABOVE, and it is the whole reason that assertion means
+ * anything. The golden 08-31 capture holds the SAME ACCOUNT (id 7b1e9a44) under its former name,
+ * "Robinhood Gold Card", in a state that predates the first-due-date feature: balance 0, due day
+ * 12, no `first_payment_due_date`. It produces reconciliation warnings, and this requires them.
+ *
+ * So the pair reads: the instrument CAN see a non-reconciling row (here), and does NOT see one on
+ * his current rows (above). Without this half, "no warnings" is equally satisfied by a spy that
+ * never attached, a filter that matches nothing, and an engine that stopped checking.
+ *
+ * ⚠️ IF THIS EVER GOES GREEN, DO NOT DELETE IT - it means the golden fixture was replaced, and
+ * the control needs re-aiming at whatever the new known-bad case is. A silently removed control
+ * is how the assertion above quietly stops being evidence.
+ */
+const GOLDEN = join(__dirname, 'fixtures', 'forecast-inputs.real.json');
+const goldenMaybe = existsSync(GOLDEN) ? describe : describe.skip;
+
+goldenMaybe('POSITIVE CONTROL - the golden 08-31 capture DOES produce non-reconciling rows', () => {
+  it('warns for the same account under its old name, so the silence above is meaningful', () => {
+    const capture = reviveForecastCapture(readFileSync(GOLDEN, 'utf8'));
+    vi.setSystemTime(capture.clock);
+
+    const warned: string[] = [];
+    const spy = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => {
+      warned.push(a.map(String).join(' '));
+    });
+    try {
+      renderProjectionFromFixture(capture.inputs);
+    } finally {
+      spy.mockRestore();
+    }
+
+    const golden = warned.filter(w => w.includes('does not reconcile'));
+    expect(golden.length).toBeGreaterThan(0);
+  });
+});
