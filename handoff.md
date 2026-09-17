@@ -100,6 +100,36 @@
    string is a claim about a credential; the only fact is whether the write succeeds, and it
    succeeds or fails PER REMOTE.
 
+4b. [x] ✅ **HIS DUE-DATE WEIGHTING WAS ALREADY THE APP'S BEHAVIOUR.** Asks `9eba55a8` and
+   `e016ff41` both closed; commit `1611de46`, on origin, verified by contents with a control.
+   **Measured BEFORE writing a line of feature code**, which is the check this repo mandates - and
+   it is the third time this week that check has turned a build into a test.
+   **THE MECHANISM, and nothing anywhere named it:** a DATED goal already carries
+   `maxExtra` = its on-time level pace (`goalMonthlyCeiling`), so inside a split rank it can take
+   only that pace, and `allocateRankedSurplus`'s within-rank leftover cascade hands the REMAINDER
+   OF THE RANK to its card partner rather than to a lower rank. The card therefore takes MORE than
+   its stored 50 while the goal is ahead of schedule and less as the deadline nears - his *"loads
+   up more when necessary"* - with no constant to tune, and **self-limiting**: when the card is
+   paid off the weighting stops, because it was never about time.
+   **It is a CONSEQUENCE of two mechanisms in two files that do not mention each other**, which is
+   exactly why it is now pinned: either one could have been changed and a behaviour he asked for
+   by name would have vanished with nothing going red.
+   **THE CONTROL IS WHAT MAKES IT EVIDENCE:** the same split with the goal's date REMOVED pays a
+   flat 50/50. Proven red on the shipped fixture by neutralising the pacing - exactly the 4
+   pacing-dependent arms fail, the undated control holds - restored byte-exact by sha256 AND by an
+   empty `git diff`. `test:tz` green in 3 zones, 4786 passed, tsc clean, lint 0 errors.
+   ⚠️ **TWO MISTAKES OF MY OWN ON THE WAY, and the second is the one worth keeping.**
+   (1) I asserted the split divides the whole $1,500; it divides **$1,450**, because every
+   `minimum` is settled before any rank is consulted. The test now DERIVES the ranked pool.
+   (2) **I queried `accounts.sort_order`, found no `surplus_share` on any account, and was one
+   step from reporting that his split did not exist at all.** The ranking column is
+   `accounts.surplus_sort_order`, and the Prime Visa carries both. A query built from a column
+   name I had not resolved from the code that reads it - **and the wrong answer was the alarming
+   one**, which is the direction that gets relayed.
+   **HIS REAL FIGURES ARE DELIBERATELY NOT IN THE FIXTURE.** This repo is public; a real savings
+   target beside a real deadline is a person's finances however ordinary it looks in a test. The
+   assertions depend on the PRESENCE of a deadline, never on its value - grepped on origin, 0 hits.
+
 5. [ ] ⛔ **DO NOT RE-APPLY THE PURCHASES-FIGURE CHANGE WITHOUT FINISHING IT - IT IS REVERTED.**
    `deferredPurchasesFor` removed all 66 reconciliation warnings on the demo fixture and still
    broke `payment-pin-semantics`' invariant - a $400 pin moved the 18-month total by **$459**
