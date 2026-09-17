@@ -1387,14 +1387,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
         {/* Summary Stats */}
         <div className="card-forged p-4 sm:p-5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center">
+          {/* ⚠️ FOUR TILES, NOT FIVE. "Total Limit" was removed on 2026-09-17 - Tre: "on the
+              debt we don't need to see total limit and open limit. Those are the same exact
+              thing." He is right, and it was verified rather than taken on trust: this tile summed
+              `creditLimit` over cards open now, and `UtilizationPanel`'s "Open Limit" sums
+              `creditLimit` over the cards `summarizeUtilization` marks open - the same figure over
+              the same population, printed twice on one page under two names.
+              THE ONE KEPT IS THE ONE THAT EXPLAINS SOMETHING: the limit sits beside the
+              utilization percentage it is the denominator of. `totalLimit` stays as a const here
+              because `overallUtil` is computed from it. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4 text-center">
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total CC Balance</p>
               <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(totalBalance, false)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Limit</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-foreground">{formatCurrency(totalLimit, false)}</p>
             </div>
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Utilization</p>
