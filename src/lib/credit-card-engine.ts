@@ -237,6 +237,21 @@ export function openCreditLimitAtMonth(
   return cards.reduce((s, c) => (c.startMonth <= m ? s + c.creditLimit : s), 0);
 }
 
+/**
+ * "This card intends to clear its statement every cycle", which is what earns a grace period.
+ *
+ * ONE expression, read by the grace map's initialiser, by the interest calculation and by the
+ * monthly update - the three sites that must agree, and that were three separate copies of
+ * `paymentPreference === 'statement'` until 2026-09-17. Three copies is how `full` came to be
+ * missing from all of them at once.
+ *
+ * `null` is deliberately NOT included: a card with no stated preference is an ordinary revolving
+ * card, and giving it grace would stop interest accruing for almost every user.
+ */
+export function clearsStatement(card: { paymentPreference: 'statement' | 'full' | null }): boolean {
+  return card.paymentPreference === 'statement' || card.paymentPreference === 'full';
+}
+
 export function calcMinPayment(balance: number, apr: number): number {
   if (balance <= 0) return 0;
   return Math.max(25, Math.round(balance * (1 + apr / 1200) * 0.02 * 100) / 100);
@@ -1306,11 +1321,35 @@ export function simulateVariablePayoff(
   // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
   const paidOffCards = new Set<string>();
 
-  // Grace period tracking for statement-balance preference cards.
-  // When a card pays its full statement balance (startBal + interest), the new purchases
-  // added that cycle are in grace period — no interest charged next billing cycle.
+  /**
+   * Grace-period tracking for cards that INTEND TO CLEAR THE STATEMENT each cycle.
+   *
+   * When such a card pays its full statement balance (startBal + interest), the purchases added
+   * that cycle are in grace - no interest is charged next billing cycle. That is how a credit card
+   * actually works, and it is the reason most people carrying no balance pay no interest.
+   *
+   * ⚠️ `full` IS INCLUDED, AND ITS ABSENCE WAS A REAL DEFECT TRE FOUND ON HIS OWN CARD.
+   * 2026-09-17: *"Robinhood is showing interest on the debt tab in September and October for some
+   * reason. also it's not showing all the purchase amount in October even though I'm paying 502.
+   * there's a gap."* Both halves were one cause. This whole regime was gated on
+   * `paymentPreference === 'statement'` - at its initialiser here, at the READ (`inGrace`) and at
+   * the WRITE that updates it each month - so a `full` card never entered grace and accrued
+   * interest EVERY cycle even while paying everything off.
+   *
+   * That is backwards on its own terms: a `statement` card pays the statement, and a `full` card
+   * pays the statement PLUS the purchases still landing on it. The card paying MORE was the one
+   * denied the grace.
+   *
+   * Measured on his row (balance 211.62, APR 29.99, first payment due 2026-10-10) before the fix:
+   * interest 5.29 in September and 5.42 in October, and an October payment of 512.33 against 290
+   * of purchases - THE "GAP" HE ASKED ABOUT IS EXACTLY THAT INTEREST.
+   *
+   * ⚠️ IT IS NOT A LICENCE TO STOP CHARGING INTEREST. Grace is still EARNED every month by
+   * `covered` below - a `full` card that does not actually cover its statement loses it and
+   * accrues exactly as before. The preference states an intention; the payment decides.
+   */
   const graceMap = new Map<string, boolean>(
-    cards.map(c => [c.id, c.paymentPreference === 'statement' && (c.statementBalancePhase || c.statementBalance != null || c.balance <= c.monthlyNewPurchases + 0.01)]),
+    cards.map(c => [c.id, clearsStatement(c) && (c.statementBalancePhase || c.statementBalance != null || c.balance <= c.monthlyNewPurchases + 0.01)]),
   );
   // Partial-ISB grace: the statement/interest-saving money a grace card could NOT cover. The old
   // model was grace-or-nothing — cover the whole ISB or lose grace and pay interest on the ENTIRE
@@ -1396,9 +1435,9 @@ export function simulateVariablePayoff(
       const instBal = installmentBals.get(card.id) ?? 0;
       // Interest accrues only on the revolving (non-installment) portion.
       const revBal = Math.max(0, bal - instBal);
-      const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
+      const inGrace = clearsStatement(card) && (graceMap.get(card.id) ?? false);
       const unpaid = graceUnpaid.get(card.id) ?? 0;
-      if (inGrace || (card.paymentPreference === 'statement' && unpaid > 0)) {
+      if (inGrace || (clearsStatement(card) && unpaid > 0)) {
         // In grace: nothing accrues (unchanged). Out of grace carrying an uncovered statement:
         // ONLY that shortfall accrues, at the standard rate — the partial-ISB case.
         return {
@@ -2374,7 +2413,7 @@ export function simulateVariablePayoff(
       // Partial-ISB grace (see graceUnpaid): a card that WAS in the grace regime and covered only
       // part of its statement stays there carrying the shortfall, and only the shortfall accrues
       // next cycle. graceMap itself keeps its exact old meaning — fully covered, nothing accrues.
-      if (card.paymentPreference === 'statement') {
+      if (clearsStatement(card)) {
         const ms = manualStatementByCard.get(card.id);
         const dueThisCycle = (ms && m === ms.dueMonth)
           // Paying the user-entered interest-saving amount is by definition what keeps the
@@ -2383,6 +2422,22 @@ export function simulateVariablePayoff(
           : Math.round((startBal - startInstBal + interest) * 100) / 100;
         if (ms && m < ms.dueMonth) {
           // Statement already paid this cycle (due day passed before today) — grace persists.
+          graceMap.set(card.id, true);
+          graceUnpaid.set(card.id, 0);
+        } else if (notBilledYet(card, m)) {
+          // ⚠️ NOT BILLED YET IS NOT A FAILURE TO PAY, AND TREATING IT AS ONE COST TRE INTEREST.
+          //
+          // `covered` below asks whether the payment met this cycle's statement. On a card whose
+          // FIRST statement has not cut there is no statement to meet, so paying nothing is
+          // correct - `notBilledYet` is what suppresses that payment two hundred lines above. Run
+          // through the normal branch it reads as pay 0 against a due amount, loses grace, and
+          // charges interest in the FOLLOWING month.
+          //
+          // Measured on his card (first payment due 2026-10-10): extending grace to `full` cards
+          // cleared September and left 5.29 sitting in OCTOBER, entirely because September was
+          // scored as a miss. This is the third place the first-payment-due rule has had to be
+          // wired - minimums, the surplus cascade, and now grace - which is the tell that it is a
+          // property of the CARD and not of any one step.
           graceMap.set(card.id, true);
           graceUnpaid.set(card.id, 0);
         } else {

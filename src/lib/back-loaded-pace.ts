@@ -61,6 +61,55 @@ export function levelMonthlyCeiling(remainingNeed: number, monthsLeft: number): 
 }
 
 /**
+ * THE ONE DECISION: level pace, or back-loaded?
+ *
+ * Both wiring points call THIS - `goalMonthlyCeiling` for month 0 and `monthlyCeilingFor` for
+ * months 1+ - so the two surfaces cannot come to disagree about a goal's first month, which is the
+ * failure they are most exposed to, being different files computing the same month.
+ *
+ * ⚠️ IT TAKES THE LEVEL ALLOWANCE AND RETURNS IT UNCHANGED ON EVERY PATH IT DOES NOT OWN.
+ * That is deliberate rather than defensive: an UNDATED goal must stay UNPACED, and the level
+ * helper signals that with a non-finite allowance. Recomputing "unpaced" here from months-left
+ * would be a second expression of the same rule, and the two would drift. A goal that is undated,
+ * or that does not share its rank, comes back byte-identical to what shipped before.
+ *
+ * ⚠️ THE TRIGGER IS A SHARED RANK, NOT A DATE, AND THE SCOPE IS AN ASSUMPTION I STATED.
+ * Tre, 2026-09-17: *"since it's splitting with prime visa, the interest-saving bones should be met
+ * as much as possible."* The reason a goal should yield early is that the dollar it takes is a
+ * dollar not killing a 29.99% balance - which only arises when it is SPLITTING with something
+ * else. A lone dated goal has nothing to yield to, and back-loading it would delay the user's own
+ * saving for no gain at all. So a stop with no `share` is untouched.
+ *
+ * ⚠️ THE RESIDUE, NAMED RATHER THAN IMPLIED: a stop sharing its rank with ANOTHER GOAL is
+ * back-loaded too, and it should not be - neither is nearer-due, so there is no interest to save.
+ * It is not distinguished here because the FORECAST ENGINE HOLDS NO CARD RANKS AT ALL (measured:
+ * `cardsSortOrder`, `cardRanks` and `cardsShare` appear nowhere in `forecast-engine.ts`), so the
+ * co-tenant's kind is knowable in `buildRankedTargets` and NOT in the months-1+ path. Splitting
+ * the rule across the two would put month 0 and month 1 on different pace profiles, which is the
+ * one failure this shared function exists to prevent. Closing it properly means threading card
+ * ranks into the forecast engine - a change to a money engine's signature, not a guard.
+ *
+ * ⚠️ IT IS A RE-PROFILING, NEVER A RE-RANKING. The goal is delayed inside its own deadline
+ * and never dropped: at one month left the back-loaded ceiling IS the whole remaining need, so the
+ * date is met by construction. "Just make sure they both still hit their targets" is a property of
+ * the whole RUN, so assert it with `runPaceToDeadline` and never from a single month.
+ */
+export function pacedMonthlyCeiling(p: {
+  remainingNeed: number;
+  /** Whole months remaining INCLUDING this one. */
+  monthsLeft: number;
+  /** What the level pace allows today. Returned unchanged wherever this function does not apply. */
+  levelAllowance: number;
+  /** This stop splits its rank with another target. */
+  sharesRank: boolean;
+}): number {
+  if (!p.sharesRank) return p.levelAllowance;
+  // Undated, or otherwise unpaced: leave it exactly as it was.
+  if (!Number.isFinite(p.levelAllowance)) return p.levelAllowance;
+  return backLoadedMonthlyCeiling(p.remainingNeed, p.monthsLeft);
+}
+
+/**
  * Run a pace to its deadline and report what actually happened.
  *
  * Exists so "both still hit their targets" is an ASSERTION over the whole run rather than a claim
