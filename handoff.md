@@ -1,5 +1,133 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-SEVENTH session). START AT ITEM 1.
+
+TWO COMMITS SHIPPED, AND **THE OVERLOAD SWEEP IS NOW FINISHED** - the predecessor left it open.
+- `32f20f92` dashboard first-run default. Pushed, verified by contents (marker 3, control 6,
+  negative control 0), 0/0.
+- `55a17bca` the Akoya offer withdrawn. Pushed, verified the same way (marker 1, control 2, the
+  old entry absent), 0/0. **iOS run `35282131731` dispatched by hand on that exact commit** -
+  see item 0.
+
+### ⚠️ ITEM 0 - READ THE UPLOAD STEP'S OWN CONCLUSION BEFORE TELLING TRE ANYTHING
+`gh run view 35282131731 --json jobs` and read step 20 `Upload to App Store Connect`. It was
+`in_progress` when this handoff was written. **A run conclusion of `success` proves nothing** -
+on a push the upload step is `skipped` by design and the run is still green. Require the STEP to
+read `success`, then grep the log for altool's own `UPLOAD SUCCEEDED`, and check any `90382`
+matches are in the ECHOED SCRIPT SOURCE rather than in output. Read the build number FROM THE
+LOG, never computed. An upload is not an install; he still has to update.
+
+### ✅ ITEM 1 - THE DASHBOARD DEFAULT SHIPPED, AND TWO OF THE THREE WERE REFUTED (`32f20f92`)
+Sam decided the fork: default `budget_totals`, `car_goal` and `transactions_spending` OFF. **Only
+ONE of the three survived the premise check, and the refutations are the work.** His approval
+rested on "the three he has never once mentioned in any form":
+* **`budget_totals` - HE ASKED FOR IT.** `90b39aba`, 2026-08-27, with a screenshot of Budget
+  Control's KPI row: *"i wanted these moved to dashboard"*. The repo's own history says the
+  opposite of the premise. **Defaulting off a card he personally placed there, on the grounds
+  that he never asked for it, is exactly the failure a premise check exists to catch.**
+* **`car_goal` - ALREADY SELF-HIDES.** `Dashboard.tsx` case 'car_goal' opens
+  `if (!carGoalData) return null`. A no-op for every user it was aimed at, and a loss for the 2
+  who have a car goal.
+* **SHIPPED: `transactions_spending` only.** The largest block in the stack, renders
+  unconditionally with no empty-guard, answers neither "what needs to be paid next", and
+  /transactions owns both halves. New user goes 10 cards -> 9.
+* The other two were cleared against the ask ledger **with a positive control in the same run** -
+  five phrasings return 0 while "dashboard" returns 45, so the reader works and the zeros are real.
+* **THE BOUND IS UNCHANGED AND MUST BE SAID WHEN REPORTING:** 33 profiles, 31 with no saved
+  layout, and the 2 that have one are `tre@treforged.com` and `reviewer@treforged.com`. This
+  reaches 31 users and reaches NEITHER his screen NOR the walk account. **Do not describe it to
+  him as tidying his dashboard.**
+* **DO NOT REWRITE HIS SAVED ROW.** Sam endorsed that line explicitly. The honest route to his
+  screen is an explicit "reset to the new default" he chooses - **filed as its own item, NOT
+  built on Sam's word.**
+* Gate `dashboard-widgets.defaultVisible.test.ts`, 9 checks, proven red TWICE (the real pre-fix
+  line -> 4 failed; `defaultVisible:false` on budget_totals -> 2 failed), byte-exact restores.
+
+### ✅ ITEM 2 - TRE'S AKOYA ASK, SHIPPED (`55a17bca`, ask `086ac81b`)
+His words: *"remove Connect Fidelity via Akoya btw since i never bought it. i cant even do it
+sense its an expensive pay up front"*. Done at the single source - `AKOYA_INSTITUTIONS` emptied.
+* **THREE surfaces, and only the first was obvious.** The button map; the `<details>` WRAPPING it
+  (an empty map does not remove a disclosure, it leaves a broken one reading "Trouble connecting
+  ?"); and the "We never see your bank login" notice, which claimed *"for a few institutions we
+  also support Akoya"* - **a false statement in the one disclosure whose job is being true.** The
+  third was found ONLY because the gate stayed red after the fix.
+* **The notice now DERIVES from the same list**, so copy and offer cannot drift.
+* **Removing the privacy link was checked, not assumed:** 10 bank items, ZERO Akoya-shaped,
+  non-Akoya control 10 in the same query. Nobody's data has ever reached Akoya.
+* **THE PROVIDER IS KEPT** - edge functions, `/akoya-oauth`, normalizers. Restoring the offer is
+  putting one entry back. Do not "finish the job" by deleting the backend.
+* ⚠️ **`akoya-fallback.test.ts` WAS RE-AIMED, AND THE LOST COVERAGE IS NAMED IN THE FILE.** With
+  the list empty every input returns null, so case-insensitivity, multi-word names and the
+  `Infidelity Savings` word boundary are **untestable** - those cases are labelled VACUOUS so
+  nobody reads them as evidence. **Restoring an entry must restore all three in the same commit.**
+* ⚠️ **MY OWN GATE WAS GREEN OVER NOTHING AND ONLY THE RED RUN FOUND IT.** The disclosure is gated
+  on `effectiveTab === 'banks'` and the page opens on Balances, so four absences were asserted
+  against a panel that never mounted - **it passed with the offer fully working.** It now PRESSES
+  the Banks tab. Two more instrument faults in the same file: the control read the account row
+  AFTER the tab switch (which unmounts it), so it went red on a healthy app; and it asserted ZERO
+  `<details>`, which would have demanded deleting the connections notice the product owes.
+
+3. [ ] **NEEDS TRE - `354e280a`: the privacy policy is now inaccurate about Akoya.** `Legal.tsx`
+   s6 still says *"currently Fidelity - we also support Akoya LLC"*. **The direction is the SAFE
+   one** - it over-discloses, warning of a sharing that cannot happen, which is not the risk
+   under-disclosure would be. A published policy is outward-facing and his. Reworded line drafted
+   in the ask; **do not edit it without his yes.**
+4. [ ] **NEEDS TRE - `6237167a`** back-loaded pacing. Unchanged: buys Oct/Nov/Dec floor relief,
+   costs a month of card payoff, both halves measured on his own numbers. **Do not build it, and
+   do not re-attempt it as a wiring slice** - `src/lib/back-loaded-pace.ts`'s header says why.
+5. [ ] **File the "reset to the new default" offer** from item 1 as its own item before building.
+
+### ✅ THE OVERLOAD SWEEP IS FINISHED - 5 surfaces, 2 defects, 1 refutation, 2 already clean
+The predecessor closed with "the sweep is NOT finished ... the next surfaces to measure are
+Forecast, Budget and Goals". All three are now measured. **Measure before building held up again:
+the candidate with the most striking numbers in the whole sweep was the one that refuted.**
+
+| Surface | Result |
+| --- | --- |
+| Accounts | DEFECT, fixed `c4ec0b69` - group chrome, 6 groups of one |
+| Debt Payoff | DEFECT, fixed `07875cc5` - tabs for debt types nobody has |
+| **Budget Control** | **CANDIDATE, REFUTED** - see below |
+| Forecast | **CLEAN** - already guarded |
+| Goals | **CLEAN** - already guarded |
+
+* ⚠️ **BUDGET CONTROL HAD THE STRONGEST NUMBERS IN THE SWEEP AND IS STILL A REFUSAL.** Six rule
+  tabs. Measured over the **18 users who have ANY budget rule at all** (15 of the 33 have none, and
+  for them the page is an empty state rather than an overloaded one): Income empty for 1/18, Fixed
+  1/18, Subs 2/18, **Variable 17/18**, Debt 11/18, Transfers 9/18. **Variable is exact** -
+  `buildVariableRules` reads only `recurring_rules`. Debt and Transfers are BOUNDS, because those
+  buckets also take synthetic rows from Debt Payoff, Vehicles and goal transfers, which SQL over
+  `recurring_rules` alone cannot see; do not quote those two as exact.
+* **WHY IT IS A REFUSAL ANYWAY, and it is the Debt Payoff premise check giving the OPPOSITE
+  answer.** On Debt Payoff, hiding a tab looked like deleting the only route to adding that debt
+  type, and `ACCOUNT_TYPES` in `Accounts.tsx` turned out to offer all four - so the fix was safe.
+  **Here the Add button lives INSIDE each tab**: `openAdd('expense','Other')` - "Add Variable" -
+  is at `BudgetControl.tsx:1491`, inside the Variable TabsContent. Hiding the tab hides the only
+  LABELLED route to creating a variable expense. The rule form's Type and Category selects are a
+  fallback, but a user has to know to open "Add Fixed" and change two fields.
+* **AND THE TABS ALREADY CARRY COUNTS.** "Variable (0)" is self-describing chrome, unlike Debt
+  Payoff's tabs which gave no signal at all. **A dead tab and an unused feature look identical in
+  a count and are opposite problems**: one is chrome to remove, the other is a feature to surface.
+* 📈 **THE 17/18 IS A PRODUCT SIGNAL, NOT A CHROME DEFECT, and it should reach Tre as one.**
+  Essentially nobody is using variable expenses. That is either a discovery problem or a feature
+  nobody wants, and the answer changes what to build - it is not a sweep item.
+* **Forecast is clean**: `retirementProjections.length > 0` guards the retirement block, and the
+  events timeline carries a real empty state. Only 7 of 33 users have any account at all, and 4
+  of those 7 have retirement - so the guarded section is right for the population.
+* **Goals is clean**: `if (goals.length === 0) return null` on the projection, plus
+  `carFunds.length > 0`, `allGoals.length === 0` and the Roth guard. It already does what the
+  sweep was looking for.
+* ⚠️ **DO NOT ship a portfolio-wide blank-run threshold gate.** Still true: at 1440 nearly every
+  `justify-between` row flags at 120px, so it would cry wolf and be switched off.
+
+⚠️ **THE INSTRUMENT LESSON FROM THIS SESSION, and it is one the machine has already recorded:**
+**a bash heredoc collapsed my doubled backslash**, python turned `\b` into a literal BACKSPACE,
+and the patch silently failed to find its anchor. Same trap that hit three desks on 2026-09-17.
+**Use the Edit tool for anything containing a regex or a backslash** - not a heredoc.
+The predecessor's two lessons still stand: `npx tsc --noEmit | tail` reported `TSC_EXIT=0` over
+two real errors, so **read the OUTPUT, never the exit code**, and pair every push check with a
+known-positive control in the same run.
+
+
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-SIXTH session). START AT ITEM 1.
 
 THIS SESSION SHIPPED ONE COMMIT AND TWO REFUSALS, AND THE REFUSALS ARE THE WORK.
@@ -7159,7 +7287,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 17:52 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 18:08 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7170,14 +7298,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+586e7d67 [handoff]: iOS 932 carries the Debt Payoff tab fix, upload verified by altool
+5062a6b4 [handoff]: the overload sweep reached Debt Payoff - 07875cc5, and the sweep is not finished
+07875cc5 [debt]: a debt type nobody has gets no tab on the Debt Payoff page
 e8d279f7 [docs]: name check:accounts-groups in the gate list and close the stated limit in the handoff
 2cf880ad [accounts]: close my own stated limit - measure the group-chrome fix in a real browser at 390
 cb63a26b [handoff]: iOS build 929 carries the Accounts group-chrome fix, upload verified by altool
 508ff7f7 [handoff]: the Accounts group-chrome fix shipped in c4ec0b69
 c4ec0b69 [accounts]: a bank with one account gets no heading - its name moves onto the row
-e7ca62e2 [handoff]: the Accounts-tab overload is group chrome, not the meta line - measured
-11fb36d2 [handoff]: twenty-sixth session - the dashboard default cannot reach Tre, and back-loaded pacing was reverted on real-data evidence
-447d57ad [forecast]: record why back-loaded pacing cannot be wired as a slice, measured
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
