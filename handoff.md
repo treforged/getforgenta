@@ -2,121 +2,100 @@
 
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-THIRD session). START AT ITEM 1.
 
-✅ **SHIPPED THIS SESSION, in order:**
-- **`fa896f1a` - HIS due-date ordering point, item 1 of the last queue.** A full-balance payment
-  now targets `startBal + interest + only the purchases dated ON OR BEFORE the due day`; the rest
-  is paid with the next statement, the way the card actually bills it. **iOS run 35236113292,
-  build 911** (dispatched by hand - a push builds and does NOT upload). One exported rule,
-  `fallsAfterDueDate` in `sync-cutoff.ts`, consumed by BOTH producers and BOTH engine sites that
-  spell out what "full" means, so they cannot drift. Gate
-  `credit-card-engine.dueDateOrdering.test.ts`, 10 checks, proven red by neutralising the new
-  figure - exactly the 4 behavioural arms failed, the 6 controls stayed green, restored byte-exact
-  by sha256. `npm run test:tz` green in all three zones, 4773 tests, `payment-pin-semantics`
-  included.
-- **`df9ef900` - CodeQL, 15 open alerts down to 7 - AND SAM'S PRESCRIBED FIX WAS WRONG.**
-  "Add a paths-ignore for node_modules" cannot work here: GitHub applies paths-ignore to a
-  compiled language only when analysing WITHOUT building, and `codeql-android.yml` uses
-  `build-mode: manual` with a real gradle build. The line would have been committed, the alerts
-  would have stayed, and **it would have looked done**. The reasoning is now written into
-  `codeql-config.yml` beside the entry it explains. There were EIGHT, not seven.
-- **Item 2 MEASURED rather than inferred.** His card reconciles on `statement`: zero
-  reconciliation warnings on a fresh 14:54Z capture that demonstrably carries the change
-  (`updated_at` 14:19:47Z, after the 13:50Z capture the last queue correctly called stale).
+✅ **SHIPPED THIS SESSION**, newest last:
+- **`fa896f1a` - HIS due-date ordering point.** A full-balance payment now targets
+  `startBal + interest + only the purchases dated ON OR BEFORE the due day`. **iOS build 911**,
+  verified three ways (upload STEP conclusion `success` not `skipped`, altool's own *"UPLOAD
+  SUCCEEDED with no errors"*, all three 90382 hits proven to be echoed script source). One
+  exported rule, `fallsAfterDueDate`, consumed by BOTH producers and BOTH engine sites that spell
+  out what "full" means. Gate proven red by neutralising the new figure - exactly the 4
+  behavioural arms failed, the 6 controls held. `test:tz` green in three zones, 4773 tests.
+- **`df9ef900` + `a0f408a3` - CodeQL 15 open alerts down to 3.** Sam's prescribed `paths-ignore`
+  **could not have worked** (compiled language + a real gradle build), so it would have been
+  committed, changed nothing, and looked done; that reasoning is written into `codeql-config.yml`.
+  Alert 37 and alert 23 were FIXED rather than dismissed - both were real latent defects.
+- **`e24d415b` - his "$0 next payment" is CORRECT**, read off his own rows under both preferences.
+- **`8a6672dd` - the username typeahead is verified**, both halves.
+- **`32fb7c9f` - a wrapped `Release-Note` is now REFUSED before the commit exists.**
 
-⚠️ **THE CONTROL THAT MAKES THOSE THREE CONVERGENCE REDS READABLE, because the last queue warned
-against waving them away.** On the FRESH capture exactly three files go red - `floorDeficit`,
-`floorFlicker`, `convergence.realData` - which is precisely the set the recapture runbook predicts.
-That is not enough on its own, so the discriminator this morning's session used was re-run:
-**with the GOLDEN fixture restored byte-exact (sha256 `6ebe770c...`), all 7 real-fixture files pass,
-16/16, with the new engine change in place.** So the three reds belong to the capture, not to the
-code. The golden fixture is still in place; the fresh capture is NOT adopted.
+⚠️ **AND TWO THINGS I GOT WRONG, because the corrections are the useful part:**
+- **I filed the followers/following restructure as the biggest unbuilt thing he had asked for. It
+  was already shipped** (`9e2e1918`), with his words quoted verbatim in `Account.tsx`. Caught by
+  grepping for the CALLER before starting - the check this repo mandates, which I had written
+  into the queue item myself as a warning aimed at somebody else.
+- **I reported "the only two reconciliation warnings anywhere are Venture X". The real figure is
+  277.** vitest SUPPRESSES stderr on a PASSING file, so an ordinary run shows a fraction.
 
-**Everything under the TWENTY-SECOND heading below is SUPERSEDED.** Its items 1, 2 and the
-unblocked half of 4 are done; items 3, 5, 6, 7 and the BLOCKED half of 4 survive and are restated
-here. Read this list instead.
+1. [ ] 🔴 **277 RECONCILIATION WARNINGS, 80 OF THEM ON HIS ROBINHOOD GOLD CARD - ask `c0858003`.**
+   The same class of defect he reported this morning ("Start 262, purchases 280, payment 542,
+   End 280" does not add up). **NOT caused by the due-date fix, and that is measured, not
+   assumed:** the full suite at `d9df4c84` and at `fa896f1a` both produce **277** distinct
+   warnings and the two sets are **byte-identical by diff**, with a negative control proving the
+   differ detects a one-line difference. Residuals on his Gold card run **-40.31 to +230**, $961.47
+   absolute across the projection; the worst is its FIRST month - `End 230 ≠ Start 0 + purch 0 +
+   int 0 − pay 0`, a row where the balance appears from nowhere. Most of the rest are the
+   interest-attributed-a-cycle-late pattern.
+   ⚠️ **N FINDINGS ARE NOT N PROBLEMS.** Roughly 180 of the 277 are synthetic cards (Stuck Card,
+   Cycling Card, Card B/C, Cobalt Rewards) that may be deliberate edge-case fixtures. Split them
+   before treating the number as a backlog. Real cards: Robinhood Gold 80, Prime Visa 15,
+   Venture X 4.
+   **HOW TO SEE THEM:** `npx vitest run --disable-console-intercept`. ⚠️ That flag **silently
+   ignores a file filter** and runs the whole suite - which briefly made one card's warnings look
+   like another's.
 
-1. [x] ✅ **HIS FRIENDS -> FOLLOWERS RESTRUCTURE WAS ALREADY BUILT - ask `881971fd` CLOSED.**
-   **I filed this as the biggest unbuilt thing he had asked for, and it was not unbuilt.** The
-   previous session's handoff said "NEVER TRACKED, SENT TWICE, STILL UNBUILT"; the first two were
-   true and the third was false. Caught by grepping for the CALLER before starting - the check
-   this repo mandates, and the one I had written into this very item as a warning to somebody else.
-   Commit `9e2e1918` implements all five points of his 23:44 message and `src/pages/Account.tsx`
-   quotes his words VERBATIM in the comment explaining the order. Measured, not read: the
-   Followers segment is gone (0 call sites, with a persisted-value guard falling through to
-   profile); Profile renders Username, then PartnerLink, then FollowersPanel in his order;
-   `FollowersPanel` carries both lists. Migration `c206197d`. Confirmed on origin by CONTENTS.
-   ⚠️ **THE ONE REAL RESIDUE, now ask `d848296c`:** `f8da9783` says in its own subject that
-   the username typeahead is **NOT YET VERIFIED**. Its claim is "public profiles only", and a leak
-   there shows one real person to another - so the check must assert BOTH arms, because
-   "suggests nobody" satisfies an absence-only test and is also what a broken query looks like.
-   **START HERE.**
+2. [ ] 🧪 **ADOPT THE FRESH CAPTURE AS THE GOLDEN FIXTURE - its own task, do not bundle it.**
+   Now with a measurement attached: the fresh capture turns exactly `floorDeficit`, `floorFlicker`
+   and `convergence.realData` red and nothing else, and with the GOLDEN restored byte-exact
+   (sha256 `6ebe770c...`) all 7 real-fixture files pass 16/16 with the new engine in place - so
+   those three belong to the capture, not the code. Each number still needs re-pinning with
+   judgement.
+   ⚠️ **DO NOT WAVE THEM AWAY BY QUOTING THE RUNBOOK.** A FOURTH went red this morning -
+   `payment-pin-semantics` on the DEMO fixture - and that one was a real regression.
+   **Captures on disk now, all gitignored** (verified with a control proving the ignore check
+   discriminates): `raw-rows.real.json` 14:54Z statement-era, `...PRE-STATEMENT-...` 13:50Z,
+   `forecast-inputs.real.FRESH-2026-09-17.json` = **`full`** era, `...STATEMENT-2026-09-17.json`
+   = **`statement`** era. **Which is which is load-bearing** - an earlier draft of the diagnostic
+   asserted the wrong one and was simply wrong.
 
-2. [ ] 🔧 **MY OWN Release-Note TRAILERS WRAPPED AND THE TAIL WAS DROPPED - ask `14c839df`.**
-   Found while running `test:tz`, printed by the repo's own check on every single run. `d0bf7c6`
-   published *"Fixed a credit card projection that charged one month of"* and DROPPED *"purchases
-   twice when a card was paid off..."*; `e874995` published *"The credit card payoff rows no
-   longer carry an explanation that"* and dropped the rest. **Both read as truncated mid-sentence
-   to a real App Store reader.** git reads a trailer as ONE line.
-   **THE CHECK ALREADY EXISTS AND IS ALREADY PRINTING - as a WARNING inside a run where 4773 tests
-   pass around it.** That is the "failure that does not fail the job" family exactly. Two halves:
-   decide whether those two notes have already been published anywhere and correct them at the
-   source if not, and **make the wrap check FAIL something**, because history cannot be rewritten
-   after a push.
+3. [ ] 📮 **DID THE TWO TRUNCATED RELEASE NOTES REACH A STORE LISTING - ask `4a91468d`.**
+   The half the new gate cannot touch, because a pushed message cannot be rewritten. Find out
+   whether either was PUBLISHED or is still in a draft the generator assembles at release time;
+   correct it at the source if unpublished. **A listing edit is Tre's call - it is outward-facing.**
+   ⚠️ Do not close this by pointing at `32fb7c9f`; they are different problems.
 
-3. [ ] 🔐 **THE THREE BLOCKED CodeQL ITEMS - ask `cae8fdae`, and the block is REAL.**
+4. [ ] 🔐 **THE THREE BLOCKED CodeQL ITEMS - ask `cae8fdae`, and the block is REAL.**
    `actions/missing-workflow-permissions` at `tests.yml:33`, `tests.yml:111` and
-   `live-bundle-scan.yml:67`. They touch `.github/workflows/`, and this account's token has no
-   `workflow` scope. **Nothing is written or staged for them - do not go looking for a
-   half-finished change.** They wait on one command TRE runs: `gh auth refresh -h github.com -s
-   workflow` (ask `d718bf0e`). ✅ **The `.github/codeql/` path is NOT blocked** - measured this
-   session, that push went through fine. The two remaining
-   `js/incomplete-url-substring-sanitization` alerts are a test fixture and a build script:
-   judgement, deliberately left open.
-
-4. [ ] 🧪 **ADOPT THE FRESH CAPTURE AS THE GOLDEN FIXTURE - its own task, do not bundle it.**
-   Unchanged from the last queue, and now with a measurement attached: the fresh capture turns
-   exactly `floorDeficit`, `floorFlicker` and `convergence.realData` red and nothing else, and the
-   golden-fixture control above proves that is the capture rather than the code. Each number still
-   needs re-pinning with judgement.
-   ⚠️ **DO NOT WAVE THEM AWAY BY QUOTING THE RUNBOOK.** A FOURTH test went red this morning -
-   `payment-pin-semantics`, on the DEMO fixture - and that one was a real regression. Three green
-   and one red was the discriminating result; trusting the prediction would have buried it.
-   The raw dump used this session is kept at `raw-rows.real.json` (14:54Z, statement era); the
-   pre-switch one is `raw-rows.real.PRE-STATEMENT-2026-09-17.json`.
+   `live-bundle-scan.yml:67`. They touch `.github/workflows/` and this account's token has no
+   `workflow` scope. **Nothing is written or staged for them.** One command Tre runs unblocks it:
+   `gh auth refresh -h github.com -s workflow` (ask `d718bf0e`).
+   ✅ **`.github/codeql/` is NOT blocked** - measured this session, that push went through.
 
 5. [ ] ⛔ **DO NOT RE-APPLY THE PURCHASES-FIGURE CHANGE WITHOUT FINISHING IT - IT IS REVERTED.**
-   Unchanged. Three sites deferred `Math.max(cardPurchasesThisMonth, monthlyNewPurchases)` while
-   every display path showed the real figure, so the model carried 743 where the row showed 625. A
-   helper `deferredPurchasesFor` removed all 66 reconciliation warnings on the demo fixture -
-   measured with both arms forced to fail, because vitest suppresses stderr on a passing file.
-   ⚠️ **It was still reverted, and the reason is the point:** it broke
-   `payment-pin-semantics`' invariant - a $400 pin moved the 18-month total by **$459** against a
-   ~$10 interest-scale bound, and that test's whole premise is that a pin RE-ORDERS cash rather
-   than finding new money. The open question is whether that is a horizon-boundary artefact or
-   real money creation. **Guessing on money math is the one thing this repo forbids.**
-   ✅ **`payment-pin-semantics` is GREEN under this session's due-date change** - so that change
-   does NOT have the defect this one had, and the two must not be conflated.
+   `deferredPurchasesFor` removed all 66 reconciliation warnings on the demo fixture and still
+   broke `payment-pin-semantics`' invariant - a $400 pin moved the 18-month total by **$459**
+   against a ~$10 interest-scale bound, and that test's premise is that a pin RE-ORDERS cash
+   rather than finding new money. The open question is horizon artefact versus real money
+   creation. **Guessing on money math is the one thing this repo forbids.**
+   ✅ `payment-pin-semantics` is GREEN under this session's due-date change - the two must not be
+   conflated.
 
-6. [ ] 📐 **A RESIDUE LEFT ON PURPOSE, NAMED SO IT IS NOT MISTAKEN FOR DONE.** Two of them now.
-   (a) `deferredPurchasesFor`'s genuine-zero case, unchanged from the last queue.
-   (b) **NEW, ask `098031d7`:** two small reconciliation residuals on **Venture X**, Jan and Mar
-   2029, `1.86` and `-1.41`, seen on the fresh capture. They look exactly like the
-   interest-attributed-a-cycle-late pair the guard's own header describes, just over its flat $1
-   tolerance. **STATED LIMIT: I did NOT compare against the pre-`fa896f1a` engine**, so whether
-   they are pre-existing or moved by the due-date change is UNMEASURED. Prove that first.
-
-7. [ ] 📐 **AND THE RESIDUE THIS SESSION'S OWN FIX LEAVES, named rather than implied.**
+6. [ ] 📐 **THE RESIDUE THIS SESSION'S OWN FIX LEAVES, named rather than implied.**
    `purchasesAfterDueByMonth` is fed ONLY by the two sources that carry a date - scheduled rule
    occurrences and one-time DB transactions. **Payment-plan charges and annual fees are
    deliberately excluded** (an annual fee has a month and no day; a plan charge would risk
-   double-subtracting against the BNPL term the cascade already removes). A charge left out simply
+   double-subtracting against the BNPL term `cascadeTarget` already removes). A charge left out
    stays inside the payment target, which is the behaviour that shipped before - so the omission
-   falls toward paying MORE, the direction that cannot invent money. If a dated plan charge ever
-   needs including, check what `bnplPay` already removes in `cascadeTarget` first.
+   falls toward paying MORE, the direction that cannot invent money.
 
-<details><summary>TWENTY-SECOND session's queue - SUPERSEDED. Items 1, 2 and the unblocked half of 4 are done; every survivor is restated above.</summary>
+7. [ ] 🖥️ **STILL OPEN AND STILL CORRECTLY OPEN: ask `48a185d1`, "verify on his screen".**
+   `e24d415b` measured his row through the real hook and it reads correctly, but that is a model
+   reading, not a rendered frame. **Minting a session for his account to screenshot it is
+   impersonation, not verification** - the original refusal was right and stands.
+
+<details><summary>TWENTY-SECOND session's queue - SUPERSEDED. Every survivor is restated above.</summary>
 
 ### (superseded) RESUME QUEUE - 2026-09-17, TWENTY-SECOND session
+
 
 ✅ **ALSO SHIPPED THIS SESSION, after the queue below was written:** the money fix for his /debt
 row (`d0bf7c6`, **iOS build 907**) and his "numbers should never wrap" fix (`e874995`, **iOS build
@@ -6722,7 +6701,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 10:41 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 10:58 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6738,14 +6717,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+4782bebc [handoff]: item 1 was already built - the caller grep caught my own false premise
+c9a82c93 [handoff]: twenty-third session - his due-date point shipped, and Sam's CodeQL fix was wrong
+df9ef900 [security]: CodeQL triage - 15 open alerts down to 7, and paths-ignore was the wrong fix
+fa896f1a [debt]: a full-balance payment cannot pay a charge dated after the due date
 d9df4c84 [handoff]: wrap fix shipped; the purchases-figure change is REVERTED, with why
 e8749952 [ui]: a figure never wraps - and the icon, not the type size, was why it did
 8d59f0dd [handoff]: item 2 found and fixed - the transition month billed purchases twice
 d0bf7c61 [debt]: the transition month charged the same purchases twice - his row was right
-69f9219d [handoff]: twenty-second session - his groceries rule moved, and the cycle sentence was wrong
-c5abe4d6 [debt]: remove the cycle sentence - its premise was false - and re-aim its gate
-9f09dec8 [debt]: the reconciliation guard never ran on the branch that needed it
-03f5a4eb [handoff]: twenty-first session - his /debt row does not reconcile, and he is right
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
