@@ -116,6 +116,27 @@ it against `src/pages/Account.tsx` before acting on it.
    **NOT DONE:** nothing REPORTS on the columns yet, attribution is **not retrospective**, and
    tagging treforged.com links is Ellis's tree and his call - he can now, and could not before.
 
+1e. [x] ✅ **DONE - THE TROPHY CASE IS RENDERED, AND RENDERING IT FOUND A REAL DEFECT IN MY OWN
+   COMMIT.** `npm run check:trophy-case` (new, committed, registered in package.json).
+   **The milestone work was measured hard on the SERVER and none of that was evidence a person
+   sees anything.** First run: the walk account went **0 -> 1 badges and the screen showed only
+   the ten it had NOT earned**. The grant happens inside the milestone query; the earned badges
+   are read by `useAchievements`, which had already resolved from cache. Badge granted, badge
+   invisible - **the exact failure `achievements.ts` opens by describing.** Fixed by invalidating
+   once per newly-granted set; the catalogued-name count goes **10 -> 11** across the fix, which
+   is a visible CHANGE rather than an absence.
+   ⚠️ **AND THE GATE LIED FIRST, THROUGH THE TRAP THIS MACHINE ALREADY DOCUMENTS.** Its assertion
+   was written through a bash heredoc, which collapsed the doubled backslash before python saw
+   it, so `''` became a literal **BACKSPACE (0x08)** and the regex `/<BS>Earned<BS>/` could
+   never match. **It reported FAIL on a fix that was already working.**
+   **The only reason it was caught is that the failure message PRINTS THE TEXT IT MATCHED
+   AGAINST**, and `Earned Sep 17, 2026` was plainly sitting in it. **A gate whose failure output
+   shows its own input can be debugged; one that prints only a verdict cannot.** Build regexes
+   with `chr(92)` and read the bytes back off disk.
+   Proven red (removing the invalidation fails assertion 5), byte-exact restore. Writes only to
+   the walk account and refuses any email not ending `@forgenta.test`.
+   **NOT COVERED:** the dashboard's Overview tab only, one viewport, no colour or spacing claims.
+
 2. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW FOR REAL.** The MOUNT is gone (tombstone in
    `FollowersPanel.tsx`); `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge
    function are still in the tree. Measured safe: **0 live unaccepted `friend_links`**, positive
