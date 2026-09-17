@@ -72,31 +72,33 @@
    both truncated notes passed it at 59 and 66 chars.** A length check cannot see truncation by
    construction. Only the commit-msg gate (`32fb7c9f`) can, and it now runs before a commit exists.
 
-4. [~] 🔴 **FIRST UP: READ CI RUN 594. THE CodeQL "BLOCKER" WAS FALSE AND I RELAYED IT.**
-   `083d9786` added `permissions: contents: read` to `tests.yml` `web`, `tests.yml` `android` and
-   `live-bundle-scan.yml` `scan` - the last three CodeQL alerts. **It is PUSHED.**
-   ⚠️ **THE ONLY THING NOT YET CONFIRMED IS THAT THE JOBS STILL PASS UNDER THE NARROWED
-   GRANT.** `tests.yml` carries no path filter by design, so the push exercises the changed
-   workflow on itself - that run IS the gate and it was still `in_progress` when this session
-   ended. **`gh run list --workflow="tests.yml"` and read run 594 on `083d9786`.** If it is red,
-   the narrowing broke something and the undo is `git revert 083d9786`.
-   ⚠️ **WHY IT WAS EVER "BLOCKED", because the lesson outlives the task.** Sam recorded these
-   as unpushable for want of a `workflow` OAuth scope, and I repeated it into two commits and a
-   report without testing it. The token genuinely has no `workflow` scope - both `gh auth status`
-   and the API's `X-Oauth-Scopes` header still say `gist, read:org, repo`. **It did not matter:
-   `git remote get-url origin` is `git@github.com:...` - SSH - so OAuth scopes never gated pushes
-   from this repo at all.** Proven by pushing a throwaway branch touching `tests.yml`, then
-   deleting it and verifying main unchanged by contents.
-   **A scope string is a claim about a credential; the only fact is whether the write succeeds.**
-   ⚠️ **THIS DOES NOT CLEAR treforgedwebsite.** Ellis hit the same wall there, and whether
-   HIS repo is genuinely blocked depends on ITS remote - unmeasured here. Ask `d718bf0e` should be
-   re-checked against that repo's own `git remote get-url origin` before anybody tells Tre it is
-   still waiting on him.
-   ⚠️ **AND I NEARLY SHIPPED A FALSE RATIONALE WITH THE FIX.** The first comment said a job
-   with no block inherits a read/write default. Measured before committing:
-   `default_workflow_permissions` on this repo is already `read`, so the grant takes nothing away
-   today. What it buys is that the default is a repo-level setting one click can flip, and an
-   explicit block does not move when the default does. The comment says that now.
+4. [x] ✅ **CI IS GREEN UNDER THE NARROWED GRANT, AND THE RUN THE LAST SESSION NAMED WAS THE
+   WRONG ONE.** Ask `a003a742` closed with the full reading.
+   **Run 35250665500 on `083d9786` was CANCELLED** by the concurrency group the moment the next
+   push landed. A cancelled run is evidence of nothing - **reading a supersession as a verdict
+   would have looked exactly like a red gate or exactly like a pass, depending on which way you
+   were already leaning.** The gate is the run that superseded it: **35250738021 on `fe469c2d`,
+   conclusion `success`, BOTH jobs success.**
+   Ancestry asserted, not assumed: `git merge-base --is-ancestor 083d9786 fe469c2d` passes, and
+   `git show fe469c2d:.github/workflows/tests.yml` carries `permissions: contents: read` at lines
+   42 and 131 - the grant was read back at the sha that was actually tested.
+   **ACCEPTANCE ON WHAT THE WORK WAS FOR: CodeQL open alerts are 0**, with a positive control in
+   the same read - the all-states query returns 37 rows (15 dismissed, 22 fixed), so the zero is a
+   fact about the repo rather than about a broken query.
+   ⚠️ **RESIDUE, named rather than implied:** `live-bundle-scan.yml`'s `scan` job carries the
+   same block and was NOT exercised - it triggers on `deployment_status`, which is disabled. That
+   third grant is alert-clearing and runtime-unproven. Undo for all three: `git revert 083d9786`.
+   ⚠️ **AND HIS GITHUB REFRESH DID NOT LAND.** He said at 13:05 ET *"I did the GitHub refresh
+   already"*. Measured at the moment of the claim, two ways: `gh auth status` AND the API's
+   `X-Oauth-Scopes` header both still read `gist, read:org, repo`. **No `workflow` scope.** Ask
+   `d718bf0e` re-blocked with that reading.
+   **It does not matter here and it does matter to Ellis**, and that distinction is the whole
+   lesson. getforgenta's origin is `git@github.com:...` - SSH - so OAuth scopes never gated pushes
+   from this repo at all. `treforgedwebsite`'s origin is `https://github.com/treforged/...`,
+   measured just now, so the scope CAN gate it there. **The ask's own text said the block was
+   "machine-wide"; that sentence is false and had been relayed twice without testing.** A scope
+   string is a claim about a credential; the only fact is whether the write succeeds, and it
+   succeeds or fails PER REMOTE.
 
 5. [ ] ⛔ **DO NOT RE-APPLY THE PURCHASES-FIGURE CHANGE WITHOUT FINISHING IT - IT IS REVERTED.**
    `deferredPurchasesFor` removed all 66 reconciliation warnings on the demo fixture and still
@@ -6729,7 +6731,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 10:58 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 13:07 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6745,14 +6747,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-4782bebc [handoff]: item 1 was already built - the caller grep caught my own false premise
-c9a82c93 [handoff]: twenty-third session - his due-date point shipped, and Sam's CodeQL fix was wrong
-df9ef900 [security]: CodeQL triage - 15 open alerts down to 7, and paths-ignore was the wrong fix
-fa896f1a [debt]: a full-balance payment cannot pay a charge dated after the due date
-d9df4c84 [handoff]: wrap fix shipped; the purchases-figure change is REVERTED, with why
-e8749952 [ui]: a figure never wraps - and the icon, not the type size, was why it did
-8d59f0dd [handoff]: item 2 found and fixed - the transition month billed purchases twice
-d0bf7c61 [debt]: the transition month charged the same purchases twice - his row was right
+fe469c2d [handoff]: the CodeQL blocker was false - a scope string is not a capability
+083d9786 [security]: least-privilege permissions on the last three CodeQL jobs
+340eea40 [handoff]: both open desk items closed by measurement, and one of them was my own bad framing
+e4c25f07 [debt]: the 277 reconciliation warnings are a STALE FIXTURE, not a live defect
+915bca18 [handoff]: twenty-third session - five commits, and two of my own claims corrected
+32fb7c9f [ci]: a wrapped Release-Note is now REFUSED before the commit exists
+e24d415b [debt]: his "$0 next payment" is correct - read off his own rows, both preferences
+a0f408a3 [security]: the last two CodeQL judgement calls - one fixed exactly, one dismissed with its reason
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
