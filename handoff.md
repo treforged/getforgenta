@@ -47,6 +47,40 @@
 
 4. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT** (`f22f17b1`).
 
+### 💰 TRE IS AWAKE AND TESTING /debt RIGHT NOW - THREE MONEY FIXES SHIPPED THIS SESSION
+
+1. **`08bcdfa8`** - "always pay in full" holds in EVERY month, with a per-month shortfall.
+2. **The grace fix** - a card paid in full accrues NO interest. The grace regime was gated on
+   `paymentPreference === 'statement'` in THREE places, so his `full` card accrued every cycle.
+   Now ONE exported `clearsStatement`. Measured on his row: interest 5.29 Sep + 5.42 Oct became 0,
+   and the October payment went 512.33 -> **501.62 = 211.62 + 290.00 exactly**. **That 10.71 WAS
+   the "gap" he asked about.** Also: not-billed-yet no longer scores as a missed statement - the
+   THIRD place the first-payment-due rule has had to be wired.
+3. **The duplicate credit limit is gone from /debt**, gated by a rendered frame
+   (`npm run check:debt-limits`, three controls, proven red with the real pre-fix file).
+
+### ⚠️ HIS REMAINING /debt QUESTION IS NOT AN ARITHMETIC BUG - START HERE (ask `dbdc6d54`)
+
+He reads: September balance 212, October purchases 280, October payment 492, **October end balance
+280** - and asks where the missing purchases are.
+
+**HIS OWN SECOND HYPOTHESIS IS THE RIGHT ONE, and `projectCardVariable`'s JSDoc says it outright:**
+*"purchasesPerMonth[0] ... should be 0"* and *"month 0 (= rest of current month) uses 0 purchases
+because the live card balance already includes current-month spending."* **So the September row
+shows ZERO purchases by design while his September spending sits silently inside the 212.**
+
+The October reading follows from the same place, and both figures are correct while meaning
+different things: the 492 leaving in October covers September's 212 statement PLUS October's 280 of
+purchases, while the 280 end balance is October's purchases forming **November's** statement. The
+same 280 appears once as cash leaving and once as a balance forming, with nothing on the row saying
+so.
+
+**DO NOT "FIX" THIS WITH ARITHMETIC.** The row is internally consistent and unreadable. The fix is
+presentational - what the September row shows, and what the columns are called - which is a design
+call on his own money page. **It is filed as NEEDS TRE and should be decided together with
+`ec4c1a2b`** (purchases on /debt must follow REAL synced transactions, not the steady
+`monthlyNewPurchases` estimate), because they are the same columns.
+
 ### 🚨 ONE THING TO CHECK FIRST NEXT TIME
 
 **iOS run `35191187725`** (workflow_dispatch, head `08bcdfa8`) was DISPATCHED and was still
@@ -6052,10 +6086,14 @@ followers/following UI) is the next build and has NOT been started.
 
 </details>
 
+
+
+</details>
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 02:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 02:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6066,16 +6104,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+25a2bc1d [handoff]: account IA was already built and gated; the iOS run is dispatched and UNVERIFIED
+d8d6d7f1 [handoff]: eighteenth session - the always-pay-in-full obligation holds in every month, and two defects my own change had first
+08bcdfa8 [debt]: "always pay in full" holds in EVERY month, and the gap is reported
+c8504d8a [handoff]: seventeenth session - Tre is typing, and item 1 is a query he asked for and did not get
+64eca7e7 [goals]: the back-loaded pace, as arithmetic - wired nowhere yet, on purpose
 04f385cf [handoff]: always-pay-in-full stops at month 0, and that is his October zero
 36861a70 [handoff]: the revenue key is split off the upload key, and iOS 888 carries the money fixes
 de633d0f [ci]: the revenue report gets its own key - the upload key is never touched again
-3a12f674 [handoff]: three paths pay a card in month 0, and the rule only guarded two
-656cee07 [debt]: suppressing the minimum was not enough - the cascade was still paying it
-243fd5b4 [handoff]: the friend-link deletion scope is measured - the accept landing is alive on purpose
-1913444f [handoff]: the Robinhood shortage was real, and the rule it needed was on another path
-5144ffaa [debt]: "always pay this" was demanding a payment that is not owed until October
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
-
-</details>
