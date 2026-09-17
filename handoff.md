@@ -303,7 +303,50 @@ is what `5409ffbc` should be blocked on.
 **SIX HYPOTHESES DEAD BY MEASUREMENT:** the unpinned clock, the debounce, `pauseSavings`, "less
 month-0 cash", the timezone, the payoff strategy.
 
+### ⚠️ 12 - I TESTED THE PREMISE THE WHOLE INVESTIGATION RESTED ON, AND IT IS PROBABLY FALSE
+I have been calling this **browser against harness**. The evidence says **GOLDEN IS HARNESS OUTPUT
+TOO**, from 2026-09-01 - so the comparison is **OLD CODE AGAINST TODAY'S CODE.** Four facts:
+
+1. The recapture harness was added **2026-08-31** (`2c8bf006`) - it existed on 09-01.
+2. `capturedTzOffsetMinutes` was added **2026-09-03** (`97a0b662`) - it did NOT exist on 09-01,
+   and **GOLDEN lacks that field**, which is exactly what a harness capture written on 09-01
+   looks like.
+3. GOLDEN's `capturedAt` is `2026-09-01T00:20:11.665Z` and the raw dump's `dumpedAt` is **the same
+   instant to the millisecond** - precisely what `serializeForecastCapture(captured,
+   h.dump.dumpedAt)` produces. A browser capture takes the default `new Date()` and could not
+   coincide to the millisecond with a separately-taken dump.
+4. **SEVENTEEN commits** touch `useForecastEngineInputs` or `credit-card-engine` since 09-01,
+   **seven of them today**, and several are directly about this surface: `46c338d9` *"a card can
+   be OPEN and owe nothing yet - the minimum now waits for the first bill"* (which describes the
+   Robinhood Gold Card exactly: balance 0, no statement balance, opened 26 Aug), `38b7d2b2`
+   *"Safe to Pay $7,991 against $2,526 of cash, and no warning at all"* (the capacity cap), and
+   `2d3ac700` *"month 0 stops hiding the spend that has not posted yet"*.
+
+✅ **SO 229.89 AGAINST 99.89 IS MOST LIKELY DELIBERATE MONEY FIXES SHIPPED SINCE THE CAPTURE,
+NOT A DEFECT** - and *"identical inputs, different output"* has an ordinary explanation I had ruled
+out **by assumption rather than by measurement: the code is not the same.**
+
+⚠️ **THAT ALSO EXPLAINS WHY TEN PASSES FOUND NO DIFFERING INPUT. THERE IS NONE.** I was
+comparing two runs of **different programs** and hunting for a difference in their **data**.
+
+**STRONG INFERENCE, NOT PROOF.** The proving command is one line: check out the tree as of
+2026-09-01, run the probe on the same dump, expect **26** and **229.89**.
+**FALSIFIER, named:** if the in-app capture path also stamps `capturedAt` from a dump, or if
+GOLDEN carries a field only a browser can produce, fact 3 collapses.
+
+⚠️ **AND THE CONSEQUENCE FOR `5409ffbc` IS THE OPPOSITE OF WHAT I WROTE EARLIER TONIGHT:** if
+this holds, **the newer number is the CORRECT one** and the golden fixture is **stale by seventeen
+commits** - so the invariants that fail are failing *because the fixture predates the fixes*.
+**Do not act on the earlier "refuse adoption" reasoning until this is settled.** The two
+structural limits recorded there (browser-local state, unpinned timezone) stand on their own and
+are unaffected.
+
 ### WHAT IS ACTUALLY LEFT - START HERE
+**Run the one-line proof above before anything else** - it settles eleven passes of work either
+way, and everything recorded tonight about causes is provisional until it does.
+
+<details><summary>Superseded - the previous framing, which assumed the code was the same</summary>
+
 **Stop hunting a single differing input - there is none.** Find what the browser provider held
 that is not in the dump at all; the remaining candidates are react-query cache contents and
 in-session edits never persisted.
@@ -334,6 +377,8 @@ decide whether it explains the 2 months. That single value is the whole remainin
 app and the harness, and until it closes, no attribution across these captures means anything and
 `5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
 giving 34 and null), then the 24 -> 34 move itself.
+
+</details>
 
 </details>
 
@@ -7746,7 +7791,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 18:52 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 19:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7757,14 +7802,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+b14d9bfb [handoff]: every input is identical and the output still differs - that is the finding
+0214bb1c [handoff]: planExpenses carries the capacity, and a 15x timezone swing fell out of it
+b0e315f6 [handoff]: the month-0 cash chain is identical - my own previous pass refuted
+bd62e453 [handoff]: capacity confirmed by a pre-named falsifier - both sides run the same computation
+a32d14a8 [handoff]: which side is wrong - the evidence points at the harness, not his app
+644a441b [handoff]: both leads dead by measurement, and the divergent input is one $130 figure
 e45c2403 [handoff]: the fixture harness and the browser disagree by two months on identical rows
 ef7847e1 [handoff]: iOS 937 uploaded and verified; both blocker triggers re-tested; 80ea17f2 located in the card sim
-828ea3bb [handoff]: closed on the handoff gate - verify iOS 35283280523 first, then the two blocker re-tests
-8f40fef7 [handoff]: a real defect found by refusing to build - Reset to defaults was racy
-143b3a4b [dashboard]: "Reset to defaults" was racy and could snap back - one line, found by testing a premise
-96392a9d [handoff]: correct a NOT-STARTED line that was false - the followers/following UI is built
-769e274c [handoff]: iOS 935 carries the Akoya removal - upload verified by altool's own words
-bed655c7 [handoff]: the overload sweep is FINISHED - 5 surfaces, 2 defects, 1 refutation, 2 already clean
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
