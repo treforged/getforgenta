@@ -14,6 +14,59 @@
 > ⚠️ **The procedure in that ask named the column `day_of_month`. It is `due_day`** - the first
 > query errored 42703. A query specified in prose is an unverified claim about a schema.
 >
+> ## ✅ ITEM 2 IS **FOUND AND FIXED** - the block below it is the diagnosis mid-flight, kept for the record
+>
+> **IT WAS A CASH DEFECT, NOT A DISPLAY ONE. The engine charged one month's purchases TWICE.**
+> When a revolving card is paid all the way to $0, that payment necessarily covered this month's
+> purchases as well as the carried balance (`totalPay` lands exactly on
+> `bbp = startBal + interest + purchases`). The engine then seeded those SAME purchases as the
+> next cycle's deferred statement and collected them again. On his Robinhood Credit Card: 834.27
+> paid at the transition, then 280 charged again the next month for the same spend.
+> **Fix: seed only the purchases the payment did not cover.** It can never increase what anybody
+> pays. Shipped, `test:tz` green all three zones at **477 files / 4761 tests** (up one).
+>
+> **WHAT ACTUALLY FOUND IT, because the reading did not:** four synthetic shapes all reconciled
+> at 0.00 and I nearly concluded the sim was sound. It was sound in every shape I had thought to
+> build. **His 2026-08-31 capture could not reproduce the row, so I recaptured against TODAY and
+> it reproduced on the first run.** When a defect will not reproduce, suspect the fixture's DATE
+> before the diagnosis.
+>
+> **FOUR HYPOTHESES DIED ON THE WAY AND ARE WORTH NOT RE-RUNNING:** the surplus cascade
+> over-paying (refuted - `balBeforePayment` covers `debtCards` only); the converged run diverging
+> from the base sim (refuted - identical arrays); payments and balances arriving from different
+> sims at the prop boundary (refuted - /debt takes both from one `cardProjection`); and the four
+> synthetic shapes above.
+>
+> ⚠️ **A FRESH CAPTURE EXISTS AND IS NOT THE ACTIVE FIXTURE.** `forecast-inputs.real.FRESH-2026-09-17.json`
+> is his current data; `forecast-inputs.real.json` was RESTORED to the 08-31 golden one
+> (`...GOLDEN-BACKUP-2026-09-17.json`, sha `6ebe770c...`) so no pinned assertion moved. Adopting
+> the fresh capture is its own task: it turns `floorDeficit`, `floorFlicker` and
+> `convergence.realData` red and each needs re-pinning with judgement, exactly as
+> `docs/forecast-fixture-recapture.md` warns.
+> ⚠️ **AND DO NOT WAVE THOSE AWAY BY QUOTING THE RUNBOOK.** A FOURTH test went red in the same
+> run - `payment-pin-semantics`, on the DEMO fixture - and that one was my change, correctly.
+> Restoring the golden fixture with the fix still in place was the discriminating test: three
+> green, one red. **Trusting the prediction would have buried a real regression inside an
+> expected one.** (It was right: the total fell 20268 -> 20211, and the $57 is one card, one
+> month, the removed duplicate - measured, not inferred from the direction.)
+>
+> ✅ **HIS GOLD SUBSCRIPTION IS DONE TOO** (`ask cb7f07d1`): the EXISTING 'Robinhood Gold' rule
+> (id `2f6c8d10-...`) moved to due_day 17 / start 2026-09-17 and now charges the **Robinhood
+> Credit Card** instead of CHASE CHECKING. **No amount was guessed** - the rule already existed
+> at $50/yr, so this was an update, not an insert.
+> **UNDO:** `update recurring_rules set due_day=26, start_date='2026-09-26', payment_source='933cbc10-bceb-4c20-8227-4a02e6db728a' where id='2f6c8d10-9a47-4b23-8c51-6d0e4a92b7f8'`.
+>
+> 🚀 **iOS run 807 DISPATCHED from `d0bf7c6` = TestFlight build 907.** Read the UPLOAD STEP's own
+> conclusion and altool's `UPLOAD SUCCEEDED`, never the run's.
+>
+> 📌 **STILL OPEN, FOUND WHILE FIXING THE ABOVE:** on the demo fixture the guard reports
+> `End 743 ≠ ... purch 625 ... (residual 118)` on many steady cycling months. That is a SECOND,
+> PRE-EXISTING disagreement - the seed uses `max(cardPurchasesThisMonth, monthlyNewPurchases)`
+> (743) while the row displays `cardPurchasesThisMonth` (625). Not caused by this fix and not
+> fixed by it; nothing asserts on it yet.
+
+<details><summary>The mid-flight diagnosis of item 2, superseded by the fix above but kept because its refutations still stand</summary>
+
 > **ITEM 2 - STILL OPEN, BUT ITS STATED HYPOTHESIS IS DEAD.** His arithmetic is confirmed right.
 > Three things are now MEASURED and the third is the one that redirects the work:
 > 1. The identity **does** bind on a cycling row - the previous session's premise that both
@@ -30,6 +83,9 @@
 > **His 2026-08-31 fixture cannot reproduce it** (it has his cycling card, Robinhood Gold at
 > $230/mo = the Groceries rule, UNDER-funded at 50 against 230 owed - the opposite failure), so
 > **the next step is a FRESH capture of his current data**, not more reading.
+
+</details>
+
 >
 > **ITEMS 3 AND 4 - DONE, and 4 changed shape.** The sentence is removed (`ask cf468ddc` covers
 > both) because its premise was false, not only because it wrapped badly - see the long note at
@@ -6424,7 +6480,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 09:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 09:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6440,14 +6496,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+69f9219d [handoff]: twenty-second session - his groceries rule moved, and the cycle sentence was wrong
+c5abe4d6 [debt]: remove the cycle sentence - its premise was false - and re-aim its gate
+9f09dec8 [debt]: the reconciliation guard never ran on the branch that needed it
 03f5a4eb [handoff]: twenty-first session - his /debt row does not reconcile, and he is right
 f9d17b2c [handoff]: iOS 903 carries both halves of the debt fix; five lessons recorded
 5196b381 [debt]: the row now says which cycle each column belongs to
 193b0802 [debt]: the SECOND copy of the month-0 rule - the one /debt actually reads
 c202d580 [docs]: the Mac runbook found the tab bar by the one selector this repo forbids
-e3014dac [handoff]: gh auth restored, iOS dispatched as 35198098895, month-0 purchases shipped
-2d3ac700 [debt]: month 0 stops hiding the spend that has not posted yet
-18f60dc1 [handoff]: friend-link flow deleted; the gate it was holding up is re-aimed and found a live focus-ring defect
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
