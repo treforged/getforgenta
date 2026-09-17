@@ -40,11 +40,21 @@ check the file before acting on it.
    transparent WKWebView for chrome. **Reconfirm in this tab before writing Swift.** Swift compiles
    on the CI runner; a DEVICE is the blocker.
 
-4. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW.** `FriendLink.tsx`, `useFriendLink.ts` and the
-   `friend-link` edge function are still in the tree; the mount is already gone. Measured safe: 0
-   live unaccepted `friend_links`. It takes 59 assertions with it, so its own slice and its own
-   gate, and leave a tombstone.
-   ⚠️ **`active_friend_ids()` STILL READS `friend_links`** - keep that arm; delete the CLIENT flow.
+4. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE MEASURED, NOT YET EXECUTED.** Measured 2026-09-17,
+   and the measurement CHANGES the scope the previous handoff recorded:
+   * **Nothing in the app renders `<FriendLink />`.** The only matches are its own two test files -
+     `useFriendLink.test.tsx` (**59** assertions) and `FriendLink.inviteByUsername.test.tsx` (**5**).
+     So the component and hook are genuinely dead client code.
+   * ⚠️ **BUT THE `?friend_code=` LANDING IS ALIVE AND DELIBERATE.** `Account.tsx:109`,
+     `Settings.tsx:174` and `settings-ia.ts:101` all handle it, with comments saying **an invite
+     email already in somebody's inbox cannot be edited after it is sent**. The previous handoff
+     said "delete the friend-link edge function" without naming this. **Deleting the function is
+     what an accept URL calls.**
+   * **What makes it safe anyway, and say it rather than assume it:** the DB holds **0 live
+     unaccepted `friend_links`** (control: 1 total / 1 accepted), so no mailed accept URL can
+     succeed today regardless. That is a fact about ROWS, re-measure it before deleting.
+   * ⚠️ **`active_friend_ids()` STILL READS `friend_links`** - the one accepted friendship survives
+     server-side. Keep that arm; delete the CLIENT flow only, and leave a tombstone.
 
 ### What this session closed, with evidence
 
@@ -5874,10 +5884,16 @@ followers/following UI) is the next build and has NOT been started.
 
 </details>
 
+
+
+</details>
+
+</details>
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 01:07 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 01:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5888,18 +5904,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-71175e92 [handoff]: accounts text fixed and gated; the debt half is NOT reproduced
-69c2f6a0 [accounts]: a word per line was a WIDTH bug, and this is the fourth fix for it
-7283264c [handoff]: the friend wording is retired - and one of the three was a privacy claim
-4f09843a [social]: retire the friend wording, and stop naming the wrong audience
-ccb5efea [handoff]: rendering the trophy case found what the server tests could not
-83322cc0 [achievements]: a granted badge was invisible - rendering it found that, tests did not
-54ece90f [handoff]: attribution shipped - utm_*, not ref, and both halves wired
-b4c22722 [attribution]: campaign attribution on signup, and it is not the ref parameter
+1913444f [handoff]: the Robinhood shortage was real, and the rule it needed was on another path
+5144ffaa [debt]: "always pay this" was demanding a payment that is not owed until October
+1b2da516 [social]: gate the two lists Tre asked for, and stop the followers gate being flaky
+9299da47 [handoff]: the typeahead is verified, the debt hole was real, one build carries both
+9350ef81 [debt]: the payment column was wrapping onto its own line, and only at his text size
+c7cf8468 [social]: the typeahead is verified, and it had turned main red
+8aae3aa7 [handoff]: resume queue for the fifteenth session - start at the typeahead
+f8da9783 [social]: username typeahead - public profiles only, and NOT YET VERIFIED
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
-
-</details>
-
-</details>
