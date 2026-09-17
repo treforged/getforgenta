@@ -44,19 +44,39 @@ function runScenario(clockOffsetDays: number) {
 
   const out = runDebtCashConvergence(base, inputs);
   const ccFree = out.projections.milestones.find(m => m.event.startsWith('CC Debt Free'));
-  const floorBreaches = out.projections.milestones.filter(m => m.event.includes('below safe minimum'));
+
+  // ⚠️ BOTH SIDES ARE READ OFF THE ROWS, NEVER OFF THE MILESTONES. Fixed 2026-09-17, and the
+  // bug it removes is a FALSE ALARM rather than a missed one, which is the kind that gets a good
+  // gate switched off.
+  //
+  // A "below safe minimum" MILESTONE is a FIRST-OCCURRENCE MARKER - the engine emits one, at the
+  // earliest breaching month - while `row.belowSafeMinimum` is a per-month flag. Comparing the two
+  // milestone months as SETS therefore reads a REPAIRED EARLIEST BREACH as a NEWLY INTRODUCED one:
+  // convergence fixes the first bad month, the marker legitimately advances to the next bad month,
+  // and the set difference says "convergence introduced a breach the raw engine did not have".
+  //
+  // MEASURED on the 2026-09-17 statement-era capture, which is what exposed it:
+  //   raw  rows flagged: Oct 2026, Nov 2026, Dec 2026   raw  milestone: [Oct 2026]
+  //   conv rows flagged:           Nov 2026, Dec 2026   conv milestone: [Nov 2026]
+  // Convergence STRICTLY IMPROVED that scenario - it removed October and introduced nothing - and
+  // the old comparison called it a regression. It would have done so on every future recapture
+  // where convergence repairs the earliest month, which is the case it is most wanted to allow.
+  //
+  // `floorDeficit` and `floorFlicker` already compared rows; this makes the third agree with them,
+  // so there is ONE rule with ONE implementation rather than two that can drift.
+  const flaggedMonths = (rows: readonly { month: string; belowSafeMinimum?: boolean }[]) =>
+    rows.filter(r => r.belowSafeMinimum).map(r => r.month);
   // What the RAW engine already says about this scenario, so a shortfall the
   // capture arrives with is never charged to the convergence loop.
-  const rawBreaches = new Set(
-    calculateForecast(inputs).milestones
-      .filter(m => m.event.includes('below safe minimum')).map(m => m.month));
+  const rawBreaches = new Set(flaggedMonths(calculateForecast(inputs).data));
+  const floorBreaches = flaggedMonths(out.projections.data).map(month => ({ month }));
   return { out, ccFree, floorBreaches, rawBreaches };
 }
 
 describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5 regression)', () => {
   afterEach(() => vi.useRealTimers());
 
-  maybeIt('clock=capturedAt (2026-07-15): converges with no floor breach and the live payoff', () => {
+  maybeIt('clock=capturedAt: converges with no floor breach and the live payoff', () => {
     const { out, ccFree, floorBreaches, rawBreaches } = runScenario(0);
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     // Re-pinned 2026-07-20 (Q12 floor cutoff + real paymentPlans in the harness): 18 passes.
@@ -159,7 +179,7 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     }
   });
 
-  maybeIt('clock=+11d (2026-07-26, all July due days passed): converges with no floor breach', () => {
+  maybeIt('clock=capturedAt+11d (past the due days): converges with no floor breach', () => {
     const { out, ccFree, floorBreaches, rawBreaches } = runScenario(11);
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     // Re-pinned 12→13 on 2026-07-30 with the scheduling.ts yearly due_month overflow fix. This
