@@ -1,54 +1,86 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## RESUME QUEUE - 2026-09-17 (Ada, TWENTIETH session). START AT ITEM 1.
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FIRST session). START AT ITEM 1.
 
-**READ THIS FIRST: THE QUEUE A SessionStart HOOK INJECTS IS STALE.** It opens with a `net=`
-reading and a truncated Balances pill; **both are CLOSED with evidence** (`4d923cfe`, `c61a479a`).
-I checked the tracker rather than the prose. Where a hook's queue and the tracker disagree, **the
-disagreement is the finding.**
+**TRE IS AWAKE AND TESTING iOS 903 RIGHT NOW.** This session handed over on the LIFETIME tool-call
+gate (197 of 175), mid-conversation, with two of his messages unactioned. Items 1 and 2 are both
+HIS, both from the last ten minutes, and neither has been started.
+
+**THE STALE-QUEUE WARNING STILL APPLIES:** the queue a SessionStart hook injects opens with a
+`net=` reading and a truncated Balances pill; **both are CLOSED with evidence** (`4d923cfe`,
+`c61a479a`). Check the tracker, not the prose.
+
+1. [ ] 🔴 **MOVE HIS GROCERIES RULE TO THE 19th - ask `896ac884`, NOT STARTED, HIS REAL DATA.**
+   Verbatim, 2026-09-17 ~09:05: *"can you move groceries to 19th of each month. next payment would
+   be September 19. this adjustment is due to us going out of town for a bit."*
+   **The Supabase tool was blocked by the gate mid-READ, before any write - nothing was changed.**
+   The ask carries the full procedure. The short version, and do not skip a step:
+   * **READ FIRST WITH A POSITIVE CONTROL** - `count(*) over () as matched_control` - and confirm
+     **exactly one active row** before writing. More than one means ask which.
+   * **RECORD THE OLD `day_of_month` IN THE ASK BEFORE UPDATING.** That is the undo. Earlier
+     evidence this session says Groceries is $230 on day **13**; be suspicious if it is not.
+   * **READ IT BACK AFTER THE WRITE** - the write's own result is not evidence.
+   * Then check the September row actually moved on /debt and the forecast, rather than assuming.
+
+2. [ ] 🔴 **THE /debt ROW DOES NOT ADD UP, AND HE IS RIGHT - ask `cf468ddc`.** Verbatim on build
+   903: *"I see the $50 purchases in September now but that doesn't add up ... current month plus
+   $50 plus next month purchases minus the payment ... it looks incorrect."*
+   **HIS FIGURES, FROM HIS OWN SCREENSHOT:** Sep start 212, +50 purchases, no payment, end **262**
+   - which reconciles. Oct start 262, +280 purchases, payment **-542**, end **280** - and
+   262 + 280 - 542 = **0**, not 280.
+   **THE DIAGNOSIS AS FAR AS IT GOT, and it is not yet proven in code:** $542 = 262 + 280, i.e. the
+   payment settles the statement AND this cycle's purchases (full-balance behaviour), while the end
+   balance is still reported as this month's purchases (deferred/statement behaviour). **Two models
+   on one row.** Coherent pairs would be payment 262 / end 280, or payment 542 / end 0. The sim's
+   mandatory cycling payment is the STATEMENT only (`mandatoryPayByCard`, credit-card-engine.ts
+   ~1880), so the extra 280 most likely arrives via the surplus cascade while
+   `monthlyCyclingOwed[m+1]` - which the projection uses as `endBal` (~line 837) - is never reduced
+   by it. **VERIFY THAT BEFORE CHANGING ANY NUMBER.**
+   ⚠️ **PRE-EXISTING, NOT CAUSED BY THE MONTH-0 WORK** - his ORIGINAL report quoted the same shape
+   at 492 (= 212 + 280) before September purchases were visible. The month-0 fix moved 492 to 542
+   and made the contradiction easier to see.
+   ⚠️ **AND MY CYCLE SENTENCE NOW DEFENDS THE WRONG HALF.** It asserts the deferred reading to the
+   user while the payment column shows full-balance behaviour, so it makes a contradiction look
+   deliberate. **Removing or rewording it is part of this fix, not a separate task.**
+
+3. [ ] 🎨 **THE SENTENCE WRAPS TO ONE WORD PER LINE - same ask `cf468ddc`.** His words: *"The text
+   on the left below each line of purchases extends too far and it leaves a lot of blank Space. i
+   don't even think that necessary."* It sits in the FIRST of three grid columns
+   (`CreditCardEngine.tsx`, the detail row is `grid-cols-3` and the detail div is constrained to
+   column 1), so at 390px it wraps ~9 times and the rest of the row is empty. **He is telling you
+   it may not be needed at all** - and given item 2, the honest fix is probably to make the NUMBERS
+   reconcile and drop the sentence rather than to re-flow it. That does not reverse his earlier
+   decision (`dbdc6d54`, "show where users money is going at the right time accurately"); the
+   accurate way to show it is numbers that add up.
+   **GATE:** `npm run check:debt-cycle-labels` asserts the sentence RENDERS. If the sentence goes,
+   that gate must be re-aimed at the reconciliation instead of deleted - it is the only rendered
+   check on these rows.
+
+4. [ ] 📐 **A ROW-RECONCILIATION GATE WAS HALF-BUILT AND IS NOT COMMITTED.** The reader that pulls
+   `start / purchases / interest / payment / end` out of the RENDERED row lives at
+   `scripts/.rowreader-draft.js` (committed beside the gate); splice it into `scripts/check-debt-cycle-labels.mjs` before the
+   `const found =` block. ⚠️ **DO NOT BUILD IT THROUGH A SHELL HEREDOC** - two attempts died
+   because `\n` and `\$` inside a python-in-heredoc string became a real newline inside a JS
+   regex. Author the JS with the Write tool, then splice by file read. Use
+   `String.fromCharCode(10)` rather than a newline escape.
 
 ### ✅ SHIPPED THIS SESSION, all pushed 0/0 and verified on origin BY CONTENTS with a control
 
 | commit | what |
 | --- | --- |
-| `2d3ac700` | month 0 stops hiding spend that has not posted (his **$50** Eating Out, 28 Sep) |
-| second copy | **`CreditCardEngine.tsx` had its OWN month-0 rule and /debt reads THAT one** |
-| `5196b381` | the row now says **which cycle each column belongs to** - his decision, verbatim |
+| `2d3ac700` | month 0 stops hiding spend that has not posted (his **$50**, 28 Sep) |
+| `52f0ff0`-ish | **`CreditCardEngine.tsx` had its OWN month-0 rule and /debt reads THAT one** |
+| `5196b381` | the cycle sentence + `check:debt-cycle-labels` (see items 2-3: it needs rework) |
 | `5a8c69b2` | friend-link flow deleted; the gate it was holding up re-aimed |
 | runbook fix | the Mac runbook found the tab bar by the one selector this repo forbids |
 
-🚀 **iOS BUILD 903 IS IN TESTFLIGHT** (run `35200156634` = 803 + 100, head `5196b381`). Verified
-the way this repo requires: **step 20's OWN conclusion `success`** AND altool's
-**`UPLOAD SUCCEEDED with no errors`**, with all three `90382` hits in the ECHOED SCRIPT SOURCE
-rather than in the output. **Build 900 earlier today carried only the FIRST copy** and did not
-show the $50 on /debt. **Two uploads today - do not dispatch again today without a reason.**
+🚀 **iOS 900 and 903 BOTH UPLOADED TODAY** (903 = run 803 + 100, head `5196b381`). Verified by step
+20's OWN conclusion AND altool's `UPLOAD SUCCEEDED with no errors`, with all three `90382` hits in
+the ECHOED SCRIPT SOURCE rather than the output. **Apple caps uploads per app per day and this repo
+has burned that cap before - do NOT dispatch a third today without a reason.**
 
-1. [ ] 🎨 **WALK 903 ON HIS PHONE-WIDTH LAYOUT WHEN HE REPORTS BACK.** The cycle sentence is
-   proven on a rendered frame at 390x844 (`npm run check:debt-cycle-labels`), but **that is the
-   walk account with ONE cycling card**. His own data has more cards and a real sync cutoff, so
-   the sentence appears on more rows; worth one look that it does not crowd the row at 150% text.
-
-2. [ ] 💵 **THE MONTH-0 CHANGE IS LIVE ON BOTH ENGINES NOW - WATCH FOR A SECOND-ORDER EFFECT.**
-   Month 0 carrying purchases changes when a cycling card clears (on the demo fixture d7 moved
-   from month 2 to month 7). That is CORRECT, and it is also the kind of change a user notices as
-   "my payoff date moved". If he asks, the answer is: the spend was always coming, it just was not
-   being counted until the month it posted.
-
-3. [ ] 🪟 **NATIVE GLASS - BLOCKED ON A MAC, NOT ON A DECISION** (`f22f17b1`, Sam's `8a202850`).
-   Scope reconfirmed this session and `docs/native-glass-mac-session.md` is corrected and current:
-   every path it names resolves, the bridge gate is green at 13, and **step 3's selector was
-   fixed** - it found the tab bar by `rounded-full`, the correctness marker, which returns `null`
-   if the pill has regressed and would have burned a ONE-SHOT borrowed-Mac session on a null
-   dereference. Now the gate's own shape predicate plus an explicit "STOP: this is the instrument,
-   not the answer". "Five tab labels" re-verified against `grid-cols-5`.
-
-4. [ ] 📊 **LEADERBOARD SERVER-SIDE PUBLISHING** (`798c0ed9`) - deferred with a stated trigger
-   ("participation is real"). ⚠️ **I tried to measure the trigger and my query was wrong** - the
-   sharing columns are not named `share_goal_progress`. Re-derive the real column names from
-   `information_schema` before quoting any participation number.
-
-5. [ ] 📨 `663274d7` stays **NEEDS TRE** - four of Otto's five reel items are his App Store Connect
-   console and the fifth was already built. Otto acknowledged; nothing waits on him.
+🖥️ **A DEV SERVER IS RUNNING** on `localhost:8080` (`node scripts/dev-session.mjs up`), started for
+the rendered gates. Reuse it rather than starting another.
 
 ### ⚠️ WHAT THIS SESSION LEARNED THE HARD WAY - DO NOT RE-DERIVE
 
