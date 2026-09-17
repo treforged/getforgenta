@@ -147,8 +147,40 @@ the convergence/floor path rather than directly. **Do not write "the $130 causes
 into anything.** Note also that `130` is exactly the golden-era `Owners Contribution` monthly
 amount - **that may be coincidence and is recorded as a lead, not a finding.**
 
+### ✅ 7 - WHICH SIDE IS WRONG: THE EVIDENCE POINTS AT THE HARNESS
+Decomposed the recommendation by removing one input at a time from the 31-Aug dump:
+
+| arm | rows | safeToPayTotal |
+| --- | --- | --- |
+| baseline | Robinhood Gold Card = 99.89 | 99.89 |
+| remove the card's only charge (Groceries 230) | **Discover it Card = 99.885** | 99.885 |
+| remove the card account itself | **Discover it Card = 99.885** | 99.885 |
+
+**TWO DIFFERENT CARDS WITH DIFFERENT BALANCES PRODUCE THE SAME NUMBER TO ROUNDING** - the
+identical-value-across-independent-samples signature. So the harness figure **does not vary with
+the card at all**; it behaves like a cash-capacity bound attributed to whichever card sorts first.
+The browser's 229.89 by contrast tracks the card's OWN projected charge: Groceries is **230**,
+and the card's raw row reads `balance 0` with `statement_balance null`, so a "Pay Statement
+Balance" figure on it can only be projected spend - which 229.89 is and 99.89 is not.
+
+**STRONG, NOT PROOF:** shown that the harness value is invariant across two cards, not yet WHY it
+is capacity-bound. **If it holds, this is a fixture-pipeline defect and NOT a live money defect in
+his app** - the outcome that does not make this an incident.
+
+⚠️ **I NEARLY RECORDED A MECHANISM THAT DOES NOT EXIST.** After two arms I read `NO ROW` as
+"the recommendations list is empty" and was about to file that `safeToPayTotal` survives having
+zero rows - a total disagreeing with its own itemisation. **It was my MATCHER**: it searched only
+for the Robinhood `cardId`, so when that card dropped out I could not see the Discover row that
+replaced it. A third arm printing EVERY row caught it. **A count cannot tell two different windows
+apart - enumerate and describe.**
+
+**THE DEAD LEADS, kept because they are why the survivor is credible:** the unpinned clock
+(retired), the debounce (retired), a mismatched pair (retired), and now the total-versus-rows
+mechanism (retired - my own instrument).
+
 ### WHAT IS ACTUALLY LEFT - START HERE
-**Find why `currentMonthRecommendedDebt` differs on identical rows at an identical instant**, then
+**Prove WHY the harness figure is capacity-bound** rather than card-derived - that is the last
+step to calling this a fixture defect. Then find why `currentMonthRecommendedDebt` differs on identical rows at an identical instant**, then
 decide whether it explains the 2 months. That single value is the whole remaining gap between the
 app and the harness, and until it closes, no attribution across these captures means anything and
 `5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
