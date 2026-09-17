@@ -5112,35 +5112,7 @@ about half an hour earlier carrying the money fix. Three uploads today is well
 inside Apple's cap (this repo once did eleven), but a fourth for a one-pixel
 change is not worth the slot - it rides the next build.
 
-<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
-## Auto-snapshot
 
-_Written 2026-09-16 19:41 by handoff_hook. Everything below this heading is
-machine-generated and replaced each time; put durable notes above it._
-
-- **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
-
-- **Uncommitted (1 file(s)):**
-
-```
-?? scripts/handoff.md
-```
-
-- **Recent commits:**
-
-```
-4a4c2e56 [docs]: name check:desktop-rail, and correct the uploads-today premise
-5e09af70 [desktop]: the rail pop-out paints over the page, and the pills stay centred
-569c1209 [handoff]: the net= reading is unmeasured for a new reason, and the pill fits
-2efe2cf1 [accounts]: the Balances/Banks pill fits at 390px instead of scrolling
-ba43bb37 [handoff]: two new asks from Tre at 18:22 - the net= reading and the truncated Balances pill
-2102ae43 [handoff]: auto-snapshot refresh
-f72653d1 [docs]: name check:topright in the gate list, with the two ways it misleads
-8193e3a9 [handoff]: iOS 859 uploaded and verified through all three gates
-```
-
-<!-- AUTO-SNAPSHOT:END -->
 
 ## 2026-09-16, LATE - the net= reading ARRIVED, and four more fixes
 
@@ -5203,3 +5175,89 @@ the `seg-item` utility rather than by renaming a label.
 2. [ ] **384ca151 notification cadence** - still blocked, now for a sharper reason: `net=up`.
 3. [ ] **Look at `push_registration_status` again if he reopens 866** - the probe only runs on
    the `timeout` path, so a reading needs the app in the FOREGROUND for ~20s.
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-16 21:52 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (1 file(s)):**
+
+```
+?? scripts/handoff.md
+```
+
+- **Recent commits:**
+
+```
+92aa1631 [handoff]: net=up arrived, and the queue is the follower system
+0e32e841 [a11y]: the type scale follows the device text size, and a gate proves it moves
+121c000f [demo]: a native launch never opens in demo mode
+ca62518f [test]: read the seg-item block to its brace, not to a magic 600 characters
+66eddd45 [handoff]: /account's pill fits too, and why it is not on a build tonight
+02155cee [design]: the last pill that did not fit a phone now fits, and the gate says so
+1a6b5e57 [handoff]: auto-snapshot refresh
+4a4c2e56 [docs]: name check:desktop-rail, and correct the uploads-today premise
+```
+
+<!-- AUTO-SNAPSHOT:END -->
+
+## 2026-09-16 ~22:00 - Ada [ffdc831d] hand-off. THE FOLLOW GRAPH IS APPLIED BUT UNCOMMITTED.
+
+⚠️ **READ THIS FIRST: THE DATABASE IS AHEAD OF THE REPO RIGHT NOW.** The migration
+`supabase/migrations/20260917_follows_and_visibility.sql` **has been APPLIED to
+production** (MCP `apply_migration`, name `follows_and_visibility`) and the file is
+**written but NOT COMMITTED**. First job is to commit and push it, so the repo and the
+database agree. Nothing consumes it yet, so nothing is broken meanwhile.
+
+**WHAT WAS APPLIED, and it was verified by READING IT BACK with controls, never by the
+apply result:**
+  `profiles.visibility`  default `'private'`, 33/33 rows private, check constraint present
+  `follows`              RLS ON, 3 policies, **0 INSERT policies** (deliberate), 6 constraints
+  `request_follow(uuid)` SECURITY DEFINER  ·  `find_profile_by_username(text)` SECURITY DEFINER
+  `leaderboard_snapshots` **4 policies, UNCHANGED**, friend policy still reads `active_friend_ids`
+Controls in the same query: profiles=33 (non-zero) and a nonexistent table=0, so a zero
+elsewhere is a fact rather than a broken query.
+
+⚠️ **ONE EXPECTATION IN THAT CHECK WAS WRONG AND THE DATABASE WAS RIGHT.** I asserted 3
+check constraints and got 2 - because `follows_unique` is a UNIQUE constraint, `contype='u'`,
+not a check. Enumerated them rather than assuming: all six are present and correctly typed.
+**Say which side was wrong when a check disagrees with you.**
+
+**THE THREE DESIGN DECISIONS A COLD SESSION WOULD OTHERWISE RE-DERIVE:**
+1. **NO INSERT POLICY ON `follows`, ON PURPOSE.** A client that could insert directly could
+   write `status='accepted'` against a private account and follow somebody unapproved. The
+   only way in is `request_follow()`, which reads the TARGET's visibility itself.
+2. **`profiles_select_own` MAKES EVERY PROFILE PRIVATE TO ITS OWNER**, so today nobody can
+   look anyone up at all. That is why `find_profile_by_username()` exists - four columns,
+   EXACT match only, so it cannot be walked to enumerate the user base. **Do not "fix" this
+   with a blanket select policy on `profiles`**; that table carries onboarding state.
+3. **THE LEADERBOARD RLS WAS DELIBERATELY NOT TOUCHED.** Wiring follows into
+   `leaderboard_snapshots_select_friend` widens who can read another person's money data.
+   That is its own migration with its own review. **Until then the graph exists and grants
+   nothing**, which is the safe state to hand over in.
+
+### RESUME QUEUE - in order
+
+1. [ ] **COMMIT AND PUSH the migration file.** It is applied; the repo does not know.
+2. [ ] **Run `mcp__claude_ai_Supabase__get_advisors --type security`.** This was the next
+   command when the handoff gate fired, so **it has NOT been run against the new objects.**
+   Two SECURITY DEFINER functions were added; that is exactly what the advisor exists to
+   check. Do it before building anything on top.
+3. [ ] **Then the UI**, and only then: a followers/following surface with add, remove, and a
+   pending-requests list, plus a visibility toggle in Settings. `FriendsLeaderboard` and
+   `src/pages/Account.tsx` are the starting points. Use the standing control conventions -
+   one switch implementation, `role="switch"`, and a rendered frame in both states.
+4. [ ] **384ca151 notification cadence** - still blocked, now with a sharper reason:
+   `net=up` says the device was online while APNs stayed silent, so a port-5223 block is the
+   leading candidate. No token exists and the sender is still all `dry_run`.
+5. [ ] **`3d8efcf8` NEEDS TRE:** does the type actually follow the iOS text-size slider? No
+   device here. `check:text-scale` proves everything scales TOGETHER; it cannot prove the
+   device moves the root.
+
+**THE UNDO for everything applied tonight is at the bottom of the migration file**, commented,
+in reverse order.
