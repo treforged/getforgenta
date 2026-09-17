@@ -1,5 +1,89 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, SEVENTEENTH session). START AT ITEM 1.
+
+**TRE IS AWAKE AND TYPING INTO THIS DESK RIGHT NOW.** He is testing on localhost and reporting
+money defects in real time. The previous session was stopped by the handoff gate mid-reply, so
+ITEM 1 IS SOMETHING HE ASKED FOR AND DID NOT GET.
+
+1. [ ] 🚨 **MOVE HIS OWNERS CONTRIBUTION TO THE 4th - ONE QUERY, HE APPROVED IT, IT WAS BLOCKED.**
+   His words: *"owners contribution to the fourth is fine. Am I able to do it on October 4? Is that
+   the plan?"* **Answer him yes, and say the plan**: the first occurrence is **4 October**, and the
+   $10.03 already in General Operations covers the $7 Google Workspace on 1 October, so nothing
+   misses. Claude's $100 on the 6th is the deadline the 4th is chosen for.
+
+       update public.recurring_rules set due_day = 4, start_date = '2026-10-04'
+        where id = 'e716c838-82e4-4ce9-9b32-38d4b8b7be49' and due_day = 29;
+
+   **UNDO:** `set due_day = 29, start_date = '2026-09-29'`. The amount is already $145 (done).
+
+2. [ ] 🚨 **HE APPROVED THE BIG ONE: "ALWAYS PAY IN FULL" MUST HOLD IN EVERY MONTH, WITH A
+   PER-MONTH SHORTFALL** (ask `88acfa0f`). His words: *"I like your recommendation."* And he then
+   corroborated it himself: *"looking at the debts tab it doesn't seem like Robinhood is being paid
+   at all when I look at the drop-down and even the chart shows like it's not being paid at all."*
+   **MEASURED, his card shape, frozen 2026-09-17 clock** (unconditional, preference `full`,
+   `firstDueDate` 2026-10-10, against a competing $6,000 balance):
+
+       cash-RICH month   ->  [0, 222.33, 0]   correct
+       cash-TIGHT month  ->  [0, 50, 50]      $50 a month forever; tighter gives $0
+
+   `unconditionalDesired` has exactly **two** callers and **both settle month 0** - so from month 1
+   the sim treats it as an ordinary revolving card, and **his `min_payment` is 0**, so the cascade
+   decides and in a tight month decides nothing. That is the empty chart he is looking at.
+   ⚠️ **DO NOT SHIP HALF OF IT.** Making the amount mandatory every month WITHOUT extending the
+   shortfall report silently starves other cards in tight months - the same lie pointed the other
+   way. Sam's month-0 ruling is the model: the obligation wins AND the gap is reported.
+   **Start at** `src/lib/credit-card-engine.ts` - the minimum-enforcement guard around line 2082
+   and `cascadeTarget` at 1844 - plus `src/lib/unconditional-payment.ts`, and carry the shortfall
+   per month the way `perCardAdjusted` carries it for month 0.
+
+3. [ ] 💸 **WIRE THE BACK-LOADED PACE - THE ARITHMETIC IS BUILT, TESTED AND WIRED NOWHERE**
+   (`src/lib/back-loaded-pace.ts`, 11 tests, 3 mutations, all green). His rule: the nearer-due
+   target takes more early to cut interest, the far-out goal takes less early and **more later**,
+   and **both must still hit their targets**.
+   ⚠️ **SHOW HIM THE PROFILE BEFORE WIRING IT.** $1,200 over 12 months paces
+   `15.38 17.95 21.21 25.45 31.11 38.89 50.00 66.67 93.33 140.00 233.33 466.67` - the first six
+   months reserve **$150** against level's **$600**. That is a strong back-load, not a nudge.
+   **AND THE SCOPE IS STILL OPEN:** every dated goal, or only one sharing a rank with a nearer-due
+   target, which is what he actually described. The wiring points are `goalMonthlyCeiling`
+   (`ranked-extra-payment-targets.ts`, month 0) and `monthlyCeilingFor` (`forecast-engine.ts`,
+   months 1+); they must change together or the two surfaces disagree about the first month.
+   **Acceptance must assert BOTH targets are still met** - an arm that only checks the card is
+   satisfied by starving the goal.
+
+4. [ ] 👥 **ACCOUNT TAB IA (ask `004dd8d2`).** Tre, 2026-09-16 23:44: *"the friend section
+   shouldn't exist anymore. Move it back up. The following tab and profile tab can be combined now.
+   put what's on the followers tab below what's the partner linking that's on the profile tab. Keep
+   the username in change section at the top."* Order: username/change, partner linking, then
+   followers+following. **EXTEND `npm run check:followers`** - it already asserts the section bar is
+   exactly `["Profile","Leaderboard","Forgenta AI"]` and that both `Followers` and `Following`
+   headings render - to assert the ORDER. Do not write a second gate.
+
+5. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED**, see the section below. Nothing
+   renders `<FriendLink />`; the `?friend_code=` landing is alive on purpose; re-measure the 0 live
+   unaccepted rows before deleting; keep `active_friend_ids()`.
+
+6. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT** (`f22f17b1`).
+
+### Standing facts this session established - do not re-derive
+* **iOS 888 is in TestFlight** (run `35186607590` gave 886; `35187719512` gave **888**, upload step
+  `success`, altool `UPLOAD SUCCEEDED with no errors` once, all three `90382` matches on echoed
+  SOURCE lines). **888 carries the first two money fixes; it does NOT carry item 2.**
+* **The revenue key is split and wired** - Sam confirmed all three `APP_STORE_CONNECT_SALES_*`
+  names are set from key `39G93RY6K4`, the upload secrets still read `updatedAt 2026-04-19`, and
+  run `35189055873` prints `credential: OK` then a 404. **A 404 is NOT zero revenue** - Tre has had
+  no App Store sales at all, so this instrument can return a credible NO and never a credible YES.
+  Report it as *"authenticated; Apple has no report for the dates tried"*, never as a number.
+* **His Robinhood row:** `first_payment_due_date` is now `2026-10-10` (was NULL). **UNDO:**
+  `update public.accounts set first_payment_due_date = null where id =
+  '7b1e9a44-3c52-4f18-9d6a-8e2f5c71a903';`
+* **Claude-in-Chrome cannot set a phone viewport here** - `resize_window` reports success and does
+  nothing. Use Playwright.
+* **`llm.py --file <path>` passes the PATH, not the contents.** Pipe the brief on stdin. Ollama
+  scored 1/5 on a vitest draft because of it; groq via stdin scored 4/5 in 3.8s.
+
+<details><summary>Sixteenth session's queue and evidence</summary>
+
 ## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, SIXTEENTH session). START AT ITEM 1.
 
 **Tre is awake and typing into THIS tab.** Anything below that describes the UI is perishable -
@@ -5949,7 +6033,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 01:57 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 02:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5960,14 +6044,16 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+04f385cf [handoff]: always-pay-in-full stops at month 0, and that is his October zero
+36861a70 [handoff]: the revenue key is split off the upload key, and iOS 888 carries the money fixes
+de633d0f [ci]: the revenue report gets its own key - the upload key is never touched again
+3a12f674 [handoff]: three paths pay a card in month 0, and the rule only guarded two
+656cee07 [debt]: suppressing the minimum was not enough - the cascade was still paying it
+243fd5b4 [handoff]: the friend-link deletion scope is measured - the accept landing is alive on purpose
 1913444f [handoff]: the Robinhood shortage was real, and the rule it needed was on another path
 5144ffaa [debt]: "always pay this" was demanding a payment that is not owed until October
-1b2da516 [social]: gate the two lists Tre asked for, and stop the followers gate being flaky
-9299da47 [handoff]: the typeahead is verified, the debt hole was real, one build carries both
-9350ef81 [debt]: the payment column was wrapping onto its own line, and only at his text size
-c7cf8468 [social]: the typeahead is verified, and it had turned main red
-8aae3aa7 [handoff]: resume queue for the fifteenth session - start at the typeahead
-f8da9783 [social]: username typeahead - public profiles only, and NOT YET VERIFIED
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+</details>
