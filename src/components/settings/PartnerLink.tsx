@@ -3,6 +3,7 @@ import { SettingsSectionHeading } from './SettingsSection';
 import { useLocation, Link } from 'react-router';
 import { Users, Loader2, CheckCircle, Unlink, Crown } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
+import { FIELD_INPUT } from '@/components/shared/field-classes';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePartnerLink } from '@/hooks/usePartnerLink';
 import { format } from 'date-fns';
@@ -164,7 +165,7 @@ export function PartnerLink() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="Partner's email address"
-            className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+            className={FIELD_INPUT}
             style={{ borderRadius: 'var(--radius)' }}
           />
           <button
@@ -196,7 +197,7 @@ export function PartnerLink() {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground font-mono focus:outline-hidden focus:ring-1 focus:ring-ring"
+          className={`${FIELD_INPUT} font-mono`}
           style={{ borderRadius: 'var(--radius)' }}
         />
         <button

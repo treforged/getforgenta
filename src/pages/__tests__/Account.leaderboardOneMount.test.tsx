@@ -31,16 +31,9 @@ vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) })
 vi.mock('@/hooks/useSupabaseData', () => ({
   useProfile: () => ({ data: { display_name: 'Owner' } }),
 }));
-vi.mock('@/hooks/useFriendLink', () => ({
-  useFriendLink: () => ({
-    loading: false, error: null, refetch: vi.fn(),
-    friends: [FRIEND], pendingInvites: [], namesUnavailable: false,
-    invite: { mutate: vi.fn(), isPending: false },
-    inviteByUsername: { mutate: vi.fn(), isPending: false },
-    accept: { mutate: vi.fn(), isPending: false },
-    revoke: { mutate: vi.fn(), isPending: false },
-  }),
-}));
+// `useFriendLink` was mocked here until 2026-09-17. The hook and its component are deleted,
+// and mocking a module that no longer resolves fails at import - which empties a whole test
+// file rather than failing one assertion.
 // Everything EXCEPT FriendLink is stubbed. FriendLink is the component under suspicion, so it is
 // the one thing that must be real.
 // ⚠️ ADDED 2026-09-17. The Followers section brought a react-query subtree onto this page

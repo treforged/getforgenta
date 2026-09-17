@@ -18,11 +18,22 @@
 // a ring on an input INSIDE a wrapper draws inside the box and looks like a mistake, so the wrapper
 // takes `focus-within` instead. Same visual result, applied to whichever element owns the border.
 
+/** Surface and border with NO padding, so a field whose geometry differs can still share the skin. */
+const FIELD_SKIN = 'bg-secondary border border-border';
+
 /** The surface, border and radius shared by every text field. Pair with `FIELD_RADIUS`. */
-const FIELD_SURFACE = 'bg-secondary border border-border px-3 py-2';
+const FIELD_SURFACE = `${FIELD_SKIN} px-3 py-2`;
 
 /** A ring that is visible on both themes, and never `outline-none` with nothing after it. */
 const FIELD_FOCUS = 'focus:outline-hidden focus:ring-1 focus:ring-ring';
+
+/**
+ * Surface, padding and focus ring WITHOUT any width or type size - for a field whose geometry
+ * genuinely differs from `FIELD_INPUT` (a phone field that is `flex-1`, a 2FA code that is
+ * `w-full text-sm text-center tracking-widest`). Compose, do not re-spell: three inputs had the
+ * skin and the ring copied out by hand, and a copy is what drifts.
+ */
+export const FIELD_BASE = `${FIELD_SURFACE} ${FIELD_FOCUS}`;
 
 /** A field that IS the input — the ordinary case. */
 export const FIELD_INPUT =
@@ -39,6 +50,18 @@ export const FIELD_WRAPPER =
 
 /** The input inside `FIELD_WRAPPER`. Its border and ring belong to the wrapper, not to it. */
 export const FIELD_INPUT_BARE = 'flex-1 min-w-0 bg-transparent text-xs text-foreground outline-none';
+
+/**
+ * A SHORT FIXED-WIDTH field - a two-letter country code, a state abbreviation - whose geometry
+ * cannot be `FIELD_INPUT` (that one is `w-full sm:flex-1` with `px-3 py-2`).
+ *
+ * It exists because the alternative kept happening: `GlobalStandingCard`'s country input
+ * hand-rolled `bg-secondary border border-border` and, having done so, carried NO FOCUS RING AT
+ * ALL - the identical defect this file was written about, shipped again in a different component
+ * on a screen that IS mounted. Sharing the skin is the point; the geometry is the only difference.
+ */
+export const FIELD_INPUT_COMPACT =
+  `${FIELD_SKIN} px-1 py-0.5 text-center text-foreground ${FIELD_FOCUS}`;
 
 /** Every field and its adjacent button share the container radius. */
 export const FIELD_RADIUS = { borderRadius: 'var(--radius)' } as const;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { FIELD_BASE } from '@/components/shared/field-classes';
 import { toast } from 'sonner';
 import { Phone, CheckCircle, X, Loader2 } from 'lucide-react';
 
@@ -110,7 +111,7 @@ export function PhoneAuth() {
               value={otp}
               onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
               placeholder="Verification code"
-              className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+              className={`flex-1 text-xs text-foreground ${FIELD_BASE}`}
               style={{ borderRadius: 'var(--radius)' }}
             />
             <button
@@ -147,7 +148,7 @@ export function PhoneAuth() {
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+15551234567"
-              className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+              className={`flex-1 text-xs text-foreground ${FIELD_BASE}`}
               style={{ borderRadius: 'var(--radius)' }}
             />
             <button

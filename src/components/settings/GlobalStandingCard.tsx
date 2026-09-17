@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { Globe, MapPin } from 'lucide-react';
 import PanelBar from '@/components/shared/PanelBar';
+import { FIELD_INPUT_COMPACT } from '@/components/shared/field-classes';
 import { useGlobalLeaderboard, hasEnoughPeople, type LeaderboardScope } from '@/hooks/useGlobalLeaderboard';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { COUNTRY_OPT_OUT_FLAG } from '@/hooks/useDerivedCountry';
@@ -187,7 +188,7 @@ export function GlobalStandingCard({ metric, label }: { metric: LeaderboardMetri
                 onKeyDown={e => {
                   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                 }}
-                className="w-10 bg-secondary border border-border px-1 py-0.5 text-center uppercase text-foreground"
+                className={`w-10 uppercase ${FIELD_INPUT_COMPACT}`}
                 style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
               />{' '}
               <button onClick={leaveCountryBoard} className="underline hover:text-foreground">

@@ -297,7 +297,9 @@ describe('the Security tab, one card, three remove controls', () => {
       readFileSync(path.resolve(here, '../../components/settings/LinkedAccounts.tsx'), 'utf8'),
       readFileSync(path.resolve(here, '../../components/settings/TwoFactorAuth.tsx'), 'utf8'),
       readFileSync(path.resolve(here, '../../components/settings/PartnerLink.tsx'), 'utf8'),
-      readFileSync(path.resolve(here, '../../components/settings/FriendLink.tsx'), 'utf8'),
+      // `FriendLink.tsx` was read here until 2026-09-17; the component is deleted. This list is
+      // hand-named, so a future deletion breaks it again - loudly, with ENOENT, which is the
+      // version of that failure you want.
     ].join('\n');
     expect(src).not.toMatch(/text-\[(9|10|11)px\]/);
   });
@@ -397,7 +399,6 @@ describe('the Security tab, one shape per section', () => {
       '../../components/settings/LinkedAccounts.tsx',
       '../../components/settings/TwoFactorAuth.tsx',
       '../../components/settings/PartnerLink.tsx',
-      '../../components/settings/FriendLink.tsx',
     ].map(f => readFileSync(path.resolve(here, f), 'utf8'));
     for (const src of files) {
       expect(src).toMatch(/SettingsSection/);

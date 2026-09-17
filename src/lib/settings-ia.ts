@@ -103,19 +103,22 @@ export const SETTINGS_IA: Readonly<Record<SettingsPanelKey, readonly string[]>> 
  */
 export const ACCOUNT_PAGE_ONLY: readonly string[] = [
   'PartnerLink',
-  // ⚠️ `FriendLink` WAS HERE AND IS DELIBERATELY UNMOUNTED (Tre, 2026-09-17: "add a friend isn't
-  // [needed] anymore either that's the same thing as find someone we're only using usernames now
-  // instead of email"). It is no longer mounted ANYWHERE, so listing it here - where the gate
-  // means "mounted on /account exactly once" - would assert the opposite of the intent.
-  // `useFriendLink.test.tsx` holds the replacement assertion: zero mounts app-wide, AND the
-  // component still present and tested, so a deliberate unmount stays distinguishable from a
-  // file that quietly vanished.
+  // ⚠️ `FriendLink` WAS HERE AND IS NOW DELETED (Tre, 2026-09-17: "add a friend isn't [needed]
+  // anymore either that's the same thing as find someone we're only using usernames now instead
+  // of email"). It was unmounted first and removed on 2026-09-17 once the DB showed 0 live
+  // unaccepted `friend_links` (control: 1 total / 1 accepted), so no mailed accept URL could
+  // still succeed. The `?friend_code=` landing on `/account` and `/settings` STAYS - it also
+  // serves `?partner_code=`, and `PartnerLink` is very much alive. `active_friend_ids()` keeps
+  // reading `friend_links` server-side for the one accepted friendship, so the edge function and
+  // the table were deliberately NOT touched.
 ];
 
 /** The settings components the gate tracks by name (they render no heading of their own). */
 export const TRACKED_COMPONENTS: readonly string[] = [
   'PartnerLink',
-  'FriendLink',
+  // `FriendLink` was tracked here until 2026-09-17; the component is deleted (see above). Tracking
+  // a name with no file makes the gate search for something that cannot be found - which reads as
+  // a clean pass, not as a missing component.
   'LinkedAccounts',
   'TwoFactorAuth',
   'AppLockSettings',

@@ -34,9 +34,9 @@ vi.mock('@/contexts/AuthContext', () => ({
 vi.mock('@/hooks/useSupabaseData', () => ({
   useProfile: () => ({ data: { display_name: 'Owner' } }),
 }));
-vi.mock('@/hooks/useFriendLink', () => ({
-  useFriendLink: () => ({ friends: [], pendingInvites: [], loading: false }),
-}));
+// `useFriendLink` was mocked here until 2026-09-17. The hook and its component are deleted,
+// and mocking a module that no longer resolves fails at import - which empties a whole test
+// file rather than failing one assertion.
 // ⚠️ THE BOARD'S DATA SOURCE MOVED, 2026-09-17. It used to read `friends` from `useFriendLink`
 // (an accepted friend-LINK). It now reads `mutuals` from `useFollows` — people you follow who
 // follow you back. That is the whole point of the consolidation Tre asked for, and it is a

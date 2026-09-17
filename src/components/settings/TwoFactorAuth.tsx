@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SettingsSectionHeading } from './SettingsSection';
 import { supabase } from '@/integrations/supabase/client';
+import { FIELD_BASE } from '@/components/shared/field-classes';
 import { toast } from 'sonner';
 import { Shield, ShieldCheck, ShieldOff, QrCode, Loader2, X, CheckCircle, Trash2 } from 'lucide-react';
 
@@ -219,7 +220,7 @@ export function TwoFactorAuth() {
             value={totpCode}
             onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
             placeholder="000000"
-            className="w-full bg-secondary border border-border px-3 py-2 text-sm text-foreground text-center tracking-widest focus:outline-hidden focus:ring-1 focus:ring-ring"
+            className={`w-full text-sm text-foreground text-center tracking-widest ${FIELD_BASE}`}
             style={{ borderRadius: 'var(--radius)' }}
           />
           <div className="flex gap-2">

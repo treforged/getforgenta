@@ -33,6 +33,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, globSync } from 'node:fs';
+import * as FIELD_CLASSES from '@/components/shared/field-classes';
 
 /** Brace-aware, so a `>` inside `onChange={e => ...}` cannot end the tag early. */
 function openTags(src: string, tag: string): { tag: string; lineNo: number }[] {
@@ -56,10 +57,31 @@ function openTags(src: string, tag: string): { tag: string; lineNo: number }[] {
   return out;
 }
 
+/**
+ * A shared constant, RESOLVED to the classes it actually stands for.
+ *
+ * ⚠️ WITHOUT THIS THE RATCHET PUNISHES THE WORK IT ASKS FOR - measured 2026-09-17. It read
+ * className SOURCE SPELLINGS, so consolidating six hand-rolled fields onto the shared constants
+ * did not collapse their signatures: it MINTED NEW ONES (`VAR:FIELD_INPUT`, and one
+ * `${...}` template per call site) while the old literals disappeared, and the count ROSE 36 -> 38.
+ * The header's own instruction ("if you consolidated and the number FELL, lower the ceiling")
+ * assumed the number could only fall. A gate that goes red on correct work is one somebody
+ * switches off on the day it matters, so the instrument is fixed rather than the ceiling raised.
+ */
+function resolveConstant(name: string): string | null {
+  const v = (FIELD_CLASSES as Record<string, unknown>)[name];
+  return typeof v === 'string' ? v : null;
+}
+
 function classOf(tag: string): string | null {
   const m = tag.match(/className=(?:"([^"]*)"|'([^']*)'|\{`([\s\S]*?)`\}|\{([A-Za-z_$][\w$]*)\})/);
   if (!m) return null;
-  return (m[1] ?? m[2] ?? m[3] ?? `VAR:${m[4]}`).replace(/\s+/g, ' ').trim();
+  let cls = m[1] ?? m[2] ?? m[3] ?? `VAR:${m[4]}`;
+  // `className={FIELD_INPUT}` and `className={`w-10 ${FIELD_INPUT_COMPACT}`}` must sign the same
+  // as a call site that spells those classes out, or importing the constant LOOKS like drift.
+  if (cls.startsWith('VAR:')) cls = resolveConstant(cls.slice(4)) ?? cls;
+  cls = cls.replace(/\$\{([A-Za-z_$][\w$]*)\}/g, (whole, name) => resolveConstant(name) ?? whole);
+  return cls.replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -97,10 +119,18 @@ function signatures(kind: 'input' | 'select'): { elements: number; surfaces: Set
   return { elements, surfaces };
 }
 
-/* THE CEILINGS. Measured 2026-09-16, after the UsernameClaim consolidation. LOWER THESE, NEVER
- * RAISE THEM. The element floors sit just under today's counts so that a resolver which stops
- * matching fails loudly instead of reporting a beautifully consistent zero. */
-const CEILING = { input: 36, select: 18 };
+/* THE CEILINGS. LOWER THESE, NEVER RAISE THEM. The element floors sit just under today's counts so
+ * that a resolver which stops matching fails loudly instead of reporting a beautifully consistent
+ * zero.
+ *
+ * Re-measured 2026-09-17, and the two moved for DIFFERENT reasons - worth separating, because only
+ * one of them is work:
+ *   input  36 -> 35  REAL CONSOLIDATION. Six hand-rolled fields (GlobalStandingCard, PartnerLink
+ *                    x2, PhoneAuth x2, TwoFactorAuth) now compose the shared constants.
+ *   select 18 -> 17  NOT consolidation - nothing about selects changed. The resolver above simply
+ *                    stopped counting one imported constant as its own style. A corrected
+ *                    measurement, and saying so keeps it from reading as progress nobody made. */
+const CEILING = { input: 35, select: 17 };
 const FLOOR = { input: 80, select: 40 };
 
 describe('the resolver works before its numbers mean anything', () => {
@@ -116,6 +146,18 @@ describe('the resolver works before its numbers mean anything', () => {
 
   it('is order-insensitive - token order is not a design difference', () => {
     expect(surfaceOf('border bg-secondary px-2')).toBe(surfaceOf('px-2 border bg-secondary'));
+  });
+
+  it('RESOLVES a shared constant, so importing one does not read as a new style', () => {
+    // The control on the fix above: a spelled-out field and an imported one must sign IDENTICALLY.
+    const spelled = `<input className="${FIELD_CLASSES.FIELD_INPUT}" />`;
+    const imported = '<input className={FIELD_INPUT} />';
+    const composed = '<input className={`w-10 ${FIELD_INPUT}`} />';
+    const sig = (src: string) => surfaceOf(classOf(openTags(src, 'input')[0].tag) ?? '');
+    expect(sig(imported)).toBe(sig(spelled));
+    expect(sig(composed)).toBe(sig(spelled));
+    // ...and an UNKNOWN name must stay distinct rather than silently collapsing to nothing.
+    expect(sig('<input className={SOME_OTHER_THING} />')).not.toBe(sig(spelled));
   });
 
   it('POSITIVE CONTROL: a genuinely new surface raises the count', () => {
