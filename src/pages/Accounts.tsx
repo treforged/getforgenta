@@ -1105,7 +1105,26 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       screen of scrolling. Side by side the row is two visual
                       lines instead of three, the icons form a straight column
                       down the right edge, and nothing is lost. */}
-                  <div className="flex items-center justify-between gap-3">
+                  {/* FLEX-WRAP, AND THE BASIS IS WHAT MAKES IT WORK (Tre, 2026-09-17, testing
+                      iOS 876: "Can we fix the text so it actually shows like a full word in a
+                      line", with a screenshot of "Alliant Credit Union" rendering as
+                      Allia/nt/Cred/it/Unio/n - four characters per line).
+
+                      FOURTH REPORT OF THIS FAMILY, AND THE PREVIOUS FIX IS WHY IT CAME BACK. The
+                      actions were deliberately put on this row to save vertical space (Tre,
+                      2026-09-01: "reduce all the excess spacing"), and the clamp was removed so
+                      text could wrap rather than truncate mid-word. Both were right on their own.
+                      But the four 44px buttons are shrink-0, so they take their width FIRST and
+                      the text is handed whatever is left - which at his Dynamic Type setting is a
+                      few characters, and break-words then splits words down the middle.
+
+                      A WRAP SETTING CANNOT FIX A WIDTH PROBLEM ANY MORE THAN A CLAMP COULD. So
+                      the row now WRAPS: basis-[11rem] means that when fewer than 11rem are
+                      available for the text, the whole text block moves onto its own line and the
+                      actions drop below it, rather than the text being crushed in place. On a
+                      roomy row nothing moves and the density he asked for is kept; only the case
+                      that was actually broken behaves differently. */}
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   {/* ⚠️ THE CLAMP IS GONE HERE TOO, for the reason above. Four 44px action
                       buttons sit `shrink-0` on this line, so on a 390px phone the meta text has
                       roughly 150px, and clamping it to two lines rendered "Brokerage" as
@@ -1116,7 +1135,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       some of the density Tre asked for on 2026-09-01 ("reduce all the excess
                       spacing"). That ask was about EMPTY space, and this is text he asked to be
                       able to read - so where the two pull against each other, readable wins. */}
-                  <p className="text-xs text-muted-foreground break-words mt-0.5 min-w-0">
+                  <p className="text-xs text-muted-foreground break-words mt-0.5 min-w-0 flex-1 basis-[11rem]">
                     {/* Moved off the name's line. It reads the same here and costs the name
                         nothing. `inline-flex` + `align-middle` so it sits on the text baseline
                         and wraps with the sentence instead of forcing its own row. */}
@@ -1126,7 +1145,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       </span>
                     )}
                     {TYPE_LABELS[a.account_type] || a.account_type}
-                    {a.institution ? ` · ${a.institution}` : ''}
+                    {/* THE INSTITUTION IS DELIBERATELY NOT REPEATED HERE. Rows are grouped by
+                        provider and `group.label` IS the institution, rendered as the heading
+                        directly above this card - so printing it again on every row restated the
+                        longest string on the line and added no information. Tre, 2026-09-17:
+                        "there may be like times where we have too much information that the user
+                        doesn't really need. We need to figure out how to condense a little bit."
+                        This is that, and it takes no fact off the screen: a grouped account sits
+                        under its provider's name, and an ungrouped one under "Added by hand". */}
                     {a.apr ? ` · ${a.apr}% APR` : ''}
                     {a.apr_start_date ? ` · Since ${a.apr_start_date}` : ''}
                     {a.apy_rate != null ? ` · ${a.apy_rate}% APY` : ''}
