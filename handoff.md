@@ -239,7 +239,49 @@ BOTH**, while `currentMonthRecommendedDebt.safeToPayTotal` is 229.89 against 99.
 quantities share the name `safeToPayTotal`**, and reading the chain's one would say there is no
 divergence at all.
 
+### ✅ 10 - THE TERM WITH LEVERAGE IS `planExpenses`, AND A 15x TIMEZONE SWING FELL OUT OF IT
+Varying each memo term one at a time on the 31-Aug rows:
+
+| arm | total |
+| --- | --- |
+| baseline | 99.89 |
+| every savings goal zeroed (goalMonthly 746.82 -> 0.00) | **99.89 - no change** |
+| car fund removed | **99.89 - no change** |
+| both | **99.89 - no change** |
+| **payment plans removed** | **532.89**, Robinhood **= 230** |
+
+**So month-0 PLAN EXPENSES carry the capacity, and savings has no leverage here at all.** That
+also **answers the `pauseSavings` null I left open**: the flag gates a quantity with no leverage in
+this state, so a correct flag and a broken one look identical. The refutation stands and is now
+explained rather than merely measured.
+
+**TIMEZONE REFUTED AS THE CAUSE - and it was a good hypothesis.**
+`getMonthlyPlanCashExpenses` is indexed by `now0.getFullYear()` and `now0.getMonth()`, and the
+capture instant `2026-09-01T00:20:11Z` is **31 August in Eastern and 1 September in UTC**, so the
+zone decides WHICH MONTH of installments is charged. Measured: the harness **already** runs in
+`America/New_York`, the capture machine's zone, and returns 99.89. Not the cause.
+
+⚠️ **BUT THE MEASUREMENT IS A BIGGER FINDING THAN THE QUESTION IT ANSWERED.** Same rows, same
+instant: `America/New_York` gives **99.89**; `TZ=UTC` gives **1551.22** with Prime Visa at
+1321.21. **A FIFTEEN-FOLD SWING IN A MONEY FIGURE FROM THE RUNNER'S TIMEZONE ALONE.** The
+recapture harness pins no timezone and **CI runs in UTC**, so a fixture regenerated anywhere but
+Tre's own zone pins different money - and nothing in the pipeline, the fixture or the test records
+which zone produced it. Recorded on `5409ffbc` as a second structural limit, and **it is
+sufficient on its own to refuse adoption.** The fix shape exists already:
+`capturedTzOffsetMinutes` is in the capture format for exactly this purpose and **the 31-Aug
+capture lacks it.**
+
+**FIVE HYPOTHESES NOW DEAD BY MEASUREMENT:** the unpinned clock, the debounce, `pauseSavings`,
+"less month-0 cash", and the timezone.
+
 ### WHAT IS ACTUALLY LEFT - START HERE
+**The divergence is inside the memo and is carried by `planExpenses`.** Next: work out why month-0
+plan expenses consume more capacity in the harness than in the browser, on identical
+`payment_plans` rows - `getMonthlyPlanCashExpenses(paymentPlans, year, month, ccIds)` is the whole
+surface, and `ccIds` is the one argument not yet compared.
+
+<details><summary>Superseded - the previous framing</summary>
+
 **Instrument INSIDE the memo** - its `savingsTotal`, `carTotal`, `carLoanTotal`, `planExpenses` and
 `autoExtraTargets`. The provider chain is excluded by measurement; do not re-diff it.
 
@@ -257,6 +299,8 @@ decide whether it explains the 2 months. That single value is the whole remainin
 app and the harness, and until it closes, no attribution across these captures means anything and
 `5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
 giving 34 and null), then the 24 -> 34 move itself.
+
+</details>
 
 </details>
 
