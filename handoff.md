@@ -31,6 +31,45 @@ SHIPPED THIS SESSION, all pushed and verified by contents with a control:
    linked accounts, so my own new branch was unreachable and the measurement came back IDENTICAL
    to before the fix. Seed reverted, revert verified by READING THE ROWS BACK.
 
+### ⚠️ ITEM 1 IS PART-MEASURED ALREADY - READ THIS BEFORE TOUCHING `DEFAULT_LAYOUT`
+
+Measured 2026-09-17 at 1440, signed in, with a throwaway probe (deleted; rebuild from this
+description if needed - it walked every money-formatted text node and grouped it by its nearest
+`.card-forged` ancestor):
+
+* **THE OVERVIEW TAB RENDERS 17 CARDS.** That number IS the overload he is describing, and it is
+  the one honest headline finding. `DEFAULT_LAYOUT` is `WIDGET_META.map(w => ({...w, visible:
+  true}))` - every widget on, for everybody.
+* **Five figures appear in more than one card** - `$25` in DEBT PAYMENTS / UPCOMING THIS WEEK /
+  DEBT-RECOMMENDED-THIS-MONTH, `$80` and `$55` in UPCOMING THIS WEEK / RECENT TRANSACTIONS,
+  `$4,200` in NET WORTH / ADVANCED ANALYTICS, `$0` in NET WORTH / CASH FLOW OVERVIEW.
+  ⚠️ **DO NOT REPORT THESE AS PROVEN DUPLICATION.** The instrument matches on the VALUE, so two
+  unrelated $25 items collide exactly like one item shown twice. It is a lead, not a finding;
+  confirm each pair by what it REFERS TO before acting.
+
+🚨 **THE QUESTION THAT MUST BE ANSWERED FIRST, AND I RAN OUT OF SESSION ON IT: A
+`DEFAULT_LAYOUT` CHANGE MAY NOT REACH TRE AT ALL.** `mergeSavedLayout` reads the stored
+`profiles.dashboard_layout` and preserves each widget's saved `visible` flag; the default only
+supplies widgets the saved layout has never seen. **So if Tre already has a saved layout - and he
+has used Customize - a new default changes NOTHING on his screen, and the desk would report a fix
+he cannot see.** That is the `Start-ScheduledTask` shape in a new costume.
+**FIRST COMMAND NEXT SESSION** (I was blocked by the handoff gate before running it):
+
+    select count(*) filter (where dashboard_layout is null)     as no_saved_layout,
+           count(*) filter (where dashboard_layout is not null) as has_saved_layout
+    from public.profiles;
+
+If most profiles carry a saved layout, changing the default is the WRONG mechanism and the work
+is a one-time reconciliation or a "reset to the new default" offer - decide that before building.
+
+**HIS OWN WORDS ON WHAT BELONGS**, so nobody re-derives it: NECESSARY - "upcoming this week,
+monthly budget snapshot, debt recommended this month, when credit cards are getting paid off".
+FINE WHERE IT IS - goal progress. **RAISED AS QUESTIONS AND NOT SETTLED** - advanced analytics
+("I like it, but I'm not sure if it's the right place"), cash flow review, monthly change ("I like
+it a lot, but I'm not sure if it should be there"). **He LIKES two of the three he is unsure
+about, so hiding them by default is a real risk** - it is one tap to restore in Customize, which
+is what makes it defensible, but say so plainly when reporting.
+
 1. [ ] **Ask `0c375878` - the dashboard reorganisation.** Learn is off it; what is left is killing
    the duplication between the top section and the panels below, and setting a good DEFAULT
    layout. **SAM DECIDED: KEEP Customize.** His complaint is about the DEFAULT, not about
@@ -7010,7 +7049,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 16:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 17:14 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7021,14 +7060,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+ad358abe [handoff]: twenty-fifth session queue - dashboard reorg is first up, Customize stays
+89604ad4 [accounts]: fill the blank run in each linked-bank row and move the Plaid legal text below the list
+ec69f026 [dashboard]: move Learn into its own /account section and keep one next-lesson line on the home tab
+01134be0 [account]: give every badge its own icon and stop the achievements rows stranding their numbers
 d769fd3c [handoff]: his achievements-formatting ask goes to the top - he is on that screen now
 61f0796f [handoff]: twenty-fourth session queue - part 3 of the achievements ask is first up
 df59cc52 [account]: move the trophy case off the Dashboard Overview into its own Account section
 bb6988cc [handoff]: baseline across five captures - and his card debt has nearly doubled in ten weeks
-08f441dc [test]: remove zz-tmp-diagnostic - 0 assertions, 7 console lines, and its own header says delete me
-7fcdb1c5 [handoff]: item 5 answered - the $459 was not a horizon artefact, so the revert was right
-1a8e8752 [handoff]: floorFlicker swept - same capacity family, and the latch is intact at every shock size
-23f3abc0 [handoff]: retracting my own nine months - a capture bakes in its settlement state, so the clock cannot be moved
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
