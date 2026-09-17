@@ -73,6 +73,28 @@ card's LIVE BALANCE in the months-1+ path - a change to a money engine's signatu
      **Playwright** - `resize_window` in claude-in-chrome reports success and does not resize.
    * ⚠️ Still true: **DO NOT ship a portfolio-wide blank-run threshold gate.** At 1440 nearly
      every `justify-between` row flags at 120px, so it would cry wolf and be switched off.
+### ✅ THE SWEEP CONTINUED INTO DEBT PAYOFF - `07875cc5`, and it is the SAME CLASS
+His "same thing on some of the other pages like that tab" is an invitation to sweep, so I did.
+**Measured across all 33 users BEFORE changing anything**: mortgage **0 users**, other liability
+**0 users**, student loan 1, car fund 2, credit card 6. So the Mortgage and Other Debts tabs were
+rendered for EVERY user and empty for EVERY user, and Student Loans was empty for 32 of 33 - five
+tabs on a money page, four of them dead for almost everyone. A debt type nobody has now gets no tab.
+* ⚠️ **THE REGRESSION I ALMOST SHIPPED, CHECKED RATHER THAN ASSUMED:** the page's Add Account link
+  derives its `type` from the ACTIVE TAB, so hiding the Mortgage tab LOOKED like deleting the only
+  route to adding a mortgage. It is not - `ACCOUNT_TYPES` in `Accounts.tsx` offers all four
+  liability types in its own selector. **Check that premise before extending this to another page.**
+* The ACTIVE tab is kept even when empty (a persisted tab must not strand), and cards is always kept.
+* ⚠️ **THE FIRST MUTATION RUN FOUND A HOLE IN MY OWN TEST** - deleting `t.always` left the whole
+  file GREEN, because the default active tab is already 'cards'. A fifth case pins it now. **Mutate
+  every term, not the suite.**
+* I also corrected `DebtPayoff.nonCcExplainer.test.tsx`, which mocked ZERO debts and then clicked
+  through to Mortgage/Student/Other - a state no user could be in. **The tempting fix was to make
+  the tabs render unconditionally again, which is weakening the app to suit the harness.**
+* ⚠️ **THE SWEEP IS NOT FINISHED.** Only Accounts and Debt Payoff have been looked at. A grep for
+  the per-group heading pattern found it ONLY in `Accounts.tsx` (everything else is a `seg-badge`
+  on a tab, which is useful), so the NEXT surfaces to measure are Forecast, Budget and Goals - and
+  measure before building, because three of the four candidates in this sweep so far were refuted.
+
 3. [ ] **`6237167a` needs TRE, not a desk**: back-loading buys his floor relief in Oct/Nov/Dec and
    costs one month of card payoff. That is his trade, and both halves are now measured.
 
