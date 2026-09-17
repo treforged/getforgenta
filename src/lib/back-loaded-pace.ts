@@ -27,6 +27,52 @@
  * gap by construction however the earlier months went. A profile that is merely "smaller early"
  * without that identity would miss the date, which is the one thing he said must not happen.
  *
+ * ── ⚠️ WIRING WAS ATTEMPTED ON 2026-09-17 AND REVERTED. READ THIS BEFORE TRYING AGAIN. ──────
+ *
+ * Ada, ask `6237167a`. The wiring was built, gated and REVERTED on measurement — the arithmetic
+ * below is sound and the two call sites are still the right ones, but wired as its own docstring
+ * describes it REGRESSES Tre's real data. Three findings, in ascending cost:
+ *
+ * 1. `monthsLeft` HERE IS A PAYMENT COUNT, AND `monthsUntilTargetDate` IS NOT.
+ *    That helper returns the months BETWEEN now and the date (0 = this month). Both pacers count
+ *    the date's own month as a payment: `levelMonthlyToDate` divides by `months + 1`, and this
+ *    file's `monthsLeft` is documented "INCLUDING this one". Passing the raw figure spread the
+ *    ramp over 10 payments where the level pace uses 11 — it took MORE early, the opposite of the
+ *    intent, and dumped the remainder a month early. Use `Math.max(1, trunc(months) + 1)`.
+ *
+ * 2. DO NOT HAND `Math.min(statutory, onTime)` IN AS `levelAllowance`. It looks like the obvious
+ *    wiring and it silently blows the IRA annual cap. `pacedMonthlyCeiling` reads a FINITE
+ *    allowance as "this goal is dated" and a non-finite `monthsLeft` as "the deadline is here,
+ *    hand over everything" — and for an IRA-capped goal with NO target date both hold at once.
+ *    MEASURED: remainingNeed 6000, monthsLeft Infinity, levelAllowance 583.33, sharesRank true
+ *    ⇒ 6000. A year's legal allowance, ten times over, in one month, with nothing going red.
+ *    Pace the DEADLINE half only, then re-apply `Math.min(statutory, paced)`.
+ *
+ * 3. 🚨 THE ONE THAT STOPPED IT SHIPPING: two real-data guards fail, in money-meaningful
+ *    directions, identically under all three timezones. Measured with the feature ON and again
+ *    with it OFF at both call sites — OFF, all 4 pass; ON, 2 fail. So it is this change, not drift.
+ *      • `forecast-convergence.realData` — "payoff month regressed: expected 'Oct 2028' to be
+ *        'Sep 2028'". The CARD is paid off a month LATER, which is against the very priority the
+ *        feature exists to serve: "credit card should be taken care of as soon as possible to
+ *        reduce interest".
+ *      • `forecast-convergence.floorDeficit` — converged savings 5418.48 against a raw plan of
+ *        5381.70, breaking that file's stated invariant that the savings line "MAY BACK OFF,
+ *        NEVER INFLATE".
+ *
+ *    HYPOTHESIS, LABELLED AS ONE BECAUSE IT WAS NOT TESTED: the ramp recomputes from whatever is
+ *    REMAINING each month, which is what lets it need no stored schedule — and that also makes it
+ *    PATH-DEPENDENT in a way the level pace is not. Convergence re-runs the projection and moves
+ *    those remainders, so the converged ramp and the raw ramp are different ramps. It would also
+ *    explain the payoff slip: late in the run `2·need/(n(n+1))` approaches the whole need, so the
+ *    goal soaks up the surplus exactly during the card's endgame.
+ *
+ *    WHAT A FIX PROBABLY NEEDS, and it is why this was not just pushed through: `sharesRank` is
+ *    computed from static config (`stop.share != null`), so it stays true after the co-tenant card
+ *    is paid off. Tre's words were "smaller now, larger once the CARDS ARE DOWN" — that is a
+ *    condition on the card's live balance, which months 1+ cannot see. It is the residue already
+ *    named below: closing it means threading card ranks into the forecast engine, a change to a
+ *    money engine's signature rather than a guard. Do not re-attempt this as a wiring slice.
+ *
  * ⚠️ AND IT IS A CEILING, NOT A DEMAND. Like the level pace it replaces, it is the MOST the goal
  * may take in a month; a month with no surplus still gives it nothing, and the arithmetic above
  * then hands the shortfall to the months that follow rather than to the deadline.
