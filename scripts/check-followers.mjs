@@ -278,6 +278,5 @@ console.log('  opening it pre-filled ' + JSON.stringify(fieldBefore) + ' -> ' + 
   + ' and resolved a profile (' + (resolvedSelf ? 'self' : 'followable') + ')');
 
 await browser.close();
-console.log('\nPASS: the Profile section stacks username, partner linking and followers in Tre's order;
-      the public/private switch really flips; and the share link really loads a profile.');
+console.log(`\nPASS: the Profile section stacks username, partner linking and followers in Tre's order; the public/private switch really flips; and the share link really loads a profile.`);
 process.exit(0);

@@ -2573,6 +2573,16 @@ export type Database = {
     }
     Functions: {
       active_friend_ids: { Args: never; Returns: string[] }
+      claim_milestone_achievements: {
+        Args: never
+        Returns: {
+          id: string
+          threshold: number
+          progress: number
+          earned: boolean
+          earned_at: string | null
+        }[]
+      }
       request_follow: { Args: { p_followee: string }; Returns: string }
       follow_profiles: {
         Args: never

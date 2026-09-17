@@ -1,5 +1,6 @@
 import { LEARN_LESSONS } from '@/lib/learn-lessons';
 import { SOCIAL_LINKS } from '@/lib/social-links';
+import { MILESTONE_PREFIX, lookupMilestone } from '@/lib/milestone-achievements';
 
 /**
  * WHAT A STORED `achievement_id` MEANS TO A PERSON.
@@ -32,7 +33,7 @@ export interface AchievementRow {
   earned_at: string;
 }
 
-export type AchievementKind = 'lesson' | 'social' | 'founder' | 'unknown';
+export type AchievementKind = 'lesson' | 'social' | 'founder' | 'milestone' | 'unknown';
 
 export interface ResolvedAchievement {
   id: string;
@@ -59,6 +60,16 @@ export function resolveAchievement(row: AchievementRow): ResolvedAchievement {
     return lesson
       ? { ...base, name: lesson.achievement.name, description: lesson.achievement.description, kind: 'lesson', known: true }
       : { ...base, name: lessonId, description: 'A lesson that is no longer in the library.', kind: 'lesson', known: false };
+  }
+
+  // A badge granted by `public.claim_milestone_achievements()` for actually using the app. The
+  // server decides it was earned; this only names it. An id the catalogue has not caught up with
+  // still renders, marked `known: false` — see the header.
+  if (id.startsWith(MILESTONE_PREFIX)) {
+    const milestone = lookupMilestone(id);
+    return milestone
+      ? { ...base, name: milestone.name, description: milestone.description, kind: 'milestone', known: true }
+      : { ...base, name: id.slice(MILESTONE_PREFIX.length), description: 'A milestone this version does not have a description for.', kind: 'milestone', known: false };
   }
 
   const social = SOCIAL_LINKS.find(s => s.id === id);

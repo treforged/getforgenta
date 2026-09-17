@@ -1,6 +1,7 @@
-import { Trophy, GraduationCap, Share2, Crown, HelpCircle } from 'lucide-react';
+import { Trophy, GraduationCap, Share2, Crown, HelpCircle, Target } from 'lucide-react';
 import { useAchievements } from '@/hooks/useAchievements';
 import { TOTAL_LESSON_BADGES, type AchievementKind } from '@/lib/achievements';
+import { useMilestoneAchievements } from '@/hooks/useMilestoneAchievements';
 import { useDemo } from '@/contexts/DemoContext';
 
 /**
@@ -26,6 +27,7 @@ const ICONS: Record<AchievementKind, typeof Trophy> = {
   lesson: GraduationCap,
   social: Share2,
   founder: Crown,
+  milestone: Target,
   unknown: HelpCircle,
 };
 
@@ -37,9 +39,16 @@ function earnedOn(iso: string): string {
 
 export default function TrophyCase() {
   const { data, loading } = useAchievements();
+  // Calling this is what GRANTS a milestone — the server checks the thresholds and inserts. It is
+  // idempotent, so mounting the trophy case is a safe place to do it.
+  const { data: milestones } = useMilestoneAchievements();
   const { isDemo } = useDemo();
 
   if (loading) return null;
+
+  // Only the ones still to be earned. The earned ones already arrive through `useAchievements`,
+  // which reads the table, so listing them here too would show every milestone twice.
+  const upcoming = milestones.filter(m => !m.earned);
 
   const lessonCount = data.filter(a => a.kind === 'lesson').length;
 
@@ -63,7 +72,7 @@ export default function TrophyCase() {
         <p className="text-[11px] text-muted-foreground">
           Achievements are tied to a real account. Sign up and your first badge is one lesson away.
         </p>
-      ) : data.length === 0 ? (
+      ) : data.length === 0 && upcoming.length === 0 ? (
         <p className="text-[11px] text-muted-foreground">
           No badges yet. Finish a lesson in Learn and the first one lands here.
         </p>
@@ -94,6 +103,27 @@ export default function TrophyCase() {
             );
           })}
         </ul>
+      )}
+
+      {!isDemo && upcoming.length > 0 && (
+        <div className="pt-1 border-t border-border/40 space-y-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Still to earn
+          </p>
+          <ul className="space-y-1.5" data-testid="trophy-case-upcoming">
+            {upcoming.map(m => (
+              <li key={m.id} className="flex items-baseline justify-between gap-3">
+                <span className="text-[11px] text-muted-foreground truncate">{m.name}</span>
+                {/* The threshold is the server's own number, returned by the same call that
+                    decided this is unearned — so the target shown can never disagree with the
+                    target checked. */}
+                <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">
+                  {Math.min(m.progress, m.threshold)}/{m.threshold}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
