@@ -42,7 +42,16 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
 const traces = [];
 page.on('request', req => {
-  if (req.url().includes(TRACE_HOST)) traces.push(req.postData() ?? '');
+  // EXACT HOST, never a substring. `url.includes(TRACE_HOST)` also matches
+  // `otel.observability.app.launchdarkly.com.evil.test` and any path or query carrying the
+  // name - CodeQL reads it as js/incomplete-url-substring-sanitization and it is right. Nothing
+  // here grants access on the match, so this is precision rather than a hole being closed.
+  // ⚠️ WRAPPED, because a throw inside a request handler would collect NOTHING and this
+  // script would then report a clean run against zero traces - a false clean is the one
+  // outcome worse than a crash.
+  let host = '';
+  try { host = new URL(req.url()).hostname; } catch { host = ''; }
+  if (host === TRACE_HOST) traces.push(req.postData() ?? '');
 });
 
 await page.goto(`${ORIGIN}/__error-test`, { waitUntil: 'networkidle' });
