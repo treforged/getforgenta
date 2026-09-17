@@ -1,5 +1,73 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, FIFTEENTH session). START AT ITEM 1.
+
+**Tre is awake and typing into THIS tab.** He tested iOS 876 tonight and sent two asks plus an
+approval. Everything below is pointers, not a report.
+
+1. [ ] 🚨 **FINISH THE USERNAME TYPEAHEAD - IT IS COMMITTED AND UNVERIFIED (ask `57ff2015`).**
+   Shipped in the last commit because **the RPC is already APPLIED TO PRODUCTION** and a live
+   function with no migration file is worse than an unverified one with a file. Client half is
+   tsc- and lint-clean and **has never been run.**
+   * **THE DISCRIMINATING PAIR HAS NOT RUN, and it is the whole point:** a **PUBLIC** account MUST
+     be suggested AND a **PRIVATE** one MUST NOT. Right now only the second half holds, and it
+     holds **by vacuum** - `visibility` defaults to `'private'` and **ZERO profiles are public**
+     (3 have usernames, all private). **A test asserting only the absence is satisfied perfectly
+     by a function that returns nothing at all** - the access-control trap this repo already
+     records. Make the walk account public inside a transaction, assert it IS suggested, ROLL
+     BACK, and re-read the table from outside to prove nothing stuck.
+   * Then: unit tests, a browser exercise of the dropdown, and a test for the **wildcard
+     escaping**, which is reasoned and not tested (`%` must not widen the pattern).
+   * ⚠️ **DO NOT "FIX" AN EMPTY DROPDOWN BY WIDENING THE FILTER.** Empty is correct today.
+   * Files: `supabase/migrations/20260917_suggest_profiles_by_username.sql`,
+     `src/hooks/useUsernameSuggestions.ts`, `src/components/settings/UsernameSuggestions.tsx`.
+
+2. [ ] 📱 **DISPATCH iOS SO TONIGHT'S FIXES REACH HIM.** The accounts text fix, the trophy case,
+   the attribution and the copy changes are all on `origin/main` and in **NO build**. 876 was cut
+   before them.
+
+       gh workflow run "iOS Build & Upload to App Store" --ref main
+
+   **A PUSH BUILDS AND DOES NOT UPLOAD** - step 20 is gated to `workflow_dispatch`, and a push run
+   still reads `success` with that step `skipped`. Read the UPLOAD STEP'S own conclusion, then
+   altool's `UPLOAD SUCCEEDED with no errors`, then check `90382` appears only on echoed-command
+   SOURCE lines. **876 already went out today and Apple caps uploads per app per day**, so this is
+   one build carrying everything. Name the **iOS** number, and say an upload is not an install.
+
+3. [ ] 🎨 **THE DEBT-TAB EMPTY SPACE IS NOT REPRODUCED (ask `25d10159`, second half).**
+   Measured on the walk account at 390px at **both** default and 150% text: right-hand gaps are
+   **0-25px**. No large empty space found.
+   **MY PROBE MEASURED THE WRONG THING** - it read the gap to the CARD'S RIGHT EDGE, and his
+   screenshot shows the hole is **INTERIOR**: under the title, "NEXT $0" and "due Oct 10" sit with
+   empty space to their LEFT in a label/value row. Re-aim at the distribution WITHIN the row.
+   His cards also carry states the walk account may not have: a `$492 short this month` warning,
+   a `saving` badge, `Partial statement`.
+   ⚠️ **Do not tidy those cards without a measurement that reproduces what he saw** - three of the
+   four accounts-row fixes failed by treating a symptom.
+   The accounts half IS done: `npm run check:account-rows`.
+
+4. [ ] 🪟 **NATIVE GLASS - HIS APPROVAL IS RECORDED BUT THE SCOPE IS INFERRED (`f22f17b1`,
+   decision `68734368`).** His sentence was cut off ("I approve the new native glass that you were
+   talking"), and it does not restate the cost that changed: a `UIVisualEffectView` is a SIBLING of
+   the WKWebView, so the version that works needs a **SECOND transparent WKWebView** for chrome.
+   **Reconfirm in this tab before writing Swift** - a relayed-or-inferred yes has been measured on
+   this machine attached to the OPPOSITE decision. Swift DOES compile on the CI runner
+   (`ios-build.yml`), so "no local Xcode" is not the blocker; a DEVICE is.
+
+5. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW.** `FriendLink.tsx`, `useFriendLink.ts` and the
+   `friend-link` edge function are still in the tree; the mount is already gone. Measured safe:
+   **0 live unaccepted `friend_links`**, control 1 total / 1 accepted. It takes **59 assertions**
+   with it, so its own slice and its own gate, and leave a tombstone.
+   ⚠️ **`active_friend_ids()` STILL READS `friend_links`** - keep that arm; delete the CLIENT flow
+   only.
+
+### Gates added tonight, all proven red
+`npm run check:account-rows` (390px at **150% root font** - the defect does not exist at the
+default size) · `npm run check:trophy-case` · `npm run check:followers` (it could never parse
+before tonight, so it had never run once).
+
+<details><summary>Earlier queue from this session - items 0-5 all CLOSED with evidence</summary>
+
 ## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, FOURTEENTH session). READ ITEM 0 FIRST.
 
 **Tre was awake and typing into this tab all session.** He changed the Account tab IA THREE
@@ -5695,7 +5763,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 00:48 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 01:07 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -5706,14 +5774,16 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+71175e92 [handoff]: accounts text fixed and gated; the debt half is NOT reproduced
+69c2f6a0 [accounts]: a word per line was a WIDTH bug, and this is the fourth fix for it
+7283264c [handoff]: the friend wording is retired - and one of the three was a privacy claim
+4f09843a [social]: retire the friend wording, and stop naming the wrong audience
 ccb5efea [handoff]: rendering the trophy case found what the server tests could not
 83322cc0 [achievements]: a granted badge was invisible - rendering it found that, tests did not
 54ece90f [handoff]: attribution shipped - utm_*, not ref, and both halves wired
 b4c22722 [attribution]: campaign attribution on signup, and it is not the ref parameter
-6101e9d0 [handoff]: real_user_ids measured and shipped; repointing is 1c
-25252dee [analytics]: real_user_ids - four test accounts were inflating every population
-68ba3b88 [handoff]: the followers gate ran for the first time, and it discriminates
-28aafd46 [handoff]: iOS 876 delivered, achievements shipped, and a seventh false premise
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+</details>
