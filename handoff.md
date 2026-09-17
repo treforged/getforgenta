@@ -7275,6 +7275,31 @@ in reverse order.
 **STILL LIVE inside that superseded block: items 3, 4 and 5.** Item 3 (the
 followers/following UI) is the next build and has NOT been started.
 
+> ⚠️ **CORRECTED 2026-09-17 - THAT LAST SENTENCE WAS FALSE AND IT COST REAL TIME.** The
+> followers/following UI **IS BUILT AND ON `origin/main`**, and so are the two asks that look
+> like its siblings. Measured against origin with a control, not read:
+> * **The Friends section is gone** - `AccountSection` is `'profile' | 'leaderboard' |
+>   'achievements' | 'learn' | 'ai'`. A grep for a friends section returns 0 while the control
+>   returns 1, so the reader works.
+> * **The Profile section is in exactly the order Tre specified** - `UsernameClaim` at
+>   `Account.tsx:223`, `PartnerLink` at 228, `FollowersPanel` at 231: username at the top,
+>   then partner linking, then followers below it.
+> * **The share link is built both ways** - `/account?u=<username>` with a Copy control, and a
+>   handler that runs the same `find_profile_by_username` RPC. **"Add a friend" was removed** as
+>   a duplicate of "Find someone", pinned by two tests that assert the SURVIVING control rather
+>   than an absence.
+> * **The milestone badges are live too** - eleven of them (`c14e5d9f`), including
+>   `milestone:followers_1/5/10` and `following_1/5`, with the deployed SQL function carrying the
+>   same eleven ids. They simply cannot be EARNED until somebody has a follower.
+>
+> **HOW IT WENT WRONG, because the mechanism matters more than the correction.** A session read
+> "has NOT been started", trusted it, and filed THREE asks off it without measuring. All three
+> were already delivered. **A confidently-worded NOT-STARTED line is the same failure as a
+> confidently-worded BLOCKED line: it reads as diligence and it stops anyone checking.** The
+> premise to test first is always the one that would keep you from testing.
+> **The sentence above is kept rather than deleted** so the next reader can see what was
+> believed, which is the point of superseding rather than erasing.
+
 </details>
 
 
@@ -7294,7 +7319,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 18:08 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 18:33 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7305,14 +7330,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+769e274c [handoff]: iOS 935 carries the Akoya removal - upload verified by altool's own words
+bed655c7 [handoff]: the overload sweep is FINISHED - 5 surfaces, 2 defects, 1 refutation, 2 already clean
+55a17bca [accounts]: withdraw the Akoya offer - he never bought it, so no user could ever complete it
+32f20f92 [dashboard]: the biggest card ships off for a new user - and two of the three proposed were refuted
 586e7d67 [handoff]: iOS 932 carries the Debt Payoff tab fix, upload verified by altool
 5062a6b4 [handoff]: the overload sweep reached Debt Payoff - 07875cc5, and the sweep is not finished
 07875cc5 [debt]: a debt type nobody has gets no tab on the Debt Payoff page
 e8d279f7 [docs]: name check:accounts-groups in the gate list and close the stated limit in the handoff
-2cf880ad [accounts]: close my own stated limit - measure the group-chrome fix in a real browser at 390
-cb63a26b [handoff]: iOS build 929 carries the Accounts group-chrome fix, upload verified by altool
-508ff7f7 [handoff]: the Accounts group-chrome fix shipped in c4ec0b69
-c4ec0b69 [accounts]: a bank with one account gets no heading - its name moves onto the row
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
