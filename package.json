@@ -46,7 +46,9 @@
     "check:no-wrapped-numbers": "node scripts/check-no-wrapped-numbers.mjs",
     "check:panel-rows": "node scripts/check-panel-rows.mjs",
     "check:desktop-rail": "node scripts/check-desktop-rail.mjs",
-    "check:text-scale": "node scripts/check-text-scale.mjs"
+    "check:text-scale": "node scripts/check-text-scale.mjs",
+    "check:release-note": "node scripts/check-release-note-trailer.mjs",
+    "install:hooks": "node scripts/install-git-hooks.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

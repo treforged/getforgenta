@@ -240,6 +240,21 @@ section states reasoning, not measurement, and says so.
   pdfjs-dist calls `Promise.try` (V8 12.9 / Safari 18.2), which threw on every iOS below 18.2 —
   fixed by `src/lib/promise-try-polyfill.ts`. **Before using a newish built-in, check it against
   the deployment target, not against browserslist.**
+- `npm run check:release-note <msg-file>` - refuses a WRAPPED `Release-Note:` trailer, and
+  `npm run install:hooks` puts it in `.git/hooks/commit-msg` so it fires before a commit exists.
+  ⚠️ **IT HAS TO RUN BEFORE THE COMMIT, because a pushed message cannot be rewritten.** git reads
+  a trailer as ONE line, so an unindented continuation is simply dropped - `d0bf7c6` published
+  *"Fixed a credit card projection that charged one month of"* to the stores and dropped the rest
+  of the sentence, and `e874995` did the same an hour later.
+  ⚠️ **THE DETECTION ALREADY EXISTED AND ALREADY FIRED.** `parseTrailers` has printed that warning
+  on every `npm run test:tz` run for months, inside an output where 4,773 tests pass around it -
+  a report with no route to an exit code, which nobody reads. The gate reuses `parseTrailers`
+  rather than re-implementing "wrapped", so the gate and the publisher cannot drift.
+  ⚠️ **THE HOOK IS NOT TRACKED AND A FRESH CLONE HAS NO PROTECTION** until `npm run install:hooks`
+  is run; `--no-verify` skips it, and the installer deliberately REFUSES to overwrite a
+  commit-msg hook it did not write. It stops the accident, which is what happened here, not the
+  determined. `core.hooksPath` was deliberately NOT re-pointed: this repo's `pre-commit` and
+  `pre-push` hooks are hand-written and live there, and moving it would silently disable both.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER
