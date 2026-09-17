@@ -188,7 +188,13 @@ for (let i = 0; i < seen.length; i += 1) {
 // The AI segment only exists where AI_ADVISOR_ENABLED is true (dev). In a production build the
 // bar has two segments and this entry is simply never matched - which is correct, and is why the
 // unknown-segment failure above must stay: a segment nobody listed must never pass unasserted.
-const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', 'Forgenta AI': 'Forgenta AI' };
+// ⚠️ ADD A MARKER WHENEVER A SEGMENT IS ADDED. The loop below REFUSES an unknown segment
+// rather than skipping it, which is what caught the Achievements section on 2026-09-17 - an
+// unasserted segment and a working one look identical, and this gate exists because a tab
+// whose handler does nothing throws nothing.
+// `Achievements` is the trophy case's own <h2>, and it moved here from the Dashboard Overview
+// widget stack on Tre's instruction the same day.
+const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', Achievements: 'Achievements', 'Forgenta AI': 'Forgenta AI' };
 for (const s of seen) {
   const key = Object.keys(markers).find((k) => s.label.includes(k));
   if (!key) { failures.push(`segment ${JSON.stringify(s.label)} is not one this check knows a marker for - add it here rather than letting it go unasserted.`); continue; }

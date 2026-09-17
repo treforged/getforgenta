@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
-import { User, Settings as SettingsIcon, Trophy, Sparkles } from 'lucide-react';
+import { User, Settings as SettingsIcon, Trophy, Award, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFollows } from '@/hooks/useFollows';
@@ -8,6 +8,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import PanelBar from '@/components/shared/PanelBar';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
+import TrophyCase from '@/components/dashboard/TrophyCase';
 import { FollowersPanel } from '@/components/settings/FollowersPanel';
 import { UsernameClaim } from '@/components/settings/UsernameClaim';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
@@ -19,7 +20,7 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
  */
 const AiAdvisor = lazy(() => import('./AiAdvisor'));
 
-type AccountSection = 'profile' | 'leaderboard' | 'ai';
+type AccountSection = 'profile' | 'leaderboard' | 'achievements' | 'ai';
 
 /**
  * ⚠️ THE AI SECTION IS GATED ON THE SAME FLAG AS THE `/ai` ROUTE, and that is not a formality.
@@ -39,6 +40,7 @@ type AccountSection = 'profile' | 'leaderboard' | 'ai';
 const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
   profile: true,
   leaderboard: true,
+  achievements: true,
   ai: AI_ADVISOR_ENABLED,
 };
 
@@ -159,6 +161,15 @@ export default function Account() {
           className={`seg-item btn-press ${activeSection === 'leaderboard' ? 'seg-item-active' : ''}`}>
           <Trophy size={13} /> Leaderboard
         </button>
+        {/* AFTER Leaderboard, which is where Tre put it: "Maybe put it after leaderboard".
+            Its own segment rather than a card inside Profile - he asked for a tab, and the
+            trophy case is a browsing surface rather than a setting. */}
+        <button onClick={() => setSection('achievements')}
+          aria-selected={activeSection === 'achievements'}
+          role="tab"
+          className={`seg-item btn-press ${activeSection === 'achievements' ? 'seg-item-active' : ''}`}>
+          <Award size={13} /> Achievements
+        </button>
         {SECTION_AVAILABLE.ai && (
           <button onClick={() => setSection('ai')}
             aria-selected={activeSection === 'ai'}
@@ -228,6 +239,23 @@ export default function Account() {
         section still loading would satisfy the check and a chunk that never arrived would read as
         a working section.
       */}
+      {activeSection === 'achievements' && (
+        /*
+          ⚠️ THE TROPHY CASE'S ONLY HOME AS OF 2026-09-17. It was a Dashboard Overview widget
+          from 2026-09-06 until Tre moved it here: "achievements shouldn't be on the home overview
+          tab. It should just go on its own tab in the section in the account tab."
+
+          Rendered UNCONDITIONALLY, for the same reason the leaderboard above it is: this section
+          IS the trophy case, so hiding it until you have earned something would recreate the
+          "where is the achievements section?" he reported on 2026-09-06.
+
+          ⚠️ IT IS THE SAME COMPONENT, NOT A COPY. `TrophyCase` still lives under
+          components/dashboard/ because moving the file would be a rename in the same commit as a
+          behaviour change; what matters is that there is exactly ONE of it and one mount.
+        */
+        <TrophyCase />
+      )}
+
       {activeSection === 'ai' && (
         <Suspense fallback={<div className="card-forged p-5 text-sm text-muted-foreground">Loading...</div>}>
           <AiAdvisor />

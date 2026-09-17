@@ -9,8 +9,7 @@ export type WidgetId =
   | 'goal_progress'
   | 'advanced_analytics'
   | 'debt_recommendations'
-  | 'learn'
-  | 'achievements';
+  | 'learn';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -90,15 +89,16 @@ export const WIDGET_META: WidgetMeta[] = [
     label: 'Learn',
     description: 'Short financial lessons with an achievement for each one you finish, and a streak for reading consistently',
   },
-  {
-    // ⚠️ ADDED 2026-09-06 BECAUSE THERE WAS NOWHERE TO SEE A BADGE. Tre asked "where is the
-    // achievements section?" having earned one that evening and held another since 09-03; the app
-    // showed a checkmark on one lesson row and nothing else. Placed directly after Learn, which is
-    // where the badges are earned — a trophy case somewhere else is a second thing to find.
-    id: 'achievements',
-    label: 'Achievements',
-    description: 'Every badge you have earned — lessons finished, socials tapped through, and the founder badge',
-  },
+  // ⚠️ THE ACHIEVEMENTS WIDGET WAS REMOVED FROM THIS LIST ON 2026-09-17, on Tre's instruction:
+  // "achievements shouldn't be on the home overview tab. It should just go on its own tab in the
+  // section in the account tab." The trophy case now lives as a SECTION of /account, after
+  // Leaderboard - see `AccountSection` in src/pages/Account.tsx. It was added here on 2026-09-06
+  // only because there was nowhere at all to see a badge; there is now, and two homes for one
+  // thing is the "second place to look" problem that comment was written to avoid.
+  //
+  // ⚠️ SAVED LAYOUTS STILL CARRYING 'achievements' ARE HANDLED, and that is why no migration
+  // is needed: `mergeSavedLayout` filters every stored id against WIDGET_META, so the stale entry
+  // is dropped on read rather than throwing or rendering an empty card.
 ];
 
 // The user-facing name of a widget, for anything that has to talk ABOUT a

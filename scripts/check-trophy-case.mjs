@@ -97,17 +97,44 @@ await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.string
   version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
 })));
 
-await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+// ⚠️ RE-AIMED 2026-09-17. The trophy case was a Dashboard Overview widget; Tre moved it:
+// "achievements shouldn't be on the home overview tab. It should just go on its own tab in the
+// section in the account tab." It now lives behind the ACHIEVEMENTS segment of /account, so a
+// gate still opening /dashboard would report a missing feature that is simply somewhere else -
+// which is exactly what this script did on the commit that moved it, correctly.
+await page.goto(`${BASE}/account`, { waitUntil: 'domcontentloaded' });
 
 const CASE = '[data-testid="trophy-case"]';
+
+// The segment is found BY ROLE and by its accessible name, never by a class - a selector keyed on
+// a styling class would go quiet the day the bar is restyled, and this gate's whole job is to
+// notice the case going missing.
+const SEG = 'button[role="tab"]';
+let pressed = false;
+for (let i = 0; i < 25 && !pressed; i += 1) {
+  await page.waitForTimeout(700);
+  const tabs = page.locator(SEG);
+  const n = await tabs.count();
+  for (let k = 0; k < n; k += 1) {
+    const label = ((await tabs.nth(k).textContent()) || '').trim();
+    if (/achievements/i.test(label)) { await tabs.nth(k).click(); pressed = true; break; }
+  }
+}
+if (!pressed) {
+  fail(1, 'no Achievements segment on /account, so the trophy case has no door at all. '
+        + 'It was moved off /dashboard on 2026-09-17 - if this is a regression, the segment is '
+        + 'what went missing, not the case.');
+}
+
 let seen = false;
 for (let i = 0; i < 25 && !seen; i += 1) {
   await page.waitForTimeout(700);
   seen = (await page.locator(CASE).count()) > 0;
 }
 if (!seen) {
-  fail(1, 'the trophy case never rendered on /dashboard. It lives under the OVERVIEW tab only - '
-        + 'if the dashboard opened on Accounts, that is the surface, not the code.');
+  fail(1, 'the Achievements segment on /account exists and was pressed, but the trophy case never '
+        + 'rendered behind it - a segment that switches nothing is the dead-tab shape this '
+        + 'portfolio has shipped before.');
 }
 
 // 1. The grant really ran, through the app's own client.

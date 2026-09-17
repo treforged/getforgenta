@@ -6873,7 +6873,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 15:35 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 16:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6884,6 +6884,7 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+bb6988cc [handoff]: baseline across five captures - and his card debt has nearly doubled in ten weeks
 08f441dc [test]: remove zz-tmp-diagnostic - 0 assertions, 7 console lines, and its own header says delete me
 7fcdb1c5 [handoff]: item 5 answered - the $459 was not a horizon artefact, so the revert was right
 1a8e8752 [handoff]: floorFlicker swept - same capacity family, and the latch is intact at every shock size
@@ -6891,7 +6892,6 @@ machine-generated and replaced each time; put durable notes above it._
 2a30538b [handoff]: isolated - his 09-17 rows project payoff NINE months later on 0.96% more debt
 53844d8d [handoff]: swept the shock - floorDeficit is capacity, and his buffer fell 72% in sixteen days
 c9bfcb5b [handoff]: correcting my own finding - the fourth red was a false alarm, not a money defect
-ceafd79a [test]: manualISB compared MILESTONES to decide a per-month question, and cried wolf
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

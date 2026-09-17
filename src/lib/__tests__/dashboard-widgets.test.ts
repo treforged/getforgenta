@@ -116,12 +116,31 @@ describe('mergeSavedLayout', () => {
     const merged = ids(mergeSavedLayout([cfg('debt_recommendations')]));
     expect(merged[0]).toBe('monthly_snapshot');
     // The saved widget keeps its place relative to the defaults: everything that precedes it in
-    // DEFAULT_LAYOUT lands before it, and everything that follows it lands after. `learn` was
-    // added after it on 2026-09-02, so it is the tail now.
-    // `achievements` was added on 2026-09-06, directly after `learn`, so it is the tail now.
-    // ⚠️ Still pinned to a NAMED id rather than loosened to "the last one": this assertion exists
-    // to catch a new widget landing in the wrong place, and `toBeDefined()` would catch nothing.
-    expect(merged[merged.length - 1]).toBe('achievements');
-    expect(merged[merged.length - 2]).toBe('learn');
+    // DEFAULT_LAYOUT lands before it, and everything that follows it lands after.
+    //
+    // ⚠️ THIS USED TO PIN TWO WIDGETS BY NAME, and its own comment defended that as stronger
+    // than `toBeDefined()`. It was right about the weak alternative and wrong about the choice:
+    // a hand-named tail is an inventory that goes stale the moment a widget is ADDED OR REMOVED,
+    // and on 2026-09-17 it went red for `achievements` moving to /account - a change that broke
+    // nothing about ordering. A test that fails on every list edit gets edited to match rather
+    // than read, which is how it stops protecting anything.
+    //
+    // So the PROPERTY is asserted instead, and it is the property the comment already described.
+    // It is not loosened: a widget landing in the wrong place still fails, because the saved id's
+    // neighbours are DERIVED from DEFAULT_LAYOUT rather than typed here.
+    const order = ids(DEFAULT_LAYOUT);
+    const pivot = order.indexOf('debt_recommendations');
+    expect(pivot).toBeGreaterThan(0);
+    const at = (id: WidgetId) => merged.indexOf(id);
+    for (const before of order.slice(0, pivot)) {
+      expect(at(before), `${before} must stay before debt_recommendations`)
+        .toBeLessThan(at('debt_recommendations'));
+    }
+    for (const after of order.slice(pivot + 1)) {
+      expect(at(after), `${after} must stay after debt_recommendations`)
+        .toBeGreaterThan(at('debt_recommendations'));
+    }
+    // And the tail is whatever DEFAULT_LAYOUT declares last, read rather than remembered.
+    expect(merged[merged.length - 1]).toBe(order[order.length - 1]);
   });
 });
