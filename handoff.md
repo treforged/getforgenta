@@ -58,6 +58,20 @@ check the file before acting on it.
 
 ### What this session closed, with evidence
 
+* ✅ **THE APP STORE CONNECT KEYS ARE SPLIT, AND THE OBVIOUS FIX WAS THE DANGEROUS ONE** (Sam
+  measured it, ask `e2f67b37`). `revenue-report.yml` and `ios-build.yml` read THE SAME THREE
+  SECRETS, and `ios-build.yml:354` decodes `APP_STORE_CONNECT_API_KEY_CONTENT` into the `.p8` that
+  lines 362-363 hand to altool. **Swapping those for a Sales-and-Reports key would have made the
+  revenue read work and left the TestFlight upload silently dead** - and that step swallows its own
+  known failures into a warning, so the run would still have gone green.
+  The revenue read now uses NEW `APP_STORE_CONNECT_SALES_*` names mapped onto the env names the
+  script already reads; **`ios-build.yml` is untouched**; **no fallback**, because a silent fallback
+  makes a missing sales key look exactly like Apple's 403. Verified by contents with a control on
+  origin: revenue-report references to the upload secrets **0**, ios-build **still present**, one
+  file changed, YAML parses. **It stays red, by name, until Tre mints the key - that half is his.**
+  I did NOT run an ios-build to prove the upload survived: that file has a zero-byte diff, and a run
+  would spend a real TestFlight upload to show an unchanged file is unchanged.
+
 * ✅ **THE ROBINHOOD SEPTEMBER CHARGE TOOK THREE FIXES, AND THE SECOND ONE LOOKED COMPLETE.**
   There are **three** ways a card can be handed money in month 0, and the first-payment-due-date
   rule stopped only two of them:
