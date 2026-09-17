@@ -136,6 +136,17 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
+/**
+ * "Sep 2026" -> "Sep". Returns null when there is no such month - the first visible row has no
+ * previous month and the last has no next - so the caller falls back to "last month" / "next
+ * month" rather than rendering "undefined's statement".
+ */
+function shortMonthOf(label: string | undefined): string | null {
+  if (!label) return null;
+  const first = label.trim().split(' ')[0];
+  return first || null;
+}
+
 export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   // ⚠️ BOTH BINDINGS ARE NOW UNUSED and the line is KEPT ON PURPOSE. Their only reader was
   // `syncDebtAndAccount`, deleted 2026-09-12 with the never-wired inline target edit above it.
@@ -2326,6 +2337,27 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                   </span>
                                 )}
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
+                                {/* ⚠️ WHY THIS LINE EXISTS: on a CYCLING card the row does not
+                                    reconcile as start + purchases - payment = end, and nothing on
+                                    screen said so. Tre, 2026-09-17: "September 2026 and balance
+                                    212, October 2026 purchases is 280 and then the payment is 492
+                                    but somehow the end balance again in October 2026 is 280."
+                                    Both figures were already correct and they mean different
+                                    things - the payment settles the PREVIOUS cycle's statement
+                                    plus this cycle's spend, while the end balance is THIS month's
+                                    purchases forming NEXT month's statement. The same number
+                                    appears once as cash leaving and once as a new balance forming.
+                                    His decision, same day: "i say we should actually show where
+                                    users money is going at the right time accurately." So the row
+                                    now SAYS which cycle each column belongs to. No number changes -
+                                    this is the missing sentence, not a different calculation.
+                                    Cycling only: a revolving card genuinely does reconcile, so a
+                                    line there would be noise on rows that never confused anybody. */}
+                                {(proj.card.paymentPreference === 'statement' || proj.card.paymentPreference === 'full') && row.endBalance > 0 && (
+                                  <span className="text-muted-foreground">
+                                    {`Payment settles ${shortMonthOf(proj.months[idx - 1]?.label) ?? 'last month'}'s statement; the ${formatCurrency(row.endBalance, false)} end balance is ${shortMonthOf(row.label) ?? 'this month'}'s purchases, billed ${shortMonthOf(proj.months[idx + 1]?.label) ?? 'next month'}`}
+                                  </span>
+                                )}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
                                 {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
                                 <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
