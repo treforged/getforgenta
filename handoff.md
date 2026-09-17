@@ -90,16 +90,34 @@
    💰 **A REAL FINDING FOR TRE, not a test fact: his absorbable April shock has fallen from
    $3,000 to under $840 - about 72% - in sixteen days.** An unexpected $1,000 expense in Apr 2027
    now puts him under his safe minimum where $3,000 would not have.
-   ⚠️ **STILL OPEN, AND DELIBERATELY NOT CALLED EITHER WAY: the payoff move
-   `Sep 2028` -> `Apr 2029`.** Card balances rose only **$198** (19,005 -> 19,203, 0.96%), and
-   $198 cannot push payoff seven months - **so it is NOT the capacity story `floorDeficit` turned
-   out to be.** But it is **not a defect either, on the evidence so far**: `manualISB` records a
-   measured case where **eleven days of clock moved payoff FIVE months** via a month-0 rollover
-   plus per-card payment reallocation - and the golden's `capturedAt` is `2026-09-01T00:20Z`,
-   **the evening of 31 August locally**, so its month 0 is AUGUST while the statement capture's is
-   SEPTEMBER. The two are not a clean comparison. **NEXT EXPERIMENT, the one that settled the
-   earlier case: the per-card month-0 payment and balance breakdown across both captures.** Until
-   that runs, seven months is UNEXPLAINED rather than WRONG.
+   🔴 **THE PAYOFF MOVE IS NOW ISOLATED, AND IT IS THE BIGGEST THING ON THIS DESK.**
+   Ask `80ea17f2`. **At an IDENTICAL clock, his 09-17 rows project CC payoff NINE MONTHS later
+   than his 09-01 rows, on 0.96% more debt.**
+   **The raw comparison was seven months and I refused to call it anything**, because `manualISB`
+   records a measured case where eleven days of clock moved payoff FIVE months via a month-0
+   rollover - and the golden's `capturedAt` is `2026-09-01T00:20Z`, the **evening of 31 August
+   locally**, so its month 0 is August against the statement capture's September.
+   **THE CLEAN EXPERIMENT: the SAME data at TWO clocks**, so any move is the clock alone because
+   the rows are byte-identical between runs.
+
+       GOLDEN   @ 31 Aug (month0 Aug 2026)  payoff Sep 2028  18 passes  month0 debtPayment $0
+       GOLDEN   @ +17d   (month0 Sep 2026)  payoff Jul 2028  12 passes  month0 debtPayment $661
+       STATEMENT@ 17 Sep (month0 Sep 2026)  payoff Apr 2029  10 passes  month0 debtPayment $0
+
+   **(1) The clock alone moves payoff EARLIER** (Sep 2028 -> Jul 2028), so it was **MASKING** part
+   of the data effect rather than causing it. **(2) With clock and month 0 held identical, the
+   data alone is Jul 2028 -> Apr 2029 - NINE months on $198.** $198 cannot cost nine months.
+   **THE SHARPEST CORRELATE, and it is a correlate not a proven cause:** at that same clock and
+   month 0 the golden data pays **$661** to debt in month 0 and the statement data pays **$0**.
+   **Month-0 zero is NOT sufficient on its own** - GOLDEN at 31 Aug is also $0.
+   **LEADING CANDIDATE:** the Robinhood card's state change - balance 0 / `full` on the golden
+   versus **balance $274, `statement`, `statement_balance_phase` true, `first_payment_due_date`
+   2026-10-10**. A card with nothing due until October legitimately pays $0; **whether it should
+   also suppress payment to Prime Visa and Discover is the question.**
+   **NEXT EXPERIMENT: the per-card month-0 payment breakdown across both captures at the +17d
+   clock** - exactly what settled the earlier five-month case.
+   **NOT MEASURED:** whether he SEES Apr 2029 in the app today. This is the convergence loop over
+   a capture; his live app state was not read.
    ⚠️ **AND I NEARLY CORRECTED A LABEL THAT WAS RIGHT.** `autopayFullBalance` reads `false` in
    BOTH captures, so it cannot tell them apart. The era field is `payment_preference` /
    `paymentPreference`; read there, the previous session's labelling is **correct**.
