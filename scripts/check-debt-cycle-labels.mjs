@@ -1,28 +1,54 @@
 /**
- * A CYCLING CARD'S ROW MUST SAY WHICH CYCLE ITS COLUMNS BELONG TO.
+ * EVERY RENDERED /debt ROW MUST ADD UP: End = Start + purchases + interest - Payment.
  *
- * Tre, 2026-09-17: "September 2026 and balance 212, October 2026 purchases is 280 and then the
- * payment is 492 but somehow the end balance again in October 2026 is 280." Both figures were
- * already correct; the row simply never said that the payment settles the PREVIOUS cycle's
- * statement while the end balance is THIS month's purchases forming NEXT month's. His decision on
- * how to resolve it, the same day: "i say we should actually show where users money is going at
- * the right time accurately."
+ * ⚠️ RE-AIMED 2026-09-17, the day after it was written. It used to assert that a sentence
+ * rendered on each cycling row explaining that the payment and the end balance "belong to
+ * different billing cycles". That sentence was removed the same day because ITS PREMISE WAS
+ * FALSE, so a gate asserting its presence was pinning a wrong explanation in place.
  *
- * WHY THIS IS A RENDERED CHECK AND NOT A SOURCE ONE. The sentence interpolates
- * `proj.months[idx +/- 1].label`, and the first version of it read `.month` - a NUMBER. That
- * TYPECHECKS inside a template literal and renders "undefined's statement" to a user. tsc was
- * clean on it. Only a browser sees that class of defect, so this asserts real month names and
- * explicitly fails on a leaked "undefined".
+ * The premise died to algebra. On a cycling row, with Start = S + B (this cycle's statement
+ * plus carried backlog), Payment P = p_s + p_b, and next cycle's backlog
+ * B' = B + (S - p_s) - p_b:
+ *     End = purchases + B' = purchases + (S + B) - P = Start + purchases - P.
+ * So the identity binds on a cycling row exactly as hard as on a revolving one - confirmed
+ * across four sim shapes at residual 0.00 in credit-card-engine.rowReconciliation.test.ts.
+ * Tre's row (start 262, +280 purchases, payment 542, end 280) therefore does not satisfy it
+ * and is a DEFECT, not a presentational gap. The gate now checks the thing he actually
+ * reported instead of the caption somebody put over it.
  *
- * IT CREATES THE STATE IT MEASURES, because the stock walk data cannot produce it: both walk cards
- * ship with `payment_preference = null`, so neither cycles and this branch is unreachable. The
- * gate sets ONE test-account card to 'full', reads that write back before trusting it, measures,
- * and restores the previous value in a `finally`. It refuses to run against anything but an
- * `@forgenta.test` account.
+ * WHY THIS IS A RENDERED CHECK AND NOT A SOURCE ONE. The numbers on this row come from three
+ * different arrays joined at a call site, and a source scan cannot see arithmetic. The unit
+ * gate covers the LOCAL sim path; this one covers what a person actually sees, which on /debt
+ * can be fed by the CONVERGED forecast run that the unit gate never executes. That gap is
+ * exactly where the reported defect is currently believed to live, so the two are not
+ * redundant.
  *
- * DOES NOT COVER: whether the wording is the BEST wording, colour or contrast, where the line
- * sits within the row, revolving cards (which genuinely do reconcile and deliberately carry no
- * such line), or whether the month NAMES are the right months - only that real ones render.
+ * IT CREATES THE STATE IT MEASURES, because the stock walk data cannot produce it: both walk
+ * cards ship with `payment_preference = null`, so neither cycles and the branch is unreachable.
+ * The gate sets ONE test-account card to 'full', reads that write back before trusting it,
+ * measures, and restores the previous value in a `finally`. It refuses to run against anything
+ * but an `@forgenta.test` account.
+ *
+ * EXIT CODES ARE LOAD-BEARING: 1 means a row does not reconcile (a finding), 2 means the probe
+ * could not read any rows (an instrument fault). They must not be collapsed - an exit-1 defect
+ * gets fixed, an exit-2 tooling fault gets re-run then ignored, so reporting one as the other
+ * is how a real finding gets buried.
+ *
+ * ⚠️ MEASURED LIMIT, AND IT IS THE IMPORTANT ONE: as this actually runs today, the rows it
+ * reaches are REVOLVING, not cycling. Setting `payment_preference` to 'full' is necessary for
+ * a card to cycle but not sufficient - the walk card still carries a ~$4,200 balance, so it
+ * revolves until that clears, and the observed rows are Sep/Oct with purchases 0. So this gate
+ * currently asserts the identity on the branch that ALREADY had a guard, and does NOT yet
+ * exercise the deferred branch Tre's defect sits on. Written down rather than left implied,
+ * because a gate named for cycling rows that only ever sees revolving ones is exactly the kind
+ * of green somebody later quotes as proof the reported bug is fixed. To close it, the fixture
+ * needs a card with a ZERO balance and recurring purchases; until then the cycling branch is
+ * covered only by the unit gate.
+ *
+ * DOES NOT COVER: colour, contrast, spacing, where anything sits in the row, whether the
+ * PURCHASES or PAYMENT figures are themselves the right figures (only that they are mutually
+ * consistent), the reviewer account's data resembling any real user's, or the converged path
+ * on a card whose shape the walk fixture cannot produce.
  */
 import { readFileSync } from 'node:fs';
 
@@ -150,51 +176,95 @@ try {
   console.log('BUTTONS:', JSON.stringify(btns.slice(0, 30)));
 
   const found = await page.evaluate(() => {
-    // ⚠️ THE MONTH SLOTS ARE VALIDATED, NOT JUST MATCHED. An earlier version of this regex used
-    // `.+?` for them and PASSED a mutation that rendered "1's purchases" - the exact defect
-    // that shipped for a moment when the sentence read `.month` (a number) instead of `.label`.
-    // A wildcard where a month name belongs cannot tell a month from a row index, so the slots
-    // must be a real short month name or one of the deliberate first/last-row fallbacks.
-    const M = "(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|last month|this month|next month)";
-    const RE = new RegExp(`Payment settles ${M}'s statement; the .+? end balance is ${M}'s purchases, billed ${M}`);
-    // A looser pattern, so a sentence that is PRESENT but malformed is reported as malformed
-    // rather than as absent - those are different defects and want different messages.
-    const LOOSE = /Payment settles .+?'s statement; the .+? end balance is .+?'s purchases, billed /;
-    const spans = [...document.querySelectorAll('span')].map(s => (s.innerText || '').trim()).filter(Boolean);
-    const body = document.body.innerText || '';
+    const NL = String.fromCharCode(10);
+    // Read a dollar figure out of a line. Deliberately tolerant of a leading minus and of
+    // thousands separators, and returns null rather than 0 when there is no figure at all -
+    // a missing number and a zero are different facts and must not collapse.
+    const num = (t) => {
+      if (t == null) return null;
+      const m = String(t).replace(/,/g, '').match(/-?\$\s*([0-9]+(?:\.[0-9]+)?)/);
+      return m ? Number(m[1]) : null;
+    };
+    const MONTH_HEAD = /^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{4}$/;
+    const rows = [];
+    // The tightest element whose flattened text starts with a month label and contains the
+    // "Start:" detail line is the row. Walking every div and keeping the SMALLEST match per
+    // month avoids picking an ancestor that has swallowed several rows.
+    for (const el of [...document.querySelectorAll('div')]) {
+      const txt = (el.innerText || '').trim();
+      if (!txt) continue;
+      const lines = txt.split(NL).map(l => l.trim()).filter(Boolean);
+      if (lines.length < 4 || lines.length > 16) continue;
+      if (!MONTH_HEAD.test(lines[0])) continue;
+      const startIdx = lines.findIndex(l => l.startsWith('Start:'));
+      if (startIdx < 0) continue;
+      // Everything between the month label and the detail block is the row's own right-hand
+      // columns. The LAST two dollar figures there are Payment and End Balance, in that order.
+      const headFigures = lines.slice(1, startIdx).map(num).filter(v => v !== null);
+      const start = num(lines[startIdx]);
+      const purchases = num(lines.find(l => l.includes('purchases'))) ?? 0;
+      const interest = num(lines.find(l => l.includes('interest') && l.includes('$'))) ?? 0;
+      const payment = headFigures.length >= 2 ? headFigures[headFigures.length - 2] : null;
+      const endBalance = headFigures.length >= 1 ? headFigures[headFigures.length - 1] : null;
+      rows.push({ month: lines[0], start, purchases, interest, payment, endBalance, lines: lines.length, headFigures });
+    }
+    // De-duplicate by month, keeping the tightest (fewest lines) container for each.
+    const byMonth = new Map();
+    for (const r of rows) {
+      const prev = byMonth.get(r.month);
+      if (!prev || r.lines < prev.lines) byMonth.set(r.month, r);
+    }
     return {
-      spans: spans.length,
-      matches: spans.filter(t => RE.test(t)),
-      loose: spans.filter(t => LOOSE.test(t)),
-      tableOpen: /End Balance/i.test(body),
-      undefinedLeak: /undefined's statement|billed undefined|is undefined's/i.test(body),
+      rows: [...byMonth.values()],
+      totalDivsMatched: rows.length,
+      tableOpen: /End Balance/i.test(document.body.innerText || ''),
     };
   });
 
   const failures = [];
+  const TOLERANCE = 1; // same as the in-engine guard: clears whole-dollar rounding, catches real gaps
 
-  // CONTROL ON THE INSTRUMENT, not on the app: if the month table never opened, "0 sentences" is
-  // a fact about this probe's clicking and says nothing about the feature.
-  if (!found.tableOpen) {
-    failures.push(`CONTROL FAILED: the month-by-month table never opened (no "End Balance" header, ${found.spans} spans), so nothing below was measured.`);
-  } else if (found.matches.length === 0 && found.loose.length > 0) {
-    failures.push(`a cycle sentence rendered, but its month slots are not month names - got: ${JSON.stringify(found.loose.slice(0, 2))}`);
-  } else if (found.matches.length === 0) {
-    failures.push(`the month table is open but NO row states which cycle its columns belong to (${found.spans} spans examined).`);
+  const parsed = found.rows.filter(r =>
+    r.start !== null && r.payment !== null && r.endBalance !== null);
+  // COUNT AND NAME WHAT WAS DROPPED. A row the reader could not parse and a row that does not
+  // exist look identical in a total, and the row most likely to defeat a parser is the odd one
+  // - which is also the one most likely to carry the defect. Printing them means a silent drop
+  // cannot masquerade as a clean sweep.
+  const dropped = found.rows.filter(r => !parsed.includes(r));
+  for (const d of dropped) {
+    console.log(`  DROPPED ${d.month}: start=${d.start} pay=${d.payment} end=${d.endBalance} headFigures=${JSON.stringify(d.headFigures)} (not parseable into start/payment/end)`);
   }
 
-  // The defect that a source check cannot see: the sentence is built from `.label`, and reading
-  // `.month` - a number - still typechecks inside a template and renders "undefined's statement".
-  if (found.undefinedLeak) failures.push('a cycle sentence rendered "undefined" where a month name belongs.');
-
-  for (const m of found.matches.slice(0, 3)) console.log('  ROW:', m);
-  console.log(`spans=${found.spans} tableOpen=${found.tableOpen} cycleSentences=${found.matches.length}`);
-
-  if (failures.length) {
-    for (const f of failures) console.error('FAIL: ' + f);
-    exitCode = 1;
+  // ── CONTROLS ON THE INSTRUMENT, before any claim about the app ──────────────────────────
+  // A zero from a probe that never opened the table, and a zero from an app with no defect,
+  // are the same zero. These separate them, and they exit 2 (instrument fault) rather than 1
+  // (finding) so a tooling break is never read as "the rows are fine" OR as a real defect.
+  if (!found.tableOpen) {
+    console.error(`CONTROL FAILED: the month-by-month table never opened (no "End Balance" header), so nothing was measured.`);
+    exitCode = 2;
+  } else if (parsed.length === 0) {
+    console.error(`CONTROL FAILED: the table is open but NO row could be parsed into start/payment/end (${found.totalDivsMatched} candidate containers). The reader is broken, not the app.`);
+    exitCode = 2;
   } else {
-    console.log(`PASS: ${found.matches.length} cycling row(s) state which cycle each column belongs to.`);
+    // ── THE ASSERTION: every rendered row adds up ─────────────────────────────────────────
+    // End = Start + purchases + interest - Payment. See the header for why this binds on a
+    // cycling row as hard as on a revolving one.
+    for (const r of parsed) {
+      const residual = Math.round((r.endBalance - (r.start + r.purchases + r.interest - r.payment)) * 100) / 100;
+      const mark = Math.abs(residual) > TOLERANCE ? '  <<< DOES NOT RECONCILE' : '';
+      console.log(`  ${r.month} start=${r.start} purch=${r.purchases} int=${r.interest} pay=${r.payment} end=${r.endBalance} residual=${residual}${mark}`);
+      if (Math.abs(residual) > TOLERANCE) {
+        failures.push(`${r.month}: End ${r.endBalance} != Start ${r.start} + purchases ${r.purchases} + interest ${r.interest} - payment ${r.payment} (residual ${residual})`);
+      }
+    }
+    console.log(`rows parsed=${parsed.length} of ${found.rows.length} month containers`);
+
+    if (failures.length) {
+      for (const f of failures) console.error('FAIL: ' + f);
+      exitCode = 1;
+    } else {
+      console.log(`PASS: ${parsed.length} rendered row(s) reconcile within $${TOLERANCE}.`);
+    }
   }
 } finally {
   await fetch(`${url}/rest/v1/accounts?id=eq.${subject.id}`, {

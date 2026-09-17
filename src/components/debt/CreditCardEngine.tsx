@@ -136,16 +136,12 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-/**
- * "Sep 2026" -> "Sep". Returns null when there is no such month - the first visible row has no
- * previous month and the last has no next - so the caller falls back to "last month" / "next
- * month" rather than rendering "undefined's statement".
- */
-function shortMonthOf(label: string | undefined): string | null {
-  if (!label) return null;
-  const first = label.trim().split(' ')[0];
-  return first || null;
-}
+// TOMBSTONE: shortMonthOf ("Sep 2026" -> "Sep") lived here. Its ONLY reader was the cycle
+// sentence in the projection detail row, removed 2026-09-17 - see the long note at that call
+// site for why the sentence's premise was false. Proven dead before deletion: zero callers
+// across src/ outside its own definition. Restored from git if the sentence ever comes back,
+// but it should not - the fix is numbers that reconcile, not a better caption for numbers
+// that do not.
 
 export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   // ⚠️ BOTH BINDINGS ARE NOW UNUSED and the line is KEPT ON PURPOSE. Their only reader was
@@ -2337,27 +2333,33 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                   </span>
                                 )}
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
-                                {/* ⚠️ WHY THIS LINE EXISTS: on a CYCLING card the row does not
-                                    reconcile as start + purchases - payment = end, and nothing on
-                                    screen said so. Tre, 2026-09-17: "September 2026 and balance
-                                    212, October 2026 purchases is 280 and then the payment is 492
-                                    but somehow the end balance again in October 2026 is 280."
-                                    Both figures were already correct and they mean different
-                                    things - the payment settles the PREVIOUS cycle's statement
-                                    plus this cycle's spend, while the end balance is THIS month's
-                                    purchases forming NEXT month's statement. The same number
-                                    appears once as cash leaving and once as a new balance forming.
-                                    His decision, same day: "i say we should actually show where
-                                    users money is going at the right time accurately." So the row
-                                    now SAYS which cycle each column belongs to. No number changes -
-                                    this is the missing sentence, not a different calculation.
-                                    Cycling only: a revolving card genuinely does reconcile, so a
-                                    line there would be noise on rows that never confused anybody. */}
-                                {(proj.card.paymentPreference === 'statement' || proj.card.paymentPreference === 'full') && row.endBalance > 0 && (
-                                  <span className="text-muted-foreground">
-                                    {`Payment settles ${shortMonthOf(proj.months[idx - 1]?.label) ?? 'last month'}'s statement; the ${formatCurrency(row.endBalance, false)} end balance is ${shortMonthOf(row.label) ?? 'this month'}'s purchases, billed ${shortMonthOf(proj.months[idx + 1]?.label) ?? 'next month'}`}
-                                  </span>
-                                )}
+                                {/* ⚠️ A SENTENCE STOOD HERE AND IT WAS REMOVED ON 2026-09-17,
+                                    THE SAME DAY IT SHIPPED, BECAUSE ITS PREMISE WAS FALSE.
+                                    It told the reader that the payment and the end balance were
+                                    "both already correct" and simply belonged to different
+                                    billing cycles. That is not true. The deferred model's own
+                                    algebra makes the row reconcile: with Start = S + B (statement
+                                    plus carried backlog), Payment P = p_s + p_b, and next cycle's
+                                    backlog B' = B + (S - p_s) - p_b,
+                                      End = purchases + B' = Start + purchases - P.
+                                    So End = Start + purchases + interest - Payment binds on a
+                                    cycling row exactly as hard as on a revolving one - measured
+                                    across four sim shapes, residual 0.00 in every row
+                                    (credit-card-engine.rowReconciliation.test.ts). Tre's row does
+                                    not satisfy it, so it is a DEFECT, not a presentational gap,
+                                    and the sentence was explaining a contradiction as though it
+                                    were deliberate. A wrong explanation of someone's own money is
+                                    worse than no explanation: it teaches them to stop trusting
+                                    their own arithmetic when their arithmetic was right.
+                                    He also asked for it to go - "it extends too far and it leaves
+                                    a lot of blank Space. i don't even think that necessary" - the
+                                    detail column is one third of a grid-cols-3 row, so at 390px
+                                    the sentence wrapped to roughly one word per line.
+                                    This does NOT reverse his earlier decision to "show where
+                                    users money is going at the right time accurately". The
+                                    accurate way to show it is numbers that add up; the underlying
+                                    non-reconciling row is tracked separately and is still open.
+                                    Do not restore this line - fix the numbers. */}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
                                 {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
                                 <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
