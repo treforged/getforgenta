@@ -19,6 +19,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Account from '../Account';
 
 const FRIEND = { userId: 'f1', label: 'Alex', linkId: 'l1' };
@@ -68,7 +69,16 @@ vi.mock('@/components/settings/FriendsLeaderboard', () => ({
   FriendsLeaderboard: () => <div data-testid="leaderboard">the board</div>,
 }));
 
-const renderAccount = () => render(<MemoryRouter><Account /></MemoryRouter>);
+// A QueryClientProvider is required, not decorative: the Find-someone field mounts
+// `UsernameSuggestions`, which calls `useQuery`. Without a provider React Query throws
+// "No QueryClient set" and every arm below - including the positive control - fails for a reason
+// that has nothing to do with the leaderboard. The real app has one provider at the root.
+const renderAccount = () =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter><Account /></MemoryRouter>
+    </QueryClientProvider>,
+  );
 const openLeaderboard = () => fireEvent.click(screen.getByRole('tab', { name: /Leaderboard/i }));
 
 afterEach(() => {
