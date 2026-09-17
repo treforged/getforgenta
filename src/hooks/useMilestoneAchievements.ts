@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/integrations/supabase/client';
 import { lookupMilestone } from '@/lib/milestone-achievements';
+import { ACHIEVEMENTS_QUERY_KEY } from '@/hooks/useAchievements';
 
 /**
  * Asks the server what this account has earned, and GRANTS anything newly earned in the same call.
@@ -59,6 +61,28 @@ export function useMilestoneAchievements(): { data: MilestoneProgress[]; loading
   });
 
   const rows = query.data ?? [];
+
+  /**
+   * ⚠️ WITHOUT THIS, A BADGE IS GRANTED AND THE PERSON DOES NOT SEE IT. Found by rendering the
+   * trophy case in a real browser, not by any unit test: the grant happens inside this query,
+   * but the EARNED badges are read by `useAchievements`, which has already resolved from cache by
+   * then. So the walk account went 0 -> 1 badges and the screen showed only the ten it had NOT
+   * earned - the one it just earned was invisible until some later refetch.
+   *
+   * That is the exact failure `achievements.ts` opens by describing: a reward you cannot go and
+   * look at is not much of a reward.
+   *
+   * Invalidated ONCE per newly-granted set rather than on every render, or the two queries
+   * refetch each other in a loop.
+   */
+  const qc = useQueryClient();
+  const announced = useRef('');
+  const earnedKey = rows.filter(r => r.earned).map(r => r.id).sort().join(',');
+  useEffect(() => {
+    if (!earnedKey || earnedKey === announced.current) return;
+    announced.current = earnedKey;
+    void qc.invalidateQueries({ queryKey: [ACHIEVEMENTS_QUERY_KEY] });
+  }, [earnedKey, qc]);
 
   return {
     data: rows.map(row => {

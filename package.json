@@ -38,6 +38,7 @@
     "check:onboarding-stay": "node scripts/check-onboarding-stay.mjs",
     "check:nav": "node scripts/check-nav-doors.mjs",
     "check:followers": "node scripts/check-followers.mjs",
+    "check:trophy-case": "node scripts/check-trophy-case.mjs",
     "check:panel-rows": "node scripts/check-panel-rows.mjs",
     "check:desktop-rail": "node scripts/check-desktop-rail.mjs",
     "check:text-scale": "node scripts/check-text-scale.mjs"
