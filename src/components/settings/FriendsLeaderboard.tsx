@@ -97,7 +97,14 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
 
       {noFriends && (
         <p className="text-xs text-muted-foreground">
-          No friends yet. Add one and you will both see how you are getting on here.
+          {/* ⚠️ "Add one" used to point at the add-a-friend form, which no longer exists - a
+              sentence telling somebody to use a deleted flow. And it never said the relationship
+              has to be MUTUAL: `active_friend_ids()` joins follows to itself and requires
+              `accepted` in BOTH directions, verified against the live definition, so a one-way
+              follower sees nothing here. Saying "follow each other" is the only wording that
+              matches who can actually see this board. */}
+          Nobody here yet. When you and someone else follow each other, you will both see how you
+          are getting on.
         </p>
       )}
 

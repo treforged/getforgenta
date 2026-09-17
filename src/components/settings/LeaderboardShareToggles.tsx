@@ -105,7 +105,11 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
                 checked={sourced && on}
                 disabled={readOnly || !sourced || setEnabled.isPending}
                 onPress={() => setEnabled.mutate({ metric: m.id, enabled: !on })}
-                label={`Share ${m.label} with friends`}
+                // ⚠️ NOT "with followers". Sharing here is governed by `active_friend_ids()`, which
+                // requires a MUTUAL follow - somebody who follows you without being followed back
+                // sees nothing. On a control that publishes one person's financial progress to
+                // another, naming the wrong audience is the expensive kind of wrong.
+                label={`Share ${m.label} with people you follow back`}
               />
             </div>
           </div>

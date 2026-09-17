@@ -87,7 +87,7 @@ export function UsernameClaim({ readOnly = false }: { readOnly?: boolean }) {
     return (
       <div className="flex items-center gap-2 text-xs">
         <Check size={12} className="text-success shrink-0" />
-        <span className="text-muted-foreground">Friends can add you as</span>
+        <span className="text-muted-foreground">People can find you at</span>
         <span className="font-medium truncate">@{current}</span>
         {!readOnly && (
           <button

@@ -88,10 +88,15 @@ describe('FriendsLeaderboard - the empty room', () => {
     expect(screen.getAllByText('Private')).toHaveLength(2);
   });
 
-  it('tells someone with NO friends that they have none, not that one of them is sharing', () => {
+  it('tells someone with NOBODY that they have nobody, not that one of them is sharing', () => {
     state.friends = [];
     renderBoard();
-    expect(screen.getByText(/no friends yet/i)).toBeTruthy();
+    expect(screen.getByText(/nobody here yet/i)).toBeTruthy();
+    // ⚠️ PINS THE MUTUAL REQUIREMENT, which the old copy never stated. The board is governed by
+    // `active_friend_ids()`, whose follows arm joins follows to itself and demands `accepted` in
+    // BOTH directions - so a one-way follower sees nothing. The previous wording also told people
+    // to "add one", which pointed at the add-a-friend form that no longer exists.
+    expect(screen.getByText(/follow each other/i)).toBeTruthy();
     expect(screen.queryByText(/nothing to compare yet/i)).toBeNull();
     expect(screen.queryByText(/nobody is sharing/i)).toBeNull();
   });

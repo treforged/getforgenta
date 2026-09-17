@@ -63,7 +63,7 @@ describe('LeaderboardShareToggles', () => {
 
   it('turning one ON requests exactly that metric, enabled true', () => {
     render(<LeaderboardShareToggles />);
-    fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
+    fireEvent.click(screen.getByLabelText('Share Savings goal progress with people you follow back'));
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate).toHaveBeenCalledWith({ metric: 'goal_progress', enabled: true });
   });
@@ -74,7 +74,7 @@ describe('LeaderboardShareToggles', () => {
     // ⚠️ THE LABEL NAMES THE SETTING, NOT THE ACTION, and does not flip with state: a switch
     // announces its own on/off through `role` + `aria-checked`, so a label that also flipped
     // would say the opposite of what the control reports.
-    fireEvent.click(screen.getByLabelText('Share Savings streak with friends'));
+    fireEvent.click(screen.getByLabelText('Share Savings streak with people you follow back'));
     expect(mutate).toHaveBeenCalledWith({ metric: 'savings_streak', enabled: false });
   });
 
@@ -102,7 +102,7 @@ describe('LeaderboardShareToggles', () => {
 
   it('cannot be pressed while read-only', () => {
     render(<LeaderboardShareToggles readOnly />);
-    fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
+    fireEvent.click(screen.getByLabelText('Share Savings goal progress with people you follow back'));
     expect(mutate).not.toHaveBeenCalled();
   });
 });
@@ -133,7 +133,7 @@ describe('metrics the app cannot measure', () => {
 
   it('refuses the press, so nobody can switch on something that would stay empty', () => {
     render(<LeaderboardShareToggles />);
-    fireEvent.click(screen.getByLabelText('Share Debt paid down with friends'));
+    fireEvent.click(screen.getByLabelText('Share Debt paid down with people you follow back'));
     expect(mutate).not.toHaveBeenCalled();
   });
 
@@ -145,7 +145,7 @@ describe('metrics the app cannot measure', () => {
   it('⚠️ LEAVES THE SOURCED METRICS FULLY WORKING — the control', () => {
     // Without this, disabling everything would pass all three cases above.
     render(<LeaderboardShareToggles />);
-    fireEvent.click(screen.getByLabelText('Share Savings goal progress with friends'));
+    fireEvent.click(screen.getByLabelText('Share Savings goal progress with people you follow back'));
     expect(mutate).toHaveBeenCalledWith({ metric: 'goal_progress', enabled: true });
   });
 });
