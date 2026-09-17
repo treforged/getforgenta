@@ -1,5 +1,42 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ RESUME QUEUE - START HERE. WORK IS PARKED ON A BRANCH.
+
+Tre, 2026-09-17: **"friends should be followers and following just like instagram. it should
+only be on that tab."** That work is **half-done and parked on `followers-consolidation-wip`**
+(commit on origin, 0/0). **`main` is green and untouched.**
+
+🚨 **THE MIGRATION IS ALREADY APPLIED TO THE LIVE DATABASE.** The SQL file and the DB agree;
+only the UI half is unfinished. **Do not re-apply it. Do not assume it is pending.**
+Undo is at the bottom of `supabase/migrations/20260917_follows_become_the_friend_graph.sql`.
+
+1. [ ] **CHECK OUT THE BRANCH AND MAKE 14 TESTS TELL THE NEW TRUTH.**
+       `git checkout followers-consolidation-wip` - then the three files below. They assert the
+       OLD information architecture (the friends card in the Account tab's PROFILE section), which
+       Tre has just changed. **REWRITE them to assert the NEW arrangement; do NOT delete the
+       assertions** - a test that asserts only an absence is satisfied by the feature being dead,
+       which this repo has already been bitten by.
+       * `src/pages/__tests__/Account.leaderboardReachable.test.tsx` (6)
+       * `src/pages/__tests__/Settings.securityControls.test.tsx` (3)
+       * `src/lib/__tests__/settings-ia.gate.test.ts` (1, a SOURCE scan for `<FriendLink />` in
+         `Account.tsx` - it is now mounted inside `FollowersPanel` instead)
+       Then: full suite, `npm run check:followers`, and merge to main.
+
+2. [ ] **MEASURE THE OUTSTANDING FRIEND INVITES - I COULD NOT, AND IT DECIDES A DELETION.**
+
+           select count(*) filter (where accepted_at is null and revoked_at is null and expires_at > now())
+             from public.friend_links;
+
+       **If that is 0, the whole friend-link flow can be deleted** - `FriendLink.tsx`,
+       `useFriendLink.ts`, and the `friend-link` edge function - because `active_friend_ids()`
+       honours already-accepted links server-side regardless. **If it is not 0, leave it mounted**:
+       its emails land on `/account?friend_code=` and `FriendLink` is what reads that parameter,
+       so unmounting it makes every outstanding invite silently do nothing. I kept it mounted as
+       the conservative reading, on the Followers tab, which still satisfies "only on that tab".
+
+3. [ ] **THE FOLLOWERS UI IS IN NO BUILD.** `0e56306c` landed after iOS 870 was dispatched.
+       Batch it with the branch work into ONE dispatch; Apple caps uploads per app per day.
+
 ## FIRST UP - 2026-09-17 (Ada, THIRTEENTH session). TWO LIVE BUGS FROM TRE, BOTH FIXED AND SHIPPED.
 
 He was awake and testing on iOS 866 throughout. Both reports came in mid-session with screenshots.
