@@ -1,6 +1,71 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-THIRD session). START AT ITEM 1.
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FOURTH session). START AT ITEM 1.
+
+⚠️ **TRE IS AWAKE AND TESTING, AND HE HAS CORRECTED THE SAME THING TWICE TODAY: A DESK DOES
+NOT STOP WHILE IT HAS UNBLOCKED WORK.** Decision `22d44c34`. *"you should always be striving to
+improve the app"* - an exhausted RESUME QUEUE is not an exhausted DESK. Sam is building a Stop
+hook so he sends you an update and Sam re-prompts; **perform the behaviour whether or not the hook
+exists yet** - message Sam your update AND what you want to work on next, then keep working
+without waiting for his answer.
+
+1. [~] 🔴 **FIRST UP - PART 3 OF HIS ACHIEVEMENTS ASK `f932a210`, IN FLIGHT.**
+   Parts 1 and 2 SHIPPED (`df59cc52`): the trophy case is off the Dashboard Overview and is now the
+   **Achievements** segment of `/account`, after Leaderboard. Part 3 is *"add to leaderboard the
+   ranking of people based on how many achievements they have"*.
+   **WHERE I HAD GOT TO:** the leaderboard has a METRIC CATALOGUE at
+   `src/lib/leaderboard-metrics.ts` - union `'goal_progress' | 'savings_streak' | 'debt_payoff' |
+   'budget_adherence'` plus `UNSOURCED_METRICS`. **READ THAT FILE'S HEADER BEFORE WRITING A LINE.**
+   It states the rule this work must obey: **"Dropping a metric from this list and wiring it must
+   always be ONE commit"** - split them and a switch appears in front of somebody with nothing
+   behind it, which is the defect that list exists to prevent.
+   **THE DATA PATH IS PUBLISH-YOUR-OWN, which is why this is tractable:** `leaderboard_snapshots`
+   holds a bucket per user/metric/week, written by `src/hooks/useLeaderboardPublisher.ts` and read
+   by `src/hooks/useFriendLeaderboard.ts` under RLS policy `leaderboard_snapshots_select_friend`.
+   So achievements needs **no new RLS on `public.achievements`** - the user counts their OWN
+   badges and publishes the count, exactly as `goal_progress` does.
+   **NEXT COMMAND, which is where I was blocked by the handoff gate:** read the snapshot table's
+   shape - `select column_name, data_type from information_schema.columns where
+   table_name='leaderboard_snapshots'` - then check `isPublishableBucket` (same file, ~line 196)
+   for how a raw figure becomes a publishable bucket. A COUNT is a different shape from the
+   percentages already there; decide the bucketing deliberately rather than reusing a percentage
+   bucket.
+   ⚠️ **FOLLOWER-MILESTONE BADGES ALREADY EXIST** - `check:trophy-case` catalogued
+   "First follower, 5 followers, 10 followers, Following, Following 5" on screen. His earlier ask
+   for those is satisfied; do not rebuild them.
+
+2. [ ] 📱 **CONFIRM THE iOS BUILD REACHED TESTFLIGHT - run `35271194595`, dispatched
+   2026-09-17 20:30Z.** It carries `df59cc52` (the achievements move), which he will look for.
+   **READ THE UPLOAD STEP'S OWN CONCLUSION, NEVER THE RUN'S** - `gh run view 35271194595 --json
+   jobs` and require step *"Upload to App Store Connect"* to read `success`, not `skipped`. It was
+   dispatched via `workflow_dispatch` precisely so that step runs; the PUSH run beside it
+   (`35271122420`) will build and SKIP the upload, and reporting ITS build number would be the
+   documented trap. Then read altool's own *"UPLOAD SUCCEEDED with no errors"*, and check any
+   90382 hits are echoed script source rather than real output. **An upload is not an install.**
+
+3. [ ] 🧪 **ADOPT THE CAPTURE - ONE JUDGEMENT LEFT, RE-PINS ALREADY MEASURED.** Ask
+   `5409ffbc`. Adopt **`STATEMENT-2026-09-17`, never `FRESH`**. Apply: `floorDeficit` shock
+   **3000 -> 500**; `floorFlicker` shock **8000 -> 2000** and its hardcoded **`ABSORBED = 3000 ->
+   ~840`**. Both are capacity facts, swept and recorded below. The remaining judgement is whether
+   to re-pin `realData`'s payoff `Sep 2028 -> Apr 2029`, which is **UNEXPLAINED** - see the
+   baseline in item 2's block below before deciding, and note I retracted two attributions of it.
+
+4. [ ] 📉 **A REAL FINDING FOR TRE, NOT A TEST FACT, AND NOBODY HAS TOLD HIM THE SECOND
+   HALF.** Ask `5db705de`. His card debt has gone **$10,591 (07-03) -> $19,311 (09-17)**, +82%,
+   while projected months-to-payoff went **11 -> 31**. And his absorbable April shock has fallen
+   from **$3,000 to under $840** in sixteen days (ask `5409ffbc`). Both are measured from his own
+   captures. **This is the product doing its job; consider surfacing it IN the app rather than
+   only in a ledger.**
+
+5. [ ] 🧹 **`zz-diagnostic.robinhoodNextPayment.test.ts` is still named like scratch and is
+   not** - 7 real assertions. Renaming it is a separate, riskier change than the deletion already
+   done (`e5baef36`); do it deliberately or leave it.
+
+<details><summary>TWENTY-THIRD session's queue - SUPERSEDED. Every survivor is restated above.</summary>
+
+### (superseded) RESUME QUEUE - 2026-09-17 (Ada, TWENTY-THIRD session). START AT ITEM 1.
+
+
 
 ✅ **SHIPPED THIS SESSION**, newest last:
 - **`fa896f1a` - HIS due-date ordering point.** A full-balance payment now targets
@@ -263,6 +328,8 @@
    `e24d415b` measured his row through the real hook and it reads correctly, but that is a model
    reading, not a rendered frame. **Minting a session for his account to screenshot it is
    impersonation, not verification** - the original refusal was right and stands.
+
+</details>
 
 <details><summary>TWENTY-SECOND session's queue - SUPERSEDED. Every survivor is restated above.</summary>
 
