@@ -1,5 +1,70 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, NINETEENTH session). START AT ITEM 1.
+
+**TRE IS AWAKE AND TYPING INTO THIS DESK.** The eighteenth session handed over mid-conversation
+because the handoff gate fired on session LIFETIME (198 calls), not because the work stopped.
+Everything below is either a pointer or a decision he is holding.
+
+1. [ ] 🔴 **TELL HIM THE gh TOKEN IS DEAD AND GET IT BACK - NOTHING SHIPS UNTIL HE DOES.**
+   `gh auth status` reads *"The token in default is invalid."* It WORKED at 06:44 in the same
+   session, so it expired mid-flight. **BLOCKED:** `gh workflow run` (HTTP 401) and `gh run view
+   --log` (HTTP 403 "Must have admin rights"). **NOT BLOCKED:** `git push` (SSH) - everything is
+   on origin, 0/0.
+   **THE CONSEQUENCE: VERSION 6.7.0 IS ON ORIGIN AND NO BUILD CARRIES IT**, because a push builds
+   and never uploads here. Fix is his hands: `gh auth login -h github.com` (he can type it with a
+   leading `!` in Claude Code). **The moment it is back:**
+       gh workflow run "iOS Build & Upload to App Store" --ref main
+   then read **step 20's own conclusion** (`success`, never `skipped`) AND altool's
+   `UPLOAD SUCCEEDED with no errors` - the step swallows Apple's 90382 cap error into a warning
+   and still exits green.
+
+2. [ ] 📨 **REPLY TO OTTO - I COULD NOT.** `ToolSearch` was blocked by the gate before I
+   could load `SendMessage`. His reel items are filed as ask `663274d7` with the measurements; the
+   headline he needs back is that **item 3 (paywall during onboarding) IS ALREADY BUILT** and the
+   other four are all in Tre's App Store Connect console, so nothing there is a code change.
+   His brief: `claudecontext/reel-routine/outbox/2026-09-17_marketing-brief.md`.
+
+3. [ ] 💵 **THE SEPTEMBER PURCHASES QUESTION - HIS, AND THE BIGGEST OPEN ONE** (`dbdc6d54`
+   presentation half, `ec4c1a2b` data half). Both are measured and waiting on HIS design call; see
+   the two sections below. **The measured number is $50** (Eating Out, due 28 September), invisible
+   in the row, the balance and the obligation.
+
+4. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED**, see the section
+   below. Nothing renders `<FriendLink />`; the `?friend_code=` landing is alive on purpose;
+   re-measure the 0 live unaccepted rows before deleting; keep `active_friend_ids()`.
+
+5. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT**
+   (`f22f17b1`, and Sam's `8a202850`).
+
+### What the EIGHTEENTH session shipped, all pushed and verified by CONTENTS (0/0)
+
+| commit | what |
+| --- | --- |
+| `08bcdfa8` | "always pay in full" holds in EVERY month, with a per-month shortfall |
+| grace fix | a card paid in full accrues NO interest - **this was his "gap"** |
+| limit fix | /debt states the credit limit once, gated by a rendered frame |
+| pin test | a split rank already sends spare money where it saves the most |
+| label+guide | "up to 50%", a new Guide section, **VERSION 6.6.0 -> 6.7.0** |
+
+**Gates on the last run: tsc clean, lint 0 errors (32 pre-existing warnings), `test:tz` 4815
+passed across 479 files in three timezones - UP from 4791/475 at session start, so nothing was
+silently dropped.** Every fix proven RED and restored byte-exact by sha256.
+
+### ⚠️ FOUR THINGS THIS SESSION LEARNED THE HARD WAY - DO NOT RE-DERIVE
+
+* **"Already built" was true FOUR times** (Account IA, the savings-most-money allocation, the
+  onboarding paywall, and the pace's self-correction). **Grep for the caller before building.**
+* **A cycling card does NOT "already pay in full" in a tight month.** My first draft of the
+  unconditional pin excluded `paidOffCards` on that premise and reproduced Tre's exact complaint
+  one month later (months 2-5 paid 50 against 200/353.75/511.34/672.87 owed).
+* **`useCardProjection` classified revolving-vs-cycling from the SIM'S OWN post-payment balance**,
+  which went circular the moment the sim learned about the setting. Now the LIVE balance.
+* **`$?` after a pipe is the PIPE's status.** A check-debt-limits run that plainly FAILED reported
+  `exit=0` through a pipe. Capture exit codes without one.
+
+<details><summary>Eighteenth session's queue, superseded</summary>
+
 ## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, EIGHTEENTH session). START AT ITEM 1.
 
 **ITEMS 1 AND 2 OF THE SEVENTEENTH QUEUE ARE DONE.** Evidence in the ledger
@@ -188,6 +253,8 @@ step `skipped`, and the upload step itself swallows Apple's 90382 cap error into
 still exits green, so the only sufficient evidence is altool's `UPLOAD SUCCEEDED with no errors`
 appearing in the OUTPUT rather than in an echoed source line. It carries all three of this session's money fixes plus `aaf33b9e` (phantom income). **Do not tell Tre it is on his phone until that
 step is read.**
+
+</details>
 
 ### What the EIGHTEENTH session did, with evidence
 
@@ -6187,7 +6254,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 03:04 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 03:37 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6203,14 +6270,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+68d382da [handoff]: the gh token expired mid-session - 6.7 is on origin and in no build
+8ee82275 [goals]: the label and the guide now say where the spare money goes; VERSION 6.7.0
+9104f1da [goals]: pin that a split rank already sends spare money where it saves the most
+45c4fcf9 [goals]: the level pace already back-loads itself - the ramp only buys a peak month 2.7x worse
 23a55a1a [handoff]: the missing September purchase is $50 and has a name; the pace profile measured on his real goal
 a5cc6e6b [handoff]: the first iOS run was cancelled by a later push; re-dispatched as 35192375715
 f31d51db [handoff]: the grace fix, the duplicate limit, and why his October row is a presentation problem rather than an arithmetic one
 a3da382d [debt]: the credit limit is stated once, not twice
-e321c9fc [debt]: a card paid in full accrues no interest - and that WAS the gap
-25a2bc1d [handoff]: account IA was already built and gated; the iOS run is dispatched and UNVERIFIED
-d8d6d7f1 [handoff]: eighteenth session - the always-pay-in-full obligation holds in every month, and two defects my own change had first
-08bcdfa8 [debt]: "always pay in full" holds in EVERY month, and the gap is reported
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
