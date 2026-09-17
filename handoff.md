@@ -1,43 +1,11 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, SEVENTEENTH session). START AT ITEM 1.
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, EIGHTEENTH session). START AT ITEM 1.
 
-**TRE IS AWAKE AND TYPING INTO THIS DESK RIGHT NOW.** He is testing on localhost and reporting
-money defects in real time. The previous session was stopped by the handoff gate mid-reply, so
-ITEM 1 IS SOMETHING HE ASKED FOR AND DID NOT GET.
+**ITEMS 1 AND 2 OF THE SEVENTEENTH QUEUE ARE DONE.** Evidence in the ledger
+(`1804acf7`, `88acfa0f`) and in commit `08bcdfa8`. What follows is what is left.
 
-1. [ ] 🚨 **MOVE HIS OWNERS CONTRIBUTION TO THE 4th - ONE QUERY, HE APPROVED IT, IT WAS BLOCKED.**
-   His words: *"owners contribution to the fourth is fine. Am I able to do it on October 4? Is that
-   the plan?"* **Answer him yes, and say the plan**: the first occurrence is **4 October**, and the
-   $10.03 already in General Operations covers the $7 Google Workspace on 1 October, so nothing
-   misses. Claude's $100 on the 6th is the deadline the 4th is chosen for.
-
-       update public.recurring_rules set due_day = 4, start_date = '2026-10-04'
-        where id = 'e716c838-82e4-4ce9-9b32-38d4b8b7be49' and due_day = 29;
-
-   **UNDO:** `set due_day = 29, start_date = '2026-09-29'`. The amount is already $145 (done).
-
-2. [ ] 🚨 **HE APPROVED THE BIG ONE: "ALWAYS PAY IN FULL" MUST HOLD IN EVERY MONTH, WITH A
-   PER-MONTH SHORTFALL** (ask `88acfa0f`). His words: *"I like your recommendation."* And he then
-   corroborated it himself: *"looking at the debts tab it doesn't seem like Robinhood is being paid
-   at all when I look at the drop-down and even the chart shows like it's not being paid at all."*
-   **MEASURED, his card shape, frozen 2026-09-17 clock** (unconditional, preference `full`,
-   `firstDueDate` 2026-10-10, against a competing $6,000 balance):
-
-       cash-RICH month   ->  [0, 222.33, 0]   correct
-       cash-TIGHT month  ->  [0, 50, 50]      $50 a month forever; tighter gives $0
-
-   `unconditionalDesired` has exactly **two** callers and **both settle month 0** - so from month 1
-   the sim treats it as an ordinary revolving card, and **his `min_payment` is 0**, so the cascade
-   decides and in a tight month decides nothing. That is the empty chart he is looking at.
-   ⚠️ **DO NOT SHIP HALF OF IT.** Making the amount mandatory every month WITHOUT extending the
-   shortfall report silently starves other cards in tight months - the same lie pointed the other
-   way. Sam's month-0 ruling is the model: the obligation wins AND the gap is reported.
-   **Start at** `src/lib/credit-card-engine.ts` - the minimum-enforcement guard around line 2082
-   and `cascadeTarget` at 1844 - plus `src/lib/unconditional-payment.ts`, and carry the shortfall
-   per month the way `perCardAdjusted` carries it for month 0.
-
-3. [ ] 💸 **WIRE THE BACK-LOADED PACE - THE ARITHMETIC IS BUILT, TESTED AND WIRED NOWHERE**
+1. [ ] 💸 **WIRE THE BACK-LOADED PACE - THE ARITHMETIC IS BUILT, TESTED AND WIRED NOWHERE**
    (`src/lib/back-loaded-pace.ts`, 11 tests, 3 mutations, all green). His rule: the nearer-due
    target takes more early to cut interest, the far-out goal takes less early and **more later**,
    and **both must still hit their targets**.
@@ -51,7 +19,7 @@ ITEM 1 IS SOMETHING HE ASKED FOR AND DID NOT GET.
    **Acceptance must assert BOTH targets are still met** - an arm that only checks the card is
    satisfied by starving the goal.
 
-4. [ ] 👥 **ACCOUNT TAB IA (ask `004dd8d2`).** Tre, 2026-09-16 23:44: *"the friend section
+2. [ ] 👥 **ACCOUNT TAB IA (ask `004dd8d2`).** Tre, 2026-09-16 23:44: *"the friend section
    shouldn't exist anymore. Move it back up. The following tab and profile tab can be combined now.
    put what's on the followers tab below what's the partner linking that's on the profile tab. Keep
    the username in change section at the top."* Order: username/change, partner linking, then
@@ -59,11 +27,37 @@ ITEM 1 IS SOMETHING HE ASKED FOR AND DID NOT GET.
    exactly `["Profile","Leaderboard","Forgenta AI"]` and that both `Followers` and `Following`
    headings render - to assert the ORDER. Do not write a second gate.
 
-5. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED**, see the section below. Nothing
+3. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED**, see the section below. Nothing
    renders `<FriendLink />`; the `?friend_code=` landing is alive on purpose; re-measure the 0 live
    unaccepted rows before deleting; keep `active_friend_ids()`.
 
-6. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT** (`f22f17b1`).
+4. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT** (`f22f17b1`).
+
+### What the EIGHTEENTH session did, with evidence
+
+* **His Owners Contribution moved to the 4th** (`1804acf7`). `recurring_rules`
+  `e716c838-82e4-4ce9-9b32-38d4b8b7be49` reads due_day 4, start_date 2026-10-04, amount 145.
+  **UNDO:** `set due_day = 29, start_date = '2026-09-29'`. All three premises of the answer he was
+  given were MEASURED, not relayed: General Operations 10.03, Google Workspace 7 on day 1, Claude
+  100 on day 6.
+* **"Always pay in full" now holds in EVERY month, with the gap reported** - `08bcdfa8`, pushed and
+  verified by CONTENTS (marker 5, positive control 13, negative control 0, rev-list 0/0).
+  Registered as a **PIN**, not a second mechanism. `SimResult.monthlyUnconditionalShortfall`
+  carries the per-card per-month gap; `unconditionalShortfallWarning` is the one wording.
+  Gate: `src/lib/__tests__/credit-card-engine.unconditionalEveryMonth.test.ts`, 6 arms.
+  ⚠️ **TWO DEFECTS WERE FOUND IN THAT CHANGE BY MEASURING IT, AND BOTH ARE WORTH KNOWING:**
+  - **"A cycling card already pays in full" is FALSE in a tight month.** The first draft excluded
+    `paidOffCards` on that premise; probed, months 2-5 paid 50 while the card owed 200, 353.75,
+    511.34, 672.87 - **Tre's exact complaint, reproduced one month later by the fix meant to end
+    it.** The pin now covers the cycling branch across both pools.
+  - **`useCardProjection` classified revolving-vs-cycling from the SIM'S OWN post-payment balance**,
+    which became a circular test the moment the sim learned about the setting: the card was cleared
+    in month 0, fell out of the settlement, and its payment came back 2037 with
+    `unconditionalShortfall` **undefined** - the gap label gone from the array both screens render.
+    Now selected on the **live** balance, which the payment cannot change.
+  - **The first version of arm A was a rich fixture and proved nothing** - a rich month clears the
+    card in month 0, which turns it cycling and pays it in full for reasons unrelated to the
+    setting. The fixture is TIGHT on purpose.
 
 ### Standing facts this session established - do not re-derive
 * **iOS 888 is in TestFlight** (run `35186607590` gave 886; `35187719512` gave **888**, upload step
