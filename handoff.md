@@ -4,13 +4,27 @@
 
 He was awake and testing on iOS 866 throughout. Both reports came in mid-session with screenshots.
 
-🚀 **iOS BUILD 870 DISPATCHED** - run `35173912269`, `workflow_dispatch`, head `c1217e81`.
-It carries BOTH fixes below. **Verify it through all three gates, never the run's conclusion:**
+✅ **iOS BUILD 870 IS IN TESTFLIGHT** - run `35173912269`, `workflow_dispatch`, head `c1217e81`.
+**Verified through all three gates, not one:** the RUN reads `success` (necessary, NOT sufficient);
+step 20 `Upload to App Store Connect` reads **`success`, never `skipped`**; and altool's own
+**`UPLOAD SUCCEEDED with no errors`** appears once. `90382` appears 3 times and **all three carry
+the echoed-command escape prefix**, so they sit in the script SOURCE, none in output - the cap
+branch did not fire. It carries BOTH bug fixes.
+
+⚠️ **THE FOLLOWERS WORK (`0e56306c`) IS NOT IN 870** - it landed after the dispatch. It needs the
+next build, and **Apple caps uploads per app per day**, so do not dispatch a second one tonight
+without a reason. **Do not tell him the followers UI is on his phone.**
+
+<details><summary>the dispatch instructions, kept</summary>
+
+**Verify it through all three gates, never the run's conclusion:**
 the run reads `success` on a push while the upload step reads `skipped`, and the upload step
 itself swallows Apple's cap error 90382 into a warning and still exits green.
 
     gh run view 35173912269 --json jobs   # step "Upload to App Store Connect" must read success
     gh run view 35173912269 --log | grep -c 'UPLOAD SUCCEEDED with no errors'
+
+</details>
 
 ⚠️ **AN UPLOAD IS NOT AN INSTALL.** TestFlight still processes and he still has to update.
 
@@ -56,27 +70,35 @@ itself swallows Apple's cap error 90382 into a warning and still exits green.
    gate, `/accounts` rendered "Your session has ended" before auth had hydrated, which is the
    same shape. **Not confirmed. Do not write it up as the cause without measuring it.**
 
-### THE FOLLOWERS WORK - ITEM 3 - IS PART-BUILT AND NOT COMMITTED
+### THE FOLLOWERS SYSTEM IS SHIPPED - `0e56306c` (item 3 is DONE)
 
-* **`94b343e0` SHIPPED:** `revoke execute ... from anon` on both follow RPCs. Measured why the
-  original migration's `revoke ... from public` did not cover it: `anon=X/postgres` is a DIRECT
-  grant from Supabase's default privileges, and revoking from PUBLIC does not touch it. anon now
-  gets `401 42501 permission denied` where it previously got a body-level refusal. Advisor's
-  `anon_security_definer_function_executable` went 3 -> 1, survivor is the pre-existing
-  `enforce_username_change_limit`. **The `authenticated` half still flags and that is correct.**
-* **UNCOMMITTED IN THE TREE:** `src/hooks/useFollows.ts` and `src/hooks/useAccountVisibility.ts`
-  (both tsc + lint clean, built by the free tier, reviewed and corrected - the executor wrote
-  react-query v4 and an early `return` that broke the Rules of Hooks; both fixed), plus the
-  additive `src/integrations/supabase/types.ts` entries for `follows`, `profiles.visibility` and
-  the two RPCs. **They have NO CALLERS yet**, which is why they are not committed.
-* **`FollowersPanel.tsx` IS DRAFTED BUT NOT INSTALLED** - the free-tier output is in the session
-  scratchpad (`out-ui.keep.txt`). It was parked to take Tre's two live bugs first.
-* **DESIGN DECISION ALREADY TAKEN, do not re-derive it:** the visibility switch goes in
-  **Settings**, not Account. `Account.tsx`'s own comment records the division - Settings is where
-  you MANAGE, Account is where you LOOK. Use the shared `ToggleSwitch` (`role="switch"`); there is
-  a one-switch gate and a second implementation will trip it.
-* **STILL TRUE:** do NOT wire follows into `leaderboard_snapshots_select_friend`. That widens who
-  can read another person's money data and is its own migration with its own review.
+A Followers section on the Account tab: find by username, follow, approve, decline, remove,
+unfollow, cancel a sent request, and the public/private switch at the top of it.
+`npm run check:followers` walks it in a real browser, signed in, at 390x844 - the switch really
+flips `aria-checked` false -> true -> false, which is a write through RLS to Supabase and back.
+Proven red on the dead-control defect, restored byte-exact.
+
+⚠️ **FOUR THINGS THAT ARE NOT DONE, and none of them is implied by "shipped":**
+1. **THE LISTS SHOW NO NAMES.** A follow row carries only user ids and there is no server-side
+   resolver, so every row reads `A Forgenta member #<8 chars>`. **This is the next slice.**
+   A bare uuid or an invented name would both be worse, which is why it ships this way.
+2. **FOLLOWS GRANT NO MONEY DATA.** `leaderboard_snapshots_select_friend` is untouched and still
+   reads `active_friend_ids()`. Its own migration, its own review. Do not bundle it.
+3. **THESE COMPONENTS HAVE NO UNIT TESTS** - the suite count did not move (467/4740 before and
+   after). The browser walk IS their gate, and jsdom cannot see any of what it checks.
+4. **APPROVE/DECLINE IS NOT EXERCISED END TO END.** It needs a second real account with a pending
+   row. The handler is wired; nobody has watched it work.
+
+⚠️ **TWO GATES CAUGHT MY OWN DECISIONS, AND BOTH WERE RIGHT - do not undo either:**
+* The visibility switch was first mounted in the Connections card beside the sharing toggles.
+  **`FriendLink` is contractually DB-FREE** and its own test throws if it queries; four suites
+  went red. It now lives at the top of the Followers panel, which already queries. **Do not move
+  it back, and do not re-aim `check-followers.mjs` at the Profile section without moving it.**
+* The style ratchet counted a 37th surface for `className={FIELD_INPUT}` - the right STYLE. It
+  signs a call site by **EXPRESSION FORM** (`VAR:FIELD_INPUT`), so a shared constant in a
+  syntactic form no other call site uses reads as new. **That is a real blind spot in that gate.**
+  Fixed by building the field in `UsernameClaim`'s wrapper+bare-input shape, which it should have
+  been anyway. **The ceiling was NOT raised.**
 
 <details><summary>TWELFTH session's FIRST UP, superseded</summary>
 
@@ -5256,35 +5278,7 @@ the `seg-item` utility rather than by renaming a label.
 3. [ ] **Look at `push_registration_status` again if he reopens 866** - the probe only runs on
    the `timeout` path, so a reading needs the app in the FOREGROUND for ~20s.
 
-<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
-## Auto-snapshot
 
-_Written 2026-09-16 21:52 by handoff_hook. Everything below this heading is
-machine-generated and replaced each time; put durable notes above it._
-
-- **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
-
-- **Uncommitted (1 file(s)):**
-
-```
-?? scripts/handoff.md
-```
-
-- **Recent commits:**
-
-```
-92aa1631 [handoff]: net=up arrived, and the queue is the follower system
-0e32e841 [a11y]: the type scale follows the device text size, and a gate proves it moves
-121c000f [demo]: a native launch never opens in demo mode
-ca62518f [test]: read the seg-item block to its brace, not to a magic 600 characters
-66eddd45 [handoff]: /account's pill fits too, and why it is not on a build tonight
-02155cee [design]: the last pill that did not fit a phone now fits, and the gate says so
-1a6b5e57 [handoff]: auto-snapshot refresh
-4a4c2e56 [docs]: name check:desktop-rail, and correct the uploads-today premise
-```
-
-<!-- AUTO-SNAPSHOT:END -->
 
 ## 2026-09-16 ~22:00 - Ada [ffdc831d] hand-off. THE FOLLOW GRAPH IS APPLIED BUT UNCOMMITTED.
 
@@ -5389,3 +5383,36 @@ in reverse order.
 followers/following UI) is the next build and has NOT been started.
 
 </details>
+
+<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
+## Auto-snapshot
+
+_Written 2026-09-16 22:20 by handoff_hook. Everything below this heading is
+machine-generated and replaced each time; put durable notes above it._
+
+- **Branch:** `main`
+- **vs upstream:** 0 ahead, 0 behind
+
+- **Uncommitted (4 file(s)):**
+
+```
+M src/integrations/supabase/types.ts
+?? scripts/handoff.md
+?? src/hooks/useAccountVisibility.ts
+?? src/hooks/useFollows.ts
+```
+
+- **Recent commits:**
+
+```
+3261d2e8 [handoff]: two live bugs from Tre, both fixed, both in build 870
+c1217e81 [fix]: an account name is never truncated, at any text size
+3e763fa9 [fix]: a signed-out user was told they were in "Demo mode"
+94b343e0 [security]: the follow RPCs refuse anon at the GRANT, not only in the body
+970468d5 [handoff]: the security advisor ran, and both new RPCs refuse anon
+4e45b965 [social]: the follow graph and account visibility, applied and additive
+92aa1631 [handoff]: net=up arrived, and the queue is the follower system
+0e32e841 [a11y]: the type scale follows the device text size, and a gate proves it moves
+```
+
+<!-- AUTO-SNAPSHOT:END -->
