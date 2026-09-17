@@ -1012,13 +1012,39 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         )}
         {groupedAccounts.map(group => {
         const groupIds = group.rows.map(r => r.id);
+        /**
+         * ⚠️ A GROUP OF ONE GETS NO HEADING — ITS INSTITUTION MOVES ONTO THE ROW.
+         *
+         * Tre, on this tab: *"there's a lot of information there which could be cleaned up and it
+         * just seems like a overwhelming amount that the user really doesn't need to see upfront."*
+         *
+         * MEASURED on his own 16 active accounts BEFORE anything was changed, because the obvious
+         * culprit was the wrong one. The meta line below concatenates up to EIGHT facts, which
+         * makes it look like the overload in source — but it averages **2.94 facts per row, max
+         * 5**, and `Since <apr_start_date>` renders on **ZERO** of his rows. Trimming it would
+         * have fixed a problem he does not have, and every field there has a recorded reason.
+         *
+         * What he actually has is **16 rows spread over 10 GROUPS — sizes 4,2,2,2,1,1,1,1,1,1 —
+         * so SIX groups hold exactly one account.** The tab was rendering 26 blocks, and six of
+         * those were a heading, a count and a divider introducing a single row. That is chrome,
+         * not data, and it is what made the list feel long.
+         *
+         * ⚠️ NOTHING LEAVES THE SCREEN. The comment on the meta line says the institution is
+         * deliberately NOT repeated on a row *because the heading above carries it* — so when the
+         * heading goes, the row must carry it, or this would be deleting a fact to look tidier,
+         * which this repo does not do. The count is the only thing dropped, and a count of "1"
+         * beside a single visible row states what the row already shows.
+         */
+        const solo = group.rows.length === 1;
         return (
         <div key={group.key} className="space-y-3">
-          <div className="flex items-center gap-2 px-1 pt-1">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
-            <span className="text-xs text-muted-foreground">{group.rows.length}</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
+          {!solo && (
+            <div className="flex items-center gap-2 px-1 pt-1">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
+              <span className="text-xs text-muted-foreground">{group.rows.length}</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          )}
         {group.rows.map((a, i) => {
           const Icon = TYPE_ICONS[a.account_type] || Wallet;
           const liability = isLiability(a.account_type);
@@ -1145,6 +1171,13 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                         Auto-sync
                       </span>
                     )}
+                    {/* ⚠️ ONLY WHEN THIS ROW'S GROUP HAS NO HEADING. See `solo` above: a group of
+                        one renders no heading, so this is the ONLY place its institution appears
+                        and leaving it out would take a fact off the screen rather than tidy the
+                        page. In a group of two or more the heading directly above still carries
+                        it, and repeating it here would restate the longest string on the line —
+                        which is exactly what the note below says not to do. */}
+                    {solo ? `${group.label} · ` : ''}
                     {TYPE_LABELS[a.account_type] || a.account_type}
                     {/* THE INSTITUTION IS DELIBERATELY NOT REPEATED HERE. Rows are grouped by
                         provider and `group.label` IS the institution, rendered as the heading

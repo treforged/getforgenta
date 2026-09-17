@@ -7122,7 +7122,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 17:14 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 17:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7133,14 +7133,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+e7ca62e2 [handoff]: the Accounts-tab overload is group chrome, not the meta line - measured
+11fb36d2 [handoff]: twenty-sixth session - the dashboard default cannot reach Tre, and back-loaded pacing was reverted on real-data evidence
+447d57ad [forecast]: record why back-loaded pacing cannot be wired as a slice, measured
+869d2ca7 [handoff]: the dashboard reorg is part-measured - 17 cards, and a default-layout change may not reach him
 ad358abe [handoff]: twenty-fifth session queue - dashboard reorg is first up, Customize stays
 89604ad4 [accounts]: fill the blank run in each linked-bank row and move the Plaid legal text below the list
 ec69f026 [dashboard]: move Learn into its own /account section and keep one next-lesson line on the home tab
 01134be0 [account]: give every badge its own icon and stop the achievements rows stranding their numbers
-d769fd3c [handoff]: his achievements-formatting ask goes to the top - he is on that screen now
-61f0796f [handoff]: twenty-fourth session queue - part 3 of the achievements ask is first up
-df59cc52 [account]: move the trophy case off the Dashboard Overview into its own Account section
-bb6988cc [handoff]: baseline across five captures - and his card debt has nearly doubled in ten weeks
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
