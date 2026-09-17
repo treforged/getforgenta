@@ -26,7 +26,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import Account from '../Account';
 
-const mocks = vi.hoisted(() => ({ friends: [] as { userId: string; label: string; linkId: string }[] }));
+const mocks = vi.hoisted(() => ({ mutuals: [] as { userId: string; label: string }[] }));
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'owner@example.com' } }),
@@ -35,12 +35,34 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useProfile: () => ({ data: { display_name: 'Owner' } }),
 }));
 vi.mock('@/hooks/useFriendLink', () => ({
-  useFriendLink: () => ({ friends: mocks.friends, pendingInvites: [], loading: false }),
+  useFriendLink: () => ({ friends: [], pendingInvites: [], loading: false }),
+}));
+// ⚠️ THE BOARD'S DATA SOURCE MOVED, 2026-09-17. It used to read `friends` from `useFriendLink`
+// (an accepted friend-LINK). It now reads `mutuals` from `useFollows` — people you follow who
+// follow you back. That is the whole point of the consolidation Tre asked for, and it is a
+// SECURITY property as much as an IA one: a one-directional follow must never put somebody on
+// your board, or a public account shows its buckets to any stranger who presses Follow. So this
+// file drives `mutuals`, and a mock that returned one-directional follows here would quietly
+// un-test the thing that matters.
+vi.mock('@/hooks/useFollows', () => ({
+  useFollows: () => ({
+    mutuals: mocks.mutuals,
+    following: [], followers: [], incomingRequests: [], outgoingRequests: [],
+    isLoading: false,
+    labelFor: (id: string) => id,
+    requestFollow: vi.fn(), approveRequest: vi.fn(), removeFollow: vi.fn(),
+    findByUsername: vi.fn(),
+  }),
 }));
 // The two link cards own their own data and are covered by their own suites; this file is about
 // whether the BOARD is reachable, so they are stubbed to keep the question single.
 vi.mock('@/components/settings/PartnerLink', () => ({ PartnerLink: () => <div>Partner Link</div> }));
 vi.mock('@/components/settings/FriendLink', () => ({ FriendLink: () => <div>Friends</div> }));
+// The Followers section owns finding, following, approving and the public/private switch, and has
+// its own suite plus `npm run check:followers`. Stubbed here so this file stays about REACHABILITY.
+vi.mock('@/components/settings/FollowersPanel', () => ({
+  FollowersPanel: () => <div data-testid="followers-panel">Followers</div>,
+}));
 vi.mock('@/components/settings/FriendsLeaderboard', () => ({
   FriendsLeaderboard: ({ friends }: { friends: readonly unknown[] }) => (
     <div data-testid="leaderboard">
@@ -56,7 +78,7 @@ const openLeaderboard = () => fireEvent.click(screen.getByRole('tab', { name: /L
 
 afterEach(() => {
   cleanup();
-  mocks.friends = [];
+  mocks.mutuals = [];
   // The section is remembered per device, so a test that left it on Leaderboard would hand the
   // next test a page it did not set up - and the "first paint" assertion below would be green
   // for the wrong reason.
@@ -78,8 +100,8 @@ describe('the Account tab', () => {
     expect(screen.getByText(/Nobody is sharing yet/i)).toBeTruthy();
   });
 
-  it('passes the real friends list through once there are some', () => {
-    mocks.friends = [{ userId: 'f1', label: 'Alex', linkId: 'l1' }];
+  it('passes the real MUTUALS list through once there are some', () => {
+    mocks.mutuals = [{ userId: 'f1', label: 'Alex' }];
     renderAccount();
     openLeaderboard();
     expect(screen.getByText('1 sharing')).toBeTruthy();
@@ -97,11 +119,33 @@ describe('the Account tab', () => {
     expect(screen.queryByText('Partner Link')).toBeNull();
   });
 
-  it('gathers the three things he named: profile, partner linking, friends', () => {
+  /**
+   * ⚠️ RESTATED 2026-09-17, NOT RELAXED. Tre: "friends should be followers and following just
+   * like instagram. it should only be on that tab." So the third thing is no longer a Friends
+   * CARD sharing the Profile section with Partner Link — it is a SECTION of its own. The old
+   * assertion (`getByText('Friends')` on first paint) would now be red for the right reason, and
+   * deleting it would have left nothing asserting that the third thing arrived anywhere at all.
+   *
+   * Each segment is therefore PRESSED and its own content asserted. An absence-only rewrite here
+   * would be satisfied by all three sections being dead.
+   */
+  it('gathers the three things he named, each as its own reachable section', () => {
     renderAccount();
+    // Who you are stays outside the sections, so it is on screen whichever one is open.
     expect(screen.getByText('Owner')).toBeTruthy();
+
+    // 1. Profile — the partner link lives here, and it is what is open from the first paint.
     expect(screen.getByText('Partner Link')).toBeTruthy();
-    expect(screen.getByText('Friends')).toBeTruthy();
+
+    // 2. Followers — the people half, one press away and really a different view.
+    fireEvent.click(screen.getByRole('tab', { name: /Followers/i }));
+    expect(screen.getByTestId('followers-panel')).toBeTruthy();
+    expect(screen.queryByText('Partner Link')).toBeNull();
+
+    // 3. Leaderboard.
+    openLeaderboard();
+    expect(screen.getByTestId('leaderboard')).toBeTruthy();
+    expect(screen.queryByTestId('followers-panel')).toBeNull();
   });
 
   it('sends editing to Settings rather than growing a second copy of every control', () => {

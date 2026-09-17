@@ -3,11 +3,10 @@ import { lazy, Suspense, useEffect } from 'react';
 import { User, Settings as SettingsIcon, Trophy, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
-import { useFriendLink } from '@/hooks/useFriendLink';
+import { useFollows } from '@/hooks/useFollows';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import PanelBar from '@/components/shared/PanelBar';
 import { PartnerLink } from '@/components/settings/PartnerLink';
-import { FriendLink } from '@/components/settings/FriendLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
 import { FollowersPanel } from '@/components/settings/FollowersPanel';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
@@ -78,7 +77,13 @@ const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
 export default function Account() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
-  const { friends } = useFriendLink();
+  /**
+   * ⚠️ THE LEADERBOARD NOW RANKS **MUTUAL FOLLOWS**, not friend_links (Tre, 2026-09-17).
+   * `mutuals` is only the people who follow you back, which is the same bilateral consent
+   * `friend_links` carried - see the migration for why a one-directional follow is not enough.
+   * Legacy friend links still count, on the server side, inside `active_friend_ids()`.
+   */
+  const { mutuals } = useFollows();
   const [section, setSection] = usePersistedState<AccountSection>('account-section', 'profile');
   // A stored section can outlive its availability: choose `ai` in development, build for
   // production, and the persisted value names a section that no longer has a segment. Reading it
@@ -176,9 +181,18 @@ export default function Account() {
       {activeSection === 'profile' && (
         <div className="card-forged p-5 space-y-5">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
+          {/*
+            ⚠️ THE FRIENDS CARD IS GONE FROM HERE (Tre, 2026-09-17: "friends should be followers
+            and following just like instagram. it should only be on that tab"). Adding people,
+            the people themselves, and what they can see all live in the FOLLOWERS section now -
+            one surface, the way Instagram has one.
+
+            ⚠️ PARTNER LINKING STAYS, AND IT IS NOT THE SAME THING. A partner shares a BUDGET -
+            one set of numbers, edited by two people, with a viewing lens. A follow is a
+            one-directional social connection that shares nothing by itself. Folding the two
+            together would be the one merge this change must not make.
+          */}
           <PartnerLink />
-          <div className="border-t border-border" />
-          <FriendLink />
         </div>
       )}
 
@@ -208,7 +222,7 @@ export default function Account() {
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Trophy size={12} className="text-primary" /> Leaderboard
           </h2>
-          <FriendsLeaderboard friends={friends} />
+          <FriendsLeaderboard friends={mutuals} />
         </div>
       )}
 

@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -153,6 +154,11 @@ vi.mock('@/hooks/useFriendLink', () => ({
   }),
 }));
 
+// ⚠️ ADDED 2026-09-17. `Account.tsx` now calls `useFollows`, which calls `useQueryClient`, so
+// rendering the real page without this throws "No QueryClient set" before a single assertion in
+// this describe block can speak. Nine tests across two files went red on that one cause and NONE
+// of them was disagreeing about the information architecture — worth writing down, because the
+// handoff read them as IA failures and rewriting them that way would have deleted working guards.
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve(null) }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children }: { children: React.ReactNode }) => children,
@@ -168,7 +174,7 @@ import SettingsPage from '../Settings';
 import AccountPage from '../Account';
 
 async function renderSecurityTab() {
-  render(<MemoryRouter><SettingsPage /></MemoryRouter>);
+  render(withQuery(<MemoryRouter><SettingsPage /></MemoryRouter>));
   fireEvent.click(await screen.findByRole('button', { name: /Security/i }));
   // Section headers only exist once the panel has actually switched.
   await screen.findByText('Linked Accounts');
@@ -185,14 +191,33 @@ async function renderSecurityTab() {
  * ACCOUNT PAGE, and what Settings keeps is a pointer card. Re-pointing these at Settings to keep
  * a green would be asserting the old IA over the shipped one.
  */
+/**
+ * ⚠️ ADDED 2026-09-17, AND THE ONE-LINE REASON MATTERS MORE THAN THE WRAPPER.
+ * The Followers section brought a whole react-query subtree onto this page — `useFollows`,
+ * `useAccountVisibility`, `LeaderboardShareToggles` — and each one throws "No QueryClient set"
+ * before any assertion can speak. Nine tests across two files went red on that, and NOT ONE of
+ * them was disagreeing about the information architecture; the handoff had read them as IA
+ * failures, and rewriting them on that premise would have deleted guards that still work.
+ *
+ * Stubbing the hooks one at a time was the wrong shape — it found a third on the third run and
+ * would have found a fourth. This file already mocks the supabase client, so a REAL provider is
+ * both the smaller change and the more faithful one: the queries run and answer from the mock.
+ * `retry: false` so a miss fails immediately instead of being retried into a timeout.
+ */
+const withQuery = (ui: React.ReactElement) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    {ui}
+  </QueryClientProvider>
+);
+
 async function renderAccountPage() {
-  render(<MemoryRouter><AccountPage /></MemoryRouter>);
+  render(withQuery(<MemoryRouter><AccountPage /></MemoryRouter>));
   await screen.findByText('Connections');
 }
 
 /** Settings' own Account panel keeps a POINTER, because people who knew where these were will look. */
 async function renderSettingsAccountTab() {
-  render(<MemoryRouter><SettingsPage /></MemoryRouter>);
+  render(withQuery(<MemoryRouter><SettingsPage /></MemoryRouter>));
   fireEvent.click(await screen.findByRole('button', { name: /^Account$/ }));
   await screen.findByText('Connections');
 }
@@ -207,7 +232,14 @@ beforeEach(() => {
   mfaEnroll.mockClear();
   toastFns.success.mockClear();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // ⚠️ THE ACCOUNT TAB REMEMBERS ITS SECTION PER DEVICE. A test that pressed "Followers" hands
+  // the next one a page already open on Followers, where "Connections" does not render — so the
+  // render helper times out and the failure names the WRONG test. Cleared here for the same
+  // reason Account.leaderboardReachable.test.tsx clears it.
+  try { localStorage.removeItem('account-section'); } catch { /* ignore */ }
+});
 
 describe('the Security tab, one card, three remove controls', () => {
   it('Linked Accounts: Unlink still calls unlinkIdentity, Link still calls linkIdentity', async () => {
@@ -380,10 +412,23 @@ describe('the Security tab, one shape per section', () => {
  * different card, under a different heading, with different siblings. These are the same shape
  * assertions the Security tab applies to its own sections, pointed at Account.
  */
+/**
+ * ⚠️ THE TWO CONNECTIONS NOW LIVE IN DIFFERENT SECTIONS OF THIS TAB (Tre, 2026-09-17: "friends
+ * should be followers and following just like instagram. it should only be on that tab").
+ * Partner Link stayed in Profile; Friends moved inside the Followers section. So the assertions
+ * are kept in full and each one is now told WHICH DOOR TO OPEN first — the requirement that each
+ * connection explains itself in a real sentence is unchanged, and is what these guard.
+ */
+const SECTION_OF: Record<string, string | null> = { 'Partner Link': null, Friends: 'Followers' };
+const openSection = (name: string | null) => {
+  if (name) fireEvent.click(screen.getByRole('tab', { name: new RegExp(name, 'i') }));
+};
+
 describe('the Account PAGE, Connections', () => {
   for (const title of ['Partner Link', 'Friends']) {
     it(`${title} renders on /account with a heading AND an explaining sentence`, async () => {
       await renderAccountPage();
+      openSection(SECTION_OF[title]);
 
       const heading = screen.getByText(title);
       const row = heading.closest('div.flex.items-center.gap-2');
@@ -398,8 +443,10 @@ describe('the Account PAGE, Connections', () => {
 
   it('states what each connection actually shares, since that is what a person is deciding', async () => {
     await renderAccountPage();
-    // Spot-checked on the two whose consequence is least guessable from two words.
+    // Spot-checked on the two whose consequence is least guessable from two words. They now sit
+    // one section apart, so each is asserted where it actually lives rather than dropping one.
     expect(screen.getByText(/read only/i)).toBeTruthy();
+    openSection('Followers');
     expect(screen.getByText(/never see your budget/i)).toBeTruthy();
   });
 

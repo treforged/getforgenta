@@ -2574,6 +2574,14 @@ export type Database = {
     Functions: {
       active_friend_ids: { Args: never; Returns: string[] }
       request_follow: { Args: { p_followee: string }; Returns: string }
+      follow_profiles: {
+        Args: never
+        Returns: {
+          display_name: string
+          user_id: string
+          username: string
+        }[]
+      }
       find_profile_by_username: {
         Args: { p_username: string }
         Returns: {

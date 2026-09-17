@@ -432,10 +432,20 @@ describe('the hook is never lensed — a friend is not a partner', () => {
    * absence alone is satisfied by the card existing nowhere.
    * `src/lib/__tests__/settings-ia.gate.test.ts` holds the same pair as the IA gate.
    */
-  it('is mounted on the Account page and NOT in Settings, and the card is free-tier', () => {
+  it('is mounted in the /account subtree and NOT in Settings, and the card is free-tier', () => {
+    // ⚠️ RESTATED 2026-09-17. Tre: "friends should be followers and following just like
+    // instagram. it should only be on that tab." The card is now mounted inside `FollowersPanel`,
+    // which the Account page mounts, so a scan of `Account.tsx` alone reads ZERO — and a zero
+    // here reads as "the card was deleted", which is the false alarm that sends somebody
+    // rebuilding a working feature. The PRESENT half is kept in full and pointed one level down.
     const accountSrc = read('../../pages/Account.tsx');
-    expect(accountSrc).toContain("import { FriendLink } from '@/components/settings/FriendLink';");
-    expect(accountSrc).toContain('<FriendLink />');
+    const panelSrc = read('../../components/settings/FollowersPanel.tsx');
+    const subtree = accountSrc + panelSrc;
+    expect(subtree).toContain("import { FriendLink } from './FriendLink';");
+    expect(subtree).toContain('<FriendLink />');
+    // Exactly one mount across the subtree: two copies each keep their own pending-invite state,
+    // which is the duplicate this assertion was written to stop, not a second move.
+    expect((subtree.match(/<FriendLink\b/g) ?? []).length).toBe(1);
     expect(settingsSrc).not.toContain('<FriendLink />');
     // No premium gate on the card: the cap is the function's, so the number lives once.
     expect(componentSrc).not.toContain('useSubscription');

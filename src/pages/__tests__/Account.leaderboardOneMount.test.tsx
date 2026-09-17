@@ -42,6 +42,25 @@ vi.mock('@/hooks/useFriendLink', () => ({
 }));
 // Everything EXCEPT FriendLink is stubbed. FriendLink is the component under suspicion, so it is
 // the one thing that must be real.
+// ⚠️ ADDED 2026-09-17. The Followers section brought a react-query subtree onto this page
+// (`useFollows`, and `useAccountVisibility` inside the still-real `FriendLink`). Without these
+// the page throws "No QueryClient set" before a single assertion can speak — a harness fault,
+// not an information-architecture disagreement, and the two must not be confused.
+vi.mock('@/hooks/useFollows', () => ({
+  useFollows: () => ({
+    mutuals: [], following: [], followers: [], incomingRequests: [], outgoingRequests: [],
+    isLoading: false,
+    labelFor: (id: string) => id,
+    requestFollow: vi.fn(), approveRequest: vi.fn(), removeFollow: vi.fn(),
+    findByUsername: vi.fn(),
+  }),
+}));
+vi.mock('@/hooks/useAccountVisibility', () => ({
+  useAccountVisibility: () => ({
+    visibility: 'private', isLoading: false, isPublic: false,
+    setVisibility: vi.fn(), isUpdating: false,
+  }),
+}));
 vi.mock('@/components/settings/PartnerLink', () => ({ PartnerLink: () => <div>Partner Link</div> }));
 vi.mock('@/components/settings/LeaderboardShareToggles', () => ({ LeaderboardShareToggles: () => null }));
 vi.mock('@/components/settings/UsernameClaim', () => ({ UsernameClaim: () => null }));
@@ -58,12 +77,26 @@ afterEach(() => {
 });
 
 describe('the leaderboard has one home on the Account tab', () => {
-  it('does not render the board in the Profile section, even with a friend', () => {
+  /**
+   * ⚠️ RESTATED 2026-09-17, AND THE CONTROL MOVED WITH THE CARD. Tre: "friends should be
+   * followers and following just like instagram. it should only be on that tab." `FriendLink`
+   * now renders inside the FOLLOWERS section, not Profile — so the old positive control looked
+   * for its copy on a section that no longer holds it.
+   *
+   * The control is kept, not dropped: without it a null board is indistinguishable from
+   * `FriendLink` failing to render at all, and the defect this file exists to catch is a SECOND
+   * board mounted inside that card. So both sections are checked, and the section that owns the
+   * card proves the card is live.
+   */
+  it('does not render the board in Profile or Followers, even with a friend', () => {
     renderAccount();
+    expect(screen.queryAllByTestId('leaderboard'), 'a board rendered in Profile').toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Followers/i }));
     // The real FriendLink is mounted here — proven by its own copy being on screen — so a null
     // board is a fact about the mount and not about the card failing to render.
     expect(screen.getByText(/Add friends to cheer each other on/i)).toBeTruthy();
-    expect(screen.queryAllByTestId('leaderboard')).toHaveLength(0);
+    expect(screen.queryAllByTestId('leaderboard'), 'a board rendered inside FriendLink').toHaveLength(0);
   });
 
   it('POSITIVE CONTROL: the same marker IS found in the Leaderboard section', () => {
@@ -74,6 +107,8 @@ describe('the leaderboard has one home on the Account tab', () => {
 
   it('never renders it twice at once, whichever section is open', () => {
     renderAccount();
+    expect(screen.queryAllByTestId('leaderboard').length).toBeLessThanOrEqual(1);
+    fireEvent.click(screen.getByRole('tab', { name: /Followers/i }));
     expect(screen.queryAllByTestId('leaderboard').length).toBeLessThanOrEqual(1);
     openLeaderboard();
     expect(screen.queryAllByTestId('leaderboard')).toHaveLength(1);

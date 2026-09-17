@@ -7,10 +7,11 @@
  *  • Current followers (remove).
  *  • Users you follow and outgoing requests (unfollow/cancel).
  *
- * NOTE: FollowRow objects only contain user IDs. Rendering a real name requires a
- * server‑side name resolver which is not available here. Therefore each user is
- * displayed as “A Forgenta member #<first‑8‑chars‑of‑id>”. Showing a raw UUID or
- * inventing a name would be misleading.
+ * NAMES come from `follow_profiles()` - a SECURITY DEFINER RPC that returns a name only for
+ * somebody you already have a `follows` row with, so it adds a name to an id you can already
+ * see and cannot be used to enumerate anyone. Where no name exists the row falls back to
+ * "A Forgenta member #<8 chars>", which is honest; a bare uuid or an invented name would both
+ * be worse.
  */
 import { useState, type FormEvent } from 'react';
 import {
@@ -19,6 +20,8 @@ import {
 } from '@/hooks/useFollows';
 import { UserPlus, Check, X, AtSign } from 'lucide-react';
 import { AccountVisibilityToggle } from './AccountVisibilityToggle';
+import { LeaderboardShareToggles } from './LeaderboardShareToggles';
+import { FriendLink } from './FriendLink';
 import { FIELD_WRAPPER, FIELD_INPUT_BARE, FIELD_RADIUS } from '@/components/shared/field-classes';
 
 interface FollowersPanelProps {
@@ -34,9 +37,6 @@ interface FollowersPanelProps {
  * fact you need to check one level away from where you read it.
  */
 
-/** Truncate a UUID to the first eight characters for display. */
-const truncateId = (id: string): string => id.slice(0, 8);
-
 export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
   const {
     following,
@@ -48,6 +48,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
     approveRequest,
     removeFollow,
     findByUsername,
+    labelFor,
   } = useFollows();
 
   const [username, setUsername] = useState('');
@@ -203,7 +204,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
                   className="flex items-center justify-between gap-2 flex-wrap min-w-0"
                 >
                   <span className="truncate">
-                    A Forgenta member #{truncateId(row.follower_id)}
+                    {labelFor(row.follower_id)}
                   </span>
                   <div className="flex gap-1">
                     <button
@@ -244,7 +245,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
                   className="flex items-center justify-between gap-2 flex-wrap min-w-0"
                 >
                   <span className="truncate">
-                    A Forgenta member #{truncateId(row.follower_id)}
+                    {labelFor(row.follower_id)}
                   </span>
                   <button
                     className="btn btn-sm btn-secondary"
@@ -276,7 +277,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
                     className="flex items-center justify-between gap-2 flex-wrap min-w-0"
                   >
                     <span className="truncate">
-                      A Forgenta member #{truncateId(row.followee_id)}
+                      {labelFor(row.followee_id)}
                     </span>
                     <button
                       className="btn btn-sm btn-secondary"
@@ -294,7 +295,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
                     className="flex items-center justify-between gap-2 flex-wrap min-w-0 opacity-50"
                   >
                     <span className="truncate">
-                      A Forgenta member #{truncateId(row.followee_id)} (Requested)
+                      {labelFor(row.followee_id)} (Requested)
                     </span>
                     <button
                       className="btn btn-sm btn-secondary"
@@ -311,6 +312,44 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
           </section>
         </>
       )}
+      {/*
+        ⚠️ THE LEGACY FRIEND-INVITE PATH, KEPT REACHABLE ON PURPOSE - AND ON THIS TAB, which is
+        what "it should only be on that tab" asks for.
+
+        Tre, 2026-09-17: "friends should be followers and following just like instagram." Follows
+        are now the social graph and `active_friend_ids()` reads MUTUAL FOLLOWS, so nothing new
+        needs this. But the `friend-link` function emails an accept URL that lands on
+        `/account?friend_code=...`, and `FriendLink` is the component that READS that parameter.
+        Unmounting it would make every outstanding invite silently do nothing - a link that
+        looks fine and is dead, which is the failure mode this repo refuses everywhere else.
+
+        ⚠️ I COULD NOT MEASURE HOW MANY INVITES ARE OUTSTANDING - the query was blocked mid-task -
+        so this is the CONSERVATIVE reading rather than a measured one, and it is cheap to undo.
+        Invites expire after 7 days. Once the newest outstanding one has expired, this mount and
+        the whole friend-link flow can go; `active_friend_ids()` keeps honouring already-accepted
+        links server-side either way, so no existing friendship is lost by removing it.
+      */}
+      <div className="space-y-2 pt-1 border-t border-border/60">
+        <FriendLink />
+      </div>
+
+      {/*
+        ⚠️ MOVED HERE FROM THE CONNECTIONS CARD (Tre, 2026-09-17: "it should only be on that
+        tab"). These publish a figure to the people you are mutually followed by, so they belong
+        on the surface that shows who those people are, not two sections away from it.
+
+        ⚠️ AND THE HEADING SAYS **FOLLOW BACK** ON PURPOSE. A one-directional follower sees
+        nothing: `active_friend_ids()` requires the follow to go BOTH ways. "What followers can
+        see" would be false, and falsely alarming - it would tell somebody with a public account
+        that every stranger who followed them could read their money.
+      */}
+      <div className="space-y-2 pt-1 border-t border-border/60">
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          What people you follow back can see
+        </h3>
+        <LeaderboardShareToggles />
+      </div>
+
     </div>
   );
 }
