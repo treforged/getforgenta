@@ -109,8 +109,23 @@ uncommitted work in this tree)
 
 ### STILL OPEN FROM BEFORE, UNCHANGED
 
-* **The follow lists show no names** - every row reads `A Forgenta member #<8 chars>`; there is no
-  server-side resolver. This is the biggest visible gap in the shipped feature.
+* ⚠️ ~~**The follow lists show no names - there is no server-side resolver**~~ **THAT PREMISE IS
+  FALSE, AND IT WAS THE "NEXT SLICE". MEASURED 2026-09-17 03:50Z.** The resolver is built, wired
+  and live: `useFollows` runs `profilesQuery` -> `follow_profiles()` -> `nameById` -> `labelFor`,
+  and in the database `follow_profiles` **exists and is GRANTED to `authenticated`** (1 and 1).
+  **Every row reads `A Forgenta member` because `public.follows` has ZERO ROWS** - nobody has
+  followed anybody yet - **not because names cannot resolve.** Control in the same read:
+  `profiles` has 33 rows, so the query can count.
+  **Building a resolver would have been building something that already exists**, which is this
+  repo's recorded "grep for the caller before scoping anything as not built", one level out.
+  **WHAT IS AND IS NOT PROVEN, and the difference matters.** The RPC's DEFINITION is verified:
+  `SECURITY DEFINER`, `search_path` empty, refuses `auth.uid() is null`, excludes self, and
+  returns a row **only where a `follows` row already exists in either direction** - so it adds a
+  name to an id the caller can already see and **cannot be used to enumerate anybody.**
+  **It has never been EXERCISED**, because exercising it needs a real follow between two real
+  accounts, and I will not write to live user data to make a gate green. So: correct by
+  inspection, unproven in use. **The honest first act on this is to watch the first real follow,
+  not to rebuild the resolver.**
 * **The truncation gate's NAME half has never been observed failing** - the walk account has no
   name long enough to clip. Measured-and-not-truncated, NOT proven-able-to-fail. Seed the walk
   account with a long name to close it.
