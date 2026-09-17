@@ -1264,6 +1264,24 @@ export function simulateVariablePayoff(
    * installment in full. Omitted ⇒ byte-identical legacy behavior.
    */
   paymentOverridesByMonth?: { [cardId: string]: Record<number, number> },
+  /**
+   * Trailing options bag. The positional list above is already at its limit; anything new belongs
+   * here rather than as a twenty-third argument nobody can count to.
+   */
+  simOpts?: {
+    /**
+     * purchasesAfterDueByMonth[m][cardId] = the part of month m's purchases on that card that is
+     * dated AFTER the card's due date (see `fallsAfterDueDate`). A full-balance payment is made ON
+     * the due date and therefore cannot include them.
+     *
+     * ⚠️ It narrows the TARGET only. The balance still grows by every purchase, the minimum is
+     * unchanged, and `statement` cards never saw this month's purchases in their target to begin
+     * with. Omitted or 0 ⇒ byte-identical legacy behaviour, which is why every producer that
+     * cannot date a charge (an annual fee has a month and no day) simply leaves it out of this
+     * figure rather than guessing: an omission falls toward paying MORE.
+     */
+    purchasesAfterDueByMonth?: { [cardId: string]: number }[],
+  },
 ): SimResult {
   if (cards.length === 0) {
     return {
@@ -1506,6 +1524,17 @@ export function simulateVariablePayoff(
       return cardPurchasesPerMonth?.[m]?.[c.id] ?? (m === 0 ? 0 : c.monthlyNewPurchases);
     };
 
+    /**
+     * The part of this month's purchases a full-balance payment cannot reach, because it is dated
+     * after the card's due date. Clamped at this month's purchases so a producer disagreeing with
+     * the engine can never subtract more than was ever added. 0 when the caller supplies nothing.
+     */
+    const purchasesAfterDueThisMonth = (c: CardData): number =>
+      Math.min(
+        Math.max(0, simOpts?.purchasesAfterDueByMonth?.[m]?.[c.id] ?? 0),
+        cardPurchasesThisMonth(c),
+      );
+
     // Floor and one-time items — computed once per month, shared by Steps 2 and 5.
     const effectiveFloor = (m === 0 && month0SafeFloor !== undefined)
       ? month0SafeFloor
@@ -1724,7 +1753,7 @@ export function simulateVariablePayoff(
       // the pin and the cascade cannot come to mean two different things by "always pay this".
       const desired = card.paymentPreference === 'statement'
         ? bal + interest
-        : bal + interest + cardPurchasesThisMonth(card);
+        : bal + interest + cardPurchasesThisMonth(card) - purchasesAfterDueThisMonth(card);
       const pin = Math.round(Math.max(0, desired) * 100) / 100;
       if (pin <= 0) continue;
       // The pin is the card's TOTAL payment; the mandatory installment share (paid via
@@ -2058,7 +2087,13 @@ export function simulateVariablePayoff(
         // For non-statement cards, also subtract the BNPL charge for this month — it appears in
         // balBeforePayment as a new purchase but is paid mandatorily (not by the revolving cascade).
         const bnplPay = installmentChargeByMonth?.[m]?.[card.id] ?? 0;
-        return Math.max(0, balBeforePayment.get(card.id)! - instBal - bnplPay);
+        // ⚠️ AND MINUS WHAT IS NOT DUE YET. A `full` payment is made ON the due date, so a charge
+        // dated after it lands on the NEXT statement - Tre's Groceries on the 19th against a due
+        // date of the 10th. This is the SECOND of the two places that spell out what "full" means;
+        // the unconditional pin above is the other, and the comment there says they must agree.
+        // `purchasesAfterDueByMonth` is deliberately the only input to both.
+        return Math.max(0, balBeforePayment.get(card.id)! - instBal - bnplPay
+          - purchasesAfterDueThisMonth(card));
       }
       return cyclingBacklog.get(card.id) ?? 0;
     };

@@ -49,7 +49,7 @@ import { isRuleOccurrenceConfirmed } from '@/lib/confirmed-capture';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
-import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
+import { resolveSyncCutoffDate, fallsAfterDueDate } from '@/lib/sync-cutoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 
 import type { Tables } from '@/integrations/supabase/types';
@@ -420,7 +420,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Uses actual scheduled income/expense occurrences instead of flat scalars so
   // that month 0 only counts income from today forward (already-received income
   // is baked into the live checking balance and must not be double-counted).
-  const { monthEvents, cardPurchasesPerMonth: ccPurchasesPerMonth } = useMemo(() => {
+  const {
+    monthEvents,
+    cardPurchasesPerMonth: ccPurchasesPerMonth,
+    cardPurchasesAfterDuePerMonth: ccPurchasesAfterDuePerMonth,
+  } = useMemo(() => {
     const now = new Date();
     const todayStr = toLocalDateStr(now);
     const scheduledEvents = generateScheduledEvents(rules, accounts, PROJECTION_MONTHS);
@@ -473,6 +477,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
     const evMonthEvents: { income: number; expenses: number }[] = [];
     const evCardPurchases: { [cardId: string]: number }[] = [];
+    // The part of each month's purchases dated AFTER the card's due date. A full-balance payment
+    // is made ON the due date and cannot reach them - see `fallsAfterDueDate`. Built beside the
+    // total rather than derived from it, because only this loop still has the dates.
+    const evCardPurchasesAfterDue: { [cardId: string]: number }[] = [];
 
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -522,20 +530,29 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           );
 
       const cardPurchases: { [cardId: string]: number } = {};
+      const cardPurchasesAfterDue: { [cardId: string]: number } = {};
       for (const card of cards) {
         if (card.startDate) {
           const startD = new Date(card.startDate + 'T00:00:00');
           if (d < startD) continue; // no purchases before card's start date
         }
         const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-        cardPurchases[card.id] = purchaseEvents
-          .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
+        const mine = purchaseEvents
+          .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId));
+        cardPurchases[card.id] = mine.reduce((s, e) => s + e.amount, 0);
+        cardPurchasesAfterDue[card.id] = mine
+          .filter(e => fallsAfterDueDate(e.date, monthKey, card.dueDay))
           .reduce((s, e) => s + e.amount, 0);
       }
       evCardPurchases.push(cardPurchases);
+      evCardPurchasesAfterDue.push(cardPurchasesAfterDue);
     }
 
-    return { monthEvents: evMonthEvents, cardPurchasesPerMonth: evCardPurchases };
+    return {
+      monthEvents: evMonthEvents,
+      cardPurchasesPerMonth: evCardPurchases,
+      cardPurchasesAfterDuePerMonth: evCardPurchasesAfterDue,
+    };
   }, [rules, accounts, cards, pauseSavings, syncCutoffDate, confirmedOccurrences]);
 
   const variableSim = useMemo(() => {
@@ -593,6 +610,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
     }
     const augmentedCCPurchases: { [cardId: string]: number }[] = [m0CC];
+    // Same rule, same shape: the after-due slice of each month, carried alongside the total.
+    // ⚠️ ONE-TIME DB TRANSACTIONS ONLY GET SPLIT WHERE THEY ARE ADDED - the plan charges below
+    // are deliberately NOT counted here. A charge left out of this figure stays inside the
+    // payment target, which is exactly today's behaviour, so an omission can never pay LESS
+    // than it should.
+    const augmentedAfterDue: { [cardId: string]: number }[] = [
+      { ...(ccPurchasesAfterDuePerMonth[0] ?? {}) },
+    ];
 
     for (let i = 1; i < PROJECTION_MONTHS; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -620,19 +645,26 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       // Build per-card one-time CC purchases for this month
       const baseMonth = ccPurchasesPerMonth[i] ?? {};
       const monthCCPurchases: { [cardId: string]: number } = { ...baseMonth };
+      const monthAfterDue: { [cardId: string]: number } = { ...(ccPurchasesAfterDuePerMonth[i] ?? {}) };
       for (const card of cards) {
         const cKey = `account:${card.id}`;
-        const oneTimePurchases = txns
-          .filter(t =>
-            t.type === 'expense' &&
-            (t.payment_source === card.id || t.payment_source === cKey),
-          )
-          .reduce((s, t) => s + Number(t.amount), 0);
+        const mine = txns.filter(t =>
+          t.type === 'expense' &&
+          (t.payment_source === card.id || t.payment_source === cKey),
+        );
+        const oneTimePurchases = mine.reduce((s, t) => s + Number(t.amount), 0);
         if (oneTimePurchases > 0) {
           monthCCPurchases[card.id] = (monthCCPurchases[card.id] || 0) + oneTimePurchases;
         }
+        const oneTimeAfterDue = mine
+          .filter(t => fallsAfterDueDate(t.date ?? '', mk, card.dueDay))
+          .reduce((s, t) => s + Number(t.amount), 0);
+        if (oneTimeAfterDue > 0) {
+          monthAfterDue[card.id] = (monthAfterDue[card.id] || 0) + oneTimeAfterDue;
+        }
       }
       augmentedCCPurchases.push(monthCCPurchases);
+      augmentedAfterDue.push(monthAfterDue);
     }
 
     // Inject CC-sourced payment plan charges into augmentedCCPurchases so the
@@ -892,6 +924,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       upfrontPayByMonth,
       undefined,
       paymentOverridesByMonth,
+      { purchasesAfterDueByMonth: augmentedAfterDue },
     );
     const sim = runSim();
     // Return augmentedCCPurchases alongside the sim so projections can use it

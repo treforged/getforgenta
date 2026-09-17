@@ -149,3 +149,32 @@ export function isDebitStillOutstanding(date: string, cutoffDate: string): boole
 export function dueDateInMonth(monthKey: string, dayOfMonth: number): string {
   return `${monthKey}-${String(dayOfMonth).padStart(2, '0')}`;
 }
+
+/**
+ * Does a purchase dated `date` land AFTER this month's due date?
+ *
+ * Tre, 2026-09-17: *"for Robinhood, if you look at when full balance was enabled, I don't think it
+ * was calculating correctly since the due date was on the 10th it would be full balance at that
+ * time not the payment of groceries that comes after"*. He is right, and this is the rule.
+ *
+ * A "pay the full balance" payment is made ON the due date, so it settles the balance AS OF that
+ * date. A charge dated after it has not happened yet when the money leaves - it lands on the NEXT
+ * statement. The engine used to target `startBal + interest + EVERY purchase this month`, which
+ * paid a charge before it existed.
+ *
+ * ⚠️ `dueDay == null` returns FALSE deliberately - no due date means no boundary, so nothing is
+ * excluded and the behaviour is exactly what it was. Every unknown falls toward paying MORE, which
+ * is the direction that cannot invent money.
+ *
+ * ⚠️ `dueDateInMonth` does not clamp to the month end, so a due day of 31 in February yields
+ * `2026-02-31`. That is CORRECT for this lexical comparison: every real February date sorts below
+ * it, so a day-31 due date includes the whole month, which is what a month-end due date means.
+ */
+export function fallsAfterDueDate(
+  date: string,
+  monthKey: string,
+  dueDay: number | null | undefined,
+): boolean {
+  if (dueDay == null) return false;
+  return date > dueDateInMonth(monthKey, dueDay);
+}

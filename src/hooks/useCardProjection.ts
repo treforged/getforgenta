@@ -19,7 +19,7 @@ import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import { buildOtherDebtPaymentSchedule, type LiabilityDebtInput, type DebtServiceAccountInput } from '@/lib/non-cc-liabilities';
-import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
+import { isCapturedInBalance, dueDateInMonth, fallsAfterDueDate } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -307,6 +307,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       );
 
       const cardPurchasesPerMonth: { [cardId: string]: number }[] = [];
+      // The part of each month's purchases dated AFTER the card's own due date. A full-balance
+      // payment is made ON the due date, so it cannot include a charge dated after it - Tre's
+      // Groceries on the 19th against a due date of the 10th. See `fallsAfterDueDate`.
+      //
+      // ⚠️ ONLY the two sources that carry a DATE feed this figure: scheduled rule occurrences and
+      // one-time DB transactions. Payment-plan charges and annual fees below are deliberately left
+      // out - an annual fee has a month and no day, and a charge left out of this figure simply
+      // stays inside the payment target, which is exactly the behaviour that shipped before. Every
+      // unknown therefore falls toward paying MORE, the direction that cannot invent money.
+      const cardPurchasesAfterDuePerMonth: { [cardId: string]: number }[] = [];
       for (let i = 0; i < PROJECTION_MONTHS; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -329,26 +339,35 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           e.date.startsWith(monthKey) && (i > 0 || e.date > cutoff),
         );
         const cardPurchases: { [cardId: string]: number } = {};
+        const cardPurchasesAfterDue: { [cardId: string]: number } = {};
         for (const card of cards) {
           const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-          const scheduledAmt = eventsInMonth
+          const scheduled = eventsInMonth
             .filter(e =>
               e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId) &&
               (i > 0 || !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmed)),
-            )
-            .reduce((s, e) => s + e.amount, 0);
-          const oneTimeCCAmt = transactions
+            );
+          const scheduledAmt = scheduled.reduce((s, e) => s + e.amount, 0);
+          const oneTimeCC = transactions
             .filter(t =>
               !t.isGenerated &&
               t.date?.startsWith(monthKey) &&
               (i > 0 || (t.date ?? '') > cutoff) &&
               t.type === 'expense' &&
               (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
-            )
-            .reduce((s, t) => s + Number(t.amount), 0);
+            );
+          const oneTimeCCAmt = oneTimeCC.reduce((s, t) => s + Number(t.amount), 0);
           cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
+          cardPurchasesAfterDue[card.id] =
+            scheduled
+              .filter(e => fallsAfterDueDate(e.date, monthKey, card.dueDay))
+              .reduce((s, e) => s + e.amount, 0)
+            + oneTimeCC
+              .filter(t => fallsAfterDueDate(t.date ?? '', monthKey, card.dueDay))
+              .reduce((s, t) => s + Number(t.amount), 0);
         }
         cardPurchasesPerMonth.push(cardPurchases);
+        cardPurchasesAfterDuePerMonth.push(cardPurchasesAfterDue);
       }
 
       // ── CC-sourced payment plan charges per future month ──────────────────────
@@ -1210,6 +1229,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         undefined,
         installmentChargeByMonth,
         upfrontPayByMonth,
+        undefined,
+        undefined,
+        { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
       );
 
       // Outer refinement: each pass computes the augmented floor (the same getAugmentedMinSafeCash
@@ -1369,6 +1391,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ccMinInFloorByMonth,
           installmentChargeByMonth,
           upfrontPayByMonth,
+          undefined,
+          undefined,
+          { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
         );
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
@@ -1706,6 +1731,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ccMinInFloorByMonth,
           installmentChargeByMonth,
           upfrontPayByMonth,
+          undefined,
+          undefined,
+          { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
         );
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,
@@ -2472,6 +2500,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         upfrontPayByMonth,
         target,
         pinnedPayments,
+        { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
       );
 
       // Pins are baked into the closure (not passed per call) because the convergence loop
