@@ -3,70 +3,79 @@
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTIETH session). START AT ITEM 1.
 
 **READ THIS FIRST: THE QUEUE A SessionStart HOOK INJECTS IS STALE.** It opens with a `net=`
-reading and a truncated Balances pill. **Both are CLOSED with evidence** (`4d923cfe`,
-`c61a479a`) - I checked the tracker rather than the prose. Where a hook's queue and the tracker
-disagree, the disagreement is the finding.
+reading and a truncated Balances pill; **both are CLOSED with evidence** (`4d923cfe`, `c61a479a`).
+I checked the tracker rather than the prose. Where a hook's queue and the tracker disagree, **the
+disagreement is the finding.**
 
-1. [x] ✅ **gh AUTH RESTORED BY TRE ~04:05 ET, and iOS DISPATCHED.** Ask `8c716442` closed.
-   ⚠️ **HIS FIRST ATTEMPT DID NOT TAKE, and the reason is worth keeping:** he ran
-   `! gh auth login -h github.com` inside Claude Code and the token stayed invalid, because that
-   command is **INTERACTIVE** (protocol, then a browser code) and a `!` run has no TTY to answer
-   it. The two paths that work: a normal terminal window, or non-interactive
-   `echo <PAT> | gh auth login -h github.com --with-token` with `repo` + `workflow` scope.
-   🚀 **RUN `35198098895`, `workflow_dispatch`, head `2d3ac700`** - carries 6.7.0 AND everything
-   below. **VERIFY IT BY STEP 20's OWN CONCLUSION (`success`, never `skipped`) AND altool's
-   `UPLOAD SUCCEEDED with no errors`** - a push run reads green with the upload skipped, and the
-   upload step swallows Apple's 90382 cap error into a warning and still exits green.
+### ✅ SHIPPED THIS SESSION, all pushed 0/0 and verified on origin BY CONTENTS with a control
 
-2. [x] 💵 **MONTH-0 PURCHASES - SHIPPED, commit `2d3ac700`**, pushed 0/0 and verified by contents
-   with a control. Ask `ec4c1a2b` closed with the full evidence.
-   His $50 Eating Out (due 28 Sep) was invisible in the September row, the balance AND the
-   always-pay-in-full obligation; month 0 now carries card-routed spend dated after the SYNC
-   CUTOFF. **Checked rather than assumed:** no double count (the cash side already excludes
-   card-routed rules in every month) and no sim/display divergence (both read the SAME array
-   element, so the drift `skipFirstMonthPurchases` guards against cannot open).
-   **THE FOUR PIN ASSERTIONS WERE DECIDED ON THEIR MERITS AND TWO ARE NOW STRICTLY STRONGER** -
-   the fixture shows a pin as a CUT (month 1, 1672) *and* a RAISE (month 4, 213); and the exact
-   `<=` on total debt cash, which held by luck of the old fixture, became an interest-scale bound
-   **plus the control it could not do - a pin that does NOTHING satisfied `<=` perfectly.**
-   The whole movement is accounted for: a $1000 pin pushes +2,860.84 in months 3-6 and month 7
-   returns -2,860.84, netting **0.00 to the cent**; the only unmatched movement is **+1.75 in
-   month 15**, the interest a different ordering costs. Two mutations, both restored byte-exact.
-   Gates: tsc clean, lint 0 errors, `test:tz` **4754 across 477 files** in three timezones.
+| commit | what |
+| --- | --- |
+| `2d3ac700` | month 0 stops hiding spend that has not posted (his **$50** Eating Out, 28 Sep) |
+| second copy | **`CreditCardEngine.tsx` had its OWN month-0 rule and /debt reads THAT one** |
+| `5196b381` | the row now says **which cycle each column belongs to** - his decision, verbatim |
+| `5a8c69b2` | friend-link flow deleted; the gate it was holding up re-aimed |
+| runbook fix | the Mac runbook found the tab bar by the one selector this repo forbids |
 
-3. [ ] 🎨 **THE PRESENTATION HALF IS STILL HIS CALL** (`dbdc6d54`). What the September row shows
-   and what the columns are called. Two readings lead to materially different screens, so it is
-   not mine to pick. **It is separate from item 2**, which is a data correctness fix he asked for
-   verbatim - that distinction is what let item 2 be built without waiting on him.
+🚀 **iOS BUILD 903 IS IN TESTFLIGHT** (run `35200156634` = 803 + 100, head `5196b381`). Verified
+the way this repo requires: **step 20's OWN conclusion `success`** AND altool's
+**`UPLOAD SUCCEEDED with no errors`**, with all three `90382` hits in the ECHOED SCRIPT SOURCE
+rather than in the output. **Build 900 earlier today carried only the FIRST copy** and did not
+show the $50 on /debt. **Two uploads today - do not dispatch again today without a reason.**
 
-4. [x] 📨 **OTTO IS ANSWERED AND CLOSED OUT.** I replied this session; he acknowledged and wants
-   nothing back. `663274d7` stays NEEDS TRE - all five reel items are his App Store Connect
-   console or already built; none is a code change here.
+1. [ ] 🎨 **WALK 903 ON HIS PHONE-WIDTH LAYOUT WHEN HE REPORTS BACK.** The cycle sentence is
+   proven on a rendered frame at 390x844 (`npm run check:debt-cycle-labels`), but **that is the
+   walk account with ONE cycling card**. His own data has more cards and a real sync cutoff, so
+   the sentence appears on more rows; worth one look that it does not crowd the row at 150% text.
 
-5. [x] 🗑️ **FRIEND-LINK FLOW DELETED - DONE, commit `5a8c69b2`, pushed 0/0 and verified by
-   contents with a control.** Re-measured first: **0 live unaccepted `friend_links`**, control
-   1 total / 1 accepted, so "none" could not be a query matching nothing. Four files deleted
-   (component, hook, 2 test files). The `?friend_code=` landing STAYS - it also serves
-   `?partner_code=` and `PartnerLink` is alive - and `active_friend_ids()`, the edge function and
-   the table were deliberately not touched.
-   ⚠️ **THE FINDING WAS BIGGER THAN THE DELETION, and the next person should know why.**
-   `field-consistency.test.ts` had exactly ONE subject: `FriendLink.tsx`. Deleting it as queued
-   would have **silently retired five assertions about focus rings** - nothing red, just a smaller
-   suite. Its subject list is now DERIVED from every `settings/*.tsx` carrying an `<input>`.
-   **Re-aiming it found a live user-facing defect on the first run:** `GlobalStandingCard`'s
-   country-code input (mounted via Account -> FriendsLeaderboard) had **no focus ring at all**.
-   Inventory: 11 settings inputs, 6 hand-rolled, 1 with no ring; all six now compose the shared
-   constants (`FIELD_INPUT_COMPACT`, `FIELD_BASE`, both guarded).
-   **And `control-style-ratchet` was punishing the consolidation** - it read className SOURCE
-   SPELLINGS, so importing a constant minted a new signature and the count ROSE 36 -> 38 on correct
-   work. It now resolves the constants; ceilings lowered to input **35** (real consolidation) and
-   select **17** (a corrected measurement, not progress - said separately on purpose).
-   **Predicted the suite must fall by exactly 61 + 5 = 66 and it landed on 4752 exactly**, so
-   nothing else vanished. Three further hand-named lists still named the file and were tombstoned.
-   Gates: tsc clean, lint 0 errors, `test:tz` **4754 passed across 477 files** in three timezones.
+2. [ ] 💵 **THE MONTH-0 CHANGE IS LIVE ON BOTH ENGINES NOW - WATCH FOR A SECOND-ORDER EFFECT.**
+   Month 0 carrying purchases changes when a cycling card clears (on the demo fixture d7 moved
+   from month 2 to month 7). That is CORRECT, and it is also the kind of change a user notices as
+   "my payoff date moved". If he asks, the answer is: the spend was always coming, it just was not
+   being counted until the month it posted.
 
-6. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT**
-   (`f22f17b1`, and Sam's `8a202850`).
+3. [ ] 🪟 **NATIVE GLASS - BLOCKED ON A MAC, NOT ON A DECISION** (`f22f17b1`, Sam's `8a202850`).
+   Scope reconfirmed this session and `docs/native-glass-mac-session.md` is corrected and current:
+   every path it names resolves, the bridge gate is green at 13, and **step 3's selector was
+   fixed** - it found the tab bar by `rounded-full`, the correctness marker, which returns `null`
+   if the pill has regressed and would have burned a ONE-SHOT borrowed-Mac session on a null
+   dereference. Now the gate's own shape predicate plus an explicit "STOP: this is the instrument,
+   not the answer". "Five tab labels" re-verified against `grid-cols-5`.
+
+4. [ ] 📊 **LEADERBOARD SERVER-SIDE PUBLISHING** (`798c0ed9`) - deferred with a stated trigger
+   ("participation is real"). ⚠️ **I tried to measure the trigger and my query was wrong** - the
+   sharing columns are not named `share_goal_progress`. Re-derive the real column names from
+   `information_schema` before quoting any participation number.
+
+5. [ ] 📨 `663274d7` stays **NEEDS TRE** - four of Otto's five reel items are his App Store Connect
+   console and the fifth was already built. Otto acknowledged; nothing waits on him.
+
+### ⚠️ WHAT THIS SESSION LEARNED THE HARD WAY - DO NOT RE-DERIVE
+
+* **A SECOND COPY OF THE SAME RULE, AND I SHIPPED THE FIRST ONE AND REPORTED IT DONE.**
+  `useCardProjection.ts` and `CreditCardEngine.tsx` both implement month-0 purchases, and
+  `projections` - the rows actually rendered on /debt - reads the SECOND. The prop doc saying
+  "when provided, projections use Forecast's sim" is about PAYMENTS, which is why it was believed.
+  **The caller-grep this repo mandates before scoping something as "not built" belongs equally on
+  anything you have just SHIPPED.**
+* **MY OWN NEW GATE WOULD HAVE MISSED THE DEFECT I HAD JUST MADE.** Its month slots were `.+?`, so
+  `.month` (a number) for `.label` rendered **"1's purchases"** and it PASSED. A wildcard where a
+  month name belongs cannot tell a month from a row index. **Mutate a new gate with the real
+  defect, not a contrived one.**
+* **A GATE AIMED AT ONE HAND-NAMED FILE DIES WITH THAT FILE.** `field-consistency.test.ts` had
+  exactly one subject - the DEAD `FriendLink.tsx` - so deleting it as queued would have silently
+  retired five focus-ring assertions. Re-aimed at a DERIVED list, it found a live defect on the
+  first run: `GlobalStandingCard`'s country input had **no focus ring at all**.
+* **`control-style-ratchet` PUNISHED THE CONSOLIDATION IT ASKS FOR** - it read className SOURCE
+  SPELLINGS, so importing a constant minted a new signature and the count ROSE 36 -> 38 on correct
+  work. Fixed to resolve the constants; ceilings lowered to input **35** (real consolidation) and
+  select **17** (a corrected measurement, said separately on purpose).
+* **A BROWSER GATE MUST CREATE THE STATE IT MEASURES WHEN THE FIXTURE CANNOT.** Both walk cards
+  ship `payment_preference = null`, so the cycling branch is unreachable and a red would have been
+  about the FIXTURE. The gate sets one `@forgenta.test` card, reads the write back, restores in a
+  `finally`.
+* **`gh auth login` IS INTERACTIVE** - Tre's `! gh auth login` did nothing because a `!` run has no
+  TTY. A normal terminal, or `echo <PAT> | gh auth login -h github.com --with-token`.
 
 <details><summary>Nineteenth session's queue, superseded - items 1 and 2 of it are DONE</summary>
 
@@ -6329,7 +6338,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 04:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 04:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6345,14 +6354,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+5196b381 [debt]: the row now says which cycle each column belongs to
+193b0802 [debt]: the SECOND copy of the month-0 rule - the one /debt actually reads
+c202d580 [docs]: the Mac runbook found the tab bar by the one selector this repo forbids
+e3014dac [handoff]: gh auth restored, iOS dispatched as 35198098895, month-0 purchases shipped
+2d3ac700 [debt]: month 0 stops hiding the spend that has not posted yet
 18f60dc1 [handoff]: friend-link flow deleted; the gate it was holding up is re-aimed and found a live focus-ring defect
 5a8c69b2 [settings]: delete the friend-link flow, and re-aim the gate it was quietly holding up
 9e48f3aa [handoff]: twentieth session - the month-0 purchases fix is built and measured, and deliberately held
-bdd166b0 [handoff]: nineteenth session - Tre is mid-conversation, the gh token is dead, and 6.7 is in no build
-68d382da [handoff]: the gh token expired mid-session - 6.7 is on origin and in no build
-8ee82275 [goals]: the label and the guide now say where the spare money goes; VERSION 6.7.0
-9104f1da [goals]: pin that a split rank already sends spare money where it saves the most
-45c4fcf9 [goals]: the level pace already back-loads itself - the ramp only buys a peak month 2.7x worse
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
