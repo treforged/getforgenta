@@ -19,7 +19,19 @@
    **Acceptance must assert BOTH targets are still met** - an arm that only checks the card is
    satisfied by starving the goal.
 
-2. [ ] 👥 **ACCOUNT TAB IA (ask `004dd8d2`).** Tre, 2026-09-16 23:44: *"the friend section
+2. [x] 👥 **ACCOUNT TAB IA - DONE, AND IT WAS ALREADY BUILT** (ask `004dd8d2`, closed).
+   Verified by RUNNING `npm run check:followers` against the live app, not by reading the code:
+   section bar exactly `["Profile","Leaderboard","Forgenta AI"]`, order measured by GEOMETRY as
+   username -> partner linking -> followers, both list headings render, no visible "friend"
+   wording across 45 leaf text nodes, share link resolves a profile. **THIRD SIGHTING IN THIS REPO
+   of a resume queue calling something outstanding when it is shipped** - grep, or run the gate,
+   before building.
+   ⚠️ **KNOWN SIDE EFFECT of that gate:** it leaves the `walkprobe` account's public/private
+   switch set to true because it cannot restore it. Probe account only, never Tre's.
+
+<details><summary>The original item 2 brief</summary>
+
+   **ACCOUNT TAB IA (ask `004dd8d2`).** Tre, 2026-09-16 23:44: *"the friend section
    shouldn't exist anymore. Move it back up. The following tab and profile tab can be combined now.
    put what's on the followers tab below what's the partner linking that's on the profile tab. Keep
    the username in change section at the top."* Order: username/change, partner linking, then
@@ -27,11 +39,27 @@
    exactly `["Profile","Leaderboard","Forgenta AI"]` and that both `Followers` and `Following`
    headings render - to assert the ORDER. Do not write a second gate.
 
+</details>
+
 3. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW - SCOPE ALREADY MEASURED**, see the section below. Nothing
    renders `<FriendLink />`; the `?friend_code=` landing is alive on purpose; re-measure the 0 live
    unaccepted rows before deleting; keep `active_friend_ids()`.
 
 4. [ ] 🪟 **NATIVE GLASS - RECONFIRM THE SCOPE IN THIS TAB BEFORE WRITING SWIFT** (`f22f17b1`).
+
+### 🚨 ONE THING TO CHECK FIRST NEXT TIME
+
+**iOS run `35191187725`** (workflow_dispatch, head `08bcdfa8`) was DISPATCHED and was still
+`pending` on a queued macOS runner when this session reported. **It has NOT been verified.**
+
+    gh run view 35191187725 --json jobs -q '.jobs[].steps[] | "\(.number) \(.name) -> \(.conclusion)"'
+
+**READ THE UPLOAD STEP'S OWN CONCLUSION, never the run's** - a run reads `success` with the upload
+step `skipped`, and the upload step itself swallows Apple's 90382 cap error into a warning and
+still exits green, so the only sufficient evidence is altool's `UPLOAD SUCCEEDED with no errors`
+appearing in the OUTPUT rather than in an echoed source line. It carries `08bcdfa8` (always-pay-in
+-full every month) and `aaf33b9e` (phantom income). **Do not tell Tre it is on his phone until that
+step is read.**
 
 ### What the EIGHTEENTH session did, with evidence
 
