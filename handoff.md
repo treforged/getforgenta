@@ -1,6 +1,57 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FOURTH session). START AT ITEM 1.
+## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FIFTH session). START AT ITEM 1.
+
+SHIPPED THIS SESSION, all pushed and verified by contents with a control:
+- `01134be0` achievements formatting (ask `b4dad101`, CLOSED). Per-badge icons in the new
+  `src/lib/achievement-icons.ts`; the progress bar moved BETWEEN the name and the count, which is
+  what his "space the amount" complaint was actually about - 640px of blank inside each row at
+  1440, now 67.5px. Gate `npm run check:achievements-layout`, proven red with the real pre-fix
+  file. **iOS build 922** in TestFlight, altool's own UPLOAD SUCCEEDED.
+- `ec69f026` Learn moved to its own /account section, one `NextLessonRow` line kept on the
+  dashboard. The `learn_lesson` and `streak_risk` routes moved WITH it - leaving them behind would
+  have re-opened the 2026-09-05 dead-deep-link hole for every user. Gate
+  `npm run check:learn-home`, proven red three ways. **iOS build 924.**
+- `89604ad4` linked-bank rows show the already-computed account count; the Plaid/Akoya legal text
+  moved below the list behind a `<details>`, nothing deleted (ask `536ebe70`, CLOSED partial).
+
+⚠️ FOUR THINGS I GOT WRONG, AND THEY ARE WORTH MORE THAN THE THREE COMMITS:
+1. **`01134be0`'s message said corner concentricity "does not bind here". True of the outer card,
+   FALSE of the tile I added in the same commit** - 9px padding inside a 12px radius. The repo's
+   concentricity gate caught it AFTER the push, because I ran tsc, lint and targeted tests instead
+   of the suite. A statement true of what you were looking at and false of what you just added is
+   the hardest kind to catch yourself.
+2. **`npx vitest run | tail` printed "1 failed | 4785 passed" and the shell reported EXIT 0.** On
+   this repo the exit code is not a usable signal. Read the RESULT LINE.
+3. **`check-learn-home`'s failure message claimed to cover the routing destination and did not** -
+   the browser navigates to the URL directly. Found by mutation, fixed with an explicit coupling
+   check labelled a SOURCE check rather than dressed up as a rendered one.
+4. **My blank-run probe could not reach the linked-banks rows at all** (the walk account has no
+   banks) and reported a different screen's numbers; and when I seeded banks, the fixture had no
+   linked accounts, so my own new branch was unreachable and the measurement came back IDENTICAL
+   to before the fix. Seed reverted, revert verified by READING THE ROWS BACK.
+
+1. [ ] **Ask `0c375878` - the dashboard reorganisation.** Learn is off it; what is left is killing
+   the duplication between the top section and the panels below, and setting a good DEFAULT
+   layout. **SAM DECIDED: KEEP Customize.** His complaint is about the DEFAULT, not about
+   customisation existing, and removing it destroys every saved layout. Advanced analytics, cash
+   flow review and monthly change are questions he RAISED and did not settle - do not treat his
+   musing as an instruction. Goal progress stays where it is.
+
+2. [ ] **Ask `6237167a` - move-fund pacing.** Money-engine work and the one with real user value:
+   the save-up contribution splits evenly across all dates, and Oct/Nov/Dec all drop below the
+   safe level, so he cannot make the move without sacrificing something. He wants it SCALED -
+   smaller now, larger once the cards are down - where that is logical. Start in
+   `src/lib/floor-protection.ts` and `src/lib/forecast-engine.ts`.
+
+3. [ ] **Ask `44062af7` - the rest of the Accounts tab**, his "same thing on some of the other
+   pages like that tab". ⚠️ **DO NOT ship a portfolio-wide blank-run threshold gate.** Measured:
+   at 1440 nearly every `justify-between` row in the app flags at 120px, so a global gate would
+   cry wolf on ordinary rows and be switched off within a week. Measure at 390 and fix by surface.
+
+<details><summary>TWENTY-FOURTH session queue (SUPERSEDED - items 1 and part of 3 are done above; the rest still stands)</summary>
+
+### (superseded) RESUME QUEUE - TWENTY-FOURTH session
 
 ⚠️ **TRE IS AWAKE AND TESTING, AND HE HAS CORRECTED THE SAME THING TWICE TODAY: A DESK DOES
 NOT STOP WHILE IT HAS UNBLOCKED WORK.** Decision `22d44c34`. *"you should always be striving to
@@ -466,6 +517,8 @@ see the block under it for what each became. Read this list instead.
 </details>
 
 <details><summary>TWENTY-FIRST session's queue - SUPERSEDED, all four items done. Kept because its refutations still stand.</summary>
+
+</details>
 
 ## RESUME QUEUE - 2026-09-17 (Ada, TWENTY-FIRST session). START AT ITEM 1.
 
@@ -6957,7 +7010,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 16:00 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 16:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -6968,14 +7021,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+d769fd3c [handoff]: his achievements-formatting ask goes to the top - he is on that screen now
+61f0796f [handoff]: twenty-fourth session queue - part 3 of the achievements ask is first up
+df59cc52 [account]: move the trophy case off the Dashboard Overview into its own Account section
 bb6988cc [handoff]: baseline across five captures - and his card debt has nearly doubled in ten weeks
 08f441dc [test]: remove zz-tmp-diagnostic - 0 assertions, 7 console lines, and its own header says delete me
 7fcdb1c5 [handoff]: item 5 answered - the $459 was not a horizon artefact, so the revert was right
 1a8e8752 [handoff]: floorFlicker swept - same capacity family, and the latch is intact at every shock size
 23f3abc0 [handoff]: retracting my own nine months - a capture bakes in its settlement state, so the clock cannot be moved
-2a30538b [handoff]: isolated - his 09-17 rows project payoff NINE months later on 0.96% more debt
-53844d8d [handoff]: swept the shock - floorDeficit is capacity, and his buffer fell 72% in sixteen days
-c9bfcb5b [handoff]: correcting my own finding - the fourth red was a false alarm, not a money defect
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
