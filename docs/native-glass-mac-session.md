@@ -143,12 +143,30 @@ await G.apply({ id: 'probe', x: 20, y: 200, width: 350, height: 120, cornerRadiu
 Apply it over a surface that **has web content** — the new floating tab bar is the obvious
 candidate, since it is already a pill and already glass in CSS. Get its rect from the page:
 
+⚠️ **FIND THE BAR BY ITS SHAPE, NEVER BY `rounded-full`.** This snippet used to read
+`document.querySelector('nav[class*="rounded-full"]')`, and that is the correctness-marker trap
+this repo has already paid for twice - `scripts/check-nav-doors.mjs` carries the full note and
+says in as many words "do not simplify that selector back". `rounded-full` is present only when
+the bar is CORRECT, so if the pill has regressed to the old pinned rectangle the selector returns
+`null`, the next line throws on `.getBoundingClientRect()`, and a ONE-SHOT borrowed-Mac session
+is spent debugging the instrument instead of answering the question. The shape below is true of
+the pinned bar and the pill alike.
+
 ```js
-const r = document.querySelector('nav[class*="rounded-full"]').getBoundingClientRect();
+const nav = [...document.querySelectorAll('nav')].find((el) => {
+  const r = el.getBoundingClientRect();
+  return getComputedStyle(el).position === 'fixed'
+    && r.width > 0 && r.height > 0 && r.bottom > innerHeight / 2;
+});
+if (!nav) throw new Error('no fixed bottom <nav> in the lower half of the viewport - STOP: this is the instrument, not the answer');
+const r = nav.getBoundingClientRect();
 await G.apply({ id: 'tabbar', x: r.left, y: r.top, width: r.width, height: r.height, cornerRadius: r.height / 2 });
 ```
 
-**Screenshot it, and look for the five tab labels and icons.**
+**Screenshot it, and look for the five tab labels and icons.** (Re-verified 2026-09-17: the bar is
+still `grid-cols-5` over `PRIMARY` in `src/components/layout/MobileNav.tsx`, so "five" is current
+rather than inherited from when this was written. If that count ever changes, the instruction is
+"every label the bar renders", not the number.)
 
 - **The labels and icons are GONE, blurred away under the material** → the analysis is CONFIRMED.
   Native glass cannot be used on any surface with its own content without a second WKWebView.
