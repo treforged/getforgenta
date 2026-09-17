@@ -1475,7 +1475,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             ] : []),
             ...(form.account_type === 'credit_card' ? [
               { key: 'card_start_date', label: 'Start Date (future cards)', type: 'date' as const, hint: 'Leave blank for existing cards. Set a future date to begin purchases from that month.' },
-              { key: 'first_payment_due_date', label: 'First Payment Due Date', type: 'date' as const, hint: 'Only if the first payment is not on the due day above - a new card often bills a month out. Every month after uses the due day.' },
+              { key: 'first_payment_due_date', label: 'First Payment Due Date', type: 'date' as const, hint: 'A new card usually bills a month out - if your first payment is 10 October, put that here even though the due day above is also the 10th. Until that date the plan asks you for nothing on this card. Every month after uses the due day.' },
               { key: 'annual_fee', label: 'Annual Fee', type: 'number' as const, placeholder: '0', step: '0.01', hint: 'Charged to this card every year, so the forecast stops reading better than the card costs. Leave blank if it has none.' },
               { key: 'annual_fee_date', label: 'First Annual Fee Date', type: 'date' as const, hint: 'The date of the first charge. It repeats on that month every year. Required if a fee is set.' },
             ] : []),

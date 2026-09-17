@@ -22,6 +22,7 @@
  */
 import type { CardData } from '@/lib/credit-card-engine';
 import { formatCurrency } from '@/lib/calculations';
+import { firstPaymentDueMonthOffset } from '@/lib/first-payment-due';
 
 /**
  * The one wording of the gap, so /debt and the Dashboard widget cannot say it two ways.
@@ -91,8 +92,20 @@ export interface UnconditionalSettlement {
  *
  * Returns 0 for a card that is not unconditional, or has nothing to pay.
  */
-export function unconditionalDesired(card: CardData): number {
+export function unconditionalDesired(card: CardData, now: Date = new Date()): number {
   if (card.paymentUnconditional !== true) return 0;
+  // ⚠️ "ALWAYS PAY THIS" STILL CANNOT DEMAND A PAYMENT THAT IS NOT OWED YET.
+  // Tre, 2026-09-17: "Robinhood is charging for this month ... when it doesn't start till
+  // October 10. that payment is causing a shortage of my account which is incorrect."
+  // The first-payment-due-date rule existed and was wired into the MINIMUM path only
+  // (`minSuppressed` in credit-card-engine). An unconditional card is settled OFF THE TOP,
+  // before minimums and before the cascade, so it never met that guard: a card opened in
+  // August whose first bill lands on 10 October was sending its whole balance in September
+  // and REPORTING THE GAP AS A SHORTFALL. The month was declared short because of a payment
+  // nobody had asked for.
+  // Both callers settle MONTH 0, so "a later month" is the whole test here.
+  const firstDueMonth = firstPaymentDueMonthOffset(card.firstDueDate, now);
+  if (firstDueMonth !== null && firstDueMonth > 0) return 0;
   const base = Math.max(0, card.balance);
   const desired = card.paymentPreference === 'statement'
     ? base
@@ -122,11 +135,12 @@ export function unconditionalDesired(card: CardData): number {
 export function settleUnconditional(
   cards: readonly CardData[],
   pool: number,
+  now: Date = new Date(),
 ): { byCard: Map<string, UnconditionalSettlement>; remaining: number } {
   const byCard = new Map<string, UnconditionalSettlement>();
   let remaining = Number.isFinite(pool) ? pool : 0;
   for (const card of cards) {
-    const desired = unconditionalDesired(card);
+    const desired = unconditionalDesired(card, now);
     if (desired <= 0) continue;
     const available = Math.max(0, remaining);
     byCard.set(card.id, {
