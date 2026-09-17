@@ -37,7 +37,8 @@
     "check:onboarding-stay": "node scripts/check-onboarding-stay.mjs",
     "check:nav": "node scripts/check-nav-doors.mjs",
     "check:panel-rows": "node scripts/check-panel-rows.mjs",
-    "check:desktop-rail": "node scripts/check-desktop-rail.mjs"
+    "check:desktop-rail": "node scripts/check-desktop-rail.mjs",
+    "check:text-scale": "node scripts/check-text-scale.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

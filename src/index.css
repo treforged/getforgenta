@@ -1006,10 +1006,42 @@ so size and variant are separated here and the 44px floor is stated once.
     overflow-x: hidden;
   }
 
-  /* Capacitor native: allow the OS accessibility font-size preference to scale text */
+  /* ⚠️ THE TWO COMMENTS THAT USED TO SIT HERE BOTH CLAIMED DYNAMIC TYPE ALREADY WORKED, AND
+     NEITHER MECHANISM DELIVERS IT. Tre, 2026-09-16: *"make the text sizing follow how the
+     person's device is set up on mobile ... the main text should follow that pattern and then
+     the others should scale around that."* He was asking for a feature the code said it had.
+       - `html { font-size: 112.5% }` is a percentage of the WEB VIEW's default (16px). That
+         tracks a desktop browser's own text-size setting, which is why it stays. It does NOT
+         track iOS Dynamic Type: WKWebView's default does not move when the user drags that
+         slider.
+       - `-webkit-text-size-adjust: none` was commented as "allow the OS preference to scale
+         text". It does the opposite - that property controls Safari's automatic text INFLATION
+         and `none` switches it off. It is kept, because inflation is not what we want either:
+         it resizes some text and not other text, which breaks a scale rather than moving it.
+
+     `font: -apple-system-body` IS THE LEVER. The `-apple-system-body` keyword resolves to the
+     body size the user actually chose in Settings, so putting it on the ROOT makes the root rem
+     that size - and because this app's type scale is entirely rem (every `text-[10px]` class is
+     redefined in rem further up this file), everything else moves with it. That is his sentence
+     implemented literally: one main size from the device, the rest scaling around it.
+     The shorthand also resets family and line-height, so both are restored immediately after.
+
+     ⚠️ UNVERIFIED ON A DEVICE, AND SAID SO RATHER THAN ASSUMED. This desk has no iPhone and no
+     Mac, so the claim "this follows the slider" rests on the `-apple-system-body` keyword's
+     documented behaviour, not on a measurement. That is exactly the kind of claim the two
+     comments above made and got wrong. The honest test is: change the text size in iOS
+     Settings, reopen the app, and see whether the type moves. */
   html.native {
     -webkit-text-size-adjust: none;
     text-size-adjust: none;
+  }
+
+  @supports (font: -apple-system-body) {
+    html.native {
+      font: -apple-system-body;
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
   }
 
   body {
@@ -1023,10 +1055,14 @@ so size and variant are separated here and the 44px floor is stated once.
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* ⚠️ `max()` AND NOT A FLAT 16px. The 16px exists for one reason - iOS zooms the page when
+     you focus a field whose text is smaller - and a flat value also makes form text the ONE
+     part of the app that ignores the size the user asked for. `max(16px, 1rem)` keeps the
+     anti-zoom floor and lets the field grow with everything else. */
   input,
   textarea,
   select {
-    font-size: 16px !important;
+    font-size: max(16px, 1rem) !important;
 }
 
   #root {
