@@ -178,13 +178,58 @@ apart - enumerate and describe.**
 (retired), the debounce (retired), a mismatched pair (retired), and now the total-versus-rows
 mechanism (retired - my own instrument).
 
+### ✅ 8 - CAPACITY CONFIRMED BY A PRE-NAMED FALSIFIER, AND BOTH SIDES RUN THE SAME COMPUTATION
+**THE FALSIFIER WAS NAMED BEFORE LOOKING** (Sam's caution: capacity must not become the tidy cause
+the way "the rows are empty" nearly did): *if the figure is bounded by available cash, moving the
+funding balances must move it; if cash moves a long way and the figure does not, capacity is
+refuted.* Scaling the three cash accounts on the 31-Aug dump:
+
+| cash | total | rows |
+| --- | --- | --- |
+| 0.00 | **0** | none |
+| 829.67 | **0** | none |
+| 3,318.68 (baseline) | 99.89 | Robinhood Gold Card = 99.89 |
+| 16,593.40 | **10,670.44** | Robinhood **= 230** \| Discover = 10,440.44 |
+| 165,934.00 | 10,670.44 | identical - **saturated** |
+
+A clean monotone gradient with a floor and a ceiling. **The hypothesis survived a test that could
+have killed it.**
+
+✅ **THE DECISIVE ARM IS x5: with enough cash the harness produces 230 on that card - the
+browser's 229.89 to eleven cents.** So the two sides are **NOT computing different things.** The
+harness runs the same computation with **less month-0 available cash**, and the cap squeezes 230
+down to 99.89. **That reframes the question** from "which formula is wrong" to **"why is month-0
+available cash lower in the harness"**, on identical account balances.
+
+**`pauseSavings` REFUTED AS THE CAUSE, WITH A CONTROL.** It is
+`usePersistedState('tre:debtpayoff:pause-savings')` - **localStorage**, which the raw dump cannot
+carry, so the harness always defaults `false`. Forcing it `true` changes the figure by **exactly
+zero**. The control is what makes that worth anything, because a null result from an inert probe
+looks identical: read-back `ls=true` against `ls=null` across the arms, and the quantity it gates
+is **`goalMonthly` 746.82** across 4 goals and 1 car fund. **Readable, gates real money, moves
+nothing.**
+
+⚠️ **AND THE localStorage GAP IS A REAL FIXTURE DEFECT EVEN THOUGH IT IS NOT THIS CAUSE.**
+**THREE** provider inputs live in browser-local state the dump cannot capture:
+`tre:debtpayoff:pause-savings`, `tre:debt:strategy`, `tre:debt:fundingAccount`. The other two are
+the same shape and are **untested**. Any of them differing between Tre's browser and a fresh jsdom
+silently changes what the fixture pipeline computes, and **nothing anywhere records that.**
+
 ### WHAT IS ACTUALLY LEFT - START HERE
+**Instrument the month-0 cash chain and find which term is smaller in the harness** - that is now
+the whole question, and it is one number rather than a formula. Then: the two untested
+localStorage inputs above, the null-payoff dump, and the 24 -> 34 move.
+
+<details><summary>Superseded - the earlier framing of this step</summary>
+
 **Prove WHY the harness figure is capacity-bound** rather than card-derived - that is the last
 step to calling this a fixture defect. Then find why `currentMonthRecommendedDebt` differs on identical rows at an identical instant**, then
 decide whether it explains the 2 months. That single value is the whole remaining gap between the
 app and the harness, and until it closes, no attribution across these captures means anything and
 `5409ffbc` cannot be adopted. After that: the null-payoff dump (two 17-Sep dumps an hour apart
 giving 34 and null), then the 24 -> 34 move itself.
+
+</details>
 
 Everything else on the ask queue is blocked on a named trigger or on Tre.
 
