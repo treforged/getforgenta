@@ -1,66 +1,103 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, FOURTEENTH session). THE BRANCH IS MERGED.
+## ⚠️ RESUME QUEUE - 2026-09-17 (Ada, FOURTEENTH session). READ ITEM 0 FIRST.
 
-`followers-consolidation-wip` is **merged to `main` and pushed** (`01bdc3a9`, verified by
-CONTENTS with a known-positive AND a negative control, 0/0 against origin). Gates on main:
-`tsc --noEmit` clean, vitest **4741 passed / 1 skipped across 468 files**, `check:followers`
-green in a real browser.
+**Tre was awake and typing into this tab all session.** He changed the Account tab IA THREE
+times in forty minutes, so treat anything below that describes the IA as perishable and check
+it against `src/pages/Account.tsx` before acting on it.
 
-✅ **iOS BUILD 873 IS IN TESTFLIGHT** - run `35178581343`, `workflow_dispatch`, head `01bdc3a9`.
-**It carries the followers UI (`0e56306c`) AND this consolidation.** Neither was in 870.
+0. [ ] 🚀 **NOTHING SINCE iOS 873 IS ON HIS PHONE, AND THAT IS THREE COMMITS OF HIS OWN ASKS.**
+   873 (run `35178581343`, head `01bdc3a9`) carries the followers UI and the first
+   consolidation, verified through all three gates. **Everything after it is origin-only:**
+   the merged Profile section, the removal of "add a friend", and the share link.
+   **DISPATCH ONE BUILD, do not push-and-hope:**
 
-**VERIFIED THROUGH ALL THREE GATES, NEVER THE RUN'S CONCLUSION:**
-* the RUN reads `success` - **necessary and NOT sufficient**, because a push run reads success
-  with the upload step `skipped`;
-* **step 20 `Upload to App Store Connect` reads `success`, never `skipped`**;
-* **altool's own words, `UPLOAD SUCCEEDED with no errors`, appear once.** `90382` appears **3
-  times and all three carry the echoed-command escape prefix** (`^[[36;1m`), so they sit in the
-  script SOURCE and none is in output - **the daily-cap branch did not fire.** That branch turns
-  a real cap into a warning and still exits green, which is why the step's conclusion alone is
-  not enough either.
-* **873 was READ FROM THE LOG** (`VERSION_CODE: 873`), not computed from the run number.
+       gh workflow run "iOS Build & Upload to App Store" --ref main
 
-⚠️ **873 IS THE iOS NUMBER. Android is a different workflow with different upload rules** - a
-green Android run says nothing about TestFlight, and quoting one while he waits on the other
-reads as delivery. **An upload is not an install**; TestFlight still processes and he must update.
+   ⚠️ **A PUSH BUILDS AND DOES NOT UPLOAD** - step 20 is gated to `workflow_dispatch` or a `v*`
+   tag, and a push run still reads `success` with that step `skipped`. Read the UPLOAD STEP'S
+   own conclusion, then altool's `UPLOAD SUCCEEDED with no errors`, then check `90382` appears
+   only on lines carrying the echoed-command escape prefix.
+   ⚠️ **870 AND 873 BOTH WENT OUT TONIGHT.** Apple caps uploads per app per day and this repo
+   once burned that cap with eleven. **One build, carrying everything.** Name the **iOS**
+   number (read `VERSION_CODE:` from the log, never Android's).
 
-1. [ ] **NOTHING IS BLOCKED ON THE BUILD.** Next real slice is item 3 below (the nameless rows).
+1. [ ] 🏆 **ACHIEVEMENTS - ask `6bd02bc3`, AND HE IS PARTLY RIGHT, SO DO NOT OPEN BY AGREEING OR
+   BY DISAGREEING.** His words: *"I don't ever think you fulfilled my achievements, tracking
+   ask. There should be an achievement for multiple things. I asked a while ago and then I want
+   to make an achievement for milestones of followers/following."*
+   **WHAT I MEASURED BEFORE THE GATE STOPPED ME - use it, do not re-derive it:**
+   * The machinery EXISTS and is wired: `src/lib/achievements.ts` (122 lines),
+     `src/hooks/useAchievements.ts`, `src/hooks/useSocialAchievements.ts`,
+     `TrophyCase.tsx`. So "never built" is not the right description.
+   * **BUT ONLY THREE THINGS ARE EARNABLE**, and that is his real complaint: a `lesson:<id>`
+     badge per Learn lesson, a badge per SOCIAL LINK TAP, and `og_founder`. **NOTHING you can
+     earn by USING THE PRODUCT** - no card paid off, no goal hit, no streak, and no follower
+     milestone. "an achievement for multiple things" reads as exactly that gap.
+   * ⚠️ **THE ONE QUERY I DID NOT GET TO**, and it decides whether this is a content gap or a
+     plumbing gap - run it FIRST:
 
-2. [ ] 🗑️ **THE FRIEND-LINK DELETION IS UNBLOCKED, AND I DELIBERATELY DID NOT DO IT.**
-   **MEASURED 2026-09-17 03:29Z, so do NOT re-measure:**
+         select achievement_id, count(*) as holders
+         from public.achievements group by achievement_id order by holders desc limit 20;
 
-       live_unaccepted = 0   (accepted_at null, revoked_at null, expires_at > now)
-       total_rows = 1, accepted = 1, expired = 0      <- POSITIVE CONTROL
+     Put a positive control in the same read (a total row count), because a zero from a broken
+     query and a zero from an empty table are the same zero.
+   * ⚠️ **`og_founder` IS SETTLED AND MUST NOT BE RE-OPENED** - Tre decided 2026-09-06 to KEEP
+     the badge and NOT backfill `og_members`. Its own file says so at length. `og_members`
+     reading 0 is CORRECT and is not evidence against it.
+   * **FOLLOWER MILESTONES ARE THE NEW HALF**, and the honest caveat is that `public.follows`
+     currently has **ZERO ROWS**, so nothing can be earned yet and a gate asserting a real
+     milestone cannot pass on live data. Build it so the RULE is unit-testable without needing
+     a real follower.
+   * ⚠️ **AND SAY WHAT A BADGE ACTUALLY MEANS.** The file already records a badge that claimed
+     "one of the first hundred to PAY" about three people who never paid. The social badges
+     describe the TAP, never the follow, deliberately - this app cannot know whether somebody
+     followed. **Do not invent a claim the data cannot support.**
 
-   The control is the point: a zero from a broken query and a zero from a clean table are the
-   same zero. The table is reachable and non-empty, so **the zero is real** - no outstanding
-   invite is stranded by unmounting `FriendLink`, and `active_friend_ids()` honours the one
-   already-accepted link server-side regardless.
-   **WHY I STOPPED THERE, and it is a judgement call rather than a blocker:** removing
-   `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge function is a large deletion
-   that also takes **59 passing assertions** with it, and nobody is waiting on it. What Tre IS
-   waiting on is the followers UI on his phone. Deleting it in the same breath would have
-   delayed the build for a cleanup. **Do it as its own slice, with its own gate, and leave a
-   tombstone saying what it was.**
+2. [ ] 🗑️ **DELETE THE FRIEND-LINK FLOW FOR REAL.** The MOUNT is gone (tombstone in
+   `FollowersPanel.tsx`); `FriendLink.tsx`, `useFriendLink.ts` and the `friend-link` edge
+   function are still in the tree. Measured safe: **0 live unaccepted `friend_links`**, positive
+   control 1 total row / 1 accepted, and `active_friend_ids()` honours accepted links
+   server-side regardless. It takes **59 passing assertions** with it, so it is its own slice
+   with its own gate, and leave a tombstone saying what it was.
 
-3. [x] ~~**THE BALANCES / LINKED BANKS PILL**~~ - **ALREADY DONE**, ask `c61a479a`, commit
-   `2efe2cf1`. The two-segment pill needed 286px in 222px; it now needs 240px in 322px, and below
-   `sm` the `+ Add Account` button is icon-only (aria-label kept). `check:panel-rows` 10 bars PASS,
-   3 still overflowing **which is correct** - Debt's five segments are meant to scroll.
-4. [x] ~~**THE `net=` READING**~~ - **ALREADY ANSWERED**, ask `4d923cfe`. `net=up`, read
-   01:35:23Z on build 862: ios / timeout / attempts 186 / `permission=granted net=up`.
-   ⚠️ **READ IT FOR WHAT IT IS.** `net=up` means ordinary HTTPS worked at the moment APNs did not
-   answer. **It does NOT clear the network** - the probe never touches port 5223, which is what
-   APNs holds its connection on. Both recorded causes are fixed and shipped, so a 5223-level block
-   is now the leading candidate rather than a guess. Cadence (`384ca151`) stays blocked: no token
-   exists and the sender is still all `dry_run`.
+3. [ ] 👀 **THE FOLLOW LISTS SHOW NO NAMES - AND THE RESOLVER ALREADY EXISTS.** Do NOT build one.
+   `useFollows` runs `profilesQuery` -> `follow_profiles()` -> `nameById` -> `labelFor`, and the
+   RPC exists and is GRANTED to `authenticated` (verified 1 and 1). Rows read `A Forgenta
+   member` because **`follows` has ZERO ROWS**, not because names cannot resolve (control: 33
+   profiles). The RPC is correct by INSPECTION - `SECURITY DEFINER`, empty `search_path`,
+   refuses a null `auth.uid()`, excludes self, returns a row only where a follows row already
+   exists either way, so it cannot enumerate. **It has never been EXERCISED**, and doing so needs
+   a real follow between two real accounts. **Watch the first real follow; do not write to live
+   user data to make a gate green.**
 
-⚠️ **I CARRIED BOTH OF THOSE IN AS OPEN AND THEY WERE CLOSED HOURS EARLIER** - they came from a
-superseded queue, and the tracker disagreed with the handoff. **When a handoff and the tracker
-disagree, the disagreement IS the finding**, and the cheap check is one `asks.py show <id>`
-before spending a minute on the item. Left here marked rather than deleted, so the next session
-does not rediscover them a third time.
+4. [ ] 🧹 `UsernameClaim`'s copy still reads **"Friends can add you as @you"**. Friends are
+   followers now, and the share link is built from that username. Small, and he will notice it.
+
+### ⚠️ SIX PREMISES IN THE INHERITED HANDOFF WERE FALSE, AND TWO MISTAKES WERE MINE
+
+Test the premises below before acting on them - that habit is the only reason this session did
+not build three things that already existed.
+
+**MINE, recorded because a session that hides its own errors teaches nobody:**
+* ⚠️ **I RAN `git checkout-index -f -- src/pages/Account.tsx` INSIDE A RESTORE AND DESTROYED MY
+  OWN UNCOMMITTED WORK.** It restores from the INDEX, so it discarded the entire IA rework and
+  left the file matching HEAD. This repo's casebook already records "`git checkout -- <file>`
+  cannot tell your mutation from your day" and I did it anyway, one line after writing an
+  inverse-edit restore that was correct. **Undo a mutation by INVERSE EDIT plus sha256, never by
+  any git restore, whenever the file also holds uncommitted work.** Recovered by redoing the
+  edit; nothing else was lost because everything else was already committed.
+* **I used `git add -A` and staged a stray `scripts/handoff.md`** a hook had written with
+  `cwd=scripts`. Removed and gitignored. The charter warns against `add -A` for exactly this.
+
+**THE BACKSLASH TRAP, measured, and it cost four separate repairs this session:** this machine's
+**Bash heredoc collapses a doubled backslash to a single one before python sees it.** So a
+matcher written as a word boundary arrives as a literal BACKSPACE (0x08) and matches nothing -
+which reads as "the thing is missing" rather than "my regex is broken". It made `PartnerLink`
+read 0, made a path split fail on Windows separators, and made a component list come back empty.
+**Build backslashes with `chr(92)`; never escape them in a heredoc.** And note the asymmetry
+that caught me twice: a JS **regex literal** wants ONE backslash, a **template literal** wants
+TWO.
 
 ### ⚠️ FOUR PREMISES IN THE LAST HANDOFF WERE FALSE. TEST THE ONES BELOW TOO.
 
