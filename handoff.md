@@ -355,9 +355,39 @@ commits** - so the invariants that fail are failing *because the fixture predate
 structural limits recorded there (browser-local state, unpinned timezone) stand on their own and
 are unaffected.
 
-### WHAT IS ACTUALLY LEFT - START HERE
-**Run the one-line proof above before anything else** - it settles eleven passes of work either
-way, and everything recorded tonight about causes is provisional until it does.
+### WHAT IS ACTUALLY LEFT - START HERE: THE PROOF, WITH ITS ZONE CONTROL
+Everything recorded tonight about CAUSES is provisional until this runs. It settles twelve passes
+either way.
+
+⚠️ **"CHECK OUT 09-01 AND RUN THE PROBE" AS I FIRST WROTE IT CANNOT DISCRIMINATE** - Sam caught
+this, using my own finding against my own next step. That probe runs under whatever zone the
+worktree's shell inherits, and **the same figure swings fifteen-fold on the zone alone** (99.89
+under `America/New_York`, 1551.22 under `TZ=UTC`). So a match could be the old code **or** the
+zone, and so could a mismatch.
+
+**RUN IT AS A DISCRIMINATING PAIR, FOUR ARMS, ZONE PINNED EXPLICITLY IN EVERY ONE:**
+
+| arm | code | zone | expect |
+| --- | --- | --- | --- |
+| A | tree @ 2026-09-01 | `America/New_York` | **26** and **229.89** if the reframing is right |
+| B | tree @ today | `America/New_York` | 24 and 99.89 (already measured) |
+| C | tree @ 2026-09-01 | `UTC` | zone control - must differ from A |
+| D | tree @ today | `UTC` | 1551.22 (already measured) |
+
+**A matching and C differing is the result.** A alone is not.
+
+⚠️ **PRINT THE OFFSET, NEVER TRUST `TZ` TO HAVE TAKEN EFFECT.** This machine has already had
+`TZ` silently fail to apply in Git Bash, so two clocks printed the same time and **the impossible
+agreement was read as corroboration**. Assert
+`new Date('2026-09-01T00:20:11.665Z').getTimezoneOffset()` is **240** in the Eastern arms and **0**
+in the UTC arms, and **say in the result which zone produced each number.**
+
+**Mechanics:** `git worktree add` at `2c8bf006`'s era (use a commit dated 2026-09-01), `npm ci`
+there, copy the probe in, run it against `raw-rows.real.BACKUP-2026-09-17.json`. **Never run it in
+this tree** - it would need a checkout that moves the working copy.
+
+**NOT RUN HERE.** It needs a worktree and a full install and the window was tightening; half-running
+it would have produced exactly the undiscriminating single arm above.
 
 <details><summary>Superseded - the previous framing, which assumed the code was the same</summary>
 
