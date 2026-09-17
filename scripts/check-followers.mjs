@@ -166,6 +166,43 @@ if (await page.locator('input[placeholder="username"]').count() === 0) { console
 console.log('  Find form: input and button both rendered');
 
 /*
+ * TWO LISTS, INSTAGRAM-SHAPED, AND NOT ONE CALLED FRIENDS.
+ * Tre, 2026-09-16: "friends should be followers and following just like instagram. it should only
+ * be on that tab." Two headings is the SHAPE of that ask, so it is asserted rather than grepped -
+ * a heading is the thing a person sees, and the wording has already drifted once.
+ * The visible-text scan deliberately reads rendered TEXT, never the markup: a component whose file
+ * is called FriendsLeaderboard is fine, and a heading reading "Friends" is not.
+ */
+// ⚠️ POLLED. The Following list renders after its own round trip, so a single read right after
+// the Find form check found "Followers" and not "Following" - a race, and it would have reported a
+// missing feature that is present.
+let headings = [];
+for (let i = 0; i < 20; i += 1) {
+  headings = await page.evaluate(() => [...document.querySelectorAll('h1,h2,h3,h4,p,span,div')]
+    .map(e => (e.childElementCount === 0 ? (e.textContent || '').trim() : ''))
+    .filter(Boolean));
+  if (headings.some(t => /^Followers/i.test(t)) && headings.some(t => /^Following/i.test(t))) break;
+  await page.waitForTimeout(400);
+}
+for (const want of ['Followers', 'Following']) {
+  // Matched as a leading WORD rather than by exact equality, so adding a count - "Following 3" -
+  // does not read as the heading having been removed.
+  if (!headings.some(t => new RegExp('^' + want + String.fromCharCode(92) + 'b', 'i').test(t))) {
+    console.error(`FAIL: the followers surface has no "${want}" heading. Tre asked for followers AND `
+      + 'following, the way Instagram splits them, and one combined list is not that.');
+    process.exit(1);
+  }
+}
+const friendly = headings.filter(t => /friends?/i.test(t) && t.length < 60);
+if (friendly.length > 0) {
+  console.error('FAIL: the followers surface still says "friend" to the user: '
+    + JSON.stringify(friendly.slice(0, 4)) + '. He retired that word for this surface.');
+  process.exit(1);
+}
+console.log(`  two lists rendered: "Followers" and "Following"; no visible "friend" wording `
+  + `(scanned ${headings.length} leaf text nodes)`);
+
+/*
  * The public/private switch sits at the TOP OF THIS SAME PANEL, so we stay here.
  * It was briefly mounted in the Connections card on the Profile section instead; four suites went
  * red because that component is contractually DB-free and this one queries. Do not re-aim this at
@@ -266,11 +303,20 @@ if (fieldAfter === fieldBefore || !fieldAfter.includes(shareUser)) {
   process.exit(1);
 }
 
-const body = (await page.evaluate(() => document.body.innerText)).toLowerCase();
-const resolvedSelf = body.includes('cannot follow yourself');
-const resolvedOther = (await page.locator('button', { hasText: 'Follow' }).count()) > 0;
+// ⚠️ POLLED, NOT READ ONCE. The lookup is an async round trip, and a single read after a fixed
+// wait made this arm FLAKY - it failed once in four identical runs on 2026-09-17 and passed the
+// other three, which is a fact about the instrument and not about the app. A flaky gate is one
+// somebody re-runs until it is green, which is the same as not having it.
+let resolvedSelf = false;
+let resolvedOther = false;
+for (let i = 0; i < 20 && !resolvedSelf && !resolvedOther; i += 1) {
+  const b = (await page.evaluate(() => document.body.innerText)).toLowerCase();
+  resolvedSelf = b.includes('cannot follow yourself');
+  resolvedOther = (await page.locator('button', { hasText: 'Follow' }).count()) > 0;
+  if (!resolvedSelf && !resolvedOther) await page.waitForTimeout(500);
+}
 if (!resolvedSelf && !resolvedOther) {
-  console.error('FAIL: the link pre-filled the field but no profile was resolved.');
+  console.error('FAIL: the link pre-filled the field but no profile was resolved within 10s.');
   console.error('It is a link that looks fine and does nothing - the exact shape this gate exists for.');
   process.exit(1);
 }

@@ -20,15 +20,14 @@ check the file before acting on it.
    number (`VERSION_CODE = run_number + 100`), say it is an upload and not an install, and do not
    quote an Android number at him - he opens TestFlight.
 
-2. [ ] 🎨 **THE ACCOUNTS PILL IS TRUNCATED (ask `c61a479a`, if still open).** *"that pill is kind of
-   truncated and it should all show at once without scrolling."* `Balances (16) | Linke…` cut off at
-   390px with `+ Add Account` over it.
-   ⚠️ **HE IS REJECTING THE FIX THAT SHIPPED:** `check:panel-rows` made an over-wide pill SCROLL,
-   which is right for Debt's five segments and wrong here. **The two-segment case must FIT while the
-   five-segment case still scrolls** - do not undo that work. Start at `src/pages/Accounts.tsx` and
-   the `.seg-track` rule; the width is eaten by the count badge and by `+ Add Account` sharing the
-   row. Gate with `npm run check:panel-rows` AND a rendered frame at 390x844 **via Playwright** -
-   Claude-in-Chrome's `resize_window` reports success and does not resize, measured twice here.
+2. [ ] 👥 **FOLLOWERS / FOLLOWING, INSTAGRAM-SHAPED, ON THAT TAB ONLY.** Tre, 2026-09-16 23:07,
+   verbatim: *"friends should be followers and following just like instagram. it should only be on
+   that tab."* **NOT YET VERIFIED against the shipped Account tab** - the fourteenth session scoped
+   followers to one section and `check:followers` asserts the section bar reads exactly
+   `["Profile","Leaderboard","Forgenta AI"]`, but nobody has checked whether the surface presents
+   TWO counts (followers AND following) the way Instagram does, or one list called friends.
+   **Test that premise before building anything** - the gate above is an enumeration of the bar,
+   not of what the followers surface shows.
 
 3. [ ] 🪟 **NATIVE GLASS - HIS APPROVAL IS RECORDED BUT THE SCOPE IS INFERRED** (`f22f17b1`,
    decision `68734368`). His sentence was cut off and does not restate the cost that changed: a
