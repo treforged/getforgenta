@@ -401,3 +401,29 @@ describe('SurplusRankingSection — the verdict respects the contribution start 
     expect(screen.getByText('1 target does not reach its own date — $500 short in total.')).toBeTruthy();
   });
 });
+
+/**
+ * THE SPLIT BADGE SAYS "UP TO", BECAUSE A BARE PERCENTAGE DESCRIBES SOMETHING THAT DOES NOT HAPPEN.
+ *
+ * Tre, 2026-09-17: "we should always go in favor of what saves the user the most money so that's
+ * how it should be calculated/coded. the label should state this as well."
+ *
+ * A paced goal is capped at what its target date needs this month, and the share it cannot spend
+ * cascades to its split partner - so on a rich month a "50%" goal takes its pace and the card
+ * beside it takes the rest. Printing a bare 50% invites the user to check the arithmetic against a
+ * literal half and find it wrong. The ALLOCATION behaviour this wording describes is pinned
+ * separately in `ranked-surplus-allocation.savesMostMoney.test.ts`; this asserts only the words.
+ */
+describe('the split badge is honest about what a share means', () => {
+  it('renders "up to 50%" on a split rank, never a bare "50%"', () => {
+    const a = { ...row('g1', 'Move fund', 1), share: 50 };
+    const b = { ...row('g2', 'Prime Visa', 1), share: 50 };
+    setup([row(CARDS_ROW_ID, 'Credit cards', 0, 'cards'), a, b]);
+    // POSITIVE CONTROL: the badge renders at all. Without this, a selector that found nothing
+    // would satisfy the negative assertion below and report a pass about an empty screen.
+    const upTo = screen.getAllByText(/up to 50%/i);
+    expect(upTo.length).toBeGreaterThan(0);
+    // ...and no row shows the bare figure on its own.
+    expect(screen.queryAllByText(/^\s*50%\s*$/).length).toBe(0);
+  });
+});

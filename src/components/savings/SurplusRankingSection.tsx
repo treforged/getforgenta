@@ -549,9 +549,20 @@ export default function SurplusRankingSection({
                       {row.stageCount != null && row.stageCount > 1 && ` · ${row.stage}/${row.stageCount}`}
                     </span>
                   )}
+                  {/* "UP TO", BECAUSE A BARE PERCENTAGE SAYS SOMETHING THAT DOES NOT HAPPEN.
+                      Tre, 2026-09-17: "we should always go in favor of what saves the user the
+                      most money so that's how it should be calculated/coded. the label should
+                      state this as well."
+                      A paced goal is capped at what its target date needs this month, and the
+                      share it cannot spend cascades to its split partner rather than to a lower
+                      rank - so on a rich month a "50%" goal takes its pace and the card beside it
+                      takes the rest. Printing a bare 50% invites the user to check the arithmetic
+                      against a literal half and find it wrong. The behaviour is pinned by
+                      `ranked-surplus-allocation.savesMostMoney.test.ts` and explained in full in
+                      the Guide; this is the one-glance version. */}
                   {inSplit && row.share !== null && (
                     <span className="ml-1.5 text-[10px] font-mono text-primary">
-                      {Math.round(row.share)}%
+                      up to {Math.round(row.share)}%
                     </span>
                   )}
                 </p>

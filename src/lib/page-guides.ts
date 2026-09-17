@@ -87,6 +87,14 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
       { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
       { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
       { title: 'Vehicles', body: 'Tracking a car purchase? Use the Garage tab for down payment goals and full loan amortization.' },
+      // TRE ASKED FOR THIS EXPLANATION BY NAME (2026-09-17): "we should always go in favor of
+      // what saves the user the most money so that's how it should be calculated/coded. the label
+      // should state this as well. and the logic should be explained in the guide." The decision
+      // has three parts - the calculation, the LABEL and the GUIDE - and this is the third. It
+      // describes behaviour pinned by `ranked-surplus-allocation.savesMostMoney.test.ts`, so the
+      // words and the code are checked against each other instead of drifting apart; if that test
+      // changes, this text is wrong.
+      { title: 'Sharing a spot: where the spare money goes', body: 'When a goal and a debt share one spot in your ranking, the goal only ever takes what its target date actually needs this month - its total still to save, divided by the months left. Anything its share does not need goes straight to the debt beside it, because a dollar against a card charging you interest saves more than a dollar in a fund that is already on schedule. It cannot cost you the goal: in a tight month, when its share is smaller than its pace, the goal keeps its full share. And once the debt is paid off there is no interest left to save, so the goal simply carries on at its own pace.' },
     ],
   },
 
