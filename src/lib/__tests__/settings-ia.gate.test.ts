@@ -147,14 +147,62 @@ describe('Settings information architecture', () => {
   describe('the two sections that moved OFF this page', () => {
     const ACCOUNT_PAGE = join(process.cwd(), 'src', 'pages', 'Account.tsx');
 
+    /**
+     * WARNING 2026-09-17: THIS GATE READ ONE FILE, AND THE THING IT GUARDS MOVED ONE LEVEL DEEPER.
+     *
+     * Tre: "friends should be followers and following just like instagram. it should only be on
+     * that tab." `FriendLink` is now mounted inside `FollowersPanel`, which `Account.tsx` mounts.
+     * The page still renders it exactly once for a user, and a scan of `Account.tsx` alone counted
+     * ZERO and called the section deleted. That is this portfolio's recorded component-boundary
+     * blind spot: the more disciplined the component library, the more reliably a per-file source
+     * scan misses a relationship that exists only at a call site.
+     *
+     * AND THE FALSE READING WAS THE DANGEROUS ONE. A zero here reads as "a section that moved
+     * never arrived", which sends the next session rebuilding a feature that already works.
+     *
+     * So the subtree is DERIVED, never hand-named: read `Account.tsx`, take every
+     * `@/components/settings/...` module it imports, and count mounts across the page plus those.
+     * A hand-typed list of two files is blind to the third component nobody adds to it, which is
+     * exactly how this gate went wrong in the first place.
+     */
+    const SETTINGS_COMPONENT_DIR = join(process.cwd(), 'src', 'components', 'settings');
+
+    /** The files a /account render can reach, one import level below the page. */
+    const accountSubtree = (): { path: string; src: string }[] => {
+      const src = readFileSync(ACCOUNT_PAGE, 'utf8');
+      const children = [...src.matchAll(/from\s+'@\/components\/settings\/([A-Za-z0-9_]+)'/g)]
+        .map((m) => m[1]);
+      return [
+        { path: 'src/pages/Account.tsx', src },
+        ...children.map((name) => ({
+          path: `src/components/settings/${name}.tsx`,
+          src: readFileSync(join(SETTINGS_COMPONENT_DIR, `${name}.tsx`), 'utf8'),
+        })),
+      ];
+    };
+
+    it('the derived /account subtree is non-empty and really includes the page', () => {
+      // POSITIVE CONTROL ON THE EXTRACTION. A gate that slices before it asserts can run zero
+      // assertions and print clean; an empty subtree and a clean codebase give the same silence.
+      const files = accountSubtree();
+      expect(files.length, 'the subtree collapsed — the import regex stopped matching')
+        .toBeGreaterThan(1);
+      expect(files.some((f) => f.path.endsWith('Account.tsx'))).toBe(true);
+    });
+
     for (const comp of ACCOUNT_PAGE_ONLY) {
-      it(`${comp} is mounted on /account exactly once, and not at all in Settings`, () => {
-        const account = readFileSync(ACCOUNT_PAGE, 'utf8');
+      it(`${comp} is mounted in the /account subtree exactly once, and not at all in Settings`, () => {
         const settings = readFileSync(SETTINGS, 'utf8');
         const mounts = (s: string) => (s.match(new RegExp(`<${comp}\\b`, 'g')) ?? []).length;
 
-        expect(mounts(account), `${comp} is not mounted on /account — a section that moved must arrive somewhere`).toBe(1);
-        expect(mounts(settings), `${comp} still renders in Settings — that is the duplicate, not the move`).toBe(0);
+        const files = accountSubtree();
+        const total = files.reduce((n, f) => n + mounts(f.src), 0);
+        const where = files.filter((f) => mounts(f.src) > 0).map((f) => f.path).join(', ');
+
+        // "Exactly one, and here is where" is stronger than a bare count: it survives the section
+        // legitimately moving between files, and it names the second copy when there is one.
+        expect(total, `${comp} is mounted ${total} time(s) in the /account subtree (${where || 'nowhere'}) - a section that moved must arrive somewhere, exactly once`).toBe(1);
+        expect(mounts(settings), `${comp} still renders in Settings - that is the duplicate, not the move`).toBe(0);
       });
     }
 
