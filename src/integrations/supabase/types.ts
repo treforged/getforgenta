@@ -1043,6 +1043,33 @@ export type Database = {
         }
         Relationships: []
       }
+      follows: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+          id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+          id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+          id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       friend_links: {
         Row: {
           accepted_at: string | null
@@ -1705,6 +1732,7 @@ export type Database = {
           user_id: string
           weekly_gross_income: number | null
           username: string | null
+          visibility: string
         }
         Insert: {
           ai_consent_accepted?: boolean
@@ -1764,6 +1792,7 @@ export type Database = {
           user_id: string
           weekly_gross_income?: number | null
           username?: string | null
+          visibility?: string
         }
         Update: {
           ai_consent_accepted?: boolean
@@ -1823,6 +1852,7 @@ export type Database = {
           user_id?: string
           weekly_gross_income?: number | null
           username?: string | null
+          visibility?: string
         }
         Relationships: []
       }
@@ -2543,6 +2573,16 @@ export type Database = {
     }
     Functions: {
       active_friend_ids: { Args: never; Returns: string[] }
+      request_follow: { Args: { p_followee: string }; Returns: string }
+      find_profile_by_username: {
+        Args: { p_username: string }
+        Returns: {
+          display_name: string
+          user_id: string
+          username: string
+          visibility: string
+        }[]
+      }
       active_partner_id: { Args: never; Returns: string }
       bump_founder_view: { Args: { p_source: string }; Returns: undefined }
       claim_streak_reward: { Args: never; Returns: Json }

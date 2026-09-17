@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
-import { User, Settings as SettingsIcon, Trophy, Sparkles } from 'lucide-react';
+import { User, Settings as SettingsIcon, Trophy, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFriendLink } from '@/hooks/useFriendLink';
@@ -9,6 +9,7 @@ import PanelBar from '@/components/shared/PanelBar';
 import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendLink } from '@/components/settings/FriendLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
+import { FollowersPanel } from '@/components/settings/FollowersPanel';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 /**
@@ -18,7 +19,7 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
  */
 const AiAdvisor = lazy(() => import('./AiAdvisor'));
 
-type AccountSection = 'profile' | 'leaderboard' | 'ai';
+type AccountSection = 'profile' | 'followers' | 'leaderboard' | 'ai';
 
 /**
  * ⚠️ THE AI SECTION IS GATED ON THE SAME FLAG AS THE `/ai` ROUTE, and that is not a formality.
@@ -37,6 +38,7 @@ type AccountSection = 'profile' | 'leaderboard' | 'ai';
  */
 const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
   profile: true,
+  followers: true,
   leaderboard: true,
   ai: AI_ADVISOR_ENABLED,
 };
@@ -146,6 +148,15 @@ export default function Account() {
           className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}>
           <User size={13} /> Profile
         </button>
+        {/* Followers sits between Profile and Leaderboard: it is who you are connected to, which
+            is nearer "who you are" than "how you compare". Same seg-item markup as every other
+            surface - this adds a CALLER to PanelBar, never a second implementation. */}
+        <button onClick={() => setSection('followers')}
+          aria-selected={activeSection === 'followers'}
+          role="tab"
+          className={`seg-item btn-press ${activeSection === 'followers' ? 'seg-item-active' : ''}`}>
+          <Users size={13} /> Followers
+        </button>
         <button onClick={() => setSection('leaderboard')}
           aria-selected={activeSection === 'leaderboard'}
           role="tab"
@@ -169,6 +180,21 @@ export default function Account() {
           <div className="border-t border-border" />
           <FriendLink />
         </div>
+      )}
+
+      {activeSection === 'followers' && (
+        /*
+          ⚠️ THE PUBLIC/PRIVATE SWITCH IS NOT IN THIS SECTION, AND THAT IS DELIBERATE. It lives in
+          the Connections card (`FriendLink` -> `AccountVisibilityToggle`), beside the sharing
+          toggles it belongs with - which is the PROFILE section of this tab AND the Account panel
+          in Settings, because that card is mounted in both.
+
+          ONE IMPLEMENTATION, TWO MOUNTS. That is this page's existing pattern, recorded above for
+          PartnerLink and FriendLink, and it is the reason there is nothing here to drift out of
+          step. A second copy of the switch on this section is exactly how two screens start
+          disagreeing about a privacy setting.
+        */
+        <FollowersPanel currentUserId={user?.id} />
       )}
 
       {activeSection === 'leaderboard' && (
