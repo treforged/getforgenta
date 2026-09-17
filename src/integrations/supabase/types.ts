@@ -2581,6 +2581,14 @@ export type Database = {
       }
     }
     Functions: {
+      suggest_profiles_by_username: {
+        Args: { p_prefix: string }
+        Returns: {
+          user_id: string
+          username: string
+          display_name: string | null
+        }[]
+      }
       active_friend_ids: { Args: never; Returns: string[] }
       claim_milestone_achievements: {
         Args: never

@@ -19,6 +19,7 @@ import {
   type FoundProfile,
 } from '@/hooks/useFollows';
 import { UserPlus, Check, X, AtSign, Link2, Copy } from 'lucide-react';
+import { UsernameSuggestions } from '@/components/settings/UsernameSuggestions';
 import { useLocation } from 'react-router';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { AccountVisibilityToggle } from './AccountVisibilityToggle';
@@ -246,6 +247,11 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
             Find
           </button>
         </form>
+
+        {/* PUBLIC ACCOUNTS ONLY, decided server-side - see `useUsernameSuggestions`. Picking a
+            suggestion fills the field rather than following immediately: following is the
+            irreversible-feeling action and it stays one deliberate press away. */}
+        <UsernameSuggestions prefix={username} onPick={(name) => setUsername(name)} />
         {findError && (
           <p className="mt-1 text-sm text-destructive">{findError}</p>
         )}
