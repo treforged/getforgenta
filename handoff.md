@@ -153,6 +153,27 @@ call on his own money page. **It is filed as NEEDS TRE and should be decided tog
 `ec4c1a2b`** (purchases on /debt must follow REAL synced transactions, not the steady
 `monthlyNewPurchases` estimate), because they are the same columns.
 
+### 🔴 THE gh TOKEN IS INVALID - NO iOS BUILD CAN BE DISPATCHED UNTIL TRE RE-AUTHS
+
+`gh auth status`: **"The token in default is invalid."** It WORKED earlier in the same session
+(the 06:44 dispatch succeeded), so it expired mid-session rather than being misconfigured.
+
+* **BLOCKED:** dispatching the iOS workflow (**HTTP 401**) and reading run logs (**HTTP 403,
+  "Must have admin rights to Repository"**).
+* **NOT BLOCKED:** `git push` - it goes over SSH. Every commit this session is on origin, 0/0.
+* **THE CONSEQUENCE:** **VERSION 6.7.0 is on origin and NO BUILD CARRIES IT.** A push builds and
+  does NOT upload here; the upload needs a manual dispatch, which is the refused call.
+* **FIX (his hands - it is a credential):** `gh auth login -h github.com`.
+
+**LAST GOOD BUILD: run `35192375715`, run_number 795, so TestFlight build `895`, head `f31d51db`.**
+Run conclusion success and step 20 **Upload to App Store Connect -> success** (not `skipped`).
+⚠️ **THAT IS AS FAR AS THE EVIDENCE GOES.** The repo's own rule is to read altool's
+`UPLOAD SUCCEEDED with no errors`, because step 20 catches Apple's 90382 cap error, prints a
+warning and still exits green - **and the log is now unreadable (403), so that check could not be
+made.** Report 895 as "the upload step reported success; altool's own output could not be read",
+never as "it is in TestFlight". It carries the grace fix and the duplicate limit; it does NOT carry
+6.7, the split label or the guide.
+
 ### 🚨 ONE THING TO CHECK FIRST NEXT TIME
 
 **iOS run `35192375715`** (workflow_dispatch, head `f31d51db`) is DISPATCHED and QUEUED. **It has
