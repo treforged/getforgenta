@@ -345,6 +345,15 @@ not visible from this desk:
 * Then: push, dispatch `gh workflow run "iOS Build & Upload to App Store" --ref main`, and read
   the **UPLOAD STEP'S OWN conclusion** - `skipped` is not `success` - plus altool's
   `UPLOAD SUCCEEDED with no errors`. Report the build number AND the platform.
+  ✅ **BOTH COMMANDS VERIFIED 2026-09-18, not remembered.** The desk claimed "90 seconds to
+  reverted and dispatched" twice, so the claim was checked rather than asserted:
+  * **The workflow name is EXACT** - `gh workflow list --all` shows `iOS Build & Upload to App
+    Store`, id 262548289. Control: the plausible wrong variant "iOS Build **and** Upload" matches
+    **0**, so the check discriminates. A wrong name fails at the one moment it matters.
+  * **The undo reproduces the pre-bump file BYTE-FOR-BYTE.** `printf '6.7.0
+' > VERSION` is
+    sha256-identical to `68e6c1b5^:VERSION` (6 bytes, trailing newline included). Control: `6.7.1`
+    does NOT match, so the comparison can return both answers.
 
 🚨 **AND THE ANSWER TO "IS ANYTHING BROKEN?" CHANGED LATE IN THE SESSION - IT IS NO LONGER "NO".**
 Everything FIXED today was copy. But `73343713` was answered and found a REAL FAULT:
