@@ -1,102 +1,152 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-SECOND session)
+## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-THIRD session)
 
-### ✅ iOS BUILD 956 IS IN TESTFLIGHT - VERIFIED AT THE STEP AND THE LOG, NOT AT THE RUN
-Run `35359868193`, head `f8520a64`, event `workflow_dispatch`. All three checks, passing:
-* **Step 20's OWN conclusion is `success`, not `skipped`.**
-* **altool's own words present**: `UPLOAD SUCCEEDED with no errors`, 15:09:16Z.
-* **All three `90382` hits are in the ECHOED SOURCE** (cyan-escaped script lines), none in
-  output - so the daily-cap branch did not fire and this is not the swallowed-failure green.
-* `VERSION_CODE` **956** = run_number 856 + 100, version 6.7. **iOS. Not Android's number.**
+### ✅ BOTH OF TRE'S HANDOFF-GATE DECISIONS ARE BUILT, GATED AND PUSHED
+`46338c47` (badge-count metric) and `c0598393` (the /budget split + bolder small text).
+Both verified on origin BY CONTENTS with a known-positive AND a negative control, 0/0
+after an explicit fetch. **Neither is in a build.** On origin, cut into nothing, on no phone.
 
-**It carries the contrast fix**: `3647b487` and `a229358d` are ancestors of `f8520a64`, and the
-negative control (`16fefbc3`, a later commit) is NOT - so that check discriminates.
-**An upload is not an install.** Sam is telling Tre it is "uploaded and his to install".
+### ⚠️ MY OWN BRIEF TOLD ME TO DO THE WRONG THING, AND THE COMMAND IT NAMED IS WHAT PROVED IT
+The brief said "EXTEND `follow_profiles` WITH A COUNT; DO NOT loosen RLS on achievements",
+and named `pg_get_functiondef` as the next step. I ran it:
 
-### ⚠️ ITEM 2 IS NOT CLOSED, AND THE REASON IS A LIMIT RATHER THAN A FAILURE
-**A JOB SUMMARY CANNOT BE READ FROM THE CLI.** `check:notes-coverage` writes only to
-`$GITHUB_STEP_SUMMARY`, which produces NO log output, and the check-run API returns an EMPTY
-output object (`summary_len 0, text_len 0`) - measured, not assumed. **Nobody has yet seen
-`4e6f3776` render**, and I will not say otherwise.
+    follow_profiles()   STABLE SECURITY DEFINER, gated on the FOLLOW EDGE ALONE.
+                        ZERO references to leaderboard_shares.
+    leaderboard_*       every metric gated on a per-metric, default-off leaderboard_shares row.
 
-What I did instead is a **PROXY and is labelled one**: the same script locally over the same six
-commits - `examined 6 commit(s) in f8520a64~6..f8520a64; 0 touched a user-visible path`, exit 0.
-That is the distinct SECOND green (the two greens print different sentences). **Anyone with a
-browser settles this in ten seconds. Do that rather than inheriting the proxy.**
+So a count on `follow_profiles` publishes to every follow edge **with no opt-out** - the
+exact opposite of the decision that arrived in the same message ("Should a friend's
+achievement count respect the sharing toggles? yes", 2fa5e784). **Sam has accepted this and
+recorded the cause as his own**: he relayed a design his predecessor had written into the
+ask text as though it were a finding, on a gating claim nobody had measured.
+**The half that was RIGHT is the half I kept:** RLS on `achievements` is untouched, both
+policies still self-only. WHICH badges you hold stays private; only HOW MANY travels.
 
-⚠️ **AND THE FINDING UNDERNEATH IT IS THE MORE VALUABLE HALF.** A `workflow_dispatch` has no
-`before`, so the step falls back to `RANGE="-6"` - an arbitrary six-commit window, **NOT "what is
-new since the last TestFlight build"**. All six here were handoff commits, so it was trivially
-clean. **A clean coverage result on a dispatched build says much less than it looks like it
-says.** Existing design, not a regression. Sam has it for the ask.
+### ✅ ITEM 1 IS CLOSED IN A BROWSER, AND IT FOUND SOMETHING BIGGER THAN THE COVERAGE GAP
+Run `35359868193`'s step summary rendered: `examined 6 commit(s) in -6; 0 touched a
+user-visible path`, PASS - matching the predecessor's proxy, so that proxy was sound.
+**But the SAME `-6` window generates the PUBLISHED RELEASE NOTE.** Build 956's App Store
+"What's New" reads *"Maintenance release. Nothing changes in how you use Forgenta this
+time."* - on the build carrying Tre's dark-mode contrast fix.
 
-### ✅ `e8f64565` SHIPPED - `6c48a784`. The destructive red is two tokens now.
-One token was doing two opposite jobs. As a FILL it measured **6.68:1**; as TEXT, **2.26:1 on a
-card** - roughly HALF the 4.5:1 AA floor, on the colour the app uses to say a number is wrong.
-**No lightness serves both**, so raising the single token would have fixed the text and broken
-every destructive button.
+⚠️ **ON iOS THAT TEXT IS PASTED BY HAND. ON ANDROID IT IS NOT.** `android-build.yml` has
+`workflow_dispatch`, the identical `RANGE="-6"` fallback, and its **Deploy-to-Play step is
+UNGATED by event** - `whatsNewDirectory: whatsnew`, production, staged 10%. So a dispatched
+Android run publishes that sentence to the live listing automatically.
+**Measured: the last 40 Android runs are all `push`, so it has never fired.** Reachable, not
+realised - and "40 runs were pushes" is a fact about history, not a guarantee about the next
+dispatch. Ask `feaeb21b`. **Sam agrees the severity and wants the gate fixed before anyone
+dispatches that workflow. THIS IS THE NEXT ITEM.**
 
-    l=35%   fill 6.68:1    text-on-card 2.26:1     <- what shipped
-    l=55%   fill 3.51:1    text-on-card 4.29:1
-    l=70%   fill 2.22:1    text-on-card 6.80:1
+### ✅ `46338c47` - BADGE COUNT AS A FIFTH OPT-IN METRIC
+Default off, per-metric opt-in, published as a bucket into `leaderboard_snapshots`, which
+already carries friend-AND-opted-in-AND-this-week. **No new read path was created.**
+**A COUNT, NOT A PERCENTAGE - and the codebase refused the percentage before I did:** only
+lessons are countable, so "a progress figure over the others would invent a denominator".
+It follows `savings_streak` inside the column's existing 0..520 range.
+**0 PUBLISHES AS A REAL 0; only an unread query passes `null`.** So "Private" can now only
+ever mean not-sharing, and can never be the answer for somebody who has simply earned
+nothing - which is the false-claim-about-a-person shape this repo has shipped once already.
+**ONE DECLARATION FOR THE UNION AND THE RUNTIME LIST.** A TS union is not enumerable, so
+three assertions had hardcoded `4` and broke the moment a fifth metric existed - the
+hand-named-inventory defect announcing itself at the cheapest possible moment. The type now
+derives from `ALL_LEADERBOARD_METRICS`, and the toggle test **INVENTORIES** the rows off
+`data-metric` rather than counting them.
+**PROVEN RED THREE WAYS, byte-exact sha256 restores.** M2 is the interesting one: the
+`?? 0` mutant fails **SIX** tests, not one - the null-vs-zero distinction is load-bearing
+across the whole file. **Stated limit: the "not opted in" test asserts only an ABSENCE, so
+M1 leaves it green.** Its partner is what makes it non-vacuous, and the test says so.
 
-`--destructive` keeps 35% and its 6.68:1. `--destructive-text` is **66%**: 5.93:1 on a card,
-6.44:1 on the page, 6.16:1 on a panel - **past the floor with margin rather than sitting on it**,
-the same call `--muted-foreground` took. **176** sites repointed; `text-destructive-foreground`
-(3) and every `bg`/`border-destructive` (75) deliberately untouched.
+⚠️ **MY FIRST MUTATION RESTORE FAILED THE sha256 CHECK** and said so rather than leaving a
+damaged file. Repaired line-targeted, re-verified. The check earned its keep.
 
-**TWO CORRECTIONS TO THE BRIEF I INHERITED, both from measuring what it told me to assume:**
-1. ⚠️ **"THE TWO DARK BLOCKS ONLY" WOULD HAVE SHIPPED A LIGHT-MODE REGRESSION.** Light needs no
-   split - measured, 42% gives text-on-page 5.92:1 and white-on-fill 6.47:1, because a light page
-   and a white fill-foreground pull the SAME way. **But `:root` IS the dark palette**, so a
-   `.light` leaving the token unset INHERITS 66% onto a 96% page at **3.29:1** - the fix
-   introducing a fresh AA failure in the theme it was not aimed at. Defined in all three blocks.
-2. ⚠️ **`tailwind.config.ts` IS DEAD.** Tailwind here is **v4 CSS-first** (`@theme` in index.css)
-   and there is **no `@config` anywhere**. Editing its `destructive` entry - the obvious move -
-   does nothing at all. v4 also drives every utility from one variable, so a `text-`-only
-   override does not exist and the split HAS to live in the class name.
+### ✅ `c0598393` - /budget SPLIT INTO THREE CARDS, AND THE PAIR IS MEASURED
 
-**GATES:** tsc clean; lint 0 errors; **`test:tz` green in all three zones at 4863** (up from
-4857 - the +6 are this change's assertions, a count that only moves with intent).
-`theme-contrast.test.ts` 7 -> 13, **proven RED three ways with byte-exact sha256 restores**:
-M1 restores the REAL shipped 35% (2 fail), M2 deletes `.light`'s token to exercise the
-inheritance trap (1 fail), M3 collapses the pair back into one token (2 fail). **M1 is history,
-not a contrived mutation.**
+                           BEFORE            AFTER
+    longest unbroken run    1121px (48%)      511px (21%)    2.7x -> 1.1x /dashboard
+    painted bands              4 (1.7/kpx)      6 (2.4/kpx)  61% -> 86% of /dashboard
+    whitespace                16.5%            17.8%         /dashboard 17.5% -> 17.7%
 
-✅ **THE CHAIN IS VERIFIED IN THE BUILT CSS, because a source gate cannot see whether Tailwind
-EMITTED the class** - and a class that fails to generate makes red text **VANISH** rather than
-look wrong, which no contrast test could ever catch:
-`.text-destructive-text{color:var(--color-destructive-text)}` -> `hsl(var(--destructive-text))`
--> 42% once and 66% twice.
+⚠️ **WHITESPACE ROSE AND I DID NOT CALL IT A CLEAN WIN.** +1.3 points from two card
+paddings and two headings, against /dashboard's +0.2 over the same runs. What makes me
+think it clears the "do not buy rhythm with space" constraint is not the size of the rise:
+**padding LENGTHENS runs and this one halved.** The page now sits level with the reference
+page rather than above it. **Tre or Sam may still judge that differently; the numbers are
+here so they can.**
 
-✅ **AND THE RENDERED HALF IS NOW DONE TOO** - `npm run check:destructive-contrast`, committed,
-dark mode, 390x844, signed in, six routes: **26 destructive-coloured text elements, all 5.94:1,
-0 below AA**, against the 5.93:1 the arithmetic predicted. **Proven RED with the REAL pre-fix
-token at 26 of 26 below AA, 2.25:1** - **same population both ways**, which is what makes the
-green mean anything.
-**NOT CLAIMED, still:** error states and delete confirmations need interaction and are
-**unmeasured**, so the most important destructive surface in the app has not been looked at;
-and 0 of the 26 sit on a tint, so the `bg-destructive/10` case is **not covered either** - the
-compositing code exists, nothing on these routes exercises it.
+✅ **THE WEIGHT CHANGE COSTS NO LAYOUT, MEASURED NOT ASSUMED.** Re-run with the rule at 400
+and nothing else changed, /budget reads IDENTICALLY - 6 bands, 2454px, 17.8%, 511px. So
+every number above is the split's. The weight change's only measurable effect anywhere was
+/dashboard's 17.5% -> 17.7%.
 
-### 🔍 TWO THINGS FOUND BY ARITHMETIC, AND ONE I RETRACTED
-* **MY OWN EDIT CORRUPTED ITS OWN EXPLANATORY COMMENT.** I wrote the `index.css` comment BEFORE
-  running the sweep, so the sweep rewrote the prose inside it - the comment then said those sites
-  "were `text-destructive-text` at 35%", which is self-contradictory and **reads as
-  corroboration**. Nothing went red. **It was caught by a FILE COUNT that refused to reconcile**
-  (65 swept + 1 test = 66, and I expected 67), never by reading. Repaired, gate re-run.
-* **THE STRAY BARE `.text-destructive` RULE IN `dist` IS NOT A MISSED CALL SITE.** `src/` has
-  zero. It is Tailwind scanning `android/app/src/main/assets/public`, a **stale synced bundle**.
-  Worth someone's attention separately - a scanner reading last week's build output keeps dead
-  classes alive - but it is not this change.
-* ⚠️ **I RETRACTED A DEFECT I NEARLY FILED AGAINST `check:release-note`.** It passed a message
-  whose trailer `git log --format=%(trailers:key=...)` read as EMPTY - which looks exactly like a
-  gate sitting over a broken trailer. **Measured before reporting: the publisher does not use
-  git's trailer parser.** `release-notes.mjs` reads `%b` and runs `parseTrailers` itself, and it
-  finds the note in BOTH message shapes (negative control returns `[]`). **No gate defect; I had
-  aimed the check at the wrong consumer.** Recorded because a false gate defect gets somebody
-  changing a working gate.
+⚠️ **THE SPLIT ALMOST CHANGED BEHAVIOUR, NOT JUST LAYOUT.** Both `border-t` boundaries sit
+INSIDE `{!incomeSectionCollapsed && <>`, which I first misread as closing earlier. Lifting
+them to siblings without re-opening that fragment renders them while the section reads as
+collapsed. **tsc caught it.** The fragment is re-opened around both new cards.
+
+⚠️ **`:where()` ON THE WEIGHT RULE IS LOAD-BEARING.** `.text-xs` and `.font-bold` are both
+single classes, so a plain rule is decided by Tailwind's emission order - and on the runs
+where font-size won it would have silently **DE-bolded** text somebody made bold on purpose.
+
+### ⚠️ NEW GATE `npm run check:page-rhythm` - AND I RE-AIMED IT AFTER MEASURING
+Band density was the obvious instrument and is **nearly blind here**: it read /budget at 61%
+of /dashboard, near enough to parity that any floor catching it would fire on ordinary pages.
+**A gate green on the exact page the user called dull does not detect the defect it exists
+for.** The run fraction is not merely the number that happened to fail - it **reproduces an
+independent one-off measurement to the pixel** (1121px, measured earlier the same day by a
+different method) and it is what the complaint describes. **/dashboard is read in the same
+run as the POSITIVE CONTROL**, because every assertion is about /budget having FEW bands and
+a broken detector satisfies that perfectly. **Proven RED by the real shipped page** (exit 1
+at 2.7x), not by a contrived mutation.
+**It does NOT cover** colour, whether the bands are the RIGHT bands, typography, lazy-mounted
+content, desktop widths, or light mode. It is an inventory with a floor, not a verdict on
+taste.
+
+## Resume queue
+
+**START HERE: item 1 is the live one and Sam has endorsed it.**
+
+1. **FIX THE `-6` DISPATCH FALLBACK - ask `feaeb21b`, and do ANDROID FIRST.** Android's
+   Deploy-to-Play is ungated by event and publishes automatically; iOS's field is pasted by
+   hand, so Android is where the damage lands. **Do not simply gate the deploy off on a
+   dispatch** - that removes a legitimate way to ship. Resolve the range from the last
+   successful deploy (its head sha via `gh run list`) and **REFUSE rather than fall back to
+   an arbitrary window** when it cannot be resolved. A failure message that names a decision
+   beats one that names a wall. Both workflows carry the identical fallback; fix both, and
+   remember `check-release-note-coverage.mjs` reads the same RANGE, so the coverage check and
+   the published note recover together.
+2. **`149fb21f` CONTRAST, STILL GENUINELY OPEN**, in value order:
+   * **VALIDATION ERRORS AND FORM ERROR TEXT ARE UNMEASURED ANYWHERE IN THIS REPO.** Highest
+     value. The harness to copy is `scripts/check-destructive-states.mjs` - it already does
+     sign-in, dismissal, arming, and a safety control that counts ROWS not labels.
+   * **LIGHT MODE HAS NO RENDERED CONTRAST GATE AT ALL.** All four probes deliberately refuse
+     to report a light reading. **That refusal is HONEST and must stay** - do not let one
+     return a number it cannot stand behind - but the whole theme is unmeasured.
+   * **EVERY RENDERED GATE HERE IS 390x844 ONLY.** Desktop widths are unmeasured.
+3. **`check:page-rhythm` WALKS TWO ROUTES.** /debt, /forecast, /account and /settings have
+   never been measured for segmentation. Widening it is cheap, and widening
+   `check:dark-contrast` the same way found a real defect on its first widened run.
+4. ⚠️ **THE NATIVE GLASS BRIDGE IS FULLY BUILT AND HAS ZERO CALLERS.**
+   `native-glass-bridge.gate.test.ts` passes 13 of 13 while `grep -rn native-glass src/`
+   returns NOTHING outside that test. The gate is not at fault - it asserts the three strings
+   JOIN UP and says plainly it does not prove a round trip - but **nothing asserts the shim is
+   REACHED**. Sam's decision (`8a202850`): mount ONE glass surface with no web content of its
+   own, the cheapest thing that can fail. **ADD THE CALLER ASSERTION *WITH* THE MOUNT, NEVER
+   BEFORE IT** - added first it is permanently red, and an always-red gate stops being read.
+   **IT CANNOT BE VERIFIED ON THIS MACHINE** - no device, and the iOS CI compile proves a
+   BUILD and never a RENDERED SURFACE - so every round is a blind multi-minute CI trip.
+   **It wants a FULL window as a first item, not a thin one as a last.**
+5. **NOTHING SHIPPED TODAY IS IN A BUILD.** `46338c47` and `c0598393` are on origin only. A
+   push does NOT reach TestFlight: `gh workflow run "iOS Build & Upload to App Store" --ref
+   main`, then read **the UPLOAD STEP'S OWN conclusion** (`skipped` is not `success`) and
+   then altool's own `UPLOAD SUCCEEDED with no errors`. Sam ruled out a second build on
+   2026-09-18 on Apple's daily cap; that ruling was about THAT day.
+6. **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** A peer session serves it. **Do not kill
+   it.** Every rendered gate needs it up.
+
+<details>
+<summary>SUPERSEDED - the thirty-second session queue, kept because a reader needs to see which premises were once believed. ⚠️ ITEMS 2 AND 3 ARE NOT SUPERSEDED: Tre ANSWERED both (f22ae273) and they shipped as c0598393. Item 10, the native glass mount, SURVIVES and is item 4 above.</summary>
 
 ## Resume queue
 
@@ -9384,7 +9434,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 11:40 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 12:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9395,14 +9445,16 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-310c6e11 [docs]: the colour-blind sweep was undocumented, which is why it stayed one route
-bf30555a [a11y]: the colour-blind contrast sweep walks six routes, and found two real strings on the way
-0f8d3f38 [handoff]: the rendered gate is in, and what it structurally cannot see
-5d402660 [theme]: a rendered gate for the destructive red, and the instability it found in itself
-0de977f3 [handoff]: 956 verified at the step and the log, and the destructive split is measured not assumed
-6c48a784 [theme]: split the destructive red into a fill and a text token - red body text was 2.26:1
-16fefbc3 [handoff]: resume queue - verify the iOS run first, then the destructive sweep a fresh window can afford
-9726ef05 [handoff]: iOS build 35359868193 dispatched on Sam's timing call
+c0598393 [budget]: split Income & Taxes into three cards, and give small text more weight
+46338c47 [leaderboard]: rank friends by badge count, as a fifth opt-in metric
+8c46e84c [handoff]: the achievements-ranking exposure question is measured, not left open
+5c7cc64d [handoff]: four shipped-and-unannounced items, and the one achievements part still unbuilt
+645a2eec [whats-new]: four things in build 956 that nothing told the user had arrived
+98b53cc4 [handoff]: the native glass bridge is built, gated green, and called by nothing
+3dd26abc [handoff]: the armed delete is gated, and my safety control lied about a deletion
+ef345567 [a11y]: measure the ARMED DELETE, the one destructive surface no gate could see
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
+
+</details>
