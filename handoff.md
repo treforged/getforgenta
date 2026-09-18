@@ -58,12 +58,23 @@ was needed**. That limit was written, believed, and never scheduled - so the ide
 came back through a new front door. **A limit named in a comment is a to-do nobody picks up; it
 needs an ASK.** This one is now a script with an npm name, which is the only form that survives.
 
+### ✅ THE CLASS WAS SWEPT, AND IT HAS EXACTLY ONE REACHABLE INSTANCE - SAY SO RATHER THAN LEAVE IT UNSTATED
+`grep -rn "!profile" src/` returns **9 sites**. Only code mounted OUTSIDE `ProtectedRoute` can
+ever see a signed-out user, and that set is small: `MoneyDisplaySync` (reads only),
+`CountrySync` (the defect, now fixed), `DeepLinkHandler`, `ResumeRecovery` and `ConsentBanner`.
+**`ResumeRecovery` already guards on `user` correctly.** Everything else - `AppTour`,
+`WhatsNewDialog`, `useRetirementAutoUpdate`, `BudgetControl`, `Dashboard` - mounts behind
+`ProtectedRoute`, where a user exists by construction, and `useForecastEngineInputs` returns a
+number rather than writing.
+⚠️ **`use401kAutoUpdate` HAS ZERO CALL SITES** - only a comment in `BudgetControl.tsx:380` names
+it, which is exactly the "found built and never called" shape this repo keeps hitting. Confirmed
+with a control in the same run: the sibling `useRetirementAutoUpdate` returns 1 call site, so the
+grep can find a caller and the 0 is about the code. **Not deleted** - that is its own decision
+with its own evidence, and it was not this brief.
+
 ### NEXT UP, in order
-1. **`grep -rn "!profile" src/` and check each one against the signed-out state.** The defect
-   above is a CLASS, not an instance: any hook that reads `!profile` as "not signed in" is wrong
-   for every anonymous visitor. `user` is the fact being asked.
-2. Ask `80ea17f2` - the candidate money defect at an identical clock (see its own row).
-3. Ask `5409ffbc` - the three invariants blocking the 2026-09-17 golden fixture.
+1. Ask `80ea17f2` - the candidate money defect at an identical clock (see its own row).
+2. Ask `5409ffbc` - the three invariants blocking the 2026-09-17 golden fixture.
 
 ---
 
