@@ -173,6 +173,27 @@ compositing code exists, nothing on these routes exercises it.
     a build, which Sam ruled out on 2026-09-18 on Apple's daily cap. **It wants a FULL window as
     its first item, not a thin one as its last.**
 
+11. ✅ **FOUR THINGS IN BUILD 956 WERE SHIPPED AND UNANNOUNCED - FIXED 2026-09-18.** The What's
+    New entry for that build listed followers, the share link, follower badges and the Accounts
+    rows, and said nothing about the **dark-mode readability fix** (the one change he actually
+    complained about), the **trophy case** and **Learn** moving to their own Account sections, or
+    **every badge getting its own icon** - and two of those are HIS OWN ASKS. All four verified in
+    956 by ancestry against `f8520a64` with a negative control.
+    **THE PLACEMENT WAS MEASURED:** only `CURRENT_RELEASE` (`RELEASES[0]`) renders, so a NEW entry
+    would have **buried** the four existing lines for everyone who had not seen this one. Queried:
+    **33 profiles, 2 carry `whats_new_2026-09-18`, control `whats_new_2026-09-13` reads 4** - so
+    the flag query discriminates, and adding to the existing entry reaches **31 of 33**.
+    **The 6-line cap gate caught an 8-line version and was right** - nothing was deleted to meet
+    it, two pairs were MERGED, so every announcement survives.
+12. **`07150518` - PART 3 of his achievements ask is the ONLY part still unbuilt:** *"add to
+    leaderboard the ranking of people based on how many achievements they have"*. Measured -
+    `grep achievement src/components/settings/FriendsLeaderboard.tsx` returns **0**. Parts 1 and 2
+    are shipped and in 956.
+    ⚠️ **IT IS NOT A UI SLICE.** Ranking friends by achievement COUNT means reading other users'
+    achievement rows - an **RLS and migration question on a financial app**, and this repo already
+    records a leaderboard change refused twice for creating a second definition of money-adjacent
+    logic. **START BY ASKING WHAT IS EXPOSED, not by writing the query.**
+
 9. ⚠️ **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** `npm run dev` from here failed to bind -
    a peer session is serving it. **Do not kill it.** Every browser gate needs it up.
 
