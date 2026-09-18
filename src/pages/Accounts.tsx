@@ -1162,7 +1162,22 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       some of the density Tre asked for on 2026-09-01 ("reduce all the excess
                       spacing"). That ask was about EMPTY space, and this is text he asked to be
                       able to read - so where the two pull against each other, readable wins. */}
-                  <p className="text-xs text-muted-foreground break-words mt-0.5 min-w-0 flex-1 basis-[11rem]">
+                  {/* ⚠️ `basis-auto`, NOT `basis-[11rem]`. A FIXED BASIS MAKES THE WRAP
+                      UNCONDITIONAL. Flex decides whether to break a line from each item's
+                      flex-basis, not from the text it actually holds - so an 11rem (176px)
+                      basis plus the three 44px action buttons is 308px against roughly 305px of
+                      row on a 390px phone, and the line broke on EVERY account no matter how
+                      short the meta text was. Measured at 390x844: "Chase Checking / Checking"
+                      spent a whole line on three icons with about 250px of blank beside them,
+                      and the card stood 149px tall for three short strings. Tre, twice: "there's
+                      a lot of empty space on the sides of some of these boxes" and then "she
+                      forgot the spacing issues ... on the accounts section".
+                      `basis-auto` makes the basis the CONTENT, so the break happens only when
+                      the text would really be crushed - which is the case the fixed basis was
+                      added for and the only one it should ever have covered. A long meta line
+                      ("Discover · Credit Card · 18.99% APR · Limit $7,500 · Due 22nd", 237px)
+                      still exceeds the row with the buttons and still drops them below it. */}
+                  <p className="text-xs text-muted-foreground break-words mt-0.5 min-w-0 flex-1 basis-auto">
                     {/* Moved off the name's line. It reads the same here and costs the name
                         nothing. `inline-flex` + `align-middle` so it sits on the text baseline
                         and wraps with the sentence instead of forcing its own row. */}

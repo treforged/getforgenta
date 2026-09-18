@@ -44,6 +44,7 @@
     "check:achievements-layout": "node scripts/check-achievements-layout.mjs",
     "check:learn-home": "node scripts/check-learn-home.mjs",
     "check:account-rows": "node scripts/check-account-rows.mjs",
+    "check:account-action-row": "node scripts/check-account-action-row.mjs",
     "check:debt-rows": "node scripts/check-debt-rows.mjs",
     "check:debt-cycle-labels": "node scripts/check-debt-cycle-labels.mjs",
     "check:no-wrapped-numbers": "node scripts/check-no-wrapped-numbers.mjs",

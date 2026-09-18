@@ -116,3 +116,6 @@ account-section-*.png
 friend-read*.png
 squeeze-*.png
 scripts/handoff.md
+
+# Rendered frames written by the check:* probes. Evidence for a session, not for the repo.
+scripts/.out/
