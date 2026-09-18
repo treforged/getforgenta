@@ -54,6 +54,7 @@
     "check:release-note": "node scripts/check-release-note-trailer.mjs",
     "check:notes-coverage": "node scripts/check-release-note-coverage.mjs",
     "check:page-rhythm": "node scripts/check-page-rhythm.mjs",
+    "check:placeholders": "node scripts/check-placeholders.mjs",
     "check:dark-contrast": "node scripts/check-dark-contrast.mjs",
     "check:destructive-contrast": "node scripts/check-destructive-contrast.mjs",
     "check:destructive-states": "node scripts/check-destructive-states.mjs",

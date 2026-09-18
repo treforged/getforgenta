@@ -188,12 +188,35 @@ export function PartnerLink() {
         </p>
       )}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      {/*
+        ⚠️ THE QUESTION IS A LABEL, NOT A PLACEHOLDER (Tre, 2026-09-18, with a screenshot:
+        "have ada make sure the preview texts fit in the boxes on mobile. this one is he invite
+        code"). It read "Have an invite code? Paste it here" - 336px of text in a 287px field at
+        390px, so it rendered as "Have an invite code? Pas" and stopped mid-word.
+
+        ⚠️ A PLACEHOLDER IN A SINGLE-LINE INPUT CANNOT WRAP, so there is no CSS fix - it
+        clips or it fits. And a placeholder DISAPPEARS the moment somebody types, which is the
+        second reason this particular string was the wrong container: it carried the only
+        instruction on the field, so the instruction vanished exactly when it was being followed.
+        The question moves to a label that stays, and the field keeps a short example.
+
+        Gated by `npm run check:placeholders`, which measures the rendered text against the
+        field's content box at 390px rather than counting characters.
+      */}
+      <div className="space-y-2">
+        <label
+          htmlFor="partner-invite-code"
+          className="block text-xs font-medium text-muted-foreground"
+        >
+          Have an invite code?
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
         <input
+          id="partner-invite-code"
           type="text"
           value={code}
           onChange={e => setCode(e.target.value)}
-          placeholder="Have an invite code? Paste it here"
+          placeholder="Paste it here"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
@@ -209,6 +232,7 @@ export function PartnerLink() {
           {accept.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
           {accept.isPending ? 'Checking…' : 'Accept Invite'}
         </button>
+        </div>
       </div>
     </div>
   );
