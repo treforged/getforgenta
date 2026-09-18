@@ -150,7 +150,19 @@ export default function Account() {
         </Link>
       </div>
 
-      {/* Same markup, same classes and the same inline radius as the other seven surfaces. The
+      {/* ICON-ONLY SINCE 2026-09-18 (Tre: "like all the other tabs, make all the sections in the
+          selector bar visible at once. reduce to easily discernable icons instead of text. make
+          the icons bigger as well"). He sent a TestFlight shot of this bar reading
+          "Profile | Leaderboard | Achievemen..." clipped at the right edge - the track scrolls,
+          so Learn and Forgenta AI were off-screen and reachable only by swiping.
+          ⚠️ REMOVING THE LABEL REMOVES THE ACCESSIBLE NAME, which would leave five unnamed
+          buttons to a screen reader - a worse defect than the one being fixed, and invisible in
+          a screenshot. Each carries `aria-label` (what a screen reader announces) AND `title`
+          (the hover tooltip on desktop, where there is no other way to learn what an icon means).
+          `check:account` finds segments BY ROLE and by accessible name, so it holds this.
+          Icons 13 -> 20.
+
+          Same markup, same classes and the same inline radius as the other seven surfaces. The
           track is glass (`seg-track` carries the backdrop-filter), so it takes its tint from
           whatever scrolls under it — see `@utility glass` in src/index.css for why that is the
           honest form of the effect Tre asked for and why the reel's own package cannot be used. */}
@@ -158,14 +170,18 @@ export default function Account() {
         <button onClick={() => setSection('profile')}
           aria-selected={activeSection === 'profile'}
           role="tab"
-          className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}>
-          <User size={13} /> Profile
+          className={`seg-item btn-press ${activeSection === 'profile' ? 'seg-item-active' : ''}`}
+          aria-label="Profile"
+          title="Profile">
+          <User size={20} />
         </button>
         <button onClick={() => setSection('leaderboard')}
           aria-selected={activeSection === 'leaderboard'}
           role="tab"
-          className={`seg-item btn-press ${activeSection === 'leaderboard' ? 'seg-item-active' : ''}`}>
-          <Trophy size={13} /> Leaderboard
+          className={`seg-item btn-press ${activeSection === 'leaderboard' ? 'seg-item-active' : ''}`}
+          aria-label="Leaderboard"
+          title="Leaderboard">
+          <Trophy size={20} />
         </button>
         {/* AFTER Leaderboard, which is where Tre put it: "Maybe put it after leaderboard".
             Its own segment rather than a card inside Profile - he asked for a tab, and the
@@ -173,23 +189,29 @@ export default function Account() {
         <button onClick={() => setSection('achievements')}
           aria-selected={activeSection === 'achievements'}
           role="tab"
-          className={`seg-item btn-press ${activeSection === 'achievements' ? 'seg-item-active' : ''}`}>
-          <Award size={13} /> Achievements
+          className={`seg-item btn-press ${activeSection === 'achievements' ? 'seg-item-active' : ''}`}
+          aria-label="Achievements"
+          title="Achievements">
+          <Award size={20} />
         </button>
         {/* AFTER Achievements, because the badges are what the lessons pay out — a reader who has
             just seen an empty trophy case is one segment away from the thing that fills it. */}
         <button onClick={() => setSection('learn')}
           aria-selected={activeSection === 'learn'}
           role="tab"
-          className={`seg-item btn-press ${activeSection === 'learn' ? 'seg-item-active' : ''}`}>
-          <GraduationCap size={13} /> Learn
+          className={`seg-item btn-press ${activeSection === 'learn' ? 'seg-item-active' : ''}`}
+          aria-label="Learn"
+          title="Learn">
+          <GraduationCap size={20} />
         </button>
         {SECTION_AVAILABLE.ai && (
           <button onClick={() => setSection('ai')}
             aria-selected={activeSection === 'ai'}
             role="tab"
-            className={`seg-item btn-press ${activeSection === 'ai' ? 'seg-item-active' : ''}`}>
-            <Sparkles size={13} /> Forgenta AI
+            className={`seg-item btn-press ${activeSection === 'ai' ? 'seg-item-active' : ''}`}
+            aria-label="Forgenta AI"
+            title="Forgenta AI">
+            <Sparkles size={20} />
           </button>
         )}
       </PanelBar>

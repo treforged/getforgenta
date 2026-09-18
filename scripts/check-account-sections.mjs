@@ -141,7 +141,22 @@ async function bodyText() {
 const seen = [];
 for (let i = 0; i < count; i += 1) {
   const tab = tabs.nth(i);
-  const label = (await tab.innerText()).trim().replace(/\s+/g, ' ');
+  // ⚠️ THE ACCESSIBLE NAME, NOT THE VISIBLE TEXT - and this gate FAILED CORRECTLY when the bar
+  // went icon-only on 2026-09-18, because every segment's innerText became "". That failure was
+  // right: a control with no name is unusable to a screen reader, and the fix is that each
+  // segment now carries an `aria-label`. So the gate follows the name to where it now lives
+  // rather than being loosened - and it asserts the name is NON-EMPTY below, which is the
+  // accessibility property that actually matters once the text is gone.
+  //
+  // Visible text FIRST so a labelled-and-captioned control is still identified by what a sighted
+  // user reads; aria-label is the fallback, not the override.
+  const label = (
+    (await tab.innerText()).trim() || (await tab.getAttribute('aria-label')) || ''
+  ).trim().replace(/\s+/g, ' ');
+  if (!label) {
+    fail(1, 'a segment has NO accessible name - no text and no aria-label. Icon-only controls are '
+      + 'unreadable to a screen reader and unlabelled on hover, and a screenshot cannot show it.');
+  }
   await tab.click();
   await page.waitForTimeout(1200);
   const selected = await tab.getAttribute('aria-selected');
@@ -194,7 +209,10 @@ for (let i = 0; i < seen.length; i += 1) {
 // whose handler does nothing throws nothing.
 // `Achievements` is the trophy case's own <h2>, and it moved here from the Dashboard Overview
 // widget stack on Tre's instruction the same day.
-const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', Achievements: 'Achievements', 'Forgenta AI': 'Forgenta AI' };
+// Learn was added to the bar and NOT to this list, so it went unasserted until the gate said so
+// on 2026-09-18 - the hand-named-inventory defect, caught by the gate having been written to
+// FAIL on an unknown segment rather than skip it. That refusal is why the gap surfaced at all.
+const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', Achievements: 'Achievements', Learn: 'Learn', 'Forgenta AI': 'Forgenta AI' };
 for (const s of seen) {
   const key = Object.keys(markers).find((k) => s.label.includes(k));
   if (!key) { failures.push(`segment ${JSON.stringify(s.label)} is not one this check knows a marker for - add it here rather than letting it go unasserted.`); continue; }
