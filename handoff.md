@@ -121,9 +121,20 @@ compositing code exists, nothing on these routes exercises it.
    to it**. It proves the repointed sites are legible; **it can never prove the sweep was
    complete.** And error states are unexercised. If a browser session happens, drive a
    validation error and a delete confirmation - that is where destructive red actually lives.
-6. ⚠️ **`check:dark-contrast` WALKS `/budget` ONLY.** It is the colour-blind sweep - the one
-   instrument that could catch red text the other gate cannot see - and it looks at one route.
-   Widening it is cheap and is the highest-value contrast work left.
+6. ✅ **DONE - `check:dark-contrast` now walks SIX routes, 62 elements -> 487, 0 below AA.**
+   It found two strings on the first widened run: a `/forecast` chart legend label at **3.6:1**
+   (REAL, fixed - the legend drew its label text in the series colour, and I MEASURED that the
+   swatch still carries the colour before neutralising the text) and a `/dashboard` decorative
+   `|` at **1.35:1** (not a defect - `aria-hidden`, now exempted).
+   **Two harness faults fixed first:** a fixed sleep (an unsettled page's zero shrinks
+   `examined`, the number the zero-control depends on) and Escape not closing `/forecast`'s
+   "Forecast Assumptions" dialog - its examined count is **90 with the dialog up, 65 without**.
+7. **THE CONTRAST WORK THAT IS STILL GENUINELY OPEN**, in value order:
+   * **ERROR STATES AND DELETE CONFIRMATIONS ARE UNMEASURED BY BOTH GATES.** They need
+     interaction, and that is where destructive red actually lives. Highest value.
+   * **LIGHT MODE HAS NO RENDERED GATE AT ALL.** Both probes refuse to report a light reading,
+     which is honest and leaves the theme unmeasured.
+   * **DESKTOP WIDTHS ARE UNMEASURED** - both are 390x844 only.
 
 **PROBE HARNESS:** every browser measurement is `scripts/check-dark-contrast.mjs`'s preamble with
 its `page.evaluate` block swapped - it does sign-in, first-run dialogs and the theme. **Set the

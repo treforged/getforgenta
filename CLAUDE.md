@@ -111,6 +111,24 @@ section states reasoning, not measurement, and says so.
   findings were all deliberate truncation or a 1px measuring node. Proven red by pinning
   `text-[10px]` back to px (324 call sites), exit 1. Does NOT cover the device, vertical
   clipping, other routes, or whether the larger size still looks right.
+- `npm run check:dark-contrast` — the COLOUR-BLIND contrast sweep, dark mode, 390x844, signed in.
+  **This is the only contrast instrument here that finds candidates WITHOUT already knowing their
+  colour**, so it is the only one that can catch a low-contrast string nobody thought to look for
+  — `check:destructive-contrast` matches on a fixed colour and is blind by construction.
+  ⚠️ **IT WALKED `/budget` ALONE UNTIL 2026-09-18** — 62 elements, one route, while five of the six
+  screens a user opens had never been measured by anything. Widened to six routes: **487 elements,
+  0 below AA**. It found two strings on the first widened run that one route could never have seen:
+  a chart legend label at **3.6:1** (a real defect, fixed) and a decorative `|` at **1.35:1** (not
+  one — marked `aria-hidden`, which the gate now exempts, DERIVED from the app rather than from a
+  maintained list).
+  ⚠️ **READ EACH ROUTE UNTIL TWO CONSECUTIVE READS AGREE, and dismiss dialogs BY ROLE.** A fixed
+  sleep lets an unmounted page report a zero that is indistinguishable from a clean one — and here
+  it shrinks `examined`, the very number the zero-control depends on. `/forecast` auto-opens a real
+  "Forecast Assumptions" dialog that survives six Escapes; its examined count is **90 with the
+  dialog up and 65 without**, because those 25 were the DIALOG's text rather than the page's.
+  Proven RED with the real legend defect. Does NOT cover: light mode, desktop widths, error states,
+  anything behind an interaction, or whether disabled/placeholder text is legitimately exempt — it
+  says so and asks you to check each finding by hand.
 - `npm run check:destructive-contrast` — the RENDERED half of the destructive-red split, dark mode,
   390x844, signed in. Composites the WHOLE background stack rather than one `backgroundColor`, so red
   text on a `bg-destructive/10` tint is measured rather than compared against the page by accident.
