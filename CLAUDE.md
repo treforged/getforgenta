@@ -111,6 +111,22 @@ section states reasoning, not measurement, and says so.
   findings were all deliberate truncation or a 1px measuring node. Proven red by pinning
   `text-[10px]` back to px (324 call sites), exit 1. Does NOT cover the device, vertical
   clipping, other routes, or whether the larger size still looks right.
+- `npm run check:destructive-contrast` — the RENDERED half of the destructive-red split, dark mode,
+  390x844, signed in. Composites the WHOLE background stack rather than one `backgroundColor`, so red
+  text on a `bg-destructive/10` tint is measured rather than compared against the page by accident.
+  Measured 0 of 26 below AA at 5.94:1; proven RED with the REAL pre-fix token (`0 73% 35%`) at
+  **26 of 26 below AA, 2.25:1** — same population both ways, which is what makes the green mean
+  anything.
+  ⚠️ **IT READS EACH ROUTE UNTIL TWO CONSECUTIVE READS AGREE, and that is load-bearing.** A fixed
+  6s wait read `/dashboard` as **0 elements on one run and 16 on the next**, minutes apart, no code
+  change — the widgets had not mounted. **A zero from an unsettled page is indistinguishable from a
+  clean one.** A route that never settles prints UNSTABLE and exits 2 rather than contributing a
+  number nobody measured. Do not "simplify" that back to a sleep.
+  ⚠️ **IT FINDS CANDIDATES BY THE FIXED COLOUR, so it is STRUCTURALLY BLIND to red text that was
+  never repointed** — that text is a different colour and it cannot see it. It proves the repointed
+  sites are legible; it can NEVER prove the sweep was complete. Does NOT cover: error states and
+  delete confirmations (they need interaction, so the most important destructive surface in the app
+  is unmeasured), light mode, desktop widths, or whether it LOOKS right.
 - `npm run check:glass` — proves the app's glass chrome is REALLY translucent, by
   screenshotting a pinned bar's own box before and after scrolling content underneath it
   and requiring the pixels to change. A painted fill and real `backdrop-filter` are
