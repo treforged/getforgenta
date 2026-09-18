@@ -14,17 +14,33 @@ because a `skipped` upload leaves the RUN green with nothing sent, and (3) requi
 **AND IT IS THE FIRST REAL RENDER OF `check:notes-coverage`** (`4e6f3776`) - somebody has to
 actually READ that step summary rather than assume it fired. `VERSION_CODE = run_number + 100`.
 
-### RESUME QUEUE - short on purpose, this is injected into every session here
-1. **`ba24b44a` - TRE'S TASTE CALL, do not pre-empt it.** Split `Income & Taxes` into separate
-   cards at its existing `border-t` boundaries? My recommendation is YES. **Acceptance is a PAIR:
-   band count on `/budget` rises toward dashboard's density AND whitespace stays near 5.8%.**
-2. **`a58fb610` / `d391e98b`** - everything measurable is DONE. See the refutations below before
-   re-opening either; two obvious theories are already dead.
-3. **Ask Tre whether he wants the small text BOLDER** now the colour is fixed. He hedged
-   ("maybe"), I deliberately did not apply it, and it is one line if he says yes.
-4. **Nothing today is on a BUILD.** The contrast fix, the What's New entry, the guide fix and the
-   accessible names are all on origin only. **A dispatched iOS run is what puts them on his phone**,
-   and Apple caps uploads per day - Sam held the second one today.
+## Resume queue
+
+1. **VERIFY iOS RUN `35359868193`** (head `f8520a64`) - it was still compiling when I handed off.
+   `gh run view 35359868193 --json jobs` and read **STEP 20 "Upload to App Store Connect" ON ITS
+   OWN CONCLUSION**. A `skipped` there leaves the RUN green with nothing uploaded, and step 20 also
+   has a branch that swallows Apple's 90382 daily-cap error and still exits green - so require
+   altool's **`UPLOAD SUCCEEDED`** in the log, and check any `90382` hits are in the ECHOED SOURCE
+   rather than the output. Build number = **run_number + 100**, and it is the **iOS** number; do
+   not report Android's. Then tell Sam, who is carrying it to Tre.
+2. **READ THE NOTES-COVERAGE STEP SUMMARY on that same run** - `4e6f3776`'s FIRST real render.
+   Nobody has seen it work; do not assume it fired.
+3. **`e8f64565` - the destructive-token sweep. I blocked it on WINDOW SIZE, and you have one.**
+   Proven: no lightness serves both jobs (35%: fill 6.68 / text 2.45; 55%: 3.51 / 4.66; 70%: 2.22 /
+   7.38). Add `--destructive-text` at l>=55% in the two DARK blocks only, repoint the **159**
+   `text-destructive` sites, leave the **29** `bg-destructive` ones, add a case to
+   `src/lib/__tests__/theme-contrast.test.ts` (it already parses tokens and derives its block list).
+   ⚠️ **LIGHT MODE WAS NOT MEASURED - measure it, do not assume.**
+4. **`ba24b44a` is TRE'S taste call - do not pre-empt it.** Split `Income & Taxes` into separate
+   cards at its existing `border-t` boundaries? Recommendation is YES. **Acceptance is a PAIR:
+   band count rises toward dashboard's density AND whitespace stays near 5.8%** - either number
+   alone is gameable.
+5. **Ask him whether he wants the small text BOLDER** now the colour is fixed. He hedged "maybe".
+
+**PROBE HARNESS:** every browser measurement today is `scripts/check-dark-contrast.mjs`'s preamble
+with its `page.evaluate` block swapped - it does sign-in, first-run dialogs and the theme. **Set
+the theme by writing `forgenta.theme.v1`, NEVER by flipping a class** (`theme.ts` also sets
+`root.style.colorScheme`). The scroller is **`#scroll-main`**, never `window`.
 
 ### ⛔ REFUTED TODAY - DO NOT RE-TRY THESE, they cost a window each
 * **"The tab-to-card gap makes `/budget` look empty."** DEAD. 54px there; `/dashboard` 14,
@@ -9105,7 +9121,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 10:48 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 11:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9116,14 +9132,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-b094eb46 [handoff]: his dull-text report was a measured AA failure; vibrancy is its own ask
-44c67c0f [theme]: dark-mode muted text was below the AA contrast floor, measured at 4.19:1
-25490042 [handoff]: d391e98b was mis-flagged as Tre's, and its first finding was an unnamed delete button
-834a7338 [budget]: three row actions had no accessible name at all, one of them the delete
-6c59373c [handoff]: his groceries ask was done in 22 minutes, and my unfiltered query nearly cried wolf on his data
-021b27a2 [handoff]: 949 carries the features and not the notice, and the cause is now wired
-4e6f3776 [ci]: give the notes-coverage check a reader, at the one moment it is cheap to fix
-a7c4f4de [whats-new]: the three features he said were never built now have a line
+9726ef05 [handoff]: iOS build 35359868193 dispatched on Sam's timing call
+f8520a64 [handoff]: consolidate - a short resume queue, and the refutations recorded as firmly as the findings
+fa8117fc [handoff]: the dividers bridge the gaps they create, and the obvious fix re-adds the emptiness I refuted
+8a9583a9 [handoff]: 'empty' is refuted too - the real difference is segmentation, 6 bands vs 23
+11680209 [handoff]: my gap hypothesis is refuted by its own comparison - null result, not rescued
+4cf696d4 [handoff]: read the dark frame, found his gap, and nearly filed a non-defect from it
+ba58eda1 [handoff]: my own caveat was wrong - the chroma table is whole-page, measured against #scroll-main
+85bd24a9 [handoff]: /budget is measurably the dullest route, and my scroll driver did not reach it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
