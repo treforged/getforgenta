@@ -331,6 +331,66 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 0.
 
+⚠️ **RELEASE DAY, AND ONE ANSWER GATES IT. READ THIS FIRST.**
+Tre asked for a release TODAY carrying today's copy fixes: *"the app needs to be functioning
+today."* **Everything is built, gated and pushed. NOTHING IS DISPATCHED**, because one fact is
+not visible from this desk:
+* **IS v6.7 ALREADY LIVE IN APP STORE CONNECT?**
+  * **NOT live** (processing, or submitted and unapproved) -> a new build can still carry **6.7**
+    with a higher build number, attaching to the existing submission. **That is the ONLY path
+    that lands today.** Revert the bump first: `printf '6.7.0
+' > VERSION`.
+  * **Live** -> **6.8** is forced, it is a separate review, and realistically NOT today. Say so
+    plainly rather than letting him discover it.
+* Then: push, dispatch `gh workflow run "iOS Build & Upload to App Store" --ref main`, and read
+  the **UPLOAD STEP'S OWN conclusion** - `skipped` is not `success` - plus altool's
+  `UPLOAD SUCCEEDED with no errors`. Report the build number AND the platform.
+
+🚨 **AND THE ANSWER TO "IS ANYTHING BROKEN?" CHANGED LATE IN THE SESSION - IT IS NO LONGER "NO".**
+Everything FIXED today was copy. But `73343713` was answered and found a REAL FAULT:
+**THE 28-DAY BILLING GRACE PERIOD TRE ENABLED TODAY BUYS NOTHING.** RevenueCat sends
+`BILLING_ISSUE` on a failed renewal, `revenuecat-webhook/index.ts:215` writes
+`subscription_status: 'past_due'`, and **`past_due` is in NO premium check anywhere** - so a
+paying customer is downgraded INSTANTLY and stays locked out for the whole 28 days. The toggle
+succeeded and nothing changed.
+* The good half: premium is a STATUS STRING (`SubscriptionContext.tsx:70`), not an expiry
+  comparison, and a later RENEWAL restores `active`. **The gap is strictly DURING grace.**
+* **Two internal corroborations that it is an oversight, not policy:** `delete-account:156`
+  already treats `past_due` as a LIVE subscription to cancel at Stripe, and `og-anniversary:118`
+  states the house policy - *"billing failure, unknown, inside the grace window - resolves in the
+  customer's favour"*. The entitlement path contradicts the repo's own principle.
+* **FILED AS `b1fe6d9f`, needs_tre, DELIBERATELY NOT FIXED.** It grants paid features on a failed
+  payment, which is money-adjacent and his call. **NOT in the release-day build.**
+* ⚠️ **THE SHAPE OF THE FIX MATTERS MORE THAN THE FIX.** `['active','trialing']` is typed in **at
+  least 8 places** across client and server. Adding `past_due` to eight lists by hand recreates
+  the defect that cost the paywall its linked-account numbers the same afternoon. **One exported
+  predicate, one source, and a gate that scans for any OTHER hand-rolled status list** - copy the
+  shape of `src/lib/__tests__/plan-limits.gate.test.ts`.
+* ⚠️ **STATED LIMIT: no real BILLING_ISSUE event was observed.** This is a traced code path plus
+  RevenueCat's documented semantics, NOT a reproduction. Sandbox is enabled, so the confirming
+  test exists and should run before anyone calls it closed.
+
+✅ **SHIPPED TODAY, all pushed and verified on origin by contents with controls:**
+`49285f88` the onboarding inventory · `23e52979` the app-lock hint + "Plan" ·
+`30c1219f` "unlimited history" removed from both surfaces · `b6bc1f50` the linked-account
+numbers DERIVED from `src/lib/plan-limits.ts` + a gate that scans every edge function ·
+VERSION 6.7.0 -> 6.8.0 (revertible in one command, see above).
+
+⚠️ **THE THREE REMAINING ITEMS WERE EACH JUDGED TOO BIG FOR THE WINDOW THEY WERE OFFERED, and
+the reason is per-item rather than a blanket cap excuse:**
+* **`ea25a708` remainder** (the omissions, the rendered walk) - needs a browser AND the reviewer
+  reset, which this repo has MEASURED as unverifiable from the database row. It must **ASSERT THE
+  SCREEN**. Not a four-points-of-headroom job, and half-rewritten onboarding misinforms
+  unpredictably where stale onboarding at least misinforms consistently.
+* **`585ec24a`** (debt-aware variable pacing) - money maths, highest care tier, and **START FROM
+  `447d57ad`'s REVERT, not a blank page**: a previous pacing change on this exact surface was
+  reverted on a measured regression.
+* **`d92f183f`** (rundown publisher half) - a NEW AUTHENTICATED DATA SURFACE over business and
+  user counts. A half-built endpoint that discloses those counts is the wrong thing to leave in a
+  tree overnight; it wants one clean pass with the auth decision made deliberately.
+
+
+
 0. **ONBOARDING - `ea25a708`. INVENTORY DONE (`49285f88`); TWO OF ITS THREE FALSE CLAIMS ARE NOW FIXED (`23e52979`). READ THE DOC BEFORE PLANNING THE REST.**
    `docs/onboarding-inventory-2026-09-18.md`. Tre decided the priority himself: *"we need to
    update onboarding first. especially with all the changes we made."* **Do not re-open the
@@ -10316,7 +10376,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 16:44 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 17:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10327,14 +10387,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+68e6c1b5 [release]: VERSION 6.7.0 -> 6.8.0
+b6bc1f50 [premium]: the paywall undersold itself threefold - derive the link limits instead of typing them
+4f9fbac1 [handoff]: all three onboarding false claims are fixed, and the next build must be 6.8
+30c1219f [premium]: stop selling "unlimited history", which free users already have
+a2eda6d8 [handoff]: two of the three onboarding false claims are fixed, and Sam corrected my count on the third
+23e52979 [onboarding]: stop sending web users to a control that is not there, under a name that does not exist
 49285f88 [onboarding]: the inventory - three false claims, and the biggest is shown to every web user
 b75e8027 [handoff]: the suppression guard binds for nobody today - measured, with both controls
-192b0cc4 [handoff]: auto-snapshot refresh at close-out
-6140d15b [handoff]: close part 3 in the resume queue - the measurement was made and the answer is not yet
-43a039b1 [dashboard]: his own saved layout is why the declutter never reached him - and it inverts part 3
-dd98970f [handoff]: the cost pass answers his three unsure cards - Advanced Analytics is 18% of the page
-05ad6cb4 [dashboard]: what each card costs - Advanced Analytics is 18% of the page on its own
-63630c58 [handoff]: 403dd5d8 part 1 answered - one $25 obligation in three cards, and the page is 6.7 screens
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
