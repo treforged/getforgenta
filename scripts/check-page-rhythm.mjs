@@ -2,9 +2,10 @@
 // mean "empty".
 //
 // Tre called /budget dull. The obvious reading is emptiness, and it was REFUTED by measurement:
-// whitespace is 5.8% there against 5.1% on /dashboard, so the page is if anything the busier of
-// the two. The real difference is RHYTHM - 6 painted bands over 2155px against 23 over 5508px,
-// with one unbroken 1121px run, nearly three phone viewports with no visual break.
+// the page is no emptier than /dashboard. The real difference is RHYTHM - by this probe's own
+// reading, /budget was ONE unbroken painted run of 1121px, 48% of the whole page, against
+// /dashboard's 18%. (An earlier one-off using a different band definition put it at 6 bands over
+// 2155px vs 23 over 5508px; the definitions differ, the 1121px agrees to the pixel.)
 //
 // IT REPORTS A PAIR, AND BOTH HALVES ARE REQUIRED, because either alone is gameable:
 //   - BAND COUNT alone rises by adding padding or widening dividers, which buys rhythm by adding
@@ -19,10 +20,22 @@
 // known to be densely segmented in the same run is what proves the detector can find a band at
 // all. If /dashboard reads under 10 bands the probe refuses rather than reporting about /budget.
 //
-// EACH ROUTE IS READ UNTIL TWO CONSECUTIVE READS AGREE. A fixed sleep let an unmounted page
-// report a zero on this codebase before, and a zero from an unsettled page is indistinguishable
-// from a real one - here it would read as a MORE dramatic finding, which is the direction nobody
-// checks.
+// SETTLING TOOK THREE GOES TO GET RIGHT, and each failure is worth knowing before anyone
+// "simplifies" it:
+//   1. A FIXED SLEEP let an unmounted page report a zero, and a zero from an unsettled page is
+//      indistinguishable from a real one - here it reads as a MORE dramatic finding, which is
+//      the direction nobody checks.
+//   2. TWO AGREEING READS was not agreement either. /dashboard read 1 band at 75.6% whitespace
+//      minutes after reading 16 at 17.7%; two consecutive reads had agreed on a page that had
+//      not mounted. So: THREE agreements, and the streak RESTARTS whenever a later read has
+//      MORE bands, because a page only grows as it mounts and a same-value check cannot see
+//      that however often it repeats.
+//   3. AND THAT STILL WAS NOT ENOUGH - three agreements on a STALLED page is still three
+//      agreements. The tell was in the data: across two six-route runs, routes 3-6 read
+//      IDENTICALLY while the first two disagreed wildly. The app cold-starts on the first
+//      navigation. Hence the discarded warm-up before the loop.
+// The positive control caught every one of these and named the INSTRUMENT rather than the page.
+// It is the reason none of them became a reported finding.
 //
 // WHAT IT CANNOT SEE: colour, whether the bands are the RIGHT bands, typography, anything that
 // lazy-mounts on scroll, desktop widths, and light mode. It measures 390x844 dark. It is an
@@ -174,6 +187,18 @@ const readRhythm = () => page.evaluate(() => {
   };
 });
 
+// WARM-UP, DISCARDED. Measured 2026-09-18 across two six-route runs: routes 3-6 read
+// IDENTICALLY both times (/debt 9 bands 2850px, /forecast 7/2003, /account 3/2083,
+// /settings 5/1424) while the FIRST TWO disagreed wildly - /dashboard 16 bands vs 1, /budget
+// 6 vs 1. The route count was never the problem; the app COLD-STARTS on the first
+// navigation, and the settle loop dutifully agreed three times on a page that had not
+// mounted. Three agreements on a stalled page is still three agreements.
+//
+// That two independent runs agree exactly on the later routes is also what makes THOSE
+// numbers worth anything - the same reading twice from a cold and a warm browser.
+await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(9000);
+
 const out = {};
 for (const route of ROUTES) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
@@ -220,10 +245,14 @@ for (const route of ROUTES) {
   }
   out[route] = settled;
   const s = settled;
+  // THE RUN AS A SHARE OF THE PAGE IS THE INSTRUMENT, not the raw pixel count - a long page is
+  // allowed a long run. Printed per route so a reader does not have to divide, and so a route
+  // nobody has complained about is comparable to one he has.
+  const runPct = s.totalPx ? Math.round((s.longestRunPx / s.totalPx) * 1000) / 10 : null;
   console.log(
     `${route.padEnd(11)} bands ${String(s.bands).padStart(3)}  over ${String(s.totalPx).padStart(5)}px` +
     ` = ${String(s.bandsPerKpx).padStart(5)}/1000px  |  whitespace ${String(s.whitespacePct).padStart(5)}%` +
-    `  |  longest unbroken run ${String(s.longestRunPx).padStart(5)}px`,
+    `  |  run ${String(s.longestRunPx).padStart(5)}px = ${String(runPct).padStart(5)}% of page`,
   );
 }
 
@@ -276,6 +305,21 @@ const dashFrac = frac(dash);
 const times = dashFrac ? budgetFrac / dashFrac : Infinity;
 
 console.log(`longest run as a share of page: /budget ${(budgetFrac * 100).toFixed(0)}% vs /dashboard ${(dashFrac * 100).toFixed(0)}% = ${times.toFixed(1)}x`);
+
+// EVERY ROUTE AGAINST THE SAME CEILING, REPORTED AND NOT GATED. The gate stays scoped to
+// /budget, which is the route Tre actually reported; one measured route is not grounds for
+// re-aiming a ceiling at five more, and a gate that starts failing on pages nobody complained
+// about is a gate somebody switches off. This table is what a decision to widen it should be
+// made FROM.
+console.log('\nRUN AS A SHARE OF PAGE, every route, against /dashboard - REPORTED, NOT GATED:');
+for (const r of ROUTES) {
+  const v = out[r];
+  if (!v) { console.log(`  ${r.padEnd(11)} NOT MEASURED`); continue; }
+  const f = frac(v);
+  const x = dashFrac ? f / dashFrac : Infinity;
+  const flag = r === '/dashboard' ? '(reference)' : x > CEILING ? `<-- OVER the ${CEILING}x ceiling` : '';
+  console.log(`  ${r.padEnd(11)} ${(f * 100).toFixed(0).padStart(3)}% of page  ${x.toFixed(1)}x  ${flag}`);
+}
 
 if (times > CEILING) {
   console.error(`
