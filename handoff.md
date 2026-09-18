@@ -329,7 +329,40 @@ are settings in **Tre's own App Store Connect**, re-filed as `e8d37544` (needs_t
 this did not lose them. **Otto's warning travels with it: every persuasive figure in that reel is
 the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
-## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
+## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 0.
+
+0. **ONBOARDING - `ea25a708`. STEP 1 (THE INVENTORY) IS DONE. READ IT BEFORE PLANNING STEP 2.**
+   `docs/onboarding-inventory-2026-09-18.md`. Tre decided the priority himself: *"we need to
+   update onboarding first. especially with all the changes we made."* **Do not re-open the
+   fork, and do not scope step 2 from this paragraph - the inventory IS the scope.**
+   **THE THREE FALSE CLAIMS, each verified from source:**
+   * **`Onboarding.tsx:772` - "Settings -> Quick Access" DOES NOT EXIST.** Two defects in one
+     sentence. The feature is **"App lock"** under **Settings -> Account Security**
+     (`Settings.tsx:696`); "Quick Access" occurs twice in `src/`, both inside Onboarding.tsx
+     itself. AND the guard `Capacitor.isNativePlatform() || typeof window !== 'undefined'`
+     (`:767`) is **unconditional in a browser**, while `AppLockSettings` returns null when not
+     native - so **every web user is sent to find a control that is not there.** Biggest of the
+     three and entirely mine to fix.
+   * **"Budget Control" is now labelled "Plan"** (`Transactions.tsx:904`). Corroborated from
+     inside the app: the demo hero at `Dashboard.tsx:1794` already says "Plan".
+   * ⚠️ **"Unlimited history"** (`Onboarding.tsx:741`) is a premium promise made **nowhere else**
+     - 1 hit against a positive control of 6 for "Priority support"; `Premium.tsx` and
+     `NativePaywall.tsx` agree with each other and not with onboarding. **PAYWALL COPY, SO IT
+     IS SAM'S, NOT MINE** - recorded, deliberately not fixed.
+   **STATED NEGATIVES, so silence is not read as a check nobody ran:** the DebtsStep "Accounts"
+   pointer is correct, all four checklist links resolve through their redirects, and the
+   60-month forecast claim is true.
+   **OMISSIONS (different fix, do not merge them in):** the Account tab now has five sections -
+   Profile, Leaderboard, Achievements, Learn, AI (`Account.tsx:24`) - and onboarding names none
+   of them, including **Learn**, the app's own teaching surface. The bottom bar is icon-only and
+   the flow teaches no navigation.
+   **NOT CLAIMED:** this is a SOURCE inventory, not a rendered walk. It cannot see layout or a
+   step that fails to mount, and "Takes 2 minutes" is unmeasured rather than cleared. A rendered
+   walk needs the reviewer reset, which **this repo has measured as unverifiable from the
+   database row** - the app undoes it within a second. **ASSERT THE SCREEN.**
+   **SEQUENCING, from Sam:** the dashboard three-card move (`035ffb29`) is queued BEHIND this,
+   because an onboarding rewrite that points at a dashboard about to be restructured gets
+   written twice.
 
 1. **`403dd5d8` PARTS 2-4 - PART 1 IS DONE (`7a7f987d`), READ ITS ANSWER BEFORE PLANNING.**
    The measurable half is closed: **one** real cross-section duplicate (the $25 Discover It
