@@ -8527,6 +8527,35 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - THE CONTRAST FIX MEASURES AT 42 STRINGS TO 0, AND THE PROBE REFUSED A LIGHT-MODE READING
+
+### ✅ `npm run check:dark-contrast` (`3647b487`) - RENDERED, not token-level
+The token test proves the PALETTE. It cannot see a Tailwind literal, does not know which SURFACE a
+string sits on, and cannot tell whether the element is on screen. He was complaining about text he
+was LOOKING AT, so this reads pixels.
+**THE NUMBER: with the pre-fix token restored, 42 of 62 rendered strings on the planned-items page
+are below AA, worst at 3.13:1 - the panel tab labels ("Fixed (2)", "Subs (3)", "Variable (5)",
+"Debt (1)").** That is exactly his *"smaller text ... gray text ... hard to read"*. **With
+`44c67c0f` in place: 0 of 62.**
+**It walks UP for the background** - nearly every element is transparent, so an element's own
+`background-color` is `rgba(0,0,0,0)` and would compute a confident ratio against black.
+**The theme is set through the app's own store (`forgenta.theme.v1`), never by flipping a class** -
+`theme.ts` also sets `root.style.colorScheme`, and this repo already records that a bare class flip
+is not a theme switch on such a surface.
+⚠️ **ITS SECOND CONTROL FIRED ON THE FIRST RUN.** The walk account renders LIGHT, and the probe
+refused rather than reporting a light reading as a dark pass - **which is the exact failure this
+whole ask is about.** Proven red with the real historical defect (exit 1, 42 findings), restored
+byte-exact.
+**Limits stated in the file:** light mode, text over images/gradients/backdrop blur, the 3:1
+large-text exemption, other routes, and disabled/placeholder text which WCAG exempts and it cannot
+tell apart - a finding on one of those is a false positive to check by hand.
+
+### ⛔ AND IT DOES NOT ANSWER "VIBRANT" (`a58fb610` STILL OPEN)
+**A contrast ratio cannot tell you whether a screen feels dull.** Do not let `check:dark-contrast`
+passing be reported as vibrancy done - that is the shape of instrument this repo keeps filing as a
+lie. Remaining scope is unchanged: rendered dark frames at 390px and desktop, proven red first, and
+**no saturating everything** - colour carries meaning on money screens.
+
 ## 2026-09-18 - Ada - HIS "DULL TEXT" WAS A MEASURED AA FAILURE, AND DARK-MODE VIBRANCY IS NOW ITS OWN ASK
 
 ### ✅ `26ce5dc9` CLOSED - dark muted text was 4.19:1, BELOW the WCAG AA floor (`44c67c0f`)
@@ -8784,7 +8813,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 10:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 10:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -8795,14 +8824,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-58c63788 [handoff]: f35ccec0 was already done, and 3bc68e0d's label premise is refuted
-1f7dccc0 [debt]: the guide named the wrong ranking rate, and now states the money principle
-dba8009d [handoff]: resume queue for the next session, ordered
-9b8ac986 [handoff]: 3bc68e0d started - the label channel already exists, and my grep was the wrong instrument
-09c46f65 [handoff]: iOS build 949 (6.7) uploaded, verified at all three levels
-479af712 [docs]: record his standing money principle as repo law, without guessing the change it approved
-c62277b1 [debt]: his Robinhood row CHANGED since the fix, so the fixture no longer describes his card
-972bfd01 [handoff]: two of Tres messages were never tracked, and one is a decision he already made
+b094eb46 [handoff]: his dull-text report was a measured AA failure; vibrancy is its own ask
+44c67c0f [theme]: dark-mode muted text was below the AA contrast floor, measured at 4.19:1
+25490042 [handoff]: d391e98b was mis-flagged as Tre's, and its first finding was an unnamed delete button
+834a7338 [budget]: three row actions had no accessible name at all, one of them the delete
+6c59373c [handoff]: his groceries ask was done in 22 minutes, and my unfiltered query nearly cried wolf on his data
+021b27a2 [handoff]: 949 carries the features and not the notice, and the cause is now wired
+4e6f3776 [ci]: give the notes-coverage check a reader, at the one moment it is cheap to fix
+a7c4f4de [whats-new]: the three features he said were never built now have a line
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
