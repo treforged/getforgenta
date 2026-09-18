@@ -119,3 +119,7 @@ scripts/handoff.md
 
 # Rendered frames written by the check:* probes. Evidence for a session, not for the repo.
 scripts/.out/
+
+# Rendered frames written by scripts/check-landing-first-screen.mjs. Evidence for a run,
+# not an artefact of the repo - a committed frame goes stale the next time the page changes.
+landing-first-screen-*.png

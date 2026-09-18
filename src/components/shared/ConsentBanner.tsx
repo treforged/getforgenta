@@ -197,15 +197,30 @@ export default function ConsentBanner() {
         aria-label="Cookie consent"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+        {/*
+          ⚠️ THE HEIGHT OF THIS BANNER IS A PRODUCT DECISION, NOT A STYLING ONE.
+          It is fixed to the bottom, so every pixel it takes is a pixel of the first screen a
+          new arrival cannot use. At ~300px on a phone it covered BOTH primary CTAs in
+          Instagram's in-app browser, whose viewport is ~180px shorter than Safari's — the
+          screenshot Tre sent on 2026-09-17. So on a phone it is deliberately compact: a
+          four-word heading, two lines of body, and three buttons on one row.
+          The full sentence survives at `sm` and above, where there is room for it.
+          Gated by scripts/check-landing-first-screen.mjs at 390x664.
+        */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           {/* Text */}
-          <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
             <p className="text-xs font-semibold text-foreground">
               We use cookies
             </p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Essential cookies are always active. We also use analytics cookies to
-              improve Budget OS. You can choose which non-essential cookies to allow.{' '}
+            <p className="text-[11px] text-muted-foreground leading-snug sm:leading-relaxed">
+              <span className="hidden sm:inline">
+                Essential cookies are always active. We also use analytics cookies to
+                improve Budget OS. You can choose which non-essential cookies to allow.{' '}
+              </span>
+              <span className="sm:hidden">
+                Essential ones are always active. Analytics cookies are your choice.{' '}
+              </span>
               <Link to="/privacy" className="text-primary hover:underline">
                 Privacy Policy
               </Link>
@@ -214,23 +229,30 @@ export default function ConsentBanner() {
 
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* The labels shorten on a phone so all three fit ONE row rather than three.
+                The accessible name stays the full phrase — a screen-reader user must not be
+                handed "Manage" and left to guess what it manages. */}
             <button
               onClick={() => setShowPrefs(true)}
-              className="text-[11px] text-foreground/75 hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press"
+              aria-label="Manage preferences"
+              className="text-[11px] text-foreground/75 hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press whitespace-nowrap"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              Manage preferences
+              <span className="hidden sm:inline">Manage preferences</span>
+              <span className="sm:hidden">Manage</span>
             </button>
             <button
               onClick={rejectNonEssential}
-              className="text-[11px] text-foreground/75 hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press"
+              aria-label="Reject non-essential"
+              className="text-[11px] text-foreground/75 hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press whitespace-nowrap"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              Reject non-essential
+              <span className="hidden sm:inline">Reject non-essential</span>
+              <span className="sm:hidden">Reject</span>
             </button>
             <button
               onClick={acceptAll}
-              className="text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-1.5 transition-colors btn-press"
+              className="text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-1.5 transition-colors btn-press whitespace-nowrap"
               style={{ borderRadius: 'var(--radius)' }}
             >
               Accept all

@@ -105,17 +105,26 @@ export default function Landing() {
           >
             FORGENTA
           </motion.span>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             {/* On the SIGNED-OUT page on purpose: a language preference that lives only
-                behind sign-in is unreachable by the person who most needs it. */}
-            <LanguageSwitcher className="bg-transparent border border-border px-2 py-1 text-foreground/70" />
-            <Link to="/auth" className="text-xs text-foreground/70 hover:text-foreground transition-colors">
+                behind sign-in is unreachable by the person who most needs it.
+
+                ⚠️ NOT IN THE HEADER ON A PHONE. The control cannot be narrower than its
+                longest option plus a chevron, and `index.css` forces 16px on every select so
+                iOS does not zoom the page on focus — so it takes ~135px of a 390px row and
+                pushes Sign In and Start Free into wrapping inside their own boxes. That is
+                what Tre photographed through Instagram's in-app browser on 2026-09-17.
+                It moves to the FOOTER below `sm`, which is on the same signed-out page, so
+                the reachability promise above is kept rather than traded away. Exactly one
+                instance is visible at any width. */}
+            <LanguageSwitcher className="hidden sm:block bg-transparent border border-border px-2 py-1 text-foreground/70" />
+            <Link to="/auth" className="text-xs text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap shrink-0">
               {t('nav.signIn')}
             </Link>
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <motion.div className="shrink-0" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link
                 to="/auth"
-                className="text-xs font-medium bg-primary text-primary-foreground px-4 py-1.5 btn-press transition-colors hover:bg-primary/90"
+                className="block text-xs font-medium bg-primary text-primary-foreground px-4 py-1.5 btn-press transition-colors hover:bg-primary/90 whitespace-nowrap"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 {t('nav.startFree')}
@@ -128,7 +137,9 @@ export default function Landing() {
       <main>
       {/* Hero */}
       <section
-        className="max-w-6xl mx-auto px-4 pt-16 pb-24 lg:pt-24 lg:pb-36 text-center relative"
+        // `pt-16` on a phone spent 64px of a 664px in-app-browser viewport before the badge,
+        // which pushed the primary CTA row down under the cookie banner. Desktop is unchanged.
+        className="max-w-6xl mx-auto px-4 pt-8 pb-24 sm:pt-16 lg:pt-24 lg:pb-36 text-center relative"
         onMouseMove={handleMouseMove}
       >
         {/* Ambient glow */}
@@ -380,6 +391,12 @@ export default function Landing() {
       <footer className="border-t border-border py-8">
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="font-display font-bold text-xs tracking-tight text-gold">FORGENTA</span>
+          {/* The phone's language control. It is the SAME component as the header's, shown at
+              exactly the widths where the header cannot hold it — see the note there. */}
+          <LanguageSwitcher
+            id="language-switcher-footer"
+            className="sm:hidden bg-transparent border border-border px-2 py-1 text-foreground/70"
+          />
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
             <span>{t('footer.rights', { year: new Date().getFullYear() })}</span>
             <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors underline underline-offset-2">{t('footer.privacy')}</Link>

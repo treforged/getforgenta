@@ -14,6 +14,15 @@
 // never writes at all passes every negative case here and ships a feature that does nothing —
 // which is precisely the state `@vercel/speed-insights` sat in for months in this same codebase.
 // The first test is therefore the one that proves it CAN write.
+//
+// ⚠️ AND THE SIGNED-OUT CASE WAS ABSENT UNTIL 2026-09-17, WHICH IS HOW THE DEFECT SHIPPED.
+// Every case below mocked `useProfile` and `useDemo` and nothing else, so `user` was never a
+// variable in this file at all — the hook was only ever exercised in one authentication state,
+// and the guard it actually needed was the one nobody could see was missing. On the PUBLIC
+// landing page `useProfile` returns DEFAULT_PROFILE, so `!profile` was false, the write fired
+// for every anonymous arrival, and the thrown SIGNED_OUT_READ_ONLY was toasted at a visitor who
+// had never had a session. Nothing here went red, because a fixture that is always signed in
+// cannot take the signed-out branch.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
@@ -22,6 +31,7 @@ const state = vi.hoisted(() => ({
   profile: null as Record<string, unknown> | null,
   loading: false,
   isDemo: false,
+  user: { id: 'u1' } as { id: string } | null,
   mutate: vi.fn(),
   derived: 'US' as string | null,
 }));
@@ -30,6 +40,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useProfile: () => ({ data: state.profile, loading: state.loading, update: { mutate: state.mutate } }),
 }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: state.isDemo }) }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: state.user }) }));
 vi.mock('@/lib/derive-country', () => ({
   readCountrySignals: () => ({ timeZone: 'America/New_York', languages: ['en-US'] }),
   deriveCountry: () => state.derived,
@@ -46,6 +57,7 @@ beforeEach(() => {
   state.profile = { country_code: null, tour_flags: {} };
   state.loading = false;
   state.isDemo = false;
+  state.user = { id: 'u1' };
   state.derived = 'US';
   state.mutate = vi.fn();
 });
@@ -85,6 +97,15 @@ describe('useDerivedCountry', () => {
   it('waits for the profile rather than writing against a missing one', () => {
     state.loading = true;
     state.profile = null;
+    render(<Probe />);
+    expect(state.mutate).not.toHaveBeenCalled();
+  });
+
+  it('is inert with NO SIGNED-IN USER — the public landing page', () => {
+    // The state a real anonymous arrival is in: a DEFAULT_PROFILE with a blank country and no
+    // opt-out flag, which is exactly the shape this hook exists to fill. Only `user` separates
+    // it from a signed-in user who genuinely needs the write.
+    state.user = null;
     render(<Probe />);
     expect(state.mutate).not.toHaveBeenCalled();
   });

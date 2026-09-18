@@ -23,6 +23,7 @@
 // Which means: once a user clears it deliberately, `optedOut` below is what keeps it cleared.
 import { useEffect, useRef } from 'react';
 import { useProfile } from '@/hooks/useSupabaseData';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { deriveCountry, readCountrySignals } from '@/lib/derive-country';
 
@@ -36,13 +37,27 @@ export const COUNTRY_OPT_OUT_FLAG = 'country_board_opted_out';
 
 export function useDerivedCountry(): void {
   const { isDemo } = useDemo();
+  const { user } = useAuth();
   const { data: profile, loading, update } = useProfile();
   // One attempt per mount. `update.mutate` is fire-and-forget and the profile takes a moment to
   // refetch, so without this the effect can re-enter and issue the same write several times.
   const attempted = useRef(false);
 
   useEffect(() => {
-    if (isDemo || loading || !profile || attempted.current) return;
+    // ⚠️ `!profile` IS NOT A SIGNED-IN CHECK, AND READING IT AS ONE SHIPPED A LIE TO EVERY
+    // ANONYMOUS ARRIVAL. `useProfile` returns `DEFAULT_PROFILE` rather than undefined when there
+    // is no session, so `profile` is ALWAYS truthy — a blank `country_code` and no opt-out flag,
+    // which is exactly the state this effect exists to fill. So on the PUBLIC landing page it
+    // fired a profile write for a visitor who had never signed in, `writeBlockedError` threw
+    // SIGNED_OUT_READ_ONLY, and `useProfile`'s `onError` toasted
+    // "Your session has ended. Please sign in again." at somebody whose session had never begun.
+    //
+    // Measured 2026-09-17 on a clean first load of `/` at 390x664 — the screen the Instagram bio
+    // link now points real arrivals at. Nothing went red: the write is fire-and-forget, the throw
+    // is caught by react-query, and no test mounts this hook signed out.
+    //
+    // `user` is the guard. It is a separate fact from `profile` and it is the one being asked.
+    if (isDemo || !user || loading || !profile || attempted.current) return;
 
     const flags = (profile.tour_flags as Record<string, boolean> | null) ?? {};
     const optedOut = flags[COUNTRY_OPT_OUT_FLAG] === true;
@@ -62,5 +77,5 @@ export function useDerivedCountry(): void {
     update.mutate({ country_code: derived });
     // `update` is a stable mutation object; including it would re-run this on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDemo, loading, profile]);
+  }, [isDemo, user, loading, profile]);
 }

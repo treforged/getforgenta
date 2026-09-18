@@ -52,6 +52,7 @@
     "check:desktop-rail": "node scripts/check-desktop-rail.mjs",
     "check:text-scale": "node scripts/check-text-scale.mjs",
     "check:release-note": "node scripts/check-release-note-trailer.mjs",
+    "check:landing": "node scripts/check-landing-first-screen.mjs",
     "install:hooks": "node scripts/install-git-hooks.mjs"
   },
   "dependencies": {
