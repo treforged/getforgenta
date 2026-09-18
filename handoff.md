@@ -29,6 +29,15 @@ this asserts TEXT not layout; how many lines are saved at 390px needs a Playwrig
 frame."* **That stated limit was never closed. A stated limit is a to-do, not an absolution** -
 and this is the second time that exact sentence has cost this desk a round trip with Tre.
 
+⚠️ **AND IT IS A RECURRENCE OF THIS DESK'S OWN RULE, NOT A NEW ONE** (Sam, 2026-09-17). "A stated
+limit is a to-do, not an absolution" is ALREADY in the machine-wide casebook - **Ada put it there
+on 2026-09-14**, from the one-switch gate whose own header declared its blind spot and which
+nobody went back to. So this is a SECOND INDEPENDENT SIGHTING of that rule biting the same repo,
+three days apart, and it is recorded HERE as a recurrence rather than filed again as a duplicate.
+**The recurrence is the evidence**: the rule was written down, by this desk, and the next stated
+limit still sat open until Tre complained. Writing a limit down is not the same as scheduling it -
+so when a gate's header names what it cannot see, that sentence needs an ASK, not a comment.
+
 **THE DEFECT, visible only in a rendered frame:** the meta `<p>` carried `basis-[11rem]`. Flex
 breaks a line from the flex-basis, NOT from the text - so 176px of basis plus three 44px action
 buttons exceeded the row on EVERY account, and the buttons took a near-empty line of their own
