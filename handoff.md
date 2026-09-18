@@ -1,6 +1,131 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ START HERE - 2026-09-17 (Ada, TWENTY-EIGHTH session)
+## ⚠️ START HERE - 2026-09-17 (Ada, TWENTY-NINTH session)
+
+**TWO COMMITS SHIPPED, BOTH PUSHED AND VERIFIED BY CONTENTS WITH CONTROLS, 0/0 after a fresh
+fetch.** Sam dispatched two items; both are done, and one of them refuted the blocker on its own
+ask before any code was written.
+
+### ✅ iOS BUILD **939** IS UPLOADED (run `35292925395`, on `9c36fc55`, version 6.7)
+**It carries the SPACING fix and NOT the cadence one** - `3ce4d20a` landed after the dispatch.
+Verified three ways, none of them the run conclusion:
+* **`Upload to App Store Connect`, its OWN conclusion: `success`** - not `skipped`.
+* **`UPLOAD SUCCEEDED` present once**; control `Build IPA` = 1373 matches, so the grep reads the
+  log and the 1 is real.
+* **Every `90382` match is ECHOED SCRIPT SOURCE** - lines 2043 (comment), 2053 (`elif grep -q`),
+  2054 (the `::warning::` string). The one at line 73 is a TIMESTAMP (`...9038250Z`), not the
+  error. The cap branch never fired.
+* **`VERSION_CODE=939` READ FROM THE LOG.** An upload is not an install.
+
+### ✅ SPACING, ask `9db3dd77` - `9c36fc55`. AND IT WAS NEVER "FORGOTTEN"
+Tre: *"she forgot the spacing issues I mentioned specifically at least on the accounts section."*
+**He was not on a stale build and nothing was dropped.** `89604ad4` and `c4ec0b69` are ancestors
+of `55a17bca` (git merge-base), and build 937 is `143b3a4b`, cut after all three. He was holding
+the fixes when he complained.
+
+**THE MECHANISM THAT DROPPED IT: every gate on that screen was a jsdom TEXT assertion.**
+`44062af7`'s own closing evidence states the limit in as many words - *"jsdom has no geometry, so
+this asserts TEXT not layout; how many lines are saved at 390px needs a Playwright rendered
+frame."* **That stated limit was never closed. A stated limit is a to-do, not an absolution** -
+and this is the second time that exact sentence has cost this desk a round trip with Tre.
+
+**THE DEFECT, visible only in a rendered frame:** the meta `<p>` carried `basis-[11rem]`. Flex
+breaks a line from the flex-basis, NOT from the text - so 176px of basis plus three 44px action
+buttons exceeded the row on EVERY account, and the buttons took a near-empty line of their own
+however short the text was. `basis-auto` makes the basis the content.
+Measured at 390x844, before -> after: Chase Checking 149->124, Alliant Checking 122->97,
+Fidelity 401k 149->124, Roth IRA 122->97. Long-meta cards unchanged (Sapphire 140, Discover 140,
+Marcus 167), so the wrap still fires where intended.
+
+**GATE `npm run check:account-action-row`**, a discriminating PAIR - "buttons share the line" is
+satisfied perfectly by a layout that never wraps, which restores the "Brok era..." crushing Tre
+reported with a screenshot. Proven red BOTH ways as exit-1 findings, byte-exact sha256 restore
+(`f27303d2`).
+⚠️ **Its control classifies by CHARACTER COUNT, not rendered ink width.** The first version used
+ink width and exited **2 "instrument blind"** on the never-wrap mutant - because that defect
+CRUSHES long meta lines to about half their width, so no card passed the "long" filter. An exit-1
+defect gets fixed; an exit-2 tooling fault gets re-run, then ignored.
+
+Also added `scripts/inventory-linked-bank-space.mjs` - an INVENTORY of blank runs on both
+segments. **The linked-bank ROWS are already tight (33-48px);** the defect was next door, on the
+Balances list, which is what "the accounts section" meant.
+
+### ⚠️ NOTIFICATIONS, ask `384ca151` - THE RECORDED BLOCKER WAS FALSE, AND THE TRUTH IS WORSE
+The ask read *"unblocks when a fresh `push_registration_status` row arrives from his device."*
+**A fresh row HAD already arrived** - `platform=ios`, `app_build=937`, last_seen 2026-09-17
+23:53Z. That blocker was dead when it was written. **Test the premise before the code.**
+
+**WHAT THE ROW SAYS: `outcome=timeout`, `detail='permission=granted net=up'`, `attempts=257`.
+And `device_tokens` holds NINE rows, every one ANDROID, newest 2026-09-06. THERE HAS NEVER BEEN
+AN iOS TOKEN, FOR ANYONE.** So cadence work changes nothing he can see by PUSH: there is no token
+to deliver to.
+
+**NOT DIAGNOSED, and the instrument is part of why:** `net=up` is a plain HTTPS probe, so it says
+nothing about whether APNs itself is reachable - the exact confound, given this portfolio already
+records his network blocking TestFlight and Tailscale. **The entitlement is NOT the cause this
+time:** `ios/App/App/App.entitlements` carries `aps-environment=production`, correct for a
+distribution-signed build, and Release signs Manual against a pinned profile, so a profile lacking
+the Push capability would fail at SIGNING - and builds succeed.
+
+**THE DECISIVE TEST NEEDS HIS HANDS AND NOTHING ELSE: open the app once with WI-FI OFF, on
+cellular.** A token on cellular and a timeout on wi-fi settles a hypothesis that has now survived
+two shipped fixes. No desk can run it.
+
+### ✅ CADENCE RAISED - `3ce4d20a`, and it is NOT LIVE YET
+`MAX_PER_WEEK` 5 -> 7. That constant was the ONLY thing holding the cadence below one a day, and
+raising it CANNOT produce two in a day: sends leave only inside the 08:00-21:00 waking window
+(thirteen hours) and `MIN_HOURS_BETWEEN` is SIXTEEN. **`MIN_HOURS_BETWEEN` is deliberately
+untouched and the comment says why** - it is what makes "daily" safe, and lowering it is the
+obvious wrong way to answer a future "more notifications".
+
+⚠️ **NOT DEPLOYED, ON PURPOSE.** The policy runs in the `push-send` EDGE FUNCTION and no workflow
+in this repo deploys edge functions - a push to main does nothing for it. Left for a fresh window:
+it would change nothing observable tonight (no iOS token at all; newest Android token 2026-09-06)
+and an incomplete bundle would break sending for everyone.
+**THE BUNDLE IS SIX FILES, NOT TWO** - a deploy replaces the whole thing, and a hand-named list
+has shipped a function without its imports in this portfolio before:
+`push-send/index.ts`, `_shared/notification-policy.ts`, `_shared/learn-streak.ts`,
+`_shared/learn-lessons.ts`, `_shared/push-transport.ts`, plus whatever those import (check first).
+The supabase CLI cannot authenticate from this machine; **the MCP tool is the only deploy route**,
+and verify by CALLING the function with a positive control in the same read, never by the deploy
+result.
+**The client half also needs a BUILD** - `notification-service.ts` schedules LOCAL notifications
+from this same policy, and **local notifications do NOT need APNs**, so this may be the one path
+that actually reaches his phone. 939 does not carry it. **Three uploads today already
+(935/937/939); Apple caps uploads per app per day and this repo once burned the cap with eleven** -
+which is why a fourth dispatch was not made tonight.
+
+### A RESTORE NOTE WORTH KEEPING
+After mutating `notification-policy.ts` the sha256 did NOT match the one recorded before mutating,
+and **"byte-exact" would have been the wrong claim to make.** Cause: line-ending normalisation
+between two different writers, not stray content - a no-op round-trip through the same writer is
+byte-identical, the file holds 0 CRLF exactly as HEAD does, and `git diff` carries only the
+constant and its comment. **Content verified by diff; the hash claim was not made.** Where two
+tools write the same file, a hash comparison across them measures the tools.
+
+### NEXT, IN ORDER
+1. **Deploy `push-send`** (six-file bundle above), then dispatch an iOS build so the client-side
+   local-notification cadence ships too.
+2. **The unbuilt half of `384ca151`: suppress a send while the user is ACTIVELY in the app.**
+   Backgrounded already works by construction - `push-send` reads no app state at all - and that
+   same fact means this half does not exist. ⚠️ **THE TRAP, and it is the whole difficulty: any
+   "active" signal a BACKGROUNDED app keeps writing would make backgrounded read as active and
+   silence exactly the case he named.** Verify what actually writes the signal, and how often,
+   before using it.
+3. Two mid-length Balances rows (Cash 141px, Robinhood 146px) still wrap their action line and sit
+   outside the asserted band deliberately. Widening the band needs a measurement of the real
+   available width, not a guess.
+4. `Roth IRA` renders its type label identical to its own name ("Roth IRA" / "Roth IRA") - a 116px
+   blank run and a fact repeated. Dropping it leaves a GROUPED row's meta empty, so it needs a
+   fallback rather than a deletion.
+
+**DO NOT re-open the fixture-pipeline investigation without a worktree** - the four-arm zoned proof
+is still the right next step there and it is unrelated to everything above.
+
+---
+
+
+## 2026-09-17 (Ada, TWENTY-EIGHTH session) - SUPERSEDED, kept for its measurements
 
 **THE PREVIOUS BLOCK'S FOUR ITEMS ARE ALL DONE. Nothing was committed by this session except this
 handoff - it measured, it did not build.** Tree was clean and 0/0 vs origin at `828ea3bb`.
