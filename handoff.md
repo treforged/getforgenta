@@ -135,6 +135,31 @@ milestone showed the real one reads "One-time expense caused floor breach". They
 ⚠️ **AND `forecast-convergence.realData.test.ts` PRINTS THAT FIDELITY CONTROL AND NEVER
 ASSERTS IT**, so it has been green over the same 25-vs-26 drift. Worth a look on its own.
 
+### ✅ THE MOVE-FUND VISIBILITY HALF IS SHIPPED (not yet in a build)
+Sam split `c067a189`'s fork: the DATE question went to Tre as `4ed3dc70`, and the VISIBILITY half
+was mine to build because it is correct under either answer.
+**Floor protection trims a goal's contribution and nothing said so.** Configured $510/mo, engine
+pays **$279 in Nov 2026**, card showed $510 and a date derived from it. One line now appears on
+the goal card when there IS a shortfall, naming amount, month and reason.
+`src/lib/goal-contribution-shortfall.ts` + 11 tests, **helper and caller in the same commit**
+(`SavingsGoals.tsx:26` and `:593`) because this repo already has one fully-built bridge with zero
+callers. Proven red twice, restored byte-exact.
+⚠️ **UNDER-REACHING ON PURPOSE AND PINNED AS A TEST:** a month with NO line for the goal is
+not reported, because absent cannot be told from not-started / already-funded / trimmed-to-zero,
+and flagging it would fire after every goal completes. **Sep 2026 in his own data is that case.**
+A reported shortfall is always real; an unreported month is not a guarantee.
+⚠️ **`git checkout -- <file>` SILENTLY DID NOTHING because the file was UNTRACKED**, so my
+mutation 1 survived into mutation 2 and both printed "3 failed" - indistinguishable. The sha256
+caught it; repaired by inverse edit and mutation 2 re-run clean. **A red you cannot attribute is
+not a red.**
+
+### 🔁 I FILED A DUPLICATE AND DEDUPED IT
+`c067a189` duplicated **`6237167a`**, which predates it and carries history I did not have: a
+previous pacing change (`447d57ad`) was **already reverted on a MEASURED regression** - payoff
+Oct 2028 against an expected Sep 2028, plus floorDeficit converged savings 5418.48 vs raw 5381.
+Dropped the newer, kept the older, **and verified the survivor is still live afterwards** - the
+recorded failure here is two desks each dropping their copy and the item vanishing.
+
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
 
 1. **`403dd5d8` - THE DASHBOARD REORGANISATION, part 1 only: FIND THE DUPLICATION.** It is the
@@ -149,7 +174,9 @@ ASSERTS IT**, so it has been green over the same 25-vs-26 drift. Worth a look on
    ⚠️ **DO NOT REACH FOR `check:page-rhythm`** - /dashboard is that gate's own 1.0x reference, so
    it is structurally incapable of finding this. His complaint is about WHAT IS ON the page.
 
-2. **`c067a189` - THE MOVE FUND, and it is the item with real money consequence.** Oct/Nov/Dec
+2. **`6237167a` (NOT c067a189, which I dropped as a duplicate) - THE MOVE FUND. The VISIBILITY
+   half is SHIPPED; what remains is the PACING change, and it is blocked on Tre's answer to
+   `4ed3dc70` AND on the measured regression that reverted the last attempt.** Oct/Nov/Dec
    fall below the safe level on his own forecast. **Reproduce the three sub-floor months FIRST**
    (`floor-protection.ts` owns save-up months and the floor, `forecast-engine.ts` owns month-0
    cash), then bring ONE recommendation with the number attached. Assert a NUMBER, run
