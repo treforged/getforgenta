@@ -134,270 +134,241 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
   };
 
   return (
-    <div className="card-forged p-5 space-y-5">
+    <div className="space-y-5">
+      <div className="card-forged p-5 space-y-5">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Your profile
+        </h2>
+
+        {/*
+          ⚠️ IT LIVES HERE AND NOT IN THE CONNECTIONS CARD, AND A GATE IS WHY. It was first mounted
+          inside `FriendLink`, beside the sharing toggles - which reads well and is wrong: that
+          component is contractually DB-FREE, and its own test throws if it queries at all. Mounting
+          a child that reads `profiles` broke that contract, and four suites went red saying so.
+
+          Here it is correct rather than merely tolerated: this panel already queries the follow
+          graph, and public-or-private is the rule that decides what every control BELOW it does -
+          whether a press sends a request or follows immediately. It is the first thing on the
+          surface it governs - which since the two-card split means the card directly ABOVE
+          those controls rather than the same card. Still first, still read before anything it
+          decides; the seam is between it and them, not over it.
+        */}
+        <AccountVisibilityToggle />
+
+        {/*
+          YOUR SHARE LINK (Tre, 2026-09-17: "allow users to make a shareable link that makes it easy
+          click and it loads their profile into the app or add them into the app").
+
+          ⚠️ IT IS GATED ON HAVING A USERNAME, and the empty state SAYS SO rather than hiding. The
+          link IS the username, so with no username there is nothing to copy - and a control that
+          silently vanishes teaches people the feature does not exist.
+
+          ⚠️ THE OFF/UNAVAILABLE STATE READS AS UNAVAILABLE, not as un-highlighted: it is a sentence
+          pointing at the Username section above it, on the same screen, which is where the fix is.
+        */}
+        <section className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Your share link
+          </h3>
+          {shareLink ? (
+            <div className="flex items-center gap-2">
+              <div className={`${FIELD_WRAPPER} flex-1 min-w-0`} style={FIELD_RADIUS}>
+                <Link2 size={14} className="text-muted-foreground shrink-0" />
+                <input
+                  readOnly
+                  value={shareLink}
+                  aria-label="Your shareable profile link"
+                  onFocus={(e) => e.currentTarget.select()}
+                  className={FIELD_INPUT_BARE}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-md btn-secondary shrink-0"
+                style={FIELD_RADIUS}
+                onClick={async () => {
+                  // ⚠️ `navigator.clipboard` THROWS on an insecure origin and in some webviews, and
+                  // it is not present at all in older ones. A copy button that throws is worse than
+                  // one that does nothing, so the failure falls back to selecting the text - which
+                  // is the thing the user was going to do by hand anyway.
+                  try {
+                    await navigator.clipboard.writeText(shareLink);
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    setFindMessage('Could not copy automatically - the link is selected, copy it with your keyboard.');
+                  }
+                }}
+              >
+                <Copy size={12} /> {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Claim a username above and your share link appears here.
+            </p>
+          )}
+        </section>
+      </div>
+
+      {/*
+        ⚠️ A SECOND CARD, NOT A SECOND STYLE. /account ran 60% of its own page as one painted
+        run - worse than /budget ever was at 48%, on a page 10% shorter - and this panel WAS
+        that run: a single card-forged from 713 to 1965. The seam is placed where the subject
+        already changes, between what people can find out about you and the people themselves.
+
+        ⚠️ TWO CARDS, NOT FOUR. Four was measured and reverted on 2026-09-18: it cut the run
+        60% -> 34% and pushed whitespace 16.8% -> 26.8%, which trades his no-rhythm complaint
+        for his wastes-space complaint on the same page. Four sets of card padding plus three
+        gaps is where those ten points went. Do not re-split this further without measuring
+        BOTH halves of the pair.
+      */}
+      <div className="card-forged p-5 space-y-5">
       <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-        Followers
-      </h2>
+          Followers
+        </h2>
 
-      {/*
-        ⚠️ IT LIVES HERE AND NOT IN THE CONNECTIONS CARD, AND A GATE IS WHY. It was first mounted
-        inside `FriendLink`, beside the sharing toggles - which reads well and is wrong: that
-        component is contractually DB-FREE, and its own test throws if it queries at all. Mounting
-        a child that reads `profiles` broke that contract, and four suites went red saying so.
+        {/* Find someone */}
+        <section>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Find someone
+          </h3>
+          <form onSubmit={handleFind} className="flex items-center gap-2">
+            {/*
+              ⚠️ THE SAME SHAPE AS `UsernameClaim`'s FIELD, DELIBERATELY - wrapper plus a bare input,
+              both from `field-classes.ts`. It IS a username field, so it should look like the one
+              the user has already met, and this reuses two existing surface signatures rather than
+              inventing a third.
 
-        Here it is correct rather than merely tolerated: this panel already queries the follow
-        graph, and public-or-private is the rule that decides what every control BELOW it does -
-        whether a press sends a request or follows immediately. It is the first thing on the
-        surface it governs.
-      */}
-      <AccountVisibilityToggle />
-
-      {/*
-        YOUR SHARE LINK (Tre, 2026-09-17: "allow users to make a shareable link that makes it easy
-        click and it loads their profile into the app or add them into the app").
-
-        ⚠️ IT IS GATED ON HAVING A USERNAME, and the empty state SAYS SO rather than hiding. The
-        link IS the username, so with no username there is nothing to copy - and a control that
-        silently vanishes teaches people the feature does not exist.
-
-        ⚠️ THE OFF/UNAVAILABLE STATE READS AS UNAVAILABLE, not as un-highlighted: it is a sentence
-        pointing at the Username section above it, on the same screen, which is where the fix is.
-      */}
-      <section className="space-y-2">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Your share link
-        </h3>
-        {shareLink ? (
-          <div className="flex items-center gap-2">
-            <div className={`${FIELD_WRAPPER} flex-1 min-w-0`} style={FIELD_RADIUS}>
-              <Link2 size={14} className="text-muted-foreground shrink-0" />
+              THE STYLE RATCHET IS WHAT FOUND THIS, and the way it found it is worth recording: a
+              first attempt used the canonical constant as `className={FIELD_INPUT}`, which is the
+              right STYLE, and the gate still counted a 37th surface. It signs a call site by the
+              EXPRESSION FORM (`VAR:FIELD_INPUT`), so a shared constant used in a syntactic form no
+              other call site uses reads as a new style. That is a real blind spot in the gate -
+              written down here rather than worked around by raising the ceiling, which is the one
+              thing a ratchet must never absorb quietly.
+            */}
+            <div className={`${FIELD_WRAPPER} px-2 py-1.5`} style={FIELD_RADIUS}>
+              <AtSign size={12} className="text-muted-foreground shrink-0" />
               <input
-                readOnly
-                value={shareLink}
-                aria-label="Your shareable profile link"
-                onFocus={(e) => e.currentTarget.select()}
+                type="text"
+                placeholder="username"
+                aria-label="Find someone by username"
+                autoComplete="off"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className={FIELD_INPUT_BARE}
               />
             </div>
             <button
-              type="button"
-              className="btn btn-md btn-secondary shrink-0"
+              type="submit"
+              className="btn btn-sm btn-primary shrink-0"
               style={FIELD_RADIUS}
-              onClick={async () => {
-                // ⚠️ `navigator.clipboard` THROWS on an insecure origin and in some webviews, and
-                // it is not present at all in older ones. A copy button that throws is worse than
-                // one that does nothing, so the failure falls back to selecting the text - which
-                // is the thing the user was going to do by hand anyway.
-                try {
-                  await navigator.clipboard.writeText(shareLink);
-                  setCopied(true);
-                  window.setTimeout(() => setCopied(false), 2000);
-                } catch {
-                  setFindMessage('Could not copy automatically - the link is selected, copy it with your keyboard.');
-                }
-              }}
             >
-              <Copy size={12} /> {copied ? 'Copied' : 'Copy'}
+              Find
             </button>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Claim a username above and your share link appears here.
-          </p>
-        )}
-      </section>
+          </form>
 
-      {/* Find someone */}
-      <section>
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Find someone
-        </h3>
-        <form onSubmit={handleFind} className="flex items-center gap-2">
-          {/*
-            ⚠️ THE SAME SHAPE AS `UsernameClaim`'s FIELD, DELIBERATELY - wrapper plus a bare input,
-            both from `field-classes.ts`. It IS a username field, so it should look like the one
-            the user has already met, and this reuses two existing surface signatures rather than
-            inventing a third.
-
-            THE STYLE RATCHET IS WHAT FOUND THIS, and the way it found it is worth recording: a
-            first attempt used the canonical constant as `className={FIELD_INPUT}`, which is the
-            right STYLE, and the gate still counted a 37th surface. It signs a call site by the
-            EXPRESSION FORM (`VAR:FIELD_INPUT`), so a shared constant used in a syntactic form no
-            other call site uses reads as a new style. That is a real blind spot in the gate -
-            written down here rather than worked around by raising the ceiling, which is the one
-            thing a ratchet must never absorb quietly.
-          */}
-          <div className={`${FIELD_WRAPPER} px-2 py-1.5`} style={FIELD_RADIUS}>
-            <AtSign size={12} className="text-muted-foreground shrink-0" />
-            <input
-              type="text"
-              placeholder="username"
-              aria-label="Find someone by username"
-              autoComplete="off"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={FIELD_INPUT_BARE}
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn btn-sm btn-primary shrink-0"
-            style={FIELD_RADIUS}
-          >
-            Find
-          </button>
-        </form>
-
-        {/* PUBLIC ACCOUNTS ONLY, decided server-side - see `useUsernameSuggestions`. Picking a
-            suggestion fills the field rather than following immediately: following is the
-            irreversible-feeling action and it stays one deliberate press away. */}
-        <UsernameSuggestions prefix={username} onPick={(name) => setUsername(name)} />
-        {findError && (
-          <p className="mt-1 text-sm text-destructive-text">{findError}</p>
-        )}
-        {findMessage && (
-          <p className="mt-1 text-sm text-muted-foreground">{findMessage}</p>
-        )}
-        {foundProfile && (
-          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap min-w-0">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="font-medium">{foundProfile.username}</span>
-              {foundProfile.display_name && (
-                <span className="text-muted-foreground">
-                  ({foundProfile.display_name})
-                </span>
-              )}
-              <span className="px-1 py-0.5 text-xs bg-muted text-muted-foreground rounded">
-                {foundProfile.visibility === 'public' ? 'Public' : 'Private'}
-              </span>
-            </div>
-            <button
-              className="btn btn-sm btn-primary"
-              style={{ borderRadius: 'var(--radius)' }}
-              onClick={() => requestFollow(foundProfile.user_id)}
-              disabled={getFollowState(foundProfile).disabled}
-            >
-              <UserPlus size={13} />
-              Follow
-            </button>
-            {getFollowState(foundProfile).disabled && (
-              <p className="text-sm text-muted-foreground">
-                {getFollowState(foundProfile).reason}
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Loading state */}
-      {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
-        <>
-          {/* Requests */}
-          {incomingRequests.length > 0 && (
-            <section>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Requests
-              </h3>
-              {incomingRequests.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex items-center justify-between gap-2 flex-wrap min-w-0"
-                >
-                  <span className="truncate">
-                    {labelFor(row.follower_id)}
-                  </span>
-                  <div className="flex gap-1">
-                    <button
-                      className="btn btn-sm btn-primary"
-                      style={{ borderRadius: 'var(--radius)' }}
-                      onClick={() => approveRequest(row.id)}
-                    >
-                      <Check size={13} />
-                      Approve
-                    </button>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      style={{ borderRadius: 'var(--radius)' }}
-                      onClick={() => removeFollow(row.id)}
-                    >
-                      <X size={13} />
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </section>
+          {/* PUBLIC ACCOUNTS ONLY, decided server-side - see `useUsernameSuggestions`. Picking a
+              suggestion fills the field rather than following immediately: following is the
+              irreversible-feeling action and it stays one deliberate press away. */}
+          <UsernameSuggestions prefix={username} onPick={(name) => setUsername(name)} />
+          {findError && (
+            <p className="mt-1 text-sm text-destructive-text">{findError}</p>
           )}
-
-          {/* Followers */}
-          <section>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Followers
-            </h3>
-            {followers.length === 0 ? (
-              <p className="text-muted-foreground">
-                Nobody is following you yet.
-              </p>
-            ) : (
-              followers.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex items-center justify-between gap-2 flex-wrap min-w-0"
-                >
-                  <span className="truncate">
-                    {labelFor(row.follower_id)}
+          {findMessage && (
+            <p className="mt-1 text-sm text-muted-foreground">{findMessage}</p>
+          )}
+          {foundProfile && (
+            <div className="mt-3 flex items-center justify-between gap-2 flex-wrap min-w-0">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className="font-medium">{foundProfile.username}</span>
+                {foundProfile.display_name && (
+                  <span className="text-muted-foreground">
+                    ({foundProfile.display_name})
                   </span>
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    style={{ borderRadius: 'var(--radius)' }}
-                    onClick={() => removeFollow(row.id)}
-                  >
-                    <X size={13} />
-                    Remove
-                  </button>
-                </div>
-              ))
-            )}
-          </section>
+                )}
+                <span className="px-1 py-0.5 text-xs bg-muted text-muted-foreground rounded">
+                  {foundProfile.visibility === 'public' ? 'Public' : 'Private'}
+                </span>
+              </div>
+              <button
+                className="btn btn-sm btn-primary"
+                style={{ borderRadius: 'var(--radius)' }}
+                onClick={() => requestFollow(foundProfile.user_id)}
+                disabled={getFollowState(foundProfile).disabled}
+              >
+                <UserPlus size={13} />
+                Follow
+              </button>
+              {getFollowState(foundProfile).disabled && (
+                <p className="text-sm text-muted-foreground">
+                  {getFollowState(foundProfile).reason}
+                </p>
+              )}
+            </div>
+          )}
+        </section>
 
-          {/* Following */}
-          <section>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Following
-            </h3>
-            {following.length === 0 && outgoingRequests.length === 0 ? (
-              <p className="text-muted-foreground">
-                You are not following anyone yet.
-              </p>
-            ) : (
-              <>
-                {following.map((row) => (
+        {/* Loading state */}
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : (
+          <>
+            {/* Requests */}
+            {incomingRequests.length > 0 && (
+              <section>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Requests
+                </h3>
+                {incomingRequests.map((row) => (
                   <div
                     key={row.id}
                     className="flex items-center justify-between gap-2 flex-wrap min-w-0"
                   >
                     <span className="truncate">
-                      {labelFor(row.followee_id)}
+                      {labelFor(row.follower_id)}
                     </span>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      style={{ borderRadius: 'var(--radius)' }}
-                      onClick={() => removeFollow(row.id)}
-                    >
-                      <X size={13} />
-                      Unfollow
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        className="btn btn-sm btn-primary"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        onClick={() => approveRequest(row.id)}
+                      >
+                        <Check size={13} />
+                        Approve
+                      </button>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        onClick={() => removeFollow(row.id)}
+                      >
+                        <X size={13} />
+                        Decline
+                      </button>
+                    </div>
                   </div>
                 ))}
-                {outgoingRequests.map((row) => (
+              </section>
+            )}
+
+            {/* Followers */}
+            <section>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Followers
+              </h3>
+              {followers.length === 0 ? (
+                <p className="text-muted-foreground">
+                  Nobody is following you yet.
+                </p>
+              ) : (
+                followers.map((row) => (
                   <div
                     key={row.id}
-                    className="flex items-center justify-between gap-2 flex-wrap min-w-0 opacity-50"
+                    className="flex items-center justify-between gap-2 flex-wrap min-w-0"
                   >
                     <span className="truncate">
-                      {labelFor(row.followee_id)} (Requested)
+                      {labelFor(row.follower_id)}
                     </span>
                     <button
                       className="btn btn-sm btn-secondary"
@@ -405,55 +376,106 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
                       onClick={() => removeFollow(row.id)}
                     >
                       <X size={13} />
-                      Cancel
+                      Remove
                     </button>
                   </div>
-                ))}
-              </>
-            )}
-          </section>
-        </>
-      )}
-      {/*
-        ⚠️ TOMBSTONE: THE "ADD A FRIEND" CARD WAS HERE AND IS GONE (Tre, 2026-09-17 23:47: "add a
-        friend isn't [needed] anymore either that's the same thing as find someone we're only
-        using usernames now instead of email").
+                ))
+              )}
+            </section>
 
-        It was `FriendLink` - invite by EMAIL, generating a `friend_links` row and a mailed accept
-        URL landing on `/account?friend_code=...`. "Find someone" above does the same job by
-        USERNAME, which is what he has chosen, so keeping both was two doors to one room.
+            {/* Following */}
+            <section>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Following
+              </h3>
+              {following.length === 0 && outgoingRequests.length === 0 ? (
+                <p className="text-muted-foreground">
+                  You are not following anyone yet.
+                </p>
+              ) : (
+                <>
+                  {following.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex items-center justify-between gap-2 flex-wrap min-w-0"
+                    >
+                      <span className="truncate">
+                        {labelFor(row.followee_id)}
+                      </span>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        onClick={() => removeFollow(row.id)}
+                      >
+                        <X size={13} />
+                        Unfollow
+                      </button>
+                    </div>
+                  ))}
+                  {outgoingRequests.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex items-center justify-between gap-2 flex-wrap min-w-0 opacity-50"
+                    >
+                      <span className="truncate">
+                        {labelFor(row.followee_id)} (Requested)
+                      </span>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        style={{ borderRadius: 'var(--radius)' }}
+                        onClick={() => removeFollow(row.id)}
+                      >
+                        <X size={13} />
+                        Cancel
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </section>
+          </>
+        )}
+        {/*
+          ⚠️ TOMBSTONE: THE "ADD A FRIEND" CARD WAS HERE AND IS GONE (Tre, 2026-09-17 23:47: "add a
+          friend isn't [needed] anymore either that's the same thing as find someone we're only
+          using usernames now instead of email").
 
-        ⚠️ REMOVING IT WAS SAFE BECAUSE IT WAS MEASURED, not because it looked unused. On
-        2026-09-17 03:29Z: ZERO live unaccepted `friend_links` (accepted_at null, revoked_at null,
-        expires_at in the future), with a positive control in the same read - 1 total row, 1
-        accepted - proving the query could count rather than returning an empty answer from a
-        broken join. So no outstanding invite is stranded by this.
+          It was `FriendLink` - invite by EMAIL, generating a `friend_links` row and a mailed accept
+          URL landing on `/account?friend_code=...`. "Find someone" above does the same job by
+          USERNAME, which is what he has chosen, so keeping both was two doors to one room.
 
-        ⚠️ AND THE ONE ACCEPTED LINK STILL WORKS. `active_friend_ids()` honours accepted
-        `friend_links` server-side regardless of any UI, so that friendship is not lost.
+          ⚠️ REMOVING IT WAS SAFE BECAUSE IT WAS MEASURED, not because it looked unused. On
+          2026-09-17 03:29Z: ZERO live unaccepted `friend_links` (accepted_at null, revoked_at null,
+          expires_at in the future), with a positive control in the same read - 1 total row, 1
+          accepted - proving the query could count rather than returning an empty answer from a
+          broken join. So no outstanding invite is stranded by this.
 
-        The component, its hook and the `friend-link` edge function are still in the tree and
-        still tested - only the MOUNT is gone, which is the reversible half. Deleting them is a
-        separate slice; it takes 59 passing assertions with it and nobody is waiting on it.
-      */}
+          ⚠️ AND THE ONE ACCEPTED LINK STILL WORKS. `active_friend_ids()` honours accepted
+          `friend_links` server-side regardless of any UI, so that friendship is not lost.
 
-      {/*
-        ⚠️ MOVED HERE FROM THE CONNECTIONS CARD (Tre, 2026-09-17: "it should only be on that
-        tab"). These publish a figure to the people you are mutually followed by, so they belong
-        on the surface that shows who those people are, not two sections away from it.
+          The component, its hook and the `friend-link` edge function are still in the tree and
+          still tested - only the MOUNT is gone, which is the reversible half. Deleting them is a
+          separate slice; it takes 59 passing assertions with it and nobody is waiting on it.
+        */}
 
-        ⚠️ AND THE HEADING SAYS **FOLLOW BACK** ON PURPOSE. A one-directional follower sees
-        nothing: `active_friend_ids()` requires the follow to go BOTH ways. "What followers can
-        see" would be false, and falsely alarming - it would tell somebody with a public account
-        that every stranger who followed them could read their money.
-      */}
-      <div className="space-y-2 pt-1 border-t border-border/60">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          What people you follow back can see
-        </h3>
-        <LeaderboardShareToggles />
+        {/*
+          ⚠️ MOVED HERE FROM THE CONNECTIONS CARD (Tre, 2026-09-17: "it should only be on that
+          tab"). These publish a figure to the people you are mutually followed by, so they belong
+          on the surface that shows who those people are, not two sections away from it.
+
+          ⚠️ AND THE HEADING SAYS **FOLLOW BACK** ON PURPOSE. A one-directional follower sees
+          nothing: `active_friend_ids()` requires the follow to go BOTH ways. "What followers can
+          see" would be false, and falsely alarming - it would tell somebody with a public account
+          that every stranger who followed them could read their money.
+        */}
+        <div className="space-y-2 pt-1 border-t border-border/60">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            What people you follow back can see
+          </h3>
+          <LeaderboardShareToggles />
+        </div>
+
       </div>
-
     </div>
   );
 }
