@@ -965,18 +965,43 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {isFixedRule(r) ? 'Fixed' : 'Variable'}
           </button>
         )}
-        <button onClick={() => handleDuplicate(r)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate">
+        {/* ⚠️ EVERY ONE OF THESE IS ICON-ONLY, SO EACH NEEDS ITS OWN ACCESSIBLE NAME.
+            Three of the four carried NEITHER a `title` NOR an `aria-label`, so a screen reader
+            announced them as "button", "button", "button" - INCLUDING THE DESTRUCTIVE ONE. A
+            sighted user could at least guess from the glyph; a screen-reader user was being asked
+            to press an unnamed control that deletes a budget rule. Found while measuring Tre's
+            "this page looks dull and wastes space" (ask d391e98b), which is the aesthetic surface
+            of the same problem: a row of four identically-weighted grey glyphs carries no
+            hierarchy, so nothing tells you which one is dangerous.
+            ⚠️ THE NAME FOLLOWS THE STATE on the toggle. A control labelled "Pause" while it
+            resumes is worse than an unlabelled one, because it is confidently wrong.
+            ⚠️ AND THE DELETE BUTTON'S NAME FOLLOWS ITS CONFIRM STATE. `deleteConfirm` turns the
+            first press into an arm rather than a delete, so announcing "Delete" both times would
+            misdescribe the press that actually removes the rule. */}
+        <button onClick={() => handleDuplicate(r)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate" aria-label={`Duplicate ${r.name}`}>
           <Copy size={13} />
         </button>
-        <button onClick={() => toggleActive(r)} className="icon-btn text-muted-foreground hover:text-foreground">
+        <button
+          onClick={() => toggleActive(r)}
+          className="icon-btn text-muted-foreground hover:text-foreground"
+          title={r.active ? 'Pause' : 'Resume'}
+          aria-label={`${r.active ? 'Pause' : 'Resume'} ${r.name}`}
+        >
           {r.active ? <Pause size={13} /> : <Play size={13} />}
         </button>
-        <button onClick={() => openEdit(r)} className="icon-btn text-muted-foreground hover:text-foreground">
+        <button
+          onClick={() => openEdit(r)}
+          className="icon-btn text-muted-foreground hover:text-foreground"
+          title="Edit"
+          aria-label={`Edit ${r.name}`}
+        >
           <Edit2 size={13} />
         </button>
         <button
           onClick={() => handleDelete(r.id)}
           className={`icon-btn ${deleteConfirm === r.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+          title={deleteConfirm === r.id ? 'Confirm delete' : 'Delete'}
+          aria-label={deleteConfirm === r.id ? `Confirm delete ${r.name}` : `Delete ${r.name}`}
         >
           <Trash2 size={13} />
         </button>

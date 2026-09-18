@@ -162,6 +162,54 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
     expect(dated.className).toContain('whitespace-nowrap');
   });
 
+  /**
+   * EVERY ROW ACTION HAS AN ACCESSIBLE NAME, AND THE DESTRUCTIVE ONE IS NAMED FOR WHAT IT WILL DO.
+   *
+   * Found 2026-09-18 while measuring Tre's "this page looks dull and wastes space" (ask d391e98b).
+   * Three of the four icon-only buttons carried NEITHER a `title` NOR an `aria-label`, so a screen
+   * reader announced them as "button", "button", "button" — INCLUDING THE ONE THAT DELETES A
+   * BUDGET RULE. A sighted user can guess from the glyph; a screen-reader user was being asked to
+   * press an unnamed destructive control.
+   *
+   * ⚠️ IT IS THE SAME DEFECT AS THE AESTHETIC COMPLAINT, NOT A SEPARATE ONE. Four identically
+   * weighted grey glyphs carry no hierarchy, which is why the row reads flat AND why nothing tells
+   * you which press is dangerous. The accessible name is the half that can be asserted without a
+   * taste judgement, so it is the half that gets a gate.
+   *
+   * ⚠️ WHAT THIS CANNOT SEE: whether the row LOOKS dull, the spacing, or the colour weighting —
+   * jsdom has no layout and no computed colour. Those need a rendered frame at 390px in both
+   * themes, which is the rest of `d391e98b`. Saying so rather than letting a green here imply the
+   * design complaint is closed.
+   */
+  it('names every row action, and the toggle follows its own state', () => {
+    otherDebtRows = [];
+    ruleRows = [{
+      id: 'rule-named', user_id: 'u1', name: 'Dated Payment', amount: 106, rule_type: 'debt_payment',
+      frequency: 'monthly', due_day: 28, due_month: null, category: 'Debt Payments', active: true,
+      payment_source: 'acc-1', deposit_account: null, start_date: null, end_date: null,
+      notes: null, created_at: '2026-01-01T00:00:00Z',
+    }];
+    renderInAugust();
+    openDebt();
+
+    // POSITIVE CONTROL FIRST: the row's actions must actually be on screen, or every assertion
+    // below is vacuously satisfied by a row that rendered no buttons at all.
+    expect(screen.getByRole('button', { name: /Duplicate Dated Payment/i })).toBeTruthy();
+
+    for (const name of [/Pause Dated Payment/i, /Edit Dated Payment/i, /Delete Dated Payment/i]) {
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+    }
+
+    // The toggle is named for what pressing it DOES, never for the state it is in. A control
+    // labelled "Pause" while it resumes is worse than an unlabelled one: it is confidently wrong.
+    ruleRows = [{ ...(ruleRows[0] as Record<string, unknown>), active: false }];
+    cleanup();
+    renderInAugust();
+    openDebt();
+    expect(screen.getByRole('button', { name: /Resume Dated Payment/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Pause Dated Payment/i })).toBeNull();
+  });
+
   it('does NOT duplicate a loan the user already typed as their own rule', () => {
     otherDebtRows = [];
     ruleRows = [{
