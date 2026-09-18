@@ -8527,6 +8527,48 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - `d391e98b` WAS NEVER TRE'S TO DECIDE, AND THE FIRST THING I FOUND WAS AN ACCESSIBILITY DEFECT
+
+### ⚠️ THE ASK WAS MIS-FLAGGED `NEEDS TRE`, AND THAT IS PLAUSIBLY WHY HE HAS RAISED IT THREE TIMES
+Nothing in `d391e98b` is his to decide - **he already SAID what he wants** (*"can we make the
+design better on this page? It looks a little dull. And theres some empty spacing"*). It is a
+layout and visual-hierarchy call INSIDE this repo's own surface, which the charter puts squarely
+with the desk. **Parked on the CEO, no desk picks it up, so he raises it again.** Flag cleared
+with the reason recorded on the ask; now owned as desk work.
+**And one of its four named defects was ALREADY FIXED** - the mid-token date wrap
+(`Starts 2026-10-` / `01`) closed this morning in `6f8b3fc1`. Check before rebuilding.
+
+### ✅ SHIPPED `834a7338` - THREE OF FOUR ROW ACTIONS HAD NO ACCESSIBLE NAME, ONE OF THEM THE DELETE
+I went looking for an aesthetic problem and the markup showed an accessibility one first. Only
+`Duplicate` carried a `title`; pause, edit and **delete** had neither `title` nor `aria-label`, so
+a screen reader announced them as *"button", "button", "button"* - **including the control that
+deletes a budget rule.**
+⚠️ **IT IS THE SAME DEFECT AS HIS COMPLAINT, NOT A SEPARATE ONE.** Four identically weighted grey
+glyphs carry no hierarchy - which is simultaneously why the row reads flat to him and why nothing
+tells anyone which press is dangerous. **The accessible name is the half that can be asserted
+without a taste judgement, so it is the half that got a gate.**
+Two names follow STATE, because a confidently wrong label is worse than none: the toggle is
+Pause/Resume by `r.active`, and delete is Delete/**Confirm delete** by `deleteConfirm`, since the
+first press ARMS and the second destroys. Each carries the rule's own name so nine rows do not
+announce nine identical buttons.
+Gate opens with a **positive control** (duplicate must be found first, or every later assertion is
+vacuous over a row that rendered no buttons). **Proven red with the REAL pre-fix shape**, not a
+contrived mutation - 1 of 6 fails, restored byte-exact (`sha256sum -c` OK). tsc clean, eslint 0,
+BudgetControl 30/30 across 5 files.
+
+### ⛔ `d391e98b` STAYS OPEN. THIS DID NOT CLOSE IT, AND A GREEN HERE MUST NOT IMPLY IT DID
+jsdom has no layout and no computed colour, so it **cannot see dull, cannot see the empty region
+below the last card, and cannot see the colour weighting**. That exact blindness is what let the
+`9db3dd77` spacing regression through.
+**REMAINING SCOPE, precisely:** a rendered frame at **390px in BOTH themes, proven red first** -
+(1) hierarchy in the five-icon row, (2) the empty region below the last card, (3) the card reading
+dull with the Variable pill as its only colour. The harness pattern to copy is
+`scripts/check-accounts-groups.mjs` (390x844, deviceScaleFactor 2, `.env.deck-walk.local`); note
+the walk account is `@forgenta.test` and **the gate must assert planned-item cards EXIST before
+measuring their spacing**, or zero findings over zero cards reads clean.
+⚠️ **And Claude-in-Chrome CANNOT set a phone viewport here** - `resize_window` reports success
+while `innerWidth` stays 1154. Playwright or nothing.
+
 ## 2026-09-18 - Ada - HIS GROCERIES ASK WAS DONE IN 22 MINUTES, AND MY OWN QUERY NEARLY RAISED A FALSE ALARM ON HIS DATA
 
 ### ✅ SIXTH SHIPPED-AND-NEVER-SHOWN - ask `349f59b8`, filed and closed in one turn
