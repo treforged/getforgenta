@@ -154,6 +154,25 @@ compositing code exists, nothing on these routes exercises it.
      report a light reading. That refusal is HONEST and should stay - **do not let one return a
      number it cannot stand behind** - but it leaves the whole theme unmeasured.
    * **ALL THREE RENDERED GATES ARE 390x844 ONLY**, so desktop widths are unmeasured.
+10. ⚠️ **THE NATIVE GLASS BRIDGE IS FULLY BUILT AND HAS ZERO CALLERS - MEASURED 2026-09-18.**
+    `ios/App/App/GlassEffectPlugin.swift` exists, `src/lib/native-glass.ts` registers the plugin,
+    and `native-glass-bridge.gate.test.ts` passes **13 of 13** - while
+    `grep -rn native-glass src/` returns **NOTHING** outside that test. **The gate is green over
+    a bridge the product never invokes.** The gate is not at fault: it asserts the three strings
+    JOIN UP and says plainly it does not prove a round trip. **But nothing anywhere asserts the
+    shim is REACHED**, which is why a dead bridge has looked healthy for days.
+    **THIS IS THE REMAINING WORK OF `8a202850`** (Sam's decision, cleared to the desk 2026-09-18):
+    mount **ONE** glass surface with no web content of its own, the cheapest thing that can fail,
+    and let Tre's eyes settle whether the architecture survives. **DO NOT build the frame-sync
+    system yet.**
+    **ADD THE CALLER ASSERTION *WITH* THE MOUNT, NEVER BEFORE IT** - added now it is permanently
+    red, and a gate that is always red is one people stop reading.
+    **TWO CONSTRAINTS ON WHEN, not whether:** it **cannot be verified on this machine** - no
+    device, and CLAUDE.md already records that the iOS CI compile proves a BUILD and never a
+    RENDERED SURFACE, so every round is a blind multi-minute CI trip; and reaching his eyes needs
+    a build, which Sam ruled out on 2026-09-18 on Apple's daily cap. **It wants a FULL window as
+    its first item, not a thin one as its last.**
+
 9. ⚠️ **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** `npm run dev` from here failed to bind -
    a peer session is serving it. **Do not kill it.** Every browser gate needs it up.
 
