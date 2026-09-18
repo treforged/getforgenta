@@ -387,15 +387,25 @@ succeeded and nothing changed.
   make a Stripe past-due subscription be recorded as ACTIVE - changing the meaning of our own
   data rather than how we read it. **Aim the fix at the right object.**
 
-  ⚠️ **`supabase/functions/plaid-sync-all/index.ts:38` IS A SEPARATE DECISION, NOT A SWEEP.** It
-  is a Postgres `.in()` filter choosing whose banks to sync nightly, so it cannot use a JS
-  predicate anyway - and including `past_due` means continuing to pay Plaid for someone whose
-  payment failed. Defensible either way; decide it deliberately.
+  ✅ **`supabase/functions/plaid-sync-all/index.ts:38` - DECIDED BY SAM: INCLUDE `past_due`, keep
+  syncing during grace.** His reasoning, recorded so nobody re-opens it: the whole point of a
+  grace period is that a customer with a failed card does not NOTICE while the payment retries,
+  and **stale balances on a money app are MORE visible than a paywall** - so cutting sync defeats
+  the toggle just as surely as revoking premium does. Cost is bounded (Plaid fees, few accounts,
+  28 days max) and stops by itself on lapse. **If the fee turns out to be material it flips to
+  Tre as a cost decision - but nobody has measured it, and an unmeasured cost is not a reason to
+  degrade a paying customer.** Note in the commit that this is a Postgres `.in()` filter which
+  CANNOT use the JS predicate, so it is a **deliberate parallel list, not an oversight**.
 
   **So: one exported predicate over the 8, a gate that SCANS for any other hand-rolled list
   rather than naming files (copy `src/lib/__tests__/plan-limits.gate.test.ts`), and the two
-  exceptions ALLOWLISTED BY NAME WITH THEIR REASON** - an unexplained exception is how the next
-  sweep quietly re-includes them. Prove it red by removing `past_due` from the source.
+  exception ALLOWLISTED BY NAME WITH ITS REASON** - **required, not optional** (Sam): an
+  unexplained exception is how the next sweep quietly re-includes it, the hand-named-inventory
+  family one costume along. **Make the gate assert the exception is still JUSTIFIED rather than
+  merely still present.** Prove it red by removing `past_due` from the source.
+  ✅ **AND ABSORB THE `plan === 'premium'` HALF INTO THE PREDICATE** (Sam, agreed). Leaving the
+  plan check hand-rolled beside a shared status predicate rebuilds the same divergence one field
+  over - exactly what `plan-limits.ts` just fixed for the link limits.
 * ⚠️ **STATED LIMIT: no real BILLING_ISSUE event was observed.** This is a traced code path plus
   RevenueCat's documented semantics, NOT a reproduction. Sandbox is enabled, so the confirming
   test exists and should run before anyone calls it closed.
