@@ -8527,6 +8527,52 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada (31st, later) - THE CAUSE OF THE REPEATS IS WIRED, AND 949 DOES NOT CLOSE THE LOOP
+
+### ⚠️ READ THIS BEFORE TELLING HIM 949 FIXES ANYTHING (Sam's call, and he is telling Tre himself)
+**iOS 949 carries the four features and NOT the What's New entry that describes them.** So if he
+installs 949 he gets the features and STILL no notice. The popup (`a7c4f4de`) and the guide fix
+(`1f7dccc0`) both ship in the NEXT build. **A second build was deliberately NOT dispatched today**
+- Apple caps uploads per day and one was already spent on 949. Do not read "it is on origin" as
+"he can see it".
+
+### ✅ WHAT'S NEW WAS AN EMPTY CHANNEL, NOT A MISSING ONE (`a7c4f4de`)
+The popup already existed and its newest entry was **2026-09-13**. The three features he re-asked
+for shipped after it carrying **zero** `Release-Note:` trailers, so neither the store note nor the
+in-app popup ever mentioned them. Added a 2026-09-18 entry in **both** locales - the i18n gate
+asserts a count per release per locale, and English-only is the shape the mistake actually takes.
+Every line verified BY CALLER first: `FollowersPanel` MOUNTED at `Account.tsx:231`, share link at
+`FollowersPanel.tsx:66`, the three badges in `achievement-icons.ts`.
+**Proven red** by dropping one Spanish line - 1 of 5 i18n assertions fails - restored byte-exact
+by sha256 (`3a9b53dd...` before and after).
+⛔ **I REFUSED TO RENDER THE DIALOG, and this is a REFUSAL rather than a gap** (Sam concurred and
+asked for it on the record as such). The only account here that triggers it is Tre's, and opening
+it writes `tour_flags` - **spending the one showing he gets in order to verify it.** His standing
+grant covers READING his account. So this rests on the unit suites plus the proven-red gate, and
+the first real render is his.
+
+### ✅ AND THE CAUSE IS NOW WIRED, WHICH IS WORTH MORE THAN EITHER CATCH-UP ENTRY (`4e6f3776`)
+`check:notes-coverage` had existed for a day and **nothing ran it** - the classic report with no
+route to a reader. It is **STILL NOT A GATE** (failing an upload over a missing sentence is the
+worse trade); it now prints into the iOS step summary, **which is the same summary a human
+hand-pastes into App Store Connect from**. So the commits that said nothing land in front of the
+one person, at the one moment, who is writing the customer-facing text.
+**Android is deliberately NOT wired** - Play takes `whatsnew-en-US` automatically and nobody reads
+that summary, so the same block there would be this exact failure wearing a coverage badge.
+All three branches exercised on real ranges first (0 on `HEAD~8..HEAD`, 1 on `HEAD~120..HEAD`
+naming `55a17bca`, 2 on an unknown revision), and the exit-2 branch prints "this says NOTHING
+about coverage" so a check that could not run cannot read as a clean one.
+⚠️ **NOT CLAIMED: it has not run in CI.** What is proven is the script on real ranges and that the
+YAML parses. The first real render is the next iOS dispatch - **read it then rather than assuming**.
+
+### BLOCKERS RE-TESTED 2026-09-18, and one is NARROWER than recorded
+* `798c0ed9` **stands** - `follows` = 0 rows against a positive control (`profiles` = 33), so the
+  reader demonstrably works and the zero is real.
+* `5409ffbc` **is narrower than written**: the 09-17 capture DOES carry
+  `capturedTzOffsetMinutes: 240`, so limit 2 is satisfied; **only `capturedLocalState` is absent.**
+  One missing field on one candidate file, not two. Still needs a recapture from his browser.
+* `6237167a` and `b573d720` were re-tested within 24h; not re-spent.
+
 ## 2026-09-18 - Ada (31st) - `f35ccec0` WAS ALREADY DONE, and `3bc68e0d`'s premise is REFUTED
 
 ### `f35ccec0` CLOSED - I MADE NO WRITE, AND THAT IS THE FINDING
