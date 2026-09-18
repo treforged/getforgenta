@@ -8527,6 +8527,58 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada (31st) - `f35ccec0` WAS ALREADY DONE, and `3bc68e0d`'s premise is REFUTED
+
+### `f35ccec0` CLOSED - I MADE NO WRITE, AND THAT IS THE FINDING
+The row already read amount=145, due_day=4, start_date=2026-10-04, active, transfer,
+CHASE CHECKING -> General Operations, **updated_at 2026-09-17T06:25:12Z** - written the day
+BEFORE the ask was dispatched. No backup was needed because nothing of his was touched, and
+NO MONEY MOVED: the checking -> General Operations transfer is still his hand.
+**The acceptance was met on a RENDERED SCREEN**, under Sam's correction that Tre's standing
+grant to *"view my account on local host at any time"* is a READ route distinct from the
+`check:*` harness (which still refuses any email that is not `@forgenta.test`, and stays
+refusing). localhost:8080 -> /budget -> /transactions -> Transfers (5): the row renders
+`Owners Contribution  $145  Monthly - Day 4 - Starts 2026-10-04 - From: CHASE CHECKING - To:
+General Operations`.
+⚠️ **FIFTH SHIPPED-AND-NEVER-SHOWN THIS WEEK.** The rule had been correct for over a day and
+nothing had told him. The predecessor's gate fired on the FIRST READ, so she never saw the
+value and recorded the item as NOT STARTED - **a blocked-at-read item reads exactly like an
+undone one**, and the brief that reached me said "IT IS NOT STARTED" in capitals.
+
+### `3bc68e0d` - THE GUIDE HALF IS SHIPPED, AND THE LABEL PREMISE IS DEAD (`1f7dccc0`)
+**THE BACKWARDS ENUMERATION TERMINATES, AND IT DOES NOT SAY WHAT THE PLAN ASSUMED.** The plan
+was to treat every `reason === ''` row in `month0-debt-breakdown` as a decision made silently.
+Measured: there is **exactly ONE** `reason = ''` branch (line 159) and it fires when
+`nextPayment == null` - an **ABSENCE, not a choice**. Labelling it would assert a decision
+where none was made, which is the opposite of what he asked for.
+And every NON-empty reason is one of four kinds, none of them an unexplained money tie-break:
+the user's own `paymentPreference` (3 values), a coverage description (`Statement balance` /
+`Partial statement`), a **lender minimum** (excluded by CLAUDE.md's boundary), or strategy
+priority - which `AvalancheOrderList` **already** labels *"Highest effective rate first -
+minimizes total interest"*.
+**So on the deck surface the count of unexplained money tie-breaks is ZERO.** Reported as a
+zero rather than cured by retrofitting a money claim onto rows that carry none.
+
+**THE REAL DEFECT WAS IN THE GUIDE ITSELF, and only the enumeration found it.** `debt:cards`
+said *"Avalanche pays the highest-APR card first"*. The code sorts on `marginalApr`, and
+`debt-payoff-order.ts`'s own header records that a flat-APR sort **prints a different order
+than the plan pays** (88d8ac6d). A user holding a promo tranche would have read a correct list
+as wrong. Corrected, with the tranche case spelled out because that is exactly when the two
+diverge. Plus the new section stating the principle AND its boundary in as many words.
+Gates: tsc clean, eslint 0, page-guides 7/7, rendered at /debt on the **DEMO** dataset.
+Pushed and verified by CONTENTS with a known-positive control (marker 1, control 1, 0/0 after
+a fresh fetch - the count is only honest because the fetch preceded it).
+
+⚠️ **STILL OPEN, and I am naming it rather than closing the ask:** `floor-protection`,
+`surplus-ranking` and `credit-card-engine` are **NOT** enumerated this way.
+`surplus-ranking`'s ties break on `created_at` then id, which is arbitrary-but-stable
+ORDERING rather than a money choice, and the goals guide already carries the one genuine
+surplus case. Those three modules are unmeasured; do not read this commit as covering them.
+
+⚠️ **NOT ON A BUILD.** This is on `origin/main` only. Guide copy is user-visible, so it needs
+a dispatched iOS run to reach TestFlight - deliberately not spent on a copy fix while Apple
+caps uploads per day, but it means he cannot see it on his phone yet.
+
 ## 2026-09-18 - Ada - `3bc68e0d` STARTED: the label mechanism ALREADY EXISTS
 
 **FIRST REAL FINDING, and it changes the shape of the work: the app already has a per-row
