@@ -60,7 +60,14 @@
  * USAGE:  node scripts/check-landing-first-screen.mjs
  * EXITS:  0 pass . 1 a defect on the first screen . 2 could not test
  */
-const BASE = 'http://localhost:8080';
+/**
+ * `--url https://getforgenta.com` points this at the DEPLOYED page.
+ * That is not the same document as the committed one - this portfolio has already measured an
+ * edge rewriting a page's markup on the way out - and it is the copy a real arrival gets. The
+ * page is public, so no credential is involved either way.
+ */
+const urlArg = process.argv.indexOf('--url');
+const BASE = (urlArg > -1 ? process.argv[urlArg + 1] : 'http://localhost:8080').replace(/\/$/, '');
 /**
  * TWO VIEWPORTS, and the SHORT one is the one the complaint came from.
  * Tre was in Instagram's in-app browser, which spends about 180px of an iPhone's screen on
@@ -85,7 +92,7 @@ let chromium;
 try { ({ chromium } = await import('@playwright/test')); }
 catch { fail(2, 'could not load @playwright/test - run npm i.'); }
 try { await fetch(BASE, { redirect: 'manual' }); }
-catch (err) { fail(2, `${BASE} is not serving (${err.message}). Run: node scripts/dev-session.mjs up`); }
+catch (err) { fail(2, `${BASE} is not serving (${err.message}). For localhost run: node scripts/dev-session.mjs up`); }
 
 const browser = await chromium.launch();
 const findings = [];
@@ -318,7 +325,7 @@ await browser.close();
 
 if (examined === 0) fail(2, 'examined 0 elements - "0 findings" and "nothing was looked at" must not read the same.');
 
-console.log(`examined ${examined} rendered boxes across ${THEMES.length} themes x ${VIEWPORTS.length} viewports (${VIEWPORTS.map(v=>v.width+'x'+v.height+' '+v.label).join(', ')})`);
+console.log(`${BASE}: examined ${examined} rendered boxes across ${THEMES.length} themes x ${VIEWPORTS.length} viewports (${VIEWPORTS.map(v=>v.width+'x'+v.height+' '+v.label).join(', ')})`);
 if (findings.length) {
   console.error(`\n${findings.length} finding(s) on the first screen:`);
   for (const f of findings) console.error(`  - ${f}`);
