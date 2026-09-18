@@ -2,6 +2,38 @@
 
 ## ⚠️ START HERE - 2026-09-17 (Ada, THIRTIETH session)
 
+### ✅ FOUR OF TRE'S REPEATED ASKS WERE ALREADY BUILT AND ALREADY ON HIS PHONE - NOTHING NEEDED SHIPPING
+Checked against the CODE before filing, which is the only reason they were not built a second
+time. All four carry his verbatim quote in their own source as the rationale:
+followers/following replacing the friends tab, the Username -> Partner -> Followers section order,
+the shareable `/account?u=<username>` link, and `milestone:followers_1/5/10`.
+All three feature commits are ancestors of **iOS build 939**. Filed and CLOSED with 951-1101
+characters of evidence each: `dff4176a`, `7355dd16`, `6a9f0f9a`, `9e3ea0b1`.
+
+⚠️ **I FIRST REPORTED 935 AND THAT WAS ONE BUILD BEHIND.** Two later `workflow_dispatch` runs
+uploaded after it; the newest is **939** (6.7, from `9c36fc55`). Corrected in `96abf4c8` rather
+than by rewriting the four rows - **closing an already-closed row destroys the evidence of why it
+closed the first time.** 939 verified the same way as 935, and it carried FOUR `90382` matches
+rather than three, so the extra was checked rather than assumed: log line 73 is a **timestamp**
+(`00:51:42.9038250Z`) in a git hint, not the error code.
+
+### ⚠️ AND THE REASON HE REPEATS HIMSELF IS MEASURED NOW, NOT GUESSED - ask `8bbb1a10`
+**A commit with no `Release-Note:` trailer produces NO customer line at all.** Measured with a
+control: the share-link/typeahead commit carries **zero** trailer lines and the eleven-badge
+achievements commit carries **zero**, while the accounts-compaction commit carries **one** and
+duly appears in the generated note for 939.
+**So the two features he said were "never fulfilled" shipped with no note anywhere.** He could
+have read the entire What's New and still not known. That is not forgetfulness; nothing told him.
+**THE GAP: `check:release-note` refuses a WRAPPED trailer but does not require one to EXIST.**
+Deliberately NOT built tonight - a gate demanding a note on every commit would cry wolf on every
+refactor and be switched off within a week, which is a failure mode already on record here. It
+needs a defensible definition of user-visible first (a path heuristic over `src/pages` and
+`src/components` is the candidate).
+**Also found:** `release-notes.mjs` prints wrapped-trailer warnings for five OLDER commits whose
+customer notes were published truncated mid-sentence, and those warnings **have no route to an
+exit code**, so nobody has ever read them. Same family as an alarm that could never fire.
+
+
 ### ✅ `5409ffbc` LIMIT 1 IS BUILT AND GATED - A CAPTURE THAT CANNOT SUPPORT A PAYOFF COMPARISON NOW REFUSES ONE
 `PROJECTION_LOCAL_KEYS` lives in a **leaf module** (`src/lib/projection-local-keys.ts`) and is used
 by the provider AND the capture, so they cannot drift. Captures record `capturedLocalState`,
@@ -8166,7 +8198,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 23:04 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 23:31 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -8177,14 +8209,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+34d21451 [handoff]: 5409ffbc limit 1 shipped, and the import that broke six suites is recorded
+cec2fe7b [forecast]: a capture that cannot support a payoff comparison now refuses one
+60f4a9c9 [forecast]: the payoff month is under-determined by the dump - neither instrument was wrong
+896a1c7c [forecast]: the 229.89 was old CODE, not the browser - measured, four arms, zone asserted
 1c94e62b [handoff]: the signed-out-write class was swept, and the negative is bounded and stated
 6f6b2b59 [handoff]: the landing page is an acquisition surface now, and jsdom could never see it
 51976d34 [landing]: let the first-screen gate read the DEPLOYED page, not only the committed one
 3447448f [landing]: the first screen an Instagram arrival gets, measured in a browser at phone width
-dbc50884 [handoff]: record the stated-limit rule as a RECURRENCE, not a new finding
-61308d38 [handoff]: the fixes shipped and the complaint survived them - a stated limit is a to-do
-3ce4d20a [notifications]: seven a week, because five could never reach a daily rhythm
-9c36fc55 [accounts]: a fixed flex-basis made the action row wrap on every account, however short the text
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
