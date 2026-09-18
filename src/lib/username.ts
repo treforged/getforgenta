@@ -56,12 +56,67 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
 // nowhere near this list: putting it here invites the next person to "strengthen" the list with
 // more words that also do nothing.
 
+/**
+ * Words no handle may CONTAIN.
+ *
+ * ⚠️ SUBSTRING-MATCHED, WHICH IS WHY THE LIST IS SHORT AND SPECIFIC. Every entry was chosen
+ * because no ordinary English word contains it. The ones deliberately LEFT OUT are the lesson:
+ * `rapist` is in `therapist`, `pedo` is in `torpedo`, `spic` is in `spice` and `suspicion`,
+ * `cock` is in `cocktail` and `peacock`, `ass` is in `class` and `pass`, `anal` is in `analysis`,
+ * `cum` is in `document`. A filter that refuses `therapist_jo` is a filter Tre hears about, and
+ * the negative control in the tests pins every one of those.
+ *
+ * ⚠️ IT IS NOT A COMPLETE PROFANITY FILTER AND MUST NOT BE READ AS ONE. It covers slurs and the
+ * hardest profanity — the strings whose cost is that they appear on somebody ELSE's screen. Mild
+ * profanity, non-English, and anything spelled creatively enough will pass.
+ */
+export const BANNED_SUBSTRINGS: readonly string[] = [
+  'fuck', 'shit', 'cunt', 'nigger', 'nigga', 'faggot', 'retard', 'whore',
+  'bitch', 'bastard', 'dickhead', 'cocksucker', 'wanker', 'twat', 'slut',
+  'pussy', 'kike', 'chink', 'tranny', 'pedophile', 'paedophile', 'molest',
+  'porn', 'dildo', 'jizz', 'nazi', 'hitler', 'kkk', 'incel',
+];
+
+/** Digit-for-letter substitutions, so `sh1t` and `n4zi` are the words they are pronounced as. */
+export function foldLeet(value: string): string {
+  const map: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't' };
+  return value.replace(/[013457]/g, (ch) => map[ch] ?? ch);
+}
+
+/**
+ * `f_u_c_k` is the word. `cash_item` is not.
+ *
+ * ⚠️ THIS IS WHY UNDERSCORES ARE NOT SIMPLY STRIPPED. Removing every underscore joins two innocent
+ * halves into a banned string — `cash_item` becomes `cashitem`, which contains `shit`, and
+ * `miss_hit` becomes `misshit`. Both are names a real person would pick. So the collapse only
+ * fires on the pattern that is actually evasion: three or more consecutive single-character
+ * segments, which is what spelling a word out one letter at a time looks like.
+ */
+export function collapseSpacedUnderscores(value: string): string {
+  const parts = value.split('_');
+  let run = 0;
+  for (const part of parts) {
+    run = part.length === 1 ? run + 1 : 0;
+    if (run >= 3) return value.replace(/_/g, '');
+  }
+  return value;
+}
+
+/** Whether any spelling of this handle carries a banned word. */
+export function containsBannedWord(raw: string | null | undefined): boolean {
+  const value = normalizeUsername(raw);
+  const collapsed = collapseSpacedUnderscores(value);
+  const candidates = [value, foldLeet(value), collapsed, foldLeet(collapsed)];
+  return candidates.some((candidate) => BANNED_SUBSTRINGS.some((word) => candidate.includes(word)));
+}
+
 export type UsernameProblem =
   | 'too-short'
   | 'too-long'
   | 'bad-characters'
   | 'must-start-with-letter'
-  | 'reserved';
+  | 'reserved'
+  | 'banned';
 
 /**
  * Why this handle cannot be claimed, or null when it can.
@@ -85,6 +140,7 @@ export function usernameProblem(raw: string | null | undefined): UsernameProblem
   // away from `admin`.
   if (!/^[a-z]/.test(value)) return 'must-start-with-letter';
   if (RESERVED_USERNAMES.has(value)) return 'reserved';
+  if (containsBannedWord(value)) return 'banned';
   return null;
 }
 
@@ -101,6 +157,9 @@ export function usernameProblemMessage(problem: UsernameProblem): string {
     case 'bad-characters': return 'Use letters, numbers and underscores only.';
     case 'must-start-with-letter': return 'Usernames start with a letter.';
     case 'reserved': return 'That username is not available.';
+    // ⚠️ THE SAME SENTENCE AS 'reserved' AND 'taken', ON PURPOSE — see
+    // USERNAME_UNAVAILABLE_MESSAGE below. Naming the rule tells a scraper which rule it hit.
+    case 'banned': return 'That username is not available.';
   }
 }
 
