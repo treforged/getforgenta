@@ -140,9 +140,51 @@ page, is what is being measured" - rather than reporting a spectacular false fin
 control passed, so the /budget numbers in `c0598393` stand. **Fix the settle before widening**:
 require agreement across a longer window, or a plausibility floor per route.
 
+### ⚠️ /account IS WORSE THAN THE PAGE TRE COMPLAINED ABOUT - ask `d1f2b7fa`
+Six routes, run as a share of its own page, /dashboard the reference:
+
+    /dashboard   18%  1.0x  (reference)
+    /budget      21%  1.1x     <- was 48% / 2.7x before c0598393
+    /debt        17%  0.9x
+    /forecast    47%  2.6x  OVER the 2x ceiling
+    /account     60%  3.3x  OVER the 2x ceiling
+    /settings    24%  1.3x
+
+**The "60% is just what a settings-shaped page looks like" reading is REFUTED by this app's
+own /settings at 24% / 1.3x.** So it is the same defect he reported, wider and worse.
+**THE GATE IS STILL SCOPED TO /budget ON PURPOSE** - one measured route is not grounds for
+re-aiming a ceiling at five more, and a gate that starts failing on pages nobody complained
+about is a gate somebody switches off. Widening it is Sam's call.
+
+### ⚠️ THE SETTLE TOOK THREE FIXES, AND THE THIRD IS THE ONE THAT MATTERS
+1. A fixed sleep let an unmounted page report a zero.
+2. TWO agreeing reads was not agreement: /dashboard read 1 band at 75.6% whitespace minutes
+   after 16 at 17.7%. Fixed with three agreements plus a streak that RESTARTS when a later
+   read has MORE bands - a page only grows as it mounts.
+3. **AND THAT STILL WAS NOT ENOUGH. Three agreements on a STALLED page is still three
+   agreements.** The tell was in the DATA, not the code: across two six-route runs, routes
+   3-6 read IDENTICALLY while the first two disagreed wildly. **The app cold-starts on the
+   first navigation.** Fixed with a discarded warm-up.
+✅ **The positive control caught all three and named the INSTRUMENT rather than the page.**
+Without it I would have reported /dashboard as catastrophically empty, twice.
+
 ## Resume queue
 
-1. **WIDEN `check:page-rhythm` - BUT FIX THE SETTLE FIRST.** See the finding directly above.
+1. **THE BUILD. Check `gh run list --workflow=ios-build.yml`.** My 16:27 dispatch was
+   CANCELLED by my own later pushes - `concurrency: cancel-in-progress: true`, and the
+   workflow's own header documents that collision from 2026-08-11. **HAVE NOTHING LEFT TO
+   PUSH WHEN YOU DISPATCH**; it is the PR rule wearing new clothes. `scripts/` and
+   `handoff.md` are OUTSIDE the path filter (`src/**`, `ios/**`, `capacitor.config.ts`,
+   `package.json`), so those are safe to commit first - checked, not assumed.
+   ✅ **THE RESOLVER WORKED IN CI AND THE EVIDENCE SURVIVED THE KILL:**
+   `range source: last successful ios-build.yml run on main (c0598393)` - a genuine head
+   where the old code would have taken an arbitrary `-6`.
+   Then read the UPLOAD STEP'S OWN conclusion and altool's own words, never the run's.
+2. **`d1f2b7fa` - /account and /forecast segmentation.** Fix shape is what worked on /budget:
+   break the run into separate card surfaces at boundaries that already exist. **Do NOT widen
+   dividers or add padding - padding LENGTHENS runs**, and whitespace is already at parity
+   with /dashboard. Acceptance is the PAIR from `check:page-rhythm`.
+3. **WIDEN `check:page-rhythm`'s GATE? Sam's call, not a desk default.** See the finding directly above.
    /debt, /forecast, /account and /settings have never been measured for segmentation, and the
    one run that did reach them showed **/account at a 1252px unbroken run** - LONGER than the
    /budget run Tre complained about. Treat that as a lead, NOT a finding: it came from the same
