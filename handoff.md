@@ -32,6 +32,52 @@ between 08-31 and today is **invisible under UTC - and CI runs in UTC.**
 `5409ffbc` from fixture hygiene into something sharper: the zone does not merely decide which
 number gets pinned, it decides **whether a money change is observable at all.**
 
+### ✅ THE PAYOFF HALF IS NOW ANSWERED: THE QUANTITY IS UNDER-DETERMINED BY THE DUMP
+**Neither instrument was wrong.** Sam's instruction was to check whether the OLD derivation was
+right and mine wrong, not only the reverse - so that was done first, and it retired my own
+leading suspect.
+
+* **MY CLOCK WAS FINE, measured rather than assumed.** `vi.setSystemTime` WITHOUT fake timers
+  **did** freeze it (`2026-09-18T03:11` -> `2026-09-01T00:20:11.665Z`) and it was **still frozen
+  after render**. I had suspected my own probe of the silent-no-op trap; it was not guilty.
+* **THE FIELD IS THE RIGHT ONE.** The golden capture stores
+  `cardProjectionData.simRevolvingPayoffMonth = 26` - the exact key the probe reads.
+* **NO ENGINE CODE CHANGED** between the 09-17 measurement and mine: the only commits touching
+  `src/lib`, `src/hooks` or `src/contexts` are a landing page and a notifications cadence.
+
+**SO THE THREE `localStorage` INPUTS `5409ffbc` NAMES WERE SWEPT, on the OLD tree, Eastern,
+clock pinned:**
+
+| config | safeToPayTotal | simPayoff |
+| --- | --- | --- |
+| default | 229.89 | **29** |
+| `pause-savings = true` | 229.89 | **24** |
+| `strategy = snowball` | 229.89 | 29 |
+| funding account x6 | 229.89 | 29 / 29 / **27** / **27** / 29 / 29 |
+
+⚠️ **THE RECORDED 24 IS REPRODUCED EXACTLY** - old tree with pause-savings on. **THE CAPTURE'S 26
+IS REPRODUCED BY NOTHING**; the reachable set is {24, 27, 29}.
+
+⚠️ **AND THAT IS THE FINDING: THE PAYOFF MONTH IS A FUNCTION OF BROWSER-LOCAL STATE THE DUMP
+CANNOT CARRY.** `pause-savings` moves the debt-free date **five months**; the funding account
+moves it **two**. So **comparing payoff months across captures was never a valid comparison** -
+the quantity is under-determined, which retires the 24-against-26 question rather than answering
+it. **Do not reopen it; capture the state instead.**
+
+✅ **AND IT STRENGTHENS THE MONEY HALF RATHER THAN WEAKENING IT.** `safeToPayTotal` held at
+**229.89 across all twelve configurations**, so "229.89 is old code" is robust to every one of
+these inputs rather than resting on a single run.
+
+⚠️ **STRATEGY MOVES NOTHING HERE, WHICH RETIRES A RECORDED WORRY.** `5409ffbc` says
+`debt:strategy` "reorders which card is paid first". True in general; **measured false on this
+dataset** - avalanche and snowball both give 29. The untested input that actually mattered was the
+one nobody suspected.
+
+**THE FIX SHAPE IS UNCHANGED AND NOW HAS MEASURED STAKES:** capture the three `localStorage`
+values alongside the dump, or **no payoff figure from a recaptured fixture means anything.**
+
+<details><summary>Superseded: the earlier "honest non-result" framing, kept because it records what was believed</summary>
+
 ### ⚠️ HONEST NON-RESULT: THE PAYOFF HALF DID NOT REPRODUCE, AND I AM NOT CLAIMING IT
 The prediction was **26** for arm A. I measured **29**, with today's tree at **28** against a
 recorded pair of 24/26. **The DIRECTION is consistent** - old code pays off later than new - **but
@@ -41,7 +87,9 @@ the magnitudes are not, so my payoff instrument is NOT validated.** Do not quote
 **That is the one thing still open on this card, and it is an INSTRUMENT question rather than a
 money one.** Settling it means finding how 24/26 were originally derived.
 
-**Probe and worktree are both removed** - the probe was never committed, and `git worktree remove`
+</details>
+
+**Probes and worktree are removed** - the probe was never committed, and `git worktree remove`
 plus `prune` is verified by `git status` showing only this file.
 
 
