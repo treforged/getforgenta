@@ -100,6 +100,8 @@ compositing code exists, nothing on these routes exercises it.
 
 ## Resume queue
 
+**START HERE: items 1, 12/13 and 8 are the three that matter. 1 is ten seconds in a browser.**
+
 1. **READ THE `check:notes-coverage` STEP SUMMARY ON RUN `35359868193` IN A BROWSER.** First real
    render of `4e6f3776`, and **the CLI cannot reach it** - see the limit above. My local
    reproduction is a PROXY; do not inherit it as a reading.
@@ -193,6 +195,26 @@ compositing code exists, nothing on these routes exercises it.
     achievement rows - an **RLS and migration question on a financial app**, and this repo already
     records a leaderboard change refused twice for creating a second definition of money-adjacent
     logic. **START BY ASKING WHAT IS EXPOSED, not by writing the query.**
+
+13. ✅ **`07150518` IS STARTED - THE EXPOSURE QUESTION IS MEASURED, AND IT DE-RISKS THE WHOLE
+    SLICE.** I ran the first step I specified (ask what is exposed, do not write the query).
+    Read from `pg_policy` / `pg_proc` on 2026-09-18:
+    * **`achievements_select_own` is `user_id = auth.uid()`** and **`profiles_select_own` is
+      `auth.uid() = user_id`** - so **NO user can read another user's achievements or profile.**
+      Ranking friends by achievement count is impossible under today's RLS.
+    * **SO HOW DOES THE EXISTING LEADERBOARD SEE ANYONE?** Through **SECURITY DEFINER functions**,
+      which is the sanctioned mechanism and the thing to extend: **`follow_profiles()`** (what one
+      user may see of the people they follow) and **`leaderboard_global_stats(p_metric, p_scope)`**.
+      Also present: `request_follow(p_followee)`, `claim_milestone_achievements()`.
+    ⚠️ **THE DESIGN FOLLOWS FROM THAT: EXTEND `follow_profiles` TO CARRY AN ACHIEVEMENT COUNT.
+    DO NOT LOOSEN THE RLS ON `achievements`.** Opening that table would expose WHICH achievements a
+    person holds - several of which are money-shaped - when the feature needs only a COUNT. The
+    definer function is the narrow door that already exists.
+    **NEXT CONCRETE STEP:** read `pg_get_functiondef` for `follow_profiles` and find out whether it
+    is gated on the sharing consent toggles. **If it is, the count must be gated the same way** -
+    and this repo already records a card falling through to "Private" and making a FALSE claim
+    about someone's privacy choice when a row was missing. **That gating question is Tre's call,
+    not a desk default**, because it decides what one person publishes about themselves.
 
 9. ⚠️ **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** `npm run dev` from here failed to bind -
    a peer session is serving it. **Do not kill it.** Every browser gate needs it up.
