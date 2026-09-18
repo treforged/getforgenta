@@ -38,8 +38,15 @@ export function useLeaderboardPublisher(
   // harmless - it would just be a pointless round trip on every dependency change.
   const attempted = useRef<string | null>(null);
 
-  const { enabled, goals, weeklyNetWorthDeltas, revolvingPeak, revolvingCurrent, budgetCategories } =
-    inputs;
+  const {
+    enabled,
+    goals,
+    weeklyNetWorthDeltas,
+    revolvingPeak,
+    revolvingCurrent,
+    budgetCategories,
+    achievementsEarned,
+  } = inputs;
 
   useEffect(() => {
     if (!enabled || isDemo || !user || sharesLoading) return;
@@ -51,7 +58,14 @@ export function useLeaderboardPublisher(
     if (attempted.current === key) return;
 
     const plan = buildPublishPlan(
-      { goals, weeklyNetWorthDeltas, revolvingPeak, revolvingCurrent, budgetCategories },
+      {
+        goals,
+        weeklyNetWorthDeltas,
+        revolvingPeak,
+        revolvingCurrent,
+        budgetCategories,
+        achievementsEarned,
+      },
       enabledMetrics,
       week,
     );

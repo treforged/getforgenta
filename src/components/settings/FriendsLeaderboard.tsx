@@ -28,11 +28,17 @@ const METRIC_LABELS: Record<LeaderboardMetric, string> = {
   debt_payoff: 'Debt paid down',
   budget_adherence: 'Budget adherence',
   savings_streak: 'Savings streak',
+  achievements: 'Badges earned',
 };
 
 function formatValue(metric: LeaderboardMetric, value: number): string {
   if (metric === 'savings_streak') {
     return value === 1 ? '1 week' : `${value} weeks`;
+  }
+  // A COUNT, so it must not take the `%` suffix below. `achievements` publishes a raw badge
+  // count for the reason recorded in `achievementCountValue`: there is no honest denominator.
+  if (metric === 'achievements') {
+    return value === 1 ? '1 badge' : `${value} badges`;
   }
   return `${value}%`;
 }

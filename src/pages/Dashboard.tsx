@@ -71,6 +71,7 @@ import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
 import NextLessonRow from '@/components/dashboard/NextLessonRow';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
+import { useAchievements } from '@/hooks/useAchievements';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import { useLeaderboardPublisher } from '@/hooks/useLeaderboardPublisher';
 import { buildBudgetCategories } from '@/lib/leaderboard-budget';
@@ -739,11 +740,15 @@ export default function Dashboard() {
    * above: it must run on every Dashboard visit regardless of which panel the user lands on, and a
    * writer placed inside a panel has been orphaned in this file before.
    *
-   * Only `goal_progress` and `savings_streak` are sourced, because those are the two this page
-   * genuinely holds. `debt_payoff` and `budget_adherence` pass `null` and therefore publish
-   * NOTHING - passing a zero would put a number a friend can read on a figure this page never
-   * computed. Same discipline as `useNotificationCheck` below.
+   * Only `goal_progress`, `savings_streak`, `budget_adherence` and `achievements` are sourced.
+   * `debt_payoff` passes `null` and therefore publishes NOTHING - passing a zero would put a
+   * number a friend can read on a figure this page never computed. Same discipline as
+   * `useNotificationCheck` below.
    */
+  // Badge count for the `achievements` leaderboard metric. Already cached by the trophy case
+  // widget on this same page, so this is a cache read rather than a second round trip.
+  const { data: achievements, loading: achievementsLoading } = useAchievements();
+
   const leaderboardDeltas = useMemo(
     () => (netWorthSnapshots ? weeklyNetWorthDeltas(netWorthSnapshots, weekStart) : null),
     [netWorthSnapshots],
@@ -770,12 +775,18 @@ export default function Dashboard() {
     // table carries both, and the helper pro-rates the budget to the day - see its header for why
     // a whole-month comparison would publish an inflated score for most of every month.
     budgetCategories: leaderboardBudgetCategories,
+    // ⚠️ `null` WHILE LOADING, NEVER `0`. A count of zero is a real answer that a friend reads as
+    // "they have earned nothing", so an unread query must publish nothing at all rather than the
+    // empty array's length. `useAchievements` reports a disabled query as NOT loading, so demo
+    // and signed-out states settle to `null` through the `enabled` gate below rather than here.
+    achievementsEarned: achievementsLoading ? null : achievements.length,
     enabled:
       !isDemo &&
       !essentialLoading &&
       !netWorthSnapshotsLoading &&
       !goalsLoading &&
-      !budgetItemsLoading,
+      !budgetItemsLoading &&
+      !achievementsLoading,
   });
 
   useWidgetSync({

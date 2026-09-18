@@ -2,7 +2,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LeaderboardShareToggles } from '../LeaderboardShareToggles';
-import { UNSOURCED_METRICS, type LeaderboardMetric } from '@/lib/leaderboard-metrics';
+import {
+  ALL_LEADERBOARD_METRICS,
+  UNSOURCED_METRICS,
+  type LeaderboardMetric,
+} from '@/lib/leaderboard-metrics';
 
 /**
  * These assert the PRIVACY DEFAULT, which is the one thing about this control that must never be
@@ -46,7 +50,17 @@ describe('LeaderboardShareToggles', () => {
     // ⚠️ STATE COMES FROM `aria-checked` NOW, not from a word. The control is a switch, so the
     // assertion reads the same thing a screen reader and a sighted user both read.
     const switches = screen.getAllByRole('switch');
-    expect(switches).toHaveLength(4);
+    expect(switches).toHaveLength(ALL_LEADERBOARD_METRICS.length);
+    // ⚠️ A COUNT IS NOT AN INVENTORY. Five switches and five metrics agree just as happily when
+    // one metric is missing and another is drawn twice, so name each one - this is what fails on
+    // the day a metric joins the type and not the component. The ids come off the DOM, so nothing
+    // here re-types the label list the component owns.
+    const rendered = [...document.querySelectorAll('[data-metric]')].map(el =>
+      el.getAttribute('data-metric'),
+    );
+    for (const metric of ALL_LEADERBOARD_METRICS) {
+      expect(rendered).toContain(metric);
+    }
     expect(switches.every(s => s.getAttribute('aria-checked') === 'false')).toBe(true);
   });
 
@@ -58,7 +72,9 @@ describe('LeaderboardShareToggles', () => {
     render(<LeaderboardShareToggles />);
     const switches = screen.getAllByRole('switch');
     expect(switches.filter(s => s.getAttribute('aria-checked') === 'true')).toHaveLength(1);
-    expect(switches.filter(s => s.getAttribute('aria-checked') === 'false')).toHaveLength(3);
+    expect(switches.filter(s => s.getAttribute('aria-checked') === 'false')).toHaveLength(
+      ALL_LEADERBOARD_METRICS.length - 1,
+    );
   });
 
   it('turning one ON requests exactly that metric, enabled true', () => {
@@ -94,10 +110,19 @@ describe('LeaderboardShareToggles', () => {
 
   it('promises no amounts, on every row', () => {
     render(<LeaderboardShareToggles />);
-    expect(screen.getByText(/never the goal or the amount/i)).toBeTruthy();
-    expect(screen.getByText(/never a balance/i)).toBeTruthy();
-    expect(screen.getByText(/never which/i)).toBeTruthy();
-    expect(screen.getByText(/never the figure/i)).toBeTruthy();
+    // ⚠️ DERIVED, NOT FOUR HAND-TYPED PHRASES. The old version named one phrase per metric, so a
+    // FIFTH metric was invisible to it - and adding `achievements` on 2026-09-18 broke it for the
+    // wrong reason: its promise reads "never which ones", which collided with another row's
+    // "never which" and failed on AMBIGUITY rather than on absence. A test that breaks when the
+    // wording is merely SIMILAR is a test that gets loosened. The promise this makes is the one
+    // that matters: EVERY row says what it will not publish.
+    // Scoped to the METRIC ROWS, so the intro paragraph's own "never see an amount" is excluded
+    // by construction rather than by a count nobody would question.
+    for (const metric of ALL_LEADERBOARD_METRICS) {
+      const row = document.querySelector(`[data-metric="${metric}"]`);
+      expect(row, `no row rendered for ${metric}`).toBeTruthy();
+      expect(row?.textContent ?? '', `${metric} promises nothing`).toMatch(/never/i);
+    }
   });
 
   it('cannot be pressed while read-only', () => {

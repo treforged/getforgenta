@@ -20,6 +20,11 @@ import { isMetricSourced, type LeaderboardMetric } from '@/lib/leaderboard-metri
 
 const METRICS: ReadonlyArray<{ id: LeaderboardMetric; label: string; shows: string }> = [
   {
+    id: 'achievements',
+    label: 'Badges earned',
+    shows: 'how many badges you have earned - never which ones you hold',
+  },
+  {
     id: 'goal_progress',
     label: 'Savings goal progress',
     shows: 'how far along your best goal is, to the nearest 5% - never the goal or the amount',
@@ -78,6 +83,11 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
         return (
           <div
             key={m.id}
+            // A test INVENTORIES the rows off this rather than counting switches or re-typing the
+            // labels: five switches and five metrics agree just as happily when one is missing and
+            // another is drawn twice. On the row rather than on the control, so an assertion can be
+            // scoped to one metric's own copy.
+            data-metric={m.id}
             className="flex items-start justify-between gap-3 bg-secondary/40 border border-border px-3 py-2.5"
             style={{ borderRadius: 'var(--radius)' }}
           >

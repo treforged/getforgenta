@@ -6,7 +6,25 @@
  * the same as a zero bucket, which would falsely imply a failing metric.
  */
 
-export type LeaderboardMetric = 'goal_progress' | 'savings_streak' | 'debt_payoff' | 'budget_adherence';
+/**
+ * EVERY metric, as a value a test or a UI can iterate - and the SOURCE of the type below.
+ *
+ * ⚠️ **ONE DECLARATION, DELIBERATELY.** This file's header already records that two lists drift
+ * within a release and put a switch in front of somebody with nothing behind it. A TS union is
+ * not enumerable at runtime, so anything needing to iterate the metrics used to hand-write the
+ * list again - and a hand-written list is blind to the metric nobody added to it. Adding
+ * `achievements` on 2026-09-18 broke three assertions that had hardcoded `4`, which is that
+ * defect announcing itself at the cheapest possible moment.
+ */
+export const ALL_LEADERBOARD_METRICS = [
+  'goal_progress',
+  'savings_streak',
+  'debt_payoff',
+  'budget_adherence',
+  'achievements',
+] as const;
+
+export type LeaderboardMetric = (typeof ALL_LEADERBOARD_METRICS)[number];
 
 /**
  * WHICH METRICS THE APP CAN ACTUALLY PUBLISH TODAY — a switch nothing can fill must not be offered.
@@ -198,7 +216,13 @@ export function isPublishableBucket(metric: LeaderboardMetric, value: number): b
     return false;
   }
   switch (metric) {
+    // `achievements` is a COUNT, like the streak, so it shares the column's own 0..520 range
+    // rather than the 5-multiple percentage bound the other three take. See
+    // `achievementCountValue` for why a percentage is not available: there is no honest
+    // denominator to divide by. The labels are adjacent deliberately - a comment between them
+    // makes `no-fallthrough` read the first case as a non-empty body and the lint goes red.
     case 'savings_streak':
+    case 'achievements':
       return value >= 0 && value <= 520;
     case 'goal_progress':
     case 'debt_payoff':
@@ -207,6 +231,29 @@ export function isPublishableBucket(metric: LeaderboardMetric, value: number): b
     default:
       return false;
   }
+}
+
+/**
+ * How many badges this person holds, as a publishable value.
+ *
+ * ⚠️ **A COUNT, DELIBERATELY, AND NOT A PERCENTAGE.** `achievements.ts` records why: only lessons
+ * are countable, because the social badges are a fixed pair and `og_founder` is a cohort nobody
+ * can decide to join, so "a progress figure over the others would invent a denominator". A
+ * percentage here would be a number nobody could stand behind, on somebody else's screen.
+ *
+ * ⚠️ **ZERO IS A REAL ANSWER AND `null` IS NOT.** Somebody who has earned nothing genuinely has
+ * a count of zero, and publishing it is honest - the same call `savingsStreakWeeks` makes. Pass
+ * `null` only when the badges have not been READ yet, so an unloaded query can never publish a 0
+ * that a friend would read as "they have earned nothing".
+ *
+ * Caps at 520, the column's own bound, so a value that could not be stored is refused here rather
+ * than as a 400 from Postgres.
+ */
+export function achievementCountValue(earnedCount: number, cap: number = 520): number | null {
+  if (!Number.isFinite(earnedCount) || !Number.isInteger(earnedCount) || earnedCount < 0) {
+    return null;
+  }
+  return Math.min(earnedCount, cap);
 }
 
 /**

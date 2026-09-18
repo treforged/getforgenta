@@ -1,4 +1,5 @@
 import {
+  achievementCountValue,
   goalProgressBucket,
   savingsStreakWeeks,
   debtPayoffBucket,
@@ -34,6 +35,11 @@ export interface LeaderboardPublishInputs {
   revolvingCurrent: number | null;
   /** Budget categories for this month. `null` when they have not loaded. */
   budgetCategories: ReadonlyArray<{ spent: number | null; budgeted: number | null }> | null;
+  /**
+   * How many badges this person holds. `null` while the badges are still loading - NOT 0, which
+   * is a real count and would tell a friend they have earned nothing.
+   */
+  achievementsEarned: number | null;
 }
 
 export interface LeaderboardPublishRow {
@@ -149,6 +155,11 @@ export function buildPublishPlan(
   add(
     'budget_adherence',
     inputs.budgetCategories === null ? null : budgetAdherenceBucket(inputs.budgetCategories),
+  );
+
+  add(
+    'achievements',
+    inputs.achievementsEarned === null ? null : achievementCountValue(inputs.achievementsEarned),
   );
 
   return rows;

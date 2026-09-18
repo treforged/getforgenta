@@ -4,7 +4,13 @@ import { weekStart } from '../leaderboard-metrics';
 import type { LeaderboardMetric } from '../leaderboard-metrics';
 
 const WEEK = '2026-09-07';
-const ALL: LeaderboardMetric[] = ['goal_progress', 'savings_streak', 'debt_payoff', 'budget_adherence'];
+const ALL: LeaderboardMetric[] = [
+  'goal_progress',
+  'savings_streak',
+  'debt_payoff',
+  'budget_adherence',
+  'achievements',
+];
 
 const EMPTY = {
   goals: null,
@@ -12,6 +18,7 @@ const EMPTY = {
   revolvingPeak: null,
   revolvingCurrent: null,
   budgetCategories: null,
+  achievementsEarned: null,
 };
 
 describe('buildPublishPlan - a missing input publishes NOTHING, never a zero', () => {
@@ -57,6 +64,7 @@ describe('buildPublishPlan - opt-in is checked here, so no caller can forget', (
         revolvingPeak: 1000,
         revolvingCurrent: 250,
         budgetCategories: [{ spent: 1, budgeted: 10 }],
+        achievementsEarned: 7,
       },
       [],
       WEEK,
@@ -72,11 +80,24 @@ describe('buildPublishPlan - opt-in is checked here, so no caller can forget', (
         revolvingPeak: 1000,
         revolvingCurrent: 250,
         budgetCategories: [{ spent: 1, budgeted: 10 }],
+        achievementsEarned: 7,
       },
       ['debt_payoff'],
       WEEK,
     );
     expect(plan).toEqual([{ metric: 'debt_payoff', bucketValue: 75, week: WEEK }]);
+  });
+
+  it('excludes a computable achievement count when that metric is not opted in', () => {
+    // The neighbour test above covers the other four. This one names `achievements` explicitly,
+    // because it is the metric whose data lives in a table NO friend can read - so an accidental
+    // publish here is the one that would put a number on a screen RLS deliberately keeps closed.
+    // ⚠️ IT ASSERTS ONLY AN ABSENCE, so it is satisfied by the metric being DEAD - measured:
+    // deleting the `add('achievements', ...)` call leaves this one GREEN while three others go
+    // red. Its partner in the describe block below is what makes it non-vacuous; do not delete
+    // that one thinking this covers the ground.
+    const plan = buildPublishPlan({ ...EMPTY, achievementsEarned: 7 }, ['goal_progress'], WEEK);
+    expect(plan).toEqual([]);
   });
 
   it('stamps every row with the week it was asked for', () => {
@@ -147,5 +168,38 @@ describe('weeklyNetWorthDeltas', () => {
     // US DST ends 2026-11-01, inside the week beginning Monday 2026-10-26.
     const out = weeklyNetWorthDeltas([w('2026-10-26', 100), w('2026-11-02', 130)], weekStart);
     expect(out).toEqual([30]);
+  });
+});
+
+describe('buildPublishPlan - the achievement COUNT, ask 07150518 part 3', () => {
+  it('publishes the raw count rather than a percentage, because there is no honest denominator', () => {
+    const plan = buildPublishPlan({ ...EMPTY, achievementsEarned: 7 }, ALL, WEEK);
+    expect(plan).toEqual([{ metric: 'achievements', bucketValue: 7, week: WEEK }]);
+  });
+
+  it('publishes a genuine ZERO, because nobody-has-earned-anything is a true answer', () => {
+    // ⚠️ THE DISCRIMINATING PAIR WITH THE TEST BELOW. A count of 0 and an unread query are
+    // different facts, and the whole point of the `null` is that they must not collapse into one.
+    const plan = buildPublishPlan({ ...EMPTY, achievementsEarned: 0 }, ALL, WEEK);
+    expect(plan).toEqual([{ metric: 'achievements', bucketValue: 0, week: WEEK }]);
+  });
+
+  it('publishes NOTHING while the badges are still loading', () => {
+    // `null` is what Dashboard passes until `useAchievements` resolves. Were it to pass the empty
+    // array's length instead, every friend would briefly read "0 badges" about somebody who has
+    // earned plenty - a false claim about another person, which this repo has already shipped once
+    // as a card falling through to "Private".
+    const plan = buildPublishPlan({ ...EMPTY, achievementsEarned: null }, ALL, WEEK);
+    expect(plan).toEqual([]);
+  });
+
+  it('refuses a fractional or negative count rather than rounding it', () => {
+    expect(buildPublishPlan({ ...EMPTY, achievementsEarned: 2.5 }, ALL, WEEK)).toEqual([]);
+    expect(buildPublishPlan({ ...EMPTY, achievementsEarned: -1 }, ALL, WEEK)).toEqual([]);
+  });
+
+  it('caps at the column bound so an absurd count fails here, not as a 400 from Postgres', () => {
+    const plan = buildPublishPlan({ ...EMPTY, achievementsEarned: 99_999 }, ALL, WEEK);
+    expect(plan).toEqual([{ metric: 'achievements', bucketValue: 520, week: WEEK }]);
   });
 });
