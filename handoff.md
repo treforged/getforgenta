@@ -348,7 +348,32 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
    mutation with `git checkout --` DESTROYED the uncommitted fix - the exact trap this portfolio
    already records. Undo a mutation by INVERSE EDIT plus sha256 whenever the file also holds
    uncommitted work.
-   **STILL OPEN: claim 3, the omissions, and the rendered walk.**
+   ✅ **CLAIM 3 IS ALSO FIXED NOW - `30c1219f`, ask `efe72442`, on Tre's approval `abd764bf`.**
+   "Unlimited history" is gone from BOTH sites (Onboarding.tsx:741 and Settings.tsx:1232 - the
+   second is the one a case-sensitive sweep missed). Replaced with limits MEASURED as enforced:
+   "Full payoff forecast" (`CreditCardEngine.tsx:2271`) and "up to 10 linked banks"
+   (`Accounts.tsx:160`). The gate asserts BOTH underlying gates still exist, so a benefit claim
+   cannot outlive the thing it refers to. 13 checks, proven red at both sites, test:tz green in
+   three zones (4942, up from 4939).
+   ⚠️ **NEW FINDING, FILED AS `c5f54f8b` AND DELIBERATELY NOT FOLDED IN:** PremiumUpsellStep says
+   "Up to 3 linked accounts" for premium and "manual-only on free". **Premium is 10 and free is
+   1.** Same class, separate benefit claims, and `efe72442` says explicitly "no rewrite of the
+   rest of the paywall" - over-reading a paywall approval is the error that ask warned about.
+
+   **STILL OPEN ON THIS ASK: the omissions and the rendered walk.** Both need a browser and the
+   reviewer reset, which this repo has measured as unverifiable from the database row - so the
+   walk must ASSERT THE SCREEN, not the row.
+
+   🚨 **BEFORE THE NEXT iOS DISPATCH: BUMP THE MARKETING VERSION TO 6.8** (Tre, decision
+   `bba786ab`, ask `994c0164`). He is releasing build 974 / **6.7** publicly today, and a
+   submission carrying 6.7 again is refused by Apple - **and it fails LATE, at upload, after a
+   build is already spent.** `VERSION_CODE = run_number + 100` governs the BUILD number and moves
+   on its own; the MARKETING version is separate and does not bump with it.
+   ⚠️ **974 WAS CUT BEFORE `23e52979`, so the public 6.7 ships WITH the stale onboarding
+   pointers.** They are copy defects rather than money or data defects, so not a reason to hold a
+   release. **Nothing to chase - these land in 6.8.**
+   **NOT DISPATCHED TONIGHT, on purpose:** 6.8 is the vehicle for the whole onboarding rewrite
+   plus the paywall copy, not for three string commits.
 
    **THE THREE FALSE CLAIMS, each verified from source:**
    * **`Onboarding.tsx:772` - "Settings -> Quick Access" DOES NOT EXIST.** Two defects in one
