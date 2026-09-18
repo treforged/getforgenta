@@ -10226,7 +10226,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 15:51 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 16:11 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10237,14 +10237,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+6140d15b [handoff]: close part 3 in the resume queue - the measurement was made and the answer is not yet
+43a039b1 [dashboard]: his own saved layout is why the declutter never reached him - and it inverts part 3
+dd98970f [handoff]: the cost pass answers his three unsure cards - Advanced Analytics is 18% of the page
+05ad6cb4 [dashboard]: what each card costs - Advanced Analytics is 18% of the page on its own
+63630c58 [handoff]: 403dd5d8 part 1 answered - one $25 obligation in three cards, and the page is 6.7 screens
+7a7f987d [dashboard]: the semantic pass found it - one $25 obligation printed in three cards
 c4c1426f [handoff]: duplication headline retracted, 663274d7 closed, semantic pass is the next slice
 d877fe4a [dashboard]: filter out text nobody can read - and my headline finding did not survive it
-9ac4d11c [handoff]: 18fbdbf7 done - fidelity control asserted and already drifting 24 vs 26
-f60f3d98 [forecast]: assert the fidelity control that was only ever printed, and name the milestone it cannot see
-de12e50c [forecast]: withdrawing my own claim - the zero cash floor was never meaningless
-5c494f40 [handoff]: move-fund visibility shipped, c067a189 deduped into 6237167a
-e82c47b1 [savings]: say out loud when the forecast trims a goal's contribution
-c4da0eb9 [handoff]: build 974 verified, move fund reproduced - Sep breaches, Oct-Dec pinned on the floor
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
