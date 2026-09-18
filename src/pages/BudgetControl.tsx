@@ -895,12 +895,22 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       )}
     </div>
 
+    {/* ⚠️ EACH SHORT SEGMENT IS `whitespace-nowrap`, AND THAT IS THE WHOLE FIX FOR HIS WRAP.
+        Tre, 2026-09-18, on a 390px frame: the line broke as `Starts 2026-10-` / `01`.
+        `wrap-break-word` was NOT the cause and removing it would not have helped - A HYPHEN IS A
+        NATURAL LINE-BREAK OPPORTUNITY IN CSS, so `2026-10-01` is three breakable pieces to the
+        browser whatever the overflow-wrap rule says. A date split across two lines is not a
+        cosmetic nit: it reads as a different, truncated date.
+        ⚠️ ONLY THE SHORT, FIXED-WIDTH SEGMENTS get it. `From:`/`To:` carry account names of
+        unbounded length, and making those unbreakable would trade a mid-token wrap for horizontal
+        overflow - a worse defect, and one this page's narrow column would hit often. They keep the
+        paragraph's `wrap-break-word`. */}
     <p className="mt-1 text-xs sm:text-sm text-muted-foreground wrap-break-word">
-      {customIntervalLabel(r) ?? freqLabel(r.frequency)}
-      {r.due_day != null ? ` · Day ${r.due_day}` : ''}
-      {r.due_month ? ` / Month ${r.due_month}` : ''}
-      {r.start_date ? ` · Starts ${r.start_date}` : ''}
-      {r.end_date ? ` · Ends ${r.end_date}` : ''}
+      <span className="whitespace-nowrap">{customIntervalLabel(r) ?? freqLabel(r.frequency)}</span>
+      {r.due_day != null ? <> · <span className="whitespace-nowrap">{`Day ${r.due_day}`}</span></> : ''}
+      {r.due_month ? <> / <span className="whitespace-nowrap">{`Month ${r.due_month}`}</span></> : ''}
+      {r.start_date ? <> · <span className="whitespace-nowrap">{`Starts ${r.start_date}`}</span></> : ''}
+      {r.end_date ? <> · <span className="whitespace-nowrap">{`Ends ${r.end_date}`}</span></> : ''}
       {r.payment_source ? ` · From: ${getAccountName(r.payment_source)}` : ''}
       {r.deposit_account ? ` · To: ${getAccountName(r.deposit_account)}` : ''}
     </p>

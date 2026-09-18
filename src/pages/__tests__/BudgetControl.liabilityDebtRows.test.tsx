@@ -132,6 +132,36 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
     expect(screen.getAllByText('$423 this month').length).toBeGreaterThan(0);
   });
 
+  /**
+   * A DATE MUST NOT WRAP IN THE MIDDLE OF ITSELF.
+   *
+   * Tre, 2026-09-18, on a ~390px frame: the metadata line broke as `Starts 2026-10-` / `01`.
+   *
+   * ⚠️ `wrap-break-word` WAS NOT THE CAUSE, and removing it would not have fixed this. A HYPHEN IS
+   * A NATURAL LINE-BREAK OPPORTUNITY IN CSS, so `2026-10-01` is three breakable pieces to the
+   * browser regardless of the overflow-wrap rule. A date split over two lines reads as a different,
+   * truncated date — on a page he budgets off.
+   *
+   * ⚠️ WHAT THIS CAN AND CANNOT SEE. jsdom has no layout, so it cannot observe a line break; this
+   * asserts that the date is carried by a single element that DECLARES it will not break, which is
+   * the mechanism. A rendered frame at 390px belongs with the `d391e98b` design pass, which needs a
+   * real browser anyway. Naming the limit rather than implying a frame was read.
+   */
+  it('keeps a start date on one line — the segment declares whitespace-nowrap', () => {
+    otherDebtRows = [];
+    ruleRows = [{
+      id: 'rule-dated', user_id: 'u1', name: 'Dated Payment', amount: 106, rule_type: 'debt_payment',
+      frequency: 'monthly', due_day: 28, due_month: null, category: 'Debt Payments', active: true,
+      payment_source: 'acc-1', deposit_account: null, start_date: '2026-10-01', end_date: null,
+      notes: null, created_at: '2026-01-01T00:00:00Z',
+    }];
+    renderInAugust();
+    openDebt();
+
+    const dated = screen.getByText('Starts 2026-10-01');
+    expect(dated.className).toContain('whitespace-nowrap');
+  });
+
   it('does NOT duplicate a loan the user already typed as their own rule', () => {
     otherDebtRows = [];
     ruleRows = [{
