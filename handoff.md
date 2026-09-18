@@ -2,6 +2,57 @@
 
 ## ⚠️ START HERE - 2026-09-18 LATE (Ada, THIRTY-FOURTH session, after the cap reset)
 
+### ✅ `403dd5d8` PART 1 IS ANSWERED - THE SEMANTIC PASS FOUND THE DUPLICATION (`7a7f987d`)
+`scripts/measure-dashboard-facts.mjs`, new. The string diff was the wrong instrument and its
+successor is a SECTION-ATTRIBUTED one: every reading is tagged with the card that owns it, then
+grouped to find a FIGURE or a LABEL reported by two different cards. Three identical runs.
+
+**THE FINDING, and it is exactly the shape Tre described - one obligation, three cards:**
+
+    This Month's Budget             DEBT PAYMENTS $25
+    Upcoming This Week              Discover It Payment · Sep 22 · Card payment · $25
+    Debt - Recommended This Month   SAFE TO PAY $25 / MINIMUMS DUE $25 /
+                                    Discover It, min, Minimum payment $25 due Sep 22
+
+Same payee, same amount, same due date. **Two of those three are cards he named by name**
+("upcoming this week ... debt recommended this month ... that top section seems to be the same
+as maybe some stuff below"). Debt Recommendations also prints it THREE TIMES inside itself.
+
+⚠️ **THE OTHER CROSS-SECTION HIT IS A COINCIDENCE AND IS REPORTED AS ONE.** The label
+"min" appears in Debt Recommendations (minimum) and in the Next-lesson row (minutes). Counting
+it would have turned a 1 into a 2 and made the finding look twice as strong as it is.
+
+⚠️ **AND THE SECTION INVENTORY IS THE BIGGER ANSWER THAN THE DUPLICATION.** 17 sections
+and **5,674px - 6.7 screens** on a page he says is "supposed to be a quick snappy what needs to
+be paid next". Only ONE figure is genuinely printed by two cards. **So "some of it duplicated"
+is real but small; "overload of how much information" is the measurable complaint**, and the
+reorganisation should be aimed at LENGTH, not at hunting more duplicates.
+
+**FOUR INSTRUMENT FAULTS, fixed before it reported anything - the reason to distrust run one:**
+* `documentElement.scrollHeight` read **844px, exactly ONE screen**, while content was laid out
+  at y=5545 - this app scrolls an INNER container, which `check:glass` already had to discover.
+  Reporting "1.0 screens" would have been a confident wrong number. It finds the real scroller
+  now and REFUSES if the height it found sits above the lowest thing it measured.
+* A `$0` reported as cross-section sat at **y=-20000**, parked off the document - readable by
+  every filter above it and invisible to every person.
+* Six sections read `unnamed@<y>`: the KPI tiles are each their own card with no heading at all.
+* A settle loop, because one run held **SEVEN text nodes** for seconds. **Agreement alone is not
+  settled - a stuck page agrees with itself perfectly**, so there is a floor on the count and the
+  refusal names the URL and says so when the app has bounced to /auth.
+
+**POSITIVE CONTROL, running FIRST and proven red**: two synthetic sections carrying one shared
+figure and one shared label must both be reported or the run exits 2. Planted in ONE section
+instead of two it correctly failed, naming the figure half. Restored **by inverse edit and
+sha256** - the file is UNTRACKED, so `git checkout` would silently have done nothing, which is
+the trap this desk hit yesterday.
+
+⚠️ **THE FREE-TIER DRAFT WAS REJECTED RATHER THAN FIXED, and the way it would have failed
+is the point.** It called `document.querySelector` in NODE, attributed sections by tag name so it
+could never have matched this app's `.card-forged` cards, and **silently dropped the mandatory
+positive control**. Together those print a confident **"0 facts in multiple sections"** on the
+page that has three - a clean bill of health from an instrument that could not see anything.
+
+
 Three items shipped after the reset. Everything below is on origin, 0/0, verified by contents
 with a known-positive AND a negative control.
 
@@ -214,21 +265,25 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
 
-1. **`403dd5d8` - THE DASHBOARD REORGANISATION. Part 1 is DONE and its answer is that a text
-   diff is the wrong tool; do the SEMANTIC pass next (see the section above).** Earlier note -
-   `scripts/measure-dashboard-duplication.mjs` is committed with 8 measured repeats; the strongest
-   is $4,200 in the top section and again 4000px below. Next step is checking each against the
-   overlay caveat (the probe counts text hidden behind a PremiumGate as visible). It is the
-   single measurable part of his complaint and everything else waits on it. The top section is
-   `DashboardHero` (`Dashboard.tsx:1758`); below it is a 10-widget stack. He names
-   *upcoming this week*, *monthly budget snapshot*, *debt recommended this month* and *when credit
-   cards are getting paid off* as the top section and says it "seems to be the same as maybe some
-   stuff below" - and `monthly_snapshot`, `upcoming_week` and `debt_recommendations` are all real
-   widget ids. **Report WHAT ACTUALLY APPEARS TWICE before moving anything.** A rendered
-   comparison of visible text/figures is the instrument; a source read cannot see what a user
-   sees twice.
-   ⚠️ **DO NOT REACH FOR `check:page-rhythm`** - /dashboard is that gate's own 1.0x reference, so
-   it is structurally incapable of finding this. His complaint is about WHAT IS ON the page.
+1. **`403dd5d8` PARTS 2-4 - PART 1 IS DONE (`7a7f987d`), READ ITS ANSWER BEFORE PLANNING.**
+   The measurable half is closed: **one** real cross-section duplicate (the $25 Discover It
+   minimum, in This Month's Budget + Upcoming This Week + Debt Recommendations), and the page
+   is **17 sections / 6.7 screens**. **So the reorganisation is a LENGTH problem, not a
+   duplication problem** - do not go hunting more duplicates, there is one and it is named.
+   THE ONE CODE CHANGE PART 1 EARNS, and it is small: the $25 is the same obligation in three
+   cards. `Upcoming This Week` lists it as a bill (`Dashboard.tsx:1144`, from `upcomingWeek`)
+   and `Debt - Recommended This Month` lists it as a minimum. **Recommendation: suppress a
+   credit-card minimum from Upcoming This Week when Debt Recommendations already carries it**,
+   because Debt Recommendations says MORE about it (safe-to-pay, avalanche order). Reversible,
+   inside my own surface - but MEASURE what disappears first: a user with no debt widget
+   visible would lose the row entirely, and `transactions_spending` is already defaulted off.
+   ⚠️ He is explicitly UNSURE on advanced analytics, cash flow review and monthly change, so
+   those are HIS decisions - ONE recommendation each with the inventory attached, never a menu.
+   Goal progress he calls "pretty good": leave it. `DashboardCustomizer` (`Dashboard.tsx:1842`)
+   he floated removing - measure what removal does to an existing SAVED layout first, and note
+   that only 2 of 33 profiles have one.
+   ⚠️ **DO NOT REACH FOR `check:page-rhythm`** - /dashboard is that gate's own 1.0x reference.
+   Use `node scripts/measure-dashboard-facts.mjs`; it prints the section inventory in page order.
 
 2. **`6237167a` (NOT c067a189, which I dropped as a duplicate) - THE MOVE FUND. The VISIBILITY
    half is SHIPPED; what remains is the PACING change, and it is blocked on Tre's answer to
@@ -10102,7 +10157,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 15:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 15:51 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10113,14 +10168,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-d071b80c [dashboard]: correcting myself - "Advanced Analytics" twice is not a finding
-9cbe70e2 [dashboard]: measure what the Overview actually shows twice, before moving anything
-3a521340 [handoff]: placeholders gated and fixed, /account cleared, Learn retired as already shipped
-48eee436 [account]: a third card clears the ceiling - /account 2.5x -> 1.8x, whitespace still flat
-39bab44b [account]: the invite-code question is a label now, and placeholders have a gate at last
-8d59c87a [handoff]: d018ab32 placeholder clipping is item 0, enumerated but deliberately not started
-75e096a3 [handoff]: build 970 verified four ways, username security shipped, /account 60% -> 46%
-f5c1dc96 [account]: two cards, not one slab - /account's run 60% -> 46% with whitespace flat
+c4c1426f [handoff]: duplication headline retracted, 663274d7 closed, semantic pass is the next slice
+d877fe4a [dashboard]: filter out text nobody can read - and my headline finding did not survive it
+9ac4d11c [handoff]: 18fbdbf7 done - fidelity control asserted and already drifting 24 vs 26
+f60f3d98 [forecast]: assert the fidelity control that was only ever printed, and name the milestone it cannot see
+de12e50c [forecast]: withdrawing my own claim - the zero cash floor was never meaningless
+5c494f40 [handoff]: move-fund visibility shipped, c067a189 deduped into 6237167a
+e82c47b1 [savings]: say out loud when the forecast trims a goal's contribution
+c4da0eb9 [handoff]: build 974 verified, move fund reproduced - Sep breaches, Oct-Dec pinned on the floor
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
