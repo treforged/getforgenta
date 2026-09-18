@@ -343,6 +343,21 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
    because Debt Recommendations says MORE about it (safe-to-pay, avalanche order). Reversible,
    inside my own surface - but MEASURE what disappears first: a user with no debt widget
    visible would lose the row entirely, and `transactions_spending` is already defaulted off.
+   ✅ **THE DE-RISKING NUMBER IS MEASURED, 2026-09-18, so the guard is not an assumption.**
+   Both controls fired (a positive that must find the widget when visible = 2, a negative on an
+   impossible id = 0):
+
+       profiles 33 · no saved layout 31 (they get DEFAULT_LAYOUT, debt widget VISIBLE)
+       saved layouts 2, BOTH with the debt widget visible
+       users who HIDE the debt widget: 0
+
+   ⚠️ **SO THE GUARD CURRENTLY BINDS FOR NOBODY - and this file already records twice that a
+   limit which cannot bind reads as a guarantee.** Keep it anyway: the population is empty
+   TODAY, not structurally, because any user can hide the widget in Customize at any time. Write
+   it as a real conditional with a currently-empty exception set, and say so in the commit.
+   ⚠️ **AND THE STAKES ARE THEREFORE ALL 33 USERS, not a subset**: every account on the
+   system would see the change. That is an argument for landing it in one clean pass with
+   `test:tz` green across three zones, not for landing it faster.
    ⚠️ He is explicitly UNSURE on advanced analytics, cash flow review and monthly change, so
    those are HIS decisions - ONE recommendation each with the inventory attached, never a menu.
    Goal progress he calls "pretty good": leave it.
