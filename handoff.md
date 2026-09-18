@@ -1,5 +1,159 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-SECOND session)
+
+### ✅ iOS BUILD 956 IS IN TESTFLIGHT - VERIFIED AT THE STEP AND THE LOG, NOT AT THE RUN
+Run `35359868193`, head `f8520a64`, event `workflow_dispatch`. All three checks, passing:
+* **Step 20's OWN conclusion is `success`, not `skipped`.**
+* **altool's own words present**: `UPLOAD SUCCEEDED with no errors`, 15:09:16Z.
+* **All three `90382` hits are in the ECHOED SOURCE** (cyan-escaped script lines), none in
+  output - so the daily-cap branch did not fire and this is not the swallowed-failure green.
+* `VERSION_CODE` **956** = run_number 856 + 100, version 6.7. **iOS. Not Android's number.**
+
+**It carries the contrast fix**: `3647b487` and `a229358d` are ancestors of `f8520a64`, and the
+negative control (`16fefbc3`, a later commit) is NOT - so that check discriminates.
+**An upload is not an install.** Sam is telling Tre it is "uploaded and his to install".
+
+### ⚠️ ITEM 2 IS NOT CLOSED, AND THE REASON IS A LIMIT RATHER THAN A FAILURE
+**A JOB SUMMARY CANNOT BE READ FROM THE CLI.** `check:notes-coverage` writes only to
+`$GITHUB_STEP_SUMMARY`, which produces NO log output, and the check-run API returns an EMPTY
+output object (`summary_len 0, text_len 0`) - measured, not assumed. **Nobody has yet seen
+`4e6f3776` render**, and I will not say otherwise.
+
+What I did instead is a **PROXY and is labelled one**: the same script locally over the same six
+commits - `examined 6 commit(s) in f8520a64~6..f8520a64; 0 touched a user-visible path`, exit 0.
+That is the distinct SECOND green (the two greens print different sentences). **Anyone with a
+browser settles this in ten seconds. Do that rather than inheriting the proxy.**
+
+⚠️ **AND THE FINDING UNDERNEATH IT IS THE MORE VALUABLE HALF.** A `workflow_dispatch` has no
+`before`, so the step falls back to `RANGE="-6"` - an arbitrary six-commit window, **NOT "what is
+new since the last TestFlight build"**. All six here were handoff commits, so it was trivially
+clean. **A clean coverage result on a dispatched build says much less than it looks like it
+says.** Existing design, not a regression. Sam has it for the ask.
+
+### ✅ `e8f64565` SHIPPED - `6c48a784`. The destructive red is two tokens now.
+One token was doing two opposite jobs. As a FILL it measured **6.68:1**; as TEXT, **2.26:1 on a
+card** - roughly HALF the 4.5:1 AA floor, on the colour the app uses to say a number is wrong.
+**No lightness serves both**, so raising the single token would have fixed the text and broken
+every destructive button.
+
+    l=35%   fill 6.68:1    text-on-card 2.26:1     <- what shipped
+    l=55%   fill 3.51:1    text-on-card 4.29:1
+    l=70%   fill 2.22:1    text-on-card 6.80:1
+
+`--destructive` keeps 35% and its 6.68:1. `--destructive-text` is **66%**: 5.93:1 on a card,
+6.44:1 on the page, 6.16:1 on a panel - **past the floor with margin rather than sitting on it**,
+the same call `--muted-foreground` took. **176** sites repointed; `text-destructive-foreground`
+(3) and every `bg`/`border-destructive` (75) deliberately untouched.
+
+**TWO CORRECTIONS TO THE BRIEF I INHERITED, both from measuring what it told me to assume:**
+1. ⚠️ **"THE TWO DARK BLOCKS ONLY" WOULD HAVE SHIPPED A LIGHT-MODE REGRESSION.** Light needs no
+   split - measured, 42% gives text-on-page 5.92:1 and white-on-fill 6.47:1, because a light page
+   and a white fill-foreground pull the SAME way. **But `:root` IS the dark palette**, so a
+   `.light` leaving the token unset INHERITS 66% onto a 96% page at **3.29:1** - the fix
+   introducing a fresh AA failure in the theme it was not aimed at. Defined in all three blocks.
+2. ⚠️ **`tailwind.config.ts` IS DEAD.** Tailwind here is **v4 CSS-first** (`@theme` in index.css)
+   and there is **no `@config` anywhere**. Editing its `destructive` entry - the obvious move -
+   does nothing at all. v4 also drives every utility from one variable, so a `text-`-only
+   override does not exist and the split HAS to live in the class name.
+
+**GATES:** tsc clean; lint 0 errors; **`test:tz` green in all three zones at 4863** (up from
+4857 - the +6 are this change's assertions, a count that only moves with intent).
+`theme-contrast.test.ts` 7 -> 13, **proven RED three ways with byte-exact sha256 restores**:
+M1 restores the REAL shipped 35% (2 fail), M2 deletes `.light`'s token to exercise the
+inheritance trap (1 fail), M3 collapses the pair back into one token (2 fail). **M1 is history,
+not a contrived mutation.**
+
+✅ **THE CHAIN IS VERIFIED IN THE BUILT CSS, because a source gate cannot see whether Tailwind
+EMITTED the class** - and a class that fails to generate makes red text **VANISH** rather than
+look wrong, which no contrast test could ever catch:
+`.text-destructive-text{color:var(--color-destructive-text)}` -> `hsl(var(--destructive-text))`
+-> 42% once and 66% twice.
+
+**NOT CLAIMED: no rendered frame.** The ratios are proven and the class resolves; neither says it
+LOOKS right, and neither covers red text on a `bg-destructive/10` tint rather than a plain card.
+
+### 🔍 TWO THINGS FOUND BY ARITHMETIC, AND ONE I RETRACTED
+* **MY OWN EDIT CORRUPTED ITS OWN EXPLANATORY COMMENT.** I wrote the `index.css` comment BEFORE
+  running the sweep, so the sweep rewrote the prose inside it - the comment then said those sites
+  "were `text-destructive-text` at 35%", which is self-contradictory and **reads as
+  corroboration**. Nothing went red. **It was caught by a FILE COUNT that refused to reconcile**
+  (65 swept + 1 test = 66, and I expected 67), never by reading. Repaired, gate re-run.
+* **THE STRAY BARE `.text-destructive` RULE IN `dist` IS NOT A MISSED CALL SITE.** `src/` has
+  zero. It is Tailwind scanning `android/app/src/main/assets/public`, a **stale synced bundle**.
+  Worth someone's attention separately - a scanner reading last week's build output keeps dead
+  classes alive - but it is not this change.
+* ⚠️ **I RETRACTED A DEFECT I NEARLY FILED AGAINST `check:release-note`.** It passed a message
+  whose trailer `git log --format=%(trailers:key=...)` read as EMPTY - which looks exactly like a
+  gate sitting over a broken trailer. **Measured before reporting: the publisher does not use
+  git's trailer parser.** `release-notes.mjs` reads `%b` and runs `parseTrailers` itself, and it
+  finds the note in BOTH message shapes (negative control returns `[]`). **No gate defect; I had
+  aimed the check at the wrong consumer.** Recorded because a false gate defect gets somebody
+  changing a working gate.
+
+## Resume queue
+
+1. **READ THE `check:notes-coverage` STEP SUMMARY ON RUN `35359868193` IN A BROWSER.** First real
+   render of `4e6f3776`, and **the CLI cannot reach it** - see the limit above. My local
+   reproduction is a PROXY; do not inherit it as a reading.
+2. **`ba24b44a` IS TRE'S TASTE CALL. DO NOT PRE-EMPT IT.** Split `Income & Taxes` into separate
+   cards at its existing `border-t` boundaries? Recommendation YES. **Acceptance is a PAIR: band
+   count rises toward dashboard's density AND whitespace stays near 5.8%** - either number alone
+   is gameable (padding raises bands; deleting content lowers whitespace). With Sam, in his queue.
+3. **ASK HIM WHETHER THE SMALL TEXT SHOULD BE BOLDER** now both the greys and the reds are
+   legible. He hedged "maybe". Weight shifts layout on every screen at once, so it is a decision
+   rather than a tweak. With Sam.
+4. ✅ **SETTLED - NO SECOND iOS BUILD TODAY.** Sam confirmed 2026-09-18: `6c48a784` is on origin
+   and NOT in 956, and it **rides the next dispatch**. His reasoning, worth keeping: the contrast
+   fix is visible the moment Tre opens the app, where the destructive fix is only visible in an
+   error state - so 956 was worth a slot and a second one is not. Apple caps uploads per day and
+   this repo has burned that cap before.
+5. **THE DESTRUCTIVE SWEEP HAS NO RENDERED FRAME.** If a browser session happens anyway, the
+   cheap high-value look is red text on a `bg-destructive/10` tint - the one surface the
+   card/page/panel arithmetic does not cover.
+
+**PROBE HARNESS:** every browser measurement is `scripts/check-dark-contrast.mjs`'s preamble with
+its `page.evaluate` block swapped - it does sign-in, first-run dialogs and the theme. **Set the
+theme by writing `forgenta.theme.v1`, NEVER by flipping a class** (`theme.ts` also sets
+`root.style.colorScheme`). The scroller is **`#scroll-main`**, never `window`.
+⚠️ **`resize_window` IN CLAUDE-IN-CHROME REPORTS SUCCESS AND DOES NOT RESIZE** - Playwright for
+any phone-width reading.
+
+### ⛔ REFUTED - DO NOT RE-TRY THESE, they cost a window each
+* **"The tab-to-card gap makes `/budget` look empty."** DEAD. 54px there; `/dashboard` 14,
+  `/debt` 128, `/forecast` 198. It is MID-RANGE.
+* **"`/budget` is unusually empty."** DEAD. Whitespace 5.8% of content against `/dashboard`'s 5.1%.
+* **"Dark mode is dull because the palette is low-chroma."** DEAD. gold 56%, destructive 73%,
+  info 70%, success 50%. The palette is fine; that page just uses none of it.
+* **"Widening the dividers will fix the rhythm."** REFUTED BEFORE SHIPPING - it raises the band
+  count BY ADDING WHITESPACE to a page already at parity. **A number moving the right way for the
+  wrong reason.**
+* **"`check:release-note` passes a trailer git cannot parse."** REFUTED this session, by me,
+  before it left the desk.
+
+### ✅ CONFIRMED - these stand on measurement
+* Dark muted text was **4.19:1**, below AA; now **7.80:1**. Rendered: **42 of 62 strings below AA
+  before, 0 after.** In build 956.
+* Dark destructive TEXT was **2.26:1 on a card**; now **5.93:1**. Fill unchanged at 6.68:1. On
+  origin in `6c48a784`, **NOT in 956.**
+* `/budget` carries **0.19%** coloured area against 0.3-1.3% elsewhere, whole page, both widths.
+* It is **6 painted bands over 2155px** against dashboard's 23 over 5508px, one unbroken
+  **1121px** run. **Cause: `border-t` dividers COUNT AS PAINTED, so each bridges the gap it was
+  meant to create.**
+
+### ⚠️ THE LESSON THAT OUTLIVES ALL OF IT
+**Five instrument failures across two sessions now** - an unfiltered multi-tenant count, a
+first-viewport figure, a card-based selector, a still frame that invented an overlap, and this
+session's wrong-consumer trailer read. **Each was confident, plausible and wrong. NONE was caught
+by being careful.** Each was caught by a **control, a comparison, or an arithmetic reconciliation
+that refused to balance**. Budget a control per INSTRUMENT, not per finding.
+**And a gameable metric needs its counter-metric** - band count alone is raised by padding,
+whitespace alone is lowered by deleting content; only the pair distinguishes rhythm from spacing.
+
+<details><summary>2026-09-18 (Ada, THIRTY-FIRST session) - SUPERSEDED by the section above, kept for the record</summary>
+
+Items 1 and 3 of this queue are DONE and item 4 is SETTLED; see the current section. Item 2 is NOT done and survives as item 1 above - **an unmarked survivor inside a superseded block reads as superseded too.**
+
 ## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-FIRST session)
 
 ### 🚀 iOS BUILD DISPATCHED - run `35359868193`, head `f8520a64`, ON SAM'S TIMING CALL
@@ -67,6 +221,8 @@ plausible and wrong. NONE was caught by being careful; I was careful every time.
 by a **control or a comparison**. Budget a control per INSTRUMENT, not per finding.
 **And a gameable metric needs its counter-metric** - band count alone is raised by padding,
 whitespace alone is lowered by deleting content; only the pair distinguishes rhythm from spacing.
+
+</details>
 
 <details><summary>2026-09-17 (Ada, THIRTIETH session) - superseded, kept for the record</summary>
 
