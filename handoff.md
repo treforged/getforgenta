@@ -8419,6 +8419,43 @@ an unstarted one**, so the seed was NOT begun. Nothing is left to clean up.
    Contribution RULE over a transfer, **and contains a second direct question of his that has
    now gone unanswered for over a day.** ⚠️ **NO DESK MOVES THE MONEY IN ANY READING** - the
    deliverable is the answer to his question and the rule change, not a transfer.
+
+## 2026-09-18 - Ada - TWO OF TRE'S MESSAGES WERE NEVER TRACKED, AND ONE IS A DECISION HE ALREADY MADE
+
+Found by reading the untriaged inbox rather than the tracker. **Both filed.**
+
+### `4c60fae2` - HIS MOVE-FUND PACING DECISION, UNTRIAGED SINCE 2026-09-17 02:16
+Verbatim: *"yes, I wanted [weighted] toward whichever has the nearest due date ... credit card
+should be taken care of as soon as possible to reduce interest and saving for the move fund
+since its far out can be delayed a little bit more to where it loads up more when necessary ...
+the interest saving [goals] should be met as much as possible ... but doesnt truly need to pay
+more than that since we still need to save up for the move."*
+**That is a complete specification**: weight by nearest due date; card first because it accrues
+interest; move fund may be BACK-LOADED; both must still hit target; and the interest-saving goal
+is a **CEILING, not a floor**. `6237167a` may be blocked on a question he answered a day ago.
+⚠️ **TEST THAT FIRST.** `6237167a` reads "BUILT END TO END, GATED, AND REVERTED ON MEASUREMENT"
+(`447d57ad`). **If the revert was a measured REGRESSION rather than an open question, his answer
+changes the SPEC and not the blocker** - and shipping it because "Tre answered" would re-introduce
+whatever the measurement caught. Say which of the two it is.
+
+### `fedd9ca9` - ROBINHOOD INTEREST + THE OCTOBER GAP, reported 02:50:38 and never tracked
+⚠️ **AND THE CODE ALREADY QUOTES THIS COMPLAINT VERBATIM AS FIXED** - `e321c9fc`, landed
+**02:56:21, six minutes after he sent it**, ancestor of HEAD. So the honest state is "very
+likely already fixed", NOT "open".
+**BUT THERE IS A MISMATCH I COULD NOT RESOLVE AND IT IS THE WHOLE NEXT STEP.** That fix is about
+cards whose preference is **`full`** never entering the grace regime (it was gated on
+`paymentPreference === 'statement'` in three places). Its test fixture is his card's shape -
+`firstDueDate '2026-10-10'`, `statementBalancePhase: true`, `creditLimit: 5250` - **but with
+`paymentPreference: 'full'`.**
+**HIS ROW TODAY READS `payment_preference = 'statement'`** (measured 2026-09-18), which was
+ALWAYS in the grace regime and was never the broken path. So either his card was `full` on 09-17
+and has since been changed, or the fix was aimed at a shape his card no longer has.
+**DO NOT CLOSE THIS ON THE COMMIT.** Measure September interest for Robinhood on his CURRENT row
+(apr **29.99**, balance 324.27, `statement_balance` **NULL** while `statement_balance_phase` is
+**true** - that combination is itself worth a look). **Acceptance is the number, not the commit.**
+**And the October gap is a SECOND symptom** - he could not reconcile the purchases shown against
+the 502 he is paying - plus a THIRD question from 02:16 about whether purchases before 10 Oct
+land on that statement. **Three questions, test them separately.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
