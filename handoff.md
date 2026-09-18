@@ -129,12 +129,33 @@ compositing code exists, nothing on these routes exercises it.
    **Two harness faults fixed first:** a fixed sleep (an unsettled page's zero shrinks
    `examined`, the number the zero-control depends on) and Escape not closing `/forecast`'s
    "Forecast Assumptions" dialog - its examined count is **90 with the dialog up, 65 without**.
-7. **THE CONTRAST WORK THAT IS STILL GENUINELY OPEN**, in value order:
-   * **ERROR STATES AND DELETE CONFIRMATIONS ARE UNMEASURED BY BOTH GATES.** They need
-     interaction, and that is where destructive red actually lives. Highest value.
-   * **LIGHT MODE HAS NO RENDERED GATE AT ALL.** Both probes refuse to report a light reading,
-     which is honest and leaves the theme unmeasured.
-   * **DESKTOP WIDTHS ARE UNMEASURED** - both are 390x844 only.
+7. ✅ **DONE - the ARMED DELETE is gated** (`npm run check:destructive-states`). It was worse
+   hidden than ask `149fb21f` assumed: **not a dialog**, but a two-step INLINE confirm on an
+   **ICON** (no text node) whose destructive colour only appears **after a first click arms it**.
+   So it was invisible to every contrast gate here **three times over** - not text, not a dialog,
+   not present until a user acts. Measured **5.94:1** against the 3:1 WCAG 1.4.11 non-text floor;
+   **proven RED with the real pre-fix token at 2.25:1, BELOW EVEN THE RELAXED 3:1 FLOOR**, so the
+   token split fixed a non-text failure on the delete control as well as the text one.
+   ⚠️ **THE LESSON, and it nearly cost an hour: MY SAFETY CONTROL ANNOUNCED A DELETION THAT NEVER
+   HAPPENED.** It counted buttons named `/^delete /i`; **arming RENAMES that button** to
+   `Confirm delete ...`, so the count fell 2 → 1 and it reported destroyed data over an untouched
+   database. **It failed safe by LUCK** - a real delete drops the same count by one, so it could
+   not tell "row deleted" from "label changed" **in either direction**. It was measuring the
+   LABEL and reporting about the DATA. **Count rows (`/^edit /i`), never labels**, and run the
+   control on **every exit path** - the failing path is the one where a press might not have been
+   harmless.
+8. **THE CONTRAST WORK STILL GENUINELY OPEN** (ask `149fb21f`, kept open on purpose), in value
+   order:
+   * **VALIDATION ERRORS AND FORM ERROR TEXT ARE UNMEASURED ANYWHERE IN THIS REPO.** No gate
+     reaches them. Highest value, and the harness to copy is
+     `scripts/check-destructive-states.mjs` - it already does sign-in, dismissal, arming, and a
+     safety control.
+   * **LIGHT MODE HAS NO RENDERED CONTRAST GATE AT ALL.** All three probes deliberately refuse to
+     report a light reading. That refusal is HONEST and should stay - **do not let one return a
+     number it cannot stand behind** - but it leaves the whole theme unmeasured.
+   * **ALL THREE RENDERED GATES ARE 390x844 ONLY**, so desktop widths are unmeasured.
+9. ⚠️ **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** `npm run dev` from here failed to bind -
+   a peer session is serving it. **Do not kill it.** Every browser gate needs it up.
 
 **PROBE HARNESS:** every browser measurement is `scripts/check-dark-contrast.mjs`'s preamble with
 its `page.evaluate` block swapped - it does sign-in, first-run dialogs and the theme. **Set the
@@ -9301,7 +9322,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 11:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 11:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9312,14 +9333,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+310c6e11 [docs]: the colour-blind sweep was undocumented, which is why it stayed one route
+bf30555a [a11y]: the colour-blind contrast sweep walks six routes, and found two real strings on the way
+0f8d3f38 [handoff]: the rendered gate is in, and what it structurally cannot see
+5d402660 [theme]: a rendered gate for the destructive red, and the instability it found in itself
+0de977f3 [handoff]: 956 verified at the step and the log, and the destructive split is measured not assumed
+6c48a784 [theme]: split the destructive red into a fill and a text token - red body text was 2.26:1
+16fefbc3 [handoff]: resume queue - verify the iOS run first, then the destructive sweep a fresh window can afford
 9726ef05 [handoff]: iOS build 35359868193 dispatched on Sam's timing call
-f8520a64 [handoff]: consolidate - a short resume queue, and the refutations recorded as firmly as the findings
-fa8117fc [handoff]: the dividers bridge the gaps they create, and the obvious fix re-adds the emptiness I refuted
-8a9583a9 [handoff]: 'empty' is refuted too - the real difference is segmentation, 6 bands vs 23
-11680209 [handoff]: my gap hypothesis is refuted by its own comparison - null result, not rescued
-4cf696d4 [handoff]: read the dark frame, found his gap, and nearly filed a non-defect from it
-ba58eda1 [handoff]: my own caveat was wrong - the chroma table is whole-page, measured against #scroll-main
-85bd24a9 [handoff]: /budget is measurably the dullest route, and my scroll driver did not reach it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
