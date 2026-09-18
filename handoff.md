@@ -24,11 +24,22 @@ achievements commit carries **zero**, while the accounts-compaction commit carri
 duly appears in the generated note for 939.
 **So the two features he said were "never fulfilled" shipped with no note anywhere.** He could
 have read the entire What's New and still not known. That is not forgetfulness; nothing told him.
-**THE GAP: `check:release-note` refuses a WRAPPED trailer but does not require one to EXIST.**
-Deliberately NOT built tonight - a gate demanding a note on every commit would cry wolf on every
-refactor and be switched off within a week, which is a failure mode already on record here. It
-needs a defensible definition of user-visible first (a path heuristic over `src/pages` and
-`src/components` is the candidate).
+✅ **THE GAP IS NOW CLOSED: `npm run check:notes-coverage -- <range>`.** `check:release-note`
+refuses a WRAPPED trailer; this one finds a commit with no trailer AT ALL. Over the real range it
+reports **8 of 23 user-visible commits told the customer nothing**, including both features he
+named.
+**THE CRY-WOLF PROBLEM WAS THE DESIGN PROBLEM, and it is solved two ways.** It looks only at
+`src/pages`, `src/components` and `src/locales`, excluding tests - a deliberate UNDER-reach,
+because a gate that misses some real cases and never cries wolf survives where one that catches
+everything at the cost of noise does not. And **`Release-Note: none` SATISFIES it**: the generator
+already honours that value, so there is always a one-line honest way out and the gate asks for a
+DECISION rather than for prose.
+⛔ **NOT WIRED INTO THE BUILD ON PURPOSE** - failing an upload over a missing sentence trades a
+silent communication gap for a blocked release, the worse trade on a day something needs shipping.
+**All four outcomes proven**, including exit 2 on an empty range AND a bad ref, and the two clean
+results printing DIFFERENT sentences so they cannot be confused.
+⚠️ **My own first read of the bad-ref case printed `EXIT=0`** - `$?` after a pipe is the pipe's
+status. I committed that exact trap **while verifying a gate about traps**; the real code is 2.
 **Also found:** `release-notes.mjs` prints wrapped-trailer warnings for five OLDER commits whose
 customer notes were published truncated mid-sentence, and those warnings **have no route to an
 exit code**, so nobody has ever read them. Same family as an alarm that could never fire.
