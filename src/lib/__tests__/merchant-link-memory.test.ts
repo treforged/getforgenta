@@ -155,11 +155,25 @@ describe('linkSuggestionFor', () => {
   });
 
   it('stays quiet when the merchant has been linked two different ways', () => {
+    // 22 against 7 is a genuine split. One stray link is covered by the case below.
     const conflicted = {
+      ...rules,
+      'LOCKHEED MARTIN PAYROLL': { ...rules['LOCKHEED MARTIN PAYROLL'], conflictingCount: 7 },
+    };
+    expect(linkSuggestionFor(card, null, conflicted, byId)).toBeNull();
+  });
+
+  /**
+   * ⚠️ THIS USED TO RETURN NULL, AND THAT WAS THE DEFECT — the offer was vetoed for ever by a
+   * single stray link, so the ACT gate downstream was never even reached. See
+   * `link-memory-settled-habit.test.ts` for the measurement on his real Apple merchant.
+   */
+  it('still offers when one stray link sits among a settled habit', () => {
+    const oneStray = {
       ...rules,
       'LOCKHEED MARTIN PAYROLL': { ...rules['LOCKHEED MARTIN PAYROLL'], conflictingCount: 1 },
     };
-    expect(linkSuggestionFor(card, null, conflicted, byId)).toBeNull();
+    expect(linkSuggestionFor(card, null, oneStray, byId)).not.toBeNull();
   });
 
   it('stays quiet when the remembered rule has been deleted', () => {

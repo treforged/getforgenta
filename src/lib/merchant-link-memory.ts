@@ -213,6 +213,46 @@ export interface LinkableRule {
 export const LINK_MEMORY_MIN_AMOUNT_RATIO = 0.05;
 
 /**
+ * How far the winning rule must outnumber every other answer before a merchant counts as a
+ * SETTLED habit rather than a split one.
+ *
+ * ⚠️ THIS EXISTS BECAUSE `conflictingCount > 0` NEVER HEALS, AND THAT WAS MEASURED ON TRE'S OWN
+ * LEDGER. 2026-09-18: `APPLE.COM/BILL` carries SIX links to one rule and ONE to another (a $7.98
+ * charge sent to the Spotify rule on 09-18). Under the old rule that single stray link vetoed the
+ * suggestion AND the auto-apply for ever - proven by probe at 6, 10, 25, 100 and 1000 links to the
+ * winner against that one: `ask / conflicting-history` every time. So the app asked about a
+ * merchant he had answered the same way six times, and no amount of answering could ever stop it.
+ * It is the "subscriptions" half of his 2026-09-18 report, and the reason his own question - "was
+ * I supposed to do one sweep?" - has the answer NO: a sweep ADDS links, and links were never what
+ * the gate was counting.
+ *
+ * ⚠️ FOUR, AND IT IS CHOSEN RATHER THAN FITTED. The honest bar is "one answer out of many is an
+ * exception, not a disagreement". Four clears his 6-vs-1 with room and still ASKS at 3-vs-1 and
+ * 10-vs-4, which are genuinely split. There is one real example, so this cannot be derived; it is
+ * placed to clear the known-settled case and refuse a coin flip. Do not raise it toward the
+ * observed 6 to look decisive - that would refuse the next merchant with five links and a slip.
+ *
+ * ⚠️ AND IT DOES NOT WEAKEN THE AMOUNT TESTS, WHICH IS WHY IT IS SAFE. The stray Apple link is a
+ * $7.98 charge among $9.99s; `isOrdinaryForMerchant` still sees a zero-spread history and asks
+ * about any charge that is not $9.99. Dominance decides "is this merchant's habit settled", the
+ * outlier gate decides "is THIS charge ordinary", and the odd one out is still caught by the
+ * second even though the first now passes.
+ */
+export const MIN_DOMINANCE_RATIO = 4;
+
+/**
+ * Whether a merchant's link history is a settled habit rather than a split decision.
+ *
+ * Shared by the SUGGESTION gate here and the ACT gate in `auto-apply.ts` deliberately: those two
+ * read the same field and disagreeing about it is how a fix lands on one path and reads as inert
+ * on the other. Zero conflicts is settled by definition.
+ */
+export function habitIsSettled(linkedCount: number, conflictingCount: number): boolean {
+  if (!(conflictingCount > 0)) return true;
+  return linkedCount >= conflictingCount * MIN_DOMINANCE_RATIO;
+}
+
+/**
  * Whether a charge of this size could plausibly settle a rule of that size.
  *
  * ⚠️ UNKNOWN AMOUNTS RETURN TRUE, i.e. this gate abstains rather than blocks. A caller that does
@@ -243,8 +283,10 @@ export interface LinkSuggestion<R extends LinkableRule = LinkableRule> {
  *
  * - `suggestion` set ⇒ null. The matcher looked at THIS charge and found an occurrence; memory is
  *   about the merchant in general and must not overrule evidence about the row in front of the user.
- * - a merchant with conflicting links ⇒ null. Two answers is not a remembered answer, and picking
- *   the more popular one silently is the coin flip §1A refused (`matchCharge`'s one-candidate rule).
+ * - a merchant whose links are genuinely SPLIT ⇒ null. Two competing answers is not a remembered
+ *   answer, and picking the more popular one silently is the coin flip §1A refused
+ *   (`matchCharge`'s one-candidate rule). A settled habit with one stray link is NOT split - see
+ *   `habitIsSettled`, and the measured Apple case that used to be vetoed for ever.
  * - a rule that is gone or inactive ⇒ null. Offering to link a charge to a rule the user retired
  *   would quietly resurrect a projection they deliberately ended.
  */
@@ -257,7 +299,7 @@ export function linkSuggestionFor<R extends LinkableRule>(
 ): LinkSuggestion<R> | null {
   if (suggestion) return null;
   const memory = merchantLinkFor(charge, rules, suppressed);
-  if (!memory || memory.conflictingCount > 0) return null;
+  if (!memory || !habitIsSettled(memory.linkedCount, memory.conflictingCount)) return null;
   const rule = rulesById[memory.ruleId];
   if (!rule || rule.active === false) return null;
   // A charge far too small to have settled this rule => null. Tre, 2026-09-12, after one-tapping a

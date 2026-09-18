@@ -77,10 +77,24 @@ describe('the anomalies he named himself', () => {
   });
 
   it('asks when the merchant has been linked two different ways', () => {
+    // 25 against 8 is a genuine split, not a habit with an exception.
     expect(autoApplyDecision({
-      linkedCount: 25, conflictingCount: 2,
+      linkedCount: 25, conflictingCount: 8,
       amount: 815.75, targetAmount: 848.46, history: PAYROLL_HISTORY,
     })).toEqual({ verdict: 'ask', reason: 'conflicting-history' });
+  });
+
+  /**
+   * ⚠️ THIS CASE USED TO ASK, AND IT WAS THE DEFECT. Until 2026-09-18 ANY conflict vetoed for
+   * ever: measured on Tre's real ledger, `APPLE.COM/BILL` (6 links to one rule, 1 elsewhere)
+   * returned `ask` at 6, 10, 25, 100 and 1000 links to the winner, so answering could never stop
+   * the prompts. One stray answer among many is an exception, not a disagreement.
+   */
+  it('ACTS when one stray link sits among a settled habit', () => {
+    expect(autoApplyDecision({
+      linkedCount: 25, conflictingCount: 2,
+      amount: 848.46, targetAmount: 848.46, history: PAYROLL_HISTORY,
+    })).toEqual({ verdict: 'auto', reason: 'confident' });
   });
 
   it('asks when it is not yet a habit', () => {

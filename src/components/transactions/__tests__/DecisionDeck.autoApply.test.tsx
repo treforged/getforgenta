@@ -172,7 +172,9 @@ describe('DecisionDeck — every gate can still hold the write back', () => {
   it('ASKS when the merchant has been linked two different ways', async () => {
     const mixed = payrollMemory(22, 2000);
     const key = Object.keys(mixed)[0];
-    mixed[key] = { ...mixed[key], conflictingCount: 3 };
+    // 22 against 8 is a genuine split. A single stray link no longer vetoes — see
+    // `link-memory-settled-habit.test.ts`, measured on his real Apple merchant.
+    mixed[key] = { ...mixed[key], conflictingCount: 8 };
     linkRules.current = mixed;
     await expectAsked(setup(settled()).save);
   });

@@ -20,7 +20,7 @@
  * can say why it is asking, and so a wrong threshold is debuggable rather than merely felt.
  */
 
-import { amountCouldSettle } from './merchant-link-memory';
+import { amountCouldSettle, habitIsSettled } from './merchant-link-memory';
 
 export type AutoApplyVerdict = 'auto' | 'ask' | 'never';
 
@@ -125,9 +125,19 @@ export function autoApplyDecision(e: AutoApplyEvidence): AutoApplyReasoned {
   if (!amountCouldSettle(e.amount, e.targetAmount)) {
     return { verdict: 'never', reason: 'implausible-amount' };
   }
-  // 2. The merchant has been linked two different ways. Picking the more popular one silently is
-  //    the coin flip the matcher already refuses.
-  if (e.conflictingCount > 0) return { verdict: 'ask', reason: 'conflicting-history' };
+  // 2. The merchant's links are genuinely SPLIT. Picking the more popular one silently is the coin
+  //    flip the matcher already refuses.
+  //
+  //    ⚠️ "ANY CONFLICT AT ALL" WAS THE WRONG TEST, AND IT NEVER HEALED. Measured on Tre's own
+  //    ledger 2026-09-18: `APPLE.COM/BILL` has SIX links to one rule and ONE elsewhere, and this
+  //    gate returned `ask` at 6, 10, 25, 100 and 1000 links to the winner. So the app kept asking
+  //    about a merchant he had answered identically six times, and answering again could never
+  //    fix it - which is exactly why "should I do one sweep?" had the answer NO. A single stray
+  //    answer is an exception, not a disagreement. `habitIsSettled` carries the bar and the
+  //    reasoning, and is SHARED with the suggestion gate so the two cannot drift.
+  if (!habitIsSettled(e.linkedCount, e.conflictingCount)) {
+    return { verdict: 'ask', reason: 'conflicting-history' };
+  }
 
   // 3. Not yet a habit.
   if (e.linkedCount < MIN_LINKS_TO_AUTO_APPLY) return { verdict: 'ask', reason: 'too-few-links' };
