@@ -8486,6 +8486,37 @@ as "on his phone".
 - **Dates no longer split across two lines** on a phone (`6f8b3fc1`).
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
+
+## 2026-09-18 - Ada - `3bc68e0d` STARTED: the label mechanism ALREADY EXISTS
+
+**FIRST REAL FINDING, and it changes the shape of the work: the app already has a per-row
+"why" channel.** `month0-debt-breakdown.ts` sets a `reason` string ('Statement balance',
+'Full balance', 'Autopay Full Balance', or `''`), and `DebtRecommendationsWidget` renders it
+as `{r.reason}` beside every deck row. **So deliverable (2) - "the label should state this
+as well" - is EXTENDING AN EXISTING CHANNEL, not inventing a surface.** That is a much
+smaller and much safer job than it reads, and it means the label will land where users
+already look for an explanation.
+
+**THE ENUMERATION IS PARTIAL AND I AM SAYING SO RATHER THAN REPORTING A COUNT.** The
+automatic money-decision surface spans `debt-payoff-order` (116 lines), `floor-protection`
+(301), `unconditional-payment` (169), `ranked-extra-payment-targets` (924),
+`surplus-ranking` (1109), `credit-card-engine` (3299) and `forecast-engine` (2913). **I have
+NOT established how many genuine two-defensible-answer choices live in them.** A grep for
+tie-break language finds mostly ORDERING tie-breaks (leaderboard, ranked targets,
+rule-drift) rather than money-saving ones, so **the grep is the wrong instrument for this
+question** and a count taken from it would be a confident wrong number.
+
+**WHAT THE NEXT SESSION SHOULD DO INSTEAD:** work from the `reason` channel BACKWARDS. Every
+row that already renders a reason is a decision the app is already explaining; every row
+that renders `''` is a decision it is making silently. **That inverts the problem into
+something enumerable from the code rather than from a guess**, and the empty-reason rows are
+exactly the population his instruction is about.
+
+⚠️ **AND THE BOUNDARY IN CLAUDE.md IS LOAD-BEARING HERE.** The principle breaks TIES between
+CORRECT answers. A lender's stated minimum, a statutory cap or an interest accrual is NOT a
+tie, and a label claiming "we chose this to save you money" on one of those would be false.
+Several of the existing reasons ('Statement balance') are of that kind - descriptions of a
+setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
