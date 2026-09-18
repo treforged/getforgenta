@@ -4,6 +4,12 @@
   "close": "Cerrar novedades",
   "dismiss": "Entendido",
   "lines": {
+    "2026-09-18": [
+      "Tus amigos ahora son seguidores: mira a quien sigues y quien te sigue, en tu pestana de Cuenta.",
+      "Comparte tu perfil con un enlace, directamente desde Seguidores.",
+      "Nuevas insignias por tu primer, quinto y decimo seguidor.",
+      "Los bancos con una sola cuenta ocupan menos espacio en tu lista de Cuentas."
+    ],
     "2026-09-13": [
       "Tus controles para compartir ahora se guardan, y por fin parecen interruptores.",
       "Las tablas de amigos se llenan en cuanto activas el compartir.",

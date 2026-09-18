@@ -29,6 +29,22 @@ export interface Release {
  * 2026-09-13 before being written down.
  */
 export const RELEASES: readonly Release[] = [
+  // 2026-09-18. WRITTEN BECAUSE HE ASKED FOR THREE OF THESE AGAIN, BELIEVING THEY WERE NEVER
+  // BUILT - they were, and they were already on his phone. The commits carried no customer line,
+  // so nothing anywhere told him. Every line below was verified BY CALLER before being written:
+  // FollowersPanel is mounted at Account.tsx:231, the share link is built at FollowersPanel.tsx:66,
+  // and the three follower badges are registered in achievement-icons.ts. Nothing here about
+  // today's guide fix, which is on origin but not on a build - an entry ships inside the build
+  // that carries the feature, so a line must be true of the build a person is reading it in.
+  {
+    version: '2026-09-18',
+    lines: [
+      'Friends are now Followers - see who follows you and who you follow, on your Account tab.',
+      'Share your profile with a link, straight from Followers.',
+      'New badges for your first, fifth and tenth follower.',
+      'Banks with a single account take up less room in your Accounts list.',
+    ],
+  },
   {
     version: '2026-09-13',
     lines: [
