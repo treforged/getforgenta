@@ -567,7 +567,7 @@ export default function Forecast() {
                   <YAxis tick={tickStyle} tickFormatter={formatYAxisTick} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
-                    <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? '#555' : entry.color, cursor: 'pointer', fontSize: 10 }}>{value}</span>
+                    <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? 'hsl(var(--muted-foreground))' : 'hsl(var(--foreground))', cursor: 'pointer', fontSize: 10 }}>{value}</span>
                   )} wrapperStyle={{ fontSize: 10 }} />
                   <Line {...CHART_DRAW} type="monotone" dataKey="netWorth" name="Net Worth" stroke="hsl(47, 100%, 50%)" strokeWidth={2.5} dot={false} strokeOpacity={isVisible('netWorth') ? 1 : 0} />
                   <Bar {...CHART_DRAW} dataKey="totalAssets" name="Assets" fill="hsl(142, 71%, 45%)" opacity={isVisible('totalAssets') ? 0.3 : 0} />
@@ -582,7 +582,7 @@ export default function Forecast() {
                   <YAxis tick={tickStyle} tickFormatter={formatYAxisTick} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
-                    <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? '#555' : entry.color, cursor: 'pointer', fontSize: 10 }}>{value}</span>
+                    <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? 'hsl(var(--muted-foreground))' : 'hsl(var(--foreground))', cursor: 'pointer', fontSize: 10 }}>{value}</span>
                   )} wrapperStyle={{ fontSize: 10 }} />
                   <Line {...CHART_DRAW} type="monotone" dataKey="netWorth" name="Net Worth" stroke="hsl(47, 100%, 50%)" strokeWidth={2.5} dot={false} strokeOpacity={isVisible('netWorth') ? 1 : 0} />
                   <Line {...CHART_DRAW} type="monotone" dataKey="investmentBalance" name="Investments" stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('investmentBalance') ? 1 : 0} />

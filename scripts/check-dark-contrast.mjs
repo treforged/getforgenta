@@ -100,22 +100,17 @@ await page.evaluate(() => localStorage.setItem('forgenta.theme.v1', 'dark'));
 await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
   version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
 })));
-await page.goto(`${BASE}/budget`, { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(8000);
-
+// ⚠️ SIX ROUTES, NOT ONE. This walked /budget ALONE until 2026-09-18, which made it the only
+// colour-blind contrast instrument in the repo AND scoped it to a single screen - so five of the
+// six screens a user actually opens had never been measured by anything. That matters more than
+// it looks: `check-destructive-contrast.mjs` finds its candidates BY COLOUR and is therefore
+// structurally blind to text nobody repointed, so THIS is the only gate that can catch a
+// low-contrast string whose colour nobody thought to look for. A one-route version left that
+// job undone on 83% of the app.
+const ROUTES = ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/settings'];
 const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
-for (let i = 0; i < 6 && (await page.locator(OVERLAY).count()); i += 1) {
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(400);
-  const still = page.locator(OVERLAY);
-  if (await still.count()) { await still.first().dispatchEvent('click'); await page.waitForTimeout(600); }
-}
-if (await page.locator(OVERLAY).count()) {
-  await browser.close();
-  fail(2, 'a modal overlay is still up; it would intercept the reads below.');
-}
 
-const report = await page.evaluate(() => {
+const readPage = () => page.evaluate(() => {
   const parse = (s) => {
     const m = (s || '').match(/rgba?\(([^)]+)\)/);
     if (!m) return null;
@@ -146,6 +141,14 @@ const report = await page.evaluate(() => {
     if (!own) continue;
     const box = el.getBoundingClientRect();
     if (box.width < 2 || box.height < 2) continue;      // sr-only and measuring nodes
+    // ⚠️ aria-hidden IS THE ONE EXEMPTION, and it is DERIVED from the app rather than a list of
+    // strings somebody maintained. WCAG's contrast floor is about text presented to a user; a
+    // decorative glyph hidden from assistive tech is not that. The dashboard's "|" separator is
+    // the real case - at 1.35:1 it is a divider drawn as a character, and making it AA-legible
+    // would turn a hairline into a prominent pipe. THE RISK IS REAL AND WORTH STATING: hiding a
+    // genuine string would silence this gate for it. That is already a worse accessibility bug
+    // than low contrast, and it is not one this probe was ever able to catch.
+    if (el.closest('[aria-hidden="true"]')) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
     const fg = parse(cs.color);
@@ -163,6 +166,57 @@ const report = await page.evaluate(() => {
   return { examined, findings: out, theme: document.documentElement.className };
 });
 
+const report = { examined: 0, findings: [], theme: '' };
+for (const route of ROUTES) {
+  await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(5000);
+  // ⚠️ ESCAPE ALONE IS NOT ENOUGH, and /forecast is the case that proved it. It auto-opens a real
+  // "Forecast Assumptions" dialog that survived six Escapes and an overlay click, so the gate
+  // refused at exit 2 - correctly, but a gate that exits 2 on an ordinary run is a gate nobody
+  // runs. So press the dialog's OWN close control as well. It is found by ROLE and accessible
+  // name rather than by a hand-written label list, because a list is blind to the dialog nobody
+  // added to it.
+  for (let i = 0; i < 6 && (await page.locator(OVERLAY).count()); i += 1) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    if (!(await page.locator(OVERLAY).count())) break;
+    const closer = page.getByRole('button', { name: /close|done|cancel|dismiss|got it/i }).first();
+    if (await closer.count()) {
+      await closer.click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(600);
+      if (!(await page.locator(OVERLAY).count())) break;
+    }
+    const still = page.locator(OVERLAY);
+    if (await still.count()) { await still.first().dispatchEvent('click'); await page.waitForTimeout(600); }
+  }
+  if (await page.locator(OVERLAY).count()) {
+    await browser.close();
+    fail(2, `a modal overlay is still up on ${route}; it would intercept the reads below.`);
+  }
+  // ⚠️ READ UNTIL TWO CONSECUTIVE READS AGREE. A fixed sleep read /dashboard as 0 elements on one
+  // run and 16 on the next in the sibling probe, minutes apart, with no code change - the widgets
+  // had not mounted. AN UNSETTLED PAGE'S ZERO IS INDISTINGUISHABLE FROM A CLEAN ONE, and here it
+  // would quietly shrink `examined`, which is the very number the control below relies on.
+  let r = await readPage();
+  const seen = [r.examined];
+  let settled = false;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await page.waitForTimeout(2500);
+    const again = await readPage();
+    seen.push(again.examined);
+    if (again.examined === r.examined) { r = again; settled = true; break; }
+    r = again;
+  }
+  if (!settled) {
+    await browser.close();
+    fail(2, `UNSTABLE: ${route} never settled - examined counts ${seen.join(' -> ')}. Not averaging them.`);
+  }
+  console.log(`${route.padEnd(12)} examined ${String(r.examined).padStart(4)}  below AA ${r.findings.length}  (settled after ${seen.length} reads)`);
+  report.examined += r.examined;
+  report.theme = r.theme;
+  for (const f of r.findings) report.findings.push({ route, ...f });
+}
+
 await browser.close();
 
 // -- POSITIVE CONTROL ----------------------------------------------------------------------
@@ -179,7 +233,7 @@ if (!/dark/.test(report.theme)) {
 console.log(`examined ${report.examined} rendered text elements in dark mode; `
   + `${report.findings.length} below 4.5:1`);
 for (const f of report.findings.sort((a, b) => a.ratio - b.ratio)) {
-  console.log(`  ${String(f.ratio).padStart(5)}:1  ${f.size}/${f.weight}  ${JSON.stringify(f.text)}`);
+  console.log(`  ${String(f.ratio).padStart(5)}:1  ${String(f.route).padEnd(11)} ${f.size}/${f.weight}  ${JSON.stringify(f.text)}`);
   console.log(`            color=${f.color}  class=${f.cls}`);
 }
 

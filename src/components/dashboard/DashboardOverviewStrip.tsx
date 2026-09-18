@@ -121,7 +121,7 @@ export default function DashboardOverviewStrip({
       </p>
       <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
         <span className="text-success font-medium">{money(totalAssets)}</span> assets
-        <span className="mx-1.5 text-border">|</span>
+        <span className="mx-1.5 text-border" aria-hidden="true">|</span>
         <span className="text-destructive-text font-medium">{money(totalLiabilities)}</span> liabilities
       </p>
     </>
