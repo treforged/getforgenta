@@ -16,13 +16,14 @@ import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check, TrendingDown } from 'lucide-react';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
+import { findContributionShortfalls, describeShortfall } from '@/lib/goal-contribution-shortfall';
 import { goalStages, goalWithdrawals, goalSavedIncludingSpent } from '@/lib/ranked-extra-payment-targets';
 import { IRA_ANNUAL_LIMIT } from '@/lib/retirement-contribution-cap';
 import GoalStopsEditor, { newStopDraft, stopDraftsFrom, stopsToStages, type StopDraft } from '@/components/savings/GoalStopsEditor';
@@ -571,6 +572,30 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     return map;
   }, [allGoals]);
 
+  /**
+   * Months where the FORECAST pays a goal less than the goal's own plan says.
+   *
+   * ⚠️ TRE COULD NOT SEE THIS AND IT IS HIS MONEY BEING RE-ALLOCATED. Measured on his real
+   * data 2026-09-18: the move fund is configured at $510/month and the engine contributes $279 in
+   * November 2026, because floor protection trims the contribution rather than letting the month
+   * end below his cash floor. The card showed $510 and a date derived from it. He described the
+   * effect - "I can't do the move for the save up fund without sacrificing some other things" -
+   * without being able to see the app making that trade for him.
+   *
+   * Free: these are the rows the page is already holding, the same re-key `autoExtraByGoal` does.
+   */
+  const shortfallByGoal = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of allGoals) {
+      const id = g.id as string | undefined;
+      if (!id) continue;
+      const planned = ownMonthlyByTarget[id]?.monthly ?? 0;
+      const sentence = describeShortfall(findContributionShortfalls(projections.data ?? [], id, planned));
+      if (sentence) map[id] = sentence;
+    }
+    return map;
+  }, [allGoals, ownMonthlyByTarget, projections]);
+
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
 
@@ -888,9 +913,28 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           const linkedAccountType = linkedAcct?.account_type ?? '';
           const isRothIra = ['roth_ira', 'ira', '401k', 'hsa'].includes(linkedAccountType) || (g.goal_type || '').toLowerCase() === 'retirement';
           const goalLumps: GoalLumpSum[] = Array.isArray(g.lump_sum_payments) ? (g.lump_sum_payments as unknown as GoalLumpSum[]) : [];
+          const shortfallNote = g.id ? shortfallByGoal[g.id as string] : undefined;
 
           return (
             <div key={g.id} className="card-forged p-4 space-y-3 hover:border-primary/20 transition-colors">
+              {/*
+                ⚠️ THE SACRIFICE THE APP MAKES FOR HIM, SAID OUT LOUD. Floor protection trims a
+                goal's contribution so a month does not end below the cash floor - correct
+                behaviour, and until now completely invisible: the card stated the configured
+                monthly amount while the engine paid less. Tre described the effect without being
+                able to see it ("I can't do the move for the save up fund without sacrificing
+                some other things"), which is the tell that a real adjustment had no surface.
+
+                It renders only when there IS a shortfall, so a healthy goal gains no clutter,
+                and it names the amount and the reason - a trimmed number with no reason reads
+                as a bug rather than as the app protecting him.
+              */}
+              {shortfallNote && (
+                <p className="text-[11px] text-gold flex items-start gap-1.5" data-testid="goal-shortfall-note">
+                  <TrendingDown size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>{shortfallNote}</span>
+                </p>
+              )}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
