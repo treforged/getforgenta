@@ -168,9 +168,57 @@ about is a gate somebody switches off. Widening it is Sam's call.
 ✅ **The positive control caught all three and named the INSTRUMENT rather than the page.**
 Without it I would have reported /dashboard as catastrophically empty, twice.
 
+### ✅ iOS BUILD 967 IS IN TESTFLIGHT - VERIFIED AT THE STEP, THE LOG AND THE ANCESTRY
+Run `35369787749`, head `35db2b73`, `workflow_dispatch`. All four checks:
+* **Step 20's OWN conclusion is `success`**, not `skipped`. The run's conclusion is not evidence.
+* **altool's own words present**: `UPLOAD SUCCEEDED with no errors`.
+* **All three `90382` hits are in the ECHOED SOURCE** (cyan-escaped script lines), none in output.
+* **`VERSION_CODE` 967 = run_number 867 + 100. iOS, not Android's number.**
+* Ancestry: `46338c47`, `c0598393`, `d6b25264` are ALL in it; negative control (a later
+  commit) correctly is NOT, so the check discriminates.
+✅ **AND THE RESOLVER RAN FOR REAL:** `range source: last successful ios-build.yml run on
+main (ab35f9fd)` - a genuine head where the old code would have taken an arbitrary `-6`.
+
+### ⚠️ MY FIRST DISPATCH WAS CANCELLED BY MY OWN LATER PUSHES
+`concurrency: cancel-in-progress: true`, and the workflow's own header documents that
+collision from 2026-08-11. **HAVE NOTHING LEFT TO PUSH WHEN YOU DISPATCH** - the PR rule
+wearing new clothes. `scripts/` and `handoff.md` are OUTSIDE the path filter
+(`src/**`, `ios/**`, `capacitor.config.ts`, `package.json`), so those are safe to commit
+first; that was checked, not assumed.
+
+### ✅ TRE SENT FOUR NEW ASKS MID-SESSION. TWO BUILT, TWO FILED.
+* ✅ **`c154c4b0` - the Account section bar is icon-only and all five fit** (`44e28a03`).
+  Measured: track overflow **0px**, all five `clippedRight: false`, icons **13 -> 20**.
+  ⚠️ **Removing the label removes the ACCESSIBLE NAME** - each carries `aria-label` and
+  `title`. `check:account` FAILED with five segments named `""` and was right to; it now
+  reads the accessible name and ASSERTS IT IS NON-EMPTY. It also surfaced that **"Learn"
+  had never been in the marker list**, so that section had been going unasserted.
+* ✅ **`572e1a96` - the username wraps instead of truncating** (`44e28a03`'s sibling).
+  His shot read `@trefor...`. A handle is an IDENTIFIER and the app was hiding it from its
+  owner. ⚠️ **`check:truncation` does NOT cover it** - its 58 elements are bank account
+  names; the username was and still is outside it.
+* ⚠️ **`9d26e38c` - USERNAME SECURITY. FILED, NOT BUILT, AND IT IS THE BIGGEST OPEN ITEM.**
+  His words: bad-word filtering AND "cant be used as an entry point for attacks. same
+  protects as all the other entry points". Two halves: profanity/slur filtering on a
+  PUBLIC identifier that `follow_profiles()` shows to other people, and injection
+  hardening - length bound, charset allowlist, Unicode confusable/zero-width
+  normalisation, no interpolation anywhere it is rendered or looked up.
+  **CHECK BOTH SIDES: a client-only check on a public identifier is not a control.**
+  Start at `UsernameClaim.tsx` and the RPC behind it, and **enumerate the surface first**.
+  ⚠️ `useUsernameSuggestions.ts` records that `follow_profiles` was deliberately written so
+  it CANNOT enumerate - do not undo that while adding a checker.
+* **`3dc3ac4d` - the /account split I tried and REVERTED.** Run fraction 60% -> 34% (fixed
+  the defect) but **whitespace 16.8% -> 26.8%**, and p-4 recovered nothing (26.5%). My own
+  pair says whitespace must not rise materially and +10 is material, so I reverted rather
+  than relax the criterion to fit the result. **It also cuts against `d391e98b`, where he
+  says an Account-area page WASTES SPACE** - trading his rhythm complaint for his
+  emptiness complaint on one page is not progress. **Next attempt: TWO cards, not four.**
+
 ## Resume queue
 
-1. **THE BUILD. Check `gh run list --workflow=ios-build.yml`.** My 16:27 dispatch was
+1. **`9d26e38c` USERNAME SECURITY - the biggest open item and it is Tre's own words.**
+   See the detail above. Filed, not started.
+2. **THE BUILD. Check `gh run list --workflow=ios-build.yml`.** My 16:27 dispatch was
    CANCELLED by my own later pushes - `concurrency: cancel-in-progress: true`, and the
    workflow's own header documents that collision from 2026-08-11. **HAVE NOTHING LEFT TO
    PUSH WHEN YOU DISPATCH**; it is the PR rule wearing new clothes. `scripts/` and
@@ -9527,10 +9575,14 @@ tie, and a label claiming "we chose this to save you money" on one of those woul
 Several of the existing reasons ('Statement balance') are of that kind - descriptions of a
 setting, not of a choice - so **do not retrofit the money claim onto them.**
 
+
+
+</details>
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 12:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 12:41 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9541,16 +9593,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+35db2b73 [handoff]: the six-route table, and three settle fixes before any of it was trustworthy
+b6449301 [design]: a discarded warm-up, and the six-route run table
+45d07dee [design]: three agreeing reads, and check:page-rhythm now walks six routes
+a7bff947 [handoff]: the release-range fix, the reachability assertion, and a settle loop that agreed on a wrong state
+ab35f9fd [leaderboard]: assert the badge-count tab is REACHABLE, not merely typed
+d6b25264 [ci]: resolve the release range instead of inventing one, and stop Android publishing it
+57c64ffe [handoff]: both of Tre's gate decisions shipped, and the brief that named the wrong design
 c0598393 [budget]: split Income & Taxes into three cards, and give small text more weight
-46338c47 [leaderboard]: rank friends by badge count, as a fifth opt-in metric
-8c46e84c [handoff]: the achievements-ranking exposure question is measured, not left open
-5c7cc64d [handoff]: four shipped-and-unannounced items, and the one achievements part still unbuilt
-645a2eec [whats-new]: four things in build 956 that nothing told the user had arrived
-98b53cc4 [handoff]: the native glass bridge is built, gated green, and called by nothing
-3dd26abc [handoff]: the armed delete is gated, and my safety control lied about a deletion
-ef345567 [a11y]: measure the ARMED DELETE, the one destructive surface no gate could see
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
-
-</details>
