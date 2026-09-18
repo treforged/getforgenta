@@ -52,6 +52,36 @@ could never have matched this app's `.card-forged` cards, and **silently dropped
 positive control**. Together those print a confident **"0 facts in multiple sections"** on the
 page that has three - a clean bill of health from an instrument that could not see anything.
 
+### ✅ AND THE COST PASS GIVES HIS THREE "I'M NOT SURE"S AN ANSWER EACH (`measure-dashboard-cost.mjs`)
+17 top-level cards, 5,674px. What each one costs:
+
+    1292   830px  14.6%  Monthly Budget Snapshot
+    4046  1028px  18.1%  Advanced Analytics          <- the largest card on the page
+    5092   435px   7.7%  Debt - Recommended This Month
+    3521   347px   6.1%  Cash Flow Overview
+    3198   305px   5.4%  Current Net Worth (monthly change)
+    2971   209px   3.7%  Upcoming This Week
+    5545    67px   1.2%  Next lesson
+
+**ONE RECOMMENDATION EACH - he asked for a decision, not a menu:**
+* **Advanced Analytics → its own section of /account.** 18.1% of the page, larger than anything
+  else, answers none of "what needs to be paid next", and one of its four tiles (AVG MONTHLY
+  SPEND) renders no reading at all. **Same shape he approved TWICE this week** (Learn,
+  Achievements) - a precedent he set, not a new idea.
+* **Cash Flow Overview → /forecast**, where the rest of the time series lives. Lower priority:
+  347px is a sixth of Advanced Analytics.
+* **Monthly change (Current Net Worth) → KEEP.** 305px, the only direction-of-travel reading on
+  the page, and the one he says he likes a lot.
+Those two moves take the page from **6.7 screens to about 5.1**.
+
+⚠️ **I SETTLED A DISAGREEMENT BETWEEN MY OWN TWO PROBES RATHER THAN PICKING ONE.** The cost
+probe said Advanced Analytics is NOT premium-gated while the facts probe drops "Advanced
+Analytics" as unreadable. Read directly: **the card's text renders in full**, and its
+`blur(16px)` is `backdrop-filter` - the glass chrome EVERY `.card-forged` carries - not a
+premium gate. Both probes test `filter` and not `backdropFilter`, so both were right and
+**there is nothing gated here to report**. Do not repeat the premium-gate claim about this card.
+
+
 
 Three items shipped after the reset. Everything below is on origin, 0/0, verified by contents
 with a known-positive AND a negative control.
