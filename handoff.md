@@ -70,8 +70,15 @@ look wrong, which no contrast test could ever catch:
 `.text-destructive-text{color:var(--color-destructive-text)}` -> `hsl(var(--destructive-text))`
 -> 42% once and 66% twice.
 
-**NOT CLAIMED: no rendered frame.** The ratios are proven and the class resolves; neither says it
-LOOKS right, and neither covers red text on a `bg-destructive/10` tint rather than a plain card.
+✅ **AND THE RENDERED HALF IS NOW DONE TOO** - `npm run check:destructive-contrast`, committed,
+dark mode, 390x844, signed in, six routes: **26 destructive-coloured text elements, all 5.94:1,
+0 below AA**, against the 5.93:1 the arithmetic predicted. **Proven RED with the REAL pre-fix
+token at 26 of 26 below AA, 2.25:1** - **same population both ways**, which is what makes the
+green mean anything.
+**NOT CLAIMED, still:** error states and delete confirmations need interaction and are
+**unmeasured**, so the most important destructive surface in the app has not been looked at;
+and 0 of the 26 sit on a tint, so the `bg-destructive/10` case is **not covered either** - the
+compositing code exists, nothing on these routes exercises it.
 
 ### 🔍 TWO THINGS FOUND BY ARITHMETIC, AND ONE I RETRACTED
 * **MY OWN EDIT CORRUPTED ITS OWN EXPLANATORY COMMENT.** I wrote the `index.css` comment BEFORE
@@ -108,9 +115,15 @@ LOOKS right, and neither covers red text on a `bg-destructive/10` tint rather th
    fix is visible the moment Tre opens the app, where the destructive fix is only visible in an
    error state - so 956 was worth a slot and a second one is not. Apple caps uploads per day and
    this repo has burned that cap before.
-5. **THE DESTRUCTIVE SWEEP HAS NO RENDERED FRAME.** If a browser session happens anyway, the
-   cheap high-value look is red text on a `bg-destructive/10` tint - the one surface the
-   card/page/panel arithmetic does not cover.
+5. ✅ **DONE - the destructive sweep now HAS a rendered gate** (`check:destructive-contrast`).
+   **What survives, and it is the sharper half:** that gate **finds candidates by the FIXED
+   COLOUR**, so red text nobody repointed is a different colour and is **structurally invisible
+   to it**. It proves the repointed sites are legible; **it can never prove the sweep was
+   complete.** And error states are unexercised. If a browser session happens, drive a
+   validation error and a delete confirmation - that is where destructive red actually lives.
+6. ⚠️ **`check:dark-contrast` WALKS `/budget` ONLY.** It is the colour-blind sweep - the one
+   instrument that could catch red text the other gate cannot see - and it looks at one route.
+   Widening it is cheap and is the highest-value contrast work left.
 
 **PROBE HARNESS:** every browser measurement is `scripts/check-dark-contrast.mjs`'s preamble with
 its `page.evaluate` block swapped - it does sign-in, first-run dialogs and the theme. **Set the
