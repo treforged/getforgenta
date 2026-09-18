@@ -8527,6 +8527,30 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - HIS GROCERIES ASK WAS DONE IN 22 MINUTES, AND MY OWN QUERY NEARLY RAISED A FALSE ALARM ON HIS DATA
+
+### ✅ SIXTH SHIPPED-AND-NEVER-SHOWN - ask `349f59b8`, filed and closed in one turn
+He asked at **09:02** on 2026-09-17 to move groceries to the 19th. `recurring_rules`
+`0683bc28-acab-4e2f-8d9b-b23258061d80` reads `due_day=19`, `amount=230`, `monthly`, active,
+**`updated_at 13:03:44Z` - twenty-two minutes later.** I made no write. It was filed
+retrospectively because the request was still sitting **UNTRIAGED in the capture queue**, and in
+that queue **a done item and an untouched one look identical** - which is the same reporting
+failure as the four features, one layer earlier.
+
+### ⚠️ AND THE NEAR-MISS IS THE MORE USEFUL HALF: A COUNT OVER A MULTI-TENANT TABLE IS NOT A FACT ABOUT ONE USER
+My first query omitted `user_id`. It returned **38 active rows named Groceries**, most of them
+`$400 / monthly / day 1`, arriving in bursts of **seven identical timestamps on 07-15 and ten on
+07-29**. That is an extremely convincing picture of duplicate recurring rules multiplying in his
+REAL FINANCIAL DATA, and the obvious next action is deleting rows.
+**Measured before reporting: 38 rows across 17 DISTINCT USERS, and Tre owns exactly TWO** - the
+$230 rule above and `GF Half of Rent/Groceries` (`b81a2198`, income, ends 2027-08-31). **There is
+no duplication on his account.** The alarming number was my own unfiltered instrument.
+**This app is multi-tenant and every `recurring_rules` / `accounts` / `transactions` query needs
+`user_id` before its count means anything.** The burst timestamps even had an innocent
+explanation available - other people's sign-ups - and I nearly skipped past it because the shape
+matched a defect I already believed in. Same family as the 100% hit rate that was a broken join:
+**ask the instrument a question whose answer you already know before believing the scary one.**
+
 ## 2026-09-18 - Ada (31st, later) - THE CAUSE OF THE REPEATS IS WIRED, AND 949 DOES NOT CLOSE THE LOOP
 
 ### ⚠️ READ THIS BEFORE TELLING HIM 949 FIXES ANYTHING (Sam's call, and he is telling Tre himself)
