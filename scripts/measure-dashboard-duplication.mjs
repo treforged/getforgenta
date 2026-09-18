@@ -22,6 +22,20 @@
 //   min                 y=5380, 5568
 //   Oct 2026            y=1028, 1187
 //
+// ⚠️ CORRECTED THE SAME HOUR, AGAINST MY OWN REPORTING: "Advanced Analytics" TWICE IS NOT A
+// FINDING, and I had called it the most clearly actionable one. `PremiumGate` renders its
+// children BLURRED behind the teaser overlay when the account is not premium
+// (PremiumGate.tsx:32), so the widget's own <h3> sits illegible behind a frosted panel while the
+// gate's `title` prop shows in front. Both strings are in the DOM and only one is readable - and
+// for a PREMIUM user line 25 returns the children bare, so there is no repeat at all. The
+// reviewer account is not premium, which is the only reason it appeared.
+//
+// ⚠️ SO THIS PROBE COUNTS TEXT THAT IS DELIBERATELY UNREADABLE. It reads the DOM and checks
+// display/visibility/box size, none of which see `blur-sm`, an opacity overlay, or a parent that
+// covers the text. Before believing any row above, CHECK WHETHER ONE OF THE TWO SITS BEHIND A
+// GATE OR AN OVERLAY. That is the instrument's main blind spot and it produced a false lead
+// within an hour of being written.
+//
 // ⚠️ THE FIGURES DEPEND ON THE REVIEWER ACCOUNT'S DATA, so the y positions and the strings
 // will differ on another account. What is reusable is the METHOD, not this table.
 //
