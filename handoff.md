@@ -8527,6 +8527,49 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - THE FULL SWEEP: `/budget` IS MEASURABLY THE DULLEST ROUTE IN THE APP
+
+### THE COMPARATIVE NUMBER, 4 routes x 2 widths, dark, whole document
+| width | route | text els | coloured | coloured AREA |
+| --- | --- | --- | --- | --- |
+| 390 | **/budget** | 62 | 12 (19.4%) | **0.2%** |
+| 390 | /dashboard | 164 | 44 (26.8%) | 0.7% |
+| 390 | /debt | 124 | 25 (20.2%) | 1.3% |
+| 390 | /forecast | 90 | 25 (27.8%) | 1.3% |
+| 1440 | **/budget** | 58 | 10 (17.2%) | **0.1%** |
+| 1440 | /dashboard | 160 | 42 (26.3%) | 0.3% |
+| 1440 | /debt | 119 | 23 (19.3%) | 0.8% |
+| 1440 | /forecast | 89 | 23 (25.8%) | 0.5% |
+
+**`/budget` is the least colourful route at BOTH widths, by a factor of 4 to 13 on coloured area,
+and it is the page he complained about (`d391e98b`).** That is the first thing in this family that
+is comparative rather than absolute - *"dull"* against the app's own other screens, not against a
+number I picked. **It also joins his two asks: the page complaint and the dark-mode complaint are
+the same measurement at different scopes.**
+**The app-wide palette in use:** gold `rgb(201,162,64)` 115x, success green 60x, destructive red
+54x, info blue 8x. **Colour is used - just not here.**
+
+### ⚠️ INSTRUMENT LIMITS, AND ONE OF THEM IS SERIOUS
+* **`document.documentElement.scrollHeight` equals the VIEWPORT height on every route** (844 / 900).
+  The app scrolls an INNER container, so my document-scroll loop ran effectively once at y=0. The
+  inner-container sweep did run and did mount content elsewhere (dashboard 62 -> 164 elements), but
+  **on `/budget` the count did not move at all**, so I cannot claim its below-fold content was
+  measured. **`/budget`'s figure may be a first-viewport number wearing a whole-page label** - the
+  exact error I corrected an hour ago, in a new costume.
+* The coloured bar is saturation > 0.35, chosen because `--foreground` is a blue-tinted near-white
+  at 0.30 and a lower bar counts ordinary body text as colour.
+* Area counts only elements that PAINT a background; text colour is counted separately.
+* One account, one theme, no frames read by eye.
+
+### ⛔ STILL NO COLOUR CHANGE, AND THE REASON HAS CHANGED
+Not "my sample is too small" any more - it is that **the strongest candidate fix is probably not
+colour at all.** Sam's read, and it is right: if the colour lives below the fold, the fix may be
+ORDERING - surfacing meaning that already exists - and **a reorder that surfaces existing meaning
+beats new colour that has to earn its meaning from scratch.** Every candidate still has to answer
+*"what does this colour now fail to tell the user?"*
+**NEXT:** fix the scroll driver to target the app's real scroll container before trusting any
+`/budget` below-fold figure, then read actual frames.
+
 ## 2026-09-18 - Ada - `a58fb610` VIBRANCY: THE PALETTE IS NOT DULL, ITS USE IS - AND MY FIRST NUMBER WAS A PARTIAL SAMPLE
 
 ### THE MEASUREMENT, WITH THE CORRECTION ATTACHED
