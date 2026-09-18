@@ -7,6 +7,7 @@
 // same tagging; the Tier-A golden test uses the reviver to reconstruct the exact input object.
 
 import type { ForecastInputs } from '@/lib/forecast-engine';
+import { PROJECTION_LOCAL_KEYS, type ProjectionLocalState } from '@/lib/projection-local-keys';
 
 export interface ForecastCapture {
   /** ISO timestamp of when the snapshot was taken. The engine reads `new Date()` internally, so
@@ -16,6 +17,21 @@ export interface ForecastCapture {
    *  of UTC, so EDT is 240). Optional because captures predate the field; see
    *  {@link CAPTURE_TIMEZONE} for what happens when it is missing. */
   capturedTzOffsetMinutes?: number;
+  /**
+   * THE BROWSER-LOCAL FORECAST INPUTS AT CAPTURE TIME. Optional only because captures predate the
+   * field; {@link assertComparablePayoff} refuses to compare a payoff month without it.
+   *
+   * ⚠️ WITHOUT THIS A PAYOFF MONTH IS NOT A COMPARABLE QUANTITY, measured 2026-09-17 on Tre's own
+   * 31-Aug rows with the clock pinned: `pause-savings` moves the debt-free month FIVE months
+   * (29 -> 24) and the funding account moves it TWO (29 -> 27), while `safeToPayTotal` holds at
+   * 229.89 throughout. The golden capture's stored 26 is reproduced by NO configuration of the
+   * code that produced it - the reachable set is {24, 27, 29} - because these three values live
+   * in one browser and a raw Supabase dump carries database tables only.
+   *
+   * That is why fourteen passes chased a phantom: the figure everyone compared is insensitive to
+   * exactly the inputs that were missing, so the comparison looked sound and was not.
+   */
+  capturedLocalState?: ProjectionLocalState;
   inputs: ForecastInputs;
 }
 
@@ -38,9 +54,12 @@ export function forecastFixtureReviver(_key: string, value: unknown): unknown {
 export function serializeForecastCapture(
   inputs: ForecastInputs,
   capturedAt: string = new Date().toISOString(),
+  /** Defaults to reading the live browser/jsdom store, so a caller cannot forget to pass it. */
+  capturedLocalState: ProjectionLocalState = readProjectionLocalState(),
 ): string {
   const capture: ForecastCapture = {
     capturedAt,
+    capturedLocalState,
     // Recorded so the capture can be REPLAYED at the wall clock it was taken at, in any
     // timezone. See captureClock below for why this is the difference between a green suite
     // and a $799 phantom divergence.
@@ -133,4 +152,66 @@ export function captureClock(capture: ForecastCapture): Date {
     wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(),
     wall.getUTCHours(), wall.getUTCMinutes(), wall.getUTCSeconds(), wall.getUTCMilliseconds(),
   );
+}
+
+
+/**
+ * Reads the provider's browser-local forecast inputs, through the SHARED key constant so this and
+ * `CardProjectionProvider` cannot drift. Returns `null` for a key that is simply not set, which is
+ * a real state (the default) and must be told apart from "not recorded" - the whole object being
+ * absent is what "not recorded" means.
+ */
+export function readProjectionLocalState(): ProjectionLocalState {
+  const out: ProjectionLocalState = {};
+  for (const [name, key] of Object.entries(PROJECTION_LOCAL_KEYS)) {
+    try {
+      out[name as keyof ProjectionLocalState] = localStorage.getItem(key);
+    } catch {
+      // A blocked store must not take a capture down; the field stays absent, which
+      // `assertComparablePayoff` treats as not-recorded rather than as a default.
+      return {};
+    }
+  }
+  return out;
+}
+
+/**
+ * Seeds a capture's browser-local inputs into the current store, so a replay reproduces the
+ * machine the capture came from rather than the harness's defaults.
+ */
+export function applyProjectionLocalState(state: ProjectionLocalState | undefined): void {
+  if (!state) return;
+  for (const [name, key] of Object.entries(PROJECTION_LOCAL_KEYS)) {
+    const value = state[name as keyof ProjectionLocalState];
+    try {
+      if (value === null || value === undefined) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch { /* see readProjectionLocalState */ }
+  }
+}
+
+/**
+ * ⛔ REFUSES A PAYOFF-MONTH COMPARISON THE CAPTURE CANNOT SUPPORT.
+ *
+ * A capture taken before `capturedLocalState` existed does not record what the browser held, and
+ * the measurement above says those values move the debt-free month by up to five months. So
+ * comparing a payoff figure across such a capture is not a weak comparison, it is an INVALID one -
+ * and the failure is silent, because the numbers look perfectly ordinary.
+ *
+ * It THROWS rather than warning. A warning on a real financial figure is a line in a log nobody
+ * reads, and this repo has already measured what a report with no route to an exit code is worth.
+ * `safeToPayTotal` and the other month-0 figures are unaffected and are deliberately NOT gated
+ * here - they held at 229.89 across all twelve configurations, so gating them would be crying
+ * wolf on a comparison that IS valid.
+ */
+export function assertComparablePayoff(capture: ForecastCapture, label = 'this capture'): void {
+  if (!capture.capturedLocalState) {
+    throw new Error(
+      `Refusing to compare a payoff month from ${label}: it carries no capturedLocalState, so the `
+      + `browser-local inputs are unknown. Measured 2026-09-17, those move the debt-free month by `
+      + `up to 5 months (pause-savings 29->24) while leaving safeToPayTotal at 229.89, so a payoff `
+      + `comparison across this capture is invalid rather than merely uncertain. Recapture it, or `
+      + `compare a month-0 figure instead.`,
+    );
+  }
 }

@@ -10,6 +10,7 @@ import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { buildAutoMatchedOccurrences, mergeConfirmedOccurrences } from '@/lib/auto-matched-occurrences';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { PROJECTION_LOCAL_KEYS } from '@/lib/projection-local-keys';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
 import { useForecastEngineInputs, type ForecastEngineInputsBundle } from '@/hooks/useForecastEngineInputs';
 import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
@@ -88,9 +89,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   const { items: plaidItems } = usePlaidItems();
 
 
-  const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
-  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
-  const [persistedDebtFundingId] = usePersistedState<string>('tre:debt:fundingAccount', '');
+  const [pauseSavings, setPauseSavings] = usePersistedState<boolean>(PROJECTION_LOCAL_KEYS.pauseSavings, false);
+  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>(PROJECTION_LOCAL_KEYS.debtStrategy, 'avalanche');
+  const [persistedDebtFundingId] = usePersistedState<string>(PROJECTION_LOCAL_KEYS.debtFundingAccount, '');
 
   const [assumptions, setAssumptionsState] = useState<AssumptionsType>(DEFAULT_ASSUMPTIONS);
   const assumptionsLoaded = useRef(false);
