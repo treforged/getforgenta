@@ -1291,8 +1291,25 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           </>}
         </div>
 
-        {/* Income inputs — frequency, tax rate, payday */}
-        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        </>}
+      </div>
+
+      {/* PAY SCHEDULE — its own card since 2026-09-18, split from Income & Taxes at the
+          `border-t` that already divided them (Tre: "yes" to f22ae273).
+          ⚠️ THE MEASUREMENT THAT DECIDED THE SHAPE, not taste: /budget was ONE unbroken painted
+          run of 1121px - 48% of the whole page, against /dashboard's 18% - while its whitespace
+          was 16.5% against /dashboard's 17.5%. So the page was never EMPTY, and the tempting
+          fix of widening the dividers would have bought rhythm by ADDING the emptiness that
+          measurement had already refuted. Breaking the run into real surfaces costs no space.
+          `npm run check:page-rhythm` holds both halves of that pair.
+          ⚠️ THE COLLAPSE IS RE-OPENED AROUND BOTH NEW CARDS ON PURPOSE. These two sections sat
+          INSIDE `!incomeSectionCollapsed`, so lifting them to siblings without this wrapper
+          would render them while the section reads as collapsed - a split that silently changes
+          behaviour rather than only layout. */}
+      {!incomeSectionCollapsed && <>
+      <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
+        <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Pay Schedule</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-xs sm:text-sm text-muted-foreground uppercase">Pay Frequency</label>
             <select value={payFrequency} onChange={e => setPayFrequencyAuto(e.target.value as PayFrequency)}
@@ -1333,7 +1350,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t border-border">
+      </div>
+
+      {/* WHAT EACH PAYCHECK IS WORTH — the second half of the same split. */}
+      <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
+        <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Per Paycheck</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
@@ -1369,8 +1391,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   </p>
 </div>
       </div>
-        </>}
       </div>
+      </>}
 
       {/* The rules the bank history implies, for a user who has linked something since setting up.
           Renders NOTHING when there is nothing to offer — never a "0 patterns" card, and never a

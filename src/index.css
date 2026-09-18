@@ -1160,6 +1160,25 @@ so size and variant are separated here and the 44px floor is stated once.
   button, a, select, input, textarea, [role="button"], [role="tab"], [role="switch"] {
     touch-action: manipulation;
   }
+
+  /* SMALL TEXT CARRIES A LITTLE MORE WEIGHT (Tre, 2026-09-18: "plus bolder small text").
+     He asked for it after the dark-mode contrast fix, and the two are the same complaint: the
+     small grey type was hard to read. Colour was the measurable half and is done
+     (--muted-foreground 4.19:1 -> 7.80:1). Weight is the half a ratio cannot judge.
+
+     WRAPPED IN `:where()` SO IT HAS ZERO SPECIFICITY. `.text-xs` and `.font-bold` are both
+     single classes, so a plain `.text-xs { font-weight: 500 }` would be decided by Tailwind's
+     emission order rather than by intent - and on the runs where font-size lost, it would have
+     silently DE-bolded text somebody had deliberately made bold. At zero specificity any
+     explicit `font-*` utility wins, always, which is the behaviour anyone reading this expects.
+     The `:not` is belt and braces for the same thing and makes the intent greppable.
+
+     ⚠️ IT IS 500, NOT 600. Medium is one step, and weight shifts line breaks on every screen at
+     once; `check:page-rhythm` is what proves it did not cost layout. Semibold on every caption
+     in the app would make nothing stand out, which is the opposite of the ask. */
+  :where(.text-xs):not([class*="font-"]) {
+    font-weight: 500;
+  }
 }
 
 @layer utilities {
