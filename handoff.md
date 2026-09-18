@@ -8549,7 +8549,31 @@ the same measurement at different scopes.**
 **The app-wide palette in use:** gold `rgb(201,162,64)` 115x, success green 60x, destructive red
 54x, info blue 8x. **Colour is used - just not here.**
 
-### ⚠️ INSTRUMENT LIMITS, AND ONE OF THEM IS SERIOUS
+### ✅ THE SERIOUS CAVEAT IS RETIRED BY MEASUREMENT - THE TABLE ABOVE IS WHOLE-PAGE AFTER ALL
+I recorded that `/budget`'s figure might be a first-viewport number wearing a whole-page label,
+because `documentElement.scrollHeight` equalled the viewport and its element count never moved.
+**Measured against the app's REAL scroller (`#scroll-main`, which `MobileNav.tsx` already documents
+and which `window.scrollTo` silently fails to move):**
+
+    390px   scroller 2322px tall in a 790px box, driven in 4 passes
+            before 62 text els / 12 coloured / 0.19%    after IDENTICAL
+    1440px  scroller 1509px tall in a 843px box, driven in 3 passes
+            before 58 text els / 10 coloured / 0.08%    after IDENTICAL
+
+**The page is 2.9 viewports tall and scrolling it changes NOTHING, because `querySelectorAll` and
+`getBoundingClientRect` see the whole DOM - this page has no virtualisation and nothing mounts
+lazily.** So the sweep was already whole-page; the scroll it never performed was never needed.
+**The dashboard's 62 -> 164 rise was the ROUTE CHANGE, not scrolling.** I had attributed it to the
+scroll and built a doubt on top of that attribution.
+⚠️ **A STALE BLOCKER IS THE MOST EXPENSIVE FALSE STATEMENT, so it gets retired rather than left to
+look cautious.** `/budget` really is the dullest route in the app, whole page, at both widths.
+
+### ⚠️ THE REAL INSTRUMENT LIMITS, none of them serious
+* The coloured bar is saturation > 0.35, chosen because `--foreground` is a blue-tinted near-white
+  at 0.30 and a lower bar counts ordinary body text as colour.
+* Area counts only elements that PAINT a background; text colour is counted separately.
+* One account, one theme, and **no frame has been read by eye** - this is all numbers so far.
+
 * **`document.documentElement.scrollHeight` equals the VIEWPORT height on every route** (844 / 900).
   The app scrolls an INNER container, so my document-scroll loop ran effectively once at y=0. The
   inner-container sweep did run and did mount content elsewhere (dashboard 62 -> 164 elements), but
