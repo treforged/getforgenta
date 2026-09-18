@@ -2,6 +2,49 @@
 
 ## ⚠️ START HERE - 2026-09-17 (Ada, THIRTIETH session)
 
+### ✅ THE PROOF RAN. 229.89 IS A FACT ABOUT THE CODE, NOT ABOUT THE BROWSER
+**Twelve passes of inference are now one measurement.** Worktree at `e43ea164`
+(2026-08-31T20:08:33-04:00, **twelve minutes before the capture instant**), `npm ci`, the
+IDENTICAL probe file in both trees so the only variable is the code.
+
+| arm | tree | zone | offset | safeToPayTotal | payoff |
+| --- | --- | --- | --- | --- | --- |
+| **A** | 2026-08-31 | Eastern | 240 | **229.89** | 29 |
+| **B** | today | Eastern | 240 | **99.89** | 28 |
+| **C** | 2026-08-31 | UTC | 0 | 1551.215 | 22 |
+| **D** | today | UTC | 0 | 1551.215 | 22 |
+
+**A MATCHES THE BROWSER CAPTURE TO THE PENNY, REPRODUCED OFFLINE IN JSDOM WITH NO BROWSER AT
+ALL. AND C DIFFERS FROM A, so the zone control discriminates and A is attributable to the CODE.**
+A alone would not have been - that was the whole reason for the pair.
+**So the browser-versus-harness instrument gap is RETIRED.** There was never a capture-pipeline
+problem on this figure; it was **old code against today's code**. The newer number is the correct
+one and the golden fixture is **stale by seventeen commits**.
+**The zone was ASSERTED, never trusted** - offset 240 in the Eastern arms and 0 in the UTC arms,
+because this machine has already had `TZ` silently fail to apply and an impossible agreement read
+as corroboration.
+
+### ⚠️ THE FOURTH FACT NOBODY ASKED FOR, AND IT IS THE MOST CONSEQUENTIAL
+**C == D TO THE LAST DIGIT** (`1551.2149999999997`), on the money **and** on the payoff (22).
+**Under UTC the old tree and today's tree are indistinguishable.** So the entire code change
+between 08-31 and today is **invisible under UTC - and CI runs in UTC.**
+**No CI run could ever have observed this change.** That reframes the timezone limit on
+`5409ffbc` from fixture hygiene into something sharper: the zone does not merely decide which
+number gets pinned, it decides **whether a money change is observable at all.**
+
+### ⚠️ HONEST NON-RESULT: THE PAYOFF HALF DID NOT REPRODUCE, AND I AM NOT CLAIMING IT
+The prediction was **26** for arm A. I measured **29**, with today's tree at **28** against a
+recorded pair of 24/26. **The DIRECTION is consistent** - old code pays off later than new - **but
+the magnitudes are not, so my payoff instrument is NOT validated.** Do not quote 22/28/29 as the
+24/26 figures. I read `forecastRevolvingPayoffMonth` / `simRevolvingPayoffMonth` straight off
+`cardProjection`; the earlier passes may have derived theirs another way or from another path.
+**That is the one thing still open on this card, and it is an INSTRUMENT question rather than a
+money one.** Settling it means finding how 24/26 were originally derived.
+
+**Probe and worktree are both removed** - the probe was never committed, and `git worktree remove`
+plus `prune` is verified by `git status` showing only this file.
+
+
 **THE INSTAGRAM BIO LINK IS LIVE, SO `/` IS NOW A REAL ACQUISITION SURFACE.** Tre photographed
 its first screen in Instagram's in-app browser and reported three defects. All three are fixed,
 a FOURTH was found while reading the rendered frame, and the whole screen is now gated in a real
@@ -8048,7 +8091,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 21:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 23:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -8059,14 +8102,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+1c94e62b [handoff]: the signed-out-write class was swept, and the negative is bounded and stated
+6f6b2b59 [handoff]: the landing page is an acquisition surface now, and jsdom could never see it
+51976d34 [landing]: let the first-screen gate read the DEPLOYED page, not only the committed one
+3447448f [landing]: the first screen an Instagram arrival gets, measured in a browser at phone width
 dbc50884 [handoff]: record the stated-limit rule as a RECURRENCE, not a new finding
 61308d38 [handoff]: the fixes shipped and the complaint survived them - a stated limit is a to-do
 3ce4d20a [notifications]: seven a week, because five could never reach a daily rhythm
 9c36fc55 [accounts]: a fixed flex-basis made the action row wrap on every account, however short the text
-81c84535 [handoff]: the proof needs a zone control, or it cannot discriminate
-1f0ca4ca [handoff]: harden fact 3, and state the limit it cannot pass
-fc2afd8c [handoff]: the premise was wrong - this is old code against new code, not browser against harness
-b14d9bfb [handoff]: every input is identical and the output still differs - that is the finding
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
