@@ -92,6 +92,49 @@ The preview had cut **1277 characters**, and they contained a second, unrelated 
   is that gate's own 1.0x reference. His complaint is about WHAT IS ON the page, not its spacing.
 
 
+### ✅ iOS BUILD 974 IS IN TESTFLIGHT (run 35386116818, head 48eee436)
+Carries the invite-code placeholder fix (`39bab44b`) and the third /account card (`48eee436`).
+Verified four ways: upload step conclusion `success` not `skipped`; altool's own `UPLOAD
+SUCCEEDED with no errors` with a 46-hit positive control on the grep; all three `90382` hits
+carrying the ANSI prefix of an echoed `run:` block; ancestry with a negative control (`9cbe70e2`
+correctly NOT in it). **An upload, not an install.**
+⚠️ My first pass at the 90382 check used a shell ANSI filter that returned the OPPOSITE answer
+to the same check an hour earlier. The escape was wrong, not the log - I read the three lines
+instead. That check is the one standing between a real rate limit and a false all-clear.
+
+### 🔍 `c067a189` MOVE FUND - REPRODUCED, and the reproduction changes the fix
+`src/lib/__tests__/movefund-floor.measure.test.ts`, on his real capture at his real floor (2500):
+
+    Aug 2558 | Sep 2381 UNDER | Oct 2712 | Nov 2500 | Dec 2502 | Jan 2502
+
+⚠️ **HIS WORDS ARE NOT LITERALLY REPRODUCED AND THE SUBSTANCE IS.** He said Oct/Nov/Dec drop
+below. Only SEPTEMBER does, and its cause is a ONE-TIME expense rather than the move fund.
+Oct/Nov/Dec sit exactly AT the floor - and what the engine sacrifices to hold that line is his
+move-fund contribution, **cut from 510 to 279 in November**. He is right about the pressure and
+slightly off about the symptom. **Do not report those months as clean and do not tell him he
+misread it.**
+
+⚠️ **THE ENGINE ALREADY SCALES THE CONTRIBUTION**, which is most of what he asked for. So the
+fork is not whether to scale, it is WHICH SIDE GIVES: (a) keep the 2027-07-03 target and cut the
+monthly, which is today's behaviour and is INVISIBLE to him, or (b) hold a lower monthly and let
+the date move later, which is what "scale to be a little bit later" most plainly reads as. My
+recommendation is (b) plus visibility - the thing he is actually feeling may be that the plan
+still presents $510/mo while the engine quietly pays $279.
+
+**BEFORE ANY BUILD:** the capture is 2026-09-01 and he said "right now" on 09-17, so take a
+FRESH capture - the months may have moved. And the harness fidelity control does not fully pass
+(fresh sim payoff month 25 against the capture's 26), so the dollars are close, not exact.
+
+⚠️ **MY FIRST RUN WAS MEANINGLESS AND ONLY SAID SO BECAUSE I CHECKED.** The capture's
+top-level `cashFloor` is **0** while his profile says **2500** - a floor of zero cannot be
+breached, so the run was green about a question it had never asked. The test now refuses a
+non-positive floor. I also nearly filed a defect that was my own grep: "floor-breach milestones
+(none)" beside a `belowSafeMinimum` row contradicts the engine's own comment, and printing every
+milestone showed the real one reads "One-time expense caused floor breach". They agree.
+
+⚠️ **AND `forecast-convergence.realData.test.ts` PRINTS THAT FIDELITY CONTROL AND NEVER
+ASSERTS IT**, so it has been green over the same 25-vs-26 drift. Worth a look on its own.
+
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
 
 1. **`403dd5d8` - THE DASHBOARD REORGANISATION, part 1 only: FIND THE DUPLICATION.** It is the
@@ -9976,7 +10019,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 13:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 15:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9987,14 +10030,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+d071b80c [dashboard]: correcting myself - "Advanced Analytics" twice is not a finding
+9cbe70e2 [dashboard]: measure what the Overview actually shows twice, before moving anything
+3a521340 [handoff]: placeholders gated and fixed, /account cleared, Learn retired as already shipped
+48eee436 [account]: a third card clears the ceiling - /account 2.5x -> 1.8x, whitespace still flat
+39bab44b [account]: the invite-code question is a label now, and placeholders have a gate at last
 8d59c87a [handoff]: d018ab32 placeholder clipping is item 0, enumerated but deliberately not started
 75e096a3 [handoff]: build 970 verified four ways, username security shipped, /account 60% -> 46%
 f5c1dc96 [account]: two cards, not one slab - /account's run 60% -> 46% with whitespace flat
-48b491a8 [security]: the username reserved list had no server side, and now bad words have one too
-aa6555f8 [handoff]: username security is item 1, with the enumeration I got before the gate
-b509b0c8 [handoff]: build 967 verified, four new asks from Tre, two built and two filed
-b9e2e79e [account]: a username is an identifier, so it wraps instead of truncating
-44e28a03 [account]: icon-only section bar, every section visible at once, icons 13 -> 20
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
