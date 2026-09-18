@@ -345,9 +345,12 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
    visible would lose the row entirely, and `transactions_spending` is already defaulted off.
    ⚠️ He is explicitly UNSURE on advanced analytics, cash flow review and monthly change, so
    those are HIS decisions - ONE recommendation each with the inventory attached, never a menu.
-   Goal progress he calls "pretty good": leave it. `DashboardCustomizer` (`Dashboard.tsx:1842`)
-   he floated removing - measure what removal does to an existing SAVED layout first, and note
-   that only 2 of 33 profiles have one.
+   Goal progress he calls "pretty good": leave it.
+   ✅ **PART 3 IS DECIDED AND THE ANSWER IS NO, NOT YET** - measured 2026-09-18. Only 2 of 33
+   profiles have a saved layout and Tre is one of them; "Reset to defaults" lives INSIDE
+   `DashboardCustomizer` (`:121`) and is the only route to it, so removing it would lock him
+   into the overloaded layout he is asking us to fix. He resets first (`3aa4f935`), removal is
+   safe afterwards. **Do not re-open this as an open measurement - it has been made.**
    ⚠️ **DO NOT REACH FOR `check:page-rhythm`** - /dashboard is that gate's own 1.0x reference.
    Use `node scripts/measure-dashboard-facts.mjs`; it prints the section inventory in page order.
 
