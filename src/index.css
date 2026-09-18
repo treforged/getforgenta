@@ -817,7 +817,28 @@ so size and variant are separated here and the 44px floor is stated once.
     --secondary: 0 0% 15%;
     --secondary-foreground: 214 32% 91%;
     --muted: 0 0% 15%;
-    --muted-foreground: 240 4% 46%;
+    /* 64%, NOT 46%, AND IT IS A MEASURED ACCESSIBILITY FAILURE RATHER THAN A PREFERENCE.
+       Tre, 2026-09-18: "some of the text is very dull compared to the background ... it should be
+       white instead because it's kind of hard to read", and separately that dark mode "looks a
+       little dull and boring".
+       MEASURED: the old value on a 0 0% 2% background was 4.19:1 - BELOW the WCAG AA floor of
+       4.5:1 for normal text. Light mode is 6.05:1 and passes, which is why only the dark tokens
+       move here; "fix" the light one too and the next complaint is the opposite one.
+       WHY NOT 48%. That is the first value clearing AA, at 4.50:1 - a limit that barely binds is
+       not a limit that is harmless, and any future background tweak reopens it. This value reads
+       7.80:1, clearing AAA, and still leaves a real hierarchy: --foreground is 16.37:1, so primary
+       and secondary text stay two visibly distinct levels instead of collapsing into one. Actual
+       white would have flattened that distinction, which is what makes a dense money screen
+       readable at all.
+       AND IT MOVES ICONS TOO, the other half of what he asked for: the row-action glyphs and most
+       inline icons inherit `text-muted-foreground`, so they were failing the same measurement. He
+       asked whether bold would help - deliberately NOT applied globally, because colour alone
+       carries this from 4.19 to 7.80 and weight is a separate lever that would shift layout on
+       every screen at once.
+       ⚠️ `--graphite` DELIBERATELY KEEPS THE OLD VALUE. It happens to share the old number and is
+       a different token with different callers; my first pass changed it by a careless whole-file
+       replace, which is exactly how an unrelated colour moves without anyone deciding to. */
+    --muted-foreground: 240 4% 64%;
     --accent: 0 0% 15%;
     --accent-foreground: 214 32% 91%;
     --destructive: 0 73% 35%;
@@ -970,7 +991,28 @@ so size and variant are separated here and the 44px floor is stated once.
     --secondary: 0 0% 15%;
     --secondary-foreground: 214 32% 91%;
     --muted: 0 0% 15%;
-    --muted-foreground: 240 4% 46%;
+    /* 64%, NOT 46%, AND IT IS A MEASURED ACCESSIBILITY FAILURE RATHER THAN A PREFERENCE.
+       Tre, 2026-09-18: "some of the text is very dull compared to the background ... it should be
+       white instead because it's kind of hard to read", and separately that dark mode "looks a
+       little dull and boring".
+       MEASURED: the old value on a 0 0% 2% background was 4.19:1 - BELOW the WCAG AA floor of
+       4.5:1 for normal text. Light mode is 6.05:1 and passes, which is why only the dark tokens
+       move here; "fix" the light one too and the next complaint is the opposite one.
+       WHY NOT 48%. That is the first value clearing AA, at 4.50:1 - a limit that barely binds is
+       not a limit that is harmless, and any future background tweak reopens it. This value reads
+       7.80:1, clearing AAA, and still leaves a real hierarchy: --foreground is 16.37:1, so primary
+       and secondary text stay two visibly distinct levels instead of collapsing into one. Actual
+       white would have flattened that distinction, which is what makes a dense money screen
+       readable at all.
+       AND IT MOVES ICONS TOO, the other half of what he asked for: the row-action glyphs and most
+       inline icons inherit `text-muted-foreground`, so they were failing the same measurement. He
+       asked whether bold would help - deliberately NOT applied globally, because colour alone
+       carries this from 4.19 to 7.80 and weight is a separate lever that would shift layout on
+       every screen at once.
+       ⚠️ `--graphite` DELIBERATELY KEEPS THE OLD VALUE. It happens to share the old number and is
+       a different token with different callers; my first pass changed it by a careless whole-file
+       replace, which is exactly how an unrelated colour moves without anyone deciding to. */
+    --muted-foreground: 240 4% 64%;
     --accent: 0 0% 15%;
     --accent-foreground: 214 32% 91%;
     --destructive: 0 73% 35%;
