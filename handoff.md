@@ -8305,10 +8305,37 @@ installed. He still has to update.
 design half of `d391e98b` is NEEDS TRE and could sit for days, while four user-visible
 fixes were on main and unreachable from his phone. One slot, four fixes. Sam's intent was
 to avoid spending three slots, not to block on a Tre-gated item.
+
+
+## 2026-09-18 - Ada - blocked-item re-tests, and the build is QUEUED not built
+
+**`798c0ed9` RE-TESTED TODAY AND THE PREMISE HOLDS - MEASURED, NOT ASSUMED.** `follows`
+is **0 rows, 0 distinct followers**, against **33 profiles (7 onboarded)**. The 33 is the
+positive control in the same read: the query demonstrably reaches real tables, so the zero
+is about participation rather than about a broken reader. The deferral stands.
+
+**THE OTHER THREE WERE RE-TESTED 2026-09-17 AND I DID NOT RE-RUN THEM TODAY** - saying so
+rather than implying a fresh measurement. `b573d720` (no App Store sale), `5409ffbc`
+(the 31-Aug capture still lacks the field), `6237167a` (built, gated, reverted on
+measurement). **Each is a CLAIM until re-tested; the next session should re-test rather
+than inherit them.**
+
+⚠️ **THE iOS RUN `35354664800` WAS STILL `pending` WHEN THIS SESSION ENDED - QUEUED, NOT
+BUILT.** Nothing is in TestFlight and nobody may say otherwise yet.
+**FIRST ITEM FOR WHOEVER PICKS THIS UP** - not a watch, because a watch dies with the
+session that armed it:
+  1. `gh run view 35354664800 --json jobs` -> **step 20's OWN conclusion must be `success`,
+     never `skipped`.**
+  2. Then altool's own words: **`UPLOAD SUCCEEDED with no errors`** - the step swallows
+     Apple's 90382 daily-cap error and still exits green.
+  3. Name the **iOS** build number (`run_number + 100`), never Android's.
+⚠️ **AND DO NOT READ RUN `35354094319` or `35354628088`.** Those are PUSH runs on the same
+SHA; their upload step is `skipped` by design and they end **GREEN**. `35354094319` already
+reads `completed / success` and has sent nothing anywhere.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 09:48 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 10:12 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -8319,14 +8346,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+7319cc2a [handoff]: the iOS build is dispatched and NOT yet verified
+43c8d6d5 [debt]: pin the "next payment $0" shape he reported, and two re-aims to make it discriminate
+6f8b3fc1 [budget]: a date wrapped as "Starts 2026-10-" / "01", and overflow-wrap was never the cause
+bbfb7d70 [budget]: "/mo $0" beside a live recurring expense, on every non-monthly interval
 8ac0aee7 [transactions]: one stray link vetoed a settled habit for ever, so it kept asking
 ac4d7b73 [handoff]: the rest of the landing page is clean, and its one finding was a false positive
 1b7c26a5 [handoff]: the notes-coverage gap is closed, and I hit the pipe trap verifying it
 1b39d733 [release-notes]: a user-visible commit that tells the customer nothing is now findable
-6dbd46be [handoff]: four repeated asks were already shipped, and a missing trailer is why he never knew
-34d21451 [handoff]: 5409ffbc limit 1 shipped, and the import that broke six suites is recorded
-cec2fe7b [forecast]: a capture that cannot support a payoff comparison now refuses one
-60f4a9c9 [forecast]: the payoff month is under-determined by the dump - neither instrument was wrong
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
