@@ -1,6 +1,48 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## ⚠️ START HERE - 2026-09-17 (Ada, THIRTIETH session)
+## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-FIRST session)
+
+### RESUME QUEUE - short on purpose, this is injected into every session here
+1. **`ba24b44a` - TRE'S TASTE CALL, do not pre-empt it.** Split `Income & Taxes` into separate
+   cards at its existing `border-t` boundaries? My recommendation is YES. **Acceptance is a PAIR:
+   band count on `/budget` rises toward dashboard's density AND whitespace stays near 5.8%.**
+2. **`a58fb610` / `d391e98b`** - everything measurable is DONE. See the refutations below before
+   re-opening either; two obvious theories are already dead.
+3. **Ask Tre whether he wants the small text BOLDER** now the colour is fixed. He hedged
+   ("maybe"), I deliberately did not apply it, and it is one line if he says yes.
+4. **Nothing today is on a BUILD.** The contrast fix, the What's New entry, the guide fix and the
+   accessible names are all on origin only. **A dispatched iOS run is what puts them on his phone**,
+   and Apple caps uploads per day - Sam held the second one today.
+
+### ⛔ REFUTED TODAY - DO NOT RE-TRY THESE, they cost a window each
+* **"The tab-to-card gap makes `/budget` look empty."** DEAD. 54px there; `/dashboard` 14,
+  `/debt` 128, `/forecast` 198. It is MID-RANGE.
+* **"`/budget` is unusually empty."** DEAD. Whitespace 5.8% of content against `/dashboard`'s 5.1%.
+* **"Dark mode is dull because the palette is low-chroma."** DEAD. gold 56%, destructive 73%,
+  info 70%, success 50%. The palette is fine; this page just uses none of it.
+* **"Widening the dividers will fix the rhythm."** REFUTED BEFORE SHIPPING - it raises the band
+  count BY ADDING WHITESPACE to a page already at parity. **A number moving the right way for the
+  wrong reason.**
+
+### ✅ CONFIRMED TODAY - these stand on measurement
+* Dark muted text was **4.19:1**, below the AA floor; now **7.80:1**. Rendered: **42 of 62 strings
+  below AA before, 0 after.**
+* `/budget` carries **0.19%** coloured area against 0.3-1.3% elsewhere, whole page, both widths.
+* It is **6 painted bands over 2155px** against dashboard's 23 over 5508px, with one unbroken
+  **1121px** run. **The cause: `border-t` dividers COUNT AS PAINTED, so each one bridges the gap it
+  was meant to create.**
+
+### ⚠️ THE LESSON THAT OUTLIVES ALL OF IT
+**Four instrument failures in one day** - an unfiltered multi-tenant count, a first-viewport
+figure, a card-based selector, and a still frame that invented an overlap. **Each was confident,
+plausible and wrong. NONE was caught by being careful; I was careful every time.** Each was caught
+by a **control or a comparison**. Budget a control per INSTRUMENT, not per finding.
+**And a gameable metric needs its counter-metric** - band count alone is raised by padding,
+whitespace alone is lowered by deleting content; only the pair distinguishes rhythm from spacing.
+
+<details><summary>2026-09-17 (Ada, THIRTIETH session) - superseded, kept for the record</summary>
+
+## START HERE - 2026-09-17 (Ada, THIRTIETH session)
 
 ### ✅ THE REST OF THE LANDING PAGE WAS SWEPT AT PHONE WIDTH AND IS CLEAN - AN UNSTATED NEGATIVE IS INDISTINGUISHABLE FROM A CHECK NOBODY RAN
 The committed gate covers the FIRST SCREEN. Every Instagram arrival scrolls, so the rest was
@@ -8526,6 +8568,8 @@ as "on his phone".
 - **Dates no longer split across two lines** on a phone (`6f8b3fc1`).
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
+
+</details>
 
 ## 2026-09-18 - Ada - WHY THE WALL IS ONE BAND, AND WHY I STOPPED SHORT OF RESTRUCTURING IT
 
