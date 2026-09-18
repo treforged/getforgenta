@@ -1,5 +1,154 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-FOURTH session)
+
+### ✅ iOS BUILD 970 IS IN TESTFLIGHT AND CARRIES BOTH FIXES TRE WAS WAITING ON
+Dispatched run `35371594869` on head `aa6555f8`. **Verified FOUR ways, never by the run's own
+conclusion:**
+1. **Step 20 `Upload to App Store Connect` conclusion = `success`, not `skipped`.** A push run
+   builds and does not upload, and a skipped step does not fail a workflow - so a green RUN is
+   not evidence and must never be quoted as any.
+2. **altool's own words**: `UPLOAD SUCCEEDED with no errors`, 1 hit - and the grep was proven
+   able to find things by a 46-hit positive control in the same log.
+3. **The three `90382` hits are echoed SCRIPT SOURCE, not output** - all three carry the ANSI
+   prefix GitHub puts on an echoed `run:` block (a comment, the `elif grep -q`, and the
+   `echo "::warning::"`). No Apple upload cap was hit.
+4. **Ancestry with a NEGATIVE CONTROL**: `44e28a03` (icon-only section bar) and `b9e2e79e`
+   (username wraps instead of truncating) are both ancestors of the built head, while today's
+   `48b491a8` is NOT - so the check discriminates rather than saying yes to everything.
+
+⚠️ **970 is an UPLOAD, not an install.** Tre still has to update in TestFlight. And 970 does
+**NOT** carry today's two commits below; they were pushed after it.
+
+### ✅ ITEM 1 DONE - `9d26e38c`, USERNAME SECURITY (`48b491a8`)
+Tre: *"make sure username entry in restricted from bad words and cant be used as an entry point
+for attacks. same protects as all the other entry points."*
+
+**THE ENUMERATION CAME FIRST AND IT CHANGED THE ANSWER. Most of the "entry point" half was
+ALREADY CLOSED**, measured against the live database rather than assumed - recorded here so no
+future session re-derives it:
+* `profiles_username_format` CHECKs `^[a-z][a-z0-9_]*$`, length 3..20. **A strict ASCII
+  allowlist, so unicode confusables and zero-width characters cannot be STORED AT ALL.**
+* `find_profile_by_username` / `suggest_profiles_by_username` are `LANGUAGE sql`, bound
+  parameters, no dynamic `EXECUTE`; suggest escapes backslash, percent and underscore before its
+  LIKE and requires a 2-char prefix. No injection, no enumeration widening.
+* `profiles_username_change_limit` already rate-limits claims to 2 per 7 days.
+* One `dangerouslySetInnerHTML` in all of `src/`, and it is not a username.
+
+⚠️ **THE HOLE WAS NOT WHERE HIS WORDING POINTS: `RESERVED_USERNAMES` WAS ENFORCED ONLY IN THE
+BROWSER.** No trigger and no constraint referenced it, so an authenticated caller going straight
+at PostgREST could claim `support`, `admin`, `billing` or `forgenta` - and `username.ts`'s own
+comment says those are the IMPERSONATION risks that cost more than a squatted name. **The
+highest-value control in the file had no server side.**
+
+**FIXED** by `public.username_is_allowed(text)` (IMMUTABLE, empty `search_path`) + constraint
+`profiles_username_allowed`, carrying the reserved names AND 29 slurs substring-matched over four
+spellings (raw, leet-folded, underscore-collapsed, both).
+
+**THE LIST IS SHORT ON PURPOSE AND THE OMISSIONS ARE THE DESIGN.** `rapist` is in *therapist*,
+`pedo` in *torpedo*, `spic` in *spice*, `cock` in *cocktail*, `ass` in *class*, `anal` in
+*analysis*, `cum` in *documents*. All 20 such hazards are pinned as a negative control.
+**Underscores are NOT blindly stripped** - that turns `cash_item` into `cashitem`, which contains
+a slur; the collapse fires only on 3+ consecutive single-character segments, which is what
+`f_u_c_k` looks like and `cash_item` does not.
+
+**EVIDENCE:** 33/33 live cases; the CONSTRAINT proven to bite on a **real update** (`support` ->
+`check_violation`) **with a positive control in the same block** (`walkprobe2` accepted - without
+it, "refused" is indistinguishable from a constraint that blocks everything), both rolled back and
+**the rollback verified by re-reading rather than assumed**; `username-lists.gate.test.ts` 37
+checks **proven RED two ways** (a word added to the TS list only; a blinded extraction failing its
+own positive control rather than reporting two empty lists as agreeing) and restored byte-exact by
+sha256; tsc 0, eslint 0, 65 username tests.
+
+⚠️ **THE FREE EXECUTOR'S DRAFT CARRIED A SECURITY REGRESSION AND THE REVIEW IS WHAT CAUGHT IT.**
+Asked only to ADD to `username.ts`, groq rewrote `usernameProblemMessage` and changed `'reserved'`
+from *"That username is not available."* to *"That username is reserved."* - the file documents at
+length that reserved, banned and taken must share ONE sentence, because naming the rule tells a
+scraper which rule it hit. **It also dropped `normalizeUsername` and inverted the deliberately
+ordered checks.** Items 1-5 of its draft were taken; both rewrites were discarded and the rest was
+spliced by hand.
+
+**NOT COVERED, stated rather than implied:** mild profanity, non-English, spellings outside the
+four checked forms, ASCII homoglyphs inside the allowlist (`tref0rged` against `treforged` - an
+exact-match reserved list cannot see those), and `display_name`, which is a separate and entirely
+unfiltered field shown to friends. **UNDO** is in the migration footer.
+
+### ✅ ITEM 2 IMPROVED, NOT FINISHED - `29f1fb44`, /account rhythm (`f5c1dc96`)
+Split `FollowersPanel.tsx` into **two** cards at the seam where the subject already changes:
+"Your profile" (visibility + share link) and "Followers" (find someone, requests, lists, share
+toggles). No content moved; one split point.
+
+**MEASURED by `npm run check:page-rhythm`:** run **60% -> 45.8%** of page (3.3x -> 2.5x),
+whitespace **16.8% -> 17.1%** (+0.3). Both halves of the acceptance pair hold - and the
+predecessor's FOUR-card attempt is why two was the target: it got the run to 34% but pushed
+whitespace to 26.8%, trading his no-rhythm complaint for his wastes-space complaint on one page.
+
+⚠️ **/account IS STILL OVER THE 2x CEILING AT 2.5x.** The remaining 995px run is the SECOND card.
+**The next slice is a second seam inside it, not a revert of this one.** The ask is deliberately
+left `[~] in progress`; closing it would record a cleared route that is not cleared.
+**Instrument note:** `/dashboard` read 16 bands at 17.7%, exactly its recorded known-good values,
+so the cold-start stall that twice reported it as 1 band / 75.6% was not present on this run.
+
+### 🔧 I CORRECTED THE TRACKER: `29f1fb44` WAS NEVER BLOCKED
+It read `blocked`, and my brief told me to find out why before starting. **It was not blocked** -
+its `why` field holds a *correction* (that /forecast had measured a DIALOG, not a page), because
+`ask block` is the only command that takes a `--why`. A desk reading the status alone would have
+skipped a ready item indefinitely. Moved to in-progress. **Worth fixing properly:** `asks.py` has
+no way to attach a note to an open row, so the only place to put one is a status that means
+something else.
+
+## Resume queue - 2026-09-18 (Ada, THIRTY-FOURTH session). START AT ITEM 1.
+
+1. **A SECOND SEAM IN /account - `29f1fb44`, the only route still over the ceiling.** 2.5x after
+   today's split. The remaining 995px run is the **second** card ("Followers": find someone,
+   requests, lists, share toggles). Split THAT, not the first, and **measure the PAIR** - a third
+   card costs roughly +3 whitespace points on the evidence so far, so the budget is real but not
+   spent. `npm run check:page-rhythm` is the acceptance. ⚠️ Do NOT re-split into four; that was
+   measured and reverted.
+
+2. **`663274d7`** - from Otto, five App Store Connect / monetisation items. Untouched, and now the
+   oldest real item in this queue.
+
+3. **`149fb21f` CONTRAST, still genuinely open**, in value order:
+   * **Validation errors and form error text are unmeasured ANYWHERE in this repo.** Highest
+     value. Copy `scripts/check-destructive-states.mjs` - it already does sign-in, dismissal,
+     arming, and a safety control that counts ROWS rather than labels.
+   * **Light mode has no rendered contrast gate at all.** All four probes deliberately refuse to
+     report a light reading; **that refusal is honest and must stay** - but the whole theme is
+     unmeasured.
+   * **Every rendered gate here is 390x844 only.** Desktop widths are unmeasured.
+
+4. **`check:page-rhythm` walks all six routes now.** /debt 0.9x, /forecast 1.7x, /settings 1.3x
+   are all inside the ceiling, so /account is the only finding.
+
+5. ⚠️ **THE NATIVE GLASS BRIDGE IS FULLY BUILT AND HAS ZERO CALLERS.**
+   `native-glass-bridge.gate.test.ts` passes 13/13 while `grep -rn native-glass src/` returns
+   nothing outside that test. The gate is not at fault - it asserts the three strings JOIN UP and
+   says plainly it does not prove a round trip - but **nothing asserts the shim is REACHED.**
+   Sam's decision (`8a202850`): mount ONE glass surface with no web content of its own. **ADD THE
+   CALLER ASSERTION *WITH* THE MOUNT, NEVER BEFORE IT** - added first it is permanently red, and
+   an always-red gate stops being read. **Unverifiable on this machine** (no device; the iOS CI
+   compile proves a BUILD, never a RENDERED SURFACE), so every round is a blind multi-minute CI
+   trip. **Wants a FULL window as a first item, not a thin one last.**
+
+6. **HOW TO SHIP TO HIS PHONE.** Push everything first, wait for any in-flight `ios-build` run,
+   and dispatch LAST: `gh workflow run "iOS Build & Upload to App Store" --ref main`. The workflow
+   carries `concurrency: cancel-in-progress: true`, **so a later push cancels your dispatch** -
+   that cost a build at 16:27 today. `scripts/` and `handoff.md` are OUTSIDE the path filter
+   (`src/**`, `ios/**`, `capacitor.config.ts`, `package.json`) and are safe to commit first. Then
+   verify the four ways listed at the top of this section. **`VERSION_CODE` is printed in the
+   build log** - read it there rather than computing it.
+
+7. **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** A peer session serves it. **Do not kill it.**
+   Every rendered gate needs it up.
+
+8. **34 UNTRIAGED ASKS FROM TRE** sit in the machine-wide capture queue, several of them Forgenta
+   product asks he typed days ago: achievements off the Overview tab and onto their own Account
+   section, achievement icons and spacing, and moving Learn off the dashboard because it is
+   overloaded. **That is real product direction he has not seen acted on.** Triage before starting
+   new work - `python claudecontext/triage_asks.py <id>`.
+
+
 ## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-THIRD session)
 
 ### ✅ BOTH OF TRE'S HANDOFF-GATE DECISIONS ARE BUILT, GATED AND PUSHED
