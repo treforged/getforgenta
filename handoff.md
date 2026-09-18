@@ -8232,10 +8232,56 @@ followers/following UI) is the next build and has NOT been started.
 
 </details>
 
+
+## 2026-09-18 - Ada - the two "still broken" repeats, and the /mo label
+
+**BOTH OF TRE'S REPEATS WERE MEASURED AGAINST HIS REAL DATA, NOT A FIXTURE.** `8ac0aee7`.
+
+- **`d0b52833` auto-link.** His question - "was I supposed to do one sweep?" - **answer NO**, and a
+  sweep would have made it worse: it ADDS links, and links were never what the blocking gate
+  counted. **The defect was `conflictingCount > 0`**, which never healed: `APPLE.COM/BILL` has 6
+  links to one rule and 1 stray to another, and I probed it at 6/10/25/100/**1000** links to the
+  winner - `ask/conflicting-history` every time. **The veto existed TWICE** (`linkSuggestionFor`
+  offers, `autoApplyDecision` acts) and the offer gate returns null first, so either fix alone is
+  inert. Both now call `habitIsSettled` (ratio 4).
+  ⚠️ **THREE CANDIDATES REFUTED BY MEASURING, and I was one step from filing one as the cause:**
+  the threshold is 3 against his 25; the real `normalizeMerchant` collapses `LOCKHEED ... PPD ID:
+  4521893632` AND `5521893632` to one key (and the varying-suffix Zelles too); `amountCouldSettle`
+  abstains at ratio >= 0.05, so Sam's amount-match theory never binds.
+  ⚠️ **THE INCOME HALF IS TRANSIENT AND I DELIBERATELY DID NOT "FIX" IT.** His pay rate moved
+  848.46 -> 814.96, so a new paycheck is a 2.6-sigma outlier against 22 old-rate amounts - but
+  **measured, it heals after ONE more hand-answered paycheck.** The outlier gate is now the ONLY
+  thing catching his $7.98 among $9.99s, since the conflict gate passes. **Do not loosen it without
+  re-reading this** - Sam concurred 2026-09-18.
+
+- **`6752630b` Robinhood.** **The data candidate is RETIRED, not confirmed:**
+  `accounts.first_payment_due_date` **IS SET** (2026-10-10), the only one of his ten active cards
+  carrying a value. The shipped code was correct, not inert. An unconditional card settles OFF THE
+  TOP, before minimums, so it never met `minSuppressed` - fixed `5144ffaa` (01:55) and `08bcdfa8`
+  (02:44), **11 and 37 minutes after his 01:44 and 02:07 reports.** Pinned to his real row in
+  `robinhood-first-payment.regression.test.ts`.
+
+- **`468e4d2e` the `/mo` label.** **The NUMBERS were right and the LABEL was wrong** - every figure
+  is `currentMonthAmount`, i.e. what falls in the current calendar month, and `budgetMonthTotals` is
+  called with it, so **all five summary totals carried the same falsehood, not just his row.** Now
+  `CURRENT_MONTH_LABEL` ("this month"), defined beside the arithmetic so the two cannot drift.
+  ⚠️ **The gate does NOT ban the string** - one line is a genuine monthly equivalent and rightly
+  says `/mo`; the gate asserts that line still does, so the scoping is proven rather than claimed.
+
+**STATED LIMITS, do not round up:** all of the above is asserted through the real code against his
+real ledger/row. **Not a rendered localhost screen.** The label gate is a SOURCE scan and cannot see
+spacing, wrapping or a rendered frame.
+
+**NEXT UP: `d391e98b`** - the planned-items page looks dull and wastes space, **third time he has
+raised this family**, and acceptance is a rendered frame at ~390px in both themes, proven red first.
+His metadata line also wraps mid-token (`Starts 2026-10-` / `01`). **Then dispatch ONE iOS build**
+carrying all four items (Sam's decision, 2026-09-18) - and read the UPLOAD STEP'S own conclusion
+plus altool's "UPLOAD SUCCEEDED", never the run's.
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 23:31 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 09:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -8246,14 +8292,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+8ac0aee7 [transactions]: one stray link vetoed a settled habit for ever, so it kept asking
+ac4d7b73 [handoff]: the rest of the landing page is clean, and its one finding was a false positive
+1b7c26a5 [handoff]: the notes-coverage gap is closed, and I hit the pipe trap verifying it
+1b39d733 [release-notes]: a user-visible commit that tells the customer nothing is now findable
+6dbd46be [handoff]: four repeated asks were already shipped, and a missing trailer is why he never knew
 34d21451 [handoff]: 5409ffbc limit 1 shipped, and the import that broke six suites is recorded
 cec2fe7b [forecast]: a capture that cannot support a payoff comparison now refuses one
 60f4a9c9 [forecast]: the payoff month is under-determined by the dump - neither instrument was wrong
-896a1c7c [forecast]: the 229.89 was old CODE, not the browser - measured, four arms, zone asserted
-1c94e62b [handoff]: the signed-out-write class was swept, and the negative is bounded and stated
-6f6b2b59 [handoff]: the landing page is an acquisition surface now, and jsdom could never see it
-51976d34 [landing]: let the first-screen gate read the DEPLOYED page, not only the committed one
-3447448f [landing]: the first screen an Instagram arrival gets, measured in a browser at phone width
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

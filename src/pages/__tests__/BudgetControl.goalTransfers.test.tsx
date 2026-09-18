@@ -175,7 +175,7 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
     openTransfers();
 
     // $200 from the real Vacation Transfer rule + $510 from the goal's own column.
-    expect(screen.getAllByText('$710/mo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$710 this month').length).toBeGreaterThan(0);
   });
 
   it('does NOT duplicate a goal that a real rule already funds', () => {
@@ -186,7 +186,7 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
     expect(screen.getByText('Vacation Transfer')).toBeTruthy();
     expect(screen.queryByText('Vacation Contribution')).toBeNull();
     // The rule's $200, not the goal column's stale $999 on top of it.
-    expect(screen.getAllByText('$200/mo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$200 this month').length).toBeGreaterThan(0);
   });
 
   it('zeroes a contribution whose start date has not arrived yet', () => {
@@ -199,6 +199,6 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
 
     expect(screen.getByText('Move Fund Contribution')).toBeTruthy();
     // Only the real rule's $200 counts this month.
-    expect(screen.getAllByText('$200/mo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$200 this month').length).toBeGreaterThan(0);
   });
 });

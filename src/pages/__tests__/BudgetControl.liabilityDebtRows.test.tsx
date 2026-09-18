@@ -119,7 +119,7 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
     openDebt();
 
     // $422.89 loan + $300 student loan.
-    expect(screen.getAllByText('$723/mo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$723 this month').length).toBeGreaterThan(0);
   });
 
   it('produces NO row for a liability an expense rule already pays', () => {
@@ -129,7 +129,7 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
 
     expect(screen.queryByText('Mortgage Payment')).toBeNull();
     // The loan alone, so the mortgage is not being counted invisibly either.
-    expect(screen.getAllByText('$423/mo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$423 this month').length).toBeGreaterThan(0);
   });
 
   it('does NOT duplicate a loan the user already typed as their own rule', () => {
@@ -145,6 +145,6 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
 
     expect(screen.getAllByText('C5 Payment').length).toBe(1);
     // One payment, not two.
-    expect(screen.getAllByText('$423/mo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$423 this month').length).toBeGreaterThan(0);
   });
 });

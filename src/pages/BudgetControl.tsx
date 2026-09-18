@@ -19,7 +19,7 @@ import {
 import { getDayName, describeBiweeklyAnchor } from '@/lib/scheduling';
 import { categoryFieldOptions } from '@/components/shared/CategoryOptions';
 import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
-import { isFixedRule } from '@/lib/budget-month-totals';
+import { CURRENT_MONTH_LABEL, isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { getPaycheckNet, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, type PayFrequency } from '@/lib/pay-schedule';
@@ -912,7 +912,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         {formatCurrency(Number(r.amount), false)}
       </span>
       <span className="text-xs sm:text-sm text-muted-foreground">
-        /mo {formatCurrency(toCurrentMonthAmount(r), false)}
+        {CURRENT_MONTH_LABEL} {formatCurrency(toCurrentMonthAmount(r), false)}
       </span>
       {/* The ranked automatic extra the forecast sends this target THIS month, beside the standing
           amount so the row reads "$510/mo + $1,107 extra this month" — Tre's own wording.
@@ -1403,7 +1403,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                 </div>
                 {overByPct > 0 && (
                   <p className="mt-3 text-xs sm:text-sm text-destructive font-medium">
-                    Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining), false)}/mo more allocated than you take home).
+                    Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining), false)} more allocated {CURRENT_MONTH_LABEL} than you take home).
                   </p>
                 )}
               </div>
@@ -1445,7 +1445,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Income Rules</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome, false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome, false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>
             </div>
@@ -1459,7 +1459,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Bills')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
@@ -1473,7 +1473,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Subscriptions')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
               </div>
             </div>
@@ -1487,7 +1487,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Variable Expenses</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses, false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses, false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Other')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Variable</button>
               </div>
             </div>
@@ -1501,7 +1501,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(totalDebtPayments, false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(totalDebtPayments, false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
               </div>
             </div>
@@ -1521,7 +1521,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers, false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers, false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('investment')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Transfer</button>
               </div>
             </div>

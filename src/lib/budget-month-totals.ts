@@ -178,6 +178,28 @@ export const buildTransferRules = (rules: BudgetRule[], goalTransferRules: Budge
  * `amountOf` is passed in rather than recomputed so a caller that already memoised the per-rule
  * arithmetic (both pages do) keeps one evaluation per rule.
  */
+/**
+ * What to CALL the figures this module produces, kept beside the arithmetic that produces them so
+ * the label and the quantity cannot drift apart.
+ *
+ * ⚠️ IT IS NOT "/mo", AND THAT WAS A REAL DEFECT ON HIS OWN BUDGET. Tre, 2026-09-18: "if something
+ * is set to like biweekly or monthly or with like a different interval, it shouldn't say the amount
+ * per month, that line would be incorrect."
+ *
+ * Every figure here is `currentMonthAmount` summed - WHAT FALLS IN THE CURRENT CALENDAR MONTH, not
+ * a monthly equivalent. The two coincide for a monthly rule and diverge for every other interval,
+ * so the old label was silently true for some rows and false for others. On his real page:
+ *   * Supplements, every other month, starting 2026-10-01, read `$106  /mo $0`
+ *   * Fuel, biweekly $65 starting 2026-09-23, read `$65  /mo $65` (~$141 is its monthly equivalent)
+ * Both NUMBERS were correct as "this month". `/mo $0` beside a live recurring expense reads as
+ * "this costs you nothing" - and he budgets off this page.
+ *
+ * ⚠️ THE ARITHMETIC WAS NOT CHANGED, DELIBERATELY. "The label lies" and "the monthly-equivalent
+ * maths is broken" are different bugs that look identical on the card, and fixing the second would
+ * have left the first in place while moving numbers he relies on.
+ */
+export const CURRENT_MONTH_LABEL = 'this month';
+
 export function budgetMonthTotals(
   buckets: BudgetBuckets,
   amountOf: (r: BudgetRule) => number,
