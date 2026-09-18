@@ -129,6 +129,24 @@ section states reasoning, not measurement, and says so.
   Proven RED with the real legend defect. Does NOT cover: light mode, desktop widths, error states,
   anything behind an interaction, or whether disabled/placeholder text is legitimately exempt — it
   says so and asks you to check each finding by hand.
+- `npm run check:destructive-states` — the **ARMED DELETE**, the least legible state of the most
+  dangerous control in the app. Every other contrast gate here measures only elements that OWN A
+  TEXT NODE and only what renders WITHOUT INTERACTION; this control is an **icon** whose destructive
+  colour appears only **after a first click arms it**, so it was invisible to all of them.
+  Measured **5.94:1** against the 3:1 WCAG 1.4.11 non-text floor; **proven RED with the real
+  pre-fix token at 2.25:1 — which was below even the relaxed 3:1 floor**, so the 2026-09-18 token
+  split fixed a non-text contrast failure on the delete control as well as the text one.
+  ⚠️ **IT ARMS AND NEVER CONFIRMS** (`BudgetControl.tsx` uses a two-step INLINE confirm, not a
+  dialog), and it ASSERTS that it armed rather than assuming the press did anything.
+  ⚠️ **ITS SAFETY CONTROL COUNTS ROWS, NOT DELETE BUTTONS, AND THAT CORRECTION IS THE POINT.** The
+  first version counted buttons named `/^delete /i`; arming RENAMES that button to
+  `Confirm delete …`, so the count fell 2 → 1 and the control announced **data had been destroyed
+  when nothing had been touched**. It failed safe by luck — a real delete drops that count by one
+  too, so it could not tell "row deleted" from "label changed" in **either** direction. It was
+  measuring the LABEL and reporting about the DATA. The control also runs on **every** exit path,
+  because the failing path is the one where the press might not have been harmless.
+  Does NOT cover: validation errors and form error text (still unmeasured anywhere), light mode,
+  desktop widths, other routes, or whether the armed state is DISTINGUISHABLE from the unarmed one.
 - `npm run check:destructive-contrast` — the RENDERED half of the destructive-red split, dark mode,
   390x844, signed in. Composites the WHOLE background stack rather than one `backgroundColor`, so red
   text on a `bg-destructive/10` tint is measured rather than compared against the page by accident.
