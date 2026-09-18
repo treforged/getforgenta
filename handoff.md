@@ -8527,6 +8527,43 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - "EMPTY" IS REFUTED TOO. THE REAL DIFFERENCE IS SEGMENTATION, AND IT IS MEASURED
+
+### THE ATTRIBUTING INSTRUMENT, built because a card-based selector can only report "not a card"
+It walks `#scroll-main`, marks a band OCCUPIED only where something is actually PAINTED - own text,
+a fill, a border, or a control, never a bare layout wrapper - merges the bands, and reports the
+gaps between them with what sits on each side. 390px, dark, whole scroll content.
+
+    /budget      content 2155px in   6 painted bands (81 elements)   whitespace 126px = 5.8%
+    /dashboard   content 5508px in  23 painted bands (213 elements)  whitespace 279px = 5.1%
+
+### ✅ "HIS PAGE IS UNUSUALLY EMPTY" IS REFUTED - 5.8% against 5.1% is not a difference
+**Second hypothesis killed by measurement today.** The whitespace FRACTION is essentially identical
+to the busiest screen in the app. So the word "empty" in his complaint is not describing empty
+space, and no amount of tightening gaps will answer him.
+
+### 🔍 WHAT THE SAME RUN FOUND INSTEAD, and this one is a real difference
+**`/budget` is SIX painted bands over 2155px. `/dashboard` is TWENTY-THREE over 5508px.**
+One `/budget` band runs **y=173 to y=1294 - a single unbroken 1121px wall of painted content**,
+nearly three phone viewports with no visual break in it at all. Dashboard's equivalent content is
+cut into discrete cards with a breathing point every ~240px.
+**So the page is not empty and it is not low on colour by accident - it has NO RHYTHM.** That is a
+far better fit for *"looks a little dull and boring"* than emptiness ever was, and it also fits his
+OTHER words from 2026-09-17: *"there may be like times where we have too much information that the
+user doesnt really need. We need to figure out how to condense."*
+⚠️ **STATED LIMIT: band count is not card count.** Adjacent painted elements merge, so a card with
+tight internal spacing joins its neighbour. The measure is "continuous painted runs at a >=16px
+threshold" - a proxy for visual rhythm, not a component census. Do not quote "6 cards".
+
+### WHERE `d391e98b` / `a58fb610` ACTUALLY STAND
+* **CONFIRMED:** 0.19% coloured area vs 0.3-1.3% elsewhere; monochrome by eye; SIX painted bands
+  with a 1121px unbroken run.
+* **REFUTED, both by their own tests:** the tab-to-card gap (54px, mid-range), and unusual
+  emptiness (5.8% vs 5.1%).
+* **THE CANDIDATE NOW:** segment that 1121px wall. It needs no palette decision, it is the thing
+  that differs from every other route, and it is reversible. **Measure the band count before and
+  after - that is the acceptance, and it is a number rather than a taste claim.**
+
 ## 2026-09-18 - Ada - MY OWN GAP HYPOTHESIS IS REFUTED. NULL RESULT, RECORDED RATHER THAN RESCUED
 
 ### THE MEASUREMENT KILLED IT, TWICE OVER
