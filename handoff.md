@@ -188,9 +188,34 @@ written down and the one-time breach is asserted, which doubles as the positive 
 **Still open underneath:** the 2-month drift itself is a stale-fixture question and belongs with
 `5409ffbc`.
 
+### ⚠️ MY DASHBOARD HEADLINE DIED TO MY OWN DOCUMENTED BLIND SPOT - SECOND TIME TODAY
+I reported "$4,200 in the top section AND AGAIN 4000px below" as the strongest match to Tre's
+duplication complaint, to Sam and in this file. **The two far-below occurrences were BLURRED
+BEHIND THE PREMIUMGATE OVERLAY.** The probe now drops unreadable text (blur, near-zero opacity,
+and `elementFromPoint` for anything painted over it): **29 of 168 nodes go, 8 repeats become 6**,
+and "Advanced Analytics" and "Discover It" fall out too.
+✅ **THE REAL CONCLUSION IS BIGGER THAN THE SIX ROWS: THIS INSTRUMENT ANSWERS THE WRONG
+QUESTION.** Every surviving repeat is LOCAL, within ~600px; none is section-to-section. Tre said
+"that top section seems to be the same as ... some stuff below" - he means the same
+**INFORMATION** twice, not the same **STRING**. A snapshot in the hero and a snapshot widget
+below duplicate meaning while sharing almost no literal text. **String identity cannot see it.**
+**The next slice is a SEMANTIC pass: which widget reports which fact.** Strong candidates from
+the registry alone: `monthly_snapshot` ("Monthly Snapshot") against `budget_totals` ("This
+Month's Budget"), and the hero's "Credit cards paid off" against `debt_recommendations`.
+**Both times today the finding died to a limit I had already written down. Writing a limit down
+feels like handling it, and it is not.**
+
+### ✅ `663274d7` CLOSED - none of it was code
+Verified rather than relayed: the onboarding paywall IS built (`Onboarding.tsx:56` makes step 2
+`premium` for a free account, `PremiumUpsellStep` rendered at `:561`, two-stage). The other four
+are settings in **Tre's own App Store Connect**, re-filed as `e8d37544` (needs_tre) so closing
+this did not lose them. **Otto's warning travels with it: every persuasive figure in that reel is
+the creator's own UNCITED claim and must never be quoted to Tre as measured.**
+
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
 
-1. **`403dd5d8` - THE DASHBOARD REORGANISATION, part 1 only: FIND THE DUPLICATION.** STARTED -
+1. **`403dd5d8` - THE DASHBOARD REORGANISATION. Part 1 is DONE and its answer is that a text
+   diff is the wrong tool; do the SEMANTIC pass next (see the section above).** Earlier note -
    `scripts/measure-dashboard-duplication.mjs` is committed with 8 measured repeats; the strongest
    is $4,200 in the top section and again 4000px below. Next step is checking each against the
    overlay caveat (the probe counts text hidden behind a PremiumGate as visible). It is the
