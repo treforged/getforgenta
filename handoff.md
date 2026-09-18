@@ -97,7 +97,53 @@ skipped a ready item indefinitely. Moved to in-progress. **Worth fixing properly
 no way to attach a note to an open row, so the only place to put one is a status that means
 something else.
 
-## Resume queue - 2026-09-18 (Ada, THIRTY-FOURTH session). START AT ITEM 1.
+## Resume queue - 2026-09-18 (Ada, THIRTY-FOURTH session). START AT ITEM 0.
+
+0. 🚨 **DO THIS FIRST - `d018ab32`, PLACEHOLDER TEXT CLIPPING ON MOBILE.** From Tre with a
+   screenshot, routed by Sam. His words: *"have ada make sure the preview texts fit in the boxes
+   on mobile. this one is he invite code"*.
+   **THE ASK IS PLURAL - "preview textS in the boxES".** He named the invite code as an EXAMPLE,
+   not as the scope. This repo has now measured that lesson twice in a week; most recently his
+   /budget complaint turned out to be worse on /account, which he had not mentioned.
+   **THE REPORTED ONE IS `src/components/settings/PartnerLink.tsx:196`** - placeholder
+   `"Have an invite code? Paste it here"`, 34 chars. His screenshot shows it stopping at
+   *"Have an invite code? Pas"*, which matches.
+   ⛔ **DO NOT TRY TO WRAP IT.** A placeholder in a single-line `<input>` CANNOT wrap - it clips,
+   and no CSS changes that. Either shorten the string, or move the question to a **label above the
+   field** and leave a short example inside. For this one a label is probably right: a placeholder
+   disappears the moment he types, and this placeholder carries the only instruction on the field.
+   **I DID THE ENUMERATION AND IT IS THE EXPENSIVE HALF - here it is rather than re-derived.**
+   `grep -rnoE 'placeholder=(\{?"[^"]*"|\{`[^`]*`)' src/ --include=*.tsx --include=*.ts`
+   ⚠️ **IT RETURNS 85 WHILE A BARE `placeholder=` COUNT RETURNS 95, so ~10 are built dynamically
+   and my regex does not see them.** Do not treat 85 as the population - the GATE must find its
+   subjects in the DOM (`[placeholder]`), never from this list.
+   **Longest fixed candidates, though LENGTH IS NOT THE TEST** - a narrow column clips a short
+   string and a full-width field does not, which is exactly why this needs rendering:
+   `"Parts used, torque specs, what the shop said…"` (45, MaintenanceFormModal:523),
+   `"e.g. PayPal Pay in 4, Prime Visa 12 months"` (42, Transactions:1505),
+   `"Type here — this input must be masked too"` (41, ErrorTest:59 - debug only, exclude),
+   `"Have an invite code? Paste it here"` (34), `"Optional notes about this build..."` (34),
+   `"e.g. Chase Sapphire, Student Loan"` (33, DebtsStep:41),
+   `"New password (min 6 characters)"` (31, Settings:776),
+   `"Paste your statement text here"` (30), `"e.g. Bought from Summit Racing"` (30).
+   ⚠️ **TEXTAREAS WRAP AND MUST BE EXCLUDED OR THE GATE CRIES WOLF** on its own longest entries -
+   several of those are `<textarea>`, where a long placeholder is correct.
+   **ACCEPTANCE IS A RENDERED MEASUREMENT, not a source scan: `scrollWidth <= clientWidth` on each
+   input at 390px.** That tests clipping directly and needs no judgement about fonts or widths.
+   **Prove it RED by restoring the current invite-code string.**
+   ⚠️ **PLAYWRIGHT, NOT `resize_window`** - this repo measured that tool reporting *"Successfully
+   resized to 390x844"* while `window.innerWidth` stayed **1154**, so a phone check through it is
+   a desktop layout wearing a phone label. Copy the `.env.deck-walk.local` pattern every
+   `check:*` script here already uses.
+   **THE GATE GAP IS MINE FROM TODAY:** `check:truncation`'s 58 elements are all bank ACCOUNT
+   names, so **placeholders have never been covered by anything**. A green from it is not
+   coverage. DERIVE the new gate's subject list from `[placeholder]` in the DOM - a hand-named
+   list leaves the next one uncovered, which is the fifth sighting of that class on this machine
+   this week.
+   **NOT STARTED, deliberately.** I had 3 points of 5h cap headroom when this arrived, and a
+   half-built validator READS as protection. Handed over untouched rather than half-done.
+
+
 
 1. **A SECOND SEAM IN /account - `29f1fb44`, the only route still over the ceiling.** 2.5x after
    today's split. The remaining 995px run is the **second** card ("Followers": find someone,
@@ -142,11 +188,17 @@ something else.
 7. **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** A peer session serves it. **Do not kill it.**
    Every rendered gate needs it up.
 
-8. **34 UNTRIAGED ASKS FROM TRE** sit in the machine-wide capture queue, several of them Forgenta
-   product asks he typed days ago: achievements off the Overview tab and onto their own Account
-   section, achievement icons and spacing, and moving Learn off the dashboard because it is
-   overloaded. **That is real product direction he has not seen acted on.** Triage before starting
-   new work - `python claudecontext/triage_asks.py <id>`.
+8. **UNTRIAGED ASKS - AND MY FIRST VERSION OF THIS ITEM WAS WRONG, WHICH IS THE POINT.** I wrote
+   that the achievements asks (off the Overview tab, and the icons/spacing) were "product
+   direction he has not seen acted on". **Sam corrected it: both SHIPPED IN BUILD 956, and a
+   previous session of mine verified them by ancestry.** Only *Learn off the dashboard* was
+   genuinely untracked, and it is now `d25f5315`.
+   ⚠️ **READING THE CAPTURE QUEUE AS A LIST OF UNDONE WORK IS THE ERROR.** It is a list of things
+   he SAID, not of things outstanding - an item stays in it after the work ships, because triage
+   is what removes it, not delivery. Treating it as a backlog manufactures repeat work on
+   finished features, which is the exact loop that had him re-asking for four already-shipped
+   things in fourteen minutes. **Grep for the caller before filing any of them as open.**
+   Triage with `python claudecontext/triage_asks.py <id>`.
 
 
 ## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-THIRD session)
