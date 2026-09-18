@@ -3,6 +3,7 @@ import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { FREE_LINK_LIMIT, PREMIUM_MAX_LINKED, bankLinkCeilingFor } from '@/lib/plan-limits';
 import { formatCurrency } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
 import { annualFeeAmount, nextAnnualFeeLabel } from '@/lib/annual-fee';
@@ -156,8 +157,10 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
    * owns the money decision, and the client only avoids offering what it can already tell will
    * fail. See `supabase/functions/_shared/bank-link-entitlement.ts`.
    */
-  const FREE_LINK_LIMIT = 1;
-  const bankLinkCeiling = isPremium ? 10 : FREE_LINK_LIMIT;
+  // Both numbers come from `src/lib/plan-limits.ts`, which a derived gate holds against the
+  // server's own decision. They were typed here until 2026-09-18, and a typed copy is how the
+  // paywall came to advertise a ceiling of 3 against an enforced 10.
+  const bankLinkCeiling = bankLinkCeilingFor(isPremium);
   const { data: accounts, add, update, remove, reorder, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();

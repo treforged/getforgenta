@@ -127,9 +127,16 @@ describe('premium copy only promises what premium enforces', () => {
   });
 
   it('CONTROL: the replacements name limits the app actually enforces', () => {
-    // A benefit claim is only checkable if the gate it refers to exists. Both are measured.
+    // A benefit claim is only checkable if the gate it refers to exists.
+    //
+    // ⚠️ THIS CONTROL CAUGHT ITS OWN PREMISE MOVING, which is what a control is for. It used to
+    // assert `isPremium ? 10 : FREE_LINK_LIMIT` in Accounts.tsx; that line was correctly REPLACED
+    // by `bankLinkCeilingFor()` when the typed numbers were pulled into src/lib/plan-limits.ts.
+    // Asserting the old text would now fail over an improvement, so it asserts the new source -
+    // and `plan-limits.gate.test.ts` is what holds THAT against the server's own ceilings.
     expect(read('src/components/debt/CreditCardEngine.tsx'))
       .toContain('(isPremium || isDemo) ? yearMonths.length : (yearIdx === 1 ? Math.min(3, yearMonths.length) : 0)');
-    expect(read('src/pages/Accounts.tsx')).toContain('isPremium ? 10 : FREE_LINK_LIMIT');
+    expect(read('src/lib/plan-limits.ts')).toMatch(/export const PREMIUM_MAX_LINKED\s*=\s*\d+/);
+    expect(read('src/pages/Accounts.tsx')).toContain('bankLinkCeilingFor(isPremium)');
   });
 });

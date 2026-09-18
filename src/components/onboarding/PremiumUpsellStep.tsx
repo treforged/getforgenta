@@ -5,6 +5,9 @@
 // premium flow gives to Plaid, and declining drops straight into manual entry — nobody is blocked.
 
 import { useState } from 'react';
+// DERIVED, NEVER TYPED. Until 2026-09-18 these read "Up to 3" and "manual-only on free"
+// against an enforced 10 and 1 — see src/lib/plan-limits.ts for what that cost.
+import { FREE_LINK_LIMIT, PREMIUM_MAX_LINKED } from '@/lib/plan-limits';
 import { Check, Crown, Zap } from 'lucide-react';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
@@ -34,7 +37,7 @@ function FirstUpsell({
   const highlights = [
     'Auto-sync bank balances every morning',
     ...(AI_ADVISOR_ENABLED ? ['AI Advisor — ask anything about your money'] : []),
-    'Up to 3 linked accounts with real transaction import',
+    `Up to ${PREMIUM_MAX_LINKED} linked accounts with real transaction import`,
     'Advanced 60-month cash flow forecast',
     'Export reports as PDF or CSV',
   ];
@@ -94,7 +97,7 @@ function SecondUpsell({
   const perks = [
     'Auto-sync every morning — wake up to fresh balances',
     ...(AI_ADVISOR_ENABLED ? ['AI Advisor — ask your money anything, get real answers'] : []),
-    'Up to 3 linked accounts vs. manual-only on free',
+    `Up to ${PREMIUM_MAX_LINKED} linked accounts vs. ${FREE_LINK_LIMIT} on free`,
     'Advanced 60-month forecast with Plaid data',
     'Cancel anytime',
   ];
