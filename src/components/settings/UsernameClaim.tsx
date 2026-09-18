@@ -189,7 +189,7 @@ export function UsernameClaim({ readOnly = false }: { readOnly?: boolean }) {
       {/* Said out loud rather than swallowed, and `role="alert"` so it is announced rather than
           only seen — this is the one thing standing between a press and understanding why it did
           nothing. */}
-      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-xs text-destructive-text">{error}</p>}
     </div>
   );
 }

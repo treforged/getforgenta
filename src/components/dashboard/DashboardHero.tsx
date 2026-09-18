@@ -72,7 +72,7 @@ function CashAboveFloorLine({ value, onFloorClick }: { value: number | null; onF
   const text = value >= 0
     ? `${formatCurrency(value, false)} above your floor`
     : `${formatCurrency(Math.abs(value), false)} below your floor`;
-  const tone = value >= 0 ? 'text-muted-foreground' : 'text-destructive';
+  const tone = value >= 0 ? 'text-muted-foreground' : 'text-destructive-text';
   if (!onFloorClick) return <p className={`text-sm mt-3 ${tone}`}>{text}</p>;
   return (
     <button
@@ -127,7 +127,7 @@ export default function DashboardHero({ state, onFloorClick, trajectory }: Props
               : "You're debt free"
         }
       >
-        <p className={`text-5xl font-display font-bold tracking-tight mt-1 ${below ? 'text-destructive' : 'text-foreground'}`}>
+        <p className={`text-5xl font-display font-bold tracking-tight mt-1 ${below ? 'text-destructive-text' : 'text-foreground'}`}>
           {formatCurrency(Math.abs(cashAboveFloor), false)}
         </p>
         <p className="text-sm text-muted-foreground mt-2">

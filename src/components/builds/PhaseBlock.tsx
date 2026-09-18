@@ -371,7 +371,7 @@ export default function PhaseBlock({
             {phase.hidden ? <EyeOff size={14} style={{ color: 'hsl(var(--primary))' }} /> : <Eye size={14} />}
           </button>
 
-          <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="icon-btn min-w-[38px] -my-2.5 shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all">
+          <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="icon-btn min-w-[38px] -my-2.5 shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive-text transition-all">
             <Trash2 size={13} />
           </button>
 
@@ -493,7 +493,7 @@ export default function PhaseBlock({
                     </button>
                   </div>
 
-                  <button onClick={() => onDeleteItem(item.id)} title="Delete item" className="icon-btn min-w-[36px] -my-2.5 -mr-1.5 shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all">
+                  <button onClick={() => onDeleteItem(item.id)} title="Delete item" className="icon-btn min-w-[36px] -my-2.5 -mr-1.5 shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive-text transition-all">
                     <Trash2 size={13} />
                   </button>
                 </div>

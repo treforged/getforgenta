@@ -157,7 +157,7 @@ export function TwoFactorAuth() {
               <button
                 onClick={() => handleUnenroll(f.id, FACTOR_LABELS[f.factor_type] ?? 'Factor')}
                 disabled={actionLoading}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50 shrink-0"
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive-text transition-colors btn-press disabled:opacity-50 shrink-0"
               >
                 <Trash2 size={10} />
                 Remove

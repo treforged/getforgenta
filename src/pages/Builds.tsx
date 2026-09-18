@@ -759,7 +759,7 @@ export default function Builds() {
           <button
             onClick={() => handleDeleteBuild(activeBuild)}
             title="Delete build"
-            className="icon-btn text-muted-foreground hover:text-destructive border border-border rounded hover:border-destructive/50 transition-colors"
+            className="icon-btn text-muted-foreground hover:text-destructive-text border border-border rounded hover:border-destructive/50 transition-colors"
           >
             <Trash2 size={14} />
           </button>
@@ -806,7 +806,7 @@ export default function Builds() {
                 <button
                   onClick={handleDisableShare}
                   disabled={shareLoading}
-                  className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors disabled:opacity-40"
+                  className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive-text hover:border-destructive/40 transition-colors disabled:opacity-40"
                 >
                   Disable
                 </button>

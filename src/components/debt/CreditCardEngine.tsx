@@ -1487,15 +1487,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4 text-center">
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total CC Balance</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(totalBalance, false)}</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text">{formatCurrency(totalBalance, false)}</p>
             </div>
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Utilization</p>
-              <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${overallUtil > 30 ? 'text-destructive' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
+              <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${overallUtil > 30 ? 'text-destructive-text' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
             </div>
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Monthly Interest</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(interestThisMonth, true)}</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text">{formatCurrency(interestThisMonth, true)}</p>
             </div>
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
@@ -1518,7 +1518,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 // the debt does not clear, which must never be shown as the reassuring state.
                 if (simAgg.kind === 'never' && !((simRevolvingPayoffMonth ?? 0) > 0) && !((forecastRevolvingPayoffMonth ?? 0) > 0)) {
                   return (
-                    <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive"
+                    <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text"
                        title={NO_PAYOFF_EXPLANATION}>
                       Not within {Math.round(PROJECTION_MONTHS / 12)} years
                     </p>
@@ -1715,7 +1715,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </p>
 
           {month0Recs.cashWarningText && (
-            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{month0Recs.cashWarningText}</span>
             </div>
           )}
@@ -1764,11 +1764,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       )}
                       {cashBreakdown.transactionExpenses > 0 && (
                         <div className="mb-2">
-                          <p className="text-[10px] text-destructive/80 uppercase tracking-wider mb-1">− Upcoming expenses</p>
+                          <p className="text-[10px] text-destructive-text/80 uppercase tracking-wider mb-1">− Upcoming expenses</p>
                           {cashBreakdownItems.expenseItems.slice(0, 6).map((item: TransactionLineItem, i: number) => (
                             <div key={i} className="flex justify-between gap-3">
                               <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
-                              <span className="text-destructive/80 shrink-0">−{formatCurrency(item.amount, true)}</span>
+                              <span className="text-destructive-text/80 shrink-0">−{formatCurrency(item.amount, true)}</span>
                             </div>
                           ))}
                           {cashBreakdownItems.expenseItems.length > 6 && (
@@ -1847,7 +1847,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(month0Recs.totalMinimumsdue, false)}</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-destructive-text">{formatCurrency(month0Recs.totalMinimumsdue, false)}</p>
             </div>
           </div>
 
@@ -1922,7 +1922,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         // "Always pay this" is still being sent in full — the plan does not reduce
                         // it — so this says what the month is missing, not that the payment shrank.
                         // Silence here would be the app balancing the month on paper.
-                        <span className="text-[9px] sm:text-[10px] text-destructive font-medium">
+                        <span className="text-[9px] sm:text-[10px] text-destructive-text font-medium">
                           {unconditionalShortfallLabel(r.unconditionalShortfall)}
                         </span>
                       )}
@@ -2056,7 +2056,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         utilizationNow={proj.utilizationNow}
                         account={accounts.find(a => a.id === proj.card.id)}
                       />
-                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive'}`}>
+                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive-text'}`}>
                         {formatCurrency(Math.max(0, proj.card.balance), false)}
                       </p>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
@@ -2091,8 +2091,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <p className="text-xs font-semibold">{proj.card.dueDay ? ordinal(proj.card.dueDay) : '—'}</p>
                     <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}</p></div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
+                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}</p></div>
+                  <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Total Interest</p>
                     {/* ⚠️ A CARD THAT NEVER PAYS OFF HAS NO TOTAL, AND PRINTING ONE IS A LIE THE
@@ -2104,7 +2104,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         The payoff label beside this one already says N/A in exactly this state
                         (see `proj.payoffMonth` above); this tile disagreed with it. */}
                     <p
-                      className="text-xs font-semibold text-destructive"
+                      className="text-xs font-semibold text-destructive-text"
                       title={totalInterestLabel(proj.payoffMonth) ? NO_PAYOFF_EXPLANATION : undefined}
                     >
                       {totalInterestLabel(proj.payoffMonth) ?? formatCurrency(proj.totalInterest, false)}
@@ -2365,7 +2365,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                       : `Pinned ${formatCurrency(pinnedVal ?? 0, false)} reduced to available cash`}
                                   </span>
                                 )}
-                                {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
+                                {row.newPurchases > 0 && <span className="text-destructive-text">+{formatCurrency(row.newPurchases, false)} purchases</span>}
                                 {/* ⚠️ A SENTENCE STOOD HERE AND IT WAS REMOVED ON 2026-09-17,
                                     THE SAME DAY IT SHIPPED, BECAUSE ITS PREMISE WAS FALSE.
                                     It told the reader that the payment and the end balance were
@@ -2393,9 +2393,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                     accurate way to show it is numbers that add up; the underlying
                                     non-reconciling row is tracked separately and is still open.
                                     Do not restore this line - fix the numbers. */}
-                                {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
+                                {row.interest > 0 && <span className="text-destructive-text">+{formatCurrency(row.interest, true)} interest</span>}
                                 {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
-                                <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
+                                <span className={row.utilization > 30 ? 'text-destructive-text' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
                                   {row.utilization.toFixed(1)}% utilization
                                 </span>
                               </div>

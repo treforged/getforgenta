@@ -179,7 +179,7 @@ export default function DecisionDeckCard({
       )}
 
       {error && (
-        <p className="flex items-start gap-1.5 text-[11px] text-destructive" role="alert">
+        <p className="flex items-start gap-1.5 text-[11px] text-destructive-text" role="alert">
           <AlertTriangle size={12} className="mt-0.5 shrink-0" />
           {error}
         </p>

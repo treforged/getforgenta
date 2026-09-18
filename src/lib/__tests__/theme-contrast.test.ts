@@ -99,6 +99,38 @@ describe('theme contrast', () => {
       expect(contrast(muted!, bg!)).toBeGreaterThanOrEqual(4.5);
     });
 
+    // ── THE DESTRUCTIVE PAIR ──────────────────────────────────────────────────────────────
+    // These two assertions exist TOGETHER and neither is sufficient alone. `--destructive` is a
+    // FILL and `--destructive-text` is TEXT, and in dark mode no single lightness satisfies both:
+    // at 35% the fill is 6.68:1 and the text is 2.26:1 on a card; at 70% they swap. Collapsing
+    // them back into one token - which reads like a tidy-up - necessarily breaks one of these.
+    //
+    // ⚠️ THE CARD IS ASSERTED AS WELL AS THE PAGE, unlike --muted-foreground above. Red text in
+    // this app is overwhelmingly a figure inside a card, and the card is the LIGHTER surface in
+    // dark mode, so it is the harder of the two. Asserting only --background would pass a value
+    // that fails on the surface the text actually sits on.
+    it(`${sel}: destructive TEXT clears AA on both the page and a card`, () => {
+      const bg = token(block, 'background');
+      const card = token(block, 'card');
+      const dtext = token(block, 'destructive-text');
+      expect(bg, `${sel} has no --background`).not.toBeNull();
+      expect(card, `${sel} has no --card`).not.toBeNull();
+      // A missing token is a FAILURE. If a theme block forgets this one it INHERITS :root's, and
+      // :root is the DARK palette - so a light theme would silently draw a 66% red on a 96% page
+      // at 3.29:1. That is the exact regression this assertion is here to stop.
+      expect(dtext, `${sel} has no --destructive-text`).not.toBeNull();
+      expect(contrast(dtext!, bg!)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(dtext!, card!)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it(`${sel}: destructive FILL still carries its own foreground`, () => {
+      const fill = token(block, 'destructive');
+      const on = token(block, 'destructive-foreground');
+      expect(fill, `${sel} has no --destructive`).not.toBeNull();
+      expect(on, `${sel} has no --destructive-foreground`).not.toBeNull();
+      expect(contrast(on!, fill!)).toBeGreaterThanOrEqual(4.5);
+    });
+
     it(`${sel}: primary text stays clearly above muted text`, () => {
       const bg = token(block, 'background');
       const fg = token(block, 'foreground');

@@ -43,14 +43,14 @@ const EMPTY_COPY: Record<Props['emptyReason'], { title: string; body: string; ac
 
 /** Month colour by tone. Negative reads destructive; nothing here is ever gold. */
 const MONTH_TONE: Record<MilestoneTone, string> = {
-  negative: 'text-destructive',
+  negative: 'text-destructive-text',
   positive: 'text-foreground',
   neutral: 'text-foreground',
 };
 
 /** Supporting-line colour by tone — the distinct voice, at identical prominence. */
 const EVENT_TONE: Record<MilestoneTone, string> = {
-  negative: 'text-destructive',
+  negative: 'text-destructive-text',
   positive: 'text-success',
   neutral: 'text-muted-foreground',
 };
@@ -76,7 +76,7 @@ function RemainingMilestones({ milestones }: { milestones: ForecastMilestone[] }
         {milestones.map((m, i) => {
           const tone = classifyMilestoneTone(m.event);
           const chip = tone === 'negative'
-            ? 'bg-destructive/10 text-destructive'
+            ? 'bg-destructive/10 text-destructive-text'
             : tone === 'positive'
               ? 'bg-success/10 text-success'
               : 'bg-secondary text-muted-foreground';

@@ -628,7 +628,7 @@ export default function Onboarding() {
                   </div>
                   <div className="flex justify-between mt-1">
                     <span className="text-muted-foreground">Remaining after expenses</span>
-                    <span className={`font-semibold ${net >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    <span className={`font-semibold ${net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>
                       {net >= 0 ? '+' : ''}${net.toLocaleString()}
                     </span>
                   </div>
@@ -703,13 +703,13 @@ export default function Onboarding() {
                 {totalExpenses > 0 && (
                   <div className="flex justify-between py-2 border-b border-border/40 text-xs">
                     <span className="text-muted-foreground">Monthly expenses</span>
-                    <span className="font-semibold text-destructive">−${totalExpenses.toLocaleString()}</span>
+                    <span className="font-semibold text-destructive-text">−${totalExpenses.toLocaleString()}</span>
                   </div>
                 )}
                 {totalDebt > 0 && (
                   <div className="flex justify-between py-2 border-b border-border/40 text-xs">
                     <span className="text-muted-foreground">Total debt</span>
-                    <span className="font-semibold text-destructive">${totalDebt.toLocaleString()}</span>
+                    <span className="font-semibold text-destructive-text">${totalDebt.toLocaleString()}</span>
                   </div>
                 )}
                 {data.goals.filter(g => g.name).length > 0 && (
@@ -721,7 +721,7 @@ export default function Onboarding() {
                 {data.weeklyGross && (
                   <div className="flex justify-between py-2 text-xs">
                     <span className="text-muted-foreground">Available after expenses</span>
-                    <span className={`font-semibold ${net >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    <span className={`font-semibold ${net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>
                       {net >= 0 ? '+' : ''}${net.toLocaleString()}
                     </span>
                   </div>

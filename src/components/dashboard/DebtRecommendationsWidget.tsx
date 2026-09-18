@@ -80,7 +80,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
           </p>
 
           {hasRecs && cashWarning && (
-            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-4 text-[10px] text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-4 text-[10px] text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={13} className="shrink-0 mt-0.5" />
               {/* One sentence, chosen once in `cashWarningMessage`, so this widget and /debt cannot
                   describe the same problem differently. The fallback is the OLD wording rather than
@@ -100,7 +100,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
               </div>
               <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[9px] text-muted-foreground uppercase">Minimums Due</p>
-                <p className="text-xs font-display font-bold text-destructive">{formatCurrency(totalMinimumsDue, false)}</p>
+                <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(totalMinimumsDue, false)}</p>
               </div>
             </div>
           )}
@@ -156,7 +156,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                   {r.unconditionalShortfall !== undefined && r.unconditionalShortfall > 0 && (
                     // Same line, same wording as /debt — one constant, so the two surfaces cannot
                     // describe the same gap differently.
-                    <span className="text-[9px] text-destructive font-medium">
+                    <span className="text-[9px] text-destructive-text font-medium">
                       {unconditionalShortfallLabel(r.unconditionalShortfall)}
                     </span>
                   )}

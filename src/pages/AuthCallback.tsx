@@ -92,7 +92,7 @@ export default function AuthCallback() {
 
       {verify.status === 'error' && (
         <>
-          <p className="text-sm text-destructive text-center max-w-xs">{verify.message}</p>
+          <p className="text-sm text-destructive-text text-center max-w-xs">{verify.message}</p>
           <button
             onClick={() => navigate('/auth', { replace: true })}
             className="w-full max-w-xs bg-primary text-primary-foreground py-3.5 text-sm font-semibold text-center btn-press"

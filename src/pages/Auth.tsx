@@ -748,7 +748,7 @@ export default function Auth() {
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Code expires in</span>
-                  <span className={`text-xs font-semibold tabular-nums ${isExpiring ? 'text-destructive' : 'text-foreground'}`}>
+                  <span className={`text-xs font-semibold tabular-nums ${isExpiring ? 'text-destructive-text' : 'text-foreground'}`}>
                     {totpCountdown}s
                   </span>
                 </div>
@@ -777,7 +777,7 @@ export default function Auth() {
             />
 
             {mfaError && (
-              <p className="text-xs text-destructive -mt-2">{mfaError}</p>
+              <p className="text-xs text-destructive-text -mt-2">{mfaError}</p>
             )}
 
             {loading && (
@@ -854,7 +854,7 @@ export default function Auth() {
                 }`}
                 style={{ borderRadius: 'var(--radius)' }}
               />
-              {mismatch && <p className="text-xs text-destructive mt-1">Passwords do not match</p>}
+              {mismatch && <p className="text-xs text-destructive-text mt-1">Passwords do not match</p>}
             </div>
             <button
               type="submit"
@@ -1016,7 +1016,7 @@ export default function Auth() {
                 style={{ borderRadius: 'var(--radius)' }}
               />
               {confirmPassword && confirmPassword !== password && (
-                <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+                <p className="text-xs text-destructive-text mt-1">Passwords do not match</p>
               )}
             </div>
           )}

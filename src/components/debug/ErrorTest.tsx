@@ -34,7 +34,7 @@ export default function ErrorTest() {
   return (
     <div className="p-6 max-w-lg mx-auto space-y-6">
       <div className="flex items-start gap-3">
-        <AlertTriangle size={20} className="text-destructive mt-0.5 shrink-0" />
+        <AlertTriangle size={20} className="text-destructive-text mt-0.5 shrink-0" />
         <div>
           <h1 className="text-sm font-semibold">Error tracking smoke test</h1>
           <p className="text-xs text-muted-foreground mt-1">

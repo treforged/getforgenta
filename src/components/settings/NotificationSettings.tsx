@@ -192,7 +192,7 @@ export default function NotificationSettings() {
         <p
           role="status"
           data-testid="push-registration-note"
-          className="text-[10px] text-destructive"
+          className="text-[10px] text-destructive-text"
         >
           {registrationNote}
         </p>

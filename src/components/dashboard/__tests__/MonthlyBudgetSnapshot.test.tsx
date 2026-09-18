@@ -57,7 +57,7 @@ describe('MonthlyBudgetSnapshot — the two re-anchored chip figures', () => {
 
   it('colours a month ending short as a loss', () => {
     renderSnapshot({ monthEndCash: -410 });
-    expect(screen.getByText('-$410').className).toContain('text-destructive');
+    expect(screen.getByText('-$410').className).toContain('text-destructive-text');
   });
 
   it('leaves the equation and the floor tap-through alone', () => {

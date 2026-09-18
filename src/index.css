@@ -38,6 +38,10 @@
 
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  /* The TEXT red. Separate from --color-destructive on purpose: see --destructive-text in the
+     palette below. Tailwind v4 drives every utility from one variable, so a `text-`-only override
+     is not available and the split has to live in the class name. */
+  --color-destructive-text: hsl(var(--destructive-text));
 
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
@@ -843,6 +847,20 @@ so size and variant are separated here and the 44px floor is stated once.
     --accent-foreground: 214 32% 91%;
     --destructive: 0 73% 35%;
     --destructive-foreground: 214 32% 91%;
+    /* ⚠️ A SECOND RED, BECAUSE NO SINGLE LIGHTNESS CAN DO BOTH JOBS IN DARK MODE. `--destructive`
+       is a FILL, read against `--destructive-foreground`; this one is TEXT, read against the page
+       or a card. Measured, the two requirements pull apart and there is no overlap:
+
+           l=35%  fill 6.68:1   text-on-card 2.26:1
+           l=55%  fill 3.51:1   text-on-card 4.29:1
+           l=70%  fill 2.22:1   text-on-card 6.80:1
+
+       At 35% - what every `text-destructive` in the app resolved to before this - red text measured 2.26:1 on a
+       card, roughly HALF the 4.5:1 AA floor, on the token the app uses to say a number is wrong.
+       66% gives 5.93:1 on a card, 6.44:1 on the page and 6.16:1 on a panel: past the floor with
+       real margin rather than sitting on it, which is the same call `--muted-foreground` took.
+       The fill keeps 35% and keeps its 6.68:1, so nothing about a destructive BUTTON changes. */
+    --destructive-text: 0 73% 66%;
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 43 56% 52%;
@@ -931,6 +949,13 @@ so size and variant are separated here and the 44px floor is stated once.
     --accent-foreground: 0 0% 12%;
     --destructive: 0 72% 42%;
     --destructive-foreground: 0 0% 100%;
+    /* Light mode needs NO split - measured, one lightness serves both jobs here, because the page
+       is light and the fill's foreground is white, so both requirements pull the same way: at 42%
+       text-on-page is 5.92:1, text-on-card 6.47:1 and white-on-fill 6.47:1. It is defined anyway
+       and it is NOT optional: `:root` IS the dark palette, so a `.light` that left this unset
+       would INHERIT the 66% red and draw it on a 96% page at 3.29:1 - the fix introducing a fresh
+       AA failure in the theme it was not aimed at. */
+    --destructive-text: 0 72% 42%;
     /* ⚠️ `--input` IS PULLED WELL PAST `--border`, and that split is the point. A divider may be
        quiet; a control's edge is telling you where you can type, and at 88% it was 1.32:1 — an
        affordance nobody can see. They were the same value only because dark mode never made the
@@ -1017,6 +1042,20 @@ so size and variant are separated here and the 44px floor is stated once.
     --accent-foreground: 214 32% 91%;
     --destructive: 0 73% 35%;
     --destructive-foreground: 214 32% 91%;
+    /* ⚠️ A SECOND RED, BECAUSE NO SINGLE LIGHTNESS CAN DO BOTH JOBS IN DARK MODE. `--destructive`
+       is a FILL, read against `--destructive-foreground`; this one is TEXT, read against the page
+       or a card. Measured, the two requirements pull apart and there is no overlap:
+
+           l=35%  fill 6.68:1   text-on-card 2.26:1
+           l=55%  fill 3.51:1   text-on-card 4.29:1
+           l=70%  fill 2.22:1   text-on-card 6.80:1
+
+       At 35% - what every `text-destructive` in the app resolved to before this - red text measured 2.26:1 on a
+       card, roughly HALF the 4.5:1 AA floor, on the token the app uses to say a number is wrong.
+       66% gives 5.93:1 on a card, 6.44:1 on the page and 6.16:1 on a panel: past the floor with
+       real margin rather than sitting on it, which is the same call `--muted-foreground` took.
+       The fill keeps 35% and keeps its 6.68:1, so nothing about a destructive BUTTON changes. */
+    --destructive-text: 0 73% 66%;
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 43 56% 52%;

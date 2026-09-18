@@ -1136,7 +1136,7 @@ export default function BankActivity() {
                       </p>
                     </div>
                   </div>
-                  <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success' : 'text-destructive'}`}>
+                  <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success' : 'text-destructive-text'}`}>
                     {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount), false)}
                   </span>
                 </div>

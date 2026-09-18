@@ -502,7 +502,7 @@ export default function DebtPayoff() {
               </div>
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Remaining</p>
-                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(activeAutoLoans.reduce((s, l) => s + l.remainingBalance, 0), false)}</p>
+                <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(activeAutoLoans.reduce((s, l) => s + l.remainingBalance, 0), false)}</p>
               </div>
             </div>
           )}
@@ -561,7 +561,7 @@ export default function DebtPayoff() {
         <>
           {nonCcDebtExplainer}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive">{formatCurrency(totalBalance, false)}</p></div>
+            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(totalBalance, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment, false)}</p></div>
           </div>
@@ -586,9 +586,9 @@ export default function DebtPayoff() {
                       <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-display font-bold text-destructive">{formatCurrency(bal, false)}</p>
+                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal, false)}</p>
                       <button onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
@@ -607,7 +607,7 @@ export default function DebtPayoff() {
                         <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
                       )}
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
               );
@@ -633,7 +633,7 @@ export default function DebtPayoff() {
                     </div>
                     <div className="bg-muted/20 rounded p-2 text-center">
                       <p className="text-[9px] text-muted-foreground uppercase">Total Interest</p>
-                      <p className="text-xs font-display font-bold text-destructive">{formatCurrency(sim.totalInterest, false)}</p>
+                      <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(sim.totalInterest, false)}</p>
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -669,7 +669,7 @@ export default function DebtPayoff() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
-                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(mortgageDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
+                <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(mortgageDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
               </div>
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
@@ -698,9 +698,9 @@ export default function DebtPayoff() {
                       <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-display font-bold text-destructive">{formatCurrency(bal, false)}</p>
+                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal, false)}</p>
                       <button onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
@@ -719,7 +719,7 @@ export default function DebtPayoff() {
                         <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
                       )}
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
               );
@@ -742,7 +742,7 @@ export default function DebtPayoff() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
-                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(studentDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
+                <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(studentDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
               </div>
               <div className="card-forged p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
@@ -771,9 +771,9 @@ export default function DebtPayoff() {
                       <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-display font-bold text-destructive">{formatCurrency(bal, false)}</p>
+                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal, false)}</p>
                       <button onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
@@ -792,7 +792,7 @@ export default function DebtPayoff() {
                         <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
                       )}
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
                   </div>
                 </div>
               );

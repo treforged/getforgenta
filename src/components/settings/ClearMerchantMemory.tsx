@@ -77,7 +77,7 @@ export default function ClearMerchantMemory() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <p className="text-xs font-medium flex items-center gap-1.5">
-          <Eraser size={12} className="text-destructive shrink-0" />
+          <Eraser size={12} className="text-destructive-text shrink-0" />
           Clear merchant memory
         </p>
         <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
@@ -89,7 +89,7 @@ export default function ClearMerchantMemory() {
              the part nobody expects. "Restart from scratch" is what Tre asked for; it is also
              eight months of his own answers, so it is said plainly rather than softened. */
           <div
-            className="mt-2 bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-xs text-destructive leading-relaxed"
+            className="mt-2 bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-xs text-destructive-text leading-relaxed"
             style={{ borderRadius: 'var(--radius)' }}
           >
             This removes the category from <strong>{plan.length} {plan.length === 1 ? 'charge' : 'charges'}</strong>,

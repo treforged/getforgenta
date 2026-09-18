@@ -463,7 +463,7 @@ function ConsentGate({
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-xs text-destructive">
+            <div className="flex items-center gap-2 text-xs text-destructive-text">
               <AlertTriangle size={12} className="shrink-0" />
               <span>{error}</span>
             </div>
@@ -1368,7 +1368,7 @@ export default function AiAdvisor() {
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 mt-2 text-xs text-destructive">
+            <div className="flex items-start gap-2 mt-2 text-xs text-destructive-text">
               <AlertTriangle size={12} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>

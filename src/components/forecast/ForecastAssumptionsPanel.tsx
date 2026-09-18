@@ -94,7 +94,7 @@ export default function ForecastAssumptionsPanel({
                 <span className="text-xs font-semibold text-foreground">Promotion</span>
                 <button
                   onClick={() => setAssumptions(prev => ({ ...prev, promotions: prev.promotions.filter(p => p.id !== promo.id) }))}
-                  className="text-muted-foreground hover:text-destructive shrink-0 p-1.5 -mr-1.5" title="Remove promotion">
+                  className="text-muted-foreground hover:text-destructive-text shrink-0 p-1.5 -mr-1.5" title="Remove promotion">
                   <X size={14} />
                 </button>
               </div>
@@ -295,7 +295,7 @@ export default function ForecastAssumptionsPanel({
                     <><span className="text-muted-foreground ml-2">State </span>
                     <span className="font-display font-bold text-foreground">{formatCurrency(Math.abs(taxRefundPreview.stateRefund), false)}</span></>
                   )}
-                  <div className={`mt-0.5 font-display font-bold ${taxRefundPreview.totalRefund >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                  <div className={`mt-0.5 font-display font-bold ${taxRefundPreview.totalRefund >= 0 ? 'text-primary' : 'text-destructive-text'}`}>
                     {taxRefundPreview.totalRefund >= 0 ? 'Est. Refund ' : 'Est. Owed '}
                     {formatCurrency(Math.abs(taxRefundPreview.totalRefund), false)}
                   </div>

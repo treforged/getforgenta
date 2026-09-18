@@ -91,12 +91,12 @@ function reachabilityNote(r: Reachability, targetDate: string | null): { text: s
     case 'never':
       return {
         text: `Will not reach it by ${by} — ${formatCurrency(r.shortfall, false)} short`,
-        tone: 'text-destructive',
+        tone: 'text-destructive-text',
       };
     case 'late':
       return {
         text: `${r.monthsLate} month${r.monthsLate === 1 ? '' : 's'} late — ${formatCurrency(r.shortfall, false)} short at ${by}`,
-        tone: 'text-destructive',
+        tone: 'text-destructive-text',
       };
     case 'on_track':
       return { text: `On track for ${by}`, tone: 'text-muted-foreground' };
@@ -387,7 +387,7 @@ export default function SurplusRankingSection({
           the app diverts the money, so the app is what has to say the money does not go round. */}
       {collision && (
         <div className="mb-3 px-3 py-2 border border-destructive/40 bg-destructive/5" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-xs font-medium text-destructive">
+          <p className="text-xs font-medium text-destructive-text">
             {collision.shortfall > 0
               ? `${formatCurrency(collision.demand, false)} wanted over the next ${collision.horizonMonths} months, ${formatCurrency(collision.capacity, false)} available — ${formatCurrency(collision.shortfall, false)} short.`
               : `${collision.unreachable.length} ${collision.unreachable.length === 1 ? 'target does' : 'targets do'} not reach ${collision.unreachable.length === 1 ? 'its' : 'their'} own date — ${formatCurrency(collision.unreachable.reduce((s, u) => s + u.shortfall, 0), false)} short in total.`}

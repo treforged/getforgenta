@@ -198,7 +198,7 @@ export default function AppLockSetupModal() {
               <p className="text-xs text-muted-foreground">Enter your PIN again to confirm</p>
             </div>
             {error && (
-              <p className="text-xs text-destructive -mb-2">PINs don't match — try again</p>
+              <p className="text-xs text-destructive-text -mb-2">PINs don't match — try again</p>
             )}
             <PinDots pin={confirmPin} error={error} />
             <Numpad onDigit={handleConfirmDigit} disabled={busy} />

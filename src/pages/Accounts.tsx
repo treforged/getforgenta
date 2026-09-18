@@ -829,7 +829,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           <div className="card-forged w-full max-w-sm p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                <Trash2 size={18} className="text-destructive" />
+                <Trash2 size={18} className="text-destructive-text" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold">Delete "{deleteConfirm.name}"?</p>
@@ -1090,7 +1090,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                   </div>
                 ))}
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${liability ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-                  <Icon size={16} className={liability ? 'text-destructive' : 'text-primary'} />
+                  <Icon size={16} className={liability ? 'text-destructive-text' : 'text-primary'} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 min-w-0">
@@ -1120,7 +1120,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                           alone returns roughly 90px to the name on a 390px phone. */}
                       <p className="text-sm font-semibold break-words">{a.name}</p>
                     </div>
-                    <span className={`text-base font-display font-bold shrink-0 ${liability ? 'text-destructive' : 'text-success'}`}>
+                    <span className={`text-base font-display font-bold shrink-0 ${liability ? 'text-destructive-text' : 'text-success'}`}>
                       {liability ? '-' : ''}{formatCurrency(Number(a.balance), false)}
                     </span>
                   </div>
@@ -1220,7 +1220,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                     {a.plaid_account_id && (
                       <button
                         onClick={() => handleUnlinkAccount(a.id)}
-                        className={`text-xs font-medium px-1.5 py-1 border transition-colors mr-1 ${unlinkConfirm === a.id ? 'text-destructive border-destructive/40 bg-destructive/5' : 'text-muted-foreground border-transparent hover:text-destructive'}`}
+                        className={`text-xs font-medium px-1.5 py-1 border transition-colors mr-1 ${unlinkConfirm === a.id ? 'text-destructive-text border-destructive/40 bg-destructive/5' : 'text-muted-foreground border-transparent hover:text-destructive-text'}`}
                         style={{ borderRadius: 'var(--radius)' }}
                         title={unlinkConfirm === a.id ? 'Click again to confirm unlink' : 'Unlink from Plaid auto-sync'}
                       >
@@ -1231,7 +1231,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       {a.active ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                     <button onClick={() => openEdit(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                    <button onClick={() => handleDelete(a)} className="icon-btn text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
+                    <button onClick={() => handleDelete(a)} className="icon-btn text-muted-foreground hover:text-destructive-text"><Trash2 size={14} /></button>
                   </div>
                   </div>
                 </div>
@@ -1392,8 +1392,8 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                         onBlur={() => setDelinkConfirm(null)}
                         className={`text-xs font-medium px-2 py-1 rounded border transition-colors shrink-0 ${
                           delinkConfirm === item.id
-                            ? 'text-destructive border-destructive/40 bg-destructive/10'
-                            : 'text-muted-foreground border-transparent hover:text-destructive'
+                            ? 'text-destructive-text border-destructive/40 bg-destructive/10'
+                            : 'text-muted-foreground border-transparent hover:text-destructive-text'
                         }`}
                         title={delinkConfirm === item.id ? 'Click again to confirm' : 'Remove bank connection'}
                       >

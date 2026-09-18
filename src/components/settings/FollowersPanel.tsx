@@ -253,7 +253,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
             irreversible-feeling action and it stays one deliberate press away. */}
         <UsernameSuggestions prefix={username} onPick={(name) => setUsername(name)} />
         {findError && (
-          <p className="mt-1 text-sm text-destructive">{findError}</p>
+          <p className="mt-1 text-sm text-destructive-text">{findError}</p>
         )}
         {findMessage && (
           <p className="mt-1 text-sm text-muted-foreground">{findMessage}</p>

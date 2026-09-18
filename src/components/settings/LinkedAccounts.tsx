@@ -128,7 +128,7 @@ export function LinkedAccounts() {
                   <button
                     onClick={() => handleUnlink(linked)}
                     disabled={busy}
-                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press disabled:opacity-50"
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive-text transition-colors btn-press disabled:opacity-50"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     {busy ? <Loader2 size={10} className="animate-spin" /> : <Unlink size={10} />}

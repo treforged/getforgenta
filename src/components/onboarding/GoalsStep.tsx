@@ -45,7 +45,7 @@ export default function GoalsStep({
                 <span className="text-[10px] font-medium text-muted-foreground uppercase">Goal {i + 1}</span>
               </div>
               <button onClick={() => onChange(goals.filter((_, j) => j !== i))}
-                className="text-[10px] text-destructive hover:underline">Remove</button>
+                className="text-[10px] text-destructive-text hover:underline">Remove</button>
             </div>
 
             <div className="space-y-1">

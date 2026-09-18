@@ -76,7 +76,7 @@ describe('Accounts — btn-vocabulary buttons still work', () => {
   it('"Delete Account" (btn btn-danger) in the confirm modal actually deletes the row', () => {
     render(<MemoryRouter><Accounts /></MemoryRouter>);
     // Open the row menu's delete, which raises the confirm modal rather than deleting immediately.
-    const deleteTriggers = document.querySelectorAll('button[class*="icon-btn"][class*="hover:text-destructive"]');
+    const deleteTriggers = document.querySelectorAll('button[class*="icon-btn"][class*="hover:text-destructive-text"]');
     expect(deleteTriggers.length).toBeGreaterThan(0);
     fireEvent.click(deleteTriggers[0]);
 

@@ -95,7 +95,7 @@ export function PhoneAuth() {
           </div>
           <button
             onClick={() => { setStep('idle'); setCurrentPhone(null); }}
-            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-colors btn-press rounded-nested-2"
+            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive-text transition-colors btn-press rounded-nested-2"
           >
             Change
           </button>
@@ -164,7 +164,7 @@ export function PhoneAuth() {
             <button
               onClick={handleRemove}
               disabled={removing}
-              className="text-[10px] text-destructive hover:opacity-80 underline"
+              className="text-[10px] text-destructive-text hover:opacity-80 underline"
             >
               {removing ? 'Removing…' : 'Remove phone number'}
             </button>

@@ -660,7 +660,7 @@ export default function Forecast() {
                   <span className="text-xs font-medium truncate">{e.name}</span>
                   {e.source && <span className="text-[9px] sm:text-xs text-muted-foreground hidden sm:inline">· {e.source}</span>}
                 </div>
-                <span className={`text-xs font-display font-bold shrink-0 ${e.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                <span className={`text-xs font-display font-bold shrink-0 ${e.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
                   {e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount, false)}
                 </span>
               </div>

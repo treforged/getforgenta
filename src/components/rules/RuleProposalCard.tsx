@@ -92,7 +92,7 @@ export default function RuleProposalCard({
       <p className="text-sm font-medium leading-snug">Add this as a recurring rule?</p>
 
       {error && (
-        <p className="text-[11px] text-destructive" role="alert">{error}</p>
+        <p className="text-[11px] text-destructive-text" role="alert">{error}</p>
       )}
 
       <div className="space-y-3">

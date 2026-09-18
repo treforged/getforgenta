@@ -187,7 +187,7 @@ export default function RulesFromHistoryDeck({ proposals, onClose }: RulesFromHi
                   would have carried the error is gone by the time it exists — without this the
                   headline reads "1 rule added" and a run where two writes were lost is
                   indistinguishable from a clean one. */}
-              {error && <p className="text-destructive" role="alert">{error}</p>}
+              {error && <p className="text-destructive-text" role="alert">{error}</p>}
             </>
           )}
           onUndo={added > 0 && !undone ? undoAll : undefined}

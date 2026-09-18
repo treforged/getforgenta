@@ -69,7 +69,7 @@ export default function SubscriptionExpiryBanner() {
   const bannerCls = urgent
     ? 'border-destructive/40 bg-destructive/5'
     : 'border-gold/30 bg-gold/5';
-  const iconCls = urgent ? 'text-destructive' : 'text-gold';
+  const iconCls = urgent ? 'text-destructive-text' : 'text-gold';
 
   const expiryLabel =
     daysLeft === 0
@@ -148,7 +148,7 @@ export default function SubscriptionExpiryBanner() {
             <ul className="space-y-2">
               {PREMIUM_FEATURES.map((f) => (
                 <li key={f} className="flex items-center gap-2.5 text-xs text-foreground">
-                  <span className="text-destructive font-bold text-sm leading-none">−</span>
+                  <span className="text-destructive-text font-bold text-sm leading-none">−</span>
                   {f}
                 </li>
               ))}

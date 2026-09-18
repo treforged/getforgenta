@@ -194,7 +194,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
             {undoConfirm && <span className="text-xs font-medium">Confirm?</span>}
           </button>
           <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
         </div>
       </div>
 
@@ -206,7 +206,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
       )}
 
       {effective.isNegativeAmortization && (
-        <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+        <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={12} />
           <span>Payment is below interest-only - balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment, false)}/mo.</span>
         </div>
@@ -243,7 +243,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Interest Paid</p>
-          <p className="text-xs font-semibold text-destructive">{formatCurrency(effective.interestPaidToDate, false)}</p>
+          <p className="text-xs font-semibold text-destructive-text">{formatCurrency(effective.interestPaidToDate, false)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Total Interest</p>
@@ -363,7 +363,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
                         </td>
                       )}
                       <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal, false)}</td>
-                      <td className="py-1 px-1 text-right text-destructive">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
+                      <td className="py-1 px-1 text-right text-destructive-text">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
                       <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance, false)}</td>
                     </tr>
                   ))}

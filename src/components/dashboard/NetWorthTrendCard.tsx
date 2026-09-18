@@ -64,7 +64,7 @@ export default function NetWorthTrendCard({
         <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium flex items-center justify-center sm:justify-start gap-1">
           <ArrowUpRight size={9} /> Monthly Change
         </p>
-        <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
+        <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive-text'}`}>
           {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange, false) : '—'}
         </p>
         <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">

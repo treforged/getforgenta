@@ -116,13 +116,13 @@ export default function DashboardOverviewStrip({
   const headline = (
     <>
       <p className={LABEL}>Net Worth</p>
-      <p className={`text-2xl sm:text-3xl font-display font-bold mt-0.5 ${netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>
+      <p className={`text-2xl sm:text-3xl font-display font-bold mt-0.5 ${netWorth >= 0 ? 'text-primary' : 'text-destructive-text'}`}>
         {money(netWorth)}
       </p>
       <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
         <span className="text-success font-medium">{money(totalAssets)}</span> assets
         <span className="mx-1.5 text-border">|</span>
-        <span className="text-destructive font-medium">{money(totalLiabilities)}</span> liabilities
+        <span className="text-destructive-text font-medium">{money(totalLiabilities)}</span> liabilities
       </p>
     </>
   );
@@ -149,7 +149,7 @@ export default function DashboardOverviewStrip({
             <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success" onClick={onLiquidCashClick} />
             <SplitTile label="Investments" value={money(investments)} tone="text-primary" />
             <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" />
-            <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive" sub={utilizationSub} />
+            <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive-text" sub={utilizationSub} />
           </div>
         </div>
       </div>

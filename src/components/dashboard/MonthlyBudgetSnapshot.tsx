@@ -42,13 +42,13 @@ const C = {
 const TONE_CLASS: Record<SnapshotRowTone, string> = {
   neutral:  'text-foreground',
   positive: 'text-success',
-  negative: 'text-destructive',
+  negative: 'text-destructive-text',
   muted:    'text-muted-foreground',
   subtotal: 'text-primary',
 };
 
 function rowValueClass(row: SnapshotRow): string {
-  if (row.tone === 'subtotal') return row.value >= 0 ? 'text-primary' : 'text-destructive';
+  if (row.tone === 'subtotal') return row.value >= 0 ? 'text-primary' : 'text-destructive-text';
   if (row.key === 'expenses') return 'text-gold';
   return TONE_CLASS[row.tone];
 }
@@ -135,7 +135,7 @@ export default function MonthlyBudgetSnapshot({
               <SubFigure
                 label="Month-End Cash"
                 value={formatCurrency(monthEnd, false)}
-                tone={monthEnd >= 0 ? 'text-foreground' : 'text-destructive'}
+                tone={monthEnd >= 0 ? 'text-foreground' : 'text-destructive-text'}
                 onClick={onMonthEndClick}
               />
             )}
@@ -210,7 +210,7 @@ export default function MonthlyBudgetSnapshot({
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
                   Shortfall
                 </span>
-                <span className="text-2xl font-display font-bold leading-tight text-destructive">
+                <span className="text-2xl font-display font-bold leading-tight text-destructive-text">
                   {formatCurrency(Math.abs(projectedRemaining), true)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">projected</span>

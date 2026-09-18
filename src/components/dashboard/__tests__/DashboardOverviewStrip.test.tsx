@@ -62,7 +62,7 @@ describe('DashboardOverviewStrip — nothing the Accounts tiles showed is lost',
 
   it('colours a negative net worth as a loss', () => {
     renderStrip({ netWorth: -3200 });
-    expect(screen.getByText('-$3,200').className).toContain('text-destructive');
+    expect(screen.getByText('-$3,200').className).toContain('text-destructive-text');
   });
 });
 

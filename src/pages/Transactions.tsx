@@ -1188,7 +1188,7 @@ export default function Transactions() {
                             <button onClick={() => openEditPlan(plan)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>
                             <button
                               onClick={() => handleDeletePlan(plan.id)}
-                              className={`icon-btn ${planDeleteConfirm === plan.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+                              className={`icon-btn ${planDeleteConfirm === plan.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}
                               title="Delete"
                             >
                               <Trash2 size={12} />
@@ -1274,7 +1274,7 @@ export default function Transactions() {
         </div>
         <div className="card-forged p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Total Cash Out</p>
-          <p className="text-sm font-display font-bold text-destructive">{formatCurrency(totals.expense, false)}</p>
+          <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(totals.expense, false)}</p>
           {totals.debtService > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.debtService, false)} debt service</p>
           )}
@@ -1282,7 +1282,7 @@ export default function Transactions() {
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedExpense, false)} projected</p>
           )}
         </div>
-        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(totals.net, false)}</p></div>
+        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net, false)}</p></div>
       </div>
 
       {Object.keys(spendBySource).length > 0 && (
@@ -1292,7 +1292,7 @@ export default function Transactions() {
             {Object.entries(spendBySource).map(([src, amt]) => (
               <div key={src} className="p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-xs text-muted-foreground truncate">{src}</p>
-                <p className="text-sm font-display font-bold text-destructive">{formatCurrency(amt, false)}</p>
+                <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(amt, false)}</p>
               </div>
             ))}
           </div>
@@ -1365,10 +1365,10 @@ export default function Transactions() {
                         transfer
                       </span>
                     )}
-                    {sourceMissing && <span className="text-destructive" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
+                    {sourceMissing && <span className="text-destructive-text" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t.matchedActualDate ?? t.date} · {t.category}{!isRecon && <> · {sourceMissing ? <span className="text-destructive">⚠ Missing account</span> : getSourceLabel(t.payment_source)}</>}
+                    {t.matchedActualDate ?? t.date} · {t.category}{!isRecon && <> · {sourceMissing ? <span className="text-destructive-text">⚠ Missing account</span> : getSourceLabel(t.payment_source)}</>}
                     {/* MONEY MOVED IS NOT MONEY SPENT (Tre, 2026-09-02: transfers "need to show").
                         They already appeared here, but styled exactly like an expense and showing
                         only the account they LEFT - so his $130 Owners Contribution read as $130 of
@@ -1383,7 +1383,7 @@ export default function Transactions() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive') : t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive-text') : t.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
                   {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta, false) : formatCurrency(Number(t.amount), false)}
                 </span>
                 {/* ⚠️ BOTH FIGURES ON THE BUTTON, BEFORE THE PRESS — the same rule the queue's own
@@ -1414,7 +1414,7 @@ export default function Transactions() {
                   <button onClick={() => openConvertPlan(t)} className="icon-btn text-muted-foreground hover:text-primary" title="Convert to payment plan" aria-label="Convert to payment plan"><Split size={12} /></button>
                 )}
                 {!isRecon && !t.isGenerated && (
-                  <button onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
+                  <button onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={12} /></button>
                 )}
               </div>
             </div>

@@ -333,7 +333,7 @@ export default function MaintenanceFormModal({
                 ))}
               </ul>
             )}
-            {serviceError && <p className="text-xs text-destructive mt-1">{serviceError}</p>}
+            {serviceError && <p className="text-xs text-destructive-text mt-1">{serviceError}</p>}
           </div>
 
           <div>

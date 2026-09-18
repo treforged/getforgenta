@@ -133,7 +133,7 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
         </div>
       </div>
 
@@ -189,7 +189,7 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
         </div>
         <div className="bg-secondary/40 p-2 col-span-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Est. Total Interest</p>
-          <p className="text-xs font-semibold text-destructive">{formatCurrency(estTotalInterest, false)}</p>
+          <p className="text-xs font-semibold text-destructive-text">{formatCurrency(estTotalInterest, false)}</p>
         </div>
       </div>
 

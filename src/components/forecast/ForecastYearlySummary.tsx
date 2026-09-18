@@ -103,7 +103,7 @@ export default function ForecastYearlySummary({ assumptions, payConfig, annualFe
             {yr.taxReturn !== 0 && (
               <div>
                 <p className="text-[9px] text-muted-foreground">{yr.taxReturn > 0 ? 'Tax Return' : 'Tax Owed'}</p>
-                <p className={`text-xs font-display font-bold ${yr.taxReturn > 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(Math.abs(yr.taxReturn), false)}</p>
+                <p className={`text-xs font-display font-bold ${yr.taxReturn > 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(Math.abs(yr.taxReturn), false)}</p>
               </div>
             )}
           </div>

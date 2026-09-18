@@ -155,7 +155,7 @@ export function StatementImport({ card, onApply, onClose }: Props) {
         </button>
 
         {/* Said out loud. A file that could not be read must not look like a file that said nothing. */}
-        {readError && <p role="alert" className="text-xs text-destructive">{readError}</p>}
+        {readError && <p role="alert" className="text-xs text-destructive-text">{readError}</p>}
 
         <textarea
           value={text}

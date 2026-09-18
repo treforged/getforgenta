@@ -849,7 +849,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   };
 
 
-  const RuleRow = ({ r, color = 'text-destructive' }: { r: BudgetRule; color?: string }) => (
+  const RuleRow = ({ r, color = 'text-destructive-text' }: { r: BudgetRule; color?: string }) => (
   <div className={`flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between ${!r.active ? 'opacity-40' : ''}`}>
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -957,7 +957,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             title="Toggle fixed / variable"
             className={`text-xs px-1.5 py-0.5 border font-medium shrink-0 ${
               isFixedRule(r)
-                ? 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
+                ? 'bg-destructive/10 text-destructive-text border-destructive/30 hover:bg-destructive/20'
                 : 'bg-gold/10 text-gold border-gold/30 hover:bg-gold/20'
             }`}
             style={{ borderRadius: 'var(--radius)' }}
@@ -999,7 +999,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         </button>
         <button
           onClick={() => handleDelete(r.id)}
-          className={`icon-btn ${deleteConfirm === r.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+          className={`icon-btn ${deleteConfirm === r.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}
           title={deleteConfirm === r.id ? 'Confirm delete' : 'Delete'}
           aria-label={deleteConfirm === r.id ? `Confirm delete ${r.name}` : `Delete ${r.name}`}
         >
@@ -1182,7 +1182,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                         className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-foreground outline-hidden border-b border-transparent hover:border-border focus:border-primary transition-colors"
                       />
                     )}
-                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
+                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive-text shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
                   </div>
                   {/* Value input */}
                   <input
@@ -1432,12 +1432,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                   ].map(({ label, pct, color }) => (
                     <div key={label} className="flex items-center gap-1.5 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
-                      <span className={`truncate ${pct < 0 ? 'text-destructive font-medium' : ''}`}>{label} ({pct.toFixed(0)}%)</span>
+                      <span className={`truncate ${pct < 0 ? 'text-destructive-text font-medium' : ''}`}>{label} ({pct.toFixed(0)}%)</span>
                     </div>
                   ))}
                 </div>
                 {overByPct > 0 && (
-                  <p className="mt-3 text-xs sm:text-sm text-destructive font-medium">
+                  <p className="mt-3 text-xs sm:text-sm text-destructive-text font-medium">
                     Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining), false)} more allocated {CURRENT_MONTH_LABEL} than you take home).
                   </p>
                 )}
@@ -1494,7 +1494,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Bills')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
@@ -1508,7 +1508,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Subscriptions')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
               </div>
             </div>
@@ -1536,7 +1536,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(totalDebtPayments, false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments, false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
               </div>
             </div>

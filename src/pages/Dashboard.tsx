@@ -1153,7 +1153,7 @@ export default function Dashboard() {
                     )}
                     {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
                   </div>
-                  <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
+                  <span className="font-display font-bold text-destructive-text">{formatCurrency(e.amount, false)}</span>
                 </div>
               ))}
             </div>
@@ -1204,7 +1204,7 @@ export default function Dashboard() {
                   ) : (
                     <>
                       <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
-                      <p className="text-lg font-display font-bold text-destructive">
+                      <p className="text-lg font-display font-bold text-destructive-text">
                         {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.fullDownPayment, carGoalData.apr, carGoalData.term), true)}
                       </p>
                     </>
@@ -1361,7 +1361,7 @@ export default function Dashboard() {
                     </div>
                     {/* A transfer leaves the account, so it keeps its minus - but it is not a
                         loss, so it does not get the red that means one. */}
-                    <span className={`text-xs font-bold font-display ${t.isTransfer ? 'text-muted-foreground' : t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                    <span className={`text-xs font-bold font-display ${t.isTransfer ? 'text-muted-foreground' : t.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
                       {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount), false)}
                     </span>
                   </div>
@@ -1490,7 +1490,7 @@ export default function Dashboard() {
                             <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
                             <span className="font-medium truncate">{l.name}</span>
                           </div>
-                          <span className="font-bold font-display text-destructive whitespace-nowrap shrink-0">{formatCurrency(Number(l.balance), false)}</span>
+                          <span className="font-bold font-display text-destructive-text whitespace-nowrap shrink-0">{formatCurrency(Number(l.balance), false)}</span>
                         </div>
                       ))}
                       {allLiabilitiesForBreakdown.length === 0 && <p className="text-xs text-muted-foreground">No liabilities yet.</p>}

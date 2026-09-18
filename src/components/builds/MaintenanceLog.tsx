@@ -254,7 +254,7 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
                       <button
                         onClick={() => onDelete(log)}
                         title="Delete service"
-                        className="icon-btn min-w-[36px] -mr-2 text-muted-foreground hover:text-destructive transition-colors"
+                        className="icon-btn min-w-[36px] -mr-2 text-muted-foreground hover:text-destructive-text transition-colors"
                       >
                         <Trash2 size={13} />
                       </button>

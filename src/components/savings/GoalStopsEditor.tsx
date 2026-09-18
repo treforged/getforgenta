@@ -199,7 +199,7 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
                     <button
                       type="button" aria-label={`Remove stop ${i + 1}`}
                       onClick={() => onChange(stops.filter(r => r.uid !== s.uid))}
-                      className="icon-btn min-w-[32px] text-muted-foreground hover:text-destructive"
+                      className="icon-btn min-w-[32px] text-muted-foreground hover:text-destructive-text"
                     ><Trash2 size={14} /></button>
                   </div>
 

@@ -109,7 +109,7 @@ export default function DuplicateTransactionWarning({
                   type="button"
                   onClick={() => handleDelete(c)}
                   disabled={busy}
-                  className={`text-[11px] font-semibold px-2 py-1 flex items-center gap-1 btn-press disabled:opacity-50 ${armed ? 'bg-destructive text-destructive-foreground' : 'bg-destructive/10 text-destructive border border-destructive/30'}`}
+                  className={`text-[11px] font-semibold px-2 py-1 flex items-center gap-1 btn-press disabled:opacity-50 ${armed ? 'bg-destructive text-destructive-foreground' : 'bg-destructive/10 text-destructive-text border border-destructive/30'}`}
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <Trash2 size={11} />

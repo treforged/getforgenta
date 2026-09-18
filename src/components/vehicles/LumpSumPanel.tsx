@@ -231,7 +231,7 @@ export default function LumpSumPanel({
                 </div>
                 <div className="flex items-center gap-1 ml-2 shrink-0">
                   <button onClick={() => setModal({ mode: 'edit', ids: g.ids, date: g.startDate, amount: String(g.amount), count: String(g.count) })} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-                  <button onClick={() => onRemove(g.ids)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
+                  <button onClick={() => onRemove(g.ids)} className="text-muted-foreground hover:text-destructive-text"><X size={11} /></button>
                 </div>
               </div>
             );

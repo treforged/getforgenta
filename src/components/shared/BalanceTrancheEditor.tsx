@@ -43,7 +43,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
               <button
                 type="button"
                 onClick={() => onChange(rows.filter(r => r.id !== row.id))}
-                className="text-muted-foreground hover:text-destructive shrink-0 p-1.5 -mr-1.5"
+                className="text-muted-foreground hover:text-destructive-text shrink-0 p-1.5 -mr-1.5"
                 title="Remove tier"
                 aria-label={`Remove tier ${i + 1}`}
               >

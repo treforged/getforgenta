@@ -334,12 +334,12 @@ export default function MonthlyBreakdownTable({
             <div className="grid grid-cols-[5rem_1fr_1fr_1fr] py-2">
               <div className="px-1 text-xs font-medium">{row.month}</div>
               <div className="px-1 text-right text-success font-display font-bold text-xs">{formatCurrency(row.takeHome, false)}</div>
-              <div className="px-1 text-right text-destructive font-display font-bold text-xs">{formatCurrency(row.totalExpenses, false)}</div>
+              <div className="px-1 text-right text-destructive-text font-display font-bold text-xs">{formatCurrency(row.totalExpenses, false)}</div>
               {/* Red comes from the engine's own belowSafeMinimum flag, never from re-comparing the
                   rounded cells. Re-deriving it here is what let the summary milestone and these rows
                   disagree about the same month; the gold "within $50" band below is a display hint,
                   not a breach claim, so it stays on the rounded figures. */}
-              <div className={`px-1 text-right font-display font-bold text-xs ${row.belowSafeMinimum ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-gold' : 'text-success'}`}>
+              <div className={`px-1 text-right font-display font-bold text-xs ${row.belowSafeMinimum ? 'text-destructive-text' : row.endingCash <= row.monthMinSafe + 50 ? 'text-gold' : 'text-success'}`}>
                 {formatCurrency(row.endingCash, false)}
                 {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
                 {row.floorBreachedByOneTime && <div className="text-[8px] text-gold leading-tight font-normal">one-time</div>}
@@ -358,7 +358,7 @@ export default function MonthlyBreakdownTable({
                   </span>
                 )}
                 {hasCC && (
-                  <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
+                  <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive-text border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
                     CC {formatCurrency(row.totalCCPurchases, false)}
                   </span>
                 )}

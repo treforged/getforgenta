@@ -124,7 +124,7 @@ export default function AppLockScreen() {
             /* Too many failed attempts */
             <div className="flex flex-col items-center gap-4 text-center max-w-xs">
               <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertTriangle size={24} className="text-destructive" />
+                <AlertTriangle size={24} className="text-destructive-text" />
               </div>
               <p className="text-sm font-medium">Too many failed attempts</p>
               <p className="text-xs text-muted-foreground">
@@ -156,7 +156,7 @@ export default function AppLockScreen() {
               </div>
 
               {failedAttempts > 0 && (
-                <p className="text-xs text-destructive -mt-4">
+                <p className="text-xs text-destructive-text -mt-4">
                   Incorrect PIN — {MAX_FAILED_ATTEMPTS - failedAttempts} attempt{MAX_FAILED_ATTEMPTS - failedAttempts !== 1 ? 's' : ''} remaining
                 </p>
               )}

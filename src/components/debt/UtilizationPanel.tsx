@@ -41,7 +41,7 @@ export default function UtilizationPanel({ cards }: Props) {
         </div>
         <div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Interest-Bearing</p>
-          <p className="text-base sm:text-lg font-display font-bold mt-0.5 text-destructive">
+          <p className="text-base sm:text-lg font-display font-bold mt-0.5 text-destructive-text">
             {formatCurrency(summary.interestBearingBalance, false)}
           </p>
         </div>

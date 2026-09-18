@@ -52,7 +52,7 @@ describe('ForecastHero — a negative next milestone', () => {
     const hero = screen.getByText('Sep 2026');
     expect(hero.className).toContain('text-5xl');
     expect(hero.className).toContain('font-display');
-    expect(hero.className).toContain('text-destructive');
+    expect(hero.className).toContain('text-destructive-text');
     expect(screen.getByText('Cash below safe minimum')).toBeTruthy();
     // The later, happier milestone is present but demoted to the strip, not the hero.
     expect(screen.queryByText('Mar 2027')).toBeNull();
@@ -61,7 +61,7 @@ describe('ForecastHero — a negative next milestone', () => {
 
   it('gives bad news the destructive voice on the supporting line too', () => {
     renderHero([NEGATIVE, GOAL]);
-    expect(screen.getByText('Cash below safe minimum').parentElement?.className).toContain('text-destructive');
+    expect(screen.getByText('Cash below safe minimum').parentElement?.className).toContain('text-destructive-text');
   });
 });
 

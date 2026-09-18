@@ -735,7 +735,7 @@ export default function SettingsPage() {
                       </div>
                       <button
                         onClick={() => handleRevokeDevice(device.device_id)}
-                        className="btn btn-sm btn-outline text-muted-foreground hover:border-destructive/40 hover:text-destructive shrink-0 rounded-nested-2"
+                        className="btn btn-sm btn-outline text-muted-foreground hover:border-destructive/40 hover:text-destructive-text shrink-0 rounded-nested-2"
                       >
                         Revoke
                       </button>
@@ -790,7 +790,7 @@ export default function SettingsPage() {
                   style={{ borderRadius: 'var(--radius)' }}
                 />
                 {confirmNewPassword && confirmNewPassword !== newPassword && (
-                  <p className="text-xs text-destructive">Passwords do not match</p>
+                  <p className="text-xs text-destructive-text">Passwords do not match</p>
                 )}
                 <button
                   onClick={handlePasswordChange}
@@ -838,7 +838,7 @@ export default function SettingsPage() {
             ) : (
               <button
                 onClick={() => setForceSignOutConfirm(true)}
-                className="btn btn-md bg-secondary border border-border hover:border-destructive/40 hover:text-destructive w-full sm:w-auto"
+                className="btn btn-md bg-secondary border border-border hover:border-destructive/40 hover:text-destructive-text w-full sm:w-auto"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 <LogOut size={12} /> Sign out all devices
@@ -985,7 +985,7 @@ export default function SettingsPage() {
           the control is no easier to reach than it was. */}
       {panel === 'security' && !isDemo && (
         <div className="card-forged p-5 space-y-4 border border-destructive/20">
-          <h2 className="text-xs font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
+          <h2 className="text-xs font-medium text-destructive-text uppercase tracking-wider">Danger Zone</h2>
 
           {/* Tre, 2026-09-13: clearing merchant memory "should be part of a danger zone in that
               section". It belongs here rather than beside the count for the reason the zone exists:
@@ -1029,7 +1029,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => !hasMobileSub && setDeleteStep('confirm')}
                   disabled={hasMobileSub}
-                  className="btn btn-md bg-secondary border border-destructive/30 text-destructive hover:bg-destructive/10 shrink-0"
+                  className="btn btn-md bg-secondary border border-destructive/30 text-destructive-text hover:bg-destructive/10 shrink-0"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <Trash2 size={12} />
@@ -1042,7 +1042,7 @@ export default function SettingsPage() {
           {deleteStep === 'confirm' && (
             <div className="space-y-3">
               {/* Irreversible warning */}
-              <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+              <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
                 <AlertCircle size={13} className="mt-0.5 shrink-0" />
                 <span>
                   This is <strong>permanent and irreversible</strong>. All your budgets, accounts, transactions, and goals will be deleted.
@@ -1129,7 +1129,7 @@ export default function SettingsPage() {
 
               {/* Pending cancellation warning */}
               {subscription?.cancel_at_period_end && (
-                <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+                <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
                   <AlertCircle size={13} className="mt-0.5 shrink-0" />
                   <span>
                     Your subscription will cancel on{' '}
@@ -1191,7 +1191,7 @@ export default function SettingsPage() {
                       ) : (
                         <button
                           onClick={() => setConfirmCancel(true)}
-                          className="btn btn-md bg-secondary border border-border hover:border-destructive/40 hover:text-destructive w-full sm:w-auto"
+                          className="btn btn-md bg-secondary border border-border hover:border-destructive/40 hover:text-destructive-text w-full sm:w-auto"
                           style={{ borderRadius: 'var(--radius)' }}
                         >
                           Cancel subscription
@@ -1300,7 +1300,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => { void supabase.auth.signOut(); }}
-            className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium w-full text-destructive hover:bg-destructive/10 transition-colors btn-press"
+            className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium w-full text-destructive-text hover:bg-destructive/10 transition-colors btn-press"
           >
             <LogOut size={16} className="shrink-0" />
             <span className="flex-1 min-w-0 text-left truncate">Sign Out</span>

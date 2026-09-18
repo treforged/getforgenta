@@ -102,7 +102,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
               autoFocus
             />
             <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{form.name.length}/{LIMITS.buildName}</span>
-            {nameError && <p className="text-xs text-destructive mt-1">{nameError}</p>}
+            {nameError && <p className="text-xs text-destructive-text mt-1">{nameError}</p>}
           </div>
 
           <div className="grid grid-cols-3 gap-3">

@@ -111,7 +111,7 @@ export default function PlaidOAuth() {
   if (status === 'error') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
-        <AlertCircle size={32} className="text-destructive" />
+        <AlertCircle size={32} className="text-destructive-text" />
         <p className="text-sm text-muted-foreground max-w-xs">{errorMsg}</p>
         <button
           onClick={() => navigate('/accounts')}

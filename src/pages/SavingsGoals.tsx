@@ -259,7 +259,7 @@ export function GoalLumpSumPanel({
               <div key={yr}>
                 <div className="flex justify-between text-[10px] mb-0.5">
                   <span className="text-muted-foreground">{yr} Roth IRA</span>
-                  <span className={over ? 'text-destructive font-semibold' : warn ? 'text-gold' : 'text-muted-foreground'}>
+                  <span className={over ? 'text-destructive-text font-semibold' : warn ? 'text-gold' : 'text-muted-foreground'}>
                     {formatCurrency(total, false)} / {formatCurrency(ROTH_IRA_LIMIT, false)}{over ? ' ⚠ over!' : ''}
                   </span>
                 </div>
@@ -289,7 +289,7 @@ export function GoalLumpSumPanel({
                 <div className="flex items-center gap-1">
                   <button onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })}
                     className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-                  <button onClick={() => handleRemove(ls.id)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
+                  <button onClick={() => handleRemove(ls.id)} className="text-muted-foreground hover:text-destructive-text"><X size={11} /></button>
                 </div>
               </div>
             );
@@ -924,7 +924,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                 <div className="flex gap-1 shrink-0 self-end sm:self-auto">
                   <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
                   <button onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                  <button onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

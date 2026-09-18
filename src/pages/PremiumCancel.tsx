@@ -5,7 +5,7 @@ export default function PremiumCancel() {
   return (
     <div className="p-4 lg:p-6 max-w-md mx-auto text-center space-y-6 mt-12">
       <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-        <XCircle className="text-destructive" size={32} />
+        <XCircle className="text-destructive-text" size={32} />
       </div>
       <h1 className="font-display font-bold text-xl tracking-tight">Checkout Cancelled</h1>
       <p className="text-sm text-muted-foreground">No charges were made. You can upgrade anytime.</p>

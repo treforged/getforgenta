@@ -44,7 +44,7 @@ export default function MetricCard({
   const colorMap = {
     gold: 'text-primary',
     silver: 'text-foreground',
-    crimson: 'text-destructive',
+    crimson: 'text-destructive-text',
     success: 'text-success',
     orange: 'text-primary',
   };
@@ -60,7 +60,7 @@ export default function MetricCard({
   const iconBgMap = {
     gold: 'bg-primary/10 text-primary',
     silver: 'bg-muted text-foreground',
-    crimson: 'bg-destructive/10 text-destructive',
+    crimson: 'bg-destructive/10 text-destructive-text',
     success: 'bg-success/10 text-success',
     orange: 'bg-primary/10 text-primary',
   };

@@ -34,7 +34,7 @@ export default function DebtsStep({
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium text-muted-foreground uppercase">Debt {i + 1}</span>
             <button onClick={() => onChange(debts.filter((_, j) => j !== i))}
-              className="text-[10px] text-destructive hover:underline">Remove</button>
+              className="text-[10px] text-destructive-text hover:underline">Remove</button>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] text-muted-foreground uppercase">Card / loan name</span>
@@ -75,7 +75,7 @@ export default function DebtsStep({
       {totalDebt > 0 && (
         <div className="bg-secondary/40 px-3 py-2 text-xs flex justify-between" style={{ borderRadius: 'var(--radius)' }}>
           <span className="text-muted-foreground">Total debt</span>
-          <span className="font-semibold text-destructive">${totalDebt.toLocaleString()}</span>
+          <span className="font-semibold text-destructive-text">${totalDebt.toLocaleString()}</span>
         </div>
       )}
     </div>

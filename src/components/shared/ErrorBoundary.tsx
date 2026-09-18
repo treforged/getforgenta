@@ -143,7 +143,7 @@ class ErrorBoundaryInner extends Component<InnerProps, State> {
       return (
         <div className="card-forged p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle size={16} className="text-destructive mt-0.5 shrink-0" />
+            <AlertTriangle size={16} className="text-destructive-text mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold">
                 {label ? `${label} couldn’t load` : 'This section couldn’t load'}
@@ -169,7 +169,7 @@ class ErrorBoundaryInner extends Component<InnerProps, State> {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
-        <AlertTriangle size={32} className="text-destructive" />
+        <AlertTriangle size={32} className="text-destructive-text" />
         <div className="max-w-sm">
           <p className="text-sm font-medium">
             {label ? `${label} couldn’t load.` : 'Something went wrong loading this page.'}
