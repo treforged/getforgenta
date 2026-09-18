@@ -1229,7 +1229,7 @@ export default function SettingsPage() {
                 <AlertCircle size={14} className="text-muted-foreground" />
                 <span className="text-sm font-medium">Free Plan</span>
               </div>
-              <p className="text-xs text-muted-foreground">Upgrade to Premium for advanced features, unlimited history, and priority support.</p>
+              <p className="text-xs text-muted-foreground">Upgrade to Premium for the full payoff forecast, up to 10 linked banks, and priority support.</p>
               <Link to="/premium" className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
                 <Crown size={12} /> Upgrade to Premium
               </Link>

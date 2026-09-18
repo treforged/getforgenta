@@ -44,6 +44,7 @@ function stripComments(src: string): string {
 }
 
 const COPY = stripComments(ONBOARDING);
+const SETTINGS_COPY = stripComments(SETTINGS);
 
 describe('the instrument can find what it is looking for', () => {
   it('reads real files, not empty strings', () => {
@@ -96,5 +97,39 @@ describe('the app lock hint is not shown to people who cannot use it', () => {
 
   it('gates the hint on the native platform alone', () => {
     expect(COPY).toMatch(/\{Capacitor\.isNativePlatform\(\) && \(/);
+  });
+});
+
+describe('premium copy only promises what premium enforces', () => {
+  /**
+   * "Unlimited history" sat in TWO surfaces until 2026-09-18 and was VACUOUS, not merely
+   * undocumented: no plan-bounded history query exists anywhere in src/ - no `.gte`/`.lt`/`.limit`
+   * on a date gated by plan - so free users already had it and an upgrader received nothing new.
+   * Tre approved replacing it (abd764bf); the wording is this desk's.
+   *
+   * ⚠️ CASE-INSENSITIVE, AND THAT IS THE WHOLE POINT. The first sweep was case-sensitive, found
+   * `Onboarding.tsx` and missed `Settings.tsx`'s lowercase copy, and reported one site where there
+   * were two. Fourth sighting of that trap on this machine in a week.
+   *
+   * ⚠️ COPY, NOT SOURCE. The comment left at the fix site names the retired phrase so nobody
+   * reinstates it, and a gate that forbids naming a retired bug is a gate somebody deletes.
+   */
+  it('never promises "unlimited history" in either surface, whatever the casing', () => {
+    expect(COPY.toLowerCase()).not.toContain('unlimited history');
+    expect(SETTINGS_COPY.toLowerCase()).not.toContain('unlimited history');
+  });
+
+  it('CONTROL: the search can find a benefit that IS really there', () => {
+    // Without this, a broken read makes the absence above meaningless. "Priority support" sits in
+    // the same sentence and the same grid as the phrase that was removed.
+    expect(COPY.toLowerCase()).toContain('priority support');
+    expect(SETTINGS_COPY.toLowerCase()).toContain('priority support');
+  });
+
+  it('CONTROL: the replacements name limits the app actually enforces', () => {
+    // A benefit claim is only checkable if the gate it refers to exists. Both are measured.
+    expect(read('src/components/debt/CreditCardEngine.tsx'))
+      .toContain('(isPremium || isDemo) ? yearMonths.length : (yearIdx === 1 ? Math.min(3, yearMonths.length) : 0)');
+    expect(read('src/pages/Accounts.tsx')).toContain('isPremium ? 10 : FREE_LINK_LIMIT');
   });
 });

@@ -737,8 +737,14 @@ export default function Onboarding() {
                   Connect your bank accounts with Plaid for <strong className="text-foreground">automatic transaction import</strong>,
                   daily balance updates, and real-time net worth — no manual entry.
                 </p>
+                {/* EVERY ITEM HERE MUST BE SOMETHING PREMIUM ACTUALLY ENFORCES. "Unlimited history"
+                    sat here until 2026-09-18 and was VACUOUS rather than merely undocumented: no
+                    plan-bounded history query exists anywhere in src/, so free users already had it
+                    and an upgrader received nothing new. Tre approved replacing it (abd764bf).
+                    "Full payoff forecast" is measured - CreditCardEngine.tsx:2271 shows a free
+                    account 3 months of year 1 and nothing after. */}
                 <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  {['Auto-sync transactions', 'Plaid bank connection', 'Unlimited history', 'Priority support'].map(f => (
+                  {['Auto-sync transactions', 'Plaid bank connection', 'Full payoff forecast', 'Priority support'].map(f => (
                     <div key={f} className="flex items-center gap-1 text-muted-foreground">
                       <Shield size={9} className="text-primary shrink-0" /> {f}
                     </div>
