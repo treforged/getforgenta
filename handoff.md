@@ -8373,6 +8373,52 @@ walk account, and the difference must be stated rather than blurred.**
 ⚠️ **STOPPED HERE DELIBERATELY, AT A CLEAN BOUNDARY.** Weekly cap was 72% and tightening, and
 step 1 writes to the production DB. **A half-finished seed left in the database is worse than
 an unstarted one**, so the seed was NOT begun. Nothing is left to clean up.
+
+## 2026-09-18 - Ada - blocked-item re-tests, and the NEXT SESSION'S ORDER (Sam's, agreed)
+
+**RE-TESTED TODAY, both with a positive control in the same read:**
+- **`798c0ed9` HOLDS.** `follows` = **0 rows, 0 distinct followers** against **33 profiles**
+  (7 onboarded). The 33 proves the query reaches real tables, so the zero is about
+  participation rather than a broken reader.
+- **`5409ffbc` HOLDS.** The ACTIVE golden fixture `forecast-inputs.real.json`
+  (`capturedAt 2026-09-01T00:20:11.665Z`) carries **NO timezone field**, while
+  `forecast-inputs.real.FRESH-2026-09-17.json` carries **`capturedTzOffsetMinutes`**. The
+  FRESH file is the positive control: the reader demonstrably detects the field, so the
+  absence in the active fixture is real. Mechanism built, capture still lacking it - exactly
+  as recorded.
+
+**NOT RE-TESTED TODAY, and saying so rather than implying freshness:**
+- **`b573d720`** (App Store revenue). I TRIED and could not do it cheaply: `subscriptions`
+  has columns `id, user_id, name, cost, billing, renewal_date, active, created_at,
+  updated_at` - **no provider/source column**, so that table cannot answer "has an App Store
+  sale happened". Needs App Store Connect, which is the blocker the ask already records.
+  **Reporting the failed attempt rather than a clean re-test.**
+- **`6237167a`** (move-fund pacing). Last re-tested 2026-09-17.
+
+### NEXT SESSION, IN THIS ORDER (Sam, 2026-09-18)
+1. **THE BUILD READ, FIRST.** `gh run view 35354664800 --json jobs` -> **step 20's OWN
+   conclusion must be `success`, never `skipped`**, then altool's **`UPLOAD SUCCEEDED with no
+   errors`**, then name the **iOS** number (`run_number + 100`).
+   ⚠️ **DO NOT READ `35354094319`** - it is a PUSH run, reads `completed / success`, its
+   upload step is `skipped` by design, **AND it is on SHA `6f8b3fc1` while the dispatch is on
+   `43c8d6d5`** (Sam's catch) - so it is wrong twice over: nothing uploaded AND an older
+   commit missing the last fix.
+2. **THE SEED AND WALK - APPROVED by Sam against `deck-walk@forgenta.test` ONLY**, under four
+   conditions that are not optional: **write the UNDO first and PROVE IT RUNS before seeding**
+   (not after, not a description), assert the account id before every write, include the
+   **negative control** (a genuinely split 2-vs-1 merchant that must STILL ASK), and assert
+   **BOTH halves of the change** (the charge leaves the deck with no prompt AND a `linked_rule`
+   row appears). **Playwright, never `resize_window`.**
+   **AND THE CLAIM IS "HIS DATA SHAPE ON THE WALK ACCOUNT", NEVER "HIS LEDGER"** - Sam has
+   corrected his own acceptance wording to match. The sign-in guardrail stays.
+3. **ASK `8387bcf6` - MONEY-ADJACENT AND NEVER TRACKED AT ALL.** Tre, 2026-09-17: *"For
+   general operations is the 145 is good go ahead and do it for me."* The "best day" half of
+   that message was answered and closed (`0e1097c2`); **the half that was an INSTRUCTION fell
+   through the gap.** A later message narrows it - *"owners contribution to the fourth is
+   fine. Am I able to do it on October 4? Is that the plan?"* - which favours the Owners
+   Contribution RULE over a transfer, **and contains a second direct question of his that has
+   now gone unanswered for over a day.** ⚠️ **NO DESK MOVES THE MONEY IN ANY READING** - the
+   deliverable is the answer to his question and the rule change, not a transfer.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
