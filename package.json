@@ -53,6 +53,7 @@
     "check:text-scale": "node scripts/check-text-scale.mjs",
     "check:release-note": "node scripts/check-release-note-trailer.mjs",
     "check:notes-coverage": "node scripts/check-release-note-coverage.mjs",
+    "check:dark-contrast": "node scripts/check-dark-contrast.mjs",
     "check:landing": "node scripts/check-landing-first-screen.mjs",
     "check:landing:live": "node scripts/check-landing-first-screen.mjs --url https://getforgenta.com",
     "install:hooks": "node scripts/install-git-hooks.mjs"
