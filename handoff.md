@@ -174,9 +174,26 @@ Oct 2028 against an expected Sep 2028, plus floorDeficit converged savings 5418.
 Dropped the newer, kept the older, **and verified the survivor is still live afterwards** - the
 recorded failure here is two desks each dropping their copy and the item vanishing.
 
+### ✅ `18fbdbf7` DONE - and the control it added was RED-WORTHY on arrival
+`forecast-convergence.realData.test.ts` printed a fidelity control and never asserted it. It is
+**already drifting: fresh sim payoff month 24 against the capture's 26**, so that test has been
+green over a repro its own comment called untrustworthy. Pinned as a **ceiling** (2), not
+equality - equality is red today, and shrinking drift is the repro improving.
+⚠️ **AND THE "(none)" LINE IS NOT WHAT IT LOOKS LIKE.** There are TWO floor milestones:
+`Cash below safe minimum` (engine 2763, a convergence shortfall) and `One-time expense caused
+floor breach` (2752, a planned one-off). The filter matches the first and is blind to the second,
+**and this fixture emits the second, in Sep 2026.** I did NOT turn that into a red - only the
+first is a convergence failure, and failing it would accuse working code. The distinction is now
+written down and the one-time breach is asserted, which doubles as the positive control.
+**Still open underneath:** the 2-month drift itself is a stale-fixture question and belongs with
+`5409ffbc`.
+
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
 
-1. **`403dd5d8` - THE DASHBOARD REORGANISATION, part 1 only: FIND THE DUPLICATION.** It is the
+1. **`403dd5d8` - THE DASHBOARD REORGANISATION, part 1 only: FIND THE DUPLICATION.** STARTED -
+   `scripts/measure-dashboard-duplication.mjs` is committed with 8 measured repeats; the strongest
+   is $4,200 in the top section and again 4000px below. Next step is checking each against the
+   overlay caveat (the probe counts text hidden behind a PremiumGate as visible). It is the
    single measurable part of his complaint and everything else waits on it. The top section is
    `DashboardHero` (`Dashboard.tsx:1758`); below it is a 10-widget stack. He names
    *upcoming this week*, *monthly budget snapshot*, *debt recommended this month* and *when credit
