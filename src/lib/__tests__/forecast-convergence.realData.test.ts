@@ -99,8 +99,30 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     // the fixture captured live (same clock, same rows). If this drifts, the repro is not
     // faithful to what the app computes and the numbers below can't be trusted.
     const snapshot = inputs.cardProjectionData;
-    console.log('[repro] live sim payoff month:', base!.forecastRevolvingPayoffMonth,
-      '| captured snapshot payoff month:', snapshot?.forecastRevolvingPayoffMonth);
+    const livePayoff = Number(base!.forecastRevolvingPayoffMonth);
+    const capturedPayoff = Number(snapshot?.forecastRevolvingPayoffMonth);
+    console.log('[repro] live sim payoff month:', livePayoff,
+      '| captured snapshot payoff month:', capturedPayoff);
+
+    // ⚠️ THIS CONTROL WAS PRINTED AND NEVER ASSERTED (ask 18fbdbf7), so the comment above it -
+    // "if this drifts, the repro is not faithful and the numbers below can't be trusted" - was a
+    // claim nothing enforced. Measured 2026-09-18 it is ALREADY DRIFTING: live 24 against the
+    // captured 26.
+    //
+    // It is pinned as a CEILING rather than as equality on purpose. Equality would be red today
+    // and an always-red gate stops being read - and shrinking drift is the repro getting BETTER,
+    // which must not fail. What this catches is the drift WIDENING, which is the direction that
+    // silently turns every number below into a fact about a stale fixture.
+    //
+    // ⚠️ DO NOT RAISE THIS NUMBER TO MAKE A RUN GREEN. A wider drift is the finding; raising
+    // the bar is how a shrink-guard becomes a constant compared against a constant.
+    const MAX_PAYOFF_DRIFT_MONTHS = 2;
+    expect(Number.isFinite(livePayoff) && Number.isFinite(capturedPayoff),
+      'both payoff months must be numbers, or this control is measuring nothing').toBe(true);
+    expect(Math.abs(livePayoff - capturedPayoff),
+      `repro fidelity: the fresh sim landed on month ${livePayoff} where the capture recorded `
+      + `${capturedPayoff}. Widening drift means the numbers below describe a stale fixture.`)
+      .toBeLessThanOrEqual(MAX_PAYOFF_DRIFT_MONTHS);
 
     const runs: import('@/lib/forecast-engine').ForecastResult[] = [];
     const { calculateForecast } = await import('@/lib/forecast-engine');
@@ -121,7 +143,22 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     console.log('[repro] milestones:', JSON.stringify(out.projections.milestones));
 
     const ccFree = out.projections.milestones.find(m => m.event.startsWith('CC Debt Free'));
+
+    // ⚠️ THERE ARE TWO FLOOR MILESTONES AND THIS COUNTS ONLY ONE OF THEM, WHICH IS DELIBERATE
+    // BUT WAS NEVER WRITTEN DOWN. forecast-engine.ts emits '⚠️ Cash below safe minimum' (2763)
+    // when convergence leaves a month short, and '💸 One-time expense caused floor breach' (2752)
+    // when a planned one-off alone caused it. Only the FIRST is a convergence failure; the second
+    // is a fact about his data - he has a one-time expense that dips the month, and the engine
+    // separates them precisely so they are not confused.
+    //
+    // ⚠️ SO "floor-breach months: (none)" PRINTS WHILE A 💸 BREACH EXISTS in Sep 2026, and a
+    // reader can easily take that line as "no month goes below the floor". It does not mean that.
+    // The one-time breach is asserted BELOW rather than left implicit, so that if it ever
+    // disappears somebody finds out the fixture changed instead of enjoying a quieter log.
     const floorBreaches = out.projections.milestones.filter(m => m.event.includes('below safe minimum'));
+    const oneTimeBreaches = out.projections.milestones.filter(m => m.event.includes('One-time expense caused floor breach'));
+    console.log('[repro] one-time-expense breaches (NOT convergence failures):',
+      oneTimeBreaches.map(m => m.month).join(', ') || '(none)');
     console.log('[repro] CC Debt Free:', ccFree?.month ?? '(never)',
       '| floor-breach months:', floorBreaches.map(m => m.month).join(', ') || '(none)');
 
@@ -151,6 +188,13 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     expect(ccFree!.month, 'payoff month regressed').toBe('Sep 2028');
-    expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
+    expect(floorBreaches.map(m => m.month), 'CONVERGENCE cash-floor breaches (the ⚠️ kind)').toEqual([]);
+    // POSITIVE CONTROL ON THE LINE ABOVE. Every assertion here is that a list is EMPTY, and a
+    // milestone filter that matches nothing satisfies all of them. This is the one milestone this
+    // fixture is known to produce, so it proves the filters can find a floor milestone at all.
+    expect(oneTimeBreaches.map(m => m.month),
+      'the known one-time-expense breach on this fixture - if this is empty, the milestone '
+      + 'filters have stopped matching and the empty assertion above proves nothing')
+      .toEqual(['Sep 2026']);
   });
 });

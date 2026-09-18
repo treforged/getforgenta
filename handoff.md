@@ -125,12 +125,26 @@ still presents $510/mo while the engine quietly pays $279.
 FRESH capture - the months may have moved. And the harness fidelity control does not fully pass
 (fresh sim payoff month 25 against the capture's 26), so the dollars are close, not exact.
 
-⚠️ **MY FIRST RUN WAS MEANINGLESS AND ONLY SAID SO BECAUSE I CHECKED.** The capture's
-top-level `cashFloor` is **0** while his profile says **2500** - a floor of zero cannot be
-breached, so the run was green about a question it had never asked. The test now refuses a
-non-positive floor. I also nearly filed a defect that was my own grep: "floor-breach milestones
-(none)" beside a `belowSafeMinimum` row contradicts the engine's own comment, and printing every
-milestone showed the real one reads "One-time expense caused floor breach". They agree.
+⚠️ **I SAID MY FIRST RUN WAS "MEANINGLESS" AND THAT CLAIM IS WITHDRAWN - measured 2026-09-18.**
+The engine does NOT use the flat `cashFloor` as the safe minimum: it derives `monthMinSafe` per
+month from essential expenses, which at `cashFloor: 0` reads **2294 / 2390 / 2444, not zero**,
+and **Sep 2026 still flags** `belowSafeMinimum`. The run was measuring a real floor all along.
+What was wrong was MY TABLE - it compared `endingCash` against the flat input instead of against
+`monthMinSafe`, printing a floor of 0 and NaN endings. An instrument error in the printing.
+⚠️ **SO THE 2500 OVERRIDE IS NOT OBVIOUSLY THE FAITHFUL CHOICE EITHER.** His profile has
+`cash_floor: 2500` with **`cash_floor_is_manual: false`**, which reads as a DERIVED display value
+rather than an engine input. Forcing it moves `monthMinSafe` (2294 -> 2500) and November's
+trimmed contribution (232 -> 279). **Which input the app actually feeds the engine is
+UNRESOLVED - do not quote either set of dollars as "what his app shows" until it is settled.**
+✅ **The finding survives both ways**, which is why the visibility fix stands: November is
+trimmed under either floor and September breaches under both. Only the exact dollars move.
+⚠️ **Also withdrawn before it was acted on:** I suspected `forecast-convergence.realData`
+asserts "no floor breaches" vacuously at floor 0. Same measurement kills it - `monthMinSafe` is
+non-zero there and breaches fire, so that assertion is meaningful. Its UNASSERTED fidelity
+control (`18fbdbf7`) is separate and still real.
+I also nearly filed a defect that was my own grep: "floor-breach milestones (none)" beside a
+`belowSafeMinimum` row; printing every milestone showed the real one reads "One-time expense
+caused floor breach". They agree.
 
 ⚠️ **AND `forecast-convergence.realData.test.ts` PRINTS THAT FIDELITY CONTROL AND NEVER
 ASSERTS IT**, so it has been green over the same 25-vs-26 drift. Worth a look on its own.
