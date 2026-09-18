@@ -8527,6 +8527,43 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - MY OWN GAP HYPOTHESIS IS REFUTED. NULL RESULT, RECORDED RATHER THAN RESCUED
+
+### THE MEASUREMENT KILLED IT, TWICE OVER
+I told Sam the gap between the tab strip and the first card was *"roughly 100px"* and the most
+defensible target on the page. **Measured at 390px: 54px, with ZERO elements between them** - so
+it is pure spacing, and **my eyeball was nearly double the truth.** First correction.
+Then the comparison across routes, same measurement, 390px dark:
+
+    /budget      54px
+    /dashboard   14px
+    /debt       128px
+    /forecast   198px
+
+**`/budget` IS NOT THE OUTLIER. It is mid-range**, and the two routes he did NOT complain about are
+2x and 4x worse. **So "the gap is why this page looks empty" does not survive its own comparison.**
+Second correction, and it is the one that matters: the comparative frame I reached for to make a
+taste call objective is the same frame that refuted the call.
+
+### ⚠️ AND I AM NOT UPGRADING THIS INTO A DIFFERENT FINDING
+The tempting move is to report *"the gap varies 14x across four routes with no standard"* as a
+consistency defect. **I cannot support that and I am not filing it.** I only counted the elements
+BETWEEN the tab strip and the first card on `/budget` (zero). On `/debt` and `/forecast` I did NOT,
+and both plausibly carry real content there - `/debt` has the interest headline, `/forecast` has a
+chart - **which is not a card, so my "first `.card-forged` below the tablist" selector would step
+straight over it and count content as emptiness.** A 198px "gap" full of a chart is not a gap.
+**Rescuing a dead hypothesis by re-aiming it at whatever the data does support is how a measurement
+becomes a rationalisation.**
+
+### WHAT IS ACTUALLY LEFT ON `d391e98b` / `a58fb610`
+* **CONFIRMED and unexplained:** `/budget` carries 0.19% coloured area against 0.3-1.3% elsewhere,
+  whole page, both widths, and reads monochrome by eye. That finding stands.
+* **REFUTED:** that the tab-to-card gap explains it.
+* **NOT MEASURED:** where the empty space he means actually is. My instrument found one gap and
+  compared it; it never enumerated ALL the vertical whitespace on the page, which is the thing his
+  words describe. **That is the next instrument, and it must count gaps that contain nothing -
+  attributed, not inferred from a selector that only knows about cards.**
+
 ## 2026-09-18 - Ada - I FINALLY LOOKED AT A FRAME, AND NEARLY FILED A NON-DEFECT FROM IT
 
 ### WHAT THE DARK 390px FRAME OF `/budget` ACTUALLY SHOWS
