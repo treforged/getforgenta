@@ -216,35 +216,82 @@ first; that was checked, not assumed.
 
 ## Resume queue
 
-1. **`9d26e38c` USERNAME SECURITY - the biggest open item and it is Tre's own words.**
-   See the detail above. Filed, not started.
-2. **THE BUILD. Check `gh run list --workflow=ios-build.yml`.** My 16:27 dispatch was
-   CANCELLED by my own later pushes - `concurrency: cancel-in-progress: true`, and the
-   workflow's own header documents that collision from 2026-08-11. **HAVE NOTHING LEFT TO
-   PUSH WHEN YOU DISPATCH**; it is the PR rule wearing new clothes. `scripts/` and
-   `handoff.md` are OUTSIDE the path filter (`src/**`, `ios/**`, `capacitor.config.ts`,
-   `package.json`), so those are safe to commit first - checked, not assumed.
-   ✅ **THE RESOLVER WORKED IN CI AND THE EVIDENCE SURVIVED THE KILL:**
-   `range source: last successful ios-build.yml run on main (c0598393)` - a genuine head
-   where the old code would have taken an arbitrary `-6`.
-   Then read the UPLOAD STEP'S OWN conclusion and altool's own words, never the run's.
-2. **`d1f2b7fa` - /account and /forecast segmentation.** Fix shape is what worked on /budget:
-   break the run into separate card surfaces at boundaries that already exist. **Do NOT widen
-   dividers or add padding - padding LENGTHENS runs**, and whitespace is already at parity
-   with /dashboard. Acceptance is the PAIR from `check:page-rhythm`.
-3. **WIDEN `check:page-rhythm`'s GATE? Sam's call, not a desk default.** See the finding directly above.
-   /debt, /forecast, /account and /settings have never been measured for segmentation, and the
-   one run that did reach them showed **/account at a 1252px unbroken run** - LONGER than the
-   /budget run Tre complained about. Treat that as a lead, NOT a finding: it came from the same
-   run whose control failed, so it may be the instrument.
-2. **`149fb21f` CONTRAST - VALIDATION ERRORS AND FORM ERROR TEXT.** Sam has agreed this is next
-   and unredirected. No gate in this repo reaches them, on a money app. Same family as the
-   armed delete: not text, not a dialog, not present until a user acts. The harness to copy is
-   `scripts/check-destructive-states.mjs` - sign-in, dismissal, arming, and a safety control
-   that counts ROWS not labels.
-3. **LIGHT MODE HAS NO RENDERED CONTRAST GATE AT ALL**, and every rendered gate here is
-   390x844 only. All four probes deliberately refuse to report a light reading; **that refusal
-   is HONEST and must stay.**
+**START HERE: item 1 is Tre's own words and is the biggest open item. It needs a FULL
+window - Sam's explicit direction: "Do not let a successor with 20% left start it. Better
+to hand it over untouched than half-built, because a half-built validator READS as
+protection."**
+
+1. ⚠️ **`9d26e38c` - USERNAME SECURITY. TRE'S WORDS: "make sure username entry in
+   restricted from bad words and cant be used as an entry point for attacks. same protects
+   as all the other entry points."**
+   **FRAME IT AS AN ENTRY POINT, WHICH IS HIS WORD.** A username is a PUBLIC identifier
+   that `follow_profiles()` hands to other people, so the question is "what can another
+   user make appear on MY screen", not "what can I type". A banned-word list over a
+   surface nobody enumerated is the comfortable half.
+   ⚠️ **BOTH SIDES OR IT IS NOT A CONTROL.** Server-side is the control; the client check
+   is the courtesy. The client is not where an attacker types.
+   **ENUMERATION STARTED, NOT FINISHED - here is what I got before the handoff gate:**
+   * RENDERS a username: `FollowersPanel.tsx`, `UsernameClaim.tsx`,
+     `UsernameSuggestions.tsx`, `Account.tsx`, `Auth.tsx`, `Onboarding.tsx`,
+     `Settings.tsx`.
+   * ENTERS A QUERY through two RPCs: `find_profile_by_username` (`useFollows.ts:244`)
+     and `suggest_profiles_by_username` (`useUsernameSuggestions.ts:65`).
+   * **NOT YET CHECKED, and this is the decisive half:** what CHECK constraint (if any)
+     `profiles.username` carries, and what those two RPCs plus the claim path actually
+     validate server-side. The query to run is `pg_get_constraintdef` on
+     `public.profiles` filtered to username, plus `pg_get_functiondef` for
+     `find_profile_by_username` / `suggest_profiles_by_username` / the claim function.
+     **My call to run exactly that was blocked by the handoff gate, so it is unstarted,
+     not inconclusive.**
+   * Also unchecked: whether the claim path is RATE-LIMITED, and whether a username
+     reaches a notification or an email body anywhere.
+   ⚠️ **DO NOT UNDO THE NON-ENUMERATION PROPERTY.** `useUsernameSuggestions.ts` records
+   that `follow_profiles` was deliberately written so it CANNOT enumerate users. A
+   careless "check if this name is taken" endpoint re-opens exactly that.
+   ⚠️ **Unicode is the username-specific vector** - confusables and zero-width characters -
+   because the whole point of a handle is that it identifies one person.
+
+2. **`29f1fb44` - /account segmentation. ⚠️ IT READS `blocked` IN THE TRACKER, NOT `open`;
+   find out why before starting.** /account runs **60% of its page unbroken** against
+   /dashboard's 18%, worse than /budget's 48% before it was split. The
+   "settings-shaped pages just look like that" reading is refuted by this app's own
+   /settings at 24%.
+   **I TRIED IT AND REVERTED IT, and the numbers are the deliverable:** splitting
+   `FollowersPanel.tsx` into FOUR cards moved the run 60% -> 34% (fixed) but whitespace
+   16.8% -> 26.8%; tightening to `p-4`/`space-y-3` recovered nothing (26.5%).
+   **My own acceptance pair says whitespace must not rise materially, and +10 points is
+   material** - /budget's equivalent split cost +1.3. **It also trades his rhythm
+   complaint for his emptiness complaint (`d391e98b`: an Account-area page "wastes
+   space") on the same page.**
+   **NEXT ATTEMPT: TWO cards, not four** - four sets of card padding plus three gaps is
+   where the 10 points went. Target `src/components/settings/FollowersPanel.tsx` L137;
+   its four top-level children are L166, L211, L293 and L450. **L293 is a ternary that
+   always renders one branch, so there is no empty-card risk there** (checked). Nothing
+   is wrapped in a collapse fragment here - that trap is /budget's, not this one.
+   Acceptance is the PAIR from `npm run check:page-rhythm`.
+
+3. **TWO HAND-NAMED INVENTORIES FOUND TODAY, both now fixed, both worth knowing about
+   because the class has bitten this machine four times this week:**
+   * `check:account`'s marker list never contained **"Learn"**, so that section went
+     unasserted from the day it was added. Only caught because that gate FAILS on an
+     unknown segment instead of skipping it.
+   * `check:truncation`'s 58 elements are all bank ACCOUNT names, so **it never covered
+     the username** - and still does not. A green from it is not coverage of `572e1a96`.
+
+4. **`663274d7`** - from Otto, five App Store Connect / monetisation items. Untouched.
+
+5. **THE DEV SERVER ON :8080 IS NOT THIS DESK'S.** A peer serves it. **Do not kill it.**
+   Every rendered gate needs it up.
+
+6. **HOW TO SHIP TO HIS PHONE, because I got this wrong once today.** Commit and push
+   EVERYTHING first, wait for any in-flight `ios-build` run to finish, and dispatch LAST:
+   `gh workflow run "iOS Build & Upload to App Store" --ref main`. The workflow carries
+   `concurrency: cancel-in-progress: true`, so a later push CANCELS your dispatch - that
+   is what happened at 16:27. `scripts/` and `handoff.md` are OUTSIDE the path filter
+   (`src/**`, `ios/**`, `capacitor.config.ts`, `package.json`) and are safe to commit
+   first. Then verify FOUR ways: the UPLOAD STEP'S OWN conclusion (`skipped` is not
+   `success`), altool's own `UPLOAD SUCCEEDED with no errors`, that the `90382` hits are
+   echoed script source rather than output, and ancestry with a negative control.
 
 <details>
 <summary>DONE 2026-09-18 - the `-6` fallback item, kept for the reasoning</summary>
@@ -9582,7 +9629,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 12:41 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 12:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9593,14 +9640,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+b509b0c8 [handoff]: build 967 verified, four new asks from Tre, two built and two filed
+b9e2e79e [account]: a username is an identifier, so it wraps instead of truncating
+44e28a03 [account]: icon-only section bar, every section visible at once, icons 13 -> 20
+1702499b [design]: /forecast was a false finding - I measured a dialog and called it a page
 35db2b73 [handoff]: the six-route table, and three settle fixes before any of it was trustworthy
 b6449301 [design]: a discarded warm-up, and the six-route run table
 45d07dee [design]: three agreeing reads, and check:page-rhythm now walks six routes
 a7bff947 [handoff]: the release-range fix, the reachability assertion, and a settle loop that agreed on a wrong state
-ab35f9fd [leaderboard]: assert the badge-count tab is REACHABLE, not merely typed
-d6b25264 [ci]: resolve the release range instead of inventing one, and stop Android publishing it
-57c64ffe [handoff]: both of Tre's gate decisions shipped, and the brief that named the wrong design
-c0598393 [budget]: split Income & Taxes into three cards, and give small text more weight
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
