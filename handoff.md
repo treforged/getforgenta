@@ -331,10 +331,25 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 0.
 
-0. **ONBOARDING - `ea25a708`. STEP 1 (THE INVENTORY) IS DONE. READ IT BEFORE PLANNING STEP 2.**
+0. **ONBOARDING - `ea25a708`. INVENTORY DONE (`49285f88`); TWO OF ITS THREE FALSE CLAIMS ARE NOW FIXED (`23e52979`). READ THE DOC BEFORE PLANNING THE REST.**
    `docs/onboarding-inventory-2026-09-18.md`. Tre decided the priority himself: *"we need to
    update onboarding first. especially with all the changes we made."* **Do not re-open the
    fork, and do not scope step 2 from this paragraph - the inventory IS the scope.**
+   ✅ **FIXED IN `23e52979`, gate `src/pages/__tests__/Onboarding.pointers.test.ts` (10 checks,
+   5 of them positive controls), PROVEN RED IN ITS FINAL FORM with the real pre-fix strings and
+   guard, restored byte-exact by sha256. test:tz green in all three zones, 4939 passed.**
+   * The app-lock hint is now gated on `Capacitor.isNativePlatform()` ALONE and names
+     *Settings -> Account Security -> App lock*. **Web gets no lock hint at all now, on purpose** -
+     the feature does not render there, so there is nothing to point at.
+   * "Budget Control" -> "Activity -> Plan".
+   ⚠️ **TWO TRAPS THE GATE ITSELF FELL INTO, so the next person does not repeat them:** its first
+   version failed on its OWN FIX because the explanatory comment QUOTES the defect to refute it
+   (it now strips comments, and the stripper has its own positive control); and undoing the
+   mutation with `git checkout --` DESTROYED the uncommitted fix - the exact trap this portfolio
+   already records. Undo a mutation by INVERSE EDIT plus sha256 whenever the file also holds
+   uncommitted work.
+   **STILL OPEN: claim 3, the omissions, and the rendered walk.**
+
    **THE THREE FALSE CLAIMS, each verified from source:**
    * **`Onboarding.tsx:772` - "Settings -> Quick Access" DOES NOT EXIST.** Two defects in one
      sentence. The feature is **"App lock"** under **Settings -> Account Security**
@@ -345,10 +360,12 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
      three and entirely mine to fix.
    * **"Budget Control" is now labelled "Plan"** (`Transactions.tsx:904`). Corroborated from
      inside the app: the demo hero at `Dashboard.tsx:1794` already says "Plan".
-   * ⚠️ **"Unlimited history"** (`Onboarding.tsx:741`) is a premium promise made **nowhere else**
-     - 1 hit against a positive control of 6 for "Priority support"; `Premium.tsx` and
-     `NativePaywall.tsx` agree with each other and not with onboarding. **PAYWALL COPY, SO IT
-     IS SAM'S, NOT MINE** - recorded, deliberately not fixed.
+   * ⚠️ **"Unlimited history"** (`Onboarding.tsx:741`) - **CORRECTED BY SAM: my grep was
+     CASE-SENSITIVE, so it is at least 2 surfaces, not 1.** `Settings.tsx:1232` carries it
+     lowercase. **And the claim is VACUOUS rather than false**: no plan-bounded history query
+     exists anywhere in `src/`, so free users already have unlimited history and an upgrader
+     gets nothing new. **FILED TO TRE AS `40ee39b6`. DO NOT FOLD IT INTO THE REWRITE UNTIL HE
+     ANSWERS** - remove-the-line and make-it-true produce opposite copy.
    **STATED NEGATIVES, so silence is not read as a check nobody ran:** the DebtsStep "Accounts"
    pointer is correct, all four checklist links resolve through their redirects, and the
    60-month forecast claim is true.
@@ -10274,7 +10291,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 16:11 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 16:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10285,14 +10302,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+49285f88 [onboarding]: the inventory - three false claims, and the biggest is shown to every web user
+b75e8027 [handoff]: the suppression guard binds for nobody today - measured, with both controls
+192b0cc4 [handoff]: auto-snapshot refresh at close-out
 6140d15b [handoff]: close part 3 in the resume queue - the measurement was made and the answer is not yet
 43a039b1 [dashboard]: his own saved layout is why the declutter never reached him - and it inverts part 3
 dd98970f [handoff]: the cost pass answers his three unsure cards - Advanced Analytics is 18% of the page
 05ad6cb4 [dashboard]: what each card costs - Advanced Analytics is 18% of the page on its own
 63630c58 [handoff]: 403dd5d8 part 1 answered - one $25 obligation in three cards, and the page is 6.7 screens
-7a7f987d [dashboard]: the semantic pass found it - one $25 obligation printed in three cards
-c4c1426f [handoff]: duplication headline retracted, 663274d7 closed, semantic pass is the next slice
-d877fe4a [dashboard]: filter out text nobody can read - and my headline finding did not survive it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
