@@ -85,15 +85,26 @@ export function UsernameClaim({ readOnly = false }: { readOnly?: boolean }) {
 
   if (current && !editing) {
     return (
-      <div className="flex items-center gap-2 text-xs">
-        <Check size={12} className="text-success shrink-0" />
-        <span className="text-muted-foreground">People can find you at</span>
-        <span className="font-medium truncate">@{current}</span>
+      /* ⚠️ A USERNAME IS AN IDENTIFIER AND MUST NEVER TRUNCATE (Tre, 2026-09-18: "the text
+         spacing and design on the rest of the page needs to be fully visible. espeacially
+         usernames"). His TestFlight shot read "@trefor..." beside the Change button: the
+         caption, the handle and the button all shared ONE row at 390px, so the caption wrapped
+         to two lines and `truncate` ate the handle.
+         A truncated handle is not a cosmetic problem - it is the string he has to READ to share
+         it, and the app was hiding it from its owner.
+         Caption ABOVE the handle rather than beside it, and `break-all` instead of `truncate`
+         so a long name WRAPS. Wrapping costs a line; truncating costs the information. */
+      <div className="flex items-start gap-2 text-xs">
+        <Check size={12} className="text-success shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <span className="block text-muted-foreground">People can find you at</span>
+          <span className="block font-medium break-all">@{current}</span>
+        </div>
         {!readOnly && (
           <button
             type="button"
             onClick={() => { setDraft(current); setError(null); setEditing(true); }}
-            className="btn btn-sm btn-secondary shrink-0 ml-auto"
+            className="btn btn-sm btn-secondary shrink-0"
           >
             Change
           </button>
