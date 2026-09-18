@@ -2,6 +2,18 @@
 
 ## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-FIRST session)
 
+### 🚀 iOS BUILD DISPATCHED - run `35359868193`, head `f8520a64`, ON SAM'S TIMING CALL
+It carries the **contrast fix** (the one change he will actually SEE), the guide correction, the
+What's New entry that explains the four features in 949, the accessible button names, and the
+notes-coverage reader.
+⚠️ **VERIFY IT AT THREE LEVELS AND DO NOT SHORTCUT ANY OF THEM** - this repo has been caught by
+each: (1) name the **iOS** build number, never Android's, (2) read **STEP 20's OWN conclusion**,
+because a `skipped` upload leaves the RUN green with nothing sent, and (3) require altool's
+**`UPLOAD SUCCEEDED`** in the output, because step 20 also has a branch that swallows Apple's
+90382 daily-cap error and still exits green.
+**AND IT IS THE FIRST REAL RENDER OF `check:notes-coverage`** (`4e6f3776`) - somebody has to
+actually READ that step summary rather than assume it fired. `VERSION_CODE = run_number + 100`.
+
 ### RESUME QUEUE - short on purpose, this is injected into every session here
 1. **`ba24b44a` - TRE'S TASTE CALL, do not pre-empt it.** Split `Income & Taxes` into separate
    cards at its existing `border-t` boundaries? My recommendation is YES. **Acceptance is a PAIR:
