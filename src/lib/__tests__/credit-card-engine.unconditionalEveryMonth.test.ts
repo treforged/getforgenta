@@ -170,6 +170,47 @@ describe('simulateVariablePayoff - "always pay in full" holds in every month', (
     expect(total, 'the card never started paying at all').toBeGreaterThan(0);
   });
 
+  /**
+   * E: HIS ACTUAL SHAPE — first statement due NEXT month, so the deck's "next payment" must be a
+   * real number rather than $0.
+   *
+   * Tre, 2026-09-17 02:07: "on dashboard that in the deck recommended this month section Robinhood
+   * is showing next payment zero dollars."
+   *
+   * ⚠️ THE DECK READS MONTH 1 FOR A CARD WHOSE DUE DAY HAS PASSED, so a sim that pays nothing in
+   * month 1 renders "next $0" — which is what he saw. Case C above pins first-due-in-TWO-months
+   * (both 0). This pins first-due-in-ONE-month, where month 0 must still be 0 and month 1 must
+   * NOT be: the two cases share a mechanism and only this one is the shape on his account.
+   */
+  it('E: first statement due NEXT month pays nothing now and a real amount then', () => {
+    const now = new Date();
+    const due = new Date(now.getFullYear(), now.getMonth() + 1, 10);
+    const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-10`;
+    const withFirstDue = cards(true).map(c => (c.id === 'rh' ? { ...c, firstDueDate: iso } : c));
+    // ⚠️ CASH-TIGHT ON PURPOSE, AND THE FIRST DRAFT OF THIS TEST WAS CASH-RICH AND WORTHLESS.
+    // Under the rich fixture month 1 gets paid by the ordinary surplus cascade whether or not the
+    // pin exists, so the arm stayed GREEN under a mutation that removed the pin entirely - it was
+    // measuring the cascade, not the setting. Only a tight month makes the pin the sole reason a
+    // payment appears. Same numbers as case A.
+    const monthEvents = Array.from({ length: MONTHS }, () => ({ income: 1750, expenses: 1500 }));
+    const sim = simulateVariablePayoff(
+      withFirstDue, 250, 0, 'avalanche', 1750, 1500, MONTHS, monthEvents,
+      undefined, purchasesByMonth,
+    );
+    const pays = sim.monthlyPayments.get('rh')!;
+    const owed = sim.monthlyCyclingOwed.get('rh')!;
+    expect(pays[0], 'a payment was demanded before the first statement was cut').toBe(0);
+    // ⚠️ "GREATER THAN ZERO" WAS THE FIRST DRAFT AND IT COULD NOT FAIL. Measured: with the pin
+    // removed entirely, month 1 is STILL paid — by the ordinary surplus cascade — under both a
+    // cash-rich AND a cash-tight fixture. So `> 0` was green over a redundancy and was evidence
+    // about the cascade rather than about the setting. Asserting payment IN FULL is what only the
+    // pin produces, and it is what makes this arm go red when the pin is gone.
+    expect(pays[1], `month 1 paid ${pays[1]} against ${owed[1]} owed — a shrunk payment is what renders as a wrong "next payment"`)
+      .toBeGreaterThanOrEqual(Math.round(owed[1] * 100) / 100 - 0.01);
+    expect(owed[1], 'the fixture never billed the card in month 1, so this arm proves nothing')
+      .toBeGreaterThan(0);
+  });
+
   it('D: the SETTING is what does it - without it the same fixture lets the balance CLIMB', () => {
     const on = TIGHT().monthlyBalances.get('rh')!;
     const off = TIGHT_OFF().monthlyBalances.get('rh')!;
