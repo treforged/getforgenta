@@ -51,6 +51,35 @@
 // ⚠️ AND THE CAPTURE IS 17 DAYS OLD. He described "right now" on 17 September. Before any
 // fix is designed, take a FRESH capture - the sub-floor months may have moved.
 //
+// ⚠️ CORRECTING MYSELF, MEASURED 2026-09-18 AFTER THE FIRST COMMIT OF THIS FILE. I wrote that
+// passing the capture's `cashFloor: 0` made the first run "meaningless" and "green about a
+// question it had never asked". THAT IS OVERSTATED AND THE CLAIM IS WITHDRAWN.
+//
+// The engine does NOT use the flat `cashFloor` as the safe minimum. It derives `monthMinSafe`
+// per month from essential expenses, and at `cashFloor: 0` that reads 2294 / 2390 / 2444 - not
+// zero - and it STILL flags Sep 2026 as `belowSafeMinimum`. So the run was measuring a real
+// floor the whole time. What was actually wrong was MY TABLE: it compared `endingCash` against
+// the flat input instead of against `monthMinSafe`, so it printed a floor of 0 and NaN endings.
+// An instrument error in the printing, not a meaningless run.
+//
+// ⚠️ AND THAT MEANS THE OVERRIDE BELOW IS NOT OBVIOUSLY THE FAITHFUL CHOICE. His profile
+// carries `cash_floor: 2500` with `cash_floor_is_manual: FALSE`, which reads as a DERIVED
+// display value rather than an input the app feeds the engine - and forcing 2500 moves
+// `monthMinSafe` (2294 -> 2500) and moves November's trimmed contribution (232 -> 279). The
+// harness fidelity control moves too, from 24-vs-26 to 25-vs-26, so the override is one month
+// closer and still not exact. WHICH INPUT THE APP ACTUALLY USES IS UNRESOLVED; do not quote
+// either set of dollars as "what his app shows" without settling that first.
+//
+// ✅ THE FINDING SURVIVES BOTH WAYS, which is why the visibility fix shipped anyway: November's
+// contribution is trimmed under either floor (232 at the captured value, 279 at 2500) and
+// September breaches under both. The SHAPE is robust; only the exact dollars depend on the
+// unresolved input.
+//
+// ⚠️ ALSO WITHDRAWN: I suspected forecast-convergence.realData.test.ts asserts "no floor
+// breaches" vacuously because it runs at `cashFloor: 0`. Measured, that is WRONG for the same
+// reason - `monthMinSafe` is non-zero there and breaches do fire. That assertion is meaningful.
+// Its UNASSERTED harness fidelity control (ask 18fbdbf7) is a separate and still-real issue.
+//
 // Self-skips when the gitignored real fixture is absent.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
