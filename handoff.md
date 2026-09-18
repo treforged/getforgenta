@@ -1,5 +1,149 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ START HERE - 2026-09-18 LATE (Ada, THIRTY-FOURTH session, after the cap reset)
+
+Three items shipped after the reset. Everything below is on origin, 0/0, verified by contents
+with a known-positive AND a negative control.
+
+### ✅ `d018ab32` PLACEHOLDER CLIPPING (`39bab44b`) - and the briefed criterion was BLIND
+Tre, with a screenshot: *"have ada make sure the preview texts fit in the boxes on mobile. this
+one is he invite code"*. Measured **336px of text in a 287px field** at 390px, 49px over.
+Fixed by moving the question to a `<label>` that stays and leaving `"Paste it here"` (129px) in
+the field - **a label also because a placeholder VANISHES on typing**, so that string carried the
+only instruction on the field and disappeared exactly when it was being followed.
+
+⚠️ **`scrollWidth <= clientWidth` CANNOT SEE THIS, AND IT WAS THE ACCEPTANCE CRITERION I WROTE
+AND SAM RELAYED.** A placeholder is not CONTENT, so an empty input never overflows and the
+browser reports `scrollWidth === clientWidth` however long the placeholder is. On the exact field
+in his screenshot it reads FALSE. **The new gate prints it per field as `sw>cw` so nobody
+re-adopts it from memory** - on the red run it "would have flagged 0 of 1".
+What is measured instead: the placeholder laid out in the field's OWN computed font against its
+content box (clientWidth minus padding minus any absolute icon over the text).
+
+**NEW GATE `npm run check:placeholders`.** Proven RED with the REAL pre-fix string (exit **1**,
+the field named) and green after (exit 0), restored byte-exact by sha256.
+
+⚠️ **MY FIRST POSITIVE CONTROL WAS KEYED TO THE DEFECT'S OWN TEXT AND THE FIX BROKE IT.** It
+required the exact string from the screenshot, so the moment the defect was fixed the control
+could not find it and a green app reported **exit 2, CONTROL FAILED** - an instrument fault, the
+diagnosis nobody chases. Re-keyed to REACHABILITY (`/account` must yield its fields), which is
+true in both the broken and the fixed state. **A control keyed to the thing being removed cannot
+survive its removal.**
+
+⚠️ **ROUTES ARE DERIVED FROM `App.tsx`.** My first list hand-named eight and one of them,
+`/savings`, **is not a route** - the app calls it `/goals`. It rendered nothing, contributed a
+silent zero, and inflated "across 8 routes" into coverage the walk had not earned. Now 24 routes,
+each asserted to have mounted an app shell, so a blank route reads NOT MEASURED rather than clean.
+
+**NOT COVERED, and this is a real limit rather than a formality: only 3 placeholders are
+reachable without interacting.** Everything behind a modal or drawer, the onboarding wizard,
+desktop widths, light mode, and **PREMIUM-ONLY fields** - the reviewer account is not premium, so
+PartnerLink's own `"Partner's email address"` input never renders and has never been measured by
+anything.
+
+### ✅ `29f1fb44` /account RHYTHM IS CLEARED - every route now under the ceiling
+A third card (the share toggles became their own, and their `pt-1 border-t` went with it - a rule
+inside a card was doing a card boundary's job).
+
+    run        60% of page (3.3x) -> 45.8% (2.5x) -> 32.5% (1.8x)
+    whitespace 16.8%              -> 17.1%        -> 17.7%
+
+**+0.9 whitespace points across BOTH splits, against the four-card attempt's +10.0 on its own.**
+So the question was never "more cards", it was whether ONE more was affordable - and the
+measurement answered it rather than the instinct that more breaks are better.
+Whole app: /debt 0.9x, /dashboard 1.0x (reference), /budget 1.1x, /settings 1.3x, /forecast 1.7x,
+/account 1.8x. **Nothing over 2x.**
+
+### 🛑 `d25f5315` LEARN-OFF-THE-DASHBOARD WAS ALREADY SHIPPED - RETIRED, NOT BUILT
+`ec69f026`, 2026-09-17, *"move Learn into its own /account section and keep one next-lesson line
+on the home tab"* - an ancestor of build 970's head, verified with a negative control. It is on
+his phone now. It implements the exact shape the ask warned was easiest to get wrong: `LearnCard`
+has its own non-removable section (`Account.tsx:315`, tab control at `:203`) and only
+`NextLessonRow` remains on the dashboard (`Dashboard.tsx:1832`), outside the widget stack so it
+cannot be customised away. `Dashboard.tsx:1524` reads *"THERE IS NO `learn` CASE ANY MORE"*.
+
+⚠️ **WHY THE ASK SAID OTHERWISE, AND THIS IS THE PART TO CARRY FORWARD.** Its evidence was *"a
+tracker search for 'learn' returns ZERO rows"* - which proves the item was **UNTRACKED** and says
+nothing about whether it was **BUILT**. The ask then asserted "genuinely NOT built" on that
+basis. **Untracked and undone are different claims and the capture queue cannot tell them apart:
+triage removes an item, delivery does not.** One caller grep settled it. **Third instance of the
+shipped-and-never-shown loop today.**
+
+### 📋 THE REST OF THAT CAPTURE WAS SPLIT OUT RATHER THAN CLOSED WITH IT
+The preview had cut **1277 characters**, and they contained a second, unrelated ask.
+* **`c067a189` - MONEY, and it is the one with real consequence for him.** *"I don't think it's
+  realistic to have the move fund be paying so much right now or like splitting it evenly across
+  all the dates... the next three months October, November, and December it seem to be dropping
+  below that safe level"*. A measurable symptom, not only a preference: reproduce the three
+  sub-floor months first (`floor-protection.ts`, `forecast-engine.ts`), then bring ONE
+  recommendation with the number attached. Money maths on real data - assert a NUMBER and run
+  `test:tz`.
+* **`403dd5d8` - the dashboard reorganisation.** Four parts, and part 1 is the only measurable
+  one so it goes first: **the DUPLICATION he named**. Started, not finished - the top section is
+  `DashboardHero` (`Dashboard.tsx:1758`, carrying "Credit cards paid off") sitting above a
+  10-widget stack that includes `monthly_snapshot`, `upcoming_week` and `debt_recommendations`,
+  which are the very things he lists as appearing twice. **Compare and report what actually
+  appears twice BEFORE moving anything.**
+  He is explicitly UNSURE on advanced analytics, cash flow review and monthly change, so those
+  are **his** call - one recommendation each, with the duplication evidence attached. Goal
+  progress he calls "pretty good": leave it. `DashboardCustomizer` is still mounted at
+  `Dashboard.tsx:1842`.
+  ⚠️ **`check:page-rhythm` WILL NOT FIND THIS and a green from it is not evidence** - /dashboard
+  is that gate's own 1.0x reference. His complaint is about WHAT IS ON the page, not its spacing.
+
+
+## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 1.
+
+1. **`403dd5d8` - THE DASHBOARD REORGANISATION, part 1 only: FIND THE DUPLICATION.** It is the
+   single measurable part of his complaint and everything else waits on it. The top section is
+   `DashboardHero` (`Dashboard.tsx:1758`); below it is a 10-widget stack. He names
+   *upcoming this week*, *monthly budget snapshot*, *debt recommended this month* and *when credit
+   cards are getting paid off* as the top section and says it "seems to be the same as maybe some
+   stuff below" - and `monthly_snapshot`, `upcoming_week` and `debt_recommendations` are all real
+   widget ids. **Report WHAT ACTUALLY APPEARS TWICE before moving anything.** A rendered
+   comparison of visible text/figures is the instrument; a source read cannot see what a user
+   sees twice.
+   ⚠️ **DO NOT REACH FOR `check:page-rhythm`** - /dashboard is that gate's own 1.0x reference, so
+   it is structurally incapable of finding this. His complaint is about WHAT IS ON the page.
+
+2. **`c067a189` - THE MOVE FUND, and it is the item with real money consequence.** Oct/Nov/Dec
+   fall below the safe level on his own forecast. **Reproduce the three sub-floor months FIRST**
+   (`floor-protection.ts` owns save-up months and the floor, `forecast-engine.ts` owns month-0
+   cash), then bring ONE recommendation with the number attached. Assert a NUMBER, run
+   `npm run test:tz` across all three zones, and check the golden/convergence fixtures.
+   ⚠️ Touches the "save the user the most money" tie-breaker in CLAUDE.md: deferring a savings
+   contribution to avoid a floor breach is defensible but is NOT free - say what it costs in
+   months-to-goal.
+
+3. **`403dd5d8` parts 2-4**, only after part 1 has evidence: the placement calls (he is
+   explicitly UNSURE on advanced analytics, cash flow review and monthly change, so those are
+   HIS decisions - one recommendation each, never a menu); whether to remove
+   `DashboardCustomizer` (`Dashboard.tsx:1842`, reversible but it changes saved layouts, so
+   measure what removal does to an existing one); and the reorganisation itself. Goal progress
+   he calls "pretty good" - leave it.
+
+4. **`663274d7`** - from Otto, five App Store Connect / monetisation items. Still untouched and
+   now the oldest item here.
+
+5. **`149fb21f` CONTRAST** - validation and form error text are unmeasured anywhere in this repo
+   (highest value; copy `scripts/check-destructive-states.mjs`); light mode has no rendered
+   contrast gate at all and all four probes honestly refuse to report one; every rendered gate
+   here is 390x844 only.
+
+6. ⚠️ **THE NATIVE GLASS BRIDGE IS BUILT WITH ZERO CALLERS.** `native-glass-bridge.gate.test.ts`
+   passes 13/13 while `grep -rn native-glass src/` finds nothing outside that test. **ADD THE
+   CALLER ASSERTION *WITH* THE MOUNT, NEVER BEFORE IT.** Unverifiable on this machine - no
+   device, and the CI compile proves a BUILD, never a RENDERED SURFACE. Wants a full window.
+
+7. **THE DEV SERVER ON :8080 IS A PEER'S. Do not kill it.** Every rendered gate needs it up.
+
+8. **SHIPPING TO HIS PHONE:** push everything, wait for any in-flight `ios-build`, then dispatch
+   LAST (`gh workflow run "iOS Build & Upload to App Store" --ref main`) - `cancel-in-progress`
+   means a later push kills your dispatch. Verify the UPLOAD STEP'S own conclusion (`skipped` is
+   not `success`), altool's `UPLOAD SUCCEEDED with no errors`, that `90382` hits are echoed
+   source, and ancestry with a negative control. `VERSION_CODE` is printed in the log - read it
+   rather than computing it.
+
 ## ⚠️ START HERE - 2026-09-18 (Ada, THIRTY-FOURTH session)
 
 ### ✅ iOS BUILD 970 IS IN TESTFLIGHT AND CARRIES BOTH FIXES TRE WAS WAITING ON
@@ -97,7 +241,9 @@ skipped a ready item indefinitely. Moved to in-progress. **Worth fixing properly
 no way to attach a note to an open row, so the only place to put one is a status that means
 something else.
 
-## Resume queue - 2026-09-18 (Ada, THIRTY-FOURTH session). START AT ITEM 0.
+## SUPERSEDED queue - 2026-09-18 (Ada, THIRTY-FOURTH session). Its item 0 (d018ab32)
+## and item 1 (the /account seam) are BOTH DONE - see the queue above. Kept for its
+## enumeration and its reasoning, not as an instruction.
 
 0. 🚨 **DO THIS FIRST - `d018ab32`, PLACEHOLDER TEXT CLIPPING ON MOBILE.** From Tre with a
    screenshot, routed by Sam. His words: *"have ada make sure the preview texts fit in the boxes
@@ -9830,7 +9976,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 12:57 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 13:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -9841,14 +9987,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+8d59c87a [handoff]: d018ab32 placeholder clipping is item 0, enumerated but deliberately not started
+75e096a3 [handoff]: build 970 verified four ways, username security shipped, /account 60% -> 46%
+f5c1dc96 [account]: two cards, not one slab - /account's run 60% -> 46% with whitespace flat
+48b491a8 [security]: the username reserved list had no server side, and now bad words have one too
+aa6555f8 [handoff]: username security is item 1, with the enumeration I got before the gate
 b509b0c8 [handoff]: build 967 verified, four new asks from Tre, two built and two filed
 b9e2e79e [account]: a username is an identifier, so it wraps instead of truncating
 44e28a03 [account]: icon-only section bar, every section visible at once, icons 13 -> 20
-1702499b [design]: /forecast was a false finding - I measured a dialog and called it a page
-35db2b73 [handoff]: the six-route table, and three settle fixes before any of it was trustworthy
-b6449301 [design]: a discarded warm-up, and the six-route run table
-45d07dee [design]: three agreeing reads, and check:page-rhythm now walks six routes
-a7bff947 [handoff]: the release-range fix, the reachability assertion, and a settle loop that agreed on a wrong state
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
