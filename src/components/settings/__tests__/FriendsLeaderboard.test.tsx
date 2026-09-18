@@ -3,7 +3,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FriendsLeaderboard } from '../FriendsLeaderboard';
 import { buildLeaderboardRows } from '@/lib/leaderboard-ranking';
-import type { LeaderboardMetric } from '@/lib/leaderboard-metrics';
+import {
+  ALL_LEADERBOARD_METRICS,
+  isMetricSourced,
+  type LeaderboardMetric,
+} from '@/lib/leaderboard-metrics';
+
+// The label a tab must show, per metric. Typed as a total Record so a SIXTH metric fails to
+// compile here rather than silently going unasserted - the hand-named-inventory defect this
+// repo keeps filing, refused at the type level.
+const METRIC_LABEL_RE: Record<LeaderboardMetric, string> = {
+  goal_progress: 'Savings goal progress',
+  savings_streak: 'Savings streak',
+  debt_payoff: 'Debt paid down',
+  budget_adherence: 'Budget adherence',
+  achievements: 'Badges earned',
+};
 
 /**
  * ⚠️ The empty state is the screen every user will actually see - 0 friendships and 0 published
@@ -80,6 +95,24 @@ describe('FriendsLeaderboard - the empty room', () => {
    * ("never by being left out") and `isEmptyRoom`'s ("collapsing them would tell someone with
    * five friends to go and invite somebody"). The rows are the board; the sentence explains it.
    */
+  it('OFFERS EVERY SOURCED METRIC AS A TAB, so a new one cannot be built and left unreachable', () => {
+    // ⚠️ THIS IS THE ASSERTION THAT MAKES "part 3 of 07150518 is done" A FACT RATHER THAN A
+    // CLAIM. `achievements` shipped in 46338c47 as a fifth metric, and this repo's standing
+    // failure is a feature that is fully built, gated green, and CALLED BY NOTHING - the native
+    // glass bridge passes 13 of 13 today over exactly that. The selector derives from
+    // Object.keys(METRIC_LABELS), and METRIC_LABELS is a total Record, so tsc forces the entry -
+    // but a type-level proof is not a rendered tab, and only one of those is what Tre asked for.
+    // DERIVED from the metric list, so the SIXTH metric is covered without anyone remembering.
+    renderBoard();
+    const tabs = screen.getAllByRole('button').map((b) => b.textContent);
+    const sourced = ALL_LEADERBOARD_METRICS.filter(isMetricSourced);
+    expect(sourced, 'no metric is sourced, so this asserts nothing').not.toHaveLength(0);
+    expect(sourced).toContain('achievements');
+    for (const m of sourced) {
+      expect(tabs.join('|'), `no tab offers ${m}`).toMatch(new RegExp(METRIC_LABEL_RE[m]));
+    }
+  });
+
   it('still shows every friend as a row, with the sentence explaining why they read Private', () => {
     renderBoard();
     expect(screen.getByText(/nobody is sharing/i)).toBeTruthy();
