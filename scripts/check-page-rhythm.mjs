@@ -82,7 +82,11 @@ await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.string
   version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
 })));
 
-const ROUTES = ['/dashboard', '/budget'];
+// /dashboard FIRST because it is both the reference and the positive control; the other four
+// are read so a segmentation problem on a route nobody complained about is visible before he
+// finds it. Widening `check:dark-contrast` exactly this way found two real strings on its
+// first run.
+const ROUTES = ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/settings'];
 const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
 
 // A band is a PAINTED block in the scrolling column - an element whose own background differs
@@ -178,12 +182,35 @@ for (const route of ROUTES) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
   }
-  let prev = null;
+  // ⚠️ TWO AGREEING READS IS NOT ENOUGH, MEASURED 2026-09-18. Widening this probe to six
+  // routes made /dashboard read 1 band over 1390px at 75.6% whitespace - minutes after the same
+  // code read it as 16 bands over 5656px at 17.5%. TWO CONSECUTIVE READS AGREED ON AN UNMOUNTED
+  // PAGE. "Settled" and "correct" are not the same thing, and a two-read loop only checks the
+  // first. The positive control caught it and correctly named the instrument, but a control that
+  // fires on a healthy app is a control somebody switches off.
+  //
+  // So: THREE consecutive agreeing reads, and the run RESTARTS its streak if a later read is
+  // BIGGER than the one it settled on. A page only ever grows as it mounts, so a rising count
+  // after agreement is proof the agreement was premature - which a same-value check cannot see.
+  const AGREE = 3;
+  let streak = [];
   let settled = null;
-  for (let i = 0; i < 8; i += 1) {
+  let peakBands = -1;
+  let prev = null;
+  for (let i = 0; i < 14; i += 1) {
     const now = await readRhythm();
-    if (prev && prev.bands === now.bands && Math.abs(prev.totalPx - now.totalPx) <= 2) { settled = now; break; }
     prev = now;
+    if (now.bands > peakBands) {
+      // Still growing. Anything agreed before this point was agreed on a partial page.
+      peakBands = now.bands;
+      streak = [now];
+    } else if (streak.length && streak[0].bands === now.bands
+               && Math.abs(streak[0].totalPx - now.totalPx) <= 2) {
+      streak.push(now);
+    } else {
+      streak = [now];
+    }
+    if (streak.length >= AGREE) { settled = now; break; }
     await page.waitForTimeout(1200);
   }
   if (!settled) {
