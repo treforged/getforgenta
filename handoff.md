@@ -331,6 +331,20 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 0.
 
+📋 **`425f0fba` - THE COPY-POINTER GATE, first item when main frees (Sam endorsed; scope is
+LOCATIONS AND LIMITS, never prose). ONE MEASUREMENT ALREADY TAKEN, so do not rediscover it:**
+**THE ARROW IS NOT A DISCRIMINATOR.** `→` occurs **151 times** in `src/` and only **53** survive
+comment-stripping - and most of even those 53 are DATA FLOW inside code strings
+(`useCardProjection → buildRankedTargets`, `surplus above floor → debt`), not navigation. **A gate
+asserting "every arrow names a real place" would cry wolf on ~140 legitimate lines**, which is the
+gate-that-gets-switched-off failure. So the selector must be the JSX TEXT NODE, not the character.
+⚠️ **And the stripper is load-bearing and needs its own positive control** (151 -> 53 proves it
+reduces; an over-eager one would make every absence assertion pass for ever). Same lesson already
+paid for on `Onboarding.pointers.test.ts` tonight.
+⚠️ **PRINTING `→` UNDER cp1252 KILLS THE RUN** - my own probe died with `UnicodeEncodeError` after
+printing its counts. `sys.stdout.reconfigure(encoding="utf-8", errors="replace")`, and never let a
+character cost an item.
+
 ⚠️ **`3aa4f935` (did Tre tap Reset to defaults?) - MY INSTRUMENT COULD NOT ANSWER IT, AND I
 NEARLY REPORTED THE READING AS IF IT COULD.** Sam's message says he tapped it. I checked
 `count(*) filter (where dashboard_layout is not null)` and got **2, the same as before**, which
