@@ -8527,6 +8527,38 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - I FINALLY LOOKED AT A FRAME, AND NEARLY FILED A NON-DEFECT FROM IT
+
+### WHAT THE DARK 390px FRAME OF `/budget` ACTUALLY SHOWS
+Captured against `#scroll-main` (`TEMP/budget-dark-390.png`) and read by eye, which is the limit
+every entry above this one was careful to say it had not closed.
+* ✅ **HIS "EMPTY SPACING" IS REAL AND VISIBLE.** There is roughly **100px of nothing** between the
+  `Plan / Transactions / Forecast` pill row and the top of the `INCOME & TAXES` card - the largest
+  single gap on the screen, above the fold, before any content. That is the most defensible target
+  on the page and it needs no colour decision at all.
+* ✅ **THE MONOCHROME READING IS CONFIRMED BY EYE**, not just by the 0.19%: black, three greys, and
+  one gold. The gold does a lot of work (tab fill, Guide, Add Deduction, two nav items).
+* ✅ **MY CONTRAST FIX IS VISIBLY DOING ITS JOB** - `GROSS INCOME (PER PAYCHECK)`, `PAY FREQUENCY`,
+  `TAX RATE (%)` are all comfortably legible greys.
+
+### ⚠️ AND I NEARLY FILED A DEFECT THAT IS NORMAL BEHAVIOUR
+The frame shows `NEXT PAYCHECK` sitting **underneath the floating bottom nav**, which reads exactly
+like the content-does-not-clear-the-bar defect `check:nav` exists to catch. **It is not one.**
+`DashboardLayout` carries `pb-[calc(5.5rem+env(safe-area-inset-bottom))]`, and content scrolling
+UNDER a fixed bar is what a scrolling container does - the padding guarantees you can scroll far
+enough to reach the last item, not that nothing ever passes behind the bar. **A frozen frame of a
+mid-scroll position cannot distinguish "overlapped" from "scrolling past".**
+**So: a rendered frame is not automatically better evidence than a number - it has its own failure
+mode, and this one is a still photograph of a moving thing.** Filing it would have sent somebody
+to fix layout that is correct, against a gate that already passes.
+
+### ⚠️ AND THE CAPTURE ITSELF IS ONE VIEWPORT, DESPITE TARGETING THE SCROLLER
+`main.screenshot()` on an `overflow-y-auto` element captures its VISIBLE BOX, not its 2322px of
+scrollable content. **So this frame is the first screen only** - which is fine for the gap finding,
+because the gap is above the fold, and it must not be read as a review of the whole page.
+**NEXT:** the ~100px gap, measured rather than eyeballed, then closed. It is ordering/spacing, needs
+no palette decision, and it is the half of `d391e98b` he worded most concretely.
+
 ## 2026-09-18 - Ada - THE FULL SWEEP: `/budget` IS MEASURABLY THE DULLEST ROUTE IN THE APP
 
 ### THE COMPARATIVE NUMBER, 4 routes x 2 widths, dark, whole document
