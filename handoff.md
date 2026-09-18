@@ -331,6 +331,18 @@ the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
 ## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 0.
 
+⚠️ **`3aa4f935` (did Tre tap Reset to defaults?) - MY INSTRUMENT COULD NOT ANSWER IT, AND I
+NEARLY REPORTED THE READING AS IF IT COULD.** Sam's message says he tapped it. I checked
+`count(*) filter (where dashboard_layout is not null)` and got **2, the same as before**, which
+reads as "he did not". **It is not evidence either way:** `resetLayout` (`useDashboardLayout.ts:65`)
+calls `setLayout(DEFAULT_LAYOUT)` - it **WRITES the default, it does not clear the row** - so the
+count is **2 whether he reset or not**. A non-discriminating instrument.
+**The discriminating check is whether the stored layout EQUALS `DEFAULT_LAYOUT`**, not whether it
+exists. Not run here: it reads his own row, and the question did not justify it at the time.
+**The near-miss is the lesson:** one more step and I would have told Sam his information was
+wrong - a false alarm aimed at a teammate's own work, which this portfolio records as the most
+expensive shape because it is acted on immediately by someone with no reason to doubt it.
+
 ⚠️ **RELEASE DAY, AND ONE ANSWER GATES IT. READ THIS FIRST.**
 Tre asked for a release TODAY carrying today's copy fixes: *"the app needs to be functioning
 today."* **Everything is built, gated and pushed. NOTHING IS DISPATCHED**, because one fact is
