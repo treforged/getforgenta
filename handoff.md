@@ -8278,6 +8278,33 @@ His metadata line also wraps mid-token (`Starts 2026-10-` / `01`). **Then dispat
 carrying all four items (Sam's decision, 2026-09-18) - and read the UPLOAD STEP'S own conclusion
 plus altool's "UPLOAD SUCCEEDED", never the run's.
 
+
+## 2026-09-18 - Ada - iOS build DISPATCHED, NOT YET VERIFIED
+
+**Run `35354664800`, `workflow_dispatch`, head `43c8d6d5`.** Carries all four fixes:
+`6752630b` (Robinhood pinned), `d0b52833` (auto-link), `468e4d2e` (the `/mo` label),
+`d08066d3` (next-payment $0 pinned), plus the metadata wrap.
+
+⚠️ **NOBODY MAY REPORT THIS AS BEING IN TESTFLIGHT UNTIL THE UPLOAD STEP IS READ.**
+A second run (`35354628088`) exists on the SAME SHA from the push - **that one's upload
+step is `skipped` by design and it will still end GREEN.** Do not read it.
+
+**THE CHECK, and it is three levels deep for a reason recorded in this file:**
+1. `gh run view 35354664800 --json jobs` - read **step 20's OWN conclusion**, require
+   `success`, never `skipped`.
+2. Then read altool's words: **`UPLOAD SUCCEEDED with no errors`**. Step 20 has a branch
+   that swallows Apple's daily-cap error 90382, prints a warning and **still exits green**,
+   so the step conclusion alone is not sufficient either.
+3. **Name the iOS build number, not Android** - `VERSION_CODE = run_number + 100`, and
+   Android/iOS are different workflows with different upload rules.
+
+**AND AN UPLOAD IS NOT AN INSTALL.** The three facts stay separate: on origin, on a build,
+installed. He still has to update.
+
+**WHY IT WAS DISPATCHED BEFORE `d391e98b` LANDED**, against Sam's "once both are in": the
+design half of `d391e98b` is NEEDS TRE and could sit for days, while four user-visible
+fixes were on main and unreachable from his phone. One slot, four fixes. Sam's intent was
+to avoid spending three slots, not to block on a Tre-gated item.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
