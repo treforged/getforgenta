@@ -2,6 +2,33 @@
 
 ## ⚠️ START HERE - 2026-09-17 (Ada, THIRTIETH session)
 
+### ✅ `5409ffbc` LIMIT 1 IS BUILT AND GATED - A CAPTURE THAT CANNOT SUPPORT A PAYOFF COMPARISON NOW REFUSES ONE
+`PROJECTION_LOCAL_KEYS` lives in a **leaf module** (`src/lib/projection-local-keys.ts`) and is used
+by the provider AND the capture, so they cannot drift. Captures record `capturedLocalState`,
+defaulted from the live store so a caller cannot forget it. `applyProjectionLocalState` seeds a
+replay. **`assertComparablePayoff` THROWS** on a capture that carries none - because **every
+pre-fix fixture is that shape**, so without it an old file goes on producing invalid comparisons
+after the fix ships.
+**It gates the PAYOFF only.** Month-0 figures held at 229.89 across all twelve configurations, so
+gating those would cry wolf on a comparison that IS valid.
+**The gate PARSES the provider** for `usePersistedState` calls and requires equality in BOTH
+directions - never a hand-named list. **Proven red three ways**, each killing exactly one
+assertion, all restored byte-exact by sha256: a fourth persisted input as a bare literal (the real
+regression), the refusal made inert - **and the ACCEPTS half stayed GREEN under it**, which is what
+separates the pair from a function that always throws - and the serializer dropping the field.
+Gates: tsc clean, lint 0 errors, **test:tz 4821 green in all three zones, up from 4816**.
+
+⚠️ **AND MY FIRST ATTEMPT BROKE SIX SUITES IN THE SHAPE THAT READS AS A HARNESS FAULT.** The
+constant started inside `CardProjectionContext`; importing that from the fixture helpers dragged in
+the supabase client, which touches `localStorage` at module scope. Six node-environment suites died
+at IMPORT time - **0 failed tests, 6 failed FILES**. A constant shared between app code and test
+helpers must not carry the app with it. Recorded in the leaf module's own header.
+
+**STILL OPEN ON THAT CARD, and it is a RECAPTURE rather than code:** the 31-Aug golden capture
+predates both fields, so it carries neither `capturedTzOffsetMinutes` nor `capturedLocalState`, and
+`assertComparablePayoff` now refuses it **by design**.
+
+
 ### ✅ THE PROOF RAN. 229.89 IS A FACT ABOUT THE CODE, NOT ABOUT THE BROWSER
 **Twelve passes of inference are now one measurement.** Worktree at `e43ea164`
 (2026-08-31T20:08:33-04:00, **twelve minutes before the capture instant**), `npm ci`, the
