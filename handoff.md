@@ -8527,6 +8527,38 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - `a58fb610` VIBRANCY: THE PALETTE IS NOT DULL, ITS USE IS - AND MY FIRST NUMBER WAS A PARTIAL SAMPLE
+
+### THE MEASUREMENT, WITH THE CORRECTION ATTACHED
+Chroma inventory on the rendered dark page, 390x844: **22 on-screen text elements, and 0.2% of
+PAINTED AREA carries any saturation.** The only hue present is the gold `rgb(201,162,64)`.
+⚠️ **AND THAT 0.2% IS A FACT ABOUT THE FIRST VIEWPORT, NOT THE PAGE.** The probe skips anything
+with `box.top > innerHeight`, and it never scrolled. **`RuleRow` DOES colour its amount** - income
+`text-success`, transfers `text-primary`, bills/subs/debt destructive, variable foreground - and
+those rows sit BELOW THE FOLD. So "the screen is monochrome" was **my own unrepresentative
+sample**, and I caught it by grepping the call sites rather than by trusting the number.
+**Corrected claim: the FIRST VIEWPORT is effectively monochrome.** That is still a real finding -
+it is the part he sees first - but it is a much narrower one than the raw figure suggests, and it
+must not be quoted as a page-wide measurement.
+
+### WHAT THIS MEANS FOR THE PASS, and it changes the shape of the work
+**The dark palette is NOT low-chroma.** Measured from `:root`: primary/gold s=56%, destructive
+s=73%, info s=70%, success s=50%, adjusted s=65%. **So "dull" cannot be fixed by saturating
+tokens - they are already saturated. Almost nothing USES them above the fold.**
+⛔ Which means the change is about WHERE colour appears, not how strong it is - and Sam's caution
+binds hardest exactly here: **colour carries MEANING on money screens** (success/destructive/gold),
+so adding it to decoration is how a signal becomes noise. Any candidate must survive the question
+*"what does this colour now fail to tell the user?"*
+
+### ⛔ I DID NOT MAKE A COLOUR CHANGE, ON PURPOSE
+The only measurement I have is one route, one viewport, unscrolled. **Choosing where to add colour
+off a partial sample is exactly the mistake I just caught myself making one paragraph earlier.**
+**NEXT STEP, precisely:** re-run the chroma inventory with the page SCROLLED and across the money
+routes (`/dashboard`, `/debt`, `/forecast`), phone and desktop, and only then pick candidates. The
+throwaway probe was built from `scripts/check-dark-contrast.mjs`'s harness by replacing its
+`page.evaluate` block - rebuild it the same way; it was deliberately NOT committed, because an
+inventory measuring one viewport would invite exactly the over-reading I nearly published.
+
 ## 2026-09-18 - Ada - THE CONTRAST FIX MEASURES AT 42 STRINGS TO 0, AND THE PROBE REFUSED A LIGHT-MODE READING
 
 ### ✅ `npm run check:dark-contrast` (`3647b487`) - RENDERED, not token-level
