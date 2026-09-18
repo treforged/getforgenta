@@ -11,37 +11,38 @@
 // five times. A gate on "no repeated strings" would cry wolf on every run and be switched off,
 // which is how this repo loses gates. Read the output and judge it; do not automate the verdict.
 //
-// MEASURED 2026-09-18, 390x844, dark, signed in, reviewer account - 168 text nodes, 150 distinct
-// strings, 8 repeating at heights more than 120px apart:
-//   $4,200              y=700, 837, 4753, 5028      <- top section AND far below: his complaint
-//   $25                 y=2620, 3100, 5324, 5407, 5485
-//   Available           y=1496, 2079
-//   $25.00              y=1518, 1977
-//   Advanced Analytics  y=4070, 4477                <- a widget label appearing twice
-//   Discover It         y=5028, 5381
-//   min                 y=5380, 5568
-//   Oct 2026            y=1028, 1187
+// MEASURED 2026-09-18, 390x844, dark, signed in, reviewer account. FIRST reading was 168 text
+// nodes / 8 repeats; after the readability filter below it is 125 distinct strings with 29 nodes
+// dropped as unreadable, and SIX repeats:
+//   $25         y=2620, 3100, 5324, 5407, 5485
+//   Available   y=1496, 2079
+//   $25.00      y=1518, 1977
+//   min         y=5380, 5568
+//   Oct 2026    y=1028, 1187
+//   $4,200      y=700, 837
 //
-// ⚠️ CORRECTED THE SAME HOUR, AGAINST MY OWN REPORTING: "Advanced Analytics" TWICE IS NOT A
-// FINDING, and I had called it the most clearly actionable one. `PremiumGate` renders its
-// children BLURRED behind the teaser overlay when the account is not premium
-// (PremiumGate.tsx:32), so the widget's own <h3> sits illegible behind a frosted panel while the
-// gate's `title` prop shows in front. Both strings are in the DOM and only one is readable - and
-// for a PREMIUM user line 25 returns the children bare, so there is no repeat at all. The
-// reviewer account is not premium, which is the only reason it appeared.
+// ⚠️ I REPORTED A HEADLINE FINDING FROM THIS AND IT DID NOT SURVIVE ITS OWN FILTER. I said
+// the strongest match to Tre's description was "$4,200 in the top section AND AGAIN 4000px
+// BELOW" (y=700, 837, 4753, 5028). Once text hidden behind a PremiumGate is excluded, the two
+// far-below occurrences vanish - they were blurred behind the upgrade overlay. What is left is
+// two occurrences 137px apart in the same block, which is NOT the top-duplicates-below pattern
+// he described. "Advanced Analytics" and "Discover It" dropped out for the same reason.
 //
-// ⚠️ SO THIS PROBE COUNTS TEXT THAT IS DELIBERATELY UNREADABLE. It reads the DOM and checks
-// display/visibility/box size, none of which see `blur-sm`, an opacity overlay, or a parent that
-// covers the text. Before believing any row above, CHECK WHETHER ONE OF THE TWO SITS BEHIND A
-// GATE OR AN OVERLAY. That is the instrument's main blind spot and it produced a false lead
-// within an hour of being written.
+// ⚠️ AND THE LARGER CONCLUSION IS THAT THIS INSTRUMENT ANSWERS THE WRONG QUESTION. After
+// filtering, every remaining repeat is local (within ~600px) and none is section-to-section. Tre
+// said "that top section seems to be the same as ... some stuff below" - he is describing the
+// same INFORMATION shown twice, not the same STRING. A monthly snapshot in the hero and a
+// monthly-snapshot widget below duplicate meaning while sharing almost no literal text, and this
+// probe cannot see that at all. Identity of strings is a proxy, and a weak one.
+// WHAT IT IS STILL GOOD FOR: catching a literal figure printed twice, and proving which
+// candidates are NOT duplicates. Answering his actual complaint needs a semantic comparison of
+// what each section REPORTS - which widget covers which fact - not a text diff.
 //
-// ⚠️ THE FIGURES DEPEND ON THE REVIEWER ACCOUNT'S DATA, so the y positions and the strings
-// will differ on another account. What is reusable is the METHOD, not this table.
+// ⚠️ THE FIGURES DEPEND ON THE REVIEWER ACCOUNT'S DATA, so the strings and y positions
+// differ on another account. The METHOD is reusable, the table is not.
 //
-// ⚠️ `check:page-rhythm` IS STRUCTURALLY INCAPABLE OF FINDING THIS - /dashboard is that
-// gate's own 1.0x reference. His complaint is about WHAT IS ON the page, not how it is spaced,
-// so a green there is not evidence about this at all.
+// ⚠️ `check:page-rhythm` IS STRUCTURALLY INCAPABLE OF FINDING ANY OF THIS - /dashboard is
+// that gate's own 1.0x reference. His complaint is about WHAT IS ON the page, not its spacing.
 //
 // It refuses (exit 2) when it reads too few text nodes, because a page that has not mounted
 // reports no duplication - which would read as a clean dashboard.
@@ -88,7 +89,28 @@ const out = await page.evaluate(() => {
     if (st.display === 'none' || st.visibility === 'hidden') continue;
     const b = el.getBoundingClientRect();
     if (b.width < 1 || b.height < 1) continue;
-    seen.push({ t, y: Math.round(b.top + window.scrollY) });
+
+    // ⚠️ IS IT ACTUALLY READABLE? This probe's first run counted the <h3> behind a
+    // PremiumGate - blurred, under a frosted overlay - as a visible repeat, and I reported it as
+    // the most actionable finding before checking. display/visibility/box-size cannot see
+    // `blur-sm`, an opacity overlay, or a parent painted on top.
+    let blurred = false;
+    for (let a = el; a && a !== document.body; a = a.parentElement) {
+      const f = getComputedStyle(a).filter;
+      if (f && f !== 'none' && /blur\(/.test(f)) { blurred = true; break; }
+      if (Number(getComputedStyle(a).opacity) < 0.15) { blurred = true; break; }
+    }
+
+    // And is something painted over it? elementFromPoint answers what a person's eye hits.
+    let covered = false;
+    const cx = Math.min(Math.max(b.left + b.width / 2, 1), window.innerWidth - 1);
+    const cy = Math.min(Math.max(b.top + b.height / 2, 1), window.innerHeight - 1);
+    if (b.top >= 0 && b.bottom <= window.innerHeight) {
+      const hit = document.elementFromPoint(cx, cy);
+      covered = !!hit && hit !== el && !el.contains(hit) && !hit.contains(el);
+    }
+
+    seen.push({ t, y: Math.round(b.top + window.scrollY), blurred, covered });
   }
   return seen;
 });
@@ -98,8 +120,11 @@ await browser.close();
 // the shape Tre is describing. Ignore chrome words that are SUPPOSED to repeat.
 const IGNORE = /^(view|see|all|more|edit|add|open|close|next|back|of|to|in|on|and|the|a|\$0|—|-)$/i;
 const byText = new Map();
-for (const { t, y } of out) {
+let hiddenDropped = 0;
+for (const { t, y, blurred, covered } of out) {
   if (IGNORE.test(t)) continue;
+  // A string a person cannot read is not a repeat a person sees.
+  if (blurred || covered) { hiddenDropped++; continue; }
   if (!byText.has(t)) byText.set(t, []);
   byText.get(t).push(y);
 }
@@ -109,6 +134,7 @@ const repeats = [...byText.entries()]
   .sort((a, b) => (b[1][b[1].length - 1] - b[1][0]) - (a[1][a[1].length - 1] - a[1][0]));
 
 console.log(`text nodes read: ${out.length}, distinct strings: ${byText.size}`);
+console.log(`dropped as unreadable (blurred or covered): ${hiddenDropped}`);
 if (out.length < 50) fail(2, 'too few text nodes - the page had not mounted, so this measured nothing.');
 console.log(`\nSTRINGS APPEARING AT TWO OR MORE SEPARATED HEIGHTS (>120px apart):\n`);
 for (const [t, ys] of repeats) {
