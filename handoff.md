@@ -8456,6 +8456,36 @@ and has since been changed, or the fix was aimed at a shape his card no longer h
 **And the October gap is a SECOND symptom** - he could not reconcile the purchases shown against
 the 502 he is paying - plus a THIRD question from 02:16 about whether purchases before 10 Oct
 land on that statement. **Three questions, test them separately.**
+
+## 2026-09-18 - Ada - iOS BUILD 949 (6.7) IS UPLOADED - VERIFIED AT ALL THREE LEVELS
+
+**Run `35354664800`, `workflow_dispatch`, SHA `43c8d6d5`.**
+
+**THE THREE-LEVEL CHECK, because a green run has lied here before:**
+1. **Step 20 `Upload to App Store Connect` -> `completed / success`**, NOT `skipped`.
+2. **altool's own words: `UPLOAD SUCCEEDED` present (1 match).**
+3. **`90382` appears 3 times and ALL THREE ARE IN THE ECHOED SCRIPT SOURCE** - the comment at
+   log line 2040, the `elif grep -q '90382'` at 2050, and the `echo ::warning::` at 2051.
+   **NONE is in altool's output**, so the daily-cap branch did not fire.
+**Controls in the same read**: known-positive 46, negative control 0, so the grep can return
+both answers.
+
+**BUILD NUMBER CONFIRMED TWO INDEPENDENT WAYS:** the workflow printed `VERSION_CODE=949 /
+VERSION_NAME=6.7 / CUSTOMER_RELEASE=true`, and `run_number 849 + 100 = 949` agrees.
+**It is 6.7, which he asked for on 09-17 and was never told.**
+
+⚠️ **AN UPLOAD IS NOT AN INSTALL.** TestFlight still has to finish processing and **he has to
+update**. The three facts stay separate: on origin, on a build, installed. Do not report this
+as "on his phone".
+
+### WHAT 949 CARRIES, IN PLAIN LANGUAGE - the list that converts "not fulfilled" into a feature
+- **Transactions link themselves again.** A single stray link no longer stops the app acting on
+  a merchant you have answered the same way many times (`8ac0aee7`).
+- **Recurring items say what a figure actually covers.** A biweekly or every-other-month item no
+  longer shows a misleading monthly amount (`bbfb7d70`).
+- **Dates no longer split across two lines** on a phone (`6f8b3fc1`).
+- **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
+  "next payment $0" shape is pinned (`43c8d6d5`).
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
