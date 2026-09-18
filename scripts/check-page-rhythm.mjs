@@ -203,9 +203,35 @@ const out = {};
 for (const route of ROUTES) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4000);
+  // ⚠️ ESCAPE ALONE IS NOT ENOUGH, AND MY /forecast NUMBER WAS WRONG BECAUSE OF IT.
+  // This repo ALREADY recorded that /forecast auto-opens a real "Forecast Assumptions" dialog
+  // that survives six Escapes and an overlay click - it is written in check-dark-contrast.mjs,
+  // which solved it before I wrote this file. I did not read my own repo's recorded limit, so
+  // this probe measured /forecast WITH THE DIALOG UP and I reported 949px / 47% / 2.6x as a
+  // finding about the PAGE. Located afterwards: 790px of that 949px run is the dialog itself
+  // (-27..763, `card-forged max-w-md popup-scroll`). The page's own number is unknown until
+  // this dismissal runs.
+  // The closer is found by ROLE and accessible name, never a hand-written label list - copied
+  // from the file that got it right rather than reinvented, so the two cannot drift.
   for (let i = 0; i < 6 && (await page.locator(OVERLAY).count()); i += 1) {
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
+    if (!(await page.locator(OVERLAY).count())) break;
+    const closer = page.getByRole('button', { name: /close|done|cancel|dismiss|got it/i }).first();
+    if (await closer.count()) {
+      await closer.click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(600);
+      if (!(await page.locator(OVERLAY).count())) break;
+    }
+    const still = page.locator(OVERLAY);
+    if (await still.count()) { await still.first().dispatchEvent('click'); await page.waitForTimeout(600); }
+  }
+  if (await page.locator(OVERLAY).count()) {
+    // REFUSE rather than measure a dialog and call it a page. An overlay inflates the run it
+    // sits in, which is a finding-shaped error - the direction nobody checks.
+    console.error(`UNMEASURABLE: a modal overlay is still up on ${route}; its box would be counted as page content.`);
+    await browser.close();
+    process.exit(2);
   }
   // ⚠️ TWO AGREEING READS IS NOT ENOUGH, MEASURED 2026-09-18. Widening this probe to six
   // routes made /dashboard read 1 band over 1390px at 75.6% whitespace - minutes after the same
