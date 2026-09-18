@@ -359,8 +359,18 @@ succeeded and nothing changed.
   already treats `past_due` as a LIVE subscription to cancel at Stripe, and `og-anniversary:118`
   states the house policy - *"billing failure, unknown, inside the grace window - resolves in the
   customer's favour"*. The entitlement path contradicts the repo's own principle.
-* **FILED AS `b1fe6d9f`, needs_tre, DELIBERATELY NOT FIXED.** It grants paid features on a failed
-  payment, which is money-adjacent and his call. **NOT in the release-day build.**
+* ✅ **NOT A DECISION FOR TRE - HE ALREADY MADE IT. `d01dae3b`** (supersedes `b1fe6d9f`, which
+  wrongly flagged needs_tre). Sam overruled that flag and the reasoning holds: **he enabled the
+  toggle at its strongest, and Apple describes that control as letting subscribers retain access
+  to paid content after a billing issue.** He did not enable a setting of unclear meaning; he
+  enabled one whose entire purpose is the thing the app fails to do. **It is a BUG.**
+* ⚠️ **HONOUR WHAT THE PLATFORM REPORTS - DO NOT INVENT A CLIENT-SIDE WINDOW.** A date comparison
+  in the client is the instinctive fix and it is wrong. Whether in-app grace should be SHORTER
+  than Apple's 28 days is the one part still genuinely his, and it is NOT assumed.
+* **NOT in the release-day build**, and the reason is not caution: it is **not a regression** (it
+  has always been this way, so waiting makes nothing worse), a hurried entitlement change can
+  grant premium to the wrong people or revoke it from the right ones, and it is **traced rather
+  than reproduced**. **It is the FIRST item in the next build.**
 * ⚠️ **THE SHAPE OF THE FIX MATTERS MORE THAN THE FIX.** `['active','trialing']` is typed in **at
   least 8 places** across client and server. Adding `past_due` to eight lists by hand recreates
   the defect that cost the paywall its linked-account numbers the same afternoon. **One exported
