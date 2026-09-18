@@ -8527,6 +8527,47 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - HIS "DULL TEXT" WAS A MEASURED AA FAILURE, AND DARK-MODE VIBRANCY IS NOW ITS OWN ASK
+
+### ✅ `26ce5dc9` CLOSED - dark muted text was 4.19:1, BELOW the WCAG AA floor (`44c67c0f`)
+He said the small grey text was *"very dull compared to the background ... kind of hard to read"*.
+**Measured: `--muted-foreground` 240 4% 46% on a 0 0% 2% background = 4.19:1, against an AA floor
+of 4.5:1.** Light mode is **6.05:1 and passes**, so only the dark tokens moved - fixing light too
+invites the opposite complaint. Raised to **240 4% 64% = 7.80:1 (AAA)**.
+**NOT 48%**, the first passing value at 4.50:1 - a limit that barely binds is not harmless.
+**NOT white**, which is what he asked for: `--foreground` is 16.37:1 and a white muted token would
+collapse the two-level hierarchy that makes a dense money screen readable. Spirit over letter, and
+said out loud rather than silently substituted.
+**The ICON half of his message is answered by the same change** - row-action glyphs and most inline
+icons inherit `text-muted-foreground`. **Bold deliberately NOT applied**: colour alone carries
+4.19 -> 7.80, and weight shifts layout on every screen at once. One more change if he still wants
+it after seeing this.
+⚠️ **I NEARLY MOVED AN UNRELATED TOKEN.** A whole-file replace of the old number also changed
+`--graphite`, which happens to share it, **and rewrote the figure inside my own comment so it
+stated something false.** Restored byte-exact and redone line-targeted.
+**GATE `src/lib/__tests__/theme-contrast.test.ts`** parses tokens from `index.css` (a hardcoded
+expectation passes for ever after somebody edits the stylesheet - the one event it exists to
+catch), derives the block list, and asserts AA **plus** primary staying >1.5x above muted, so
+contrast can never be cured by destroying hierarchy. A missing token FAILS rather than skips.
+⚠️ **ITS POSITIVE CONTROL EARNED ITS KEEP ON THE FIRST RUN**: my brace-based parser found all
+three blocks and read NULL for every token - they live inside `@layer base`, so the first closing
+brace belongs to an inner rule. **6 of 7 red, and visible only because a missing token fails.**
+Proven red with the REAL pre-fix value: 46% fails `:root` and `.dark` while `.light` stays green,
+so it discriminates per theme. Restored byte-exact. tsc clean, eslint 0, **FULL suite 4857 passed
+/ 1 skipped across 490 files** - run in full because a global colour token can break anything.
+
+### 🆕 `a58fb610` OPEN - "dark mode looks dull and boring", and he attached a BUSINESS reason
+His words: *"we need to make the overall design on dark mode look a little bit more vibrant ...
+trigger a good response out of our users. That's also how we maintain users."* **Retention, not
+taste**, so it outranks a tidy-up.
+**THIS IS THE THIRD MESSAGE IN THIS FAMILY TODAY** (`d391e98b` dull page, `26ce5dc9` contrast,
+now this). The contrast fix is the MEASURABLE part and **must not be reported as closing it** -
+a contrast number cannot tell you whether a screen feels vibrant.
+**SCOPE FOR WHOEVER TAKES IT:** rendered frames in DARK at 390px and desktop, proven red first.
+⛔ **Do NOT chase vibrancy by saturating everything** - this is a money app and colour carries
+MEANING here (success, destructive, the gold Variable pill). Adding colour everywhere destroys the
+signal those carry, which would be a regression wearing an improvement's clothes.
+
 ## 2026-09-18 - Ada - `d391e98b` WAS NEVER TRE'S TO DECIDE, AND THE FIRST THING I FOUND WAS AN ACCESSIBILITY DEFECT
 
 ### ⚠️ THE ASK WAS MIS-FLAGGED `NEEDS TRE`, AND THAT IS PLAUSIBLY WHY HE HAS RAISED IT THREE TIMES
