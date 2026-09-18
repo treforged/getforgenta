@@ -8527,6 +8527,37 @@ as "on his phone".
 - **Robinhood** demands nothing in September and is pinned to his real row (`8ac0aee7`), and the
   "next payment $0" shape is pinned (`43c8d6d5`).
 
+## 2026-09-18 - Ada - WHY THE WALL IS ONE BAND, AND WHY I STOPPED SHORT OF RESTRUCTURING IT
+
+### THE CARD ALREADY HAS STRUCTURE - THAT IS THE PROBLEM, NOT THE ABSENCE OF IT
+`Income & Taxes` divides its groups with `pt-3 border-t border-border`. **A border COUNTS as
+painted in my instrument, so every divider BRIDGES the gap it was meant to create** - which is
+exactly why 1121px merges into a single band. **It is not an undifferentiated block in the source;
+it reads as one because a hairline with 12px of padding is a separator you can measure and cannot
+see.** The instrument and the eye agree here for the same reason, which is the useful part.
+
+### ⛔ AND THE OBVIOUS FIX IS THE ONE I JUST REFUTED
+Widening those dividers (`pt-3` -> `pt-6`) creates rhythm by **ADDING WHITESPACE** - to a page I
+measured an hour ago at 5.8% against the busiest screen's 5.1%. **That would re-introduce the very
+thing I proved was not the problem**, and it would look like progress because the band count would
+rise. A number moving in the right direction for the wrong reason is worse than no change.
+**The change that actually creates rhythm without adding emptiness is making those groups SEPARATE
+CARDS** rather than divided regions of one. That is a structural edit to the primary card of a
+money page.
+
+### ⛔ SO I STOPPED, AND THIS IS THE ONE PLACE HIS EYE GENUINELY ADDS INFORMATION
+Not because I am blocked and not to hand back work - **every measurable question in this family is
+now answered, and what is left is a taste call between two defensible layouts on a screen he
+budgets off.** The charter puts his taste above the desk's on exactly this, and I have narrowed it
+from *"the page looks dull"* to one concrete proposal with a numeric acceptance.
+**THE PROPOSAL, for whoever picks this up:** split `Income & Taxes` into separate cards at its
+existing group boundaries (the `border-t` lines already mark them, so the grouping is his app's own,
+not invented). **Acceptance: band count on `/budget` rises from 6 toward dashboard's density, with
+whitespace % NOT rising materially above 5.8%** - that pair is what distinguishes real rhythm from
+padding, and either number alone can be gamed.
+**Everything needed to re-run it is in this handoff**; the probe is rebuilt from
+`scripts/check-dark-contrast.mjs`'s harness by swapping its `page.evaluate` block.
+
 ## 2026-09-18 - Ada - "EMPTY" IS REFUTED TOO. THE REAL DIFFERENCE IS SEGMENTATION, AND IT IS MEASURED
 
 ### THE ATTRIBUTING INSTRUMENT, built because a card-based selector can only report "not a card"
