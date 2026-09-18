@@ -428,6 +428,23 @@ the reason is per-item rather than a blanket cap excuse:**
 * **`d92f183f`** (rundown publisher half) - a NEW AUTHENTICATED DATA SURFACE over business and
   user counts. A half-built endpoint that discloses those counts is the wrong thing to leave in a
   tree overnight; it wants one clean pass with the auth decision made deliberately.
+  ✅ **THE EXCLUSION PREDICATE IS VERIFIED AGAINST LIVE DATA, 2026-09-18 - the build can use it
+  as-is rather than re-deriving it.** Read-only, COUNTS ONLY (never rows, per the ask's own
+  constraint), one aggregate query over `auth.users`:
+
+      total 33 · excluded_reserved 4 · real_users 29
+      new_7d 2 · active_7d 5 · active_30d 6
+
+  **Predicate:** `email ~* '(\.test|\.example|\.invalid|\.localhost)$' OR email ~*
+  '@(example)\.(com|net|org)$'` - ALL RFC-reserved forms, not just `@forgenta.test`.
+  ⚠️ **THE POSITIVE CONTROL IS `excluded_reserved` AND IT PASSED: 4, non-zero.** A predicate
+  matching NOTHING would also report 29 "real" users, and the two are indistinguishable without
+  it - "29 real" would just be the total wearing a filter's clothes.
+  **Reproduces the independently-recorded 33/29/4 exactly**, and re-confirms the dormancy figure
+  the onboarding priority rests on: **23 of 29 real users have not opened the app in 30 days.**
+  ⚠️ Still open and untouched: the AUTH decision (not a public endpoint - anything anonymous can
+  reach is a disclosure about his business and his users), and whether the read survives per-user
+  RLS, which the standing rule says to state plainly in the commit either way.
 
 
 
