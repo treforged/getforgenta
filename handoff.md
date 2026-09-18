@@ -8332,6 +8332,47 @@ session that armed it:
 ⚠️ **AND DO NOT READ RUN `35354094319` or `35354628088`.** Those are PUSH runs on the same
 SHA; their upload step is `skipped` by design and they end **GREEN**. `35354094319` already
 reads `completed / success` and has sent nothing anywhere.
+
+## 2026-09-18 - Ada - THE DECK WALK CANNOT RUN ON HIS LEDGER, AND THE WALK DATA CANNOT EXERCISE THE FIX
+
+**Sam approved walking the deck on Tre's real data as the acceptance for `d0b52833`. TWO
+MEASURED CONSTRAINTS MEAN THAT EXACT ACCEPTANCE IS NOT REACHABLE, and both were found by
+looking at the instrument before building on it.**
+
+**1. THE HARNESS SIGNS IN AS A TEST ACCOUNT, BY DESIGN AND CORRECTLY.**
+`scripts/check-account-rows.mjs` (the pattern every `check:*` script uses) does
+`if (!/@forgenta\.test$/.test(email)) fail(2, 'refusing to script a sign-in for ...')`.
+**So "walk it on HIS ledger" would mean scripting a sign-in to Tre's own account** - his
+credentials, his personal financial data. That refusal is a guardrail, not an obstacle, and
+it should NOT be worked around. **The honest form of the acceptance is HIS DATA SHAPE on the
+walk account, and the difference must be stated rather than blurred.**
+
+**2. THE WALK ACCOUNT'S DATA CANNOT EXERCISE TODAY'S FIX EITHER.** Measured:
+`deck-walk@forgenta.test` (`0c44347d-8b0e-4ffb-8938-ad17bf3112a7`) has 14 transactions,
+16 rules and **7 `linked_rule` rows - ALL of them `CITY POWER & LIGHT` -> ONE rule**. That is
+`conflictingCount = 0`, a clean habit, which **auto-applied BEFORE my change and after it**.
+**A walk on this data would be GREEN and would prove nothing about the conflict gate** - the
+"green against unreachable" shape, and it would have read as acceptance.
+
+### THE PLAN, precise enough to resume cold
+1. **SEED his shape**: add ONE `synced_transaction` + `synced_transaction_reviews` row putting
+   a `CITY POWER & LIGHT` charge on a DIFFERENT rule. That turns 7-vs-0 into **7-vs-1**:
+   `habitIsSettled(7, 1)` is true (7 >= 4), so it auto-applies NOW and would have ASKED before
+   - the exact Apple 6-vs-1 shape from his ledger.
+2. **Add ONE undecided `CITY POWER & LIGHT` charge** for the deck to act on.
+3. **Walk it in PLAYWRIGHT, never `resize_window`** - that tool reports a successful resize
+   while `window.innerWidth` stays 1154 (recorded in this repo).
+4. **Assert the CHANGE, not the absence of an error**: the charge leaves the deck with no
+   prompt, and a `linked_rule` review row appears for it.
+5. **NEGATIVE CONTROL IN THE SAME RUN**: seed a genuinely SPLIT merchant (e.g. 2-vs-1) and
+   require it to STILL ASK. Without it, "nothing prompted" is equally consistent with a deck
+   that renders nothing at all.
+6. **DELETE every seeded row afterwards**, and verify the delete by re-reading - these are
+   writes to the production database for a test user.
+
+⚠️ **STOPPED HERE DELIBERATELY, AT A CLEAN BOUNDARY.** Weekly cap was 72% and tightening, and
+step 1 writes to the production DB. **A half-finished seed left in the database is worse than
+an unstarted one**, so the seed was NOT begun. Nothing is left to clean up.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
