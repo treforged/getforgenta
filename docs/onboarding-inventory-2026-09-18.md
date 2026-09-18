@@ -21,6 +21,9 @@ wizard and is reached by anyone who skipped it.
 
 ## FALSE — three, each verified
 
+**STATUS: 1 and 2 are FIXED (this commit's sibling, gate
+`src/pages/__tests__/Onboarding.pointers.test.ts`). 3 is Tre's and is deliberately untouched.**
+
 ### 1. "Settings -> Quick Access" does not exist, and the hint is shown to people who cannot use it
 `src/pages/Onboarding.tsx:772`, the finish step:
 
@@ -57,7 +60,26 @@ first-run-ish surfaces naming one tab two different ways, and onboarding holds t
 `src/pages/Onboarding.tsx:741`, the finish step's premium block, lists: *Auto-sync
 transactions, Plaid bank connection, **Unlimited history**, Priority support*.
 
-`grep -rn "Unlimited history" src/` (tests excluded) returns **1** — that line.
+⚠️ **CORRECTED 2026-09-18 BY SAM, AND THE CORRECTION STRENGTHENS IT.** My grep was
+CASE-SENSITIVE and returned **1**. It is at least **2**: `src/pages/Settings.tsx:1232` carries
+it lowercase — *"Upgrade to Premium for advanced features, unlimited history, and priority
+support."* Fourth sighting of the lowercase-grep trap on this machine in a week, every one by
+somebody being careful at the time. **Two surfaces, so leaving it is two false promises.**
+
+⚠️ **AND THE CLAIM IS NOT "TRUE OR UNTRUE" — IT IS VACUOUS**, which is more awkward than
+either. Sam measured it: no plan-bounded history query exists anywhere in `src/` — no
+`.gte`/`.lt`/`.limit` on a date gated by `isPremium`, tier or plan. The only `isPremium`
+month-gate is `CreditCardEngine.tsx:2271`, and that caps a forward-looking FORECAST projection,
+not history. **Free users already have unlimited history**, so the line sells as a paid benefit
+something everyone already has, and an upgrader receives nothing new.
+
+**FILED TO TRE AS `40ee39b6` AND NOT MINE TO DECIDE.** There are two legitimate answers — remove
+the line, or MAKE it true by limiting free history — and the second is a revenue decision with
+churn risk against 29 users of whom 23 are dormant. **Do not fold this into the onboarding
+rewrite until he answers: the two answers produce opposite copy.**
+
+The original (case-sensitive) reading and its control, kept because the control is the part worth
+copying: `grep -rn "Unlimited history" src/` returned **1**.
 **Positive control, same run:** `"Priority support"` returns **6**, so the grep does find
 premium copy where it exists. The canonical lists agree with each other and not with
 onboarding — `src/pages/Premium.tsx:19-27` and `src/components/premium/NativePaywall.tsx:17-23`

@@ -1,0 +1,100 @@
+/**
+ * ONBOARDING MUST NOT POINT AT A CONTROL THAT DOES NOT EXIST.
+ *
+ * Measured 2026-09-18 (docs/onboarding-inventory-2026-09-18.md): the finish step sent every user
+ * to "Settings -> Quick Access", a name that occurred TWICE in src/ and both times inside
+ * Onboarding.tsx itself - and it was shown on WEB, where the control it names renders nothing,
+ * because its guard's right-hand side (`typeof window !== 'undefined'`) is true in every browser.
+ * The expenses step named "Budget Control" for a tab labelled "Plan".
+ *
+ * WHAT THIS GATE IS. A SOURCE gate. It can see a wrong string and a wrong boolean guard, which is
+ * exactly what both defects were. It CANNOT see layout, a step that fails to mount, or whether the
+ * corrected sentence reads well. A rendered walk is a separate instrument and is not this.
+ *
+ * EVERY ASSERTION IS PAIRED WITH A POSITIVE CONTROL IN THE SAME RUN, because a zero from a broken
+ * read and a zero from clean source are the same zero. A control failing means the INSTRUMENT is
+ * wrong, which is a different diagnosis from the app being wrong.
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
+
+const ONBOARDING = read('src/pages/Onboarding.tsx');
+const APP_LOCK = read('src/components/settings/AppLockSettings.tsx');
+const SETTINGS = read('src/pages/Settings.tsx');
+const TRANSACTIONS = read('src/pages/Transactions.tsx');
+
+/**
+ * ASSERT ON COPY, NOT ON SOURCE.
+ *
+ * The first version of this gate failed on its own fix: the comment explaining the defect QUOTES
+ * the defect in order to refute it, so "Quick Access" and the old `|| typeof window` guard both
+ * appear in prose that exists precisely to stop the next person reinstating them. A gate that
+ * forbids NAMING a bug in a comment is a gate somebody deletes.
+ *
+ * The stripper therefore has its own positive control below: an extraction that silently returned
+ * nothing would make every "does not contain" assertion pass for ever.
+ */
+function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')  // block comments, including the JSX {/* ... */} form
+    .replace(/^[ \t]*\/\/.*$/gm, '');  // whole-line // comments
+}
+
+const COPY = stripComments(ONBOARDING);
+
+describe('the instrument can find what it is looking for', () => {
+  it('reads real files, not empty strings', () => {
+    expect(ONBOARDING.length).toBeGreaterThan(10_000);
+    expect(APP_LOCK.length).toBeGreaterThan(500);
+    expect(TRANSACTIONS.length).toBeGreaterThan(10_000);
+  });
+
+  it('the comment stripper removes comments and keeps copy', () => {
+    expect(ONBOARDING).toContain('The ONE onboarding flow');    // a comment, before stripping
+    expect(COPY).not.toContain('The ONE onboarding flow');      // gone after
+    expect(COPY).toContain('Welcome to Forgenta');              // real copy survives
+    expect(COPY.length).toBeGreaterThan(ONBOARDING.length / 2); // and most of the file survives
+  });
+
+  it('the app lock control is named "App lock" and is native-only', () => {
+    expect(APP_LOCK).toContain('App lock');
+    expect(APP_LOCK).toContain('!Capacitor.isNativePlatform()');
+  });
+
+  it('the app lock control is mounted under Account Security in Settings', () => {
+    expect(SETTINGS).toContain('<AppLockSettings />');
+    expect(SETTINGS).toContain('Account Security');
+  });
+
+  it('the budget tab is labelled "Plan"', () => {
+    expect(TRANSACTIONS).toMatch(/id: 'budget'[^}]*label: 'Plan'/);
+  });
+});
+
+describe('onboarding names controls that exist', () => {
+  it('never says "Quick Access" - no such control exists anywhere in the app', () => {
+    expect(COPY).not.toContain('Quick Access');
+  });
+
+  it('never says "Budget Control" in user-visible copy - the tab reads "Plan"', () => {
+    expect(COPY).not.toContain('Budget Control');
+  });
+
+  it('names the app lock by its real name and its real location', () => {
+    expect(COPY).toContain('App lock');
+    expect(COPY).toContain('Account Security');
+  });
+});
+
+describe('the app lock hint is not shown to people who cannot use it', () => {
+  it('does not carry a `typeof window` escape hatch beside the native check', () => {
+    expect(COPY).not.toMatch(/isNativePlatform\(\)\s*\|\|\s*typeof window/);
+  });
+
+  it('gates the hint on the native platform alone', () => {
+    expect(COPY).toMatch(/\{Capacitor\.isNativePlatform\(\) && \(/);
+  });
+});

@@ -608,7 +608,7 @@ export default function Onboarding() {
                 <h2 className="font-display font-semibold text-sm">Monthly Expenses</h2>
               </div>
               {hintFor('your recurring bills')}
-              <p className="text-[10px] text-muted-foreground">Approximate is fine — you can adjust later in Budget Control.</p>
+              <p className="text-[10px] text-muted-foreground">Approximate is fine — you can adjust later under Activity → Plan.</p>
               {[
                 { label: 'Rent / Mortgage', key: 'monthlyRent' as const },
                 { label: 'Utilities', key: 'monthlyUtilities' as const },
@@ -763,13 +763,19 @@ export default function Onboarding() {
                   </button>
                 </div>
 
-              {/* Quick Access hint */}
-              {(Capacitor.isNativePlatform() || typeof window !== 'undefined') && (
+              {/* App lock hint. NATIVE ONLY, and that is the fix rather than a detail: this used to read
+                  `isNativePlatform() || typeof window !== 'undefined'`, whose right-hand side is TRUE IN
+                  EVERY BROWSER — so the `||` made it unconditional on web while `AppLockSettings` opens
+                  with `if (!Capacitor.isNativePlatform()) return null`. Every web user was sent to enable
+                  a control that does not render for them, under a name ("Quick Access") that existed
+                  nowhere in the app. Measured 2026-09-18, docs/onboarding-inventory-2026-09-18.md.
+                  Web deliberately gets NO lock hint here: the feature is not there to point at. */}
+              {Capacitor.isNativePlatform() && (
                 <div className="flex items-start gap-2 bg-secondary border border-border px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
                   <Fingerprint size={13} className="text-muted-foreground mt-0.5 shrink-0" />
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
                     <strong className="text-foreground">Add a PIN or biometric lock</strong> for quick, secure access.{' '}
-                    Find it in <strong className="text-foreground">Settings → Quick Access</strong> anytime.
+                    Find it in <strong className="text-foreground">Settings → Account Security → App lock</strong> anytime.
                   </p>
                 </div>
               )}
