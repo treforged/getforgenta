@@ -6,13 +6,14 @@
 // switch is a bug and an app-store risk, and it is the failure mode that gets an app's push
 // permission revoked at the OS level, permanently.
 //
-// Would-fail checks: set `MAX_PER_WEEK` back to 3 and "makes room for five in a week" fails; drop
+// Would-fail checks: set `MAX_PER_WEEK` back to 5 and "makes room for seven in a week" fails; drop
 // the `kindAllowed` guard from any candidate and its opt-out case fails; remove the per-kind caps
 // and "one overdrawn week cannot spend the whole allowance on bills" fails.
 
 import { describe, it, expect } from 'vitest';
 import {
   decideNotification, MAX_PER_WEEK, MIN_HOURS_BETWEEN, MAX_PER_WEEK_BY_KIND, STREAK_RISK_HOUR,
+  QUIET_HOURS_START, QUIET_HOURS_END,
 } from '@/lib/notification-policy';
 import type { NotificationSignals, NotificationRecord, NotificationGate } from '@/lib/notification-policy';
 
@@ -49,10 +50,23 @@ const gate = (off: NotificationRecord['kind'][] = [], enabled = true): Notificat
 const LESSON = { id: 'what-a-cash-floor-is', title: 'What a cash floor is', minutes: 2 };
 
 describe('the weekly cadence', () => {
-  it('makes room for five in a week, not three', () => {
-    expect(MAX_PER_WEEK).toBe(5);
-    // Still at most one a day once quiet hours are applied on top.
+  it('makes room for seven in a week - a daily rhythm, not three alarms', () => {
+    expect(MAX_PER_WEEK).toBe(7);
+    // ⚠️ THIS IS THE ASSERTION THAT KEEPS "DAILY" FROM BECOMING "TWICE DAILY", and it is the
+    // reason raising the weekly cap is safe. Sends only leave inside the waking window, which
+    // quiet hours put at 08:00-21:00 - thirteen hours. Two sends in one calendar day would have
+    // to be closer together than that window is wide, so a floor of sixteen hours makes a second
+    // send in a day structurally impossible whatever the weekly cap says.
     expect(MIN_HOURS_BETWEEN).toBeGreaterThanOrEqual(16);
+    expect(MIN_HOURS_BETWEEN).toBeGreaterThan(QUIET_HOURS_START - QUIET_HOURS_END);
+  });
+
+  it('the weekly cap still binds - the per-kind shares alone would allow more', () => {
+    // Without this the weekly cap could be raised past the sum of the per-kind caps and quietly
+    // stop being the control anybody reads. Eleven against seven: the cap binds.
+    const perKindTotal = Object.values(MAX_PER_WEEK_BY_KIND)
+      .reduce((n, cap) => n + (cap ?? 0), 0);
+    expect(perKindTotal).toBeGreaterThan(MAX_PER_WEEK);
   });
 
   it('one overdrawn week cannot spend the whole allowance on bill warnings', () => {

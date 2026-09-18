@@ -67,16 +67,27 @@ export const QUIET_HOURS_END = 8;
  * consistent USE, and consistency comes from a reason to open the app on an ordinary week when
  * nothing is on fire, which three alarm slots could never provide.
  *
- * Five a week, at most one a day. Not more: a finance app that speaks daily is a finance app that
- * gets muted at the OS level, and a muted app has a cadence of zero forever. `MIN_HOURS_BETWEEN`
- * is 16 rather than 24 so a Sunday recap at 9am does not push Monday's bill warning to Tuesday —
- * combined with quiet hours the effective floor is still about a day.
+ * SEVEN a week, at most one a day. Raised from five on 2026-09-17 — Tre: "we need to increase the
+ * amount of notifications. to a good daily amount. that doesnt feel spammy."
  *
- * The per-kind caps below are what make the five slots a WEEK rather than five bill warnings on
- * the same overdrawn Tuesday. Each kind can only take its share, so an ordinary week reaches the
- * user as: one recap, one lesson, and up to three things that are actually about their money.
+ * ⚠️ THE "ONE A DAY" HALF IS ENFORCED BY `MIN_HOURS_BETWEEN`, NOT BY THIS NUMBER, and that is why
+ * raising this one is safe. Sends only ever leave inside the waking window, which quiet hours put
+ * at 08:00–21:00 — thirteen hours. Two sends in one calendar day would therefore have to be under
+ * thirteen hours apart, and the floor is SIXTEEN, so they cannot be. Seven slots against a
+ * structural one-a-day ceiling is exactly "a good daily amount" with no way to spend them faster.
+ * Five could never reach a daily rhythm no matter what the signals said: it was the binding
+ * constraint, and it was the only one.
+ *
+ * Do NOT answer a future "more notifications" by lowering `MIN_HOURS_BETWEEN` instead. That is the
+ * control keeping two from landing in one day, and a finance app that speaks twice a day is a
+ * finance app that gets muted at the OS level — after which its cadence is zero, forever.
+ *
+ * The per-kind caps below are what make the seven slots a WEEK rather than seven bill warnings on
+ * the same overdrawn Tuesday. They sum to eleven, so the weekly cap still binds; each kind can
+ * only take its share, and an ordinary week reaches the user as one recap, one or two lessons, and
+ * the things that are actually about their money.
  */
-export const MAX_PER_WEEK = 5;
+export const MAX_PER_WEEK = 7;
 export const MIN_HOURS_BETWEEN = 16;
 export const MAX_TITLE_LENGTH = 40;
 
