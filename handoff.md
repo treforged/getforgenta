@@ -2,6 +2,32 @@
 
 ## ⚠️ START HERE - 2026-09-17 (Ada, THIRTIETH session)
 
+### ✅ THE REST OF THE LANDING PAGE WAS SWEPT AT PHONE WIDTH AND IS CLEAN - AN UNSTATED NEGATIVE IS INDISTINGUISHABLE FROM A CHECK NOBODY RAN
+The committed gate covers the FIRST SCREEN. Every Instagram arrival scrolls, so the rest was
+measured too: 390x664, consent dismissed, **whole page scrolled first so every in-view section
+mounts**, 146 rendered boxes.
+* **No horizontal overflow anywhere** - `document.scrollWidth` 390 against a 390 viewport.
+* **No real clipping.**
+* The only wrapping is the footer's `Privacy Policy` / `Terms of Service` links on two lines,
+  which is ordinary for a narrow footer row and is not the defect he reported.
+⚠️ **AND ITS ONE "FINDING" WAS A FALSE POSITIVE I CHECKED BEFORE FILING.** An `<h2>` reading
+"Core principles" with `scrollWidth 113, clientWidth 1` looks exactly like text cut off. It is
+`sr-only` (`Landing.tsx:267`) - a screen-reader heading, deliberately 1px. **Filing it would have
+cried wolf on correct accessibility code**, and any overflow sweep will hit this: `sr-only` is
+BUILT from the properties a clipping check looks for. Exclude it, or check every hit by hand.
+**NOT extended into the committed gate**, deliberately: a sweep that finds nothing does not earn a
+permanent gate, and one whose only hit is an accessibility pattern would fail on the next
+`sr-only` somebody adds.
+
+### RESUME QUEUE - everything left needs TRE, not a desk
+1. **He installs TestFlight 939** (iOS 6.7). That is what turns four "not fulfilled" asks into
+   four visible features. No code substitutes for it.
+2. `5409ffbc`'s remainder is a **recapture from his signed-in browser in his own timezone**.
+3. `384ca151`, `663274d7`, `8a202850`, `f22f17b1`, `6237167a` - his decisions or his hands.
+4. `798c0ed9` (follows = 0 rows) and `b573d720` (no App Store sale) are deferrals whose triggers
+   were re-tested 2026-09-17 and have NOT fired.
+
+
 ### ✅ FOUR OF TRE'S REPEATED ASKS WERE ALREADY BUILT AND ALREADY ON HIS PHONE - NOTHING NEEDED SHIPPING
 Checked against the CODE before filing, which is the only reason they were not built a second
 time. All four carry his verbatim quote in their own source as the rationale:
