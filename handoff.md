@@ -1,5 +1,73 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ START HERE - 2026-09-17 (Ada, THIRTIETH session)
+
+**THE INSTAGRAM BIO LINK IS LIVE, SO `/` IS NOW A REAL ACQUISITION SURFACE.** Tre photographed
+its first screen in Instagram's in-app browser and reported three defects. All three are fixed,
+a FOURTH was found while reading the rendered frame, and the whole screen is now gated in a real
+browser. **Commits `3447448f` + follow-up, both on origin/main, verified by contents with a
+known-positive AND a negative control, 0/0 after a fresh fetch.**
+
+### ✅ VERIFIED LIVE, AND THE GREEN IS ATTRIBUTABLE
+`npm run check:landing:live` is green against **https://getforgenta.com**. A live green that you
+cannot attribute to a build is worth nothing, so it was checked with a DISCRIMINATING PAIR: the
+new phone-only banner sentence is PRESENT and the old full sentence is ABSENT. Both markers move,
+so the read is about this build rather than about the page existing.
+
+### THE FOURTH DEFECT IS THE ONE WORTH CARRYING FORWARD
+**Every anonymous visitor to the landing page was toasted "Your session has ended. Please sign in
+again."** - at somebody whose session had never begun, on the first screen the bio link points at.
+
+`useDerivedCountry` guarded on `!profile`. **`useProfile` returns `DEFAULT_PROFILE`, never
+undefined, when there is no user** - so `profile` is ALWAYS truthy, carrying a blank country and
+no opt-out flag, which is exactly the state that hook exists to fill. It fired a profile write for
+every anonymous arrival, `writeBlockedError` threw SIGNED_OUT_READ_ONLY, and react-query's
+`onError` toasted it.
+
+⚠️ **NOTHING WENT RED, AND THE REASON GENERALISES PAST THIS HOOK.** The write is fire-and-forget,
+the throw is swallowed by react-query, and **every case in its test file mocked a signed-in
+user** - `user` was not a variable in that file at all. So the signed-out branch was
+**unreachable from the fixture**, and the suite was green over a state the product is in for
+every single visitor who has not signed up yet. A signed-out case is now in the suite.
+**`!profile` IS NOT A SIGNED-IN CHECK ANYWHERE IN THIS REPO.** Grep for other hooks that read it
+as one - that is the open follow-up below.
+
+### THE GATE: `npm run check:landing` (`scripts/check-landing-first-screen.mjs`)
+44 rendered boxes, both themes, **three viewports: 390x844, 390x664 and 1440x900**.
+* **390x664 IS THE IN-APP BROWSER, and it is the arm that found the CTA defect.** Instagram
+  spends ~180px of an iPhone screen on its own chrome. At a full-height 844 viewport the hero
+  CTAs sit comfortably above a bottom-fixed banner and the check **passes over the exact defect
+  he photographed**. That is why nobody saw it.
+* **1440x900 exists for ONE reason:** the language control moves between header and footer on the
+  `sm` breakpoint, and both phone arms are 390px wide, so the header instance is hidden in both.
+  Without a width past `sm`, "exactly one visible language control" could only ever see the
+  footer copy and a DUPLICATE on desktop would pass for ever.
+* **PROVEN RED THREE WAYS, each against a REAL defect rather than a contrived mutation:** the
+  pre-fix header (Sign In and Start Free wrapping at every arm), the pre-fix banner (both CTAs
+  unpressable at 664), the pre-fix `!profile` guard (the toast, all 6 arms), and removing the
+  footer switcher (0 visible language controls). Both mutations restored **byte-exact by sha256**.
+* **Controls exit 2, findings exit 1**, deliberately - an exit-1 defect gets fixed, an exit-2
+  tooling fault gets re-run and then ignored.
+* **DOES NOT COVER:** colour, contrast, copy, anything below the fold, other routes, and **the
+  real Instagram WebView** - this is Chromium at its viewport, not that engine.
+
+### ⚠️ AND THIS IS THE THIRD TIME THE SAME LIMIT HAS COST THIS REPO
+Every gate on this screen was a **jsdom TEXT assertion**, and jsdom reports every box as 0x0. The
+commit that closed the previous spacing regression **wrote down that a Playwright rendered frame
+was needed**. That limit was written, believed, and never scheduled - so the identical complaint
+came back through a new front door. **A limit named in a comment is a to-do nobody picks up; it
+needs an ASK.** This one is now a script with an npm name, which is the only form that survives.
+
+### NEXT UP, in order
+1. **`grep -rn "!profile" src/` and check each one against the signed-out state.** The defect
+   above is a CLASS, not an instance: any hook that reads `!profile` as "not signed in" is wrong
+   for every anonymous visitor. `user` is the fact being asked.
+2. Ask `80ea17f2` - the candidate money defect at an identical clock (see its own row).
+3. Ask `5409ffbc` - the three invariants blocking the 2026-09-17 golden fixture.
+
+---
+
+
 ## ⚠️ START HERE - 2026-09-17 (Ada, TWENTY-NINTH session)
 
 **TWO COMMITS SHIPPED, BOTH PUSHED AND VERIFIED BY CONTENTS WITH CONTROLS, 0/0 after a fresh
@@ -7969,7 +8037,7 @@ followers/following UI) is the next build and has NOT been started.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-17 19:15 by handoff_hook. Everything below this heading is
+_Written 2026-09-17 21:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -7980,14 +8048,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+dbc50884 [handoff]: record the stated-limit rule as a RECURRENCE, not a new finding
+61308d38 [handoff]: the fixes shipped and the complaint survived them - a stated limit is a to-do
+3ce4d20a [notifications]: seven a week, because five could never reach a daily rhythm
+9c36fc55 [accounts]: a fixed flex-basis made the action row wrap on every account, however short the text
+81c84535 [handoff]: the proof needs a zone control, or it cannot discriminate
+1f0ca4ca [handoff]: harden fact 3, and state the limit it cannot pass
+fc2afd8c [handoff]: the premise was wrong - this is old code against new code, not browser against harness
 b14d9bfb [handoff]: every input is identical and the output still differs - that is the finding
-0214bb1c [handoff]: planExpenses carries the capacity, and a 15x timezone swing fell out of it
-b0e315f6 [handoff]: the month-0 cash chain is identical - my own previous pass refuted
-bd62e453 [handoff]: capacity confirmed by a pre-named falsifier - both sides run the same computation
-a32d14a8 [handoff]: which side is wrong - the evidence points at the harness, not his app
-644a441b [handoff]: both leads dead by measurement, and the divergent input is one $130 figure
-e45c2403 [handoff]: the fixture harness and the browser disagree by two months on identical rows
-ef7847e1 [handoff]: iOS 937 uploaded and verified; both blocker triggers re-tested; 80ea17f2 located in the card sim
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
