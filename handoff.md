@@ -103,9 +103,61 @@ at 2.7x), not by a contrived mutation.
 content, desktop widths, or light mode. It is an inventory with a floor, not a verdict on
 taste.
 
+### ✅ SINCE THE ABOVE WAS WRITTEN - THREE MORE, ALL PUSHED
+
+* **`d6b25264` - the `-6` fallback is FIXED and ask `feaeb21b` is CLOSED.** One shared
+  resolver, `scripts/resolve-release-range.mjs`, replaces the identical inline fallback in
+  BOTH store workflows: operator `since` -> push `before` -> last successful run via `gh` ->
+  **REFUSE**. It always prints which source it used.
+  ⚠️ **THE ASYMMETRY IS DELIBERATE AND A TIDY-UP WILL GET IT WRONG.** Android's note step has
+  NO `continue-on-error`, so a refusal fails it and the **ungated** Deploy-to-Play never runs.
+  iOS writes a refusal into the step summary and exits 0, because a human pastes that one by
+  hand. The gate ASSERTS that asymmetry so it survives someone making them "consistent".
+  All four resolver paths measured on live data. **Proven RED with the real pre-fix
+  `android-build.yml` at 5 of 10**, byte-exact restore.
+* **Badge-count tab REACHABILITY is asserted, and `07150518` is CLOSED.** A type-level proof
+  is not a rendered tab. Derived from the metric list, label map a total `Record` so a sixth
+  metric fails to COMPILE rather than going unasserted. Proven red by renaming the label -
+  what a built-but-unreachable metric actually looks like.
+  **What he sees FIRST is "Private" on every row**, until he and his friends switch the
+  toggle on, and his own row needs one Dashboard visit for the publisher to write a snapshot.
+  That is his own decision (2fa5e784) working, not a defect - but it is the shape he reported
+  as "the data is not showing" in September, so it is worth saying to him rather than waiting.
+* **iOS BUILD DISPATCHED: run `35368615339`, head `d6b25264`.** First real exercise of the
+  resolver. **Read the UPLOAD STEP'S OWN conclusion** (`skipped` is not `success`) **and
+  altool's own `UPLOAD SUCCEEDED with no errors`** - the 90382 branch exits green having
+  uploaded nothing. Then read the `release range:` line the resolver printed.
+
+### ⚠️ A FINDING I DID NOT SHIP: THE RHYTHM PROBE'S SETTLE LOOP CAN AGREE ON A WRONG STATE
+Widening `check:page-rhythm` to six routes (queue item below) made **/dashboard read 1 band
+over 1390px at 75.6% whitespace** - against 16 bands / 5656px / 17.5% minutes earlier, same
+code. **Two consecutive reads AGREED on an unmounted page.** "Settled" and "correct" are not
+the same thing, and my loop only checks the first.
+✅ **THE POSITIVE CONTROL CAUGHT IT AND NAMED IT CORRECTLY** - exit 2, "the detector, not the
+page, is what is being measured" - rather than reporting a spectacular false finding about
+/dashboard. That is the control earning its place.
+**The widening is REVERTED, not committed.** The 2-route version on origin is the one whose
+control passed, so the /budget numbers in `c0598393` stand. **Fix the settle before widening**:
+require agreement across a longer window, or a plausibility floor per route.
+
 ## Resume queue
 
-**START HERE: item 1 is the live one and Sam has endorsed it.**
+1. **WIDEN `check:page-rhythm` - BUT FIX THE SETTLE FIRST.** See the finding directly above.
+   /debt, /forecast, /account and /settings have never been measured for segmentation, and the
+   one run that did reach them showed **/account at a 1252px unbroken run** - LONGER than the
+   /budget run Tre complained about. Treat that as a lead, NOT a finding: it came from the same
+   run whose control failed, so it may be the instrument.
+2. **`149fb21f` CONTRAST - VALIDATION ERRORS AND FORM ERROR TEXT.** Sam has agreed this is next
+   and unredirected. No gate in this repo reaches them, on a money app. Same family as the
+   armed delete: not text, not a dialog, not present until a user acts. The harness to copy is
+   `scripts/check-destructive-states.mjs` - sign-in, dismissal, arming, and a safety control
+   that counts ROWS not labels.
+3. **LIGHT MODE HAS NO RENDERED CONTRAST GATE AT ALL**, and every rendered gate here is
+   390x844 only. All four probes deliberately refuse to report a light reading; **that refusal
+   is HONEST and must stay.**
+
+<details>
+<summary>DONE 2026-09-18 - the `-6` fallback item, kept for the reasoning</summary>
 
 1. **FIX THE `-6` DISPATCH FALLBACK - ask `feaeb21b`, and do ANDROID FIRST.** Android's
    Deploy-to-Play is ungated by event and publishes automatically; iOS's field is pasted by
@@ -116,6 +168,8 @@ taste.
    beats one that names a wall. Both workflows carry the identical fallback; fix both, and
    remember `check-release-note-coverage.mjs` reads the same RANGE, so the coverage check and
    the published note recover together.
+</details>
+
 2. **`149fb21f` CONTRAST, STILL GENUINELY OPEN**, in value order:
    * **VALIDATION ERRORS AND FORM ERROR TEXT ARE UNMEASURED ANYWHERE IN THIS REPO.** Highest
      value. The harness to copy is `scripts/check-destructive-states.mjs` - it already does
