@@ -9,6 +9,15 @@ on:
       - 'capacitor.config.ts'
       - 'package.json'
   workflow_dispatch:
+    inputs:
+      since:
+        description: >-
+          The last SHIPPED commit, so the release note covers what is actually new. Leave
+          empty and the last successful run of this workflow is used. Neither resolvable
+          means the job REFUSES rather than inventing a window - see
+          scripts/resolve-release-range.mjs.
+        required: false
+        type: string
 
 # ONE STORE DEPLOY AT A TIME.
 #
@@ -42,6 +51,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # `actions: read` so the range resolver can ask for the last successful run of this
+      # workflow. Without it a dispatched run cannot learn what it already shipped, and the
+      # resolver refuses rather than falling back to an arbitrary window.
+      actions: read
 
     steps:
       - name: Checkout
@@ -217,13 +230,30 @@ jobs:
           retention-days: 14
 
       - name: Generate release notes from this push's commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          RELEASE_RANGE_SINCE: ${{ inputs.since }}
+          RELEASE_RANGE_WORKFLOW: android-build.yml
         run: |
           mkdir -p whatsnew
-          if git cat-file -e "${{ github.event.before }}" 2>/dev/null; then
-            RANGE="${{ github.event.before }}..${{ github.sha }}"
-          else
-            RANGE="-6"
-          fi
+          # THE RANGE IS RESOLVED, NOT GUESSED, AND A REFUSAL STOPS THE DEPLOY.
+          #
+          # This used to fall back to RANGE="-6" whenever there was no `before` - which is
+          # every workflow_dispatch. An arbitrary six-commit window has no relationship to
+          # what the build contains, and THE DEPLOY STEP BELOW IS UNGATED BY EVENT, so that
+          # text goes to the PRODUCTION listing automatically. Measured on iOS run
+          # 35359868193: the window produced "Maintenance release. Nothing changes in how you
+          # use Forgenta this time." for the build carrying the dark-mode contrast fix.
+          #
+          # This step deliberately has NO continue-on-error, so a refusal fails it and the
+          # deploy below never runs. Publishing nothing beats publishing a false note to a
+          # store listing, and the refusal names what to pass to proceed.
+          RANGE=$(node scripts/resolve-release-range.mjs) || {
+            echo "::error::Could not resolve which commits this build ships; refusing to publish a release note. Re-run with the 'since' input set to the last shipped commit."
+            exit 1
+          }
+          echo "release range: $RANGE"
           # HOW TO WRITE THE WORDING THAT LANDS HERE: docs/release-notes-template.md.
           #
           # The generator moved from bash to node on 2026-08-22 so it could be

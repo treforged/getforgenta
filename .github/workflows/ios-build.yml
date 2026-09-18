@@ -9,6 +9,15 @@ on:
       - 'capacitor.config.ts'
       - 'package.json'
   workflow_dispatch:
+    inputs:
+      since:
+        description: >-
+          The last SHIPPED commit, so the release note covers what is actually new. Leave
+          empty and the last successful run of this workflow is used. Neither resolvable
+          means the job REFUSES rather than inventing a window - see
+          scripts/resolve-release-range.mjs.
+        required: false
+        type: string
 
 # ONE STORE DEPLOY AT A TIME.
 #
@@ -41,6 +50,9 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      # `actions: read` so the range resolver can ask for the last successful run of this
+      # workflow. See scripts/resolve-release-range.mjs.
+      actions: read
 
     steps:
       - name: Checkout
@@ -149,12 +161,41 @@ jobs:
       - name: Customer release note (paste into App Store Connect)
         if: always()
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          RELEASE_RANGE_SINCE: ${{ inputs.since }}
+          RELEASE_RANGE_WORKFLOW: ios-build.yml
         run: |
-          if git cat-file -e "${{ github.event.before }}" 2>/dev/null; then
-            RANGE="${{ github.event.before }}..${{ github.sha }}"
-          else
-            RANGE="-6"
+          # THE RANGE IS RESOLVED, NOT GUESSED. See the same block in android-build.yml for
+          # the measurement: RANGE="-6" on a dispatch is an arbitrary window, and it produced
+          # "Maintenance release. Nothing changes" for build 956, which carried the contrast
+          # fix Tre had asked for.
+          #
+          # ⚠️ THE REFUSAL HERE IS A SUMMARY, NOT A FAILURE, AND THAT ASYMMETRY IS DELIBERATE.
+          # On Android this text is handed to the Play API automatically, so a refusal must
+          # stop the job. Here it is PASTED BY HAND from this summary, so a human is already
+          # in the loop - failing an upload over it would trade a communication gap for a
+          # blocked release, which this step's own header rejects. What the human must not
+          # get is a confident wrong note, and that is what this prevents.
+          set +e
+          RANGE=$(node scripts/resolve-release-range.mjs 2>/tmp/range-why)
+          RANGE_CODE=$?
+          set -e
+          if [ "$RANGE_CODE" != "0" ]; then
+            {
+              echo "### What's New — NOT GENERATED"
+              echo ""
+              echo "The commits this build ships could not be determined, so no release note was"
+              echo "written. An invented one is worse than none: it reads exactly like a correct one."
+              echo ""
+              echo '```'
+              cat /tmp/range-why
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
+          cat /tmp/range-why
           NOTE=$(node scripts/release-notes.mjs "$RANGE")
           {
             echo "### What's New — paste into App Store Connect"
