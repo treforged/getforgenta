@@ -8569,7 +8569,25 @@ Gates: tsc clean, eslint 0, page-guides 7/7, rendered at /debt on the **DEMO** d
 Pushed and verified by CONTENTS with a known-positive control (marker 1, control 1, 0/0 after
 a fresh fetch - the count is only honest because the fetch preceded it).
 
-⚠️ **STILL OPEN, and I am naming it rather than closing the ask:** `floor-protection`,
+✅ **THE ENUMERATION COMPLETED IN THE SAME SESSION, AND `3bc68e0d` IS CLOSED.** The three
+modules named below as unmeasured were then measured, and the LABEL half turns out to be
+ALREADY BUILT everywhere:
+* **`floor-protection`** carries `saveUpReason`, rendered through `buildCashFloorWarning`
+  (`CreditCardEngine.tsx:1182`) - the pay-debt-now versus hold-for-a-future-breach choice is
+  a genuine money tie-break and it is already explained.
+* **`surplus-ranking`** already renders **"up to N%"** at `SurplusRankingSection.tsx:563`,
+  added 2026-09-17 with Tre's verbatim quote in its own comment and pinned by
+  `ranked-surplus-allocation.savesMostMoney.test.ts`. I had read the goals guide and assumed
+  the guide was the only channel; **the row label existed and I had not looked at the row.**
+* **`credit-card-engine`**'s tranche allocation is **CARD Act §164** - statutory, explicitly
+  outside the boundary, and a money-saving claim on it would be FALSE.
+**So the count of unexplained money tie-breaks across all five surfaces is ZERO**, and the
+zero is reported rather than cured by retrofitting a claim onto rows that carry none.
+⚠️ The paragraph below is SUPERSEDED and kept because it records what was believed for an
+hour - an unmarked survivor inside a superseded block is how a live item gets retired, and
+there is none here.
+
+⚠️ ~~**STILL OPEN, and I am naming it rather than closing the ask:**~~ `floor-protection`,
 `surplus-ranking` and `credit-card-engine` are **NOT** enumerated this way.
 `surplus-ranking`'s ties break on `created_at` then id, which is arbitrary-but-stable
 ORDERING rather than a money choice, and the goals guide already carries the one genuine
@@ -8609,10 +8627,11 @@ CORRECT answers. A lender's stated minimum, a statutory cap or an interest accru
 tie, and a label claiming "we chose this to save you money" on one of those would be false.
 Several of the existing reasons ('Statement balance') are of that kind - descriptions of a
 setting, not of a choice - so **do not retrofit the money claim onto them.**
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 10:12 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 10:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -8623,14 +8642,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-7319cc2a [handoff]: the iOS build is dispatched and NOT yet verified
-43c8d6d5 [debt]: pin the "next payment $0" shape he reported, and two re-aims to make it discriminate
-6f8b3fc1 [budget]: a date wrapped as "Starts 2026-10-" / "01", and overflow-wrap was never the cause
-bbfb7d70 [budget]: "/mo $0" beside a live recurring expense, on every non-monthly interval
-8ac0aee7 [transactions]: one stray link vetoed a settled habit for ever, so it kept asking
-ac4d7b73 [handoff]: the rest of the landing page is clean, and its one finding was a false positive
-1b7c26a5 [handoff]: the notes-coverage gap is closed, and I hit the pipe trap verifying it
-1b39d733 [release-notes]: a user-visible commit that tells the customer nothing is now findable
+58c63788 [handoff]: f35ccec0 was already done, and 3bc68e0d's label premise is refuted
+1f7dccc0 [debt]: the guide named the wrong ranking rate, and now states the money principle
+dba8009d [handoff]: resume queue for the next session, ordered
+9b8ac986 [handoff]: 3bc68e0d started - the label channel already exists, and my grep was the wrong instrument
+09c46f65 [handoff]: iOS build 949 (6.7) uploaded, verified at all three levels
+479af712 [docs]: record his standing money principle as repo law, without guessing the change it approved
+c62277b1 [debt]: his Robinhood row CHANGED since the fix, so the fixture no longer describes his card
+972bfd01 [handoff]: two of Tres messages were never tracked, and one is a decision he already made
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
