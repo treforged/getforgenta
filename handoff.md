@@ -52,6 +52,42 @@ could never have matched this app's `.card-forged` cards, and **silently dropped
 positive control**. Together those print a confident **"0 facts in multiple sections"** on the
 page that has three - a clean bill of health from an instrument that could not see anything.
 
+### 🚨 MY 6.7 SCREENS IS NOT HIS PAGE, AND THE DECLUTTER ALREADY SHIPPED HAS NEVER REACHED HIM
+Measured live 2026-09-18 against the database, with a positive control on the join
+(`matched_control` 33 = `profiles_total` 33, after resolving the FK from `pg_constraint` rather
+than guessing it - my first query joined `profiles.id` and returned an empty set):
+
+    profiles 33 · with a saved dashboard_layout: 2 · null: 31
+    deck-walk@forgenta.test   saved=false   <- THE ACCOUNT EVERY RENDERED GATE HERE SIGNS IN AS
+    tre@treforged.com         saved=true    <- 10 widgets, NONE off, debt_recommendations first
+
+**SO EVERY NUMBER I MEASURED IS THE DEFAULT STACK, NOT HIS.** His saved layout carries
+`transactions_spending` VISIBLE - the largest block in the stack, a two-column grid holding a
+category breakdown AND a transaction list - and the walk account does not render it at all.
+**His dashboard is LONGER than 6.7 screens.** I have not measured by how much and I am not
+going to sign in as him to find out, so that is an inference from his stored layout, not a
+reading of his screen. Do not quote 6.7 to him as his own page.
+
+⚠️ **AND THIS IS WHY: `transactions_spending` WAS DEFAULTED OFF ON 2026-09-17 FOR EXACTLY
+HIS COMPLAINT, AND THE DEFAULT CANNOT REACH HIM.** `mergeSavedLayout` preserves the stored
+`visible` flag for every widget a saved layout already knows, and his knows all ten. So
+`defaultVisible: false` reaches the 31 users with no saved layout and reaches **neither Tre nor
+the reviewer**. The registry comment says this in writing; it is now measured rather than
+quoted. **He is complaining about dashboard overload while running a layout that predates the
+fix for it** - the shipped-and-never-shown loop again, and the third instance in this repo this
+week.
+
+🛑 **WHICH INVERTS PART 3. DO NOT REMOVE `DashboardCustomizer` YET.** "Reset to defaults"
+lives INSIDE it (`DashboardCustomizer.tsx:121`, `resetLayout` at `useDashboardLayout.ts:65`) and
+is the ONLY route to it. Removing the customizer would **lock him permanently into the
+overloaded layout he is asking us to fix** - it would delete the one control that solves his
+complaint in a single tap. **Order matters: he resets first, and only then is removing the
+customizer safe.** He floated the removal without knowing that, and it is the kind of thing a
+desk is supposed to find before building what it was told.
+**RECOMMENDATION, one action for him: tap Customize → Reset to defaults.** That alone turns off
+the largest card on his dashboard. It is his to do because it rewrites his own saved row, and
+the registry comment is explicit that a silent rewrite of that row is not the honest route.
+
 ### ✅ AND THE COST PASS GIVES HIS THREE "I'M NOT SURE"S AN ANSWER EACH (`measure-dashboard-cost.mjs`)
 17 top-level cards, 5,674px. What each one costs:
 
