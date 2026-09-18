@@ -550,6 +550,34 @@ Decisions Tre has already made in this repo. Re-opening one costs him a round tr
 same thing twice, and a decision recorded in only one place reads as an open item for ever —
 which is exactly what happened to the one below.
 
+### SAVE THE USER THE MOST MONEY — THE TIE-BREAKER FOR EVERY MONEY CALCULATION
+Tre, 2026-09-17: *"we should **always** go in favor of what saves the user the most money so
+that's how it should be calculated/coded. the label should state this as well. and the logic
+should be explained in the guide."*
+
+**He said ALWAYS, and he said it governs how things are CALCULATED AND CODED.** So this is not a
+preference about one screen — **wherever two defensible answers exist in a money calculation,
+take the one that leaves the user with more money.** Payoff ordering, rounding, which balance a
+payment is applied against, how a surplus is split, which of two dates a charge lands on: where
+the rules genuinely permit either, the cheaper-for-him answer wins.
+
+**IT DOES NOT LICENSE A FALSE NUMBER.** "Saves the most money" breaks TIES between correct
+answers; it never justifies an optimistic one. Where the right answer is simply the right answer —
+a lender's stated minimum, a statutory cap, an interest accrual — this principle has nothing to
+say, and reaching for it there would be the app flattering itself with the user's money.
+
+**THREE DELIVERABLES, IN HIS OWN WORDS, AND ONLY THE FIRST IS DONE:**
+1. the calculation follows it — **this entry**;
+2. **the label states it**, so the user can see WHY the app chose what it chose;
+3. **the guide explains the logic.**
+
+⚠️ **THE SPECIFIC CHANGE HE WAS APPROVING IS NOT RECOVERABLE, AND MUST NOT BE GUESSED.** His
+message opens *"yes do that"*, and the preceding capture is his own *"what do you recommend what
+makes the most sense?"* — so the recommendation he said yes to lives in a session transcript, not
+in any message. **This portfolio has already attached one of his approvals to the opposite
+decision** (2026-09-14, measured by timestamp). The PRINCIPLE stands on its own wording; the
+specific change does not. Ask him rather than inferring it.
+
 ### STAY ON FREE SUPABASE COMPUTE (`d9e5961c`, approved 2026-09-15)
 Cost-first is his explicit goal. **Do not re-open this on a date or because latency looks bad in
 a measurement.** Re-open it when ONE of two things happens, and say WHICH:
