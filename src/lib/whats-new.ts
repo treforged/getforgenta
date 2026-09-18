@@ -36,13 +36,24 @@ export const RELEASES: readonly Release[] = [
   // and the three follower badges are registered in achievement-icons.ts. Nothing here about
   // today's guide fix, which is on origin but not on a build - an entry ships inside the build
   // that carries the feature, so a line must be true of the build a person is reading it in.
+  // ⚠️ THE LAST FOUR LINES WERE ADDED ON 2026-09-18 TO AN ENTRY THAT ALREADY EXISTED, AND THAT WAS
+  // MEASURED RATHER THAN GUESSED. Only CURRENT_RELEASE (RELEASES[0]) is ever rendered, so opening a
+  // NEW entry for them would have BURIED the four lines above for everyone who had not yet seen
+  // this one. At the time: 33 profiles, 2 carried whats_new_2026-09-18, control whats_new_2026-09-13
+  // read 4 - so 31 of 33 get the complete list here and only 2 miss the additions.
+  // ⚠️ EVERY ONE OF THESE IS TRUE OF BUILD 956, verified by ancestry against f8520a64 with a
+  // negative control, because this file's own rule is that a line must be true of the build a
+  // person is reading it in. Today's red-text and chart-legend fixes are deliberately NOT here -
+  // they are on origin and NOT in 956, so they belong to the next entry, not this one.
   {
     version: '2026-09-18',
     lines: [
       'Friends are now Followers - see who follows you and who you follow, on your Account tab.',
-      'Share your profile with a link, straight from Followers.',
-      'New badges for your first, fifth and tenth follower.',
+      'Share your profile with a link, and earn badges for your first, fifth and tenth follower.',
       'Banks with a single account take up less room in your Accounts list.',
+      'Dark mode is easier to read - the smaller grey text is no longer washed out.',
+      'Your trophy case and Learn each have their own section on the Account tab.',
+      'Every badge has its own icon, and achievement rows no longer strand their numbers.',
     ],
   },
   {
