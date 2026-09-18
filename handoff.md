@@ -371,11 +371,31 @@ succeeded and nothing changed.
   has always been this way, so waiting makes nothing worse), a hurried entitlement change can
   grant premium to the wrong people or revoke it from the right ones, and it is **traced rather
   than reproduced**. **It is the FIRST item in the next build.**
-* ⚠️ **THE SHAPE OF THE FIX MATTERS MORE THAN THE FIX.** `['active','trialing']` is typed in **at
-  least 8 places** across client and server. Adding `past_due` to eight lists by hand recreates
-  the defect that cost the paywall its linked-account numbers the same afternoon. **One exported
-  predicate, one source, and a gate that scans for any OTHER hand-rolled status list** - copy the
-  shape of `src/lib/__tests__/plan-limits.gate.test.ts`.
+* ⚠️ **THE EXACT INVENTORY, SWEPT 2026-09-18 - IT IS 10 CODE SITES, NOT "at least 8", AND TWO OF
+  THEM MUST NOT BE CHANGED.** "Add `past_due` everywhere" would CORRUPT the Stripe webhook.
+
+  **THE 8 ENTITLEMENT READS on our own `subscription_status` - these take the predicate:**
+  `src/contexts/SubscriptionContext.tsx:70` · `src/components/premium/NativePaywall.tsx:68` ·
+  `src/pages/PremiumSuccess.tsx:60` · `supabase/functions/ai-advisor/index.ts:382` ·
+  `friend-link/index.ts:378` · `partner-link/index.ts:254` ·
+  `_shared/bank-link-entitlement.ts:43` · `_shared/sync-handler.ts:538`.
+  (Each pairs with a `plan === 'premium'` test on the line above; the predicate should take both.)
+
+  🚨 **`supabase/functions/stripe-webhook/index.ts:198` IS NOT ONE OF THEM. DO NOT TOUCH IT.**
+  Its `sub.status` is **STRIPE'S OWN** subscription status, a different namespace from our stored
+  column, and this is the **WRITER** that decides what we store. Adding `past_due` there would
+  make a Stripe past-due subscription be recorded as ACTIVE - changing the meaning of our own
+  data rather than how we read it. **Aim the fix at the right object.**
+
+  ⚠️ **`supabase/functions/plaid-sync-all/index.ts:38` IS A SEPARATE DECISION, NOT A SWEEP.** It
+  is a Postgres `.in()` filter choosing whose banks to sync nightly, so it cannot use a JS
+  predicate anyway - and including `past_due` means continuing to pay Plaid for someone whose
+  payment failed. Defensible either way; decide it deliberately.
+
+  **So: one exported predicate over the 8, a gate that SCANS for any other hand-rolled list
+  rather than naming files (copy `src/lib/__tests__/plan-limits.gate.test.ts`), and the two
+  exceptions ALLOWLISTED BY NAME WITH THEIR REASON** - an unexplained exception is how the next
+  sweep quietly re-includes them. Prove it red by removing `past_due` from the source.
 * ⚠️ **STATED LIMIT: no real BILLING_ISSUE event was observed.** This is a traced code path plus
   RevenueCat's documented semantics, NOT a reproduction. Sandbox is enabled, so the confirming
   test exists and should run before anyone calls it closed.
