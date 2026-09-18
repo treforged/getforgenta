@@ -4006,6 +4006,46 @@ the IA, not weakening the gate.**
 throwing 403 — the code field never rendered. The redirect half is proven; **the pre-fill half is
 NOT**, and it cannot be until A. is fixed.
 
+## Resume queue - 2026-09-18 (Ada). ORDERED. Each item is a POINTER, not a report.
+
+1. **`f35ccec0` - WRITE $145 / OCTOBER 4 TO HIS OWNERS CONTRIBUTION RULE. NOT STARTED, and the
+   handoff gate fired BEFORE the write, so there is no partial state to clean up.**
+   Decided twice by Tre (*"we already decided that the 145 owners contributions was October
+   fourth"*), confirmed by Sam, **no decision outstanding - do not re-ask him.**
+   * The row: `recurring_rules`, name like `%owner%` / `%contribution%`. **READ IT AND BACK UP
+     THE CURRENT amount/due_day BEFORE WRITING** - this is his real financial data.
+   * **NO DESK MOVES MONEY.** This is the rule's amount and date only; the actual
+     checking -> General Operations transfer is his hand and always was.
+   * ⚠️ **ACCEPTANCE ASKS FOR A RENDERED SCREEN AND THAT IS BLOCKED** by the same guardrail I
+     hit today: the walk harness refuses any email that is not `@forgenta.test`, so his account
+     cannot be driven. **Do the write, verify by READ-BACK, and state the rendered-screen limit
+     plainly** rather than implying a screen was seen. Then tell him in one line it is set -
+     four of his asks turned out to be shipped-and-never-shown.
+2. **`3bc68e0d` (IN PROGRESS) - the label and the guide for his money principle.**
+   **The label channel ALREADY EXISTS**: `month0-debt-breakdown.ts` sets `reason` and
+   `DebtRecommendationsWidget` renders `{r.reason}`. **Work BACKWARDS from it** - rows
+   rendering `''` are the decisions the app makes silently, which is the population his
+   instruction is about. **Do NOT count tie-breaks by grep; I tried and it finds ORDERING
+   tie-breaks, not money ones.** Respect the CLAUDE.md boundary: the principle breaks ties
+   between CORRECT answers, so never label a lender minimum or an interest accrual as a
+   money-saving choice.
+3. **THE SEED AND WALK** (`d0b52833` acceptance), **approved by Sam under four conditions**:
+   undo written and PROVEN TO RUN before seeding; `deck-walk@forgenta.test` rows only, account
+   id asserted before every write; the **negative control** (a genuinely split 2-vs-1 merchant
+   that must STILL ASK); and assert BOTH halves (charge leaves the deck with no prompt AND a
+   `linked_rule` row appears). **Playwright, never `resize_window`.** The claim is
+   **"his data shape on the walk account"**, never "his ledger".
+4. **`d391e98b`** - the planned-items design. **The measurement half is mine** (empty space,
+   icon hierarchy, both themes at 390px, rendered frames); the dull/space JUDGEMENT is his.
+5. **`6237167a` STAYS BLOCKED and the reason is now STRONGER** - see today's entry. Reverted on
+   a MEASURED regression, and his own spec (card cleared sooner) is what the reverted build
+   violated. **Do not unblock it because "Tre answered".**
+
+**DONE TODAY, do not redo:** `d0b52833`, `6752630b`, `468e4d2e`, `d08066d3`, `fedd9ca9`,
+`fc06111b`, `ab0d2d3c`, `ab4099ef`, `4c60fae2`. **iOS 949 (6.7) uploaded and verified three
+levels deep** - step 20 `success`, altool `UPLOAD SUCCEEDED`, all three `90382` matches in the
+echoed script source. **An upload is not an install.**
+
 ## Resume queue — 2026-09-15 (Ada, THIRD session). ORDERED. Each item is a POINTER, not a report.
 
 0. **`c4cdcc58` TRE-APPROVED IA PASS — TWO THIRDS DONE, `621bf96e`. START HERE.**
