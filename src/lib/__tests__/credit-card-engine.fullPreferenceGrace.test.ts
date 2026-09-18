@@ -53,6 +53,82 @@ function run(card: CardData, income: number, liquid: number) {
     undefined, purchases);
 }
 
+/**
+ * ⚠️ HIS ROW HAS CHANGED SINCE THE FIX, AND THAT IS WHY THIS ARM EXISTS.
+ *
+ * `hisCard` above records the row as read on 2026-09-17: balance **211.62**, preference
+ * **`full`**. Read again on **2026-09-18** it is balance **324.27**, preference **`statement`**
+ * - he changed the setting himself. So the shape the fix was aimed at is no longer the shape he
+ * is looking at, and a session checking his report against `e321c9fc` alone would be reasoning
+ * about a card that no longer exists.
+ *
+ * `statement` was ALWAYS inside the grace regime and was never the broken path, so this arm is
+ * expected to pass - and that is exactly why it is worth pinning rather than assuming. His live
+ * row also carries `statement_balance` **NULL** while `statement_balance_phase` is **true**, a
+ * combination worth having under a test before someone decides it is impossible.
+ */
+const hisCardToday = (over: Partial<CardData> = {}): CardData => makeCard({
+  id: 'rh', name: 'Robinhood Credit Card', balance: 324.27, apr: 29.99, minPayment: 0,
+  targetPayment: 0, paymentPreference: 'statement', paymentUnconditional: true,
+  firstDueDate: '2026-10-10', dueDay: 10, statementBalancePhase: true, statementBalance: null,
+  creditLimit: 5250, monthlyNewPurchases: 290,
+  ...over,
+});
+
+describe('his CURRENT row (2026-09-18): statement preference, first payment 10 October', () => {
+  it('accrues NO interest in September or October', () => {
+    const sim = run(hisCardToday(), 6000, 4000);
+    const interest = sim.monthlyInterest.get('rh')!;
+    expect(interest[0], `September interest was ${interest[0]}`).toBe(0);
+    expect(interest[1], `October interest was ${interest[1]}`).toBe(0);
+  });
+
+  /**
+   * HIS "GAP" - *"its not showing all the purchase amount in October even though Im paying 502.
+   * theres a gap and how much money is there."*
+   *
+   * ⚠️ MY FIRST VERSION OF THIS ASSERTED `324.27 + 290` AND IT FAILED, AND THE ENGINE WAS RIGHT.
+   * October pays **324.27** - the STATEMENT balance alone. That is correct for a
+   * `statement`-preference card: the cycle's own purchases land on the NEXT statement, so they
+   * are deliberately not in this payment. Recording the wrong expectation rather than deleting it,
+   * because it is the same reasoning error a user makes when they read the row.
+   *
+   * ⚠️ AND IT MEANS HIS ORIGINAL COMPLAINT CANNOT BE RE-CHECKED AGAINST TODAY'S NUMBER. He was
+   * looking at a `full` card paying 501.62 (= 211.62 + 290). He has since switched the card to
+   * `statement`, which pays 324.27 and EXCLUDES the current cycle's purchases BY DESIGN. So a
+   * payment that "does not include all the purchases" is now the CORRECT behaviour, and anyone
+   * comparing his old words to this figure will diagnose a defect that is not there.
+   *
+   * What this pins is the part that is still a defect if it breaks: no interest, and a payment
+   * that reconciles to the statement exactly - nothing unexplained left over.
+   */
+  it('October settles the statement exactly, with nothing unexplained', () => {
+    const sim = run(hisCardToday(), 6000, 4000);
+    const pays = sim.monthlyPayments.get('rh')!;
+    const interest = sim.monthlyInterest.get('rh')!;
+    // Nothing in September - the first statement has not been cut.
+    expect(pays[0]).toBe(0);
+    // October settles the carried statement balance to the cent, with no interest riding on it.
+    expect(pays[1]).toBeCloseTo(324.27, 2);
+    expect(interest[1]).toBe(0);
+  });
+
+  /**
+   * ⚠️ THE LOAD-BEARING OPPOSITE, in this file's own house style. "No interest" alone is
+   * satisfied by an engine that has stopped charging interest at all - a far worse defect than
+   * the one being checked. A card that does NOT clear its statement must still accrue.
+   */
+  it('CONTROL: the same row as a plain revolving card DOES accrue', () => {
+    const revolving = hisCardToday({
+      paymentPreference: undefined, paymentUnconditional: false, minPayment: 25, targetPayment: 25,
+    });
+    const sim = run(revolving, 3600, 0);
+    const interest = sim.monthlyInterest.get('rh')!;
+    expect(interest.some(v => v > 0), 'no month accrued - the engine may not be charging at all')
+      .toBe(true);
+  });
+});
+
 describe('clearsStatement', () => {
   it('covers both intents to clear, and NOT a plain revolving card', () => {
     expect(clearsStatement({ paymentPreference: 'statement' })).toBe(true);
