@@ -458,6 +458,21 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
           separate slice; it takes 59 passing assertions with it and nobody is waiting on it.
         */}
 
+      </div>
+
+      {/*
+        ⚠️ A THIRD CARD, AND THE BUDGET FOR IT WAS MEASURED RATHER THAN GUESSED. Two cards
+        took /account from 60% of its page in one unbroken run to 45.8% - still over the 2x
+        ceiling - while whitespace moved only 16.8% -> 17.1%. FOUR cards had already been tried
+        and reverted at +10 whitespace points, so the question was never "more cards", it was
+        whether ONE more was affordable. It was.
+
+        ⚠️ AND THIS IS THE RIGHT SEAM RATHER THAN THE CONVENIENT ONE. These toggles are not
+        about WHO follows you, they are about WHAT those people can see - a different subject,
+        and it already had a rule drawn across it. A border inside a card was doing the job a
+        card boundary does, so the border goes now that the card is here.
+      */}
+      <div className="card-forged p-5 space-y-5">
         {/*
           ⚠️ MOVED HERE FROM THE CONNECTIONS CARD (Tre, 2026-09-17: "it should only be on that
           tab"). These publish a figure to the people you are mutually followed by, so they belong
@@ -468,13 +483,12 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
           see" would be false, and falsely alarming - it would tell somebody with a public account
           that every stranger who followed them could read their money.
         */}
-        <div className="space-y-2 pt-1 border-t border-border/60">
+        <div className="space-y-2">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             What people you follow back can see
           </h3>
           <LeaderboardShareToggles />
         </div>
-
       </div>
     </div>
   );
