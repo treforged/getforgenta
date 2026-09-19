@@ -357,29 +357,25 @@ exists. Not run here: it reads his own row, and the question did not justify it 
 wrong - a false alarm aimed at a teammate's own work, which this portfolio records as the most
 expensive shape because it is acted on immediately by someone with no reason to doubt it.
 
-⚠️ **RELEASE DAY, AND ONE ANSWER GATES IT. READ THIS FIRST.**
-Tre asked for a release TODAY carrying today's copy fixes: *"the app needs to be functioning
-today."* **Everything is built, gated and pushed. NOTHING IS DISPATCHED**, because one fact is
-not visible from this desk:
-* **IS v6.7 ALREADY LIVE IN APP STORE CONNECT?**
-  * **NOT live** (processing, or submitted and unapproved) -> a new build can still carry **6.7**
-    with a higher build number, attaching to the existing submission. **That is the ONLY path
-    that lands today.** Revert the bump first: `printf '6.7.0
-' > VERSION`.
-  * **Live** -> **6.8** is forced, it is a separate review, and realistically NOT today. Say so
-    plainly rather than letting him discover it.
-* Then: push, dispatch `gh workflow run "iOS Build & Upload to App Store" --ref main`, and read
-  the **UPLOAD STEP'S OWN conclusion** - `skipped` is not `success` - plus altool's
-  `UPLOAD SUCCEEDED with no errors`. Report the build number AND the platform.
-  ✅ **BOTH COMMANDS VERIFIED 2026-09-18, not remembered.** The desk claimed "90 seconds to
-  reverted and dispatched" twice, so the claim was checked rather than asserted:
-  * **The workflow name is EXACT** - `gh workflow list --all` shows `iOS Build & Upload to App
-    Store`, id 262548289. Control: the plausible wrong variant "iOS Build **and** Upload" matches
-    **0**, so the check discriminates. A wrong name fails at the one moment it matters.
-  * **The undo reproduces the pre-bump file BYTE-FOR-BYTE.** `printf '6.7.0
-' > VERSION` is
-    sha256-identical to `68e6c1b5^:VERSION` (6 bytes, trailing newline included). Control: `6.7.1`
-    does NOT match, so the comparison can return both answers.
+✅ **RELEASE DONE - iOS BUILD 982, VERSION 6.7, UPLOADED 2026-09-19. Run `35411168999`.**
+Tre confirmed 6.7 was SUBMITTED AND AWAITING REVIEW, not released, so the version was not
+consumed - VERSION was reverted to 6.7.0 and the build dispatched so today's fixes could ride
+THIS submission rather than the next one.
+**VERIFIED AT ALL THREE LEVELS, because each has lied in this repo before:**
+* step 20 `Upload to App Store Connect` conclusion = **`success`, not `skipped`** (the
+  `workflow_dispatch` event is what enables it; a push run skips it by design);
+* **altool's OWN words - `UPLOAD SUCCEEDED with no errors`**, because the step conclusion alone
+  is NOT sufficient: that step turns Apple's cap error into a warning and still exits green;
+* the three `90382` matches are **ALL ECHOED SCRIPT SOURCE** (lines 2097/2107/2108 - the comment,
+  the `elif grep -q`, the `echo ::warning::`), none in real output, so the cap was never hit.
+**Build number READ from the log, never computed:** `VERSION_CODE=982`, `VERSION_NAME=6.7`.
+**Carries all four fixes**, by ancestry against head `4e6113b4` with an all-zero negative control.
+⚠️ **THE THREE FACTS STAY SEPARATE and only two are assertable: on origin ✅, built and UPLOADED
+✅, NOT INSTALLED on any device.** TestFlight still has to finish processing.
+⚠️ **NOBODY TOUCHED APP STORE CONNECT, DELIBERATELY.** Build 982 now EXISTS as an option against
+the submission awaiting review; **whether selecting it re-queues that review is Tre's to see and
+his to decide.** Making the artefact was the job, not choosing it.
+**`994c0164` is not void - 6.8 binds once 6.7 actually goes live.**
 
 🚨 **AND THE ANSWER TO "IS ANYTHING BROKEN?" CHANGED LATE IN THE SESSION - IT IS NO LONGER "NO".**
 Everything FIXED today was copy. But `73343713` was answered and found a REAL FAULT:
@@ -10468,7 +10464,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 17:06 by handoff_hook. Everything below this heading is
+_Written 2026-09-18 21:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10479,14 +10475,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-68e6c1b5 [release]: VERSION 6.7.0 -> 6.8.0
-b6bc1f50 [premium]: the paywall undersold itself threefold - derive the link limits instead of typing them
-4f9fbac1 [handoff]: all three onboarding false claims are fixed, and the next build must be 6.8
-30c1219f [premium]: stop selling "unlimited history", which free users already have
-a2eda6d8 [handoff]: two of the three onboarding false claims are fixed, and Sam corrected my count on the third
-23e52979 [onboarding]: stop sending web users to a control that is not there, under a name that does not exist
-49285f88 [onboarding]: the inventory - three false claims, and the biggest is shown to every web user
-b75e8027 [handoff]: the suppression guard binds for nobody today - measured, with both controls
+4e6113b4 [release]: VERSION back to 6.7.0 - 6.7 is awaiting review, not released
+6b7b9e6e [handoff]: the copy-pointer gate's selector cannot be the arrow - measured before building
+1791c743 [handoff]: my saved-layout count could not answer the question it was asked
+c08e27f9 [handoff]: verify the two release commands instead of asserting them
+81350460 [handoff]: verify the rundown's exclusion predicate against live data, read-only
+e787ce1b [handoff]: Sam's two grace-fix decisions, recorded rather than left in a message
+8e2dc59b [handoff]: the grace fix is 10 sites, not 8 - and two of them must NOT be changed
+db3e63bc [handoff]: the grace-period fault is a BUG, not a decision - correcting my own needs_tre flag
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
