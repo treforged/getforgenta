@@ -329,7 +329,46 @@ are settings in **Tre's own App Store Connect**, re-filed as `e8d37544` (needs_t
 this did not lose them. **Otto's warning travels with it: every persuasive figure in that reel is
 the creator's own UNCITED claim and must never be quoted to Tre as measured.**
 
-## Resume queue - 2026-09-18 LATE (Ada). START AT ITEM 0.
+## Resume queue - 2026-09-19 (Ada). START AT ITEM A.
+
+**A. `d01dae3b` - THE GRACE-PERIOD FIX. FIRST ITEM, FULLY SPECIFIED, NOTHING TO RE-DERIVE.**
+A failed renewal writes `past_due` and `past_due` is in NO premium check, so a paying customer is
+locked out for the whole 28 days the toggle buys. **10 sites swept and DERIVED (not the 8 first
+typed), of which 8 convert:** `SubscriptionContext.tsx:70`, `NativePaywall.tsx:68`,
+`PremiumSuccess.tsx:60`, `ai-advisor:382`, `friend-link:378`, `partner-link:254`,
+`_shared/bank-link-entitlement.ts:43`, `_shared/sync-handler.ts:538` - through **ONE exported
+predicate that also absorbs the `plan === 'premium'` half**, or the divergence rebuilds one field
+over.
+🚨 **`stripe-webhook/index.ts:198` IS ALLOWLISTED BY NAME WITH ITS REASON - DO NOT CONVERT IT.**
+Its `sub.status` is STRIPE'S namespace and that line is the **WRITER**; adding `past_due` there
+records a past-due subscription as ACTIVE, granting PERMANENT premium instead of grace. **The gate
+must assert the exception is still JUSTIFIED, not merely still present.**
+✅ `plaid-sync-all:38` **INCLUDES `past_due`** (Sam): stale balances are more visible than a
+paywall, so cutting sync defeats the toggle too. It is a Postgres `.in()` filter and cannot use
+the JS predicate - a **deliberate parallel list**, note it as such.
+⚠️ **28 DAYS IS TRE'S INTENT, NOT A CONSTANT (891a0219). HONOUR WHAT THE PLATFORM REPORTS** -
+premium for as long as Apple/RevenueCat says. **Never hardcode 28, never compute a client-side
+window from a stored date**; it drifts the moment he changes the setting.
+⚠️ **TRACED, NOT REPRODUCED. Verify against a REAL `BILLING_ISSUE` event in sandbox before
+calling it closed.**
+
+**B. `425f0fba`** the copy-pointer gate (locations and limits, never prose). **The arrow is NOT
+the selector** - 151 occurrences, 53 after comment-stripping, mostly data flow. Use the JSX text
+node. Protects the onboarding rewrite, so it goes before it.
+
+**C. `ea25a708` remainder** - the omissions (Account's five sections incl. Learn; the icon-only
+nav) and the RENDERED WALK, which must **ASSERT THE SCREEN**: this repo measured the reviewer
+reset as unverifiable from the database row.
+
+**D. `585ec24a`** variable pacing - **START FROM `447d57ad`'s REVERT**, money maths, `test:tz`.
+
+⚠️ **ONE MEASUREMENT HABIT THAT GENERALISES PAST ITS OWN BLOCKER** (from `798c0ed9`, 2026-09-18):
+`leaderboard_shares` moved **7 rows to 8 while DISTINCT SHARING USERS STAYED AT 2**. A trigger
+keyed on ROWS would have fired on growth that did not happen. **Count the thing the question is
+about - distinct users, not rows** - and the same applies to `b573d720`, where "5 active
+subscriptions" reads as an App Store sale while ZERO carry a `revenuecat_app_user_id`.
+
+
 
 📋 **`425f0fba` - THE COPY-POINTER GATE, first item when main frees (Sam endorsed; scope is
 LOCATIONS AND LIMITS, never prose). ONE MEASUREMENT ALREADY TAKEN, so do not rediscover it:**
