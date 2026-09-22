@@ -57,6 +57,7 @@
     "check:page-rhythm": "node scripts/check-page-rhythm.mjs",
     "check:placeholders": "node scripts/check-placeholders.mjs",
     "check:dark-contrast": "node scripts/check-dark-contrast.mjs",
+    "check:light-contrast": "node scripts/check-dark-contrast.mjs --theme light",
     "check:destructive-contrast": "node scripts/check-destructive-contrast.mjs",
     "check:destructive-states": "node scripts/check-destructive-states.mjs",
     "check:landing": "node scripts/check-landing-first-screen.mjs",

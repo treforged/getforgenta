@@ -63,6 +63,23 @@ if (!session.access_token) fail(2, `sign-in returned ${res.status}: ${JSON.strin
 const whatsNew = readFileSync('src/lib/whats-new.ts', 'utf8');
 const releaseVersion = (whatsNew.match(/version:\s*'([^']+)'/) || [])[1];
 if (!releaseVersion) fail(2, 'could not read the current release version out of src/lib/whats-new.ts.');
+/**
+ * ⚠️ THE SURVEY FLAG IS DERIVED, NOT TYPED, AND THAT IS WHY THIS GATE WAS BROKEN.
+ *
+ * The dialog-suppression list below was HAND-NAMED - `new_user_done`, `premium_done`,
+ * `whats_new_<version>` - so it was blind to the modal nobody added to it. The PMF survey
+ * shipped later, became eligible for the walk account (7+ days old, onboarded, never answered),
+ * and this probe has been REFUSING AT EXIT 2 on /dashboard ever since: "a modal overlay is still
+ * up". Escape does not close it and it carries no control matching the closer vocabulary, so the
+ * gate could not run at all - the gate-nobody-runs failure its own comment warns about, arrived
+ * by a different door.
+ *
+ * Reading the flag name out of `pmf-survey.ts` means a rename cannot silently re-break this.
+ */
+const pmfSeenFlag = (readFileSync('src/lib/pmf-survey.ts', 'utf8')
+  .match(/PMF_SEEN_FLAG\s*=\s*'([^']+)'/) || [])[1];
+if (!pmfSeenFlag) fail(2, 'could not read PMF_SEEN_FLAG out of src/lib/pmf-survey.ts.');
+
 const rest = { apikey: anon, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
 const prof = await fetch(`${url}/rest/v1/profiles?select=tour_flags&user_id=eq.${session.user.id}`, { headers: rest });
 if (!prof.ok) fail(2, `reading the walk account's profile returned ${prof.status}.`);
@@ -72,7 +89,7 @@ const patch = await fetch(`${url}/rest/v1/profiles?user_id=eq.${session.user.id}
   headers: { ...rest, Prefer: 'return=representation' },
   body: JSON.stringify({
     founder_note_seen: true,
-    tour_flags: { ...flags, new_user_done: true, premium_done: true, [`whats_new_${releaseVersion}`]: true },
+    tour_flags: { ...flags, new_user_done: true, premium_done: true, [`whats_new_${releaseVersion}`]: true, [pmfSeenFlag]: true },
   }),
 });
 const patched = await patch.json().catch(() => []);
@@ -87,6 +104,29 @@ try { await fetch(BASE, { redirect: 'manual' }); }
 catch (err) { fail(2, `${BASE} is not serving (${err.message}). Run: node scripts/dev-session.mjs up`); }
 
 const browser = await chromium.launch();
+/**
+ * WHICH THEME IS BEING MEASURED. Defaults to dark, so the existing `check:dark-contrast`
+ * behaves exactly as before; `--theme light` measures the OTHER half.
+ *
+ * ⚠️ LIGHT MODE HAD NO RENDERED GATE AT ALL until 2026-09-22 (ask 149fb21f). Both rendered
+ * probes deliberately REFUSED to report a light reading, which was honest and left an entire
+ * theme unmeasured - and this repo records that a stated limit is a to-do nobody schedules
+ * rather than an absolution.
+ *
+ * It is one argument rather than a second script because a copied probe drifts: the two would
+ * have to agree about the AA floor, the exemptions, the settle loop and the six routes, and
+ * nothing would make them.
+ */
+const THEME = (() => {
+  const i = process.argv.indexOf('--theme');
+  const v = i > -1 ? process.argv[i + 1] : 'dark';
+  if (v !== 'dark' && v !== 'light') {
+    console.error(`FAIL(2): --theme must be "dark" or "light", got ${JSON.stringify(v)}.`);
+    process.exit(2);
+  }
+  return v;
+})();
+
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const page = await ctx.newPage();
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -96,7 +136,7 @@ await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb
 // a bare class flip is NOT a theme switch where the app sets the colour scheme inline - the light
 // palette simply never gets exercised. Writing the stored CHOICE makes the app do its own work,
 // and `applyTheme` then removes both classes before adding one, which is the behaviour we want.
-await page.evaluate(() => localStorage.setItem('forgenta.theme.v1', 'dark'));
+await page.evaluate((th) => localStorage.setItem('forgenta.theme.v1', th), THEME);
 await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
   version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
 })));
@@ -167,6 +207,7 @@ const readPage = () => page.evaluate(() => {
 });
 
 const report = { examined: 0, findings: [], theme: '' };
+const perRouteExamined = new Map();   // route -> how many strings it actually rendered
 for (const route of ROUTES) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(5000);
@@ -190,8 +231,40 @@ for (const route of ROUTES) {
     if (await still.count()) { await still.first().dispatchEvent('click'); await page.waitForTimeout(600); }
   }
   if (await page.locator(OVERLAY).count()) {
+    // NAME THE MODAL AND ITS CONTROLS. "a modal overlay is still up" sends the reader hunting;
+    // printing what was actually on screen makes the difference between an app change and a
+    // dismissal vocabulary that has fallen behind visible in one read.
+    const what = await page.evaluate(() => {
+      const el = document.querySelector('[role="dialog"], [role="alertdialog"], [data-state="open"]');
+      if (!el) {
+        return {
+          found: false,
+          whatMatchedOverlay: [...document.querySelectorAll('div.backdrop-blur-sm, div.modal-overlay')]
+            .map((d) => {
+              const st = getComputedStyle(d);
+              const b = d.getBoundingClientRect();
+              return {
+                cls: d.className.slice(0, 90),
+                position: st.position,
+                zIndex: st.zIndex,
+                box: `${Math.round(b.width)}x${Math.round(b.height)}`,
+                text: (d.textContent || '').trim().slice(0, 50),
+              };
+            }).slice(0, 5),
+        };
+      }
+      return {
+        found: true,
+        name: el.getAttribute('aria-label') || '',
+        heading: (el.querySelector('h1,h2,h3')?.textContent || '').trim(),
+        text: (el.textContent || '').trim().slice(0, 160),
+        buttons: [...el.querySelectorAll('button')].map((b) => (b.innerText || b.getAttribute('aria-label') || '').trim()).filter(Boolean),
+      };
+    });
     await browser.close();
-    fail(2, `a modal overlay is still up on ${route}; it would intercept the reads below.`);
+    fail(2, `a modal overlay is still up on ${route}; it would intercept the reads below.
+`
+      + `  dialog: ${JSON.stringify(what)}`);
   }
   // ⚠️ READ UNTIL TWO CONSECUTIVE READS AGREE. A fixed sleep read /dashboard as 0 elements on one
   // run and 16 on the next in the sibling probe, minutes apart, with no code change - the widgets
@@ -212,6 +285,7 @@ for (const route of ROUTES) {
     fail(2, `UNSTABLE: ${route} never settled - examined counts ${seen.join(' -> ')}. Not averaging them.`);
   }
   console.log(`${route.padEnd(12)} examined ${String(r.examined).padStart(4)}  below AA ${r.findings.length}  (settled after ${seen.length} reads)`);
+  perRouteExamined.set(route, r.examined);
   report.examined += r.examined;
   report.theme = r.theme;
   for (const f of r.findings) report.findings.push({ route, ...f });
@@ -225,12 +299,38 @@ if (report.examined === 0) {
   fail(2, 'examined ZERO text elements - the probe never reached a rendered screen, so a clean '
     + 'result here would be a fact about the instrument rather than about the app.');
 }
-if (!/dark/.test(report.theme)) {
-  fail(2, `the document is not in dark mode (html class = ${JSON.stringify(report.theme)}), and `
-    + 'this probe only means anything in dark. Refusing to report a light-mode reading as a dark one.');
+
+/**
+ * ⚠️ A PER-ROUTE FLOOR, BECAUSE "SETTLED" IS NOT "MOUNTED". Observed 2026-09-22: /dashboard read
+ * SIX elements and reported "settled after 2 reads" with 0 below AA, on a run whose sibling read
+ * it at 163. Two agreeing reads of a page that has not mounted agree perfectly - a stuck page is
+ * the most consistent thing there is - so the settle loop alone cannot tell a clean screen from
+ * an absent one, and that zero is indistinguishable from a pass.
+ *
+ * Ten is not a tuned number and is not meant to be: every route in this app renders far more
+ * than ten strings, so anything under it means the screen was not there. The floor exists to
+ * refuse an under-read, not to grade one.
+ */
+const thin = [...perRouteExamined.entries()].filter(([, n]) => n < 10);
+if (thin.length) {
+  fail(2, `these routes rendered almost nothing, so their zero is a fact about the probe rather `
+    + `than about the app: ${thin.map(([r, n]) => `${r} (${n})`).join(', ')}. `
+    + 'Re-run; if it persists the page is genuinely not mounting.');
+}
+// ⚠️ THE THEME IT MEASURED MUST BE THE THEME IT ASKED FOR. A reading taken in the wrong theme
+// is not a weaker result, it is a result about something else - and the two palettes differ most
+// exactly where contrast is marginal. `applyTheme` removes both classes before adding one, so
+// this is an exact check rather than a substring that could match either.
+// ⚠️ `\\b`, NOT `\b`. Inside a template literal `\b` is a BACKSPACE character (0x08), not a word
+// boundary - so the pattern became /<BS>dark<BS>/, which can never match, and this refused a
+// reading taken in exactly the theme it asked for. Silent, invisible in every viewer, and the
+// same trap this machine has recorded hitting three separate desks.
+if (!new RegExp(`\\b${THEME}\\b`).test(report.theme)) {
+  fail(2, `asked for ${THEME} but the document is in ${JSON.stringify(report.theme)}. Refusing to `
+    + 'report a reading taken in the other theme.');
 }
 
-console.log(`examined ${report.examined} rendered text elements in dark mode; `
+console.log(`examined ${report.examined} rendered text elements in ${THEME} mode; `
   + `${report.findings.length} below 4.5:1`);
 for (const f of report.findings.sort((a, b) => a.ratio - b.ratio)) {
   console.log(`  ${String(f.ratio).padStart(5)}:1  ${String(f.route).padEnd(11)} ${f.size}/${f.weight}  ${JSON.stringify(f.text)}`);

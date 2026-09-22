@@ -975,7 +975,16 @@ so size and variant are separated here and the 44px floor is stated once.
     /* ⚠️ THE NAMED COLOURS FLIP TOO, and forgetting them is how a "themed" app ends up with one
        invisible label. `--silver` is a LIGHT text colour in dark mode, so left alone it would be
        near-white text on a near-white page. Every one of these is a role, not a hue. */
-    --gold: 43 72% 33%;
+    /* ⚠️ 28%, NOT 33%, AND NOT 32% EITHER. Measured 2026-09-22 by the first light-mode rendered
+       contrast run this app has ever had (`npm run check:light-contrast`): at 33% this token
+       rendered rgb(145,110,24) and read 4.33:1 against the page and 4.72:1 on a card - BELOW the
+       WCAG AA floor of 4.5:1 on the page. Three real strings failed on it, and the worst was a
+       SECURITY warning: "Your account has no two-factor protection" at 3.96:1.
+       32% is the first value that clears the floor (4.55:1) and it was deliberately NOT taken -
+       a limit that barely binds is not a limit that is harmless, and it goes red again on the
+       next rounding change. 28% reads 5.58:1 on the page and 6.08:1 on a card, and is still
+       plainly gold. Same call, and the same reasoning, as the dark `--muted-foreground` raise. */
+    --gold: 43 72% 28%;
     --gold-foreground: 0 0% 100%;
     --silver: 0 0% 12%;
     --graphite: 240 4% 40%;
