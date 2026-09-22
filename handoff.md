@@ -23,11 +23,12 @@
   write lives in `_shared/stripe-plan-write.ts`, is tested end to end, and the gate is repointed.
   **NOT DEPLOYED** - see item 1.
 
-**1. `74bcc253` - DEPLOY stripe-webhook** (deployed v64 predates d0157fca AND a18e531c). The only
-route is the MCP `deploy_edge_function`, with all 16 bundle files INLINE (~113k chars). The ask
-lists them. GATE: `get_edge_function`, then diff every file against HEAD (CR-stripped), and
-require all SAME. Then POST with no signature and require the function to answer. Keep
-`verify_jwt=false`. 0 paid Stripe subscribers today, so nobody is exposed. Do it in a fresh window.
+**1. [x] `74bcc253` - stripe-webhook DEPLOYED as v65** (from HEAD 548dfced, so it carries
+d0157fca + a18e531c). I derived the bundle from the import graph: 16 files. Read-back: 16/16 files
+equal HEAD with CR stripped, and the comparator's mutated-copy control reads DIFF. Live: a POST
+with no signature returns 500 "Missing stripe-signature header", and OPTIONS returns 200.
+verify_jwt=false. Reuse it: the scratchpad scripts `bundle.py` + `gate.py` are the procedure, so
+copy them into the next session's scratchpad.
 
 **2. `021854ff` - Akoya secrets: BLOCKED on Tre's dashboard step** (the MCP has no secrets tool,
 and the CLI has no token). After he deletes the 5 `AKOYA_*` secrets, verify with a 503 from
@@ -10932,7 +10933,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 16:50 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 18:29 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10943,14 +10944,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-23d57d93 [handoff]: bb517b7b was mis-scoped by a truncated capture - its security half is shipped
-7c3d4ed2 [handoff]: Plan stat cards shipped two-up - and I nearly handed it back
-cbe1af14 [budget]: the Plan stat cards go two-up on a phone - 1201px of waste down to 196px
-b73092bf [handoff]: the Plan page waste is measured - six stat cards, 55-66% empty each
-61438e8c [tools]: measure the whitespace Tre actually complained about - it is six stat cards
-e0b864ab [handoff]: correcting my own false defect - the title column was right
-ce8d3b44 [tools]: correcting myself - the title column was right, and Plan is not a page
-4dd93b3e [handoff]: the space inventory could not see the page Tre complained about
+548dfced [handoff]: fe8839c2, bb517b7b and dark tint shipped; Stripe grace fixed, deploy is 74bcc253
+d0157fca [premium]: Stripe past_due keeps the plan it had - the web half of the billing grace period
+14166540 [theme]: dark surfaces get a slate tint - the first layer of the dark-mode vibrancy ask
+783210ed [plan]: the rule tabs go onto PanelBar as six icons with count badges, on one row
+17dbea7e [handoff]: build 994 uploaded, fe8839c2 shipped, Akoya secrets are Tre's dashboard step
+099c4e14 [dashboard]: Advanced Analytics -> /account, Cash Flow Overview -> /forecast, one shared derivation
+baf81eb9 [handoff]: ordered resume queue for the close-out
+916c5451 [handoff]: close-out - cut a build first, nothing from today is on one
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
