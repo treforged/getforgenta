@@ -65,6 +65,11 @@ export default function NativePaywall() {
     for (let i = 0; i < attempts; i++) {
       const result = await refetch();
       const sub = result.data;
+      // DELIBERATELY NOT `isPremiumEntitled`. This is a PURCHASE CONFIRMATION poll, not
+      // an entitlement check: it asks "has the money landed yet?". A past-due subscriber
+      // already carries plan='premium', so accepting past_due here would return true on
+      // attempt 1 from the STALE row and report a successful purchase whether or not the
+      // payment went through. `premium-entitlement.gate.test.ts` allowlists this line.
       if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) return true;
       await new Promise(r => setTimeout(r, intervalMs));
     }

@@ -50,6 +50,7 @@ import {
 } from "../_shared/rate-limit.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { hashId } from "../_shared/tracer.ts";
+import { isPremiumEntitled } from "../_shared/premium-entitlement.ts";
 import {
   generateInviteCode,
   hashInviteCode,
@@ -358,8 +359,8 @@ async function readDisplayNames(
 }
 
 /**
- * Premium, by the same predicate as SubscriptionContext:
- * plan = 'premium' AND subscription_status in ('active','trialing').
+ * Premium, by the ONE shared predicate (`_shared/premium-entitlement.ts`), which the
+ * app and every other edge function also call. `past_due` counts: see that module.
  * `undefined` means the read failed — which is NOT "not premium".
  */
 // deno-lint-ignore no-explicit-any
@@ -374,8 +375,7 @@ async function readIsPremium(supabase: any, userId: string): Promise<boolean | u
     return undefined;
   }
   const row = data as { plan: string | null; subscription_status: string | null } | null;
-  return row?.plan === "premium" &&
-    ["active", "trialing"].includes(row?.subscription_status ?? "");
+  return isPremiumEntitled(row);
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────────

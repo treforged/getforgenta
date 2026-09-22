@@ -47,6 +47,7 @@ import {
 } from "../_shared/rate-limit.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { hashId } from "../_shared/tracer.ts";
+import { isPremiumEntitled } from "../_shared/premium-entitlement.ts";
 import {
   generateInviteCode,
   hashInviteCode,
@@ -232,8 +233,8 @@ async function handleInvite(
   rawInviteeEmail: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  // Premium gate, server-side. Same predicate as SubscriptionContext:
-  // plan = 'premium' AND subscription_status in ('active','trialing').
+  // Premium gate, server-side, by the ONE shared predicate
+  // (`_shared/premium-entitlement.ts`). `past_due` counts: see that module.
   const { data: sub, error: subError } = await supabase
     .from("user_subscriptions")
     .select("plan, subscription_status")
@@ -250,8 +251,7 @@ async function handleInvite(
     );
   }
   const row = sub as { plan: string | null; subscription_status: string | null } | null;
-  const isPremium = row?.plan === "premium" &&
-    ["active", "trialing"].includes(row?.subscription_status ?? "");
+  const isPremium = isPremiumEntitled(row);
   if (!isPremium) {
     return json(
       { error: "Partner linking is a premium feature." },

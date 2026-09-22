@@ -31,11 +31,17 @@ Deno.serve(async (req) => {
   );
 
   // Only sync paying subscribers.
+  // DELIBERATE PARALLEL LIST. This filter runs in Postgres, so it cannot call
+  // `isPremiumEntitled` - keep it in step with PREMIUM_ENTITLED_STATUSES in
+  // `_shared/premium-entitlement.ts`. `premium-entitlement.gate.test.ts` asserts it.
+  // past_due is INCLUDED on purpose: cutting sync during the grace window leaves the
+  // subscriber with stale balances, which defeats the grace period as surely as a
+  // paywall does.
   const { data: premiumSubs, error: subsErr } = await db
     .from("user_subscriptions")
     .select("user_id")
     .eq("plan", "premium")
-    .in("subscription_status", ["active", "trialing"]);
+    .in("subscription_status", ["active", "trialing", "past_due"]);
 
   if (subsErr) {
     console.error("Failed to fetch premium subscriptions:", subsErr.message);

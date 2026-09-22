@@ -16,6 +16,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
+import { isPremiumEntitled } from "../_shared/premium-entitlement.ts";
 
 const BURST_LIMIT = { windowMs: 60_000, max: 5 };
 
@@ -377,9 +378,7 @@ Deno.serve(async (req) => {
     .eq("user_id", userId)
     .maybeSingle();
 
-  const isPremium =
-    subData?.plan === "premium" &&
-    ["active", "trialing"].includes(subData?.subscription_status ?? "");
+  const isPremium = isPremiumEntitled(subData);
 
   if (!isPremium) {
     return jsonResponse({ error: "premium_required" }, 403, corsHeaders);

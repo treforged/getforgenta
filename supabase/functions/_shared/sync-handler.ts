@@ -28,6 +28,7 @@ import { getCorsHeaders } from "./cors.ts";
 import { resolveAprOnSync } from "./providers/apr-sync-policy.ts";
 import { shouldSeedTranches } from "./providers/balance-tranche-seed.ts";
 import { chooseClaimCandidate, type ClaimableAccount } from "./account-claim.ts";
+import { isPremiumEntitled } from "./premium-entitlement.ts";
 import {
   type FinancialConnection,
   getProvider,
@@ -534,8 +535,7 @@ export async function handleSync(req: Request): Promise<Response> {
       .select("plan, subscription_status")
       .eq("user_id", userId)
       .maybeSingle();
-    const isActive = sub?.plan === "premium" &&
-      ["active", "trialing"].includes(sub?.subscription_status ?? "");
+    const isActive = isPremiumEntitled(sub);
     if (!isActive) return json({ error: "Premium subscription required" }, 403, cors);
 
     const forceSync = body?.force === true;

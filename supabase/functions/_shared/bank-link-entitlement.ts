@@ -1,3 +1,5 @@
+import { isPremiumEntitled } from './premium-entitlement.ts';
+
 /**
  * WHO IS ALLOWED TO LINK A BANK, AND WHY THE ANSWER IS NO LONGER "PREMIUM ONLY".
  *
@@ -32,15 +34,14 @@ export type BankLinkDecision =
   | { allowed: false; reason: 'free_link_used'; status: 402 }
   | { allowed: false; reason: 'max_linked'; status: 422 };
 
-/** True when the account holds an active or trialing premium subscription. */
+/** True when the account holds a premium entitlement - see `premium-entitlement.ts`. */
 export async function isPremiumActive(supabase: Client, userId: string): Promise<boolean> {
   const { data } = await supabase
     .from('user_subscriptions')
     .select('plan, subscription_status')
     .eq('user_id', userId)
     .maybeSingle();
-  return data?.plan === 'premium'
-    && ['active', 'trialing'].includes(data?.subscription_status ?? '');
+  return isPremiumEntitled(data);
 }
 
 /**

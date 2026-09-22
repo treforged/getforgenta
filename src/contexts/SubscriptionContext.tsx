@@ -3,6 +3,7 @@ import { useQuery, type QueryObserverResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
+import { isPremiumEntitled } from '@/lib/premium-entitlement';
 
 function readCachedPremium(userId: string): boolean | null {
   try {
@@ -64,10 +65,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     refetchIntervalInBackground: true,
   });
 
-  const resolvedIsPremium =
-    !isDemo &&
-    query.data?.plan === 'premium' &&
-    ['active', 'trialing'].includes(query.data?.subscription_status || '');
+  const resolvedIsPremium = !isDemo && isPremiumEntitled(query.data);
 
   // Use sessionStorage cached value during initial load to prevent flash
   const cachedIsPremium = user ? readCachedPremium(user.id) : null;

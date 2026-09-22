@@ -366,10 +366,16 @@ describe('edge function: invite is not an account-existence oracle', () => {
     expect([...invite.matchAll(/ok: true/g)]).toHaveLength(1);
   });
 
-  it('checks premium server-side with the SubscriptionContext predicate', () => {
+  // Was: an assertion pinning the hand-rolled literal `["active", "trialing"].includes(...)`.
+  // That predicate LOCKED OUT a subscriber inside a billing grace period, and this test made
+  // the defect a requirement - it would have gone red on the fix. It now asserts the shared
+  // predicate is the thing being called; `premium-entitlement.gate.test.ts` owns the rule
+  // itself, so the two cannot disagree about what premium means.
+  it('checks premium server-side through the ONE shared predicate', () => {
     expect(fnSrc).toContain('.from("user_subscriptions")');
-    expect(fnSrc).toContain('row?.plan === "premium"');
-    expect(fnSrc).toContain('["active", "trialing"].includes(row?.subscription_status ?? "")');
+    expect(fnSrc).toContain('isPremiumEntitled(row)');
+    expect(fnSrc).toContain('_shared/premium-entitlement.ts');
+    expect(fnSrc).not.toContain('row?.plan === "premium"');
   });
 
   // A failed subscription read must not be reported to a paying customer as "not premium".
