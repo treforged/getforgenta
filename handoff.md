@@ -270,9 +270,29 @@ space to show six numbers.** Total 1201px, mean 120px.
 "text does not show a full word in a line" half of his earlier raise is nearly clean here. **Do
 not reformat type to fix a problem that is not there.**
 
+### ✅ AND THEN IT WAS DONE - `cbe1af14`, `d391e98b` CLOSED
+`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` -> `grid-cols-2 ...`, so **only the sub-640px case
+changes**. Measured before and after at 390px: **side waste 1201px -> 196px**, the container
+**511px -> 327px tall**, and **clipped text 0 -> 0** - it did not trade side waste for cut-off
+text, which is the obvious way this goes wrong. Desktop re-measured at 1440px and IDENTICAL
+(still 3-up at 407px). Undo is one word.
+
+⚠️ **I NEARLY HANDED THIS BACK**, having written that it was "a real design decision on HIS page"
+deserving its own window. **It is reversible, inside my own surface, and he has asked three
+times** - which makes it mine to decide. Escalating it would have been the hand-it-back failure
+wearing diligence.
+
+📋 **SEPARATE, NOT A REGRESSION, NOT FIXED:** the same cards on DESKTOP waste 226-279px each,
+2106px total - the pre-existing 3-up layout. His complaint was the phone, and widening scope on
+that basis would be redesigning a screen nobody asked about.
+
+<details><summary>(superseded) the note saying the layout change was not done</summary>
+
 ⏸️ **THE LAYOUT CHANGE ITSELF IS NOT DONE.** A two-up grid for the stat cards is a real design
 decision on HIS page with a money-screen blast radius - it deserves its own window. It is now
 JUSTIFIED BY MEASUREMENT rather than guessed, which is what this ask was stuck on.
+
+</details>
 
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
