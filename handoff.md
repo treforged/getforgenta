@@ -55,7 +55,42 @@ healthy code:** an h2-only reading of Settings called "Merchant memory" nonexist
   **First step is MEASURING the three real waits, not designing** - the post-purchase pollers are
   the strongest candidate because the customer has just paid.
 
-### ⇢ NEXT UP, in order
+### ✅ C. `ea25a708` REMAINDER - DONE. Omissions fixed and gated, rendered walk built.
+* **`d060beb9`** the orientation block on the finish step. First run named Account's five
+  sections NOWHERE and taught the bottom bar not at all - and **BOTH bars are icon-only**, so a
+  first-run user was handed ten controls carrying no words. Placed AFTER the premium card so the
+  upsell keeps its position.
+* **Source gate** `onboarding-orientation.gate.test.ts`, both sides DERIVED, proven red three
+  ways - including the silent one, a nav label renamed on ONE side only.
+* **`1769b042`** the RENDERED WALK, `npm run check:onboarding-orientation`. Drives all nine
+  steps by pressing the app's own controls and asserts RENDERED TEXT at 390x844: 5/5 nav, 5/5
+  sections. **Proven red as a DISCRIMINATING PAIR** - block left in source but `hidden`, walk
+  exits 1 while the source gate exits 0.
+
+🚨 **THE HARNESS FAULT WORTH CARRYING FORWARD, because it will bite any future walk here:**
+`fail()` calls `process.exit`, **which jumps straight out of a `finally`**. The first run left
+the reviewer account stranded mid-onboarding. Everything inside the try now THROWS. The account
+was put back and READ BACK (`Deck Walk`, `onboarding_completed` true).
+Also live, and both cost a run each: the **cookie consent banner intercepts pointer events**, so
+every press times out against a control Playwright calls visible-and-stable; and a permissive
+forward regex matched **"Skip setup ->"**, leaving the wizard on step 1 and then reporting "no
+forward control" from the DASHBOARD.
+
+### 🆕 TRE'S INVITE-CODE ASK WAS ALREADY BUILT - `5a7e0013` RETIRED, NOT REBUILT
+*"have ada make sure the preview texts fit in the boxes on mobile. this one is he invite code"*
+(2026-09-18). **It had sat UNTRACKED for four days** - the exact forgetting loop he complained
+about in the same batch - so it was filed first, then retired against the code. Fixed by
+`39bab44b`, which quotes his words verbatim at `PartnerLink.tsx:193`, and gated by
+`check:placeholders`. Verified live this session: PASS, exit 0.
+⚠️ **BUT THAT GREEN IS NARROWER THAN IT READS: 3 distinct placeholders examined, against 71 in
+source.** The other 68 sit behind interactions. Filed as `d694a896`; the onboarding walk above is
+the first instrument to reach any of them (5).
+
+### ⇢ NEXT UP
+**D. `585ec24a`** variable pacing - **START FROM `447d57ad`'s REVERT**, money maths, `test:tz`.
+
+<details><summary>(superseded) the earlier NEXT UP list</summary>
+
 **C. `ea25a708` remainder** - the onboarding omissions (Account's five sections incl. Learn; the
 icon-only nav) and the RENDERED WALK, which must **ASSERT THE SCREEN**: this repo measured the
 reviewer reset as unverifiable from the database row.
@@ -429,7 +464,9 @@ node. Protects the onboarding rewrite, so it goes before it.
 nav) and the RENDERED WALK, which must **ASSERT THE SCREEN**: this repo measured the reviewer
 reset as unverifiable from the database row.
 
-**D. `585ec24a`** variable pacing - **START FROM `447d57ad`'s REVERT**, money maths, `test:tz`.
+**D. `585ec24a`** variable pacing - START FROM `447d57ad`'s REVERT, money maths, `test:tz`.
+
+</details>
 
 ⚠️ **ONE MEASUREMENT HABIT THAT GENERALISES PAST ITS OWN BLOCKER** (from `798c0ed9`, 2026-09-18):
 `leaderboard_shares` moved **7 rows to 8 while DISTINCT SHARING USERS STAYED AT 2**. A trigger
