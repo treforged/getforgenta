@@ -1,5 +1,74 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## ⚠️ START HERE - 2026-09-22 (Ada, overdrive session). ITEMS A AND B ARE DONE.
+
+### ✅ A. `d01dae3b` THE GRACE-PERIOD FIX - SHIPPED `a18e531c`, on origin, verified by contents
+ONE predicate `supabase/functions/_shared/premium-entitlement.ts`, re-exported into
+`src/lib/premium-entitlement.ts` the same way `notification-policy` and `learn-lessons` already
+are - so the app and the edge functions cannot drift. Six readers converted; `plaid-sync-all`
+gains `past_due` as a deliberate parallel list. Gate `premium-entitlement.gate.test.ts`, 26
+checks, proven red four ways with byte-exact restores. tsc clean, lint 0 errors, test:tz 4987 x3.
+
+🚨 **THE HANDOFF SAID EIGHT SITES CONVERT. TWO MUST NOT, AND THE REASON IS MONEY.**
+`NativePaywall` and `PremiumSuccess` are **PURCHASE-CONFIRMATION POLLS**, not entitlement checks:
+they ask *"has the payment landed?"*. A past-due row ALREADY carries `plan='premium'`, so
+accepting `past_due` there returns true on attempt 1 from the **STALE row** and reports a
+successful purchase whether or not the money arrived. Both held, allowlisted by name, reason in
+the file. **Do not "finish the job" by converting them.**
+
+⚠️ **STILL OPEN, and it is the one thing the ask itself named: TRACED, NOT REPRODUCED.** No
+`BILLING_ISSUE` event has been replayed in the RevenueCat sandbox and this machine cannot
+generate one - it needs Tre's dashboard. Nothing else in code is outstanding.
+
+🆕 **`93d17f7e` FILED, NOT FIXED: STRIPE'S GRACE PERIOD IS STILL BROKEN, SEPARATELY.**
+`stripe-webhook` `customer.subscription.updated` writes `plan: isActive ? "premium" : "free"`,
+so a Stripe sub entering `past_due` has its plan set to **FREE** - and the predicate requires
+`plan === 'premium'`, so grace cannot fire for Stripe web subscribers whatever the readers do.
+**The file contradicts itself**: the `invoice.payment_failed` comment six lines below says it
+keeps `plan = premium`. **Apple/RevenueCat is UNAFFECTED** (BILLING_ISSUE patches status only),
+so the grace period Tre actually enabled works today. **Not fixed here because changing a WRITER
+is where permanent-premium risk lives** - naively widening that `isActive` list grants premium
+FOR EVER on a subscription Stripe later abandons. The gate already asserts that line is still a
+WRITER, so the exception goes red the moment its justification stops holding.
+
+### ✅ B. `425f0fba` THE COPY-POINTER GATE - SHIPPED `c436a80c`, CLOSED
+`src/lib/__tests__/copy-pointers.gate.test.ts`, 11 checks. **Found and fixed one live defect:**
+Onboarding said *"adjust later under Activity -> Plan"*. Both halves wrong - Tre retired
+"Activity" on 2026-08-27 (`primary-nav.ts` records it) and Plan is a top-level page at `/budget`,
+not a panel. Now *"under Plan"*.
+
+⚠️ **THE NARROWING HAD A HOLE I NEARLY SHIPPED, and it is the transferable half.** "The first
+segment is a known place" **cannot tell a data-flow label from a WRONG PLACE NAME** - it drops
+both silently. So the gate would have DROPPED the very defect it was written to catch. Fixed by
+making narrowing 3 a UNION with a navigational lead. **Do not "simplify" it back to one test.**
+
+⚠️ **TWO INSTRUMENT FAULTS CAUGHT BEFORE EITHER PRODUCED A VERDICT, both false defects aimed at
+healthy code:** an h2-only reading of Settings called "Merchant memory" nonexistent when it is an
+**h3** inside `MerchantRulesSettings`; and with no control vocabulary, "Delete Account" and
+"App lock" both read as broken. **A narrow matcher's zero reads exactly like a real finding.**
+
+### 🆕 THREE ASKS FILED THIS SESSION
+* `93d17f7e` Stripe writer defect (above), desk.
+* `0006cc41` graduated refunds - **needs_tre**, from Otto's reel `Ddb-GSHpZi7`, with a
+  recommendation to DEFER and a named revisit trigger (double-figure subs, or a first request).
+* `34ac4dad` real progress indicators on existing waits, desk, from reel `DdDS8mENcfK`.
+  **First step is MEASURING the three real waits, not designing** - the post-purchase pollers are
+  the strongest candidate because the customer has just paid.
+
+### ⇢ NEXT UP, in order
+**C. `ea25a708` remainder** - the onboarding omissions (Account's five sections incl. Learn; the
+icon-only nav) and the RENDERED WALK, which must **ASSERT THE SCREEN**: this repo measured the
+reviewer reset as unverifiable from the database row.
+**D. `585ec24a`** variable pacing - START FROM `447d57ad`'s REVERT, money maths, `test:tz`.
+
+⚠️ **NOTHING FROM THIS SESSION IS ON A BUILD YET.** Both commits are on origin and NEITHER has
+been cut into an iOS build. A push does NOT reach TestFlight - the upload step is skipped on a
+push by design. When these should reach his phone:
+`gh workflow run "iOS Build & Upload to App Store" --ref main`, then read **step 20's OWN
+conclusion** (`success`, never `skipped`) and **altool's own words**, never the run's conclusion.
+**Next build must be 6.8, not 6.7** (`994c0164` - 6.7 went live 2026-09-20).
+
+
 ## ⚠️ START HERE - 2026-09-18 LATE (Ada, THIRTY-FOURTH session, after the cap reset)
 
 ### ✅ `403dd5d8` PART 1 IS ANSWERED - THE SEMANTIC PASS FOUND THE DUPLICATION (`7a7f987d`)
