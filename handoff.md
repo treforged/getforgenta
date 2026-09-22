@@ -45,8 +45,7 @@ device: it is the one path no gate here exercises. Also closed today: `9ee6a12c`
 structural - the writer shipped 09-17, after the last signup; re-count after the next signup) and `70f9caa4` (Bank
 Activity is live; Ruby has `92ef5009`).
 
-**5. `149fb21f` contrast coverage - error toasts DONE today** (sonner's black slab fixed, `check:toast-contrast`).
-Remaining: DESKTOP WIDTHS. Every contrast probe is 390x844 only. Add a 1440 arm to check:dark-/light-contrast.
+**5. [x] `149fb21f` CLOSED** - toasts themed (`check:toast-contrast`) and desktop contrast measured (`check:*-contrast:desktop`, 452/theme, 0 below AA).
 `34ac4dad` progress indicators is PARKED on a measurement: 0 user-triggered syncs or checkout verifies in the
 sampled logs. Re-check about 2026-10-06.
 
