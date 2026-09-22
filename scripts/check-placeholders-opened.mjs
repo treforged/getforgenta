@@ -12,6 +12,7 @@
  *   signed out  /auth -> Sign In -> Forgot?    (reset form)
  *   signed in   /settings -> Security          ("New email address", the three password fields)
  *   signed in   /vehicles?tab=builds -> New Build   (the build form), then Log Service if a build exists
+ *   demo mode   /demo -> /transactions -> Add Plan   (payment-plan form; the walk account is not premium)
  *   signed in   /settings -> Security -> Delete account   ("DELETE") - REVEAL ONLY. The confirm
  *               field is measured and NOTHING is typed into it; the walk account must survive.
  *
@@ -22,6 +23,10 @@ import { readFileSync } from 'node:fs';
 import { READ_PLACEHOLDER_FIT } from './lib/placeholder-fit.mjs';
 
 const BASE = 'http://localhost:8080';
+// An uncaught error is an INSTRUMENT fault, never a finding - exit 2, not node's default 1.
+const firstLine = (e) => String(e?.message ?? e).split(/\r?\n/)[0];
+process.on('uncaughtException', (e) => { console.error(`FAIL(2): the walk crashed: ${firstLine(e)}`); process.exit(2); });
+process.on('unhandledRejection', (e) => { console.error(`FAIL(2): the walk crashed: ${firstLine(e)}`); process.exit(2); });
 const fail = (code, msg) => { console.error(`FAIL(${code}): ${msg}`); process.exit(code); };
 const env = readFileSync('.env.local', 'utf8');
 let creds;
@@ -129,6 +134,28 @@ async function measure(page, stop, mustSee) {
     await measure(p, 'garage maintenance-form', ['e.g. Oil Change', 'e.g. Discount Tire, DIY']);
   } else {
     console.log(`${'garage maintenance-form'.padEnd(34)} NOT MEASURED - the walk account has no build, so "Log Service" is absent`);
+  }
+  await p.context().close(); }
+
+{ const p = await freshPage(false);
+  // THROUGH DEMO MODE: "Add Plan" renders only for a premium or demo account, and the walk account
+  // is not premium (measured - the button was absent). /demo needs no credentials and writes nothing.
+  await p.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  await p.goto(`${BASE}/transactions`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  // The exact <button>: a looser name match also hits the whole section header (role=button).
+  const addPlan = p.locator('button').filter({ hasText: /^\s*Add Plan\s*$/ }).first();
+  try { await addPlan.waitFor({ timeout: 8000 }); } catch { /* reported below */ }
+  if (await addPlan.count()) {
+    // A DOM click, not a pointer click: in demo mode the bank half paints over this header (CSS
+    // order), so a pointer click is intercepted. This stop measures the FORM, not the button's
+    // hit area - check:rail and the page walks own whether controls are pressable.
+    await addPlan.evaluate((el) => el.click());
+    await p.waitForTimeout(700);
+    await measure(p, 'transactions payment-plan', ['e.g. AirPods Pro, MacBook Pro', 'e.g. PayPal Pay in 4', 'e.g. 4 or 12']);
+  } else {
+    console.log(`${'transactions payment-plan'.padEnd(34)} NOT MEASURED - no "Add Plan" button even in demo mode`);
   }
   await p.context().close(); }
 

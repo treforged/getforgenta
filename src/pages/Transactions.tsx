@@ -1502,7 +1502,7 @@ export default function Transactions() {
                   type="text"
                   value={planForm.provider}
                   onChange={e => setPlanForm(p => ({ ...p, provider: e.target.value }))}
-                  placeholder="e.g. PayPal Pay in 4, Prime Visa 12 months"
+                  placeholder="e.g. PayPal Pay in 4"
                   className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
