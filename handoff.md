@@ -37,7 +37,17 @@ and the CLI has no token). After he deletes the 5 `AKOYA_*` secrets, verify with
 **3. NEXT iOS BUILD** carries 099c4e14 + 783210ed + 14166540 (none are on 994). Dispatch it on a
 new Apple day, then read the upload step and altool's own words.
 
-**4. Then the tracker:** `ask list --owner Ada`. Money-adjacent items go first
+**4. `555a4c71` VIRAL SHARE CARD - slice 1 SHIPPED (`share-card.ts`, pure text + `cardLeaksMoney`
+guard, 74 tests, proven red 2 ways).** Decided: the card is the credit-card Payoff ETA from
+`CreditCardEngine.tsx:1501` - a DATE and a month count, never money. NEXT, slice 2: `renderShareCard`
+(canvas 1080x1350, refuses any spec `cardLeaksMoney` flags), then `shareCardImage` reusing
+exportPdf's Filesystem+Share path on native and `navigator.share({files})`/download on web, then a
+Share button beside Payoff ETA that opens a PREVIEW of the exact image first (opt-in). Gate: a
+rendered frame of the preview + a press that asserts the share call received a PNG. Then walk it.
+Also closed today: `9ee6a12c` (0/33 sources is structural - the writer shipped 09-17, after the last
+signup) and `70f9caa4` (Bank Activity is live; Ruby has `92ef5009` to fix her hook text).
+
+**5. Then the tracker:** `ask list --owner Ada`. Money-adjacent items go first
 (`585ec24a` debt-aware savings pacing, which Tre DECIDED on 09-18).
 
 ### Two things learned this session
