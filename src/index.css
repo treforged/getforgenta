@@ -1000,9 +1000,20 @@ so size and variant are separated here and the 44px floor is stated once.
   .dark {
     /* See the note on `:root` above: this is the lever over OS-drawn controls. */
     color-scheme: dark;
-    --background: 0 0% 2%;
+    /* ⚠️ THE SURFACES CARRY A SLATE TINT SINCE 2026-09-22, AND THAT IS THE WHOLE VIBRANCY LEVER.
+       Tre, 2026-09-18 (ask a58fb610): dark mode "looks a little dull and boring. We need to be
+       able to like trigger ... a good response out of our users. Thats also how we maintain
+       users." MEASURED CAUSE: every dark surface token was 0% SATURATION - background, card,
+       panel, border, secondary - so the whole theme was pure grey behind a foreground that is
+       already a cool 214deg. The tint gives the surfaces that SAME hue family at almost the
+       same lightness, so the gold, green and red read against colour rather than against
+       ash.
+       ⚠️ DELIBERATELY NOT DONE: saturating the meaning colours. This is a money app, and green,
+       red and gold carry meaning. They are untouched, and so is every text token.
+       Undo: restore the `0 0% N%` values in this block (in git history before this commit). */
+    --background: 222 24% 4%;
     --foreground: 214 32% 91%;
-    --card: 0 0% 7%;
+    --card: 222 18% 8%;
     /* THE TRANSLUCENT PANEL FILL, AND IT IS LIGHTER THAN `--card` ON PURPOSE.
        A panel is LIGHTER than the page here (7% on 2%), so making it translucent
        composites it DOWNWARD: `--card` at 0.72 over the page MEASURES 5.49% in a rendered frame, and every
@@ -1016,15 +1027,17 @@ so size and variant are separated here and the 44px floor is stated once.
        The sampler carried a positive control (it had to be able to report a difference, and
        it did, 4/255). In LIGHT mode the two are identical by construction, so that same
        control correctly refuses there - it is not a dark-mode-only sampler bug. */
-    --panel-glass: 0 0% 9%;
+    /* 10% at the card-forged alpha (0.72) over the 4% page lands on the 8% card - the same
+       arithmetic as the note above, re-derived for the tinted pair. */
+    --panel-glass: 222 18% 10%;
     --card-foreground: 214 32% 91%;
-    --popover: 0 0% 7%;
+    --popover: 222 18% 8%;
     --popover-foreground: 214 32% 91%;
     --primary: 43 56% 52%;
     --primary-foreground: 0 0% 2%;
-    --secondary: 0 0% 15%;
+    --secondary: 222 14% 16%;
     --secondary-foreground: 214 32% 91%;
-    --muted: 0 0% 15%;
+    --muted: 222 14% 16%;
     /* 64%, NOT 46%, AND IT IS A MEASURED ACCESSIBILITY FAILURE RATHER THAN A PREFERENCE.
        Tre, 2026-09-18: "some of the text is very dull compared to the background ... it should be
        white instead because it's kind of hard to read", and separately that dark mode "looks a
@@ -1047,7 +1060,7 @@ so size and variant are separated here and the 44px floor is stated once.
        a different token with different callers; my first pass changed it by a careless whole-file
        replace, which is exactly how an unrelated colour moves without anyone deciding to. */
     --muted-foreground: 240 4% 64%;
-    --accent: 0 0% 15%;
+    --accent: 222 14% 16%;
     --accent-foreground: 214 32% 91%;
     --destructive: 0 73% 35%;
     --destructive-foreground: 214 32% 91%;
@@ -1065,16 +1078,16 @@ so size and variant are separated here and the 44px floor is stated once.
        real margin rather than sitting on it, which is the same call `--muted-foreground` took.
        The fill keeps 35% and keeps its 6.68:1, so nothing about a destructive BUTTON changes. */
     --destructive-text: 0 73% 66%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
+    --border: 222 14% 16%;
+    --input: 222 14% 16%;
     --ring: 43 56% 52%;
-    --sidebar-background: 0 0% 5%;
+    --sidebar-background: 222 22% 6%;
     --sidebar-foreground: 214 32% 91%;
     --sidebar-primary: 43 56% 52%;
     --sidebar-primary-foreground: 0 0% 2%;
-    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent: 222 16% 11%;
     --sidebar-accent-foreground: 214 32% 91%;
-    --sidebar-border: 0 0% 15%;
+    --sidebar-border: 222 14% 16%;
     --sidebar-ring: 43 56% 52%;
   }
 }
