@@ -86,7 +86,54 @@ about in the same batch - so it was filed first, then retired against the code. 
 source.** The other 68 sit behind interactions. Filed as `d694a896`; the onboarding walk above is
 the first instrument to reach any of them (5).
 
+### ✅ D. `585ec24a` - NOT BUILT, AND THE BLOCKER IS NOW MEASURED INSTEAD OF GUESSED (`47892fc5`)
+`447d57ad` reverted this wiring and recorded a cause **labelled in the source as untested**. It
+also says do not re-attempt as a wiring slice, and **that still stands**. So the HYPOTHESIS was
+tested, not the wiring.
+
+🚨 **HALF THE HYPOTHESIS IS REFUTED.** It claimed the ramp is "path-dependent in a way the level
+pace is not". Measured, need 5730 over 11 payments, one month lost at a time, total drift across
+the months that FOLLOW: **level 520.91 at EVERY position**; ramp **86.82 / 123.12 / 241.85 /
+677.18** at months 0/2/5/8. **Both are path-dependent and the RAMP IS THE STEADIER** for most of
+the run, overtaking only near the deadline. True shape: less sensitive early, more sensitive late.
+
+🚨 **AND THE REAL EXPLANATION IS ARITHMETIC, WHICH CHANGES WHAT MUST BE BUILT. Back-loading is
+CASH-NEUTRAL** - both pacers pay exactly the need, measured - **so it cannot save a penny of card
+interest on its own.** It frees **$1,250.18** over the first three months and takes **$2,500.36
+MORE** over the last three. The reverted wiring deferred the goal's draw and left the freed cash
+as ordinary surplus; if that surplus does not reach the CARD, the trade is nothing gained early
+and $2,500 more competition during the card's endgame - **exactly the Sep->Oct 2028 payoff slip
+and the floorDeficit inflation.**
+**THE MISSING HALF IS REDIRECTION, NOT A BETTER RAMP**, matching Tre's own words. Any future
+attempt must move the deferred amount to CARD PRINCIPAL in the same step or it is strictly worse
+than today's level pace. Still an engine-signature change.
+⚠️ **LIMIT: these are the pacers IN ISOLATION.** The regression was measured inside the engine
+WITH convergence, which moves the remainders these functions read.
+
+### ✅ `b596b3c6` THE AKOYA OFFER IS OFF - `8e16e586`, CLOSED
+One constant (`src/lib/akoya-enabled.ts`), guarded **inside** the two components so every call
+site is covered by construction. **Disabled, not deleted**: deleting touches 21 files, two
+deployed edge functions, a route in-flight redirects land on, and two legal sentences.
+🚨 **THE PROBE FOUND SOMETHING NOBODY EXPECTED: THE AKOYA CREDENTIALS ARE SET IN PRODUCTION.**
+`akoya-auth-url` returns 503 "Akoya not configured" BEFORE the auth and entitlement checks; the
+probe got past it to a 402, so the credentials resolved. **Tre says he never bought the service.**
+Filed as **`d584a832`, needs_tre, ASK ONCE** - no desk can read an invoice, and nothing is
+blocked on the answer.
+⚠️ **NOT MEASURED: whether Akoya ACCEPTS those credentials.** The function builds a URL locally
+and never calls Akoya; sandbox, expired trial and live contract look identical from here.
+⚠️ **THE GATE CAUGHT A CONTROL THAT COULD NOT FAIL** - the dead-screen assertion was
+`toContain('PlaidLinkButton')`, and `PlaidLinkButtonRemoved` contains that substring, so the one
+assertion guarding the risk the ask named passed on the defect it was written for.
+
 ### ⇢ NEXT UP
+Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
+approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
+to confirm the three cards are the three it names), then **`a58fb610`** / **`d391e98b`** (dark
+mode and the planned-items page), then **`d694a896`** (extend `check:placeholders` past the 3 of
+71 it can currently reach - converges with any further onboarding walk).
+
+<details><summary>(superseded) item D as originally queued</summary>
+
 **D. `585ec24a`** variable pacing - **START FROM `447d57ad`'s REVERT**, money maths, `test:tz`.
 
 <details><summary>(superseded) the earlier NEXT UP list</summary>
@@ -465,6 +512,8 @@ nav) and the RENDERED WALK, which must **ASSERT THE SCREEN**: this repo measured
 reset as unverifiable from the database row.
 
 **D. `585ec24a`** variable pacing - START FROM `447d57ad`'s REVERT, money maths, `test:tz`.
+
+</details>
 
 </details>
 
