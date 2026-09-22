@@ -11,7 +11,8 @@
  *   signed out  /auth -> Start Free            ("Your name", "Re-enter your password")
  *   signed out  /auth -> Sign In -> Forgot?    (reset form)
  *   signed in   /settings -> Security          ("New email address", the three password fields)
- *   signed in   /vehicles?tab=builds -> New Build   (the build form), then Log Service if a build exists
+ *   signed in   /vehicles?tab=builds -> New Build   (the build form)
+ *   demo mode   /demo -> /vehicles?tab=builds -> Log Service   (maintenance form)
  *   demo mode   /demo -> /transactions -> Add Plan   (payment-plan form; the walk account is not premium)
  *   signed in   /settings -> Security -> Delete account   ("DELETE") - REVEAL ONLY. The confirm
  *               field is measured and NOTHING is typed into it; the walk account must survive.
@@ -125,16 +126,6 @@ async function measure(page, stop, mustSee) {
   if (process.env.SHOT_BUILD_FORM) await p.screenshot({ path: process.env.SHOT_BUILD_FORM });
   await p.keyboard.press('Escape');
   await p.waitForTimeout(500);
-  // OPTIONAL STOP, and it says so rather than passing silently: "Log Service" exists only once
-  // the account has a build, and this walk never creates data.
-  const logService = p.getByRole('button', { name: /Log Service/ }).first();
-  if (await logService.count()) {
-    await logService.click();
-    await p.waitForTimeout(700);
-    await measure(p, 'garage maintenance-form', ['e.g. Oil Change', 'e.g. Discount Tire, DIY']);
-  } else {
-    console.log(`${'garage maintenance-form'.padEnd(34)} NOT MEASURED - the walk account has no build, so "Log Service" is absent`);
-  }
   await p.context().close(); }
 
 { const p = await freshPage(false);
@@ -157,6 +148,20 @@ async function measure(page, stop, mustSee) {
   } else {
     console.log(`${'transactions payment-plan'.padEnd(34)} NOT MEASURED - no "Add Plan" button even in demo mode`);
   }
+  await p.context().close(); }
+
+{ const p = await freshPage(false);
+  // THROUGH DEMO MODE: "Log Service" exists only once an account has a build, the walk account has
+  // none, and this walk never creates data. The demo account is seeded with one.
+  await p.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  await p.goto(`${BASE}/vehicles?tab=builds`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  const logService = p.locator('button').filter({ hasText: /Log Service/i }).first();
+  try { await logService.waitFor({ timeout: 15000 }); } catch { await done(2, 'garage maintenance-form: no "Log Service" button even in demo mode'); }
+  await logService.evaluate((el) => el.click());
+  await p.waitForTimeout(700);
+  await measure(p, 'garage maintenance-form (demo)', ['e.g. Oil Change', 'e.g. Discount Tire, DIY']);
   await p.context().close(); }
 
 await browser.close();
