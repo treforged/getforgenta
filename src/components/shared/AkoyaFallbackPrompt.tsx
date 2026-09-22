@@ -9,6 +9,7 @@
 import { AlertTriangle, X } from 'lucide-react';
 import type { AkoyaInstitution } from '@/config/akoya-institutions';
 import AkoyaConnectButton from '@/components/shared/AkoyaConnectButton';
+import { AKOYA_ENABLED } from '@/lib/akoya-enabled';
 
 interface AkoyaFallbackPromptProps {
   institution: AkoyaInstitution | null;
@@ -19,6 +20,9 @@ export default function AkoyaFallbackPrompt({
   institution,
   onDismiss,
 }: AkoyaFallbackPromptProps) {
+  // See `akoya-enabled.ts`. Guarded inside the component so every call site is covered;
+  // this one has no hooks above it, so the top of the function is safe here.
+  if (!AKOYA_ENABLED) return null;
   if (!institution) return null;
 
   return (

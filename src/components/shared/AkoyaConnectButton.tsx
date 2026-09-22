@@ -16,6 +16,7 @@ import { Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { AkoyaInstitution } from '@/config/akoya-institutions';
+import { AKOYA_ENABLED } from '@/lib/akoya-enabled';
 
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -74,6 +75,13 @@ export default function AkoyaConnectButton({
       toast.error(err instanceof Error ? err.message : 'Failed to start connection');
     }
   }, [institution]);
+
+  // Tre asked for the Fidelity-via-Akoya offer to be removed (2026-09-17). The guard sits
+  // HERE, after the hooks, rather than at the top of the function: an early return above
+  // `useState`/`useCallback` would change the hook count between renders. And it sits INSIDE
+  // the component rather than at each call site, so every present and future caller is
+  // covered by construction - a per-call-site guard is a hand-named list.
+  if (!AKOYA_ENABLED) return null;
 
   return (
     <button
