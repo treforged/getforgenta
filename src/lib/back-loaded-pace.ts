@@ -66,6 +66,39 @@
  *    explain the payoff slip: late in the run `2·need/(n(n+1))` approaches the whole need, so the
  *    goal soaks up the surplus exactly during the card's endgame.
  *
+ *    ✅ TESTED 2026-09-22, AND HALF OF IT IS REFUTED. `back-loaded-pace.hypothesis.test.ts`.
+ *    Measured on the pacers themselves, need 5730 over 11 payments, one month lost at a time -
+ *    total absolute change across the months that FOLLOW:
+ *
+ *        month lost      level drift     ramp drift
+ *            0             $520.91          $86.82
+ *            2             $520.91         $123.12
+ *            5             $520.91         $241.85
+ *            8             $520.91         $677.18
+ *
+ *    BOTH pacers are path-dependent, and the ramp is markedly the STEADIER of the two for most
+ *    of the run - it only overtakes near the deadline. The level pace's drift does not depend on
+ *    WHEN the month was lost, because it simply re-divides what is left. So "path-dependent in a
+ *    way the level pace is not" is FALSE; the true shape is "less sensitive early, more sensitive
+ *    late". Neither pacer misses the date after a lost month.
+ *
+ *    🚨 AND THE REAL EXPLANATION IS ARITHMETIC, NOT CONVERGENCE. Back-loading is CASH-NEUTRAL:
+ *    both pacers pay exactly `need` over the horizon, measured. **So it cannot save a penny of
+ *    card interest on its own** - all it does is MOVE the goal's draw later. Over the first three
+ *    months it frees $1,250.18; over the last three it takes $2,500.36 MORE than the level pace.
+ *
+ *    The reverted wiring deferred the goal's draw and left the freed cash as ordinary surplus for
+ *    the engine to allocate by its own rules. If that surplus does not reach the CARD, the trade
+ *    is: nothing gained early, and $2,500 more competition during the card's endgame - which is
+ *    exactly a payoff month slipping from Sep to Oct 2028, and exactly the floorDeficit inflation.
+ *
+ *    **THE MISSING HALF IS REDIRECTION, NOT A BETTER RAMP**, and that matches Tre's own words:
+ *    "the goals is to save on interest when there is credit card debt" names where the freed
+ *    money must GO, which the wiring never implemented. Any future attempt has to move the
+ *    deferred amount to card principal in the same step, or it is strictly worse than the level
+ *    pace. That is still an engine change, so the "do not re-attempt as a wiring slice" below
+ *    stands - but the reason is now measured rather than guessed.
+ *
  *    WHAT A FIX PROBABLY NEEDS, and it is why this was not just pushed through: `sharesRank` is
  *    computed from static config (`stop.share != null`), so it stays true after the co-tenant card
  *    is paid off. Tre's words were "smaller now, larger once the CARDS ARE DOWN" — that is a
