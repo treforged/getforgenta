@@ -46,7 +46,7 @@ structural - the writer shipped 09-17, after the last signup; re-count after the
 Activity is live; Ruby has `92ef5009`).
 
 **5. [x] `149fb21f` CLOSED** - toasts themed (`check:toast-contrast`) and desktop contrast measured (`check:*-contrast:desktop`, 452/theme, 0 below AA).
-`d694a896` placeholders: 16 of 71 measured. `check:placeholders:opened` found and fixed 2 real clips (a Settings hint, the New Build Model field). Next: add stops for the builds modals, Transactions and BankActivity. A stop is 4 lines.
+`d694a896` placeholders: about 22 of 71 measured. `check:placeholders:opened` found and fixed 3 real clips (a Settings hint, the New Build Model field, the payment-plan provider). NEXT: use /demo, which is premium-equivalent and seeded, to reach BankActivity, PhaseBlock and the maintenance form.
 `34ac4dad` progress indicators is PARKED on a measurement: 0 user-triggered syncs or checkout verifies in the
 sampled logs. Re-check about 2026-10-06.
 
