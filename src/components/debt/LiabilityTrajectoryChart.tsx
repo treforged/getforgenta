@@ -8,6 +8,7 @@ import { buildLiabilityTrajectory, type LiabilityTrajectoryInput } from '@/lib/l
 // for the Safari `Illegal constructor` crash a second copy would be a second chance to reintroduce.
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { legendLabel } from '@/components/shared/chart-legend';
 
 /**
  * THE PAYOFF TRAJECTORY THE NON-CARD DEBT TABS NEVER HAD.
@@ -89,7 +90,7 @@ export default function LiabilityTrajectoryChart({ title, debts, storageKey, ico
             itemStyle={{ fontSize: 13 }}
             contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }}
           />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 10 }} />
           {/* flatMap, not map: recharts reads its own children to decide what to draw, so the
               lines have to arrive as one flat list rather than a list of pairs. */}
           {series.flatMap((s, i) => {

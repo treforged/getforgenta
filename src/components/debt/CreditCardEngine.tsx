@@ -60,6 +60,7 @@ import { buildCashFloorWarning } from '@/lib/cash-floor-warning';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { totalInterestLabel, interestSavingsBullet, aggregatePayoffEta, NO_PAYOFF_EXPLANATION } from '@/lib/card-interest-display';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { legendLabel } from '@/components/shared/chart-legend';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -1428,7 +1429,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={chartTickInterval} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
                 <RechartsTooltip formatter={(v, name) => [`$${Number(v).toLocaleString()}`, name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
-                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 10 }} />
                 {chartSeries.map(p => (
                   <Line key={p.card.name} type="monotone" dataKey={p.card.name} stroke={p.card.color} strokeWidth={2} dot={false} />
                 ))}

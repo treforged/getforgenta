@@ -30,6 +30,7 @@ import GoalStopsEditor, { newStopDraft, stopDraftsFrom, stopsToStages, type Stop
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { selectPointOnTouch } from '@/lib/chart-touch';
+import { legendLabel } from '@/components/shared/chart-legend';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
@@ -379,7 +380,7 @@ function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses }: {
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={tickInterval} />
           <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
           <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value) => formatCurrency(Number(value), false)} />
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+          <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
           {series.map((s, i) => <Line key={s.key} dataKey={s.key} name={s.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={chartData.length > 24 ? false : { r: 3 }} activeDot={{ r: 4 }} />)}
         </LineChart>
       </ResponsiveContainer>
