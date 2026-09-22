@@ -210,6 +210,26 @@ reported 0 below AA and PASSED.** It re-ran clean at 490. So the under-read is I
 real: if a contrast run ever looks suspiciously clean, check the per-route counts before
 believing it.
 
+### 📋 `d391e98b` / `a58fb610` - MEASURED, NOT BUILT, and the first finding was the instrument
+* **`a58fb610`'s measurable half is DONE and now independently verified.** Its own starting point
+  was dark `muted-foreground` at 4.19:1; that token was raised in `44c67c0f`, and today a
+  RENDERED sweep confirms it end to end - **490 elements, 0 below AA**. What remains is a genuine
+  design pass (colour, accent, hierarchy) and must not be conflated with the contrast work.
+* **`d391e98b`: the space inventory could not see the page he complained about.**
+  `inventory-top-right-space.mjs` walked NINE routes and **`/budget` was not one of them** - the
+  one page he named. Added in `97a0af7f`.
+  ⚠️ **NEITHER READING IS REPORTABLE YET.** phone `/budget` is **UNSTABLE (rightGap 14 -> 243)**.
+  **Do not start cutting space on a 14-vs-243 reading** - that is justifying a layout change with
+  noise.
+  ⚠️ **AND THE TITLE COLUMN LIES:** `/budget` reports as "Transactions", as does `/forecast`.
+  `BudgetControl.tsx:1026` renders `<h1>Plan</h1>`. **Three routes sharing one title is a selector
+  picking the wrong element** - and the title is how a reader ATTRIBUTES every other number in the
+  row. Filed as `4f2965c6`.
+  📌 **THE DEEPER FIX:** this script and `check-dark-contrast.mjs` carry DIFFERENT hand-named
+  route lists, and the other one DOES include `/budget`. **Two instruments, two lists, neither
+  derived, silently disagreeing about which app they measure.** `walk:routes` already derives its
+  list from `App.tsx`; pointing both at that is its own slice.
+
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
 approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
