@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+/**
+ * check:placeholders:opened - the placeholders check:placeholders CANNOT reach, because they sit
+ * behind a press (ask d694a896). Same measurement (scripts/lib/placeholder-fit.mjs), so the only
+ * thing this adds is REACHING fields - never judging them differently.
+ *
+ * Each STOP presses its way to a container and must PROVE the container opened: the named field
+ * has to be present and measured, or the stop exits 2. A stop that found nothing would otherwise
+ * read as "nothing clipped".
+ *
+ *   signed out  /auth -> Start Free            ("Your name", "Re-enter your password")
+ *   signed out  /auth -> Sign In -> Forgot?    (reset form)
+ *   signed in   /settings -> Security          ("New email address", the three password fields)
+ *   signed in   /settings -> Security -> Delete account   ("DELETE") - REVEAL ONLY. The confirm
+ *               field is measured and NOTHING is typed into it; the walk account must survive.
+ *
+ * 390x844. Exit 0 all fit, 1 a field clips, 2 a stop did not open (instrument).
+ * Does NOT cover the password-update and MFA forms (they need a recovery link or a factor).
+ */
+import { readFileSync } from 'node:fs';
+import { READ_PLACEHOLDER_FIT } from './lib/placeholder-fit.mjs';
+
+const BASE = 'http://localhost:8080';
+const fail = (code, msg) => { console.error(`FAIL(${code}): ${msg}`); process.exit(code); };
+const env = readFileSync('.env.local', 'utf8');
+let creds;
+try { creds = readFileSync('.env.deck-walk.local', 'utf8'); }
+catch { fail(2, '.env.deck-walk.local is missing - see scripts/seed-walk-account.sql.'); }
+const pick = (s, k) => (s.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.trim();
+const url = pick(env, 'VITE_SUPABASE_URL');
+const anon = pick(env, 'VITE_SUPABASE_PUBLISHABLE_KEY');
+const email = pick(creds, 'REACH_TEST_EMAIL');
+const password = pick(creds, 'REACH_TEST_PASSWORD');
+if (!url || !anon || !email || !password) fail(2, 'missing supabase url/key or walk credentials.');
+if (!/@forgenta\.test$/.test(email)) fail(2, `refusing to script a sign-in for "${email}".`);
+
+const ref = new URL(url).hostname.split('.')[0];
+const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+  method: 'POST',
+  headers: { apikey: anon, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password }),
+});
+const session = await res.json().catch(() => ({}));
+if (!session.access_token) fail(2, `sign-in returned ${res.status}.`);
+
+let chromium;
+try { ({ chromium } = await import('@playwright/test')); } catch { fail(2, 'no @playwright/test'); }
+const browser = await chromium.launch();
+const done = async (code, msg) => { await browser.close(); fail(code, msg); };
+const CONSENT = JSON.stringify({ version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false });
+
+async function freshPage(signedIn) {
+  const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(([k, s, c]) => {
+    localStorage.setItem('tre_cookie_consent', c);
+    if (s) localStorage.setItem(k, JSON.stringify(s));
+  }, [`sb-${ref}-auth-token`, signedIn ? session : null, CONSENT]);
+  return page;
+}
+const press = async (page, name, stop) => {
+  const b = page.getByRole('button', { name, exact: true }).first();
+  try { await b.waitFor({ timeout: 20000 }); await b.click(); }
+  catch { await done(2, `${stop}: never found the "${name}" button to press`); }
+  await page.waitForTimeout(700);
+};
+
+const results = [];
+async function measure(page, stop, mustSee) {
+  let fields = [];
+  for (let i = 0; i < 8; i++) {
+    fields = await page.evaluate(READ_PLACEHOLDER_FIT);
+    if (mustSee.every((t) => fields.some((f) => f.text === t))) break;
+    await page.waitForTimeout(600);
+  }
+  const missing = mustSee.filter((t) => !fields.some((f) => f.text === t));
+  if (missing.length) await done(2, `${stop}: the container did not open - never measured ${missing.map((m) => JSON.stringify(m)).join(', ')}`);
+  for (const f of fields) results.push({ ...f, stop });
+  console.log(`${stop.padEnd(34)} ${fields.length} field(s) measured`);
+}
+
+{ const p = await freshPage(false);
+  await p.goto(`${BASE}/auth`, { waitUntil: 'domcontentloaded' });
+  await press(p, 'Start Free', 'auth sign-up');
+  await measure(p, 'auth sign-up', ['Your name', 'Re-enter your password']);
+  await p.context().close(); }
+
+{ const p = await freshPage(false);
+  await p.goto(`${BASE}/auth`, { waitUntil: 'domcontentloaded' });
+  await press(p, 'Sign In', 'auth reset');
+  await press(p, 'Forgot password?', 'auth reset');
+  const n = await p.evaluate(READ_PLACEHOLDER_FIT);
+  for (const f of n) results.push({ ...f, stop: 'auth reset' });
+  console.log(`${'auth reset'.padEnd(34)} ${n.length} field(s) measured`);
+  await p.context().close(); }
+
+{ const p = await freshPage(true);
+  await p.goto(`${BASE}/settings`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(3000);
+  await press(p, 'Security', 'settings security');
+  await measure(p, 'settings security', ['New email address', 'Current password', 'New password (6+ characters)', 'Confirm new password']);
+  // REVEAL ONLY. The press moves the delete flow to its confirm step, which shows the field.
+  // Nothing is typed, so the destructive button stays disabled and the account is untouched.
+  await press(p, 'Delete account', 'settings delete-confirm');
+  await measure(p, 'settings delete-confirm', ['DELETE']);
+  const typed = await p.evaluate(() => [...document.querySelectorAll('input[placeholder="DELETE"]')].map((i) => i.value));
+  if (typed.some((v) => v !== '')) await done(2, 'SAFETY: the DELETE field is not empty - stop and check the walk account');
+  await p.context().close(); }
+
+await browser.close();
+const seen = new Map();
+for (const f of results) { const w = seen.get(f.text); if (!w || f.overflowPx > w.overflowPx) seen.set(f.text, f); }
+const all = [...seen.values()].sort((a, b) => b.overflowPx - a.overflowPx);
+console.log(`\nexamined ${all.length} distinct placeholder(s) behind a press.`);
+console.log('placeholder                                   stop                        text avail  over');
+for (const f of all) {
+  console.log(`${f.text.slice(0, 44).padEnd(46)}${f.stop.padEnd(26)} ${String(f.textPx).padStart(5)} ${String(f.availPx).padStart(5)} ${String(f.overflowPx).padStart(5)}${f.overflowPx > 0 ? '  <-- CLIPPED' : ''}`);
+}
+const clipped = all.filter((f) => f.overflowPx > 0);
+if (clipped.length) { console.error(`\nFAIL: ${clipped.length} placeholder(s) are cut off at 390px.`); process.exit(1); }
+console.log('\nPASS: every placeholder behind these presses fits its field at 390px.');

@@ -773,7 +773,7 @@ export default function SettingsPage() {
                   type="password"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder="New password (min 6 characters)"
+                  placeholder="New password (6+ characters)"
                   className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
