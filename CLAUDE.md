@@ -129,6 +129,12 @@ section states reasoning, not measurement, and says so.
   Proven RED with the real legend defect. Does NOT cover: light mode, desktop widths, error states,
   anything behind an interaction, or whether disabled/placeholder text is legitimately exempt — it
   says so and asks you to check each finding by hand.
+- `npm run check:dark-contrast:desktop` / `check:light-contrast:desktop` - the same probe at 1440x900. Desktop is a
+  different DOM (rail, header buttons, multi-column cards), and no contrast probe had read it before 2026-09-22.
+  First run: 452 elements per theme, 0 below AA. Proven red by lightening the light muted-foreground (81 findings).
+- `npm run check:toast-contrast` - ERROR TEXT, which the page walks cannot see. It raises a real server-refused sign-in
+  and asserts AA plus that the toast IS the app's card surface. Sonner's own rule used to paint every toast black in both
+  themes, so light mode showed a black slab.
 - `npm run check:destructive-states` — the **ARMED DELETE**, the least legible state of the most
   dangerous control in the app. Every other contrast gate here measures only elements that OWN A
   TEXT NODE and only what renders WITHOUT INTERACTION; this control is an **icon** whose destructive

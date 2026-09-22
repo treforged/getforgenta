@@ -127,7 +127,24 @@ const THEME = (() => {
   return v;
 })();
 
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+/**
+ * WHICH WIDTH. Defaults to the phone (390x844), so both existing scripts behave as before;
+ * `--width 1440` measures the desktop layout, which no contrast probe had ever read (ask
+ * 149fb21f). Desktop is a different DOM, not a wider phone: the sidebar rail, the header buttons
+ * and the multi-column cards exist only there.
+ */
+const WIDTH = (() => {
+  const i = process.argv.indexOf('--width');
+  const v = i > -1 ? Number(process.argv[i + 1]) : 390;
+  if (v !== 390 && v !== 1440) {
+    console.error(`FAIL(2): --width must be 390 or 1440, got ${JSON.stringify(process.argv[i + 1])}.`);
+    process.exit(2);
+  }
+  return v;
+})();
+console.log(`theme ${THEME}, viewport ${WIDTH}x${WIDTH === 390 ? 844 : 900}`);
+
+const ctx = await browser.newContext({ viewport: { width: WIDTH, height: WIDTH === 390 ? 844 : 900 }, deviceScaleFactor: 2 });
 const page = await ctx.newPage();
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
 await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
