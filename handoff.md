@@ -154,6 +154,43 @@ without the destination built REMOVES a feature from 31 users rather than moving
 Precedent to follow: Learn and Achievements, 2026-09-17 - removed from the `WidgetId` union AND
 `WIDGET_META` with a tombstone; `mergeSavedLayout` drops stale ids so no migration is needed.
 
+### ✅ `d694a896` PARTIAL - placeholders 3 of 71 MEASURED -> 5, and the mechanism is in place (`86cdfb03`)
+The measurement moved to `scripts/lib/placeholder-fit.mjs`, shared by both walks. **The refactor
+is proven inert**: `check:placeholders` output captured before and after and diffed IDENTICAL.
+The onboarding walk now MEASURES rather than counts, and a clip fails it at exit 1.
+⚠️ **`e.g. 1875` on the income step has FIFTEEN PIXELS of headroom** - it passes today and any
+longer wording clips. The remaining 63 are behind the builds modals (19), Transactions, Settings,
+BankActivity, Auth. **The remaining work is REACHING fields, never judging them differently.**
+
+### ✅ `149fb21f` PARTIAL - LIGHT MODE HAS A RENDERED CONTRAST GATE AT LAST (`79ef5a5a`)
+`npm run check:light-contrast`, 490 elements over 6 routes. One script with a `--theme` argument,
+never a second copy.
+
+🚨 **AND THE DARK GATE HAD NOT BEEN RUNNING AT ALL** - more urgent than the ask. It refused at
+exit 2 on `/dashboard` because the **PMF survey** became eligible for the walk account and the
+dialog-suppression list was HAND-NAMED and blind to it. **Attributed before assumed:** the
+pre-change script from git fails identically. Flag name now DERIVED from `PMF_SEEN_FLAG`. Dark
+passes at **513**, up from 487, because the unblocked route added coverage.
+
+**FOUR LIGHT DEFECTS FOUND, THREE FIXED.** `--gold` rendered 4.33:1 - below AA - and the worst
+string on it was a SECURITY warning at 3.96:1 ("Your account has no two-factor protection").
+Raised 33% -> **28%** (5.58:1 page / 6.08:1 card); **32% was the first passing value and was
+refused on purpose.**
+📋 **The fourth is `15d7bbb2`, NOT fixed:** the chart legend at 2.48:1. `CARD_COLORS` feeds BOTH
+the series and the legend text - two jobs, two different WCAG floors - so it is a chart-wide
+design call. **Three options and a recommendation are in that ask. It is the ONE thing between
+`check:light-contrast` and green, and it is a TRUE finding, not noise.**
+
+⚠️ **A PER-ROUTE FLOOR WAS ADDED, and the reason matters more than the code:** `/dashboard` read
+**SIX** elements and reported *"settled after 2 reads, 0 below AA"* on a run whose sibling read
+**163**. **Two agreeing reads of an unmounted page agree perfectly.** Any route under 10 strings
+now refuses. The gold fix was re-verified on a FULL read afterwards, not the thin one.
+
+⚠️ **I COMMITTED THE `` TRAP INSIDE THIS FIX.** In a template literal `` is a BACKSPACE, not
+a word boundary, so the theme assertion could never match and refused a reading taken in the very
+theme it asked for. Caught in minutes. Recorded because this machine has logged that trap hitting
+three separate desks.
+
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
 approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
