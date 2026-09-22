@@ -10572,7 +10572,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-18 21:00 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 09:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10583,14 +10583,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+06747256 [handoff]: items A and B shipped - grace period and the copy-pointer gate
+c436a80c [copy]: gate the pointers - a sentence that says where to go must name a real place
+a18e531c [premium]: honour the billing grace period - past_due keeps premium
+8f2b7d3a [handoff]: close-out - resume queue rewritten around the grace fix
+3fcefe14 [handoff]: the release landed - iOS build 982, version 6.7, uploaded
 4e6113b4 [release]: VERSION back to 6.7.0 - 6.7 is awaiting review, not released
 6b7b9e6e [handoff]: the copy-pointer gate's selector cannot be the arrow - measured before building
 1791c743 [handoff]: my saved-layout count could not answer the question it was asked
-c08e27f9 [handoff]: verify the two release commands instead of asserting them
-81350460 [handoff]: verify the rundown's exclusion predicate against live data, read-only
-e787ce1b [handoff]: Sam's two grace-fix decisions, recorded rather than left in a message
-8e2dc59b [handoff]: the grace fix is 10 sites, not 8 - and two of them must NOT be changed
-db3e63bc [handoff]: the grace-period fault is a BUG, not a decision - correcting my own needs_tre flag
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
