@@ -802,7 +802,7 @@ export default function Onboarding() {
                 </p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   Inside <strong className="text-foreground">Account</strong> you will find{' '}
-                  Profile, Leaderboard, Achievements, Learn and Forgenta AI.
+                  Profile, Leaderboard, Achievements, Learn, Analytics and Forgenta AI.
                 </p>
               </div>
 

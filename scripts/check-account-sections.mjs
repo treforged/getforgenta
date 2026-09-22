@@ -212,7 +212,10 @@ for (let i = 0; i < seen.length; i += 1) {
 // Learn was added to the bar and NOT to this list, so it went unasserted until the gate said so
 // on 2026-09-18 - the hand-named-inventory defect, caught by the gate having been written to
 // FAIL on an unknown segment rather than skip it. That refusal is why the gap surfaced at all.
-const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', Achievements: 'Achievements', Learn: 'Learn', 'Forgenta AI': 'Forgenta AI' };
+// Analytics joined on 2026-09-22 when Advanced Analytics moved off the dashboard. Its marker is
+// the card's own heading, which PremiumGate also renders as its title, so it holds for a free
+// walk account and a premium one alike.
+const markers = { Profile: 'Connections', Leaderboard: 'Leaderboard', Achievements: 'Achievements', Learn: 'Learn', Analytics: 'Advanced Analytics', 'Forgenta AI': 'Forgenta AI' };
 for (const s of seen) {
   const key = Object.keys(markers).find((k) => s.label.includes(k));
   if (!key) { failures.push(`segment ${JSON.stringify(s.label)} is not one this check knows a marker for - add it here rather than letting it go unasserted.`); continue; }

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
-import { User, Settings as SettingsIcon, Trophy, Award, Sparkles, GraduationCap } from 'lucide-react';
+import { User, Settings as SettingsIcon, Trophy, Award, Sparkles, GraduationCap, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFollows } from '@/hooks/useFollows';
@@ -10,6 +10,7 @@ import { PartnerLink } from '@/components/settings/PartnerLink';
 import { FriendsLeaderboard } from '@/components/settings/FriendsLeaderboard';
 import TrophyCase from '@/components/dashboard/TrophyCase';
 import LearnCard from '@/components/dashboard/LearnCard';
+import AdvancedAnalyticsCard from '@/components/dashboard/AdvancedAnalyticsCard';
 import { FollowersPanel } from '@/components/settings/FollowersPanel';
 import { UsernameClaim } from '@/components/settings/UsernameClaim';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
@@ -21,7 +22,7 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
  */
 const AiAdvisor = lazy(() => import('./AiAdvisor'));
 
-type AccountSection = 'profile' | 'leaderboard' | 'achievements' | 'learn' | 'ai';
+type AccountSection = 'profile' | 'leaderboard' | 'achievements' | 'learn' | 'analytics' | 'ai';
 
 /**
  * ⚠️ THE AI SECTION IS GATED ON THE SAME FLAG AS THE `/ai` ROUTE, and that is not a formality.
@@ -43,6 +44,7 @@ const SECTION_AVAILABLE: Readonly<Record<AccountSection, boolean>> = {
   leaderboard: true,
   achievements: true,
   learn: true,
+  analytics: true,
   ai: AI_ADVISOR_ENABLED,
 };
 
@@ -204,6 +206,16 @@ export default function Account() {
           title="Learn">
           <GraduationCap size={20} />
         </button>
+        {/* AFTER Learn: Advanced Analytics moved here off the dashboard on 2026-09-22 (ask
+            035ffb29, Tre: "8. approved."), the same move as Learn and Achievements. */}
+        <button onClick={() => setSection('analytics')}
+          aria-selected={activeSection === 'analytics'}
+          role="tab"
+          className={`seg-item btn-press ${activeSection === 'analytics' ? 'seg-item-active' : ''}`}
+          aria-label="Analytics"
+          title="Analytics">
+          <BarChart3 size={20} />
+        </button>
         {SECTION_AVAILABLE.ai && (
           <button onClick={() => setSection('ai')}
             aria-selected={activeSection === 'ai'}
@@ -313,6 +325,17 @@ export default function Account() {
           records for the invite links.
         */
         <LearnCard />
+      )}
+
+      {activeSection === 'analytics' && (
+        /*
+          ⚠️ ADVANCED ANALYTICS' ONLY HOME AS OF 2026-09-22. It was the Overview dashboard's
+          largest card (1,028px of 5,674 at 390x844) until Tre approved moving it here. SAME
+          markup and SAME premium gate, and its figures come from `useMonthlyCashFlow` - the
+          derivation the dashboard reads - so it cannot disagree with the dashboard. That hook
+          needs `CardProjectionProvider`, which DashboardLayout mounts around this route too.
+        */
+        <AdvancedAnalyticsCard />
       )}
 
       {activeSection === 'ai' && (

@@ -35,6 +35,7 @@ import ForecastAssumptionsPanel from '@/components/forecast/ForecastAssumptionsP
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable';
 import { isManualCashFloor } from '@/lib/cash-floor';
 import ReceiptsDisclosure from '@/components/forecast/ReceiptsDisclosure';
+import CashFlowOverviewCard from '@/components/dashboard/CashFlowOverviewCard';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -670,6 +671,12 @@ export default function Forecast() {
       )}
 
       </div>
+
+      {/* ── Cash Flow Overview ───────────────────────────────────────────
+          Moved here off the dashboard on 2026-09-22 (ask 035ffb29, Tre: "8. approved."), "where
+          the rest of the time series lives". It reads `useMonthlyCashFlow`, the same derivation
+          the dashboard reads, so the six months here are the months the dashboard showed. */}
+      <CashFlowOverviewCard />
 
       {/* ── Retirement & Investment Growth Projections ─────────────────── */}
       {retirementProjections.length > 0 && (

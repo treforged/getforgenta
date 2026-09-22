@@ -2,13 +2,11 @@ import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
-import MetricCard from '@/components/shared/MetricCard';
 import AppTour from '@/components/shared/AppTour';
 import { WhatsNewDialog } from '@/components/shared/WhatsNewDialog';
 import ProgressBar from '@/components/shared/ProgressBar';
 import CategoryIcon from '@/components/shared/CategoryIcon';
 import { rollUpByGroup } from '@/lib/types';
-import PremiumGate from '@/components/shared/PremiumGate';
 import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import FreeBankLinkNotice from '@/components/shared/FreeBankLinkNotice';
 import FounderNoteModal from '@/components/shared/FounderNoteModal';
@@ -17,10 +15,9 @@ import { PMF_SEEN_FLAG, isEligibleForPmf } from '@/lib/pmf-survey';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
 import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
-import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
-import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
+import { formatCurrency } from '@/lib/calculations';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useNetWorthSnapshots, useBudgetItems, type AccountRow } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useNetWorthSnapshots, useBudgetItems } from '@/hooks/useSupabaseData';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { substituteSettledOccurrences } from '@/lib/matched-occurrence-display';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
@@ -36,27 +33,18 @@ import {
   getRemainingTransactionIncomeThisMonth,
   getRemainingTransactionExpensesThisMonth,
   getRemainingTransactionDebtPaymentsThisMonth,
-  mergeWithGeneratedTransactions,
-  createDebtPaymentTransactions,
-  mergeDebtPaymentsIntoStream,
 } from '@/lib/pay-schedule';
 import { CC_DEFAULT_CATEGORIES } from "@/lib/credit-card-engine";
 import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/lib/payment-plan-generator';
-import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
-import { generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { useMonthlyCashFlow } from '@/hooks/useMonthlyCashFlow';
+import { generateCarLoanTransactions, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import {
-  buildNetWorthBreakdown, totalsFromBreakdown, nonCardLiabilityTotal, sumBalanceByAccountType,
+  totalsFromBreakdown, nonCardLiabilityTotal, sumBalanceByAccountType,
   isLiabilityAccountType,
   LIQUID_ACCOUNT_TYPES, INVESTMENT_ACCOUNT_TYPES, RETIREMENT_ACCOUNT_TYPES,
 } from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
-import {
-  Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
-  Line, CartesianGrid, ComposedChart,
-  PieChart, Pie, Cell,
-} from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
 import BudgetTotalsCard from '@/components/dashboard/BudgetTotalsCard';
 import DashboardHero from '@/components/dashboard/DashboardHero';
@@ -64,7 +52,6 @@ import DashboardOverviewStrip from '@/components/dashboard/DashboardOverviewStri
 import CalcDrawer from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
 import { buildPayoffTrajectory, formatMonthsAway } from '@/lib/payoff-trajectory';
-import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
@@ -80,7 +67,7 @@ import { weekStart } from '@/lib/leaderboard-metrics';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import {
-  Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
+  Plus, ArrowUpRight, Repeat,
   X, Car, Shield, FileDown, LayoutDashboard, Building2, PiggyBank, ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -112,27 +99,6 @@ function Widget({ id, render }: { id: WidgetId; render: (id: WidgetId) => React.
   return <>{render(id)}</>;
 }
 
-interface ChartTooltipProps {
-  active?: boolean;
-  payload?: { dataKey: string | number; name: string; value: number; color: string }[];
-  label?: string;
-}
-
-function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-      <p className="font-medium text-foreground mb-1">{label}</p>
-      {payload.map((p) => (
-        <div key={p.dataKey} className="flex justify-between gap-4">
-          <span className="text-muted-foreground">{p.name}</span>
-          <span className="font-semibold" style={{ color: p.color }}>{formatCurrency(p.value, false)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const CATEGORY_COLORS = [
   'hsl(43, 70%, 55%)',
   'hsl(168, 55%, 42%)',
@@ -143,28 +109,6 @@ const CATEGORY_COLORS = [
   'hsl(140, 55%, 42%)',
   'hsl(300, 45%, 55%)',
 ];
-
-const BREAKDOWN_COLORS = [
-  'hsl(43, 56%, 52%)', 'hsl(142, 50%, 42%)', 'hsl(200, 65%, 52%)',
-  'hsl(280, 55%, 58%)', 'hsl(30, 80%, 52%)', 'hsl(170, 60%, 42%)',
-  'hsl(320, 55%, 52%)', 'hsl(60, 65%, 44%)', 'hsl(240, 55%, 62%)',
-  'hsl(15, 75%, 52%)', 'hsl(100, 45%, 44%)', 'hsl(0, 65%, 52%)',
-];
-
-interface BreakdownTooltipProps {
-  active?: boolean;
-  payload?: { payload: { name: string }; value: number }[];
-}
-
-function BreakdownTooltip({ active, payload }: BreakdownTooltipProps) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-      <p className="font-medium">{payload[0].payload.name}</p>
-      <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
-    </div>
-  );
-}
 
 interface DashboardGoalEntry {
   id: string;
@@ -210,7 +154,7 @@ export default function Dashboard() {
     setSearchParams(next, { replace: true });
   }, [askedTab, searchParams, setSearchParams, setActiveTab]);
 
-  const { data: transactions, loading: txnLoading } = useTransactions();
+  const { loading: txnLoading } = useTransactions();
   const { data: accounts, loading: acctLoading } = useAccounts();
   const { data: profile, loading: profileLoading } = useProfile();
   const { data: netWorthSnapshots, loading: netWorthSnapshotsLoading } = useNetWorthSnapshots();
@@ -222,8 +166,8 @@ export default function Dashboard() {
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: rules, loading: rulesLoading } = useRecurringRules();
   const { items: plaidItems } = usePlaidItems();
-  const { data: manualAssets, loading: assetsLoading } = useAssets();
-  const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
+  const { loading: assetsLoading } = useAssets();
+  const { loading: liabilitiesLoading } = useLiabilities();
   const { data: paymentPlans } = usePaymentPlans();
   // §1B — rule occurrences a real payment has already answered: the ones the user confirmed AND the
   // ones the bank proves on its own. This page took the confirmed half only until 2026-08-25, so a
@@ -320,27 +264,15 @@ export default function Dashboard() {
   // drawer's first line, and Tre re-anchored the chip's DATE only. Gone with its last reader.
   const nextPayday = useMemo(() => getNextPaycheckDate(payConfig), [payConfig]);
 
-  const accountMap = useMemo(() => {
-    const map: Record<string, AccountRow> = {};
-    accounts.forEach(a => {
-      map[a.id] = a;
-      map[`account:${a.id}`] = a;
-    });
-    return map;
-  }, [accounts]);
+  // The month's cash-flow chain - base stream, debt payments, expense model, summary - lives in
+  // `useMonthlyCashFlow` since 2026-09-22, so /forecast and /account read the SAME derivation when
+  // they show the two cards that moved off this page (ask fe8839c2). See the hook's header.
+  const {
+    accountMap, fundingAccountId, debtBreakdown, debtPaymentTxns, allMonthTransactions,
+    netWorthBreakdown, expenseModel, totalDebtPayments, summary,
+  } = useMonthlyCashFlow();
 
-
-  const baseTxns = useMemo(
-    () => mergeWithGeneratedTransactions(transactions, rules, accounts),
-    [transactions, rules, accounts],
-  );
-
-  const fundingAccountId = useMemo(() => {
-    const defaultId = profile?.default_deposit_account;
-    if (defaultId) return defaultId;
-    const checking = accounts.find(a => a.account_type === 'checking' && a.active);
-    return checking?.id || null;
-  }, [accounts, profile]);
+  const expenseBreakdown = expenseModel.byCategory;
 
   const debtFundingSources = useMemo(() =>
     fundingAccountId
@@ -370,32 +302,7 @@ export default function Dashboard() {
     return plaidItem.last_synced_at.split('T')[0];
   }, [fundingAccountId, accounts, plaidItems]);
 
-  // Card payments due this month, from the converged month-0 projection that Debt Payoff and
-  // Forecast read. Replaces the legacy getMonthlyDebtBreakdown pass, which ran its own floor,
-  // save-up and income-timing logic and so put a different payment on this page than on /debt.
-  const debtBreakdown = useMonth0DebtBreakdown();
 
-  const debtPaymentTxns = useMemo(
-    () => createDebtPaymentTransactions(debtBreakdown.recommendations, fundingAccountId),
-    [debtBreakdown.recommendations, fundingAccountId],
-  );
-
-  const allMonthTransactions = useMemo(
-    () => mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTxns),
-    [baseTxns, debtPaymentTxns],
-  );
-
-  // One rollup drives both the NET WORTH tile and the breakdown lists below it,
-  // so the itemised rows always sum to the headline number. See lib/net-worth.ts.
-  // Financed vehicles live in car_funds, not accounts, and carry no stored
-  // balance — amortized here so they count as liabilities. Same call the
-  // Vehicles page uses, so the two can't disagree.
-  const vehicleLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
-
-  const netWorthBreakdown = useMemo(
-    () => buildNetWorthBreakdown(accounts, manualAssets, manualLiabilities, vehicleLoans),
-    [accounts, manualAssets, manualLiabilities, vehicleLoans],
-  );
 
   const accountSummary = useMemo(() => {
     const active = accounts.filter(a => a.active);
@@ -422,94 +329,7 @@ export default function Dashboard() {
   // three queries are in flight — the same defect the Accounts panel closed on 2026-08-20.
   const overviewStripLoading = acctLoading || assetsLoading || liabilitiesLoading || carFundsLoading;
 
-  const allAssetsForBreakdown = netWorthBreakdown.assets;
-  const allLiabilitiesForBreakdown = netWorthBreakdown.liabilities;
 
-  const now = new Date();
-  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-  const currentMonthTransactions = useMemo(
-    () => allMonthTransactions.filter(t => t.date?.startsWith(currentMonthStr)),
-    [allMonthTransactions, currentMonthStr],
-  );
-
-  // §2.4. The transaction stream expands recurring rules ONLY, so every aggregate built straight
-  // off it silently omitted payment plans, the auto loan and vehicle insurance — $1,226/mo of real
-  // obligations on real data, which is why this page read $3,196 of expenses while /transactions
-  // read $6,243 for the same month. `buildMonthlyExpenseModel` re-derives the month from the
-  // filtered sources (never the raw generators, which over-emit) and every consumer below now
-  // reads it. Engine-derived numbers — MONTH-END CASH, Safe to Pay, the floor — were always
-  // correct and are deliberately untouched.
-  const creditCardSourceIds = useMemo(
-    () => new Set<string>(
-      accounts.filter(a => a.active && a.account_type === 'credit_card').flatMap(a => [a.id, `account:${a.id}`]),
-    ),
-    [accounts],
-  );
-
-  const expenseModel = useMemo(
-    () => buildMonthlyExpenseModel({
-      monthTxns: currentMonthTransactions,
-      paymentPlans: paymentPlans ?? [],
-      carFunds: carFunds ?? [],
-      creditCardSourceIds,
-      asOf: new Date(),
-    }),
-    [currentMonthTransactions, paymentPlans, carFunds, creditCardSourceIds],
-  );
-
-  const expenseBreakdown = expenseModel.byCategory;
-
-  const debtPaymentBreakdown = useMemo(
-    () => getDebtPaymentsByCard(currentMonthTransactions),
-    [currentMonthTransactions],
-  );
-
-  const totalDebtPayments = useMemo(
-    () => debtPaymentBreakdown.reduce((s, d) => s + d.amount, 0),
-    [debtPaymentBreakdown],
-  );
-
-  const summary = useMemo(() => {
-    const income = currentMonthTransactions
-      .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
-      .reduce((s, t) => s + Number(t.amount || 0), 0);
-
-    // §2.4 Phase 2 — Option B (Tre's decision, 2026-08-06): debt PRINCIPAL is not an expense,
-    // interest is. Repaying principal moves money between two of your own columns; it is not
-    // spending, and counting it as such made "Monthly Expenses" a number you could shrink by
-    // paying off less debt. So the tile is now living + interest, and the principal is reported
-    // beside it as DEBT SERVICE rather than hidden inside a total.
-    //
-    // Phase 1 was a RELABEL, not a revaluation: `expenses + debtService` equalled the old
-    // `expensesAllIn + totalDebtPayments` exactly.
-    //
-    // ⚠️ §2.4 PHASE 2 (2026-08-19) BREAKS THAT IDENTITY ON PURPOSE, and it is now
-    // `expenses + debtService + transfers`. Contributions to your own savings and investment
-    // accounts left `expenses`, because they are not spending — and while they sat inside it the
-    // "Annual Savings" tile went DOWN the more the user saved. On the demo account, $1,375/mo of
-    // 401k, Roth, brokerage and emergency-fund transfers were being counted as money gone, which
-    // is what put that tile at −$3,185 a year for someone saving $16,500 of it.
-    // `expensesAllIn` is unchanged to the cent, so every cash-that-left surface is untouched.
-    const expenses = expenseModel.expenses;
-    const debtService = expenseModel.principal + totalDebtPayments;
-    const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);
-
-    const totalSaved = goals.reduce((s: number, g) => {
-      if (g.linked_account && accountMap[g.linked_account]) {
-        return s + Number(accountMap[g.linked_account].balance);
-      }
-      return s + Number(g.current_amount || 0);
-    }, 0);
-
-    const cashFlow = income - expenses - debtService;
-    const savingsRate = income > 0 ? (cashFlow / income) * 100 : 0;
-
-    // carSaved/carGoal used to be derived here from carFunds[0]. Nothing ever read them — the car
-    // tile renders from carGoalData — and they carried the same unfiltered-carFunds[0] defect it
-    // did, so they were a live trap for whoever wired them up next. Removed rather than fixed.
-    return { income, expenses, debtService, cashFlow, totalDebt, totalSaved, savingsRate };
-  }, [currentMonthTransactions, expenseModel, totalDebtPayments, debts, goals, accountMap]);
 
   const creditCardIds = useMemo(
     () => new Set(accounts.filter(a => a.active && a.account_type === 'credit_card').map(a => a.id)),
@@ -864,55 +684,6 @@ export default function Dashboard() {
    */
   const categoryGroupData = useMemo(() => rollUpByGroup(expenseBreakdown), [expenseBreakdown]);
 
-  const cashFlowData = useMemo(() => {
-    const months = [];
-    const nowDate = new Date();
-
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = d.toLocaleString('en', { month: 'short' });
-
-      if (i === 0) {
-        // ALL-IN: months 1-5 are recorded actuals from `categorizeExpenses`, which knows nothing
-        // of Option B. Plotting an Option B month 0 against five all-in months would make the bar
-        // drop for a reason that is purely a change of label.
-        months.push({ month: monthName, income: summary.income, expenses: expenseModel.expensesAllIn, net: summary.cashFlow });
-      } else {
-        const monthTxns = baseTxns.filter(t => t.date?.startsWith(monthStr));
-        const inc = monthTxns.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
-        const expBreakdown = categorizeExpenses(monthTxns, true);
-        const exp = Object.values(expBreakdown).reduce((s: number, v: number) => s + v, 0);
-        months.push({ month: monthName, income: Math.round(inc), expenses: Math.round(exp), net: Math.round(inc - exp) });
-      }
-    }
-
-    return months;
-  }, [summary, expenseModel.expensesAllIn, baseTxns]);
-
-  const avgMonthlySpend = useMemo(() => {
-    const past = cashFlowData.slice(0, 5);
-    const total = past.reduce((s, m) => s + m.expenses, 0);
-    return past.length > 0 ? total / past.length : 0;
-  }, [cashFlowData]);
-
-  const emergencyRunwayMonths = useMemo(() => {
-    // ALL-IN: runway asks how long the cash lasts, and every dollar of principal still has to be
-    // paid when the income stops. An Option B burn rate would flatter the runway by the principal.
-    const burn = expenseModel.cashOut + totalDebtPayments;
-    if (burn <= 0) return null;
-    const available = Math.max(0, accountSummary.liquidCash - cashFloor);
-    return available / burn;
-  }, [accountSummary.liquidCash, cashFloor, expenseModel.cashOut, totalDebtPayments]);
-
-  // ⚠️ NOT `debtBreakdown.totalMinimumsDue`, which is what is still UNPAID on the cards this month.
-  // Dividing that by income gave a ratio that fell to 0% as the month's minimums cleared, ignored
-  // every loan, and ignored autopay-in-full cards — 0.5% and "healthy" for an account carrying
-  // $47,200. `debt-to-income.ts` carries the reasoning and the contractual-not-chosen rule.
-  const dti = useMemo(
-    () => debtToIncomeRatio({ debts, accounts, carFunds, income: summary.income }),
-    [debts, accounts, carFunds, summary.income],
-  );
 
   const recentTxns = useMemo(() => {
     const todayDate = new Date();
@@ -1229,28 +1000,6 @@ export default function Dashboard() {
           </div>
         );
 
-      case 'cash_flow_chart':
-        return (
-          <div key="cash_flow_chart" className="card-forged p-5">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
-            {cashFlowData.some(d => d.income > 0 || d.expenses > 0) ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <ComposedChart data={cashFlowData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="income" name="Income" fill="hsl(142, 50%, 40%)" radius={[2, 2, 0, 0]} barSize={20} />
-                  <Bar dataKey="expenses" name="Expenses" fill="hsl(0, 73%, 35%)" radius={[2, 2, 0, 0]} barSize={20} />
-                  <Line dataKey="net" name="Net Cash Flow" stroke="hsl(43, 56%, 52%)" strokeWidth={2} dot={{ r: 4, fill: 'hsl(43, 56%, 52%)' }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-xs text-muted-foreground text-center py-8">No transaction data yet. Add transactions or set up recurring rules in Budget Control.</p>
-            )}
-          </div>
-        );
-
       case 'transactions_spending':
         return (
           <div key="transactions_spending" className="grid lg:grid-cols-2 gap-5 items-start">
@@ -1425,92 +1174,6 @@ export default function Dashboard() {
               {goals.length === 0 && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
             </div>
           </div>
-        );
-
-      case 'advanced_analytics':
-        return (
-          <PremiumGate
-            key="advanced_analytics"
-            isPremium={isPremium || isDemo}
-            title="Advanced Analytics"
-            features={[
-              'Emergency runway — months your liquid cash covers at current burn rate',
-              'Projected annual savings based on your live cash flow',
-              'Average monthly spend trend from the last 5 months',
-            ]}
-          >
-            <div className="card-forged p-5 space-y-6">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced Analytics</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricCard label="Debt-to-Income" value={dti !== null ? `${dti.toFixed(1)}%` : '—'} sub={dti === null ? 'no debt data' : dti < 28 ? 'healthy' : dti < 43 ? 'caution' : 'high risk'} accent={dti === null ? 'silver' : dti < 28 ? 'success' : dti < 43 ? 'gold' : 'crimson'} icon={Percent} />
-                <MetricCard label="Annual Savings" value={formatCurrency(summary.cashFlow * 12, false)} sub="projected" accent={summary.cashFlow >= 0 ? 'success' : 'crimson'} icon={TrendingUp} />
-                <MetricCard label="Emergency Runway" value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'} sub="above floor / monthly burn" accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'} icon={Shield} />
-                <MetricCard label="Avg Monthly Spend" value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend, false) : '—'} sub="5-month avg" accent="silver" icon={Wallet} />
-              </div>
-              <div className="grid lg:grid-cols-2 gap-5 pt-2 border-t border-border/40">
-                {/* Assets Breakdown */}
-                <div className="min-w-0 overflow-hidden">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Assets Breakdown</h4>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    {allAssetsForBreakdown.length > 0 && (
-                      <div className="flex justify-center sm:block shrink-0">
-                        <ResponsiveContainer width={140} height={140}>
-                          <PieChart>
-                            <Pie data={allAssetsForBreakdown.map(a => ({ name: a.name, value: Number(a.value) }))} cx="50%" cy="50%" innerRadius={36} outerRadius={62} dataKey="value" strokeWidth={0}>
-                              {allAssetsForBreakdown.map((_, i) => <Cell key={i} fill={BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip content={<BreakdownTooltip />} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {allAssetsForBreakdown.map((a, idx) => (
-                        <div key={a.id} className="flex items-center justify-between gap-2 py-1 text-xs min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
-                            <span className="font-medium truncate">{a.name}</span>
-                          </div>
-                          <span className="font-bold font-display text-success whitespace-nowrap shrink-0">{formatCurrency(Number(a.value), false)}</span>
-                        </div>
-                      ))}
-                      {allAssetsForBreakdown.length === 0 && <p className="text-xs text-muted-foreground">No assets yet.</p>}
-                    </div>
-                  </div>
-                </div>
-                {/* Liabilities Breakdown */}
-                <div className="min-w-0 overflow-hidden">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Liabilities Breakdown</h4>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    {allLiabilitiesForBreakdown.length > 0 && (
-                      <div className="flex justify-center sm:block shrink-0">
-                        <ResponsiveContainer width={140} height={140}>
-                          <PieChart>
-                            <Pie data={allLiabilitiesForBreakdown.map(l => ({ name: l.name, value: Number(l.balance) }))} cx="50%" cy="50%" innerRadius={36} outerRadius={62} dataKey="value" strokeWidth={0}>
-                              {allLiabilitiesForBreakdown.map((_, i) => <Cell key={i} fill={BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip content={<BreakdownTooltip />} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {allLiabilitiesForBreakdown.map((l, idx) => (
-                        <div key={l.id} className="flex items-center justify-between gap-2 py-1 text-xs min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
-                            <span className="font-medium truncate">{l.name}</span>
-                          </div>
-                          <span className="font-bold font-display text-destructive-text whitespace-nowrap shrink-0">{formatCurrency(Number(l.balance), false)}</span>
-                        </div>
-                      ))}
-                      {allLiabilitiesForBreakdown.length === 0 && <p className="text-xs text-muted-foreground">No liabilities yet.</p>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </PremiumGate>
         );
 
       case 'debt_recommendations':

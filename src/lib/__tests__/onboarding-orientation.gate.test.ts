@@ -76,7 +76,8 @@ describe('onboarding orientation - positive controls', () => {
    */
   it('both derived lists are populated, and the COUNT is what it should be', () => {
     expect(NAV_LABELS).toHaveLength(5);
-    expect(ACCOUNT_SECTIONS).toHaveLength(5);
+    // 6 since 2026-09-22: Analytics joined when Advanced Analytics moved off the dashboard.
+    expect(ACCOUNT_SECTIONS).toHaveLength(6);
   });
 
   /**

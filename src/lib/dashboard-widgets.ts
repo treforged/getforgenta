@@ -4,10 +4,8 @@ export type WidgetId =
   | 'upcoming_week'
   | 'net_worth_trend'
   | 'car_goal'
-  | 'cash_flow_chart'
   | 'transactions_spending'
   | 'goal_progress'
-  | 'advanced_analytics'
   | 'debt_recommendations';
 
 export interface WidgetConfig {
@@ -71,11 +69,6 @@ export const WIDGET_META: WidgetMeta[] = [
     description: 'Down payment progress and estimated monthly loan payment',
   },
   {
-    id: 'cash_flow_chart',
-    label: 'Cash Flow Chart',
-    description: '6-month income vs. expenses chart with net cash flow trend',
-  },
-  {
     id: 'transactions_spending',
     label: 'Transactions & Spending',
     description: "Recent transactions and this month's spending by category",
@@ -106,11 +99,6 @@ export const WIDGET_META: WidgetMeta[] = [
     description: 'Savings goals with progress bars and amounts',
   },
   {
-    id: 'advanced_analytics',
-    label: 'Advanced Analytics',
-    description: 'Debt-to-income, annual savings projection, emergency runway, avg monthly spend',
-  },
-  {
     id: 'debt_recommendations',
     label: 'Debt Recommendations',
     description: 'Recommended debt payments this month — safe to pay, minimums, and per-card breakdown',
@@ -138,6 +126,16 @@ export const WIDGET_META: WidgetMeta[] = [
   // ⚠️ SAVED LAYOUTS STILL CARRYING 'achievements' ARE HANDLED, and that is why no migration
   // is needed: `mergeSavedLayout` filters every stored id against WIDGET_META, so the stale entry
   // is dropped on read rather than throwing or rendering an empty card.
+  // ⚠️ ADVANCED ANALYTICS AND THE CASH FLOW CHART WERE REMOVED FROM THIS LIST ON 2026-09-22, on
+  // Tre's approval of ask 035ffb29 ("8. approved.", 2026-09-20). The dashboard measured 5,674px =
+  // 6.7 screens at 390x844; Advanced Analytics alone was 1,028px (18.1%), the largest card, and
+  // answered none of "what needs to be paid next". They were MOVED, not deleted:
+  //   · `AdvancedAnalyticsCard` is the Analytics section of /account (after Learn), the same
+  //     move he made for Learn and Achievements on 2026-09-17.
+  //   · `CashFlowOverviewCard` is on /forecast, where the rest of the time series lives.
+  // Both read `useMonthlyCashFlow`, the derivation the dashboard itself reads, so neither can
+  // print a different month than the dashboard does. Saved layouts still carrying either id need
+  // no migration: `mergeSavedLayout` filters stored ids against WIDGET_META and drops them.
 ];
 
 // The user-facing name of a widget, for anything that has to talk ABOUT a
