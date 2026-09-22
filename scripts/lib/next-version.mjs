@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 // The version scheme, from 6.0 onward — and the arithmetic that enforces it.
 //
 // Tre, 2026-08-12: "once we hit version 6.0 on forgenta, we need to start
@@ -232,9 +234,50 @@ function carryMinor(v) {
  * was written BY HAND into package.json — the carry rules cannot be broken by
  * `nextVersion`, only by a person editing the file.
  */
-export function violations(version) {
+/**
+ * Versions already PUBLISHED to a store, read from `released-versions.json`.
+ *
+ * Apple refuses a submission that reuses a released version, and it refuses it LATE - at
+ * upload, after a full build has been spent. Reading the record here means the refusal happens
+ * before the build instead.
+ *
+ * ⚠️ A MISSING OR UNREADABLE FILE RETURNS AN EMPTY LIST AND WARNS, IT DOES NOT THROW. Refusing
+ * every build because a record could not be read would strand the release for a reason that has
+ * nothing to do with the version - the same call this machine already makes for the handoff
+ * note check. A confident negative refuses; an unreadable instrument warns and allows.
+ */
+export function releasedVersions(root) {
+  try {
+    const raw = readFileSync(join(root, "released-versions.json"), "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.released) ? parsed.released : [];
+  } catch {
+    console.warn("released-versions.json could not be read; the released-version check is NOT running.");
+    return [];
+  }
+}
+
+export function violations(version, root = null) {
   const v = typeof version === "string" ? parseVersion(version) : version;
   const out = [];
+
+  /**
+   * THE RELEASED-VERSION CHECK RUNS FIRST AND IS NOT GATED ON `underScheme`. The cap rules
+   * below only apply under the 6.x scheme, but a collision with a released version is fatal at
+   * ANY scheme - Apple does not care which numbering convention produced the string.
+   */
+  if (root) {
+    const already = releasedVersions(root)
+      .find((r) => r && displayVersion(r.version) === displayVersion(formatVersion(v)));
+    if (already) {
+      out.push(
+        `${displayVersion(formatVersion(v))} was ALREADY RELEASED on ${already.released}`
+        + ` (build ${already.build}). Apple refuses a resubmitted version, and it refuses it at`
+        + ` UPLOAD - after the build is spent. Bump VERSION before dispatching.`,
+      );
+    }
+  }
+
   if (!underScheme(v)) return out;
   if (v.minor > 9) out.push(`minor is ${v.minor}; it is capped at 9 and rolls the major`);
   if (v.patch > 99) out.push(`patch is ${v.patch}; it is capped at 99 and rolls the minor`);

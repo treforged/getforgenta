@@ -44,7 +44,10 @@ export function readVersion(root = ROOT) {
   // is how a build could quietly ship a version four years stale.
   parseVersion(raw);
 
-  const bad = violations(raw);
+  // `root` is passed so the released-version check can read `released-versions.json` from the
+  // SAME tree this VERSION came from. Without it that check silently does not run - which is
+  // the shape this repo keeps paying for, so it is threaded rather than defaulted.
+  const bad = violations(raw, root);
   if (bad.length) throw new Error(`VERSION is ${raw}: ${bad.join("; ")}`);
   if (!underScheme(raw)) {
     throw new Error(`VERSION is ${raw}, below the ${"6.0.0"} the scheme starts at`);

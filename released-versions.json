@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "VERSIONS ALREADY PUBLISHED TO A STORE. A submission that reuses one of these is REFUSED BY",
+    "APPLE, and it is refused LATE - at upload, after a full build has been spent and after a",
+    "TestFlight slot has been consumed. `scripts/lib/next-version.mjs` reads this file so the",
+    "refusal happens at the START of a build instead.",
+    "",
+    "WHY A FILE AND NOT A LOOKUP: nothing in this repo can read App Store Connect. That is a",
+    "console only Tre can see, so the honest mechanism is a record he and the desks maintain,",
+    "and the honest thing to say about it is that it CANNOT know about a release nobody wrote",
+    "down. What it does do is make the known collision impossible to ship, and it fails LOUD -",
+    "a build refusing to start is not a defect that hides.",
+    "",
+    "ADD A LINE THE DAY A VERSION GOES LIVE, never when it is submitted. A version awaiting",
+    "review has NOT consumed its number: on 2026-09-19 VERSION was deliberately reverted to",
+    "6.7.0 for exactly that reason, so today's fixes could ride that submission rather than the",
+    "next one. Recording a submission as released would have blocked that and cost a release.",
+    "",
+    "`released` is the date it went LIVE, from Tre's own confirmation, not the submission date."
+  ],
+  "released": [
+    {
+      "version": "6.7.0",
+      "build": 974,
+      "released": "2026-09-20",
+      "source": "Tre, 2026-09-20: 'yes its live now' (ask df4474ed). Submitted earlier; live on this date."
+    }
+  ]
+}
