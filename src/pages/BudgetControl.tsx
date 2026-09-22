@@ -11,10 +11,11 @@ import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts,
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import PanelBar from '@/components/shared/PanelBar';
 import {
   Plus, Edit2, Trash2, Copy,
   CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, X, ChevronDown, ChevronUp,
+  Banknote, Receipt, Repeat, ShoppingCart, PiggyBank,
 } from 'lucide-react';
 import { getDayName, describeBiweeklyAnchor } from '@/lib/scheduling';
 import { categoryFieldOptions } from '@/components/shared/CategoryOptions';
@@ -235,7 +236,10 @@ function migrateOldDeductions(profile: Partial<Tables<'profiles'>>): PaycheckDed
  * host already carries all three. Everything else — the guide modal, every control, every modal —
  * comes across untouched. Same prop, same scope, as `Accounts` inside `Dashboard`.
  */
+type RuleTab = 'income' | 'fixed' | 'subscriptions' | 'variable' | 'debt' | 'transfers';
+
 export default function BudgetControl({ embedded = false }: { embedded?: boolean } = {}) {
+  const [ruleTab, setRuleTab] = useState<RuleTab>('income');
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
@@ -1483,34 +1487,48 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       </div>
 
       {/* Tabbed Rule Management */}
-      <Tabs defaultValue="income" className="space-y-4">
-        <TabsList className="grid grid-cols-3 sm:flex sm:flex-wrap bg-secondary border border-border h-auto gap-1 p-1 w-full">
-          <TabsTrigger value="income" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
-            Income ({incomeRules.length})
-          </TabsTrigger>
-          <TabsTrigger value="fixed" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
-            Fixed ({billsRules.length})
-          </TabsTrigger>
-          <TabsTrigger value="subscriptions" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
-            Subs ({subscriptionRules.length})
-          </TabsTrigger>
-          <TabsTrigger value="variable" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
-            Variable ({variableRules.length})
-          </TabsTrigger>
-          <TabsTrigger value="debt" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
-            Debt ({debtRules.length})
-          </TabsTrigger>
-          <TabsTrigger value="transfers" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
-            Transfers ({transferRules.length})
-          </TabsTrigger>
-        </TabsList>
+      {/* ⚠️ ON `PanelBar` SINCE 2026-09-22, and this was the LAST selector bar in the app that was
+          not. Tre, 2026-09-18 (ask bb517b7b): "like all the other tabs, make all the sections in
+          the selector bar visible at once. reduce to easily discernable icons instead of text".
+          It was radix `TabsList` in a `grid-cols-3`, so six text triggers drew as TWO ROWS OF
+          THREE on a phone. It now uses the same markup as the other eight surfaces.
+          ⚠️ THE COUNT STAYS, pinned to the icon's corner the way a phone tab-bar badge is. Beside
+          the icon (the other surfaces' `seg-badge` placement) six segments need ~420px in a 363px
+          track, so they would scroll, which is the thing he asked to end. The badge reuses
+          `seg-badge` / `seg-badge-active` so it still flips with the filled oval.
+          ⚠️ ICON-ONLY REMOVES THE VISIBLE NAME, so each segment carries `aria-label` (the name
+          and the count, for a screen reader) and `title` (the desktop tooltip). 
+          ⚠️ `max-[359px]:px-2` is the ONE local override of `seg-item`. At 320px (1st-gen SE, still
+          inside the iOS 15 target) six segments at the shared padding need 314px in 291px, so
+          one scrolled offscreen. `check:plan-bar` asserts 390/375/360/320. */}
+      <div className="space-y-4">
+        <PanelBar>
+          {([
+            { id: 'income', label: 'Income', icon: Banknote, count: incomeRules.length },
+            { id: 'fixed', label: 'Fixed', icon: Receipt, count: billsRules.length },
+            { id: 'subscriptions', label: 'Subs', icon: Repeat, count: subscriptionRules.length },
+            { id: 'variable', label: 'Variable', icon: ShoppingCart, count: variableRules.length },
+            { id: 'debt', label: 'Debt', icon: CreditCard, count: debtRules.length },
+            { id: 'transfers', label: 'Transfers', icon: PiggyBank, count: transferRules.length },
+          ] as const).map(({ id, label, icon: Icon, count }) => (
+            <button key={id} onClick={() => setRuleTab(id)}
+              aria-selected={ruleTab === id}
+              role="tab"
+              className={`seg-item btn-press relative max-[359px]:px-2 ${ruleTab === id ? 'seg-item-active' : ''}`}
+              aria-label={`${label}, ${count} ${count === 1 ? 'rule' : 'rules'}`}
+              title={`${label} (${count})`}>
+              <Icon size={20} />
+              <span aria-hidden="true" className={`seg-badge absolute top-0 right-0 ml-0 px-1 ${ruleTab === id ? 'seg-badge-active' : ''}`}>{count}</span>
+            </button>
+          ))}
+        </PanelBar>
 
         {/* §1B Stage 7B — rules the bank has been contradicting for months. Above the tabs rather
             than inside one because a drifting rule can be in any of them, and the whole point is
             that it has gone unnoticed; putting it behind the right tab would keep it unnoticed. */}
         <RuleDriftPanel />
 
-        <TabsContent value="income">
+        {ruleTab === 'income' && (
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Income Rules</h3>
@@ -1522,9 +1540,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {incomeRules.length === 0 && <p className="text-sm text-muted-foreground">No income rules. Add one to auto-generate paychecks.</p>}
             {incomeRules.map(r => <RuleRow key={r.id} r={r} color="text-success" />)}
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="fixed">
+        {ruleTab === 'fixed' && (
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
@@ -1536,9 +1554,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {billsRules.length === 0 && <p className="text-sm text-muted-foreground">No fixed expenses.</p>}
             {billsRules.map(r => <RuleRow key={r.id} r={r} />)}
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="subscriptions">
+        {ruleTab === 'subscriptions' && (
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
@@ -1550,9 +1568,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {subscriptionRules.length === 0 && <p className="text-sm text-muted-foreground">No subscriptions. Rules with category "Subscriptions" appear here.</p>}
             {subscriptionRules.map(r => <RuleRow key={r.id} r={r} />)}
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="variable">
+        {ruleTab === 'variable' && (
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Variable Expenses</h3>
@@ -1564,9 +1582,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {variableRules.length === 0 && <p className="text-sm text-muted-foreground">No variable expenses.</p>}
             {variableRules.map(r => <RuleRow key={r.id} r={r} color="text-foreground" />)}
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="debt">
+        {ruleTab === 'debt' && (
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
@@ -1584,9 +1602,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               </p>
             )}
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="transfers">
+        {ruleTab === 'transfers' && (
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
@@ -1604,8 +1622,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               </p>
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       {showForm && (
         <FormModal

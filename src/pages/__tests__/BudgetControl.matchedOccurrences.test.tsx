@@ -125,7 +125,8 @@ function tile(label: string): string {
   return card.textContent ?? '';
 }
 
-/** Radix activates a tab on mousedown, not on a bare click. */
+/** The rule tabs are `PanelBar` buttons since 2026-09-22 (a click), and were radix triggers before
+ *  (a mousedown); firing both keeps this helper honest for either. */
 function openTab(name: RegExp) {
   const trigger = screen.getByRole('tab', { name });
   fireEvent.mouseDown(trigger);
@@ -159,7 +160,8 @@ describe('Budget Control, the matched badge', () => {
 
   it('badges the monthly rule too, so nothing that matched before stopped matching', () => {
     renderInAugust();
-    openTab(/Fixed \(/);
+    // Accessible name is "Fixed, N rules" since the bar went icon-only (bb517b7b).
+    openTab(/^Fixed,/);
 
     const row = screen.getByText('Rent').closest('div.flex.flex-col')?.parentElement;
     if (!row) throw new Error('no Rent rule row');
