@@ -1,59 +1,45 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## 🚨 FIRST THING NEXT WINDOW: CUT A BUILD. NOTHING FROM 2026-09-22 IS ON ONE.
-**Sixteen commits are on origin and NOT ONE has been cut into an iOS build.** A push does NOT
-reach TestFlight - the upload step is `skipped` by design on a push. So none of today's work is
-on Tre's phone, including the grace-period fix, the light-mode contrast fixes and the Plan
-two-up layout.
+## Resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
-    gh workflow run "iOS Build & Upload to App Store" --ref main
+**✅ DONE THIS SESSION** (details are in each ask's evidence):
+- **iOS build 994 (v6.8) UPLOADED.** Run 35788527035 cut from `baf81eb9`. The upload step shows
+  `success`, and altool printed "UPLOAD SUCCEEDED with no errors". `e6dec4f0` is closed. gh auth
+  works again (`gh api user` -> treforged).
+- **`fe8839c2` + `035ffb29` SHIPPED, `099c4e14`.** Advanced Analytics moved to the new Analytics
+  section of /account. Cash Flow Overview moved to /forecast. The derivation now lives in ONE
+  place, `src/hooks/useMonthlyCashFlow.ts`, and Dashboard, Account and Forecast all read it.
+  Parity is proven against production's old dashboard, and the check was proven red by mutation.
+  ⚠️ **It is NOT on build 994.** 994 was cut before this commit, so the NEXT iOS dispatch carries
+  it. I did not dispatch a second build today because Apple limits uploads per day.
 
-Then read **step 20's OWN conclusion** (`success`, never `skipped`) and **altool's own words**
-(`UPLOAD SUCCEEDED with no errors`) - never the run's conclusion, which is green either way.
-**VERSION is already 6.8.0** and a build now REFUSES TO START on a released version, so the
-6.7 collision cannot happen.
+**1. `021854ff` - Akoya secrets: BLOCKED, and the step is Tre's.** Measured: the Supabase MCP has
+no secrets tool, and the supabase CLI fails with `LegacyPlatformAuthRequiredError` (no access
+token). Sam has put the dashboard step on Tre's list. **After Tre deletes the 5 `AKOYA_*`
+secrets:** call `akoya-auth-url` signed in and require HTTP **503** "Akoya not configured". Use a
+positive control (a live function answering) in the same run. Then close the ask. Do NOT delete
+the edge functions.
 
-## Resume queue - 2026-09-22 close-out (Ada). START AT ITEM 1. Each item is a POINTER.
+**2. NEXT iOS BUILD** - it carries `099c4e14`. Dispatch it tomorrow (a new Apple day):
+`gh workflow run "iOS Build & Upload to App Store" --ref main`. Then read the upload step and
+altool's own words.
 
-**1. `77b4af50` - CUT THE BUILD. BLOCKED ON ONE INTERACTIVE COMMAND FROM TRE.**
-`gh auth login`. Measured: `ssh -T git@github.com` -> "Hi treforged!", git push works, 16 commits
-on origin - **GitHub is NOT disconnected, and saying so would be the fifth time that wrong claim
-reached him.** What is missing is gh's OAuth token alone (`gh auth token` -> "no oauth token
-found", GH_TOKEN/GITHUB_TOKEN unset, API 401).
-Once he has logged in: `gh workflow run "iOS Build & Upload to App Store" --ref main`, then read
-**step 20's OWN conclusion** (`success`, never `skipped`) and **altool's own words**.
-⚠️ **DO NOT cut a `v*` tag to route around it without asking him** - it would also work and
-travels over SSH, but this repo has **ZERO** `v*` tags, so that invents a release convention
-nobody chose. He has been offered the choice on `77b4af50`.
+**3. `bb517b7b` - selector-bar consolidation.** Inventory done: **TWO** implementations.
+`PanelBar` is on eight surfaces (now nine, with Account's Analytics segment). Radix `TabsList`
+is on exactly one: **Plan**, which renders six text triggers as **two rows of three** at phone
+width. ⚠️ The hard part is still open: six icons that are clear WITHOUT labels, each with an
+accessible name, **and each tab carries a live COUNT that an icon has no place for.**
 
-**2. `021854ff` - remove the leftover Akoya secrets.** Tre has ANSWERED (*"i never bought akoya.
-dont plan on using it either until business grows significantly"*), so this is CLEANUP, not a
-question - **do not re-surface it to him.** Remove `AKOYA_CLIENT_ID`, `AKOYA_CLIENT_SECRET`,
-`AKOYA_REDIRECT_URI`, `AKOYA_ENV`, `AKOYA_CONNECTOR_FIDELITY` from the Supabase project secrets.
-**Verify by CALLING `akoya-auth-url` signed in and requiring HTTP 503** - that is the proof,
-because 503 is only reachable when `akoyaCredentials()` throws - with a positive control in the
-same run. **Do NOT delete the edge functions**: `/akoya-oauth` catches in-flight redirects and
-`DeleteDataContent`'s privacy text still names Akoya truthfully.
-⚠️ **UNVERIFIED: whether the Supabase MCP can manage project secrets at all.** I was blocked
-before I could check. If it cannot, this needs the dashboard and becomes Tre's.
+**4. `a58fb610` dark-mode vibrancy** - the measurable half is DONE (490 elements, 0 below AA).
+What remains is a real design pass. `/budget` is the least colourful route, at 0.19% painted area.
 
-**3. `fe8839c2` - his three approved dashboard cards.** An **EXTRACTION across the money pages,
-not a move**. `advanced_analytics` is `Dashboard.tsx` 1430-1515; `cash_flow_chart` 1232-1252.
-`expenseModel` already comes from the shared `buildMonthlyExpenseModel` and every input is on
-shared hooks, so **ONE shared hook consumed by both pages** - never a copied derivation.
-Precedent: Learn/Achievements, 2026-09-17. 🚨 **Do not ship the easy half** - defaulting the cards
-off without the destination built REMOVES a feature from 31 users.
-
-**4. `bb517b7b` - selector-bar consolidation.** Inventory done: **TWO** implementations,
-`PanelBar` on eight surfaces and radix `TabsList` on exactly one - **Plan**, the page he was
-looking at, rendering six text triggers as **two rows of three** at phone width.
-⚠️ Unwaived hard part: six icons discernable WITHOUT labels, each needing an accessible name,
-**and each tab carries a live COUNT an icon has nowhere to put.**
-✅ **Its security half is SHIPPED** (server-side username control, 09-18, 37 tests run today).
-
-**5. `a58fb610` dark-mode vibrancy** - its measurable half is DONE and verified (490 elements,
-0 below AA). What remains is a genuine design pass; `/budget` is the least colourful route at
-0.19% painted area.
+### Two things learned this session
+- **The Forecast Assumptions tutorial is a `div.modal-overlay` with NO `role=dialog`**, so
+  dismissing it by role finds nothing. It closes on a click on the backdrop. Any frame taken on
+  /forecast for an account that has not seen it is a frame of the tutorial.
+- **Production is the "old code" arm for free.** Before a push, getforgenta.com runs HEAD. So one
+  walk account, read on prod and on localhost in the same minute, is a parity check for any
+  refactor that changes no behaviour. There is no need for a second worktree.
 
 ## ⚠️ START HERE - 2026-09-22 (Ada, overdrive session). QUEUE A-D EXHAUSTED; 16 COMMITS.
 
