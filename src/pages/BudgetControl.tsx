@@ -1355,7 +1355,20 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       {/* WHAT EACH PAYCHECK IS WORTH — the second half of the same split. */}
       <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Per Paycheck</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/*
+          TWO-UP ON A PHONE, not one. Tre has raised this three times, most recently 2026-09-18:
+          "theres a lot of empty space on the sides of some of these boxes".
+
+          MEASURED before changing anything (`npm run measure:whitespace`, 390px): at
+          `grid-cols-1` each of these five stat cards was 334px wide holding 87-132px of content -
+          55-66% EMPTY - and cost 78px of height each. The four real content cards on the same
+          panel wasted 1px, 1px, 1px and 38px, so the waste was entirely here and nowhere else.
+          Six boxes stacked one-up spent roughly 468px of vertical space to show six numbers.
+
+          These hold ONE short currency value each, which is what makes two-up safe where it
+          would not be for a text card - and `wrap-break-word` is already on every value.
+        */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
