@@ -243,6 +243,37 @@ believing it.
   derived, silently disagreeing about which app they measure.** `walk:routes` already derives its
   list from `App.tsx`; pointing both at that is its own slice.
 
+### 🚨 `d391e98b` MEASURED AT LAST - THE WASTE IS SIX STAT CARDS (`61438e8c`)
+`npm run measure:whitespace`. A new PER-CARD instrument, because the existing one measures the
+HEADER zone and Plan's header is TIGHT at 14px.
+
+`/transactions?tab=budget` at 390px, 10 cards:
+
+      waste  card  content  height  card
+        220   334       87      78  Annual Gross $97,500
+        212   334       95      78  Monthly Gross $7,500
+        189   363      147     511  Per Paycheck
+        182   334      125      78  Per Paycheck (Net)
+        182   334      125      78  Annual Take-Home
+        175   334      132      78  Monthly Take-Home
+         38   363      280     330  Budget Allocation
+          1   363      335     288  Income & Taxes
+          1   363      335     400  Pay Schedule
+          1   363      317     404  Income Rules
+
+**THE WASTE IS ENTIRELY IN THE SIX SINGLE-VALUE STAT CARDS; THE CONTENT CARDS ARE FINE** (1px,
+1px, 1px, 38px). Each stat card holds 87-132px of content in 334px - **55-66% empty** - at 78px
+of height each. **Six boxes that could sit two-up are stacked one-up, spending ~468px of vertical
+space to show six numbers.** Total 1201px, mean 120px.
+
+✅ **AND IT PREVENTS A WASTED FIX:** ONE orphaned last line and **ZERO clipped strings**, so the
+"text does not show a full word in a line" half of his earlier raise is nearly clean here. **Do
+not reformat type to fix a problem that is not there.**
+
+⏸️ **THE LAYOUT CHANGE ITSELF IS NOT DONE.** A two-up grid for the stat cards is a real design
+decision on HIS page with a money-screen blast radius - it deserves its own window. It is now
+JUSTIFIED BY MEASUREMENT rather than guessed, which is what this ask was stuck on.
+
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
 approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
