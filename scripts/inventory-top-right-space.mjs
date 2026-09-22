@@ -48,8 +48,24 @@ import { readFileSync } from 'node:fs';
 const BASE = 'http://localhost:8080';
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 
+/**
+ * ⚠️ `/budget` WAS MISSING FROM THIS LIST UNTIL 2026-09-22, WHICH IS THE PAGE THE COMPLAINT WAS
+ * ABOUT. Tre, 2026-09-18, on the Plan page: "can we make the design better on this page? It
+ * looks a little dull. And theres some empty spacing where I think it could just be just better
+ * in general." This inventory exists to answer exactly that class of complaint by measurement -
+ * and it walked nine routes, none of them the one he named.
+ *
+ * A HAND-NAMED LIST IS BLIND TO THE ROUTE NOBODY ADDED TO IT, and that is the third instance of
+ * this same family found in this repo today. Note also that `check-dark-contrast.mjs` carries a
+ * DIFFERENT hand-named list which DOES include `/budget` - two instruments, two lists, neither
+ * derived, silently disagreeing about which app they are measuring.
+ *
+ * Deriving both from `App.tsx`'s declared routes is the real fix and is a slice of its own
+ * (`walk:routes` already derives its list that way, so the pattern exists). Until then, adding
+ * the page somebody actually asked about beats leaving it unmeasured.
+ */
 const ROUTES = [
-  '/dashboard', '/transactions', '/debt', '/vehicles', '/account',
+  '/dashboard', '/transactions', '/budget', '/debt', '/vehicles', '/account',
   '/settings', '/accounts', '/forecast', '/goals',
 ];
 const VIEWPORTS = [
