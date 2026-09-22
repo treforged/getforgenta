@@ -608,7 +608,11 @@ export default function Onboarding() {
                 <h2 className="font-display font-semibold text-sm">Monthly Expenses</h2>
               </div>
               {hintFor('your recurring bills')}
-              <p className="text-[10px] text-muted-foreground">Approximate is fine — you can adjust later under Activity → Plan.</p>
+              {/* "Plan", not "Activity -> Plan". Both halves were wrong: Tre renamed Activity to
+                  Transactions on 2026-08-27 (see primary-nav.ts), so "Activity" is a name the app
+                  deliberately no longer uses - and Plan is a top-level page at /budget, not a panel
+                  underneath anything. `copy-pointers.gate.test.ts` now checks this class. */}
+              <p className="text-[10px] text-muted-foreground">Approximate is fine — you can adjust later under Plan.</p>
               {[
                 { label: 'Rent / Mortgage', key: 'monthlyRent' as const },
                 { label: 'Utilities', key: 'monthlyUtilities' as const },
