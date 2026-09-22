@@ -13,6 +13,48 @@ Then read **step 20's OWN conclusion** (`success`, never `skipped`) and **altool
 **VERSION is already 6.8.0** and a build now REFUSES TO START on a released version, so the
 6.7 collision cannot happen.
 
+## Resume queue - 2026-09-22 close-out (Ada). START AT ITEM 1. Each item is a POINTER.
+
+**1. `77b4af50` - CUT THE BUILD. BLOCKED ON ONE INTERACTIVE COMMAND FROM TRE.**
+`gh auth login`. Measured: `ssh -T git@github.com` -> "Hi treforged!", git push works, 16 commits
+on origin - **GitHub is NOT disconnected, and saying so would be the fifth time that wrong claim
+reached him.** What is missing is gh's OAuth token alone (`gh auth token` -> "no oauth token
+found", GH_TOKEN/GITHUB_TOKEN unset, API 401).
+Once he has logged in: `gh workflow run "iOS Build & Upload to App Store" --ref main`, then read
+**step 20's OWN conclusion** (`success`, never `skipped`) and **altool's own words**.
+⚠️ **DO NOT cut a `v*` tag to route around it without asking him** - it would also work and
+travels over SSH, but this repo has **ZERO** `v*` tags, so that invents a release convention
+nobody chose. He has been offered the choice on `77b4af50`.
+
+**2. `021854ff` - remove the leftover Akoya secrets.** Tre has ANSWERED (*"i never bought akoya.
+dont plan on using it either until business grows significantly"*), so this is CLEANUP, not a
+question - **do not re-surface it to him.** Remove `AKOYA_CLIENT_ID`, `AKOYA_CLIENT_SECRET`,
+`AKOYA_REDIRECT_URI`, `AKOYA_ENV`, `AKOYA_CONNECTOR_FIDELITY` from the Supabase project secrets.
+**Verify by CALLING `akoya-auth-url` signed in and requiring HTTP 503** - that is the proof,
+because 503 is only reachable when `akoyaCredentials()` throws - with a positive control in the
+same run. **Do NOT delete the edge functions**: `/akoya-oauth` catches in-flight redirects and
+`DeleteDataContent`'s privacy text still names Akoya truthfully.
+⚠️ **UNVERIFIED: whether the Supabase MCP can manage project secrets at all.** I was blocked
+before I could check. If it cannot, this needs the dashboard and becomes Tre's.
+
+**3. `fe8839c2` - his three approved dashboard cards.** An **EXTRACTION across the money pages,
+not a move**. `advanced_analytics` is `Dashboard.tsx` 1430-1515; `cash_flow_chart` 1232-1252.
+`expenseModel` already comes from the shared `buildMonthlyExpenseModel` and every input is on
+shared hooks, so **ONE shared hook consumed by both pages** - never a copied derivation.
+Precedent: Learn/Achievements, 2026-09-17. 🚨 **Do not ship the easy half** - defaulting the cards
+off without the destination built REMOVES a feature from 31 users.
+
+**4. `bb517b7b` - selector-bar consolidation.** Inventory done: **TWO** implementations,
+`PanelBar` on eight surfaces and radix `TabsList` on exactly one - **Plan**, the page he was
+looking at, rendering six text triggers as **two rows of three** at phone width.
+⚠️ Unwaived hard part: six icons discernable WITHOUT labels, each needing an accessible name,
+**and each tab carries a live COUNT an icon has nowhere to put.**
+✅ **Its security half is SHIPPED** (server-side username control, 09-18, 37 tests run today).
+
+**5. `a58fb610` dark-mode vibrancy** - its measurable half is DONE and verified (490 elements,
+0 below AA). What remains is a genuine design pass; `/budget` is the least colourful route at
+0.19% painted area.
+
 ## ⚠️ START HERE - 2026-09-22 (Ada, overdrive session). QUEUE A-D EXHAUSTED; 16 COMMITS.
 
 ### ✅ CLOSED TODAY, each with evidence on its ask
