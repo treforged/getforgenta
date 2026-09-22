@@ -1,5 +1,51 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## 🚨 FIRST THING NEXT WINDOW: CUT A BUILD. NOTHING FROM 2026-09-22 IS ON ONE.
+**Sixteen commits are on origin and NOT ONE has been cut into an iOS build.** A push does NOT
+reach TestFlight - the upload step is `skipped` by design on a push. So none of today's work is
+on Tre's phone, including the grace-period fix, the light-mode contrast fixes and the Plan
+two-up layout.
+
+    gh workflow run "iOS Build & Upload to App Store" --ref main
+
+Then read **step 20's OWN conclusion** (`success`, never `skipped`) and **altool's own words**
+(`UPLOAD SUCCEEDED with no errors`) - never the run's conclusion, which is green either way.
+**VERSION is already 6.8.0** and a build now REFUSES TO START on a released version, so the
+6.7 collision cannot happen.
+
+## ⚠️ START HERE - 2026-09-22 (Ada, overdrive session). QUEUE A-D EXHAUSTED; 16 COMMITS.
+
+### ✅ CLOSED TODAY, each with evidence on its ask
+`ea25a708` onboarding omissions + rendered walk · `425f0fba` copy-pointer gate · `d01dae3b` code
+half of the grace fix · `b596b3c6` Akoya offer off · `994c0164` VERSION 6.8.0 + released-version
+gate · `15d7bbb2` chart legends · `d391e98b` Plan stat cards two-up · `5a7e0013` retired, already
+built · `d584a832` answered by Tre.
+
+### ⇢ NEXT UP, in order, all scoped with line numbers below
+1. **CUT THE BUILD** (above).
+2. **`021854ff`** remove the leftover Akoya secrets. Small, and Tre has ANSWERED: *"i never bought
+   akoya. dont plan on using it either until business grows significantly."* **It is cleanup, not
+   a question - do not re-surface it to him.** Verify by calling `akoya-auth-url` and requiring
+   **503**, with a positive control in the same run.
+3. **`fe8839c2`** his three approved dashboard cards. **An EXTRACTION across the money pages, not
+   a move** - full scoping in this file below.
+4. **`bb517b7b`** selector-bar consolidation - Plan is the ONLY surface not on `PanelBar`.
+
+### 🧭 THE FIVE THINGS THAT COST ME TIME TODAY, so they do not cost it again
+1. **`fail()` CALLS `process.exit`, WHICH JUMPS OUT OF A `finally`.** My first walk left the
+   reviewer account stranded mid-onboarding. Anything inside a try/finally must THROW.
+2. **THE COOKIE BANNER INTERCEPTS POINTER EVENTS** - every press times out against a control
+   Playwright calls "visible, enabled and stable". Dismiss it before any walk.
+3. **`` IN A TEMPLATE LITERAL IS A BACKSPACE, not a word boundary.** It made an assertion that
+   could never match. Invisible in every viewer.
+4. **A HAND-NAMED LIST BIT THREE TIMES IN ONE DAY** - the contrast probe's dialog list (blind to
+   the PMF survey, which had silently stopped that gate running AT ALL), the placeholder walk,
+   and the space inventory (blind to the page Tre complained about).
+5. **I FILED A FALSE DEFECT AND RETRACTED IT.** I said a probe's title column was lying; it was
+   right, and `/budget` simply redirects. **I compared output against SOURCE without checking
+   that source still runs on that route.**
+
+
 ## ⚠️ START HERE - 2026-09-22 (Ada, overdrive session). ITEMS A AND B ARE DONE.
 
 ### ✅ A. `d01dae3b` THE GRACE-PERIOD FIX - SHIPPED `a18e531c`, on origin, verified by contents
@@ -10852,7 +10898,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 16:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 16:50 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10863,14 +10909,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+23d57d93 [handoff]: bb517b7b was mis-scoped by a truncated capture - its security half is shipped
+7c3d4ed2 [handoff]: Plan stat cards shipped two-up - and I nearly handed it back
+cbe1af14 [budget]: the Plan stat cards go two-up on a phone - 1201px of waste down to 196px
+b73092bf [handoff]: the Plan page waste is measured - six stat cards, 55-66% empty each
+61438e8c [tools]: measure the whitespace Tre actually complained about - it is six stat cards
+e0b864ab [handoff]: correcting my own false defect - the title column was right
+ce8d3b44 [tools]: correcting myself - the title column was right, and Plan is not a page
 4dd93b3e [handoff]: the space inventory could not see the page Tre complained about
-97a0af7f [tools]: the space inventory could not see the page the complaint was about
-4e9f45da [handoff]: light contrast green, and the floor caught a real under-read
-707d16f1 [charts]: legend labels are text, not series colours - light contrast is green
-65f1338b [handoff]: light contrast gate shipped, and the dark one had been dead
-79ef5a5a [theme]: light mode has a rendered contrast gate at last - and the dark one was broken
-86cdfb03 [onboarding]: measure the placeholders check:placeholders cannot reach
-86dafd74 [handoff]: VERSION 6.8.0 gated, and fe8839c2 measured as an extraction
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
