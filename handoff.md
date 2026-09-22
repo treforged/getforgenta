@@ -221,10 +221,23 @@ believing it.
   ⚠️ **NEITHER READING IS REPORTABLE YET.** phone `/budget` is **UNSTABLE (rightGap 14 -> 243)**.
   **Do not start cutting space on a 14-vs-243 reading** - that is justifying a layout change with
   noise.
-  ⚠️ **AND THE TITLE COLUMN LIES:** `/budget` reports as "Transactions", as does `/forecast`.
-  `BudgetControl.tsx:1026` renders `<h1>Plan</h1>`. **Three routes sharing one title is a selector
-  picking the wrong element** - and the title is how a reader ATTRIBUTES every other number in the
-  row. Filed as `4f2965c6`.
+  🚨 **CORRECTION, SAME DAY (`ce8d3b44`): I FILED A FALSE DEFECT AND RETRACTED IT (`4f2965c6`).**
+  I claimed the title column lies because `/budget` reports "Transactions" while
+  `BudgetControl.tsx:1026` renders `<h1>Plan</h1>`. **The probe was right.** `App.tsx:332` routes
+  `/budget` to `<BudgetRedirect />` -> `/transactions?tab=budget`, and `/forecast` redirects the
+  same way. **Three routes sharing one title is what three redirects to one surface look like.**
+  I compared output against SOURCE without checking that source still runs on that route - the
+  error this desk spent the day catching elsewhere. Acted on, it would have "fixed" a working
+  selector.
+  ⚠️ **PLAN IS NOT A PAGE**, so the bare `/budget` route measured Transactions twice. Now
+  `/transactions?tab=budget`. The instability is also NOT reproducible - one observation, stable
+  since.
+  🚨 **AND THE FINDING THAT SURVIVES REDIRECTS THE ASK: THIS IS THE WRONG INSTRUMENT.** The
+  inventory measures the HEADER ZONE - Plan reads **rightGap 14 phone / 36 desktop, which is
+  TIGHT, not wasteful.** His complaint is about the BODY ("empty space on the sides of some of
+  these boxes", text that will not fit a full word on a line). **A layout change justified by
+  this would be aimed at the wrong part of the screen.** What is needed is a per-CARD whitespace
+  and text-wrapping measurement inside the panel at 390px, closer to `measure-dashboard-cost.mjs`.
   📌 **THE DEEPER FIX:** this script and `check-dark-contrast.mjs` carry DIFFERENT hand-named
   route lists, and the other one DOES include `/budget`. **Two instruments, two lists, neither
   derived, silently disagreeing about which app they measure.** `walk:routes` already derives its
@@ -10763,7 +10776,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 16:12 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 16:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10774,14 +10787,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+4dd93b3e [handoff]: the space inventory could not see the page Tre complained about
+97a0af7f [tools]: the space inventory could not see the page the complaint was about
+4e9f45da [handoff]: light contrast green, and the floor caught a real under-read
+707d16f1 [charts]: legend labels are text, not series colours - light contrast is green
 65f1338b [handoff]: light contrast gate shipped, and the dark one had been dead
 79ef5a5a [theme]: light mode has a rendered contrast gate at last - and the dark one was broken
 86cdfb03 [onboarding]: measure the placeholders check:placeholders cannot reach
 86dafd74 [handoff]: VERSION 6.8.0 gated, and fe8839c2 measured as an extraction
-f0a03216 [release]: VERSION 6.8.0, and a build now refuses to start on a released version
-3e3653bf [handoff]: item D measured, Akoya offer off - and one question that is genuinely Tre's
-8e16e586 [accounts]: turn off the Fidelity-via-Akoya offer, reversibly
-47892fc5 [forecast]: test the hypothesis that blocked back-loaded pacing - half of it is refuted
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
