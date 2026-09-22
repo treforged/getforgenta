@@ -191,6 +191,25 @@ a word boundary, so the theme assertion could never match and refused a reading 
 theme it asked for. Caught in minutes. Recorded because this machine has logged that trap hitting
 three separate desks.
 
+### ✅ `15d7bbb2` CLOSED - LIGHT CONTRAST IS GREEN (`707d16f1`). 490 elements, 0 below AA.
+Legend labels now draw in `--foreground` while recharts keeps its coloured SWATCH, so the
+chart-to-legend mapping survives and the words become readable. **The palette is untouched on
+purpose** - darkening `CARD_COLORS` would change every debt chart in DARK too, where nothing is
+wrong. It was already the house pattern in `Forecast.tsx`; now shared rather than copied a fourth
+time, and gated on a DERIVED sweep of every `<Legend` in `src/`.
+⚠️ **MY FIRST MATCHER ACCUSED THE ONE CORRECT IMPLEMENTATION.** The obvious non-greedy
+`<Legend[\s\S]*?\/?>` stops at the first `>`, and **an arrow function in a prop contains one** -
+so it truncated mid-prop and reported `Forecast.tsx`'s two legends as bare. A false finding aimed
+at the files that had been right all along. It reads to the next `<` now.
+⚠️ **STILL UNANSWERED AND NOT CLAIMED:** whether `CARD_COLORS` clears the **3:1 NON-TEXT** floor
+as graphics in light mode. Nothing measures that yet.
+
+### 🚨 THE PER-ROUTE FLOOR FIRED FOR REAL WITHIN HOURS OF BEING ADDED
+A dark run refused with *"/dashboard (6), /budget (6)"*. **Before today that run would have
+reported 0 below AA and PASSED.** It re-ran clean at 490. So the under-read is INTERMITTENT and
+real: if a contrast run ever looks suspiciously clean, check the per-route counts before
+believing it.
+
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
 approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
@@ -10724,7 +10743,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 15:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 16:12 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10735,14 +10754,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+65f1338b [handoff]: light contrast gate shipped, and the dark one had been dead
+79ef5a5a [theme]: light mode has a rendered contrast gate at last - and the dark one was broken
+86cdfb03 [onboarding]: measure the placeholders check:placeholders cannot reach
+86dafd74 [handoff]: VERSION 6.8.0 gated, and fe8839c2 measured as an extraction
+f0a03216 [release]: VERSION 6.8.0, and a build now refuses to start on a released version
 3e3653bf [handoff]: item D measured, Akoya offer off - and one question that is genuinely Tre's
 8e16e586 [accounts]: turn off the Fidelity-via-Akoya offer, reversibly
 47892fc5 [forecast]: test the hypothesis that blocked back-loaded pacing - half of it is refuted
-9ba5bbd2 [handoff]: item C done - onboarding omissions fixed, gated and walked
-1769b042 [onboarding]: walk first run to the end and assert the orientation is ON SCREEN
-d060beb9 [onboarding]: first run now names the places the app actually has
-06747256 [handoff]: items A and B shipped - grace period and the copy-pointer gate
-c436a80c [copy]: gate the pointers - a sentence that says where to go must name a real place
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
