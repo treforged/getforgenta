@@ -46,7 +46,7 @@ structural - the writer shipped 09-17, after the last signup; re-count after the
 Activity is live; Ruby has `92ef5009`).
 
 **5. [x] `149fb21f` CLOSED** - toasts themed (`check:toast-contrast`) and desktop contrast measured (`check:*-contrast:desktop`, 452/theme, 0 below AA).
-`d694a896` placeholders: about 22 of 71 measured. `check:placeholders:opened` found and fixed 3 real clips (a Settings hint, the New Build Model field, the payment-plan provider). The maintenance form is DONE through /demo (7 fit). NEXT: BankActivity 5 (Decision Deck link pickers, which appear in demo) and PhaseBlock 7 (after Add Phase / add item; check whether demo writes before pressing).
+`d694a896` placeholders: about 22 of 71 measured. `check:placeholders:opened` found and fixed 3 real clips (a Settings hint, the New Build Model field, the payment-plan provider). The maintenance form is DONE through /demo (7 fit). BankActivity's 5 are <select> option labels, not input placeholders. The rendered deck selects were measured in /demo and all fit (tightest 22px). NEXT: PhaseBlock 7 (check whether demo writes before pressing Add Phase), BalanceTrancheEditor 3.
 `34ac4dad` progress indicators is PARKED on a measurement: 0 user-triggered syncs or checkout verifies in the
 sampled logs. Re-check about 2026-10-06.
 
@@ -10946,7 +10946,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 18:29 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 19:21 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10957,14 +10957,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-548dfced [handoff]: fe8839c2, bb517b7b and dark tint shipped; Stripe grace fixed, deploy is 74bcc253
-d0157fca [premium]: Stripe past_due keeps the plan it had - the web half of the billing grace period
-14166540 [theme]: dark surfaces get a slate tint - the first layer of the dark-mode vibrancy ask
-783210ed [plan]: the rule tabs go onto PanelBar as six icons with count badges, on one row
-17dbea7e [handoff]: build 994 uploaded, fe8839c2 shipped, Akoya secrets are Tre's dashboard step
-099c4e14 [dashboard]: Advanced Analytics -> /account, Cash Flow Overview -> /forecast, one shared derivation
-baf81eb9 [handoff]: ordered resume queue for the close-out
-916c5451 [handoff]: close-out - cut a build first, nothing from today is on one
+759fe036 [handoff]: maintenance form measured; BankActivity and PhaseBlock next
+c9866eae [placeholders]: the maintenance form is measured through /demo - 7 fields, all fit
+b332f536 [handoff]: placeholders about 22 of 71, three clips fixed; /demo is the next lead
+8820904f [transactions]: the payment-plan provider example was cut off by 76px on phones
+c33e6afc [handoff]: placeholders 16 of 71, two clips fixed
+82d85460 [builds]: the New Build form's Model field was cut off on phones - two columns there now
+8b894296 [handoff]: placeholder walk now opens forms; 12 of 71 measured
+4ede088d [placeholders]: a walk that opens forms found a clipped password hint in Settings
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
