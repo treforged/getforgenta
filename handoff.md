@@ -125,6 +125,35 @@ and never calls Akoya; sandbox, expired trial and live contract look identical f
 `toContain('PlaidLinkButton')`, and `PlaidLinkButtonRemoved` contains that substring, so the one
 assertion guarding the risk the ask named passed on the defect it was written for.
 
+### ✅ `994c0164` VERSION IS 6.8.0, AND A BUILD NOW REFUSES TO START ON A RELEASED VERSION
+`f0a03216`. Apple refuses a resubmitted version at **UPLOAD** - after a full build is spent and
+a TestFlight slot consumed - so the refusal moved to the START of a build, inside
+`read-version.mjs`. **Proven red by REALITY, not a contrived mutation:** run against the tree as
+it stood it printed *"VERSION is 6.7.0: 6.7 was ALREADY RELEASED on 2026-09-20 (build 974)"* and
+exited 1.
+⚠️ **THE TRAP THAT WOULD TURN THIS GATE INTO THE PROBLEM: a version AWAITING REVIEW has NOT
+consumed its number.** On 2026-09-19 VERSION was deliberately reverted to 6.7.0 so that day's
+fixes could ride a submission already in review. **Add a line to `released-versions.json` the day
+a version goes LIVE, never when it is submitted.**
+⚠️ Stated limits, in the record itself: it cannot know about a release nobody wrote down (no desk
+can read App Store Connect), and it FAILS OPEN on an unreadable record.
+
+### 📋 `fe8839c2` SCOPED AND MEASURED, NOT STARTED AS CODE - and the size is the finding
+His approval is confirmed: `035ffb29`'s three cards ARE the three he approved. **But "move"
+understates it badly.** These are JSX blocks wired into a deep chain of Dashboard-local
+derivations, so it is an **EXTRACTION across the money pages**. Measured: `advanced_analytics` is
+`Dashboard.tsx` 1430-1515 needing dti, summary.cashFlow, emergencyRunwayMonths, avgMonthlySpend,
+allAssetsForBreakdown, allLiabilitiesForBreakdown, MetricCard, PremiumGate, BREAKDOWN_COLORS;
+`cash_flow_chart` is 1232-1252 needing cashFlowData, itself needing summary, expenseModel and
+baseTxns (useMemo chains at 400/450/473/867).
+✅ **Feasible and the shape is known:** `expenseModel` already comes from the shared
+`buildMonthlyExpenseModel`, and every input is on shared hooks - so ONE shared hook consumed by
+both pages, never a copied derivation.
+🚨 **DO NOT SHIP THE EASY HALF.** Defaulting the cards off, or deleting them from the registry,
+without the destination built REMOVES a feature from 31 users rather than moving it.
+Precedent to follow: Learn and Achievements, 2026-09-17 - removed from the `WidgetId` union AND
+`WIDGET_META` with a tombstone; `mergeSavedLayout` drops stale ids so no migration is needed.
+
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
 approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
@@ -10658,7 +10687,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 09:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 15:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10669,14 +10698,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+3e3653bf [handoff]: item D measured, Akoya offer off - and one question that is genuinely Tre's
+8e16e586 [accounts]: turn off the Fidelity-via-Akoya offer, reversibly
+47892fc5 [forecast]: test the hypothesis that blocked back-loaded pacing - half of it is refuted
+9ba5bbd2 [handoff]: item C done - onboarding omissions fixed, gated and walked
+1769b042 [onboarding]: walk first run to the end and assert the orientation is ON SCREEN
+d060beb9 [onboarding]: first run now names the places the app actually has
 06747256 [handoff]: items A and B shipped - grace period and the copy-pointer gate
 c436a80c [copy]: gate the pointers - a sentence that says where to go must name a real place
-a18e531c [premium]: honour the billing grace period - past_due keeps premium
-8f2b7d3a [handoff]: close-out - resume queue rewritten around the grace fix
-3fcefe14 [handoff]: the release landed - iOS build 982, version 6.7, uploaded
-4e6113b4 [release]: VERSION back to 6.7.0 - 6.7 is awaiting review, not released
-6b7b9e6e [handoff]: the copy-pointer gate's selector cannot be the arrow - measured before building
-1791c743 [handoff]: my saved-layout count could not answer the question it was asked
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
