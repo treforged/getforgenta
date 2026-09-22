@@ -13,25 +13,31 @@
   ⚠️ **It is NOT on build 994.** 994 was cut before this commit, so the NEXT iOS dispatch carries
   it. I did not dispatch a second build today because Apple limits uploads per day.
 
-**1. `021854ff` - Akoya secrets: BLOCKED, and the step is Tre's.** Measured: the Supabase MCP has
-no secrets tool, and the supabase CLI fails with `LegacyPlatformAuthRequiredError` (no access
-token). Sam has put the dashboard step on Tre's list. **After Tre deletes the 5 `AKOYA_*`
-secrets:** call `akoya-auth-url` signed in and require HTTP **503** "Akoya not configured". Use a
-positive control (a live function answering) in the same run. Then close the ask. Do NOT delete
-the edge functions.
+- **`bb517b7b` SHIPPED, `783210ed`.** Plan's rule tabs moved onto `PanelBar` as 6 icons with
+  count badges on one row, so the app now has ONE selector-bar implementation, not two. The new
+  gate `npm run check:plan-bar` passes at 390/375/360/320 and was proven red twice.
+- **`a58fb610` LAYER 1 SHIPPED, `14166540`.** The dark surfaces were 0% saturation. They now
+  carry a slate tint (222deg). Every contrast gate is still green. The before/after frame went to
+  Tre. The ask stays BLOCKED on his eye before layer 2 (accent and hierarchy, /budget first).
+- **`93d17f7e` CODE FIXED, `d0157fca`.** Stripe past_due no longer demotes plan to free. The
+  write lives in `_shared/stripe-plan-write.ts`, is tested end to end, and the gate is repointed.
+  **NOT DEPLOYED** - see item 1.
 
-**2. NEXT iOS BUILD** - it carries `099c4e14`. Dispatch it tomorrow (a new Apple day):
-`gh workflow run "iOS Build & Upload to App Store" --ref main`. Then read the upload step and
-altool's own words.
+**1. `74bcc253` - DEPLOY stripe-webhook** (deployed v64 predates d0157fca AND a18e531c). The only
+route is the MCP `deploy_edge_function`, with all 16 bundle files INLINE (~113k chars). The ask
+lists them. GATE: `get_edge_function`, then diff every file against HEAD (CR-stripped), and
+require all SAME. Then POST with no signature and require the function to answer. Keep
+`verify_jwt=false`. 0 paid Stripe subscribers today, so nobody is exposed. Do it in a fresh window.
 
-**3. `bb517b7b` - selector-bar consolidation.** Inventory done: **TWO** implementations.
-`PanelBar` is on eight surfaces (now nine, with Account's Analytics segment). Radix `TabsList`
-is on exactly one: **Plan**, which renders six text triggers as **two rows of three** at phone
-width. ⚠️ The hard part is still open: six icons that are clear WITHOUT labels, each with an
-accessible name, **and each tab carries a live COUNT that an icon has no place for.**
+**2. `021854ff` - Akoya secrets: BLOCKED on Tre's dashboard step** (the MCP has no secrets tool,
+and the CLI has no token). After he deletes the 5 `AKOYA_*` secrets, verify with a 503 from
+`akoya-auth-url` plus a positive control, then close the ask.
 
-**4. `a58fb610` dark-mode vibrancy** - the measurable half is DONE (490 elements, 0 below AA).
-What remains is a real design pass. `/budget` is the least colourful route, at 0.19% painted area.
+**3. NEXT iOS BUILD** carries 099c4e14 + 783210ed + 14166540 (none are on 994). Dispatch it on a
+new Apple day, then read the upload step and altool's own words.
+
+**4. Then the tracker:** `ask list --owner Ada`. Money-adjacent items go first
+(`585ec24a` debt-aware savings pacing, which Tre DECIDED on 09-18).
 
 ### Two things learned this session
 - **The Forecast Assumptions tutorial is a `div.modal-overlay` with NO `role=dialog`**, so
