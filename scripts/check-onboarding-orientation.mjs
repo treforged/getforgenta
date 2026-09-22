@@ -19,9 +19,12 @@
  *   2. the walk REACHES THE FINISH STEP by pressing the app's own controls, step by step
  *   3. the orientation block is ON SCREEN there, and NAMES EVERY DESTINATION - both lists
  *      DERIVED, from `primary-nav.ts` and from Account's own section bar, never typed here
- *   4. as a by-product it COUNTS the placeholders it met, which `check:placeholders` cannot
- *      reach: that gate walks routes and sees only fields rendered without interaction, so the
- *      onboarding steps are invisible to it (ask d694a896)
+ *   4. every placeholder it MEETS along the way FITS ITS FIELD at 390px. `check:placeholders`
+ *      walks ROUTES, so it sees only fields that render without interaction - 3 distinct
+ *      placeholders against 71 in source. The onboarding fields are invisible to it, and this
+ *      walk is the first instrument to reach any of them (ask d694a896). The measurement is the
+ *      SHARED one in `lib/placeholder-fit.mjs`, so the two walks cannot drift about what
+ *      "clipped" means.
  *
  * ── WHAT IT DOES NOT PROVE, stated rather than implied ───────────────────────────────────────
  * That the wording is good, that anyone reads it, or that the destinations are REACHABLE once
@@ -41,6 +44,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { READ_PLACEHOLDER_FIT, isClipped } from './lib/placeholder-fit.mjs';
 
 const BASE = 'http://localhost:8080';
 const MAX_STEPS = 20;           // the flow has 9; this is a runaway guard, not an expectation
@@ -215,7 +219,7 @@ try {
 
   // ── Drive the flow by pressing the app's OWN controls, step by step ────────────────────────
   let steps = 0;
-  let placeholdersSeen = new Set();
+  const placeholdersSeen = new Map();   // placeholder text -> worst reading anywhere in the flow
   let reachedFinish = false;
   const visited = [];
 
@@ -231,9 +235,14 @@ try {
     });
     visited.push(heading.slice(0, 30) || '(no heading)');
 
-    for (const p of await page.evaluate(() =>
-      [...document.querySelectorAll('input[placeholder]')].map((el) => el.getAttribute('placeholder')))) {
-      if (p) placeholdersSeen.add(p);
+    // MEASURE them, do not merely count them. `check:placeholders` walks routes and therefore
+    // sees only fields that render WITHOUT interaction - 3 distinct placeholders against 71 in
+    // source. These onboarding fields are invisible to it, and a count would have recorded that
+    // they exist while saying nothing about whether they FIT (ask d694a896).
+    // The measurement is the SHARED one, so the two walks cannot drift about what clipped means.
+    for (const f of await page.evaluate(READ_PLACEHOLDER_FIT)) {
+      const worst = placeholdersSeen.get(f.text);
+      if (!worst || f.overflowPx > worst.overflowPx) placeholdersSeen.set(f.text, f);
     }
 
     if (hasMarker(text, 'Your profile is set')) { reachedFinish = true; break; }
@@ -280,8 +289,12 @@ try {
   }
 
   console.log(`walked ${steps} step(s): ${visited.join(' | ')}`);
-  console.log(`placeholders met en route (invisible to check:placeholders): ${placeholdersSeen.size}`);
-  for (const p of placeholdersSeen) console.log(`  - ${JSON.stringify(p)}`);
+  const clipped = [...placeholdersSeen.values()].filter(isClipped);
+  console.log(`
+placeholders MEASURED en route (invisible to check:placeholders): ${placeholdersSeen.size}`);
+  for (const f of placeholdersSeen.values()) {
+    console.log(`  ${f.text.padEnd(34)} text ${String(f.textPx).padStart(4)}  avail ${String(f.availPx).padStart(4)}  over ${String(f.overflowPx).padStart(5)}`);
+  }
 
   if (!reachedFinish) {
     abort(2, `the walk never reached the finish step in ${MAX_STEPS} presses. It has examined no `
@@ -298,6 +311,19 @@ try {
   console.log(`  orientation heading present : ${hasHeading}`);
   console.log(`  nav destinations named      : ${NAV_LABELS.length - missingNav.length}/${NAV_LABELS.length}`);
   console.log(`  Account sections named      : ${ACCOUNT_SECTIONS.length - missingSections.length}/${ACCOUNT_SECTIONS.length}`);
+
+  // A measurement with no route to the exit code is decoration - this repo names that family
+  // explicitly. Clipped placeholders FAIL the walk.
+  if (clipped.length) {
+    console.error(`
+FAIL: ${clipped.length} placeholder(s) are cut off at 390px during first run.`);
+    for (const f of clipped) {
+      console.error(`  ${JSON.stringify(f.text)} needs ${f.textPx}px, has ${f.availPx}px - over by ${f.overflowPx}px`);
+    }
+    console.error('A placeholder in a single-line input CANNOT wrap. Shorten it, or move the');
+    console.error('wording to a label that stays - see PartnerLink.tsx for the worked example.');
+    exitCode = 1;
+  }
 
   if (!hasHeading || missingNav.length || missingSections.length) {
     console.error('\nFAIL: the orientation is missing or incomplete ON SCREEN.');

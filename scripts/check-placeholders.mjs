@@ -51,6 +51,7 @@
 // EXITS: 0 nothing clipped . 1 at least one field clips . 2 could not measure (which includes
 // the positive control failing, because that is an instrument fault and not a finding).
 import { readFileSync } from 'node:fs';
+import { READ_PLACEHOLDER_FIT } from './lib/placeholder-fit.mjs';
 
 const BASE = 'http://localhost:8080';
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
@@ -122,52 +123,9 @@ const dismiss = async () => {
   return page.evaluate(() => !document.querySelector('[role="dialog"], [role="alertdialog"]'));
 };
 
-const readFields = () => page.evaluate(() => {
-  const canvas = document.createElement('canvas');
-  const c2d = canvas.getContext('2d');
-  const out = [];
-  for (const el of document.querySelectorAll('input[placeholder]')) {
-    const text = el.getAttribute('placeholder') || '';
-    if (!text.trim()) continue;
-    const st = getComputedStyle(el);
-    if (st.display === 'none' || st.visibility === 'hidden') continue;
-    const box = el.getBoundingClientRect();
-    if (box.width < 2 || box.height < 2) continue;   // a 0x0 wrapper is not a rendered field
-
-    // The browser lays the placeholder out in the field's own font, so measure in that font.
-    c2d.font = `${st.fontStyle} ${st.fontWeight} ${st.fontSize} / ${st.lineHeight} ${st.fontFamily}`;
-    const textPx = c2d.measureText(text).width;
-
-    // clientWidth already excludes the border but INCLUDES padding, which the text cannot use.
-    const padL = parseFloat(st.paddingLeft) || 0;
-    const padR = parseFloat(st.paddingRight) || 0;
-    let avail = el.clientWidth - padL - padR;
-
-    // An icon absolutely positioned over the field eats width that padding does not describe.
-    // Subtract any absolute sibling that overlaps the field's own box.
-    const parent = el.parentElement;
-    if (parent) {
-      for (const sib of parent.children) {
-        if (sib === el) continue;
-        const ss = getComputedStyle(sib);
-        if (ss.position !== 'absolute') continue;
-        const sb = sib.getBoundingClientRect();
-        if (sb.width < 1 || sb.right < box.left || sb.left > box.right) continue;
-        avail -= Math.min(sb.width, box.width);
-      }
-    }
-
-    out.push({
-      text,
-      textPx: Math.round(textPx),
-      availPx: Math.round(avail),
-      overflowPx: Math.round(textPx - avail),
-      // Recorded ONLY to show it is blind here. Never gate on it.
-      swGtCw: el.scrollWidth > el.clientWidth,
-    });
-  }
-  return out;
-});
+// The measurement itself lives in `lib/placeholder-fit.mjs`, shared with the walks that can
+// reach fields this route-walk cannot - see that file for why a copy would be wrong here.
+const readFields = () => page.evaluate(READ_PLACEHOLDER_FIT);
 
 const seen = new Map();          // placeholder text -> worst reading anywhere
 let routesRead = 0;
