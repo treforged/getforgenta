@@ -48,6 +48,7 @@ import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { isRuleOccurrenceConfirmed } from '@/lib/confirmed-capture';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
+import ShareDebtFreeButton from './ShareDebtFreeButton';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { resolveSyncCutoffDate, fallsAfterDueDate } from '@/lib/sync-cutoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
@@ -1526,7 +1527,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   );
                 }
                 if (eta <= 0) {
-                  return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>;
+                  return (
+                    <>
+                      <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>
+                      <div className="mt-1"><ShareDebtFreeButton etaMonth={0} /></div>
+                    </>
+                  );
                 }
                 // eta is 1-INDEXED (month 1 = this month) — the same convention Forecast maps to a
                 // row via `rawPayoffMonth - 1`. Printing it as "3 mo" read as three months FROM NOW
@@ -1544,6 +1550,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
                       {monthsAway === 0 ? 'this month' : `in ${monthsAway} mo`}
                     </p>
+                    {/* The same `eta` this cell prints, so the card and the header name one month. */}
+                    <div className="mt-1"><ShareDebtFreeButton etaMonth={eta} /></div>
                   </>
                 );
               })()}

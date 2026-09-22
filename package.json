@@ -17,6 +17,7 @@
     "check:account": "node scripts/check-account-sections.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",
     "check:share-card": "node scripts/check-share-card.mjs",
+    "check:share-button": "node scripts/check-share-button.mjs",
     "check:accounts-groups": "node scripts/check-accounts-groups.mjs",
     "check:topright": "node scripts/inventory-top-right-space.mjs",
     "check:concentricity": "node scripts/check-concentricity.mjs",
