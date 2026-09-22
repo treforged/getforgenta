@@ -2,6 +2,11 @@
 
 ## Resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
+**STATE AT CLOSE (2026-09-22 ~19:40 ET): this desk's queue was EXHAUSTED.** Every live Ada ask is blocked with
+a written reason or waits on Tre (`0006cc41`, `5ee1669a` MacBook paused). All work is pushed, origin 0/0. The one
+actionable thing is item 3, the next iOS build, gated on a new Apple upload day. It carries the share card and
+three placeholder fixes. After it uploads, test the NATIVE share sheet on a device. No gate here covers it.
+
 **✅ DONE THIS SESSION** (details are in each ask's evidence):
 - **iOS build 994 (v6.8) UPLOADED.** Run 35788527035 cut from `baf81eb9`. The upload step shows
   `success`, and altool printed "UPLOAD SUCCEEDED with no errors". `e6dec4f0` is closed. gh auth
