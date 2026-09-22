@@ -294,6 +294,31 @@ JUSTIFIED BY MEASUREMENT rather than guessed, which is what this ask was stuck o
 
 </details>
 
+### 🔎 `bb517b7b` SCOPED IN FULL - AND HALF OF IT WAS ALREADY BUILT
+**The second capture was TRUNCATED, which is why this sat mis-scoped for four days as a layout
+ask.** Read in full from the inbox (`1789750186645-295b6966`), it ends: *"also make sure username
+entry in restricted from bad words and cant be used as an entry point for attacks. same protects
+as all the other entry points."*
+
+✅ **THE SECURITY HALF IS SHIPPED, SERVER-SIDE, AND GATED. DO NOT REBUILD IT.**
+`supabase/migrations/20260918_username_allowed_server_side.sql` quotes his exact words and adds
+`username_is_allowed()`. Its measured notes: the `^[a-z][a-z0-9_]*$` CHECK is a strict ASCII
+allowlist, **so confusables, zero-width characters, HTML, quotes and path separators cannot be
+stored at all** - the injection half was already closed; the lookup functions are bound-parameter
+`LANGUAGE sql` with no dynamic EXECUTE; changes are rate-limited 2 per 7 days. What it FIXED:
+`RESERVED_USERNAMES` was **browser-only**, so a caller going straight at PostgREST could have
+claimed `support`/`admin`/`billing`/`forgenta`. `username-lists.gate.test.ts` keeps the two lists
+in step - **RAN today, 37 passed.**
+
+❗ **WHAT REMAINS IS THE SELECTOR BAR, and the inventory is done: TWO implementations.**
+`PanelBar` on EIGHT surfaces, radix `TabsList` on exactly ONE - **Plan (`BudgetControl.tsx:1487`),
+the page he was looking at**, and the only surface not "like all the other tabs". At phone width
+its six triggers render as **TWO ROWS OF THREE** (`grid-cols-3`), in text. Consolidating Plan onto
+`PanelBar` fixes both halves he named.
+⚠️ **The hard part is unwaived:** six "easily discernable" icons for Income/Fixed/Subs/Variable/
+Debt/Transfers, each needing an accessible name - **and each label currently carries a live COUNT
+that an icon has nowhere to put.** Losing it is a product decision, not a port.
+
 ### ⇢ NEXT UP
 Resume queue A-D is EXHAUSTED. Take from the tracker: **`fe8839c2`** (Tre APPROVED, "8.
 approved." - act on `035ffb29`'s three dashboard cards, and **re-read 035ffb29's own text first**
