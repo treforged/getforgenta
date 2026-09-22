@@ -49,24 +49,31 @@ const BASE = 'http://localhost:8080';
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 
 /**
- * ⚠️ `/budget` WAS MISSING FROM THIS LIST UNTIL 2026-09-22, WHICH IS THE PAGE THE COMPLAINT WAS
- * ABOUT. Tre, 2026-09-18, on the Plan page: "can we make the design better on this page? It
- * looks a little dull. And theres some empty spacing where I think it could just be just better
- * in general." This inventory exists to answer exactly that class of complaint by measurement -
- * and it walked nine routes, none of them the one he named.
+ * ⚠️ THE PLAN PAGE WAS UNMEASURED, AND IT IS `/transactions?tab=budget`, NOT `/budget`.
+ * Tre, 2026-09-18, about Plan: "can we make the design better on this page? It looks a little
+ * dull. And theres some empty spacing..." (ask d391e98b). This inventory exists to answer that
+ * class of complaint by measurement and could not see the screen he meant.
  *
- * A HAND-NAMED LIST IS BLIND TO THE ROUTE NOBODY ADDED TO IT, and that is the third instance of
- * this same family found in this repo today. Note also that `check-dark-contrast.mjs` carries a
- * DIFFERENT hand-named list which DOES include `/budget` - two instruments, two lists, neither
- * derived, silently disagreeing about which app they are measuring.
+ * ⚠️ AND `/budget` IS A REDIRECT, WHICH IS WHY ADDING IT BARE WAS WRONG. `App.tsx:332` routes it
+ * to `<BudgetRedirect />`, which sends the browser to `/transactions?tab=budget`. Plan has not
+ * been a page since Tre asked for fewer tabs on 2026-08-18 - it is a PANEL of Transactions.
+ * Adding `/budget` therefore measured the Transactions default tab a second time under a name
+ * that suggested otherwise.
  *
- * Deriving both from `App.tsx`'s declared routes is the real fix and is a slice of its own
- * (`walk:routes` already derives its list that way, so the pattern exists). Until then, adding
- * the page somebody actually asked about beats leaving it unmeasured.
+ * ⚠️ AND THE `title` COLUMN WAS NEVER WRONG, THOUGH IT WAS BRIEFLY FILED AS A DEFECT. It reports
+ * "Transactions" for `/budget` and `/forecast` because BOTH REDIRECT THERE - `/forecast` is
+ * `<Navigate to="/transactions?tab=forecast">` at `App.tsx:347`. The `h1` selector was telling
+ * the truth about where the browser ACTUALLY LANDED; it was compared against a component that
+ * route no longer renders. Three routes sharing one title is exactly what three redirects to one
+ * surface look like.
+ *
+ * The lists here and in `check-dark-contrast.mjs` are still both HAND-NAMED and still disagree;
+ * `walk:routes` already derives its list from `App.tsx`, so pointing both at that is the real
+ * fix and is its own slice.
  */
 const ROUTES = [
-  '/dashboard', '/transactions', '/budget', '/debt', '/vehicles', '/account',
-  '/settings', '/accounts', '/forecast', '/goals',
+  '/dashboard', '/transactions', '/transactions?tab=budget', '/debt', '/vehicles',
+  '/account', '/settings', '/accounts', '/forecast', '/goals',
 ];
 const VIEWPORTS = [
   { label: 'phone', width: 390, height: 844 },
