@@ -105,7 +105,10 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
             {nameError && <p className="text-xs text-destructive-text mt-1">{nameError}</p>}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          {/* Two columns on a phone, three from `sm` up. Three equal columns left each field about 64px
+              of text room at 390px, so the Model example ("Corvette", 79px) was cut off - found by
+              check:placeholders:opened. Model takes the full second row on a phone instead. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className={labelCls}>Year</label>
               <input
@@ -126,7 +129,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
                 placeholder="Chevy"
               />
             </div>
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <label className={labelCls}>Model</label>
               <input
                 className={inputCls}

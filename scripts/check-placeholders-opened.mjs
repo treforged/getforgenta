@@ -11,6 +11,7 @@
  *   signed out  /auth -> Start Free            ("Your name", "Re-enter your password")
  *   signed out  /auth -> Sign In -> Forgot?    (reset form)
  *   signed in   /settings -> Security          ("New email address", the three password fields)
+ *   signed in   /vehicles?tab=builds -> New Build   (the build form), then Log Service if a build exists
  *   signed in   /settings -> Security -> Delete account   ("DELETE") - REVEAL ONLY. The confirm
  *               field is measured and NOTHING is typed into it; the walk account must survive.
  *
@@ -105,6 +106,30 @@ async function measure(page, stop, mustSee) {
   await measure(p, 'settings delete-confirm', ['DELETE']);
   const typed = await p.evaluate(() => [...document.querySelectorAll('input[placeholder="DELETE"]')].map((i) => i.value));
   if (typed.some((v) => v !== '')) await done(2, 'SAFETY: the DELETE field is not empty - stop and check the walk account');
+  await p.context().close(); }
+
+{ const p = await freshPage(true);
+  await p.goto(`${BASE}/vehicles?tab=builds`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(3000);
+  // "New Build" and, on an account with no builds yet, "Create Your First Build" open the same modal.
+  const newBuild = p.getByRole('button', { name: /^(New Build|Create Your First Build)$/ }).first();
+  try { await newBuild.waitFor({ timeout: 20000 }); await newBuild.click(); }
+  catch { await done(2, 'garage build-form: never found "New Build" to press'); }
+  await p.waitForTimeout(700);
+  await measure(p, 'garage build-form', ['e.g. 2004 C5 Corvette', '2004', 'Chevy', 'Corvette']);
+  if (process.env.SHOT_BUILD_FORM) await p.screenshot({ path: process.env.SHOT_BUILD_FORM });
+  await p.keyboard.press('Escape');
+  await p.waitForTimeout(500);
+  // OPTIONAL STOP, and it says so rather than passing silently: "Log Service" exists only once
+  // the account has a build, and this walk never creates data.
+  const logService = p.getByRole('button', { name: /Log Service/ }).first();
+  if (await logService.count()) {
+    await logService.click();
+    await p.waitForTimeout(700);
+    await measure(p, 'garage maintenance-form', ['e.g. Oil Change', 'e.g. Discount Tire, DIY']);
+  } else {
+    console.log(`${'garage maintenance-form'.padEnd(34)} NOT MEASURED - the walk account has no build, so "Log Service" is absent`);
+  }
   await p.context().close(); }
 
 await browser.close();
