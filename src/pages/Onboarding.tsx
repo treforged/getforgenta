@@ -773,6 +773,39 @@ export default function Onboarding() {
                   </button>
                 </div>
 
+              {/*
+                WHERE THINGS ARE. The 2026-09-18 inventory found this flow teaching a layout the
+                app no longer has, and the OMISSIONS were the larger half of it: first run named
+                the Account tab's five sections NOWHERE, and taught the bottom bar not at all.
+
+                ⚠️ THE BOTTOM BAR IS ICON-ONLY AND THE ACCOUNT SECTION BAR IS ICON-ONLY, so a
+                first-run user is handed ten controls carrying no words at all. That is exactly
+                the population this matters to: 23 of 29 real users have not opened the app in a
+                month, and this portfolio already records that most users only ever saw first run.
+                Naming the destinations once, here, is the cheapest thing that can be done about
+                it - and it is the LAST thing read before they tap into the app.
+
+                ⚠️ EVERY NAME BELOW IS ONE THE APP ACTUALLY RENDERS, and that is now enforced
+                rather than promised: `copy-pointers.gate.test.ts` checks this class, and the
+                names come from `PRIMARY_NAV` and Account's own section bar. This is the copy the
+                gate was built to protect, which is why it was built first.
+              */}
+              <div className="border border-border bg-secondary px-3 py-2.5 space-y-1.5" style={{ borderRadius: 'var(--radius)' }}>
+                <p className="text-[10px] font-semibold text-foreground">Where things are</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  The bar at the bottom has five icons:{' '}
+                  <strong className="text-foreground">Home</strong> for what needs paying next,{' '}
+                  <strong className="text-foreground">Transactions</strong> for what you have spent,{' '}
+                  <strong className="text-foreground">Debt</strong> for payoff,{' '}
+                  <strong className="text-foreground">Garage</strong> for vehicles, and{' '}
+                  <strong className="text-foreground">Account</strong> for everything else.
+                </p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Inside <strong className="text-foreground">Account</strong> you will find{' '}
+                  Profile, Leaderboard, Achievements, Learn and Forgenta AI.
+                </p>
+              </div>
+
               {/* App lock hint. NATIVE ONLY, and that is the fix rather than a detail: this used to read
                   `isNativePlatform() || typeof window !== 'undefined'`, whose right-hand side is TRUE IN
                   EVERY BROWSER — so the `||` made it unconditional on web while `AppLockSettings` opens
