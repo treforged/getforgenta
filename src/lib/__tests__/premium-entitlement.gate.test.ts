@@ -92,11 +92,18 @@ const ALLOWLIST: {
   stillJustified: (src: string, hit: Hit) => boolean;
 }[] = [
   {
-    file: 'supabase/functions/stripe-webhook/index.ts',
+    // Moved out of stripe-webhook/index.ts on 2026-09-22 (ask 93d17f7e) so the write can be
+    // unit-tested. Still justified only while past_due returns BEFORE the list is consulted and
+    // the list still drives a premium/free write - see stripe-plan-write.test.ts.
+    file: 'supabase/functions/_shared/stripe-plan-write.ts',
     why: 'It is the WRITER, and sub.status is Stripe own namespace. Accepting past_due here '
        + 'would write plan: premium permanently - granting premium for ever instead of grace.',
-    stillJustified: (src, hit) =>
-      /plan:\s*isActive\s*\?/.test(src.split('\n').slice(hit.line - 1, hit.line + 40).join('\n')),
+    stillJustified: (src, hit) => {
+      const lines = src.split('\n');
+      const before = lines.slice(0, hit.line - 1).join('\n');
+      const after = lines.slice(hit.line - 1, hit.line + 5).join('\n');
+      return /past_due['"]\)\s*return\s*\{\s*\}/.test(before) && /plan:\s*isActive\s*\?/.test(after);
+    },
   },
   {
     file: 'supabase/functions/plaid-sync-all/index.ts',

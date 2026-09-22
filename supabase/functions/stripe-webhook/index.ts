@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@22.1.1";
 import { createTracer } from "../_shared/tracer.ts";
+import { stripePlanWrite } from "../_shared/stripe-plan-write.ts";
 import { unlinkAllConnections } from "../_shared/revoke-connections.ts";
 
 const corsHeaders = {
@@ -195,8 +196,6 @@ Deno.serve(async (req) => {
       dbLookupSpan.end("OK");
 
       if (userSub) {
-        const isActive = ["active", "trialing"].includes(sub.status);
-
         // ── DB: update subscription status ────────────────────────────
         const dbUpdateSpan = tracer.startSpan("db.user_subscriptions.update", {
           parentSpanId: rootSpan.spanId,
@@ -210,7 +209,8 @@ Deno.serve(async (req) => {
         });
         const { error } = await supabase.from("user_subscriptions").update({
           subscription_status: sub.status,
-          plan: isActive ? "premium" : "free",
+          // past_due writes NO plan - see _shared/stripe-plan-write.ts for why (ask 93d17f7e).
+          ...stripePlanWrite(sub.status),
           current_period_end: toISO(getPeriodEnd(sub)),
           stripe_subscription_id: sub.id,
           cancel_at_period_end: sub.cancel_at_period_end ?? false,
