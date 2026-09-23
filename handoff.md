@@ -1,6 +1,38 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~15:40Z (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~16:00Z (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **ALIGN THE DEMO HARNESS WITH THE APP (`16147de8`).** `runDemoCardProjection` /
+   `runDemoForecastWithCards` (src/lib/__tests__/fixtures/demo-forecast-harness.ts) pass debts, goals, carFunds
+   and transactions as EMPTY. The app passes all four. So Ruby's lines say the demo cards clear "Dec 2026", while
+   /demo says **May 2028**. Before cd7e1ea2 they said Dec 2027 against "never". The app-faithful input mapping
+   already exists in `demo-persona-clears.engine.test.ts` (`demoAsTheAppRunsIt`): lift it into the harness and
+   re-derive demo-marketing-lines. Keep `payment-pin-semantics` on its frozen `PIN_BASELINE_PERSONA`. Ruby holds
+   every acceleration line until this lands (19fe18ea). The forecast half of the harness also omits goals and car
+   funds in `demoForecastMonthEvents`. Check what `useForecastEngineInputs` does with them before copying.
+2. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
+   plaid-sync-all, financial-sync, plaid-sync). The auto-mode classifier refused them as [Production Deploy], so
+   deploy only on Tre's "deploy" in THIS desk's session. Method that worked (plaid-create-link-token v59, ai-advisor
+   v64): MCP deploy_edge_function with every bundle file named `functions/<path>` and verify_jwt unchanged, then
+   test on the walk account with a premium+past_due vs premium+canceled row, then delete the row.
+3. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
+   b18ac1f8 on/after 10-14.
+4. Residue from the persona work, not yet asked for: the Civic and RAV4 figures (28,000 / 5,600 / 2,000 / 27,500 /
+   34,000) still end in 00 against spec §3. The new gate asserts the SIM payoff (16 mo on 09-23); the Dashboard shows
+   the forecast-adjusted date (20 mo). With the Civic 8 months out, payoff flipped between clearing and "never" from
+   one date to the next, which may be an engine sensitivity worth a look.
+5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+<details><summary>Done 2026-09-23 ~16:00Z (15:40Z queue)</summary>
+
+- ✅ `43591a28` persona: `cd7e1ea2`. The measured cause was that car funds alone blocked payoff, plus four double counts.
+  Weekly gross 968 -> 1,182; Civic purchase moved from 8 to 48 months out. Gate `demo-persona-clears.engine.test.ts`
+  checks 24 re-imported dates on the app's inputs and is red on the old fixture. Live /demo: May 2028.
+- ✅ `b5d50551` stale demo copy: `5dc058a0` and `a9d54b07`. Nine false guide statements, now written with no figures.
+- ✅ `231e374c` captures: `2d68931b`, marketing/app-store/2026-09-23 (8 frames, 1290x2796 dark, README with
+  provenance). Sent to Ruby for 781edc28. Nothing is uploaded.
+
+### (superseded) Resume queue - 2026-09-23 ~15:40Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
 1. **TUNE THE DEMO PERSONA (`43591a28`) - Sam said GO 2026-09-23.** /demo is the first look for a prospect and the only
    source for store images. At 430x932 in dark it opens on "YOUR CARD PAYOFF DATE: Not within 5 years" and "Sep 2026:
@@ -25,6 +57,8 @@
 4. Standing `e1b0fffc` (Sam: the desk that holds it is not out of work). The text pass is done (see 1e below).
    Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z, b18ac1f8 on/after 10-14.
 5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+</details>
 
 <details><summary>Earlier today (14:10Z queue, done)</summary>
 
