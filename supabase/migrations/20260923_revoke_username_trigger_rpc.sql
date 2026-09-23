@@ -1,0 +1,12 @@
+-- enforce_username_change_limit() is a TRIGGER function (profiles.profiles_username_change_limit),
+-- but PUBLIC, anon and authenticated held EXECUTE, so the Supabase advisor listed it as a
+-- SECURITY DEFINER function reachable at /rest/v1/rpc/enforce_username_change_limit without
+-- sign-in (lint 0028, the only anon-facing WARN on the project). PostgREST refuses to call a
+-- trigger function directly, so this is hygiene, not a live hole - but nothing needs the grant.
+--
+-- Postgres checks EXECUTE on a trigger function only at CREATE TRIGGER, never when it fires.
+-- PROVEN before applying, in a rolled-back transaction: with the grants revoked, an
+-- authenticated owner's username change still inserted a username_changes row (1 -> 2).
+--
+-- Undo: grant execute on function public.enforce_username_change_limit() to public, anon, authenticated;
+revoke execute on function public.enforce_username_change_limit() from public, anon, authenticated;
