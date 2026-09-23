@@ -24,7 +24,13 @@
 5. ✅ FORM FIELD NAMES DONE: 0 of 138 fields unnamed app-wide. field-name.gate.test.ts is now a CENSUS (comments blanked,
    3 instrument controls), red on removing one real label. onboarding Input/Select REQUIRE a `label` prop, so tsc
    flags any new caller.
-5b. ✅ SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
+5b. ✅ ALL 14 MODAL-OVERLAY FILES ARE DIALOGS (2026-09-23): NOT_YET_DIALOGS is EMPTY. Every panel has role=dialog
+   (Accounts delete = alertdialog) + aria-modal + aria-label. Escape everywhere EXCEPT the Accounts bank-linked card
+   (its only exit is Done/Match Accounts). AppLock setup + AppTour DO get Escape: the lock setup is an offer whose X is
+   always available, and the tour's backdrop already dismisses. Escape = onClose (discard), matching FormModal, not the
+   backdrop's save-if-dirty. Test: src/components/shared/__tests__/popup-dialogs.test.tsx (proven red). Focus trap still
+   not done. check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
+   OLD 5b: SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
    src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
    CENSUS GATE BUILT: src/lib/__tests__/modal-dialog-role.gate.test.ts, a shrink-only list of 14 files. Fix a file = remove it
    from NOT_YET_DIALOGS (the gate fails if you forget). DO NOT give Escape to AppLockSetupModal, AppTour or ConsentBanner

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 const PREMIUM_FEATURES = [
   'Advanced dashboard & analytics',
@@ -24,6 +25,7 @@ export default function SubscriptionExpiryBanner() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEscapeToClose(() => setShowModal(false), showModal);
   if (!subscription?.cancel_at_period_end || dismissed) return null;
   if (!subscription.current_period_end) return null;
 
@@ -123,6 +125,9 @@ export default function SubscriptionExpiryBanner() {
           onClick={() => setShowModal(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Premium Features"
             className="card-forged p-5 w-full max-w-sm space-y-4"
             onClick={(e) => e.stopPropagation()}
           >

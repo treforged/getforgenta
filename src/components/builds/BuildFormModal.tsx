@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import type { CarBuild, CarFund } from '@/lib/types';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 interface BuildFormModalProps {
   open: boolean;
@@ -48,6 +49,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
     }
   }, [open, build]);
 
+  useEscapeToClose(onClose, open);
   if (!open) return null;
 
   /** Pristine dismisses; anything typed goes through the validating save. */
@@ -80,7 +82,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
 
   return (
     <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={dismiss}>
-      <div className="bg-card border border-border rounded w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={build ? 'Edit Build' : 'New Build'} className="bg-card border border-border rounded w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <span className="text-sm font-semibold text-foreground">
             {build ? 'Edit Build' : 'New Build'}

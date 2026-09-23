@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { BookOpen, X, Info, BarChart2 } from 'lucide-react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 type Section = { title: string; body: string; group?: string };
 
@@ -11,6 +12,7 @@ type Props = {
 
 export default function InstructionsModal({ pageTitle, sections }: Props) {
   const [open, setOpen] = useState(false);
+  useEscapeToClose(() => setOpen(false), open);
 
 // ⚠️ ONLY THE OVERLAY IS PORTALLED, and the trigger is not. See `CalcDrawer.tsx`
 // for why the overlay has to be: on iOS WebKit a `position: fixed` overlay
@@ -46,6 +48,9 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
           onClick={() => setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`How to use ${pageTitle}`}
             className="card-forged w-full max-w-lg flex flex-col"
             style={{ maxHeight: '100%' }}
             onClick={e => e.stopPropagation()}

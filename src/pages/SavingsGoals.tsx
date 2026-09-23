@@ -31,6 +31,7 @@ import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { legendLabel } from '@/components/shared/chart-legend';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
@@ -100,6 +101,7 @@ function GoalLumpSumModal({
     onSave(date, amt);
   };
 
+  useEscapeToClose(onClose);
   return (
     <div
       className="modal-overlay z-60"
@@ -107,6 +109,9 @@ function GoalLumpSumModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={mode === 'add' ? 'Add Contribution' : 'Edit Contribution'}
         className="card-forged w-full sm:max-w-md flex flex-col rounded-(--radius)"
         style={{ maxHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}

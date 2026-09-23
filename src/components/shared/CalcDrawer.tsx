@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { Info, X, ChevronRight } from 'lucide-react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 /**
  * The "how was this calculated" drawer.
@@ -39,6 +40,7 @@ export default function CalcDrawer({
   footnote?: string;
   zIndex?: number;
 }) {
+  useEscapeToClose(onClose, open);
   if (!open) return null;
 
 /**
@@ -63,6 +65,9 @@ export default function CalcDrawer({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="card-forged w-full max-w-sm sm:max-w-md flex flex-col"
         style={{ maxHeight: '100%' }}
         onClick={(e) => e.stopPropagation()}

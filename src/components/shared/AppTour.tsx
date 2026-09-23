@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { NEW_USER_STEPS, PREMIUM_STEPS } from '@/lib/tour-steps';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 export type TourVariant = 'new-user' | 'premium';
 
@@ -106,6 +107,8 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
     onDone?.();
   };
 
+  // The backdrop already dismisses the tour, so Escape does the same.
+  useEscapeToClose(() => { void dismiss(); }, visible);
   if (!visible) return null;
 
   return (
@@ -115,6 +118,9 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
 
       {/* Card */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="App tour"
         className="relative z-10 w-full max-w-sm card-forged p-5 space-y-4"
         style={{ boxShadow: '0 0 40px -8px hsl(43 56% 52% / 0.25)' }}
       >

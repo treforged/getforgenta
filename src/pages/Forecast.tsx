@@ -39,6 +39,7 @@ import CashFlowOverviewCard from '@/components/dashboard/CashFlowOverviewCard';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -294,6 +295,7 @@ export default function Forecast() {
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 12) : filteredData;
 
+  useEscapeToClose(() => setAssumptionsTutorialSeen(true), !isDemo && !assumptionsTutorialSeen);
   if (forecastInputsLoading) return <ForecastSkeleton />;
 
   return (
@@ -304,7 +306,7 @@ export default function Forecast() {
           style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}
           onClick={() => setAssumptionsTutorialSeen(true)}
         >
-          <div className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4 overflow-y-auto popup-scroll" style={{ maxHeight: '100%' }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Forecast Assumptions" className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4 overflow-y-auto popup-scroll" style={{ maxHeight: '100%' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Settings2 size={14} className="text-primary shrink-0" /> Forecast Assumptions</h2>
               <button aria-label="Dismiss" onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>

@@ -39,6 +39,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 interface MatchEntry {
   plaidAccount: PlaidSyncedAccount & { plaid_account_id?: string };
   matchedAccountId: string | null; // null = keep as new
@@ -760,6 +761,9 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   // confident $0.00s. They moved to the Dashboard's overview strip on 2026-08-22 and the gate
   // went with them; holding the account LIST behind three queries it never reads was just a
   // slower page.
+  // The bank-linked card gets no Escape: it has no backdrop close and its only exit is a forward step
+  // (Done / Match Accounts), which Escape must not skip.
+  useEscapeToClose(() => setDeleteConfirm(null), deleteConfirm !== null);
   if (loading) return <AccountsSkeleton />;
 
   return (
@@ -767,7 +771,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {/* Plaid link success overlay */}
       {plaidSyncResult && !plaidSyncing && (
         <div className="modal-overlay z-70 bg-background/85 backdrop-blur-sm">
-          <div className="card-forged w-full max-w-sm p-5 flex flex-col gap-4">
+          <div role="dialog" aria-modal="true" aria-label={`${plaidSyncResult.institutionName} linked`} className="card-forged w-full max-w-sm p-5 flex flex-col gap-4">
             <div className="flex flex-col items-center text-center gap-1.5">
               <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
                 <Link2 size={22} className="text-success" />
@@ -829,7 +833,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {/* Delete account confirmation modal */}
       {deleteConfirm && (
         <div className="modal-overlay z-70 bg-background/85 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
-          <div className="card-forged w-full max-w-sm p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+          <div role="alertdialog" aria-modal="true" aria-label={`Delete ${deleteConfirm.name}`} className="card-forged w-full max-w-sm p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
                 <Trash2 size={18} className="text-destructive-text" />

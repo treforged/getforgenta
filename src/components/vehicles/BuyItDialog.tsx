@@ -4,6 +4,7 @@ import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { getLoanPrincipal } from '@/lib/vehicle-loan-engine';
 import type { CarFund } from '@/lib/types';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 /**
  * "I bought it" — the dialog that turns a saving-phase plan into a real loan.
@@ -72,6 +73,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
     });
   };
 
+  useEscapeToClose(onClose);
   return (
     <div
       className="modal-overlay z-60"
@@ -79,6 +81,9 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Start Loan Tracking - ${cf.vehicle_name}`}
         className="card-forged w-full sm:max-w-sm flex flex-col rounded-(--radius)"
         style={{ maxHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}

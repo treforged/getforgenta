@@ -6,6 +6,7 @@ import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { SERVICE_PRESETS, computeNextDue } from '@/lib/car-maintenance';
 import type { CarMaintenanceLog } from '@/lib/types';
 import type { TransactionRow } from '@/hooks/useSupabaseData';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 export type MaintenanceFormValues = {
   service: string;
@@ -134,6 +135,7 @@ export default function MaintenanceFormModal({
     setPresetsOpen(!log);
   }, [open, log, lastOdometer, linkedTx]);
 
+  useEscapeToClose(onClose, open);
   if (!open) return null;
 
   /** Pristine dismisses; anything typed goes through the validating save. */
@@ -258,6 +260,9 @@ export default function MaintenanceFormModal({
   return (
     <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={dismiss}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={log ? 'Edit Service' : 'Log Service'}
         className="bg-card border border-border rounded w-full max-w-md shadow-2xl max-h-full overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >

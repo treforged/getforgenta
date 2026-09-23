@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { Fingerprint, KeyRound, X, Delete, CheckCircle2 } from 'lucide-react';
 import { useAppLock } from '@/hooks/useAppLock';
 import { toast } from 'sonner';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 type Step = 'intro' | 'pin-entry' | 'pin-confirm' | 'bio-pin-entry' | 'bio-pin-confirm' | 'done';
 
@@ -93,6 +94,16 @@ export default function AppLockSetupModal() {
     }
   }, [confirmPin, pin, flow, setupPin, setupBiometricWithPin]);
 
+  // Escape does exactly what the always-available X (handleDismiss, below) does. This is the OFFER to
+  // set a lock, not the lock screen, so it is dismissible. Inlined because a hook cannot sit below the
+  // early return, and a forward reference to handleDismiss trips the compiler lint.
+  useEscapeToClose(() => {
+    setStep('intro');
+    setPin('');
+    setConfirmPin('');
+    setError(false);
+    dismissSetupModal();
+  }, showSetupModal);
   if (!showSetupModal) return null;
 
   const handleDismiss = () => {
@@ -116,7 +127,7 @@ export default function AppLockSetupModal() {
 
   return (
     <div className="modal-overlay z-9998 bg-background/80 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-background border border-border shadow-xl flex flex-col items-center gap-6 p-6 relative" style={{ borderRadius: 'var(--radius)' }}>
+      <div role="dialog" aria-modal="true" aria-label="Set up app lock" className="w-full max-w-sm bg-background border border-border shadow-xl flex flex-col items-center gap-6 p-6 relative" style={{ borderRadius: 'var(--radius)' }}>
 
         {/* Dismiss (always available) */}
         <button aria-label="Close"

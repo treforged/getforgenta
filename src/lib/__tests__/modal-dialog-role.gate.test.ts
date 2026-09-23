@@ -18,22 +18,9 @@ import { join, relative } from 'node:path';
 
 const SRC = join(__dirname, '..', '..');
 
-const NOT_YET_DIALOGS = new Set<string>([
-  'components/builds/BuildFormModal.tsx',
-  'components/builds/MaintenanceFormModal.tsx',
-  'components/dashboard/SubscriptionExpiryBanner.tsx',
-  'components/shared/AppLockSetupModal.tsx',
-  'components/shared/AppTour.tsx',
-  'components/shared/CalcDrawer.tsx',
-  'components/shared/InstructionsModal.tsx',
-  'components/vehicles/BuyItDialog.tsx',
-  'components/vehicles/LumpSumPanel.tsx',
-  'pages/Accounts.tsx',
-  'pages/BudgetControl.tsx',
-  'pages/Forecast.tsx',
-  'pages/SavingsGoals.tsx',
-  'pages/Transactions.tsx',
-]);
+// Emptied 2026-09-23: all 14 files fixed. Keep the Set so a regression has a place to be named,
+// but nothing may be added back without a reason in the commit.
+const NOT_YET_DIALOGS = new Set<string>([]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

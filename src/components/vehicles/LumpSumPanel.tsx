@@ -5,6 +5,7 @@ import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { formatCurrency } from '@/lib/calculations';
 import type { LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { addMonthsStr } from './vehicle-format';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 /**
  * Planned extra payments against a vehicle loan — the modal that adds them, the grouping that
@@ -50,6 +51,7 @@ function LumpSumModal({
     onSave(entries);
   };
 
+  useEscapeToClose(onClose);
   return (
     <div
       className="modal-overlay z-60"
@@ -57,6 +59,9 @@ function LumpSumModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={mode === 'add' ? 'Add Extra Payment' : 'Edit Extra Payment'}
         className="card-forged w-full sm:max-w-md flex flex-col rounded-(--radius)"
         style={{ maxHeight: '100%', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}

@@ -29,6 +29,7 @@ import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
 import { ruleCustomInterval } from '@/lib/scheduling';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -1017,6 +1018,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
   // profile carries pay config, which every paycheck figure on this page derives
   // from — without it the totals render against a default profile and then jump.
+  useEscapeToClose(() => { setShowCatalog(false); setCustomLabel(''); }, showCatalog);
   if (accountsLoading || rulesLoading || profileLoading) return <BudgetSkeleton />;
 
   return (
@@ -1660,7 +1662,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         };
         return (
         <div className="modal-overlay bg-background/80 z-50" onClick={() => { setShowCatalog(false); setCustomLabel(''); }}>
-          <div className="card-forged p-5 w-full max-w-md space-y-4 max-h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Add Deduction" className="card-forged p-5 w-full max-w-md space-y-4 max-h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-display font-semibold text-sm">Add Deduction</h2>
               <button aria-label="Close" onClick={() => { setShowCatalog(false); setCustomLabel(''); }} className="icon-btn text-muted-foreground hover:text-foreground"><X size={16} /></button>
