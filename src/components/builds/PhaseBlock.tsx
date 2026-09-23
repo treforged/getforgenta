@@ -330,8 +330,8 @@ export default function PhaseBlock({
           // the stack back down because it is a VERTICAL pair: two 44px-wide cells would eat
           // a quarter of a 390px row that also has to hold the phase title.
           <div className="flex flex-col shrink-0" onClick={e => e.stopPropagation()}>
-            <button disabled={isFirst} onClick={() => onMovePhase('up')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowUp size={16} /></button>
-            <button disabled={isLast} onClick={() => onMovePhase('down')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowDown size={16} /></button>
+            <button aria-label="Move phase up" disabled={isFirst} onClick={() => onMovePhase('up')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowUp size={16} /></button>
+            <button aria-label="Move phase down" disabled={isLast} onClick={() => onMovePhase('down')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowDown size={16} /></button>
           </div>
         )}
 
@@ -426,8 +426,8 @@ export default function PhaseBlock({
                     </div>
                   ) : (
                     <div className="flex flex-col shrink-0">
-                      <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowUp size={14} /></button>
-                      <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowDown size={14} /></button>
+                      <button aria-label="Move item up" disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowUp size={14} /></button>
+                      <button aria-label="Move item down" disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="icon-btn min-w-[32px] text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"><ArrowDown size={14} /></button>
                     </div>
                   )}
 

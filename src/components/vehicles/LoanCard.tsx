@@ -193,8 +193,8 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
             <Undo2 size={16} />
             {undoConfirm && <span className="text-xs font-medium">Confirm?</span>}
           </button>
-          <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
+          <button aria-label="Edit loan" onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+          <button aria-label={`${deleteConfirm ? 'Confirm delete' : 'Delete'} loan`} onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
         </div>
       </div>
 

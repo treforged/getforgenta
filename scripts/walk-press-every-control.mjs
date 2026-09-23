@@ -240,6 +240,10 @@ async function state(page) {
       text: document.body.innerText,
       aria,
       targetText: t ? t.innerText : null,
+      // React often REUSES the pressed <button> node and swaps its children (a pencil becomes an X when an
+      // inline editor opens), so neither 'gone' nor its text moves. Its markup and the visible field count do.
+      targetHtml: t ? t.innerHTML : null,
+      fields: [...document.querySelectorAll('input, select, textarea')].filter((e) => e.getBoundingClientRect().width > 0).length,
     };
   });
 }
@@ -251,6 +255,8 @@ function diff(a, b, textTrusted) {
   if (a.aria !== b.aria) why.push(`aria ${a.aria} -> ${b.aria}`);
   if (textTrusted && a.text !== b.text) why.push('text');
   if (!textTrusted && a.targetText !== b.targetText) why.push('own label');
+  if (a.targetHtml !== b.targetHtml) why.push('own content');
+  if (a.fields !== b.fields) why.push(`fields ${a.fields} -> ${b.fields}`);
   return why;
 }
 
@@ -348,6 +354,7 @@ if (deadResult.outcome !== 'no-change' || liveResult.outcome !== 'changed' || wr
 const tally = { 'already-active': 0, 'self-link': 0, enumerated: 0, pressed: 0, changed: 0, 'no-change': 0, unpressable: 0, 'not-found': 0, 'write-blocked': 0, destructive: 0, write: 0, external: 0, repeat: 0 };
 const findings = [];
 const unstable = [];
+const unsettled = [];
 const pressedKeys = new Set();
 const jobs = [];
 
@@ -355,8 +362,19 @@ for (const route of routes) {
   const page = await isolatedPage();
   await page.goto(BASE + route, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(SETTLE_MS);
+  // Enumerate until two consecutive reads agree. One look at SETTLE_MS read 307 controls on one run and
+  // 347 on the next with no code change, because data-backed lists had not mounted (2026-09-23). A count
+  // that never settles is printed, never averaged.
+  let controls = await enumerate(page);
+  let settled = false;
+  for (let i = 0; i < 10 && !settled; i++) {
+    const prev = controls.length;
+    await page.waitForTimeout(1000);
+    controls = await enumerate(page);
+    settled = controls.length === prev;
+  }
+  if (!settled) { unsettled.push(route); console.log(`  ${route.padEnd(22)} UNSETTLED: its control count was still moving after 10 reads (${controls.length})`); }
   const t1 = await page.evaluate(() => document.body.innerText);
-  const controls = await enumerate(page);
   await page.waitForTimeout(AFTER_PRESS_MS);
   const t2 = await page.evaluate(() => document.body.innerText);
   const landedUrl = new URL(page.url());
@@ -411,6 +429,7 @@ if (unstable.length) console.log(`text-unstable routes (text ignored, other sign
 console.log(`enumerated ${tally.enumerated} . pressed ${tally.pressed} . changed ${tally.changed} . no-change ${tally['no-change']} . unpressable ${tally.unpressable} . not-found ${tally['not-found']}`);
 console.log(`write-blocked ${tally['write-blocked']} (pressed; its write was aborted, so nothing persisted). Blocked during page LOAD, before any press: ${loadBlocked.size ? [...loadBlocked].join(', ') : 'none'}`);
 console.log(`skipped: destructive ${tally.destructive} . write ${tally.write} . external ${tally.external} . repeat-chrome ${tally.repeat} . already-active ${tally['already-active']} . self-link ${tally['self-link']}`);
+if (unsettled.length) console.log(`UNSETTLED routes (their count is a lower bound): ${unsettled.join(', ')}`);
 if (tally.pressed === 0) fail(2, 'pressed 0 controls - nothing was tested.');
 if (tally['no-change'] > 0) { console.log(`FINDINGS: ${tally['no-change']} pressed control(s) changed nothing. Each has a frame in ${OUT}.`); process.exit(1); }
 console.log('PASS - every pressed control changed something.');

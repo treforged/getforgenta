@@ -10,9 +10,9 @@
    financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
    bundle file named `functions/<path>` and verify_jwt unchanged. Test on the walk account with premium+past_due vs
    premium+canceled rows, then delete the rows.
-4. `npm run walk:press` next candidates: the 10 write-blocked presses are the crawler's blind spot (it cannot see what
-   those controls would have changed). The 6 not-found are unnamed icon buttons on /accounts, which is an a11y finding
-   by itself (no accessible name); grep Accounts.tsx icon-btn and give them aria-label.
+4. `npm run walk:press` open edges: its enumerated count varies ~6% run to run on identical code (348 vs 370) with no
+   route UNSETTLED - cause not found; the 2-4 not-found are the /transactions row Edit/Duplicate and a Settings tab.
+   write-blocked presses are the crawler's blind spot (it cannot see what they would have changed).
 5. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
 6. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build.
 7. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
@@ -36,6 +36,11 @@
 - `6e2e5991` DONE: re-armed with only the newest City Power charge undecided (review snapshot
   backup.walk_deck_rearm_20260923b); walk-deck-undo PASS; its re-arm text now names City Power & Light.
 - test:tz 5186/0 in 3 zones. Free tier: qwen3:14b drafted both aria briefs; scored in the playbook.
+- Second commit: 21 icon-only buttons got an accessible name (Accounts, Debt Payoff x3 lists, Goals, Transactions,
+  Garage loan/saving cards, Builds move arrows, the deduction catalog Close). Gate icon-button-name.gate.test.ts, found
+  by the icon-btn class, red on 18 real sites before the fix. Debt card header got aria-expanded. walk:press now also
+  reads the pressed node's own markup and the visible field count (React reuses a button node when an inline editor
+  opens), and repeats enumeration until two reads agree. test:tz 5188/0.
 
 </details>
 

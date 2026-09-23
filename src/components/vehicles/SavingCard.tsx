@@ -132,8 +132,8 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
-          <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-          <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
+          <button aria-label="Edit savings plan" onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+          <button aria-label={`${deleteConfirm ? 'Confirm delete' : 'Delete'} savings plan`} onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
         </div>
       </div>
 

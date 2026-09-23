@@ -1008,8 +1008,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                 </div>
                 <div className="flex gap-1 shrink-0 self-end sm:self-auto">
                   <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
-                  <button onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
+                  <button aria-label={`Edit ${g.name}`} onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                  <button aria-label={`${deleteConfirm === g.id ? 'Confirm delete' : 'Delete'} ${g.name}`} onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

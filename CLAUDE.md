@@ -89,9 +89,11 @@ section states reasoning, not measurement, and says so.
   Balance" and "One row each" write to the walk account on 2026-09-23 (reverted; snapshots in
   `backup.walk_crawl_writes_20260923`). A press whose write was aborted reads `write-blocked`.
   ⚠️ **COMPARE `enumerated` AND `pressed` TO THE LAST RUN.** Blocking POST reads starved the pages once:
-  315 -> 249 enumerated and PASS all the same. Last good run: 323 enumerated, 136 changed, 10
-  write-blocked, 0 no-change. It does NOT cover controls behind a dialog or menu, param routes, desktop
-  widths, or whether a change is the RIGHT change.
+  315 -> 249 enumerated and PASS all the same. Last two good runs, identical code: 348 and 370 enumerated,
+  135 and 145 changed, 11 and 15 write-blocked, 0 no-change. **The count varies ~6% run to run** even with
+  enumeration repeated until two reads agree, so a drop of more than ~15% is the alarm, not any drop.
+  It does NOT cover controls behind a dialog or menu, param routes, desktop widths, or whether a change
+  is the RIGHT change.
 - `npm run check:rail` — measures the desktop sidebar at 1440 and 1024, in BOTH states,
   and asserts nothing in the narrow rail is clipped past its edge and no label sits on
   more than one line — wrapping is read from each element's OWN line-height, never a pixel

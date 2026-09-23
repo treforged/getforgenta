@@ -1234,11 +1234,11 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                         {unlinkConfirm === a.id ? 'Confirm unlink?' : <Unlink size={12} />}
                       </button>
                     )}
-                    <button onClick={() => toggleActive(a)} className="icon-btn text-muted-foreground hover:text-foreground" title={a.active ? 'Deactivate' : 'Activate'}>
+                    <button onClick={() => toggleActive(a)} aria-label={`${a.active ? 'Deactivate' : 'Activate'} ${a.name}`} className="icon-btn text-muted-foreground hover:text-foreground" title={a.active ? 'Deactivate' : 'Activate'}>
                       {a.active ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
-                    <button onClick={() => openEdit(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                    <button onClick={() => handleDelete(a)} className="icon-btn text-muted-foreground hover:text-destructive-text"><Trash2 size={14} /></button>
+                    <button onClick={() => openEdit(a)} aria-label={`Edit ${a.name}`} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                    <button onClick={() => handleDelete(a)} aria-label={`Delete ${a.name}`} className="icon-btn text-muted-foreground hover:text-destructive-text"><Trash2 size={14} /></button>
                   </div>
                   </div>
                 </div>

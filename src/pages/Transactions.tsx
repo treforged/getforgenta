@@ -1415,7 +1415,7 @@ export default function Transactions() {
                   <button onClick={() => openConvertPlan(t)} className="icon-btn text-muted-foreground hover:text-primary" title="Convert to payment plan" aria-label="Convert to payment plan"><Split size={12} /></button>
                 )}
                 {!isRecon && !t.isGenerated && (
-                  <button onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={12} /></button>
+                  <button aria-label={`${deleteConfirm === t.id ? 'Confirm delete' : 'Delete'} transaction`} onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={12} /></button>
                 )}
               </div>
             </div>
