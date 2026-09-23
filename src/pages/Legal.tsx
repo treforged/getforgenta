@@ -446,7 +446,7 @@ function TermsContent() {
           <p><span className="text-foreground font-medium">Premium tier</span> (the current price is shown in the app before you subscribe) includes: unlimited
           budgets, advanced dashboard, CSV/PDF export, unlimited savings goals and debt trackers, car fund
           tracker pro, custom categories, and priority support.</p>
-          <p>Premium subscriptions are billed monthly in advance and auto-renew until cancelled.</p>
+          <p>Premium subscriptions are billed in advance for the period you choose, monthly or yearly, and auto-renew until cancelled.</p>
         </div>
       </section>
 
