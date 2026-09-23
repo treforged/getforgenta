@@ -2,9 +2,13 @@
 
 ## Resume queue - 2026-09-23 ~20:40 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
 
-1. Standing `e1b0fffc` (keep improving the app). The next concrete check is `798c0ed9`'s revisit trigger: count DISTINCT
-   users in `leaderboard_shares` and rows in `follows` (COUNTS ONLY, with a non-zero control). On 09-18 it was 2 users and 0.
-   If still low, record the re-test on the ask and pick the next item from `ask list --owner Ada`.
+1. Standing `e1b0fffc` (keep improving the app). DONE 2026-09-23 18:40Z: `798c0ed9` re-tested (2 distinct sharers, 0
+   follows, profiles 33 control) - deferral stands, next re-test only when Tre or growth gives a reason. Gate sweep run:
+   walk:routes 27/27, dark+light contrast phone and desktop 0 below AA, nav, rail, desktop-rail, account, accounts-groups,
+   destructive-states, toast-contrast all green. check:text-scale was RED on a real defect (`text-[8px]` never mapped to rem,
+   19 call sites) - fixed in `071dbc42`, now green. check:glass flaked ONCE (exit 2, still-frame noise 255) and passed on
+   re-run (noise 0.00): the control refused correctly; if it flakes again, investigate what animates on the bottom bar.
+   Nothing workable remains until item 2's date.
 2. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
 3. HELD FOR TRE: the grace fix on 6 functions (friend-link, partner-link, plaid-exchange-token, plaid-sync-all,
    financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
