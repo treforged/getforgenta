@@ -25,6 +25,10 @@ Raw material for Ruby's screenshot set (ask 781edc28). **These are unframed capt
 
 Strongest in Ada's view: 01, 04 and 03. They carry a date and a decision, the things this app does that a spreadsheet does not. 06 and 07 are mostly guide-card text above the fold.
 
+## iPad 13" (`ipad-13/`), for ask e0b5154b
+
+The same six screens Ruby used (01, 02, 03, 04, 05, 08). They are captured at 1032x1376 CSS px @2x = **2064x2752**, which is the 13" iPad App Store size. Dark theme, the same fixture and tree (`a9d54b07`, fixture `cd7e1ea2`), the same day. At that width the app renders its tablet layout with the collapsed side rail, so these frames are the real iPad layout, not the phone layout scaled up. On iPad the Decision Deck (03) is a centred panel, not full screen.
+
 ## Limits
 
 - Every figure is what the engine computed on 2026-09-23. A later fixture change can move it. Read the figures back off the PNG before you caption.
