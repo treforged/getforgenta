@@ -8,7 +8,8 @@
 2. ✅ e1b0fffc slice `3842cb1b`: the Garage, Money panels, Dashboard car tile and Builds strip pass the engine's funding id,
    so a fund linked to the main checking reads its typed saved figure ($1,240 on /demo), not the whole balance. Garage
    frames re-shot in `1c0a5766`, and Ruby was told. NEXT e1b0fffc candidate: grep other display-only callers that pass
-   `null` where the engine passes a resolved id (the §2.3 / 3842cb1b shape).
+   `null` where the engine passes a resolved id (the §2.3 / 3842cb1b shape). DONE: every display caller is now resolved. The one
+   split left is sim vs engine, filed as its own ask (see `ask list --owner Ada`, ENGINE/SIM FUNDING-ACCOUNT SPLIT). START THERE.
 3. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
    b18ac1f8 on/after 10-14.
 
