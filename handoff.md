@@ -2,15 +2,9 @@
 
 ## Resume queue - 2026-09-23 ~18:30 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
 
-1. **ENGINE `34fe4e5d`: the month before a deficit month drains to the landing strip**, so the deficit month (the
-   insurance in Mar and Sep) ends below its safe minimum even at minimum payments. Measured on /demo at d1 4231, today
-   Feb 1 2027, converged: Feb pays 2894 against 2488 recommended and ends at 2227, then Mar ends at 1901 against 1919.
-   More cash does not fix it. Start at the Step 3 surplus branch (`forecast-engine.ts` ~2412) and
-   `computeFloorProtection`. Money math, so work at the highest effort. Write the failing test first on the real case,
-   then add Feb and Aug dates to `demo-persona-clears`, whose header names this gap.
-   Probe recipe: a vitest file in `src/lib/__tests__/` that `vi.doMock('@/lib/demo-data')` overrides d1 and
-   `planned_purchase_date`, then loops `runDemoAsApp(date)` and writes rows to a FILE (the console is silenced). Delete
-   it after use.
+1. ✅ `34fe4e5d` DONE in `26068e8a`: month 0 honours the save-up look-ahead. The /demo 180-date sweep reads 0 flagged and
+   0 non-converged. On the real fixture the Sep 2026 one-time breach is gone and payoff is unchanged (Sep 2028). The
+   paced-goal realData control is now an injected $40,000 one-off, because the old control depended on the defect.
 2. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
    b18ac1f8 on/after 10-14.
 
