@@ -29,7 +29,7 @@ export default function FounderNoteModal({ onDismiss }: Props) {
   };
 
   return (
-    <ModalShell onDismiss={handleDismiss}>
+    <ModalShell onDismiss={handleDismiss} ariaLabel="A note from the founder">
       {/* Header */}
       <div className="flex items-start justify-between px-6 pt-6 pb-0">
         <div className="space-y-0.5">

@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, type ReactNode } from 'react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { X, Info, Check, Loader2, RotateCcw } from 'lucide-react';
 import DateScrollPicker from './DateScrollPicker';
 import { toLocalDateStr } from '@/lib/scheduling';
@@ -36,6 +37,8 @@ type Props = {
 };
 
 export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save', notice, draftRestored, onDiscardDraft, children }: Props) {
+  const titleId = useId();
+  useEscapeToClose(onClose);
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -53,6 +56,9 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="card-forged w-full sm:max-w-md flex flex-col rounded-(--radius)"
         style={{
           maxHeight: '100%',
@@ -62,7 +68,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
       >
         {/* Sticky header */}
         <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
-          <h2 className="font-display font-semibold text-sm">{title}</h2>
+          <h2 id={titleId} className="font-display font-semibold text-sm">{title}</h2>
           <button aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
         </div>
 

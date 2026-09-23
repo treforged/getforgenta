@@ -119,7 +119,7 @@ export default function PmfSurveyModal({ onDismiss }: Props) {
   };
 
   return (
-    <ModalShell onDismiss={close}>
+    <ModalShell onDismiss={close} ariaLabel="Quick question">
       <div className="flex items-start justify-between px-6 pt-6 pb-0">
         <p className="text-[10px] text-muted-foreground uppercase tracking-widest">One quick question</p>
         <button

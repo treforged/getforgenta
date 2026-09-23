@@ -1,13 +1,18 @@
 import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 interface Props {
   onDismiss: () => void;
   children: React.ReactNode;
   zIndex?: string;
+  /** What a screen reader announces when the dialog opens. REQUIRED so a new caller cannot ship an
+   *  unnamed dialog: tsc refuses it. */
+  ariaLabel: string;
 }
 
-export default function ModalShell({ onDismiss, children, zIndex = 'z-50' }: Props) {
+export default function ModalShell({ onDismiss, children, zIndex = 'z-50', ariaLabel }: Props) {
+  useEscapeToClose(onDismiss);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -25,6 +30,9 @@ export default function ModalShell({ onDismiss, children, zIndex = 'z-50' }: Pro
       onClick={onDismiss}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
         className="card-forged w-full max-w-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-full"
         onClick={e => e.stopPropagation()}
       >
