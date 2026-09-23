@@ -1,8 +1,26 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~17:45Z (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~17:10 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
 
-1. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
+0. **`d56d5965` FIX BUILT 2026-09-23 (cap regime latch, `forecast-convergence.ts`).** Measured cause: the save-up cap
+   flipped between finite and uncapped on alternate passes. The cap damping skips non-finite values, so the cycle is
+   period 2 and 200 passes do not break it. The run then falls back to the base pair. The latch pins a month to its
+   latest finite cap after 2 flips. Gate: `forecast-convergence.capRegimeLatch.engine.test.ts`, red on the pre-fix code
+   and green after. See the commit for the gate counts. NEXT: `b0822110` (Sam GO): re-sweep d1 3947 with the latch in
+   place, then change the persona and widen the persona gate.
+1. **(context for 0) ENGINE `d56d5965`: a NON-CONVERGED debt-cash run publishes card payments that breach its own safe minimum.**
+   Example: 4219 paid against 1654 recommended, Apr 2027, demo d1=3862, today=Oct 1 2026. Non-converged payoff dates
+   are up to 5 months off the converged answer. Start at `runDebtCashConvergence`'s fallback
+   (`src/lib/forecast-convergence.ts:229-237`). Ask: should a non-converged run fall back to a floor-safe plan? Money
+   math, so work at the highest effort. The old item "Civic 8 months out flips to never" IS this: every Sep date is
+   conv=false.
+   Probe recipe: a vitest file in `src/lib/__tests__/` that `vi.doMock('@/lib/demo-data')` overrides `demoAccounts` d1
+   balance and `demoCarFunds[].planned_purchase_date`, then loops `runDemoAsApp(date)` and writes rows to a file. The
+   console is silenced in this repo. DELETE the probe after use.
+2. **`b0822110` demo persona: "below safe minimum" on 27% of days (the 26th-31st). The next hit is Sep 26.** Routed to
+   Sam 2026-09-23, because d1 2847 -> 3947 moves Ruby's figures. On GO: change demo-data.ts d1 and the tied constants,
+   widen `demo-persona-clears.engine.test.ts` to month-end days, and prove it red on 2847 first.
+3. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
    plaid-sync-all, financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. Method:
    MCP deploy_edge_function with every bundle file named `functions/<path>` and verify_jwt unchanged, then test on the
    walk account with premium+past_due vs premium+canceled rows, then delete the rows.
@@ -11197,7 +11215,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 12:09 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 12:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11208,14 +11226,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-72246b31 [handoff]: harness aligned and iPad captured; next is the round-figure fix, waiting on Sam routing it with Ruby
-3450ed48 [marketing]: capture README limits updated (harness aligned in 93ee4587, iPad captured)
-dde33350 [marketing]: iPad 13-inch raw captures (6 frames, 2064x2752, dark) for Ruby's set
-93ee4587 [demo]: marketing lines now read the app's own provider, so they match /demo
-b00d4075 [handoff]: persona, copy and captures done; next is aligning the demo harness with the app (16147de8)
-2d68931b [marketing]: raw App Store captures from /demo on the re-tuned persona (8 frames)
-a9d54b07 [demo]: remove five more stale figures from the Debt and Plan guide cards
-5dc058a0 [demo]: correct four false statements in the /demo guide copy
+56848738 [handoff]: legal copy corrected in 7 commits; Monthly Gross 4x is by design; queue down to Tre-held items
+e3246aaf [legal]: Terms section 5 describes the real billing - web via Stripe, apps via Apple/Google, monthly or yearly
+986b6f19 [legal]: Privacy and Refund 'Last updated' -> September 2026
+6af68088 [legal]: Terms Premium list no longer promises 'unlimited budgets', a feature that does not exist
+62ca8daa [legal]: Terms free tier no longer promises a '1 debt tracker' limit that nothing enforces
+5671c75e [legal]: Terms 'Last updated' March 2026 -> September 2026
+50ad741b [legal]: Terms billing sentence covers the yearly plan as well as the monthly one
+42616ae3 [legal]: the company is TRE Forged LLC, not "TRE Forgenta LLC" (28 lines, 4 files)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

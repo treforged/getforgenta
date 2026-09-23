@@ -162,6 +162,11 @@ export function runDebtCashConvergence(
   let prevTarget: number[] | null = null;
   let prevRaw: number[] | null = null;
   let prevCap: number[] | null = null;
+  // Cap regime latch (see the cap block below): per month, how often the RAW cap has switched
+  // between finite and uncapped, and the most recent finite raw cap seen.
+  let prevRawCap: number[] | null = null;
+  const capRegimeChanges: number[] = [];
+  const lastFiniteRawCap: number[] = [];
   let firstGap = Infinity;
   let lastGap = Infinity;
   let lastResim: CardProjectionResult | null = null;
@@ -203,10 +208,32 @@ export function runDebtCashConvergence(
     // pass budget (the residual m30 two-cycle, 2026-07-09). Months where either side is
     // non-finite (uncapped) take the newest raw value: averaging a finite cap with Infinity
     // would pin the month uncapped forever.
+    //
+    // CAP REGIME LATCH (2026-09-23, ask d56d5965). The damping above cannot touch a month whose
+    // cap flips between FINITE (a save-up month) and UNCAPPED on alternate passes: the non-finite
+    // branch takes the raw value by design. Measured on /demo (checking 3,862, today 2026-10-01):
+    // May 2027 onward alternated cap 548 / uncapped every pass, a clean period-2 cycle that 200
+    // passes did not break, so the run fell back to the base pair - which paid 4,219 to the cards
+    // in Apr 2027 against a floor-safe 1,654 and ended below its own safe minimum. Once a month
+    // has switched regime twice it is latched to its latest FINITE cap, the floor-safe side,
+    // mirroring floorMinLatch. Inert for any month that switches fewer than twice.
     const rawCap = currentProj.maxDebtPaymentByMonth;
+    // `?? []`: an engine result may carry no cap at all (injected test engines do), and the old
+    // code only read it from pass 2 on, so pass 1 must tolerate its absence.
+    (rawCap ?? []).forEach((v, m) => {
+      if (prevRawCap && isFinite(v) !== isFinite(prevRawCap[m])) {
+        capRegimeChanges[m] = (capRegimeChanges[m] ?? 0) + 1;
+      }
+      if (isFinite(v)) lastFiniteRawCap[m] = v;
+    });
+    prevRawCap = rawCap;
     const pc = prevCap;
     const cap: number[] = pc
-      ? rawCap.map((v, m) => (isFinite(v) && isFinite(pc[m]) ? damping * v + (1 - damping) * pc[m] : v))
+      ? rawCap.map((v, m) => {
+          const latched = (capRegimeChanges[m] ?? 0) >= 2 && isFinite(lastFiniteRawCap[m] ?? NaN);
+          const raw = latched ? lastFiniteRawCap[m] : v;
+          return isFinite(raw) && isFinite(pc[m]) ? damping * raw + (1 - damping) * pc[m] : raw;
+        })
       : rawCap;
     prevCap = cap;
     const resim = base.resimulateWithDebtCash(target, cap);
