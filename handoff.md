@@ -56,7 +56,7 @@ sampled logs. Re-check about 2026-10-06.
 
 **5b. `cb1d9ada` Supabase Disk IO - CAUSE FOUND, due at or after 2026-09-24 01:22Z** (the old line said 09-23; that was the BASELINE time, a typo that made Sam think it was overdue). The spill was scans of an overfull pg_stat_statements (2.1 MB text vs 2.2 MB work_mem) by an untracked scraper every ~30s. Reset at 02:51:44Z stopped it (0 files in 7 min vs ~14). New baseline temp_files=199100 temp_bytes=509954571085. Read the delta AND `select count(*) from extensions.pg_stat_statements`; if the spill returns as entries regrow, schedule the reset in pg_cron. Snapshot is in backup.pgss_snapshot_20260923.
 
-**5c. `384ca151` iOS PUSH - FIXED IN CODE (7fb7fc78), iOS build 1011 dispatched (run 35812435190).** AppDelegate never forwarded the APNs token to Capacitor. After 1011 is installed, verify by SQL: an ios row in device_tokens, and outcome=registered in push_registration_status for user a72f416e. Tre's Wi-Fi-off test is no longer needed.
+**5c. `384ca151` iOS PUSH - FIXED IN CODE (7fb7fc78), iOS build 1011 dispatched (run 35812435190).** AppDelegate never forwarded the APNs token to Capacitor. After 1011 is installed, verify by SQL: an ios row in device_tokens, and outcome=registered in push_registration_status for user a72f416e. Tre's Wi-Fi-off test is no longer needed. THEN the send half: no iOS send has ever run, so whether APNS_AUTH_KEY_P8 / APNS_KEY_ID / APNS_TEAM_ID are set on push-send is UNVERIFIED - the first send's log (`get_logs` edge-function, or the push-send response) says 'is not set' or an APNs status. Client reports environment=production for CI builds, which TestFlight needs.
 
 **6. Then the tracker:** `ask list --owner Ada`. Money-adjacent items go first
 (`585ec24a` debt-aware savings pacing, which Tre DECIDED on 09-18).
@@ -10954,7 +10954,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 22:37 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 23:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10965,14 +10965,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+796b6459 [handoff]: Disk IO cause found (5b), iOS push root cause fixed (5c)
+7fb7fc78 [push]: iPhones never got a push token - AppDelegate never forwarded it to Capacitor
+b1ed1bcb [handoff]: Disk IO 24h read queued as 5b with its baseline
 85142b81 [onboarding]: the debt name example was cut off on the first-run screen
 f92a64cb [placeholders]: the build item note hint was cut off by 25px on phones
 37f9866d [handoff]: state at close - queue exhausted, next iOS build is the one actionable item
 2b5e8814 [handoff]: BankActivity placeholders are select labels and fit; PhaseBlock next
 759fe036 [handoff]: maintenance form measured; BankActivity and PhaseBlock next
-c9866eae [placeholders]: the maintenance form is measured through /demo - 7 fields, all fit
-b332f536 [handoff]: placeholders about 22 of 71, three clips fixed; /demo is the next lead
-8820904f [transactions]: the payment-plan provider example was cut off by 76px on phones
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
