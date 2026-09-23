@@ -12,19 +12,20 @@
 // than as a SCORE. A null percentage drawn as 0% would turn a privacy floor into "you are last" —
 // a confident zero, invented, and demoralising.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, screen } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 
 const state = vi.hoisted(() => ({
   data: null as unknown,
   isLoading: false,
   error: null as unknown,
+  mutate: vi.fn(),
 }));
 
 vi.mock('@/hooks/useSupabaseData', () => ({
   // The card reads the profile for `country_code` and the opt-out flag. Mocked rather than wrapped
   // in a QueryClientProvider so these tests keep asserting the RENDERED SENTENCES, which is what
   // they were written for -- the privacy wording is the thing that must not regress.
-  useProfile: () => ({ data: { country_code: 'US', tour_flags: {} }, loading: false, update: { mutate: vi.fn() } }),
+  useProfile: () => ({ data: { country_code: 'US', tour_flags: {} }, loading: false, update: { mutate: state.mutate } }),
 }));
 
 vi.mock('@/hooks/useGlobalLeaderboard', async () => {
@@ -41,7 +42,7 @@ vi.mock('@/hooks/useGlobalLeaderboard', async () => {
 
 import { GlobalStandingCard } from '../GlobalStandingCard';
 
-beforeEach(() => { state.data = null; state.isLoading = false; state.error = null; });
+beforeEach(() => { state.data = null; state.isLoading = false; state.error = null; state.mutate.mockReset(); });
 afterEach(cleanup);
 
 const standing = (over: Record<string, unknown> = {}) => ({
@@ -59,8 +60,7 @@ describe('below the floor — a wait, never a score', () => {
   it('says how many are taking part and how many are needed, so the wait is explained', () => {
     state.data = standing({ cohortSize: 1, betterThanPct: null, medianBucket: null });
     render(<GlobalStandingCard metric="goal_progress" label="Savings goal progress" />);
-    expect(screen.getByText(/Only 1 person is sharing this so far/)).toBeTruthy();
-    expect(screen.getByText(/until 20 are taking part/)).toBeTruthy();
+    expect(screen.getByText(/1 of 20 people needed before your rank shows/)).toBeTruthy();
   });
 
   it('reads naturally when nobody at all is sharing', () => {
@@ -81,7 +81,7 @@ describe('above the floor — the percentage, and only the percentage', () => {
   it('⚠️ NAMES NOBODY, EVER — the whole constraint, asserted on the rendered text', () => {
     state.data = standing();
     const { container } = render(<GlobalStandingCard metric="goal_progress" label="Savings goal progress" />);
-    expect(container.textContent).toMatch(/Nobody sees your name, your amounts or your accounts/);
+    expect(container.textContent).toMatch(/Only percentages are shared, never names or amounts/);
     // There is no code path that could render one, but asserting it on the OUTPUT is what survives
     // somebody later adding a "top sharers" list to this card.
     expect(container.textContent).not.toMatch(/@/);
@@ -109,5 +109,35 @@ describe('what it refuses to draw', () => {
     state.isLoading = true;
     const { container } = render(<GlobalStandingCard metric="goal_progress" label="Savings goal progress" />);
     expect(container.textContent).toBe('');
+  });
+});
+
+// Tre, 2026-09-23: "make the country a selector not manual type".
+describe('the country is PICKED, never typed', () => {
+  const openCountry = () => {
+    state.data = standing({ cohortSize: 1, betterThanPct: null, medianBucket: null });
+    render(<GlobalStandingCard metric="goal_progress" label="Savings goal progress" />);
+    fireEvent.click(screen.getByRole('tab', { name: /Your country/ }));
+  };
+
+  it('offers a picker holding the current country, and no text box', () => {
+    openCountry();
+    const picker = screen.getByRole('combobox', { name: 'Your country' }) as HTMLSelectElement;
+    expect(picker.value).toBe('US');
+    expect(picker.options.length).toBe(249);
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('choosing a country SAVES it - the press must change the profile, not just the widget', () => {
+    openCountry();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Your country' }), { target: { value: 'CA' } });
+    expect(state.mutate).toHaveBeenCalledTimes(1);
+    expect(state.mutate.mock.calls[0][0]).toMatchObject({ country_code: 'CA' });
+  });
+
+  it('re-choosing the same country writes nothing', () => {
+    openCountry();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Your country' }), { target: { value: 'US' } });
+    expect(state.mutate).not.toHaveBeenCalled();
   });
 });

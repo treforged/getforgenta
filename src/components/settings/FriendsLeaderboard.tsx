@@ -116,8 +116,7 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
 
       {empty && (
         <p className="text-xs text-muted-foreground">
-          Nobody is sharing {METRIC_LABELS[metric].toLowerCase()} yet. You each choose which of
-          these to share, and none of them is on until you turn it on.
+          Nobody is sharing this yet. Sharing is off until each of you turns it on.
         </p>
       )}
 
@@ -171,7 +170,7 @@ export function FriendsLeaderboard({ friends }: { friends: ReadonlyArray<Leaderb
       )}
 
       <p className="text-xs text-muted-foreground">
-        Week of {week}. Figures are rounded and update once a week.
+        Week of {week} · updates weekly
       </p>
     </div>
   );

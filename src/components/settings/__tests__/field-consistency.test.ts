@@ -33,7 +33,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { FIELD_INPUT, FIELD_WRAPPER, FIELD_INPUT_BARE, FIELD_INPUT_COMPACT, FIELD_BASE } from '@/components/shared/field-classes';
+import { FIELD_INPUT, FIELD_WRAPPER, FIELD_INPUT_BARE, FIELD_INPUT_COMPACT, FIELD_BASE, FIELD_SELECT } from '@/components/shared/field-classes';
 
 /** Every `<input ... />` element in a source file, as raw text. */
 function inputs(src: string): string[] {
@@ -121,6 +121,7 @@ describe('settings text fields are one field, not several', () => {
       // `GlobalStandingCard` got one.
       ['FIELD_INPUT_COMPACT', FIELD_INPUT_COMPACT],
       ['FIELD_BASE', FIELD_BASE],
+      ['FIELD_SELECT', FIELD_SELECT],
     ] as const) {
       expect(value, `${name} declares no focus ring`).toContain('ring-ring');
       expect(value, `${name} has no surface`).toContain('bg-secondary');

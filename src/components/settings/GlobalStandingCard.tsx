@@ -15,7 +15,8 @@
 import { useState } from 'react';
 import { Globe, MapPin } from 'lucide-react';
 import PanelBar from '@/components/shared/PanelBar';
-import { FIELD_INPUT_COMPACT } from '@/components/shared/field-classes';
+import { FIELD_SELECT } from '@/components/shared/field-classes';
+import { countryOptions } from '@/lib/country-list';
 import { useGlobalLeaderboard, hasEnoughPeople, type LeaderboardScope } from '@/hooks/useGlobalLeaderboard';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { COUNTRY_OPT_OUT_FLAG } from '@/hooks/useDerivedCountry';
@@ -66,10 +67,11 @@ export function GlobalStandingCard({ metric, label }: { metric: LeaderboardMetri
    * laptop ships a fixed one. Without this control those users are silently filed under a country
    * they do not live in and have no way to say so.
    *
-   * Typing is normalised and validated to the SAME shape the database CHECK enforces, so the
-   * control cannot produce a value the server will reject. An empty box is a no-op rather than an
-   * error: leaving is what the `Leave the country board` action is for, and a text field that
-   * silently opted you out would be a trap.
+   * It is a PICKER, not a text box (Tre, 2026-09-23: "make the country a selector not manual
+   * type"). The value is still validated to the SAME shape the database CHECK enforces, so the
+   * control cannot produce a value the server will reject. The empty option is a no-op rather
+   * than an opt-out: leaving is what `Leave` is for, and a picker that silently opted you out
+   * would be a trap.
    */
   const saveCountry = (raw: string) => {
     const code = raw.trim().toUpperCase();
@@ -92,9 +94,7 @@ export function GlobalStandingCard({ metric, label }: { metric: LeaderboardMetri
     if (scope === 'country' && !country) {
       return (
         <p className="text-xs text-muted-foreground">
-          {optedOut
-            ? 'You have left the country board, so there is nothing to compare against here.'
-            : 'We could not work out your country from your device, so you are not on a country board. Nothing was sent anywhere.'}
+          {optedOut ? 'You left the country board.' : 'Pick your country to join its board.'}
         </p>
       );
     }
@@ -118,12 +118,8 @@ export function GlobalStandingCard({ metric, label }: { metric: LeaderboardMetri
          wait, and a count of opted-in people is not anybody's financial data. */
       <p className="text-xs text-muted-foreground">
         {data.cohortSize === 0
-          ? `Nobody ${scope === 'country' ? `in ${country} ` : ''}is sharing this yet, so there is nothing to compare against.`
-          : `Only ${data.cohortSize} ${data.cohortSize === 1 ? 'person is' : 'people are'} sharing this${
-              scope === 'country' ? ` in ${country}` : ''
-            } so far.`}{' '}
-        We wait until {data.minCohort} are taking part before showing where you stand, so that no one
-        number can point back at one person.
+          ? `Nobody ${scope === 'country' ? `in ${country} ` : ''}is sharing this yet.`
+          : `${data.cohortSize} of ${data.minCohort} people needed before your rank shows.`}
       </p>
     );
   };
@@ -167,41 +163,40 @@ export function GlobalStandingCard({ metric, label }: { metric: LeaderboardMetri
 
       <div className="space-y-1">{body()}</div>
 
-      <p className="text-xs text-muted-foreground">
-        Nobody sees your name, your amounts or your accounts here — only these percentages.
-      </p>
+      {/* ⚠️ SHORTENED, NOT REMOVED (Tre, 2026-09-23: "reduce so much text"). The privacy promise
+          stays on screen in one line, because it is what makes sharing feel safe. The floor
+          explanation and the device-derivation sentence were cut; the floor still binds. */}
+      <p className="text-xs text-muted-foreground">Only percentages are shared, never names or amounts.</p>
 
-      {/* The country control is only worth showing on the country scope, and its wording states
-          what actually happens rather than the softer "hide". */}
+      {/* The country control is only worth showing on the country scope. The picker is offered
+          whenever the user has NOT left the board, including when no country could be derived,
+          because a guess about where someone lives must always be correctable. */}
       {scope === 'country' && (
-        <p className="text-xs text-muted-foreground">
-          {country ? (
-            <>
-              Your country was worked out from your device settings — never from your location or
-              your IP address. Change it if we guessed wrong:{' '}
-              <input
-                type="text"
-                defaultValue={country}
-                maxLength={2}
-                aria-label="Your country code"
-                onBlur={e => saveCountry(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                }}
-                className={`w-10 uppercase ${FIELD_INPUT_COMPACT}`}
-                style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
-              />{' '}
-              <button onClick={leaveCountryBoard} className="underline hover:text-foreground">
-                Leave the country board
+        optedOut && !country ? (
+          <button onClick={rejoinCountryBoard} className="text-xs text-muted-foreground underline hover:text-foreground">
+            Rejoin the country board
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <select
+              value={country ?? ''}
+              onChange={e => saveCountry(e.target.value)}
+              aria-label="Your country"
+              className={FIELD_SELECT}
+              style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
+            >
+              {!country && <option value="">Choose country</option>}
+              {countryOptions(country).map(({ code, name }) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
+            </select>
+            {country && (
+              <button onClick={leaveCountryBoard} className="text-xs text-muted-foreground underline hover:text-foreground shrink-0">
+                Leave
               </button>
-              .
-            </>
-          ) : optedOut ? (
-            <button onClick={rejoinCountryBoard} className="underline hover:text-foreground">
-              Rejoin the country board
-            </button>
-          ) : null}
-        </p>
+            )}
+          </div>
+        )
       )}
     </div>
   );

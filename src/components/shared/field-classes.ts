@@ -63,5 +63,13 @@ export const FIELD_INPUT_BARE = 'flex-1 min-w-0 bg-transparent text-xs text-fore
 export const FIELD_INPUT_COMPACT =
   `${FIELD_SKIN} px-1 py-0.5 text-center text-foreground ${FIELD_FOCUS}`;
 
+/**
+ * A native `<select>`. Same surface and focus ring as `FIELD_INPUT`, full width, and none of the
+ * `sm:flex-1` that only makes sense for a text field sharing a row with its button. Added
+ * 2026-09-23 with the leaderboard's country picker, and three Transactions selects moved onto it:
+ * they carried this exact surface spelled by hand with NO focus ring.
+ */
+export const FIELD_SELECT = `w-full ${FIELD_SURFACE} text-xs text-foreground ${FIELD_FOCUS}`;
+
 /** Every field and its adjacent button share the container radius. */
 export const FIELD_RADIUS = { borderRadius: 'var(--radius)' } as const;

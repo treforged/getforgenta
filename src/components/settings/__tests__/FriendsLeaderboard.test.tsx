@@ -136,7 +136,7 @@ describe('FriendsLeaderboard - the empty room', () => {
 
   it('explains that sharing is off until you turn it on', () => {
     renderBoard();
-    expect(screen.getByText(/none of them is on until you turn it on/i)).toBeTruthy();
+    expect(screen.getByText(/Sharing is off until each of you turns it on/i)).toBeTruthy();
   });
 
   it('treats a stale-only board as empty, since nothing current is being compared', () => {
@@ -227,7 +227,7 @@ describe('FriendsLeaderboard - the global standing sits under the friends', () =
   it('renders the global card, and shows its floor as a wait rather than a score', () => {
     render(<FriendsLeaderboard friends={[]} />);
     expect(screen.getByText(/Everyone on Forgenta/)).toBeTruthy();
-    expect(screen.getByText(/until 20 are taking part/)).toBeTruthy();
+    expect(screen.getByText(/1 of 20 people needed/)).toBeTruthy();
     expect(screen.queryByText(/ahead of/)).toBeNull();
   });
 });

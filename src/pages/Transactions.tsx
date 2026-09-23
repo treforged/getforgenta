@@ -59,6 +59,7 @@ import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@
 import { toLocalDateStr } from '@/lib/scheduling';
 import { matchesTransactionSearch } from '@/lib/transaction-search';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { FIELD_SELECT } from '@/components/shared/field-classes';
 
 // LAZY, not a plain import. Budget Control was its own route chunk until today; importing it
 // statically here would fold it into the Activity chunk, so every visit to the planning ledger —
@@ -1539,7 +1540,7 @@ export default function Transactions() {
                   <select
                     value={planForm.frequency}
                     onChange={e => setPlanForm(p => ({ ...p, frequency: e.target.value as PaymentPlanFrequency }))}
-                    className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                    className={FIELD_SELECT}
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     <option value="weekly">Weekly</option>
@@ -1570,7 +1571,7 @@ export default function Transactions() {
                 <select
                   value={planForm.category}
                   onChange={e => setPlanForm(p => ({ ...p, category: e.target.value }))}
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  className={FIELD_SELECT}
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <CategoryOptions exclude={['Income']} />
@@ -1581,7 +1582,7 @@ export default function Transactions() {
                 <select
                   value={planForm.payment_source}
                   onChange={e => setPlanForm(p => ({ ...p, payment_source: e.target.value }))}
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  className={FIELD_SELECT}
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <option value="">Unassigned</option>
