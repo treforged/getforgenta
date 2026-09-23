@@ -26,7 +26,9 @@
    flags any new caller.
 5b. ✅ SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
    src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
-   and a census gate like field-name.gate. Focus trap not done. Old plan kept below for context -
+   CENSUS GATE BUILT: src/lib/__tests__/modal-dialog-role.gate.test.ts, a shrink-only list of 14 files. Fix a file = remove it
+   from NOT_YET_DIALOGS (the gate fails if you forget). DO NOT give Escape to AppLockSetupModal, AppTour or ConsentBanner
+   without deciding it per site - a lock and a consent are not dismissible. Focus trap not done. Old plan kept below for context -
    (was) STARTED NOT BUILT: 19 of 20 `modal-overlay` dialogs (incl. shared ModalShell + FormModal)
    have no role="dialog", no aria-modal and no Escape-to-close. Plan: a shared useEscapeToClose hook with a
    module-level STACK so only the top modal closes, then role="dialog" aria-modal="true" + aria-labelledby on the
