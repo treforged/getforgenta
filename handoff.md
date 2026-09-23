@@ -1,6 +1,30 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~17:10Z (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~17:45Z (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
+   plaid-sync-all, financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. Method:
+   MCP deploy_edge_function with every bundle file named `functions/<path>` and verify_jwt unchanged, then test on the
+   walk account with premium+past_due vs premium+canceled rows, then delete the rows.
+2. Standing `e1b0fffc` - keep improving the app. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada
+   at/after 09-24 01:22Z, b18ac1f8 on/after 10-14.
+3. Legal copy that is still inaccurate, left alone because it is refund POLICY (Tre's, tied to 0006cc41): Terms
+   section 5 says "no prorated refunds for partial months" and "cancel via the billing portal". App-store
+   subscribers cancel through Apple/Google.
+4. With the Civic 8 months out, payoff flipped between clearing and "never" from one date to the next (probe sweep
+   09-23). It may be an engine sensitivity.
+5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+<details><summary>Done 2026-09-23 ~17:45Z (17:10Z queue)</summary>
+
+- ✅ Legal (Sam GO), one commit each and each verified live: entity name TRE Forged LLC in 28 lines (`42616ae3`); billing
+  sentence covers monthly and yearly (`50ad741b`); Terms date (`5671c75e`); the false "1 debt tracker" limit removed,
+  measured against the code (`62ca8daa`); the false "unlimited budgets" removed (`6af68088`); Privacy and Refund dates
+  (`986b6f19`); section 5 describes Stripe on the web and Apple/Google in the apps (`e3246aaf`).
+- ✅ Plan tab "Monthly Gross" = 4x is NOT a bug. `getPaychecksInMonth` sums the paychecks in the calendar month, and
+  Sep 2026 has 4 Fridays. A 5-Friday month reads 5x. No change.
+
+### (superseded) Resume queue - 2026-09-23 ~17:10Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
 1. **Plan tab "Monthly Gross" = 4 x weekly ($4,728 on /demo) while the profile uses 4.33 (BudgetControl.tsx ~1384).**
    Find the formula and check whether 4 is deliberate (a conservative "4 paychecks"). If it is not, one factor is
@@ -17,6 +41,8 @@
 5. With the Civic 8 months out, payoff flipped between clearing and "never" from one date to the next (probe sweep
    09-23). It may be an engine sensitivity.
 6. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+</details>
 
 <details><summary>Done 2026-09-23 ~17:10Z (16:30Z queue)</summary>
 
