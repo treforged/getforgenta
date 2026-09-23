@@ -8,9 +8,13 @@
 // FLAT (the old fixed monthly_contribution) and PACED. Every acceptance line in the ask is asserted
 // against the flat arm, so a green here means "better than before", not merely "plausible".
 //
-// ⚠️ THE FLAT ARM IS ALSO THIS FILE'S POSITIVE CONTROL. Its known one-time floor dip (Sep 2026) is
-// what proves the milestone filters still match. The paced arm removes that dip, so without the
-// flat arm the "no breaches" assertions would pass on a filter that matches nothing.
+// ⚠️ THE POSITIVE CONTROL MOVED 2026-09-23 (ask 34fe4e5d). The flat arm's Sep 2026 one-time floor
+// dip used to be it. Month 0 now honours floor protection's look-ahead, so the flat arm holds
+// back enough for that one-off too, and the dip is gone on BOTH arms. On this fixture that is the
+// only change (payoff Sep 2028 both arms; card totals within $3). The control is now a THIRD run:
+// the flat arm's converged inputs plus a $40,000 one-off in Jan 2027 that no save-up can absorb,
+// which the engine must flag. It does not depend on any defect, so it cannot vanish when one is
+// fixed. Without it the "no breaches" assertions would pass on a filter that matches nothing.
 //
 // Self-skips when the gitignored fixture is absent, like every realData test here.
 
@@ -18,7 +22,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
-import type { ForecastInputs, ForecastMonthRow } from '@/lib/forecast-engine';
+import { calculateForecast, type ForecastInputs, type ForecastMonthRow } from '@/lib/forecast-engine';
 import { reviveForecastCapture } from './fixtures/forecast-fixture-io';
 import { renderProjectionFromFixture } from './fixtures/projection-harness';
 import {
@@ -64,8 +68,18 @@ describe('585ec24a paced goal contribution — flat vs paced on the real fixture
     const fd = flat.out.projections.data, pd = paced.out.projections.data;
     const ms = (o: typeof flat.out, s: string) => o.projections.milestones.filter(m => m.event.includes(s)).map(m => m.month);
 
-    // ── POSITIVE CONTROL (flat arm): the filters can find a floor milestone at all.
-    expect(ms(flat.out, 'One-time expense caused floor breach'), 'flat-arm control').toEqual(['Sep 2026']);
+    // ── POSITIVE CONTROL: the filters can find a floor milestone at all (see the header).
+    const shockKey = '2027-01';
+    const prior = flat.inputs.oneTimeByMonth[shockKey] ?? { income: 0, expense: 0 };
+    const shocked = calculateForecast({
+      ...flat.inputs,
+      cardProjectionData: flat.out.cardProjection,
+      oneTimeByMonth: { ...flat.inputs.oneTimeByMonth, [shockKey]: { ...prior, expense: prior.expense + 40_000 } },
+    });
+    const shockedMs = shocked.milestones.filter(m => m.event.includes('One-time expense caused floor breach')).map(m => m.month);
+    expect(shockedMs, 'control: an unabsorbable one-off must be flagged').toContain('Jan 2027');
+    // ── And the flat arm itself no longer dips (34fe4e5d): month 0 holds back for Sep 2026.
+    expect(ms(flat.out, 'One-time expense caused floor breach'), 'flat arm').toEqual([]);
     expect(ms(flat.out, 'CC Debt Free')).toEqual(['Sep 2028']);
 
     // ── Both arms converge.

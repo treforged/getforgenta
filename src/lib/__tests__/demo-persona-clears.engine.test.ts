@@ -35,11 +35,11 @@ const MAX_PAYOFF_MONTHS = 60;
  * "below safe minimum" on 47 dates, mostly the 26th-31st, while this gate stayed green. Proven red
  * on 2,847 with the 28th added.
  *
- * ⚠️ KNOWN GAP, AND IT IS NOT THE PERSONA'S: the same sweep at 4,231 still flags Feb 1-2 2027 and
- * Aug 1-2 2027. The month before a deficit month drains to the engine's landing strip, so the
- * deficit month ends below its minimum even at minimum payments (ask 34fe4e5d). Those months are
- * not in this sweep. Do not add them to force red, and do not tune the persona around them: fix
- * the engine, then add them.
+ * ⚠️ AND THE 1st OF A MONTH BEFORE A DEFICIT MONTH (ask 34fe4e5d): at 4,231 a year sweep flagged
+ * Feb 1-2 and Aug 1-2 2027. On those days the month before the insurance month is MONTH 0, and
+ * month 0's drain floor had no look-ahead, so it paid past floor protection's required end balance
+ * and the next month ended below its minimum even at minimum payments. Those dates are in
+ * DEFICIT_EVE_DATES below.
  */
 function sweepDates(): Date[] {
   const out: Date[] = [];
@@ -48,6 +48,9 @@ function sweepDates(): Date[] {
   }
   return out;
 }
+
+/** The 1st of the month before each insurance month (Mar and Sep), when that month is month 0. */
+const DEFICIT_EVE_DATES = [new Date(2027, 1, 1, 12), new Date(2027, 7, 1, 12)];
 
 const monthsBetween = (from: Date, label: string) => {
   const d = new Date(`${label} 1`);
@@ -64,7 +67,7 @@ describe('the demo persona is someone the app can help', () => {
   }, 60_000);
 
   it(`clears the cards inside ${MAX_PAYOFF_MONTHS} months, with no month below the floor, on every date`, async () => {
-    const dates = sweepDates();
+    const dates = [...sweepDates(), ...DEFICIT_EVE_DATES];
     const failures: string[] = [];
     let measured = 0;
     for (const now of dates) {

@@ -2134,7 +2134,21 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // payment is about $2 lower than it would otherwise be. The alternative considered was
       // flooring rather than rounding the per-card split, which buys the same safety by making the
       // per-card numbers stop adding up to the total the user is shown.
-      const m0DrainFloor = m0FloorAugmented + FLOOR_CUSHION_DOLLARS;
+      //
+      // AND IT HONOURS THE SAVE-UP LOOK-AHEAD (2026-09-23, ask 34fe4e5d). Every later month is kept
+      // from over-draining by floor protection's cap; month 0 is pinned from this floor instead, so
+      // until now it had no look-ahead at all. Measured on /demo (checking 4,231, today 2027-02-01):
+      // month 0 paid 2,894 against the engine's own 2,488, ended at 2,227, and March - the insurance
+      // month - ended at 1,901 against its 1,919 minimum even at minimum payments. `requiredEndByMonth[0]`
+      // is the backward pass's minimum month-0 ending balance that lets every later month hold its floor,
+      // computed on the same funding-account cash, so month 0 now drains no lower than that.
+      const m0RequiredEnd = lookAhead.requiredEndByMonth[0] ?? 0;
+      const m0DrainFloor = Math.max(m0FloorAugmented, m0RequiredEnd) + FLOOR_CUSHION_DOLLARS;
+      // The max-capacity headroom below deliberately keeps the floor WITHOUT the look-ahead: it is
+      // "what could be paid if nothing were held back", and holdback = capacity - safe-to-pay is the
+      // reserve the panel names ("Holdback: $X reserved for <event>"). Giving it the look-ahead floor
+      // too erased the holdback and its reason (useCardProjection.isbReason.test.ts went red).
+      const m0CapacityFloor = m0FloorAugmented + FLOOR_CUSHION_DOLLARS;
 
       // Vehicle insurance/projected loan and non-CC debt service for month 0 — reuses the per-month
       // helpers defined above (which pass3RevTotals also uses) so month 0 and every later
@@ -2281,7 +2295,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // (e.g. for a save-up event). Must be computed even when month 0 IS a save-up month —
       // that's exactly when revolvingPayment is capped below available cash and a holdback exists.
       const surplusIfFree = liveRevolvingBal > 0
-        ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0DrainFloor, liveRevolvingBal))
+        ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0CapacityFloor, liveRevolvingBal))
         : 0;
       const maxCapacity = safeToPayTotal + surplusIfFree;
       const holdback = Math.max(0, maxCapacity - safeToPayTotal);

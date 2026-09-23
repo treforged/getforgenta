@@ -193,9 +193,10 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     // one-time dip was the one floor milestone this fixture produced, and it proved these filters
     // match. Debt-aware pacing keeps ~$400 more in checking that month, so the dip is GONE on the
     // production path - which is correct, and which would leave the empty assertions here with no
-    // control. `paced-goal-contribution.realData.test.ts` runs the same fixture with pacing OFF and
-    // asserts ['Sep 2026'] there; that flat arm is now this file's control. Do not delete one
-    // without the other.
+    // control. `paced-goal-contribution.realData.test.ts` carries this file's control. Since
+    // 2026-09-23 (34fe4e5d) the flat arm no longer dips either, because month 0 honours the save-up
+    // look-ahead. The control there is now an injected $40,000 one-off that the engine must flag.
+    // Do not delete one without the other.
     expect(oneTimeBreaches.map(m => m.month),
       'pacing removes the Sep 2026 one-time dip; the flat-arm control is in paced-goal-contribution.realData')
       .toEqual([]);
