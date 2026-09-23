@@ -2,9 +2,10 @@
 
 ## Resume queue - 2026-09-23 ~04:20Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
-1. **iOS build 1016** (run 35817716094, dispatched from 050c4a19) carries pacing eb651d56, the launch cache 050c4a19
-   and the stop-name fix 0233ab6e. Read the UPLOAD STEP's own conclusion and altool's 'UPLOAD SUCCEEDED' line, never
-   the run's. Then tell Tre: '1016 uploaded at HH:MM; it is yours to install.'
+1. [x] **iOS build 1016 UPLOADED 04:21:58Z** (run 35817716094 from 050c4a19; upload step success, altool 'UPLOAD
+   SUCCEEDED with no errors'). Carries pacing eb651d56, launch cache 050c4a19, stop-name 0233ab6e. Tre told.
+   **NOT in 1016: `981e8ecf` push registers once per launch** (was 4 full cycles in 41 s on 1011). Goes in the
+   next dispatch; no need to spend an upload on it alone.
 2. **FIRST iOS SEND** - [x] device side DONE: 1011 registered (ios token 03:38:29Z, outcome=registered, 384ca151
    closed). OPEN: the APNS_* secrets have never been exercised. Read push_send_runs / push-send logs after the
    17:00Z push-send-daily run for 'is not set' or an APNs status. Missing = Tre's .p8 (APNS_AUTH_KEY_P8,
@@ -10977,7 +10978,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 23:27 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 00:19 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10988,14 +10989,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+471e824a [handoff]: pacing + launch cache shipped, iOS 1016 dispatched
+050c4a19 [perf]: show the last-known data at launch on mobile instead of ~7 s of skeletons (86bccda4)
+eb651d56 [forecast]: pace a dated goal's own contribution while card debt exists (585ec24a)
+eebc4edf [handoff]: 585ec24a - the fixed 510 contribution is the lever, measured on the fixture
 f71fb513 [handoff]: 585ec24a design located - the sim, not the engine, must carry the paced schedule
 aa020244 [handoff]: d694a896 closed, stop-name clip fixed (0233ab6e)
 0233ab6e [goals]: savings-goal stop name no longer cut off on phones
 50ec82c4 [handoff]: resume queue for the successor - verify iOS push on 1011 first
-8878e0de [handoff]: iOS 1011 uploaded with the push fix
-0325ffd6 [push]: one silent registration per launch, not two
-045c64cf [handoff]: 5c - the APNs send half is unverified until the first iOS send
-796b6459 [handoff]: Disk IO cause found (5b), iOS push root cause fixed (5c)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
