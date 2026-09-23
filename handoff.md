@@ -17,6 +17,11 @@
 5. Then `ask list --owner Ada` + the standing ask `e1b0fffc` (keep improving; user-visible first).
    [x] `d694a896` CLOSED 0233ab6e - the 'only textareas left' claim was false; GoalStopsEditor stop name clipped
    69px, fixed + gated. NOT on phones until the next iOS build (1011 predates it).
+6. **`585ec24a` DEBT-AWARE PACING - DESIGN FOUND, BUILD NEXT (fresh session, highest effort).** The card sim, not the
+   engine, sets months-1+ card payments, and it subtracts each goal's FIXED `monthly_contribution`
+   (`useCardProjection.ts:790`) and its own ranked reserve (~2164). Build ONE paced schedule and feed it to BOTH the
+   sim and `forecast-engine.ts` `monthlyAllowanceFor`. Acceptance and the two traps are in the ask's `why`. The older
+   measured history is in `447d57ad` and the prior JSONL line. Also: 12 rendered gates ran green 2026-09-23 03:30Z.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
