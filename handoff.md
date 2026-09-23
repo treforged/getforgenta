@@ -1,6 +1,31 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~18:30 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~20:40 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. Standing `e1b0fffc` (keep improving the app). The next concrete check is `798c0ed9`'s revisit trigger: count DISTINCT
+   users in `leaderboard_shares` and rows in `follows` (COUNTS ONLY, with a non-zero control). On 09-18 it was 2 users and 0.
+   If still low, record the re-test on the ask and pick the next item from `ask list --owner Ada`.
+2. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
+3. HELD FOR TRE: the grace fix on 6 functions (friend-link, partner-link, plaid-exchange-token, plaid-sync-all,
+   financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
+   bundle file named `functions/<path>` and verify_jwt unchanged. Test on the walk account with premium+past_due vs
+   premium+canceled rows, then delete the rows.
+4. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
+5. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build. Sam asked
+   for a 6.8 today and was shown that it is not needed.
+6. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
+   marketing/app-store/2026-09-23. Tell Ruby only about the frames that DIFFER.
+
+<details><summary>Done 2026-09-23 ~20:40Z (this session)</summary>
+
+- ✅ `c389c9af` d56d5965 cap regime latch. ✅ `26068e8a` 34fe4e5d month-0 save-up look-ahead. ✅ `167f200b` b0822110
+  demo checking 4,231 (/demo 180-date sweep: 0 flagged). ✅ `04f318a2` / `1c0a5766` store frames and the capture script.
+  ✅ `3842cb1b` the Garage and car tiles read the engine's funding id. ✅ `539cb446` a5b13315: one funding id for the sim
+  and the forecast. test:tz 5182/0 in 3 zones.
+
+</details>
+
+### (superseded) Resume queue - 2026-09-23 ~18:30 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
 
 1. ✅ `34fe4e5d` DONE in `26068e8a`: month 0 honours the save-up look-ahead. The /demo 180-date sweep reads 0 flagged and
    0 non-converged. On the real fixture the Sep 2026 one-time breach is gone and payoff is unchanged (Sep 2028). The
