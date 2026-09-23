@@ -19,6 +19,11 @@
    **/budget is NOT the dull outlier.** The earlier 0.2% figure covered the first screen only. /account is the
    least colourful screen. Layer 1 is JS and already live, so the note "waiting on an iOS build" was false.
    Probe = check-dark-contrast.mjs with readPage replaced (not committed). Next: pick layer-2 candidates, starting with /account.
+1e. **TEXT-DENSITY INVENTORY (standing `e1b0fffc`, after Tre's "reduce so much text").** Visible words at 390px,
+   whole page: debt 358, forecast 328, dashboard 308, account 256, budget 120, settings 80, garage 26. /transactions
+   read the same as /forecast, so check whether that route is an alias. Done: leaderboard (`c247bbcd`), Partner Link
+   (`5f3f7b8a`), debt payment note 55->18 words (`6210015d`). Next candidates: the forecast salary-raise note (24
+   words) and the account friends-privacy paragraph (30 words). Keep money caveats; cut layout descriptions.
 2. ⚠️ **Tre, 2026-09-23 10:07 ET: "there is no TestFlight delay."** Correct: JS reaches phones via server.url
    (memory js-changes-reach-phones-via-vercel). Never tell him a JS fix waits on an iOS build.
 3. Standing `e1b0fffc`. Candidates: dark layer 2 (a58fb610, needs his eye), App Store screenshots (231e374c, candidate).
@@ -11043,7 +11048,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 10:42 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 11:01 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11054,14 +11059,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+66308dc1 [handoff]: grace fix 2 of 8 functions deployed and proven; 6 wait on deploy approval
+5f3f7b8a [account]: Partner Link says its two facts in two short lines instead of two paragraphs
 f22a4c02 [handoff]: leaderboard shipped; layer-2 colour inventory says /account, not /budget, is the dull screen
 c247bbcd [leaderboard]: less text, and the country is picked from a list instead of typed (37390eac)
 ef91e78d [handoff]: grace-period fix is half-deployed - 8 edge functions wait on a CLI token; 86bccda4 closed
 1b124c90 [handoff]: first real APNs send to Tre succeeded at 12:05Z - 71cddec3 closed
 ba5b0c53 [handoff]: resume at the APNs send read - it ran at 12:05Z
 810197ae [handoff]: 981e8ecf is JS-only and already live on phones
-8feb9219 [handoff]: JS reaches phones via server.url - corrected two 'next iOS build' claims
-7fdfc910 [handoff]: 403dd5d8 closed - due block leads the dashboard, applied to Tre's layout with a snapshot
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
