@@ -404,7 +404,7 @@ function PrivacyContent() {
 function TermsContent() {
   return (
     <div className="space-y-8 text-sm">
-      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: March 2026</p>
+      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: September 2026</p>
 
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Acceptance of Terms</h2>
