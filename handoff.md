@@ -21,7 +21,7 @@
    Probe = check-dark-contrast.mjs with readPage replaced (not committed). Next: pick layer-2 candidates, starting with /account.
 1e. **TEXT-DENSITY INVENTORY (standing `e1b0fffc`, after Tre's "reduce so much text").** Visible words at 390px,
    whole page: debt 358, forecast 328, dashboard 308, account 256, budget 120, settings 80, garage 26. /transactions
-   read the same as /forecast, so check whether that route is an alias. Done: leaderboard (`c247bbcd`), Partner Link
+   read the same as /forecast because the page remembers its last tab (`tre:transactions:tab`). This is deliberate, not a bug. Done: leaderboard (`c247bbcd`), Partner Link
    (`5f3f7b8a`), payment note 55->31 words on Debt and 31->11 on Dashboard (`6210015d`, counted by hand). Next candidates: the forecast salary-raise note (24
    words) and the account friends-privacy paragraph (30 words). Keep money caveats; cut layout descriptions.
 2. ⚠️ **Tre, 2026-09-23 10:07 ET: "there is no TestFlight delay."** Correct: JS reaches phones via server.url
