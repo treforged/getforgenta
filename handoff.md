@@ -54,6 +54,8 @@ Activity is live; Ruby has `92ef5009`).
 `34ac4dad` progress indicators is PARKED on a measurement: 0 user-triggered syncs or checkout verifies in the
 sampled logs. Re-check about 2026-10-06.
 
+**5b. `cb1d9ada` Supabase Disk IO - TIME-GATED, due at or after 2026-09-23 01:22Z.** Re-read `select now(), temp_files, temp_bytes from pg_stat_database where datname='postgres'` and subtract the baseline temp_bytes=509376992668 / temp_files=198925 (01:22:36Z). Each of your own pg_stat_statements reads adds ~4-8 MB, so count them. Small delta: the app is not the cause and the 09-17 alert was a tooling burst; close the ask with that. Large and unattributed: set log_temp_files and look at platform jobs.
+
 **6. Then the tracker:** `ask list --owner Ada`. Money-adjacent items go first
 (`585ec24a` debt-aware savings pacing, which Tre DECIDED on 09-18).
 
@@ -10950,7 +10952,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 21:23 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 22:37 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10961,14 +10963,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+85142b81 [onboarding]: the debt name example was cut off on the first-run screen
+f92a64cb [placeholders]: the build item note hint was cut off by 25px on phones
 37f9866d [handoff]: state at close - queue exhausted, next iOS build is the one actionable item
 2b5e8814 [handoff]: BankActivity placeholders are select labels and fit; PhaseBlock next
 759fe036 [handoff]: maintenance form measured; BankActivity and PhaseBlock next
 c9866eae [placeholders]: the maintenance form is measured through /demo - 7 fields, all fit
 b332f536 [handoff]: placeholders about 22 of 71, three clips fixed; /demo is the next lead
 8820904f [transactions]: the payment-plan provider example was cut off by 76px on phones
-c33e6afc [handoff]: placeholders 16 of 71, two clips fixed
-82d85460 [builds]: the New Build form's Model field was cut off on phones - two columns there now
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
