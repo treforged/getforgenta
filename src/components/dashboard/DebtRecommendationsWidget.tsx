@@ -66,15 +66,11 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
           <p className="text-[10px] text-muted-foreground mb-3">
             {hasRecs ? (
               <>
-                A recommended payment based on your current cash flow. Not adjusted for bills
-                further out than this month. Each row leads with its next payment and the date it
-                is due.
+                Recommended from this month's cash flow. Later bills are not counted.
               </>
             ) : (
               <>
-                Your scheduled loan and debt payments. Each amount is fixed by the debt, not
-                recommended from your cash flow. Each row leads with its next payment and the date
-                it is due.
+                Scheduled payments, fixed by each debt rather than recommended.
               </>
             )}
           </p>

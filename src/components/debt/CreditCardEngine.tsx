@@ -1717,10 +1717,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </span>
           </div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-3 sm:mb-4">
-            A recommended payment based on your current cash flow. Not adjusted for bills further
-            out than this month. Each card leads with its next payment and the date that payment is
-            due; where the due date has already passed, that is next month's payment and the amount
-            still owed this month is shown underneath it.
+            Recommended from this month's cash flow. Later bills are not counted. If a due date has
+            passed, the card shows next month's payment, with what you still owe this month underneath.
           </p>
 
           {month0Recs.cashWarningText && (
