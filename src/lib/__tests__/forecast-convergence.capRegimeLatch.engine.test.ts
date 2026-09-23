@@ -20,7 +20,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { runDemoAsApp } from './fixtures/demo-forecast-harness';
 
-/** The checking balance that produced the oscillation. The shipped fixture holds 2,847. */
+/** The checking balance that produced the oscillation. The shipped fixture holds 4,231 (b0822110). */
 const OSCILLATING_CHECKING = 3862;
 
 vi.doMock('@/lib/demo-data', async (orig) => {

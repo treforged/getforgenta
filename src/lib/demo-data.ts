@@ -29,7 +29,7 @@ const DEMO_VEHICLE_ASSET_VALUE = 28_740;
 const DEMO_AUTO_LOAN_AT_ORIGINATION = 27_340;
 const DEMO_AUTO_LOAN_TODAY = 26_315;
 /** Account balances today, i.e. `demoAccounts` less the two cards. */
-const DEMO_ACCOUNT_ASSETS_TODAY = 24_455;
+const DEMO_ACCOUNT_ASSETS_TODAY = 25_839;
 /** Cards + student loan today: 4,318 + 2,164 + 7,946. */
 const DEMO_NON_AUTO_LIABILITIES_TODAY = 14_428;
 /** Where those two lines stood 26 weeks ago — less saved, more owed on the cards. */
@@ -211,12 +211,12 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     down_payment_goal: 5590,
     // Finding §2.9 (Tre, 2026-08-08): this was $3,200 earmarked against `linked_account: 'd1'` —
     // Northvale Checking, which holds $2,800 — so the demo rendered "Balance on hand $0" with no
-    // explanation. $1,240 of the $2,847 checking balance being car money is coherent AND still
+    // explanation. $1,240 of the $4,231 checking balance being car money is coherent AND still
     // exercises the earmark path, so the demo shows the feature working rather than a clamped zero.
     // If d1's balance ever changes, keep this below it.
     current_saved: 1240,
     // §2.10: deliberately left on 'fixed'. The only percent that reproduces §2.9's live-verified
-    // $1,240 against d1's $2,847 is 43.554…%, which would put float noise into a money figure on
+    // $1,240 against d1's $4,231 is 29.307…%, which would put float noise into a money figure on
     // the demo dashboard. Percent mode is exercised by its unit tests instead.
     saved_source: 'fixed',
     saved_percent: 0, sort_order: 0, auto_extra: false,
@@ -524,7 +524,7 @@ export const demoSyncedTransactions: DemoSyncedTransaction[] = demoFeed();
 // meaningful forecast projections. Checking balance supports the
 // cash floor while showing debt payoff in action.
 export const demoAccounts = [
-  { id: 'd1', user_id: 'demo', name: 'Northvale Checking', account_type: 'checking', institution: 'Northvale Bank', balance: 2847, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
+  { id: 'd1', user_id: 'demo', name: 'Northvale Checking', account_type: 'checking', institution: 'Northvale Bank', balance: 4231, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
   { id: 'd2', user_id: 'demo', name: 'Harborline Checking', account_type: 'checking', institution: 'Harborline Credit Union', balance: 1036, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
   { id: 'd3', user_id: 'demo', name: 'Ridgeway Savings', account_type: 'high_yield_savings', institution: 'Ridgeway Savings Bank', balance: 5812, credit_limit: null, apr: 4.5, active: true, notes: 'Emergency fund', created_at: '', updated_at: '' },
   { id: 'd4', user_id: 'demo', name: 'Workplace 401k', account_type: '401k', institution: 'Meridian Wealth', balance: 8463, credit_limit: null, apr: null, active: true, notes: 'Employer match 4%', created_at: '', updated_at: '' },

@@ -25,11 +25,26 @@ import { runDemoAsApp } from './fixtures/demo-forecast-harness';
 /** "Within 5 years" is the Dashboard's own horizon: `aggregatePayoffEta` reads a 60-month sim. */
 const MAX_PAYOFF_MONTHS = 60;
 
-/** The 2nd (before most bills) and the 23rd (after), every other month for a year. */
+/**
+ * The 2nd (before most bills), the 23rd (after), and the 28th (after the month's last paycheck),
+ * every other month for a year.
+ *
+ * ⚠️ THE 28th WAS ADDED 2026-09-23 (ask b0822110) BECAUSE THE 2nd AND 23rd COULD NOT SEE THE WORST
+ * DAYS. The fixture's balances are static, so a "today" late in the month starts low against the
+ * days before the next paycheck. A 180-date year sweep at the old checking balance (2,847) flagged
+ * "below safe minimum" on 47 dates, mostly the 26th-31st, while this gate stayed green. Proven red
+ * on 2,847 with the 28th added.
+ *
+ * ⚠️ KNOWN GAP, AND IT IS NOT THE PERSONA'S: the same sweep at 4,231 still flags Feb 1-2 2027 and
+ * Aug 1-2 2027. The month before a deficit month drains to the engine's landing strip, so the
+ * deficit month ends below its minimum even at minimum payments (ask 34fe4e5d). Those months are
+ * not in this sweep. Do not add them to force red, and do not tune the persona around them: fix
+ * the engine, then add them.
+ */
 function sweepDates(): Date[] {
   const out: Date[] = [];
   for (let k = 0; k < 12; k += 2) {
-    for (const day of [2, 23]) out.push(new Date(2026, 8 + k, day, 12));
+    for (const day of [2, 23, 28]) out.push(new Date(2026, 8 + k, day, 12));
   }
   return out;
 }
