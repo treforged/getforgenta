@@ -10,8 +10,15 @@
    closed). OPEN: the APNS_* secrets have never been exercised. Read push_send_runs / push-send logs after the
    17:00Z push-send-daily run for 'is not set' or an APNs status. Missing = Tre's .p8 (APNS_AUTH_KEY_P8,
    APNS_KEY_ID, APNS_TEAM_ID).
-3. **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. At 03:40Z 09-23: temp_files delta 0,
-   pg_stat_statements 99 entries.
+3. **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. At 04:26Z 09-23: temp_files delta 0,
+   pg_stat_statements 105 entries. ⚠️ **THE SPILL IS FIXED AND THE STALLS ARE NOT** (full reading on the ask).
+   REST GETs >2 s: none before 19:54Z 09-22, then 3-8 s stalls in most active minutes, after the reset too
+   (03:38Z Tre's launch p50 6.4 s). The time is outside Postgres: max_exec_time since reset 905 ms, the DB is
+   32 MB and fully cached (1,925 block reads vs 171.9 M hits), and GoTrue stalled in the same second. Re-run THIS
+   as well as the temp delta (query_logs, 24 h window):
+   `select toStartOfMinute(timestamp) m, count() n, countIf(toInt64OrZero(log_attributes['response.origin_time'])>2000) slow, max(toInt64OrZero(log_attributes['response.origin_time'])) max_ms from logs where source='edge_logs' and log_attributes['request.method']='GET' and log_attributes['request.path'] like '/rest/v1/%' group by m having n>=5 order by m`
+   Stalls with no gate walks running = platform-side, and d9e5961c (free compute) governs: do NOT upgrade.
+   Hypothesis, unmeasured: this desk's Playwright walks spend the Nano burst budget. Run fewer walks until read.
 4. **NATIVE SHARE SHEET** - device check only.
 5. **`86bccda4` launch cache - CODE SHIPPED 050c4a19, device unverified.** After Tre installs 1016, a second launch
    must paint numbers at once. Server-side check: his first-minute edge log should no longer matter to what he sees;
