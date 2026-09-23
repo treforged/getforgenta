@@ -7,6 +7,11 @@
    HTTP 200 (net response 4075). The one-shot cron job is gone; job 26 `push-send-daily` (17:00Z) still runs DRY.
    APNs accepted it; whether it showed on his lock screen is the one fact only his phone holds.
    NEXT on push: flipping job 26 to real sends for all users is outward-facing to real people = Tre's call, not filed yet.
+1b. [!] **GRACE-PERIOD FIX IS HALF-DEPLOYED (`d01dae3b`).** Code `a18e531c` is on main and the client half is live.
+   8 edge functions (ai-advisor, friend-link, partner-link, plaid-sync-all, plaid-create-link-token,
+   plaid-exchange-token, financial-sync, plaid-sync) were last deployed BEFORE it, and it is the only undeployed commit
+   in each. The CLI has no token, so they are blocked on `1e1d53eb` (Tre sets SUPABASE_ACCESS_TOKEN). There are 0
+   paying subscribers, so nobody is exposed yet. `86bccda4` (slow pages) is closed: the launch cache is JS and already live.
 2. ⚠️ **Tre, 2026-09-23 10:07 ET: "there is no TestFlight delay."** Correct: JS reaches phones via server.url
    (memory js-changes-reach-phones-via-vercel). Never tell him a JS fix waits on an iOS build.
 3. Standing `e1b0fffc`. Candidates: dark layer 2 (a58fb610, needs his eye), App Store screenshots (231e374c, candidate).
