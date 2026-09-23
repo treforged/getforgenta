@@ -10,6 +10,12 @@
    frames re-shot in `1c0a5766`, and Ruby was told. NEXT e1b0fffc candidate: grep other display-only callers that pass
    `null` where the engine passes a resolved id (the §2.3 / 3842cb1b shape). DONE: every display caller is now resolved. The one
    split left is sim vs engine, filed as its own ask (see `ask list --owner Ada`, ENGINE/SIM FUNDING-ACCOUNT SPLIT). START THERE.
+   MEASURED 2026-09-23 (a5b13315): /demo on Sep 23 with localStorage 'tre:debt:fundingAccount' = "d2" (Harborline
+   Checking, 1,036). The sim pays 686 and ends month 0 at 1,070 on d2. The engine charges the same 686 against d1 and ends
+   month 0 at 2,978. Identity: 2,978 + 686 = 3,664 = 2,672 + 992 (no-override run). So the engine deducts the debt payment
+   from the FORECAST account, not the account the user pays from, and d2 never falls in the forecast. Payoff is the same
+   (Dec 2027) and nothing is flagged. The defect is which account's cash the forecast shows falling. Probe: loop
+   runDemoAsApp with and without that localStorage key set, and write the rows to a file.
 3. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
    b18ac1f8 on/after 10-14.
 
