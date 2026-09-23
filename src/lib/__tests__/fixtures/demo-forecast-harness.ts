@@ -219,3 +219,74 @@ export function runDemoCardProjection(now: Date, persona?: DemoPersonaOverride) 
 export function runDemoForecastWithCards(now: Date): ForecastResult {
   return calculateForecast(demoForecastInputs({ now, cardProjection: runDemoCardProjection(now) }));
 }
+
+/** What `runDemoAsApp` reads off the app's own provider. */
+export interface DemoAsApp {
+  forecast: ForecastResult;
+  cardProjection: {
+    simRevolvingPayoffMonth: number | null;
+    month0?: { safeToPayTotal: number; endCash: number };
+  };
+  cashFloor: number;
+  carFunds: number;
+  converged: boolean;
+}
+
+/**
+ * THE DEMO EXACTLY AS /demo RUNS IT: the app's real `CardProjectionProvider`, in demo mode, with no
+ * signed-in user, so the app's own data hooks return the fixture. Nothing here assembles inputs.
+ *
+ * ⚠️ WHY THIS EXISTS (ask 16147de8). `runDemoCardProjection` / `runDemoForecastWithCards` above pass
+ * debts, goals, car funds and transactions as EMPTY. The app passes all four. On 2026-09-23 that
+ * difference made the marketing lines say the cards clear "Dec 2027" while /demo said "Not within 5
+ * years", and nothing went red. Measured after this was written: this function returns
+ * "CC Debt Free May 2028" then "Sep 2030 Vacation Fund Complete", which is what /demo showed that day.
+ *
+ * ⚠️ IT RE-IMPORTS EVERYTHING. demo-data.ts computes its dates at IMPORT time from the wall clock, so
+ * the module registry is reset after the clock is set. React, Testing Library and React Query are
+ * imported from the same fresh registry, or the hooks would run against a second React.
+ *
+ * Only `Date` is faked: React Query and `waitFor` need real timers. The caller must declare
+ * `// @vitest-environment jsdom`. Call `vi.useRealTimers()` afterwards.
+ */
+export async function runDemoAsApp(now: Date): Promise<DemoAsApp> {
+  const { vi } = await import('vitest');
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(now);
+  vi.resetModules();
+  window.sessionStorage.setItem('forged:demo_session', 'true');
+
+  const React = await import('react');
+  const { render, waitFor, cleanup } = await import('@testing-library/react');
+  const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+  const { DemoProvider } = await import('@/contexts/DemoContext');
+  const { CardProjectionProvider, useCardProjectionContext } = await import('@/contexts/CardProjectionContext');
+  const { demoCarFunds } = await import('@/lib/demo-data');
+
+  let ctx: ReturnType<typeof useCardProjectionContext> | null = null;
+  function Capture() {
+    ctx = useCardProjectionContext();
+    return null;
+  }
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const h = React.createElement;
+  render(h(QueryClientProvider, { client: qc }, h(DemoProvider, null, h(CardProjectionProvider, null, h(Capture)))));
+
+  // Wait for the SAME thing the page waits for: the fixture loaded AND the card projection built.
+  await waitFor(() => {
+    if (!ctx || ctx.carFunds.length !== demoCarFunds.length || !ctx.cardProjection) throw new Error('demo not loaded');
+  }, { timeout: 20_000 });
+
+  const c = ctx as unknown as ReturnType<typeof useCardProjectionContext>;
+  const result: DemoAsApp = {
+    forecast: c.projections,
+    cardProjection: c.cardProjection as unknown as DemoAsApp['cardProjection'],
+    cashFloor: c.cashFloor,
+    carFunds: c.carFunds.length,
+    converged: c.debtCashConverged,
+  };
+  cleanup();
+  qc.clear();
+  window.sessionStorage.removeItem('forged:demo_session');
+  return result;
+}

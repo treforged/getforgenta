@@ -8,8 +8,8 @@
 // the fixture properties behind it. This file adds the other three and asserts the whole set.
 //
 // WHAT MAKES THIS DIFFERENT FROM A LIST OF SENTENCES. Every figure below is READ OUT OF the engine
-// run — `runDemoForecastWithCards` renders the app's own card simulation and feeds it to the app's
-// own forecast — so a fixture edit that moves a number moves the line, and a fixture edit that
+// run — `runDemoAsApp` renders the app's own `CardProjectionProvider` in demo mode, so the figures
+// are the ones /demo shows — so a fixture edit that moves a number moves the line, and a fixture edit that
 // makes the app's strongest claim unreachable makes this file go red. That is the failure this
 // exists to catch: an App Store image whose claim the product no longer computes, with nothing
 // anywhere going red. The published asset is the thing that would be wrong, and it would be wrong
@@ -18,11 +18,15 @@
 // ⚠️ THE FIXTURE IS NEVER TUNED TO PRODUCE A LINE. If a line stops computing, the LINE is dropped —
 // the persona is not adjusted until the sentence comes back. See demo-data.ts's `demoProfile`.
 //
+// ⚠️ UNTIL 2026-09-23 THIS READ A HAND-BUILT HARNESS that passed debts, goals, car funds and
+// transactions as EMPTY. It said the cards clear "Dec 2027" while /demo said "Not within 5 years",
+// and nothing went red (ask 16147de8). Do not move it back to `runDemoForecastWithCards`.
+//
 // ON THE CLOCK. Every run is pinned to 2026-09-03. A filmed figure that moves with the wall clock
 // is a figure nobody can reproduce next week, and the dates in these lines are the whole point.
 
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { runDemoForecastWithCards, runDemoCardProjection } from './fixtures/demo-forecast-harness';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { runDemoAsApp, type DemoAsApp } from './fixtures/demo-forecast-harness';
 import { projectCard, calcMinPayment, type CardData } from '../credit-card-engine';
 import { promoExpiryWarnings } from '../balance-tranches';
 import { demoAccounts, demoRecurringRules, demoProfile } from '../demo-data';
@@ -38,6 +42,9 @@ const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
 
 const MAX_HOOK_WORDS = 12;
 const MAX_HOOK_CHARS = 70;
+
+/** The app's own demo run at NOW, taken once for the whole file. */
+let app: DemoAsApp;
 
 /** One filmable line: the BEAT is what goes on screen, the FULL line is what the voiceover says. */
 interface Line {
@@ -74,7 +81,7 @@ const demoCards = () =>
 /** Every line, built from one engine run. Nothing here is a literal figure. */
 function buildLines(): Line[] {
   const out: Line[] = [];
-  const forecast = runDemoForecastWithCards(NOW);
+  const forecast = app.forecast;
   const rows = forecast.data as unknown as Record<string, unknown>[];
 
   // ── TYPE 1 · PROMO REPRICING ───────────────────────────────────────────────
@@ -137,7 +144,7 @@ function buildLines(): Line[] {
   // The milestone the engine itself publishes, against the minimum-only counterfactual above.
   const debtFree = forecast.milestones.find(m => m.event.includes('CC Debt Free'));
   const worst = minOnly.reduce((a, b) => (Number(b.months ?? 0) > Number(a.months ?? 0) ? b : a));
-  const month0 = runDemoCardProjection(NOW) as unknown as { month0?: { safeToPayTotal: number; endCash: number } };
+  const month0 = app.cardProjection;
 
   if (debtFree) {
     out.push({
@@ -157,8 +164,11 @@ function buildLines(): Line[] {
     out.push({
       type: 'acceleration',
       beat: `${money(month0.month0.safeToPayTotal)} to cards, floor still ${money(demoProfile.cash_floor)}`,
+      // ⚠️ REWORDED 2026-09-23. It said "every dollar above the floor, and not one below it", which was
+      // true only while month 0 ended AT the floor. On the app's own inputs it ends $641 above it
+      // (cash held for March's premium), so the claim is now only the half the figures prove.
       full: `${money(month0.month0.safeToPayTotal)} goes to the cards this month and checking still`
-        + ` ends at ${money(month0.month0.endCash)} — every dollar above the ${money(demoProfile.cash_floor)} floor, and not one below it`,
+        + ` ends at ${money(month0.month0.endCash)}, above the ${money(demoProfile.cash_floor)} floor`,
     });
   }
 
@@ -197,8 +207,11 @@ function buildLines(): Line[] {
     out.push({
       type: 'cash-floor',
       beat: `${money(item.amount)} of ${item.name} lands before the next paycheck`,
-      full: `${money(item.amount)} of ${item.name} falls due before ${rentFloor.month}'s first paycheck, which is`
-        + ` why the floor that month is ${money(Number(rows[rentFloor.i].monthMinSafe))} and not the ${money(demoProfile.cash_floor)} setting`,
+      // ⚠️ REWORDED 2026-09-23. "which is why the floor that month is ..." claimed the bill CAUSED the
+      // raised floor. On the app's own inputs the floor is raised by committed monthly outflows as
+      // well, so the line states the two facts side by side and claims no cause.
+      full: `${money(item.amount)} of ${item.name} falls due before ${rentFloor.month}'s first paycheck. That`
+        + ` month's floor is ${money(Number(rows[rentFloor.i].monthMinSafe))}, not the ${money(demoProfile.cash_floor)} setting`,
     });
   }
 
@@ -206,11 +219,10 @@ function buildLines(): Line[] {
 }
 
 describe('the demo fixture produces a season of filmable lines', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-  });
-  afterEach(() => vi.useRealTimers());
+  beforeAll(async () => {
+    app = await runDemoAsApp(NOW);
+  }, 60_000);
+  afterAll(() => vi.useRealTimers());
 
   it('produces at least TWELVE distinct lines — a quarter of weekly filming', () => {
     const lines = buildLines();
@@ -277,7 +289,7 @@ describe('the demo fixture produces a season of filmable lines', () => {
   });
 
   it('the ENGINE still says the things the lines quote — the fixture has not gone weak', () => {
-    const forecast = runDemoForecastWithCards(NOW);
+    const forecast = app.forecast;
     // 1. The cards are actually retired inside the horizon. A fixture whose debt grows forever
     //    makes every acceleration line unfilmable and says the product does not work.
     expect(forecast.milestones.some(m => m.event.includes('CC Debt Free'))).toBe(true);
