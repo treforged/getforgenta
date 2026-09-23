@@ -31,7 +31,12 @@
    Tre sees it on the goal card: 'Transfer $X this month ... rises to $Y in <month>'. His real move goal will show
    ~$102 this month and $2,249 in May 2027 (largest). If he objects to the size of May, the measured alternative is a
    true linear ramp (peak $1,022, saves $184 instead of $421) - one line in paced-goal-contribution.ts.
-7. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
+7. [x] **e1b0fffc slice: revolving-balance CAPTURE SHIPPED** - `net_worth_snapshots.revolving_balance` (migration
+   applied, nullable), filled weekly on the newest row by the recorder. Starts the series `debt_payoff` needs; the
+   metric is NOT wired. Web fills from the next Dashboard visit, and phones fill from the next iOS build (not in 1016).
+   Follow-up ask `b18ac1f8` on/after 2026-10-14. Quick check any day: `select count(*) filter (where revolving_balance
+   is not null) from net_worth_snapshots` - it was 0 at ship time.
+8. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
