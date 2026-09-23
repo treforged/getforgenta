@@ -42,9 +42,14 @@
  *         Needs the dev server on http://localhost:8080 and .env.deck-walk.local.
  */
 import { readFileSync } from 'node:fs';
+import { undoOfferWindowHours, isOffered } from './lib/undo-window.mjs';
 
 const BASE = 'http://localhost:8080';
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
+// The app offers an undo only inside its own window; an older un-undone row is a SPENT fixture, not a
+// missing control. Read from the app's source - see scripts/lib/undo-window.mjs.
+const OFFER_HOURS = undoOfferWindowHours();
+if (OFFER_HOURS === null) fail(2, 'could not read UNDO_OFFER_WINDOW_HOURS from src/lib/applied-actions.ts - the extractor is broken, not the app.');
 
 const env = readFileSync('.env.local', 'utf8');
 let creds;
@@ -82,15 +87,18 @@ console.log(`signed in as ${session.user.email}`);
 
 /** Read applied_actions as the USER, through RLS - never with a privileged key. */
 async function actions() {
-  const r = await fetch(`${url}/rest/v1/applied_actions?select=id,undone_at&order=created_at.desc`, {
+  const r = await fetch(`${url}/rest/v1/applied_actions?select=id,kind,undone_at,created_at&order=created_at.desc`, {
     headers: { apikey: anon, Authorization: `Bearer ${session.access_token}` },
   });
   if (!r.ok) fail(1, `reading applied_actions returned ${r.status}`);
-  const rows = await r.json();
+  // `merchant_retro_pass` belongs to MerchantMemoryPanel, whose control is "Undo all" and which
+  // walk-batch-undo covers. Counting it here let a merchant pass created on this page load stand in
+  // for a deck action, so the walk blamed the deck's Undo for a row the deck never wrote (2026-09-23).
+  const rows = (await r.json()).filter((a) => a.kind !== 'merchant_retro_pass');
   return {
     total: rows.length,
-    live: rows.filter((a) => a.undone_at === null).length,
-    liveIds: rows.filter((a) => a.undone_at === null).map((a) => a.id),
+    live: rows.filter((a) => isOffered(a, OFFER_HOURS)).length,
+    liveIds: rows.filter((a) => isOffered(a, OFFER_HOURS)).map((a) => a.id),
     undoneIds: new Set(rows.filter((a) => a.undone_at !== null).map((a) => a.id)),
   };
 }
@@ -153,7 +161,7 @@ console.log(`BEFORE  applied_actions total=${before.total} not-undone=${before.l
 if (before.live === 0) {
   await page.screenshot({ path: process.argv[2] || 'walk-deck-undo.png' });
   await browser.close();
-  fail(2, 'no live applied action exists even after the page settled, so there is nothing to press - the fixture is spent, which is what a SUCCESSFUL previous run leaves behind. '
+  fail(2, `no applied action inside the app's ${OFFER_HOURS}h undo window exists even after the page settled (an older un-undone row is not offered, by design),` + ' so there is nothing to press - the fixture is spent, which is what a SUCCESSFUL previous run leaves behind. '
     + 'RE-ARM IS TWO DELETES, NOT ONE: clearing applied_actions alone is not enough, because the newest charge is left LINKED and auto-apply then has nothing to offer. '
     + 'With a privileged connection, and note the order - the review goes first:\n'
     + "  delete from synced_transaction_reviews where synced_transaction_id = (\n"

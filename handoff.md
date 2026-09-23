@@ -8,7 +8,17 @@
    destructive-states, toast-contrast all green. check:text-scale was RED on a real defect (`text-[8px]` never mapped to rem,
    19 call sites) - fixed in `071dbc42`, now green. check:glass flaked ONCE (exit 2, still-frame noise 255) and passed on
    re-run (noise 0.00): the control refused correctly; if it flakes again, investigate what animates on the bottom bar.
-   Nothing workable remains until item 2's date.
+   FULL WALK (Sam, ~19:00Z): onboarding-stay 2/2, onboarding-orientation walked 9 steps to the finish on screen
+   (its typed "5 sections" guard had refused every run since Analytics joined Account 09-22 - fixed to a known member),
+   onboarding-attribution PASS. Undo walks: batch PASS, row-link PASS. Both deck and batch had exited 1 blaming the app
+   for an 8-day-old action the app correctly stops offering after UNDO_OFFER_WINDOW_HOURS (24) - they now read that
+   window from source (scripts/lib/undo-window.mjs). Walk fixture re-armed; the deleted rows are saved in
+   backup.walk_rearm_20260923_actions (2) and backup.walk_rearm_20260923_reviews (14).
+   ⚠️ OPEN: walk-deck-undo exits 2 because MerchantMemoryPanel categorises the fixture charges on load before the deck can
+   auto-apply anything, so the two features compete for the same fixture. It needs a fixture charge that no labelled
+   merchant matches. NOT an app defect, as far as measured.
+   a58fb610 layer 2: before/after frames sent to Sam for Tre (scratchpad vib2/*-pair.png); CSS is in scratchpad
+   vibrancy-pair.mjs. On his yes, move the CSS into index.css under .dark and re-run both dark contrast gates.
 2. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
 3. HELD FOR TRE: the grace fix on 6 functions (friend-link, partner-link, plaid-exchange-token, plaid-sync-all,
    financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
@@ -11277,7 +11287,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 14:18 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 14:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11288,14 +11298,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+45a2b2ed [handoff]: 798c0ed9 re-tested, gate sweep green, text-[8px] fixed in 071dbc42
+071dbc42 [type]: text-[8px] labels now scale with the user's text size
+96626c12 [handoff]: session close - six engine/display fixes shipped; next is the 798c0ed9 trigger re-test under e1b0fffc
+d62f67dd [handoff]: a5b13315 fixed in 539cb446
+539cb446 [projection]: the sim and the forecast use one funding account, so a payment leaves the account you chose
 92c0c744 [handoff]: a5b13315 measured - the engine deducts debt payments from the forecast account, not the chosen funding account
 dece5ad6 [handoff]: display funding-id sweep done; next is the sim/engine funding-account split
 b7b72d54 [handoff]: Garage car-saved fix (3842cb1b) and the next e1b0fffc candidate
-1c0a5766 [marketing]: Garage frames re-shot after 3842cb1b (Civic reads $1,240 of $5,590 down)
-3842cb1b [vehicles]: a car fund linked to the main checking account no longer reads that whole balance as saved
-f994c8c5 [handoff]: 34fe4e5d month-0 look-ahead done; the demo sweep is fully clean
-26068e8a [projection]: month 0 honours the save-up look-ahead, so it no longer drains past what next month needs
-dbf75ee7 [handoff]: convergence latch, persona and store frames done; next is the save-up look-ahead (34fe4e5d)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

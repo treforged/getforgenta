@@ -33,9 +33,14 @@
  * USAGE: node scripts/walk-batch-undo.mjs [screenshot.png]
  */
 import { readFileSync } from 'node:fs';
+import { undoOfferWindowHours, isOffered } from './lib/undo-window.mjs';
 
 const BASE = 'http://localhost:8080';
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
+// The app offers an undo only inside its own window; an older un-undone row is a SPENT fixture, not a
+// missing control. Read from the app's source - see scripts/lib/undo-window.mjs.
+const OFFER_HOURS = undoOfferWindowHours();
+if (OFFER_HOURS === null) fail(2, 'could not read UNDO_OFFER_WINDOW_HOURS from src/lib/applied-actions.ts - the extractor is broken, not the app.');
 
 const env = readFileSync('.env.local', 'utf8');
 let creds;
@@ -70,7 +75,7 @@ const auth = { apikey: anon, Authorization: `Bearer ${session.access_token}` };
 
 /** Read applied_actions as the USER, through RLS - never with a privileged key. */
 async function actions() {
-  const r = await fetch(`${url}/rest/v1/applied_actions?select=id,kind,label,steps,undone_at`, { headers: auth });
+  const r = await fetch(`${url}/rest/v1/applied_actions?select=id,kind,label,steps,undone_at,created_at`, { headers: auth });
   if (!r.ok) fail(1, `reading applied_actions returned ${r.status}`);
   return await r.json();
 }
@@ -122,9 +127,9 @@ if (await deck.count()) {
 await page.waitForTimeout(3000);
 
 const afterApply = await actions();
-const pass = afterApply.find((a) => a.kind === 'merchant_retro_pass' && a.undone_at === null);
+const pass = afterApply.find((a) => a.kind === 'merchant_retro_pass' && isOffered(a, OFFER_HOURS));
 if (!pass) {
-  await done(2, 'no live merchant_retro_pass exists after the page settled, so the batch never applied and there is nothing to undo. '
+  await done(2, `no merchant_retro_pass inside the app's ${OFFER_HOURS}h undo window exists after the page settled (an older un-undone pass is not offered, by design),` + ' so the batch never applied and there is nothing to undo. '
     + 'The panel needs charges with NO recorded category from a merchant the account has already labelled. '
     + 'Re-arm with a privileged connection by deleting this account\'s applied_actions and the category_override reviews the last pass wrote.');
 }
