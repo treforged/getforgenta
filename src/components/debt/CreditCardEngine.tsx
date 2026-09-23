@@ -259,7 +259,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // expense paid from the funding account?", so an id matching nothing drops every cash expense
   // out of the estimate. Resolve it against the real account list first; the persisted value is
   // left untouched so switching data sets (demo ↔ real) never overwrites the user's choice.
-  const resolvedFundingId = resolveFundingAccountId(accounts, fundingAccountId, defaultFunding) ?? '';
+  // Profile FIRST, the same order CardProjectionContext resolves for the sim and the forecast
+  // (a5b13315): the profile is the cross-device record, so a stale browser value on a second device
+  // must not show a different selection from the one every number on the page is computed from.
+  const resolvedFundingId = resolveFundingAccountId(accounts, profile?.default_deposit_account, fundingAccountId, defaultFunding) ?? '';
   const fundingAccount = liquidAccounts.find(a => a.id === resolvedFundingId);
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
 

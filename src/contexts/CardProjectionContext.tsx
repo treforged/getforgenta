@@ -139,9 +139,16 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     // `src/lib/funding-account.ts` and finding §2.8.
     const fromProfile = resolveFundingAccountId(accounts ?? [], profile?.default_deposit_account);
     if (fromProfile) return fromProfile;
+    // ONE funding account for the sim AND the forecast (ask a5b13315, 2026-09-23). The debt page's
+    // picker writes the profile and the browser together, so the PROFILE is the durable,
+    // cross-device record and wins; the browser choice is used only when the profile names nothing
+    // (demo, or a profile write that never landed). Before, the sim read the browser choice first and
+    // the forecast never read it, so a user paying from d2 saw the forecast take the payment out of d1.
+    const fromBrowser = resolveFundingAccountId(accounts ?? [], persistedDebtFundingId || null);
+    if (fromBrowser) return fromBrowser;
     const checking = (accounts ?? []).find(a => a.active && a.account_type === 'checking');
     return (checking?.id as string) ?? null;
-  }, [accounts, profile]);
+  }, [accounts, profile, persistedDebtFundingId]);
 
   // Finding §1.1 cause C: the rule lives in `src/lib/sync-cutoff.ts` now. This used to return the
   // raw sync date (or today, when the account had no Plaid link at all), which treated a payment
@@ -255,7 +262,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     pauseSavings,
     forecastFundingAccountId,
     debtStrategy,
-    persistedDebtFundingId,
+    // The single resolved id above, never the raw browser value: the sim resolves this FIRST, so a
+    // stale browser choice would otherwise outrank the profile the forecast reads.
+    persistedDebtFundingId: forecastFundingAccountId ?? '',
     assumptions: projectionAssumptions,
     syncCutoffDate,
     paymentPlans: paymentPlans ?? [],
