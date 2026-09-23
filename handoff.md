@@ -4,8 +4,8 @@
 
 1. [x] **iOS build 1016 UPLOADED 04:21:58Z** (run 35817716094 from 050c4a19; upload step success, altool 'UPLOAD
    SUCCEEDED with no errors'). Carries pacing eb651d56, launch cache 050c4a19, stop-name 0233ab6e. Tre told.
-   **NOT in 1016: `981e8ecf` push registers once per launch** (was 4 full cycles in 41 s on 1011). Goes in the
-   next dispatch; no need to spend an upload on it alone.
+   `981e8ecf` push registers once per launch is JS-only, so it is ALREADY LIVE on phones via server.url (Vercel prod
+   READY at d122e15e). Correction 2026-09-23: this line used to say it needed the next dispatch; it did not.
 2. ⚠️ **THE 17:00Z DAILY RUN NEVER SENDS - IT IS A DRY RUN.** cron job 26 posts with no query string, and push-send
    treats anything but `dry_run=0` as dry. push_send_runs shows dry_run=true, sent 0 every day since 09-15. Waiting for it
    proved nothing about APNs. **SCHEDULED INSTEAD: cron job `push-apns-first-send-tre` at 12:05Z 09-23 (08:05 ET, just
