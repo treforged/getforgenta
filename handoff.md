@@ -1,6 +1,33 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~17:10 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~18:30 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **ENGINE `34fe4e5d`: the month before a deficit month drains to the landing strip**, so the deficit month (the
+   insurance in Mar and Sep) ends below its safe minimum even at minimum payments. Measured on /demo at d1 4231, today
+   Feb 1 2027, converged: Feb pays 2894 against 2488 recommended and ends at 2227, then Mar ends at 1901 against 1919.
+   More cash does not fix it. Start at the Step 3 surplus branch (`forecast-engine.ts` ~2412) and
+   `computeFloorProtection`. Money math, so work at the highest effort. Write the failing test first on the real case,
+   then add Feb and Aug dates to `demo-persona-clears`, whose header names this gap.
+   Probe recipe: a vitest file in `src/lib/__tests__/` that `vi.doMock('@/lib/demo-data')` overrides d1 and
+   `planned_purchase_date`, then loops `runDemoAsApp(date)` and writes rows to a FILE (the console is silenced). Delete
+   it after use.
+2. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
+   b18ac1f8 on/after 10-14.
+
+<details><summary>Done 2026-09-23 ~18:30Z</summary>
+
+- ✅ `d56d5965` `c389c9af`: CAP REGIME LATCH. The save-up cap flipped finite/uncapped on alternate passes (period 2,
+  200 passes do not break it), so the run fell back to the base pair, which breached its own minimum. Gate
+  `forecast-convergence.capRegimeLatch.engine.test.ts`, red pre-fix. test:tz 5178/0 in 3 zones.
+- ✅ `b0822110` `167f200b`: demo checking 2847 -> 4231. The gate samples the 28th, red at 2847. 180-date sweep:
+  47 -> 4 flagged, 0 non-converged.
+- ✅ `04f318a2`: 14 store frames re-shot by the new `scripts/capture-store-frames.mjs`, which asserts each screen's
+  marker and that the banner is gone. Unchanged screens came out byte-identical. Ruby has the paths and figures.
+- ✅ `c84ae2a0`: Ruby's two /demo features were never removed (measured live), and she was told.
+
+</details>
+
+### (superseded) Resume queue - 2026-09-23 ~17:10 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
 
 0. **`d56d5965` FIX BUILT 2026-09-23 (cap regime latch, `forecast-convergence.ts`).** Measured cause: the save-up cap
    flipped between finite and uncapped on alternate passes. The cap damping skips non-finite values, so the cycle is
