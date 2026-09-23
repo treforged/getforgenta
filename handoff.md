@@ -44,7 +44,10 @@
    was REVOKED and proven (migration 20260923_revoke_username_trigger_rpc). Performance: 94 auth_rls_initplan,
    20 multiple_permissive, 23 unindexed FKs, 2 duplicate indexes - DELIBERATELY NOT TOUCHED. Rewriting 94 policies
    on money tables risks exposing data, each user has only hundreds of rows, and the stalls are outside Postgres
-   (item 3). Revisit only if pg_stat_statements shows a user query with mean_exec_time > 50 ms.
+   (item 3). Revisit only if a user query's MIN_exec_time > 20 ms or
+   shared_blks_hit/calls > 1,000. ⚠️ NOT the mean: recurring_rules reads mean 59 ms but min 0.8 ms, sd 106, ~52 blocks
+   per call - the plan is cheap and the mean is the host stall (item 3). The first version of this trigger used the
+   mean and fired on its own writing.
 8. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
