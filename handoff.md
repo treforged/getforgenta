@@ -36,6 +36,10 @@
    metric is NOT wired. Web fills from the next Dashboard visit, and phones fill from the next iOS build (not in 1016).
    Follow-up ask `b18ac1f8` on/after 2026-10-14. Quick check any day: `select count(*) filter (where revolving_balance
    is not null) from net_worth_snapshots` - it was 0 at ship time.
+7b. [x] **Last long INPUT placeholders measured (d694a896 residue).** Inter width in headless Chromium: the Auth
+   recovery confirm was 218.6px in a 214px box at 320 -> shortened to 'Re-enter password' (pushed). Transactions plan
+   name (174px) and Settings new password (176px) fit, with >=230px box at 320. The remaining >24-char placeholders
+   are textareas, select labels, or the debug ErrorTest page. This residue is closed.
 8. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
