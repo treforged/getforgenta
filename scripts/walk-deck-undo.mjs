@@ -166,7 +166,11 @@ if (before.live === 0) {
     + 'With a privileged connection, and note the order - the review goes first:\n'
     + "  delete from synced_transaction_reviews where synced_transaction_id = (\n"
     + "    select t.id from synced_transactions t join auth.users u on u.id = t.user_id\n"
-    + "     where u.email = 'deck-walk@forgenta.test' order by t.date desc limit 1);\n"
+    + "     where u.email = 'deck-walk@forgenta.test' and coalesce(t.merchant_name, t.name) = 'City Power & Light'\n"
+    + "     order by t.date desc limit 1);\n"
+    + '  -- ONLY the newest City Power & Light charge. Auto-apply acts on the CURRENT card alone, and an\n'
+    + '  -- undecided Northside Hardware charge sorts first and parks the deck on it. The 6 older City Power\n'
+    + '  -- links must stay: they are the link memory auto-apply matches against.\n'
     + "  delete from applied_actions where user_id = (select id from auth.users where email = 'deck-walk@forgenta.test');");
 }
 

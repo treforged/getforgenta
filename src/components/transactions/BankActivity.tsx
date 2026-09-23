@@ -804,6 +804,7 @@ export default function BankActivity() {
             <button
               key={v.id}
               onClick={() => { setView(v.id); setVisibleCount(PAGE_SIZE); setConfirmingAcceptAll(false); }}
+              aria-pressed={view === v.id}
               className={`px-2.5 py-1 text-xs font-medium transition-colors ${
                 view === v.id ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground hover:text-foreground'
               }`}

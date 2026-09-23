@@ -142,6 +142,7 @@ export default function ForecastAssumptionsPanel({
               {(['pct', 'flat'] as const).map(m => (
                 <button key={m}
                   onClick={() => setAssumptions(prev => ({ ...prev, raiseMode: m }))}
+                  aria-pressed={assumptions.raiseMode === m}
                   className={`flex-1 py-1.5 text-xs font-medium transition-colors ${assumptions.raiseMode === m ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
                   {m === 'pct' ? '%' : '$'}
                 </button>

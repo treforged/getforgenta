@@ -1574,7 +1574,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             ] as const).map(s => (
               <Tooltip key={s.key}>
                 <TooltipTrigger asChild>
-                  <button onClick={() => setStrategy(s.key)}
+                  <button onClick={() => setStrategy(s.key)} aria-pressed={strategy === s.key}
                     className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press ${strategy === s.key ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
                     style={{ borderRadius: 'var(--radius)' }}>
                     <s.icon size={12} /> {s.label}
@@ -1597,7 +1597,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               ] as const).map(m => (
                 <Tooltip key={m.key}>
                   <TooltipTrigger asChild>
-                    <button onClick={() => setPaymentMode(m.key)}
+                    <button onClick={() => setPaymentMode(m.key)} aria-pressed={paymentMode === m.key}
                       className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press ${paymentMode === m.key ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
                       style={{ borderRadius: 'var(--radius)' }}>
                       <m.icon size={12} /> {m.label}

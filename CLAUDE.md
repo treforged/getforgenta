@@ -78,6 +78,20 @@ section states reasoning, not measurement, and says so.
   from `src/App.tsx`, which is why the link half exists: a RENAME moves the app and the
   check together, and only the links disagree. Proven red both ways (a renamed route, a
   failing lazy chunk) and restored byte-exact.
+- `npm run walk:press` — PRESSES every top-layer control on every declared route at 390x844, signed in,
+  each in a fresh context, and requires each press to CHANGE something (url, dialog count, text, or its own
+  aria state). Three positive controls gate the run: a planted dead button must read no-change, a planted
+  live one changed, and a planted WRITE write-blocked.
+  ⚠️ **IT CANNOT WRITE TO THE DATABASE, AND THAT IS ENFORCED BY THE NETWORK, NOT BY LABELS.** Every
+  non-read request to the Supabase data plane is ABORTED in its browser; rpc calls go through only when the
+  function is STABLE or IMMUTABLE, DERIVED from `supabase/migrations` and checked against two functions
+  whose volatility was read from `pg_proc`. Label skips alone let a ToggleSwitch, "Activate", "Full
+  Balance" and "One row each" write to the walk account on 2026-09-23 (reverted; snapshots in
+  `backup.walk_crawl_writes_20260923`). A press whose write was aborted reads `write-blocked`.
+  ⚠️ **COMPARE `enumerated` AND `pressed` TO THE LAST RUN.** Blocking POST reads starved the pages once:
+  315 -> 249 enumerated and PASS all the same. Last good run: 323 enumerated, 136 changed, 10
+  write-blocked, 0 no-change. It does NOT cover controls behind a dialog or menu, param routes, desktop
+  widths, or whether a change is the RIGHT change.
 - `npm run check:rail` — measures the desktop sidebar at 1440 and 1024, in BOTH states,
   and asserts nothing in the narrow rail is clipped past its edge and no label sits on
   more than one line — wrapping is read from each element's OWN line-height, never a pixel

@@ -159,6 +159,7 @@ export default function Premium() {
         <div className="flex bg-secondary border border-border p-0.5" style={{ borderRadius: 'var(--radius)' }}>
           <button
             onClick={() => handleSwitchPlan('yearly')}
+            aria-pressed={checkoutPlan === 'yearly'}
             className={`flex-1 py-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${checkoutPlan === 'yearly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
           >
@@ -169,6 +170,7 @@ export default function Premium() {
           </button>
           <button
             onClick={() => handleSwitchPlan('monthly')}
+            aria-pressed={checkoutPlan === 'monthly'}
             className={`flex-1 py-2 text-xs font-semibold transition-all ${checkoutPlan === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
           >
@@ -252,6 +254,7 @@ export default function Premium() {
             <div className="flex bg-secondary border border-border p-0.5" style={{ borderRadius: 'var(--radius)' }}>
               <button
                 onClick={() => setSelectedPlan('yearly')}
+                aria-pressed={selectedPlan === 'yearly'}
                 className={`flex-1 py-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${selectedPlan === 'yearly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
               >
@@ -262,6 +265,7 @@ export default function Premium() {
               </button>
               <button
                 onClick={() => setSelectedPlan('monthly')}
+                aria-pressed={selectedPlan === 'monthly'}
                 className={`flex-1 py-2 text-xs font-semibold transition-all ${selectedPlan === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
               >

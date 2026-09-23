@@ -1597,6 +1597,7 @@ export default function Transactions() {
                       key={pt}
                       type="button"
                       onClick={() => setPlanForm(p => ({ ...p, plan_type: pt }))}
+                      aria-pressed={planForm.plan_type === pt}
                       className={`py-2 px-3 text-xs font-medium border transition-colors ${planForm.plan_type === pt ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
                       style={{ borderRadius: 'var(--radius)' }}
                     >

@@ -16,7 +16,8 @@
  *
  * WHAT IS NEVER PRESSED, and is COUNTED rather than hidden:
  *   destructive - delete, remove, sign out, cancel a subscription, disconnect, reset ...
- *   write       - labels that commit data (save, confirm, import, mark paid ...). This is the walk
+ *   write       - labels that commit data (save, confirm, import, mark paid ...), and every control
+ *                 whose ROLE persists on press (switch, checkbox, radio). This is the walk
  *                 account, but three other walks depend on its fixture, and a crawler that spends
  *                 their fixture turns a green suite red for a reason unrelated to any defect.
  *   external    - links off this origin, mailto:, tel:.
@@ -37,7 +38,7 @@
  * USAGE:  node scripts/walk-press-every-control.mjs [out-dir]   (dev server on :8080, .env.deck-walk.local)
  * EXITS:  0 every pressed control changed something . 1 at least one no-change . 2 could not test
  */
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BASE = 'http://localhost:8080';
@@ -121,9 +122,60 @@ await ctx.addInitScript(([k, s]) => { try { localStorage.setItem(k, s); } catch 
  * came back not-found because they were enumerated in one state and looked for in another.
  */
 const BASELINE = await ctx.storageState();
+/**
+ * ⚠️ THE WRITE GUARD. Labels and roles cannot find every control that persists: the deduction $/%
+ * buttons, the deck's category chips and a ToggleSwitch all write, and none of them says "save".
+ * 2026-09-23 the crawler flipped the walk account's Discover It "pay in full" switch that way. So
+ * every non-read request to the Supabase data plane (rest, functions, storage) is ABORTED in the
+ * crawler's browser. Auth (token refresh) is allowed. A press that tried to write is reported as
+ * write-blocked; it is not pressed "for real" and it is not counted as changed.
+ */
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+/**
+ * PostgREST calls EVERY rpc with POST, reads included, so blocking by method alone starved pages of
+ * data: the first guarded run enumerated 249 controls against 315 and pressed 75 against 147, and
+ * still printed PASS. A function declared STABLE or IMMUTABLE cannot write, so those are let
+ * through. The set is DERIVED from supabase/migrations (the last definition of a name wins), and
+ * the volatility word is read only OUTSIDE the dollar-quoted body, so a comment cannot flip it.
+ */
+function readOnlyRpcs() {
+  const out = new Map();
+  const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort();
+  for (const f of files) {
+    const sql = readFileSync(join('supabase/migrations', f), 'utf8');
+    const head = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?"?(\w+)"?\s*\(/gi;
+    let h;
+    while ((h = head.exec(sql)) !== null) {
+      const open = /\$(\w*)\$/.exec(sql.slice(h.index));
+      if (!open) continue;
+      const bodyStart = h.index + open.index;
+      const closeAt = sql.indexOf(open[0], bodyStart + open[0].length);
+      if (closeAt < 0) continue;
+      const tailEnd = sql.indexOf(';', closeAt);
+      const outside = sql.slice(h.index, bodyStart) + sql.slice(closeAt + open[0].length, tailEnd < 0 ? undefined : tailEnd);
+      out.set(h[1].toLowerCase(), /\b(stable|immutable)\b/i.test(outside));
+    }
+  }
+  return new Set([...out].filter(([, ro]) => ro).map(([n]) => n));
+}
+const READ_ONLY_RPC = readOnlyRpcs();
+// Controls on the parse, both directions, from functions whose volatility was read from pg_proc.
+if (!READ_ONLY_RPC.has('leaderboard_global_stats') || !READ_ONLY_RPC.has('follow_profiles')) fail(2, 'CONTROL FAILED - the migration parse missed a function pg_proc says is STABLE.');
+if (READ_ONLY_RPC.has('claim_milestone_achievements')) fail(2, 'CONTROL FAILED - the migration parse let through a function pg_proc says is VOLATILE.');
+console.log(`read-only rpcs let through: ${READ_ONLY_RPC.size}`);
+const DATA_PLANE = new RegExp(`^https://${ref}\\.supabase\\.co/(rest|functions|storage)/v1/`);
 async function isolatedPage() {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, storageState: BASELINE });
   const page = await c.newPage();
+  page.blockedWrites = [];
+  await page.route(DATA_PLANE, (r) => {
+    const req = r.request();
+    if (READ_METHODS.has(req.method())) return r.continue();
+    const rpc = /\/rest\/v1\/rpc\/(\w+)/.exec(new URL(req.url()).pathname);
+    if (rpc && READ_ONLY_RPC.has(rpc[1].toLowerCase())) return r.continue();
+    page.blockedWrites.push(`${req.method()} ${new URL(req.url()).pathname.replace(/^\/(rest|functions|storage)\/v1\//, '')}`);
+    return r.abort('blockedbyclient');
+  });
   page.once('close', () => { c.close().catch(() => { /* already gone with the browser */ }); });
   return page;
 }
@@ -203,7 +255,7 @@ function diff(a, b, textTrusted) {
 }
 
 /** Open a fresh page at `route`, optionally plant a control, and press `c`. */
-async function pressFresh(route, c, textTrusted, plant) {
+async function pressFresh(route, c, textTrusted, plant, plantWith) {
   const page = await isolatedPage();
   let popup = false;
   page.on('popup', () => { popup = true; });
@@ -211,7 +263,8 @@ async function pressFresh(route, c, textTrusted, plant) {
   try {
     await page.goto(BASE + route, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(SETTLE_MS);
-    if (plant) await page.evaluate(plant);
+    if (plantWith) await plantWith(page);
+    else if (plant) await page.evaluate(plant);
     // Poll: a fresh page under parallel load can take longer than SETTLE_MS to render its data-backed
     // controls, and a single look reported 65 of them missing on the first run (2026-09-23).
     let found = false;
@@ -222,6 +275,8 @@ async function pressFresh(route, c, textTrusted, plant) {
       return { outcome: 'not-found', frame: nf, why: `landed ${new URL(page.url()).pathname}` };
     }
     const before = await state(page);
+    const writesBefore = page.blockedWrites.length;
+    for (const w of page.blockedWrites) { loadBlocked.add(w); AMBIENT.add(w); }
     try {
       await page.locator('[data-press-target]').first().click({ timeout: 4000 });
     } catch (e) {
@@ -229,6 +284,11 @@ async function pressFresh(route, c, textTrusted, plant) {
     }
     await page.waitForTimeout(AFTER_PRESS_MS);
     const after = await state(page);
+    // Only a write the app does NOT make on its own is the press's. The app PATCHes
+    // leaderboard_snapshots on load, and that can land inside any press window (it turned the
+    // planted DEAD control into write-blocked once, 2026-09-23). AMBIENT is derived, not named.
+    const attempted = page.blockedWrites.slice(writesBefore).filter((w) => !AMBIENT.has(w));
+    if (attempted.length) return { outcome: 'write-blocked', why: [...new Set(attempted)].join(', ') };
     const why = diff(before, after, textTrusted);
     if (popup) why.push('popup/download');
     if (why.length) return { outcome: 'changed', why: why.join('; ') };
@@ -253,16 +313,39 @@ const PLANT = () => {
   host.prepend(live);
   host.prepend(dead);
 };
+// A planted control that WRITES must come back write-blocked, or the guard is not in the path.
+const loadBlocked = new Set();
+/** Writes the app makes with nobody pressing anything: a calibration page, plus every pre-press write seen. */
+const AMBIENT = new Set();
+{
+  const cal = await isolatedPage();
+  await cal.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  await cal.waitForTimeout(SETTLE_MS + 4 * AFTER_PRESS_MS);
+  for (const w of cal.blockedWrites) AMBIENT.add(w);
+  await cal.close();
+}
+console.log(`ambient writes (made with no press, never attributed to one): ${AMBIENT.size ? [...AMBIENT].join(', ') : 'none'}`);
+const PLANT_WRITE = (dataUrl) => {
+  const b = document.createElement('button');
+  b.textContent = 'ZZ planted write';
+  b.style.cssText = 'display:block;width:200px;height:40px';
+  b.addEventListener('click', () => { fetch(dataUrl, { method: 'PATCH', body: '{}' }).catch(() => { /* aborted by the guard */ }); });
+  (document.querySelector('main') || document.body).prepend(b);
+};
+const writeProbeUrl = `https://${ref}.supabase.co/rest/v1/zz_write_guard_probe`;
 const deadResult = await pressFresh('/dashboard', { key: 'button|ZZ planted dead|', nth: 0, name: 'ZZ planted dead' }, false, PLANT);
 const liveResult = await pressFresh('/dashboard', { key: 'button|ZZ planted live|', nth: 0, name: 'ZZ planted live' }, false, PLANT);
-console.log(`control: planted dead -> ${deadResult.outcome}; planted live -> ${liveResult.outcome}`);
-if (deadResult.outcome !== 'no-change' || liveResult.outcome !== 'changed') {
+const writeResult = await pressFresh('/dashboard', { key: 'button|ZZ planted write|', nth: 0, name: 'ZZ planted write' }, false,
+  () => {}, (page) => page.evaluate(PLANT_WRITE, writeProbeUrl));
+console.log(`control: planted dead -> ${deadResult.outcome}; planted live -> ${liveResult.outcome}; planted write -> ${writeResult.outcome}`);
+for (const [n, r] of [['dead', deadResult], ['live', liveResult], ['write', writeResult]]) if (r.why) console.log(`  control ${n}: ${r.why}`);
+if (deadResult.outcome !== 'no-change' || liveResult.outcome !== 'changed' || writeResult.outcome !== 'write-blocked') {
   await browser.close();
   fail(2, 'CONTROL FAILED - the crawler cannot tell a dead control from a live one, so every verdict below would be meaningless.');
 }
 
 // -- Crawl ------------------------------------------------------------------------------------------
-const tally = { 'already-active': 0, 'self-link': 0, enumerated: 0, pressed: 0, changed: 0, 'no-change': 0, unpressable: 0, 'not-found': 0, destructive: 0, write: 0, external: 0, repeat: 0 };
+const tally = { 'already-active': 0, 'self-link': 0, enumerated: 0, pressed: 0, changed: 0, 'no-change': 0, unpressable: 0, 'not-found': 0, 'write-blocked': 0, destructive: 0, write: 0, external: 0, repeat: 0 };
 const findings = [];
 const unstable = [];
 const pressedKeys = new Set();
@@ -291,6 +374,10 @@ for (const route of routes) {
     const globalKey = `${c.key}#${c.nth}`;
     if (DESTRUCTIVE.test(c.name)) { tally.destructive++; continue; }
     if (WRITE.test(c.name)) { tally.write++; continue; }
+    // A switch or checkbox PERSISTS on press (ToggleSwitch -> updateAccount.mutate), whatever its label
+    // says. 2026-09-23 the crawler flipped the walk account's "Always pay Discover It in full" and
+    // called it no-change only because the refetch landed after AFTER_PRESS_MS. Judged by ROLE.
+    if (/^(switch|checkbox|radio|menuitemcheckbox)$/.test(c.role)) { tally.write++; continue; }
     if (c.href && (/^(mailto:|tel:)/.test(c.href) || (/^https?:/.test(c.href) && !c.href.startsWith(BASE)))) { tally.external++; continue; }
     // Pressing the tab you are on, or a link to the page you are on, changes nothing BY DESIGN.
     // Counted, never pressed - on the first run they were 8 of the 11 "no-change" findings.
@@ -322,6 +409,7 @@ for (const f of findings.sort((a, b) => a.outcome.localeCompare(b.outcome) || a.
 }
 if (unstable.length) console.log(`text-unstable routes (text ignored, other signals decide): ${unstable.join(', ')}`);
 console.log(`enumerated ${tally.enumerated} . pressed ${tally.pressed} . changed ${tally.changed} . no-change ${tally['no-change']} . unpressable ${tally.unpressable} . not-found ${tally['not-found']}`);
+console.log(`write-blocked ${tally['write-blocked']} (pressed; its write was aborted, so nothing persisted). Blocked during page LOAD, before any press: ${loadBlocked.size ? [...loadBlocked].join(', ') : 'none'}`);
 console.log(`skipped: destructive ${tally.destructive} . write ${tally.write} . external ${tally.external} . repeat-chrome ${tally.repeat} . already-active ${tally['already-active']} . self-link ${tally['self-link']}`);
 if (tally.pressed === 0) fail(2, 'pressed 0 controls - nothing was tested.');
 if (tally['no-change'] > 0) { console.log(`FINDINGS: ${tally['no-change']} pressed control(s) changed nothing. Each has a frame in ${OUT}.`); process.exit(1); }

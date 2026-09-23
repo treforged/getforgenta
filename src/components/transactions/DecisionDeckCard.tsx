@@ -206,6 +206,7 @@ export default function DecisionDeckCard({
               <button
                 key={chip}
                 onClick={() => onCategory(chip)}
+                aria-pressed={currentCategory === chip}
                 disabled={busy}
                 className={`flex items-center gap-1.5 border px-2.5 py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
                   currentCategory === chip
@@ -240,6 +241,7 @@ export default function DecisionDeckCard({
                 <button
                   key={chip}
                   onClick={() => onCategory(chip)}
+                  aria-pressed={currentCategory === chip}
                   disabled={busy}
                   className={`border px-2.5 py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
                     currentCategory === chip

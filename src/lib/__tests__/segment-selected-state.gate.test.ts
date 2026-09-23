@@ -66,3 +66,42 @@ describe('segment selected state', () => {
     expect(missing).toEqual([]);
   });
 });
+
+// TOGGLE BUTTONS OUTSIDE A TAB LIST, same defect one shape over. A `<button>` whose class picks a
+// `primary` colour from an `===` ternary is showing a selected state; if nothing declares it, the
+// state is colour only. Found 2026-09-23 by the press crawler: Debt Payoff's Avalanche/Variable,
+// Premium's Yearly, and Transactions' "Needs a decision" read no-change when pressed while
+// already selected, because nothing told the crawler (or a screen reader) that they were selected.
+// Discovered by the CLASS SHAPE, never by the aria attribute.
+//
+// EXEMPT, by name and reason: AppLockScreen's numpad colours a key for the instant it is pressed
+// (`pressedKey === d`). That is a press flash, not a selected state, and aria-pressed would lie.
+//
+// WHAT THIS DOES NOT CATCH: selected states coloured by anything but a `primary` token, ternaries
+// on `!==` or a bare boolean, and whether the declared value is RIGHT.
+const COLOUR_SELECTED = /===\s*[^?]{1,60}\?\s*'[^']*\b(bg-primary|border-primary|text-primary)\b/;
+const EXEMPT = new Set(['src/components/shared/AppLockScreen.tsx']);
+
+describe('toggle buttons declare their pressed state', () => {
+  const rows: Segment[] = [];
+  for (const file of globSync('src/**/*.tsx').filter((f) => !f.includes('__tests__'))) {
+    const src = readFileSync(file, 'utf8');
+    for (const { tag, lineNo } of openTags(src, 'button')) {
+      if (COLOUR_SELECTED.test(tag)) rows.push({ file: file.replace(/\\/g, '/'), lineNo, tag });
+    }
+  }
+
+  it('finds them at all, including the known Debt Payoff strategy buttons (control on the instrument)', () => {
+    expect(rows.length).toBeGreaterThan(10);
+    expect(rows.filter((r) => r.file.endsWith('debt/CreditCardEngine.tsx')).length).toBeGreaterThanOrEqual(2);
+    expect(rows.filter((r) => EXEMPT.has(r.file)).length).toBeGreaterThan(0);
+  });
+
+  it('every one declares aria-pressed, -selected, -checked or -current', () => {
+    const missing = rows
+      .filter((r) => !EXEMPT.has(r.file))
+      .filter((r) => !/aria-(pressed|selected|checked|current)=/.test(r.tag))
+      .map((r) => `${r.file}:${r.lineNo}`);
+    expect(missing).toEqual([]);
+  });
+});

@@ -1,40 +1,43 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~21:15 UTC (Ada, successor of the 18:26Z session). START AT ITEM 1. POINTERS.
+## Resume queue - 2026-09-23 ~20:15 UTC (Ada, successor of c68ab259). START AT ITEM 1. POINTERS.
 
-1. ⚠️ CHECK THE WALK ACCOUNT'S DISCOVER IT SWITCH FIRST. The press crawler pressed "Always pay Discover It in full"
-   (a ToggleSwitch that calls updateAccount.mutate, a REAL write) on deck-walk@forgenta.test. The DB check was blocked by
-   the handoff gate. Query: accounts.payment_unconditional for that user's Discover It row. If it is true, set it back
-   to false (walk account only), and state that in the ask.
-   THEN add `switch` persisting toggles to the crawler's skip list, or add aria-checked + a post-press refetch wait, so
-   it cannot write again. It classified that press as no-change only because the refetch landed after 1200 ms.
-2. Crawler (scripts/walk-press-every-control.mjs, commit dd3f1b5c). Last full run: 131 pressed, 124 changed, 7 no-change,
-   46 not-found. Uncommitted after that run: press from the DECLARED route (the /accounts, /budget and /goals redirects
-   carry the tab in router STATE, so the landed URL reopened the default tab and caused all 46 not-found). Re-run it:
-   `node scripts/walk-press-every-control.mjs <dir>` (2 workers; 4 starved the dev server). Remaining no-change to judge:
-   /debt "Avalanche" and "Variable" (probably already-active with no aria state, the same class as the 9 segments fixed in
-   dd3f1b5c), /premium "Yearly SAVE 25%" (the same), and /transactions "Needs a decision" (the same). If they are the
-   same class, give them aria-pressed/aria-selected through the free tier (SEARCH/REPLACE brief, score it in the playbook).
-   Then add the crawler as `npm run walk:press` and name it in CLAUDE.md's gates.
-3. `6e2e5991` walk-deck-undo fixture. ROOT CAUSE FOUND, NOT YET APPLIED: deck auto-apply acts only on the CURRENT card.
-   The correct re-arm leaves ONLY the newest City Power & Light charge undecided and every Northside Hardware charge
-   decided. Delete that one review plus applied_actions; the 6 older City Power links must stay as link memory. Then fix
-   the walk's re-arm text ("newest by date" picks a Northside row). The earlier theory, that merchant memory competes,
-   is RETRACTED.
-4. `a58fb610` dark layer 2: frames were sent to Sam for Tre (scratchpad c68ab259.../vib2/*-pair.png). The CSS is in
-   scratchpad vibrancy-pair.mjs, and it is also quoted in the ask's why. On his yes, move it into index.css under .dark
-   and re-run check:dark-contrast and check:dark-contrast:desktop. The contrast is computed at about 5.5:1 but NOT
-   measured.
-2. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
+1. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
+2. `a58fb610` dark layer 2: frames are with Sam for Tre (scratchpad c68ab259.../vib2/*-pair.png; CSS quoted in the
+   ask's why). On his yes, move it into index.css under .dark and re-run check:dark-contrast and
+   check:dark-contrast:desktop. The contrast is computed at about 5.5:1, NOT measured.
 3. HELD FOR TRE: the grace fix on 6 functions (friend-link, partner-link, plaid-exchange-token, plaid-sync-all,
    financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
    bundle file named `functions/<path>` and verify_jwt unchanged. Test on the walk account with premium+past_due vs
    premium+canceled rows, then delete the rows.
-4. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
-5. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build. Sam asked
-   for a 6.8 today and was shown that it is not needed.
-6. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
+4. `npm run walk:press` next candidates: the 10 write-blocked presses are the crawler's blind spot (it cannot see what
+   those controls would have changed). The 6 not-found are unnamed icon buttons on /accounts, which is an a11y finding
+   by itself (no accessible name); grep Accounts.tsx icon-btn and give them aria-label.
+5. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
+6. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build.
+7. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
    marketing/app-store/2026-09-23. Tell Ruby only about the frames that DIFFER.
+
+<details><summary>Done 2026-09-23 ~19:45-20:15Z (Ada)</summary>
+
+- Walk account writes from the crawler REVERTED and read back: Discover It payment_unconditional true->false and
+  payment_preference full->statement; Chase Checking and Alliant Checking active true->false. Snapshots:
+  backup.walk_discover_switch_20260923, backup.walk_crawl_writes_20260923 (revoked from anon/authenticated). A sweep of
+  18 user tables found one more pre-existing write: profiles.ui_preferences at 19:41Z (deductionsCollapsed), not reverted,
+  prior value unknown and it has no money effect.
+- walk:press now ABORTS every Supabase data-plane write (rpc allowed only when STABLE/IMMUTABLE, derived from migrations,
+  two pg_proc controls) and skips switch/checkbox/radio roles. Planted-write control. Ambient writes (leaderboard_snapshots)
+  derived by a no-press calibration page. Run: 323 enumerated, 136 changed, 10 write-blocked, 0 no-change. Two guarded
+  runs wrote nothing (the accounts rows kept the 19:54:24Z restore stamp).
+- 13 colour-only toggle buttons got aria-pressed (Debt strategy/payment mode, Premium x4, Transactions view + plan type,
+  deduction $/%, deck category chips, forecast raise mode). Gate: segment-selected-state.gate.test.ts, found by CLASS
+  SHAPE, AppLockScreen numpad exempt by name; proven red by deleting one real attribute (named CreditCardEngine:1577),
+  restored by sha256.
+- `6e2e5991` DONE: re-armed with only the newest City Power charge undecided (review snapshot
+  backup.walk_deck_rearm_20260923b); walk-deck-undo PASS; its re-arm text now names City Power & Light.
+- test:tz 5186/0 in 3 zones. Free tier: qwen3:14b drafted both aria briefs; scored in the playbook.
+
+</details>
 
 <details><summary>Done 2026-09-23 18:26-21:15Z (Ada)</summary>
 
@@ -11305,29 +11308,25 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 14:57 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 15:45 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
-
-```
-?? scripts/walk-press-every-control.mjs
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+2cbc99c4 [handoff]: press crawler + a11y tabs shipped (dd3f1b5c); crawler presses from the declared route; first up is the Discover It switch check
+dd3f1b5c [a11y]: section tabs say which one is selected, and the last hand-rolled switch is gone
 30651da0 [walks]: the undo walks read the app's 24h offer window instead of blaming it
 91b731b1 [onboarding]: the first-run walk runs again - its guard checks a known member, not a typed count
 45a2b2ed [handoff]: 798c0ed9 re-tested, gate sweep green, text-[8px] fixed in 071dbc42
 071dbc42 [type]: text-[8px] labels now scale with the user's text size
 96626c12 [handoff]: session close - six engine/display fixes shipped; next is the 798c0ed9 trigger re-test under e1b0fffc
 d62f67dd [handoff]: a5b13315 fixed in 539cb446
-539cb446 [projection]: the sim and the forecast use one funding account, so a payment leaves the account you chose
-92c0c744 [handoff]: a5b13315 measured - the engine deducts debt payments from the forecast account, not the chosen funding account
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

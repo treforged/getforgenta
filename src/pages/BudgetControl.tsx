@@ -1198,8 +1198,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                   />
                   {/* $/% toggle */}
                   <div className="flex gap-1">
-                    <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`flex-1 text-xs py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
-                    <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`flex-1 text-xs py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
+                    <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} aria-pressed={d.mode === 'flat'} className={`flex-1 text-xs py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
+                    <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} aria-pressed={d.mode === 'pct'} className={`flex-1 text-xs py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
                   </div>
                   {/* Pre/post-tax toggle */}
                   {!isTaxItem && (
