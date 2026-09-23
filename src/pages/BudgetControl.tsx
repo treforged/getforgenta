@@ -1078,7 +1078,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             {incomeRules.length > 0 && (
               <div className="flex w-full items-center gap-1 sm:w-auto">
                 <span className="text-xs text-muted-foreground uppercase shrink-0">Rule:</span>
-                <select
+                <select aria-label="Paycheck rule"
                   value={paycheckRuleId ?? ''}
                   onChange={e => {
                     const id = e.target.value || null;
@@ -1112,7 +1112,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         {/* Gross Income — prominent at top */}
         <div className="pb-3 border-b border-border">
           <label className="text-xs sm:text-sm text-muted-foreground uppercase">Gross Income (per paycheck)</label>
-          <input type="number" value={weeklyGrossInput} onChange={e => setWeeklyGrossInput(e.target.value)} onBlur={handleWeeklyGrossBlur}
+          <input aria-label="Gross income per paycheck" type="number" value={weeklyGrossInput} onChange={e => setWeeklyGrossInput(e.target.value)} onBlur={handleWeeklyGrossBlur}
             className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
         </div>
 
@@ -1179,7 +1179,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                     {fromCatalog ? (
                       <span className="flex-1 min-w-0 text-xs font-semibold text-foreground leading-tight">{d.label}</span>
                     ) : (
-                      <input
+                      <input aria-label={`Name of ${d.label || 'deduction'}`}
                         type="text"
                         value={d.label}
                         onChange={e => updateDeduction(d.id, { label: e.target.value })}
@@ -1189,7 +1189,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                     <button aria-label="Remove deduction" onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive-text shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
                   </div>
                   {/* Value input */}
-                  <input
+                  <input aria-label={`${d.label || 'Deduction'} amount`}
                     type="number" min={0} max={d.mode === 'pct' ? 100 : undefined} step={d.mode === 'pct' ? 0.5 : 1}
                     value={dedDisplayValues[d.id] ?? String(d.value)}
                     onChange={e => setDedDisplayValues(prev => ({ ...prev, [d.id]: e.target.value }))}
@@ -1220,7 +1220,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                       {retirementAccounts.length > 0 && (
                         <div className="flex items-center gap-1 min-w-0">
                           <span className="text-xs text-muted-foreground shrink-0">Acct:</span>
-                          <select
+                          <select aria-label={`Account for ${d.label || 'deduction'}`}
                             value={d.accountId ?? ''}
                             onChange={e => updateDeduction(d.id, { accountId: e.target.value || undefined })}
                             className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-xs text-foreground"
@@ -1236,7 +1236,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                       {savingsGoals.length > 0 && (
                         <div className="flex items-center gap-1 min-w-0">
                           <span className="text-xs text-muted-foreground shrink-0">Goal:</span>
-                          <select
+                          <select aria-label={`Goal for ${d.label || 'deduction'}`}
                             value={d.goalId ?? ''}
                             onChange={e => updateDeduction(d.id, { goalId: e.target.value || undefined })}
                             className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-xs text-foreground"
@@ -1316,7 +1316,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-xs sm:text-sm text-muted-foreground uppercase">Pay Frequency</label>
-            <select value={payFrequency} onChange={e => setPayFrequencyAuto(e.target.value as PayFrequency)}
+            <select aria-label="Pay frequency" value={payFrequency} onChange={e => setPayFrequencyAuto(e.target.value as PayFrequency)}
               className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground" style={{ borderRadius: 'var(--radius)' }}>
               <option value="weekly">Weekly</option>
               <option value="biweekly">Biweekly</option>
@@ -1330,7 +1330,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           ) : (
             <div>
               <label className="text-xs sm:text-sm text-muted-foreground uppercase">Tax Rate (%)</label>
-              <input type="number" value={taxRateStr}
+              <input aria-label="Tax rate (%)" type="number" value={taxRateStr}
                 onChange={e => setTaxRateStr(e.target.value)}
                 onBlur={() => { const v = parseFloat(taxRateStr); const n = isNaN(v) ? 0 : v; setTaxRateStr(String(n)); setTaxRateAuto(n); }}
                 className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
@@ -1339,10 +1339,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           <div>
             <label className="text-xs sm:text-sm text-muted-foreground uppercase">{payFrequency === 'monthly' ? 'Pay Day of Month' : 'Paycheck Day'}</label>
             {payFrequency === 'monthly' ? (
-              <input type="number" min={1} max={31} value={paycheckDay} onChange={e => setPaycheckDayAuto(parseInt(e.target.value) || 1)}
+              <input aria-label="Pay day of month" type="number" min={1} max={31} value={paycheckDay} onChange={e => setPaycheckDayAuto(parseInt(e.target.value) || 1)}
                 className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
             ) : (
-              <select value={paycheckDay} onChange={e => setPaycheckDayAuto(parseInt(e.target.value))}
+              <select aria-label="Paycheck day" value={paycheckDay} onChange={e => setPaycheckDayAuto(parseInt(e.target.value))}
                 className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground" style={{ borderRadius: 'var(--radius)' }}>
                 {[0,1,2,3,4,5,6].map(d => <option key={d} value={d}>{getDayName(d)}</option>)}
               </select>
@@ -1702,7 +1702,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="space-y-1.5 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
               <div className="flex gap-2">
-                <input
+                <input aria-label="Custom deduction name"
                   type="text"
                   placeholder="Deduction name…"
                   value={customLabel}

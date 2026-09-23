@@ -19,6 +19,7 @@ import { readFileSync, globSync } from 'node:fs';
 const FINISHED = [
   'src/pages/Auth.tsx',
   'src/pages/Settings.tsx',
+  'src/pages/BudgetControl.tsx',
   'src/components/settings/PhoneAuth.tsx',
   'src/components/settings/TwoFactorAuth.tsx',
 ];
