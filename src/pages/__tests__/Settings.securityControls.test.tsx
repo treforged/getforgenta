@@ -175,7 +175,7 @@ import AccountPage from '../Account';
 
 async function renderSecurityTab() {
   render(withQuery(<MemoryRouter><SettingsPage /></MemoryRouter>));
-  fireEvent.click(await screen.findByRole('button', { name: /Security/i }));
+  fireEvent.click(await screen.findByRole('tab', { name: /Security/i }));
   // Section headers only exist once the panel has actually switched.
   await screen.findByText('Linked Accounts');
 }
@@ -218,7 +218,7 @@ async function renderAccountPage() {
 /** Settings' own Account panel keeps a POINTER, because people who knew where these were will look. */
 async function renderSettingsAccountTab() {
   render(withQuery(<MemoryRouter><SettingsPage /></MemoryRouter>));
-  fireEvent.click(await screen.findByRole('button', { name: /^Account$/ }));
+  fireEvent.click(await screen.findByRole('tab', { name: /^Account$/ }));
   await screen.findByText('Connections');
 }
 

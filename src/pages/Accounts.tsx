@@ -949,12 +949,16 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {embedded && <div className="hidden sm:block flex-1" />}
       <PanelBar>
         <button onClick={() => setActiveTab('balances')}
+          role="tab"
+          aria-selected={effectiveTab === 'balances'}
           className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}>
           <Wallet size={13} /> Balances
           {activeAccounts.length > 0 && <span className={`seg-badge ${effectiveTab === 'balances' ? 'seg-badge-active' : ''}`}>{activeAccounts.length}</span>}
         </button>
         {!isDemo && (
           <button onClick={() => setActiveTab('banks')}
+            role="tab"
+            aria-selected={effectiveTab === 'banks'}
             className={`seg-item btn-press ${effectiveTab === 'banks' ? 'seg-item-active' : ''}`}>
             <Link2 size={13} /> <span className="sm:hidden">Banks</span><span className="hidden sm:inline">Linked Banks</span>
             {plaidItems.length > 0 && <span className={`seg-badge ${effectiveTab === 'banks' ? 'seg-badge-active' : ''}`}>{plaidItems.length}</span>}

@@ -80,7 +80,7 @@ afterEach(() => { cleanup(); });
 describe("/debt's Auto Loans tab owns the vehicle money", () => {
   it('carries both panels, with the buttons that WRITE them', () => {
     renderPage(<DebtPayoff />);
-    fireEvent.click(screen.getByRole('button', { name: /Auto Loans/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Auto Loans/ }));
 
     expect(screen.getByText('Active Loans')).toBeTruthy();
     expect(screen.getByText('Saving for Down Payment')).toBeTruthy();
@@ -97,7 +97,7 @@ describe("/debt's Auto Loans tab owns the vehicle money", () => {
     // estimated loan principal and a total interest; the saving card that replaced it did not.
     // Principal is price + tax and fees less the down payment: 28,000 + 2,000 - 5,600.
     renderPage(<DebtPayoff />);
-    fireEvent.click(screen.getByRole('button', { name: /Auto Loans/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Auto Loans/ }));
     expect(screen.getByText('Est. Loan')).toBeTruthy();
     expect(screen.getByText('$24,400')).toBeTruthy();
     expect(screen.getByText('Est. Total Interest')).toBeTruthy();
@@ -105,7 +105,7 @@ describe("/debt's Auto Loans tab owns the vehicle money", () => {
 
   it('no longer sends the user back to the Garage to edit a car', () => {
     renderPage(<DebtPayoff />);
-    fireEvent.click(screen.getByRole('button', { name: /Auto Loans/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Auto Loans/ }));
     expect(screen.queryByText(/Edit on Vehicles page/)).toBeNull();
     expect(screen.queryByText(/Auto loans are managed on the/)).toBeNull();
   });

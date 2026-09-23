@@ -88,7 +88,7 @@ function renderPage() {
   );
 }
 
-const tab = (name: RegExp) => screen.queryByRole('button', { name });
+const tab = (name: RegExp) => screen.queryByRole('tab', { name });
 
 beforeEach(() => {
   localStorage.clear();

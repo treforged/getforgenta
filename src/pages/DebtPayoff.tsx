@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -466,6 +467,8 @@ export default function DebtPayoff() {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
+              role="tab"
+              aria-selected={activeTab === id}
               className={`seg-item btn-press ${activeTab === id ? 'seg-item-active' : ''}`}
             >
               <Icon size={13} /> {label}
@@ -482,13 +485,13 @@ export default function DebtPayoff() {
             <p className="text-xs font-medium">Pause optional savings transfers during payoff</p>
             <p className="text-xs text-muted-foreground">Excludes Savings &amp; Investing transfers from available cash calculation</p>
           </div>
-          <button
-            onClick={() => setPauseSavings((v: boolean) => !v)}
-            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ml-3 ${pauseSavings ? 'bg-primary' : 'bg-muted'}`}
-            aria-label="Toggle pause savings"
-          >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${pauseSavings ? 'translate-x-5' : 'translate-x-1'}`} />
-          </button>
+          <div className="ml-3">
+            <ToggleSwitch
+              checked={pauseSavings}
+              onPress={() => setPauseSavings((v: boolean) => !v)}
+              label="Pause optional savings transfers during payoff"
+            />
+          </div>
         </div>
       )}
 

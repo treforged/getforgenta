@@ -1381,16 +1381,22 @@ export default function Dashboard() {
       <div className="stack-row">
       <PanelBar>
         <button onClick={() => setActiveTab('overview')}
+          role="tab"
+          aria-selected={activeTab === 'overview'}
           className={`seg-item btn-press ${activeTab === 'overview' ? 'seg-item-active' : ''}`}>
           <LayoutDashboard size={13} /> Overview
         </button>
         {/* Goals sits ahead of Accounts (Tre, 2026-08-27: "move goals before accounts on the
             dashboard"). Pill order only — each panel still owns its own content below. */}
         <button onClick={() => setActiveTab('goals')}
+          role="tab"
+          aria-selected={activeTab === 'goals'}
           className={`seg-item btn-press ${activeTab === 'goals' ? 'seg-item-active' : ''}`}>
           <PiggyBank size={13} /> Goals
         </button>
         <button onClick={() => setActiveTab('accounts')}
+          role="tab"
+          aria-selected={activeTab === 'accounts'}
           className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}>
           <Building2 size={13} /> Accounts
         </button>

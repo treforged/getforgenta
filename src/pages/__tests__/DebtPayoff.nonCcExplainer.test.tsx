@@ -96,7 +96,7 @@ function renderPage() {
 }
 
 function openTab(name: string) {
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }));
+  fireEvent.click(screen.getByRole('tab', { name: new RegExp(name) }));
 }
 
 beforeEach(() => { localStorage.clear(); });

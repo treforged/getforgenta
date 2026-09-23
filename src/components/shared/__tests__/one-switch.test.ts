@@ -72,7 +72,16 @@ const SWITCH_ROLE = new RegExp('role="' + 'switch"');
  * `absolute`, and carries no `rounded-full` in the same attribute, so this excludes it by
  * construction rather than by an exception list.
  */
-const KNOB_CLASS = /absolute[\s\S]{0,200}?rounded-full[\s\S]{0,200}?translate-x-/;
+const KNOB_CLASS_ABSOLUTE = /absolute[\s\S]{0,200}?rounded-full[\s\S]{0,200}?translate-x-/;
+/**
+ * ⚠️ AND A KNOB THAT IS NOT ABSOLUTE. Debt Payoff's pause-savings toggle drew its knob as
+ * `inline-block ... rounded-full ... translate-x-5` inside a flex track, so the absolute-only
+ * pattern never saw it - found 2026-09-23 by walk-press-every-control.mjs, not by this gate. A
+ * NUMERIC or arbitrary translate (`translate-x-5`, `translate-x-[18px]`) is required, so a sliding
+ * drawer's `translate-x-full` still does not count.
+ */
+const KNOB_CLASS_INLINE = /rounded-full[\s\S]{0,200}?translate-x-(\d|\[)/;
+const KNOB_CLASS = { test: (c: string) => KNOB_CLASS_ABSOLUTE.test(c) || KNOB_CLASS_INLINE.test(c) };
 
 /** Every `className` in a file, so a match means "one attribute did all three". */
 function classNames(body: string): string[] {
