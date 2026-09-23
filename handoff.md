@@ -1,6 +1,31 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~16:30Z (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~17:10Z (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **Plan tab "Monthly Gross" = 4 x weekly ($4,728 on /demo) while the profile uses 4.33 (BudgetControl.tsx ~1384).**
+   Find the formula and check whether 4 is deliberate (a conservative "4 paychecks"). If it is not, one factor is
+   wrong on a money screen. Decide by the save-the-user-money rule, and grep before changing.
+2. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
+   plaid-sync-all, financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. Method:
+   MCP deploy_edge_function with every bundle file named `functions/<path>` and verify_jwt unchanged, then test on the
+   walk account with premium+past_due vs premium+canceled rows, then delete the rows.
+3. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
+   b18ac1f8 on/after 10-14.
+4. Legal copy findings are reported to Sam, not edited: Terms "Last updated: March 2026" was not bumped; "billed
+   monthly" ignores the yearly plan; free-tier limits are unverified; the Refund page says "TRE Forgenta LLC". Act only
+   on Sam's word.
+5. With the Civic 8 months out, payoff flipped between clearing and "never" from one date to the next (probe sweep
+   09-23). It may be an engine sensitivity.
+6. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+<details><summary>Done 2026-09-23 ~17:10Z (16:30Z queue)</summary>
+
+- ✅ `f57bc271` de-rounded fixture `1de16f7f`. The payoff is still May 2028. The pin test also freezes the pre-de-round
+  accounts. Goals card "Marcus HYS" fixed in `344df45c`. Both capture sets re-shot in `9bdc7bf3`: 14 frames, 0 round
+  figures by a controlled scan. Ruby has all 12 lines, verbatim.
+- ✅ `b98780fd` Terms price clause `f7dd9e16`: now plain text, because a /premium link lands on /auth when signed out.
+
+### (superseded) Resume queue - 2026-09-23 ~16:30Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
 1. **ROUND FIGURES IN THE STORE FRAMES (spec §3), asked of Sam, not yet decided (ask f57bc271).**
    The frames Ruby already used show $53,600 assets, $9,900 liquid, $2,000 investments, $12,700 retirement and
@@ -20,6 +45,8 @@
    (probe sweep 2026-09-23). That may be an engine sensitivity worth a look. Plan tab shows Monthly Gross = 4 x weekly
    ($4,728), while the profile uses 4.33 elsewhere. Check whether that is deliberate before touching it.
 5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+</details>
 
 <details><summary>Done 2026-09-23 ~16:30Z (16:00Z queue)</summary>
 
@@ -11144,7 +11171,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 11:01 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 12:09 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11155,14 +11182,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
-66308dc1 [handoff]: grace fix 2 of 8 functions deployed and proven; 6 wait on deploy approval
-5f3f7b8a [account]: Partner Link says its two facts in two short lines instead of two paragraphs
-f22a4c02 [handoff]: leaderboard shipped; layer-2 colour inventory says /account, not /budget, is the dull screen
-c247bbcd [leaderboard]: less text, and the country is picked from a list instead of typed (37390eac)
-ef91e78d [handoff]: grace-period fix is half-deployed - 8 edge functions wait on a CLI token; 86bccda4 closed
-1b124c90 [handoff]: first real APNs send to Tre succeeded at 12:05Z - 71cddec3 closed
-ba5b0c53 [handoff]: resume at the APNs send read - it ran at 12:05Z
-810197ae [handoff]: 981e8ecf is JS-only and already live on phones
+72246b31 [handoff]: harness aligned and iPad captured; next is the round-figure fix, waiting on Sam routing it with Ruby
+3450ed48 [marketing]: capture README limits updated (harness aligned in 93ee4587, iPad captured)
+dde33350 [marketing]: iPad 13-inch raw captures (6 frames, 2064x2752, dark) for Ruby's set
+93ee4587 [demo]: marketing lines now read the app's own provider, so they match /demo
+b00d4075 [handoff]: persona, copy and captures done; next is aligning the demo harness with the app (16147de8)
+2d68931b [marketing]: raw App Store captures from /demo on the re-tuned persona (8 frames)
+a9d54b07 [demo]: remove five more stale figures from the Debt and Plan guide cards
+5dc058a0 [demo]: correct four false statements in the /demo guide copy
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
