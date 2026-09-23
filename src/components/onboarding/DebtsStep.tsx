@@ -38,7 +38,7 @@ export default function DebtsStep({
           </div>
           <div className="space-y-1">
             <span className="text-[9px] text-muted-foreground uppercase">Card / loan name</span>
-            <Input value={d.name} onChange={v => updateDebt(i, 'name', v)} placeholder="e.g. Chase Sapphire, Student Loan" />
+            <Input value={d.name} onChange={v => updateDebt(i, 'name', v)} placeholder="e.g. Chase Sapphire" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
