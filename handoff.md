@@ -8,7 +8,8 @@
 2. ✅ e1b0fffc slice `3842cb1b`: the Garage, Money panels, Dashboard car tile and Builds strip pass the engine's funding id,
    so a fund linked to the main checking reads its typed saved figure ($1,240 on /demo), not the whole balance. Garage
    frames re-shot in `1c0a5766`, and Ruby was told. NEXT e1b0fffc candidate: grep other display-only callers that pass
-   `null` where the engine passes a resolved id (the §2.3 / 3842cb1b shape). DONE: every display caller is now resolved. The one
+   `null` where the engine passes a resolved id (the §2.3 / 3842cb1b shape). ✅ a5b13315 FIXED in `539cb446` (one funding id for
+   the sim and the forecast; profile, then browser, then first checking). Earlier note: every display caller is now resolved. The one
    split left is sim vs engine, filed as its own ask (see `ask list --owner Ada`, ENGINE/SIM FUNDING-ACCOUNT SPLIT). START THERE.
    MEASURED 2026-09-23 (a5b13315): /demo on Sep 23 with localStorage 'tre:debt:fundingAccount' = "d2" (Harborline
    Checking, 1,036). The sim pays 686 and ends month 0 at 1,070 on d2. The engine charges the same 686 against d1 and ends
@@ -11247,7 +11248,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 14:01 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 14:18 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11258,14 +11259,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+92c0c744 [handoff]: a5b13315 measured - the engine deducts debt payments from the forecast account, not the chosen funding account
+dece5ad6 [handoff]: display funding-id sweep done; next is the sim/engine funding-account split
+b7b72d54 [handoff]: Garage car-saved fix (3842cb1b) and the next e1b0fffc candidate
+1c0a5766 [marketing]: Garage frames re-shot after 3842cb1b (Civic reads $1,240 of $5,590 down)
+3842cb1b [vehicles]: a car fund linked to the main checking account no longer reads that whole balance as saved
 f994c8c5 [handoff]: 34fe4e5d month-0 look-ahead done; the demo sweep is fully clean
 26068e8a [projection]: month 0 honours the save-up look-ahead, so it no longer drains past what next month needs
 dbf75ee7 [handoff]: convergence latch, persona and store frames done; next is the save-up look-ahead (34fe4e5d)
-04f318a2 [marketing]: store frames re-shot after the persona change, by a committed capture script
-167f200b [demo]: the persona's checking holds 4,231, so /demo stops flagging "below safe minimum" at month end
-c389c9af [forecast]: a cap that flips between finite and uncapped no longer stops the debt-cash loop converging
-56848738 [handoff]: legal copy corrected in 7 commits; Monthly Gross 4x is by design; queue down to Tre-held items
-e3246aaf [legal]: Terms section 5 describes the real billing - web via Stripe, apps via Apple/Google, monthly or yearly
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
