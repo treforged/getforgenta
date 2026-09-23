@@ -13,7 +13,12 @@ import { useEffect } from 'react';
  * - Radix dialogs trap focus themselves and preventDefault first, so a handled event is skipped.
  * - "Top" popup = the last one in document order, which is the most recently opened portal/overlay.
  *
- * Does NOT restore focus to the opener when a popup closes, and does not move focus in on open.
+ * FOCUS RETURNS TO THE OPENER. A MutationObserver diffs the set of open aria-modal dialogs. When
+ * one appears, its opener is the most recently focused element OUTSIDE it (a short focus history,
+ * because an autoFocus inside the popup may already have taken focus by the time the observer
+ * runs). When it goes away, focus goes back to that opener - but only if the opener is still in
+ * the page AND focus was dropped (body or a detached node). Focus the user moved on purpose is
+ * left alone. Does not move focus in on open; the first Tab does that.
  * First draft by the free tier (qwen3:14b), rewritten by Ada 2026-09-23: the draft counted
  * tabindex=-1 as tabbable, missed Shift+Tab from the container, and needed a ref per panel.
  */
@@ -70,10 +75,64 @@ export function handleTrapKeyDown(e: KeyboardEvent): void {
   }
 }
 
+const HISTORY = 8;
+
+/**
+ * Return focus to each popup's opener when the popup closes. Returns the teardown.
+ * Exported for tests; the app gets it through useModalFocusTrap.
+ */
+export function startFocusReturn(doc: Document = document): () => void {
+  const history: HTMLElement[] = [];
+  const openers = new Map<HTMLElement, HTMLElement>();
+  let open = new Set<HTMLElement>(doc.querySelectorAll<HTMLElement>(MODAL));
+
+  const onFocusIn = (e: FocusEvent) => {
+    if (!(e.target instanceof HTMLElement)) return;
+    history.push(e.target);
+    if (history.length > HISTORY) history.shift();
+  };
+
+  const openerFor = (modal: HTMLElement): HTMLElement | null => {
+    const active = doc.activeElement;
+    const candidates = [...(active instanceof HTMLElement ? [active] : []), ...[...history].reverse()];
+    return candidates.find(el => el !== doc.body && el.isConnected && !modal.contains(el)) ?? null;
+  };
+
+  const onMutate = () => {
+    const now = new Set<HTMLElement>(doc.querySelectorAll<HTMLElement>(MODAL));
+    for (const m of now) {
+      if (open.has(m)) continue;
+      const opener = openerFor(m);
+      if (opener) openers.set(m, opener);
+    }
+    for (const m of open) {
+      if (now.has(m)) continue;
+      const opener = openers.get(m);
+      openers.delete(m);
+      const active = doc.activeElement;
+      const dropped = !active || active === doc.body || !active.isConnected;
+      if (opener && opener.isConnected && dropped) opener.focus();
+    }
+    open = now;
+  };
+
+  const observer = new MutationObserver(onMutate);
+  observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['role', 'aria-modal'] });
+  doc.addEventListener('focusin', onFocusIn);
+  return () => {
+    observer.disconnect();
+    doc.removeEventListener('focusin', onFocusIn);
+  };
+}
+
 /** Mount once, near the root. */
 export function useModalFocusTrap(): void {
   useEffect(() => {
     document.addEventListener('keydown', handleTrapKeyDown);
-    return () => document.removeEventListener('keydown', handleTrapKeyDown);
+    const stopReturn = startFocusReturn();
+    return () => {
+      document.removeEventListener('keydown', handleTrapKeyDown);
+      stopReturn();
+    };
   }, []);
 }

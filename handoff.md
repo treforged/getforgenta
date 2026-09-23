@@ -30,7 +30,8 @@
    always available, and the tour's backdrop already dismisses. Escape = onClose (discard), matching FormModal, not the
    backdrop's save-if-dirty. Test: src/components/shared/__tests__/popup-dialogs.test.tsx (proven red). FOCUS TRAP DONE
    (Sam approved): src/hooks/useModalFocusTrap.ts, ONE document listener mounted in App's AppReadySignal, wraps Tab inside
-   the last aria-modal dialog; proven red 3 ways. Not done: focus restore to the opener on close, focus-in on open. check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
+   the last aria-modal dialog; proven red 3 ways. FOCUS RETURN DONE too (same hook, startFocusReturn:
+   MutationObserver + focus history; returns only when focus was dropped). Not done: focus-in on open (first Tab does it). check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
    OLD 5b: SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
    src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
    CENSUS GATE BUILT: src/lib/__tests__/modal-dialog-role.gate.test.ts, a shrink-only list of 14 files. Fix a file = remove it
