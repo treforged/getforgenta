@@ -42,15 +42,23 @@
 // a frozen copy of the persona they were measured on. Every number below is unchanged.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { runDemoCardProjection, type DemoPersonaOverride } from './fixtures/demo-forecast-harness';
-import { demoProfile, demoRecurringRules } from '../demo-data';
+import { demoAccounts, demoProfile, demoRecurringRules } from '../demo-data';
 
-/** The 2026-09-17 baseline persona: the fields the 09-23 re-tune changed, restored verbatim. */
+/** Balances and limits before the same day's spec §3 de-rounding (f57bc271), restored by id. */
+const PRE_DEROUND: Record<string, { balance: number; credit_limit?: number }> = {
+  d1: { balance: 2800 }, d2: { balance: 1000 }, d3: { balance: 5800 }, d4: { balance: 8500 },
+  d5: { balance: 4200 }, d6: { balance: 2000 }, d9: { balance: 300 }, d10: { balance: 8000 },
+  d7: { balance: 4318, credit_limit: 12000 }, d8: { balance: 2164, credit_limit: 7500 },
+};
+
+/** The 2026-09-17 baseline persona: the fields the 09-23 re-tune and de-rounding changed, restored verbatim. */
 const PIN_BASELINE_PERSONA: DemoPersonaOverride = {
   profile: { ...demoProfile, weekly_gross_income: 968, gross_income: 4191.44, monthly_income_default: 3269.32 },
   rules: [
     ...demoRecurringRules.map(r => (r.id === 'r1' ? { ...r, amount: 755.04 } : r)),
     { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 57, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on the Summit card', created_at: '', updated_at: '' },
   ],
+  accounts: demoAccounts.map(a => ({ ...a, ...(PRE_DEROUND[a.id] ?? {}) })),
 };
 
 /** Pinned so a filmed/asserted figure does not move with the wall clock. */

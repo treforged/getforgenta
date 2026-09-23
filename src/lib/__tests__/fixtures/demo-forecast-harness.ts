@@ -173,6 +173,8 @@ export function runDemoForecast(opts: DemoForecastOptions): ForecastResult {
 export interface DemoPersonaOverride {
   profile: typeof demoProfile;
   rules: readonly unknown[];
+  /** Optional: replaces `demoAccounts` as well. */
+  accounts?: readonly unknown[];
 }
 
 /**
@@ -187,15 +189,16 @@ export interface DemoPersonaOverride {
 export function runDemoCardProjection(now: Date, persona?: DemoPersonaOverride) {
   const profile = persona?.profile ?? demoProfile;
   const personaRules = (persona?.rules ?? demoRecurringRules) as unknown as RuleRow[];
+  const personaAccounts = (persona?.accounts ?? demoAccounts) as unknown as AccountRow[];
   const payConfig = {
     weeklyGross: profile.weekly_gross_income,
     taxRate: profile.tax_rate,
     paycheckDay: profile.paycheck_day,
     frequency: profile.paycheck_frequency as 'weekly',
   };
-  const scheduledEvents = generateScheduledEvents(personaRules, accounts(), PROJECTION_MONTHS, now);
+  const scheduledEvents = generateScheduledEvents(personaRules, personaAccounts, PROJECTION_MONTHS, now);
   return renderHook(() => useCardProjection({
-    accounts: accounts(),
+    accounts: personaAccounts,
     transactions: [],
     rules: personaRules,
     debts: [],

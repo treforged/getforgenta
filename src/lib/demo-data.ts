@@ -18,22 +18,22 @@ function d(day: number, monthOffset = 0) {
 // Every point is therefore DERIVED, relative to today, and the series ends exactly on the totals
 // the rest of this file declares.
 //
-// The step nine weeks ago is the RAV4 purchase — a $27,500 loan appearing against a $29,000
+// The step nine weeks ago is the RAV4 purchase — a $27,340 loan appearing against a $28,740
 // vehicle asset, which is what financing a car does to a net worth chart. It is here because a
 // straight line demonstrates nothing, and because the Garage's Active Loans panel and
 // `demoLiabilities` are telling the same event from their own ends. Change one, change all three.
 const DEMO_SNAPSHOT_WEEKS = 26;
 /** Matches `demoCarFunds`' RAV4 loan_start_date, which is two months back. */
 const DEMO_AUTO_LOAN_WEEKS_AGO = 9;
-const DEMO_VEHICLE_ASSET_VALUE = 29_000;
-const DEMO_AUTO_LOAN_AT_ORIGINATION = 27_500;
-const DEMO_AUTO_LOAN_TODAY = 26_500;
+const DEMO_VEHICLE_ASSET_VALUE = 28_740;
+const DEMO_AUTO_LOAN_AT_ORIGINATION = 27_340;
+const DEMO_AUTO_LOAN_TODAY = 26_315;
 /** Account balances today, i.e. `demoAccounts` less the two cards. */
-const DEMO_ACCOUNT_ASSETS_TODAY = 24_600;
-/** Cards + student loan today: 8,500 + 4,200 + 8,000. */
-const DEMO_NON_AUTO_LIABILITIES_TODAY = 14_482;
+const DEMO_ACCOUNT_ASSETS_TODAY = 24_455;
+/** Cards + student loan today: 4,318 + 2,164 + 7,946. */
+const DEMO_NON_AUTO_LIABILITIES_TODAY = 14_428;
 /** Where those two lines stood 26 weeks ago — less saved, more owed on the cards. */
-const DEMO_ACCOUNT_ASSETS_START = 19_800;
+const DEMO_ACCOUNT_ASSETS_START = 19_730;
 const DEMO_NON_AUTO_LIABILITIES_START = 18_682;
 
 function demoSnapshotDate(weeksAgo: number) {
@@ -189,34 +189,34 @@ export const demoTransactions: DemoTransaction[] = [
 // Mortgage is left empty ON PURPOSE. Jordan rents — $1,385 a month, rule r2 — and inventing a
 // mortgage to light up a tab would be the one demo number a visitor could catch out.
 export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_limit?: number })[] = [
-  { name: 'Cobalt Rewards Card', balance: 4318, apr: 24.74, min_payment: 112, target_payment: 600, credit_limit: 12000 },
-  { name: 'Summit Everyday Card', balance: 2164, apr: 18.99, min_payment: 58, target_payment: 300, credit_limit:  7500 },
-  { name: 'Student Loan',   balance: 8000, apr:  5.50, min_payment:  95, target_payment:  95 },
+  { name: 'Cobalt Rewards Card', balance: 4318, apr: 24.74, min_payment: 112, target_payment: 600, credit_limit: 12150 },
+  { name: 'Summit Everyday Card', balance: 2164, apr: 18.99, min_payment: 58, target_payment: 300, credit_limit:  7420 },
+  { name: 'Student Loan',   balance: 7946, apr:  5.50, min_payment:  95, target_payment:  95 },
   { name: 'Dental Financing', balance: 640, apr: 0,    min_payment:  80, target_payment:  80 },
 ];
 
 // ── Demo Savings Goals ─────────────────────────────────────
 // Emergency Fund linked to Ridgeway Savings (d3) so balance auto-pulls from the account.
 export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at'> & { linked_account?: string; goal_type?: string })[] = [
-  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 60, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [], sort_order: 0, auto_extra: false },
-  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 45, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [], sort_order: 1, auto_extra: false },
+  { name: 'Emergency Fund', target_amount: 14860, current_amount: 5812, monthly_contribution: 60, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [], sort_order: 0, auto_extra: false },
+  { name: 'Vacation Fund',  target_amount:  2940, current_amount:  850, monthly_contribution: 45, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [], sort_order: 1, auto_extra: false },
 ];
 
 // ── Demo Car Funds ─────────────────────────────────────────
 export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = [
   {
     vehicle_name: '2024 Honda Civic',
-    target_price: 28000,
-    tax_fees: 2000,
-    down_payment_goal: 5600,
+    target_price: 27845,
+    tax_fees: 1965,
+    down_payment_goal: 5590,
     // Finding §2.9 (Tre, 2026-08-08): this was $3,200 earmarked against `linked_account: 'd1'` —
     // Northvale Checking, which holds $2,800 — so the demo rendered "Balance on hand $0" with no
-    // explanation. $1,200 of the $2,800 checking balance being car money is coherent AND still
+    // explanation. $1,240 of the $2,847 checking balance being car money is coherent AND still
     // exercises the earmark path, so the demo shows the feature working rather than a clamped zero.
     // If d1's balance ever changes, keep this below it.
-    current_saved: 1200,
+    current_saved: 1240,
     // §2.10: deliberately left on 'fixed'. The only percent that reproduces §2.9's live-verified
-    // $1,200 against d1's $2,800 is 42.857…%, which would put float noise into a money figure on
+    // $1,240 against d1's $2,847 is 43.554…%, which would put float noise into a money figure on
     // the demo dashboard. Percent mode is exercised by its unit tests instead.
     saved_source: 'fixed',
     saved_percent: 0, sort_order: 0, auto_extra: false,
@@ -242,10 +242,10 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
   },
   {
     vehicle_name: 'Toyota RAV4 (Owned)',
-    target_price: 34000,
-    tax_fees: 2500,
-    down_payment_goal: 6800,
-    current_saved: 6800,
+    target_price: 33890,
+    tax_fees: 2465,
+    down_payment_goal: 6550,
+    current_saved: 6550,
     saved_source: 'fixed',
     saved_percent: 0, sort_order: 0, auto_extra: false,
     // 0 on purpose: the RAV4's insurance IS the semiannual premium in r4/r4b. A monthly figure here
@@ -259,7 +259,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     linked_loan_account_id: null,
     planned_purchase_date: null,
     phase: 'loan',
-    loan_amount: 27500,
+    loan_amount: 27340,
     loan_start_date: d(1, -2),
     payment_start_date: d(1, -1),
     interest_start_date: d(1, -1),
@@ -272,12 +272,12 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
 
 // ── Demo Assets ────────────────────────────────────────────
 // ⚠️ THIS WAS AN EMPTY ARRAY, on the reasoning that live accounts carry every asset. The RAV4
-// broke that: `demoLiabilities` books a $26,500 loan against a car that appeared nowhere on the
+// broke that: `demoLiabilities` books a $26,315 loan against a car that appeared nowhere on the
 // other side of the ledger, so the net worth tile read −$22,600 for someone who owns the car.
 // A financed asset has to be booked as an asset or the number is simply wrong — and it is also
 // what makes the Accounts page's "Assets" filter show something a live account cannot.
 export const demoAssets: Omit<Asset, 'id' | 'user_id' | 'created_at'>[] = [
-  { name: '2022 Toyota RAV4', type: 'Vehicle', value: 29000, notes: 'Financed — see the loan under Liabilities' },
+  { name: '2022 Toyota RAV4', type: 'Vehicle', value: 28740, notes: 'Financed — see the loan under Liabilities' },
 ];
 
 // ── Demo Liabilities ───────────────────────────────────────
@@ -287,7 +287,7 @@ export const demoAssets: Omit<Asset, 'id' | 'user_id' | 'created_at'>[] = [
 // reading this file. The auto loan stays manual on purpose — `net-worth.ts` documents the demo
 // RAV4 as the case its vehicle-loan dedup is written against.
 export const demoLiabilities: Omit<Liability, 'id' | 'user_id' | 'created_at'>[] = [
-  { name: 'Auto Loan — RAV4', type: 'auto_loan', balance: 26500, apr: 6.4, notes: '2022 Toyota RAV4 — 60-month term' },
+  { name: 'Auto Loan — RAV4', type: 'auto_loan', balance: 26315, apr: 6.4, notes: '2022 Toyota RAV4 — 60-month term' },
 ];
 
 // ── Demo Car Builds ────────────────────────────────────────
@@ -524,12 +524,12 @@ export const demoSyncedTransactions: DemoSyncedTransaction[] = demoFeed();
 // meaningful forecast projections. Checking balance supports the
 // cash floor while showing debt payoff in action.
 export const demoAccounts = [
-  { id: 'd1', user_id: 'demo', name: 'Northvale Checking', account_type: 'checking', institution: 'Northvale Bank', balance: 2800, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
-  { id: 'd2', user_id: 'demo', name: 'Harborline Checking', account_type: 'checking', institution: 'Harborline Credit Union', balance: 1000, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'd3', user_id: 'demo', name: 'Ridgeway Savings', account_type: 'high_yield_savings', institution: 'Ridgeway Savings Bank', balance: 5800, credit_limit: null, apr: 4.5, active: true, notes: 'Emergency fund', created_at: '', updated_at: '' },
-  { id: 'd4', user_id: 'demo', name: 'Workplace 401k', account_type: '401k', institution: 'Meridian Wealth', balance: 8500, credit_limit: null, apr: null, active: true, notes: 'Employer match 4%', created_at: '', updated_at: '' },
-  { id: 'd5', user_id: 'demo', name: 'Roth IRA', account_type: 'roth_ira', institution: 'Meridian Wealth', balance: 4200, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'd6', user_id: 'demo', name: 'Brokerage', account_type: 'brokerage', institution: 'Lakeside Invest', balance: 2000, credit_limit: null, apr: null, active: true, notes: 'Index funds', created_at: '', updated_at: '' },
+  { id: 'd1', user_id: 'demo', name: 'Northvale Checking', account_type: 'checking', institution: 'Northvale Bank', balance: 2847, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
+  { id: 'd2', user_id: 'demo', name: 'Harborline Checking', account_type: 'checking', institution: 'Harborline Credit Union', balance: 1036, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'd3', user_id: 'demo', name: 'Ridgeway Savings', account_type: 'high_yield_savings', institution: 'Ridgeway Savings Bank', balance: 5812, credit_limit: null, apr: 4.5, active: true, notes: 'Emergency fund', created_at: '', updated_at: '' },
+  { id: 'd4', user_id: 'demo', name: 'Workplace 401k', account_type: '401k', institution: 'Meridian Wealth', balance: 8463, credit_limit: null, apr: null, active: true, notes: 'Employer match 4%', created_at: '', updated_at: '' },
+  { id: 'd5', user_id: 'demo', name: 'Roth IRA', account_type: 'roth_ira', institution: 'Meridian Wealth', balance: 4176, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'd6', user_id: 'demo', name: 'Brokerage', account_type: 'brokerage', institution: 'Lakeside Invest', balance: 2038, credit_limit: null, apr: null, active: true, notes: 'Index funds', created_at: '', updated_at: '' },
   // ⚠️ NO REAL CARD OR BANK NAMES. These are marketing assets: every App Store
   // screenshot and every video comes from this fixture, so a real issuer's mark
   // would be in published material. Invented names also satisfy the "obviously
@@ -567,16 +567,16 @@ export const demoAccounts = [
   // COLUMN meaning an equal-pay plan that counts toward utilization and bears no interest
   // (`credit-utilization.ts:37`). No demo account sets it, and a 0% promo TRANCHE is a different
   // thing entirely. Two concepts, two sources; do not "fix" one by feeding it the other.
-  { id: 'd7', user_id: 'demo', name: 'Cobalt Rewards Card', account_type: 'credit_card', institution: 'Northvale Bank', balance: 4318, credit_limit: 12000, apr: 24.74, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement',
+  { id: 'd7', user_id: 'demo', name: 'Cobalt Rewards Card', account_type: 'credit_card', institution: 'Northvale Bank', balance: 4318, credit_limit: 12150, apr: 24.74, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement',
     balance_tranches: [
       { id: 'dt1', label: 'Balance transfer', balance: 2417, apr: 0, promo_end_date: '2027-05-11', min_payment: null },
     ] },
-  { id: 'd8', user_id: 'demo', name: 'Summit Everyday Card', account_type: 'credit_card', institution: 'Harborline Credit Union', balance: 2164, credit_limit: 7500, apr: 18.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 22, payment_preference: 'full' },
+  { id: 'd8', user_id: 'demo', name: 'Summit Everyday Card', account_type: 'credit_card', institution: 'Harborline Credit Union', balance: 2164, credit_limit: 7420, apr: 18.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 22, payment_preference: 'full' },
   // Named to match the `Student Loan` row in `demoDebts` — `DebtPayoff.tsx` pairs the two by name,
   // and `net-worth.ts` counts a `student_loan` account as a liability, which is why the manual
   // liability row for it was removed rather than kept alongside.
-  { id: 'd10', user_id: 'demo', name: 'Student Loan', account_type: 'student_loan', institution: 'Nelnet', balance: 8000, credit_limit: null, apr: 5.5, active: true, notes: 'Federal direct', created_at: '', updated_at: '' },
-  { id: 'd9', user_id: 'demo', name: 'Cash', account_type: 'cash', institution: '', balance: 300, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
+  { id: 'd10', user_id: 'demo', name: 'Student Loan', account_type: 'student_loan', institution: 'Nelnet', balance: 7946, credit_limit: null, apr: 5.5, active: true, notes: 'Federal direct', created_at: '', updated_at: '' },
+  { id: 'd9', user_id: 'demo', name: 'Cash', account_type: 'cash', institution: '', balance: 83, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
 ];
 
 // ─── The demo persona's profile ──────────────────────────
@@ -613,7 +613,10 @@ export const demoAccounts = [
 // single earner with a thin surplus), and the Civic purchase moved from 8 to 48 months
 // out, after the cards. At 8 months its saving reserve held back every spare dollar, and
 // payoff flipped between "clears" and "never" from one date to the next. Vacation goal
-// $150 -> $45/mo. `demo-persona-clears.engine.test.ts` asserts the result on the app's
+// $150 -> $45/mo. Same day, spec §3 (no money figure ending in two or more zeros): every
+// account balance, card limit, goal target, car price and loan in this file was de-rounded,
+// with the net-worth constants moved in step. The $1,500 cash floor stays: it is a setting a
+// person types, and settings are round. `demo-persona-clears.engine.test.ts` asserts the result on the app's
 // own inputs, across a year of dates.
 export const demoProfile = {
   currency: 'USD',
