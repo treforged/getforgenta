@@ -38,29 +38,29 @@ export default function DebtsStep({
           </div>
           <div className="space-y-1">
             <span className="text-[9px] text-muted-foreground uppercase">Card / loan name</span>
-            <Input value={d.name} onChange={v => updateDebt(i, 'name', v)} placeholder="e.g. Chase Sapphire" />
+            <Input label="Card or loan name" value={d.name} onChange={v => updateDebt(i, 'name', v)} placeholder="e.g. Chase Sapphire" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <span className="text-[9px] text-muted-foreground uppercase">Current balance</span>
-              <Input value={d.balance} onChange={v => updateDebt(i, 'balance', v)} placeholder="0" type="number" prefix="$" />
+              <Input label="Current balance" value={d.balance} onChange={v => updateDebt(i, 'balance', v)} placeholder="0" type="number" prefix="$" />
             </div>
             <div className="space-y-1">
               <span className="text-[9px] text-muted-foreground uppercase">APR %</span>
-              <Input value={d.apr} onChange={v => updateDebt(i, 'apr', v)} placeholder="0.0" type="number" />
+              <Input label="APR %" value={d.apr} onChange={v => updateDebt(i, 'apr', v)} placeholder="0.0" type="number" />
             </div>
             <div className="space-y-1">
               <span className="text-[9px] text-muted-foreground uppercase">Min. payment</span>
-              <Input value={d.minPayment} onChange={v => updateDebt(i, 'minPayment', v)} placeholder="0" type="number" prefix="$" />
+              <Input label="Minimum payment" value={d.minPayment} onChange={v => updateDebt(i, 'minPayment', v)} placeholder="0" type="number" prefix="$" />
             </div>
             <div className="space-y-1">
               <span className="text-[9px] text-muted-foreground uppercase">Credit limit</span>
-              <Input value={d.creditLimit} onChange={v => updateDebt(i, 'creditLimit', v)} placeholder="0" type="number" prefix="$" />
+              <Input label="Credit limit" value={d.creditLimit} onChange={v => updateDebt(i, 'creditLimit', v)} placeholder="0" type="number" prefix="$" />
             </div>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] text-muted-foreground uppercase">Payment due date (day of month)</span>
-            <Input value={d.dueDate} onChange={v => updateDebt(i, 'dueDate', v)} placeholder="e.g. 15" type="number" />
+            <Input label="Payment due date (day of month)" value={d.dueDate} onChange={v => updateDebt(i, 'dueDate', v)} placeholder="e.g. 15" type="number" />
             <p className="text-[9px] text-muted-foreground">You can link this to an account in Accounts for payment reminders.</p>
           </div>
         </div>

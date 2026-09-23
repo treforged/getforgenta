@@ -53,7 +53,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
             <div className="space-y-2">
               <div>
                 <label className="text-[9px] text-muted-foreground uppercase">Label</label>
-                <input
+                <input aria-label="Balance label"
                   type="text"
                   value={row.label}
                   onChange={e => patch(row.id, 'label', e.target.value)}
@@ -65,7 +65,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[9px] text-muted-foreground uppercase">Balance</label>
-                  <input
+                  <input aria-label="Balance"
                     type="number"
                     step="0.01"
                     value={row.balance}
@@ -77,7 +77,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
                 </div>
                 <div>
                   <label className="text-[9px] text-muted-foreground uppercase">APR %</label>
-                  <input
+                  <input aria-label="APR %"
                     type="number"
                     step="0.01"
                     value={row.apr}
@@ -119,7 +119,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
                   a 0% tranche and the model invents a reprice cliff — see BalanceTranche.min_payment. */}
               <div>
                 <label className="text-[9px] text-muted-foreground uppercase">Monthly Instalment (optional)</label>
-                <input
+                <input aria-label="Monthly instalment (optional)"
                   type="number"
                   step="0.01"
                   min="0"
@@ -139,7 +139,7 @@ export default function BalanceTrancheEditor({ rows, onChange, accountBalance }:
                   A FLAT MONTHLY AMOUNT, not a rate, because that is how the product charges. */}
               <div>
                 <label className="text-[9px] text-muted-foreground uppercase">Monthly Plan Fee (optional)</label>
-                <input
+                <input aria-label="Monthly plan fee (optional)"
                   type="number"
                   step="0.01"
                   min="0"

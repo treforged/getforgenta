@@ -521,7 +521,7 @@ export default function Onboarding() {
               </div>
               <div className="space-y-1">
                 <FieldLabel>What should we call you?</FieldLabel>
-                <Input value={data.displayName} onChange={v => update('displayName', v)} placeholder="Your name" />
+                <Input label="What should we call you?" value={data.displayName} onChange={v => update('displayName', v)} placeholder="Your name" />
               </div>
               {/* The demo's entry, moved here off `/auth` (2026-08-18). Setup is the one moment a
                   filled-in account answers a real question — "what am I building towards?" — and
@@ -571,7 +571,7 @@ export default function Onboarding() {
               {hintFor('your paychecks')}
               <div className="space-y-1">
                 <FieldLabel>Pay Frequency</FieldLabel>
-                <Select
+                <Select label="Pay frequency"
                   value={data.paycheckFrequency}
                   onChange={v => update('paycheckFrequency', v)}
                   options={[
@@ -584,11 +584,11 @@ export default function Onboarding() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <FieldLabel>Gross per paycheck ($)</FieldLabel>
-                  <Input value={data.weeklyGross} onChange={v => update('weeklyGross', v)} placeholder="e.g. 1875" type="number" prefix="$" />
+                  <Input label="Gross per paycheck ($)" value={data.weeklyGross} onChange={v => update('weeklyGross', v)} placeholder="e.g. 1875" type="number" prefix="$" />
                 </div>
                 <div className="space-y-1">
                   <FieldLabel>Tax Rate (%)</FieldLabel>
-                  <Input value={data.taxRate} onChange={v => update('taxRate', v)} onBlur={() => { if (!data.taxRate.trim()) update('taxRate', '0'); }} placeholder="22" type="number" />
+                  <Input label="Tax rate (%)" value={data.taxRate} onChange={v => update('taxRate', v)} onBlur={() => { if (!data.taxRate.trim()) update('taxRate', '0'); }} placeholder="22" type="number" />
                 </div>
               </div>
               {data.weeklyGross && (
@@ -621,7 +621,7 @@ export default function Onboarding() {
               ].map(({ label, key }) => (
                 <div key={key} className="space-y-1">
                   <FieldLabel>{label}</FieldLabel>
-                  <Input value={data[key]} onChange={v => update(key, v)} placeholder="0" type="number" prefix="$" />
+                  <Input label={label} value={data[key]} onChange={v => update(key, v)} placeholder="0" type="number" prefix="$" />
                 </div>
               ))}
               {totalExpenses > 0 && data.weeklyGross && (
@@ -661,11 +661,11 @@ export default function Onboarding() {
               <p className="text-[10px] text-muted-foreground">Your current savings balance. We'll track APY growth automatically.</p>
               <div className="space-y-1">
                 <FieldLabel>Current savings balance</FieldLabel>
-                <Input value={data.savingsBalance} onChange={v => update('savingsBalance', v)} placeholder="0" type="number" prefix="$" />
+                <Input label="Current savings balance" value={data.savingsBalance} onChange={v => update('savingsBalance', v)} placeholder="0" type="number" prefix="$" />
               </div>
               <div className="space-y-1">
                 <FieldLabel>APY (%)</FieldLabel>
-                <Input value={data.savingsApy} onChange={v => update('savingsApy', v)} placeholder="4.5" type="number" />
+                <Input label="APY (%)" value={data.savingsApy} onChange={v => update('savingsApy', v)} placeholder="4.5" type="number" />
               </div>
               {data.savingsBalance && data.savingsApy && (
                 <div className="bg-primary/8 border border-primary/20 px-3 py-2.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>

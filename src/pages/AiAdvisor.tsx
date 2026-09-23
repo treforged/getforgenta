@@ -1336,7 +1336,7 @@ export default function AiAdvisor() {
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
           <div className="flex gap-2">
-            <textarea
+            <textarea aria-label="Message to the advisor"
               ref={inputRef}
               rows={2}
               value={question}

@@ -723,7 +723,7 @@ export default function Builds() {
           // four buttons. Taking a full row lets the buttons wrap underneath instead, which is
           // the same "wrap each section directly below" rule the panel selector now follows.
           <div className="relative flex-1 min-w-0 basis-full sm:basis-auto">
-            <select
+            <select aria-label="Select build"
               value={activeBuild?.id ?? ''}
               onChange={e => { setActiveBuildId(e.target.value); setDragPhaseOrder(null); setDragItemOrder(null); }}
               className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 min-h-[44px] pr-8 rounded focus:outline-hidden focus:border-primary cursor-pointer"
@@ -783,7 +783,7 @@ export default function Builds() {
           {activeBuild.share_token ? (
             <>
               <div className="text-[12px] text-muted-foreground">Anyone with this link can view your build — read only.</div>
-              <input
+              <input aria-label="Share link"
                 readOnly
                 value={shareUrl()}
                 className="w-full bg-card border border-border rounded px-3 py-1.5 text-[12px] text-primary focus:outline-hidden select-all"

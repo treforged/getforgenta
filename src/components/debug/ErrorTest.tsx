@@ -54,6 +54,7 @@ export default function ErrorTest() {
           </div>
         ))}
         <input
+          aria-label="Masking test input"
           className="w-full mt-2 px-2 py-1 text-xs bg-secondary border border-border"
           style={{ borderRadius: 'var(--radius)' }}
           placeholder="Type here — this input must be masked too"

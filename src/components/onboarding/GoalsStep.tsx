@@ -50,7 +50,7 @@ export default function GoalsStep({
 
             <div className="space-y-1">
               <span className="text-[9px] text-muted-foreground uppercase">Goal type</span>
-              <Select
+              <Select label="Goal type"
                 value={g.goalType}
                 onChange={v => updateGoal(i, 'goalType', v)}
                 options={GOAL_TYPES.map(t => ({ value: t, label: t }))}
@@ -59,7 +59,7 @@ export default function GoalsStep({
 
             <div className="space-y-1">
               <span className="text-[9px] text-muted-foreground uppercase">{isCarFund ? 'Vehicle name' : 'Goal name'}</span>
-              <Input
+              <Input label={isCarFund ? 'Vehicle name' : 'Goal name'}
                 value={g.name}
                 onChange={v => updateGoal(i, 'name', v)}
                 placeholder={isCarFund ? 'e.g. Porsche Cayman, Honda Civic' : 'e.g. Emergency Fund, Europe Trip'}
@@ -70,33 +70,33 @@ export default function GoalsStep({
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <span className="text-[9px] text-muted-foreground uppercase">Vehicle price</span>
-                  <Input value={g.targetPrice} onChange={v => updateGoal(i, 'targetPrice', v)} placeholder="30000" type="number" prefix="$" />
+                  <Input label="Vehicle price" value={g.targetPrice} onChange={v => updateGoal(i, 'targetPrice', v)} placeholder="30000" type="number" prefix="$" />
                 </div>
                 <div className="space-y-1">
                   <span className="text-[9px] text-muted-foreground uppercase">Tax & fees</span>
-                  <Input value={g.taxFees} onChange={v => updateGoal(i, 'taxFees', v)} placeholder="3000" type="number" prefix="$" />
+                  <Input label="Tax and fees" value={g.taxFees} onChange={v => updateGoal(i, 'taxFees', v)} placeholder="3000" type="number" prefix="$" />
                 </div>
                 <div className="space-y-1">
                   <span className="text-[9px] text-muted-foreground uppercase">Down payment goal</span>
-                  <Input value={g.targetAmount} onChange={v => updateGoal(i, 'targetAmount', v)} placeholder="5000" type="number" prefix="$" />
+                  <Input label="Down payment goal" value={g.targetAmount} onChange={v => updateGoal(i, 'targetAmount', v)} placeholder="5000" type="number" prefix="$" />
                 </div>
                 <div className="space-y-1">
                   <span className="text-[9px] text-muted-foreground uppercase">Monthly insurance</span>
-                  <Input value={g.monthlyInsurance} onChange={v => updateGoal(i, 'monthlyInsurance', v)} placeholder="200" type="number" prefix="$" />
+                  <Input label="Monthly insurance" value={g.monthlyInsurance} onChange={v => updateGoal(i, 'monthlyInsurance', v)} placeholder="200" type="number" prefix="$" />
                 </div>
                 <div className="space-y-1">
                   <span className="text-[9px] text-muted-foreground uppercase">Expected loan APR %</span>
-                  <Input value={g.expectedApr} onChange={v => updateGoal(i, 'expectedApr', v)} placeholder="5.9" type="number" />
+                  <Input label="Expected loan APR %" value={g.expectedApr} onChange={v => updateGoal(i, 'expectedApr', v)} placeholder="5.9" type="number" />
                 </div>
                 <div className="space-y-1">
                   <span className="text-[9px] text-muted-foreground uppercase">Loan term (months)</span>
-                  <Input value={g.loanTermMonths} onChange={v => updateGoal(i, 'loanTermMonths', v)} placeholder="60" type="number" />
+                  <Input label="Loan term (months)" value={g.loanTermMonths} onChange={v => updateGoal(i, 'loanTermMonths', v)} placeholder="60" type="number" />
                 </div>
               </div>
             ) : (
               <div className="space-y-1">
                 <span className="text-[9px] text-muted-foreground uppercase">Target amount</span>
-                <Input value={g.targetAmount} onChange={v => updateGoal(i, 'targetAmount', v)} placeholder="0" type="number" prefix="$" />
+                <Input label="Target amount" value={g.targetAmount} onChange={v => updateGoal(i, 'targetAmount', v)} placeholder="0" type="number" prefix="$" />
               </div>
             )}
           </div>

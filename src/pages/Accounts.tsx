@@ -1526,7 +1526,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                     <p className="text-xs font-medium truncate">{entry.plaidAccount.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{formatCurrency(entry.plaidAccount.balance, false)}</p>
                   </div>
-                  <select
+                  <select aria-label={`Match ${entry.plaidAccount.name} to an account`}
                     className="bg-secondary border border-border text-xs px-2 py-1 rounded flex-1 min-w-0 truncate"
                     value={entry.matchedAccountId ?? ''}
                     onChange={e => setMatchEntries(prev => prev.map((en, j) => j === i ? { ...en, matchedAccountId: e.target.value || null } : en))}

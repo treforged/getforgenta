@@ -5,8 +5,10 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="text-[10px] text-muted-foreground uppercase tracking-wider">{children}</label>;
 }
 
-export function Input({ value, onChange, onBlur, placeholder, type = 'text', prefix }: {
-  value: string; onChange: (v: string) => void; onBlur?: () => void; placeholder?: string;
+// `label` is REQUIRED: it is the field's accessible name. The visible caption is a sibling FieldLabel with no
+// htmlFor link, so without it a screen reader announced every wizard field as "edit text" (2026-09-23).
+export function Input({ label, value, onChange, onBlur, placeholder, type = 'text', prefix }: {
+  label: string; value: string; onChange: (v: string) => void; onBlur?: () => void; placeholder?: string;
   type?: string; prefix?: string;
 }) {
   return (
@@ -15,6 +17,7 @@ export function Input({ value, onChange, onBlur, placeholder, type = 'text', pre
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{prefix}</span>
       )}
       <input
+        aria-label={label}
         type={type}
         inputMode={type === 'number' ? 'decimal' : undefined}
         value={value}
@@ -28,9 +31,10 @@ export function Input({ value, onChange, onBlur, placeholder, type = 'text', pre
   );
 }
 
-export function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+export function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={e => onChange(e.target.value)}
       className="w-full bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"

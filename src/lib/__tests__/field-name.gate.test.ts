@@ -1,34 +1,29 @@
-// FORM FIELDS HAVE AN ACCESSIBLE NAME - a RATCHET over the files that are finished.
+// EVERY FORM FIELD HAS AN ACCESSIBLE NAME - app-wide census.
 //
-// THE DEFECT. Most fields in this app sit under a SIBLING <label> with no htmlFor/id link, so the
-// caption is visible but a screen reader announces only "edit text". Measured 2026-09-23: 117 of
-// 138 input/select/textarea tags had no aria-label, no id and no wrapping <label>. The sign-in,
-// security and settings fields were fixed first because they are the ones every user meets.
+// THE DEFECT. Most fields in this app sat under a SIBLING caption (<label>, <span>, <p>) with no
+// htmlFor/id link, so the caption was visible but a screen reader announced only "edit text".
+// Measured 2026-09-23: 117 of 138 input/select/textarea tags had no aria-label, no id and no
+// wrapping <label>, including Email, Password and the verification code on the sign-in screen.
+// All were named that day (the onboarding wizard's shared Input/Select now REQUIRE a `label` prop,
+// so the typechecker finds any new caller that forgets it). This gate keeps the count at zero.
 //
-// ⚠️ THIS IS A HAND-NAMED LIST AND IT SAYS SO. It is a ratchet, not a census: a file enters
-// FINISHED only once every field in it is named, and it never leaves. The app-wide count lives in
-// the test's own output so the remaining work cannot hide - see the second test.
+// Discovery is by the TAG, never by the name attribute, and comments are blanked before the scan
+// (two JSDoc blocks mention `<select>` in prose and read as fields otherwise).
 //
-// WHAT THIS DOES NOT CATCH: fields in files not yet on the list, a name that is WRONG, fields built
-// by shared components (onboarding/fields.tsx needs a label PROP, not an attribute), and checkbox,
-// radio, file and hidden inputs, which are excluded.
+// WHAT THIS DOES NOT CATCH: a name that is WRONG, fields rendered by third-party components, and
+// checkbox, radio, file and hidden inputs, which are excluded. A wrapping <label> is judged by a
+// 400-character look-back, so a very long label body could hide an unnamed field.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, globSync } from 'node:fs';
 
-const FINISHED = [
-  'src/pages/Auth.tsx',
-  'src/pages/Settings.tsx',
-  'src/pages/BudgetControl.tsx',
-  'src/components/builds/PhaseBlock.tsx',
-  'src/components/forecast/ForecastAssumptionsPanel.tsx',
-  'src/pages/Transactions.tsx',
-  'src/components/builds/MaintenanceFormModal.tsx',
-  'src/components/settings/PhoneAuth.tsx',
-  'src/components/settings/TwoFactorAuth.tsx',
-];
+/** Blank block comments, keeping every newline so line numbers stay true. */
+function blankComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+}
 
-function unnamedFields(src: string): number[] {
+function unnamedFields(raw: string): number[] {
+  const src = blankComments(raw);
   const lines: number[] = [];
   const re = /<(input|select|textarea)(?=[\s/>])/g;
   let m: RegExpExecArray | null;
@@ -54,22 +49,22 @@ function unnamedFields(src: string): number[] {
   return lines;
 }
 
+const FILES = globSync('src/**/*.tsx').filter((f) => !f.includes('__tests__'));
+
 describe('form fields have an accessible name', () => {
-  it('the scan finds an unnamed field when there is one (control on the instrument)', () => {
-    expect(unnamedFields('<div><label>X</label><input type="text" /></div>')).toEqual([1]);
+  it('the scan finds an unnamed field and ignores one in a comment (controls on the instrument)', () => {
+    expect(unnamedFields('<div>\n<label>X</label>\n<input type="text" />\n</div>')).toEqual([3]);
     expect(unnamedFields('<input aria-label="X" />')).toEqual([]);
+    expect(unnamedFields('/**\n * The one `<select>` on every surface.\n */')).toEqual([]);
   });
 
-  it('every field in a FINISHED file is named', () => {
-    const missing = FINISHED.flatMap((f) => unnamedFields(readFileSync(f, 'utf8')).map((n) => `${f}:${n}`));
+  it('it examines the app, not nothing', () => {
+    const fields = FILES.reduce((n, f) => n + (readFileSync(f, 'utf8').match(/<(input|select|textarea)(?=[\s/>])/g)?.length ?? 0), 0);
+    expect(fields).toBeGreaterThan(100);
+  });
+
+  it('every field in the app is named', () => {
+    const missing = FILES.flatMap((f) => unnamedFields(readFileSync(f, 'utf8')).map((n) => `${f.replace(/\\/g, '/')}:${n}`));
     expect(missing).toEqual([]);
-  });
-
-  it('reports how many unnamed fields remain app-wide, so the ratchet cannot hide the rest', () => {
-    const remaining = globSync('src/**/*.tsx')
-      .filter((f) => !f.includes('__tests__'))
-      .reduce((n, f) => n + unnamedFields(readFileSync(f, 'utf8')).length, 0);
-    console.info(`[field-name gate] unnamed fields outside the finished files: ${remaining}`);
-    expect(remaining).toBeGreaterThan(0); // flip this to toBe(0) the day the list covers the app
   });
 });

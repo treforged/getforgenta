@@ -100,7 +100,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
           ].map(field => (
             <div key={field.k}>
               <label className="text-xs font-medium text-muted-foreground block mb-1">{field.label}</label>
-              <input
+              <input aria-label={field.label}
                 type={field.type}
                 value={form[field.k as keyof typeof form]}
                 onChange={f(field.k)}
@@ -115,7 +115,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
             <label className="text-xs font-medium text-muted-foreground block mb-1">
               Monthly Payment Account <span className="text-muted-foreground/60">(defaults to general cash if unset)</span>
             </label>
-            <select
+            <select aria-label="Monthly payment account"
               value={form.loan_payment_account}
               onChange={e => setForm(prev => ({ ...prev, loan_payment_account: e.target.value }))}
               className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
@@ -129,7 +129,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
             <label className="text-xs font-medium text-muted-foreground block mb-1">
               Linked Loan Account <span className="text-muted-foreground/60">(same loan tracked as an account? link it so net worth doesn't count it twice)</span>
             </label>
-            <select
+            <select aria-label="Linked loan account"
               value={form.linked_loan_account_id}
               onChange={e => setForm(prev => ({ ...prev, linked_loan_account_id: e.target.value }))}
               className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
@@ -143,7 +143,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
             <label className="text-xs font-medium text-muted-foreground block mb-1">
               Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt, false)}/mo)</span>
             </label>
-            <input
+            <input aria-label="Monthly payment override"
               type="number"
               value={form.actual_monthly_payment}
               onChange={f('actual_monthly_payment')}

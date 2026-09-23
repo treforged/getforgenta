@@ -818,7 +818,7 @@ export default function BankActivity() {
             </button>
           ))}
         </div>
-        <select
+        <select aria-label="Filter by month"
           value={filterMonth}
           onChange={e => { setFilterMonth(e.target.value); setVisibleCount(PAGE_SIZE); }}
           className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]"
@@ -827,7 +827,7 @@ export default function BankActivity() {
           <option value="all">All Time</option>
           {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
-        <select
+        <select aria-label="Filter by account"
           value={filterAccount}
           onChange={e => { setFilterAccount(e.target.value); setVisibleCount(PAGE_SIZE); }}
           className="bg-secondary border border-border px-2 py-1 text-xs text-foreground"

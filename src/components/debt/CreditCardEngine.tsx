@@ -1684,7 +1684,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 border-t border-border/50">
             <Wallet size={13} className="text-primary shrink-0" />
             <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider shrink-0">Funding Account:</span>
-            <select
+            <select aria-label="Funding account"
               value={resolvedFundingId}
               onChange={e => setFundingAccountId(e.target.value)}
               className="flex-1 min-w-0 bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
@@ -2199,7 +2199,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       </span>
                       {editingStatementBal === proj.card.id ? (
                         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <input type="number" value={statementBalInput} onChange={e => setStatementBalInput(e.target.value)}
+                          <input aria-label="Statement balance" type="number" value={statementBalInput} onChange={e => setStatementBalInput(e.target.value)}
                             className="w-20 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
                             style={{ borderRadius: 'var(--radius)' }} autoFocus min={0} step="10" placeholder="Auto"
                             onKeyDown={e => { if (e.key === 'Enter') handleSaveStatementBal(proj.card); if (e.key === 'Escape') setEditingStatementBal(null); }} />
@@ -2338,7 +2338,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               <div className="px-2 text-right text-[10px] sm:text-[11px]">
                                 {isEditingThis ? (
                                   <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                                    <input type="number" value={monthPayInput} onChange={e => setMonthPayInput(e.target.value)}
+                                    <input aria-label="Payment for this month" type="number" value={monthPayInput} onChange={e => setMonthPayInput(e.target.value)}
                                       className="w-16 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
                                       style={{ borderRadius: 'var(--radius)' }} autoFocus min={0} step="10"
                                       onKeyDown={e => { if (e.key === 'Enter') handleOverrideMonth(proj.card.id, idx); if (e.key === 'Escape') setEditingMonth(null); }} />

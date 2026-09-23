@@ -160,7 +160,7 @@ export function PartnerLink() {
 
       {isPremium ? (
         <div className="flex flex-col gap-2 sm:flex-row">
-          <input
+          <input aria-label="Partner email"
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}

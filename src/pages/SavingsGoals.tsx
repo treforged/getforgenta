@@ -124,7 +124,7 @@ function GoalLumpSumModal({
           </div>
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-            <input
+            <input aria-label="Amount"
               type="number"
               placeholder="0.00"
               value={amount}

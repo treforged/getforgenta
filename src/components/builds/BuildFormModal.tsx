@@ -93,7 +93,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className={labelCls}>Build Name *</label>
-            <input
+            <input aria-label="Build name"
               className={`${inputCls}${nameError ? ' border-destructive' : ''}`}
               value={form.name}
               maxLength={LIMITS.buildName}
@@ -111,7 +111,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className={labelCls}>Year</label>
-              <input
+              <input aria-label="Year"
                 className={inputCls}
                 type="number"
                 value={form.year}
@@ -122,7 +122,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
             </div>
             <div>
               <label className={labelCls}>Make</label>
-              <input
+              <input aria-label="Make"
                 className={inputCls}
                 value={form.make}
                 onChange={e => setForm(f => ({ ...f, make: e.target.value }))}
@@ -131,7 +131,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label className={labelCls}>Model</label>
-              <input
+              <input aria-label="Model"
                 className={inputCls}
                 value={form.model}
                 onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
@@ -143,7 +143,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
           {carFunds.length > 0 && (
             <div>
               <label className={labelCls}>Car Loan Plan</label>
-              <select
+              <select aria-label="Car loan plan"
                 className={inputCls}
                 value={form.carFundId}
                 onChange={e => setForm(f => ({ ...f, carFundId: e.target.value }))}
@@ -163,7 +163,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
 
           <div>
             <label className={labelCls}>Notes</label>
-            <textarea
+            <textarea aria-label="Notes"
               className={`${inputCls} resize-none`}
               rows={2}
               value={form.notes}
