@@ -453,9 +453,11 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">5. Payment and Billing</h2>
         <p className="text-muted-foreground leading-relaxed">
-          All payments are processed securely by Stripe, Inc. By subscribing to Premium, you authorize
-          TRE Forged LLC to charge your payment method on a recurring monthly basis. Subscriptions renew
-          automatically on the same date each month.
+          Payments are processed securely by Stripe, Inc. when you subscribe on the web, and by Apple, Inc.
+          (App Store) or Google LLC (Google Play) when you subscribe in the iOS or Android app. By subscribing
+          to Premium, you authorize TRE Forged LLC, through that processor, to charge your payment method on a
+          recurring basis for the period you choose, monthly or yearly. Subscriptions renew automatically at
+          the end of each period.
         </p>
         <p className="text-muted-foreground leading-relaxed">
           You may cancel your subscription at any time via the billing portal accessible from the Premium page
