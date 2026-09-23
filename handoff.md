@@ -7,7 +7,7 @@
    HTTP 200 (net response 4075). The one-shot cron job is gone; job 26 `push-send-daily` (17:00Z) still runs DRY.
    APNs accepted it; whether it showed on his lock screen is the one fact only his phone holds.
    NEXT on push: flipping job 26 to real sends for all users is outward-facing to real people = Tre's call, not filed yet.
-1b. [!] **GRACE-PERIOD FIX IS HALF-DEPLOYED (`d01dae3b`).** Code `a18e531c` is on main and the client half is live.
+1b. [!] **GRACE-PERIOD FIX: 2 OF 8 FUNCTIONS DEPLOYED (`d01dae3b`).** plaid-create-link-token v59 and ai-advisor v64 were deployed by MCP 2026-09-23 and proven with a past_due/canceled pair. The auto-mode classifier then refused further deploys, so the remaining 6 wait on Tre's approval in this session. Original note: Code `a18e531c` is on main and the client half is live.
    8 edge functions (ai-advisor, friend-link, partner-link, plaid-sync-all, plaid-create-link-token,
    plaid-exchange-token, financial-sync, plaid-sync) were last deployed BEFORE it, and it is the only undeployed commit
    in each. The CLI has no token, so they are blocked on `1e1d53eb` (Tre sets SUPABASE_ACCESS_TOKEN). There are 0
@@ -11043,7 +11043,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 10:09 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 10:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11054,14 +11054,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+f22a4c02 [handoff]: leaderboard shipped; layer-2 colour inventory says /account, not /budget, is the dull screen
+c247bbcd [leaderboard]: less text, and the country is picked from a list instead of typed (37390eac)
+ef91e78d [handoff]: grace-period fix is half-deployed - 8 edge functions wait on a CLI token; 86bccda4 closed
+1b124c90 [handoff]: first real APNs send to Tre succeeded at 12:05Z - 71cddec3 closed
 ba5b0c53 [handoff]: resume at the APNs send read - it ran at 12:05Z
 810197ae [handoff]: 981e8ecf is JS-only and already live on phones
 8feb9219 [handoff]: JS reaches phones via server.url - corrected two 'next iOS build' claims
 7fdfc910 [handoff]: 403dd5d8 closed - due block leads the dashboard, applied to Tre's layout with a snapshot
-d122e15e [dashboard]: lead with what is due - Debt Recommendations moves up behind Upcoming This Week (403dd5d8)
-a0b3c198 [handoff]: the daily push run is a dry run - real scoped APNs send scheduled 12:05Z; stall control read early, walks refuted
-d7e539b1 [handoff]: the perf revisit trigger read the stall, not the plan - use min_exec_time and blocks/call
-67878690 [handoff]: advisors read - one security fix shipped, perf lints deliberately deferred with a revisit trigger
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
