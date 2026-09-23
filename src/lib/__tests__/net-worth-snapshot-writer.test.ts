@@ -50,7 +50,15 @@ const callSites = sourceFiles(SRC).filter(file => {
 describe('net-worth snapshot recorder mounting', () => {
   it('is mounted from Dashboard.tsx, above the panel switch', () => {
     const dashboard = stripComments(readFileSync(join(SRC, 'pages', 'Dashboard.tsx'), 'utf8'));
-    expect(dashboard).toContain(`${HOOK}()`);
+    expect(dashboard).toContain(`${HOOK}(`);
+  });
+
+  it('is handed the revolving balance, so the debt_payoff series is actually recorded', () => {
+    // A bare `useNetWorthSnapshotRecorder()` still records net worth and silently records no
+    // revolving balance ever again - the default is null. See src/lib/revolving-snapshot.ts.
+    const dashboard = stripComments(readFileSync(join(SRC, 'pages', 'Dashboard.tsx'), 'utf8'));
+    expect(dashboard).toMatch(/useNetWorthSnapshotRecorder\(\s*revolvingBalanceForSnapshot\s*\)/);
+    expect(dashboard).toMatch(/totalRevolvingMonth0\(\s*cardProjection\?\.monthlyRevolvingBalances\s*\)/);
   });
 
   it('is mounted from exactly one place, so a move cannot leave a stale second writer', () => {

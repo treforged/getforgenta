@@ -5,6 +5,7 @@ import { useAccounts, useAssets, useCarFunds, useLiabilities, useNetWorthSnapsho
 import { aggregateNetWorth } from '@/lib/net-worth';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { hasRecordableData, shouldRecordSnapshot } from '@/lib/net-worth-snapshot';
+import { revolvingFillTarget } from '@/lib/revolving-snapshot';
 import { toLocalDateStr } from '@/lib/scheduling';
 
 /**
@@ -16,15 +17,19 @@ import { toLocalDateStr } from '@/lib/scheduling';
  * Accounts page, which is where the history chart is actually read.
  *
  * Writes are fire-and-forget: no toast, no UI. Demo sessions never persist.
+ *
+ * `revolvingBalance` is the engine's month-0 revolving total (`totalRevolvingMonth0`), or `null`
+ * while no projection exists. It is written onto the NEWEST row in a second, separate step, because
+ * this recorder usually fires before the projection is ready - see src/lib/revolving-snapshot.ts.
  */
-export function useNetWorthSnapshotRecorder(): void {
+export function useNetWorthSnapshotRecorder(revolvingBalance: number | null = null): void {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { data: accounts } = useAccounts();
   const { data: manualAssets } = useAssets();
   const { data: manualLiabilities } = useLiabilities();
   const { data: carFunds } = useCarFunds();
-  const { data: snapshots, loading: snapshotsLoading, upsert } = useNetWorthSnapshots();
+  const { data: snapshots, loading: snapshotsLoading, upsert, fillRevolving } = useNetWorthSnapshots();
 
   const vehicleLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
 
@@ -63,4 +68,25 @@ export function useNetWorthSnapshotRecorder(): void {
       },
     );
   }, [isDemo, user, snapshots, snapshotsLoading, totals, upsert]);
+
+  // One fill per mount. Runs after the net-worth write lands, because that write invalidates the
+  // snapshot query and the newest row then reads back with a null `revolving_balance`.
+  const fillAttempted = useRef(false);
+
+  useEffect(() => {
+    if (isDemo || !user || fillAttempted.current || snapshotsLoading) return;
+    const target = revolvingFillTarget(snapshots, revolvingBalance, toLocalDateStr(new Date()));
+    if (!target) return;
+
+    fillAttempted.current = true;
+    fillRevolving.mutate(target, {
+      onError: (error: unknown) => {
+        fillAttempted.current = false;
+        console.error(
+          'Revolving balance snapshot save failed:',
+          error instanceof Error ? error.message : error,
+        );
+      },
+    });
+  }, [isDemo, user, snapshots, snapshotsLoading, revolvingBalance, fillRevolving]);
 }

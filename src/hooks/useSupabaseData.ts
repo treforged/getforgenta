@@ -1283,6 +1283,8 @@ export function useNetWorthSnapshots() {
           id: `demo-nw-${i}`,
           user_id: 'demo',
           created_at: s.snapshot_date,
+          // Demo never records a revolving balance (the recorder skips demo), so none is claimed.
+          revolving_balance: null,
         }));
       }
       if (!user) return [];
@@ -1321,7 +1323,27 @@ export function useNetWorthSnapshots() {
     // Silent — no toast on snapshot save
   });
 
-  return { data: query.data ?? [], loading: query.isLoading, upsert };
+  // Fills `revolving_balance` on an EXISTING row only (src/lib/revolving-snapshot.ts). An UPDATE,
+  // never an upsert: the row's NOT NULL totals belong to the net-worth write above, and the
+  // `is null` filter means a recorded value is never overwritten, even by a racing second tab.
+  const fillRevolving = useMutation({
+    mutationFn: async (item: { snapshot_date: string; revolving_balance: number }) => {
+      // Same skip as upsert: a partner's balance must never be written into the owner's history.
+      if (isDemo || isPartnerView || !user) return;
+      const { error } = await supabase
+        .from('net_worth_snapshots')
+        .update({ revolving_balance: item.revolving_balance })
+        .eq('user_id', user.id)
+        .eq('snapshot_date', item.snapshot_date)
+        .is('revolving_balance', null);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['net_worth_snapshots'] });
+    },
+  });
+
+  return { data: query.data ?? [], loading: query.isLoading, upsert, fillRevolving };
 }
 
 // ─── Payment Plans ───────────────────────────────────────

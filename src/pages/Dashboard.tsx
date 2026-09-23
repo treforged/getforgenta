@@ -60,6 +60,7 @@ import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
+import { totalRevolvingMonth0 } from '@/lib/revolving-snapshot';
 import { useLeaderboardPublisher } from '@/hooks/useLeaderboardPublisher';
 import { buildBudgetCategories } from '@/lib/leaderboard-budget';
 import { weeklyNetWorthDeltas } from '@/lib/leaderboard-publish';
@@ -552,8 +553,16 @@ export default function Dashboard() {
    * the writer moved with it, and to the level ABOVE the pills rather than into the Overview
    * panel, so that it runs on every Dashboard visit no matter which panel the user lands on.
    * Grep what a page WRITES before moving what it SHOWS.
+   *
+   * It also records the engine's month-0 revolving total onto the weekly row, which starts the
+   * dated series `debt_payoff` needs (src/lib/revolving-snapshot.ts). `null` until the projection
+   * exists, so a not-yet-computed balance is never written as zero.
    */
-  useNetWorthSnapshotRecorder();
+  const revolvingBalanceForSnapshot = useMemo(
+    () => totalRevolvingMonth0(cardProjection?.monthlyRevolvingBalances),
+    [cardProjection],
+  );
+  useNetWorthSnapshotRecorder(revolvingBalanceForSnapshot);
 
   /**
    * Publishes this week's leaderboard buckets. Mounted HERE for the same reason as the recorder

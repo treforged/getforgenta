@@ -1303,6 +1303,7 @@ export type Database = {
           created_at: string | null
           id: string
           net_worth: number
+          revolving_balance: number | null
           snapshot_date: string
           total_assets: number
           total_liabilities: number
@@ -1312,6 +1313,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           net_worth?: number
+          revolving_balance?: number | null
           snapshot_date: string
           total_assets?: number
           total_liabilities?: number
@@ -1321,6 +1323,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           net_worth?: number
+          revolving_balance?: number | null
           snapshot_date?: string
           total_assets?: number
           total_liabilities?: number
