@@ -761,7 +761,7 @@ export default function Auth() {
               </div>
             )}
 
-            <input
+            <input aria-label="Verification code"
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
@@ -827,7 +827,7 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
             <div>
               <label className="text-xs text-muted-foreground uppercase">New Password</label>
-              <input
+              <input aria-label="New password"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -841,7 +841,7 @@ export default function Auth() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground uppercase">Confirm New Password</label>
-              <input
+              <input aria-label="Confirm new password"
                 type="password"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
@@ -940,7 +940,7 @@ export default function Auth() {
           {mode === 'signup' && (
             <div>
               <label className="text-xs text-muted-foreground uppercase">Display Name</label>
-              <input
+              <input aria-label="Display name"
                 type="text"
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
@@ -956,7 +956,7 @@ export default function Auth() {
 
           <div>
             <label className="text-xs text-muted-foreground uppercase">Email</label>
-            <input
+            <input aria-label="Email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -982,7 +982,7 @@ export default function Auth() {
                   </button>
                 )}
               </div>
-              <input
+              <input aria-label="Password"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -999,7 +999,7 @@ export default function Auth() {
           {mode === 'signup' && (
             <div>
               <label className="text-xs text-muted-foreground uppercase">Confirm Password</label>
-              <input
+              <input aria-label="Confirm password"
                 type="password"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}

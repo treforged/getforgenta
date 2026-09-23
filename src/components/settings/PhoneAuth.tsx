@@ -104,7 +104,7 @@ export function PhoneAuth() {
         <div className="space-y-2">
           <p className="text-[10px] text-muted-foreground">Enter the code sent to <span className="text-foreground">{phone}</span></p>
           <div className="flex gap-2">
-            <input
+            <input aria-label="Verification code"
               type="text"
               inputMode="numeric"
               maxLength={8}
@@ -143,7 +143,7 @@ export function PhoneAuth() {
             Add your phone to enable SMS sign-in and SMS two-factor authentication.
           </p>
           <div className="flex gap-2">
-            <input
+            <input aria-label="Phone number"
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}

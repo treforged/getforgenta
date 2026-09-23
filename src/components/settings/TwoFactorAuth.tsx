@@ -213,7 +213,7 @@ export function TwoFactorAuth() {
             <p className="text-xs font-medium">Enter the 6-digit code from your app</p>
             <button aria-label="Cancel setup" onClick={cancelEnroll} className="text-muted-foreground hover:text-foreground p-2 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={14} /></button>
           </div>
-          <input
+          <input aria-label="6-digit code from your authenticator app"
             type="text"
             inputMode="numeric"
             maxLength={6}

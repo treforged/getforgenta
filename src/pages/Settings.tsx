@@ -521,7 +521,7 @@ export default function SettingsPage() {
                 the browser's locale deciding grouping, separator and symbol position.
                 ⚠️ DISPLAY ONLY — nothing converts an amount, which is why the note below
                 says so where the user can read it rather than only in a comment. */}
-            <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
+            <select aria-label="Currency" value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
               aria-describedby="currency-note"
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
               <option value="USD">USD ($)</option>
@@ -546,7 +546,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="text-xs text-muted-foreground uppercase">Budget Start Day</label>
-            <input type="number" min={1} max={28} value={startDay} onChange={e => { setStartDay(e.target.value); markDirty(); }}
+            <input aria-label="Budget start day" type="number" min={1} max={28} value={startDay} onChange={e => { setStartDay(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
           </div>
           {/* ⚠️ THEME IS NOT PART OF `dirty` AND HAS NO SAVE BUTTON, unlike everything else on this
@@ -619,7 +619,7 @@ export default function SettingsPage() {
         </div>
         <div>
           <label className="text-xs text-muted-foreground uppercase">Display Name</label>
-          <input value={displayName} onChange={e => { setDisplayName(e.target.value); markDirty(); }}
+          <input aria-label="Display name" value={displayName} onChange={e => { setDisplayName(e.target.value); markDirty(); }}
             className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring" style={{ borderRadius: 'var(--radius)' }} placeholder="Your name" />
         </div>
       </div>
@@ -658,7 +658,7 @@ export default function SettingsPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <input
+                <input aria-label="New email"
                   type="email"
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
@@ -763,7 +763,7 @@ export default function SettingsPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <input
+                <input aria-label="Current password"
                   type="password"
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
@@ -771,7 +771,7 @@ export default function SettingsPage() {
                   className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
-                <input
+                <input aria-label="New password"
                   type="password"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
@@ -779,7 +779,7 @@ export default function SettingsPage() {
                   className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
-                <input
+                <input aria-label="Confirm new password"
                   type="password"
                   value={confirmNewPassword}
                   onChange={e => setConfirmNewPassword(e.target.value)}
@@ -1064,7 +1064,7 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Type <strong className="text-foreground">DELETE</strong> to confirm:
               </p>
-              <input
+              <input aria-label="Type DELETE to confirm"
                 type="text"
                 value={deleteConfirmText}
                 onChange={e => setDeleteConfirmText(e.target.value)}

@@ -14,9 +14,15 @@
    route UNSETTLED - cause not found. /transactions row Edit/Duplicate/Delete now carry the row's note (2 runs: 4 then 0
    not-found, so what is left is load timing under 2 workers, not naming).
    write-blocked presses are the crawler's blind spot (it cannot see what they would have changed).
-5. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
-6. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build.
-7. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
+5. FORM FIELD NAMES, continuing (e1b0fffc). 99 of 138 fields still have no accessible name (sibling <label>, no htmlFor).
+   field-name.gate.test.ts is a RATCHET: add a file to FINISHED once every field in it is named. Done: Auth, Settings,
+   PhoneAuth, TwoFactorAuth. Next by count: PhaseBlock 19, ForecastAssumptionsPanel 14, BudgetControl 11, Transactions 11,
+   MaintenanceFormModal 11. onboarding/fields.tsx needs a label PROP threaded from its callers. Label from the visible
+   caption BY HAND or verify every free-tier draft: it named the MFA field 'Countdown'. Probe: scratchpad inputprobe.mjs
+   (copy it into scripts/ if reused).
+6. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
+7. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build.
+8. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
    marketing/app-store/2026-09-23. Tell Ruby only about the frames that DIFFER.
 
 <details><summary>Done 2026-09-23 ~19:45-20:15Z (Ada)</summary>
@@ -11317,7 +11323,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 16:59 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 17:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11328,14 +11334,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+ddfe4640 [a11y]: every icon-only button has a name, including the shared form close
+76b4c303 [a11y]: transaction row buttons name the row they act on
 c775e7f8 [a11y]: 21 icon-only buttons get an accessible name; the press crawler sees inline editors
 a6bc5aa4 [a11y+walks]: toggle buttons say which is pressed; the press crawler can no longer write
 2cbc99c4 [handoff]: press crawler + a11y tabs shipped (dd3f1b5c); crawler presses from the declared route; first up is the Discover It switch check
 dd3f1b5c [a11y]: section tabs say which one is selected, and the last hand-rolled switch is gone
 30651da0 [walks]: the undo walks read the app's 24h offer window instead of blaming it
 91b731b1 [onboarding]: the first-run walk runs again - its guard checks a known member, not a typed count
-45a2b2ed [handoff]: 798c0ed9 re-tested, gate sweep green, text-[8px] fixed in 071dbc42
-071dbc42 [type]: text-[8px] labels now scale with the user's text size
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
