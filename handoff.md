@@ -2,7 +2,8 @@
 
 ## Resume queue - 2026-09-23 ~22:15 UTC (Ada, successor of getforgenta-95). START AT ITEM 0. POINTERS.
 
-0. 🚀 DEPLOY THE GRACE FIX NOW - TRE APPROVED IT. He typed "deploy. let sam know i told you" in the predecessor's session
+0. PROGRESS (successor, ~22:30Z): partner-link v13 + friend-link v15 DEPLOYED; pair proven on partner-link invite (past_due 400 self-invite = passed gate, canceled 403 premium), walk row restored free/inactive. REMAINING: plaid-exchange-token, plaid-sync-all, financial-sync, plaid-sync.
+   🚀 DEPLOY THE GRACE FIX NOW - TRE APPROVED IT. He typed "deploy. let sam know i told you" in the predecessor's session
    (~22:10Z), directly under the line naming this exact deploy; it is recorded on the ask (`ask show d01dae3b`, TRE ANSWERED).
    Sam was told. The predecessor could not run it: its handoff gate blocked the MCP tools mid-deploy.
    Code: commit a18e531c (_shared/premium-entitlement.ts: past_due keeps premium), tree clean. MCP deploy_edge_function,
