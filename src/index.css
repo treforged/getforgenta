@@ -721,6 +721,7 @@ so size and variant are separated here and the 44px floor is stated once.
      These override Tailwind's generated arbitrary-value utilities at the same layer.
      They stay plain escaped selectors rather than `@utility`, because a v4 utility name
      must be alphanumeric and cannot contain brackets. */
+  .text-\[8px\]   { font-size: 0.556rem; line-height: 1rem; }
   .text-\[9px\]   { font-size: 0.611rem; line-height: 1rem; }
   .text-\[9\.5px\]{ font-size: 0.639rem; line-height: 1rem; }
   .text-\[10px\]  { font-size: 0.667rem; line-height: 1.1rem; }
