@@ -105,7 +105,7 @@ describe('LeaderboardShareToggles', () => {
 
   it('says the default out loud, because a privacy default nobody can see is not trusted', () => {
     render(<LeaderboardShareToggles />);
-    expect(screen.getByText(/off until you turn it on/i)).toBeTruthy();
+    expect(screen.getByText(/off until you turn (it|them) on/i)).toBeTruthy();
   });
 
   it('promises no amounts, on every row', () => {

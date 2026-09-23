@@ -70,8 +70,8 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        Everything here is off until you turn it on. Friends never see an amount, a balance, an
-        account or a transaction - only a rounded band, updated once a week.
+        All off until you turn them on. Friends see only a rounded band, updated weekly - never an
+        amount, balance or transaction.
       </p>
       {METRICS.map((m) => {
         const on = isEnabled(m.id);
