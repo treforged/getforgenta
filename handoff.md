@@ -1,6 +1,23 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 early (Ada, successor). START AT ITEM 1. Each item is a POINTER.
+
+1. **VERIFY iOS PUSH (`384ca151`)** - build 1011 carries the AppDelegate fix (7fb7fc78). Once Tre has opened 1011,
+   SQL: `select platform,count(*),max(created_at) from device_tokens where revoked_at is null group by 1` must show an
+   `ios` row, and `select outcome,app_build,detail,last_seen_at from push_registration_status where platform='ios' and
+   user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'` must read `registered` on build 1011. If it still reads timeout on
+   1011, the fix was necessary but not sufficient - read the row's detail (net=...) before theorising.
+2. **FIRST iOS SEND** - the APNS_* secrets on push-send have never been exercised. After item 1, watch the next
+   push-send-daily run (17:00Z) or a dry run's response for 'is not set' / an APNs status. Missing secrets = Tre's (a
+   .p8 key from Apple); name the exact three names.
+3. **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. Baseline after reset: temp_files=199100
+   temp_bytes=509954571085. Also read the pg_stat_statements entry count; if the spill returns as it regrows, schedule
+   `select extensions.pg_stat_statements_reset()` in pg_cron (undo: cron.unschedule).
+4. **NATIVE SHARE SHEET** - build 1011 also carries the share card; a device check is the only open verification.
+5. Then `ask list --owner Ada` + the standing ask `e1b0fffc` (keep improving; user-visible first). Placeholder ask
+   `d694a896` is nearly exhausted - close it after one textarea check.
+
+## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
 **STATE AT CLOSE (2026-09-22 ~19:40 ET): this desk's queue was EXHAUSTED.** Every live Ada ask is blocked with
 a written reason or waits on Tre (`0006cc41`, `5ee1669a` MacBook paused). All work is pushed, origin 0/0. The one
