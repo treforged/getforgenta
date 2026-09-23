@@ -1409,13 +1409,13 @@ export default function Transactions() {
                       : `Dated ${reconcilable[t.id].actualDate}`}
                   </button>
                 )}
-                {!isRecon && <button onClick={() => duplicateTransaction(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
-                {!isRecon && <button onClick={() => handleEditClick(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
+                {!isRecon && <button onClick={() => duplicateTransaction(t)} aria-label={`Duplicate ${t.note || 'transaction'}`} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
+                {!isRecon && <button onClick={() => handleEditClick(t)} aria-label={`Edit ${t.note || 'transaction'}`} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
                 {canConvertToPlan && (
                   <button onClick={() => openConvertPlan(t)} className="icon-btn text-muted-foreground hover:text-primary" title="Convert to payment plan" aria-label="Convert to payment plan"><Split size={12} /></button>
                 )}
                 {!isRecon && !t.isGenerated && (
-                  <button aria-label={`${deleteConfirm === t.id ? 'Confirm delete' : 'Delete'} transaction`} onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={12} /></button>
+                  <button aria-label={`${deleteConfirm === t.id ? 'Confirm delete' : 'Delete'} ${t.note || 'transaction'}`} onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={12} /></button>
                 )}
               </div>
             </div>

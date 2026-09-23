@@ -11,7 +11,8 @@
    bundle file named `functions/<path>` and verify_jwt unchanged. Test on the walk account with premium+past_due vs
    premium+canceled rows, then delete the rows.
 4. `npm run walk:press` open edges: its enumerated count varies ~6% run to run on identical code (348 vs 370) with no
-   route UNSETTLED - cause not found; the 2-4 not-found are the /transactions row Edit/Duplicate and a Settings tab.
+   route UNSETTLED - cause not found. /transactions row Edit/Duplicate/Delete now carry the row's note (2 runs: 4 then 0
+   not-found, so what is left is load timing under 2 workers, not naming).
    write-blocked presses are the crawler's blind spot (it cannot see what they would have changed).
 5. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
 6. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build.
@@ -11313,7 +11314,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 15:45 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 16:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11324,14 +11325,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+c775e7f8 [a11y]: 21 icon-only buttons get an accessible name; the press crawler sees inline editors
+a6bc5aa4 [a11y+walks]: toggle buttons say which is pressed; the press crawler can no longer write
 2cbc99c4 [handoff]: press crawler + a11y tabs shipped (dd3f1b5c); crawler presses from the declared route; first up is the Discover It switch check
 dd3f1b5c [a11y]: section tabs say which one is selected, and the last hand-rolled switch is gone
 30651da0 [walks]: the undo walks read the app's 24h offer window instead of blaming it
 91b731b1 [onboarding]: the first-run walk runs again - its guard checks a known member, not a typed count
 45a2b2ed [handoff]: 798c0ed9 re-tested, gate sweep green, text-[8px] fixed in 071dbc42
 071dbc42 [type]: text-[8px] labels now scale with the user's text size
-96626c12 [handoff]: session close - six engine/display fixes shipped; next is the 798c0ed9 trigger re-test under e1b0fffc
-d62f67dd [handoff]: a5b13315 fixed in 539cb446
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
