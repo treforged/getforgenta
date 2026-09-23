@@ -102,8 +102,12 @@ const ACCOUNT_SECTIONS = [...readFileSync('src/pages/Account.tsx', 'utf8')
 
 // A derivation that yields nothing would make every assertion below vacuous - "named all 0 of
 // them" is not a pass. This is the control on the instrument, and it runs before the browser.
-if (NAV_LABELS.length !== 5) fail(2, `derived ${NAV_LABELS.length} nav labels, expected 5 - the extractor is broken, not the app.`);
-if (ACCOUNT_SECTIONS.length !== 5) fail(2, `derived ${ACCOUNT_SECTIONS.length} Account sections, expected 5 - the extractor is broken, not the app.`);
+// ⚠️ A KNOWN-POSITIVE, NOT A TYPED COUNT. This used to demand exactly 5 of each; Analytics joined
+// Account on 2026-09-22 (099c4e14) and the literal refused every run from then on - a guard against
+// an EMPTY extractor that fired on a CORRECT one, which is the one diagnosis nobody chases. Each
+// list must hold its oldest member and more than one entry; any count above that is the app's.
+if (NAV_LABELS.length < 2 || !NAV_LABELS.includes('Home')) fail(2, `derived nav labels ${JSON.stringify(NAV_LABELS)} lack 'Home' - the extractor is broken, not the app.`);
+if (ACCOUNT_SECTIONS.length < 2 || !ACCOUNT_SECTIONS.includes('Profile')) fail(2, `derived Account sections ${JSON.stringify(ACCOUNT_SECTIONS)} lack 'Profile' - the extractor is broken, not the app.`);
 console.log(`derived destinations: nav ${JSON.stringify(NAV_LABELS)}`);
 console.log(`                     account ${JSON.stringify(ACCOUNT_SECTIONS)}`);
 
