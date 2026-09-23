@@ -383,7 +383,7 @@ export default function PhaseBlock({
       {editingTitle && (
         <div className="bg-card border-t border-border px-4 py-3" onClick={e => e.stopPropagation()}>
           <label className={labelCls}>Phase Title</label>
-          <input
+          <input aria-label="Phase title"
             ref={titleRef}
             className={inputCls}
             value={titleInput}
@@ -514,7 +514,7 @@ export default function PhaseBlock({
                               the placeholder is whatever the row would keep if it were saved
                               blank (`saveItemEdit` falls back to `item.name`), so the hint can
                               never promise something the save would not do. */}
-                          <input
+                          <input aria-label="Item name"
                             className={inputCls}
                             value={itemEdits[item.id].name}
                             placeholder={item.name}
@@ -527,7 +527,7 @@ export default function PhaseBlock({
                         </div>
                         <div>
                           <label className={labelCls}>Brand / Description</label>
-                          <input
+                          <input aria-label="Brand / description"
                             className={inputCls}
                             value={itemEdits[item.id].brand}
                             maxLength={LIMITS.itemBrand}
@@ -537,7 +537,7 @@ export default function PhaseBlock({
                         </div>
                         <div>
                           <label className={labelCls}>Product Link (URL)</label>
-                          <input
+                          <input aria-label="Product link (URL)"
                             className={monoInput}
                             type="url"
                             value={itemEdits[item.id].link}
@@ -549,7 +549,7 @@ export default function PhaseBlock({
                         </div>
                         <div>
                           <label className={labelCls}>Move to Phase</label>
-                          <select className={inputCls} value={itemEdits[item.id].moveToPhaseId} onChange={e => updateItemEdit(item.id, 'moveToPhaseId', e.target.value)}>
+                          <select aria-label="Move to phase" className={inputCls} value={itemEdits[item.id].moveToPhaseId} onChange={e => updateItemEdit(item.id, 'moveToPhaseId', e.target.value)}>
                             {allPhases.map((ph, i) => (
                               <option key={ph.id} value={ph.id}>{i + 1}. {ph.title}</option>
                             ))}
@@ -582,7 +582,7 @@ export default function PhaseBlock({
 
                               {!itemEdits[item.id].isNewTransaction ? (
                                 <>
-                                  <select
+                                  <select aria-label="Linked transaction"
                                     className={inputCls}
                                     value={itemEdits[item.id].linkedTransactionId}
                                     onChange={e => {
@@ -614,11 +614,11 @@ export default function PhaseBlock({
                                       </div>
                                       <div>
                                         <label className={labelCls}>Amount ($)</label>
-                                        <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} min="0" step="0.01" />
+                                        <input aria-label="Amount ($)" type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} min="0" step="0.01" />
                                       </div>
                                       <div>
                                         <label className={labelCls}>Payment Method</label>
-                                        <select className={inputCls} value={itemEdits[item.id].txPaymentSource} onChange={e => updateItemEdit(item.id, 'txPaymentSource', e.target.value)}>
+                                        <select aria-label="Payment method" className={inputCls} value={itemEdits[item.id].txPaymentSource} onChange={e => updateItemEdit(item.id, 'txPaymentSource', e.target.value)}>
                                           <option value="">Unassigned</option>
                                           {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                         </select>
@@ -634,18 +634,18 @@ export default function PhaseBlock({
                                   </div>
                                   <div>
                                     <label className={labelCls}>Amount ($)</label>
-                                    <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                    <input aria-label="Amount ($)" type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} placeholder="0.00" min="0" step="0.01" />
                                   </div>
                                   <div>
                                     <label className={labelCls}>Payment Method</label>
-                                    <select className={inputCls} value={itemEdits[item.id].txPaymentSource} onChange={e => updateItemEdit(item.id, 'txPaymentSource', e.target.value)}>
+                                    <select aria-label="Payment method" className={inputCls} value={itemEdits[item.id].txPaymentSource} onChange={e => updateItemEdit(item.id, 'txPaymentSource', e.target.value)}>
                                       <option value="">Unassigned</option>
                                       {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                     </select>
                                   </div>
                                   <div>
                                     <label className={labelCls}>Note (optional)</label>
-                                    <input className={inputCls} value={itemEdits[item.id].txNote} onChange={e => updateItemEdit(item.id, 'txNote', e.target.value)} placeholder="e.g. From Summit Racing" />
+                                    <input aria-label="Note (optional)" className={inputCls} value={itemEdits[item.id].txNote} onChange={e => updateItemEdit(item.id, 'txNote', e.target.value)} placeholder="e.g. From Summit Racing" />
                                   </div>
                                 </div>
                               )}
@@ -661,7 +661,7 @@ export default function PhaseBlock({
                               </div>
 
                               {!itemEdits[item.id].isNewPlan ? (
-                                <select
+                                <select aria-label="Linked payment plan"
                                   className={inputCls}
                                   value={itemEdits[item.id].linkedPlanId}
                                   onChange={e => updateItemEdit(item.id, 'linkedPlanId', e.target.value)}
@@ -677,21 +677,21 @@ export default function PhaseBlock({
                                 <div className="space-y-2">
                                   <div>
                                     <label className={labelCls}>Plan Name</label>
-                                    <input className={inputCls} value={itemEdits[item.id].newPlanName} onChange={e => updateItemEdit(item.id, 'newPlanName', e.target.value)} placeholder="e.g. Exhaust system" />
+                                    <input aria-label="Plan name" className={inputCls} value={itemEdits[item.id].newPlanName} onChange={e => updateItemEdit(item.id, 'newPlanName', e.target.value)} placeholder="e.g. Exhaust system" />
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className={labelCls}>Total ($)</label>
-                                      <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanTotal} onChange={e => updateItemEdit(item.id, 'newPlanTotal', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                      <input aria-label="Total ($)" type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanTotal} onChange={e => updateItemEdit(item.id, 'newPlanTotal', e.target.value)} placeholder="0.00" min="0" step="0.01" />
                                     </div>
                                     <div>
                                       <label className={labelCls}>Payment ($)</label>
-                                      <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanPayment} onChange={e => updateItemEdit(item.id, 'newPlanPayment', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                      <input aria-label="Payment ($)" type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanPayment} onChange={e => updateItemEdit(item.id, 'newPlanPayment', e.target.value)} placeholder="0.00" min="0" step="0.01" />
                                     </div>
                                   </div>
                                   <div>
                                     <label className={labelCls}>Frequency</label>
-                                    <select className={inputCls} value={itemEdits[item.id].newPlanFrequency} onChange={e => updateItemEdit(item.id, 'newPlanFrequency', e.target.value as PlanFreq)}>
+                                    <select aria-label="Frequency" className={inputCls} value={itemEdits[item.id].newPlanFrequency} onChange={e => updateItemEdit(item.id, 'newPlanFrequency', e.target.value as PlanFreq)}>
                                       <option value="weekly">Weekly</option>
                                       <option value="biweekly">Biweekly</option>
                                       <option value="monthly">Monthly</option>
@@ -703,11 +703,11 @@ export default function PhaseBlock({
                                   </div>
                                   <div>
                                     <label className={labelCls}># Payments</label>
-                                    <input type="number" className={inputCls} value={itemEdits[item.id].newPlanTotalPayments} onChange={e => updateItemEdit(item.id, 'newPlanTotalPayments', e.target.value)} placeholder="4" min="1" step="1" />
+                                    <input aria-label="Number of payments" type="number" className={inputCls} value={itemEdits[item.id].newPlanTotalPayments} onChange={e => updateItemEdit(item.id, 'newPlanTotalPayments', e.target.value)} placeholder="4" min="1" step="1" />
                                   </div>
                                   <div>
                                     <label className={labelCls}>Payment Method</label>
-                                    <select className={inputCls} value={itemEdits[item.id].newPlanPaymentSource} onChange={e => updateItemEdit(item.id, 'newPlanPaymentSource', e.target.value)}>
+                                    <select aria-label="Payment method" className={inputCls} value={itemEdits[item.id].newPlanPaymentSource} onChange={e => updateItemEdit(item.id, 'newPlanPaymentSource', e.target.value)}>
                                       <option value="">Unassigned</option>
                                       {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                     </select>
@@ -723,7 +723,7 @@ export default function PhaseBlock({
                       {/* Right column — Price */}
                       <div>
                         <label className={labelCls}>Price ($)</label>
-                        <input
+                        <input aria-label="Price ($)"
                           className={`${inputCls} text-right`}
                           type="number"
                           value={itemEdits[item.id].price}

@@ -76,7 +76,7 @@ export default function ForecastAssumptionsPanel({
           ).map(({ key, label }) => (
             <div key={key}>
               <label className="text-[9px] text-muted-foreground uppercase">{label}</label>
-              <input type="number" value={assumptions[key]}
+              <input aria-label={label} type="number" value={assumptions[key]}
                 onChange={e => setAssumptions(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="0.1" />
             </div>
@@ -101,13 +101,13 @@ export default function ForecastAssumptionsPanel({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[9px] text-muted-foreground uppercase">Effective Date</label>
-                  <input type="date" value={promo.effectiveDate}
+                  <input aria-label="Promotion effective date" type="date" value={promo.effectiveDate}
                     onChange={e => setAssumptions(prev => ({ ...prev, promotions: prev.promotions.map(p => p.id === promo.id ? { ...p, effectiveDate: e.target.value } : p) }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
                 </div>
                 <div>
                   <label className="text-[9px] text-muted-foreground uppercase">New Annual Salary</label>
-                  <input type="number" value={promo.newAnnualSalary || ''}
+                  <input aria-label="New annual salary" type="number" value={promo.newAnnualSalary || ''}
                     onChange={e => setAssumptions(prev => ({ ...prev, promotions: prev.promotions.map(p => p.id === promo.id ? { ...p, newAnnualSalary: parseFloat(e.target.value) || 0 } : p) }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="1000" placeholder="$" />
                 </div>
@@ -151,13 +151,13 @@ export default function ForecastAssumptionsPanel({
           </div>
           <div>
             <label className="text-[9px] text-muted-foreground uppercase">{assumptions.raiseMode === 'flat' ? 'Raise $/yr' : 'Raise %'}</label>
-            <input type="number" value={assumptions.incomeGrowth}
+            <input aria-label={assumptions.raiseMode === 'flat' ? 'Raise dollars per year' : 'Raise percent'} type="number" value={assumptions.incomeGrowth}
               onChange={e => setAssumptions(prev => ({ ...prev, incomeGrowth: parseFloat(e.target.value) || 0 }))}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={assumptions.raiseMode === 'flat' ? '500' : '0.1'} />
           </div>
           <div>
             <label className="text-[9px] text-muted-foreground uppercase">Effective Month</label>
-            <select value={assumptions.raiseMonth}
+            <select aria-label="Raise effective month" value={assumptions.raiseMonth}
               onChange={e => setAssumptions(prev => ({ ...prev, raiseMonth: parseInt(e.target.value) }))}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
               {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
@@ -184,7 +184,7 @@ export default function ForecastAssumptionsPanel({
         <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.bonusEnabled ? 'opacity-100' : 'opacity-50'}`}>
           <div>
             <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
-            <select value={assumptions.bonusMode}
+            <select aria-label="Bonus mode" value={assumptions.bonusMode}
               onChange={e => setAssumptions(prev => ({ ...prev, bonusMode: e.target.value as 'flat' | 'pct' }))}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
               <option value="flat">Flat $</option>
@@ -193,13 +193,13 @@ export default function ForecastAssumptionsPanel({
           </div>
           <div>
             <label className="text-[9px] text-muted-foreground uppercase">{assumptions.bonusMode === 'pct' ? 'Bonus %' : 'Bonus $'}</label>
-            <input type="number" value={assumptions.bonusAmount}
+            <input aria-label={assumptions.bonusMode === 'pct' ? 'Bonus percent' : 'Bonus dollars'} type="number" value={assumptions.bonusAmount}
               onChange={e => setAssumptions(prev => ({ ...prev, bonusAmount: parseFloat(e.target.value) || 0 }))}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={assumptions.bonusMode === 'pct' ? '0.1' : '100'} />
           </div>
           <div>
             <label className="text-[9px] text-muted-foreground uppercase">Paid In</label>
-            <select value={assumptions.bonusMonth}
+            <select aria-label="Bonus paid in" value={assumptions.bonusMonth}
               onChange={e => setAssumptions(prev => ({ ...prev, bonusMonth: parseInt(e.target.value) }))}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
               {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
@@ -235,7 +235,7 @@ export default function ForecastAssumptionsPanel({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="text-[9px] text-muted-foreground uppercase">Filing Status</label>
-              <select value={assumptions.taxReturnFilingStatus}
+              <select aria-label="Filing status" value={assumptions.taxReturnFilingStatus}
                 onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFilingStatus: e.target.value as FilingStatus }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
                 <option value="single">Single</option>
@@ -246,13 +246,13 @@ export default function ForecastAssumptionsPanel({
             </div>
             <div>
               <label className="text-[9px] text-muted-foreground uppercase">Dependents (&lt;17)</label>
-              <input type="number" min={0} max={10} value={assumptions.taxReturnDependents}
+              <input aria-label="Dependents under 17" type="number" min={0} max={10} value={assumptions.taxReturnDependents}
                 onChange={e => setAssumptions(prev => ({ ...prev, taxReturnDependents: parseInt(e.target.value) || 0 }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="1" />
             </div>
             <div>
               <label className="text-[9px] text-muted-foreground uppercase">State</label>
-              <select value={assumptions.taxReturnState}
+              <select aria-label="State" value={assumptions.taxReturnState}
                 onChange={e => setAssumptions(prev => ({ ...prev, taxReturnState: e.target.value }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
                 {[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],['DC','Washington DC']].map(([code, name]) => {
@@ -264,7 +264,7 @@ export default function ForecastAssumptionsPanel({
             </div>
             <div>
               <label className="text-[9px] text-muted-foreground uppercase">Refund Month</label>
-              <select value={assumptions.taxReturnMonth}
+              <select aria-label="Refund month" value={assumptions.taxReturnMonth}
                 onChange={e => setAssumptions(prev => ({ ...prev, taxReturnMonth: parseInt(e.target.value) }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
                 {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
@@ -276,13 +276,13 @@ export default function ForecastAssumptionsPanel({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-[9px] text-muted-foreground uppercase">Fed. Withheld/yr (0 = auto-detect)</label>
-              <input type="number" value={assumptions.taxReturnFederalWithheld}
+              <input aria-label="Federal tax withheld per year (0 = auto-detect)" type="number" value={assumptions.taxReturnFederalWithheld}
                 onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFederalWithheld: parseFloat(e.target.value) || 0 }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
             </div>
             <div>
               <label className="text-[9px] text-muted-foreground uppercase">Override Refund $ (0 = estimate)</label>
-              <input type="number" value={assumptions.taxReturnAmountOverride}
+              <input aria-label="Override refund amount (0 = estimate)" type="number" value={assumptions.taxReturnAmountOverride}
                 onChange={e => setAssumptions(prev => ({ ...prev, taxReturnAmountOverride: parseFloat(e.target.value) || 0 }))}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
             </div>
