@@ -32,5 +32,5 @@ The same six screens Ruby used (01, 02, 03, 04, 05, 08). They are captured at 10
 ## Limits
 
 - Every figure is what the engine computed on 2026-09-23. A later fixture change can move it. Read the figures back off the PNG before you caption.
-- `demo-marketing-lines.engine.test.ts` does NOT agree with these frames. Its harness leaves out car funds, goals and debts, so it says the cards clear in "Dec 2026". The app says May 2028 (ask 16147de8).
-- Light mode, phone sizes other than 6.7"/6.9", and iPad are not captured.
+- `demo-marketing-lines.engine.test.ts` reads the app's own provider since `93ee4587` (ask 16147de8), so its figures now match what /demo computes. Its clock is pinned to 2026-09-03, so its dates can differ by a month from these 09-23 frames (Jun 2028 against May 2028).
+- Light mode, and phone sizes other than 6.7"/6.9", are not captured.
