@@ -18,7 +18,9 @@
    as well as the temp delta (query_logs, 24 h window):
    `select toStartOfMinute(timestamp) m, count() n, countIf(toInt64OrZero(log_attributes['response.origin_time'])>2000) slow, max(toInt64OrZero(log_attributes['response.origin_time'])) max_ms from logs where source='edge_logs' and log_attributes['request.method']='GET' and log_attributes['request.path'] like '/rest/v1/%' group by m having n>=5 order by m`
    Stalls with no gate walks running = platform-side, and d9e5961c (free compute) governs: do NOT upgrade.
-   Hypothesis, unmeasured: this desk's Playwright walks spend the Nano burst budget. Run fewer walks until read.
+   IP split: this machine sent ~98% of REST traffic; Tre's launches stalled after 10+ QUIET minutes, so the
+   stall persists after load stops. **NO PLAYWRIGHT WALKS UNTIL THE 01:22Z READ** - that read is the control
+   (stalls with the desk quiet = platform; gone = the walks were spending the budget).
 4. **NATIVE SHARE SHEET** - device check only.
 5. **`86bccda4` launch cache - CODE SHIPPED 050c4a19, device unverified.** After Tre installs 1016, a second launch
    must paint numbers at once. Server-side check: his first-minute edge log should no longer matter to what he sees;
