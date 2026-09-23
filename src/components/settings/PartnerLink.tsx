@@ -42,7 +42,7 @@ export function PartnerLink() {
     <SettingsSectionHeading
       icon={Users}
       title="Partner Link"
-      description="Link with a partner to view each other's budget, read only. Neither of you can change the other's data, and either of you can unlink at any time."
+      description="See each other's budget, read-only. Either of you can unlink anytime."
     />
   );
 
@@ -181,10 +181,8 @@ export function PartnerLink() {
       ) : (
         <p className="text-xs text-muted-foreground">
           <Crown size={12} className="inline text-primary mr-1" />
-          Inviting a partner is a Premium feature.{' '}
           <Link to="/premium" className="text-primary hover:underline">Upgrade</Link>
-          {' '}to send an invite. If your partner has Premium, they can invite you and
-          you accept below for free.
+          {' '}to send invites, or accept a Premium partner's invite free.
         </p>
       )}
 

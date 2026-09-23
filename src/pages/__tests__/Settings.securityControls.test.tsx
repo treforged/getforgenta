@@ -452,7 +452,7 @@ describe('the Account PAGE, Connections', () => {
     // Spot-checked on the two whose consequence is least guessable from two words. They now sit
     // one section apart, so each is asserted where it actually lives rather than dropping one.
     // Partner Link's consequence is the one least guessable from two words, and it survives.
-    expect(screen.getByText(/read only/i)).toBeTruthy();
+    expect(screen.getByText(/read[- ]only/i)).toBeTruthy();
     // POSITIVE CONTROL: the followers surface really is on this same screen now, so the single
     // assertion above is not passing because half the page failed to render.
     expect(screen.getByText(/Find someone/i), 'the followers surface is not on the Account page')
