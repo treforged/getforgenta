@@ -1044,10 +1044,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
-              { label: 'Income rules', desc: 'Weekly paycheck ($1,462.50) + monthly roommate contribution ($900) define the take-home the debt engine works with.' },
+              { label: 'Income rules', desc: 'The weekly paycheck defines the take-home the debt engine works with.' },
               { label: 'Expense rules', desc: 'Rent, utilities, car insurance, groceries, gas — each rule auto-generates a transaction every month so nothing is missed.' },
               { label: 'CC-tagged expenses', desc: 'Groceries and subscriptions marked as credit card purchases feed the debt engine\'s monthly purchase tracking.' },
-              { label: 'Transfer rules', desc: 'Emergency fund ($300/mo) and investments ($825/mo) move automatically — Forecast accounts for these before sizing debt payments.' },
+              { label: 'Transfer rules', desc: 'Emergency fund and 401k contributions move automatically — Forecast accounts for these before sizing debt payments.' },
             ].map((f, i) => (
               <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-xs sm:text-sm" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="text-primary font-bold shrink-0">→</span>

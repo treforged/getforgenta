@@ -394,14 +394,14 @@ export default function DebtPayoff() {
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-foreground">Avalanche engine — eliminate $12,700 using every spare dollar</p>
+              <p className="text-xs font-semibold text-foreground">Avalanche engine — clear the cards using every spare dollar</p>
               <p className="text-xs text-muted-foreground mt-0.5">Jordan has two credit cards. The engine targets the highest APR first, pays minimums on the rest, and never drops below the cash floor.</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
-              { label: 'Avalanche order', desc: 'Chase Sapphire (22.99% APR) gets all extra payments first. Discover It (18.99%) only gets extra after Sapphire is paid off.' },
-              { label: 'Cash floor protection', desc: 'Each month the engine checks available cash after expenses and bills — extra payments only happen above the $1,000 floor.' },
+              { label: 'Avalanche order', desc: 'The highest-APR card gets all extra payments first. The lower-rate card only gets extra after the first is paid off.' },
+              { label: 'Cash floor protection', desc: 'Each month the engine checks available cash after expenses and bills — extra payments only happen above the cash floor.' },
               { label: 'Monthly projection table', desc: 'Shows exact payment, interest, and remaining balance each month. Click any payment to override the recommended amount.' },
               { label: 'Connects to Forecast', desc: 'These exact payment amounts feed the 60-month Forecast — debt payoff progress and end cash are synchronized.' },
             ].map((f, i) => (
