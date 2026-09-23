@@ -70,7 +70,7 @@ export default function FounderNoteModal({ onDismiss }: Props) {
 
       {/* Footer */}
       <div className="px-6 pb-6 pt-4 border-t border-border/40 space-y-3">
-        <p className="text-xs text-muted-foreground">— Tre, founder of TRE Forgenta LLC</p>
+        <p className="text-xs text-muted-foreground">— Tre, founder of TRE Forged LLC</p>
         <button
           onClick={handleDismiss}
           disabled={dismissing}

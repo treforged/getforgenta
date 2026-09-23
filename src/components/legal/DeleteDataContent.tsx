@@ -21,7 +21,7 @@ export default function DeleteDataContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Your Right to Delete</h2>
         <p className="text-muted-foreground leading-relaxed">
-          You have the right to request that TRE Forgenta LLC delete the personal information we have collected
+          You have the right to request that TRE Forged LLC delete the personal information we have collected
           from you. Depending on where you live, this right may arise under the California Consumer Privacy Act as
           amended by the CPRA, the Colorado Privacy Act, the Connecticut Data Privacy Act, the Virginia CDPA, the
           GDPR ("right to erasure"), or similar laws. We extend the same deletion process to every user regardless
@@ -171,7 +171,7 @@ export default function DeleteDataContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">11. Contact Us</h2>
         <p className="text-muted-foreground leading-relaxed">
-          To exercise your right to delete, or to ask a question about this notice, contact TRE Forgenta LLC at:
+          To exercise your right to delete, or to ask a question about this notice, contact TRE Forged LLC at:
           <br />
           <a href="mailto:support@getforgenta.com" className="text-primary hover:underline">support@getforgenta.com</a>
         </p>

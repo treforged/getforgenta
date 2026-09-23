@@ -443,7 +443,7 @@ function ConsentGate({
               </li>
               <li className="flex gap-2">
                 <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>TRE Forgenta LLC does not sell your personal data.</span>
+                <span>TRE Forged LLC does not sell your personal data.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary shrink-0 mt-0.5">•</span>
