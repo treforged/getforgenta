@@ -17,11 +17,13 @@
 5. Then `ask list --owner Ada` + the standing ask `e1b0fffc` (keep improving; user-visible first).
    [x] `d694a896` CLOSED 0233ab6e - the 'only textareas left' claim was false; GoalStopsEditor stop name clipped
    69px, fixed + gated. NOT on phones until the next iOS build (1011 predates it).
-6. **`585ec24a` DEBT-AWARE PACING - DESIGN FOUND, BUILD NEXT (fresh session, highest effort).** The card sim, not the
-   engine, sets months-1+ card payments, and it subtracts each goal's FIXED `monthly_contribution`
-   (`useCardProjection.ts:790`) and its own ranked reserve (~2164). Build ONE paced schedule and feed it to BOTH the
-   sim and `forecast-engine.ts` `monthlyAllowanceFor`. Acceptance and the two traps are in the ask's `why`. The older
-   measured history is in `447d57ad` and the prior JSONL line. Also: 12 rendered gates ran green 2026-09-23 03:30Z.
+6. **`585ec24a` DEBT-AWARE PACING - CAUSE MEASURED, BUILD NEXT (highest effort).** On the real fixture the move
+   goal's FIXED `monthly_contribution` 510 draws ~4800 of the 5624 need. The ranked reserve adds only ~900 (m0/5/6/9).
+   447d57ad back-loaded the ~900 and left the 510 alone, so it could not help the card. Build: a back-loaded
+   schedule in place of the fixed 510 for a dated goal whose stop 1 shares a rank, at the sim's :790 and :1508 and the
+   engine's `monthlySavingsContrib` (~1596). The sim deducts it before sizing the card cascade, so the freed cash
+   reaches card principal. Show it as 'transfer $X this month': 510 may be a real bank auto-transfer. Full
+   acceptance is in the ask's `why`. 12 rendered gates ran green 2026-09-23 03:30Z.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
@@ -10977,7 +10979,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-22 23:00 by handoff_hook. Everything below this heading is
+_Written 2026-09-22 23:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -10988,14 +10990,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+f71fb513 [handoff]: 585ec24a design located - the sim, not the engine, must carry the paced schedule
+aa020244 [handoff]: d694a896 closed, stop-name clip fixed (0233ab6e)
+0233ab6e [goals]: savings-goal stop name no longer cut off on phones
+50ec82c4 [handoff]: resume queue for the successor - verify iOS push on 1011 first
+8878e0de [handoff]: iOS 1011 uploaded with the push fix
+0325ffd6 [push]: one silent registration per launch, not two
+045c64cf [handoff]: 5c - the APNs send half is unverified until the first iOS send
 796b6459 [handoff]: Disk IO cause found (5b), iOS push root cause fixed (5c)
-7fb7fc78 [push]: iPhones never got a push token - AppDelegate never forwarded it to Capacitor
-b1ed1bcb [handoff]: Disk IO 24h read queued as 5b with its baseline
-85142b81 [onboarding]: the debt name example was cut off on the first-run screen
-f92a64cb [placeholders]: the build item note hint was cut off by 25px on phones
-37f9866d [handoff]: state at close - queue exhausted, next iOS build is the one actionable item
-2b5e8814 [handoff]: BankActivity placeholders are select labels and fit; PhaseBlock next
-759fe036 [handoff]: maintenance form measured; BankActivity and PhaseBlock next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
