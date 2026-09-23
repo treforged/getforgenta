@@ -14,8 +14,9 @@
    temp_bytes=509954571085. Also read the pg_stat_statements entry count; if the spill returns as it regrows, schedule
    `select extensions.pg_stat_statements_reset()` in pg_cron (undo: cron.unschedule).
 4. **NATIVE SHARE SHEET** - build 1011 also carries the share card; a device check is the only open verification.
-5. Then `ask list --owner Ada` + the standing ask `e1b0fffc` (keep improving; user-visible first). Placeholder ask
-   `d694a896` is nearly exhausted - close it after one textarea check.
+5. Then `ask list --owner Ada` + the standing ask `e1b0fffc` (keep improving; user-visible first).
+   [x] `d694a896` CLOSED 0233ab6e - the 'only textareas left' claim was false; GoalStopsEditor stop name clipped
+   69px, fixed + gated. NOT on phones until the next iOS build (1011 predates it).
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
