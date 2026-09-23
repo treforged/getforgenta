@@ -85,7 +85,7 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
           <span className="text-sm font-semibold text-foreground">
             {build ? 'Edit Build' : 'New Build'}
           </span>
-          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+          <button aria-label="Close" onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
             <X size={16} />
           </button>
         </div>

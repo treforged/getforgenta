@@ -47,7 +47,11 @@ function everyIconButton(): IconButton[] {
   for (const file of globSync('src/**/*.tsx').filter((f) => !f.includes('__tests__'))) {
     const src = readFileSync(file, 'utf8');
     for (const { tag, lineNo, rest } of openTags(src, 'button')) {
-      if (/\bicon-btn\b/.test(tag)) rows.push({ file: file.replace(/\\/g, '/'), lineNo, tag, body: rest });
+      // Two shapes: the icon-btn class, and a body that is ONE self-closing component and nothing
+      // else (an <X/> close, an <Edit2/>). The second found 31 more unnamed buttons on 2026-09-23,
+      // FormModal's close among them, which every form in the app shares.
+      const onlyIcon = /^<[A-Z]\w*[^>]*\/>$/.test(rest.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').trim());
+      if (/\bicon-btn\b/.test(tag) || onlyIcon) rows.push({ file: file.replace(/\\/g, '/'), lineNo, tag, body: rest });
     }
   }
   return rows;
@@ -66,6 +70,8 @@ describe('icon buttons have an accessible name', () => {
   it('finds icon buttons at all, including Accounts\' known move-up control (control on the instrument)', () => {
     expect(buttons.length).toBeGreaterThan(5);
     expect(buttons.some((b) => b.file.endsWith('pages/Accounts.tsx') && /Move \$\{a\.name\} up/.test(b.tag))).toBe(true);
+    // The icon-only shape is found too, not only the class.
+    expect(buttons.some((b) => b.file.endsWith('shared/FormModal.tsx') && !/icon-btn/.test(b.tag))).toBe(true);
   });
 
   it('every one is named', () => {

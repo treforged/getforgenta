@@ -195,7 +195,7 @@ export default function AppLockScreen() {
       ) : (
         /* Biometric prompt */
         <div className="flex flex-col items-center gap-4">
-          <button
+          <button aria-label="Unlock with biometrics"
             onClick={triggerBio}
             className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center hover:bg-primary/20 transition-colors btn-press"
           >

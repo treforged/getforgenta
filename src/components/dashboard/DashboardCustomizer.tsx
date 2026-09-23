@@ -52,7 +52,7 @@ export default function DashboardCustomizer({ layout, onLayoutChange, onClose, o
             <h2 className="font-display font-semibold text-sm">Customize Dashboard</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{visibleCount} of {layout.length} widgets shown</p>
           </div>
-          <button
+          <button aria-label="Close"
             onClick={onClose}
             className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -77,14 +77,14 @@ export default function DashboardCustomizer({ layout, onLayoutChange, onClose, o
               >
                 {/* Up / Down buttons */}
                 <div className="flex flex-col shrink-0">
-                  <button
+                  <button aria-label={`Move ${meta?.label ?? widget.id} up`}
                     onClick={() => move(index, -1)}
                     disabled={index === 0}
                     className="p-1 min-w-[32px] min-h-[32px] flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
                   >
                     <ChevronUp size={14} />
                   </button>
-                  <button
+                  <button aria-label={`Move ${meta?.label ?? widget.id} down`}
                     onClick={() => move(index, 1)}
                     disabled={index === layout.length - 1}
                     className="p-1 min-w-[32px] min-h-[32px] flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"

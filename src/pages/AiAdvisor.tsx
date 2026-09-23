@@ -525,7 +525,7 @@ function HistoryDrawer({
             <History size={14} className="text-primary" />
             <span className="text-sm font-semibold">Chat History</span>
           </div>
-          <button
+          <button aria-label="Close chat history"
             onClick={onClose}
             className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-md hover:bg-secondary transition-colors"
           >
@@ -1229,7 +1229,7 @@ export default function AiAdvisor() {
         {/* ── Header ── */}
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-3">
           {view === 'chat' && activeEntries.length > 0 ? (
-            <button
+            <button aria-label="Back"
               onClick={startNew}
               className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors shrink-0"
             >

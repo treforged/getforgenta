@@ -122,7 +122,7 @@ export function PhoneAuth() {
             >
               {loading ? <Loader2 size={12} className="animate-spin" /> : 'Verify'}
             </button>
-            <button
+            <button aria-label="Cancel"
               onClick={() => { setStep('idle'); setOtp(''); }}
               className="text-muted-foreground hover:text-foreground p-3 min-w-[44px] min-h-[44px] flex items-center justify-center"
             >

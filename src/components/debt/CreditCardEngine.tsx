@@ -2342,7 +2342,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                       className="w-16 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
                                       style={{ borderRadius: 'var(--radius)' }} autoFocus min={0} step="10"
                                       onKeyDown={e => { if (e.key === 'Enter') handleOverrideMonth(proj.card.id, idx); if (e.key === 'Escape') setEditingMonth(null); }} />
-                                    <button onClick={() => handleOverrideMonth(proj.card.id, idx)} className="text-primary"><Check size={10} /></button>
+                                    <button aria-label="Save payment" onClick={() => handleOverrideMonth(proj.card.id, idx)} className="text-primary"><Check size={10} /></button>
                                   </div>
                                 ) : (
                                   <div className="flex items-center justify-end gap-1">
@@ -2351,7 +2351,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                     </span>
                                     {isOverridden && <span className="text-[8px] font-semibold text-primary-foreground bg-primary px-1 py-0.5 flex items-center gap-0.5" style={{ borderRadius: 'var(--radius)' }}><Edit2 size={7} /> edited</span>}
                                     {(isPremium || isDemo) && !proj.card.autopayFullBalance && row.startBalance > 0 && (
-                                      <button
+                                      <button aria-label="Edit this month's payment"
                                         onClick={(e) => { e.stopPropagation(); setEditingMonth({ cardId: proj.card.id, month: idx }); setMonthPayInput(String(Math.round(row.payment))); }}
                                         className="text-muted-foreground hover:text-primary">
                                         <Edit2 size={9} />

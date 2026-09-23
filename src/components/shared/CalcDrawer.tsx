@@ -73,7 +73,7 @@ export default function CalcDrawer({
             <Info size={14} className="text-primary shrink-0" />
             <span className="truncate">{title}</span>
           </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <button aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X size={18} />
           </button>
         </div>

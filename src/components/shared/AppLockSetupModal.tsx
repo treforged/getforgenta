@@ -119,7 +119,7 @@ export default function AppLockSetupModal() {
       <div className="w-full max-w-sm bg-background border border-border shadow-xl flex flex-col items-center gap-6 p-6 relative" style={{ borderRadius: 'var(--radius)' }}>
 
         {/* Dismiss (always available) */}
-        <button
+        <button aria-label="Close"
           onClick={handleDismiss}
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
         >

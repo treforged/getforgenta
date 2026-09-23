@@ -131,7 +131,7 @@ export default function SubscriptionExpiryBanner() {
                 <Crown size={16} className="text-gold" />
                 <h2 className="font-display font-semibold text-sm text-gold">Premium Features</h2>
               </div>
-              <button
+              <button aria-label="Dismiss"
                 onClick={() => setShowModal(false)}
                 className="text-muted-foreground hover:text-foreground"
               >

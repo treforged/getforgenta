@@ -1267,7 +1267,7 @@ export default function Dashboard() {
               <Shield size={10} /> Secure my account
             </Link>
           </div>
-          <button onClick={() => setShowSecurityBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0">
+          <button aria-label="Dismiss" onClick={() => setShowSecurityBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0">
             <X size={13} />
           </button>
         </div>

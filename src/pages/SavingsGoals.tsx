@@ -113,7 +113,7 @@ function GoalLumpSumModal({
       >
         <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
           <h2 className="font-display font-semibold text-sm">{mode === 'add' ? 'Add Contribution' : 'Edit Contribution'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <button aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X size={16} />
           </button>
         </div>
@@ -289,9 +289,9 @@ export function GoalLumpSumPanel({
                   <span className="text-[10px] text-primary font-semibold">{formatCurrency(ls.amount, false)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })}
+                  <button aria-label="Edit contribution" onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })}
                     className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-                  <button onClick={() => handleRemove(ls.id)} className="text-muted-foreground hover:text-destructive-text"><X size={11} /></button>
+                  <button aria-label="Remove contribution" onClick={() => handleRemove(ls.id)} className="text-muted-foreground hover:text-destructive-text"><X size={11} /></button>
                 </div>
               </div>
             );

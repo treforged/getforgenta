@@ -61,7 +61,7 @@ export default function ForecastAssumptionsPanel({
     <div className="card-forged p-3 sm:p-5 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forecast Assumptions</h3>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={14} /></button>
+        <button aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={14} /></button>
       </div>
 
       {/* Growth & Returns */}

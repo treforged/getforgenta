@@ -42,6 +42,9 @@
   by the icon-btn class, red on 18 real sites before the fix. Debt card header got aria-expanded. walk:press now also
   reads the pressed node's own markup and the visible field count (React reuses a button node when an inline editor
   opens), and repeats enumeration until two reads agree. test:tz 5188/0.
+- Third/fourth commits: transaction row Edit/Duplicate/Delete name their row; 31 more icon-only buttons (a body of one
+  <Icon/>, not icon-btn - FormModal's close among them) got names. icon-button-name gate now finds both shapes;
+  red on FormModal:66 when its label was removed, restored by sha256. Probe: 104 icon-only buttons, 0 unnamed.
 
 </details>
 

@@ -1186,7 +1186,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                         className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-foreground outline-hidden border-b border-transparent hover:border-border focus:border-primary transition-colors"
                       />
                     )}
-                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive-text shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
+                    <button aria-label="Remove deduction" onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive-text shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
                   </div>
                   {/* Value input */}
                   <input
