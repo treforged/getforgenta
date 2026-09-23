@@ -1,6 +1,21 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~04:20Z (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 14:10Z (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **READ THE FIRST REAL APNs SEND NOW (ask `71cddec3`). It already ran:** cron job `push-apns-first-send-tre` was set
+   for 12:05Z (dry_run=0, scoped to Tre, unschedules itself). Read: the newest `push_send_runs` rows (sent/failed/
+   candidates), `push_sends` for user a72f416e, `net._http_response` from the last 3 h, the push-send edge logs
+   ('APNS_... is not set' means Tre's .p8 is missing = his action), and that the cron job is gone. candidates=0 means
+   the policy chose nothing: re-run the same net.http_post with `?dry_run=0&user_id=...` (vault CRON_SECRET, same as job
+   26). If there is still nothing to send, add a cron-secret-gated `?test=1` fixed-message path (the deploy bundle is
+   push-send/index.ts + _shared/{notification-policy,learn-streak,learn-lessons,push-transport}.ts and their imports).
+   Close 71cddec3 with evidence. Tre asked twice "why wait" - report the result to him directly.
+2. ⚠️ **Tre, 2026-09-23 10:07 ET: "there is no TestFlight delay."** Correct: JS reaches phones via server.url
+   (memory js-changes-reach-phones-via-vercel). Never tell him a JS fix waits on an iOS build.
+3. Standing `e1b0fffc`. Candidates: dark layer 2 (a58fb610, needs his eye), App Store screenshots (231e374c, candidate).
+   Temp-spill regrowth re-read at/after 2026-09-24 01:22Z (cb1d9ada). debt_payoff wiring check on/after 10-14 (b18ac1f8).
+
+## Resume queue - 2026-09-23 ~04:20Z (Ada) - SUPERSEDED by the queue above; kept for history.
 
 1. [x] **iOS build 1016 UPLOADED 04:21:58Z** (run 35817716094 from 050c4a19; upload step success, altool 'UPLOAD
    SUCCEEDED with no errors'). Carries pacing eb651d56, launch cache 050c4a19, stop-name 0233ab6e. Tre told.
@@ -11019,7 +11034,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 01:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 03:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11030,14 +11045,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+810197ae [handoff]: 981e8ecf is JS-only and already live on phones
+8feb9219 [handoff]: JS reaches phones via server.url - corrected two 'next iOS build' claims
+7fdfc910 [handoff]: 403dd5d8 closed - due block leads the dashboard, applied to Tre's layout with a snapshot
+d122e15e [dashboard]: lead with what is due - Debt Recommendations moves up behind Upcoming This Week (403dd5d8)
 a0b3c198 [handoff]: the daily push run is a dry run - real scoped APNs send scheduled 12:05Z; stall control read early, walks refuted
 d7e539b1 [handoff]: the perf revisit trigger read the stall, not the plan - use min_exec_time and blocks/call
 67878690 [handoff]: advisors read - one security fix shipped, perf lints deliberately deferred with a revisit trigger
 bff911c4 [db]: revoke public EXECUTE on the username-limit trigger function (advisor lint 0028)
-8b0e1676 [handoff]: last long input placeholders measured - one clip fixed, residue closed
-6e1f4ab0 [auth]: recovery-form confirm placeholder no longer clips at 320px (d694a896 follow-up)
-19b6cb30 [handoff]: revolving capture shipped; b18ac1f8 decides when debt_payoff is wired
-6884dda4 [leaderboard]: debt_payoff header names the new series and the query that decides when to wire it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
