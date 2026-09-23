@@ -1,6 +1,35 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~16:00Z (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~16:30Z (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **ROUND FIGURES IN THE STORE FRAMES (spec §3), asked of Sam, not yet decided (ask f57bc271).**
+   The frames Ruby already used show $53,600 assets, $9,900 liquid, $2,000 investments, $12,700 retirement and
+   "$2,800 of $5,600 down". Root: `demoAccounts` balances and the car-fund figures in demo-data.ts are round.
+   De-rounding them moves figures in Ruby's finished set (marketing ca53e37), so it waits on Sam routing it with her.
+   If GO: de-round in demo-data.ts only. Keep the net-worth constants in step (DEMO_ACCOUNT_ASSETS_TODAY etc. -
+   "change one, change all three"). Re-run demo-persona-clears and demo-marketing-lines, then re-capture the phone and
+   iPad frames.
+2. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
+   plaid-sync-all, financial-sync, plaid-sync). The auto-mode classifier refused them as [Production Deploy], so
+   deploy only on Tre's "deploy" in THIS desk's session. Method that worked (plaid-create-link-token v59, ai-advisor
+   v64): MCP deploy_edge_function with every bundle file named `functions/<path>` and verify_jwt unchanged, then
+   test on the walk account with a premium+past_due vs premium+canceled row, then delete the row.
+3. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
+   b18ac1f8 on/after 10-14.
+4. Residue: with the Civic 8 months out, payoff flipped between clearing and "never" from one date to the next
+   (probe sweep 2026-09-23). That may be an engine sensitivity worth a look. Plan tab shows Monthly Gross = 4 x weekly
+   ($4,728), while the profile uses 4.33 elsewhere. Check whether that is deliberate before touching it.
+5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+<details><summary>Done 2026-09-23 ~16:30Z (16:00Z queue)</summary>
+
+- ✅ `16147de8` harness aligned: `93ee4587`. `runDemoAsApp(now)` renders the real CardProjectionProvider in demo mode
+  and reproduces live /demo (May 2028, then Sep 2030 Vacation). demo-marketing-lines and demo-persona-clears read it,
+  and both go red on the pre-tune fixture. Two Ruby lines were reworded because their claims had gone false. Pin test
+  stays on its frozen persona.
+- ✅ `e0b5154b` iPad 13" captures: `dde33350`, marketing/app-store/2026-09-23/ipad-13 (6 frames, 2064x2752).
+
+### (superseded) Resume queue - 2026-09-23 ~16:00Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
 1. **ALIGN THE DEMO HARNESS WITH THE APP (`16147de8`).** `runDemoCardProjection` /
    `runDemoForecastWithCards` (src/lib/__tests__/fixtures/demo-forecast-harness.ts) pass debts, goals, carFunds
@@ -22,6 +51,8 @@
    the forecast-adjusted date (20 mo). With the Civic 8 months out, payoff flipped between clearing and "never" from
    one date to the next, which may be an engine sensitivity worth a look.
 5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+</details>
 
 <details><summary>Done 2026-09-23 ~16:00Z (15:40Z queue)</summary>
 
