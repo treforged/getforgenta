@@ -12,6 +12,13 @@
    plaid-exchange-token, financial-sync, plaid-sync) were last deployed BEFORE it, and it is the only undeployed commit
    in each. The CLI has no token, so they are blocked on `1e1d53eb` (Tre sets SUPABASE_ACCESS_TOKEN). There are 0
    paying subscribers, so nobody is exposed yet. `86bccda4` (slow pages) is closed: the launch cache is JS and already live.
+1c. [x] **Leaderboard shortened and country picker shipped (`37390eac`, `c247bbcd`, live on Vercel).**
+1d. **`a58fb610` layer 2 - WHOLE-PAGE colour inventory, measured 2026-09-23 with a planted control (seen on every
+   route).** At 390px, the share of text that is coloured: dashboard 25.6%, budget 26.2%, debt 20.5%, forecast 17.3%,
+   account **6.3%**, settings 15.6%. At 1440: account **2.3%**. Coloured fill is under 1.5% of the page everywhere.
+   **/budget is NOT the dull outlier.** The earlier 0.2% figure covered the first screen only. /account is the
+   least colourful screen. Layer 1 is JS and already live, so the note "waiting on an iOS build" was false.
+   Probe = check-dark-contrast.mjs with readPage replaced (not committed). Next: pick layer-2 candidates, starting with /account.
 2. ⚠️ **Tre, 2026-09-23 10:07 ET: "there is no TestFlight delay."** Correct: JS reaches phones via server.url
    (memory js-changes-reach-phones-via-vercel). Never tell him a JS fix waits on an iOS build.
 3. Standing `e1b0fffc`. Candidates: dark layer 2 (a58fb610, needs his eye), App Store screenshots (231e374c, candidate).
