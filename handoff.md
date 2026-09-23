@@ -40,6 +40,11 @@
    recovery confirm was 218.6px in a 214px box at 320 -> shortened to 'Re-enter password' (pushed). Transactions plan
    name (174px) and Settings new password (176px) fit, with >=230px box at 320. The remaining >24-char placeholders
    are textareas, select labels, or the debug ErrorTest page. This residue is closed.
+7c. [x] **Supabase advisors read 2026-09-23 04:46Z.** Security: the only anon WARN (username trigger fn EXECUTE)
+   was REVOKED and proven (migration 20260923_revoke_username_trigger_rpc). Performance: 94 auth_rls_initplan,
+   20 multiple_permissive, 23 unindexed FKs, 2 duplicate indexes - DELIBERATELY NOT TOUCHED. Rewriting 94 policies
+   on money tables risks exposing data, each user has only hundreds of rows, and the stalls are outside Postgres
+   (item 3). Revisit only if pg_stat_statements shows a user query with mean_exec_time > 50 ms.
 8. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
