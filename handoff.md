@@ -6,11 +6,21 @@
    SUCCEEDED with no errors'). Carries pacing eb651d56, launch cache 050c4a19, stop-name 0233ab6e. Tre told.
    **NOT in 1016: `981e8ecf` push registers once per launch** (was 4 full cycles in 41 s on 1011). Goes in the
    next dispatch; no need to spend an upload on it alone.
-2. **FIRST iOS SEND** - [x] device side DONE: 1011 registered (ios token 03:38:29Z, outcome=registered, 384ca151
+2. ⚠️ **THE 17:00Z DAILY RUN NEVER SENDS - IT IS A DRY RUN.** cron job 26 posts with no query string, and push-send
+   treats anything but `dry_run=0` as dry. push_send_runs shows dry_run=true, sent 0 every day since 09-15. Waiting for it
+   proved nothing about APNs. **SCHEDULED INSTEAD: cron job `push-apns-first-send-tre` at 12:05Z 09-23 (08:05 ET, just
+   after quiet hours)** runs dry_run=0 scoped to Tre and unschedules itself. READ AFTER: push_send_runs newest row
+   (sent/failed) + push_sends for his user + push-send logs ('is not set' = his .p8 is missing). Turning the DAILY job
+   live for everyone is outward-facing to 33 users = Tre's call, not filed until the scoped send is proven.
+   OLD: FIRST iOS SEND - [x] device side DONE: 1011 registered (ios token 03:38:29Z, outcome=registered, 384ca151
    closed). OPEN: the APNS_* secrets have never been exercised. Read push_send_runs / push-send logs after the
    17:00Z push-send-daily run for 'is not set' or an APNs status. Missing = Tre's .p8 (APNS_AUTH_KEY_P8,
    APNS_KEY_ID, APNS_TEAM_ID).
-3. **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. At 04:26Z 09-23: temp_files delta 0,
+3. ✅ **STALL CONTROL READ EARLY 05:25Z - WALKS ARE NOT THE CAUSE; WALKS ARE ALLOWED AGAIN.** Desk quiet since 04:13Z and
+   Tre's device still stalled at 04:40Z. Every stall is the first burst after idle: PostgREST shrinks to 2 backends,
+   and opening a new backend costs 4-6 s on the free host. Platform-level, d9e5961c governs, details on cb1d9ada. Only
+   the temp-spill regrowth read remains at/after 09-24 01:22Z.
+   OLD: **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. At 04:26Z 09-23: temp_files delta 0,
    pg_stat_statements 105 entries. ⚠️ **THE SPILL IS FIXED AND THE STALLS ARE NOT** (full reading on the ask).
    REST GETs >2 s: none before 19:54Z 09-22, then 3-8 s stalls in most active minutes, after the reset too
    (03:38Z Tre's launch p50 6.4 s). The time is outside Postgres: max_exec_time since reset 905 ms, the DB is
@@ -19,7 +29,7 @@
    `select toStartOfMinute(timestamp) m, count() n, countIf(toInt64OrZero(log_attributes['response.origin_time'])>2000) slow, max(toInt64OrZero(log_attributes['response.origin_time'])) max_ms from logs where source='edge_logs' and log_attributes['request.method']='GET' and log_attributes['request.path'] like '/rest/v1/%' group by m having n>=5 order by m`
    Stalls with no gate walks running = platform-side, and d9e5961c (free compute) governs: do NOT upgrade.
    IP split: this machine sent ~98% of REST traffic; Tre's launches stalled after 10+ QUIET minutes, so the
-   stall persists after load stops. **NO PLAYWRIGHT WALKS UNTIL THE 01:22Z READ** - that read is the control
+   stall persists after load stops. ~~NO PLAYWRIGHT WALKS UNTIL THE 01:22Z READ~~ (lifted 05:25Z - control answered) - that read is the control
    (stalls with the desk quiet = platform; gone = the walks were spending the budget).
 4. **NATIVE SHARE SHEET** - device check only.
 5. **`86bccda4` launch cache - CODE SHIPPED 050c4a19, device unverified.** After Tre installs 1016, a second launch
