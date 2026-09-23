@@ -56,6 +56,19 @@ export const WIDGET_META: WidgetMeta[] = [
     description: 'Bills and expenses due in the next 7 days',
   },
   {
+    // ⚠️ MOVED UP FROM LAST on 2026-09-23 (ask 403dd5d8, part 4). Tre's own definition of this page
+    // is "a quick snappy what needs to be paid next" - manual payments, next statement, NEXT DEBT
+    // PAYMENTS - and this card was the last one in the stack, below the long-horizon cards (net
+    // worth over time, a car goal). It now sits directly behind Upcoming This Week, so the two
+    // "what is due" cards read as one block. His own placements are untouched: the snapshot hero
+    // stays first and This Month's Budget stays behind it (90b39aba). DEFAULT ONLY: a saved layout
+    // keeps its order until the user presses Reset to defaults. Undo: move this entry back to the
+    // end of WIDGET_META.
+    id: 'debt_recommendations',
+    label: 'Debt Recommendations',
+    description: 'Recommended debt payments this month — safe to pay, minimums, and per-card breakdown',
+  },
+  {
     id: 'net_worth_trend',
     label: 'Net Worth Trend',
     // The current totals it used to lead with (net worth, assets, liabilities) moved to the
@@ -97,11 +110,6 @@ export const WIDGET_META: WidgetMeta[] = [
     id: 'goal_progress',
     label: 'Goal Progress',
     description: 'Savings goals with progress bars and amounts',
-  },
-  {
-    id: 'debt_recommendations',
-    label: 'Debt Recommendations',
-    description: 'Recommended debt payments this month — safe to pay, minimums, and per-card breakdown',
   },
   // ⚠️ THE LEARN WIDGET WAS REMOVED FROM THIS LIST ON 2026-09-17, hours after the achievements
   // one and for the same stated reason. Tre: "we should put the learn section in the accounts tab

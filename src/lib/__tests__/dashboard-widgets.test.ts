@@ -78,15 +78,17 @@ describe('mergeSavedLayout', () => {
   });
 
   it('follows the user reorder — the new card lands behind its neighbour wherever that was moved', () => {
-    // 'upcoming_week' is the default neighbour directly above 'net_worth_trend'. Here the user
-    // has dragged it to the bottom, so the new card belongs at the bottom too, not high up.
+    // 'upcoming_week' is the default neighbour directly above 'debt_recommendations', which sits
+    // directly above 'net_worth_trend' (default order changed 2026-09-23, ask 403dd5d8). Here the
+    // user has dragged it to the bottom, so the missing cards follow it there, not high up.
     const saved = [
       cfg('goal_progress'),
       cfg('monthly_snapshot'),
       cfg('upcoming_week'),
     ];
     const merged = ids(mergeSavedLayout(saved));
-    expect(merged[merged.indexOf('upcoming_week') + 1]).toBe('net_worth_trend');
+    expect(merged[merged.indexOf('upcoming_week') + 1]).toBe('debt_recommendations');
+    expect(merged[merged.indexOf('debt_recommendations') + 1]).toBe('net_worth_trend');
   });
 
   // The three chip-row widgets were retired on 2026-08-22 when the overview strip took the
