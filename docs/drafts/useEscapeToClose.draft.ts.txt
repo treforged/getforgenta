@@ -1,0 +1,67 @@
+// Assume enabled flag may toggle; we manage registration accordingly
+import { useEffect, useRef } from 'react';
+
+// Module-level stack of refs to handlers
+const escapeStack: Array<React.MutableRefObject<() => void>> = [];
+let listenerAttached = false;
+
+// Single keydown listener
+function handleKeyDown(e: KeyboardEvent): void {
+  if (e.defaultPrevented) return;
+  if (e.key !== 'Escape') return;
+  const top = escapeStack[escapeStack.length - 1];
+  if (top?.current) {
+    e.preventDefault();
+    try {
+      top.current();
+    } catch (err) {
+      console.error('useEscapeToClose handler error:', err);
+    }
+  }
+}
+
+// Attach listener when first entry added
+function attachListener(): void {
+  if (!listenerAttached && escapeStack.length > 0) {
+    document.addEventListener('keydown', handleKeyDown);
+    listenerAttached = true;
+  }
+}
+
+// Detach when no entries remain
+function detachListener(): void {
+  if (listenerAttached && escapeStack.length === 0) {
+    document.removeEventListener('keydown', handleKeyDown);
+    listenerAttached = false;
+  }
+}
+
+/**
+ * Registers a handler that is called when Escape is pressed.
+ * Only the most recently mounted enabled handler runs.
+ */
+export function useEscapeToClose(onClose: () => void, enabled = true): void {
+  const handlerRef = useRef<() => void>(onClose);
+  // Keep latest onClose without re‑creating entry
+  handlerRef.current = onClose;
+
+  useEffect(() => {
+    if (!enabled) return;
+    escapeStack.push(handlerRef);
+    attachListener();
+
+    return () => {
+      const idx = escapeStack.indexOf(handlerRef);
+      if (idx !== -1) {
+        escapeStack.splice(idx, 1);
+      }
+      detachListener();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+}
+
+/* Test‑only helper */
+export function __escapeStackSize(): number {
+  return escapeStack.length;
+}

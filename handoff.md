@@ -16,7 +16,15 @@
    write-blocked presses are the crawler's blind spot (it cannot see what they would have changed).
 5. ✅ FORM FIELD NAMES DONE: 0 of 138 fields unnamed app-wide. field-name.gate.test.ts is now a CENSUS (comments blanked,
    3 instrument controls), red on removing one real label. onboarding Input/Select REQUIRE a `label` prop, so tsc
-   flags any new caller. Next e1b0fffc candidates: keyboard focus order in dialogs; walk:press count variance.
+   flags any new caller.
+5b. NEXT e1b0fffc SLICE, STARTED NOT BUILT: 19 of 20 `modal-overlay` dialogs (incl. shared ModalShell + FormModal)
+   have no role="dialog", no aria-modal and no Escape-to-close. Plan: a shared useEscapeToClose hook with a
+   module-level STACK so only the top modal closes, then role="dialog" aria-modal="true" + aria-labelledby on the
+   PANEL (not the overlay) of ModalShell and FormModal first. Free-tier draft, reviewed and usable, is at
+   docs/drafts/useEscapeToClose.draft.ts.txt: drop its console.error try/catch and the stale eslint-disable, then
+   write a test that mounts two, presses Escape once, and asserts ONLY the top closed (and the paired case: one
+   modal, it closes). Check check:dark-contrast after, because it dismisses dialogs BY ROLE.
+   Also: walk:press count variance (~6%).
 6. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.
 7. ⚠️ JS reaches phones via server.url (capacitor.config.ts:7-8). A JS fix NEVER waits on an iOS build.
 8. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
@@ -11320,7 +11328,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 17:38 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 18:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11331,14 +11339,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+d441bd19 [a11y]: every form field in the app has an accessible name, and a census keeps it at zero
+bb0953a0 [a11y]: Transactions and service-log fields say what they are
+f97ec30e [a11y]: Builds item editor and Forecast assumptions fields say what they are
 69ab8d9d [a11y]: Budget page fields say what they are
 eb596f41 [a11y]: sign-in, security and settings fields say what they are
 ddfe4640 [a11y]: every icon-only button has a name, including the shared form close
 76b4c303 [a11y]: transaction row buttons name the row they act on
 c775e7f8 [a11y]: 21 icon-only buttons get an accessible name; the press crawler sees inline editors
-a6bc5aa4 [a11y+walks]: toggle buttons say which is pressed; the press crawler can no longer write
-2cbc99c4 [handoff]: press crawler + a11y tabs shipped (dd3f1b5c); crawler presses from the declared route; first up is the Discover It switch check
-dd3f1b5c [a11y]: section tabs say which one is selected, and the last hand-rolled switch is gone
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
