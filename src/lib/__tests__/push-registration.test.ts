@@ -104,6 +104,7 @@ vi.mock('@capacitor/push-notifications', () => {
 import {
   registerForPush, revokeCurrentPushToken, environmentFor, resolveEnvironment,
   type PushStore,
+  forgetPushRegistration,
 } from '@/lib/push-registration';
 
 /**
@@ -125,6 +126,7 @@ const store: PushStore = {
 
 describe('push registration', () => {
   beforeEach(() => {
+    forgetPushRegistration();
     h.native = true; h.platform = 'ios';
     h.permission = 'granted'; h.initialPermission = 'prompt';
     h.registerCalls = 0; h.requestCalls = 0;
@@ -466,7 +468,7 @@ describe('APNs environment', () => {
 });
 
 describe('revoking on sign-out', () => {
-  beforeEach(() => { h.native = true; h.revoked = []; });
+  beforeEach(() => { forgetPushRegistration(); h.native = true; h.revoked = []; });
 
   it('retires this device so the next person here gets no-one else\'s notifications', async () => {
     await revokeCurrentPushToken(store, 'apns-token-abc');
@@ -492,6 +494,7 @@ describe('revoking on sign-out', () => {
 
 describe('push registration - one silent registration at a time', () => {
   beforeEach(() => {
+    forgetPushRegistration();
     h.native = true; h.platform = 'ios';
     h.permission = 'granted'; h.initialPermission = 'granted';
     h.registerCalls = 0; h.requestCalls = 0;
@@ -527,9 +530,32 @@ describe('push registration - one silent registration at a time', () => {
     await Promise.allSettled([silent, asked]);
   });
 
-  // And the guard releases: a later launch must register again, not return a stale result.
-  it('a silent call AFTER the first has settled registers again', async () => {
+  // Every foreground fires SIGNED_IN again. Measured on Tre's iPhone (1011): four full cycles in
+  // 41 s. A SUCCESS is remembered for the rest of the launch - a new launch is a new process.
+  // Would fail without the memo: registerCalls reads 2 and a second `pending` row is recorded.
+  it('a silent call AFTER a successful one returns it without registering again', async () => {
+    const first = await registerForPush(store);
+    const second = await registerForPush(store);
+    expect(first.outcome).toBe('registered');
+    expect(second).toBe(first);
+    expect(h.registerCalls).toBe(1);
+    expect(h.recorded.filter(r => r.outcome === 'pending')).toHaveLength(1);
+  });
+
+  // The recovery half: a FAILURE is never remembered, so the next trigger tries again.
+  it('a silent call AFTER a failed one registers again', async () => {
+    h.saveFails = true;
+    const first = await registerForPush(store);
+    expect(first.outcome).not.toBe('registered');
+    h.saveFails = false;
     await registerForPush(store);
+    expect(h.registerCalls).toBe(2);
+  });
+
+  // Sign-out forgets it, so the next person on the phone registers their own token.
+  it('after forgetPushRegistration (sign-out) a silent call registers again', async () => {
+    await registerForPush(store);
+    forgetPushRegistration();
     await registerForPush(store);
     expect(h.registerCalls).toBe(2);
   });

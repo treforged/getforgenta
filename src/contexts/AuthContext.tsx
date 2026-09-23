@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
-import { registerForPush, revokeCurrentPushToken } from '@/lib/push-registration';
+import { registerForPush, revokeCurrentPushToken, forgetPushRegistration } from '@/lib/push-registration';
 import { supabasePushStore, readLastPushToken } from '@/lib/push-store';
 import { startPushRetryOnResume } from '@/lib/push-retry';
 import { reportTimezone } from '@/lib/report-timezone';
@@ -368,6 +368,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         // The saved copy of this person's data must not outlive their session on the device.
         clearPersistedQueries();
+        // The next person to sign in on this phone must register their own token.
+        forgetPushRegistration();
         logOutRevenueCat().catch(() => {/* native no-op on web */});
         // Retire this device's token so the next person to sign in on this phone does not
         // receive the previous one's notifications. Best effort and deliberately not awaited:

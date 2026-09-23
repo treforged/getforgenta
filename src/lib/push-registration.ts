@@ -170,13 +170,33 @@ export function registerForPush(
   // 02:36:34Z and 02:37:04Z). A second silent call joins the one in flight. A PROMPTING call is
   // never absorbed: it is the user asking, and it must be allowed to show the OS prompt.
   if (options.prompt === true) return registerForPushNow(store, options);
+  // ⚠️ AND ONE SUCCESS PER LAUNCH. supabase-js emits SIGNED_IN again every time the app returns to
+  // the foreground, and each one re-ran the whole cycle - pending row, getUser, timezone read,
+  // token upsert, registered row. Measured on Tre's iPhone, build 1011, 2026-09-23: FOUR full
+  // cycles in 41 s (03:38:24, :41, :52, 03:39:04), the first inside a 7 s server stall that his
+  // first screen was also waiting on. A token that registered this launch is still this launch's
+  // token, so a later SILENT call returns that result. A failure is never remembered - recovery
+  // still retries - and sign-out forgets it (`forgetPushRegistration`), so the next person on the
+  // phone registers their own token. A new launch is a new process, so it always registers.
+  if (silentRegistered) return Promise.resolve(silentRegistered);
   if (!silentInFlight) {
-    silentInFlight = registerForPushNow(store, options).finally(() => { silentInFlight = null; });
+    silentInFlight = registerForPushNow(store, options)
+      .then(result => {
+        if (result.outcome === 'registered') silentRegistered = result;
+        return result;
+      })
+      .finally(() => { silentInFlight = null; });
   }
   return silentInFlight;
 }
 
 let silentInFlight: Promise<PushRegistrationResult> | null = null;
+let silentRegistered: PushRegistrationResult | null = null;
+
+/** Forget this launch's successful registration. Called on sign-out, and by tests. */
+export function forgetPushRegistration(): void {
+  silentRegistered = null;
+}
 
 async function registerForPushNow(
   store: PushStore,
