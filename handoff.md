@@ -24,7 +24,10 @@
 5. ✅ FORM FIELD NAMES DONE: 0 of 138 fields unnamed app-wide. field-name.gate.test.ts is now a CENSUS (comments blanked,
    3 instrument controls), red on removing one real label. onboarding Input/Select REQUIRE a `label` prop, so tsc
    flags any new caller.
-5b. NEXT e1b0fffc SLICE, STARTED NOT BUILT: 19 of 20 `modal-overlay` dialogs (incl. shared ModalShell + FormModal)
+5b. ✅ SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
+   src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
+   and a census gate like field-name.gate. Focus trap not done. Old plan kept below for context -
+   (was) STARTED NOT BUILT: 19 of 20 `modal-overlay` dialogs (incl. shared ModalShell + FormModal)
    have no role="dialog", no aria-modal and no Escape-to-close. Plan: a shared useEscapeToClose hook with a
    module-level STACK so only the top modal closes, then role="dialog" aria-modal="true" + aria-labelledby on the
    PANEL (not the overlay) of ModalShell and FormModal first. Free-tier draft, reviewed and usable, is at
@@ -11335,25 +11338,35 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 18:00 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 18:46 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (7 file(s)):**
+
+```
+M handoff.md
+ M src/components/shared/FormModal.tsx
+ M src/components/shared/FounderNoteModal.tsx
+ M src/components/shared/ModalShell.tsx
+ M src/components/shared/PmfSurveyModal.tsx
+?? src/hooks/__tests__/useEscapeToClose.test.tsx
+?? src/hooks/useEscapeToClose.ts
+```
 
 - **Recent commits:**
 
 ```
+aeceb625 [handoff]: grace deploy 7 of 8 live and proven; plaid-sync MCP deploy fails with an internal error
+5d5e2bfb [handoff]: grace deploy 4 of 8 live (partner-link v13, friend-link v15)
+ffe95e46 [handoff]: Tre approved the d01dae3b grace deploy; the gate stopped this session, successor deploys first
+cde18d6d [handoff]: all form fields named (d441bd19); dialog-semantics slice planned with a reviewed free-tier draft parked
 d441bd19 [a11y]: every form field in the app has an accessible name, and a census keeps it at zero
 bb0953a0 [a11y]: Transactions and service-log fields say what they are
 f97ec30e [a11y]: Builds item editor and Forecast assumptions fields say what they are
 69ab8d9d [a11y]: Budget page fields say what they are
-eb596f41 [a11y]: sign-in, security and settings fields say what they are
-ddfe4640 [a11y]: every icon-only button has a name, including the shared form close
-76b4c303 [a11y]: transaction row buttons name the row they act on
-c775e7f8 [a11y]: 21 icon-only buttons get an accessible name; the press crawler sees inline editors
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
