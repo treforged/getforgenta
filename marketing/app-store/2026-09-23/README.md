@@ -24,7 +24,7 @@ Raw material for Ruby's screenshot set (ask 781edc28). **These are unframed capt
 | `05-plan.png` | Transactions, Plan tab | Recurring-rules guide card |
 | `06-accounts.png` | Dashboard, Accounts | Net worth tiles, then the accounts guide card |
 | `07-goals.png` | Dashboard, Goals | Net worth tiles, Add Goal, the goals guide card |
-| `08-garage.png` | Garage, Vehicles | 2024 Honda Civic (saving, $4,231 of $5,590 down), Toyota RAV4 (owned, loan) |
+| `08-garage.png` | Garage, Vehicles | 2024 Honda Civic (saving, $1,240 of $5,590 down - re-shot after `3842cb1b`, which stopped the Garage counting the whole checking balance as car savings), Toyota RAV4 (owned, loan) |
 
 Strongest in Ada's view: 01, 04 and 03. They carry a date and a decision, the things this app does that a spreadsheet does not. 06 and 07 are mostly guide-card text above the fold.
 
