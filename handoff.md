@@ -10992,7 +10992,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 00:19 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 00:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11003,14 +11003,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+19b6cb30 [handoff]: revolving capture shipped; b18ac1f8 decides when debt_payoff is wired
+6884dda4 [leaderboard]: debt_payoff header names the new series and the query that decides when to wire it
+4360e06c [leaderboard]: start recording the revolving-balance history debt_payoff needs (e1b0fffc)
+c2dbdb23 [handoff]: no walks until the 01:22Z read - it is the control for the stall hypothesis
+598f5d6c [handoff]: the spill is fixed and the stalls are not - item 3 now measures the stalls
+f8f27b16 [handoff]: 1016 uploaded; 981e8ecf waits for next build
+981e8ecf [push]: register once per launch, not on every return to the app (e1b0fffc)
 471e824a [handoff]: pacing + launch cache shipped, iOS 1016 dispatched
-050c4a19 [perf]: show the last-known data at launch on mobile instead of ~7 s of skeletons (86bccda4)
-eb651d56 [forecast]: pace a dated goal's own contribution while card debt exists (585ec24a)
-eebc4edf [handoff]: 585ec24a - the fixed 510 contribution is the lever, measured on the fixture
-f71fb513 [handoff]: 585ec24a design located - the sim, not the engine, must carry the paced schedule
-aa020244 [handoff]: d694a896 closed, stop-name clip fixed (0233ab6e)
-0233ab6e [goals]: savings-goal stop name no longer cut off on phones
-50ec82c4 [handoff]: resume queue for the successor - verify iOS push on 1011 first
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

@@ -848,7 +848,7 @@ export default function Auth() {
                 required
                 minLength={6}
                 maxLength={128}
-                placeholder="Re-enter your new password"
+                placeholder="Re-enter password"
                 className={`w-full mt-1 bg-secondary border px-3 py-3 text-base text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${
                   mismatch ? 'border-destructive focus:ring-destructive' : 'border-border'
                 }`}
