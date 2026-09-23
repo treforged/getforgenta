@@ -645,7 +645,7 @@ export default function PhaseBlock({
                                   </div>
                                   <div>
                                     <label className={labelCls}>Note (optional)</label>
-                                    <input className={inputCls} value={itemEdits[item.id].txNote} onChange={e => updateItemEdit(item.id, 'txNote', e.target.value)} placeholder="e.g. Bought from Summit Racing" />
+                                    <input className={inputCls} value={itemEdits[item.id].txNote} onChange={e => updateItemEdit(item.id, 'txNote', e.target.value)} placeholder="e.g. From Summit Racing" />
                                   </div>
                                 </div>
                               )}

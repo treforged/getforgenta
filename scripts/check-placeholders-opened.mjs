@@ -14,6 +14,8 @@
  *   signed in   /vehicles?tab=builds -> New Build   (the build form)
  *   demo mode   /demo -> /vehicles?tab=builds -> Log Service   (maintenance form)
  *   demo mode   /demo -> /transactions -> Add Plan   (payment-plan form; the walk account is not premium)
+ *   demo mode   /demo -> builds -> Suspension -> EDIT -> Transaction/Plan -> + New   (PhaseBlock item
+ *               edit; local state only, Save is never pressed)
  *   signed in   /settings -> Security -> Delete account   ("DELETE") - REVEAL ONLY. The confirm
  *               field is measured and NOTHING is typed into it; the walk account must survive.
  *
@@ -162,6 +164,34 @@ async function measure(page, stop, mustSee) {
   await logService.evaluate((el) => el.click());
   await p.waitForTimeout(700);
   await measure(p, 'garage maintenance-form (demo)', ['e.g. Oil Change', 'e.g. Discount Tire, DIY']);
+  await p.context().close(); }
+
+{ const p = await freshPage(false);
+  // THROUGH DEMO MODE, and PURE UI: EDIT and the Financing mode buttons only change local state in
+  // PhaseBlock; nothing is saved unless Save is pressed, and this stop never presses it.
+  await p.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  await p.goto(`${BASE}/vehicles?tab=builds`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  const clickText = async (re, what) => {
+    const b = p.locator('button').filter({ hasText: re }).first();
+    try { await b.waitFor({ timeout: 15000 }); } catch { await done(2, `build item-edit: no "${what}" button`); }
+    await b.evaluate((el) => el.click());
+    await p.waitForTimeout(700);
+  };
+  // Phases render COLLAPSED; the demo's "Suspension" phase holds items, so open it first.
+  const phaseHead = p.getByText(/^Suspension$/i).first();
+  try { await phaseHead.waitFor({ timeout: 15000 }); } catch { await done(2, 'build item-edit: no "Suspension" phase in the demo build'); }
+  await phaseHead.click();
+  await p.waitForTimeout(700);
+  await clickText(/^\s*EDIT\s*$/, 'EDIT');
+  await measure(p, 'build item-edit (demo)', ['https://...']);
+  await clickText(/^\s*Transaction\s*$/, 'Transaction');
+  await clickText(/＋ New/, '+ New (transaction)');
+  await measure(p, 'build item-edit new tx (demo)', ['e.g. From Summit Racing']);
+  await clickText(/^\s*Plan\s*$/, 'Plan');
+  await clickText(/＋ New/, '+ New (plan)');
+  await measure(p, 'build item-edit new plan (demo)', ['e.g. Exhaust system']);
   await p.context().close(); }
 
 await browser.close();
