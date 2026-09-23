@@ -100,7 +100,7 @@ function CookiePreferencesInline() {
 function PrivacyContent() {
   return (
     <div className="space-y-8 text-sm">
-      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: May 2026</p>
+      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: September 2026</p>
 
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Introduction</h2>
@@ -606,7 +606,7 @@ function TermsContent() {
 function RefundContent() {
   return (
     <div className="space-y-8 text-sm">
-      <p className="text-xs text-muted-foreground">Effective date: April 17, 2026 · Last updated: April 2026</p>
+      <p className="text-xs text-muted-foreground">Effective date: April 17, 2026 · Last updated: September 2026</p>
 
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. All Sales Are Final</h2>
