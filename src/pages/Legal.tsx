@@ -443,7 +443,7 @@ function TermsContent() {
           <p><span className="text-foreground font-medium">Free tier</span> includes: 1 budget, basic
           dashboard, transaction tracking, up to 3 savings goals, and 1 debt tracker. The free tier is provided
           at no charge and may be modified at our discretion.</p>
-          <p><span className="text-foreground font-medium">Premium tier</span> ($9/month) includes: unlimited
+          <p><span className="text-foreground font-medium">Premium tier</span> (the current price is shown in the app before you subscribe) includes: unlimited
           budgets, advanced dashboard, CSV/PDF export, unlimited savings goals and debt trackers, car fund
           tracker pro, custom categories, and priority support.</p>
           <p>Premium subscriptions are billed monthly in advance and auto-renew until cancelled.</p>
