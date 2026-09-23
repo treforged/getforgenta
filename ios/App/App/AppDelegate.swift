@@ -229,6 +229,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+    // MARK: - Push notifications
+
+    // ⚠️ WITHOUT THESE TWO, iOS NEVER PRODUCES A PUSH TOKEN. APNs hands the device token to the
+    // AppDelegate, not to Capacitor; @capacitor/push-notifications only hears it through these
+    // NotificationCenter posts (its README, "iOS" section). They were never in this file, so the
+    // plugin's `registration` event could not fire: every iPhone recorded permission=granted and
+    // then `timeout`, and device_tokens held Android rows only. Android is unaffected - FCM
+    // delivers straight to the plugin.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
     // MARK: - Called by ViewController
 
     /// Called when the WKWebView content process terminates.
