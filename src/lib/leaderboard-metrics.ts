@@ -80,6 +80,14 @@ export type LeaderboardMetric = (typeof ALL_LEADERBOARD_METRICS)[number];
  * the `debts` arm of that query showing accounts with more than one `effective_date`. Re-run it
  * rather than trusting this paragraph; it is a claim about data, and data moves.
  *
+ * ✅ CAPTURE STARTED 2026-09-23: `net_worth_snapshots.revolving_balance`, the engine's month-0
+ * revolving total, filled weekly on the newest row (src/lib/revolving-snapshot.ts). THE NEW
+ * TEST FOR WIRING THIS METRIC: users with at least 3 non-null revolving_balance weeks.
+ *   select count(*) from (select user_id from public.net_worth_snapshots
+ *     where revolving_balance is not null group by user_id having count(*) >= 3) x;
+ * Peak = max over that user's series, current = the newest value. Wire it and drop it from this
+ * list in ONE commit, as budget_adherence was.
+ *
  * ⚠️ ONE DECLARATION, READ BY BOTH THE SWITCHES AND THE BOARD. Two lists would drift within a
  * release and put a switch back in front of someone with nothing behind it.
  */
