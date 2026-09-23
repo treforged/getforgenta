@@ -1,29 +1,27 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 early (Ada, successor). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~04:20Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
-1. **VERIFY iOS PUSH (`384ca151`)** - build 1011 carries the AppDelegate fix (7fb7fc78). Once Tre has opened 1011,
-   SQL: `select platform,count(*),max(created_at) from device_tokens where revoked_at is null group by 1` must show an
-   `ios` row, and `select outcome,app_build,detail,last_seen_at from push_registration_status where platform='ios' and
-   user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'` must read `registered` on build 1011. If it still reads timeout on
-   1011, the fix was necessary but not sufficient - read the row's detail (net=...) before theorising.
-2. **FIRST iOS SEND** - the APNS_* secrets on push-send have never been exercised. After item 1, watch the next
-   push-send-daily run (17:00Z) or a dry run's response for 'is not set' / an APNs status. Missing secrets = Tre's (a
-   .p8 key from Apple); name the exact three names.
-3. **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. Baseline after reset: temp_files=199100
-   temp_bytes=509954571085. Also read the pg_stat_statements entry count; if the spill returns as it regrows, schedule
-   `select extensions.pg_stat_statements_reset()` in pg_cron (undo: cron.unschedule).
-4. **NATIVE SHARE SHEET** - build 1011 also carries the share card; a device check is the only open verification.
-5. Then `ask list --owner Ada` + the standing ask `e1b0fffc` (keep improving; user-visible first).
-   [x] `d694a896` CLOSED 0233ab6e - the 'only textareas left' claim was false; GoalStopsEditor stop name clipped
-   69px, fixed + gated. NOT on phones until the next iOS build (1011 predates it).
-6. **`585ec24a` DEBT-AWARE PACING - CAUSE MEASURED, BUILD NEXT (highest effort).** On the real fixture the move
-   goal's FIXED `monthly_contribution` 510 draws ~4800 of the 5624 need. The ranked reserve adds only ~900 (m0/5/6/9).
-   447d57ad back-loaded the ~900 and left the 510 alone, so it could not help the card. Build: a back-loaded
-   schedule in place of the fixed 510 for a dated goal whose stop 1 shares a rank, at the sim's :790 and :1508 and the
-   engine's `monthlySavingsContrib` (~1596). The sim deducts it before sizing the card cascade, so the freed cash
-   reaches card principal. Show it as 'transfer $X this month': 510 may be a real bank auto-transfer. Full
-   acceptance is in the ask's `why`. 12 rendered gates ran green 2026-09-23 03:30Z.
+1. **iOS build 1016** (run 35817716094, dispatched from 050c4a19) carries pacing eb651d56, the launch cache 050c4a19
+   and the stop-name fix 0233ab6e. Read the UPLOAD STEP's own conclusion and altool's 'UPLOAD SUCCEEDED' line, never
+   the run's. Then tell Tre: '1016 uploaded at HH:MM; it is yours to install.'
+2. **FIRST iOS SEND** - [x] device side DONE: 1011 registered (ios token 03:38:29Z, outcome=registered, 384ca151
+   closed). OPEN: the APNS_* secrets have never been exercised. Read push_send_runs / push-send logs after the
+   17:00Z push-send-daily run for 'is not set' or an APNs status. Missing = Tre's .p8 (APNS_AUTH_KEY_P8,
+   APNS_KEY_ID, APNS_TEAM_ID).
+3. **DISK IO (`cb1d9ada`) at/after 2026-09-24 01:22Z** - see 5b below. At 03:40Z 09-23: temp_files delta 0,
+   pg_stat_statements 99 entries.
+4. **NATIVE SHARE SHEET** - device check only.
+5. **`86bccda4` launch cache - CODE SHIPPED 050c4a19, device unverified.** After Tre installs 1016, a second launch
+   must paint numbers at once. Server-side check: his first-minute edge log should no longer matter to what he sees;
+   ask nothing, read the edge log for the launch and compare to 03:38Z (25 queries, 6.3-7.0 s each).
+   Residue named in the commit: token refresh after a long gap still runs first.
+6. **`585ec24a` pacing - CLOSED eb651d56.** Measured flat vs paced on the fixture; gate
+   paced-goal-contribution.realData.test.ts is a discriminating pair and holds realData's old positive control.
+   Tre sees it on the goal card: 'Transfer $X this month ... rises to $Y in <month>'. His real move goal will show
+   ~$102 this month and $2,249 in May 2027 (largest). If he objects to the size of May, the measured alternative is a
+   true linear ramp (peak $1,022, saves $184 instead of $421) - one line in paced-goal-contribution.ts.
+7. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
 
