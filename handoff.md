@@ -1,5 +1,33 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## Resume queue - 2026-09-23 ~15:40Z (Ada). START AT ITEM 1. Each item is a POINTER.
+
+1. **TUNE THE DEMO PERSONA (`43591a28`) - Sam said GO 2026-09-23.** /demo is the first look for a prospect and the only
+   source for store images. At 430x932 in dark it opens on "YOUR CARD PAYOFF DATE: Not within 5 years" and "Sep 2026:
+   Cash below safe minimum". The display is honest (fixed 09-08). The persona's card spending outruns its payments.
+   Recurring charges on the cards: Groceries 118/wk, Dining 96/mo, Prime 139/yr, Streaming+Gym 57/mo (src/lib/demo-data.ts).
+   **Sam's criteria:** change ONLY the persona (demo-data.ts); the engine and display stay. A NEW TEST asserts that
+   the cards clear inside 5 years AND month 0 ends above the floor. The commit body lists every figure from
+   demo-marketing-lines.engine.test.ts that changed, old -> new, because Ruby picks the change up from ask e9953724.
+   **Spec to obey** (tre-forged-marketing/docs/DEMO-FIXTURE-SPEC.md §3): no money figure ending in 00, real card
+   APRs, nothing flattering, nothing near Tre's real numbers. Keep the "thin surplus, person the app is FOR" shape
+   from the demo-data.ts header - clearing in ~3-4 years is plausible. Update that header's "not tuned" paragraph to
+   say what changed and why. Gates: test:tz, tsc, lint.
+2. **Then re-capture the store screenshots from /demo** at 430x932 @3x = 1290x2796, dark. Accept or dismiss the
+   cookie banner first. Decide whether to hide the DEMO chrome and say which you chose. COMMIT them to the repo (e.g.
+   `marketing/app-store/2026-09-23/`) with the fixture commit hash recorded (spec §4). Do NOT upload to App Store
+   Connect. Tell Sam. Then close 231e374c.
+3. **HELD FOR TRE: deploy the grace fix to the 6 remaining functions** (friend-link, partner-link, plaid-exchange-token,
+   plaid-sync-all, financial-sync, plaid-sync). The auto-mode classifier refused them as [Production Deploy], so
+   deploy only on Tre's "deploy" in THIS desk's session. Method that worked (plaid-create-link-token v59, ai-advisor
+   v64): MCP deploy_edge_function with every bundle file named `functions/<path>` and verify_jwt unchanged, then
+   test on the walk account with a premium+past_due vs premium+canceled row, then delete the row.
+4. Standing `e1b0fffc` (Sam: the desk that holds it is not out of work). The text pass is done (see 1e below).
+   Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z, b18ac1f8 on/after 10-14.
+5. ⚠️ JS reaches phones via server.url - never tell Tre a JS fix waits on an iOS build.
+
+<details><summary>Earlier today (14:10Z queue, done)</summary>
+
 ## Resume queue - 2026-09-23 14:10Z (Ada). START AT ITEM 1. Each item is a POINTER.
 
 1. [x] **FIRST REAL APNs SEND SUCCEEDED (ask `71cddec3` closed 14:12Z).** 12:05:03Z run `bfc6dcd8`: dry_run=false,
@@ -28,6 +56,9 @@
    (memory js-changes-reach-phones-via-vercel). Never tell him a JS fix waits on an iOS build.
 3. Standing `e1b0fffc`. Candidates: dark layer 2 (a58fb610, needs his eye), App Store screenshots (231e374c, candidate).
    Temp-spill regrowth re-read at/after 2026-09-24 01:22Z (cb1d9ada). debt_payoff wiring check on/after 10-14 (b18ac1f8).
+
+
+</details>
 
 ## Resume queue - 2026-09-23 ~04:20Z (Ada) - SUPERSEDED by the queue above; kept for history.
 
