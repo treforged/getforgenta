@@ -2,23 +2,13 @@
 
 ## Resume queue - 2026-09-23 ~22:15 UTC (Ada, successor of getforgenta-95). START AT ITEM 0. POINTERS.
 
-0. PROGRESS (successor, ~22:30Z): partner-link v13 + friend-link v15 DEPLOYED; pair proven on partner-link invite (past_due 400 self-invite = passed gate, canceled 403 premium), walk row restored free/inactive. REMAINING: plaid-exchange-token, plaid-sync-all, financial-sync, plaid-sync.
-   🚀 DEPLOY THE GRACE FIX NOW - TRE APPROVED IT. He typed "deploy. let sam know i told you" in the predecessor's session
-   (~22:10Z), directly under the line naming this exact deploy; it is recorded on the ask (`ask show d01dae3b`, TRE ANSWERED).
-   Sam was told. The predecessor could not run it: its handoff gate blocked the MCP tools mid-deploy.
-   Code: commit a18e531c (_shared/premium-entitlement.ts: past_due keeps premium), tree clean. MCP deploy_edge_function,
-   project mdtosrbfkextcaezuclh, each file named `functions/<path>`, verify_jwt UNCHANGED (read it with get_edge_function
-   first). Bundles, derived by import closure:
-     friend-link: friend-link/{index,link-rules,invite-code}.ts + _shared/{premium-entitlement,tracer,cors,rate-limit}.ts
-     partner-link: partner-link/{index,invite-code}.ts + _shared/{premium-entitlement,tracer,cors,rate-limit}.ts
-     plaid-exchange-token: index.ts + _shared/{bank-link-entitlement,premium-entitlement,retire-accounts,supersede-connection,
-       rate-limit,cors}.ts + _shared/providers/{plaid,types,balance-tranche-seed}.ts
-     plaid-sync-all / financial-sync / plaid-sync: index.ts + _shared/{sync-handler,token-crypto,premium-entitlement,
-       account-claim,cors}.ts + _shared/providers/{index,types,plaid,balance-tranche-seed,akoya,akoya-normalize,apr-sync-policy}.ts
-   VERIFY like the first 2 (plaid-create-link-token v59, ai-advisor v64): walk account premium+past_due must PASS the gate,
-   premium+canceled must be REFUSED, then delete the test row and read back free. Then `ask done d01dae3b --evidence`.
-   If the auto-mode classifier refuses as [Production Deploy], say so to Tre in ONE line: his yes is on the ask.
-
+0. GRACE DEPLOY 7 OF 8 LIVE (d01dae3b, now [!] blocked). partner-link v13, friend-link v15, plaid-exchange-token v60,
+   financial-sync v18, plaid-sync-all v55 this session; plaid-create-link-token v59 + ai-advisor v64 before. Pairs proven on
+   the walk account (past_due passes, canceled refused; financial-sync 200 vs OLD plaid-sync 403 on the same row). Walk row
+   restored free/inactive. ONLY plaid-sync REMAINS: MCP deploy failed TWICE (InternalServerErrorException) on the same bundle
+   financial-sync accepted; v68 still serves. It only runs the one sync after a bank link. Retry once later; the probe is
+   scratchpad grace-probe.mjs (`node grace-probe.mjs sync plaid-sync` with the row at premium+past_due -> expect 200).
+   Do NOT loop retries; if it fails again, wait for the CLI token (1e1d53eb).
 1. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
 2. `a58fb610` dark layer 2: frames are with Sam for Tre (scratchpad c68ab259.../vib2/*-pair.png; CSS quoted in the
    ask's why). On his yes, move it into index.css under .dark and re-run check:dark-contrast and
