@@ -28,8 +28,9 @@
    (Accounts delete = alertdialog) + aria-modal + aria-label. Escape everywhere EXCEPT the Accounts bank-linked card
    (its only exit is Done/Match Accounts). AppLock setup + AppTour DO get Escape: the lock setup is an offer whose X is
    always available, and the tour's backdrop already dismisses. Escape = onClose (discard), matching FormModal, not the
-   backdrop's save-if-dirty. Test: src/components/shared/__tests__/popup-dialogs.test.tsx (proven red). Focus trap still
-   not done. check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
+   backdrop's save-if-dirty. Test: src/components/shared/__tests__/popup-dialogs.test.tsx (proven red). FOCUS TRAP DONE
+   (Sam approved): src/hooks/useModalFocusTrap.ts, ONE document listener mounted in App's AppReadySignal, wraps Tab inside
+   the last aria-modal dialog; proven red 3 ways. Not done: focus restore to the opener on close, focus-in on open. check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
    OLD 5b: SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
    src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
    CENSUS GATE BUILT: src/lib/__tests__/modal-dialog-role.gate.test.ts, a shrink-only list of 14 files. Fix a file = remove it
@@ -11346,35 +11347,25 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 18:46 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 19:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
-
-```
-M handoff.md
- M src/components/shared/FormModal.tsx
- M src/components/shared/FounderNoteModal.tsx
- M src/components/shared/ModalShell.tsx
- M src/components/shared/PmfSurveyModal.tsx
-?? src/hooks/__tests__/useEscapeToClose.test.tsx
-?? src/hooks/useEscapeToClose.ts
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+8a760f0f [a11y]: the last 14 popups are real dialogs, and Escape closes them
+8239bb6c [a11y]: census gate - every modal-overlay popup must be a dialog, 14-file list may only shrink
+575da860 [handoff]: shared modals done (ccd141f7); 18 modal-overlay sites next
+ccd141f7 [a11y]: the two shared modals are real dialogs, and Escape closes only the top one
 aeceb625 [handoff]: grace deploy 7 of 8 live and proven; plaid-sync MCP deploy fails with an internal error
 5d5e2bfb [handoff]: grace deploy 4 of 8 live (partner-link v13, friend-link v15)
 ffe95e46 [handoff]: Tre approved the d01dae3b grace deploy; the gate stopped this session, successor deploys first
 cde18d6d [handoff]: all form fields named (d441bd19); dialog-semantics slice planned with a reviewed free-tier draft parked
-d441bd19 [a11y]: every form field in the app has an accessible name, and a census keeps it at zero
-bb0953a0 [a11y]: Transactions and service-log fields say what they are
-f97ec30e [a11y]: Builds item editor and Forecast assumptions fields say what they are
-69ab8d9d [a11y]: Budget page fields say what they are
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

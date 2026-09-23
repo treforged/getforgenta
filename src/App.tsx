@@ -36,6 +36,7 @@ import { ACCOUNTS_PANEL_PARAM, isAccountsTab } from "@/lib/accounts-tab";
 import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
+import { useModalFocusTrap } from "@/hooks/useModalFocusTrap";
 
 /**
  * ⚠️ LAZY ON PURPOSE, AND IT IS NOT ABOUT THE LAYOUT.
@@ -102,6 +103,8 @@ if (Capacitor.isNativePlatform()) {
 // Sets window.__forgenta_app_ready when React has mounted.
 // AppDelegate polls this flag on fresh process start before lifting the cover.
 function AppReadySignal() {
+  // One Tab trap for every aria-modal popup in the app (see useModalFocusTrap).
+  useModalFocusTrap();
   useEffect(() => {
     window.__forgenta_app_ready = true;
     return () => { window.__forgenta_app_ready = false; };
