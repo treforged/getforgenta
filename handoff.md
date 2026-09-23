@@ -5,7 +5,11 @@
 1. ✅ `34fe4e5d` DONE in `26068e8a`: month 0 honours the save-up look-ahead. The /demo 180-date sweep reads 0 flagged and
    0 non-converged. On the real fixture the Sep 2026 one-time breach is gone and payoff is unchanged (Sep 2028). The
    paced-goal realData control is now an injected $40,000 one-off, because the old control depended on the defect.
-2. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
+2. ✅ e1b0fffc slice `3842cb1b`: the Garage, Money panels, Dashboard car tile and Builds strip pass the engine's funding id,
+   so a fund linked to the main checking reads its typed saved figure ($1,240 on /demo), not the whole balance. Garage
+   frames re-shot in `1c0a5766`, and Ruby was told. NEXT e1b0fffc candidate: grep other display-only callers that pass
+   `null` where the engine passes a resolved id (the §2.3 / 3842cb1b shape).
+3. Standing `e1b0fffc`. Dark layer 2 (a58fb610) waits on Tre's eye. Date checks: cb1d9ada at/after 09-24 01:22Z,
    b18ac1f8 on/after 10-14.
 
 <details><summary>Done 2026-09-23 ~18:30Z</summary>
@@ -11236,7 +11240,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 12:36 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 14:01 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11247,14 +11251,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+f994c8c5 [handoff]: 34fe4e5d month-0 look-ahead done; the demo sweep is fully clean
+26068e8a [projection]: month 0 honours the save-up look-ahead, so it no longer drains past what next month needs
+dbf75ee7 [handoff]: convergence latch, persona and store frames done; next is the save-up look-ahead (34fe4e5d)
+04f318a2 [marketing]: store frames re-shot after the persona change, by a committed capture script
+167f200b [demo]: the persona's checking holds 4,231, so /demo stops flagging "below safe minimum" at month end
+c389c9af [forecast]: a cap that flips between finite and uncapped no longer stops the debt-cash loop converging
 56848738 [handoff]: legal copy corrected in 7 commits; Monthly Gross 4x is by design; queue down to Tre-held items
 e3246aaf [legal]: Terms section 5 describes the real billing - web via Stripe, apps via Apple/Google, monthly or yearly
-986b6f19 [legal]: Privacy and Refund 'Last updated' -> September 2026
-6af68088 [legal]: Terms Premium list no longer promises 'unlimited budgets', a feature that does not exist
-62ca8daa [legal]: Terms free tier no longer promises a '1 debt tracker' limit that nothing enforces
-5671c75e [legal]: Terms 'Last updated' March 2026 -> September 2026
-50ad741b [legal]: Terms billing sentence covers the yearly plan as well as the monthly one
-42616ae3 [legal]: the company is TRE Forged LLC, not "TRE Forgenta LLC" (28 lines, 4 files)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
