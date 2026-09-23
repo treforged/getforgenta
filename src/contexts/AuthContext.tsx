@@ -16,6 +16,7 @@ import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
+import { restorePersistedQueries, startQueryPersistence, clearPersistedQueries } from '@/lib/query-cache-persistence';
 import { readDeviceTrust } from '@/lib/trusted-device';
 import { toLocalDateStr } from '@/lib/scheduling';
 import {
@@ -81,6 +82,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
+
+  /**
+   * 86bccda4 — the last-known data, restored the moment the session is known and kept current
+   * after that, so a cold launch paints the user's own numbers instead of ~7 s of skeletons
+   * (measured on iOS 1011; see query-cache-persistence.ts). NATIVE ONLY: on the web a shared
+   * computer would keep someone's finances in localStorage. Restored before `setUser`, so the
+   * queries that mount on the new user find their data already in the cache.
+   */
+  const persistedFor = useRef<{ userId: string; stop: () => void } | null>(null);
+  const syncQueryPersistence = useCallback((userId: string | null) => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (persistedFor.current?.userId === userId) return;
+    persistedFor.current?.stop();
+    persistedFor.current = null;
+    if (!userId) return;
+    restorePersistedQueries(qc, userId);
+    persistedFor.current = { userId, stop: startQueryPersistence(qc, userId) };
+  }, [qc]);
 
   // Use a ref for location to avoid stale closure issues in onAuthStateChange
   const locationRef = useRef(location.pathname);
@@ -264,6 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      syncQueryPersistence(session?.user?.id ?? null);
       setUser(session?.user ?? null);
       setLoading(false);
       initialized.current = true;
@@ -346,6 +366,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // the hash yet when this event fires.
         sessionStorage.setItem('forgenta:recovery_pending', '1');
       } else if (event === 'SIGNED_OUT') {
+        // The saved copy of this person's data must not outlive their session on the device.
+        clearPersistedQueries();
         logOutRevenueCat().catch(() => {/* native no-op on web */});
         // Retire this device's token so the next person to sign in on this phone does not
         // receive the previous one's notifications. Best effort and deliberately not awaited:
@@ -367,6 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!initialized.current) {
+        syncQueryPersistence(session?.user?.id ?? null);
         setUser(session?.user ?? null);
         setLoading(false);
         initialized.current = true;
@@ -384,7 +407,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, [navigate, resetReviewerAccount, setIsDemo]);
+  }, [navigate, resetReviewerAccount, setIsDemo, syncQueryPersistence]);
 
   // ── Cross-tab sign-out via BroadcastChannel ──────────────────────────────
   useEffect(() => {
@@ -424,6 +447,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Half-typed balances are that person's data. On a shared device they must
     // not be waiting in a form for whoever signs in next.
     clearAllFormDrafts();
+    // Same reason as the drafts: a saved copy of their finances must not wait for the next person.
+    clearPersistedQueries();
     if (user?.email === REVIEWER_EMAIL && user?.id) {
       await resetReviewerAccount(user.id);
     }
