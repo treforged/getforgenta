@@ -1235,7 +1235,7 @@ export default function Transactions() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
+        <select aria-label="Filter by month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Time</option>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -1249,11 +1249,11 @@ export default function Transactions() {
             { value: 'expense', label: 'Expense' },
           ]}
         />
-        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
+        <select aria-label="Filter by category" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Categories</option>
           <CategoryOptions />
         </select>
-        <select value={filterSource} onChange={e => setFilterSource(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
+        <select aria-label="Filter by payment source" value={filterSource} onChange={e => setFilterSource(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Sources</option>
           {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -1488,7 +1488,7 @@ export default function Transactions() {
               )}
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Plan Name *</label>
-                <input
+                <input aria-label="Plan name"
                   type="text"
                   value={planForm.name}
                   onChange={e => setPlanForm(p => ({ ...p, name: e.target.value }))}
@@ -1499,7 +1499,7 @@ export default function Transactions() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Provider / Program</label>
-                <input
+                <input aria-label="Provider / program"
                   type="text"
                   value={planForm.provider}
                   onChange={e => setPlanForm(p => ({ ...p, provider: e.target.value }))}
@@ -1511,7 +1511,7 @@ export default function Transactions() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Total Amount *</label>
-                  <input
+                  <input aria-label="Total amount"
                     type="number"
                     step="0.01"
                     min="0"
@@ -1537,7 +1537,7 @@ export default function Transactions() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Frequency *</label>
-                  <select
+                  <select aria-label="Frequency"
                     value={planForm.frequency}
                     onChange={e => setPlanForm(p => ({ ...p, frequency: e.target.value as PaymentPlanFrequency }))}
                     className={FIELD_SELECT}
@@ -1550,7 +1550,7 @@ export default function Transactions() {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Total Payments *</label>
-                  <input
+                  <input aria-label="Total payments"
                     type="number"
                     step="1"
                     min="1"
@@ -1568,7 +1568,7 @@ export default function Transactions() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Category</label>
-                <select
+                <select aria-label="Category"
                   value={planForm.category}
                   onChange={e => setPlanForm(p => ({ ...p, category: e.target.value }))}
                   className={FIELD_SELECT}
@@ -1579,7 +1579,7 @@ export default function Transactions() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Payment Source</label>
-                <select
+                <select aria-label="Payment source"
                   value={planForm.payment_source}
                   onChange={e => setPlanForm(p => ({ ...p, payment_source: e.target.value }))}
                   className={FIELD_SELECT}
@@ -1613,7 +1613,7 @@ export default function Transactions() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Notes</label>
-                <input
+                <input aria-label="Notes"
                   type="text"
                   value={planForm.notes}
                   onChange={e => setPlanForm(p => ({ ...p, notes: e.target.value }))}

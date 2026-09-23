@@ -22,6 +22,8 @@ const FINISHED = [
   'src/pages/BudgetControl.tsx',
   'src/components/builds/PhaseBlock.tsx',
   'src/components/forecast/ForecastAssumptionsPanel.tsx',
+  'src/pages/Transactions.tsx',
+  'src/components/builds/MaintenanceFormModal.tsx',
   'src/components/settings/PhoneAuth.tsx',
   'src/components/settings/TwoFactorAuth.tsx',
 ];

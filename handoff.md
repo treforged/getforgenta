@@ -14,10 +14,10 @@
    route UNSETTLED - cause not found. /transactions row Edit/Duplicate/Delete now carry the row's note (2 runs: 4 then 0
    not-found, so what is left is load timing under 2 workers, not naming).
    write-blocked presses are the crawler's blind spot (it cannot see what they would have changed).
-5. FORM FIELD NAMES, continuing (e1b0fffc). 55 of 138 fields still have no accessible name (sibling <label>, no htmlFor).
+5. FORM FIELD NAMES, continuing (e1b0fffc). 33 of 138 fields still have no accessible name (sibling <label>, no htmlFor).
    field-name.gate.test.ts is a RATCHET: add a file to FINISHED once every field in it is named. Done: Auth, Settings,
-   PhoneAuth, TwoFactorAuth, BudgetControl, PhaseBlock, ForecastAssumptionsPanel. Next by count: Transactions 11,
-   MaintenanceFormModal 11. onboarding/fields.tsx needs a label PROP threaded from its callers. Label from the visible
+   PhoneAuth, TwoFactorAuth, BudgetControl, PhaseBlock, ForecastAssumptionsPanel, Transactions,
+   MaintenanceFormModal. Next: BuildFormModal 6, BalanceTrancheEditor 5, BuyItDialog 4. onboarding/fields.tsx needs a label PROP threaded from its callers. Label from the visible
    caption BY HAND or verify every free-tier draft: it named the MFA field 'Countdown'. Probe: scratchpad inputprobe.mjs
    (copy it into scripts/ if reused).
 6. Refund-policy copy in Terms section 5 is Tre's (0006cc41). Do not edit it.

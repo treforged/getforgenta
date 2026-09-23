@@ -283,7 +283,7 @@ export default function MaintenanceFormModal({
                 wherever the keyboard happens to be.
                 `onMouseDown` preventDefault is load-bearing: without it the input blurs before
                 the click resolves and the option is never chosen. */}
-            <input
+            <input aria-labelledby="maintenance-service-label"
               role="combobox"
               aria-expanded={presetsOpen && matchingPresets.length > 0}
               aria-controls="maintenance-service-presets"
@@ -344,7 +344,7 @@ export default function MaintenanceFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Odometer</label>
-              <input
+              <input aria-label="Odometer"
                 className={`${inputCls} text-right`}
                 type="number"
                 value={form.odometer}
@@ -357,7 +357,7 @@ export default function MaintenanceFormModal({
             </div>
             <div>
               <label className={labelCls}>Cost ($)</label>
-              <input
+              <input aria-label="Cost ($)"
                 className={`${inputCls} text-right`}
                 type="number"
                 value={form.cost}
@@ -375,7 +375,7 @@ export default function MaintenanceFormModal({
 
           <div>
             <label className={labelCls}>Shop / Vendor</label>
-            <input
+            <input aria-label="Shop / vendor"
               className={inputCls}
               value={form.vendor}
               maxLength={80}
@@ -392,7 +392,7 @@ export default function MaintenanceFormModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>Every (months)</label>
-                <input
+                <input aria-label="Every (months)"
                   className={`${inputCls} text-right`}
                   type="number"
                   value={form.intervalMonths}
@@ -405,7 +405,7 @@ export default function MaintenanceFormModal({
               </div>
               <div>
                 <label className={labelCls}>Every (miles)</label>
-                <input
+                <input aria-label="Every (miles)"
                   className={`${inputCls} text-right`}
                   type="number"
                   value={form.intervalMiles}
@@ -434,7 +434,7 @@ export default function MaintenanceFormModal({
 
             <div>
               <label className={labelCls}>Due Odometer</label>
-              <input
+              <input aria-label="Due odometer"
                 className={`${inputCls} text-right`}
                 type="number"
                 value={form.nextDueOdometer}
@@ -467,7 +467,7 @@ export default function MaintenanceFormModal({
             </div>
 
             {form.txMode === 'existing' && (
-              <select className={inputCls} value={form.txId} onChange={e => set('txId', e.target.value)}>
+              <select aria-label="Existing transaction" className={inputCls} value={form.txId} onChange={e => set('txId', e.target.value)}>
                 <option value="">Select transaction…</option>
                 {transactions
                   .filter(t => t.type === 'expense')
@@ -488,7 +488,7 @@ export default function MaintenanceFormModal({
                 </div>
                 <div>
                   <label className={labelCls}>Amount ($)</label>
-                  <input
+                  <input aria-label="Amount ($)"
                     className={`${inputCls} text-right`}
                     type="number"
                     value={form.txAmount}
@@ -500,7 +500,7 @@ export default function MaintenanceFormModal({
                 </div>
                 <div>
                   <label className={labelCls}>Payment Method</label>
-                  <select className={inputCls} value={form.txPaymentSource} onChange={e => set('txPaymentSource', e.target.value)}>
+                  <select aria-label="Payment method" className={inputCls} value={form.txPaymentSource} onChange={e => set('txPaymentSource', e.target.value)}>
                     <option value="">Unassigned</option>
                     {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -514,7 +514,7 @@ export default function MaintenanceFormModal({
 
           <div>
             <label className={labelCls}>Notes</label>
-            <textarea
+            <textarea aria-label="Notes"
               className={`${inputCls} resize-none`}
               rows={2}
               value={form.notes}
