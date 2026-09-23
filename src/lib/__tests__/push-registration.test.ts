@@ -489,3 +489,48 @@ describe('revoking on sign-out', () => {
     await expect(revokeCurrentPushToken(throwing, 'apns-token-abc')).resolves.toBeUndefined();
   });
 });
+
+describe('push registration - one silent registration at a time', () => {
+  beforeEach(() => {
+    h.native = true; h.platform = 'ios';
+    h.permission = 'granted'; h.initialPermission = 'granted';
+    h.registerCalls = 0; h.requestCalls = 0;
+    h.answerWith = 'token';
+    h.saved = []; h.revoked = []; h.recorded = []; h.saveFails = false;
+    h.attached = []; h.removed = []; h.registerCalledBeforeListeners = false;
+    h.resetListeners?.();
+  });
+
+  // A launch fires INITIAL_SESSION and SIGNED_IN together, and each called this. Measured as
+  // paired rows in the same second on a real iPhone. Would fail without the in-flight guard:
+  // registerCalls reads 2 and two `pending` rows are recorded.
+  it('two concurrent SILENT calls register with the OS once and share one result', async () => {
+    const [a, b] = await Promise.all([registerForPush(store), registerForPush(store)]);
+    expect(h.registerCalls).toBe(1);
+    expect(a).toBe(b);
+    expect(a.outcome).toBe('registered');
+    expect(h.recorded.filter(r => r.outcome === 'pending')).toHaveLength(1);
+  });
+
+  // The opposite case, so the guard cannot pass by swallowing the user's own request. Asserted
+  // by PROMISE IDENTITY: a joining silent call is handed the in-flight promise itself, and a
+  // prompting call must NOT be. (Its outcome is not asserted here: two concurrent calls through
+  // the mocked plugin resolve one import to the REAL web plugin - a vitest loader artifact that
+  // warming the import did not cure - so an outcome check would measure the loader.)
+  // Would fail if the prompting call joined: `asked` would be the same object as `silent`.
+  it('a PROMPTING call is never absorbed by a silent one in flight', async () => {
+    const silent = registerForPush(store);
+    const joined = registerForPush(store);
+    const asked = registerForPush(store, { prompt: true });
+    expect(joined).toBe(silent);
+    expect(asked).not.toBe(silent);
+    await Promise.allSettled([silent, asked]);
+  });
+
+  // And the guard releases: a later launch must register again, not return a stale result.
+  it('a silent call AFTER the first has settled registers again', async () => {
+    await registerForPush(store);
+    await registerForPush(store);
+    expect(h.registerCalls).toBe(2);
+  });
+});

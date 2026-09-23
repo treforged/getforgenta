@@ -160,9 +160,27 @@ export function environmentFor(
  * notifications on. That is `NotificationSettings`' master switch today. Do not add it to a
  * launch path, a sign-in path, or anything that runs without the user having asked for alerts.
  */
-export async function registerForPush(
+export function registerForPush(
   store: PushStore,
   options: { prompt?: boolean } = {},
+): Promise<PushRegistrationResult> {
+  // ⚠️ ONE SILENT REGISTRATION AT A TIME. A launch fires both INITIAL_SESSION and SIGNED_IN, so
+  // AuthContext called this twice in the same second: two register() calls, two listener pairs,
+  // two `pending` rows and two `timeout` rows per launch (measured on Tre's iPhone, 2026-09-23
+  // 02:36:34Z and 02:37:04Z). A second silent call joins the one in flight. A PROMPTING call is
+  // never absorbed: it is the user asking, and it must be allowed to show the OS prompt.
+  if (options.prompt === true) return registerForPushNow(store, options);
+  if (!silentInFlight) {
+    silentInFlight = registerForPushNow(store, options).finally(() => { silentInFlight = null; });
+  }
+  return silentInFlight;
+}
+
+let silentInFlight: Promise<PushRegistrationResult> | null = null;
+
+async function registerForPushNow(
+  store: PushStore,
+  options: { prompt?: boolean },
 ): Promise<PushRegistrationResult> {
   // Web is not a failure and is not recorded: there is no OS to register with, and writing a row
   // for every browser session would drown the one number this is for.
