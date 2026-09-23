@@ -467,8 +467,8 @@ export default function Forecast() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
               { label: '3-pass engine', desc: 'PASS 1 builds base values. PASS 2 looks ahead and pre-saves cash for future one-time expenses. PASS 3 pushes all surplus above the cash floor to debt.' },
-              { label: 'End cash at floor', desc: 'While CC debt exists, end cash lands exactly at $1,000 each month — no idle cash. The June car purchase causes PASS 2 to pre-save in April and May.' },
-              { label: 'Debt payoff trajectory', desc: 'The debt chart shows each card\'s balance declining month by month. Sapphire goes first (22.99% APR), then Discover gets the full surplus.' },
+              { label: 'End cash at floor', desc: 'While CC debt exists, end cash lands at the cash floor each month — no idle cash. A large bill ahead, like the semiannual insurance premium, makes PASS 2 pre-save in the months before it.' },
+              { label: 'Debt payoff trajectory', desc: 'The debt chart shows each card\'s balance declining month by month. The highest-APR card goes first, then the next card gets the full surplus.' },
               { label: 'Assumptions panel', desc: 'Adjust income growth, investment return, and savings interest to model different scenarios over 5 years.' },
             ].map((f, i) => (
               <div key={i} className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>

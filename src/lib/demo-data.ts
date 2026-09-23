@@ -186,7 +186,7 @@ export const demoTransactions: DemoTransaction[] = [
 // so a student loan needs BOTH the row here and the `student_loan` account in `demoAccounts`; the
 // dental plan matches no account type and therefore lands in Other Debts, which is the rule the
 // page uses, not a special case.
-// Mortgage is left empty ON PURPOSE. Jordan rents — $1,600 a month, rule r2 — and inventing a
+// Mortgage is left empty ON PURPOSE. Jordan rents — $1,385 a month, rule r2 — and inventing a
 // mortgage to light up a tab would be the one demo number a visitor could catch out.
 export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_limit?: number })[] = [
   { name: 'Cobalt Rewards Card', balance: 4318, apr: 24.74, min_payment: 112, target_payment: 600, credit_limit: 12000 },

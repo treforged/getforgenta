@@ -116,7 +116,7 @@ export default function Vehicles() {
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
               <p className="text-xs font-semibold text-foreground">The cars themselves - the money for them lives on Debt Payoff</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Jordan's Civic is here with its build thread and service log. The down payment being saved for it, and the loan once it is bought, are on the Auto Loans tab of Debt Payoff.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Jordan's Corvette build thread and service log are here. The RAV4's loan and the down payment being saved for a future Civic are on the Auto Loans tab of Debt Payoff.</p>
             </div>
           </div>
           <div className="mt-2 flex justify-end">
