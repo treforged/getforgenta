@@ -54,7 +54,9 @@ Activity is live; Ruby has `92ef5009`).
 `34ac4dad` progress indicators is PARKED on a measurement: 0 user-triggered syncs or checkout verifies in the
 sampled logs. Re-check about 2026-10-06.
 
-**5b. `cb1d9ada` Supabase Disk IO - TIME-GATED, due at or after 2026-09-23 01:22Z.** Re-read `select now(), temp_files, temp_bytes from pg_stat_database where datname='postgres'` and subtract the baseline temp_bytes=509376992668 / temp_files=198925 (01:22:36Z). Each of your own pg_stat_statements reads adds ~4-8 MB, so count them. Small delta: the app is not the cause and the 09-17 alert was a tooling burst; close the ask with that. Large and unattributed: set log_temp_files and look at platform jobs.
+**5b. `cb1d9ada` Supabase Disk IO - CAUSE FOUND, due at or after 2026-09-24 01:22Z** (the old line said 09-23; that was the BASELINE time, a typo that made Sam think it was overdue). The spill was scans of an overfull pg_stat_statements (2.1 MB text vs 2.2 MB work_mem) by an untracked scraper every ~30s. Reset at 02:51:44Z stopped it (0 files in 7 min vs ~14). New baseline temp_files=199100 temp_bytes=509954571085. Read the delta AND `select count(*) from extensions.pg_stat_statements`; if the spill returns as entries regrow, schedule the reset in pg_cron. Snapshot is in backup.pgss_snapshot_20260923.
+
+**5c. `384ca151` iOS PUSH - FIXED IN CODE (7fb7fc78), iOS build 1011 dispatched (run 35812435190).** AppDelegate never forwarded the APNs token to Capacitor. After 1011 is installed, verify by SQL: an ios row in device_tokens, and outcome=registered in push_registration_status for user a72f416e. Tre's Wi-Fi-off test is no longer needed.
 
 **6. Then the tracker:** `ask list --owner Ada`. Money-adjacent items go first
 (`585ec24a` debt-aware savings pacing, which Tre DECIDED on 09-18).
