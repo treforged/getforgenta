@@ -58,6 +58,11 @@
    shared_blks_hit/calls > 1,000. ⚠️ NOT the mean: recurring_rules reads mean 59 ms but min 0.8 ms, sd 106, ~52 blocks
    per call - the plan is cheap and the mean is the host stall (item 3). The first version of this trigger used the
    mean and fired on its own writing.
+7d. [x] **`403dd5d8` CLOSED - dashboard leads with what is due.** Debt Recommendations moved from last to directly
+   behind Upcoming This Week (default), and applied to TRE'S saved layout after a snapshot in
+   backup.dashboard_layout_snapshot_20260923 (undo is on the ask). The part-1 suppression was REFUSED (it would hide a
+   due minimum from the one card that says what is due). Web: live on getforgenta.com. Phones: next iOS build.
+   ⚠️ 71cddec3 = read the FIRST REAL APNs SEND after 12:05Z (item 2).
 8. Then `ask list --owner Ada` + standing ask `e1b0fffc`.
 
 ## OLDER resume queue - 2026-09-22 evening (Ada). START AT ITEM 1. Each item is a POINTER.
@@ -11014,7 +11019,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 00:43 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 01:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11025,14 +11030,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+a0b3c198 [handoff]: the daily push run is a dry run - real scoped APNs send scheduled 12:05Z; stall control read early, walks refuted
+d7e539b1 [handoff]: the perf revisit trigger read the stall, not the plan - use min_exec_time and blocks/call
+67878690 [handoff]: advisors read - one security fix shipped, perf lints deliberately deferred with a revisit trigger
+bff911c4 [db]: revoke public EXECUTE on the username-limit trigger function (advisor lint 0028)
+8b0e1676 [handoff]: last long input placeholders measured - one clip fixed, residue closed
+6e1f4ab0 [auth]: recovery-form confirm placeholder no longer clips at 320px (d694a896 follow-up)
 19b6cb30 [handoff]: revolving capture shipped; b18ac1f8 decides when debt_payoff is wired
 6884dda4 [leaderboard]: debt_payoff header names the new series and the query that decides when to wire it
-4360e06c [leaderboard]: start recording the revolving-balance history debt_payoff needs (e1b0fffc)
-c2dbdb23 [handoff]: no walks until the 01:22Z read - it is the control for the stall hypothesis
-598f5d6c [handoff]: the spill is fixed and the stalls are not - item 3 now measures the stalls
-f8f27b16 [handoff]: 1016 uploaded; 981e8ecf waits for next build
-981e8ecf [push]: register once per launch, not on every return to the app (e1b0fffc)
-471e824a [handoff]: pacing + launch cache shipped, iOS 1016 dispatched
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
