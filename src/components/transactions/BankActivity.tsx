@@ -1011,13 +1011,11 @@ export default function BankActivity() {
 
       <p className="text-xs text-muted-foreground leading-relaxed">
         {view === 'needs'
-          ? 'Charges your bank reported that you have not decided on yet, newest first, with the ones the app already recognized at the top. This is not a chore list — most bank rows never need a decision, and the count above is only the ones the app has an answer for.'
-          : 'What your connected accounts actually reported, decided or not.'}
+          ? 'Undecided bank charges, newest first, recognized ones on top. Most never need a decision.'
+          : 'Everything your connected accounts reported.'}
         {' '}
-        Linking a charge to a bill, a payment plan or an entry you already made just labels it and
-        changes no projected number. Choosing a category records the charge in your ledger, and so
-        does "Add to my ledger". Both apply only where nothing you already track covers the charge,
-        and both are undoable from the row.
+        Linking a charge only labels it and changes no projection. A category or "Add to my ledger"
+        records it, only if nothing you track covers it. Every choice can be undone from its row.
       </p>
 
       <div className="card-forged divide-y divide-border overflow-hidden">
