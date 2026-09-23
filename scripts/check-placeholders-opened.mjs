@@ -194,6 +194,27 @@ async function measure(page, stop, mustSee) {
   await measure(p, 'build item-edit new plan (demo)', ['e.g. Exhaust system']);
   await p.context().close(); }
 
+{ const p = await freshPage(false);
+  // THROUGH DEMO MODE, and PURE UI: "Add stop" only appends to the form's local state. The goal is
+  // never saved - this stop never presses "Add Goal" inside the modal, and Escape discards it.
+  await p.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(4000);
+  const clickBtn = async (re, what) => {
+    const b = p.locator('button').filter({ hasText: re }).first();
+    try { await b.waitFor({ timeout: 15000 }); } catch { await done(2, `goal stops: no "${what}" button`); }
+    await b.evaluate((el) => el.click());
+    await p.waitForTimeout(700);
+  };
+  await clickBtn(/^\s*Goals\s*$/, 'Goals');
+  await clickBtn(/^\s*Add Goal\s*$/, 'Add Goal');
+  await clickBtn(/^\s*Add stop\s*$/, 'Add stop');
+  // Was 'Stop 1 name (optional)', clipped 69px at 390 (text 191, room 122). Now 'Name'.
+  await measure(p, 'goal stops (demo)', ['Name']);
+  await p.keyboard.press('Escape');
+  await p.context().close(); }
+
 await browser.close();
 const seen = new Map();
 for (const f of results) { const w = seen.get(f.text); if (!w || f.overflowPx > w.overflowPx) seen.set(f.text, f); }

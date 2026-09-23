@@ -181,7 +181,11 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
                       type="text"
                       value={s.name}
                       maxLength={60}
-                      placeholder={`Stop ${i + 1} name (optional)`}
+                      // Short on purpose: the row also holds the number and three 32px buttons, so
+                      // "Stop 1 name (optional)" was clipped 69px at 390 (check:placeholders:opened).
+                      // The number sits beside it; the full phrase stays for screen readers.
+                      placeholder="Name"
+                      aria-label={`Stop ${i + 1} name (optional)`}
                       onChange={e => patch(s.uid, { name: e.target.value })}
                       className="flex-1 min-w-0 bg-secondary/40 border border-border/50 px-2 py-1.5 text-xs"
                       style={{ borderRadius: 'var(--radius)' }}
