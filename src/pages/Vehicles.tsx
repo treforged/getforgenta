@@ -12,6 +12,7 @@ import Builds from '@/pages/Builds';
 import { garageTabFromSearch, normalizeGarageTab, type GarageTab } from '@/lib/garage-tab';
 import { Car, Wrench, ArrowRight } from 'lucide-react';
 import { fmtDate } from '@/components/vehicles/vehicle-format';
+import { useOptionalCardProjectionContext } from '@/contexts/CardProjectionContext';
 
 /**
  * THE GARAGE — the cars themselves, their builds and their servicing.
@@ -32,6 +33,7 @@ export default function Vehicles() {
   const { data: carFunds, loading } = useCarFunds();
   const { data: accounts } = useAccounts();
   const { isDemo } = useDemo();
+  const fundingAccountId = useOptionalCardProjectionContext()?.cardProjection?.debtFundingAccountId ?? null;
 
   // ⚠️ THE KEY IS STILL `tre:vehicles:activeTab`, and it still holds `'saving'` or `'loan'` for
   // every user who was last on one of the panels that moved. `normalizeGarageTab` lands those on
@@ -154,7 +156,7 @@ export default function Vehicles() {
           {roster.map(cf => {
             const isLoan = cf.phase === 'loan';
             const linkedAccount = cf.linked_account ? accountMap[cf.linked_account] : null;
-            const saved = isLoan ? 0 : getCarFundSaved(cf, null, linkedAccount ? linkedAccount.balance : null);
+            const saved = isLoan ? 0 : getCarFundSaved(cf, fundingAccountId, linkedAccount ? linkedAccount.balance : null);
             return (
               <div key={cf.id} className="card-forged p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">

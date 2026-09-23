@@ -25,6 +25,7 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { BuildsSkeleton, BuildPhasesSkeleton } from '@/components/shared/PageSkeleton';
 import ContentTransition from '@/components/shared/ContentTransition';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useOptionalCardProjectionContext } from '@/contexts/CardProjectionContext';
 
 const SHARE_BASE = 'https://getforgenta.com';
 
@@ -66,6 +67,7 @@ export default function Builds() {
   const { data: paymentPlans, add: addPaymentPlan } = usePaymentPlans();
   const { data: transactions, update: updateTransaction, add: addTransaction } = useTransactions();
   const { data: accounts } = useAccounts();
+  const fundingAccountId = useOptionalCardProjectionContext()?.cardProjection?.debtFundingAccountId ?? null;
 
   // The connected car's plan, resolved once. `resolveBuildCarFund` returns null for anything not
   // in THIS user's funds, so an unconnected build and a build pointing somewhere it should not
@@ -78,8 +80,9 @@ export default function Builds() {
       : null;
     return summarizeBuildCarFund(fund, {
       linkedAccountBalance: linked ? Number(linked.balance) : null,
+      fundingAccountId,
     });
-  }, [activeBuild, carFunds, accounts]);
+  }, [activeBuild, carFunds, accounts, fundingAccountId]);
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];

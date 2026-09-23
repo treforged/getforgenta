@@ -149,6 +149,23 @@ describe('summarizeBuildCarFund — still saving', () => {
     expect(summary.saved).toBe(1400);
   });
 
+  // 2026-09-23: /demo's Garage read the Civic as "$4,231 of $5,590 down" - the WHOLE main-checking
+  // balance - while the forecast earmarked $1,240. A fund linked to the funding account claims its
+  // typed figure; a fund linked to a separate account still claims that account's balance.
+  it('a fund linked to the FUNDING account claims its typed figure, not the whole balance', () => {
+    const fixed = { ...saving, linked_account: 'checking' };
+    const summary = summarizeBuildCarFund(fixed, { linkedAccountBalance: 4231, fundingAccountId: 'checking', asOf: ASOF });
+    if (summary.kind !== 'saving') throw new Error('unreachable');
+    expect(summary.saved).toBe(1400);
+  });
+
+  it('control: a fund linked to a SEPARATE account still claims that balance', () => {
+    const fixed = { ...saving, linked_account: 'car-savings' };
+    const summary = summarizeBuildCarFund(fixed, { linkedAccountBalance: 4231, fundingAccountId: 'checking', asOf: ASOF });
+    if (summary.kind !== 'saving') throw new Error('unreachable');
+    expect(summary.saved).toBe(4231);
+  });
+
   it('caps the bar at 100% and never divides by a zero goal', () => {
     const over = summarizeBuildCarFund({ ...saving, current_saved: 9999 }, { asOf: ASOF });
     const noGoal = summarizeBuildCarFund({ ...saving, down_payment_goal: 0 }, { asOf: ASOF });

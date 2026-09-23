@@ -58,6 +58,8 @@ vi.mock('@/hooks/useSupabaseData', () => ({
 
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));
 vi.mock('@/contexts/CardProjectionContext', () => ({
+  // No provider in this test, so the display surfaces fall back to the unresolved funding id.
+  useOptionalCardProjectionContext: () => null,
   useCardProjectionContext: () => ({
     cardProjection: null, assumptions: {}, pauseSavings: false, setPauseSavings: vi.fn(),
     projections: { data: [], nonCCLiabilityBalancesById: new Map(), carLoanBalancesByFundId: new Map() },

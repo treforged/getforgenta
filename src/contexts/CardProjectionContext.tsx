@@ -350,6 +350,11 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** The context, or null outside a provider - for display surfaces that must still render bare. */
+export function useOptionalCardProjectionContext(): CardProjectionContextValue | null {
+  return useContext(CardProjectionContext);
+}
+
 export function useCardProjectionContext(): CardProjectionContextValue {
   const ctx = useContext(CardProjectionContext);
   if (!ctx) throw new Error('useCardProjectionContext must be used within CardProjectionProvider');

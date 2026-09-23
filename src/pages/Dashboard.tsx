@@ -720,9 +720,10 @@ export default function Dashboard() {
       const linkedAcctBal = c.linked_account && accountMap[c.linked_account]
         ? Number(accountMap[c.linked_account].balance)
         : null;
-      // §2.10: funding id null — this tile has always shown the linked balance whichever account it
-      // is. The helper adds percent mode and leaves 'fixed' funds reading exactly as before.
-      const saved = getCarFundSaved(c, null, linkedAcctBal);
+      // The ENGINE's resolved funding account (2026-09-23). Passing null used to show the WHOLE
+      // linked balance whichever account it is, so a fund linked to the main checking read that
+      // account's entire balance as saved - $4,231 on /demo while the forecast earmarked $1,240.
+      const saved = getCarFundSaved(c, cardProjection?.debtFundingAccountId ?? null, linkedAcctBal);
       const gift = Number(c.gift_contribution) || 0;
       const personalTarget = Math.max(0, Number(c.down_payment_goal) - gift);
       const rem = Math.max(0, personalTarget - saved);
@@ -746,7 +747,7 @@ export default function Dashboard() {
       return { name: carGoal.name, saved: Number(carGoal.current_amount), target: Number(carGoal.target_amount), fullDownPayment: Number(carGoal.target_amount), gift: 0, monthlyNeeded: 0, price: 0, apr: 0, term: 0, isCarFund: false };
     }
     return null;
-  }, [carFunds, goals, accountMap]);
+  }, [carFunds, goals, accountMap, cardProjection?.debtFundingAccountId]);
 
   // ─── Calc drawer openers ──────────────────────────────────────────────────
   //

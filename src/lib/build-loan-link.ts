@@ -75,6 +75,9 @@ export interface BuildCarSummaryOptions {
   /** Live balance of `carFund.linked_account`, for `getCarFundSaved`. Null when unresolved —
    * which falls back to the typed figure rather than inventing a zero. */
   linkedAccountBalance?: number | null;
+  /** The engine's resolved funding account. A fund linked to it claims its typed `current_saved`,
+   * not the account's whole balance. Null keeps the old whole-balance reading. */
+  fundingAccountId?: string | null;
   /** Injectable clock. */
   asOf?: Date;
 }
@@ -93,14 +96,13 @@ function isoDay(d: Date): string {
  */
 export function summarizeBuildCarFund(
   carFund: CarFund,
-  { linkedAccountBalance = null, asOf }: BuildCarSummaryOptions = {},
+  { linkedAccountBalance = null, fundingAccountId = null, asOf }: BuildCarSummaryOptions = {},
 ): BuildCarSummary {
   const vehicleName = carFund.vehicle_name;
 
   if (carFund.phase === 'saving') {
-    // `null` funding account, exactly as the Vehicles page passes: this surface has no cash pool
-    // of its own to double-count against.
-    const saved = getCarFundSaved(carFund, null, linkedAccountBalance);
+    // The funding account the caller resolved (the engine's), exactly as the Vehicles page passes.
+    const saved = getCarFundSaved(carFund, fundingAccountId, linkedAccountBalance);
     const downPaymentGoal = Number(carFund.down_payment_goal) || 0;
     const pct = downPaymentGoal > 0
       ? Math.min(100, Math.max(0, (saved / downPaymentGoal) * 100))

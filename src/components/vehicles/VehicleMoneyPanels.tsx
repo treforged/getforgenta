@@ -18,6 +18,7 @@ import SavingCard from './SavingCard';
 import LoanCard from './LoanCard';
 import BuyItDialog from './BuyItDialog';
 import { addMonthsStr } from './vehicle-format';
+import { useOptionalCardProjectionContext } from '@/contexts/CardProjectionContext';
 
 /**
  * THE VEHICLE MONEY, WHEREVER IT IS SHOWN — the down-payment plans, the active auto loans, and
@@ -57,6 +58,7 @@ const toMonthly = (amount: number, freq: string) =>
 export default function VehicleMoneyPanels() {
   const { data: carFunds, add, update, remove, loading } = useCarFunds();
   const { data: accounts } = useAccounts();
+  const fundingAccountId = useOptionalCardProjectionContext()?.cardProjection?.debtFundingAccountId ?? null;
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
   const { data: profile } = useProfile();
@@ -460,7 +462,8 @@ export default function VehicleMoneyPanels() {
             // §2.10: resolve the saved figure ONCE here and hand downstream a plain 'fixed' fund, so
             // nothing re-derives a percentage from an already-resolved number.
             const resolvedSaved = getCarFundSaved(
-              cf, null, linkedAccount ? Number(linkedAccount.balance) : null,
+              // The engine's funding account: a fund linked to it claims its typed saved figure.
+              cf, fundingAccountId, linkedAccount ? Number(linkedAccount.balance) : null,
             );
             const displayCf: CarFund = resolvedSaved === Number(cf.current_saved) && cf.saved_source === 'fixed'
               ? cf
