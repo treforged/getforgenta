@@ -166,6 +166,16 @@ export function runDemoForecast(opts: DemoForecastOptions): ForecastResult {
 }
 
 /**
+ * A persona that replaces the fixture's profile and rules for ONE caller. It exists for tests whose
+ * subject is the ENGINE (`payment-pin-semantics.test.ts`), so a re-tune of the marketing persona
+ * cannot rewrite what they assert. Callers about the demo itself pass nothing.
+ */
+export interface DemoPersonaOverride {
+  profile: typeof demoProfile;
+  rules: readonly unknown[];
+}
+
+/**
  * THE APP'S OWN CARD SIMULATION, RUN ON THE DEMO FIXTURE.
  *
  * `useCardProjection` is a hook, so this needs a renderer: any caller must declare
@@ -174,23 +184,25 @@ export function runDemoForecast(opts: DemoForecastOptions): ForecastResult {
  * excluded and card PAYMENTS missing is not a cautious estimate, it is a fixture that
  * looks several hundred dollars a month richer than the person it describes.
  */
-export function runDemoCardProjection(now: Date) {
+export function runDemoCardProjection(now: Date, persona?: DemoPersonaOverride) {
+  const profile = persona?.profile ?? demoProfile;
+  const personaRules = (persona?.rules ?? demoRecurringRules) as unknown as RuleRow[];
   const payConfig = {
-    weeklyGross: demoProfile.weekly_gross_income,
-    taxRate: demoProfile.tax_rate,
-    paycheckDay: demoProfile.paycheck_day,
-    frequency: demoProfile.paycheck_frequency as 'weekly',
+    weeklyGross: profile.weekly_gross_income,
+    taxRate: profile.tax_rate,
+    paycheckDay: profile.paycheck_day,
+    frequency: profile.paycheck_frequency as 'weekly',
   };
-  const scheduledEvents = generateScheduledEvents(rules(), accounts(), PROJECTION_MONTHS, now);
+  const scheduledEvents = generateScheduledEvents(personaRules, accounts(), PROJECTION_MONTHS, now);
   return renderHook(() => useCardProjection({
     accounts: accounts(),
     transactions: [],
-    rules: rules(),
+    rules: personaRules,
     debts: [],
     goals: [],
     carFunds: [],
-    profile: { ...demoProfile, paycheck_deductions: [] as never },
-    debtPayoffOptions: { cashFloor: demoProfile.cash_floor },
+    profile: { ...profile, paycheck_deductions: [] as never },
+    debtPayoffOptions: { cashFloor: profile.cash_floor },
     payConfig,
     scheduledEvents,
     pauseSavings: false,

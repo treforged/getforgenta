@@ -176,7 +176,6 @@ export const demoTransactions: DemoTransaction[] = [
   { date: d( 9, -1), type: 'expense', amount: 218.44, category: 'Car',           account: 'Credit Card', note: 'Summit Racing — exhaust parts', payment_source: 'account:d7' },
 
   // Planned, not yet spent — the Forecast draws the outflow in the month it lands.
-  { date: d(15, 4), type: 'expense', amount: 5000.00, category: 'Car', account: 'Checking', note: 'Car down payment (planned)', payment_source: 'account:d1' },
 ];
 
 // ── Demo Debts ─────────────────────────────────────────────
@@ -199,8 +198,8 @@ export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_
 // ── Demo Savings Goals ─────────────────────────────────────
 // Emergency Fund linked to Ridgeway Savings (d3) so balance auto-pulls from the account.
 export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at'> & { linked_account?: string; goal_type?: string })[] = [
-  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 300, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [], sort_order: 0, auto_extra: false },
-  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 150, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [], sort_order: 1, auto_extra: false },
+  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 60, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [], sort_order: 0, auto_extra: false },
+  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 45, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [], sort_order: 1, auto_extra: false },
 ];
 
 // ── Demo Car Funds ─────────────────────────────────────────
@@ -228,7 +227,9 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     linked_rule_id: null,
     loan_payment_account: null,
     linked_loan_account_id: null,
-    planned_purchase_date: d(1, 8),
+    // 2026-09-23: four years out, after the cards. At eight months the saving reserve for it held
+    // back every spare dollar, so the demo's cards never cleared. See `demoProfile`.
+    planned_purchase_date: d(1, 48),
     phase: 'saving',
     loan_amount: 0,
     loan_start_date: null,
@@ -247,7 +248,9 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     current_saved: 6800,
     saved_source: 'fixed',
     saved_percent: 0, sort_order: 0, auto_extra: false,
-    monthly_insurance: 210,
+    // 0 on purpose: the RAV4's insurance IS the semiannual premium in r4/r4b. A monthly figure here
+    // charged the same policy a second time.
+    monthly_insurance: 0,
     expected_apr: 6.4,
     loan_term_months: 60,
     linked_account: null,
@@ -471,7 +474,7 @@ function demoFeed(): DemoSyncedTransaction[] {
     // r1 Weekly Paycheck — inflow, so NEGATIVE. Deposited to Northvale Checking.
     // r11 Gas and r10 Groceries — the two weekly expense rules.
     for (const day of DEMO_WEEKLY_DAYS) {
-      rows.push(demoCharge('payroll', M, day, 'd1', -755.04, 'RIDGELINE FAB PAYROLL DIR DEP', 'Ridgeline Fabrication', 'Income'));
+      rows.push(demoCharge('payroll', M, day, 'd1', -921.96, 'RIDGELINE FAB PAYROLL DIR DEP', 'Ridgeline Fabrication', 'Income'));
       rows.push(demoCharge('gas', M, day, 'd1', 47.00, 'CROSSTOWN FUEL 0421', 'Crosstown Fuel', 'Gas'));
       rows.push(demoCharge('groceries', M, day + 3, 'd7', 118.00, 'MARKETWAY FOODS #1184', 'Marketway Foods', 'Groceries'));
     }
@@ -595,22 +598,39 @@ export const demoAccounts = [
 // plausibility; every filmed figure is whatever the engine computes from it. If a line
 // stops computing, the line is dropped — the fixture is not re-tuned until it comes
 // back. See `tre-forged-marketing/docs/DEMO-FIXTURE-SPEC.md` §3.
+//
+// ONE DELIBERATE RE-TUNE, 2026-09-23 (ask 43591a28, Sam approved). The persona could not
+// clear its cards. /demo opened on "YOUR CARD PAYOFF DATE: Not within 5 years" on every
+// date measured, because its budget did not close: about $3,269 a month in, while rent,
+// bills, the RAV4 loan, card spending, the student loan, dental financing and two savings
+// goals took more. A prospect's first screen showed a person the app cannot help. Four
+// of the causes were double counts, so they are removed rather than re-sized:
+//   - the RAV4's $210/mo insurance repeated the semiannual premium (r4/r4b);
+//   - rule dr-cc2 charged r13's $57 subscription a second time;
+//   - a $5,000 "car down payment" one-off repeated the Civic fund's own down payment;
+//   - the Emergency Fund goal said $300/mo while its transfer rule (r6) moves $60.
+// The two changes to the shape: weekly gross 968 -> 1,182 (about $61.5k a year, still a
+// single earner with a thin surplus), and the Civic purchase moved from 8 to 48 months
+// out, after the cards. At 8 months its saving reserve held back every spare dollar, and
+// payoff flipped between "clears" and "never" from one date to the next. Vacation goal
+// $150 -> $45/mo. `demo-persona-clears.engine.test.ts` asserts the result on the app's
+// own inputs, across a year of dates.
 export const demoProfile = {
   currency: 'USD',
-  weekly_gross_income: 968,
+  weekly_gross_income: 1182,
   paycheck_frequency: 'weekly',
   paycheck_day: 5,
   tax_rate: 22,
-  // 968 × 4.33 = 4,191.44 gross/mo; × 0.78 = 3,269.32 net.
-  gross_income: 4191.44,
-  monthly_income_default: 3269.32,
+  // 1,182 × 4.33 = 5,118.06 gross/mo; × 0.78 = 3,992.09 net.
+  gross_income: 5118.06,
+  monthly_income_default: 3992.09,
   cash_floor: 1500,
 };
 
 // ─── Recurring Rules ─────────────────────────────────────
 // A full budget in every rule type (income, expense, transfer, investment), sized to
-// `demoProfile` above rather than to the app default. Weekly net is 968 × 0.78 =
-// $755.04 per Friday deposit.
+// `demoProfile` above rather than to the app default. Weekly net is 1,182 × 0.78 =
+// $921.96 per Friday deposit.
 //
 // THE SEMIANNUAL INSURANCE PREMIUM IS THE POINT OF THE MARCH AND SEPTEMBER ROWS.
 // Paying auto insurance twice a year instead of monthly is both common and cheaper, and
@@ -618,8 +638,8 @@ export const demoProfile = {
 // one that is a thousand dollars short. Two `yearly` rules six months apart, not a
 // monthly twelfth, because the twelfth is the smoothing that loses the information.
 export const demoRecurringRules = [
-  // Income — $968/week gross @ 22% tax = $755.04 net per paycheck
-  { id: 'r1', user_id: 'demo', name: 'Weekly Paycheck', amount: 755.04, rule_type: 'income', frequency: 'weekly', due_day: 5, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Friday deposits', created_at: '', updated_at: '' },
+  // Income — $1,182/week gross @ 22% tax = $921.96 net per paycheck
+  { id: 'r1', user_id: 'demo', name: 'Weekly Paycheck', amount: 921.96, rule_type: 'income', frequency: 'weekly', due_day: 5, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Friday deposits', created_at: '', updated_at: '' },
   // Fixed expenses
   { id: 'r2', user_id: 'demo', name: 'Rent', amount: 1385, rule_type: 'expense', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
   { id: 'r3', user_id: 'demo', name: 'Utilities', amount: 178, rule_type: 'expense', frequency: 'monthly', due_day: 15, due_month: null, start_date: '2026-01-15', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
@@ -640,6 +660,6 @@ export const demoRecurringRules = [
   // contribution, because nobody funding one is also revolving $6,482 at 24.74%.
   { id: 'r6', user_id: 'demo', name: 'Emergency Fund', amount: 60, rule_type: 'transfer', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Savings', payment_source: 'd1', deposit_account: 'd3', active: true, notes: 'HYS contribution', created_at: '', updated_at: '' },
   { id: 'r7', user_id: 'demo', name: '401k Contribution', amount: 110, rule_type: 'investment', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd4', active: true, notes: 'Pre-tax', created_at: '', updated_at: '' },
-    // Explicit CC purchase rules — ensures monthlyNewPurchases is realistic for each card
-  { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 57, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on the Summit card', created_at: '', updated_at: '' },
+  // 'dr-cc2' (Subscriptions, $57 on the 4th) was removed 2026-09-23: it charged r13's streaming +
+  // gym bill a second time, on the other card.
 ];

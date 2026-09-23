@@ -33,8 +33,25 @@
 //     before the fixture could only show a cut;
 //   * the NO-NEW-MONEY test now also fails if the pin does NOTHING, which the old `<=` could not
 //     detect: a control that had stopped working satisfied it perfectly.
+//
+// ⚠️ FROZEN TO THE PRE-2026-09-23 PERSONA, AND THIS IS WHY. The demo persona was re-tuned that day
+// (ask 43591a28) so /demo's cards clear: weekly gross 968 -> 1,182, and a duplicate $57 rule
+// (dr-cc2) removed. On that richer persona the plan clears the cards in 4 months, so a $400 pin is
+// a deep CUT and delays payoff to month 14 - true, and not what this file is about. These
+// assertions are about the ENGINE's pin semantics, not about the marketing persona, so they run on
+// a frozen copy of the persona they were measured on. Every number below is unchanged.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { runDemoCardProjection } from './fixtures/demo-forecast-harness';
+import { runDemoCardProjection, type DemoPersonaOverride } from './fixtures/demo-forecast-harness';
+import { demoProfile, demoRecurringRules } from '../demo-data';
+
+/** The 2026-09-17 baseline persona: the fields the 09-23 re-tune changed, restored verbatim. */
+const PIN_BASELINE_PERSONA: DemoPersonaOverride = {
+  profile: { ...demoProfile, weekly_gross_income: 968, gross_income: 4191.44, monthly_income_default: 3269.32 },
+  rules: [
+    ...demoRecurringRules.map(r => (r.id === 'r1' ? { ...r, amount: 755.04 } : r)),
+    { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 57, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on the Summit card', created_at: '', updated_at: '' },
+  ],
+};
 
 /** Pinned so a filmed/asserted figure does not move with the wall clock. */
 const NOW = new Date('2026-09-03T12:00:00');
@@ -65,7 +82,7 @@ describe('payment pin semantics — the demo fixture', () => {
   beforeAll(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
-    base = runDemoCardProjection(NOW) as unknown as PinnableProjection;
+    base = runDemoCardProjection(NOW, PIN_BASELINE_PERSONA) as unknown as PinnableProjection;
   });
   afterAll(() => vi.useRealTimers());
 
