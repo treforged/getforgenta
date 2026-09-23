@@ -284,7 +284,9 @@ export function estimateGoalCompletionMonths(
     && !s.extraByMonth.some(v => v > 0)) return null;
 
   for (let i = 1; i < maxMonths; i++) {
-    if (stepMonth(s, i) >= target) return i;
+    // Half a cent of tolerance: a paced schedule sums to the target to the cent, and float
+    // addition can land a hair under it (585ec24a).
+    if (stepMonth(s, i) >= target - 0.005) return i;
   }
   return null;
 }

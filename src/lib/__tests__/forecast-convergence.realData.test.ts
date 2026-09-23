@@ -189,12 +189,15 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     expect(ccFree!.month, 'payoff month regressed').toBe('Sep 2028');
     expect(floorBreaches.map(m => m.month), 'CONVERGENCE cash-floor breaches (the ⚠️ kind)').toEqual([]);
-    // POSITIVE CONTROL ON THE LINE ABOVE. Every assertion here is that a list is EMPTY, and a
-    // milestone filter that matches nothing satisfies all of them. This is the one milestone this
-    // fixture is known to produce, so it proves the filters can find a floor milestone at all.
+    // ⚠️ THE POSITIVE CONTROL THAT USED TO LIVE HERE MOVED, 2026-09-23 (585ec24a). The Sep 2026
+    // one-time dip was the one floor milestone this fixture produced, and it proved these filters
+    // match. Debt-aware pacing keeps ~$400 more in checking that month, so the dip is GONE on the
+    // production path - which is correct, and which would leave the empty assertions here with no
+    // control. `paced-goal-contribution.realData.test.ts` runs the same fixture with pacing OFF and
+    // asserts ['Sep 2026'] there; that flat arm is now this file's control. Do not delete one
+    // without the other.
     expect(oneTimeBreaches.map(m => m.month),
-      'the known one-time-expense breach on this fixture - if this is empty, the milestone '
-      + 'filters have stopped matching and the empty assertion above proves nothing')
-      .toEqual(['Sep 2026']);
+      'pacing removes the Sep 2026 one-time dip; the flat-arm control is in paced-goal-contribution.realData')
+      .toEqual([]);
   });
 });

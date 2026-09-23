@@ -48,16 +48,22 @@ export function findContributionShortfalls(
   rows: readonly ShortfallRow[] | null | undefined,
   goalId: string | null | undefined,
   planned: number,
+  /** 585ec24a: a PACED goal's own schedule (index = row index). When given, each month is compared
+   *  to ITS scheduled amount, not the flat `planned` - otherwise every deliberately small early
+   *  month would be reported as a floor trim, which is the wrong reason. */
+  plannedByIndex?: readonly number[],
 ): ContributionShortfall[] {
-  if (!rows || !goalId || !(planned > 0)) return [];
+  if (!rows || !goalId || !(plannedByIndex || planned > 0)) return [];
   const out: ContributionShortfall[] = [];
-  for (const row of rows) {
+  for (const [i, row] of rows.entries()) {
+    const plannedHere = plannedByIndex ? (plannedByIndex[i] ?? 0) : planned;
+    if (!(plannedHere > 0)) continue;
     const item = row.savingsGoalItems?.find(g => g.goalId === goalId);
     // Absent is NOT zero here - see the header. Only a present-and-smaller amount counts.
     if (!item) continue;
     const actual = Number(item.amount);
     if (!Number.isFinite(actual)) continue;
-    if (actual < planned - 0.005) out.push({ month: row.month, planned, actual });
+    if (actual < plannedHere - 0.005) out.push({ month: row.month, planned: plannedHere, actual });
   }
   return out;
 }
@@ -76,4 +82,39 @@ export function describeShortfall(shortfalls: readonly ContributionShortfall[]):
     ? `Forecast trims this to ${money(worst.actual)} in ${worst.month} to hold your cash floor.`
     : `Forecast trims this in ${shortfalls.length} months, as low as ${money(worst.actual)} `
       + `in ${worst.month}, to hold your cash floor.`;
+}
+
+/**
+ * 585ec24a — the paced goal's plan, as one sentence for its card.
+ *
+ * Tre, 2026-09-18: "keep the date but we need to transfer less initially ... the goals is to save
+ * on interest when there is credit card debt." His constraint 3 was that it MUST BE VISIBLE: a
+ * schedule the card does not show is the "$510 on screen, $279 in the engine" defect made worse.
+ * So it states THIS month's transfer (the amount to set a bank auto-transfer to), WHY it is low,
+ * the LARGEST month ahead (constraint 4 - back-loading moves the risk later, so the worst month is
+ * shown before he relies on it), and when the goal is fully saved.
+ *
+ * Month labels are the engine's own row labels, never re-derived. Null when there is no schedule.
+ */
+export function describePacedContribution(
+  rows: readonly ShortfallRow[] | null | undefined,
+  goalId: string | null | undefined,
+  schedule: readonly number[] | null | undefined,
+): string | null {
+  if (!rows || rows.length === 0 || !goalId || !schedule) return null;
+  let last = -1;
+  let peak = -1;
+  for (let i = 0; i < Math.min(schedule.length, rows.length); i++) {
+    if (!(schedule[i] > 0.005)) continue;
+    last = i;
+    if (peak < 0 || schedule[i] > schedule[peak]) peak = i;
+  }
+  if (last < 0) return null;
+  const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const thisMonth = Number(rows[0].savingsGoalItems?.find(g => g.goalId === goalId)?.amount ?? 0);
+  const why = 'It stays low while you carry card debt, so more goes to the card and you pay less interest';
+  const rise = peak === last
+    ? `It rises to ${money(schedule[peak])} in ${rows[peak].month}, when the goal is fully saved.`
+    : `Largest month: ${money(schedule[peak])} in ${rows[peak].month}. Fully saved by ${rows[last].month}.`;
+  return `Transfer ${money(thisMonth)} this month. ${why}. ${rise}`;
 }

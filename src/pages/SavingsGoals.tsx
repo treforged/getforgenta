@@ -16,14 +16,14 @@ import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check, TrendingDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check, TrendingDown, TrendingUp } from 'lucide-react';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
-import { findContributionShortfalls, describeShortfall } from '@/lib/goal-contribution-shortfall';
+import { findContributionShortfalls, describeShortfall, describePacedContribution } from '@/lib/goal-contribution-shortfall';
 import { goalStages, goalWithdrawals, goalSavedIncludingSpent } from '@/lib/ranked-extra-payment-targets';
 import { IRA_ANNUAL_LIMIT } from '@/lib/retirement-contribution-cap';
 import GoalStopsEditor, { newStopDraft, stopDraftsFrom, stopsToStages, type StopDraft } from '@/components/savings/GoalStopsEditor';
@@ -335,11 +335,19 @@ const toGrowthGoal = (
   index: number,
   extraByGoal?: Map<string, number[]>,
   essentialMonthlyExpenses = 0,
-): GrowthGoalInput => ({
+  /** 585ec24a: the engine's paced schedules. A paced goal draws its schedule, not the flat amount. */
+  pacedSchedules?: Record<string, number[]>,
+): GrowthGoalInput => {
+  const paced = g.id ? pacedSchedules?.[g.id] : undefined;
+  const extra = g.id && extraByGoal ? autoExtraSeriesForGoal(extraByGoal, g.id) : undefined;
+  return {
   id: g.id ?? String(index),
   name: g.name ?? '',
   currentAmount: Number(g.current_amount),
-  monthlyContribution: Number(g.monthly_contribution),
+  // A PACED goal's own contribution varies by month, so it rides in `extraByMonth` beside the ranked
+  // extra and the flat field is zero - otherwise the line would climb at $510 while the card and the
+  // forecast say $102.
+  monthlyContribution: paced ? 0 : Number(g.monthly_contribution),
   annualApyPercent: Number(g.effective_apy || 0),
   contributionStartDate: g.contribution_start_date ?? null,
   lumpSums: Array.isArray(g.lump_sum_payments)
@@ -351,18 +359,25 @@ const toGrowthGoal = (
   // ⚠️ Not `extraByGoal.get(g.id)`: a STAGED goal is several targets (`${goalId}::stopN`), so a bare
   // lookup draws the line without the money its later stops receive. `autoExtraSeriesForGoal` sums
   // every stop and returns undefined when nothing is diverted, which is the untouched case.
-  extraByMonth: g.id && extraByGoal ? autoExtraSeriesForGoal(extraByGoal, g.id) : undefined,
+  // ⚠️ The chart's month 0 is TODAY'S opening balance and it never steps month 0, so this
+  // month's scheduled transfer is folded into month 1 - dropping it left the line $55 short of the
+  // target for ever and read "Beyond 50 yrs" on a goal the forecast funds by its date.
+  extraByMonth: paced
+    ? paced.map((v, i) => (i === 0 ? 0 : v + (i === 1 ? paced[0] : 0)) + (extra?.[i] ?? 0))
+    : extra,
   // The money this goal exists to SPEND. Empty for every goal until a stop is marked, so the line
   // is unchanged for anyone who has not used the feature.
   withdrawals: goalWithdrawals(g, essentialMonthlyExpenses),
-});
+  };
+};
 
-function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses }: {
+function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses, pacedSchedules }: {
   goals: EnrichedGoal[]; extraByGoal: Map<string, number[]>; essentialMonthlyExpenses: number;
+  pacedSchedules?: Record<string, number[]>;
 }) {
   const { rows: chartData, series } = useMemo(
-    () => buildSavingsGrowthData(goals.map((g, i) => toGrowthGoal(g, i, extraByGoal, essentialMonthlyExpenses))),
-    [goals, extraByGoal, essentialMonthlyExpenses],
+    () => buildSavingsGrowthData(goals.map((g, i) => toGrowthGoal(g, i, extraByGoal, essentialMonthlyExpenses, pacedSchedules))),
+    [goals, extraByGoal, essentialMonthlyExpenses, pacedSchedules],
   );
   const isMobile = useIsViewportBelow(640);
   // 60 monthly points is far too many labels and dots to draw: thin the axis to
@@ -591,11 +606,27 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       const id = g.id as string | undefined;
       if (!id) continue;
       const planned = ownMonthlyByTarget[id]?.monthly ?? 0;
-      const sentence = describeShortfall(findContributionShortfalls(projections.data ?? [], id, planned));
+      // A PACED goal is compared to its own schedule, so only a real floor trim is reported.
+      const schedule = projections.pacedGoalSchedules?.[id];
+      const sentence = describeShortfall(findContributionShortfalls(projections.data ?? [], id, planned, schedule));
       if (sentence) map[id] = sentence;
     }
     return map;
   }, [allGoals, ownMonthlyByTarget, projections]);
+
+  /**
+   * 585ec24a — the paced goal's plan in words: this month's transfer, why it is low, the largest
+   * month ahead, and when it is fully saved. Read off the ENGINE's own schedule and rows, so the
+   * card cannot show a number the forecast did not use (Tre's constraint 3: it must be visible).
+   */
+  const pacedNoteByGoal = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [id, schedule] of Object.entries(projections.pacedGoalSchedules ?? {})) {
+      const sentence = describePacedContribution(projections.data ?? [], id, schedule);
+      if (sentence) map[id] = sentence;
+    }
+    return map;
+  }, [projections]);
 
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
@@ -784,7 +815,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   // date, and planned lump sums all count toward the date.
   function estimateCompletion(g: EnrichedGoal): string {
     if (Number(g.current_amount) >= Number(g.target_amount)) return 'Complete';
-    const months = estimateGoalCompletionMonths(toGrowthGoal(g, 0, autoExtraByGoal), Number(g.target_amount));
+    const months = estimateGoalCompletionMonths(toGrowthGoal(g, 0, autoExtraByGoal, 0, projections.pacedGoalSchedules), Number(g.target_amount));
     if (months === null) {
       return Number(g.monthly_contribution) > 0 ? 'Beyond 50 yrs' : 'Set contribution';
     }
@@ -880,7 +911,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         </Link>
       )}
 
-      <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} essentialMonthlyExpenses={essentialMonthlyExpenses} />
+      <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} essentialMonthlyExpenses={essentialMonthlyExpenses} pacedSchedules={projections.pacedGoalSchedules} />
 
       <SurplusRankingSection
         cardsSubtitle={cardsRankSubtitle}
@@ -915,6 +946,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           const isRothIra = ['roth_ira', 'ira', '401k', 'hsa'].includes(linkedAccountType) || (g.goal_type || '').toLowerCase() === 'retirement';
           const goalLumps: GoalLumpSum[] = Array.isArray(g.lump_sum_payments) ? (g.lump_sum_payments as unknown as GoalLumpSum[]) : [];
           const shortfallNote = g.id ? shortfallByGoal[g.id as string] : undefined;
+          const pacedNote = g.id ? pacedNoteByGoal[g.id as string] : undefined;
 
           return (
             <div key={g.id} className="card-forged p-4 space-y-3 hover:border-primary/20 transition-colors">
@@ -936,6 +968,12 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   <span>{shortfallNote}</span>
                 </p>
               )}
+              {pacedNote && !g.is_complete && (
+                <p className="text-[11px] text-primary flex items-start gap-1.5" data-testid="goal-paced-note">
+                  <TrendingUp size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>{pacedNote}</span>
+                </p>
+              )}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -952,6 +990,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                       ? <span className="text-success">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
                       : g.linked_rules && g.linked_rules.length > 0
                       ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
+                      : pacedNote
+                      ? 'Paced contribution · changes each month'
                       : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
                     }
                     {isLinked && ' · Auto-synced from account'}

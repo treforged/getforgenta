@@ -18,8 +18,12 @@
  *
  *     need × 1 / (n(n+1)/2)  =  2 × need / (n × (n+1))
  *
- * Recomputed each month against the need that is actually left, that reproduces the whole ramp
- * without anyone having to store a schedule — the same shape as the level pace it replaces, which
+ * ⚠️ CORRECTED 2026-09-23: recomputed each month against the need that is left, this does NOT
+ * reproduce a linear ramp - each month takes weight 1 of a SHRINKING series, so the last month takes
+ * about 40% of the need (5,624 over 10 months: 102, 123, 150 ... 1,125, 2,249; linear would end at
+ * 1,022). The shape is kept on purpose; see paced-goal-contribution.ts.
+ *
+ * Recomputed each month against the need that is actually left, it needs no stored schedule — the same shape as the level pace it replaces, which
  * is what keeps it honest under a mid-course change to the target or the date.
  *
  * ⚠️ IT ALWAYS FINISHES ON TIME, AND THAT IS THE PROPERTY TO TEST, NOT THE SHAPE. At n = 1 the

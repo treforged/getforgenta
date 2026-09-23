@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   findContributionShortfalls,
   describeShortfall,
+  describePacedContribution,
   type ShortfallRow,
 } from '../goal-contribution-shortfall';
 
@@ -82,5 +83,45 @@ describe('describeShortfall', () => {
     ];
     expect(describeShortfall(many)).toBe(
       'Forecast trims this in 3 months, as low as $279 in Nov 2026, to hold your cash floor.');
+  });
+});
+
+// ── 585ec24a: a PACED goal ────────────────────────────────────────────────────
+describe('paced goal (585ec24a)', () => {
+  const schedule = [102.25, 122.7, 2249.42, 0];
+  const pacedRows = [
+    { month: 'Aug 2026', savingsGoalItems: [{ goalId: 'g', amount: 102.25 }] },
+    { month: 'Sep 2026', savingsGoalItems: [{ goalId: 'g', amount: 122.7 }] },
+    { month: 'May 2027', savingsGoalItems: [{ goalId: 'g', amount: 2249.42 }] },
+    { month: 'Jun 2027', savingsGoalItems: [] },
+  ];
+
+  it('compares each month to its own scheduled amount, so a deliberately small month is not a "trim"', () => {
+    expect(findContributionShortfalls(pacedRows, 'g', 510, schedule)).toEqual([]);
+    // Against the flat 510 the same rows WOULD read as trims - the wrong reason this guards against.
+    expect(findContributionShortfalls(pacedRows, 'g', 510).map(s => s.month)).toEqual(['Aug 2026', 'Sep 2026']);
+  });
+
+  it('still reports a real floor trim below the schedule', () => {
+    const trimmed = pacedRows.map((r, i) => (i === 1 ? { ...r, savingsGoalItems: [{ goalId: 'g', amount: 60 }] } : r));
+    expect(findContributionShortfalls(trimmed, 'g', 510, schedule)).toEqual([{ month: 'Sep 2026', planned: 122.7, actual: 60 }]);
+  });
+
+  it('says this month’s transfer, why it is low, and the largest month / when it is fully saved', () => {
+    expect(describePacedContribution(pacedRows, 'g', schedule)).toBe(
+      'Transfer $102 this month. It stays low while you carry card debt, so more goes to the card and '
+      + 'you pay less interest. It rises to $2,249 in May 2027, when the goal is fully saved.',
+    );
+  });
+
+  it('names the largest month separately when it is not the last', () => {
+    expect(describePacedContribution(pacedRows, 'g', [102.25, 2249.42, 50, 0])).toContain(
+      'Largest month: $2,249 in Sep 2026. Fully saved by May 2027.',
+    );
+  });
+
+  it('says nothing without a schedule', () => {
+    expect(describePacedContribution(pacedRows, 'g', undefined)).toBeNull();
+    expect(describePacedContribution(pacedRows, 'g', [0, 0])).toBeNull();
   });
 });

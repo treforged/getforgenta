@@ -68,6 +68,13 @@ export type BuildRankedTargetsParams = {
   /** `profiles.cards_surplus_share` — the block's weight when it SHARES its rank with something. */
   cardsShare?: number | null;
   /**
+   * goalId -> dollars a PACED goal's own schedule will still deposit after this month
+   * (`scheduledAfter`, paced-goal-contribution.ts). Stop 1's reserve is paced against its need
+   * MINUS this, so the reserve does not refill what the schedule deliberately deferred. Absent =>
+   * no goal is paced, which is byte-identical to before the field existed.
+   */
+  committedByGoal?: Readonly<Record<string, number>>;
+  /**
    * Whether LOAN targets (extra principal on a vehicle loan) may draw a reserve.
    *
    * Defaults to FALSE, and the default is about the CALLER, not about the feature. A reserve is
@@ -725,7 +732,7 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
     cardsSortOrder = 0, fundingAccountId = null, accountBalances = {},
     cardRanks = {}, cardsShare = null, includeLoanTargets = false,
     liabilities = [], includeLiabilityTargets = false,
-    essentialMonthlyExpenses = 0, accountTypes,
+    essentialMonthlyExpenses = 0, accountTypes, committedByGoal = {},
   } = p;
 
   // Built from the SAME `cards` the block is built from, so the gate that holds a staged goal at
@@ -875,7 +882,10 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
           ...(stop.share == null ? {} : { share: stop.share }),
           // Month 0's half of the pacing the forecast engine applies to months 1+.
           ...goalMonthlyCeiling({
-            goal: g, stop, remainingNeed: capacity, asOf, accountTypes,
+            goal: g, stop, asOf, accountTypes,
+            remainingNeed: stop.index === 1
+              ? Math.max(0, capacity - (committedByGoal[g.id] ?? 0))
+              : capacity,
           }),
         };
       });

@@ -29,6 +29,7 @@ import { annualFeeAmount, annualFeeMonthIndexes } from '@/lib/annual-fee';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { buildPacedContributionSchedules, goalContributionForMonth, scheduledAfter, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
 import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
@@ -173,6 +174,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // numbers agree, not that a JS object is shared across files).
       const goalTransferCutoffs = buildGoalTransferCutoffs(goals, rules, accounts, now);
       const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
+      // 585ec24a: a dated goal whose first stop SHARES its rank with the cards draws a back-loaded
+      // schedule instead of its flat monthly_contribution. Built from the SAME `now` the engine
+      // uses, so month i here is month i there.
+      const pacedGoalSchedules = buildPacedContributionSchedules(goals, now, PROJECTION_MONTHS, accountOutflowsFrom(transactions), hasCardDebt(accounts));
 
       // ── Plan-derived installment fields (upfront plans override manual Accounts tab fields) ──
       // Shared derivation (deriveUpfrontPlanFields) — the SAME function CreditCardEngine.tsx's
@@ -791,9 +796,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
           if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
           if (g.linked_account && simActiveTransferDests.has(g.linked_account)) return s;
+          const paced = g.id != null && pacedGoalSchedules.has(g.id);
           const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
-          if (ownCutoff != null && idx >= ownCutoff) return s;
-          return s + Number(g.monthly_contribution);
+          if (!paced && ownCutoff != null && idx >= ownCutoff) return s;
+          return s + goalContributionForMonth(g, idx, pacedGoalSchedules);
         }, 0);
         const carLoanThisMonth = getTotalCarLoanMonthly(carFunds ?? [], d);
         const monthCarSaving = (carFunds ?? []).reduce((s, c) => {
@@ -1021,7 +1027,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > m0MonthStart) return s;
         if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
         if (g.linked_account && m0ActiveTransferDests.has(g.linked_account)) return s;
-        return s + Number(g.monthly_contribution);
+        return s + goalContributionForMonth(g, 0, pacedGoalSchedules);
       }, 0);
       const m0CarSaving = pauseSavings ? 0 : (carFunds ?? []).reduce((s, c) => {
         if (c.phase !== 'saving') return s;
@@ -1515,13 +1521,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (startDate && new Date(startDate + 'T00:00:00') > now) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+        const paced = g.id != null && pacedGoalSchedules.has(g.id);
         const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
-        if (ownCutoff != null && ownCutoff <= 0) return s;
+        if (!paced && ownCutoff != null && ownCutoff <= 0) return s;
         const ruleMonthly = (amt: number, freq: string) =>
           freq === 'weekly' ? amt * 52 / 12 : freq === 'biweekly' ? amt * 26 / 12 : amt;
         const monthly = linkedRules.length > 0
           ? linkedRules.reduce((t, r) => t + ruleMonthly(Number(r.amount), r.frequency), 0)
-          : Number(g.monthly_contribution);
+          : goalContributionForMonth(g, 0, pacedGoalSchedules);
         return s + monthly;
       }, 0);
       // Mirrors Forecast.tsx's vehicleProjections.contrib formula exactly (purchaseMonthIdx-based
@@ -2219,6 +2226,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           includeLiabilityTargets: true,
           cardRanks,
           cardsShare: profile?.cards_surplus_share ?? null,
+          committedByGoal: Object.fromEntries(
+            Array.from(pacedGoalSchedules.keys(), id => [id, scheduledAfter(pacedGoalSchedules, id, 0)]),
+          ),
         }),
         cardsSortOrder,
       );

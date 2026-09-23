@@ -25,6 +25,7 @@ import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { buildPacedContributionSchedules, goalContributionForMonth, scheduledAfter, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
 import { carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId } from '@/lib/ranked-extra-payment-targets';
@@ -259,6 +260,10 @@ export interface ForecastResult {
    * only; a saving-phase projected loan has no id-keyed array and is not carried here.
    * Same `LIABILITY_MONTHS` length and same reason as `nonCCLiabilityBalancesById` above. */
   carLoanBalancesByFundId: Map<string, number[]>;
+  /** 585ec24a: goalId -> the back-loaded monthly schedule the engine drew for a PACED goal (index i
+   * = forecast month i). Absent id = the goal draws its flat monthly_contribution. The Savings Goals
+   * card reads this so the amount it shows is the amount the forecast used. */
+  pacedGoalSchedules?: Record<string, number[]>;
 }
 
 export function calculateForecast(inputs: ForecastInputs): ForecastResult {
@@ -531,8 +536,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           alreadyContributed: contributedByYear.get(goalId)?.get(monthDate.getFullYear()) ?? 0,
           month: monthDate.getMonth(),
         });
+      // 585ec24a: a paced goal's stop 1 is already covered by its scheduled deposits; the reserve
+      // paces only what those leave uncovered.
+      const committed = rowId === stopRowId(goalId, 1)
+        ? scheduledAfter(pacedGoalSchedules, goalId,
+          (monthDate.getFullYear() - nowDate.getFullYear()) * 12 + (monthDate.getMonth() - nowDate.getMonth()))
+        : 0;
       const onTime = levelMonthlyToDate({
-        remainingNeed: remaining,
+        remainingNeed: Math.max(0, remaining - committed),
         monthsUntilDate: monthsUntilTargetDate(targetDateByRowId.get(rowId), monthDate),
       });
       return Math.min(statutory, onTime);
@@ -679,6 +690,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // call estimateGoalCompletionMonths.
     const goalTransferCutoffs = buildGoalTransferCutoffs(goals, rules, accounts, nowDate);
     const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, nowDate);
+    // 585ec24a: the same back-loaded schedule the sim draws (useCardProjection.ts builds it from
+    // the same `now`), so both sides deduct the same goal dollars from the same month.
+    const pacedGoalSchedules = buildPacedContributionSchedules(goals, nowDate, PROJECTION_MONTHS, accountOutflowsFrom(transactions), hasCardDebt(accounts));
 
     /**
      * The SAME scheduled payments `activeCarLoanByMonth` totals, split out per car fund.
@@ -1597,9 +1611,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDestIds.has(g.linked_account)) return s;
+        const paced = g.id != null && pacedGoalSchedules.has(g.id);
         const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
-        if (ownCutoff != null && i >= ownCutoff) return s;
-        const contrib = Number(g.monthly_contribution);
+        if (!paced && ownCutoff != null && i >= ownCutoff) return s;
+        const contrib = goalContributionForMonth(g, i, pacedGoalSchedules);
         if (contrib > 0) savingsGoalItems.push({ name: g.name ?? 'Goal', amount: contrib, goalId: g.id as string, linkedAccount: g.linked_account as string | undefined });
         return s + contrib;
       }, 0);
@@ -2909,5 +2924,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // fund pays off and `carLoanPerFund` stops carrying it).
       nonCCLiabilityBalancesById: new Map(nonCCLiabilities.rows.map(r => [r.id, r.balances])),
       carLoanBalancesByFundId: loanBalancesByFundId,
+      pacedGoalSchedules: Object.fromEntries(pacedGoalSchedules),
     };
 }
