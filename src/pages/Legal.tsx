@@ -441,7 +441,7 @@ function TermsContent() {
         <h2 className="font-display font-semibold text-base">4. Free and Premium Tiers</h2>
         <div className="space-y-2 text-muted-foreground leading-relaxed">
           <p><span className="text-foreground font-medium">Free tier</span> includes: 1 budget, basic
-          dashboard, transaction tracking, up to 3 savings goals, and 1 debt tracker. The free tier is provided
+          dashboard, transaction tracking, and up to 3 savings goals. The free tier is provided
           at no charge and may be modified at our discretion.</p>
           <p><span className="text-foreground font-medium">Premium tier</span> (the current price is shown in the app before you subscribe) includes: unlimited
           budgets, advanced dashboard, CSV/PDF export, unlimited savings goals and debt trackers, car fund
