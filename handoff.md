@@ -1,24 +1,30 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## Resume queue - 2026-09-23 ~20:40 UTC (Ada). START AT ITEM 1. Each item is a POINTER.
+## Resume queue - 2026-09-23 ~21:15 UTC (Ada, successor of the 18:26Z session). START AT ITEM 1. POINTERS.
 
-1. Standing `e1b0fffc` (keep improving the app). DONE 2026-09-23 18:40Z: `798c0ed9` re-tested (2 distinct sharers, 0
-   follows, profiles 33 control) - deferral stands, next re-test only when Tre or growth gives a reason. Gate sweep run:
-   walk:routes 27/27, dark+light contrast phone and desktop 0 below AA, nav, rail, desktop-rail, account, accounts-groups,
-   destructive-states, toast-contrast all green. check:text-scale was RED on a real defect (`text-[8px]` never mapped to rem,
-   19 call sites) - fixed in `071dbc42`, now green. check:glass flaked ONCE (exit 2, still-frame noise 255) and passed on
-   re-run (noise 0.00): the control refused correctly; if it flakes again, investigate what animates on the bottom bar.
-   FULL WALK (Sam, ~19:00Z): onboarding-stay 2/2, onboarding-orientation walked 9 steps to the finish on screen
-   (its typed "5 sections" guard had refused every run since Analytics joined Account 09-22 - fixed to a known member),
-   onboarding-attribution PASS. Undo walks: batch PASS, row-link PASS. Both deck and batch had exited 1 blaming the app
-   for an 8-day-old action the app correctly stops offering after UNDO_OFFER_WINDOW_HOURS (24) - they now read that
-   window from source (scripts/lib/undo-window.mjs). Walk fixture re-armed; the deleted rows are saved in
-   backup.walk_rearm_20260923_actions (2) and backup.walk_rearm_20260923_reviews (14).
-   ⚠️ OPEN: walk-deck-undo exits 2 because MerchantMemoryPanel categorises the fixture charges on load before the deck can
-   auto-apply anything, so the two features compete for the same fixture. It needs a fixture charge that no labelled
-   merchant matches. NOT an app defect, as far as measured.
-   a58fb610 layer 2: before/after frames sent to Sam for Tre (scratchpad vib2/*-pair.png); CSS is in scratchpad
-   vibrancy-pair.mjs. On his yes, move the CSS into index.css under .dark and re-run both dark contrast gates.
+1. ⚠️ CHECK THE WALK ACCOUNT'S DISCOVER IT SWITCH FIRST. The press crawler pressed "Always pay Discover It in full"
+   (a ToggleSwitch that calls updateAccount.mutate, a REAL write) on deck-walk@forgenta.test. The DB check was blocked by
+   the handoff gate. Query: accounts.payment_unconditional for that user's Discover It row. If it is true, set it back
+   to false (walk account only), and state that in the ask.
+   THEN add `switch` persisting toggles to the crawler's skip list, or add aria-checked + a post-press refetch wait, so
+   it cannot write again. It classified that press as no-change only because the refetch landed after 1200 ms.
+2. Crawler (scripts/walk-press-every-control.mjs, commit dd3f1b5c). Last full run: 131 pressed, 124 changed, 7 no-change,
+   46 not-found. Uncommitted after that run: press from the DECLARED route (the /accounts, /budget and /goals redirects
+   carry the tab in router STATE, so the landed URL reopened the default tab and caused all 46 not-found). Re-run it:
+   `node scripts/walk-press-every-control.mjs <dir>` (2 workers; 4 starved the dev server). Remaining no-change to judge:
+   /debt "Avalanche" and "Variable" (probably already-active with no aria state, the same class as the 9 segments fixed in
+   dd3f1b5c), /premium "Yearly SAVE 25%" (the same), and /transactions "Needs a decision" (the same). If they are the
+   same class, give them aria-pressed/aria-selected through the free tier (SEARCH/REPLACE brief, score it in the playbook).
+   Then add the crawler as `npm run walk:press` and name it in CLAUDE.md's gates.
+3. `6e2e5991` walk-deck-undo fixture. ROOT CAUSE FOUND, NOT YET APPLIED: deck auto-apply acts only on the CURRENT card.
+   The correct re-arm leaves ONLY the newest City Power & Light charge undecided and every Northside Hardware charge
+   decided. Delete that one review plus applied_actions; the 6 older City Power links must stay as link memory. Then fix
+   the walk's re-arm text ("newest by date" picks a Northside row). The earlier theory, that merchant memory competes,
+   is RETRACTED.
+4. `a58fb610` dark layer 2: frames were sent to Sam for Tre (scratchpad c68ab259.../vib2/*-pair.png). The CSS is in
+   scratchpad vibrancy-pair.mjs, and it is also quoted in the ask's why. On his yes, move it into index.css under .dark
+   and re-run check:dark-contrast and check:dark-contrast:desktop. The contrast is computed at about 5.5:1 but NOT
+   measured.
 2. Date checks: `cb1d9ada` at/after 09-24 01:22Z; `b18ac1f8` on/after 10-14.
 3. HELD FOR TRE: the grace fix on 6 functions (friend-link, partner-link, plaid-exchange-token, plaid-sync-all,
    financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
@@ -29,6 +35,18 @@
    for a 6.8 today and was shown that it is not needed.
 6. Store frames: `node scripts/capture-store-frames.mjs <dir>` with the dev server on 8080, then `cmp` each against
    marketing/app-store/2026-09-23. Tell Ruby only about the frames that DIFFER.
+
+<details><summary>Done 2026-09-23 18:26-21:15Z (Ada)</summary>
+
+- ✅ `071dbc42` text-[8px] scales (check:text-scale was red). ✅ `91b731b1` onboarding-orientation runs again (typed-count
+  guard fixed); first run walked 9 steps on screen. ✅ `30651da0` undo walks read the app's 24h window; batch and row-link
+  PASS. ✅ `dd3f1b5c` 9 segments carry role=tab + aria-selected; the pause-savings switch is ToggleSwitch; gates
+  segment-selected-state + widened one-switch; press crawler added. test:tz 5184/0 in 3 zones.
+- 798c0ed9 re-tested (2 sharers / 0 follows): the deferral stands. The a58fb610 frames went to Sam.
+- Walk fixture reviews were restored to the 14-row backup (backup.walk_rearm_20260923_*); 0 missing.
+- Flakes seen once each and passing on re-run: check:glass (still-frame noise), check:nav.
+
+</details>
 
 <details><summary>Done 2026-09-23 ~20:40Z (this session)</summary>
 
@@ -11287,25 +11305,29 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 14:36 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 14:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (1 file(s)):**
+
+```
+?? scripts/walk-press-every-control.mjs
+```
 
 - **Recent commits:**
 
 ```
+30651da0 [walks]: the undo walks read the app's 24h offer window instead of blaming it
+91b731b1 [onboarding]: the first-run walk runs again - its guard checks a known member, not a typed count
 45a2b2ed [handoff]: 798c0ed9 re-tested, gate sweep green, text-[8px] fixed in 071dbc42
 071dbc42 [type]: text-[8px] labels now scale with the user's text size
 96626c12 [handoff]: session close - six engine/display fixes shipped; next is the 798c0ed9 trigger re-test under e1b0fffc
 d62f67dd [handoff]: a5b13315 fixed in 539cb446
 539cb446 [projection]: the sim and the forecast use one funding account, so a payment leaves the account you chose
 92c0c744 [handoff]: a5b13315 measured - the engine deducts debt payments from the forecast account, not the chosen funding account
-dece5ad6 [handoff]: display funding-id sweep done; next is the sim/engine funding-account split
-b7b72d54 [handoff]: Garage car-saved fix (3842cb1b) and the next e1b0fffc candidate
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
