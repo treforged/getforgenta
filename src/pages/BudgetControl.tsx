@@ -242,7 +242,7 @@ type RuleTab = 'income' | 'fixed' | 'subscriptions' | 'variable' | 'debt' | 'tra
 export default function BudgetControl({ embedded = false }: { embedded?: boolean } = {}) {
   const [ruleTab, setRuleTab] = useState<RuleTab>('income');
   const { user } = useAuth();
-  const { isDemo } = useDemo();
+  const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
   const { data: profile, update: updateProfile, loading: profileLoading } = useProfile();
   const { data: accounts, loading: accountsLoading } = useAccounts();
@@ -1035,7 +1035,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
       </div>
 
-      {isDemo && (
+      {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />

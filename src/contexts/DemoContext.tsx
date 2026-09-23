@@ -22,15 +22,27 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 
 export const DEMO_SESSION_KEY = 'forged:demo_session';
+/**
+ * SCREENSHOT CAPTURE MODE - `/demo?capture=1`. Tre, 2026-09-23 via Ruby: the App Store shots must look
+ * like a normal user's feed, not carry the demo's long guide cards. Capture mode hides ONLY those
+ * guide cards (`showDemoGuides`); the fixture data and everything else is the demo as visitors see
+ * it. Plain `/demo` is unchanged. Tab-scoped like the demo itself, never restored on native, and
+ * cleared whenever the demo is left.
+ */
+export const DEMO_CAPTURE_KEY = 'forged:demo_capture';
 
 type DemoContextType = {
   isDemo: boolean;
-  setIsDemo: (v: boolean) => void;
+  /** Pass `{ capture: true }` only from `/demo?capture=1`. */
+  setIsDemo: (v: boolean, opts?: { capture?: boolean }) => void;
+  /** The demo's orientation/guide cards render only when this is true. */
+  showDemoGuides: boolean;
 };
 
 const DemoContext = createContext<DemoContextType>({
   isDemo: false,
   setIsDemo: () => {},
+  showDemoGuides: false,
 });
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
@@ -65,10 +77,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
+  const [capture, setCapture] = useState<boolean>(() => {
+    try {
+      if (Capacitor.isNativePlatform()) return false;
+      return window.sessionStorage.getItem(DEMO_CAPTURE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Stable identity: App.tsx's DemoEntry calls this inside a useEffect whose dependency
   // array contains it, and an unstable identity would re-run that effect every render.
-  const setDemo = useCallback((v: boolean) => {
+  const setDemo = useCallback((v: boolean, opts?: { capture?: boolean }) => {
+    const nextCapture = v && opts?.capture === true;
     try {
+      if (nextCapture) window.sessionStorage.setItem(DEMO_CAPTURE_KEY, 'true');
+      else if (!v || opts) window.sessionStorage.removeItem(DEMO_CAPTURE_KEY);
       if (v) {
         window.sessionStorage.setItem(DEMO_SESSION_KEY, 'true');
       } else {
@@ -81,10 +105,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       // a reload, which is the honest degradation.
     }
     setIsDemo(v);
+    // Leaving the demo always ends capture; entering with explicit opts sets it either way; a bare
+    // setIsDemo(true) (e.g. a reload path) keeps whatever the tab already had.
+    if (!v || opts) setCapture(nextCapture);
   }, []);
 
   return (
-    <DemoContext.Provider value={{ isDemo, setIsDemo: setDemo }}>
+    <DemoContext.Provider value={{ isDemo, setIsDemo: setDemo, showDemoGuides: isDemo && !capture }}>
       {children}
     </DemoContext.Provider>
   );

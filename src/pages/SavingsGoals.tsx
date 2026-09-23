@@ -427,7 +427,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   const { data: txns } = useTransactions();
   const { data: debts } = useDebts();
   const { isPremium } = useSubscription();
-  const { isDemo } = useDemo();
+  const { isDemo, showDemoGuides } = useDemo();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -877,7 +877,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         </div>
       </div>
 
-      {isDemo && (
+      {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />

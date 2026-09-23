@@ -120,7 +120,7 @@ interface DashboardGoalEntry {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { isDemo } = useDemo();
+  const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
 
@@ -1438,7 +1438,7 @@ export default function Dashboard() {
 
       <div className="stack-block">
 
-      {isDemo && (
+      {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-4">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />

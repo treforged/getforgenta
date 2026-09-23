@@ -219,7 +219,10 @@ function AccountsRedirect() {
  */
 function DemoEntry() {
   const { setIsDemo } = useDemo();
-  useEffect(() => { setIsDemo(true); }, [setIsDemo]);
+  const { search } = useLocation();
+  // `/demo?capture=1` = screenshot capture mode (guide cards hidden). Plain `/demo` always clears it.
+  const capture = new URLSearchParams(search).get('capture') === '1';
+  useEffect(() => { setIsDemo(true, { capture }); }, [setIsDemo, capture]);
   return <Navigate to="/dashboard" replace />;
 }
 

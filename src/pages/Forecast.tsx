@@ -92,7 +92,7 @@ function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
 }
 
 export default function Forecast() {
-  const { isDemo } = useDemo();
+  const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
   const { loading: debtsLoading } = useDebts();
   const { loading: goalsLoading } = useSavingsGoals();
@@ -457,7 +457,7 @@ export default function Forecast() {
         emptyReason={accounts.length === 0 && rules.length === 0 ? 'no-inputs' : 'no-milestones'}
       />
 
-      {isDemo && (
+      {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />

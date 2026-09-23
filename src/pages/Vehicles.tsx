@@ -32,7 +32,7 @@ import { useOptionalCardProjectionContext } from '@/contexts/CardProjectionConte
 export default function Vehicles() {
   const { data: carFunds, loading } = useCarFunds();
   const { data: accounts } = useAccounts();
-  const { isDemo } = useDemo();
+  const { isDemo, showDemoGuides } = useDemo();
   const fundingAccountId = useOptionalCardProjectionContext()?.cardProjection?.debtFundingAccountId ?? null;
 
   // ⚠️ THE KEY IS STILL `tre:vehicles:activeTab`, and it still holds `'saving'` or `'loan'` for
@@ -112,7 +112,7 @@ export default function Vehicles() {
         </div>
       </div>
 
-      {isDemo && (
+      {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />

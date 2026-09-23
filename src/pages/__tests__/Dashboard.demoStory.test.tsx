@@ -47,7 +47,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 // The card only renders in demo — that is the whole point of it.
-vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: true }) }));
+vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: true, showDemoGuides: true }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));
 vi.mock('@/hooks/usePlaidItems', () => ({ usePlaidItems: () => ({ items: [] }) }));
 vi.mock('@/hooks/useRetirementAutoUpdate', () => ({ useRetirementAutoUpdate: () => undefined }));

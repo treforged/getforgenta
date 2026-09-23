@@ -142,7 +142,7 @@ const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savin
  * within tabs" that were asked for.
  */
 export default function Accounts({ embedded = false }: { embedded?: boolean } = {}) {
-  const { isDemo } = useDemo();
+  const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
   /**
    * THE FIRST BANK IS FREE; THE SECOND IS WHERE PREMIUM STARTS (2026-09-06).
@@ -910,7 +910,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         )}
       </div>
 
-      {isDemo && (
+      {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
