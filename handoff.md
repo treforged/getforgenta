@@ -11380,29 +11380,31 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 20:47 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 21:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
+ M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+a44775e8 [handoff]: rundown counts done; blank-site incident recorded
+907aa863 [business]: rundown-counts - user counts for rundown.py behind a hashed read secret
+9b9e4e86 [incident]: blank site - new chunk URLs, and /assets never falls back to index.html
 e4022e8d [handoff]: rundown user counts read half done (5d31e1fc)
 5d31e1fc [business]: business_user_counts() - user counts for the rundown, service_role only
 b1f7708d [handoff]: dark-contrast re-run green after focus-in (465, 0 below AA)
 04f3a2f8 [handoff]: focus-in on open done
 681feca5 [a11y]: opening a popup moves focus into it
-76df65f8 [handoff]: Plaid webhook live on 8/8 items, undo list in backup schema
-081ff1fa [plaid]: register existing items on plaid-webhook; new link tokens carry it
-f1c4c549 [handoff]: grace 8/8 done; Plaid webhook built, Sam GO for deploy + item registration
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
