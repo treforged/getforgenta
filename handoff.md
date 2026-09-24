@@ -57,7 +57,7 @@
    backdrop's save-if-dirty. Test: src/components/shared/__tests__/popup-dialogs.test.tsx (proven red). FOCUS TRAP DONE
    (Sam approved): src/hooks/useModalFocusTrap.ts, ONE document listener mounted in App's AppReadySignal, wraps Tab inside
    the last aria-modal dialog; proven red 3 ways. FOCUS RETURN DONE too (same hook, startFocusReturn:
-   MutationObserver + focus history; returns only when focus was dropped). FOCUS-IN ON OPEN DONE (2026-09-24): focus lands on the popup container, never its first control (a destructive button), autoFocus kept; proven red 2 ways. check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
+   MutationObserver + focus history; returns only when focus was dropped). FOCUS-IN ON OPEN DONE (2026-09-24): focus lands on the popup container, never its first control (a destructive button), autoFocus kept; proven red 2 ways. check:dark-contrast RE-RUN 2026-09-24 after focus-in: PASS, 465 examined, 0 below AA (was 487; /forecast 79, between the recorded 65/90 - data drift, not a finding).
    OLD 5b: SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
    src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
    CENSUS GATE BUILT: src/lib/__tests__/modal-dialog-role.gate.test.ts, a shrink-only list of 14 files. Fix a file = remove it
