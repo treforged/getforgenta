@@ -93,7 +93,8 @@ section states reasoning, not measurement, and says so.
   135 and 145 changed, 11 and 15 write-blocked, 0 no-change. **`enumerated` is now STABLE: 370 and 370 on two runs (2026-09-24).** The old ~6% swing (348 vs 370) came from counting
   a page while its Supabase reads were still in flight: after an idle gap they stall 4-6 s, so /dashboard read 7 twice
   and 25 later. Enumeration now also waits for the network to go quiet (`quietNetwork`). A drop in `enumerated` is
-  the alarm now. `pressed` still varies (142 vs 133) because `not-found` varies (8 vs 17) under 2 workers.
+  the alarm now. The press lookup waits the same way, so `not-found` went 8/17 -> 0/0 and two runs read
+  **370 enumerated, 148 pressed, 148 changed, 0 not-found** identically. Any not-found or any change in those is a finding.
   It does NOT cover controls behind a dialog or menu, param routes, desktop widths, or whether a change
   is the RIGHT change.
 - `npm run check:rail` — measures the desktop sidebar at 1440 and 1024, in BOTH states,

@@ -292,6 +292,8 @@ async function pressFresh(route, c, textTrusted, plant, plantWith) {
   try {
     await page.goto(BASE + route, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(SETTLE_MS);
+    // Same cold-backend stall as enumeration: look for the control only once its data has landed.
+    await quietNetwork(page);
     if (plantWith) await plantWith(page);
     else if (plant) await page.evaluate(plant);
     // Poll: a fresh page under parallel load can take longer than SETTLE_MS to render its data-backed
