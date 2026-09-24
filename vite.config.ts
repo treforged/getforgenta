@@ -62,6 +62,15 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     rollupOptions: {
       output: {
+        // ⚠️ THE `-c2` SUFFIX IS AN INCIDENT FIX (2026-09-24). A request for a new chunk reached an
+        // old deployment during a deploy swap; the SPA rewrite answered with index.html, and that
+        // HTML was cached at Cloudflare under /assets' one-year `immutable` header, keyed to the
+        // Origin-bearing request every module load sends. The app rendered BLANK. Changing the
+        // file-name pattern gives every chunk a URL no cache has seen. vercel.json now also keeps
+        // /assets out of the SPA rewrite, so a missing chunk is a 404, never HTML.
+        // To clear a future poisoning the same way, bump the suffix.
+        entryFileNames: 'assets/[name]-[hash]-c2.js',
+        chunkFileNames: 'assets/[name]-[hash]-c2.js',
         // NOTE: this used to be `manualChunks`. Vite 8 bundles with rolldown,
         // which treats `manualChunks` as a compat shim and silently ignored it
         // for React's CJS modules: react/react-dom/clsx were physically placed
