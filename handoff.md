@@ -15,6 +15,9 @@
    plaid-create-link-token v60 sets webhook for new items; Plaid accepted it (walk account, premium for one call, restored
    free/inactive). Deploys of register + link-token read back inline (no file), so compared by reading, not by script.
    NEXT: watch function_logs for the first real TRANSACTIONS/SYNC_UPDATES_AVAILABLE -> "synced (N rows)".
+0c. d92f183f RUNDOWN USER COUNTS: read half DONE (5d31e1fc, public.business_user_counts(), service_role only,
+   33/4/29 live, anon/user refused 42501). Its old blocker ("main clean tonight") was stale. Transport waits on Sam
+   naming the receiver; recommended a nightly push beside revenue-push.
    OLD 0b: PLAID WEBHOOK (8878d532, Sam approved): BUILT, NOT DEPLOYED. supabase/functions/plaid-webhook/index.ts +
    _shared/plaid-webhook.ts + syncTransactionsOnly in sync-handler. Tests src/lib/__tests__/plaid-webhook.test.ts (9, red 5 ways).
    No sandbox Plaid keys on this machine, so Sam's fire_webhook proof cannot run here. NEXT: deploy plaid-webhook
