@@ -12,6 +12,9 @@ A. [!] 4ea180eb BLOCKED 05:35Z, no purge tool (the Cloudflare connector has only
    There is NO Cloudflare API token on this machine. Check the Cloudflare connector for a purge tool first.
    If none exists, the stale object is unreferenced (index.html is no-cache and points at -c2 names), so record
    that and ask Sam whether a dashboard purge is worth a click from Tre.
+A2. DONE 2026-09-24 ~06-07Z: 6942ae27 tracked .githooks + pre-commit secret scan (6064e77d; core.hooksPath=.githooks,
+    undo `git config --unset core.hooksPath`). b3573355 capture mode hides tab bar/banner/DEMO chip (Ruby told).
+    walk:press now stable: 370 enumerated, 148 pressed, 0 not-found on two runs.
 B. dabc6229: after 13:00Z, check function_logs for "plaid-webhook TRANSACTIONS/SYNC_UPDATES_AVAILABLE: synced (N rows)".
 C. The Supabase CLI is LOGGED IN (2026-09-24). Deploy from disk: `npx supabase functions deploy <fn> --project-ref
    mdtosrbfkextcaezuclh --agent no`. `--agent no` is required for any interactive CLI command started from a session.
@@ -11399,30 +11402,31 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 01:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 02:08 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
 M deno.lock
  M supabase/.temp/cli-latest
+?? press-walk-frames/
 ```
 
 - **Recent commits:**
 
 ```
+ec084e15 [walk:press]: press lookup also waits for a quiet network
+3f5a7344 [walk:press]: wait for a quiet network before counting controls
+4e2d5ea3 [handoff]: 4ea180eb blocked (no purge tool), cb1d9ada closed
 c2ae1c7c [handoff]: resume queue A-D for successor (4ea180eb first)
 d17a46b0 [handoff]: auto-snapshot at pause
 a44775e8 [handoff]: rundown counts done; blank-site incident recorded
 907aa863 [business]: rundown-counts - user counts for rundown.py behind a hashed read secret
 9b9e4e86 [incident]: blank site - new chunk URLs, and /assets never falls back to index.html
-e4022e8d [handoff]: rundown user counts read half done (5d31e1fc)
-5d31e1fc [business]: business_user_counts() - user counts for the rundown, service_role only
-b1f7708d [handoff]: dark-contrast re-run green after focus-in (465, 0 below AA)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
