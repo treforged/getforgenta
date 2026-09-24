@@ -67,7 +67,8 @@ D. STANDING e1b0fffc: keep improving. Candidates: walk:press count variance (ite
    financial-sync, plaid-sync). Deploy only on Tre's "deploy" in THIS desk's session. MCP deploy_edge_function with every
    bundle file named `functions/<path>` and verify_jwt unchanged. Test on the walk account with premium+past_due vs
    premium+canceled rows, then delete the rows.
-4. `npm run walk:press` open edges: its enumerated count varies ~6% run to run on identical code (348 vs 370) with no
+4. ✅ ENUMERATION VARIANCE FIXED 2026-09-24 (quietNetwork wait, 370/370 on two runs; cause: counts taken with Supabase reads in flight).
+   Still open: not-found 8 vs 17 in the press phase. OLD: `npm run walk:press` open edges: its enumerated count varies ~6% run to run on identical code (348 vs 370) with no
    route UNSETTLED - cause not found. /transactions row Edit/Duplicate/Delete now carry the row's note (2 runs: 4 then 0
    not-found, so what is left is load timing under 2 workers, not naming).
    write-blocked presses are the crawler's blind spot (it cannot see what they would have changed).

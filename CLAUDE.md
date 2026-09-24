@@ -90,8 +90,10 @@ section states reasoning, not measurement, and says so.
   `backup.walk_crawl_writes_20260923`). A press whose write was aborted reads `write-blocked`.
   ⚠️ **COMPARE `enumerated` AND `pressed` TO THE LAST RUN.** Blocking POST reads starved the pages once:
   315 -> 249 enumerated and PASS all the same. Last two good runs, identical code: 348 and 370 enumerated,
-  135 and 145 changed, 11 and 15 write-blocked, 0 no-change. **The count varies ~6% run to run** even with
-  enumeration repeated until two reads agree, so a drop of more than ~15% is the alarm, not any drop.
+  135 and 145 changed, 11 and 15 write-blocked, 0 no-change. **`enumerated` is now STABLE: 370 and 370 on two runs (2026-09-24).** The old ~6% swing (348 vs 370) came from counting
+  a page while its Supabase reads were still in flight: after an idle gap they stall 4-6 s, so /dashboard read 7 twice
+  and 25 later. Enumeration now also waits for the network to go quiet (`quietNetwork`). A drop in `enumerated` is
+  the alarm now. `pressed` still varies (142 vs 133) because `not-found` varies (8 vs 17) under 2 workers.
   It does NOT cover controls behind a dialog or menu, param routes, desktop widths, or whether a change
   is the RIGHT change.
 - `npm run check:rail` — measures the desktop sidebar at 1440 and 1024, in BOTH states,

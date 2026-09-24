@@ -164,10 +164,33 @@ if (!READ_ONLY_RPC.has('leaderboard_global_stats') || !READ_ONLY_RPC.has('follow
 if (READ_ONLY_RPC.has('claim_milestone_achievements')) fail(2, 'CONTROL FAILED - the migration parse let through a function pg_proc says is VOLATILE.');
 console.log(`read-only rpcs let through: ${READ_ONLY_RPC.size}`);
 const DATA_PLANE = new RegExp(`^https://${ref}\\.supabase\\.co/(rest|functions|storage)/v1/`);
+/**
+ * ⚠️ TWO EQUAL COUNTS ARE NOT A SETTLED PAGE. Supabase REST calls after an idle gap stall 4-6 s on
+ * this project (cb1d9ada), so /dashboard read 7 controls twice in a row with 12 requests still in
+ * flight, and 25 once they landed (/goals 7 -> 23 with 19 in flight). That is the ~6% run-to-run
+ * swing in `enumerated` (348 vs 370): which routes caught a cold backend. Measured 2026-09-24:
+ * count-agreement alone 336, after a quiet network 370, and 8 s later still 370.
+ * So wait until no Supabase request has been in flight for 1.5 s (cap 20 s). False = never quiet.
+ */
+async function quietNetwork(page, quietMs = 1500, capMs = 20000) {
+  let quiet = 0;
+  for (let waited = 0; waited < capMs; waited += 250) {
+    await page.waitForTimeout(250);
+    quiet = page.inflight.size ? 0 : quiet + 250;
+    if (quiet >= quietMs) return true;
+  }
+  return false;
+}
 async function isolatedPage() {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, storageState: BASELINE });
   const page = await c.newPage();
   page.blockedWrites = [];
+  // In-flight Supabase requests, so enumeration can wait for the DATA rather than for a count that
+  // happens to repeat (see quietNetwork).
+  page.inflight = new Set();
+  page.on('request', (r) => { if (r.url().includes('.supabase.co/')) page.inflight.add(r); });
+  const settleReq = (r) => page.inflight.delete(r);
+  page.on('requestfinished', settleReq); page.on('requestfailed', settleReq);
   await page.route(DATA_PLANE, (r) => {
     const req = r.request();
     if (READ_METHODS.has(req.method())) return r.continue();
@@ -373,6 +396,8 @@ for (const route of routes) {
     controls = await enumerate(page);
     settled = controls.length === prev;
   }
+  if (!(await quietNetwork(page))) settled = false;
+  else controls = await enumerate(page);
   if (!settled) { unsettled.push(route); console.log(`  ${route.padEnd(22)} UNSETTLED: its control count was still moving after 10 reads (${controls.length})`); }
   const t1 = await page.evaluate(() => document.body.innerText);
   await page.waitForTimeout(AFTER_PRESS_MS);
