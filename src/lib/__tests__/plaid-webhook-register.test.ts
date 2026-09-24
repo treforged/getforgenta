@@ -108,3 +108,14 @@ describe('the wiring (source PROXY - the deployed behaviour needs Plaid to obser
     expect(s).not.toMatch(/results\.push\(\{[^}]*access_token/);
   });
 });
+
+describe('rundown-counts (source PROXY - live probes are in the commit)', () => {
+  const s = readFileSync(join(__dirname, '..', '..', '..', 'supabase', 'functions', 'rundown-counts', 'index.ts'), 'utf8')
+    .replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  it('refuses before it reads the counts, and compares a HASH, never the raw secret', () => {
+    const refuse = s.indexOf('return reply({ error: "unauthorized" }, 401)');
+    expect(refuse).toBeGreaterThan(0);
+    expect(refuse).toBeLessThan(s.indexOf('rpc("business_user_counts")'));
+    expect(s).toMatch(/cronSecretMatches\(await sha256Hex\(given\)/);
+  });
+});

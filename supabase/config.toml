@@ -30,6 +30,11 @@ verify_jwt = false
 [functions.plaid-webhook-register]
 verify_jwt = false
 
+# Called by rundown.py on Tre's machine with x-rundown-secret (only its SHA-256 is
+# stored, in rundown_read_secret). Returns 401 without it. Counts only.
+[functions.rundown-counts]
+verify_jwt = false
+
 # Called by pg_cron via pg_net, which cannot mint a Supabase JWT. The function
 # authenticates the caller itself with the x-webhook-secret header and returns 401
 # without it. This entry exists so a CLI deploy cannot silently re-enable JWT
