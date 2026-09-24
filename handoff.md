@@ -57,7 +57,7 @@
    backdrop's save-if-dirty. Test: src/components/shared/__tests__/popup-dialogs.test.tsx (proven red). FOCUS TRAP DONE
    (Sam approved): src/hooks/useModalFocusTrap.ts, ONE document listener mounted in App's AppReadySignal, wraps Tab inside
    the last aria-modal dialog; proven red 3 ways. FOCUS RETURN DONE too (same hook, startFocusReturn:
-   MutationObserver + focus history; returns only when focus was dropped). Not done: focus-in on open (first Tab does it). check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
+   MutationObserver + focus history; returns only when focus was dropped). FOCUS-IN ON OPEN DONE (2026-09-24): focus lands on the popup container, never its first control (a destructive button), autoFocus kept; proven red 2 ways. check:dark-contrast NOT re-run (needs the dev server) - Forecast's dialog now carries a role.
    OLD 5b: SHARED MODALS DONE ccd141f7: ModalShell + FormModal are role=dialog aria-modal, named, Escape via
    src/hooks/useEscapeToClose.ts (stack; proven red). NEXT: the other 18 modal-overlay sites (list: grep -rln modal-overlay src)
    CENSUS GATE BUILT: src/lib/__tests__/modal-dialog-role.gate.test.ts, a shrink-only list of 14 files. Fix a file = remove it
@@ -11374,7 +11374,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 20:05 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 20:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11389,14 +11389,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+76df65f8 [handoff]: Plaid webhook live on 8/8 items, undo list in backup schema
+081ff1fa [plaid]: register existing items on plaid-webhook; new link tokens carry it
 f1c4c549 [handoff]: grace 8/8 done; Plaid webhook built, Sam GO for deploy + item registration
 a2c51918 [plaid]: signed webhook that pulls transactions only (built, not deployed)
 cc5a28f0 [demo]: /demo?capture=1 hides the guide cards for App Store screenshots
 14242ab5 [a11y]: closing a popup puts focus back on the control that opened it
 7ea2b78a [a11y]: Tab stays inside the open popup
 8a760f0f [a11y]: the last 14 popups are real dialogs, and Escape closes them
-8239bb6c [a11y]: census gate - every modal-overlay popup must be a dialog, 14-file list may only shrink
-575da860 [handoff]: shared modals done (ccd141f7); 18 modal-overlay sites next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
