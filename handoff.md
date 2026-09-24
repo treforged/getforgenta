@@ -1,5 +1,22 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## Resume queue - 2026-09-24 ~07:45 UTC (Ada, successor of getforgenta-09). START AT R1. POINTERS.
+
+R1. 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 35970467495 was dispatched at 07:35Z from 83179596
+    (VERSION 6.8.0). Read the "Upload to App Store Connect" STEP OUTPUT for altool "UPLOAD SUCCEEDED". Do not trust the run
+    conclusion. The build number is run_number+100. Wait for Apple processing, then in Chrome (ASC is signed in) open
+    apps/6762540239 > 6.8. The 6.8 page ALREADY has 8 screenshots (Sam), an EMPTY What's New and NO build. 6.7 is
+    "Ready for Distribution" (live). The 6.8 range starts at f0a03216 (2026-09-22):
+    `git log f0a03216..HEAD --format='%(trailers:key=Release-Note,valueonly)'`. Write What's New in plain customer words.
+    Attach the build, choose "Manually release this version", and set export compliance to match Info.plist.
+    ⚠️ BEFORE "Add for Review": show Tre the build number, the What's New text and the screenshot set IN ADA'S TAB, and
+    take his yes THERE. Never take it relayed.
+    Chrome note: the ASC page freezes screenshot capture at times. get_page_text and find work.
+R2. dabc6229: after 13:00Z, look for "plaid-webhook TRANSACTIONS/SYNC_UPDATES_AVAILABLE: synced (N rows)" (none at 07:00Z).
+R3. STANDING e1b0fffc. Done 2026-09-24: 6942ae27 secret scan (.githooks, core.hooksPath), b3573355 capture mode,
+    walk:press stable (370/148/0) plus the stub phase (13/13 success shown, 12/12 failure shown), cb1d9ada closed, 4ea180eb dropped.
+    Next candidate: 34ac4dad re-measure (not re-tested today).
+
 ## Resume queue - 2026-09-24 ~05:30 UTC (Ada, successor of getforgenta-e4). START AT ITEM A. POINTERS.
 
 A. [!] 4ea180eb BLOCKED 05:35Z, no purge tool (the Cloudflare connector has only D1/KV/R2/Workers, and there is no token). Measured with Origin:
@@ -11402,31 +11419,30 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 02:08 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 02:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (2 file(s)):**
 
 ```
 M deno.lock
  M supabase/.temp/cli-latest
-?? press-walk-frames/
 ```
 
 - **Recent commits:**
 
 ```
+e6c3b871 [handoff]: secret scan, capture mode, walk:press stability done
+f8e79f09 [demo]: store capture drops the tab bar, demo banner and DEMO chip (b3573355)
+6064e77d [security]: tracked hooks with a pre-commit secret scan (6942ae27)
 ec084e15 [walk:press]: press lookup also waits for a quiet network
 3f5a7344 [walk:press]: wait for a quiet network before counting controls
 4e2d5ea3 [handoff]: 4ea180eb blocked (no purge tool), cb1d9ada closed
 c2ae1c7c [handoff]: resume queue A-D for successor (4ea180eb first)
 d17a46b0 [handoff]: auto-snapshot at pause
-a44775e8 [handoff]: rundown counts done; blank-site incident recorded
-907aa863 [business]: rundown-counts - user counts for rundown.py behind a hashed read secret
-9b9e4e86 [incident]: blank site - new chunk URLs, and /assets never falls back to index.html
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
