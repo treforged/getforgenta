@@ -339,11 +339,19 @@ section states reasoning, not measurement, and says so.
   on every `npm run test:tz` run for months, inside an output where 4,773 tests pass around it -
   a report with no route to an exit code, which nobody reads. The gate reuses `parseTrailers`
   rather than re-implementing "wrapped", so the gate and the publisher cannot drift.
-  ⚠️ **THE HOOK IS NOT TRACKED AND A FRESH CLONE HAS NO PROTECTION** until `npm run install:hooks`
-  is run; `--no-verify` skips it, and the installer deliberately REFUSES to overwrite a
-  commit-msg hook it did not write. It stops the accident, which is what happened here, not the
-  determined. `core.hooksPath` was deliberately NOT re-pointed: this repo's `pre-commit` and
-  `pre-push` hooks are hand-written and live there, and moving it would silently disable both.
+  ⚠️ **ALL THREE HOOKS ARE NOW TRACKED IN `.githooks/`** (2026-09-24), and `npm run install:hooks`
+  points `core.hooksPath` at them. A FRESH CLONE HAS NO PROTECTION until that runs, and
+  `--no-verify` skips every hook. Undo: `git config --unset core.hooksPath`.
+- **Pre-commit SECRET SCAN** (`scripts/secret-scan.mjs`, ported from tre-forged-conductor@6097b08) -
+  refuses staged credential shapes (OpenRouter, Cerebras, Resend, Anthropic, Stripe live, Supabase
+  secret, JWTs, PEM and more) and credential FILENAMES, whatever `.gitignore` says. Before it, a
+  staged `sk-or-v1-` key passed the old hook with exit 0. Narrowed for this repo so ordinary work
+  passes: `.env.example`, source files named `*-keys.ts`, and the public Firebase key (allowed by
+  the SHA-256 of its exact value, never by file). Tests: `scripts/__tests__/secret-scan.test.mjs`,
+  proven red two ways. Proven on real commits in a throwaway clone: LF key 1, CRLF key 1, clean 0,
+  delete-only 0, src/lib stub still 1. ⚠️ **KNOWN SELF-FLAG:** `docs/security-checklist-2026-09-12.md`
+  line 46 quotes a synthetic `sb_secret_` example; restaging that doc will be refused until the
+  example carries `...`. Mistral keys have no prefix and are NOT caught by content.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER

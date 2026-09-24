@@ -1,0 +1,105 @@
+#!/bin/sh
+# TRACKED pre-commit hook (core.hooksPath=.githooks, set by `npm run install:hooks`).
+# Two stages: (1) refuse staged credentials, (2) refuse empty exported stubs in src/lib.
+# UNDO: git config --unset core.hooksPath   (the old .git/hooks copies still run then)
+
+# -- Stage 1: secret scan (ask 6942ae27) -------------------------------------------
+# Before this stage existed, a staged OPENROUTER_API_KEY=sk-or-v1-... line passed this
+# hook with exit 0. It FAILS CLOSED: no node or no scanner is a refusal, not a pass.
+# It does NOT stop `git commit --no-verify`. Rules and limits: scripts/secret-scan.mjs.
+REPO=$(git rev-parse --show-toplevel)
+SCANNER="$REPO/scripts/secret-scan-staged.mjs"
+
+# A commit that only DELETES files stages no content, so there is nothing to scan. Exit 0
+# from --quiet means "no added or changed files"; 1 means "some"; anything else is an error.
+git diff --cached --quiet --diff-filter=ACMR
+HAS_CONTENT=$?
+if [ "$HAS_CONTENT" -eq 1 ]; then
+  if ! command -v node >/dev/null 2>&1; then
+    echo "pre-commit REFUSED: node is not on PATH, so the secret scan could not run." >&2
+    exit 1
+  fi
+  if [ ! -f "$SCANNER" ]; then
+    echo "pre-commit REFUSED: scanner not found at $SCANNER. A missing guard is not a clean tree." >&2
+    exit 1
+  fi
+  if ! node "$SCANNER" --repo "$REPO"; then
+    echo "pre-commit REFUSED by the secret scan." >&2
+    exit 1
+  fi
+elif [ "$HAS_CONTENT" -ne 0 ]; then
+  echo "pre-commit REFUSED: could not read the staged file list (git exit $HAS_CONTENT)." >&2
+  exit 1
+fi
+
+# -- Stage 2: empty exported stubs in src/lib (moved verbatim from .git/hooks/pre-commit) --
+# Pre-commit hook: reject empty exported function stubs in src/lib/
+#
+# Why: Empty stubs committed to src/lib/ caused black screen crashes in production
+# (see commits 5ec0100/c3c616d — credit-card-engine.ts was committed with empty bodies)
+#
+# To bypass intentionally:
+#   git commit --no-verify -m "wip: stub for [FunctionName] — implement before merge"
+#
+# IMPORTANT: Never merge a --no-verify commit to main with empty stubs.
+
+FAILED=0
+
+# Get staged .ts/.tsx files in src/lib/ only
+STAGED_LIB=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^src/lib/.*\.(ts|tsx)$')
+
+if [ -z "$STAGED_LIB" ]; then
+  exit 0
+fi
+
+# THE PARAMETER LIST MAY CONTAIN BRACES, and reading it as if it could not is
+# what made this hook block honest commits.
+#
+# The old pattern walked the parameters as `[^{]*` — anything up to a brace — and
+# then asked for `{}` as the body. Given `export function f(opts = {}) { ... }`
+# the parameter walk stopped at the brace of the DEFAULT VALUE and the `{}` it
+# then matched was that same default, so every exported function with a `= {}`
+# parameter was reported as an empty stub no matter how much code it contained.
+# Real work was refused, and the way out looked like `--no-verify` — which turns
+# off the one check that catches the black screen this hook exists to prevent.
+#
+# So the body brace is now anchored to the thing that actually precedes a body: a
+# closing paren, then an optional return type. The parameters are allowed one
+# level of braces, which covers both `= {}` defaults and inline object types, and
+# the empty body must be the end of the line.
+#
+# Verified both ways before install: the three shapes that were being blocked
+# (`= {}` default, multiple defaults, multi-line body) now pass, and all seven
+# genuinely-empty stubs — including `f(o = {}) {}`, which is a real stub with a
+# default — are still caught.
+STUB_RE='export (async )?function [A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*(<[^>]*>)?[[:space:]]*\(([^(){}]|\{[^{}]*\})*\)[[:space:]]*(:[^{]*)?\{[[:space:]]*\}[[:space:]]*$'
+STUB_RE="$STUB_RE"'|export const [A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*(:[^=]*)?=[[:space:]]*(async[[:space:]]*)?\(([^(){}]|\{[^{}]*\})*\)[[:space:]]*(:[^=]*)?=>[[:space:]]*\{[[:space:]]*\}[[:space:]]*$'
+
+for FILE in $STAGED_LIB; do
+  # Inspect staged content (not disk) to catch stubs even if disk has been fixed
+  MATCHES=$(git show ":$FILE" 2>/dev/null | grep -nE "$STUB_RE")
+
+  if [ -n "$MATCHES" ]; then
+    echo ""
+    echo "COMMIT BLOCKED: Empty exported function stub detected in $FILE"
+    echo ""
+    echo "$MATCHES" | while IFS= read -r line; do
+      echo "   $line"
+    done
+    echo ""
+    FAILED=1
+  fi
+done
+
+if [ "$FAILED" -eq 1 ]; then
+  echo "---"
+  echo "Empty stubs cause black screen crashes in production (commits 5ec0100/c3c616d)."
+  echo "Implement the function body before committing."
+  echo ""
+  echo "To bypass intentionally:"
+  echo "  git commit --no-verify -m \"your message\""
+  echo ""
+  exit 1
+fi
+
+exit 0

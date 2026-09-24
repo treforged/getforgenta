@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refuse a wrapped Release-Note trailer. The rule, the reasoning and the limits all live in
+# scripts/check-release-note-trailer.mjs, which is IN THE TREE so it can be reviewed in a diff,
+# restored, and noticed if it disappears - unlike this shim.
+exec node scripts/check-release-note-trailer.mjs "$1"

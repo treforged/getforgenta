@@ -1,63 +1,53 @@
 #!/usr/bin/env node
 /**
- * install-git-hooks.mjs - put this repo's commit-msg hook in place, idempotently.
+ * install-git-hooks.mjs - point git at this repo's TRACKED hooks in `.githooks/`, idempotently.
  *
- * ⚠️ WHY A HOOK NEEDS AN INSTALLER AT ALL. `.git/hooks/` is NOT tracked, so a hook written there
- * cannot be reviewed in a diff, cannot be restored, and cannot be noticed when it vanishes - a
- * fresh clone simply has no protection and nothing says so. The durable half (the rule, the
- * reasoning, the limits) therefore lives in `scripts/check-release-note-trailer.mjs`, in the tree;
- * the thing in `.git/hooks/` is a three-line shim that calls it, and this script writes that shim.
+ * ⚠️ WHY THE HOOKS MOVED INTO THE TREE (2026-09-24, ask 6942ae27). They used to live only in
+ * `.git/hooks/`, which is NOT tracked: a hook there cannot be reviewed in a diff, cannot be
+ * restored, and cannot be noticed when it vanishes. The pre-commit there also had no secret scan,
+ * and a staged `sk-or-v1-...` key passed it with exit 0. `.githooks/` now holds all three:
+ *   pre-commit  secret scan (scripts/secret-scan.mjs) + the empty-stub check for src/lib
+ *   pre-push    refuses a push from an unattended job (CONDUCTOR_JOB)
+ *   commit-msg  refuses a wrapped Release-Note trailer (scripts/check-release-note-trailer.mjs)
+ * Earlier this file said re-pointing core.hooksPath would disable the hand-written hooks. That
+ * was true only while they were NOT in `.githooks/`. They are copied there verbatim, so nothing
+ * is lost.
  *
- * ⚠️ IT DOES NOT TOUCH THE OTHER HOOKS. This repo already has a `pre-commit` (empty exported stubs
- * in src/lib) and a `pre-push` (refuses a push from an unattended job), both written by hand and
- * both load-bearing. Re-pointing `core.hooksPath` at a tracked directory would silently disable
- * BOTH of them, which trades one protection for two.
+ * ⚠️ A FRESH CLONE HAS NO PROTECTION UNTIL THIS RUNS - git never runs hooks from a clone by itself.
+ * `git commit --no-verify` still skips every hook.
  *
  * RUN IT: npm run install:hooks
- * EXITS:  0 installed or already correct . 2 could not install (no .git/hooks)
+ * UNDO:   git config --unset core.hooksPath   (git then runs whatever is in .git/hooks again)
+ * EXITS:  0 installed or already correct . 2 could not install
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
-const HOOK_DIR = join('.git', 'hooks');
-const HOOK = join(HOOK_DIR, 'commit-msg');
+const DIR = '.githooks';
+const HOOKS = ['pre-commit', 'pre-push', 'commit-msg'];
+const fail = (msg) => { process.stderr.write(`install-git-hooks: ${msg}\n`); process.exit(2); };
 
-const BODY = `#!/bin/sh
-# Refuse a wrapped Release-Note trailer. The rule, the reasoning and the limits all live in
-# scripts/check-release-note-trailer.mjs, which is IN THE TREE so it can be reviewed in a diff,
-# restored, and noticed if it disappears - unlike this shim.
-exec node scripts/check-release-note-trailer.mjs "$1"
-`;
+if (!existsSync('.git')) fail('no .git directory here - cannot install.');
+const missing = HOOKS.filter((h) => !existsSync(join(DIR, h)));
+if (missing.length) fail(`${DIR}/ is missing ${missing.join(', ')} - refusing to point git at an incomplete set.`);
 
-if (!existsSync('.git')) {
-  process.stderr.write('install-git-hooks: no .git directory here - cannot install.\n');
-  process.exit(2);
-}
+let current = '';
 try {
-  mkdirSync(HOOK_DIR, { recursive: true });
+  current = execFileSync('git', ['config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).trim();
 } catch (err) {
-  process.stderr.write(`install-git-hooks: cannot create ${HOOK_DIR} (${err.message}).\n`);
-  process.exit(2);
+  if (err.status !== 1) fail(`could not read core.hooksPath (git exit ${err.status}).`); // 1 = unset
 }
 
-// An existing commit-msg hook that is NOT ours is somebody's work. Say so rather than replacing
-// it: a silent overwrite is how a protection disappears without anybody noticing.
-if (existsSync(HOOK)) {
-  const current = readFileSync(HOOK, 'utf8');
-  if (current === BODY) {
-    process.stdout.write('install-git-hooks: commit-msg already installed and identical.\n');
-    process.exit(0);
-  }
-  if (!current.includes('check-release-note-trailer.mjs')) {
-    process.stderr.write(
-      'install-git-hooks: a DIFFERENT commit-msg hook is already installed. Refusing to overwrite '
-      + `it - read ${HOOK} and merge by hand.\n`,
-    );
-    process.exit(2);
-  }
+if (current === DIR) {
+  process.stdout.write(`install-git-hooks: core.hooksPath is already ${DIR} (${HOOKS.join(', ')}).\n`);
+  process.exit(0);
 }
+// A DIFFERENT hooksPath is somebody's decision. Say so rather than replace it silently.
+if (current) fail(`core.hooksPath is already "${current}". Refusing to overwrite it - merge by hand.`);
 
-writeFileSync(HOOK, BODY, 'utf8');
-try { chmodSync(HOOK, 0o755); } catch { /* chmod is a no-op on Windows; git still runs the hook */ }
-process.stdout.write(`install-git-hooks: wrote ${HOOK}\n`);
+execFileSync('git', ['config', 'core.hooksPath', DIR]);
+const after = execFileSync('git', ['config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).trim();
+if (after !== DIR) fail(`set core.hooksPath but it reads back "${after}".`);
+process.stdout.write(`install-git-hooks: core.hooksPath -> ${DIR} (${HOOKS.join(', ')}). Undo: git config --unset core.hooksPath\n`);
 process.exit(0);
