@@ -15,9 +15,12 @@
    plaid-create-link-token v60 sets webhook for new items; Plaid accepted it (walk account, premium for one call, restored
    free/inactive). Deploys of register + link-token read back inline (no file), so compared by reading, not by script.
    NEXT: watch function_logs for the first real TRANSACTIONS/SYNC_UPDATES_AVAILABLE -> "synced (N rows)".
-0c. d92f183f RUNDOWN USER COUNTS: read half DONE (5d31e1fc, public.business_user_counts(), service_role only,
-   33/4/29 live, anon/user refused 42501). Its old blocker ("main clean tonight") was stale. Transport waits on Sam
-   naming the receiver; recommended a nightly push beside revenue-push.
+0c. ✅ RUNDOWN USER COUNTS DONE: business_user_counts() (5d31e1fc) served by edge fn rundown-counts (907aa863),
+   x-rundown-secret hashed against public.rundown_read_secret; value only in claudecontext/.env. Sam wires rundown.py.
+0d. ✅ INCIDENT 2026-09-24 ~00:50Z, BLANK SITE (237d68bc, 9b9e4e86): AuthContext chunk served as cached index.html
+   to Origin-bearing requests (Cloudflare HIT, /assets immutable). Fixed by a `-c2` chunk-name suffix in
+   vite.config.ts (bump it to escape any future poisoning) and a rewrite that excludes /assets (missing chunk = 404).
+   Verified: 98 chunks with Origin, 0 HTML; Playwright render clean. No Cloudflare token on this machine to purge.
    OLD 0b: PLAID WEBHOOK (8878d532, Sam approved): BUILT, NOT DEPLOYED. supabase/functions/plaid-webhook/index.ts +
    _shared/plaid-webhook.ts + syncTransactionsOnly in sync-handler. Tests src/lib/__tests__/plaid-webhook.test.ts (9, red 5 ways).
    No sandbox Plaid keys on this machine, so Sam's fire_webhook proof cannot run here. NEXT: deploy plaid-webhook
@@ -11377,7 +11380,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 20:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 20:47 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11392,14 +11395,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+e4022e8d [handoff]: rundown user counts read half done (5d31e1fc)
+5d31e1fc [business]: business_user_counts() - user counts for the rundown, service_role only
+b1f7708d [handoff]: dark-contrast re-run green after focus-in (465, 0 below AA)
+04f3a2f8 [handoff]: focus-in on open done
+681feca5 [a11y]: opening a popup moves focus into it
 76df65f8 [handoff]: Plaid webhook live on 8/8 items, undo list in backup schema
 081ff1fa [plaid]: register existing items on plaid-webhook; new link tokens carry it
 f1c4c549 [handoff]: grace 8/8 done; Plaid webhook built, Sam GO for deploy + item registration
-a2c51918 [plaid]: signed webhook that pulls transactions only (built, not deployed)
-cc5a28f0 [demo]: /demo?capture=1 hides the guide cards for App Store screenshots
-14242ab5 [a11y]: closing a popup puts focus back on the control that opened it
-7ea2b78a [a11y]: Tab stays inside the open popup
-8a760f0f [a11y]: the last 14 popups are real dialogs, and Escape closes them
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
