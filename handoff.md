@@ -1,5 +1,19 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## Resume queue - 2026-09-24 ~05:30 UTC (Ada, successor of getforgenta-e4). START AT ITEM A. POINTERS.
+
+A. 4ea180eb (Sam's first pick): purge the stale Cloudflare copy of /assets/AuthContext-BSs7Fbfj.js, then re-measure:
+   it must return 404, and a live -c2 chunk must still return JS as the control. Always send the header
+   Origin: https://getforgenta.com (without Origin the edge serves JS, so a curl with no Origin looks healthy).
+   There is NO Cloudflare API token on this machine. Check the Cloudflare connector for a purge tool first.
+   If none exists, the stale object is unreferenced (index.html is no-cache and points at -c2 names), so record
+   that and ask Sam whether a dashboard purge is worth a click from Tre.
+B. dabc6229: after 13:00Z, check function_logs for "plaid-webhook TRANSACTIONS/SYNC_UPDATES_AVAILABLE: synced (N rows)".
+C. The Supabase CLI is LOGGED IN (2026-09-24). Deploy from disk: `npx supabase functions deploy <fn> --project-ref
+   mdtosrbfkextcaezuclh --agent no`. `--agent no` is required for any interactive CLI command started from a session.
+D. STANDING e1b0fffc: keep improving. Candidates: walk:press count variance (item 4 below); cb1d9ada date check.
+   Done this session and not to redo: 0b Plaid webhook, 0c rundown counts, 0d blank-site incident, focus-in on open.
+
 ## Resume queue - 2026-09-23 ~22:15 UTC (Ada, successor of getforgenta-95). START AT ITEM 0. POINTERS.
 
 0. ✅ GRACE DEPLOY 8 OF 8 LIVE (d01dae3b closed). plaid-sync v70 at 2026-09-24 00:00:33Z, probe past_due 200 / canceled 403,
@@ -11380,23 +11394,23 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 21:27 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 23:52 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (2 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+d17a46b0 [handoff]: auto-snapshot at pause
 a44775e8 [handoff]: rundown counts done; blank-site incident recorded
 907aa863 [business]: rundown-counts - user counts for rundown.py behind a hashed read secret
 9b9e4e86 [incident]: blank site - new chunk URLs, and /assets never falls back to index.html
@@ -11404,7 +11418,6 @@ e4022e8d [handoff]: rundown user counts read half done (5d31e1fc)
 5d31e1fc [business]: business_user_counts() - user counts for the rundown, service_role only
 b1f7708d [handoff]: dark-contrast re-run green after focus-in (465, 0 below AA)
 04f3a2f8 [handoff]: focus-in on open done
-681feca5 [a11y]: opening a popup moves focus into it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
