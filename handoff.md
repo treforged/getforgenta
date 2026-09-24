@@ -1,5 +1,14 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## Resume queue - 2026-09-24 ~20:00 UTC (Ada, getforgenta-33, closed for the WEEKLY CAP on Sam's word). START AT Q1. POINTERS.
+
+Q1. Verify the live DOM for the glow (a6e1ea96): on getforgenta.com/demo in dark mode, `document.querySelector('.app-shell')` must exist
+    with a radial-gradient backgroundImage. Live CSS is already verified. The DOM half was blocked by the handoff gate.
+Q2. 6.8 (build 1066) is WAITING FOR REVIEW with AUTO release (Tre, in this tab). Nothing to do unless Apple rejects it (email).
+Q3. After the weekly reset (Mon 18:00 ET): ea989790 (make check:dark-contrast measure pixels, port docs/wip/glow-pixel-probe.mjs)
+    and 1af54e4a (chart axis ticks at 3.41 in dark). Probe notes: measure the text node Range rect, skip occluded text, pair by text+position.
+Q4. Blocked, re-tested 2026-09-24: 5ee1669a (Tre paused it until next weekend), b18ac1f8 (not before 10-14), 798c0ed9 (3 sharers).
+
 ## Resume queue - 2026-09-24 ~07:45 UTC (Ada, successor of getforgenta-09). START AT R1. POINTERS.
 
 R1. [~] PROGRESS 07:50Z: run 35970467495 = iOS build 1066, altool "UPLOAD SUCCEEDED with no errors" 07:42:32Z.
