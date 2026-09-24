@@ -18,6 +18,11 @@ R1 (original). 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 3
     ⚠️ BEFORE "Add for Review": show Tre the build number, the What's New text and the screenshot set IN ADA'S TAB, and
     take his yes THERE. Never take it relayed.
     Chrome note: the ASC page freezes screenshot capture at times. get_page_text and find work.
+R1b. GLOW bf48946c (Tre yes, decision 20a7210f; Sam chose option b): NOT SHIPPED. Diff parked in docs/wip/glow-b-2026-09-24.diff
+    (glow + .on-solid on Reset & Recalculate and Guide). Pixel probe docs/wip/glow-pixel-probe.mjs (--width 390|1440).
+    Phone PASS. Desktop /debt '$4,200' 4.45 with the glow. Waiting on Sam: solid surface for it too, or hold.
+    check:dark-contrast is BLIND to gradients (header says so), so pixel-gate ask ea989790 is parked until after the weekly reset.
+    Chart axis labels on /debt and /forecast read 3.41 with the glow on AND off (an older gap, not filed yet).
 R2. [x] dabc6229 DONE 13:05Z: first real SYNC_UPDATES_AVAILABLE at 11:54:27Z logged "synced (2 rows)", and the DB shows 2 rows in that window.
 R3. STANDING e1b0fffc. Done 2026-09-24: 6942ae27 secret scan (.githooks, core.hooksPath), b3573355 capture mode,
     walk:press stable (370/148/0) plus the stub phase (13/13 success shown, 12/12 failure shown), cb1d9ada closed, 4ea180eb dropped.
@@ -11425,31 +11430,32 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 15:19 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 18:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M deno.lock
  M handoff.md
+ M src/components/shared/InstructionsModal.tsx
  M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+2ca4ec97 [contrast]: record that check:dark-contrast passes gradients blind; park the glow diff + pixel probe
+edf2e441 [handoff]: 6.8 release set to automatic after approval (Tre, in Ada's tab)
 644f52c8 [handoff]: R1 done - Forgenta 6.8 (build 1066) submitted, Waiting for Review
 d34fbcd6 [handoff]: R2 done - first real Plaid sync-updates webhook synced 2 rows
 3b8af234 [handoff]: R1 - build 1066 attached to 6.8, waiting on Tre's yes
 33b02958 [handoff]: R1 progress - build 1066 uploaded, What's New and manual release saved on ASC 6.8
 76956bcb [handoff]: resume queue R1-R3 (6.8 submission first)
 83179596 [walk:press]: stub phase - blocked writes must show success on 200 and failure on 500
-e6c3b871 [handoff]: secret scan, capture mode, walk:press stability done
-f8e79f09 [demo]: store capture drops the tab bar, demo banner and DEMO chip (b3573355)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
