@@ -2,7 +2,11 @@
 
 ## Resume queue - 2026-09-24 ~05:30 UTC (Ada, successor of getforgenta-e4). START AT ITEM A. POINTERS.
 
-A. 4ea180eb (Sam's first pick): purge the stale Cloudflare copy of /assets/AuthContext-BSs7Fbfj.js, then re-measure:
+A. [!] 4ea180eb BLOCKED 05:35Z, no purge tool (the Cloudflare connector has only D1/KV/R2/Workers, and there is no token). Measured with Origin:
+   stale URL cached = 200 text/html HIT. Cache-busted = 404 from the origin. The control -c2 chunk = 200 JS. The live index references the stale name 0 times.
+   Recommended to Sam: not worth a click from Tre. The dashboard steps are in the ask's why. cb1d9ada CLOSED 05:18Z (temp spill delta 0 after 26h).
+   The follow-up date check on/after 10-03 is filed as a new ask.
+   OLD A: 4ea180eb (Sam's first pick): purge the stale Cloudflare copy of /assets/AuthContext-BSs7Fbfj.js, then re-measure:
    it must return 404, and a live -c2 chunk must still return JS as the control. Always send the header
    Origin: https://getforgenta.com (without Origin the edge serves JS, so a curl with no Origin looks healthy).
    There is NO Cloudflare API token on this machine. Check the Cloudflare connector for a purge tool first.
@@ -11394,7 +11398,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 23:52 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 01:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11410,6 +11414,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+c2ae1c7c [handoff]: resume queue A-D for successor (4ea180eb first)
 d17a46b0 [handoff]: auto-snapshot at pause
 a44775e8 [handoff]: rundown counts done; blank-site incident recorded
 907aa863 [business]: rundown-counts - user counts for rundown.py behind a hashed read secret
@@ -11417,7 +11422,6 @@ a44775e8 [handoff]: rundown counts done; blank-site incident recorded
 e4022e8d [handoff]: rundown user counts read half done (5d31e1fc)
 5d31e1fc [business]: business_user_counts() - user counts for the rundown, service_role only
 b1f7708d [handoff]: dark-contrast re-run green after focus-in (465, 0 below AA)
-04f3a2f8 [handoff]: focus-in on open done
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
