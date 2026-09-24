@@ -29,6 +29,14 @@
  * anything off this route; and disabled or placeholder text, which WCAG exempts and this does
  * not attempt to tell apart - so a finding on one of those is a false positive to check by hand.
  *
+ * ⚠️ MEASURED 2026-09-24: IT PASSES A GRADIENT BLIND. It reads `backgroundColor` only, so a
+ * change made of `background-image` is invisible to it. The dark ambient glow (bf48946c) read
+ * 465 strings, 0 below AA here, while a PIXEL probe found gold controls on the glow at 4.13 and
+ * 4.21, plus "$4,200" on desktop /debt at 4.45. The pixel probe hid the text, took screenshots,
+ * found the worst background pixel in each text's glyph area, compared glow on vs off, and used
+ * a control proving the pixels move. A PASS from this gate is NOT evidence about any gradient,
+ * image or blur. Ask 'make check:dark-contrast measure pixels' tracks the fix.
+ *
  * USAGE:  node scripts/check-dark-contrast.mjs
  * EXITS:  0 nothing under 4.5:1 . 1 at least one string is . 2 could not measure
  */
