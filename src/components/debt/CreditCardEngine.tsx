@@ -1446,7 +1446,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
             onClick={handleAutoAdjust}
-            className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-[10px] sm:text-xs font-medium btn-press hover:bg-primary/20" style={{ borderRadius: 'var(--radius)' }}
+            className="on-solid flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-[10px] sm:text-xs font-medium btn-press hover:bg-primary/20" style={{ borderRadius: 'var(--radius)' }}
           >
             <ShieldCheck size={12} /> Reset & Recalculate
           </button>

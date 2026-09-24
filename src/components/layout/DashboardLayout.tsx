@@ -18,7 +18,7 @@ export default function DashboardLayout() {
   // Called from a page, it would be at the mercy of that page unmounting first.
   useScrollRestoration();
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
+    <div className="app-shell flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
 
       <div className="flex-1 flex min-h-0 flex-col min-w-0">

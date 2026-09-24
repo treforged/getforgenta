@@ -34,7 +34,7 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold text-primary border border-primary/30 hover:border-primary hover:bg-primary/8 transition-colors shrink-0 cursor-pointer"
+        className="on-solid flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold text-primary border border-primary/30 hover:border-primary hover:bg-primary/8 transition-colors shrink-0 cursor-pointer"
         style={{ borderRadius: 'var(--radius)' }}
         title={`How to use ${pageTitle}`}
       >

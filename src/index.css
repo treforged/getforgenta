@@ -1216,3 +1216,33 @@ so size and variant are separated here and the 44px floor is stated once.
     padding-right: 2rem;
   }
 }
+
+/* ── Dark-mode ambient glow (Tre, 2026-09-24: "yes to the new glow") ─────────
+   Layer 2 of a58fb610 / decision 20a7210f. DARK ONLY. A soft colour field behind
+   the glass panels (gold top-left, blue right, teal bottom) and gold panel edges.
+   It changes NO text token and NO green/red/gold meaning colour. Unlayered on
+   purpose so it outranks the card-forged utility's border colour.
+   ⚠️ check:dark-contrast CANNOT SEE THIS: it reads backgroundColor only, so it
+   passes a gradient blind. It was measured by PIXELS instead (text hidden,
+   worst background pixel per text box, glow on vs off, 6 routes), and two
+   gold controls sitting straight on the field fell to 4.13 and 4.21 - hence
+   `.on-solid` below.
+   UNDO: delete this block, the `app-shell` class in DashboardLayout.tsx and the
+   `on-solid` class on the two buttons. */
+.dark .app-shell {
+  background-image:
+    radial-gradient(70% 38% at 0% 0%, hsl(43 75% 50% / 0.30), transparent 72%),
+    radial-gradient(65% 45% at 100% 45%, hsl(222 85% 58% / 0.30), transparent 72%),
+    radial-gradient(70% 40% at 20% 100%, hsl(165 70% 42% / 0.24), transparent 72%);
+}
+.dark .card-forged { border-color: hsl(43 55% 55% / 0.45); }
+
+/* A gold control that sits directly on the glow gets a SOLID card surface under
+   its tint, so its contrast no longer depends on where the field is brightest. */
+.dark .on-solid {
+  background-color: hsl(var(--card));
+  background-image: linear-gradient(hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.1));
+}
+.dark .on-solid:hover {
+  background-image: linear-gradient(hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.2));
+}

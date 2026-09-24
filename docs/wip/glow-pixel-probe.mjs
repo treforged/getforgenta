@@ -186,6 +186,10 @@ async function measure(glowOn) {
       rg.setStartBefore(tn[0]); rg.setEndAfter(tn[tn.length - 1]);
       const r = rg.getBoundingClientRect();
       if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) continue;
+      // OCCLUDED/CLIPPED text is not on screen: text scrolled under the footer sampled the
+      // footer's pixels and read as a glow failure (2026-09-24, '$4,200' at y=862).
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!hit || !(hit === el || el.contains(hit))) { window.__occluded = (window.__occluded || 0) + 1; continue; }
       const m = st.color.match(/rgba?\(([^)]+)\)/); if (!m) continue;
       const p = m[1].split(',').map(Number);
       out.push({ t: el.textContent.trim().slice(0, 30), c: p, x: Math.max(0, r.left), y: Math.max(0, r.top), w: Math.min(W, r.right) - Math.max(0, r.left), h: Math.min(H, r.bottom) - Math.max(0, r.top) });
@@ -242,7 +246,7 @@ for (const route of ROUTES) {
   const bOff = off.res.filter(r => r.worst < 4.5).length;
   const drops = on.res.map(r => offBy.has(r.k) ? +(offBy.get(r.k).worst - r.worst).toFixed(2) : 0);
   console.log(`   max contrast drop from glow ${Math.max(0, ...drops)}; worst glow-ON among those passing without it ${Math.min(99, ...on.res.filter(r=>offBy.has(r.k)&&offBy.get(r.k).worst>=4.5).map(r=>r.worst))}`);
-  totalOn += on.res.length; below.push(...b.map(x => `${route} "${x.t}" ${x.worst}`));
+  totalOn += on.res.length; below.push(...b.map(x => `${route} "${x.t}" ${x.worst} at ${x.k}`));
   console.log(`${route.padEnd(11)} texts ${String(on.res.length).padStart(3)}  worst glow-ON ${minOn}  glow-OFF ${minOff}  newly-below-4.5 ${b.length} (pre-existing ${bOff})  ctlPixelDelta ${d}`);
 }
 await browser.close();
