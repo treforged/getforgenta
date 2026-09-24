@@ -95,6 +95,11 @@ section states reasoning, not measurement, and says so.
   and 25 later. Enumeration now also waits for the network to go quiet (`quietNetwork`). A drop in `enumerated` is
   the alarm now. The press lookup waits the same way, so `not-found` went 8/17 -> 0/0 and two runs read
   **370 enumerated, 148 pressed, 148 changed, 0 not-found** identically. Any not-found or any change in those is a finding.
+  **STUB PHASE (2026-09-24, Sam's two conditions):** every write-blocked REST control is pressed twice more
+  with the write ANSWERED in-browser (`route.fulfill`, never sent): a 200 must show a change (a toast counts)
+  and a 500 must show a failure. Planted controls gate it: honest 200 changed, honest 500 shown, a LIAR that
+  always says saved must read silent on 500. Two runs: 13 of 13 show success, 12 of 12 show failure, plus 1
+  background tab write (Achievements' milestone claim) printed, not failed. Functions/storage stay aborted.
   It does NOT cover controls behind a dialog or menu, param routes, desktop widths, or whether a change
   is the RIGHT change.
 - `npm run check:rail` — measures the desktop sidebar at 1440 and 1024, in BOTH states,

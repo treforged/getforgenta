@@ -181,10 +181,33 @@ async function quietNetwork(page, quietMs = 1500, capMs = 20000) {
   }
   return false;
 }
-async function isolatedPage() {
+/**
+ * ⚠️ THE STUB PHASE (Sam, 2026-09-24). A write-blocked press proves only that a write was TRIED -
+ * never that the user sees its result. So each write-blocked control is pressed twice more, with
+ * the write ANSWERED instead of aborted: 'ok' echoes the request as a 200, 'err' returns a 500.
+ * `route.fulfill` answers inside this browser, so the request never leaves the machine and no real
+ * row - the walk account's or anyone's - is touched. Only REST (tables + rpc) is stubbed; functions
+ * (checkout, Plaid) and storage stay aborted, because a fake 200 there would drive an external flow.
+ * The 'err' arm exists because a control that always shows success passes the 'ok' arm.
+ */
+const STUBBABLE = new RegExp(`^https://${ref}\\.supabase\\.co/rest/v1/`);
+function stubBody(req, stub) {
+  if (stub === 'err') return { status: 500, json: { code: 'XX000', message: 'walk stub: simulated failure', details: null, hint: null } };
+  const u = new URL(req.url());
+  if (u.pathname.includes('/rpc/')) return { status: 200, json: [] };
+  let body = null;
+  try { body = req.postDataJSON(); } catch { body = null; }
+  const id = /^eq\.(.+)$/.exec(u.searchParams.get('id') ?? '')?.[1];
+  const row = { ...(body && typeof body === 'object' && !Array.isArray(body) ? body : {}), ...(id ? { id } : {}) };
+  const single = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
+  return { status: req.method() === 'POST' ? 201 : 200, json: single ? row : [row] };
+}
+async function isolatedPage(stub = null) {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, storageState: BASELINE });
   const page = await c.newPage();
   page.blockedWrites = [];
+  page.stubbedWrites = [];
+  page.restWrites = new Set(); // which blocked writes were REST (tables/rpc), so the stub phase can pick them
   // In-flight Supabase requests, so enumeration can wait for the DATA rather than for a count that
   // happens to repeat (see quietNetwork).
   page.inflight = new Set();
@@ -196,7 +219,15 @@ async function isolatedPage() {
     if (READ_METHODS.has(req.method())) return r.continue();
     const rpc = /\/rest\/v1\/rpc\/(\w+)/.exec(new URL(req.url()).pathname);
     if (rpc && READ_ONLY_RPC.has(rpc[1].toLowerCase())) return r.continue();
-    page.blockedWrites.push(`${req.method()} ${new URL(req.url()).pathname.replace(/^\/(rest|functions|storage)\/v1\//, '')}`);
+    const key = `${req.method()} ${new URL(req.url()).pathname.replace(/^\/(rest|functions|storage)\/v1\//, '')}`;
+    // An AMBIENT write (made on load, pressed or not) stays aborted even here: failed on 'err', it
+    // could raise an error toast of its own and be credited to the press.
+    if (stub && STUBBABLE.test(req.url()) && !AMBIENT.has(key)) {
+      page.stubbedWrites.push(key);
+      return r.fulfill(stubBody(req, stub));
+    }
+    if (STUBBABLE.test(req.url())) page.restWrites.add(key);
+    page.blockedWrites.push(key);
     return r.abort('blockedbyclient');
   });
   page.once('close', () => { c.close().catch(() => { /* already gone with the browser */ }); });
@@ -267,6 +298,9 @@ async function state(page) {
       // inline editor opens), so neither 'gone' nor its text moves. Its markup and the visible field count do.
       targetHtml: t ? t.innerHTML : null,
       fields: [...document.querySelectorAll('input, select, textarea')].filter((e) => e.getBoundingClientRect().width > 0).length,
+      // A toast IS what the user sees after a save (useAccounts: 'Account updated'), and it counts even
+      // on routes whose body text is too unstable to diff.
+      toasts: document.querySelectorAll('[data-sonner-toast]').length,
     };
   });
 }
@@ -280,12 +314,23 @@ function diff(a, b, textTrusted) {
   if (!textTrusted && a.targetText !== b.targetText) why.push('own label');
   if (a.targetHtml !== b.targetHtml) why.push('own content');
   if (a.fields !== b.fields) why.push(`fields ${a.fields} -> ${b.fields}`);
+  if (a.toasts !== b.toasts) why.push(`toasts ${a.toasts} -> ${b.toasts}`);
   return why;
 }
 
 /** Open a fresh page at `route`, optionally plant a control, and press `c`. */
-async function pressFresh(route, c, textTrusted, plant, plantWith) {
-  const page = await isolatedPage();
+/** Visible failure feedback: error toasts, alerts, and failure wording in the page. */
+async function failureSignals(page) {
+  return page.evaluate(() => {
+    const vis = (e) => e.getBoundingClientRect().width > 0;
+    const toasts = [...document.querySelectorAll('[data-sonner-toast][data-type="error"], [role="alert"]')].filter(vis).length;
+    const words = (document.body.innerText.match(/\b(failed|error|couldn.t|could not|try again|went wrong|not saved)\b/gi) ?? []).length;
+    return { toasts, words };
+  });
+}
+
+async function pressFresh(route, c, textTrusted, plant, plantWith, stub = null) {
+  const page = await isolatedPage(stub);
   let popup = false;
   page.on('popup', () => { popup = true; });
   page.on('download', () => { popup = true; });
@@ -306,6 +351,24 @@ async function pressFresh(route, c, textTrusted, plant, plantWith) {
       return { outcome: 'not-found', frame: nf, why: `landed ${new URL(page.url()).pathname}` };
     }
     const before = await state(page);
+    const failBefore = stub ? await failureSignals(page) : null;
+    // Record every toast/alert that APPEARS after the press. Sampling once at the end missed them:
+    // the stub wait can outlast a Sonner toast's ~4 s life, so a real "Account updated" read as
+    // no change on one run and a change on the next (Activate Alliant Checking, 2026-09-24).
+    if (stub) {
+      await page.evaluate(() => {
+        window.__zzSeen = [];
+        new MutationObserver((muts) => {
+          for (const m of muts) for (const n of m.addedNodes) {
+            if (!(n instanceof Element)) continue;
+            for (const e of [n, ...n.querySelectorAll('[data-sonner-toast], [role="alert"]')]) {
+              if (e.matches('[data-sonner-toast], [role="alert"]')) window.__zzSeen.push({ type: e.getAttribute('data-type') || e.getAttribute('role'), text: e.textContent });
+            }
+          }
+        }).observe(document.body, { childList: true, subtree: true });
+      });
+    }
+    const stubbedBefore = page.stubbedWrites.length;
     const writesBefore = page.blockedWrites.length;
     for (const w of page.blockedWrites) { loadBlocked.add(w); AMBIENT.add(w); }
     try {
@@ -314,12 +377,34 @@ async function pressFresh(route, c, textTrusted, plant, plantWith) {
       return { outcome: 'unpressable', why: String(e.message).split('\n')[0].slice(0, 140) };
     }
     await page.waitForTimeout(AFTER_PRESS_MS);
+    if (stub) {
+      // Wait for the answered write to be handled, then judge what the USER sees.
+      await quietNetwork(page, 1000, 8000);
+      await page.waitForTimeout(AFTER_PRESS_MS);
+      const stubbed = [...new Set(page.stubbedWrites.slice(stubbedBefore))];
+      if (!stubbed.length) return { outcome: 'stub-no-write', why: 'the press made no stubbable write this time' };
+      const after = await state(page);
+      const failAfter = await failureSignals(page);
+      const seen = await page.evaluate(() => window.__zzSeen ?? []);
+      const failWord = /\b(failed|error|couldn.t|could not|try again|went wrong|not saved)\b/i;
+      const failureShown = failAfter.toasts > failBefore.toasts || failAfter.words > failBefore.words
+        || seen.some((t) => t.type === 'error' || t.type === 'alert' || failWord.test(t.text));
+      const why = diff(before, after, textTrusted);
+      if (seen.length) why.push(`saw ${seen.map((t) => `${t.type}:"${t.text.slice(0, 40)}"`).join(', ')}`);
+      if (stub === 'ok') {
+        if (failureShown) return { outcome: 'stub-ok-shows-failure', why: `answered 200 yet a failure showed (${stubbed.join(', ')})` };
+        return why.length ? { outcome: 'stub-ok-changed', why: why.join('; ') } : { outcome: 'stub-ok-nochange', why: stubbed.join(', ') };
+      }
+      return failureShown
+        ? { outcome: 'stub-err-shown', why: `toasts ${failBefore.toasts}->${failAfter.toasts}, words ${failBefore.words}->${failAfter.words}` }
+        : { outcome: 'stub-err-silent', why: `answered 500, no failure visible (${stubbed.join(', ')})` };
+    }
     const after = await state(page);
     // Only a write the app does NOT make on its own is the press's. The app PATCHes
     // leaderboard_snapshots on load, and that can land inside any press window (it turned the
     // planted DEAD control into write-blocked once, 2026-09-23). AMBIENT is derived, not named.
     const attempted = page.blockedWrites.slice(writesBefore).filter((w) => !AMBIENT.has(w));
-    if (attempted.length) return { outcome: 'write-blocked', why: [...new Set(attempted)].join(', ') };
+    if (attempted.length) return { outcome: 'write-blocked', why: [...new Set(attempted)].join(', '), rest: attempted.every((w) => page.restWrites.has(w)) };
     const why = diff(before, after, textTrusted);
     if (popup) why.push('popup/download');
     if (why.length) return { outcome: 'changed', why: why.join('; ') };
@@ -373,6 +458,32 @@ for (const [n, r] of [['dead', deadResult], ['live', liveResult], ['write', writ
 if (deadResult.outcome !== 'no-change' || liveResult.outcome !== 'changed' || writeResult.outcome !== 'write-blocked') {
   await browser.close();
   fail(2, 'CONTROL FAILED - the crawler cannot tell a dead control from a live one, so every verdict below would be meaningless.');
+}
+// Stub-phase controls: an HONEST control reports what the server said; a LIAR shows success
+// whatever happens. Honest must read changed on 200 and shown on 500; the liar must read SILENT
+// on 500, or the err arm cannot catch the defect it exists for.
+const PLANT_STUB = ([dataUrl, liar]) => {
+  const b = document.createElement('button');
+  b.textContent = liar ? 'ZZ planted liar' : 'ZZ planted honest';
+  b.style.cssText = 'display:block;width:200px;height:40px';
+  b.addEventListener('click', async () => {
+    let ok = false;
+    try { ok = (await fetch(dataUrl, { method: 'PATCH', body: '{}' })).ok; } catch { ok = false; }
+    if (ok || liar) { b.textContent = 'ZZ saved'; return; }
+    const a = document.createElement('div');
+    a.setAttribute('role', 'alert');
+    a.textContent = 'ZZ could not save';
+    b.after(a);
+  });
+  (document.querySelector('main') || document.body).prepend(b);
+};
+const stubControl = (liar, stub) => pressFresh('/dashboard', { key: `button|ZZ planted ${liar ? 'liar' : 'honest'}|`, nth: 0, name: 'ZZ planted stub' }, false,
+  () => {}, (page) => page.evaluate(PLANT_STUB, [writeProbeUrl, liar]), stub);
+const sc = { honestOk: await stubControl(false, 'ok'), honestErr: await stubControl(false, 'err'), liarErr: await stubControl(true, 'err') };
+console.log(`stub control: honest 200 -> ${sc.honestOk.outcome}; honest 500 -> ${sc.honestErr.outcome}; liar 500 -> ${sc.liarErr.outcome}`);
+if (sc.honestOk.outcome !== 'stub-ok-changed' || sc.honestErr.outcome !== 'stub-err-shown' || sc.liarErr.outcome !== 'stub-err-silent') {
+  await browser.close();
+  fail(2, 'STUB CONTROL FAILED - the stub phase cannot tell a control that reports failure from one that hides it.');
 }
 
 // -- Crawl ------------------------------------------------------------------------------------------
@@ -446,6 +557,26 @@ async function worker() {
   }
 }
 await Promise.all(Array.from({ length: WORKERS }, worker));
+
+// -- Stub phase: what the user SEES when a blocked write succeeds, and when it fails ----------------
+const stubJobs = jobs.filter((j) => findings.some((f) => f.outcome === 'write-blocked' && f.route === j.route
+  && f.name === (j.c.name || '(no name)') && f.rest));
+const stubFindings = [];
+const stubTally = { ok: 0, err: 0, flaky: 0, background: 0 };
+for (const j of stubJobs) {
+  for (const stub of ['ok', 'err']) {
+    const r = await pressFresh(j.from, j.c, j.textTrusted, undefined, undefined, stub);
+    // A TAB's job is switching the view; a write it makes on the way (claiming milestones on the
+    // Achievements tab) is background work, retried on the next open. Printed, not a finding.
+    if (r.outcome === 'stub-err-silent' && j.c.role === 'tab') {
+      stubTally.background++;
+      stubFindings.push({ route: j.route, name: j.c.name, role: j.c.role, ...r, outcome: 'stub-err-silent-bg' });
+      continue;
+    }
+    if (r.outcome === 'stub-ok-changed' || r.outcome === 'stub-err-shown') stubTally[stub]++;
+    else { if (r.outcome === 'stub-no-write' || r.outcome === 'not-found') stubTally.flaky++; stubFindings.push({ route: j.route, name: j.c.name || '(no name)', role: j.c.role, ...r }); }
+  }
+}
 await browser.close();
 
 // -- Report -----------------------------------------------------------------------------------------
@@ -457,6 +588,10 @@ console.log(`enumerated ${tally.enumerated} . pressed ${tally.pressed} . changed
 console.log(`write-blocked ${tally['write-blocked']} (pressed; its write was aborted, so nothing persisted). Blocked during page LOAD, before any press: ${loadBlocked.size ? [...loadBlocked].join(', ') : 'none'}`);
 console.log(`skipped: destructive ${tally.destructive} . write ${tally.write} . external ${tally.external} . repeat-chrome ${tally.repeat} . already-active ${tally['already-active']} . self-link ${tally['self-link']}`);
 if (unsettled.length) console.log(`UNSETTLED routes (their count is a lower bound): ${unsettled.join(', ')}`);
+for (const f of stubFindings) console.log(`  ${f.outcome.padEnd(21)} ${f.route.padEnd(18)} ${f.role.padEnd(6)} "${f.name}"${f.why ? `  (${f.why})` : ''}`);
+console.log(`stub phase: ${stubJobs.length} write-blocked REST controls . 200 shows a change ${stubTally.ok} . 500 shows a failure ${stubTally.err} . inconclusive ${stubTally.flaky} . background tab writes ${stubTally.background} . findings ${stubFindings.length - stubTally.flaky - stubTally.background}`);
 if (tally.pressed === 0) fail(2, 'pressed 0 controls - nothing was tested.');
 if (tally['no-change'] > 0) { console.log(`FINDINGS: ${tally['no-change']} pressed control(s) changed nothing. Each has a frame in ${OUT}.`); process.exit(1); }
-console.log('PASS - every pressed control changed something.');
+const stubReal = stubFindings.length - stubTally.flaky - stubTally.background;
+if (stubReal > 0) { console.log(`FINDINGS: ${stubReal} write control(s) hide their result - listed above as stub-ok-nochange, stub-ok-shows-failure or stub-err-silent.`); process.exit(1); }
+console.log('PASS - every pressed control changed something, and every stubbed write showed its success and its failure.');
