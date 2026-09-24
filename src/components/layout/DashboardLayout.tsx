@@ -10,7 +10,7 @@ import { useAutoEndSyncReconcile } from '@/hooks/useAutoEndReconcile';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 export default function DashboardLayout() {
-  const { isDemo } = useDemo();
+  const { isCapture } = useDemo();
   // 97.3 — balance-sync landing: refresh stale goal auto-end stamps once per app session.
   useAutoEndSyncReconcile();
   // ⚠️ HERE AND NOT IN A PAGE. This layout owns `#scroll-main` below and persists across every
@@ -50,7 +50,7 @@ export default function DashboardLayout() {
             min-w-0
             overflow-y-auto
             px-3
-            pb-[calc(5.5rem+env(safe-area-inset-bottom))]
+            ${isCapture ? 'pb-6' : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]'}
             pt-3
             sm:px-4
             lg:px-6
@@ -79,7 +79,8 @@ export default function DashboardLayout() {
         </footer>
       </div>
 
-      <MobileNav />
+      {/* Store capture (`/demo?capture=1`) frames the screen without the tab bar. */}
+      {!isCapture && <MobileNav />}
     </div>
   );
 }

@@ -37,12 +37,19 @@ type DemoContextType = {
   setIsDemo: (v: boolean, opts?: { capture?: boolean }) => void;
   /** The demo's orientation/guide cards render only when this is true. */
   showDemoGuides: boolean;
+  /**
+   * `/demo?capture=1` is active. Store frames also drop the bottom tab bar and the demo banner
+   * (ask b3573355, Ruby 2026-09-24: the bar in every frame made the shots read as dense, and a
+   * "demo" strip is not what a store visitor should see). Only the capture URL turns this on.
+   */
+  isCapture: boolean;
 };
 
 const DemoContext = createContext<DemoContextType>({
   isDemo: false,
   setIsDemo: () => {},
   showDemoGuides: false,
+  isCapture: false,
 });
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
@@ -111,7 +118,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <DemoContext.Provider value={{ isDemo, setIsDemo: setDemo, showDemoGuides: isDemo && !capture }}>
+    <DemoContext.Provider value={{ isDemo, setIsDemo: setDemo, showDemoGuides: isDemo && !capture, isCapture: isDemo && capture }}>
       {children}
     </DemoContext.Provider>
   );

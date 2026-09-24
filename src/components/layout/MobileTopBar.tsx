@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import { Menu } from 'lucide-react';
 import { useDemoSession } from '@/hooks/useDemoSession';
+import { useDemo } from '@/contexts/DemoContext';
 import IdentityBadge from '@/components/layout/IdentityBadge';
 import BackButton from '@/components/layout/BackButton';
 import { isPushedRoute, ACCOUNT_TAB_PATH } from '@/lib/nav-routes';
@@ -30,6 +31,8 @@ import { isPushedRoute, ACCOUNT_TAB_PATH } from '@/lib/nav-routes';
 export default function MobileTopBar() {
   const { pathname } = useLocation();
   const { isDemo } = useDemoSession();
+  // Store capture (`/demo?capture=1`) drops the DEMO chip; see DemoContext `isCapture`.
+  const { isCapture } = useDemo();
 
   /**
    * The hamburger belongs to the Account tab only. Compared against the shared `ACCOUNT_TAB_PATH`
@@ -113,7 +116,7 @@ export default function MobileTopBar() {
             draggable={false}
           />
           <span className="font-display font-bold text-sm tracking-tight text-primary">FORGENTA</span>
-          {isDemo && (
+          {isDemo && !isCapture && (
             <span className="text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1 py-0.5 rounded shrink-0">Demo</span>
           )}
         </Link>

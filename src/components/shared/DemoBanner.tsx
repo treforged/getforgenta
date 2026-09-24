@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { useDemoSession } from '@/hooks/useDemoSession';
+import { useDemo } from '@/contexts/DemoContext';
 
 const routeDescriptions: Record<string, string> = {
   '/dashboard':    'Overview of all accounts, cash flow, and net worth in one place',
@@ -16,7 +17,10 @@ const routeDescriptions: Record<string, string> = {
 export default function DemoBanner() {
   const { isDemo, isPreview, leaveDemo } = useDemoSession();
   const { pathname } = useLocation();
-  if (!isDemo) return null;
+  const { isCapture } = useDemo();
+  // Store capture frames (`/demo?capture=1`) carry no "demo" strip. The capture URL is typed
+  // deliberately, and leaving it is plain /demo or closing the tab.
+  if (!isDemo || isCapture) return null;
 
   const description = routeDescriptions[pathname] ?? 'Explore any page to see how it all connects';
 
