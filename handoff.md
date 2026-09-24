@@ -2,7 +2,11 @@
 
 ## Resume queue - 2026-09-24 ~07:45 UTC (Ada, successor of getforgenta-09). START AT R1. POINTERS.
 
-R1. 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 35970467495 was dispatched at 07:35Z from 83179596
+R1. [~] PROGRESS 07:50Z: run 35970467495 = iOS build 1066, altool "UPLOAD SUCCEEDED with no errors" 07:42:32Z.
+    What's New SAVED on ASC 6.8 (1398 chars, 5 headings, 14 bullets, read back by JS). "Manually release" SAVED.
+    Screenshots = Sam's cream set (8+8). Info.plist ITSAppUsesNonExemptEncryption=false -> compliance answer "No".
+    LEFT: attach 1066 once Apple finishes processing, then take Tre's yes IN ADA'S TAB, then Add for Review.
+R1 (original). 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 35970467495 was dispatched at 07:35Z from 83179596
     (VERSION 6.8.0). Read the "Upload to App Store Connect" STEP OUTPUT for altool "UPLOAD SUCCEEDED". Do not trust the run
     conclusion. The build number is run_number+100. Wait for Apple processing, then in Chrome (ASC is signed in) open
     apps/6762540239 > 6.8. The 6.8 page ALREADY has 8 screenshots (Sam), an EMPTY What's New and NO build. 6.7 is
@@ -11419,7 +11423,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 02:26 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 03:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11435,14 +11439,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+76956bcb [handoff]: resume queue R1-R3 (6.8 submission first)
+83179596 [walk:press]: stub phase - blocked writes must show success on 200 and failure on 500
 e6c3b871 [handoff]: secret scan, capture mode, walk:press stability done
 f8e79f09 [demo]: store capture drops the tab bar, demo banner and DEMO chip (b3573355)
 6064e77d [security]: tracked hooks with a pre-commit secret scan (6942ae27)
 ec084e15 [walk:press]: press lookup also waits for a quiet network
 3f5a7344 [walk:press]: wait for a quiet network before counting controls
 4e2d5ea3 [handoff]: 4ea180eb blocked (no purge tool), cb1d9ada closed
-c2ae1c7c [handoff]: resume queue A-D for successor (4ea180eb first)
-d17a46b0 [handoff]: auto-snapshot at pause
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
