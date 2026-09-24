@@ -11,6 +11,13 @@
    No sandbox Plaid keys on this machine, so Sam's fire_webhook proof cannot run here. NEXT: deploy plaid-webhook
    (verify_jwt FALSE, Plaid signs it), then point items at it: link token `webhook` for new items and /item/webhook/update
    for existing ones (a one-shot server action). Both touch real users' Plaid items; do them deliberately.
+   ✅ SAM GO 2026-09-24 ~00:10Z FOR BOTH STEPS, in order: (1) deploy, fetch back, diff vs a2c51918 (every file, as for
+   plaid-sync v70), then call it with a BAD signature and with NO signature - both must refuse. (2) Record every Plaid
+   item's current webhook first (the undo list; say where it lives), point ONE item (the reviewer's if it has one,
+   else Tre's) at https://mdtosrbfkextcaezuclh.supabase.co/functions/v1/plaid-webhook, confirm with /item/get, then the rest.
+   Report the count. The Plaid secret exists ONLY in the deployed functions, so step 2 needs a server-side action
+   (build it guarded: service-role only, dry-run by default). Also add `webhook` to plaid-create-link-token for new items.
+   ⚠️ NO PLACEHOLDERS in any deploy payload (v69 incident). Sam is adding a machine guard for this.
    OLD item 0 follows.
    0. GRACE DEPLOY 7 OF 8 LIVE (d01dae3b, now [!] blocked). partner-link v13, friend-link v15, plaid-exchange-token v60,
    financial-sync v18, plaid-sync-all v55 this session; plaid-create-link-token v59 + ai-advisor v64 before. Pairs proven on
