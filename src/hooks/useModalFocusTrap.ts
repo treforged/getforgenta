@@ -18,7 +18,14 @@ import { useEffect } from 'react';
  * because an autoFocus inside the popup may already have taken focus by the time the observer
  * runs). When it goes away, focus goes back to that opener - but only if the opener is still in
  * the page AND focus was dropped (body or a detached node). Focus the user moved on purpose is
- * left alone. Does not move focus in on open; the first Tab does that.
+ * left alone.
+ *
+ * FOCUS MOVES IN ON OPEN. When a popup appears and focus is still outside it, focus goes to the
+ * popup ITSELF (tabindex=-1), not to its first control. A screen reader then announces the popup
+ * by its label, and the next Tab reaches the first control. The container is chosen on purpose:
+ * the first control of a delete confirmation can be the destructive button, and landing on it
+ * makes one Enter press destroy data. An autoFocus inside the popup already moved focus in, and
+ * that choice is left alone.
  * First draft by the free tier (qwen3:14b), rewritten by Ada 2026-09-23: the draft counted
  * tabindex=-1 as tabbable, missed Shift+Tab from the container, and needed a ref per panel.
  */
@@ -69,7 +76,7 @@ export function handleTrapKeyDown(e: KeyboardEvent): void {
   } else if (e.shiftKey && (active === first || active === modal)) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && active === last) {
+  } else if (!e.shiftKey && (active === last || active === modal)) {
     e.preventDefault();
     first.focus();
   }
@@ -104,6 +111,11 @@ export function startFocusReturn(doc: Document = document): () => void {
       if (open.has(m)) continue;
       const opener = openerFor(m);
       if (opener) openers.set(m, opener);
+      const active = doc.activeElement;
+      if (m === topModal(doc) && !(active instanceof HTMLElement && m.contains(active))) {
+        if (!m.hasAttribute('tabindex')) m.setAttribute('tabindex', '-1');
+        m.focus({ preventScroll: true });
+      }
     }
     for (const m of open) {
       if (now.has(m)) continue;

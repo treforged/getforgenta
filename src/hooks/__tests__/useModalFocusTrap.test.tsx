@@ -147,6 +147,14 @@ describe('focus returns to the opener when a popup closes', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('elsewhere'));
   });
 
+  it('paired: an autoFocus inside the popup keeps focus on that control', async () => {
+    render(<Opener />);
+    openVia('open it');
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+    await new Promise(r => setTimeout(r, 0));
+    expect(document.activeElement).toBe(screen.getByText('inside'));
+  });
+
   it('a real popup: InstructionsModal closed by Escape returns focus to its trigger', async () => {
     render(<><Page open={false} /><InstructionsModal pageTitle="Budget" sections={[{ title: 'A', body: 'b' }]} /></>);
     const trigger = screen.getByTitle('How to use Budget');
@@ -157,5 +165,50 @@ describe('focus returns to the opener when a popup closes', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+});
+
+function Confirm() {
+  useModalFocusTrap();
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button onClick={() => setOpen(true)}>ask</button>
+      {open && (
+        <div role="alertdialog" aria-modal="true" aria-label="Delete this account?">
+          <button>Delete</button>
+          <button>Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+describe('focus moves into a popup when it opens', () => {
+  it('lands on the popup itself, so it is announced and the next Tab reaches the first control', async () => {
+    render(<Confirm />);
+    openVia('ask');
+    const dialog = await waitFor(() => screen.getByRole('alertdialog'));
+    await waitFor(() => expect(document.activeElement).toBe(dialog));
+    expect(dialog.getAttribute('tabindex')).toBe('-1');
+    tab();
+    expect(document.activeElement).toBe(screen.getByText('Delete'));
+  });
+
+  it('never lands on the destructive button by itself', async () => {
+    render(<Confirm />);
+    openVia('ask');
+    await waitFor(() => screen.getByRole('alertdialog'));
+    await new Promise(r => setTimeout(r, 0));
+    expect(document.activeElement).not.toBe(screen.getByText('Delete'));
+  });
+
+  it('a real popup: InstructionsModal takes focus on open', async () => {
+    render(<><Page open={false} /><InstructionsModal pageTitle="Budget" sections={[{ title: 'A', body: 'b' }]} /></>);
+    const trigger = screen.getByTitle('How to use Budget');
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = await waitFor(() => screen.getByRole('dialog', { name: 'How to use Budget' }));
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
   });
 });
