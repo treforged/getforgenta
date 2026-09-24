@@ -361,6 +361,29 @@ async function syncTransactions(
   return written;
 }
 
+/**
+ * TRANSACTIONS ONLY, for the plaid-webhook path: /transactions/sync and nothing else, so a Plaid
+ * notification never costs a billed /accounts/balance/get. Takes the same per-connection mutex as
+ * the full sync, so it cannot race the nightly cron over the cursor, and does NOT touch
+ * last_synced_at, so the nightly balance pull still runs on schedule. Returns rows written; 0 when
+ * the connection is locked or needs reauth. Never throws (syncTransactions does not).
+ */
+export async function syncTransactionsOnly(
+  db: SupabaseClient,
+  connection: FinancialConnection,
+): Promise<number> {
+  if (connection.connection_status === "reauth_required") return 0;
+  if (!(await acquireLock(db, connection.id))) {
+    console.log(`Connection ${connection.id} is already syncing; webhook pull skipped`);
+    return 0;
+  }
+  try {
+    return await syncTransactions(db, connection);
+  } finally {
+    await releaseLock(db, connection.id);
+  }
+}
+
 export async function syncConnection(
   db: SupabaseClient,
   connection: FinancialConnection,

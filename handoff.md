@@ -2,7 +2,17 @@
 
 ## Resume queue - 2026-09-23 ~22:15 UTC (Ada, successor of getforgenta-95). START AT ITEM 0. POINTERS.
 
-0. GRACE DEPLOY 7 OF 8 LIVE (d01dae3b, now [!] blocked). partner-link v13, friend-link v15, plaid-exchange-token v60,
+0. ✅ GRACE DEPLOY 8 OF 8 LIVE (d01dae3b closed). plaid-sync v70 at 2026-09-24 00:00:33Z, probe past_due 200 / canceled 403,
+   files match HEAD. ⚠️ INCIDENT (mine): v69 shipped with a PLACEHOLDER sync-handler and could not boot for 257s; zero real
+   calls hit it (function_edge_logs). LESSON: never hand-type a multi-file MCP deploy with a placeholder in it; fetch the
+   deployed version back and diff it against git HEAD (done for v70).
+0b. PLAID WEBHOOK (8878d532, Sam approved): BUILT, NOT DEPLOYED. supabase/functions/plaid-webhook/index.ts +
+   _shared/plaid-webhook.ts + syncTransactionsOnly in sync-handler. Tests src/lib/__tests__/plaid-webhook.test.ts (9, red 5 ways).
+   No sandbox Plaid keys on this machine, so Sam's fire_webhook proof cannot run here. NEXT: deploy plaid-webhook
+   (verify_jwt FALSE, Plaid signs it), then point items at it: link token `webhook` for new items and /item/webhook/update
+   for existing ones (a one-shot server action). Both touch real users' Plaid items; do them deliberately.
+   OLD item 0 follows.
+   0. GRACE DEPLOY 7 OF 8 LIVE (d01dae3b, now [!] blocked). partner-link v13, friend-link v15, plaid-exchange-token v60,
    financial-sync v18, plaid-sync-all v55 this session; plaid-create-link-token v59 + ai-advisor v64 before. Pairs proven on
    the walk account (past_due passes, canceled refused; financial-sync 200 vs OLD plaid-sync 403 on the same row). Walk row
    restored free/inactive. ONLY plaid-sync REMAINS: MCP deploy failed TWICE (InternalServerErrorException) on the same bundle
@@ -11348,7 +11358,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 19:06 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 19:28 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11359,14 +11369,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+14242ab5 [a11y]: closing a popup puts focus back on the control that opened it
+7ea2b78a [a11y]: Tab stays inside the open popup
 8a760f0f [a11y]: the last 14 popups are real dialogs, and Escape closes them
 8239bb6c [a11y]: census gate - every modal-overlay popup must be a dialog, 14-file list may only shrink
 575da860 [handoff]: shared modals done (ccd141f7); 18 modal-overlay sites next
 ccd141f7 [a11y]: the two shared modals are real dialogs, and Escape closes only the top one
 aeceb625 [handoff]: grace deploy 7 of 8 live and proven; plaid-sync MCP deploy fails with an internal error
 5d5e2bfb [handoff]: grace deploy 4 of 8 live (partner-link v13, friend-link v15)
-ffe95e46 [handoff]: Tre approved the d01dae3b grace deploy; the gate stopped this session, successor deploys first
-cde18d6d [handoff]: all form fields named (d441bd19); dialog-semantics slice planned with a reviewed free-tier draft parked
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
