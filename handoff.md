@@ -5,7 +5,7 @@
 R1. [~] PROGRESS 07:50Z: run 35970467495 = iOS build 1066, altool "UPLOAD SUCCEEDED with no errors" 07:42:32Z.
     What's New SAVED on ASC 6.8 (1398 chars, 5 headings, 14 bullets, read back by JS). "Manually release" SAVED.
     Screenshots = Sam's cream set (8+8). Info.plist ITSAppUsesNonExemptEncryption=false -> compliance answer "No".
-    LEFT: attach 1066 once Apple finishes processing, then take Tre's yes IN ADA'S TAB, then Add for Review.
+    08:15Z: build 1066 ATTACHED and read back after reload. No compliance prompt. LEFT: Tre's yes IN ADA'S TAB, then Add for Review.
 R1 (original). 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 35970467495 was dispatched at 07:35Z from 83179596
     (VERSION 6.8.0). Read the "Upload to App Store Connect" STEP OUTPUT for altool "UPLOAD SUCCEEDED". Do not trust the run
     conclusion. The build number is run_number+100. Wait for Apple processing, then in Chrome (ASC is signed in) open
