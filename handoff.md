@@ -6,7 +6,16 @@
    files match HEAD. ⚠️ INCIDENT (mine): v69 shipped with a PLACEHOLDER sync-handler and could not boot for 257s; zero real
    calls hit it (function_edge_logs). LESSON: never hand-type a multi-file MCP deploy with a placeholder in it; fetch the
    deployed version back and diff it against git HEAD (done for v70).
-0b. PLAID WEBHOOK (8878d532, Sam approved): BUILT, NOT DEPLOYED. supabase/functions/plaid-webhook/index.ts +
+0b. ✅ PLAID WEBHOOK LIVE ON ALL 8 ITEMS (8878d532 done, 081ff1fa). plaid-webhook v1 (verify_jwt false) matches HEAD
+   14/14 by script; no-sig / bad-sig / garbage header -> 401. Plaid's OWN signed WEBHOOK_UPDATE_ACKNOWLEDGED reached it at
+   00:26:15Z and passed (200, ignored) - real end-to-end signature proof. plaid-webhook-register v1 (x-cron-secret, dry-run
+   default, apply needs item_ids|all) run from SQL via pg_net: dry run 8 items, all webhook null; ONE item (Tre's Chase
+   LB8a...) then the rest: 8/8 confirmed by /item/get, 0 errors. UNDO LIST: backup.plaid_item_webhooks_undo_20260924
+   (8 rows, all before=null; anon has no schema usage). Undo is UNVERIFIED: whether /item/webhook/update accepts "" to clear is not tested; the tested lever is plaid-webhook itself (ack and ignore).
+   plaid-create-link-token v60 sets webhook for new items; Plaid accepted it (walk account, premium for one call, restored
+   free/inactive). Deploys of register + link-token read back inline (no file), so compared by reading, not by script.
+   NEXT: watch function_logs for the first real TRANSACTIONS/SYNC_UPDATES_AVAILABLE -> "synced (N rows)".
+   OLD 0b: PLAID WEBHOOK (8878d532, Sam approved): BUILT, NOT DEPLOYED. supabase/functions/plaid-webhook/index.ts +
    _shared/plaid-webhook.ts + syncTransactionsOnly in sync-handler. Tests src/lib/__tests__/plaid-webhook.test.ts (9, red 5 ways).
    No sandbox Plaid keys on this machine, so Sam's fire_webhook proof cannot run here. NEXT: deploy plaid-webhook
    (verify_jwt FALSE, Plaid signs it), then point items at it: link token `webhook` for new items and /item/webhook/update
@@ -11365,25 +11374,29 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-23 19:28 by handoff_hook. Everything below this heading is
+_Written 2026-09-23 20:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (1 file(s)):**
+
+```
+M deno.lock
+```
 
 - **Recent commits:**
 
 ```
+f1c4c549 [handoff]: grace 8/8 done; Plaid webhook built, Sam GO for deploy + item registration
+a2c51918 [plaid]: signed webhook that pulls transactions only (built, not deployed)
+cc5a28f0 [demo]: /demo?capture=1 hides the guide cards for App Store screenshots
 14242ab5 [a11y]: closing a popup puts focus back on the control that opened it
 7ea2b78a [a11y]: Tab stays inside the open popup
 8a760f0f [a11y]: the last 14 popups are real dialogs, and Escape closes them
 8239bb6c [a11y]: census gate - every modal-overlay popup must be a dialog, 14-file list may only shrink
 575da860 [handoff]: shared modals done (ccd141f7); 18 modal-overlay sites next
-ccd141f7 [a11y]: the two shared modals are real dialogs, and Escape closes only the top one
-aeceb625 [handoff]: grace deploy 7 of 8 live and proven; plaid-sync MCP deploy fails with an internal error
-5d5e2bfb [handoff]: grace deploy 4 of 8 live (partner-link v13, friend-link v15)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
