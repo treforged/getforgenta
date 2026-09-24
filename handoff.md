@@ -16,7 +16,7 @@ R1 (original). 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 3
     ⚠️ BEFORE "Add for Review": show Tre the build number, the What's New text and the screenshot set IN ADA'S TAB, and
     take his yes THERE. Never take it relayed.
     Chrome note: the ASC page freezes screenshot capture at times. get_page_text and find work.
-R2. dabc6229: after 13:00Z, look for "plaid-webhook TRANSACTIONS/SYNC_UPDATES_AVAILABLE: synced (N rows)" (none at 07:00Z).
+R2. [x] dabc6229 DONE 13:05Z: first real SYNC_UPDATES_AVAILABLE at 11:54:27Z logged "synced (2 rows)", and the DB shows 2 rows in that window.
 R3. STANDING e1b0fffc. Done 2026-09-24: 6942ae27 secret scan (.githooks, core.hooksPath), b3573355 capture mode,
     walk:press stable (370/148/0) plus the stub phase (13/13 success shown, 12/12 failure shown), cb1d9ada closed, 4ea180eb dropped.
     Next candidate: 34ac4dad re-measure (not re-tested today).
@@ -11423,7 +11423,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 03:40 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 04:01 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11439,14 +11439,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+3b8af234 [handoff]: R1 - build 1066 attached to 6.8, waiting on Tre's yes
+33b02958 [handoff]: R1 progress - build 1066 uploaded, What's New and manual release saved on ASC 6.8
 76956bcb [handoff]: resume queue R1-R3 (6.8 submission first)
 83179596 [walk:press]: stub phase - blocked writes must show success on 200 and failure on 500
 e6c3b871 [handoff]: secret scan, capture mode, walk:press stability done
 f8e79f09 [demo]: store capture drops the tab bar, demo banner and DEMO chip (b3573355)
 6064e77d [security]: tracked hooks with a pre-commit secret scan (6942ae27)
 ec084e15 [walk:press]: press lookup also waits for a quiet network
-3f5a7344 [walk:press]: wait for a quiet network before counting controls
-4e2d5ea3 [handoff]: 4ea180eb blocked (no purge tool), cb1d9ada closed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
