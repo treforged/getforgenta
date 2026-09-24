@@ -5,7 +5,8 @@
 R1. [~] PROGRESS 07:50Z: run 35970467495 = iOS build 1066, altool "UPLOAD SUCCEEDED with no errors" 07:42:32Z.
     What's New SAVED on ASC 6.8 (1398 chars, 5 headings, 14 bullets, read back by JS). "Manually release" SAVED.
     Screenshots = Sam's cream set (8+8). Info.plist ITSAppUsesNonExemptEncryption=false -> compliance answer "No".
-    08:15Z: build 1066 ATTACHED and read back after reload. No compliance prompt. LEFT: Tre's yes IN ADA'S TAB, then Add for Review.
+    [x] SUBMITTED ~18:30Z on Tre's yes in Ada's tab. Read back after reload: '6.8 Waiting for Review' (build 1066, MANUAL release).
+    NEXT: when Apple approves (email), tell Tre. HE presses release. Do not release it yourself.
 R1 (original). 93185728 SUBMIT 6.8 FOR APP STORE REVIEW (Tre via Sam). iOS run 35970467495 was dispatched at 07:35Z from 83179596
     (VERSION 6.8.0). Read the "Upload to App Store Connect" STEP OUTPUT for altool "UPLOAD SUCCEEDED". Do not trust the run
     conclusion. The build number is run_number+100. Wait for Apple processing, then in Chrome (ASC is signed in) open
@@ -11423,22 +11424,24 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 04:01 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 10:12 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
+d34fbcd6 [handoff]: R2 done - first real Plaid sync-updates webhook synced 2 rows
 3b8af234 [handoff]: R1 - build 1066 attached to 6.8, waiting on Tre's yes
 33b02958 [handoff]: R1 progress - build 1066 uploaded, What's New and manual release saved on ASC 6.8
 76956bcb [handoff]: resume queue R1-R3 (6.8 submission first)
@@ -11446,7 +11449,6 @@ M deno.lock
 e6c3b871 [handoff]: secret scan, capture mode, walk:press stability done
 f8e79f09 [demo]: store capture drops the tab bar, demo banner and DEMO chip (b3573355)
 6064e77d [security]: tracked hooks with a pre-commit secret scan (6942ae27)
-ec084e15 [walk:press]: press lookup also waits for a quiet network
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
