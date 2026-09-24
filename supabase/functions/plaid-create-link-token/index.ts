@@ -15,6 +15,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 import { decideBankLink, FREE_LINK_USED_MESSAGE } from "../_shared/bank-link-entitlement.ts";
+import { plaidWebhookUrl } from "../_shared/plaid-webhook-register.ts";
 
 const MAX_LINKED = 10;
 const RATE_LIMIT = { windowMs: 60_000, max: 10 };
@@ -129,6 +130,10 @@ Deno.serve(async (req) => {
       country_codes: ["US"],
       language:     "en",
       user: { client_user_id: userId },
+      // Plaid calls plaid-webhook when this item has new transactions, so a paycheck shows up
+      // when Plaid has it instead of at the next 9 AM cron. Derived from SUPABASE_URL, never
+      // from request input: it is where Plaid sends item events.
+      webhook: plaidWebhookUrl(Deno.env.get("SUPABASE_URL")!),
     };
     if (hosted) {
       // ⚠️ THE COMMENT THAT USED TO BE HERE WAS WRONG, AND IT COST THREE WEEKS.

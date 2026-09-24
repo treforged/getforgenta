@@ -20,6 +20,16 @@ project_id = "mdtosrbfkextcaezuclh"
 [functions.plaid-sync-all]
 verify_jwt = false
 
+# Plaid calls this. Authenticates with Plaid's signed Plaid-Verification header
+# (ES256, body hash, 5-minute freshness) and returns 401 without it.
+[functions.plaid-webhook]
+verify_jwt = false
+
+# One-shot admin action, called from SQL via pg_net with x-cron-secret from the
+# Vault. Returns 401 without it, before reading the body or any row.
+[functions.plaid-webhook-register]
+verify_jwt = false
+
 # Called by pg_cron via pg_net, which cannot mint a Supabase JWT. The function
 # authenticates the caller itself with the x-webhook-secret header and returns 401
 # without it. This entry exists so a CLI deploy cannot silently re-enable JWT
