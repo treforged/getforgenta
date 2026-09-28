@@ -29,6 +29,18 @@ Kept short on purpose (Sam's ask). Ada's `handoff.md` is the main record; this i
    `~/.claude/settings.json` (Tre approved them in manual mode).
 3. TestFlight: iOS run 36494360205 = build 1069 from 40cdb82d (= b683e97c, same tree; rewritten for author), dispatched from the Mac. Build IPA succeeded.
    Check the UPLOAD step's own conclusion before calling it shipped.
+4. TestFlight: iOS run 36495553543 = build 1071 (VERSION 6.8.1, 36e4c624). Upload step success AND altool printed
+   `UPLOAD SUCCEEDED with no errors`, Delivery UUID a8b3825b-7045-4003-8e7d-4268fb4e9871. No `gh` here: read job logs
+   with the git credential token via the REST API (`/actions/jobs/<id>/logs`).
+
+## Handoff to a new terminal = Remote Control ON (Tre, 2026-09-28)
+Tre: "make sure if you handoff to another terminal you automatically remote connect it". The Mac has no
+`dispatch.py`, so open the successor with the flag set, never a bare `claude`:
+
+    osascript -e 'tell application "Terminal" to do script "cd ~/getforgenta && claude --remote-control \"Ada Mac\" \"Read handoff-mac.md in full, then resume its Next list.\""'
+
+`--remote-control [name]` is in this machine's `claude --help` (line 189). NOT yet run end to end: the first real
+handoff must confirm the new session shows in Tre's Remote Control list before this tab exits.
 
 ## Standing decisions
 - Obsidian: the Mac commits graphify-out/ only; the PC publishes it (Sam, 09-28). The vault NEVER gets a
