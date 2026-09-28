@@ -45,3 +45,11 @@ Kept short on purpose (Sam's ask). Ada's `handoff.md` is the main record; this i
 3. Native share sheet and the GlassEffectPlugin round trip in the simulator. Needs a signed-in session in the sim.
 4. f22f17b1 native glass stays BLOCKED on Tre's decision. The simulator can now MEASURE the sibling-view question,
    but do not write Swift for it without his yes.
+
+## Installed on the Mac (2026-09-28, Tre's yes)
+- `~/.claude/skills` = a git clone of `treforged/claude-skills` @ 8104ad2 (https). Update it with `git -C ~/.claude/skills pull`.
+- `~/.claude/rules` = a copy of `rules/` from `treforged/dot-claude` @ 0f5d4ea.
+- NOT installed: `CLAUDE.md`, because `dot-claude` @ 0f5d4ea has no CLAUDE.md at all. Sam was told. Also not
+  installed: settings.json, bin/, hooks, agents (Windows paths and PowerShell).
+- Reviewed before install: no secrets, and no injection or exfiltration text (the matches were defensive rules). Skill
+  scripts run only when invoked. The only network call is desk/delegate.mjs -> Conductor, and only when its env is set (it is not set here).
