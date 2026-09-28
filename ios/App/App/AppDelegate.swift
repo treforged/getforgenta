@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import AuthenticationServices
 import WebKit
+import WidgetKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -764,5 +765,55 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity) { _ in }
+    }
+}
+
+// MARK: - Home-screen widget data
+
+/// The iOS half of `WidgetBridge` (src/plugins/widget-bridge.ts). Android has had it since
+/// WidgetBridgePlugin.java; on iOS the app's `updateWidget` call was rejected as unimplemented.
+///
+/// ⚠️ THIS STORES; IT NEVER CALCULATES. The payload is `buildWidgetPayload`'s output, built from the
+/// Dashboard's own figures, and this plugin checks its shape and writes it to the App Group.
+///
+/// Until `group.com.treforged.forged` is in App.entitlements (an Apple portal step, see
+/// handoff-mac.md), `UserDefaults(suiteName:)` still returns a store, but a PRIVATE one the widget
+/// cannot read. The resolve value says `shared` honestly rather than implying the widget got it.
+public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "WidgetBridgePlugin"
+    public let jsName = "WidgetBridge"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "updateWidget", returnType: CAPPluginReturnPromise)
+    ]
+
+    static let appGroup = "group.com.treforged.forged"
+    static let key = "forgenta.widget.snapshot"
+
+    @objc func updateWidget(_ call: CAPPluginCall) {
+        // Refuse a partial payload here too: an absent figure must never be stored for the widget
+        // to read as zero.
+        guard let cash = call.getDouble("monthEndCash"), cash.isFinite,
+              let worth = call.getDouble("netWorth"), worth.isFinite,
+              let updatedAt = call.getString("updatedAt") else {
+            call.reject("updateWidget needs finite monthEndCash, netWorth and an updatedAt")
+            return
+        }
+        let payload: [String: Any] = [
+            "monthEndCash": cash,
+            "netWorth": worth,
+            "currency": call.getString("currency") ?? "USD",
+            "updatedAt": updatedAt,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8),
+              let store = UserDefaults(suiteName: Self.appGroup) else {
+            call.reject("App Group store unavailable")
+            return
+        }
+        store.set(json, forKey: Self.key)
+        if #available(iOS 14.0, *) { WidgetCenter.shared.reloadAllTimelines() }
+        let shared = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: Self.appGroup) != nil
+        call.resolve(["shared": shared])
     }
 }

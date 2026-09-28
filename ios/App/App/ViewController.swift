@@ -5,6 +5,7 @@ import WebKit
 class ViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(AuthSessionPlugin())
+        bridge?.registerPluginInstance(WidgetBridgePlugin())
         bridge?.webView?.navigationDelegate = self
     }
 }

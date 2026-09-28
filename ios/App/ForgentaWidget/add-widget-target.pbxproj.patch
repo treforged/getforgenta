@@ -1,0 +1,241 @@
+diff --git a/ios/App/App.xcodeproj/project.pbxproj b/ios/App/App.xcodeproj/project.pbxproj
+index 27b03314..dd93dd08 100644
+--- a/ios/App/App.xcodeproj/project.pbxproj
++++ b/ios/App/App.xcodeproj/project.pbxproj
+@@ -18,8 +18,35 @@
+ 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
+ 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
+ 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
++		FA11D6E70000000000000001 /* ForgentaWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA11D6E70000000000000003 /* ForgentaWidgetView.swift */; };
++		FA11D6E70000000000000002 /* ForgentaWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA11D6E70000000000000004 /* ForgentaWidget.swift */; };
++		FA11D6E7000000000000000F /* ForgentaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FA11D6E70000000000000007 /* ForgentaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+ /* End PBXBuildFile section */
+ 
++/* Begin PBXContainerItemProxy section */
++		FA11D6E70000000000000011 /* PBXContainerItemProxy */ = {
++			isa = PBXContainerItemProxy;
++			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
++			proxyType = 1;
++			remoteGlobalIDString = FA11D6E70000000000000009;
++			remoteInfo = ForgentaWidget;
++		};
++/* End PBXContainerItemProxy section */
++
++/* Begin PBXCopyFilesBuildPhase section */
++		FA11D6E70000000000000010 /* Embed Foundation Extensions */ = {
++			isa = PBXCopyFilesBuildPhase;
++			buildActionMask = 2147483647;
++			dstPath = "";
++			dstSubfolderSpec = 13;
++			files = (
++				FA11D6E7000000000000000F /* ForgentaWidget.appex in Embed Foundation Extensions */,
++			);
++			name = "Embed Foundation Extensions";
++			runOnlyForDeploymentPostprocessing = 0;
++		};
++/* End PBXCopyFilesBuildPhase section */
++
+ /* Begin PBXFileReference section */
+ 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+ 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
+@@ -34,6 +61,11 @@
+ 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+ 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+ 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
++		FA11D6E70000000000000003 /* ForgentaWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgentaWidgetView.swift; sourceTree = "<group>"; };
++		FA11D6E70000000000000004 /* ForgentaWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgentaWidget.swift; sourceTree = "<group>"; };
++		FA11D6E70000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
++		FA11D6E70000000000000006 /* ForgentaWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgentaWidget.entitlements; sourceTree = "<group>"; };
++		FA11D6E70000000000000007 /* ForgentaWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForgentaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -45,6 +77,13 @@
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
++		FA11D6E7000000000000000B /* Frameworks */ = {
++			isa = PBXFrameworksBuildPhase;
++			buildActionMask = 2147483647;
++			files = (
++			);
++			runOnlyForDeploymentPostprocessing = 0;
++		};
+ /* End PBXFrameworksBuildPhase section */
+ 
+ /* Begin PBXGroup section */
+@@ -53,6 +92,7 @@
+ 			children = (
+ 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
+ 				504EC3061FED79650016851F /* App */,
++				FA11D6E70000000000000008 /* ForgentaWidget */,
+ 				504EC3051FED79650016851F /* Products */,
+ 			);
+ 			sourceTree = "<group>";
+@@ -61,6 +101,7 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				504EC3041FED79650016851F /* App.app */,
++				FA11D6E70000000000000007 /* ForgentaWidget.appex */,
+ 			);
+ 			name = Products;
+ 			sourceTree = "<group>";
+@@ -83,6 +124,17 @@
+ 			path = App;
+ 			sourceTree = "<group>";
+ 		};
++		FA11D6E70000000000000008 /* ForgentaWidget */ = {
++			isa = PBXGroup;
++			children = (
++				FA11D6E70000000000000004 /* ForgentaWidget.swift */,
++				FA11D6E70000000000000003 /* ForgentaWidgetView.swift */,
++				FA11D6E70000000000000005 /* Info.plist */,
++				FA11D6E70000000000000006 /* ForgentaWidget.entitlements */,
++			);
++			path = ForgentaWidget;
++			sourceTree = "<group>";
++		};
+ /* End PBXGroup section */
+ 
+ /* Begin PBXNativeTarget section */
+@@ -93,10 +145,12 @@
+ 				504EC3001FED79650016851F /* Sources */,
+ 				504EC3011FED79650016851F /* Frameworks */,
+ 				504EC3021FED79650016851F /* Resources */,
++				FA11D6E70000000000000010 /* Embed Foundation Extensions */,
+ 			);
+ 			buildRules = (
+ 			);
+ 			dependencies = (
++				FA11D6E70000000000000012 /* PBXTargetDependency */,
+ 			);
+ 			name = App;
+ 			packageProductDependencies = (
+@@ -106,6 +160,22 @@
+ 			productReference = 504EC3041FED79650016851F /* App.app */;
+ 			productType = "com.apple.product-type.application";
+ 		};
++		FA11D6E70000000000000009 /* ForgentaWidget */ = {
++			isa = PBXNativeTarget;
++			buildConfigurationList = FA11D6E7000000000000000C /* Build configuration list for PBXNativeTarget "ForgentaWidget" */;
++			buildPhases = (
++				FA11D6E7000000000000000A /* Sources */,
++				FA11D6E7000000000000000B /* Frameworks */,
++			);
++			buildRules = (
++			);
++			dependencies = (
++			);
++			name = ForgentaWidget;
++			productName = ForgentaWidget;
++			productReference = FA11D6E70000000000000007 /* ForgentaWidget.appex */;
++			productType = "com.apple.product-type.app-extension";
++		};
+ /* End PBXNativeTarget section */
+ 
+ /* Begin PBXProject section */
+@@ -139,6 +209,7 @@
+ 			projectRoot = "";
+ 			targets = (
+ 				504EC3031FED79650016851F /* App */,
++				FA11D6E70000000000000009 /* ForgentaWidget */,
+ 			);
+ 		};
+ /* End PBXProject section */
+@@ -171,8 +242,25 @@
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
++		FA11D6E7000000000000000A /* Sources */ = {
++			isa = PBXSourcesBuildPhase;
++			buildActionMask = 2147483647;
++			files = (
++				FA11D6E70000000000000002 /* ForgentaWidget.swift in Sources */,
++				FA11D6E70000000000000001 /* ForgentaWidgetView.swift in Sources */,
++			);
++			runOnlyForDeploymentPostprocessing = 0;
++		};
+ /* End PBXSourcesBuildPhase section */
+ 
++/* Begin PBXTargetDependency section */
++		FA11D6E70000000000000012 /* PBXTargetDependency */ = {
++			isa = PBXTargetDependency;
++			target = FA11D6E70000000000000009 /* ForgentaWidget */;
++			targetProxy = FA11D6E70000000000000011 /* PBXContainerItemProxy */;
++		};
++/* End PBXTargetDependency section */
++
+ /* Begin PBXVariantGroup section */
+ 		504EC30B1FED79650016851F /* Main.storyboard */ = {
+ 			isa = PBXVariantGroup;
+@@ -350,6 +438,54 @@
+ 			};
+ 			name = Release;
+ 		};
++		FA11D6E7000000000000000D /* Debug */ = {
++			isa = XCBuildConfiguration;
++			buildSettings = {
++				CODE_SIGN_STYLE = Automatic;
++				CODE_SIGN_ENTITLEMENTS = ForgentaWidget/ForgentaWidget.entitlements;
++				CURRENT_PROJECT_VERSION = 1;
++				INFOPLIST_FILE = ForgentaWidget/Info.plist;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				LD_RUNPATH_SEARCH_PATHS = (
++					"$(inherited)",
++					"@executable_path/Frameworks",
++					"@executable_path/../../Frameworks",
++				);
++				MARKETING_VERSION = 1.0;
++				PRODUCT_BUNDLE_IDENTIFIER = com.treforged.forged.widget;
++				PRODUCT_NAME = "$(TARGET_NAME)";
++				SKIP_INSTALL = YES;
++				SWIFT_VERSION = 5.0;
++				TARGETED_DEVICE_FAMILY = "1,2";
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
++			};
++			name = Debug;
++		};
++		FA11D6E7000000000000000E /* Release */ = {
++			isa = XCBuildConfiguration;
++			buildSettings = {
++				CODE_SIGN_IDENTITY = "iPhone Distribution";
++				CODE_SIGN_STYLE = Manual;
++				PROVISIONING_PROFILE_SPECIFIER = "Forged Widget App Store";
++				CODE_SIGN_ENTITLEMENTS = ForgentaWidget/ForgentaWidget.entitlements;
++				CURRENT_PROJECT_VERSION = 1;
++				INFOPLIST_FILE = ForgentaWidget/Info.plist;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				LD_RUNPATH_SEARCH_PATHS = (
++					"$(inherited)",
++					"@executable_path/Frameworks",
++					"@executable_path/../../Frameworks",
++				);
++				MARKETING_VERSION = 1.0;
++				PRODUCT_BUNDLE_IDENTIFIER = com.treforged.forged.widget;
++				PRODUCT_NAME = "$(TARGET_NAME)";
++				SKIP_INSTALL = YES;
++				SWIFT_VERSION = 5.0;
++				TARGETED_DEVICE_FAMILY = "1,2";
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
++			};
++			name = Release;
++		};
+ /* End XCBuildConfiguration section */
+ 
+ /* Begin XCConfigurationList section */
+@@ -371,6 +507,15 @@
+ 			defaultConfigurationIsVisible = 0;
+ 			defaultConfigurationName = Release;
+ 		};
++		FA11D6E7000000000000000C /* Build configuration list for PBXNativeTarget "ForgentaWidget" */ = {
++			isa = XCConfigurationList;
++			buildConfigurations = (
++				FA11D6E7000000000000000D /* Debug */,
++				FA11D6E7000000000000000E /* Release */,
++			);
++			defaultConfigurationIsVisible = 0;
++			defaultConfigurationName = Release;
++		};
+ /* End XCConfigurationList section */
+ 
+ /* Begin XCLocalSwiftPackageReference section */

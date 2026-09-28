@@ -52,6 +52,42 @@ handoff must confirm the new session shows in Tre's Remote Control list before t
   looks exactly like "the file never came". Use `ls -la ~/Downloads | grep` or `mdfind -name`.
 - `.env.deck-walk.local` is installed at 600 and gitignored (keys REACH_TEST_EMAIL, REACH_TEST_PASSWORD). Never print it.
 
+## iOS home-screen widget (2026-09-28, Sam/Tre "build the widgets")
+**What exists.** `useWidgetSync` -> `buildWidgetPayload` -> `WidgetBridge.updateWidget` already fed ANDROID's widgets
+(month-end cash, net worth, currency, updatedAt; refused when absent or NaN; absent after 7 days). iOS had no native
+`WidgetBridge`, so the call was rejected on every iPhone. Built on the Mac:
+- `WidgetBridgePlugin` in AppDelegate.swift (registered in ViewController) writes the payload to App Group
+  `group.com.treforged.forged`, key `forgenta.widget.snapshot`, then reloads widget timelines. It calculates nothing.
+- `ios/App/ForgentaWidget/`: two widgets, Month-End Cash (small+medium, medium shows both) and Net Worth (small).
+  `WidgetSnapshot.decode` repeats Android's refusals. Design rendered through the real decoder.
+- Gate: `src/lib/__tests__/widget-bridge-ios.gate.test.ts` (9 checks: names, methods, registration, one key set
+  across plugin/TS/decoder, group+key, target membership). Proven red by a wrong jsName and a wrong decoder key.
+- Simulator: app + ForgentaWidget.appex build, the appex is embedded, and the App Group container is created.
+  NOT seen on a home screen: Xcode 27 replaced Simulator.app with DeviceHub and I did not script adding a widget.
+
+**HELD, deliberately:** the Xcode target is `ios/App/ForgentaWidget/add-widget-target.pbxproj.patch`, NOT in the
+project. Applied before the steps below, Release signing fails on the missing widget profile and every iOS build
+(TestFlight included) goes red. App.entitlements also still lacks the App Group, for the same reason.
+
+**Tre, Apple Developer portal, one sitting** (developer.apple.com > Certificates, Identifiers & Profiles):
+1. Identifiers > "+" > **App Groups** > Description `Forgenta`, Identifier `group.com.treforged.forged` > Register.
+2. Identifiers > `com.treforged.forged` > tick **App Groups** > Configure > tick `group.com.treforged.forged` > Save
+   (confirm the "profiles become invalid" prompt).
+3. Identifiers > "+" > **App IDs** > App > Description `Forgenta Widget`, Bundle ID explicit
+   `com.treforged.forged.widget` > tick **App Groups** > Continue > Register; then open it > App Groups > Configure >
+   tick `group.com.treforged.forged` > Save.
+4. Profiles > **Forged App Store** > Edit > Save (regenerates it with App Groups) > Download.
+5. Profiles > "+" > **App Store Connect** > App ID `com.treforged.forged.widget` > the same Apple Distribution
+   certificate > name it exactly **`Forged Widget App Store`** > Generate > Download.
+6. Put both downloaded .mobileprovision files on the PC or Mac and say so. The desk base64-encodes them into the
+   GitHub secrets `BUILD_PROVISION_PROFILE_BASE64` (replace) and `BUILD_PROVISION_PROFILE_WIDGET_BASE64` (new).
+   Only Tre can do steps 1-5. The App Group identifier cannot be created by the App Store Connect API.
+
+**Then the desk does (no Tre):** `git apply` the patch; add the App Group to App.entitlements; in ios-build.yml import
+the second profile and add `com.treforged.forged.widget` -> `Forged Widget App Store` to ExportOptions
+`provisioningProfiles`; extend the entitlements-in-the-IPA step to assert the group in BOTH binaries; check that the
+appex version equals the app version after `agvtool -all`; dispatch; require `UPLOAD SUCCEEDED` in the altool output.
+
 ## Standing decisions
 - Obsidian: the Mac commits graphify-out/ only; the PC publishes it (Sam, 09-28). The vault NEVER gets a
   remote (no iCloud, Obsidian Sync or git), because it holds personal finance notes.
