@@ -221,6 +221,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationWillTerminate(_ application: UIApplication) {}
 
+    /// Called by SceneDelegate once the window exists. Under the scene life cycle the window is
+    /// created AFTER didFinishLaunchingWithOptions, so the cover queued there can find no key window
+    /// and silently skip. showNativeCover is idempotent, so calling it again here is safe.
+    func sceneDidConnect() {
+        showNativeCover()
+    }
+
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
@@ -693,5 +700,69 @@ private class _AuthSessionContextProvider: NSObject, ASWebAuthenticationPresenta
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return bridge?.viewController?.view.window ?? UIWindow()
+    }
+}
+
+// MARK: - Scene life cycle
+
+/// Required by the Xcode 27 SDK: an app built with it that does not adopt UIScene fails to launch
+/// ("UIScene life cycle is required for apps built with this SDK", SIGTRAP at launch - measured in
+/// the iOS 27 simulator on 2026-09-28). Under UIScene, iOS stops calling the UIApplicationDelegate
+/// foreground/background methods, so this class forwards the scene events to them and AppDelegate
+/// keeps owning every cover decision.
+///
+/// ⚠️ ONE EVENT IS NOT A LIKE-FOR-LIKE SWAP. sceneWillEnterForeground fires on the FIRST connect too,
+/// whereas applicationWillEnterForeground never fired on a fresh process start. AppDelegate's
+/// branch chain reads `willEnterForeground` as "a real background -> foreground transition", so the
+/// first one is only forwarded after the scene has actually been in the background.
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+
+    var window: UIWindow?
+    private var hasEnteredBackground = false
+
+    private var appDelegate: AppDelegate? { UIApplication.shared.delegate as? AppDelegate }
+
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        // The window comes from UISceneStoryboardFile (Main) in Info.plist.
+        appDelegate?.window = window
+        DispatchQueue.main.async { [weak self] in self?.appDelegate?.sceneDidConnect() }
+
+        // A cold launch from a link arrives here, not in openURLContexts / continue.
+        if let url = connectionOptions.urlContexts.first?.url {
+            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: url, options: [:])
+        }
+        if let activity = connectionOptions.userActivities.first {
+            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: activity) { _ in }
+        }
+    }
+
+    func sceneWillResignActive(_ scene: UIScene) {
+        appDelegate?.applicationWillResignActive(UIApplication.shared)
+    }
+
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        hasEnteredBackground = true
+        appDelegate?.applicationDidEnterBackground(UIApplication.shared)
+    }
+
+    func sceneWillEnterForeground(_ scene: UIScene) {
+        guard hasEnteredBackground else { return }
+        appDelegate?.applicationWillEnterForeground(UIApplication.shared)
+    }
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        appDelegate?.applicationDidBecomeActive(UIApplication.shared)
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let context = URLContexts.first else { return }
+        var options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+        options[.sourceApplication] = context.options.sourceApplication
+        options[.annotation] = context.options.annotation
+        _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: options)
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity) { _ in }
     }
 }
