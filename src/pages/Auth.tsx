@@ -9,6 +9,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
+import { debugLog } from '@/lib/debugLog';
 import { trackSignUp } from '@/lib/analytics';
 import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
 
@@ -217,7 +218,13 @@ export default function Auth() {
 
     try {
       if (Capacitor.getPlatform() === 'ios') {
-        // iOS: ASWebAuthenticationSession — auto-dismisses, captures callback in-process
+        // iOS: ASWebAuthenticationSession — auto-dismisses, captures callback in-process.
+        // Phase marks go to the DBG panel (forged:debug_log), because "sign-in is slow" (Tre,
+        // 2026-09-28) could be any of: the URL build, the sheet, the code exchange, or the
+        // dashboard after it. Our server hops measured 0.14-0.50 s, so the log has to say which.
+        const t0 = Date.now();
+        const mark = (phase: string) => { void debugLog(`OAUTH_${provider}:${phase}:+${Date.now() - t0}ms`); };
+        mark('START');
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
@@ -225,10 +232,12 @@ export default function Auth() {
         if (error) throw error;
         if (!data.url) throw new Error('No OAuth URL returned');
 
+        mark('URL_READY');
         const { url: callbackUrl } = await AuthSession.start({
           url: data.url,
           callbackURLScheme: 'com.treforged.forged',
         });
+        mark('SHEET_RETURNED');
 
         const incoming = new URL(callbackUrl);
         const code = incoming.searchParams.get('code');
@@ -236,6 +245,7 @@ export default function Auth() {
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
+          mark('EXCHANGED');
         } else {
           const hash = incoming.hash.startsWith('#') ? incoming.hash.slice(1) : incoming.hash;
           const hashParams = new URLSearchParams(hash);
@@ -249,6 +259,7 @@ export default function Auth() {
           }
         }
 
+        mark('NAVIGATE_DASHBOARD');
         navigate('/dashboard', { replace: true });
         setLoading(false);
 
