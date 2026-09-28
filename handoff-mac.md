@@ -23,19 +23,19 @@ Kept short on purpose (Sam's ask). Ada's `handoff.md` is the main record; this i
    with no stray WILL_FOREGROUND, and `WILL_FOREGROUND -> bg_poll` after a background trip.
    NOT verified: OAuth return, deep links, push, a real device, iOS < 27. The next dispatched iOS CI run is the Xcode 26 check.
 
-2. `mac:` 4cec8671: the project hooks now use `$CLAUDE_PROJECT_DIR`, not `C:/Users/tvonh/...` paths, and the
+2. `mac:` 2468b594: the project hooks now use `$CLAUDE_PROJECT_DIR`, not `C:/Users/tvonh/...` paths, and the
    Obsidian Stop hook runs only where powershell exists. Sam checked it on the PC: it works, so no revert.
    Node was added to PATH via `~/.zprofile`, which takes effect in new sessions. Mac allow rules are in
    `~/.claude/settings.json` (Tre approved them in manual mode).
-3. TestFlight: iOS run 36494360205 = build 1069 from 40cdb82d, dispatched from the Mac. Build IPA succeeded.
+3. TestFlight: iOS run 36494360205 = build 1069 from 40cdb82d (= b683e97c, same tree; rewritten for author), dispatched from the Mac. Build IPA succeeded.
    Check the UPLOAD step's own conclusion before calling it shipped.
 
 ## Standing decisions
 - Obsidian: the Mac commits graphify-out/ only; the PC publishes it (Sam, 09-28). The vault NEVER gets a
   remote (no iCloud, Obsidian Sync or git), because it holds personal finance notes.
 - Commits from the Mac start with `mac:`. Pull before every edit, because PC Ada also pushes to main.
-  The repo identity is TRE Forged <tre@treforged.com>. `main` is protected against force pushes, so a pushed
-  commit is permanent (40cdb82d keeps the old "Amelia Reyes" author).
+  The repo identity is TRE Forged <tre@treforged.com>. `main` is protected against force pushes (Tre lifted it once on 09-28 to re-author 40cdb82d->b683e97c), so a pushed
+  commit is normally permanent.
 
 ## Next (Mac-only work, in order)
 1. After CI compiles this commit, dispatch iOS for TestFlight (Tre's call on the build cap) and check the cover
