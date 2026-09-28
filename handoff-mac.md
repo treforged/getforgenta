@@ -52,8 +52,11 @@ handoff must confirm the new session shows in Tre's Remote Control list before t
 ## Next (Mac-only work, in order)
 1. After CI compiles this commit, dispatch iOS for TestFlight (Tre's call on the build cap) and check the cover
    and OAuth sign-in on his phone.
-2. Dynamic Type device half: `xcrun simctl ui booted content_size accessibility-extra-large`, then check that
-   `-apple-system-body` scales in the WebView.
+2. DONE 2026-09-28: Dynamic Type device half, iOS 27 simulator, Auth screen, settled frames (18 s wait; a 9 s frame
+   caught the splash mid-fade and was discarded). `large` -> `accessibility-extra-large`: "Start Free" glyphs grew
+   ~36 px -> ~72 px, the tagline wrapped to 3 lines, and the buttons grew with the text. So `-apple-system-body` DOES
+   follow the iOS slider. Open: at AX-XL the Sign In button and footer sit below the fold. Scroll reachability was
+   not checked. Not checked: signed-in screens, iOS < 27, a device.
 3. Native share sheet and the GlassEffectPlugin round trip in the simulator. Needs a signed-in session in the sim.
 4. f22f17b1 native glass stays BLOCKED on Tre's decision. The simulator can now MEASURE the sibling-view question,
    but do not write Swift for it without his yes.
