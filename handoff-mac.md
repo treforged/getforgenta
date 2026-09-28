@@ -42,6 +42,16 @@ Tre: "make sure if you handoff to another terminal you automatically remote conn
 `--remote-control [name]` is in this machine's `claude --help` (line 189). NOT yet run end to end: the first real
 handoff must confirm the new session shows in Tre's Remote Control list before this tab exits.
 
+## Moving files between the PC and the Mac = Taildrop (Tre/Sam, 2026-09-28)
+- The Mac is `amelias-macbook-neo` (100.64.1.37), the PC is `challhq` (100.71.27.67), on Tre's tailnet. Tailscale 1.102.4
+  standalone is installed on the Mac (pkg signature: Tailscale Inc. W5364U7YZB, notarized). CLI:
+  `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
+- The PC sends with `tailscale file cp <file> amelias-macbook-neo:`. The Mac app SAVES IT STRAIGHT INTO ~/Downloads.
+  `tailscale file get` then reads an EMPTY queue, which is not a failed send.
+- ⚠️ This Mac's `find` is bfs: `-newermt "-30 minutes"` is REJECTED (stderr) and matches nothing. A watch built on it
+  looks exactly like "the file never came". Use `ls -la ~/Downloads | grep` or `mdfind -name`.
+- `.env.deck-walk.local` is installed at 600 and gitignored (keys REACH_TEST_EMAIL, REACH_TEST_PASSWORD). Never print it.
+
 ## Standing decisions
 - Obsidian: the Mac commits graphify-out/ only; the PC publishes it (Sam, 09-28). The vault NEVER gets a
   remote (no iCloud, Obsidian Sync or git), because it holds personal finance notes.
