@@ -49,7 +49,7 @@ Kept short on purpose (Sam's ask). Ada's `handoff.md` is the main record; this i
 ## Installed on the Mac (2026-09-28, Tre's yes)
 - `~/.claude/skills` = a git clone of `treforged/claude-skills` @ 8104ad2 (https). Update it with `git -C ~/.claude/skills pull`.
 - `~/.claude/rules` = a copy of `rules/` from `treforged/dot-claude` @ 0f5d4ea.
-- NOT installed: `CLAUDE.md`, because `dot-claude` @ 0f5d4ea has no CLAUDE.md at all. Sam was told. Also not
+- `~/.claude/CLAUDE.md` = `mac/CLAUDE.md` from `treforged/dot-claude` @ 2bfc149 (the PC charter with personal sections removed). Not
   installed: settings.json, bin/, hooks, agents (Windows paths and PowerShell).
 - Reviewed before install: no secrets, and no injection or exfiltration text (the matches were defensive rules). Skill
   scripts run only when invoked. The only network call is desk/delegate.mjs -> Conductor, and only when its env is set (it is not set here).
