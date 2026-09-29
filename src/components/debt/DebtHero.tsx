@@ -44,21 +44,29 @@ export const DEBT_HERO_AT_PLAN_UNCONDITIONAL =
 export default function DebtHero({ interestThisMonth, interestAtPlan, unconditionalShortfall }: Props) {
   return (
     <div className="card-forged p-4 sm:p-6">
-      <p className="text-xs uppercase tracking-wider text-muted-foreground">Interest this month</p>
-      <p className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-foreground leading-none mt-1.5">
-        {formatCurrency(interestThisMonth, true)}
-      </p>
-      {interestAtPlan === null ? (
+      {/* The plan figure shares the big number's row (aaafa7ee: the card was a full-width box
+          holding one short figure, 158px of empty width at 390). The explanations for an absent
+          reading stay full-width below, never trimmed. */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Interest this month</p>
+          <p className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-foreground leading-none mt-1.5">
+            {formatCurrency(interestThisMonth, true)}
+          </p>
+        </div>
+        {interestAtPlan !== null && (
+          <p className="text-xs text-muted-foreground text-right shrink-0 max-w-[45%]">
+            at plan:{' '}
+            <span className="block text-lg font-display font-semibold text-foreground leading-tight">
+              {formatCurrency(interestAtPlan, true)}
+            </span>{' '}
+            next month
+          </p>
+        )}
+      </div>
+      {interestAtPlan === null && (
         <p className="text-xs text-muted-foreground mt-2">
           {unconditionalShortfall ? DEBT_HERO_AT_PLAN_UNCONDITIONAL : DEBT_HERO_AT_PLAN_ABSENT}
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground mt-2">
-          at plan:{' '}
-          <span className="font-display font-semibold text-foreground">
-            {formatCurrency(interestAtPlan, true)}
-          </span>{' '}
-          next month
         </p>
       )}
     </div>
