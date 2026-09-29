@@ -198,8 +198,11 @@ jobs:
           missing = [k for k in ("SB_URL", "SB_ANON", "WALK_EMAIL", "WALK_PASSWORD") if not os.environ[k].strip()]
           if missing:
               print("MISSING SECRET(S): " + ", ".join(missing)); sys.exit(2)
-          if not email.endswith("@forgenta.test"):
-              print("REFUSING: REACH_TEST_EMAIL is not a @forgenta.test account"); sys.exit(2)
+          if not email.lower().endswith("@forgenta.test"):
+              # Booleans only: this repo's logs are public, so never print the address or its domain.
+              print(f"REFUSING: REACH_TEST_EMAIL is not a @forgenta.test account "
+                    f"(length {len(email)}, has '@': {'@' in email}, 'forgenta' anywhere: {'forgenta' in email.lower()})")
+              sys.exit(2)
           def grant(password):
               req = urllib.request.Request(f"{url}/auth/v1/token?grant_type=password",
                   data=json.dumps({"email": email, "password": password}).encode(),
