@@ -13,6 +13,8 @@
 # later steps in this same job (see handoff.md R1).
 
 name: iOS Simulator Screenshots
+# A red-control run is MEANT to fail. Its name says so, so the failure email does not alarm anyone.
+run-name: ${{ inputs.red_control && 'iOS Simulator Screenshots - RED CONTROL, failure expected' || 'iOS Simulator Screenshots' }}
 
 on:
   workflow_dispatch:
