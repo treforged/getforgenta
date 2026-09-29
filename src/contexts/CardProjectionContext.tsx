@@ -45,6 +45,10 @@ type DebtPayoffOptions = {
 interface CardProjectionContextValue {
   /** Debt-cash-CONVERGED projection when the loop settles; the raw sim otherwise. */
   cardProjection: CardProjectionResult | null;
+  /** The sim BEFORE convergence - what the provider feeds runDebtCashConvergence. A what-if
+   * re-run (breach-levers.ts) must start from this, with forecastInputsBundle.engineInputs, so it
+   * repeats the provider's own call rather than converging a second time from a converged pair. */
+  rawCardProjection: CardProjectionResult | null;
   /** Engine run matching `cardProjection` — the single authoritative forecast. */
   projections: ForecastResult;
   engineInputs: ForecastInputs;
@@ -326,6 +330,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CardProjectionContextValue>(() => ({
     cardProjection: convergence.cardProjection,
+    rawCardProjection: cardProjection,
     projections: convergence.projections,
     engineInputs,
     forecastInputsBundle,
@@ -346,7 +351,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     debts: debts ?? [],
     rules: rules ?? [],
   }), [
-    convergence, engineInputs, forecastInputsBundle, assumptions, setAssumptions,
+    convergence, cardProjection, engineInputs, forecastInputsBundle, assumptions, setAssumptions,
     pauseSavings, setPauseSavings, debtStrategy, payConfig, cashFloor,
     forecastFundingAccountId, syncCutoffDate, scheduledEvents, debtPayoffOptions, carFunds,
     accounts, debts, rules,

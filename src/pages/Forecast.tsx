@@ -41,6 +41,10 @@ import { selectPointOnTouch } from '@/lib/chart-touch';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
+import ShortfallLevers from '@/components/forecast/ShortfallLevers';
+import { rankBreachLevers, shortfallByMonth } from '@/lib/breach-levers';
+import { runDebtCashConvergence } from '@/lib/forecast-convergence';
+import { calculateForecast } from '@/lib/forecast-engine';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -166,7 +170,15 @@ export default function Forecast() {
   // handing this one caller TWO of its thirteen fields. Its own comment called it "a
   // thin reader preserving the original return shape for its callers" — there was one
   // caller, and it had stopped needing the shape.
-  const { projections, forecastInputsBundle } = useCardProjectionContext();
+  const { projections, forecastInputsBundle, rawCardProjection } = useCardProjectionContext();
+  // "What would cover this?" - the months ahead that end below their floor, and the what-if
+  // re-runs behind the tap. The re-run repeats the provider's own call (raw sim + the bundle's
+  // inputs), which is what breach-levers.realData.test.ts measured against a full re-render.
+  const shortMonths = useMemo(() => shortfallByMonth(projections, 12), [projections]);
+  const computeLevers = useCallback(() => rankBreachLevers(
+    forecastInputsBundle.engineInputs,
+    i => (rawCardProjection ? runDebtCashConvergence(rawCardProjection, i).projections : calculateForecast(i)),
+  ), [forecastInputsBundle.engineInputs, rawCardProjection]);
   const { annualFederalWithheldFromBudget } = forecastInputsBundle;
 
   // A month charged twice by a hand-entered copy of a generated payment is a forecast bug the
@@ -482,6 +494,8 @@ export default function Forecast() {
         milestones={projections.milestones}
         emptyReason={accounts.length === 0 && rules.length === 0 ? 'no-inputs' : 'no-milestones'}
       />
+
+      {!forecastInputsLoading && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
 
       {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
