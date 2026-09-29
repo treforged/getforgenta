@@ -8,8 +8,10 @@
 - WAITING: Next Debt Payments widget needs Mac Ada's field spec in widget-snapshot.ts. Do not invent the field.
 - 9ce4ecf2 (Mac Ada) replaced the hand-converted iOS palette and changed the Swift label shape; the parity gate's
   label reader was widened to match (`case .<kind>:` then the first `label:`). Drift ask 8efc4f9e dropped as moot.
-- UNBLOCKED: `nextDebtPayments` now exists in widget-snapshot.ts (optional, max 3, amount|null, dueDate|null).
-  Next: Android Next Debt Payments widget, plus the iOS v3 layout (40pt figure, 'Next:' line) on the small widgets.
+- DONE ebaefa75: the Android Next Debt Payments widget (4x2) and the iOS v3 small layout ('Next:' line). JVM 22/22 locally
+  (real org.json jar + stub Context; recipe: javac with a JUnit stand-in, classpath via `cygpath -w`). Parity gate 11/11.
+- NOTE: android-build DEPLOYS to Google Play at a staged 10% on every push to android/. None of the widgets were checked on a device.
+- Q1 of the resume queue below is DONE 2026-09-28: live dark `.app-shell` carries the radial-gradient glow on getforgenta.com.
 
 ## Resume queue - 2026-09-24 ~20:00 UTC (Ada, getforgenta-33, closed for the WEEKLY CAP on Sam's word). START AT Q1. POINTERS.
 
