@@ -255,7 +255,10 @@ const readPage = () => page.evaluate(() => {
  * skips; "Reset & Recalculate" /debt light 1440, 4.36.
  */
 const HIDE_TEXT = '*{color:transparent!important;-webkit-text-fill-color:transparent!important;'
-  + 'text-shadow:none!important;caret-color:transparent!important;transition:none!important;animation:none!important}';
+  + 'text-shadow:none!important;caret-color:transparent!important;transition:none!important;animation:none!important}'
+  // SVG text is painted by FILL, not colour, so `color: transparent` left chart labels drawn and
+  // the arm measured a label against its own glyphs ("Mar 2031" at 4.43 on /debt, 2026-09-29).
+  + 'svg text,svg tspan{fill:transparent!important;stroke:transparent!important}';
 const PLANT_ID = 'contrast-pixel-control';
 
 async function readPixels() {
@@ -271,7 +274,12 @@ async function readPixels() {
   await page.waitForTimeout(150);
   // The real text colour is stamped BEFORE hiding: once hidden, getComputedStyle reads transparent.
   await page.evaluate(() => {
-    for (const el of document.querySelectorAll('body *')) el.setAttribute('data-cc', getComputedStyle(el).color);
+    for (const el of document.querySelectorAll('body *')) {
+      const cs = getComputedStyle(el);
+      // SVG text's visible colour is its FILL; `color` there is only what it inherits.
+      const svgText = el instanceof SVGTextContentElement && /^rgb/.test(cs.fill);
+      el.setAttribute('data-cc', svgText ? cs.fill : cs.color);
+    }
   });
   const tag = await page.addStyleTag({ content: HIDE_TEXT });
   await page.waitForTimeout(300);
@@ -324,15 +332,22 @@ async function readPixels() {
       const d = g.getImageData(Math.floor(t.x * sx), Math.floor(t.y * sx),
         Math.max(1, Math.floor(t.w * sx)), Math.max(1, Math.floor(t.h * sx))).data;
       const a = t.c.length > 3 ? t.c[3] : 1;
-      let worst = 99;
-      let worstPx = null;
+      // ⚠️ THE 5TH-PERCENTILE PIXEL, NOT THE SINGLE WORST. A rotated chart label's box takes in the
+      // 1px tick line beside it, and the minimum read "Mar 2031" at 4.43 against that line while the
+      // label itself is plainly legible (2026-09-29). A thin line under part of a box does not make
+      // text unreadable; a fill under 5% or more of it does, and that is what this still catches.
+      const samples = [];
       for (let i = 0; i < d.length; i += 16) {
         // a translucent text colour is composited over the very pixel it sits on
         const L1 = lum(t.c[0] * a + d[i] * (1 - a), t.c[1] * a + d[i + 1] * (1 - a), t.c[2] * a + d[i + 2] * (1 - a));
         const L2 = lum(d[i], d[i + 1], d[i + 2]);
         const r = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
-        if (r < worst) { worst = r; worstPx = [d[i], d[i + 1], d[i + 2]]; }
+        samples.push([r, d[i], d[i + 1], d[i + 2]]);
       }
+      samples.sort((p, q) => p[0] - q[0]);
+      const pick = samples[Math.floor(samples.length * 0.05)] || [99];
+      const worst = pick[0];
+      const worstPx = pick.length > 1 ? pick.slice(1) : null;
       return { fg: t.c.join(','), bg: worstPx ? worstPx.join(',') : '', key: `${t.t}@${Math.round(t.x)},${Math.round(t.y)}`, text: t.t, plant: t.plant, ratio: Math.round(worst * 100) / 100 };
     });
   }, { png, texts: texts.out });
