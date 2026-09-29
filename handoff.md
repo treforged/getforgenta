@@ -24,6 +24,28 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R-NOW5 (09-29 ~20:30Z, getforgenta-34 handed off at the 175-call gate). START HERE, IN ORDER:
+    1. GLASS 8a202850 (ask 'doing'): the glass now ATTACHES. Sim run 36623506930 logged "FORGENTA_GLASS
+       isSupported=true ios=26.5" and "applied id=sim-top-strip frame={{0,0},{402,62}}". The screenshot still reads
+       0.00 because the NATIVE COVER (black + gold logo shimmer, AppDelegate.showNativeCover) sits above everything:
+       Dashboard's useNotificationCheck raises the iOS notification alert, the app goes inactive, and the cover only
+       drops on didBecomeActive, which nobody triggers in CI. NEXT: snapshot the walk account's
+       profiles.notification_prefs (@forgenta.test, user id ends 12a7) into backup.*, set enabled=false (no prompt;
+       performCheck returns before ensurePermission), re-dispatch "iOS Simulator Screenshots", look at
+       shots/04-glass-strip.png, send Sam the frame for Tre. Undo = restore the snapshot.
+    2. BLACK SCREEN e7d28de3 (ask 'doing'): run 36620161347 read location.pathname "blank" at 20 s and 50 s;
+       run 36623506930 (with DEBUG nav logging) read "/" + dashboard text from 8 s, and nav start/commit/finish only.
+       So about:blank is NOT reproduced; the sim black frame is the native cover held by the unanswered alert (a CI
+       artefact). Tre's device black screen is still UNEXPLAINED. Best next instrument: on the next good boot, JS reads
+       Preferences 'forged:debug_log' (AppDelegate writes COVER_BRANCH / COVER_DEADLINE / RELOAD_TRIGGERED lines) and
+       inserts a public.client_boot_failures row with platform=ios when a COVER_DEADLINE is present. JS-only, so it
+       reaches his phone via Vercel. See src/lib/boot-failure.ts.
+    3. Move fund 2dcdcdde: NEEDS TRE, one question (in the ask). Do not touch goal a035a97e before he answers.
+    DONE this session: sim 7516a6a7 closed; PIN lag fdce6eb8; Face ID + iOS build 1112 UPLOAD SUCCEEDED; glass hook
+    mounted; GlassEffectPlugin REGISTERED (was never registered) + gate ios-plugin-registration.gate.test.ts; sim
+    launch-frame race fixed (50ec3037); frozen sim clock; DEBUG FORGENTA_PAGE_PROBE / FORGENTA_NAV (Release unchanged).
+    INSTRUMENT NOTES: Capacitor's JS console is NOT in `log show` (it uses print); NSLog is. The job log API returns
+    nothing until the job completes. Heredocs collapse `\\` - build backslashes with chr(92).
 R-NOW4 (09-29 ~17:45Z, getforgenta-34). R-NOW3 items 0-4 WORKED. START HERE:
     [ ] iOS run 36606388643 (workflow_dispatch, head d7ffdfdc) carries Face ID + PIN fix. Read the UPLOAD step's own
         output for "UPLOAD SUCCEEDED" (not the run conclusion), note VERSION_CODE (= run_number + 100), then
@@ -11676,33 +11698,31 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 13:17 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 15:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
 M deno.lock
- M src/components/layout/DashboardLayout.tsx
+ M handoff.md
  M supabase/.temp/cli-latest
-?? src/hooks/__tests__/useSimGlassExperiment.test.tsx
-?? src/hooks/useSimGlassExperiment.ts
 ```
 
 - **Recent commits:**
 
 ```
-9da5b22a [handoff]: R-NOW3 - boot guard shipped; sim, PIN lag, Face ID, move-fund, Nov re-measure queued
-69907309 [boot]: a load failure shows "Couldn't load Forgenta" with retry instead of a black screen
-8a93ec6b [handoff]: R-NOW2 - lease reconciled, Aug cleared, Mar27 -110, cut table with Tre, sim secret still wrong
-caa6e7eb [export]: quote forecast CSV header cells so a comma in a goal name cannot shift columns
-8c96ba5d [handoff]: R-NOW - read sim run 36589566916 sign-in step for 7516a6a7
-34b99a61 [handoff]: contrast pixel arm done
-dc2c0ecf [theme]: light bronze deepened 30% -> 26% so bronze-on-tint buttons clear AA
-785dde9b [contrast]: light-mode tab badge readable; pixel arm skips edge-cut text and needs two agreeing reads
+653eb297 [ci]: sim probe for the signed-in black screen - late frame and JS console lines
+50ec3037 [ci]: sim launch shot waits for the welcome screen instead of trusting a file size
+138b8e19 [ci]: glass log read gets a positive control and stops matching its own echo
+a7788b90 [glass]: make the sim glass experiment able to tell "not applied" from "invisible"
+c14b0d01 [handoff]: R-NOW4 - sim closed, PIN lag + Face ID shipped, move fund needs one answer, iOS upload pending
+d7ffdfdc [glass]: mount the CI-only simulator glass experiment (8a202850)
+dc933c7a [ios]: add the Face ID usage string, so the biometric lock can run
+fdce6eb8 [applock]: PIN digits register on touch-down, not on finger lift
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
