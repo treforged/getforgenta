@@ -8,6 +8,34 @@ R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam
     'decode=ok debts=3'. The assert can fail. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
     first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
     (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
+R00 START HERE (09-28 23:25, PC Ada, handoff gate at 175 calls). TRE IS DICTATING ACCOUNT CHANGES (ask 58694458).
+    He said: make edits THROUGH THE APP in Claude-in-Chrome, not SQL ("we need to make sure the app functions properly").
+    Snapshot BEFORE any change: backup.tre_dictation_20260928_{accounts,rules,goals,car_funds,profile}; Tre user a72f416e.
+    Earlier SQL edits were REVERTED (rules identical to snapshot except updated_at), then redone via the app:
+    [x] Rent c8bd61fa end_date 2026-06-30 -> 2027-03-31 VIA APP (read back 03:19Z). Note appended, cut at 300 chars.
+    [?] Electricity 5b9334d3 end 2027-03-31 via app: toast "Recurring rule updated", NOT yet read back - READ IT FIRST.
+        Its note did NOT land (typing into a hidden tab was lost; notes "" before the press). Add a note via the app.
+    [ ] "Electricity (new place)" 185.86, monthly day 1, from CHASE CHECKING, start 2027-07-01, no end: use the Duplicate
+        button on the Electricity row, then edit start/end. (New rent 1635 already starts 2027-07-01.)
+    [ ] WATER LAG (Tre 23:18): water is $30 INSIDE the $2,070 Invitation Homes debit, billed 1-2 months late. Add one-off
+        $30 expenses Apr 2027 and May 2027 (ASSUMPTION: both, the conservative reading; say so). One-offs = manual
+        future-dated transactions (Transactions tab); oneTimeByMonth reads them (useForecastEngineInputs.ts:357).
+    [ ] LEASE-BREAK FEE, March 2027: AMOUNT UNKNOWN - ask Tre (Sam relays). Do not invent it.
+    [ ] SECURITY DEPOSIT $1,915 refund, minus minor damages (blinds): ask Tre for the expected amount; recommend April 2027
+        (FL 83.49: 15 days, or 30 if the landlord claims). Enter as one-off income once he gives the number.
+    [ ] ASK Tre: does "GF Half of Rent/Groceries" $1,100 (income, to 2027-08-31) continue Apr-Jun 2027 with no rent?
+    Then read the projection back (Forecast tab, Mar-Jul 2027) and show him.
+    CHROME INSTRUMENT FACTS: the MCP tab is document.visibilityState=hidden, so screenshots time out (30s) and wheel
+    animations stall - that is NOT an app freeze. Work through javascript_tool: read wheel values by layout (item under
+    the column's vertical middle), set a wheel by scrollTop (rows are 32px; month idx*32 from Jan=0; year 2026=0) and
+    dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
+    Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
+    FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R0d SIM (09-28 23:15): run 36515352164 FAILED: getforgenta.com returns 403 to curl from the GH runner (it works from
+    this PC, and the sim WKWebView loads the site fine, frame 01-launch shows the welcome screen). Fix: send a browser
+    User-Agent in the curl calls, or keep the values in a repo VARIABLE. The step passed locally end to end (wrong pw
+    400 invalid_credentials, real 200). UNCOMMITTED local glass work, do NOT push before sign-in passes:
+    src/hooks/useSimGlassExperiment.ts (+ __tests__, 6/6, red on 2 mutants) and the DashboardLayout.tsx mount.
 R0c (09-28 23:00, PC Ada): Tre SET the secrets (REACH_TEST_EMAIL 02:40Z, REACH_TEST_PASSWORD 02:42Z). Sim sign-in
     BUILT: ViewController.swift #if DEBUG injects a session from SIMCTL_CHILD_FORGENTA_SIM_SESSION_* at document start;
     workflow step signs in with a wrong-password control, then a garbage-vs-real session frame pair (03-session-*.png,
@@ -11522,30 +11550,34 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 22:31 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 23:21 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (2 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
+ M src/components/layout/DashboardLayout.tsx
  M supabase/.temp/cli-latest
+?? src/hooks/__tests__/useSimGlassExperiment.test.tsx
+?? src/hooks/useSimGlassExperiment.ts
 ```
 
 - **Recent commits:**
 
 ```
-204835f3 [handoff]: red control proven (run 36511767233 failed at the host status assert)
-6620299c [handoff]: cap wrap 09-28 - secrets refused by classifier (Tre runs gh secret set), red-control run pending, 58694458 and /debt card queued
-1033c7ed [ci]: red_control input proves the widget host status assert can fail
-ebe010be [handoff]: /demo route refuted in the sim (MemoryRouter at /auth); items 3-4 wait on sign-in
-ff220218 [ci]: remove the /demo sim step - the native app ignores the URL path
-9a0a6936 [ci]: sim job screenshots /demo with no sign-in (copy of the app, server.url on the runner only)
-5d587f79 [handoff]: glass item 3 facts (view sits over the web view); /demo may unblock item 4 without secrets
-1011d354 [handoff]: widget host render done (run 36509417430); aaafa7ee closed; next = glass item 3
+394a010c [ios-sim]: read the Supabase URL and key from the live bundle; add the glass shot
+d8d50f50 [ci]: CodeQL (iOS) cancels the previous scan on each push
+46df53cc [handoff]: sim sign-in dispatched (36514125626)
+56303e39 [ios-sim]: red-control runs are named as expected failures
+ce122e41 [ios-sim]: sign the walk account in on the simulator, proven by a discriminating pair
+ca3ec722 [handoff]: rising at-plan interest explained (0e8104a7); next R0 (c)
+0e8104a7 [debt]: say why interest at plan is higher than this month
+dd355904 [handoff]: rising at-plan interest - same series, flat APR/12, balance rises under plan; next step recorded
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
