@@ -192,6 +192,43 @@ jobs:
             ls -l "shots/02-widget-host-$P.png"
           done
 
+      # Items 3-4 need real screens, and /demo needs NO sign-in. The shipped app loads server.url
+      # (https://getforgenta.com), so a COPY of the built app gets server.url = .../demo here, on
+      # the runner only - never committed. Same bundle id, so it replaces the install above.
+      - name: Screenshot the demo route (no sign-in)
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$RUNNER_TEMP/DD/Build/Products/Debug-iphonesimulator/App.app"
+          DEMO="$RUNNER_TEMP/demo/App.app"
+          mkdir -p "$RUNNER_TEMP/demo"
+          cp -R "$SRC" "$DEMO"
+          CFG="$DEMO/capacitor.config.json"
+          if [ ! -f "$CFG" ]; then
+            echo "NO capacitor.config.json IN THE BUILT APP - cannot point it at /demo"
+            exit 2
+          fi
+          python3 - "$CFG" <<'PY'
+          import json, sys
+          p = sys.argv[1]
+          cfg = json.load(open(p))
+          before = cfg.get("server", {}).get("url")
+          cfg.setdefault("server", {})["url"] = "https://getforgenta.com/demo"
+          json.dump(cfg, open(p, "w"))
+          print(f"server.url {before} -> {json.load(open(p))['server']['url']}")
+          PY
+          xcrun simctl terminate "$UDID" com.treforged.forged 2>/dev/null || true
+          xcrun simctl install "$UDID" "$DEMO"
+          xcrun simctl launch "$UDID" com.treforged.forged
+          sleep 30
+          xcrun simctl spawn "$UDID" launchctl list > "$RUNNER_TEMP/launchctl-demo.txt"
+          if ! grep -q "com.treforged.forged" "$RUNNER_TEMP/launchctl-demo.txt"; then
+            echo "DEMO LAUNCH NOT RUNNING after 30 s - it crashed"
+            exit 1
+          fi
+          xcrun simctl io "$UDID" screenshot shots/03-demo.png
+          ls -l shots/03-demo.png
+
       - name: Crash logs on failure
         if: failure()
         shell: bash
