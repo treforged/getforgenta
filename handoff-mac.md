@@ -1,5 +1,29 @@
 # handoff-mac.md - the MacBook (Xcode) desk
 
+## ⚠️ MAC RETURNED 2026-09-28 NIGHT. COLD-RESUME ON THE PC FROM HERE.
+Tre took the MacBook back. Nothing below needs this physical Mac: a GitHub `macos-latest` runner can boot a simulator,
+`xcrun simctl io booted screenshot`, and upload the PNG as an artifact. Each open item and how CI replaces the Mac:
+
+1. **Widget in TestFlight (IN FLIGHT).** Target shipped in cbb0b524; profiles/secrets set; dispatch run 36503530493
+   (build 1080, head 0e75637e) was queued when the Mac left. Sam re-dispatches from the PC after the wrap-up push.
+   Proof = the "Assert the exported binary..." step green (appex present, group in both binaries, version parity)
+   AND altool printing `UPLOAD SUCCEEDED`. If the group assert fails, the profile secrets are the suspect.
+2. **Widget on a home screen (NOT SEEN).** Only renders via the Mac preview (real SwiftUI view + real decoder).
+   Replacement: Tre adds the widget on his phone after installing 1080+, or a CI job. Nobody has seen it on iOS.
+3. **Native glass 8a202850 (NOT STARTED).** One glass panel with no web content of its own, one screenshot. CI route:
+   a workflow_dispatch job that builds for the simulator, launches with a debug flag that mounts the panel, and
+   uploads a screenshot. Do not build frame-sync. f22f17b1 stays Tre's decision.
+4. **Share sheet + GlassEffectPlugin round trip (NOT RUN).** Needs a signed-in sim. `.env.deck-walk.local` was
+   DELETED from the Mac; use the PC copy. CI route: the same simulator job, with the credentials as secrets.
+5. **Sign-in slowness.** Marks shipped in 0725d8e9. Tre reads DBG (OAUTH_*:+ms) on 1071+ and names the slow phase.
+6. **Package.swift** still has Windows `\` paths in git. The Mac regenerated it locally only, and CI regenerates it.
+7. **graphify-out/** was NOT updated from the Mac (graphify is not installed here). The PC runs
+   `python -m graphify update .` and publishes.
+
+Tooling left on the Mac: none. The gh binary, Tailscale pkg, logs, profiles and env file were deleted (see the session
+report). Tailscale.app stays installed and signed in, because Tre uses it.
+
+
 Kept short on purpose (Sam's ask). Ada's `handoff.md` is the main record; this is only the Mac's slice.
 
 ## Machine (measured 2026-09-28)
