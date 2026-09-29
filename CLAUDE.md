@@ -153,6 +153,12 @@ section states reasoning, not measurement, and says so.
   Proven RED with the real legend defect. Does NOT cover: light mode, desktop widths, error states,
   anything behind an interaction, or whether disabled/placeholder text is legitimately exempt — it
   says so and asks you to check each finding by hand.
+- ⚠️ **ALL FOUR contrast scripts now run a PIXEL ARM too (2026-09-29, ask ea989790):** each on-screen string
+  is measured against the worst pixel under its own glyph rect with text hidden, so a glow, gradient or
+  image background is no longer invisible. A planted grey-on-grey `background-image` string is the control
+  (walk-up passes it, pixels must flag it; discriminating in DARK only). TRANSITIONS ARE FROZEN during the
+  read: without that, the arm's own hide/unhide caught colours mid-fade and reported gold-on-dark at 1.38:1.
+  `CONTRAST_DEBUG_DIR=<dir>` saves each measured frame. Reads the first viewport only.
 - `npm run check:dark-contrast:desktop` / `check:light-contrast:desktop` - the same probe at 1440x900. Desktop is a
   different DOM (rail, header buttons, multi-column cards), and no contrast probe had read it before 2026-09-22.
   First run: 452 elements per theme, 0 below AA. Proven red by lightening the light muted-foreground (81 findings).

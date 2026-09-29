@@ -231,6 +231,138 @@ const readPage = () => page.evaluate(() => {
   return { examined, findings: out, theme: document.documentElement.className };
 });
 
+/**
+ * ⚠️ THE PIXEL ARM (ask ea989790, 2026-09-29). The walk-up above reads `background-color` and is
+ * BLIND to anything painted another way: the dark glow, gradients, `background-image`, backdrop
+ * blur. It passed the dark glow 465/0 while a pixel probe measured 4.13 / 4.21 / 4.45 on the same
+ * screens. So each route is ALSO measured against the pixels a string is really drawn on:
+ * collect each text's OWN glyph rect (a Range over its text nodes, not the element box, which
+ * carries borders), hide all text, screenshot, and take the WORST background pixel under it.
+ * Occluded text (under the floating nav, under a sticky header) is skipped by elementFromPoint,
+ * because it sampled the covering element's pixels and read as a failure. Findings are keyed by
+ * text AND position, never by index, so a re-render cannot pair one "$0" with another.
+ * The walk-up stays as the first arm: it names the CSS colour, which is what a fix changes.
+ *
+ * LIMITS OF THIS ARM, stated so a green is not over-read: it reads only strings ON SCREEN in the
+ * first viewport (about 129 of ~477 on a phone), not the whole page; its control DISCRIMINATES
+ * only in dark mode (in light the walk-up also flags the planted grey string, so the control there
+ * proves only that the pixel arm can flag); and a string partly under the floating nav is judged
+ * by its centre point, so its lower edge can sample the nav's glass.
+ * FIRST WIDENED RUNS, 2026-09-29: dark 390 clean (129 strings); dark 1440 "Mar 2031" /debt 4.43;
+ * light 390 a white "1" badge on gold /debt 3.61 and a forecast line near the nav 3.79. None was
+ * visible to the walk-up. Each still needs a hand check (ask filed).
+ */
+const HIDE_TEXT = '*{color:transparent!important;-webkit-text-fill-color:transparent!important;'
+  + 'text-shadow:none!important;caret-color:transparent!important;transition:none!important;animation:none!important}';
+const PLANT_ID = 'contrast-pixel-control';
+
+async function readPixels() {
+  // HIDE FIRST, then read the rects and screenshot back to back. Reading rects before hiding let
+  // a late layout shift on /dashboard move "Guide" onto the gold Add button beside it between the
+  // read and the shot, and it measured 1.38:1 against a button it was not on (2026-09-29).
+  // `color: transparent` changes no layout, so the rects are the ones the user sees.
+  // ⚠️ TRANSITIONS OFF FOR THE WHOLE READ. This arm's own hide/unhide starts the app's colour
+  // transitions, so the NEXT read stamped half-faded colours (alpha 0.176 on "Guide", 0.694 on the
+  // nav) and reported 1.38:1 for gold text on a dark button (measured 2026-09-29). The instrument
+  // manufactured the finding; with transitions off every colour is the settled one.
+  const still = await page.addStyleTag({ content: '*,*::before,*::after{transition:none!important;animation:none!important}' });
+  await page.waitForTimeout(150);
+  // The real text colour is stamped BEFORE hiding: once hidden, getComputedStyle reads transparent.
+  await page.evaluate(() => {
+    for (const el of document.querySelectorAll('body *')) el.setAttribute('data-cc', getComputedStyle(el).color);
+  });
+  const tag = await page.addStyleTag({ content: HIDE_TEXT });
+  await page.waitForTimeout(300);
+  const texts = await page.evaluate(() => {
+    const out = [];
+    let occluded = 0;
+    const W = innerWidth, H = innerHeight;
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.closest('[aria-hidden="true"]')) continue;
+      const tn = [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim());
+      if (!tn.length) continue;
+      const st = getComputedStyle(el);
+      if (st.visibility === 'hidden' || +st.opacity === 0) continue;
+      const rg = document.createRange();
+      rg.setStartBefore(tn[0]); rg.setEndAfter(tn[tn.length - 1]);
+      const r = rg.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) continue;
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!hit || !(hit === el || el.contains(hit))) { occluded += 1; continue; }
+      const m = (el.getAttribute('data-cc') || '').match(/rgba?\(([^)]+)\)/);
+      if (!m) continue;
+      const x = Math.max(0, r.left), y = Math.max(0, r.top);
+      out.push({
+        t: el.textContent.trim().slice(0, 40), c: m[1].split(',').map(Number), plant: el.id === 'contrast-pixel-control',
+        x, y, w: Math.min(W, r.right) - x, h: Math.min(H, r.bottom) - y,
+      });
+    }
+    return { out, occluded };
+  });
+  const shot = await page.screenshot();
+  if (process.env.CONTRAST_DEBUG_DIR) (await import('node:fs')).writeFileSync(`${process.env.CONTRAST_DEBUG_DIR}/px-${Date.now()}.png`, shot);
+  const png = shot.toString('base64');
+  await tag.evaluate((n) => n.remove());
+  await page.evaluate(() => { for (const el of document.querySelectorAll('[data-cc]')) el.removeAttribute('data-cc'); });
+  await still.evaluate((n) => n.remove());
+  const res = await page.evaluate(async ({ png, texts }) => {
+    const img = new Image(); img.src = `data:image/png;base64,${png}`; await img.decode();
+    const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+    const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+    const sx = img.width / innerWidth;
+    const lum = (r, gg, b) => {
+      const f = (v) => { const n = v / 255; return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * f(r) + 0.7152 * f(gg) + 0.0722 * f(b);
+    };
+    return texts.map((t) => {
+      const d = g.getImageData(Math.floor(t.x * sx), Math.floor(t.y * sx),
+        Math.max(1, Math.floor(t.w * sx)), Math.max(1, Math.floor(t.h * sx))).data;
+      const a = t.c.length > 3 ? t.c[3] : 1;
+      let worst = 99;
+      let worstPx = null;
+      for (let i = 0; i < d.length; i += 16) {
+        // a translucent text colour is composited over the very pixel it sits on
+        const L1 = lum(t.c[0] * a + d[i] * (1 - a), t.c[1] * a + d[i + 1] * (1 - a), t.c[2] * a + d[i + 2] * (1 - a));
+        const L2 = lum(d[i], d[i + 1], d[i + 2]);
+        const r = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+        if (r < worst) { worst = r; worstPx = [d[i], d[i + 1], d[i + 2]]; }
+      }
+      return { fg: t.c.join(','), bg: worstPx ? worstPx.join(',') : '', key: `${t.t}@${Math.round(t.x)},${Math.round(t.y)}`, text: t.t, plant: t.plant, ratio: Math.round(worst * 100) / 100 };
+    });
+  }, { png, texts: texts.out });
+  return { res, occluded: texts.occluded };
+}
+
+/**
+ * THE PIXEL ARM'S CONTROL, run once on the first route. A string in mid-grey on a mid-grey
+ * BACKGROUND-IMAGE: the walk-up reads `background-color`, finds the dark page, and passes it; the
+ * pixels are grey on grey (about 1.2:1), so the pixel arm MUST flag it. That pair is exactly the
+ * blindness this arm exists to close. If the pixel arm does not flag it, it cannot see an image
+ * background and its silence means nothing - exit 2.
+ */
+async function pixelControl() {
+  await page.evaluate((id) => {
+    const d = document.createElement('div');
+    d.id = id; d.textContent = 'PIXEL CONTROL';
+    Object.assign(d.style, {
+      position: 'fixed', top: '160px', left: '20px', zIndex: '2147483647', padding: '8px',
+      color: 'rgb(150,150,150)', backgroundImage: 'linear-gradient(rgb(128,128,128), rgb(128,128,128))',
+      fontSize: '16px',
+    });
+    document.body.appendChild(d);
+  }, PLANT_ID);
+  await page.waitForTimeout(200);
+  const walk = (await readPage()).findings.some((f) => f.text === 'PIXEL CONTROL');
+  const px = (await readPixels()).res.find((r) => r.plant);
+  await page.evaluate((id) => document.getElementById(id)?.remove(), PLANT_ID);
+  return { walkFlagged: walk, pixelRatio: px ? px.ratio : null };
+}
+
+const pixelFindings = [];
+let pixelExamined = 0;
+let pixelOccluded = 0;
+let control = null;
+
 const report = { examined: 0, findings: [], theme: '' };
 const perRouteExamined = new Map();   // route -> how many strings it actually rendered
 for (const route of ROUTES) {
@@ -309,7 +441,14 @@ for (const route of ROUTES) {
     await browser.close();
     fail(2, `UNSTABLE: ${route} never settled - examined counts ${seen.join(' -> ')}. Not averaging them.`);
   }
-  console.log(`${route.padEnd(12)} examined ${String(r.examined).padStart(4)}  below AA ${r.findings.length}  (settled after ${seen.length} reads)`);
+  if (!control) control = await pixelControl();
+  const px = await readPixels();
+  const pxBelow = px.res.filter((p) => !p.plant && p.ratio < 4.5);
+  pixelExamined += px.res.length;
+  pixelOccluded += px.occluded;
+  for (const p of pxBelow) pixelFindings.push({ route, ...p });
+  console.log(`${route.padEnd(12)} examined ${String(r.examined).padStart(4)}  below AA ${r.findings.length}  (settled after ${seen.length} reads)`
+    + `   | pixels: ${px.res.length} on screen, ${px.occluded} occluded, below AA ${pxBelow.length}`);
   perRouteExamined.set(route, r.examined);
   report.examined += r.examined;
   report.theme = r.theme;
@@ -355,6 +494,20 @@ if (!new RegExp(`\\b${THEME}\\b`).test(report.theme)) {
     + 'report a reading taken in the other theme.');
 }
 
+// -- PIXEL ARM CONTROL -----------------------------------------------------------------------
+console.log(`pixel control: walk-up flagged it=${control?.walkFlagged}  pixel ratio=${control?.pixelRatio}`);
+if (!control || control.pixelRatio === null || control.pixelRatio >= 4.5) {
+  fail(2, 'PIXEL CONTROL FAILED: a grey-on-grey background-image string was not flagged by the pixel '
+    + 'arm, so it cannot see image backgrounds and its silence is not evidence.');
+}
+if (pixelExamined === 0) fail(2, 'the pixel arm examined ZERO strings - it never read a screen.');
+
+console.log(`pixel arm: ${pixelExamined} on-screen strings, ${pixelOccluded} skipped as occluded; `
+  + `${pixelFindings.length} below 4.5:1 against the pixels they are drawn on`);
+for (const f of pixelFindings.sort((a, b) => a.ratio - b.ratio)) {
+  console.log(`  ${String(f.ratio).padStart(5)}:1  ${String(f.route).padEnd(11)} (pixels) ${JSON.stringify(f.text)} at ${f.key.split('@')[1]}  text rgb(${f.fg}) on pixel rgb(${f.bg})`);
+}
+
 console.log(`examined ${report.examined} rendered text elements in ${THEME} mode; `
   + `${report.findings.length} below 4.5:1`);
 for (const f of report.findings.sort((a, b) => a.ratio - b.ratio)) {
@@ -362,8 +515,8 @@ for (const f of report.findings.sort((a, b) => a.ratio - b.ratio)) {
   console.log(`            color=${f.color}  class=${f.cls}`);
 }
 
-if (report.findings.length) {
-  fail(1, `${report.findings.length} rendered string(s) are below the WCAG AA floor of 4.5:1. `
+if (report.findings.length || pixelFindings.length) {
+  fail(1, `${report.findings.length} (walk-up) and ${pixelFindings.length} (pixels) rendered string(s) are below the WCAG AA floor of 4.5:1. `
     + 'Check each by hand before changing anything - disabled and placeholder text is exempt and '
     + 'this probe cannot tell it apart.');
 }
