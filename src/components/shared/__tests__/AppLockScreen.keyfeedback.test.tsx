@@ -130,3 +130,39 @@ describe('AppLockScreen — per-key press feedback', () => {
     expect(key('3').getAttribute('data-pressed')).toBe('true');
   });
 });
+
+/**
+ * Ask d53173d9 (Tre 2026-09-29, "pin is laggy on input"). A digit used to register on `click`,
+ * which fires when the finger LIFTS, so every tap lagged by its whole duration. These pin the
+ * touch-down behaviour AND that a real tap (pointerdown then a click with detail 1) counts ONCE -
+ * the half that stops the fix from doubling every digit.
+ */
+const filledDots = () => document.querySelectorAll('.w-3.h-3.bg-primary').length;
+
+describe('AppLockScreen - a digit registers on touch-down', () => {
+  it('fills a dot on pointerdown, before any click', () => {
+    renderScreen();
+    expect(filledDots()).toBe(0);
+    fireEvent.pointerDown(key('5'), { button: 0 });
+    expect(filledDots()).toBe(1);
+  });
+
+  it('counts a full tap (pointerdown + click detail 1) exactly once', () => {
+    renderScreen();
+    fireEvent.pointerDown(key('5'), { button: 0 });
+    fireEvent.click(key('5'), { detail: 1 });
+    expect(filledDots()).toBe(1);
+  });
+
+  it('still accepts keyboard activation of a focused key (click detail 0)', () => {
+    renderScreen();
+    fireEvent.click(key('8'), { detail: 0 });
+    expect(filledDots()).toBe(1);
+  });
+
+  it('ignores a non-primary pointer button', () => {
+    renderScreen();
+    fireEvent.pointerDown(key('5'), { button: 2 });
+    expect(filledDots()).toBe(0);
+  });
+});

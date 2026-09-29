@@ -146,7 +146,9 @@ export default function AppLockScreen() {
                 {Array.from({ length: PIN_LENGTH }).map((_, i) => (
                   <div
                     key={i}
-                    className={`w-3 h-3 rounded-full border-2 transition-all duration-150 ${
+                    // No fade on the fill: a 150 ms colour transition added 150 ms of visible lag
+                    // to every digit on top of the input delay (ask d53173d9).
+                    className={`w-3 h-3 rounded-full border-2 ${
                       i < pin.length
                         ? error ? 'bg-destructive border-destructive' : 'bg-primary border-primary'
                         : 'border-muted-foreground/40'
@@ -165,11 +167,18 @@ export default function AppLockScreen() {
               <div className={`grid grid-cols-3 gap-3 w-64 transition-transform duration-150 ${error ? 'animate-[shake_0.3s_ease]' : ''}`}>
                 {DIGITS.map((d, i) => {
                   const isPressed = d !== '' && pressedKey === d;
+                  // ⚠️ REGISTER ON TOUCH-DOWN, NOT ON LIFT (Tre 2026-09-29: "pin is laggy on
+                  // input", ask d53173d9). `onClick` waits for the finger to come UP, so every
+                  // digit lagged by the whole tap: measured pointerdown -> dot at 110-134 ms on
+                  // a 90 ms tap and 316-332 ms on a 300 ms hold (scripts/probe-pin-latency.mjs).
+                  // Native keypads fire on touch-down. `onClick` stays for keyboard activation
+                  // only (detail 0), so a pointer tap is never counted twice.
                   return (
                     <button
                       key={i}
                       disabled={checking || d === ''}
-                      onClick={() => handleDigit(d)}
+                      onPointerDown={e => { if (e.button === 0) handleDigit(d); }}
+                      onClick={e => { if (e.detail === 0) handleDigit(d); }}
                       data-pressed={isPressed ? 'true' : undefined}
                       className={`h-16 flex items-center justify-center text-xl font-medium transition-all duration-75 btn-press disabled:opacity-30 ${
                         d === '' ? 'invisible' :

@@ -17,7 +17,7 @@ function PinDots({ pin, error }: { pin: string; error: boolean }) {
       {Array.from({ length: PIN_LENGTH }).map((_, i) => (
         <div
           key={i}
-          className={`w-3 h-3 rounded-full border-2 transition-all duration-150 ${
+          className={`w-3 h-3 rounded-full border-2 ${
             i < pin.length
               ? error ? 'bg-destructive border-destructive' : 'bg-primary border-primary'
               : 'border-muted-foreground/40'
@@ -35,7 +35,10 @@ function Numpad({ onDigit, disabled }: { onDigit: (d: string) => void; disabled?
         <button
           key={i}
           disabled={disabled || d === ''}
-          onClick={() => onDigit(d)}
+          // Register on touch-down, as AppLockScreen does (ask d53173d9): onClick waits for the
+          // finger to lift. onClick stays for keyboard activation only (detail 0).
+          onPointerDown={e => { if (e.button === 0) onDigit(d); }}
+          onClick={e => { if (e.detail === 0) onDigit(d); }}
           className={`h-16 flex items-center justify-center text-xl font-medium transition-colors btn-press disabled:opacity-30 ${
             d === '' ? 'invisible' :
             d === '⌫' ? 'text-muted-foreground hover:text-foreground' :
