@@ -158,10 +158,22 @@ jobs:
           # empty). They are public by design, and the simulator loads getforgenta.com, so read
           # them from that live bundle: it is exactly the project the app under test talks to.
           # Exactly ONE distinct value of each, or the reader is looking at the wrong thing.
-          curl -sS --fail https://getforgenta.com/ -o "$RUNNER_TEMP/gf.html"
+          # Cloudflare fronts the site and answered 403 to curl's default User-Agent from a runner
+          # (run 36515352164). Send a browser UA, and print the status and cf-mitigated header on
+          # failure so a refusal names itself instead of reading as a curl error.
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+          fetch() {
+            local code
+            code=$(curl -sS -A "$UA" -D "$RUNNER_TEMP/h.txt" -o "$2" -w '%{http_code}' "$1")
+            if [ "$code" != "200" ]; then
+              echo "FETCH REFUSED: $1 -> HTTP $code, $(grep -i '^cf-mitigated\|^server' "$RUNNER_TEMP/h.txt" | tr -d '\r' | tr '\n' ' ')"
+              exit 1
+            fi
+          }
+          fetch https://getforgenta.com/ "$RUNNER_TEMP/gf.html"
           : > "$RUNNER_TEMP/gf.js"
           for P in $(grep -oE '/assets/[^"]+\.js' "$RUNNER_TEMP/gf.html"); do
-            curl -sS --fail "https://getforgenta.com$P" >> "$RUNNER_TEMP/gf.js"
+            fetch "https://getforgenta.com$P" "$RUNNER_TEMP/part.js"; cat "$RUNNER_TEMP/part.js" >> "$RUNNER_TEMP/gf.js"
           done
           URLS=$(grep -aoE 'https://[a-z0-9]{20}\.supabase\.co' "$RUNNER_TEMP/gf.js" | sort -u || true)
           KEYS=$(grep -aoE 'sb_publishable_[A-Za-z0-9_-]{10,}' "$RUNNER_TEMP/gf.js" | sort -u || true)
