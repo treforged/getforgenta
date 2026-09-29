@@ -141,6 +141,89 @@ jobs:
               sys.exit(1)
           PY
 
+      # Signed-in frames (items 3-4 need them). simctl cannot tap, so the job gets a real session
+      # for the TEST account and hands it to the Debug build through the launch environment
+      # (ViewController.swift, #if DEBUG). No value is ever printed: the token is masked, and a
+      # failure prints only the HTTP status and Supabase's own error text.
+      - name: Sign in the walk account (with a wrong-password control)
+        shell: bash
+        env:
+          SB_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SB_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          WALK_EMAIL: ${{ secrets.REACH_TEST_EMAIL }}
+          WALK_PASSWORD: ${{ secrets.REACH_TEST_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, sys, urllib.request, urllib.error
+          url, anon = os.environ["SB_URL"].strip(), os.environ["SB_ANON"].strip()
+          email, pw = os.environ["WALK_EMAIL"].strip(), os.environ["WALK_PASSWORD"]
+          missing = [k for k in ("SB_URL", "SB_ANON", "WALK_EMAIL", "WALK_PASSWORD") if not os.environ[k].strip()]
+          if missing:
+              print("MISSING SECRET(S): " + ", ".join(missing)); sys.exit(2)
+          if not email.endswith("@forgenta.test"):
+              print("REFUSING: REACH_TEST_EMAIL is not a @forgenta.test account"); sys.exit(2)
+          def grant(password):
+              req = urllib.request.Request(f"{url}/auth/v1/token?grant_type=password",
+                  data=json.dumps({"email": email, "password": password}).encode(),
+                  headers={"apikey": anon, "Content-Type": "application/json"}, method="POST")
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      return r.status, json.loads(r.read())
+              except urllib.error.HTTPError as e:
+                  return e.code, json.loads(e.read() or b"{}")
+          # CONTROL: a wrong password MUST be refused, or a "success" below proves nothing.
+          cs, cb = grant(pw + "-deliberately-wrong")
+          print(f"control (wrong password): HTTP {cs} {cb.get('error_code') or cb.get('error') or ''}")
+          if cs < 400 or "access_token" in cb:
+              print("CONTROL FAILED: a wrong password was accepted"); sys.exit(2)
+          s, b = grant(pw)
+          if s != 200 or "access_token" not in b:
+              print(f"SIGN-IN FAILED: HTTP {s} {b.get('error_code') or b.get('error') or ''} {b.get('msg') or b.get('error_description') or ''}")
+              sys.exit(1)
+          print(f"sign-in: HTTP {s}, session for user id ending {b['user']['id'][-4:]}")
+          for secret in (b["access_token"], b["refresh_token"]):
+              print(f"::add-mask::{secret}")
+          ref = url.split("//")[1].split(".")[0]
+          garbage = {**b, "access_token": "not-a-token", "refresh_token": "not-a-token", "expires_at": 1}
+          env = open(os.environ["GITHUB_ENV"], "a")
+          env.write(f"SIM_SESSION_KEY=sb-{ref}-auth-token\n")
+          for name, sess in (("SIM_SESSION_REAL", b), ("SIM_SESSION_GARBAGE", garbage)):
+              b64 = base64.b64encode(json.dumps(sess).encode()).decode()
+              print(f"::add-mask::{b64}")
+              env.write(f"{name}={b64}\n")
+          PY
+
+      - name: Screenshot a garbage session and a real one (discriminating pair)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for P in GARBAGE REAL; do
+            xcrun simctl terminate "$UDID" com.treforged.forged 2>/dev/null || true
+            VAR="SIM_SESSION_$P"
+            SIMCTL_CHILD_FORGENTA_SIM_SESSION_KEY="$SIM_SESSION_KEY" \
+            SIMCTL_CHILD_FORGENTA_SIM_SESSION_B64="${!VAR}" \
+              xcrun simctl launch "$UDID" com.treforged.forged
+            sleep 30
+            N=$(echo "$P" | tr 'A-Z' 'a-z')
+            xcrun simctl io "$UDID" screenshot "shots/03-session-$N.png"
+          done
+          python3 -m pip install --quiet --user --break-system-packages pillow >/dev/null 2>&1 || python3 -m pip install --quiet --user pillow
+          python3 - <<'PY'
+          import sys
+          from PIL import Image, ImageChops, ImageStat
+          def diff(a, b):
+              A = Image.open(a).convert("L").resize((200, 434)); B = Image.open(b).convert("L").resize((200, 434))
+              return ImageStat.Stat(ImageChops.difference(A, B)).mean[0]
+          g = diff("shots/01-launch.png", "shots/03-session-garbage.png")
+          r = diff("shots/01-launch.png", "shots/03-session-real.png")
+          print(f"mean pixel difference from the welcome screen: garbage={g:.2f} real={r:.2f}")
+          # A garbage session must be signed OUT (looks like welcome); a real one must NOT.
+          # If both look like welcome, sign-in did not take; if both differ, the frame cannot tell.
+          if not (r > 10 and r > 3 * max(g, 1)):
+              print("SIGNED-IN FRAME NOT DISTINGUISHABLE FROM THE WELCOME SCREEN"); sys.exit(1)
+          PY
+
       # Item 2: the widget. A HOST RENDER, not a home screen - see HostRender/WidgetHostRender.swift.
       - name: Build the widget host render
         shell: bash
