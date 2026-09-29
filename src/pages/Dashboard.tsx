@@ -21,7 +21,7 @@ import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, u
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { substituteSettledOccurrences } from '@/lib/matched-occurrence-display';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
-import { generateScheduledEvents, getUpcomingEvents, formatDateShort, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
+import { generateScheduledEvents, getUpcomingEvents, formatDateShort, PROJECTION_MONTHS, toLocalDateStr, type ScheduledEvent } from '@/lib/scheduling';
 import { toScheduledObligations } from '@/lib/upcoming-obligations';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
@@ -48,6 +48,8 @@ import { isCardOpenAsOf } from '@/lib/card-start-date';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
 import BudgetTotalsCard from '@/components/dashboard/BudgetTotalsCard';
 import DashboardHero from '@/components/dashboard/DashboardHero';
+import ShortMonthsNotice from '@/components/dashboard/ShortMonthsNotice';
+import { shortfallByMonth } from '@/lib/breach-levers';
 import DashboardOverviewStrip from '@/components/dashboard/DashboardOverviewStrip';
 import CalcDrawer from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
@@ -201,7 +203,10 @@ export default function Dashboard() {
     return () => { window.__forgenta_dashboard_ready = false; };
   }, []);
 
-  const { cardProjection } = useCardProjectionContext();
+  const { cardProjection, projections: forecastProjections } = useCardProjectionContext();
+  // Months in the next year that end below their floor - the Forecast card ranks what covers them.
+  const shortMonths = useMemo(() => shortfallByMonth(forecastProjections, 12), [forecastProjections]);
+  const [shortMonthsDismissed, setShortMonthsDismissed] = usePersistedState('tre:dashboard:shortMonthsDismissed', '');
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
@@ -1357,6 +1362,14 @@ export default function Dashboard() {
           Accounts AND Goals alike (Tre, 2026-08-22: "move the overview data from the accounts tab
           to the top of the dashboard"). Fixed, like the hero: NOT a `useDashboardLayout` widget,
           so it is neither reorderable nor hideable. */}
+      {/* A month ahead below its floor, ABOVE the strip: at 390x844 the strip fills the first
+          screen (y 185-953), so under the hero this line sat at y=1292 where nobody sees it. */}
+      <ShortMonthsNotice
+        shortMonths={shortMonths}
+        currentMonth={toLocalDateStr(new Date()).slice(0, 7)}
+        dismissedMonth={shortMonthsDismissed}
+        onDismiss={setShortMonthsDismissed}
+      />
       <DashboardOverviewStrip
         loading={overviewStripLoading}
         netWorth={accountSummary.netWorth}
