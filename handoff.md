@@ -24,6 +24,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R000 START HERE (09-29 ~00:25, getforgenta-c7 handed off at the 175-call gate). SAM'S OPEN ASK, READ-ONLY REPORT, change nothing:
+    where can Tre's Mar 2027 gap ($812 to zero, $963 to its $150 floor) and the Oct 2026-Jan 2027 floor breaches come
+    from WITHOUT adding card interest? Check (1) goal contributions Oct-Mar incl. the car fund (savings_goals, car_funds;
+    NOTE savings_goals has no `priority` column), (2) the largest discretionary expense rules, (3) income after the lease
+    the plan misses. Rank by $ covered. Also answer: is the Nov floor ($2,605) too high for his income? Send to Sam.
+    FACTS ALREADY MEASURED (engine replay of a fresh dump, matched the live app to the dollar):
+      Nov-Mar every card dollar is required: minimums $923/mo ($760 from Feb) + $280 Robinhood pay-in-full = engine debt.
+      Oct extra $612 = Robinhood statement paid in full (avoids interest). Interest to payoff $6,412, debt-free Sep 2029.
+      End cash vs floor: Oct 1431/2605, Nov 907/2605, Dec 839/2406, Jan 1587/2605, Feb 2605/2605, Mar -812/150.
+    HOW TO RE-RUN THE ENGINE OFFLINE (no data in context): docs/forecast-fixture-recapture.md queries A+B -> spilled files
+      -> assemble-raw.mjs -> RECAPTURE=1 recapture test -> copy fixture to $TMP -> RESTORE the two fixtures from a backup
+      (the recapture overwrites the gitignored golden fixture; pinned tests depend on it). Scratch harness = copy the
+      renderHook block of forecast-convergence.realData.test.ts into a jsdom test reading AB_FIXTURE; never commit it.
+    DONE this session (all via the app, read back by SQL): GF $1,100 rule ends 2027-03-31 (Tre: stops, never returns);
+      lease fee fe1c81ec moved to 2027-03-01 (lease: paid at notice); move-out fee ffb4dc0d $25.75 on 2027-03-31.
+      Commits: c1ff690d notes counter; save-up line + its correction (never advise saving from months already below floor).
 R0e SIM (09-29 ~00:05, getforgenta-c7). READ RUN 36518919633 FIRST: gh run view 36518919633 --log | grep REFUSING\|sign-in
     Chain: UA fix e21555ce REFUTED (Cloudflare 'cf-mitigated: challenge' to runner IPs whatever the UA). 494ae682 reads
     the public URL/key from repo VARIABLES SIM_SUPABASE_URL / SIM_SUPABASE_PUBLISHABLE_KEY (set 09-29; live bundle is the
