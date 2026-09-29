@@ -4,21 +4,34 @@
  * the FIRST number the app saves for them. Phone width (390x844), signed in, real dev server.
  *
  * WHY IT EXISTS. Measured 2026-09-29 (business_user_funnel): of 28 real users, 11 saved nothing
- * and 9 of those 9 who signed in left on their signup day. The wizard holds every answer in
- * memory and writes only when the LAST screen's "Continue free" is pressed, so a user who leaves
- * on screen 5 of 9 has nothing saved. This script turns that reading of the code into a count.
+ * and all 9 of those who signed in left on their signup day. The wizard saved only on the finish
+ * screen's "Continue free" (press 10 of 10), AFTER that screen had already said "Your profile is
+ * set". Since 2026-09-29 it saves on "See your plan" (press 9), and this is the gate for that.
  *
- * WHAT IT DOES. Resets the @forgenta.test walk account to onboarding_completed=false, opens
- * /onboarding in a fresh context, and walks the SHORTEST honest path: a name, one paycheck
- * amount, then Continue / decline on every screen. Every non-GET request the page makes to the
- * Supabase data plane is RECORDED and ABORTED, so the walk account's data is never changed and
- * the list of attempted writes shows exactly when the app first tries to save anything.
+ * WHAT IT DOES. Resets the @forgenta.test walk account to onboarding_completed=false and walks
+ * /onboarding twice at 390x844, the SHORTEST honest path (a name, one paycheck, Continue or
+ * decline on every screen). Every non-GET data-plane request is RECORDED and answered IN THE
+ * BROWSER with an empty 204, so the app believes it saved and nothing reaches the database.
+ *   ARM A  ends on "Continue free"   -> /dashboard. Dismisses the cookie banner, as a user would.
+ *   ARM B  ends on "Explore Premium" -> /premium.   NEVER dismisses the banner, so every press
+ *          must reach its control with the banner up (it covered Continue before 2026-09-29), and
+ *          a control asserts the banner really was up.
+ * Each arm asserts the SCREEN: the first save is on "See your plan", "Your profile is set" is
+ * shown only after it, the final button saves the wizard zero more times, and the URL lands.
  *
- * ⚠️ THE WRITES ARE ABORTED, SO THE FINAL SAVE FAILS ON PURPOSE. The count stops at the press
- * that attempts it. A toast about a failed save after that press is this script, not the app.
+ * PROVEN RED 2026-09-29, each restored byte-exact by sha256: the pre-fix Onboarding.tsx (6 of 8
+ * checks fail, first save "Continue free"); the fix without its `saved` guard (both no-double-save
+ * checks fail, "Continue free" re-inserted 5 rows); the pre-fix ConsentBanner (ARM B cannot press
+ * Continue - the banner intercepts it).
  *
- * EXIT CODES: 0 measured, 1 the walk could not reach the save press (a screen changed shape),
- * 2 it could not look (env, sign-in, dev server, playwright, profile write matched nothing).
+ * ⚠️ PROBE ARTEFACT, NAMED: "Explore Premium" is a full page load, and the reloaded app finds the
+ * profile row still false (the stubbed save never reached the database) while the device cache
+ * says done, so it writes onboarding_completed_via="cache_restore". That write is printed and NOT
+ * counted as a double save; with a real save the row reads true and it does not happen.
+ *
+ * EXIT CODES: 0 all checks pass, 1 a check failed or a walk could not finish, 2 it could not look
+ * (env, sign-in, dev server, playwright, profile write matched nothing). The profile is restored
+ * and read back on every path, including a failed walk.
  *
  * DOES NOT MEASURE: human time (machine time is printed but means nothing about a person), the
  * bank-link path (the walk account is free, so it sees the premium screens), OAuth sign-up, or
@@ -92,105 +105,136 @@ async function writeProfile(patch) {
 const original = await readProfile();
 mkdirSync(OUT, { recursive: true });
 
-let screens = 0, presses = 0, fields = 0;
-const writes = [];          // every data-plane write the page attempted, in order
-const log = [];
-let savePressAt = null;     // press number that first produced a write to a data table
-let browser;
+const safeJsonKeys = (t) => Object.keys(safeJson(t)).join('+');
 
-async function shot(page, name) {
-  screens += 1;
-  await page.screenshot({ path: join(OUT, `${String(screens).padStart(2, '0')}-${name}.png`) });
-  log.push(`screen ${screens}: ${name}`);
-}
-
-let cookieDismissed = false;
-async function press(page, re, name) {
-  // The cookie banner arrives a few seconds after load and covers the lower third of a phone
-  // screen, including Continue from the expenses screen on (measured 2026-09-29). A real user has
-  // to dismiss it too, so that press is counted. "Reject" sets no analytics cookie.
-  if (!cookieDismissed) {
-    const banner = page.getByRole('region', { name: 'Cookie consent' });
-    if (await banner.isVisible().catch(() => false)) {
-      cookieDismissed = true;
-      await banner.getByRole('button', { name: /reject/i }).first().click();
-      presses += 1;
-      await page.waitForTimeout(500);
-      log.push(`  press ${presses}: Reject (cookie banner, covers Continue at 390px)`);
-    }
-  }
-  const btn = page.getByRole('button', { name: re }).first();
-  await btn.waitFor({ state: 'visible', timeout: 10000 });
-  const before = writes.length;
-  await btn.click();
-  presses += 1;
-  await page.waitForTimeout(900);
-  const newWrites = writes.slice(before).filter((w) => w.isSave);
-  if (savePressAt === null && newWrites.length) savePressAt = presses;
-  log.push(`  press ${presses}: ${name}${writes.length > before ? `  -> writes: ${writes.slice(before).map((w) => `${w.method} ${w.path}${w.fields ? ' {' + w.fields + '}' : ''}${w.isSave ? ' [SAVE]' : ''}`).join(', ')}` : ''}`);
-}
-
-async function fill(page, label, value) {
-  await page.getByLabel(label, { exact: false }).first().fill(value);
-  fields += 1;
-  log.push(`  field ${fields}: ${label}`);
-}
-
-const t0 = Date.now();
-try {
-  await writeProfile({ onboarding_completed: false, onboarding_step: null, onboarding_furthest_step: null });
-  browser = await chromium.launch();
+// One walk of the wizard. `final` is the finish-screen control pressed at the end:
+//   ARM A  "Continue free"   must land on /dashboard
+//   ARM B  "Explore Premium" must land on /premium
+// Every data-plane write is RECORDED and ANSWERED IN THE BROWSER with an empty 204, so the app
+// believes it saved and NOTHING reaches the database. (Aborting instead made the save fail, and
+// since 2026-09-29 a failed save keeps the user off the finish screen - correctly.)
+async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false) {
+  // leaveBanner: never dismiss the cookie banner, so every press must reach its control WITH the
+  // banner up. Before 2026-09-29 the banner covered Continue at 390px and this arm could not finish.
+  const st = { screens: 0, presses: 0, fields: 0, writes: [], log: [], savePress: null, cookie: leaveBanner };
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   await ctx.route(`${url}/rest/v1/**`, (route) => {
     const req = route.request();
     if (req.method() === 'GET' || req.method() === 'HEAD') return route.continue();
-    // A POST to /rpc/ can be a read; it is recorded either way and continued only if it is one.
     const path = new URL(req.url()).pathname.replace('/rest/v1/', '');
     const body = req.postData() || '';
-    // The wizard's save writes the profile FIRST and throws if that fails, so with writes aborted
-    // the data inserts behind it never fire. The profile write that carries
-    // onboarding_completed=true IS the save, and it is marked so.
+    // The profile write carrying onboarding_completed=true IS the save; any insert into a data
+    // table is part of it. Progress markers (onboarding_furthest_step) are not.
     const isSave = !path.startsWith('profiles') || /"onboarding_completed":true/.test(body);
-    writes.push({ method: req.method(), path, isSave, fields: path.startsWith('profiles') ? Object.keys(safeJson(body)).join('+') : '' });
-    return route.abort();
+    // A WIZARD save is the one that must not happen twice: a data-table insert, or the profile write
+    // tagged via "wizard". A "cache_restore" write is the app reconciling a device cache with the
+    // profile row - and here the row still reads false because the stubbed save never reached the
+    // database. It is an artefact of THIS PROBE on a full-page reload, printed rather than hidden.
+    const isWizardSave = !path.startsWith('profiles') || /"onboarding_completed_via":"wizard"/.test(body);
+    const isCacheRestore = /"onboarding_completed_via":"cache_restore"/.test(body);
+    st.writes.push({ method: req.method(), path, isSave, isWizardSave, isCacheRestore, fields: path.startsWith('profiles') ? safeJsonKeys(body) : '' });
+    return route.fulfill({ status: 204, body: '' });
   });
   const page = await ctx.newPage();
+
+  const shot = async (name) => {
+    st.screens += 1;
+    if (keepFrames) await page.screenshot({ path: join(OUT, `${String(st.screens).padStart(2, '0')}-${name}.png`) });
+    st.log.push(`screen ${st.screens}: ${name}`);
+  };
+  const press = async (role, re, name) => {
+    // The cookie banner arrives a few seconds after load. A real user dismisses it, so it counts.
+    if (!st.cookie) {
+      const banner = page.getByRole('region', { name: 'Cookie consent' });
+      if (await banner.isVisible().catch(() => false)) {
+        st.cookie = true;
+        await banner.getByRole('button', { name: /reject/i }).first().click();
+        st.presses += 1;
+        await page.waitForTimeout(500);
+        st.log.push(`  press ${st.presses}: Reject (cookie banner)`);
+      }
+    }
+    const el = page.getByRole(role, { name: re }).first();
+    await el.waitFor({ state: 'visible', timeout: 10000 });
+    const before = st.writes.length;
+    await el.click();
+    st.presses += 1;
+    await page.waitForTimeout(1200);
+    const mine = st.writes.slice(before);
+    if (st.savePress === null && mine.some((w) => w.isSave)) st.savePress = name;
+    st.log.push(`  press ${st.presses}: ${name}${mine.length ? '  -> ' + mine.map((w) => `${w.method} ${w.path}${w.fields ? ' {' + w.fields + '}' : ''}${w.isSave ? ' [SAVE]' : ''}`).join(', ') : ''}`);
+    return mine;
+  };
+  const fill = async (label, value) => {
+    await page.getByLabel(label, { exact: false }).first().fill(value);
+    st.fields += 1;
+    st.log.push(`  field ${st.fields}: ${label}`);
+  };
+
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
   await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.includes('onboarding')) localStorage.removeItem(k); });
   await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' });
   await page.getByText(/Welcome to Forgenta/i).first().waitFor({ timeout: 15000 });
 
-  await shot(page, 'welcome');
-  await fill(page, 'What should we call you?', 'Walk Tester');
-  await press(page, /^Continue/, 'Continue');
-
-  await shot(page, 'premium-1');
-  await press(page, /^No thanks$/, 'No thanks');
-  await shot(page, 'premium-2');
-  await press(page, /stay on free/i, "I'll stay on free");
-
+  await shot('welcome');
+  await fill('What should we call you?', 'Walk Tester');
+  await press('button', /^Continue/, 'Continue');
+  await shot('premium-1');
+  await press('button', /^No thanks$/, 'No thanks');
+  await shot('premium-2');
+  await press('button', /stay on free/i, "I'll stay on free");
   await page.getByText(/Income & Paycheck/i).first().waitFor({ timeout: 10000 });
-  await shot(page, 'income');
-  await fill(page, 'Gross per paycheck', '1875');
-  await press(page, /^Continue/, 'Continue');
-
+  await shot('income');
+  await fill('Gross per paycheck', '1875');
+  await press('button', /^Continue/, 'Continue');
   for (const name of ['expenses', 'debts', 'savings']) {
-    await shot(page, name);
-    await press(page, /^Continue/, 'Continue');
+    await shot(name);
+    await press('button', /^Continue/, 'Continue');
   }
-  await shot(page, 'goals');
-  await press(page, /See your plan/, 'See your plan');
+  await shot('goals');
+  // Positive control for leaveBanner: the banner must really be up here, or this arm proves nothing.
+  const bannerUp = await page.getByRole('region', { name: 'Cookie consent' }).isVisible().catch(() => false);
+  await press('button', /See your plan/, 'See your plan');
 
-  await shot(page, 'finish');
-  await press(page, /Continue free/, 'Continue free');
-  await shot(page, 'after-save');
+  // ASSERT THE SCREEN, NOT THE ROW: the finish screen must be on screen, and must be there only
+  // AFTER the save - which the press log already orders.
+  const finishShown = await page.getByText(/Your profile is set/i).first()
+    .waitFor({ timeout: 8000 }).then(() => true).catch(() => false);
+  const savedBeforeFinish = st.savePress !== null;
+  await shot('finish');
+
+  const finalWrites = await press(final.role, final.re, final.name);
+  await page.waitForURL((u) => new URL(u).pathname === wantPath, { timeout: 8000 }).catch(() => {});
+  const landed = new URL(page.url()).pathname;
+  await shot('after');
   await ctx.close();
+
+  const checks = [
+    ...(leaveBanner ? [['cookie banner stayed up for the whole walk (control)', bannerUp, `visible=${bannerUp}`]] : []),
+    ['first save is on "See your plan"', st.savePress === 'See your plan', `was ${st.savePress ?? 'NONE'}`],
+    ['finish screen shown, and only after the save', finishShown && savedBeforeFinish, `shown=${finishShown} savedBefore=${savedBeforeFinish}`],
+    [`"${final.name}" does not save the wizard again`, finalWrites.filter((w) => w.isWizardSave).length === 0,
+      `${finalWrites.filter((w) => w.isWizardSave).length} wizard saves; ${finalWrites.filter((w) => w.isCacheRestore).length} cache_restore (probe artefact, see header)`],
+    [`"${final.name}" lands on ${wantPath}`, landed === wantPath, `landed ${landed}`],
+  ];
+  return { arm, st, checks };
+}
+
+const t0 = Date.now();
+const arms = [];
+let browser;
+let walkError = null;
+try {
+  await writeProfile({ onboarding_completed: false, onboarding_step: null, onboarding_furthest_step: null });
+  browser = await chromium.launch();
+  arms.push(await runArm(browser, 'ARM A', { role: 'button', re: /Continue free/, name: 'Continue free' }, '/dashboard', true));
+  arms.push(await runArm(browser, 'ARM B', { role: 'link', re: /Explore Premium/, name: 'Explore Premium' }, '/premium', false, true));
 } catch (err) {
-  console.log(log.join('\n'));
+  // NOT fail() here: process.exit skips `finally`, and a red run then left the walk account at
+  // onboarding_completed=false (measured 2026-09-29). Record it; exit after the restore.
   const lines = err.message.split('\n');
-  const why = lines.filter((l) => /intercepts|not stable|not enabled|outside/.test(l)).slice(-2).join(' | ');
-  fail(1, `the walk did not reach the save press: ${why || lines[0]}`);
+  walkError = lines.filter((l) => /intercepts|not stable|not enabled|outside/.test(l)).slice(-2).join(' | ') || lines[0];
 } finally {
   if (browser) await browser.close();
   await writeProfile(original);
@@ -200,13 +244,23 @@ try {
   if (!ok) fail(2, 'the walk account profile was NOT restored - fix it before trusting anything.');
 }
 
-console.log(log.join('\n'));
-console.log('');
-console.log(`screens shown before the save press: ${screens - 1}`);
-console.log(`presses: ${presses}   fields filled: ${fields}   (${presses + fields} actions)`);
-console.log(`first SAVE attempt on press: ${savePressAt ?? 'NONE'} of ${presses}`);
-console.log(`non-save writes (progress markers): ${writes.filter((w) => !w.isSave).length}`);
-console.log(`all attempted writes (aborted): ${writes.length}`);
-console.log(`machine time: ${((Date.now() - t0) / 1000).toFixed(1)} s (NOT a human time)`);
-console.log(`frames: ${OUT}`);
-if (savePressAt === null) fail(1, 'no press ever attempted a data write - the save moved or the walk is blind.');
+if (walkError) {
+  for (const a of arms) console.log(a.st.log.join('\n'));
+  fail(1, `a walk did not finish: ${walkError}`);
+}
+
+let failed = 0;
+for (const a of arms) {
+  console.log(`\n== ${a.arm} ==`);
+  console.log(a.st.log.join('\n'));
+  console.log(`screens: ${a.st.screens}  presses: ${a.st.presses}  fields: ${a.st.fields}  (${a.st.presses + a.st.fields} actions)`);
+  for (const [name, pass, detail] of a.checks) {
+    if (!pass) failed += 1;
+    console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}  (${detail})`);
+  }
+}
+console.log(`\narms examined: ${arms.length}  checks failed: ${failed}`);
+console.log(`machine time: ${((Date.now() - t0) / 1000).toFixed(1)} s (NOT a human time)   frames: ${OUT}`);
+if (arms.length !== 2) fail(2, 'fewer than two arms ran - nothing complete was measured.');
+if (failed) fail(1, `${failed} check(s) failed.`);
+console.log('OK - the save happens before the finish screen claims it, and neither finish button saves twice.');

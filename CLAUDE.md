@@ -210,6 +210,12 @@ section states reasoning, not measurement, and says so.
   open the panel ON SCREEN. It finds the panel by its own heading, never by the id or aria-expanded the fix
   added, so it can see the old defect: proven red on the pre-fix page (heading at top=763 on a 667px screen)
   and green on the fix (top=99). Does NOT cover desktop widths or the panel's contents.
+- `npm run check:first-save` - at 390x844, signed in: walks onboarding twice and asserts the wizard
+  saves on "See your plan" BEFORE the finish screen says "Your profile is set", that neither finish
+  button saves again, and that every press works with the cookie banner up. Writes are answered
+  in-browser with a 204, so nothing reaches the database; the walk account is restored on every exit.
+  Proven red three ways (pre-fix wizard, no `saved` guard, pre-fix banner). Header names one probe
+  artefact (`cache_restore` after the Premium reload). Does NOT cover the bank path or OAuth sign-up.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.

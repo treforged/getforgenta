@@ -309,7 +309,17 @@ export default function Onboarding() {
     if (idx > 0) setStep(steps[idx - 1]);
   };
 
-  const handleFinish = async () => {
+  // ⚠️ THE SAVE RUNS ON "See your plan", BEFORE THE FINISH SCREEN, NOT ON ITS BUTTONS (2026-09-29).
+  // The finish screen says "Your profile is set" and shows the take-home figure. Until this change
+  // nothing had been saved when it said so: the write ran on "Continue free", a small button beside
+  // a filled "Explore Premium", so a user who closed the app there lost every answer while being told
+  // they were set up. Measured by `npm run measure:first-save` (first save was press 10 of 10; it is
+  // now press 9). 11 of 28 real users saved nothing, and all 9 who signed in left on signup day.
+  // `saved` makes the finish buttons navigate only, so "Explore Premium" cannot write twice.
+  const [saved, setSaved] = useState(false);
+
+  const persist = async (): Promise<boolean> => {
+    if (saved) return true;
     setSaving(true);
     try {
       const wg = parseFloat(data.weeklyGross) || 0;
@@ -450,12 +460,24 @@ export default function Onboarding() {
       } else {
         toast.success('Your financial profile is ready!');
       }
-      navigate('/dashboard');
+      setSaved(true);
+      return true;
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to save profile');
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  // "See your plan" and "Skip the rest": save, and show the finish screen only once it landed.
+  const seePlan = async () => {
+    if (await persist()) setStep('finish');
+  };
+
+  // The finish screen's own buttons. `persist` is a no-op once saved, so these only navigate.
+  const handleFinish = async () => {
+    if (await persist()) navigate('/dashboard');
   };
 
   // Skip-all. An empty budget is the user's right, so this exits with nothing entered — but it is a
@@ -757,7 +779,7 @@ export default function Onboarding() {
                 <div className="flex gap-2 pt-1">
                   <a
                     href="/premium"
-                    onClick={e => { e.preventDefault(); handleFinish().then(() => setTimeout(() => (window.location.href = '/premium'), 500)); }}
+                    onClick={e => { e.preventDefault(); void persist().then(ok => { if (ok) window.location.href = '/premium'; }); }}
                     className="flex-1 text-center py-2 text-[10px] font-semibold bg-primary text-primary-foreground btn-press"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
@@ -839,8 +861,9 @@ export default function Onboarding() {
                   {step === 'welcome' ? 'Skip setup →' : <><ChevronLeft size={14} /> Back</>}
                 </button>
                 <button
-                  onClick={next}
-                  className="flex items-center gap-1.5 bg-primary text-primary-foreground px-5 py-2.5 text-xs font-semibold btn-press"
+                  onClick={step === 'goals' ? seePlan : next}
+                  disabled={step === 'goals' && saving}
+                  className="flex items-center gap-1.5 bg-primary text-primary-foreground px-5 py-2.5 text-xs font-semibold btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {step === 'goals' ? 'See your plan' : 'Continue'} <ChevronRight size={13} />
@@ -848,7 +871,8 @@ export default function Onboarding() {
               </div>
               {showSkipToPlan && (
                 <button
-                  onClick={() => setStep('finish')}
+                  onClick={seePlan}
+                  disabled={saving}
                   className="w-full text-center text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1"
                 >
                   Skip the rest — read it from my bank →

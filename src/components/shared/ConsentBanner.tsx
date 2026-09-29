@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { X, ChevronDown, ChevronUp, Shield } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/consent-prefs';
@@ -170,6 +170,23 @@ export default function ConsentBanner() {
   const { status, consent, acceptAll, rejectNonEssential, saveCustom } =
     useConsentPrefs();
   const [showPrefs, setShowPrefs] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const bannerShown = status !== 'decided';
+
+  // The banner is fixed over the bottom of the screen, so on a phone it COVERED the primary
+  // button of whatever page sat under it - measured 2026-09-29 at 390x844 on onboarding, where
+  // "Continue" could not be pressed until the banner was dismissed. Padding the body by the
+  // banner's own measured height lets the page scroll clear of it. Removed once decided.
+  useEffect(() => {
+    const el = bannerRef.current;
+    if (!bannerShown || !el) return;
+    const body = document.body;
+    const apply = () => { body.style.paddingBottom = `${el.getBoundingClientRect().height}px`; };
+    apply();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : null;
+    ro?.observe(el);
+    return () => { ro?.disconnect(); body.style.paddingBottom = ''; };
+  }, [bannerShown]);
 
   // Don't render once the user has decided
   if (status === 'decided' && !showPrefs) return null;
@@ -192,6 +209,7 @@ export default function ConsentBanner() {
     <>
       {/* Banner */}
       <div
+        ref={bannerRef}
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card shadow-xl"
         role="region"
         aria-label="Cookie consent"
