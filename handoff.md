@@ -33,6 +33,11 @@ R00L (09-29 ~01:30, getforgenta-c6) 'WHAT WOULD COVER THIS' - Sam approved with 
     walk account (96 ms, 0 clipped). Context now exposes rawCardProjection. Reaches phones via Vercel (JS only).
     Owners $65-from-Nov scenario sent to Sam: total short 6,574 -> 5,560, Oct-Mar still breach. NEXT = assistant PLAN
     only (ask 7043323c, Tre: 'plan only for now'): docs/assistant-plan.md.
+    [x] Assistant plan DONE (a1252ed6 + free-model section; eval scripts/assistant-whatif-eval.py, qwen3:8b 8/10).
+    [x] Card verified LIVE on getforgenta.com (signed-in frame, 63 ms). 89095def (prod ?tab deep link) DROPPED: not a
+    defect, traced identical on local and prod. [x] What's New 2026-09-29 entry 3fa980ba (6 JS-only lines; Followers
+    carried forward since 2/33 had seen 09-18). NOTE: Python's SSL store failed on getforgenta.com - Sam set
+    SSL_CERT_FILE to certifi (new shells only). Queue is now blocked on Tre (R0e secret).
 R000 [x] DONE 09-29 ~00:45 (getforgenta-c6): ranked report sent to Sam (tre-forged-40). Fresh dump replayed, BASE matched
     to the dollar. Ranked: (1) deposit netted vs lease fee in Mar -> Mar exactly on floor (measured via oneTimeByMonth, NOT
     transactions: the engine reads the provider's precomputed oneTimeByMonth, so mutating fx.transactions changes nothing);
