@@ -1,27 +1,30 @@
 # handoff.md - FIRST UP NEXT TIME
 
-## 2026-09-28 (Ada, PC) - Android widgets restyled to the iOS design, 06d512e2
-- DONE: e8f53ab3 part 1 and 4026e4e3. Light palette in values/, dark in values-night/, both from index.css tokens.
-  Gate: `src/lib/__tests__/widget-android-parity.gate.test.ts` (8 cases). JVM: `WidgetTextTest` (5).
-- NO ANDROID SDK ON THIS PC: gradle cannot run here. CI `android-build.yml` is the compile gate. Read its
-  testDebugUnitTest and bundleRelease STEP conclusions for 06d512e2 (run 36502048554).
-- WAITING: Next Debt Payments widget needs Mac Ada's field spec in widget-snapshot.ts. Do not invent the field.
-- 9ce4ecf2 (Mac Ada) replaced the hand-converted iOS palette and changed the Swift label shape; the parity gate's
-  label reader was widened to match (`case .<kind>:` then the first `label:`). Drift ask 8efc4f9e dropped as moot.
-- DONE ebaefa75: the Android Next Debt Payments widget (4x2) and the iOS v3 small layout ('Next:' line). JVM 22/22 locally
-  (real org.json jar + stub Context; recipe: javac with a JUnit stand-in, classpath via `cygpath -w`). Parity gate 11/11.
-- NOTE: android-build DEPLOYS to Google Play at a staged 10% on every push to android/. None of the widgets were checked on a device.
-- ALSO DONE 2026-09-28: e2b355ad Forecast Assumptions opens under its button (5813af9d, `check:forecast-assumptions`);
-  1af54e4a chart axis ticks follow the theme token (d8812d20, src/lib/chart-axis.ts).
-- MAC RETURNED: Mac Ada exited, and PC Ada owns ask ef0dc559 (handoff-mac.md top). Item 1, TestFlight widget build:
-  1080 and 1082 failed at "Assert both profiles carry the App Group". 38cfdb22 renamed $GROUPS (a bash special var:
-  `GROUPS=$(cmd)` returns 1 under -e). f929a459 prints each profile UUID and greps the decoded text. Good app profile
-  = 46990b07 (sha 358e630e), widget = cb73ff06, the OLD app profile without the group = e7004014. If CI prints e7004014,
-  the BUILD_PROVISION_PROFILE_BASE64 secret is stale. Item 7 graphify: done locally (graphify-out is gitignored).
-  Items 2-4 (a CI simulator screenshot job for widget, glass, share sheet) are NOT started.
-- Q1 of the resume queue below is DONE 2026-09-28: live dark `.app-shell` carries the radial-gradient glow on getforgenta.com.
+## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R1. ef0dc559 item 2-4: ONE workflow_dispatch job on macos-latest that builds for the simulator (recipe in handoff-mac.md
+    "Machine"), boots it, launches, and uploads `xcrun simctl io booted screenshot` PNGs as artifacts. Item 2 the widget
+    (simctl cannot place a widget on a home screen - render ForgentaWidgetView in a debug host screen instead, and SAY
+    that it is a host render, not a home screen). Item 3 native glass 8a202850: one background panel, no frame-sync.
+    Item 4 share sheet + GlassEffectPlugin round trip needs a signed-in sim (walk creds as secrets). Plan first, then build.
+R2. aaafa7ee part 2: the APP-WIDE dead-space sweep (part 1, the budget tiles, is done in 86153981). Use check:topright's
+    inventory; read `onRow` before `rightGap` (see CLAUDE.md).
+R3. ef0dc559 item 5 (Package.swift Windows paths): CI regenerates it; confirm and close. Item 7 graphify: DONE locally
+    (graphify-out is gitignored). Item 6/DBG OAUTH marks: read from Tre's next sign-in log, never ask him.
 
-## Resume queue - 2026-09-24 ~20:00 UTC (Ada, getforgenta-33, closed for the WEEKLY CAP on Sam's word). START AT Q1. POINTERS.
+## DONE 2026-09-28 (Ada, PC)
+- Android widgets e8f53ab3: 06d512e2 restyle (light values/, dark values-night/, label MONTH-END CASH), ebaefa75 Next
+  Debt Payments widget + iOS v3 small layout. Android CI 36503187884 green: 23 JVM tests (was 10), AAB, Play staged 10%.
+  Local JVM recipe: javac + JUnit stand-in + real org.json 20231013 (SHA-1 checked) + stub Context; `cygpath -w` classpath.
+- iOS TestFlight build 1083 (6.8.1), run 36505186751: UPLOAD SUCCEEDED, Delivery UUID e4dfe6d0. First build with the
+  widget target. Fixes: 38cfdb22 ($GROUPS is a bash special var: `GROUPS=$(cmd)` returns 1 under -e), f929a459 (grep
+  the decoded profile text, print UUIDs, check both). Profiles: app 46990b07, widget cb73ff06 (old app e7004014).
+- e2b355ad 5813af9d Forecast Assumptions opens under its button (`check:forecast-assumptions`, 763 -> 99px top).
+- 1af54e4a d8812d20 chart axis ticks follow --muted-foreground (src/lib/chart-axis.ts).
+- aaafa7ee part 1, 86153981: budget tiles two across on a phone, 813 -> 564px (`check:budget-tiles`).
+- Q1 (glow in live DOM): verified. android-build DEPLOYS to Play at 10% on every push to android/.
+- Sam's rules while desks overlap: pull --rebase before push; hold pushes when Sam says (iOS runs cancel on push).
+
+## SUPERSEDED by the 2026-09-28 queue above (Q1 and Q3 done 09-28; Q2 and Q4 unchanged). Was: Resume queue - 2026-09-24 ~20:00 UTC (Ada, getforgenta-33, closed for the WEEKLY CAP on Sam's word). START AT Q1. POINTERS.
 
 Q1. Verify the live DOM for the glow (a6e1ea96): on getforgenta.com/demo in dark mode, `document.querySelector('.app-shell')` must exist
     with a radial-gradient backgroundImage. Live CSS is already verified. The DOM half was blocked by the handoff gate.
@@ -11460,7 +11463,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 20:29 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 20:55 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11476,14 +11479,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+cc5456de [handoff]: ef0dc559 progress - App Group assert fixes, profile UUIDs, items 2-4 open
+f929a459 [ci]: App Group assert greps the decoded profile text, prints each UUID, checks both
+38cfdb22 [ci]: App Group assert used $GROUPS, a bash special variable, so it failed every run
+d8812d20 [contrast]: chart axis text follows the theme's muted-foreground, from one constant
+5813af9d [forecast]: Assumptions opens right under its button and scrolls into view
+34e64f37 mac: [handoff] Mac returned - cold-resume list for the PC, each item with its CI replacement
 0e75637e [handoff]: Android widgets e8f53ab3 done in 06d512e2 and ebaefa75; Q1 glow verified live
 ebaefa75 [widget]: Android Next Debt Payments widget, and the iOS v3 small layout
-cbb0b524 mac: [widget] ship the ForgentaWidget target - App Group + widget profile wired into CI
-1b60df9d [widget]: parity gate reads the iOS label from any call after the case, as 9ce4ecf2 reshaped the Swift view
-9ce4ecf2 mac: [widget] light mode, Liquid Glass, Next Debt Payments, fuller layouts
-06d512e2 [widget]: Android widgets match the iOS design, light and dark; label says Month-End Cash
-5a632a3b mac: [widget] iOS half of WidgetBridge + Month-End Cash / Net Worth widgets (target held)
-018f6411 mac: [handoff] Taildrop is the PC<->Mac file path; bfs find rejects relative -newermt
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
