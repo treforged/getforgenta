@@ -50,7 +50,7 @@ class ViewController: CAPBridgeViewController {
     /// The only account this ever runs on is the @forgenta.test walk account.
     private func scheduleSimulatorPageProbeIfAsked() {
         guard ProcessInfo.processInfo.environment["FORGENTA_SIM_PAGE_PROBE"] == "1" else { return }
-        for delay in [20.0, 50.0] {
+        for delay in [3.0, 8.0, 20.0, 50.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 let js = "JSON.stringify({p: location.pathname, t: (document.body && document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 200)})"
                 self?.bridge?.webView?.evaluateJavaScript(js) { result, error in
@@ -81,7 +81,24 @@ extension ViewController: WKNavigationDelegate {
     /// Called when the WKWebView content process is killed by iOS (memory pressure,
     /// long background, etc.). Without a reload the view stays blank permanently.
     public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        #if DEBUG
+        NSLog("FORGENTA_NAV processTerminated url=%@", webView.url?.absoluteString ?? "nil")
+        #endif
         webView.reload()
         (UIApplication.shared.delegate as? AppDelegate)?.handleWebViewProcessTerminated()
     }
+
+    #if DEBUG
+    // CI ONLY (e7d28de3): the navigation timeline, so a WebView found on about:blank can be traced
+    // to what sent it there. Logs only the path, never a query string or fragment.
+    private func navLog(_ what: String, _ webView: WKWebView, _ error: Error? = nil) {
+        let u = webView.url
+        NSLog("FORGENTA_NAV %@ %@%@ %@", what, u?.scheme ?? "nil", u.map { ":" + $0.path } ?? "", error.map { String(describing: $0) } ?? "")
+    }
+    public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { navLog("start", webView) }
+    public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { navLog("commit", webView) }
+    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { navLog("finish", webView) }
+    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { navLog("fail", webView, error) }
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { navLog("failProvisional", webView, error) }
+    #endif
 }
