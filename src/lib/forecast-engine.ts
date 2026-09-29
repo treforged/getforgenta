@@ -10,6 +10,7 @@
 // `inputs`. Do not "fix" anything here in Stage 2 — bug fixes are Stage 5.
 
 import { formatCurrency } from '@/lib/calculations';
+import { floorBreachSaveUp, formatSaveUpSuffix } from '@/lib/floor-breach-save-up';
 import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses, type PaymentPlan } from '@/lib/payment-plan-generator';
@@ -2764,7 +2765,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         }
       });
       if (floorBreachedByOneTime) {
-        milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' });
+        // Turn the warning into an action: the shortfall to THIS month's floor, spread over the
+        // whole months between now and the breach. Derived from the same rawEndingCash and
+        // monthMinSafe the flag above tested, so the advice and the warning cannot disagree.
+        const saveUp = floorBreachSaveUp({
+          breachIndex: i, endingCash: rawEndingCash, floor: b.monthMinSafe,
+          monthLabels: baseData.map(x => x.monthLabel),
+        });
+        milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' + (saveUp ? formatSaveUpSuffix(saveUp) : '') });
       } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash goes negative!' });
       } else if (endingCash >= 0 && belowSafeMinimum && (data.length === 0 || !data[data.length - 1].belowSafeMinimum)) {
