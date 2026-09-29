@@ -65,7 +65,12 @@ handoff must confirm the new session shows in Tre's Remote Control list before t
 - Simulator: app + ForgentaWidget.appex build, the appex is embedded, and the App Group container is created.
   NOT seen on a home screen: Xcode 27 replaced Simulator.app with DeviceHub and I did not script adding a widget.
 
-**HELD, deliberately:** the Xcode target is `ios/App/ForgentaWidget/add-widget-target.pbxproj.patch`, NOT in the
+**UNHELD 2026-09-28 evening:** Sam did portal steps 1-5 in Chrome while Tre was signed in. Profiles checked here
+by sha256 (358e630e / a3b03876), name, app id and entitlements (both carry the group; the main one keeps
+aps=production). Both GitHub secrets were set with the official gh 2.101.0 (checksum and GitHub signature verified,
+in the scratchpad, not installed). The target patch is applied and retired, App.entitlements has the group, and
+ios-build.yml imports + asserts both profiles, the appex, the group in both shipped binaries, and version parity.
+**Was HELD, deliberately:** the Xcode target is `ios/App/ForgentaWidget/add-widget-target.pbxproj.patch`, NOT in the
 project. Applied before the steps below, Release signing fails on the missing widget profile and every iOS build
 (TestFlight included) goes red. App.entitlements also still lacks the App Group, for the same reason.
 

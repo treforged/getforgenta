@@ -274,6 +274,20 @@ jobs:
           mkdir -p "$PROFILE_PATH"
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH/forged.mobileprovision"
 
+      # The home-screen widget (ForgentaWidget.appex, bundle com.treforged.forged.widget) signs
+      # Release against its OWN profile, "Forged Widget App Store". Without it the archive fails at
+      # signing, so a missing secret must fail HERE, by name, not later as a codesign riddle.
+      - name: Import widget provisioning profile
+        env:
+          BUILD_PROVISION_PROFILE_WIDGET_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_WIDGET_BASE64 }}
+        run: |
+          if [ -z "$BUILD_PROVISION_PROFILE_WIDGET_BASE64" ]; then
+            echo "::error::Secret BUILD_PROVISION_PROFILE_WIDGET_BASE64 is empty. The widget target cannot sign without the 'Forged Widget App Store' profile."
+            exit 1
+          fi
+          PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$BUILD_PROVISION_PROFILE_WIDGET_BASE64" | base64 --decode -o "$PROFILE_PATH/forged-widget.mobileprovision"
+
       # ⚠️ SAY WHAT THE PROFILE ACTUALLY CARRIES, because a green signing run does not prove it.
       #
       # `signingStyle: manual` does NOT reliably fail when the profile lacks a capability — Xcode
@@ -301,6 +315,22 @@ jobs:
             exit 1
           fi
           echo "aps-environment present in the profile: $(echo "$ENTITLEMENTS" | grep -A1 'aps-environment' | tail -1)"
+
+      # App Groups is how the app hands the widget its numbers. A profile without the group signs
+      # cleanly and the widget then reads an EMPTY store for ever, showing "--" to every user.
+      # Both profiles must carry it, so both are checked, and a miss fails the run.
+      - name: Assert both profiles carry the App Group
+        run: |
+          set -o pipefail
+          for P in forged forged-widget; do
+            F=~/Library/MobileDevice/Provisioning\ Profiles/$P.mobileprovision
+            GROUPS=$(security cms -D -i "$F" | plutil -extract Entitlements.com\.apple\.security\.application-groups xml1 -o - - 2>/dev/null || true)
+            if ! echo "$GROUPS" | grep -q "group.com.treforged.forged"; then
+              echo "::error::Profile $P has no App Group group.com.treforged.forged. Regenerate it with App Groups enabled."
+              exit 1
+            fi
+            echo "$P profile carries group.com.treforged.forged"
+          done
 
       - name: Build IPA
         run: |
@@ -331,6 +361,8 @@ jobs:
             <dict>
               <key>com.treforged.forged</key>
               <string>Forged App Store</string>
+              <key>com.treforged.forged.widget</key>
+              <string>Forged Widget App Store</string>
             </dict>
             <key>uploadBitcode</key>
             <false/>
@@ -397,6 +429,28 @@ jobs:
             exit 1
           fi
           echo "aps-environment in the shipped binary: $APS"
+
+          # The widget must be IN the IPA and both binaries must carry the App Group, or the app
+          # writes into a store the widget cannot open. Read from the shipped artifact, like push.
+          APPEX="$BUNDLE/PlugIns/ForgentaWidget.appex"
+          if [ ! -d "$APPEX" ]; then echo "::error::ForgentaWidget.appex is missing from the IPA"; exit 1; fi
+          for B in "$BUNDLE" "$APPEX"; do
+            if ! codesign -d --entitlements :- --xml "$B" 2>/dev/null | grep -q "group.com.treforged.forged"; then
+              echo "::error::$(basename "$B") has no App Group entitlement in the shipped IPA"
+              exit 1
+            fi
+            echo "$(basename "$B") carries group.com.treforged.forged"
+          done
+          # App Store Connect rejects an extension whose version differs from its app's.
+          V_APP=$(plutil -extract CFBundleVersion raw "$BUNDLE/Info.plist")
+          V_EXT=$(plutil -extract CFBundleVersion raw "$APPEX/Info.plist")
+          S_APP=$(plutil -extract CFBundleShortVersionString raw "$BUNDLE/Info.plist")
+          S_EXT=$(plutil -extract CFBundleShortVersionString raw "$APPEX/Info.plist")
+          echo "app $S_APP ($V_APP), widget $S_EXT ($V_EXT)"
+          if [ "$V_APP" != "$V_EXT" ] || [ "$S_APP" != "$S_EXT" ]; then
+            echo "::error::Widget version $S_EXT ($V_EXT) does not match app $S_APP ($V_APP)"
+            exit 1
+          fi
           if ! echo "$APS" | grep -q "production"; then
             echo "::error::The exported binary has aps-environment but NOT production. A TestFlight \
           build is distribution-signed and registers against production APNs; a sandbox value \

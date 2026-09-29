@@ -52,5 +52,15 @@
 	-->
 	<key>aps-environment</key>
 	<string>production</string>
+
+	<!--
+	  App Groups: the app writes the home-screen widget's figures here (WidgetBridgePlugin) and the
+	  ForgentaWidget extension reads them. Enabled on App ID com.treforged.forged and both App Store
+	  profiles on 2026-09-28; ios-build.yml asserts it in the profiles AND in the shipped binaries.
+	-->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.treforged.forged</string>
+	</array>
 </dict>
 </plist>
