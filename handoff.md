@@ -11,6 +11,14 @@
 - DONE ebaefa75: the Android Next Debt Payments widget (4x2) and the iOS v3 small layout ('Next:' line). JVM 22/22 locally
   (real org.json jar + stub Context; recipe: javac with a JUnit stand-in, classpath via `cygpath -w`). Parity gate 11/11.
 - NOTE: android-build DEPLOYS to Google Play at a staged 10% on every push to android/. None of the widgets were checked on a device.
+- ALSO DONE 2026-09-28: e2b355ad Forecast Assumptions opens under its button (5813af9d, `check:forecast-assumptions`);
+  1af54e4a chart axis ticks follow the theme token (d8812d20, src/lib/chart-axis.ts).
+- MAC RETURNED: Mac Ada exited, and PC Ada owns ask ef0dc559 (handoff-mac.md top). Item 1, TestFlight widget build:
+  1080 and 1082 failed at "Assert both profiles carry the App Group". 38cfdb22 renamed $GROUPS (a bash special var:
+  `GROUPS=$(cmd)` returns 1 under -e). f929a459 prints each profile UUID and greps the decoded text. Good app profile
+  = 46990b07 (sha 358e630e), widget = cb73ff06, the OLD app profile without the group = e7004014. If CI prints e7004014,
+  the BUILD_PROVISION_PROFILE_BASE64 secret is stale. Item 7 graphify: done locally (graphify-out is gitignored).
+  Items 2-4 (a CI simulator screenshot job for widget, glass, share sheet) are NOT started.
 - Q1 of the resume queue below is DONE 2026-09-28: live dark `.app-shell` carries the radial-gradient glow on getforgenta.com.
 
 ## Resume queue - 2026-09-24 ~20:00 UTC (Ada, getforgenta-33, closed for the WEEKLY CAP on Sam's word). START AT Q1. POINTERS.
@@ -11452,31 +11460,30 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 19:42 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 20:29 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (2 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
-17cc591f mac: [handoff] Dynamic Type verified in the iOS 27 simulator (text ~2x at AX-XL)
-411f1d95 mac: [handoff] build 1071 upload verified; successor tabs start with --remote-control
-c79365f3 mac: [handoff] record charter install (dot-claude 2bfc149 mac/CLAUDE.md)
-044af551 mac: [handoff] record skills 8104ad2 and rules 0f5d4ea installed on the Mac
-36e4c624 mac: [release] VERSION 6.8.0 -> 6.8.1 - Apple closed the 6.8 train to new TestFlight builds
-a35c7823 mac: [handoff] update commit ids after the one-time author rewrite
-b1e3d879 mac: [handoff] record Obsidian decision (b), hook fix and TestFlight build 1069
-2468b594 mac: [hooks] make project hooks run on macOS as well as Windows
+0e75637e [handoff]: Android widgets e8f53ab3 done in 06d512e2 and ebaefa75; Q1 glow verified live
+ebaefa75 [widget]: Android Next Debt Payments widget, and the iOS v3 small layout
+cbb0b524 mac: [widget] ship the ForgentaWidget target - App Group + widget profile wired into CI
+1b60df9d [widget]: parity gate reads the iOS label from any call after the case, as 9ce4ecf2 reshaped the Swift view
+9ce4ecf2 mac: [widget] light mode, Liquid Glass, Next Debt Payments, fuller layouts
+06d512e2 [widget]: Android widgets match the iOS design, light and dark; label says Month-End Cash
+5a632a3b mac: [widget] iOS half of WidgetBridge + Month-End Cash / Net Worth widgets (target held)
+018f6411 mac: [handoff] Taildrop is the PC<->Mac file path; bfs find rejects relative -newermt
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
