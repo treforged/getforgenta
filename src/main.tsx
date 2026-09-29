@@ -49,8 +49,7 @@ installChunkFailureHandling();
 // A failure the guard recorded on an earlier launch is reported once code is running: to
 // monitoring (web only; it is off in the native app) and to public.client_boot_failures, which
 // is the one the desk can read on every platform. With no session it stays queued for next time.
-const sendBootFailure = async (rec: { reason: string; at: string; path: string }): Promise<boolean> => {
-  reportError(new Error(`Boot failed before render: ${rec.reason}`), { label: 'boot-failure' });
+const insertBootFailureRow = async (rec: { reason: string; at: string; path: string }): Promise<boolean> => {
   const { supabase } = await import('./integrations/supabase/client');
   const { data } = await supabase.auth.getSession();
   const uid = data.session?.user.id;
@@ -61,10 +60,31 @@ const sendBootFailure = async (rec: { reason: string; at: string; path: string }
   } as never);
   return !error;
 };
+const sendBootFailure = async (rec: { reason: string; at: string; path: string }): Promise<boolean> => {
+  reportError(new Error(`Boot failed before render: ${rec.reason}`), { label: 'boot-failure' });
+  return insertBootFailureRow(rec);
+};
+
+// iOS only: the NATIVE cover (AppDelegate) logs COVER_DEADLINE to Preferences 'forged:debug_log'
+// when the dashboard never became ready under it. Send each new episode to the same table
+// (ask e7d28de3), so a black screen on a real device leaves a row the desk can read.
+const reportNativeCoverDeadlines = async (): Promise<void> => {
+  const { Capacitor } = await import('@capacitor/core');
+  if (Capacitor.getPlatform() !== 'ios') return;
+  const { Preferences } = await import('@capacitor/preferences');
+  const { reportCoverDeadlines, COVER_REPORTED_KEY } = await import('./lib/cover-deadline-report');
+  await reportCoverDeadlines({
+    readLog: async () => (await Preferences.get({ key: 'forged:debug_log' })).value,
+    readMark: async () => (await Preferences.get({ key: COVER_REPORTED_KEY })).value,
+    writeMark: async ts => { await Preferences.set({ key: COVER_REPORTED_KEY, value: ts }); },
+    send: inc => insertBootFailureRow({ reason: inc.reason, at: inc.at, path: 'native-cover' }),
+  });
+};
 
 const startMonitoring = () => {
   initMonitoring();
   void reportPriorBootFailure(window.localStorage, sendBootFailure);
+  void reportNativeCoverDeadlines().catch(() => { /* never block the app */ });
 };
 if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
   window.requestIdleCallback(startMonitoring, { timeout: 3000 });
