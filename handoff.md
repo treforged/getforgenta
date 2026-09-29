@@ -38,6 +38,9 @@ R00L (09-29 ~01:30, getforgenta-c6) 'WHAT WOULD COVER THIS' - Sam approved with 
     defect, traced identical on local and prod. [x] What's New 2026-09-29 entry 3fa980ba (6 JS-only lines; Followers
     carried forward since 2/33 had seen 09-18). NOTE: Python's SSL store failed on getforgenta.com - Sam set
     SSL_CERT_FILE to certifi (new shells only). Queue is now blocked on Tre (R0e secret).
+    [x] Dashboard ShortMonthsNotice (above the overview strip, dismissible per month) + guard fix 4cf7998c. NOTE: the
+    first Dashboard commit went to origin with test:tz RED for ~10 min (mocked context lacked projections); fixed.
+    Push only on the gate's exit code (memory gate-the-push-on-the-gate).
 R000 [x] DONE 09-29 ~00:45 (getforgenta-c6): ranked report sent to Sam (tre-forged-40). Fresh dump replayed, BASE matched
     to the dollar. Ranked: (1) deposit netted vs lease fee in Mar -> Mar exactly on floor (measured via oneTimeByMonth, NOT
     transactions: the engine reads the provider's precomputed oneTimeByMonth, so mutating fx.transactions changes nothing);
