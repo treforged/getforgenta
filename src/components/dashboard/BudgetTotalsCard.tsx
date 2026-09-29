@@ -151,8 +151,11 @@ export default function BudgetTotalsCard() {
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         This Month's Budget
       </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="cursor-pointer" onClick={openIncomeCalc}>
+      {/* Two across on a phone (Tre, 2026-09-24: "a lot of empty space ... take up a lot extra
+          space on the page"). Five full-width tiles each left a wide empty middle; income keeps a
+          full row because it is the figure the others are spent from. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="cursor-pointer col-span-2 sm:col-span-1" onClick={openIncomeCalc}>
           <MetricCard label="Monthly Income" value={formatCurrency(totals.income, false)} accent="success" icon={DollarSign} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openFixedCalc}>
@@ -162,7 +165,7 @@ export default function BudgetTotalsCard() {
           <MetricCard label="Variable" value={formatCurrency(totals.variable, false)} accent="gold" icon={TrendingDown} clickHint />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="cursor-pointer" onClick={openDebtCalc}>
           <MetricCard label="Debt Payments" value={formatCurrency(totals.debt, false)} accent="crimson" icon={CreditCard} clickHint />
         </div>

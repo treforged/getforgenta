@@ -210,6 +210,9 @@ section states reasoning, not measurement, and says so.
   open the panel ON SCREEN. It finds the panel by its own heading, never by the id or aria-expanded the fix
   added, so it can see the old defect: proven red on the pre-fix page (heading at top=763 on a 667px screen)
   and green on the fix (top=99). Does NOT cover desktop widths or the panel's contents.
+- `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
+  a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
+  (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
 - `npm run check:topright` — an INVENTORY, not a pass/fail gate, of how much of each tab's top-right
   is empty, at 390x844 and 1440x900, signed in. Answers the "big blank spaces" class of complaint by
   measurement instead of by opening whichever screen was reported.
