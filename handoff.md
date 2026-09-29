@@ -44,6 +44,12 @@ R-NOW6 (09-29 ~20:50Z, Ada). START HERE:
        until a row names the branch that stalled.
        Verified live: production entry bundle carries 'native-cover' (20:56Z). 0 native-cover rows at 20:55Z.
     3. Move fund 2dcdcdde: still NEEDS TRE.
+    4. [x] BACKLOG SWEEP 21:50-22:10Z (Sam: 'continue with backlog'): a58fb610 CLOSED (vibrancy shipped a6e1ea96,
+       seen in the dark sim frame); 34ac4dad DROPPED (measured: no wait over 3.2s exists); 798c0ed9 re-tested on the
+       RIGHT table leaderboard_snapshots (2 users/week, publisher healthy; the 09-24 note counted leaderboard_shares);
+       b18ac1f8 early check passed (4 filled rows, 2 users) - still gated to 10-14; 17e959d3 gated to 10-03;
+       0006cc41 deferred by Sam until 10+ paid subs. [x] undici 8.10.0->8.11.2 (lockfile only): Dependabot 7 open -> 0,
+       test:tz 5357 green. Left: 3 moderate in @capacitor/cli->xcode->uuid (build-time CLI, upstream).
 R-NOW5 (09-29 ~20:30Z, getforgenta-34 handed off at the 175-call gate). START HERE, IN ORDER:
     1. GLASS 8a202850 (ask 'doing'): the glass now ATTACHES. Sim run 36623506930 logged "FORGENTA_GLASS
        isSupported=true ios=26.5" and "applied id=sim-top-strip frame={{0,0},{402,62}}". The screenshot still reads
@@ -11718,7 +11724,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 17:08 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 17:45 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11734,14 +11740,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+74ea2e1f [handoff]: dark glass pair measured and sent (8a202850)
+f45d544b [ci]: dark glass control reinstalls the app so the persisted flag cannot leak into it
 2dbd7366 [ci]: dark-theme glass strip frames for 8a202850, with a dark-applied check
 bf1efc82 [handoff]: retire two stale R00 lines (GF answered, notes counter shipped c1ff690d)
 e1ff3c29 [handoff]: R-NOW6 glass frame read and sent, reporter verified in production
 8e630d29 [handoff]: R-NOW6 - cover deadline reporter shipped, glass sim re-run with notifications off
 db6f10dd [ios]: report the native cover's COVER_DEADLINE to client_boot_failures (e7d28de3)
 193b73bf [handoff]: R-NOW5 - glass attaches, cover held by CI alert, black screen instrument next
-40b45cdc [ios]: DEBUG navigation timeline for the about:blank black screen (e7d28de3)
-a3598987 [ios]: register GlassEffectPlugin with the bridge, and probe the signed-in black screen
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
