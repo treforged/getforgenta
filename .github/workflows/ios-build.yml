@@ -322,18 +322,29 @@ jobs:
       - name: Assert both profiles carry the App Group
         run: |
           set -o pipefail
+          # Each profile is decoded ONCE and the group is grepped out of the decoded plist TEXT.
+          # Build 1082 failed here with a plutil keypath (Entitlements.com\.apple...), which may not
+          # honour escaped dots - an instrument that returns empty for every profile. Grepping the
+          # text needs no keypath. Both profiles are checked before failing, and each prints its
+          # UUID, so a stale secret (the pre-group app profile is e7004014-...) is named, not guessed.
+          # Only the UUID and the group are printed; certificates and team details stay out of the log.
+          MISSING=""
           for P in forged forged-widget; do
             F=~/Library/MobileDevice/Provisioning\ Profiles/$P.mobileprovision
-            # NOT "GROUPS": that is a bash special variable. Assigning a command substitution to it
-            # returns status 1 and keeps the runner's numeric gid, so under bash -e this step died
-            # silently with no ::error:: on build 1080 (run 36503530493).
-            APP_GROUPS=$(security cms -D -i "$F" | plutil -extract Entitlements.com\.apple\.security\.application-groups xml1 -o - - 2>/dev/null || true)
-            if ! echo "$APP_GROUPS" | grep -q "group.com.treforged.forged"; then
-              echo "::error::Profile $P has no App Group group.com.treforged.forged. Regenerate it with App Groups enabled."
-              exit 1
+            DECODED=$(security cms -D -i "$F" || true)
+            UUID=$(echo "$DECODED" | grep -A1 '<key>UUID</key>' | grep -oE '[0-9A-Fa-f-]{36}' | head -1 || true)
+            echo "$P profile UUID: ${UUID:-UNREADABLE}"
+            if echo "$DECODED" | grep -A3 '<key>com.apple.security.application-groups</key>' | grep -q 'group.com.treforged.forged'; then
+              echo "$P profile carries group.com.treforged.forged"
+            else
+              echo "::error::Profile $P (UUID ${UUID:-unreadable}) has no App Group group.com.treforged.forged. Regenerate it with App Groups enabled and re-encode its secret."
+              MISSING="$MISSING $P"
             fi
-            echo "$P profile carries group.com.treforged.forged"
           done
+          if [ -n "$MISSING" ]; then
+            echo "Profiles missing the App Group:$MISSING"
+            exit 1
+          fi
 
       - name: Build IPA
         run: |
