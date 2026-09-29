@@ -96,6 +96,8 @@ jobs:
           echo "Simulator: $(printf '%s' "$PICK" | cut -f2) / $(printf '%s' "$PICK" | cut -f3) / $UDID"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          # Freeze the clock: a minute ticking over between two shots once read as a 0.56 "glass" change.
+          xcrun simctl status_bar "$UDID" override --time "9:41"
           echo "UDID=$UDID" >> "$GITHUB_ENV"
 
       - name: Install and launch
@@ -279,6 +281,9 @@ jobs:
             xcrun simctl launch "$UDID" com.treforged.forged
           sleep 30
           xcrun simctl io "$UDID" screenshot shots/04-glass-strip.png
+          # Did the native side ATTACH the glass? A flat dark strip looks the same with or without it,
+          # so the pixel number alone cannot separate "not applied" from "applied but invisible here".
+          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'eventMessage CONTAINS "FORGENTA_GLASS"' | grep FORGENTA_GLASS || echo "FORGENTA_GLASS: no plugin log line (isSupported/apply never reached native)"
           python3 - <<'PY'
           from PIL import Image, ImageChops, ImageStat
           a = Image.open("shots/03-session-real.png").convert("L"); b = Image.open("shots/04-glass-strip.png").convert("L")

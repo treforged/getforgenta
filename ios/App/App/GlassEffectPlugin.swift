@@ -55,6 +55,8 @@ public class GlassEffectPlugin: CAPPlugin, CAPBridgedPlugin {
                 supported = false
             }
 
+            // One log line per call, read by the sim workflow (no user data: a bool and a version).
+            NSLog("FORGENTA_GLASS isSupported=%@ ios=%@", supported ? "true" : "false", UIDevice.current.systemVersion)
             call.resolve([
                 "supported": supported,
                 "iosVersion": UIDevice.current.systemVersion,
@@ -118,6 +120,8 @@ public class GlassEffectPlugin: CAPPlugin, CAPBridgedPlugin {
             host.addSubview(view)
             self.effectViews[id] = view
 
+            // Read by the sim workflow: proves the glass was attached, separately from what it looks like.
+            NSLog("FORGENTA_GLASS applied id=%@ frame=%@ superviewCount=%ld", id, NSCoder.string(for: frame), host.subviews.count)
             call.resolve(["applied": true])
         }
     }
