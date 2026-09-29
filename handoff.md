@@ -24,6 +24,23 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R-NOW2 (09-29 ~16:30Z, getforgenta-fc). START HERE.
+    SIM 7516a6a7 BLOCKED: run 36589566916 REFUSED again (secret 22 chars, no 'forgenta'; walk address is 23 chars
+    @forgenta.test). Tre must paste the .env.deck-walk.local REACH_TEST_EMAIL value. A background watch re-dispatches
+    the sim when the secret timestamp moves past 15:20:13Z. If this session died, re-check `gh secret list` and dispatch.
+    Uncommitted glass hook (useSimGlassExperiment + DashboardLayout mount) is STILL held until sign-in passes.
+    [x] 560440e6 lease: removed a DUPLICATE $3,830 fee on 2027-06-01 + water -30 Apr/May (backup.tre_lease_20260929_*).
+    [x] 6b00056d: movers ece72e4f now paid from Savings/Move fund (backup.tre_floor_20260929_*); Aug27 2,869/2,025
+        cleared. Fidelity rule deleted (backup.tre_fidelity_20260929_*). Mar27 -110 vs floor 150 (offline, Eastern).
+    [x] CSV header quoting fix pushed (buildForecastCsv + exportCsv.header-quoting.test.ts, proven red).
+    [ ] 9fa0eb4c / e943755b BLOCKED ON TRE: the cut table went to Sam. Line 1 (Claude to Pro + Owners 145->65) clears
+        Jan+Mar. Oct-Dec cannot be cleared by rule cuts (Prime is paid at its minimum, so card-charged cuts move no
+        cash). Apply only the lines he approves, then re-measure with the offline probe below.
+    OFFLINE MEASURE (browser reloads are refused by the classifier): capture with the two recapture-doc queries ->
+        assemble-raw -> RECAPTURE=1 vitest -> rename to forecast-inputs.real.NOW-*.json, then RESTORE the golden from
+        forecast-inputs.real.before-2026-09-29b.json. Probe: renderProjectionFromFixture + runDebtCashConvergence +
+        shortfallByMonth, TZ=America/New_York, write output to a file (console is swallowed). LIMIT: checking-paid
+        expense cuts read as 0 change (scheduled events are pre-derived in the capture), so they are NOT measured.
 R-NOW (09-29 ~15:25Z, getforgenta-a4 handed off at the call gate). FIRST: 7516a6a7. Tre re-set REACH_TEST_EMAIL
     (gh secret list: 2026-09-29T15:20:13Z). Ada dispatched "iOS Simulator Screenshots" as run 36589566916 (the failed one
     was 36518919633). Read the SIGN-IN STEP output, not the run conclusion:
@@ -11628,7 +11645,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 11:20 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 11:41 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11638,8 +11655,8 @@ machine-generated and replaced each time; put durable notes above it._
 
 ```
 M deno.lock
- M handoff.md
  M src/components/layout/DashboardLayout.tsx
+ M src/lib/exportCsv.ts
  M supabase/.temp/cli-latest
 ?? src/hooks/__tests__/useSimGlassExperiment.test.tsx
 ?? src/hooks/useSimGlassExperiment.ts
@@ -11648,6 +11665,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8c96ba5d [handoff]: R-NOW - read sim run 36589566916 sign-in step for 7516a6a7
 34b99a61 [handoff]: contrast pixel arm done
 dc2c0ecf [theme]: light bronze deepened 30% -> 26% so bronze-on-tint buttons clear AA
 785dde9b [contrast]: light-mode tab badge readable; pixel arm skips edge-cut text and needs two agreeing reads
@@ -11655,7 +11673,6 @@ fd7a3bd0 [contrast]: the dark/light contrast gates also measure the pixels text 
 75d50d1f [handoff]: sample-rule marker shipped
 c7857dc6 [budget]: mark rules still at their sample name and amount
 b0e541fe [handoff]: budget auto-seed fixed, funnel v3
-68550cc2 [budget]: stop inserting 9 sample rules into real accounts on page open
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
