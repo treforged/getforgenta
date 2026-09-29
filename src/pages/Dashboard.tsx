@@ -54,6 +54,7 @@ import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary
 import { buildPayoffTrajectory, formatMonthsAway } from '@/lib/payoff-trajectory';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
+import { buildNextDebtPayments } from '@/lib/widget-snapshot';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
 import NextLessonRow from '@/components/dashboard/NextLessonRow';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
@@ -618,11 +619,14 @@ export default function Dashboard() {
       !achievementsLoading,
   });
 
+  // The widget's debt list is the Debt Recommendations card's own rows, not a second derivation.
+  const widgetDebtPayments = useMemo(() => buildNextDebtPayments(debtBreakdown), [debtBreakdown]);
   useWidgetSync({
     monthEndCash,
     netWorth: accountSummary.netWorth,
     currency: profile?.currency,
     enabled: !isDemo && !essentialLoading,
+    nextDebtPayments: widgetDebtPayments,
   });
 
   // The caller that makes the notification feature exist: policy + service + toggle all shipped

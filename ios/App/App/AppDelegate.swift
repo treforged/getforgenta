@@ -798,12 +798,14 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("updateWidget needs finite monthEndCash, netWorth and an updatedAt")
             return
         }
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "monthEndCash": cash,
             "netWorth": worth,
             "currency": call.getString("currency") ?? "USD",
             "updatedAt": updatedAt,
         ]
+        // Optional. Passed through as sent; the widget's decoder drops any malformed row.
+        if let debts = call.getArray("nextDebtPayments") { payload["nextDebtPayments"] = debts }
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let json = String(data: data, encoding: .utf8),
               let store = UserDefaults(suiteName: Self.appGroup) else {

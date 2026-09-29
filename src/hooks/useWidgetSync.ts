@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { WidgetBridge } from '@/plugins/widget-bridge';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
-import { buildWidgetPayload } from '@/lib/widget-snapshot';
+import { buildWidgetPayload, type WidgetDebtPayment } from '@/lib/widget-snapshot';
 
 interface Params {
   /** Null when the figure is not available. NOT zero — see `buildWidgetPayload`. */
@@ -10,11 +10,15 @@ interface Params {
   /** The user's own currency. The widget used to hardcode a dollar sign. */
   currency?: string | null;
   enabled: boolean;
+  /** `buildNextDebtPayments(debtBreakdown)`. Compared by value, so a new array each render
+   *  does not re-send an unchanged payload. */
+  nextDebtPayments?: WidgetDebtPayment[] | null;
 }
 
 const DEBOUNCE_MS = 500;
 
-export function useWidgetSync({ monthEndCash, netWorth, currency, enabled }: Params): void {
+export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextDebtPayments }: Params): void {
+  const debtKey = nextDebtPayments ? JSON.stringify(nextDebtPayments) : '';
   // ⚠️ HOME-SCREEN WIDGETS ONLY EVER SYNC THE OWNER'S NUMBERS (partner-linking design
   // §5). In partner view the values arriving here are computed from the PARTNER's data,
   // so the guard lives inside the hook — every call site is covered, including ones
@@ -33,7 +37,10 @@ export function useWidgetSync({ monthEndCash, netWorth, currency, enabled }: Par
       // check what their home screen already told them. A missing figure must
       // never be pushed as a zero; the widget then keeps saying "open Forgenta to
       // sync", which is true, instead of confidently showing $0.
-      const payload = buildWidgetPayload({ monthEndCash, netWorth, currency, enabled: true }, new Date());
+      const payload = buildWidgetPayload(
+        { monthEndCash, netWorth, currency, enabled: true, nextDebtPayments: debtKey ? (JSON.parse(debtKey) as WidgetDebtPayment[]) : null },
+        new Date(),
+      );
       if (!payload) return;
       WidgetBridge.updateWidget(payload).catch((err: unknown) => {
         console.warn('[WidgetBridge] updateWidget failed:', err);
@@ -43,5 +50,5 @@ export function useWidgetSync({ monthEndCash, netWorth, currency, enabled }: Par
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [monthEndCash, netWorth, currency, enabled, isPartnerView]);
+  }, [monthEndCash, netWorth, currency, enabled, isPartnerView, debtKey]);
 }

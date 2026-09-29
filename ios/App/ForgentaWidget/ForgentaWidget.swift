@@ -43,18 +43,38 @@ struct ForgentaProvider: TimelineProvider {
 
 struct ForgentaWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.colorScheme) private var scheme
     let entry: ForgentaEntry
     let small: ForgentaWidgetKind
 
     var body: some View {
-        let view = ForgentaWidgetView(snapshot: entry.snapshot,
-                                      kind: family == .systemMedium ? .both : small,
-                                      now: entry.date)
         if #available(iOSApplicationExtension 17.0, *) {
-            view.containerBackground(WidgetPalette.background, for: .widget)
+            Tinted(entry: entry, kind: kind, scheme: scheme)
         } else {
-            view.padding(16).background(WidgetPalette.background)
+            let palette = WidgetPalette.forScheme(scheme)
+            ForgentaWidgetView(snapshot: entry.snapshot, kind: kind, now: entry.date, palette: palette)
+                .padding(16).background(palette.background)
         }
+    }
+
+    private var kind: ForgentaWidgetKind { family == .systemMedium && small != .debts ? .both : small }
+}
+
+/// iOS 17+: the background is a `containerBackground`, which the system REMOVES on a Liquid Glass
+/// clear/tinted home screen, and `widgetRenderingMode` says when that is happening.
+@available(iOSApplicationExtension 17.0, *)
+private struct Tinted: View {
+    @Environment(\.widgetRenderingMode) private var mode
+    let entry: ForgentaEntry
+    let kind: ForgentaWidgetKind
+    let scheme: ColorScheme
+
+    var body: some View {
+        let palette = WidgetPalette.forScheme(scheme)
+        ForgentaWidgetView(snapshot: entry.snapshot, kind: kind, now: entry.date,
+                           palette: palette, tinted: mode != .fullColor)
+            .widgetAccentable()
+            .containerBackground(palette.background, for: .widget)
     }
 }
 
@@ -80,10 +100,22 @@ struct NetWorthWidget: Widget {
     }
 }
 
+struct DebtPaymentsWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "ForgentaDebtPayments", provider: ForgentaProvider()) { entry in
+            ForgentaWidgetEntryView(entry: entry, small: .debts)
+        }
+        .configurationDisplayName("Next Debt Payments")
+        .description("Your next debt payments and when they are due, from Forgenta.")
+        .supportedFamilies([.systemMedium])
+    }
+}
+
 @main
 struct ForgentaWidgetBundle: WidgetBundle {
     var body: some Widget {
         MonthEndCashWidget()
         NetWorthWidget()
+        DebtPaymentsWidget()
     }
 }

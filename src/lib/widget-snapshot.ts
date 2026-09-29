@@ -1,3 +1,5 @@
+import { toLocalDateStr } from '@/lib/scheduling';
+
 /**
  * Whether the app has a number good enough to put on someone's HOME SCREEN.
  *
@@ -27,11 +29,25 @@
  */
 export const WIDGET_STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * One upcoming debt payment, as the Dashboard's "Debt - Recommended This Month" card shows it.
+ * `amount` null means the projection has not modelled it (the card prints "Not modelled"), and
+ * `dueDate` null means no due day is recorded. Neither is ever sent as 0 or as a made-up date.
+ */
+export interface WidgetDebtPayment {
+  name: string;
+  amount: number | null;
+  /** Local calendar date, YYYY-MM-DD, from `toLocalDateStr` - the user's own day, not UTC's. */
+  dueDate: string | null;
+}
+
 export interface WidgetPayload {
   monthEndCash: number;
   netWorth: number;
   currency: string;
   updatedAt: string;
+  /** Optional so a reader that predates it (the current Android widgets) simply ignores it. */
+  nextDebtPayments?: WidgetDebtPayment[];
 }
 
 export interface WidgetInputs {
@@ -40,6 +56,8 @@ export interface WidgetInputs {
   currency: string | null | undefined;
   /** False in demo, in partner view, or while the figures are still loading. */
   enabled: boolean;
+  /** From `buildNextDebtPayments`. Absent = not sent, which is not the same as "no debts". */
+  nextDebtPayments?: WidgetDebtPayment[] | null;
 }
 
 /**
@@ -70,7 +88,39 @@ export function buildWidgetPayload(inputs: WidgetInputs, now: Date): WidgetPaylo
     // the same failure as a stale one.
     currency: inputs.currency && inputs.currency.trim() !== '' ? inputs.currency : 'USD',
     updatedAt: now.toISOString(),
+    ...(inputs.nextDebtPayments ? { nextDebtPayments: inputs.nextDebtPayments } : {}),
   };
+}
+
+/** The shape `buildNextDebtPayments` reads: the rows of `MonthlyDebtBreakdown`, nothing else. */
+export interface DebtRowsForWidget {
+  recommendations: { cardName: string; nextPayment?: number | null; nextDueDate?: Date | null }[];
+  loanRecommendations?: { name: string; nextPayment: number; nextDueDate: Date | null }[];
+  otherDebtRecommendations?: { name: string; nextPayment: number; nextDueDate: Date | null }[];
+}
+
+/**
+ * The next debt payments, soonest first: the SAME rows and the SAME `nextPayment` / `nextDueDate`
+ * the Debt Recommendations card renders, so the widget cannot disagree with it. Nothing is
+ * recalculated. A row with no due date sorts last rather than being dropped, because a payment
+ * the user owes is not less real for missing a day.
+ */
+export function buildNextDebtPayments(rows: DebtRowsForWidget, limit = 3): WidgetDebtPayment[] {
+  const clean = (n: number | null | undefined) => (typeof n === 'number' && Number.isFinite(n) ? n : null);
+  const all = [
+    ...rows.recommendations.map((r) => ({ name: r.cardName, amount: clean(r.nextPayment), due: r.nextDueDate ?? null })),
+    ...(rows.loanRecommendations ?? []).map((l) => ({ name: l.name, amount: clean(l.nextPayment), due: l.nextDueDate })),
+    ...(rows.otherDebtRecommendations ?? []).map((o) => ({ name: o.name, amount: clean(o.nextPayment), due: o.nextDueDate })),
+  ];
+  const t = (d: Date | null) => (d && !Number.isNaN(d.getTime()) ? d.getTime() : Number.POSITIVE_INFINITY);
+  return [...all]
+    .sort((a, b) => t(a.due) - t(b.due) || a.name.localeCompare(b.name))
+    .slice(0, limit)
+    .map((r) => ({
+      name: r.name,
+      amount: r.amount,
+      dueDate: r.due && !Number.isNaN(r.due.getTime()) ? toLocalDateStr(r.due) : null,
+    }));
 }
 
 /** True when a snapshot of this age should no longer be shown as a figure. */

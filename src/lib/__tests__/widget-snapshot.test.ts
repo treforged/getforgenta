@@ -79,3 +79,59 @@ describe('isSnapshotStale', () => {
     expect(isSnapshotStale('not-a-date', NOW)).toBe(true);
   });
 });
+
+// ─── Next debt payments (Tre, 2026-09-28: "we also need next debt payments as a widget") ────────
+import { buildNextDebtPayments } from '@/lib/widget-snapshot';
+
+describe('buildNextDebtPayments', () => {
+  // Local-calendar constructors, so the expected YYYY-MM-DD is the user's own day in every zone
+  // test:tz runs (UTC, New York, Tokyo). An ISO-string constructor would shift the day in two of them.
+  const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
+
+  it('orders all three kinds soonest first and keeps the app rows untouched', () => {
+    const out = buildNextDebtPayments({
+      recommendations: [{ cardName: 'Visa', nextPayment: 250, nextDueDate: d(2026, 10, 15) }],
+      loanRecommendations: [{ name: 'Car loan', nextPayment: 410.5, nextDueDate: d(2026, 10, 3) }],
+      otherDebtRecommendations: [{ name: 'Student loan', nextPayment: 120, nextDueDate: d(2026, 10, 9) }],
+    });
+    expect(out).toEqual([
+      { name: 'Car loan', amount: 410.5, dueDate: '2026-10-03' },
+      { name: 'Student loan', amount: 120, dueDate: '2026-10-09' },
+      { name: 'Visa', amount: 250, dueDate: '2026-10-15' },
+    ]);
+  });
+
+  it('puts a payment with no due day LAST instead of dropping it', () => {
+    const out = buildNextDebtPayments({
+      recommendations: [
+        { cardName: 'No-date card', nextPayment: 40, nextDueDate: null },
+        { cardName: 'Dated card', nextPayment: 60, nextDueDate: d(2026, 11, 1) },
+      ],
+    });
+    expect(out.map((r) => r.name)).toEqual(['Dated card', 'No-date card']);
+    expect(out[1].dueDate).toBeNull();
+  });
+
+  it('sends an unmodelled amount as null, never as 0', () => {
+    const out = buildNextDebtPayments({
+      recommendations: [
+        { cardName: 'Unmodelled', nextPayment: null, nextDueDate: d(2026, 10, 1) },
+        { cardName: 'NaN', nextPayment: Number.NaN, nextDueDate: d(2026, 10, 2) },
+      ],
+    });
+    expect(out.map((r) => r.amount)).toEqual([null, null]);
+  });
+
+  it('caps the list at the limit and returns [] for no debts', () => {
+    const many = Array.from({ length: 5 }, (_, i) => ({ cardName: `C${i}`, nextPayment: 10, nextDueDate: d(2026, 10, i + 1) }));
+    expect(buildNextDebtPayments({ recommendations: many })).toHaveLength(3);
+    expect(buildNextDebtPayments({ recommendations: [] })).toEqual([]);
+  });
+
+  it('rides along in the payload only when sent', () => {
+    const base = { monthEndCash: 1, netWorth: 2, currency: 'USD', enabled: true };
+    const now = new Date('2026-09-28T12:00:00Z');
+    expect(buildWidgetPayload(base, now)).not.toHaveProperty('nextDebtPayments');
+    expect(buildWidgetPayload({ ...base, nextDebtPayments: [] }, now)?.nextDebtPayments).toEqual([]);
+  });
+});

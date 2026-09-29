@@ -50,10 +50,15 @@ const registeredName = /registerPlugin<[^>]+>\(\s*'([^']+)'/.exec(TS_SHIM)?.[1] 
 const tsIface = /export interface WidgetBridgePlugin\s*\{([\s\S]*?)\n\}/.exec(TS_SHIM)?.[1] ?? '';
 const tsMethods = [...tsIface.matchAll(/^\s*(\w+)\s*\(/gm)].map((m) => m[1]);
 const tsPayload = /export interface WidgetPayload\s*\{([\s\S]*?)\n\}/.exec(TS_SHIM)?.[1] ?? '';
-const tsKeys = [...tsPayload.matchAll(/^\s*(\w+)\s*:/gm)].map((m) => m[1]).sort();
-const pluginKeys = [...new Set([...pluginSrc.matchAll(/call\.get(?:Double|String)\("(\w+)"\)/g)].map((m) => m[1]))].sort();
+const tsKeys = [...tsPayload.matchAll(/^\s*(\w+)\??\s*:/gm)].map((m) => m[1]).sort();
+const pluginKeys = [...new Set([...pluginSrc.matchAll(/call\.get(?:Double|String|Array)\("(\w+)"\)/g)].map((m) => m[1]))].sort();
 const decodeSrc = /static func decode[\s\S]*?\n {4}}\n/.exec(WIDGET_VIEW)?.[0] ?? '';
 const decoderKeys = [...new Set([...decodeSrc.matchAll(/obj\["(\w+)"\]/g)].map((m) => m[1]))].sort();
+const LIB = read('src/lib/widget-snapshot.ts');
+const tsDebtBody = /export interface WidgetDebtPayment\s*\{([\s\S]*?)\n\}/.exec(LIB)?.[1] ?? '';
+const tsDebtKeys = [...tsDebtBody.matchAll(/^\s*(\w+)\??\s*:/gm)].map((m) => m[1]).sort();
+const decodeDebtSrc = /static func decodeDebt[\s\S]*?\n {4}}\n/.exec(WIDGET_VIEW)?.[0] ?? '';
+const swiftDebtKeys = [...new Set([...decodeDebtSrc.matchAll(/row\["(\w+)"\]/g)].map((m) => m[1]))].sort();
 const constOf = (src: string, re: RegExp) => re.exec(src)?.[1] ?? '';
 
 describe('positive controls: every parser found its subject', () => {
@@ -86,6 +91,10 @@ describe('the app -> plugin -> widget joins', () => {
   it('plugin, TS payload and widget decoder read one set of keys', () => {
     expect(pluginKeys).toEqual(tsKeys);
     expect(decoderKeys).toEqual(tsKeys);
+  });
+  it('the debt-row keys the widget decodes are the ones WidgetDebtPayment declares', () => {
+    expect(tsDebtKeys.length).toBeGreaterThanOrEqual(3);
+    expect(swiftDebtKeys).toEqual(tsDebtKeys);
   });
   it('App Group and storage key agree between plugin and widget', () => {
     const pGroup = constOf(pluginSrc, /appGroup\s*=\s*"([^"]+)"/);

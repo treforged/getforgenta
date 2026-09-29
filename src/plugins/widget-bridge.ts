@@ -5,6 +5,8 @@ export interface WidgetPayload {
   netWorth: number;
   currency: string;
   updatedAt: string; // ISO 8601
+  /** See `WidgetDebtPayment` in src/lib/widget-snapshot.ts. Optional; older readers ignore it. */
+  nextDebtPayments?: { name: string; amount: number | null; dueDate: string | null }[];
 }
 
 export interface WidgetBridgePlugin {
