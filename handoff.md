@@ -3,9 +3,9 @@
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
     REFUSED `gh secret set` (Secret-Store Writes). Do NOT route around it; Tre runs the two `gh secret set` commands
-    himself (sent to Sam). Then add sign-in to the sim job for items 3-4. (b) Red-control run 36511767233
-    (red_control=true): it MUST fail at 'Screenshot the widget host render' with decode=failed. Read it; if it passed, the
-    assert is blind. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
+    himself (sent to Sam). Then add sign-in to the sim job for items 3-4. (b) [x] RED PROVEN: run 36511767233
+    (red_control=true) FAILED at 'Screenshot the widget host render' with 'decode=failed debts=-1'; green runs read
+    'decode=ok debts=3'. The assert can fail. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
     first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
     (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
 R1-NEXT (09-28 ~22:10): widget host render DONE and looked at (run 36509417430, all text whole, 99c9fed9 closed);
