@@ -8,6 +8,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
 import { useAutoEndSyncReconcile } from '@/hooks/useAutoEndReconcile';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { useSimGlassExperiment } from '@/hooks/useSimGlassExperiment';
 
 export default function DashboardLayout() {
   const { isCapture } = useDemo();
@@ -17,6 +18,8 @@ export default function DashboardLayout() {
   // route change inside it, so the hook's save-on-leave runs while the scroller is still mounted.
   // Called from a page, it would be at the mercy of that page unmounting first.
   useScrollRestoration();
+  // CI-only native glass experiment (8a202850). Inert unless the Debug simulator build set its flag.
+  useSimGlassExperiment();
   return (
     <div className="app-shell flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
