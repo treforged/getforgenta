@@ -205,7 +205,8 @@ export default function Dashboard() {
 
   const { cardProjection, projections: forecastProjections } = useCardProjectionContext();
   // Months in the next year that end below their floor - the Forecast card ranks what covers them.
-  const shortMonths = useMemo(() => shortfallByMonth(forecastProjections, 12), [forecastProjections]);
+  // No projection yet (or a context without one) shows no line, never a crash of the whole page.
+  const shortMonths = useMemo(() => (forecastProjections?.data ? shortfallByMonth(forecastProjections, 12) : []), [forecastProjections]);
   const [shortMonthsDismissed, setShortMonthsDismissed] = usePersistedState('tre:dashboard:shortMonthsDismissed', '');
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
