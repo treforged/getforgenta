@@ -9,9 +9,8 @@ import { join } from 'node:path';
  * (ask 4026e4e3). Nothing could see it: the label lives in an XML layout, the app's wording lives
  * in React, and the iOS widget lives in Swift. This gate holds the joins, and every side is
  * DERIVED from the files: the labels are read out of ForgentaWidgetView.swift, and the colours out
- * of the .dark and .light blocks of src/index.css - the tokens, not the iOS palette, because the
- * iOS palette was converted by hand and drifts (gold #CDA44B against the token's #C9A240, muted
- * #A0A0AB against #A0A0A7, measured 2026-09-28 and filed for Mac Ada).
+ * of the .dark and .light blocks of src/index.css. The tokens are the source for both platforms, so
+ * checking Android against them does not depend on how the Swift constants were converted.
  *
  * WHAT THIS DOES NOT PROVE: that the widget renders on a home screen, that the launcher applies
  * values-night/, or that it looks right. Only a device does that.
@@ -27,7 +26,7 @@ const NIGHT = read(`${RES}/values-night/widget_colors.xml`);
 const DAY = read(`${RES}/values/widget_colors.xml`);
 
 function iosLabel(kind: 'monthEndCash' | 'netWorth'): string {
-  const m = SWIFT.match(new RegExp(`case \\.${kind}:\\s*\\n\\s*figure\\(label: "([^"]+)"`));
+  const m = SWIFT.match(new RegExp(`case \\.${kind}:[\\s\\S]*?label: "([^"]+)"`));
   if (!m) throw new Error(`no iOS label for .${kind}`);
   return m[1];
 }

@@ -1,5 +1,16 @@
 # handoff.md - FIRST UP NEXT TIME
 
+## 2026-09-28 (Ada, PC) - Android widgets restyled to the iOS design, 06d512e2
+- DONE: e8f53ab3 part 1 and 4026e4e3. Light palette in values/, dark in values-night/, both from index.css tokens.
+  Gate: `src/lib/__tests__/widget-android-parity.gate.test.ts` (8 cases). JVM: `WidgetTextTest` (5).
+- NO ANDROID SDK ON THIS PC: gradle cannot run here. CI `android-build.yml` is the compile gate. Read its
+  testDebugUnitTest and bundleRelease STEP conclusions for 06d512e2 (run 36502048554).
+- WAITING: Next Debt Payments widget needs Mac Ada's field spec in widget-snapshot.ts. Do not invent the field.
+- 9ce4ecf2 (Mac Ada) replaced the hand-converted iOS palette and changed the Swift label shape; the parity gate's
+  label reader was widened to match (`case .<kind>:` then the first `label:`). Drift ask 8efc4f9e dropped as moot.
+- UNBLOCKED: `nextDebtPayments` now exists in widget-snapshot.ts (optional, max 3, amount|null, dueDate|null).
+  Next: Android Next Debt Payments widget, plus the iOS v3 layout (40pt figure, 'Next:' line) on the small widgets.
+
 ## Resume queue - 2026-09-24 ~20:00 UTC (Ada, getforgenta-33, closed for the WEEKLY CAP on Sam's word). START AT Q1. POINTERS.
 
 Q1. Verify the live DOM for the glow (a6e1ea96): on getforgenta.com/demo in dark mode, `document.querySelector('.app-shell')` must exist
@@ -11439,32 +11450,31 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 18:49 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 19:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
 M deno.lock
  M handoff.md
- M src/components/shared/InstructionsModal.tsx
  M supabase/.temp/cli-latest
 ```
 
 - **Recent commits:**
 
 ```
-2ca4ec97 [contrast]: record that check:dark-contrast passes gradients blind; park the glow diff + pixel probe
-edf2e441 [handoff]: 6.8 release set to automatic after approval (Tre, in Ada's tab)
-644f52c8 [handoff]: R1 done - Forgenta 6.8 (build 1066) submitted, Waiting for Review
-d34fbcd6 [handoff]: R2 done - first real Plaid sync-updates webhook synced 2 rows
-3b8af234 [handoff]: R1 - build 1066 attached to 6.8, waiting on Tre's yes
-33b02958 [handoff]: R1 progress - build 1066 uploaded, What's New and manual release saved on ASC 6.8
-76956bcb [handoff]: resume queue R1-R3 (6.8 submission first)
-83179596 [walk:press]: stub phase - blocked writes must show success on 200 and failure on 500
+17cc591f mac: [handoff] Dynamic Type verified in the iOS 27 simulator (text ~2x at AX-XL)
+411f1d95 mac: [handoff] build 1071 upload verified; successor tabs start with --remote-control
+c79365f3 mac: [handoff] record charter install (dot-claude 2bfc149 mac/CLAUDE.md)
+044af551 mac: [handoff] record skills 8104ad2 and rules 0f5d4ea installed on the Mac
+36e4c624 mac: [release] VERSION 6.8.0 -> 6.8.1 - Apple closed the 6.8 train to new TestFlight builds
+a35c7823 mac: [handoff] update commit ids after the one-time author rewrite
+b1e3d879 mac: [handoff] record Obsidian decision (b), hook fix and TestFlight build 1069
+2468b594 mac: [hooks] make project hooks run on macOS as well as Windows
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
