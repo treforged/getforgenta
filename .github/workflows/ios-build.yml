@@ -324,8 +324,11 @@ jobs:
           set -o pipefail
           for P in forged forged-widget; do
             F=~/Library/MobileDevice/Provisioning\ Profiles/$P.mobileprovision
-            GROUPS=$(security cms -D -i "$F" | plutil -extract Entitlements.com\.apple\.security\.application-groups xml1 -o - - 2>/dev/null || true)
-            if ! echo "$GROUPS" | grep -q "group.com.treforged.forged"; then
+            # NOT "GROUPS": that is a bash special variable. Assigning a command substitution to it
+            # returns status 1 and keeps the runner's numeric gid, so under bash -e this step died
+            # silently with no ::error:: on build 1080 (run 36503530493).
+            APP_GROUPS=$(security cms -D -i "$F" | plutil -extract Entitlements.com\.apple\.security\.application-groups xml1 -o - - 2>/dev/null || true)
+            if ! echo "$APP_GROUPS" | grep -q "group.com.treforged.forged"; then
               echo "::error::Profile $P has no App Group group.com.treforged.forged. Regenerate it with App Groups enabled."
               exit 1
             fi
