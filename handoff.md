@@ -8,6 +8,13 @@ R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam
     'decode=ok debts=3'. The assert can fail. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
     first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
     (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
+R0c (09-28 23:00, PC Ada): Tre SET the secrets (REACH_TEST_EMAIL 02:40Z, REACH_TEST_PASSWORD 02:42Z). Sim sign-in
+    BUILT: ViewController.swift #if DEBUG injects a session from SIMCTL_CHILD_FORGENTA_SIM_SESSION_* at document start;
+    workflow step signs in with a wrong-password control, then a garbage-vs-real session frame pair (03-session-*.png,
+    real must differ from welcome by >10 and >3x garbage). Dispatched run 36514125626 - READ ITS RESULT FIRST and look at
+    03-session-real.png. If green: items 3 (glass 8a202850) and 4 (share sheet ef0dc559) are unblocked. Red-control runs
+    are now named 'RED CONTROL, failure expected'. Failure scan 09-28: #980/#982 dispatched iOS failed (App Group assert),
+    superseded by #983 = build 1083 success.
 R0b (09-28 22:35): DONE /debt hero (at-plan on the same row, 158 -> 1px, commit '[debt]: Interest this month card').
     [x] DONE 09-28 22:50 commit 0e8104a7 (pushed, verified on origin): TRUE OF THE DATA, not a defect. Discover It
     ($4,200, 18.99%) is the only active card, no rule charges it, due day 22 had passed, so the engine pays $0 more
