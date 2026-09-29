@@ -12,7 +12,7 @@ R0b (09-28 22:35): DONE /debt hero (at-plan on the same row, 158 -> 1px, commit 
     NEXT 1 (Sam's question): the walk account shows interest $66.46 now and $67.52 NEXT MONTH AT PLAN - rising under the
     plan. Find out if that is true of the data (new charges, promo APR ending, a 31-day month) or a projection defect;
     if true, add one line of copy saying why. Money path: read src/lib/credit-card-engine.ts + the hero's caller first.
-    NEXT 2: /debt 'Credit Card Debt Payoff Trajectory' title is truncated at 390 (165px over, CreditCardEngine.tsx:1419,
+    [x] DONE 22:37 (wraps now, commit '[debt]: payoff trajectory title wraps'). WAS NEXT 2: /debt 'Credit Card Debt Payoff Trajectory' title is truncated at 390 (165px over, CreditCardEngine.tsx:1419,
     <span className="truncate">). Let it wrap or shorten it on phones; re-measure with measure:whitespace --route /debt.
 R1-NEXT (09-28 ~22:10): widget host render DONE and looked at (run 36509417430, all text whole, 99c9fed9 closed);
     aaafa7ee CLOSED. Widget fixes ship on the NEXT dispatched iOS build (not in 1083). START HERE: item 3 glass 8a202850 -
