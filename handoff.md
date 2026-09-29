@@ -24,6 +24,10 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+BUDGET AUTO-SEED [x] FIXED 68550cc2 (09-29, getforgenta-a4): Budget no longer inserts 9 sample rules on open;
+    explicit "Start from a sample set" button instead. 291 existing rows in 13 real accounts LEFT (Sam); marker = ask.
+    Funnel v3: 16 saved nothing / 10 real data / 3 bank (owner incl). Tre has 0 sample rows. Email to no-bank users: SKIPPED
+    by Sam (commercial under CAN-SPAM, and a repeat of 09-17).
 SAM FOLLOW-UPS [x] DONE 09-29 (getforgenta-a4). (1) Confirmation email: 14/16 real email signups confirmed via link
     (median 21s); 2 unconfirmed, cause unproven (auth.audit_log_entries is EMPTY). Apple private-relay addresses BOUNCE
     Resend mail (4/4 on 09-17) - ask 52b202b5, needs Tre (Apple Developer portal). (3) public.business_user_funnel()
