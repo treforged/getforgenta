@@ -24,7 +24,12 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
-RET START HERE (09-29 ~02:15, getforgenta-c6 handed off at the 175-call gate). SAM'S ASK, READ-ONLY, numbers go to Sam
+RET [x] DONE 09-29 (getforgenta-a4), sent to Sam tre-forged-40. Do not re-run. 30 real users: 14 saved NOTHING
+    (4 never signed in), 14 saved rules but no bank (avg 22 rules, 0.6 accounts), 2 linked a bank (both active <30d).
+    16/30 last acted on signup day, median 0 days. Recency <7d 1, 7-30d 2, >30d 23, never 4. Signups Sep 0.
+    FINDING: onboarding_completed=false on 12 users who have data or a bank, and furthest_step is null for 24
+    (the column is newer than the users). Do NOT use the flag for funnels; group by saved rows. Was:
+RET (09-29 ~02:15, getforgenta-c6 handed off at the 175-call gate). SAM'S ASK, READ-ONLY, numbers go to Sam
     (tre-forged-40): measure the last-active distribution of the ~29 REAL users (profiles minus @forgenta.test and the
     owner a72f416e) and find WHERE the silent ones stopped. Lead: only 2 of 33 profiles have seen What's New 09-18.
     Signals per user (aggregate only, never print emails): auth.users.last_sign_in_at, profiles.created_at,
