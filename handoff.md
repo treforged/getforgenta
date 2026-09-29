@@ -29,11 +29,15 @@ R-NOW6 (09-29 ~20:50Z, Ada). START HERE:
        backup.walk_notif_prefs_20260929; UNDO: update public.profiles set notification_prefs=null where
        user_id='0c44347d-8b0e-4ffb-8938-ad17bf3112a7'). Sim run 36627057575 dispatched 20:32Z on 193b73bf. READ
        shots/04-glass-strip.png from its artifact; if the cover still covers it, the alert was not the only holder.
+       [x] RESULT: run 36627057575 success; 'applied id=sim-top-strip frame={{0,0},{402,62}}' on iOS 26.5; frame shows the
+       signed-in dashboard (cover gone); top-strip diff 4.04 vs rest 0.01. Glass is subtle on a light page. Frame sent to
+       Sam 20:55Z for Tre's look; ask stays 'doing' until he answers.
     2. [x] BLACK SCREEN e7d28de3 INSTRUMENT SHIPPED db6f10dd: iOS good boot sends each new native COVER_DEADLINE
        episode to client_boot_failures (path 'native-cover', reason = steps + branch + reloads). JS-only, live via
        Vercel. NEXT: after Tre next opens the app, SQL: select * from public.client_boot_failures where
        path='native-cover' order by created_at desc; - the 200-line log may carry PAST episodes too. Ask stays open
        until a row names the branch that stalled.
+       Verified live: production entry bundle carries 'native-cover' (20:56Z). 0 native-cover rows at 20:55Z.
     3. Move fund 2dcdcdde: still NEEDS TRE.
 R-NOW5 (09-29 ~20:30Z, getforgenta-34 handed off at the 175-call gate). START HERE, IN ORDER:
     1. GLASS 8a202850 (ask 'doing'): the glass now ATTACHES. Sim run 36623506930 logged "FORGENTA_GLASS
@@ -11709,7 +11713,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 16:32 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 16:47 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11725,14 +11729,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8e630d29 [handoff]: R-NOW6 - cover deadline reporter shipped, glass sim re-run with notifications off
+db6f10dd [ios]: report the native cover's COVER_DEADLINE to client_boot_failures (e7d28de3)
 193b73bf [handoff]: R-NOW5 - glass attaches, cover held by CI alert, black screen instrument next
 40b45cdc [ios]: DEBUG navigation timeline for the about:blank black screen (e7d28de3)
 a3598987 [ios]: register GlassEffectPlugin with the bridge, and probe the signed-in black screen
 653eb297 [ci]: sim probe for the signed-in black screen - late frame and JS console lines
 50ec3037 [ci]: sim launch shot waits for the welcome screen instead of trusting a file size
 138b8e19 [ci]: glass log read gets a positive control and stops matching its own echo
-a7788b90 [glass]: make the sim glass experiment able to tell "not applied" from "invisible"
-c14b0d01 [handoff]: R-NOW4 - sim closed, PIN lag + Face ID shipped, move fund needs one answer, iOS upload pending
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
