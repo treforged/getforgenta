@@ -828,7 +828,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     } else {
       fields.push({ key: 'payment_source', label: 'Charged To', type: 'select', options: allAccountOptions });
     }
-    fields.push({ key: 'notes', label: 'Notes', type: 'text', placeholder: 'Optional' });
+    fields.push({ key: 'notes', label: 'Notes', type: 'text', placeholder: 'Optional', maxLength: LIMITS.ruleNotes });
     return fields;
     // `form.start_date`, `form.due_day` and `editCreatedAt` are inputs to the biweekly hint above —
     // omit them and the caption goes stale the moment the user types.
