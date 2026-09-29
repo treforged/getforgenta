@@ -6,9 +6,13 @@ class ViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(AuthSessionPlugin())
         bridge?.registerPluginInstance(WidgetBridgePlugin())
+        // Was missing until 2026-09-29: an in-app plugin is NOT auto-registered, so every NativeGlass
+        // call rejected "not implemented" and useSimGlassExperiment swallowed it (8a202850).
+        bridge?.registerPluginInstance(GlassEffectPlugin())
         bridge?.webView?.navigationDelegate = self
         #if DEBUG
         injectSimulatorSessionIfPresent()
+        scheduleSimulatorPageProbeIfAsked()
         #endif
     }
 
@@ -37,6 +41,23 @@ class ViewController: CAPBridgeViewController {
         else { return }
         if addLocalStorageScript(key: key, value: value) {
             NSLog("FORGENTA_SIM_SESSION: injected for key length \(key.count)")
+        }
+    }
+
+    /// CI ONLY: when the sim job sets FORGENTA_SIM_PAGE_PROBE=1, log the page path and the first
+    /// 200 characters of visible text at 20 s and 50 s, so a black frame can be told apart from
+    /// "Authenticating..." or "Loading your setup..." hidden under a system alert (e7d28de3).
+    /// The only account this ever runs on is the @forgenta.test walk account.
+    private func scheduleSimulatorPageProbeIfAsked() {
+        guard ProcessInfo.processInfo.environment["FORGENTA_SIM_PAGE_PROBE"] == "1" else { return }
+        for delay in [20.0, 50.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                let js = "JSON.stringify({p: location.pathname, t: (document.body && document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 200)})"
+                self?.bridge?.webView?.evaluateJavaScript(js) { result, error in
+                    let text = (result as? String) ?? "error: \(error.map { String(describing: $0) } ?? "nil")"
+                    NSLog("FORGENTA_PAGE_PROBE t=%.0f %@", delay, text)
+                }
+            }
         }
     }
 

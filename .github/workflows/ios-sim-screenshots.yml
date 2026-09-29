@@ -290,6 +290,7 @@ jobs:
           SIMCTL_CHILD_FORGENTA_SIM_SESSION_KEY="$SIM_SESSION_KEY" \
           SIMCTL_CHILD_FORGENTA_SIM_SESSION_B64="$SIM_SESSION_REAL" \
           SIMCTL_CHILD_FORGENTA_SIM_FLAGS="forgenta:sim-glass-experiment" \
+          SIMCTL_CHILD_FORGENTA_SIM_PAGE_PROBE=1 \
             xcrun simctl launch "$UDID" com.treforged.forged
           sleep 30
           xcrun simctl io "$UDID" screenshot shots/04-glass-strip.png
@@ -299,7 +300,7 @@ jobs:
           # blind and a missing glass line means nothing. Grep on "FORGENTA_x:"/"FORGENTA_GLASS " so the
           # log tool echoing its own --predicate argument is not counted (run 36609531134 did exactly that).
           xcrun simctl spawn "$UDID" log show --last 3m --info --style compact --predicate 'eventMessage CONTAINS "FORGENTA_"' > "$RUNNER_TEMP/flog.txt" || true
-          grep -E "FORGENTA_SIM_SESSION: injected|FORGENTA_GLASS (isSupported|applied)" "$RUNNER_TEMP/flog.txt" || true
+          grep -E "FORGENTA_SIM_SESSION: injected|FORGENTA_GLASS (isSupported|applied)|FORGENTA_PAGE_PROBE t=" "$RUNNER_TEMP/flog.txt" || true
           echo "log control (session NSLog lines): $(grep -c "FORGENTA_SIM_SESSION: injected" "$RUNNER_TEMP/flog.txt" || true)"
           echo "glass lines: $(grep -cE "FORGENTA_GLASS (isSupported|applied)" "$RUNNER_TEMP/flog.txt" || true)"
           # BLACK-SCREEN PROBE (Tre 2026-09-29 "it black screens on open"): the signed-in frame at 30 s is
@@ -309,6 +310,7 @@ jobs:
           xcrun simctl io "$UDID" screenshot shots/05-signed-in-late.png >/dev/null 2>&1
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "App"' > "$RUNNER_TEMP/applog.txt" || true
           echo "App log lines: $(wc -l < "$RUNNER_TEMP/applog.txt")"
+          grep -E "FORGENTA_PAGE_PROBE t=" "$RUNNER_TEMP/applog.txt" | cut -c1-400 || echo "PAGE PROBE: no line (probe did not fire or log unreadable)"
           grep -E "\[(log|warn|error|info)\]|Unhandled|TypeError|ReferenceError|Failed to load|ERR_" "$RUNNER_TEMP/applog.txt" | cut -c1-400 | tail -80 || true
           # Deliberately NOT copied into the artifact: artifacts are not masked, and this repo is public.
           python3 - <<'PY'
