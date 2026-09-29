@@ -29,6 +29,25 @@ export interface Release {
  * 2026-09-13 before being written down.
  */
 export const RELEASES: readonly Release[] = [
+  // 2026-09-29. ONLY 2 OF 33 PROFILES HAD SEEN 2026-09-18 (control 2026-09-13: 4), and only the
+  // newest entry is ever shown, so the Followers line is carried forward rather than buried for
+  // the other 31. Every line is JavaScript served from getforgenta.com, so it is true of every
+  // installed build: 39db82ee (shortfall card, rendered on production 2026-09-29), 3569f37b
+  // (set-aside milestone), 050c4a19 (opens on cached numbers), the screen-reader series
+  // (d441bd19, 8a760f0f, c775e7f8), and 14166540 / d8812d20 (dark mode, chart labels).
+  // Native-only work (iPhone widgets, iPhone push) is deliberately NOT here until a store build
+  // that carries it is confirmed installed.
+  {
+    version: '2026-09-29',
+    lines: [
+      'Short months ahead? The Forecast shows which savings or transfers would cover them.',
+      'A one-time expense below your cash floor now shows how much to set aside, and from when.',
+      'The app opens on your last numbers and refreshes them in the background.',
+      'Friends are now Followers - see who follows you on your Account tab.',
+      'Screen readers now announce every field, button and pop-up.',
+      'Dark mode has a richer background, and chart labels are easier to read.',
+    ],
+  },
   // 2026-09-18. WRITTEN BECAUSE HE ASKED FOR THREE OF THESE AGAIN, BELIEVING THEY WERE NEVER
   // BUILT - they were, and they were already on his phone. The commits carried no customer line,
   // so nothing anywhere told him. Every line below was verified BY CALLER before being written:
