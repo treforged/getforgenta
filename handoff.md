@@ -33,6 +33,10 @@ R-NOW6 (09-29 ~20:50Z, Ada). START HERE:
        [x] RESULT: run 36627057575 success; 'applied id=sim-top-strip frame={{0,0},{402,62}}' on iOS 26.5; frame shows the
        signed-in dashboard (cover gone); top-strip diff 4.04 vs rest 0.01. Glass is subtle on a light page. Frame sent to
        Sam 20:55Z for Tre's look; ask stays 'doing' until he answers.
+       [x] DARK PAIR (Sam asked): run 36632535975, step 'glass strip on the dark theme'. control 0 applies / glass 1,
+       strip diff 21.10 vs rest 0.11; band 11,12,15 -> 31,31,33 (header 26,25,27). Frames 06-dark-control/-glass sent
+       to Sam 21:45Z. TRAP: the sim flag PERSISTS in localStorage across launches, so a no-flag launch is NOT a
+       control unless the app is reinstalled first (run 36629988519 read 0.00/0.00 for that reason).
     2. [x] BLACK SCREEN e7d28de3 INSTRUMENT SHIPPED db6f10dd: iOS good boot sends each new native COVER_DEADLINE
        episode to client_boot_failures (path 'native-cover', reason = steps + branch + reloads). JS-only, live via
        Vercel. NEXT: after Tre next opens the app, SQL: select * from public.client_boot_failures where
@@ -11714,7 +11718,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 16:47 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 17:08 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11730,14 +11734,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+2dbd7366 [ci]: dark-theme glass strip frames for 8a202850, with a dark-applied check
+bf1efc82 [handoff]: retire two stale R00 lines (GF answered, notes counter shipped c1ff690d)
+e1ff3c29 [handoff]: R-NOW6 glass frame read and sent, reporter verified in production
 8e630d29 [handoff]: R-NOW6 - cover deadline reporter shipped, glass sim re-run with notifications off
 db6f10dd [ios]: report the native cover's COVER_DEADLINE to client_boot_failures (e7d28de3)
 193b73bf [handoff]: R-NOW5 - glass attaches, cover held by CI alert, black screen instrument next
 40b45cdc [ios]: DEBUG navigation timeline for the about:blank black screen (e7d28de3)
 a3598987 [ios]: register GlassEffectPlugin with the bridge, and probe the signed-in black screen
-653eb297 [ci]: sim probe for the signed-in black screen - late frame and JS console lines
-50ec3037 [ci]: sim launch shot waits for the welcome screen instead of trusting a file size
-138b8e19 [ci]: glass log read gets a positive control and stops matching its own echo
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
