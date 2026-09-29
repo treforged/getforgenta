@@ -1,3 +1,4 @@
+import { DEFAULT_STARTER_RULES, isUneditedSampleRule } from '@/lib/starter-rules';
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Json, Tables } from '@/integrations/supabase/types';
 import { Link } from 'react-router';
@@ -155,17 +156,6 @@ const nextExtraMonthLabel = (monthIndex: number, now: Date): string =>
   new Date(now.getFullYear(), now.getMonth() + monthIndex, 1)
     .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
-const DEFAULT_STARTER_RULES = [
-  { name: 'Weekly Paycheck', amount: 1875, rule_type: 'income', frequency: 'weekly', due_day: 5, category: 'Other', notes: 'Friday deposits' },
-  { name: 'Rent', amount: 1400, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Bills' },
-  { name: 'Utilities', amount: 150, rule_type: 'expense', frequency: 'monthly', due_day: 15, category: 'Bills' },
-  { name: 'Groceries', amount: 400, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Groceries' },
-  { name: 'Gas / Transport', amount: 200, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Gas' },
-  { name: 'Dining Out', amount: 150, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Dining' },
-  { name: 'Insurance', amount: 280, rule_type: 'expense', frequency: 'monthly', due_day: 14, category: 'Bills' },
-  { name: 'Subscriptions', amount: 50, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Subscriptions' },
-  { name: 'Miscellaneous', amount: 100, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Other' },
-];
 
 // ── Paycheck Deduction types + catalog ───────────────────────────────────────
 export type PaycheckDeduction = {
@@ -864,6 +854,9 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-1.5 flex-wrap">
       <p className="text-sm sm:text-base font-medium wrap-break-word">{r.name}</p>
+      {isUneditedSampleRule(r) && (
+        <p className="text-[10px] text-muted-foreground">Sample amount: edit it to yours</p>
+      )}
       {r.isSub && (
         <span
           className="text-xs px-1 py-0.5 bg-accent/20 text-accent-foreground border border-accent/30 shrink-0"
