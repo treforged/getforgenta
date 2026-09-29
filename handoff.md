@@ -24,6 +24,13 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R00L (09-29 ~01:30, getforgenta-c6) 'WHAT WOULD COVER THIS' - Sam approved with 4 conditions (engine re-runs only;
+    no card-interest or third-party levers; never retirement by default; real-data pins proven red). HELPER DONE 8e57a56e:
+    src/lib/breach-levers.ts rankBreachLevers(inputs, run). Levers = pause a savings goal / pause a funding-account
+    transfer ONLY (measured: fixed-sim convergence == full re-render for those; a card-charged expense is invisible to a
+    fixed sim). Real-data test on gitignored fixtures/forecast-inputs.real.LEVERS-2026-09-29.json. NEXT = the UI line on
+    the Forecast breach row: compute LAZILY (on tap), run = i => runDebtCashConvergence(cardProjection, i).projections,
+    show top 2-3 with dollars + months cleared, and for a transfer name paysRules ('still pays Claude, QUO...').
 R000 [x] DONE 09-29 ~00:45 (getforgenta-c6): ranked report sent to Sam (tre-forged-40). Fresh dump replayed, BASE matched
     to the dollar. Ranked: (1) deposit netted vs lease fee in Mar -> Mar exactly on floor (measured via oneTimeByMonth, NOT
     transactions: the engine reads the provider's precomputed oneTimeByMonth, so mutating fx.transactions changes nothing);
