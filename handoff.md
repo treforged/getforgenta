@@ -24,6 +24,12 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+SAM FOLLOW-UPS [x] DONE 09-29 (getforgenta-a4). (1) Confirmation email: 14/16 real email signups confirmed via link
+    (median 21s); 2 unconfirmed, cause unproven (auth.audit_log_entries is EMPTY). Apple private-relay addresses BOUNCE
+    Resend mail (4/4 on 09-17) - ask 52b202b5, needs Tre (Apple Developer portal). (3) public.business_user_funnel()
+    v1+v2 (counts only, service_role, control row). (2) 317f06f6: wizard saves on "See your plan" before the finish screen
+    claims it; cookie banner no longer covers Continue. Gate npm run check:first-save. CORRECTION: 28 real users, not 30
+    (2 were @example.com test accounts). Second premium upsell: Sam is putting it to Tre.
 RET [x] DONE 09-29 (getforgenta-a4), sent to Sam tre-forged-40. Do not re-run. 30 real users: 14 saved NOTHING
     (4 never signed in), 14 saved rules but no bank (avg 22 rules, 0.6 accounts), 2 linked a bank (both active <30d).
     16/30 last acted on signup day, median 0 days. Recency <7d 1, 7-30d 2, >30d 23, never 4. Signups Sep 0.
