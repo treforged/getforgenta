@@ -3,6 +3,7 @@ import {
 } from 'recharts';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useMonthlyCashFlow } from '@/hooks/useMonthlyCashFlow';
+import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 interface ChartTooltipProps {
   active?: boolean;
@@ -41,11 +42,11 @@ export default function CashFlowOverviewCard() {
     <div className="card-forged p-5" data-testid="cash-flow-overview">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
       {cashFlowData.some(d => d.income > 0 || d.expenses > 0) ? (
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={260}>
           <ComposedChart data={cashFlowData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: AXIS_TICK_FILL }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
             <Tooltip content={<ChartTooltip />} />
             <Bar dataKey="income" name="Income" fill="hsl(142, 50%, 40%)" radius={[2, 2, 0, 0]} barSize={20} />
             <Bar dataKey="expenses" name="Expenses" fill="hsl(0, 73%, 35%)" radius={[2, 2, 0, 0]} barSize={20} />

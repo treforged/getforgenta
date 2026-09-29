@@ -40,6 +40,7 @@ import { toLocalDateStr } from '@/lib/scheduling';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
+import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -244,7 +245,7 @@ export default function Forecast() {
   }, [scheduledEvents, filterYear]);
 
   const gridStroke = 'hsl(0, 0%, 18%)';
-  const tickStyle = { fontSize: 10, fill: 'hsl(240, 4%, 50%)' };
+  const tickStyle = { fontSize: 10, fill: AXIS_TICK_FILL };
   const isMobile = useIsViewportBelow(640);
   const xInterval = filterYear === 'all' ? (isMobile ? 5 : 4) : (isMobile ? 2 : 1);
 
@@ -577,7 +578,7 @@ export default function Forecast() {
               </div>
               {freePreview && <span className="text-[9px] text-muted-foreground">Showing 12 of 60 months</span>}
             </div>
-            <ResponsiveContainer width="100%" height={isMobile ? 220 : 260}>
+            <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={isMobile ? 220 : 260}>
               {chartMode === 'combo' ? (
                 <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />

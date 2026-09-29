@@ -9,6 +9,7 @@ import { buildLiabilityTrajectory, type LiabilityTrajectoryInput } from '@/lib/l
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { legendLabel } from '@/components/shared/chart-legend';
+import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 /**
  * THE PAYOFF TRAJECTORY THE NON-CARD DEBT TABS NEVER HAD.
@@ -79,11 +80,11 @@ export default function LiabilityTrajectoryChart({ title, debts, storageKey, ico
           options={YEAR_OPTIONS.map(y => ({ value: y, label: `${y}Y` }))}
         />
       </div>
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={220}>
         <LineChart data={rows} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} onTouchStart={selectPointOnTouch}>
           <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
-          <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={tickInterval} />
-          <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
+          <XAxis dataKey="month" tick={{ fontSize: 10, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} interval={tickInterval} />
+          <YAxis tick={{ fontSize: 10, fill: AXIS_TICK_FILL }} tickFormatter={formatYAxisTick} />
           <RechartsTooltip
             formatter={(v, name) => [`$${Number(v).toLocaleString()}`, name]}
             labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}

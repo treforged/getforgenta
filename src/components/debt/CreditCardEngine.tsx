@@ -62,6 +62,7 @@ import { selectPointOnTouch } from '@/lib/chart-touch';
 import { totalInterestLabel, interestSavingsBullet, aggregatePayoffEta, NO_PAYOFF_EXPLANATION } from '@/lib/card-interest-display';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { legendLabel } from '@/components/shared/chart-legend';
+import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
@@ -1427,11 +1428,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 options={(['1', '2', '3', '5'] as const).map(y => ({ value: y, label: `${y}Y` }))}
               />
             </div>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={220}>
               <LineChart data={visibleChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} onTouchStart={selectPointOnTouch}>
                 <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={chartTickInterval} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} interval={chartTickInterval} />
+                <YAxis tick={{ fontSize: 10, fill: AXIS_TICK_FILL }} tickFormatter={formatYAxisTick} />
                 <RechartsTooltip formatter={(v, name) => [`$${Number(v).toLocaleString()}`, name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
                 <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 10 }} />
                 {chartSeries.map(p => (

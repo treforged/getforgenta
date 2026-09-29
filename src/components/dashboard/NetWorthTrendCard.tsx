@@ -4,6 +4,7 @@ import { ArrowUpRight, Wallet } from 'lucide-react';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { buildNetWorthTrend, monthlyNetWorthChange, type TrendSnapshotRow } from '@/lib/net-worth-trend';
 import { selectPointOnTouch } from '@/lib/chart-touch';
+import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 interface NWTooltipProps {
   active?: boolean;
@@ -94,12 +95,12 @@ export default function NetWorthTrendCard({
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={140}>
+          <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={140}>
             <LineChart data={trend} margin={{ left: 0, right: 8, top: 5, bottom: 4 }} onTouchStart={selectPointOnTouch}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 9, fill: 'hsl(240, 4%, 46%)' }}
+                tick={{ fontSize: 9, fill: AXIS_TICK_FILL }}
                 axisLine={false}
                 tickLine={false}
                 interval={Math.max(0, Math.ceil(trend.length / 6) - 1)}
@@ -107,7 +108,7 @@ export default function NetWorthTrendCard({
               />
               <YAxis
                 width={44}
-                tick={{ fontSize: 9, fill: 'hsl(240, 4%, 46%)' }}
+                tick={{ fontSize: 9, fill: AXIS_TICK_FILL }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={formatYAxisTick}

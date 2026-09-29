@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { selectPointOnTouch } from '@/lib/chart-touch';
 import { legendLabel } from '@/components/shared/chart-legend';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
+import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
@@ -394,11 +395,11 @@ function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses, pace
     <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Savings Growth Projection</h3>
       <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates. Contributions stop once a goal hits its target; interest keeps compounding. A stop you marked as spent drops out of the line on its date.</p>
-      <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
+      <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={isMobile ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }} onTouchStart={selectPointOnTouch}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={tickInterval} />
-          <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={tickInterval} />
+          <YAxis tick={{ fontSize: 11, fill: AXIS_TICK_FILL }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
           <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value) => formatCurrency(Number(value), false)} />
           <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
           {series.map((s, i) => <Line key={s.key} dataKey={s.key} name={s.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={chartData.length > 24 ? false : { r: 3 }} activeDot={{ r: 4 }} />)}
