@@ -24,6 +24,11 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+CONTRAST PIXEL ARM [x] fd7a3bd0 + 785dde9b + dc2c0ecf (ea989790, 13fdd69f closed): all 4 contrast scripts also measure
+    pixels (control 1.34). Real fixes: light tab badge (3.61 -> dark fill), light bronze 30%->26% (bronze-on-tint 4.36).
+    Instrument fixes: frozen transitions, SVG fill, viewport-edge skip, 2 agreeing reads, 5th-percentile pixel.
+    All four runs (dark/light x 390/1440) PASS. NOTE: the original 4.13/4.21 glow readings were likely the
+    mid-fade artefact, so "the glow fails AA" is unproven.
 SAMPLE MARKER [x] c7857dc6: unedited sample rules show "Sample amount: edit it to yours" (src/lib/starter-rules.ts).
 BUDGET AUTO-SEED [x] FIXED 68550cc2 (09-29, getforgenta-a4): Budget no longer inserts 9 sample rules on open;
     explicit "Start from a sample set" button instead. 291 existing rows in 13 real accounts LEFT (Sam); marker = ask.
@@ -11616,7 +11621,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 02:05 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 02:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11635,14 +11640,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+75d50d1f [handoff]: sample-rule marker shipped
+c7857dc6 [budget]: mark rules still at their sample name and amount
+b0e541fe [handoff]: budget auto-seed fixed, funnel v3
+68550cc2 [budget]: stop inserting 9 sample rules into real accounts on page open
+63664685 [handoff]: R0(d) Debt card was already shipped in 56ba77ec
 eed3640e [handoff]: Sam's three retention follow-ups done
 317f06f6 [onboarding]: save on "See your plan", before the finish screen claims it
 b2799c20 [onboarding]: measure:first-save - screens and presses before the first save
-c2d90c56 [db]: business_user_funnel v2 counts the tables the onboarding wizard writes
-71100b1f [db]: business_user_funnel() - weekly funnel by saved rows, service_role only
-9a779029 [handoff]: retention measurement done and sent to Sam
-29bd87da [handoff]: retention measurement is next (Sam), Vite on 8080 is independent
-8aaa27b3 [handoff]: dashboard notice shipped; red-push incident recorded
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
