@@ -2771,6 +2771,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const saveUp = floorBreachSaveUp({
           breachIndex: i, endingCash: rawEndingCash, floor: b.monthMinSafe,
           monthLabels: baseData.map(x => x.monthLabel),
+          belowFloor: data.map(r => r.belowSafeMinimum),
         });
         milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' + (saveUp ? formatSaveUpSuffix(saveUp) : '') });
       } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
