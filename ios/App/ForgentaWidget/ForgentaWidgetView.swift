@@ -224,6 +224,7 @@ public struct ForgentaWidgetView: View {
             Text("NEXT DEBT PAYMENTS")
                 .font(.system(size: 10, weight: .semibold)).kerning(0.8)
                 .foregroundStyle(labelStyle)
+                .lineLimit(1).minimumScaleFactor(0.8)
             if let s = snapshot, let rows = s.nextDebtPayments {
                 if rows.isEmpty {
                     Text("No debt payments due.")
@@ -256,7 +257,7 @@ public struct ForgentaWidgetView: View {
                 Text(dueText(row.dueDate))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(labelStyle)
-                    .lineLimit(1)
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 4)
                 Text(row.amount.map { s.format($0) } ?? "Not modelled")
                     .font(.system(size: row.amount == nil ? 10 : 14, weight: .bold, design: .rounded))

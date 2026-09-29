@@ -15,6 +15,10 @@ R1. ef0dc559 item 2-4: ONE workflow_dispatch job on macos-latest that builds for
     names ('Chase Fr...'). NOT yet proven red (a broken fixture must fail the status assert - one dispatch with a mutated JSON).
     R2 inventory run 09-28 (check:topright, controls DETECTED both): no new waste. Big gaps are all onRow 0 (phone
     /accounts,/goals 269 = Command Center stack Tre asked for; phone /account 244) or the desktop centring margin (306).
+    R2 BODY sweep (measure:whitespace, 9 tabs at 390; run with MSYS_NO_PATHCONV=1 or Git Bash turns '/goals' into a
+    Windows path): mean side waste /goals 54, /vehicles 42, /debt 29, /forecast 25, rest <=16. FIXED /goals totals two
+    across (272 -> 83px). LEFT, a design call: /debt 'Interest this month' card (158px, holds explanatory text).
+    Widget debts tile: names no longer truncated (commit after 'small Next Debt Payments'), verify in run 36508343475.
     Step 3 glass PLAN: 8a202850 needs a PRODUCT CALLER (NativeGlass has none) and a screen; smallest = one panel behind the
     welcome card, visible without sign-in. Step 4 BLOCKED on Sam: ask 496b0500 (walk creds into Actions secrets).
 R2. aaafa7ee part 2: the APP-WIDE dead-space sweep (part 1, the budget tiles, is done in 86153981). Use check:topright's
