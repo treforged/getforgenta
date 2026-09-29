@@ -24,6 +24,13 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R-NOW (09-29 ~15:25Z, getforgenta-a4 handed off at the call gate). FIRST: 7516a6a7. Tre re-set REACH_TEST_EMAIL
+    (gh secret list: 2026-09-29T15:20:13Z). Ada dispatched "iOS Simulator Screenshots" as run 36589566916 (the failed one
+    was 36518919633). Read the SIGN-IN STEP output, not the run conclusion:
+      gh run view 36589566916 --log | grep -E "control \(wrong password\)|sign-in: HTTP|SIGN-IN FAILED|MISSING SECRET"
+    PASS = "control (wrong password): HTTP 4xx" AND "sign-in: HTTP 200, session for user id ending ...". If PASS:
+    ask done 7516a6a7 --evidence "<run id + both lines>", then tell Sam (tre-forged-25) - Tre is waiting on it.
+    Keep localhost:8080 up for Tre dictation 58694458 (Vite; restart: node scripts/dev-session.mjs up). Sam: stay open.
 CONTRAST PIXEL ARM [x] fd7a3bd0 + 785dde9b + dc2c0ecf (ea989790, 13fdd69f closed): all 4 contrast scripts also measure
     pixels (control 1.34). Real fixes: light tab badge (3.61 -> dark fill), light bronze 30%->26% (bronze-on-tint 4.36).
     Instrument fixes: frozen transitions, SVG fill, viewport-edge skip, 2 agreeing reads, 5th-percentile pixel.
@@ -11621,16 +11628,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 02:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 11:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M src/components/layout/DashboardLayout.tsx
  M supabase/.temp/cli-latest
 ?? src/hooks/__tests__/useSimGlassExperiment.test.tsx
@@ -11640,14 +11648,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+34b99a61 [handoff]: contrast pixel arm done
+dc2c0ecf [theme]: light bronze deepened 30% -> 26% so bronze-on-tint buttons clear AA
+785dde9b [contrast]: light-mode tab badge readable; pixel arm skips edge-cut text and needs two agreeing reads
+fd7a3bd0 [contrast]: the dark/light contrast gates also measure the pixels text is drawn on
 75d50d1f [handoff]: sample-rule marker shipped
 c7857dc6 [budget]: mark rules still at their sample name and amount
 b0e541fe [handoff]: budget auto-seed fixed, funnel v3
 68550cc2 [budget]: stop inserting 9 sample rules into real accounts on page open
-63664685 [handoff]: R0(d) Debt card was already shipped in 56ba77ec
-eed3640e [handoff]: Sam's three retention follow-ups done
-317f06f6 [onboarding]: save on "See your plan", before the finish screen claims it
-b2799c20 [onboarding]: measure:first-save - screens and presses before the first save
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
