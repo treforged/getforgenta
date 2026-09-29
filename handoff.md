@@ -9,7 +9,12 @@ R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam
     first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
     (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
 R0b (09-28 22:35): DONE /debt hero (at-plan on the same row, 158 -> 1px, commit '[debt]: Interest this month card').
-    NEXT 1 (Sam's question): the walk account shows interest $66.46 now and $67.52 NEXT MONTH AT PLAN - rising under the
+    [x] DONE 09-28 22:50 commit 0e8104a7 (pushed, verified on origin): TRUE OF THE DATA, not a defect. Discover It
+    ($4,200, 18.99%) is the only active card, no rule charges it, due day 22 had passed, so the engine pays $0 more
+    this month by design (manualStmtDueNow); 4200+66.46=4266.46 -> 67.52 exactly. Hero now shows one line when at-plan
+    > now (DEBT_HERO_AT_PLAN_RISING). Proven red both ways; frame at 390 looked at, 0 overflow. NOT measured: whether
+    October's payment covers interest (month 1+). NEXT = R0 (c): Tre dictates at localhost:8080 (server 200 at 22:39).
+    WAS NEXT 1 (Sam's question): the walk account shows interest $66.46 now and $67.52 NEXT MONTH AT PLAN - rising under the
     plan. Find out if that is true of the data (new charges, promo APR ending, a 31-day month) or a projection defect;
     if true, add one line of copy saying why. Money path: read src/lib/credit-card-engine.ts + the hero's caller first.
     FOUND SO FAR (22:40): both figures are the SAME series - projectedInterestThisMonth = rows[0].interest
