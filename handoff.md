@@ -15,7 +15,8 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     [x] One-off transactions (Chase Checking): fe1c81ec lease-break -3830 2027-03-18 (Tre: 2 x 1915; DATE ASSUMED);
         44b2997b deposit refund +1200 2027-04-30 (Tre's conservative floor); 944433e6 / 376db169 water -30 on
         2027-04-18 / 2027-05-18 (ASSUMED both months). Undo = delete that row in the app.
-    [ ] GF $1,100 Apr-Jun 2027: STILL UNANSWERED, Sam holds it on Tre's list. Left as is (assumption).
+    [x] GF $1,100 Apr-Jun 2027: ANSWERED by Tre ('the 1100 a month would stop then and never come back'); rule
+        b81a2198 already ends 2027-03-31 with no resumption (SQL 09-29 21:00Z). No change needed.
     PROJECTION (end cash): Feb27 3,362 | Mar27 -29 (floor breach flagged) | Apr 3,069 | May 3,107 | Jun 3,224 | Jul 4,029.
     Sent to Sam 23:45. If Tre answers GF, edit that rule and re-read these six months.
     CHROME INSTRUMENT FACTS: the MCP tab is document.visibilityState=hidden, so screenshots time out (30s) and wheel
@@ -23,7 +24,7 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     the column's vertical middle), set a wheel by scrollTop (rows are 32px; month idx*32 from Jan=0; year 2026=0) and
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
-    FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+    [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW6 (09-29 ~20:50Z, Ada). START HERE:
     1. GLASS 8a202850: walk account notification_prefs set {"enabled":false} (was NULL; snapshot
        backup.walk_notif_prefs_20260929; UNDO: update public.profiles set notification_prefs=null where
