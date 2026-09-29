@@ -67,6 +67,51 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- BOOT GUARD (2026-09-29, ask 76d3f608). Tre opened the iOS app to a BLACK screen: the app
+         loads getforgenta.com, and if the JS never mounts, all that is left is the dark page
+         background, which says nothing. This inline, dependency-free script turns that into a
+         visible "Couldn't load" screen with a retry, and records the failure in localStorage so
+         the next good boot can report it (src/lib/boot-failure.ts). It must stay inline: a guard
+         that lives in the bundle cannot report that the bundle failed.
+         It fails LOUD in three cases: a <script> or modulepreload fails to load, a lazy route
+         chunk fails (main.tsx dispatches 'forgenta:boot-failed'), or #root is still empty after
+         BOOT_TIMEOUT_MS. It never hides the app: the screen is a sibling of #root and removes
+         itself the moment #root gets content, so a slow network that eventually mounts wins. -->
+    <div id="boot-failed" role="alert" style="position:fixed;inset:0;z-index:2147483647;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;background:#0a0a0a;color:#f5f5f5;font-family:-apple-system,system-ui,sans-serif">
+      <p style="margin:0;font-size:18px;font-weight:600">Couldn't load Forgenta</p>
+      <p style="margin:0;font-size:14px;color:#bdbdbd;max-width:320px">Your data is safe. This is usually a brief network or update hiccup.</p>
+      <button id="boot-retry" type="button" style="min-height:44px;padding:10px 24px;border-radius:9999px;border:1px solid #c9a24a;background:#c9a24a;color:#0a0a0a;font-size:15px;font-weight:600">Tap to retry</button>
+    </div>
+    <script>
+      (function () {
+        var BOOT_TIMEOUT_MS = 12000;
+        var KEY = 'forgenta.bootFailure.v1';
+        var shown = false;
+        function mounted() { var r = document.getElementById('root'); return !!(r && r.childElementCount > 0); }
+        function show() { var el = document.getElementById('boot-failed'); if (el) el.style.display = 'flex'; }
+        function record(reason) {
+          try { localStorage.setItem(KEY, JSON.stringify({ reason: String(reason).slice(0, 200), at: new Date().toISOString(), path: location.pathname })); } catch (e) { /* storage blocked: the screen still shows */ }
+        }
+        function fail(reason, force) {
+          if (shown || (!force && mounted())) return;
+          shown = true;
+          record(reason);
+          if (force) { var r = document.getElementById('root'); if (r) r.style.display = 'none'; }
+          show();
+        }
+        window.addEventListener('forgenta:boot-failed', function (e) { fail((e && e.detail) || 'chunk', true); });
+        window.addEventListener('error', function (e) {
+          var t = e && e.target;
+          if (t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && t.rel === 'modulepreload'))) fail('script ' + (t.src || t.href || ''), false);
+        }, true);
+        setTimeout(function () { if (!mounted()) fail('timeout ' + BOOT_TIMEOUT_MS + 'ms', false); }, BOOT_TIMEOUT_MS);
+        new MutationObserver(function () {
+          var r = document.getElementById('root');
+          if (mounted() && r.style.display !== 'none') { var el = document.getElementById('boot-failed'); if (el) el.style.display = 'none'; shown = false; }
+        }).observe(document.getElementById('root'), { childList: true });
+        document.getElementById('boot-retry').addEventListener('click', function () { location.reload(); });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
