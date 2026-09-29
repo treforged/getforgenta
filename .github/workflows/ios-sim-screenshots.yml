@@ -135,15 +135,27 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p shots
-          xcrun simctl io "$UDID" screenshot shots/01-launch.png
-          python3 - shots/01-launch.png <<'PY'
-          import os, sys
-          size = os.path.getsize(sys.argv[1])
-          print(f"{sys.argv[1]}: {size} bytes")
-          if size < 20000:
-              print("SCREENSHOT TOO SMALL, likely a blank frame")
-              sys.exit(1)
+          # WAIT FOR CONTENT, NOT FOR A FILE SIZE. Run 36612013557 shot 01 before the welcome screen
+          # drew: a black body with only the status bar, 72,922 bytes, so the old 20 KB check passed it
+          # and the sign-in pair then compared against black and failed. Measured on real frames: the
+          # blank body's luminance stddev is 0.0, every drawn screen reads 40 or more.
+          python3 -m pip install --quiet --user --break-system-packages pillow >/dev/null 2>&1 || python3 -m pip install --quiet --user pillow
+          python3 -c "import PIL" || { echo "PILLOW MISSING: cannot judge the launch frame"; exit 2; }
+          for i in $(seq 1 12); do
+            xcrun simctl io "$UDID" screenshot shots/01-launch.png >/dev/null 2>&1
+            if python3 - shots/01-launch.png <<'PY'
+          import sys
+          from PIL import Image, ImageStat
+          im = Image.open(sys.argv[1]).convert("L")
+          body = im.crop((0, int(im.height * 0.08), im.width, im.height)).resize((200, 400))
+          std = ImageStat.Stat(body).stddev[0]
+          print(f"launch frame body stddev {std:.1f}")
+          sys.exit(0 if std > 5 else 1)
           PY
+            then break; fi
+            if [ "$i" = 12 ]; then echo "LAUNCH FRAME STILL BLANK AFTER 60s"; exit 1; fi
+            sleep 5
+          done
 
       # Signed-in frames (items 3-4 need them). simctl cannot tap, so the job gets a real session
       # for the TEST account and hands it to the Debug build through the launch environment
