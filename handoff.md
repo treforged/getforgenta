@@ -24,7 +24,25 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
-R-NOW2 (09-29 ~16:30Z, getforgenta-fc). START HERE.
+R-NOW3 (09-29 ~17:20Z, getforgenta-fc handed off at 50% context). START HERE, IN THIS ORDER (Sam's order):
+    0. SIM 7516a6a7: Sam set the secret at 16:59:16Z; run 36601740962 was dispatched at 16:59:37Z and was still running
+       at 17:20Z. Read ITS sign-in step lines (NOT the run conclusion; jq is not on PATH, use gh --jq or grep):
+       gh run view 36601740962 --log | grep -E "control \(wrong password\): HTTP|sign-in: HTTP|REFUSING: " | grep -v print\(
+       PASS = wrong-password 4xx AND sign-in HTTP 200 -> ask done 7516a6a7, tell Sam, then commit and push the
+       held glass hook (useSimGlassExperiment + DashboardLayout mount) after its own gates.
+    1. PIN lag d53173d9 (Tre: "pin is laggy on input"): measure tap-to-paint on the PIN pad with real taps at 390,
+       find the cause (re-render / hash per key / animation), fix, and report before/after numbers.
+    2. Face ID 3b0b7002: ONE line for Sam. The biometric plugin is in package.json, but Info.plist has NO
+       NSFaceIDUsageDescription. If it is buildable, build it and name the iOS build with the upload step's own
+       "UPLOAD SUCCEEDED" line (a push does not reach TestFlight; dispatch the iOS workflow).
+    3. Move-fund re-plan 2dcdcdde: the goal a035a97e targets 2027-07-03 ($5,730, $510/mo), but the lease break
+       is in March 2027 and the move is later. Re-plan around both dates, stay above the floor, snapshot first.
+    4. Nov Claude cut 1d6b8bd6 is APPLIED (rules 79fc56c4 / 4585a3bb from 2026-11-01). Re-measure offline on
+       forecast-inputs.real.NOW-2026-09-29c.json (already captured AFTER the cut) and send Sam the new gaps.
+    [x] 76d3f608 loud load failure SHIPPED: boot guard in index.html + src/lib/boot-failure.ts, table
+        public.client_boot_failures, gate npm run check:boot-failure 7/7, red 5/7. Production has it since 17:16Z.
+    localhost:8080 stays up for Tre. Browser reloads of it are refused by the classifier; measure offline (R-NOW2).
+R-NOW2 (09-29 ~16:30Z, getforgenta-fc).
     SIM 7516a6a7 BLOCKED: run 36589566916 REFUSED again (secret 22 chars, no 'forgenta'; walk address is 23 chars
     @forgenta.test). Tre must paste the .env.deck-walk.local REACH_TEST_EMAIL value. A background watch re-dispatches
     the sim when the secret timestamp moves past 15:20:13Z. If this session died, re-check `gh secret list` and dispatch.
@@ -11645,18 +11663,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 11:41 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 12:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
  M src/components/layout/DashboardLayout.tsx
- M src/lib/exportCsv.ts
  M supabase/.temp/cli-latest
 ?? src/hooks/__tests__/useSimGlassExperiment.test.tsx
 ?? src/hooks/useSimGlassExperiment.ts
@@ -11665,14 +11682,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8a93ec6b [handoff]: R-NOW2 - lease reconciled, Aug cleared, Mar27 -110, cut table with Tre, sim secret still wrong
+caa6e7eb [export]: quote forecast CSV header cells so a comma in a goal name cannot shift columns
 8c96ba5d [handoff]: R-NOW - read sim run 36589566916 sign-in step for 7516a6a7
 34b99a61 [handoff]: contrast pixel arm done
 dc2c0ecf [theme]: light bronze deepened 30% -> 26% so bronze-on-tint buttons clear AA
 785dde9b [contrast]: light-mode tab badge readable; pixel arm skips edge-cut text and needs two agreeing reads
 fd7a3bd0 [contrast]: the dark/light contrast gates also measure the pixels text is drawn on
 75d50d1f [handoff]: sample-rule marker shipped
-c7857dc6 [budget]: mark rules still at their sample name and amount
-b0e541fe [handoff]: budget auto-seed fixed, funnel v3
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
