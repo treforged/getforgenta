@@ -411,6 +411,14 @@
   @apply bg-primary-foreground/20 text-primary-foreground;
 }
 
+/* ⚠️ LIGHT MODE DARKENS THE BADGE INSTEAD. There `--primary-foreground` is WHITE, so a 20% white
+   fill LIGHTENED the bronze under the badge's white digit to 3.61:1 (measured 2026-09-29 by the
+   pixel arm of check:light-contrast on /debt; the walk-up could not see it, the fill is translucent).
+   20% black over the same bronze keeps the badge visible as a darker pip and clears 4.5:1. */
+.light .seg-badge-active {
+  background-color: rgb(0 0 0 / 0.2);
+}
+
 /* The filled oval. `bg-primary` + `text-primary-foreground` rather than a tinted
    outline, because the whole point of the reference designs is that the active
    segment is a SOLID shape you can find without reading. */

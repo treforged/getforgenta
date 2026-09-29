@@ -248,9 +248,11 @@ const readPage = () => page.evaluate(() => {
  * only in dark mode (in light the walk-up also flags the planted grey string, so the control there
  * proves only that the pixel arm can flag); and a string partly under the floating nav is judged
  * by its centre point, so its lower edge can sample the nav's glass.
- * FIRST WIDENED RUNS, 2026-09-29: dark 390 clean (129 strings); dark 1440 "Mar 2031" /debt 4.43;
- * light 390 a white "1" badge on gold /debt 3.61 and a forecast line near the nav 3.79. None was
- * visible to the walk-up. Each still needs a hand check (ask filed).
+ * FIRST RUNS, 2026-09-29, after two instrument fixes (edge-cut strings skipped; two agreeing reads):
+ * dark 390 and light 390 clean (128 strings). The white "1" badge on gold /debt (light) read 3.61 and
+ * was a REAL defect, fixed in index.css and proven red without the fix. Still open (ask 13fdd69f):
+ * "Mar 2031" /debt at 1440, 4.43 dark / 3.26 light, muted text on a translucent chip the walk-up
+ * skips; "Reset & Recalculate" /debt light 1440, 4.36.
  */
 const HIDE_TEXT = '*{color:transparent!important;-webkit-text-fill-color:transparent!important;'
   + 'text-shadow:none!important;caret-color:transparent!important;transition:none!important;animation:none!important}';
@@ -287,6 +289,10 @@ async function readPixels() {
       rg.setStartBefore(tn[0]); rg.setEndAfter(tn[tn.length - 1]);
       const r = rg.getBoundingClientRect();
       if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) continue;
+      // A string cut by the viewport edge is half off screen and sits in whatever is at the edge -
+      // on a phone that is the floating nav's shadow. It is not text anyone reads THERE, so it is
+      // skipped and counted, not measured (a forecast line at y=835 of 844 read 3.79:1 on the shadow).
+      if (r.top < 0 || r.bottom > H || r.left < 0 || r.right > W) { occluded += 1; continue; }
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       if (!hit || !(hit === el || el.contains(hit))) { occluded += 1; continue; }
       const m = (el.getAttribute('data-cc') || '').match(/rgba?\(([^)]+)\)/);
@@ -442,8 +448,26 @@ for (const route of ROUTES) {
     fail(2, `UNSTABLE: ${route} never settled - examined counts ${seen.join(' -> ')}. Not averaging them.`);
   }
   if (!control) control = await pixelControl();
+  // ⚠️ READ TWICE AND KEEP ONLY WHAT BOTH READS AGREE ON, with no dialog up. On 2026-09-29 one light
+  // run caught /forecast's Assumptions dialog still CLOSING - its scrim greyed the page - and reported
+  // 11 strings at 3.05-3.71; the next run read the same route clean. A finding one read makes and the
+  // next does not is a fact about timing, and it is printed as UNSTABLE rather than counted.
+  for (let i = 0; i < 6 && (await page.getByRole('dialog').count()); i += 1) {
+    await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  }
+  if (await page.getByRole('dialog').count()) {
+    await browser.close();
+    fail(2, `a dialog is still open on ${route}; the pixel arm would measure its scrim.`);
+  }
+  await page.waitForTimeout(800);
   const px = await readPixels();
-  const pxBelow = px.res.filter((p) => !p.plant && p.ratio < 4.5);
+  const px2 = await readPixels();
+  const again = new Set(px2.res.filter((p) => p.ratio < 4.5).map((p) => p.key));
+  const firstBelow = px.res.filter((p) => !p.plant && p.ratio < 4.5);
+  const pxBelow = firstBelow.filter((p) => again.has(p.key));
+  if (firstBelow.length !== pxBelow.length) {
+    console.log(`   UNSTABLE on ${route}: ${firstBelow.length - pxBelow.length} pixel finding(s) did not repeat on a second read - not counted`);
+  }
   pixelExamined += px.res.length;
   pixelOccluded += px.occluded;
   for (const p of pxBelow) pixelFindings.push({ route, ...p });
@@ -502,7 +526,7 @@ if (!control || control.pixelRatio === null || control.pixelRatio >= 4.5) {
 }
 if (pixelExamined === 0) fail(2, 'the pixel arm examined ZERO strings - it never read a screen.');
 
-console.log(`pixel arm: ${pixelExamined} on-screen strings, ${pixelOccluded} skipped as occluded; `
+console.log(`pixel arm: ${pixelExamined} on-screen strings, ${pixelOccluded} skipped as occluded or cut by the viewport edge; `
   + `${pixelFindings.length} below 4.5:1 against the pixels they are drawn on`);
 for (const f of pixelFindings.sort((a, b) => a.ratio - b.ratio)) {
   console.log(`  ${String(f.ratio).padStart(5)}:1  ${String(f.route).padEnd(11)} (pixels) ${JSON.stringify(f.text)} at ${f.key.split('@')[1]}  text rgb(${f.fg}) on pixel rgb(${f.bg})`);
