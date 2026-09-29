@@ -24,6 +24,7 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+SAMPLE MARKER [x] c7857dc6: unedited sample rules show "Sample amount: edit it to yours" (src/lib/starter-rules.ts).
 BUDGET AUTO-SEED [x] FIXED 68550cc2 (09-29, getforgenta-a4): Budget no longer inserts 9 sample rules on open;
     explicit "Start from a sample set" button instead. 291 existing rows in 13 real accounts LEFT (Sam); marker = ask.
     Funnel v3: 16 saved nothing / 10 real data / 3 bank (owner incl). Tre has 0 sample rows. Email to no-bank users: SKIPPED
