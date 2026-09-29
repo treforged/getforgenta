@@ -6,9 +6,22 @@ R1. ef0dc559 item 2-4: ONE workflow_dispatch job on macos-latest that builds for
     (simctl cannot place a widget on a home screen - render ForgentaWidgetView in a debug host screen instead, and SAY
     that it is a host render, not a home screen). Item 3 native glass 8a202850: one background panel, no frame-sync.
     Item 4 share sheet + GlassEffectPlugin round trip needs a signed-in sim (walk creds as secrets). Plan first, then build.
+    PROGRESS 2026-09-28 ~21:40: `.github/workflows/ios-sim-screenshots.yml` (dispatch-only, `gh workflow run "iOS Simulator
+    Screenshots" --ref main`). Step 1 DONE: run 36506147924 green on iPhone 17 Pro / iOS 26.5; app alive at 20 s (launchctl,
+    with a non-empty-list control); 01-launch.png 328,915 bytes shows the real welcome screen. Step 2 (widget) BUILT:
+    ios/App/ForgentaWidget/HostRender/WidgetHostRender.swift (swiftc in CI, NOT in the Xcode project) + a host-status.txt
+    assert "decode=ok debts=2"; run 36507002652 GREEN: status line read back for dark AND light, frames 273,921 / 362,051 bytes,
+    looked at: all 5 tiles render, refused tile shows '--' + 'Open Forgenta to sync'. FINDING filed: small debts tile truncates
+    names ('Chase Fr...'). NOT yet proven red (a broken fixture must fail the status assert - one dispatch with a mutated JSON).
+    R2 inventory run 09-28 (check:topright, controls DETECTED both): no new waste. Big gaps are all onRow 0 (phone
+    /accounts,/goals 269 = Command Center stack Tre asked for; phone /account 244) or the desktop centring margin (306).
+    Step 3 glass PLAN: 8a202850 needs a PRODUCT CALLER (NativeGlass has none) and a screen; smallest = one panel behind the
+    welcome card, visible without sign-in. Step 4 BLOCKED on Sam: ask 496b0500 (walk creds into Actions secrets).
 R2. aaafa7ee part 2: the APP-WIDE dead-space sweep (part 1, the budget tiles, is done in 86153981). Use check:topright's
     inventory; read `onRow` before `rightGap` (see CLAUDE.md).
-R3. ef0dc559 item 5 (Package.swift Windows paths): CI regenerates it; confirm and close. Item 7 graphify: DONE locally
+R3. [x] ef0dc559 item 5 CONFIRMED 09-28: committed Package.swift has 7 `\` lines; ios-build.yml:108 and the sim job run
+    `npx cap sync ios` before xcodebuild, and run 36506147924 built green after it. No change needed.
+    (Also closed 09-28: 503de231 and 68697fc9, with evidence.) Was: item 5 (Package.swift Windows paths): CI regenerates it; confirm and close. Item 7 graphify: DONE locally
     (graphify-out is gitignored). Item 6/DBG OAUTH marks: read from Tre's next sign-in log, never ask him.
 
 ## DONE 2026-09-28 (Ada, PC)
@@ -11463,7 +11476,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 20:55 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 21:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11479,14 +11492,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+0a5e953d [ci]: widget HOST RENDER in the simulator job - real view, real decoder, dark and light
+68b6fa37 [ci]: dispatch-only iOS simulator job - build, launch, assert alive at 20s, screenshot
+63a007b3 [handoff]: 2026-09-28 resume queue R1-R3; iOS 1083 uploaded; old queue superseded
+86153981 [dashboard]: This Month's Budget tiles go two across on a phone, 813px to 564px
 cc5456de [handoff]: ef0dc559 progress - App Group assert fixes, profile UUIDs, items 2-4 open
 f929a459 [ci]: App Group assert greps the decoded profile text, prints each UUID, checks both
 38cfdb22 [ci]: App Group assert used $GROUPS, a bash special variable, so it failed every run
 d8812d20 [contrast]: chart axis text follows the theme's muted-foreground, from one constant
-5813af9d [forecast]: Assumptions opens right under its button and scrolls into view
-34e64f37 mac: [handoff] Mac returned - cold-resume list for the PC, each item with its CI replacement
-0e75637e [handoff]: Android widgets e8f53ab3 done in 06d512e2 and ebaefa75; Q1 glow verified live
-ebaefa75 [widget]: Android Next Debt Payments widget, and the iOS v3 small layout
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
