@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DARK widget palette: the app's .dark tokens (src/index.css), converted from HSL.
+     The iOS widget's WidgetPalette was converted by hand and differs by a few units. -->
+<resources>
+    <color name="widget_bg">#08090D</color>       <!-- background 222 24% 4% -->
+    <color name="widget_text">#E1E7EF</color>     <!-- foreground 214 32% 91% -->
+    <color name="widget_muted">#A0A0A7</color>    <!-- muted-foreground 240 4% 64% -->
+    <color name="widget_gold">#C9A240</color>     <!-- gold 43 56% 52% -->
+    <color name="widget_green">#339958</color>    <!-- success 142 50% 40% -->
+    <color name="widget_red">#E86969</color>      <!-- destructive-text 0 73% 66% -->
+</resources>

@@ -5,14 +5,10 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
-import android.text.format.DateUtils;
 import android.widget.RemoteViews;
 
 import com.treforged.forged.MainActivity;
 import com.treforged.forged.R;
-
-import java.text.NumberFormat;
-import java.util.Locale;
 
 public class SurplusWidgetProvider extends AppWidgetProvider {
 
@@ -32,29 +28,19 @@ public class SurplusWidgetProvider extends AppWidgetProvider {
         // check what the home screen already told them — a week-old balance shown
         // confidently is worse than "--", because "--" prompts a tap and a wrong
         // number ends the conversation.
-        if (snap != null && !snap.isStale(System.currentTimeMillis())) {
+        long now = System.currentTimeMillis();
+        if (snap != null && !snap.isStale(now)) {
             // The USER's currency. Formatting a non-USD figure with "$" is a wrong
             // number rendered confidently, which is the same failure as a stale one.
-            NumberFormat fmt = NumberFormat.getCurrencyInstance(Locale.US);
-            try {
-                fmt.setCurrency(java.util.Currency.getInstance(snap.currency));
-            } catch (IllegalArgumentException e) {
-                // Unknown code — keep the default rather than crash the widget.
-            }
-            fmt.setMaximumFractionDigits(0);
-            String amount = fmt.format(snap.monthEndCash);
-            boolean positive = snap.monthEndCash >= 0;
-
-            views.setTextViewText(R.id.widget_amount, amount);
-            views.setTextColor(R.id.widget_amount,
-                context.getResources().getColor(positive ? R.color.widget_green : R.color.widget_red, null));
-
-            CharSequence ago = snap.updatedAtMs > 0
-                ? DateUtils.getRelativeTimeSpanString(snap.updatedAtMs)
-                : "Tap to sync";
-            views.setTextViewText(R.id.widget_updated, ago);
+            views.setTextViewText(R.id.widget_amount, WidgetText.formatAmount(snap.monthEndCash, snap.currency));
+            // Green when the month ends above zero, red below - the Dashboard's own reading.
+            int tone = snap.monthEndCash >= 0 ? R.color.widget_green : R.color.widget_red;
+            views.setTextColor(R.id.widget_amount, context.getResources().getColor(tone, null));
+            views.setTextViewText(R.id.widget_updated, WidgetText.updatedText(now, snap.updatedAtMs));
         } else {
+            // Muted, never the last tone: "--" in confident green reads like a value.
             views.setTextViewText(R.id.widget_amount, "--");
+            views.setTextColor(R.id.widget_amount, context.getResources().getColor(R.color.widget_muted, null));
             views.setTextViewText(R.id.widget_updated, "Open Forgenta to sync");
         }
 

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- LIGHT widget palette: the app's .light tokens (src/index.css), converted from HSL.
+     The dark set lives in values-night/ and matches the iOS widget (ForgentaWidgetView.swift). -->
 <resources>
-    <color name="widget_bg">#0F0F0F</color>
-    <color name="widget_gold">#C4973A</color>
-    <color name="widget_green">#34A853</color>
-    <color name="widget_red">#9B1C1C</color>
-    <color name="widget_text">#DDE4EE</color>
-    <color name="widget_muted">#6B7280</color>
+    <color name="widget_bg">#FFFFFF</color>       <!-- card 0 0% 100% -->
+    <color name="widget_text">#1F1F1F</color>     <!-- foreground 0 0% 12% -->
+    <color name="widget_muted">#5C5C66</color>    <!-- muted-foreground 240 5% 38% -->
+    <color name="widget_gold">#7B5E14</color>     <!-- gold 43 72% 28% -->
+    <color name="widget_green">#227741</color>    <!-- success 142 55% 30% -->
+    <color name="widget_red">#B81E1E</color>      <!-- destructive-text 0 72% 42% -->
 </resources>
