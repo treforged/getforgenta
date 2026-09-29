@@ -150,12 +150,27 @@ jobs:
       - name: Sign in the walk account (with a wrong-password control)
         shell: bash
         env:
-          SB_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SB_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           WALK_EMAIL: ${{ secrets.REACH_TEST_EMAIL }}
           WALK_PASSWORD: ${{ secrets.REACH_TEST_PASSWORD }}
         run: |
           set -euo pipefail
+          # The Supabase URL and publishable key are NOT repo secrets (run 36514125626 read them
+          # empty). They are public by design, and the simulator loads getforgenta.com, so read
+          # them from that live bundle: it is exactly the project the app under test talks to.
+          # Exactly ONE distinct value of each, or the reader is looking at the wrong thing.
+          curl -sS --fail https://getforgenta.com/ -o "$RUNNER_TEMP/gf.html"
+          : > "$RUNNER_TEMP/gf.js"
+          for P in $(grep -oE '/assets/[^"]+\.js' "$RUNNER_TEMP/gf.html"); do
+            curl -sS --fail "https://getforgenta.com$P" >> "$RUNNER_TEMP/gf.js"
+          done
+          URLS=$(grep -aoE 'https://[a-z0-9]{20}\.supabase\.co' "$RUNNER_TEMP/gf.js" | sort -u || true)
+          KEYS=$(grep -aoE 'sb_publishable_[A-Za-z0-9_-]{10,}' "$RUNNER_TEMP/gf.js" | sort -u || true)
+          NU=$(printf '%s' "$URLS" | grep -c . || true); NK=$(printf '%s' "$KEYS" | grep -c . || true)
+          echo "live bundle: $NU distinct Supabase URL(s), $NK distinct publishable key(s)"
+          if [ "$NU" != "1" ] || [ "$NK" != "1" ]; then
+            echo "CONTROL FAILED: expected exactly one of each"; exit 2
+          fi
+          export SB_URL="$URLS" SB_ANON="$KEYS"
           python3 - <<'PY'
           import base64, json, os, sys, urllib.request, urllib.error
           url, anon = os.environ["SB_URL"].strip(), os.environ["SB_ANON"].strip()
@@ -224,6 +239,30 @@ jobs:
           # If both look like welcome, sign-in did not take; if both differ, the frame cannot tell.
           if not (r > 10 and r > 3 * max(g, 1)):
               print("SIGNED-IN FRAME NOT DISTINGUISHABLE FROM THE WELCOME SCREEN"); sys.exit(1)
+          PY
+
+      # Item 3 (8a202850): ONE native glass strip over the top safe area, switched on only by the
+      # Debug build's launch flag (useSimGlassExperiment.ts). The number printed is how much that
+      # strip differs from the same signed-in screen without glass. It is REPORTED, NOT GATED:
+      # whether the material looks right is read from the frame, not from this number.
+      - name: Screenshot the native glass strip (signed in)
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun simctl terminate "$UDID" com.treforged.forged 2>/dev/null || true
+          SIMCTL_CHILD_FORGENTA_SIM_SESSION_KEY="$SIM_SESSION_KEY" \
+          SIMCTL_CHILD_FORGENTA_SIM_SESSION_B64="$SIM_SESSION_REAL" \
+          SIMCTL_CHILD_FORGENTA_SIM_FLAGS="forgenta:sim-glass-experiment" \
+            xcrun simctl launch "$UDID" com.treforged.forged
+          sleep 30
+          xcrun simctl io "$UDID" screenshot shots/04-glass-strip.png
+          python3 - <<'PY'
+          from PIL import Image, ImageChops, ImageStat
+          a = Image.open("shots/03-session-real.png").convert("L"); b = Image.open("shots/04-glass-strip.png").convert("L")
+          h = int(a.height * 0.07)  # the top safe area on a notched iPhone is ~6-7% of the height
+          top = ImageStat.Stat(ImageChops.difference(a.crop((0, 0, a.width, h)), b.crop((0, 0, b.width, h)))).mean[0]
+          rest = ImageStat.Stat(ImageChops.difference(a.crop((0, h, a.width, a.height)), b.crop((0, h, b.width, b.height)))).mean[0]
+          print(f"REPORTED, NOT GATED: top-strip difference {top:.2f}, rest-of-screen difference {rest:.2f}")
           PY
 
       # Item 2: the widget. A HOST RENDER, not a home screen - see HostRender/WidgetHostRender.swift.

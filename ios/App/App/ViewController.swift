@@ -22,18 +22,34 @@ class ViewController: CAPBridgeViewController {
     /// script literal, and the write happens only on the app's own origin.
     private func injectSimulatorSessionIfPresent() {
         let env = ProcessInfo.processInfo.environment
+        // Experiment flags (e.g. the native glass strip, 8a202850): comma-separated keys, each set
+        // to "1". Only keys under "forgenta:sim-" are accepted, so this can switch on nothing else.
+        let flags = (env["FORGENTA_SIM_FLAGS"] ?? "")
+            .split(separator: ",").map(String.init).filter { $0.hasPrefix("forgenta:sim-") }
+        for flag in flags {
+            addLocalStorageScript(key: flag, value: "1")
+        }
         guard
             let key = env["FORGENTA_SIM_SESSION_KEY"],
             let b64 = env["FORGENTA_SIM_SESSION_B64"],
             let data = Data(base64Encoded: b64),
-            let value = String(data: data, encoding: .utf8),
+            let value = String(data: data, encoding: .utf8)
+        else { return }
+        if addLocalStorageScript(key: key, value: value) {
+            NSLog("FORGENTA_SIM_SESSION: injected for key length \(key.count)")
+        }
+    }
+
+    @discardableResult
+    private func addLocalStorageScript(key: String, value: String) -> Bool {
+        guard
             let keyLit = try? JSONEncoder().encode(key), let keyJs = String(data: keyLit, encoding: .utf8),
             let valLit = try? JSONEncoder().encode(value), let valJs = String(data: valLit, encoding: .utf8)
-        else { return }
+        else { return false }
         let source = "if(location.origin==='https://getforgenta.com'){try{localStorage.setItem(\(keyJs),\(valJs))}catch(e){}}"
         let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         bridge?.webView?.configuration.userContentController.addUserScript(script)
-        NSLog("FORGENTA_SIM_SESSION: injected for key length \(key.count)")
+        return true
     }
     #endif
 }
