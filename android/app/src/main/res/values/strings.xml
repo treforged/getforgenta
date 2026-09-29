@@ -6,4 +6,5 @@
     <string name="custom_url_scheme">com.treforged.forged</string>
     <string name="widget_surplus_description">Shows your month-end cash from Forgenta</string>
     <string name="widget_networth_description">Shows your net worth from Forgenta</string>
+    <string name="widget_debts_description">Shows your next debt payments from Forgenta</string>
 </resources>

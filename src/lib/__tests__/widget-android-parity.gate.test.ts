@@ -22,6 +22,12 @@ const SWIFT = read('ios/App/ForgentaWidget/ForgentaWidgetView.swift');
 const RES = 'android/app/src/main/res';
 const SURPLUS = read(`${RES}/layout/widget_surplus.xml`);
 const NETWORTH = read(`${RES}/layout/widget_networth.xml`);
+const DEBTS = read(`${RES}/layout/widget_debts.xml`);
+const MANIFEST = read('android/app/src/main/AndroidManifest.xml');
+const WIDGETS = 'android/app/src/main/java/com/treforged/forged/widgets';
+const PLUGIN = read(`${WIDGETS}/WidgetBridgePlugin.java`);
+const DEBT_JAVA = read(`${WIDGETS}/DebtPayment.java`);
+const SNAPSHOT_TS = read('src/lib/widget-snapshot.ts');
 const NIGHT = read(`${RES}/values-night/widget_colors.xml`);
 const DAY = read(`${RES}/values/widget_colors.xml`);
 
@@ -137,10 +143,34 @@ describe('Android widgets match the iOS widget', () => {
   });
 
   it('no XML comment contains a double hyphen (aapt refuses the file)', () => {
-    for (const [name, xml] of [['surplus', SURPLUS], ['networth', NETWORTH], ['night', NIGHT], ['day', DAY]]) {
+    for (const [name, xml] of [['surplus', SURPLUS], ['networth', NETWORTH], ['debts', DEBTS], ['night', NIGHT], ['day', DAY]]) {
       const comments = [...xml.matchAll(/<!--([\s\S]*?)-->/g)].map((m) => m[1]);
       expect(comments.length, `${name} has comments to check`).toBeGreaterThan(0);
       for (const c of comments) expect(c.includes('--'), `${name}: ${c.trim().slice(0, 60)}`).toBe(false);
     }
+  });
+
+  it('the debts widget uses the iOS heading', () => {
+    const ios = SWIFT.match(/case \.debts:[\s\S]*?Text\("([A-Z ]+)"\)/);
+    expect(ios, 'iOS .debts heading').not.toBeNull();
+    expect(androidLabel(DEBTS)).toBe(ios![1]);
+  });
+
+  it('the Android row reader reads exactly the keys WidgetDebtPayment declares', () => {
+    const iface = SNAPSHOT_TS.match(/export interface WidgetDebtPayment \{([\s\S]*?)\n\}/);
+    expect(iface, 'WidgetDebtPayment in widget-snapshot.ts').not.toBeNull();
+    const tsKeys = [...iface![1].matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]).sort();
+    const javaKeys = [...DEBT_JAVA.matchAll(/row\.opt\("(\w+)"\)/g)].map((m) => m[1]).sort();
+    expect(tsKeys.length).toBeGreaterThanOrEqual(3);
+    expect(javaKeys).toEqual(tsKeys);
+    expect(PLUGIN).toMatch(/call\.getArray\("nextDebtPayments"/);
+  });
+
+  it('the plugin refreshes every widget the manifest declares', () => {
+    // Derived from the manifest, so a new widget that nobody wired into triggerUpdate goes red.
+    const declared = [...MANIFEST.matchAll(/android:name="\.widgets\.(\w+Provider)"/g)].map((m) => m[1]).sort();
+    const refreshed = [...PLUGIN.matchAll(/triggerUpdate\(context, (\w+)\.class\)/g)].map((m) => m[1]).sort();
+    expect(declared.length).toBeGreaterThanOrEqual(3);
+    expect(refreshed).toEqual(declared);
   });
 });

@@ -3,8 +3,13 @@ package com.treforged.forged.widgets;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class WidgetSnapshot {
     static final String PREFS_NAME = "forgenta_widget";
@@ -14,12 +19,24 @@ public class WidgetSnapshot {
     public final double netWorth;
     public final String currency;
     public final long updatedAtMs; // epoch millis
+    /**
+     * The next debt payments, soonest first, as the app sent them. NULL when the app did not send
+     * the list (an older app build), which is not the same as "no debts" - that is an empty list.
+     */
+    public final List<DebtPayment> nextDebtPayments;
 
     public WidgetSnapshot(double monthEndCash, double netWorth, String currency, long updatedAtMs) {
+        this(monthEndCash, netWorth, currency, updatedAtMs, null);
+    }
+
+    public WidgetSnapshot(double monthEndCash, double netWorth, String currency, long updatedAtMs,
+                          List<DebtPayment> nextDebtPayments) {
         this.monthEndCash = monthEndCash;
         this.netWorth = netWorth;
         this.currency = currency;
         this.updatedAtMs = updatedAtMs;
+        this.nextDebtPayments = nextDebtPayments == null
+            ? null : Collections.unmodifiableList(new ArrayList<>(nextDebtPayments));
     }
 
     /**
@@ -76,10 +93,25 @@ public class WidgetSnapshot {
             long updatedAt = obj.getLong("updatedAtMs");
             if (updatedAt <= 0) return null;
 
-            return new WidgetSnapshot(cash, worth, obj.optString("currency", "USD"), updatedAt);
+            return new WidgetSnapshot(cash, worth, obj.optString("currency", "USD"), updatedAt,
+                debtRows(obj.optJSONArray("nextDebtPayments")));
         } catch (JSONException e) {
             return null;
         }
+    }
+
+    /**
+     * The optional debt rows. A bad ROW is skipped and never fails the snapshot: the two figures
+     * are still true when one debt name is missing. A missing or non-array field is null.
+     */
+    static List<DebtPayment> debtRows(JSONArray rows) {
+        if (rows == null) return null;
+        List<DebtPayment> out = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
+            DebtPayment row = DebtPayment.fromJson(rows.optJSONObject(i));
+            if (row != null) out.add(row);
+        }
+        return out;
     }
 
     /** True once this snapshot is too old to be shown as a figure. */
@@ -88,12 +120,25 @@ public class WidgetSnapshot {
     }
 
     public static void save(Context context, double monthEndCash, double netWorth, String currency) {
+        save(context, monthEndCash, netWorth, currency, null);
+    }
+
+    /** @param nextDebtPaymentsJson the app's rows as a JSON array string, or null when not sent. */
+    public static void save(Context context, double monthEndCash, double netWorth, String currency,
+                            String nextDebtPaymentsJson) {
         try {
             JSONObject obj = new JSONObject();
             obj.put("monthEndCash", monthEndCash);
             obj.put("netWorth", netWorth);
             obj.put("currency", currency);
             obj.put("updatedAtMs", System.currentTimeMillis());
+            if (nextDebtPaymentsJson != null) {
+                try {
+                    obj.put("nextDebtPayments", new JSONArray(nextDebtPaymentsJson));
+                } catch (JSONException e) {
+                    // Unreadable rows are left out; the two figures are still saved.
+                }
+            }
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY, obj.toString())

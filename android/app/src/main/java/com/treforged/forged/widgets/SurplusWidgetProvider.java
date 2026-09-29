@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import com.treforged.forged.MainActivity;
@@ -37,11 +38,16 @@ public class SurplusWidgetProvider extends AppWidgetProvider {
             int tone = snap.monthEndCash >= 0 ? R.color.widget_green : R.color.widget_red;
             views.setTextColor(R.id.widget_amount, context.getResources().getColor(tone, null));
             views.setTextViewText(R.id.widget_updated, WidgetText.updatedText(now, snap.updatedAtMs));
+            // One line of context under the figure, as on iOS. Hidden when there is none.
+            String detail = WidgetText.nextDebtLine(snap);
+            views.setTextViewText(R.id.widget_detail, detail == null ? "" : detail);
+            views.setViewVisibility(R.id.widget_detail, detail == null ? View.GONE : View.VISIBLE);
         } else {
             // Muted, never the last tone: "--" in confident green reads like a value.
             views.setTextViewText(R.id.widget_amount, "--");
             views.setTextColor(R.id.widget_amount, context.getResources().getColor(R.color.widget_muted, null));
             views.setTextViewText(R.id.widget_updated, "Open Forgenta to sync");
+            views.setViewVisibility(R.id.widget_detail, View.GONE);
         }
 
         // Tap opens the app

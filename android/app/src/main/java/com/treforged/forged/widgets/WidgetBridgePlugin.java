@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -21,12 +22,17 @@ public class WidgetBridgePlugin extends Plugin {
 
         Context context = getContext();
 
-        // Persist to SharedPreferences
-        WidgetSnapshot.save(context, monthEndCash, netWorth, currency);
+        // Optional: an app build that predates the field sends nothing, which is kept as "not sent"
+        // rather than "no debts" (WidgetSnapshot.nextDebtPayments stays null).
+        JSArray debts = call.getArray("nextDebtPayments", null);
 
-        // Broadcast update to both widget providers
+        // Persist to SharedPreferences
+        WidgetSnapshot.save(context, monthEndCash, netWorth, currency, debts == null ? null : debts.toString());
+
+        // Broadcast update to every widget provider
         triggerUpdate(context, SurplusWidgetProvider.class);
         triggerUpdate(context, NetWorthWidgetProvider.class);
+        triggerUpdate(context, DebtsWidgetProvider.class);
 
         call.resolve();
     }

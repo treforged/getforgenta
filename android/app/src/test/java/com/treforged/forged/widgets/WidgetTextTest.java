@@ -47,4 +47,20 @@ public class WidgetTextTest {
         assertEquals("$12", WidgetText.formatAmount(12, "NOPE"));
         assertEquals("$12", WidgetText.formatAmount(12, null));
     }
+
+    @Test
+    public void dueTextUsesTheAppsWordingAndNeverGuessesADay() {
+        assertEquals("due Oct 3", WidgetText.dueText("2026-10-03"));
+        assertEquals("due Jan 31", WidgetText.dueText("2027-01-31"));
+        assertEquals("no due date set", WidgetText.dueText(null));
+        assertEquals("no due date set", WidgetText.dueText("2026-13-03"));
+        assertEquals("no due date set", WidgetText.dueText("soon"));
+    }
+
+    @Test
+    public void anUnmodelledPaymentIsNeverZero() {
+        assertEquals("Not modelled", WidgetText.debtAmount(null, "USD"));
+        assertEquals("$0", WidgetText.debtAmount(0.0, "USD"));
+        assertEquals("$410", WidgetText.debtAmount(410.2, "USD"));
+    }
 }

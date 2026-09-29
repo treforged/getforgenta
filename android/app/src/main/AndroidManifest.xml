@@ -44,7 +44,7 @@
 
         </activity>
 
-        <!-- Monthly Surplus widget -->
+        <!-- Month-End Cash widget (class name kept: renaming it removes placed widgets) -->
         <receiver
             android:name=".widgets.SurplusWidgetProvider"
             android:exported="true">
@@ -66,6 +66,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_networth_info" />
+        </receiver>
+
+        <!-- Next Debt Payments widget -->
+        <receiver
+            android:name=".widgets.DebtsWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_debts_info" />
         </receiver>
 
         <provider

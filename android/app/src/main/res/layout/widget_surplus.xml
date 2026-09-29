@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Matches the iOS widget: small label, large rounded figure, "Updated X ago" pinned to the
-     bottom. The empty state is a dash plus "Open Forgenta to sync", set by the provider. -->
+<!-- Matches the iOS small widget: label on top, the figure large and anchored low, one line of
+     context under it, and the age last. No dead middle. The empty state is a dash plus
+     "Open Forgenta to sync", set by the provider. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -14,17 +15,19 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="MONTH-END CASH"
-        android:textSize="10sp"
+        android:textSize="11sp"
         android:textColor="@color/widget_muted"
         android:letterSpacing="0.08"
         android:maxLines="1"
         android:fontFamily="sans-serif-medium" />
 
+    <!-- The figure takes the spare height and sizes itself to it (API 26+), up to the iOS 40pt. -->
     <TextView
         android:id="@+id/widget_amount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="bottom|start"
         android:text="--"
         android:textSize="30sp"
         android:textColor="@color/widget_muted"
@@ -32,19 +35,25 @@
         android:maxLines="1"
         android:autoSizeTextType="uniform"
         android:autoSizeMinTextSize="15sp"
-        android:autoSizeMaxTextSize="30sp" />
+        android:autoSizeMaxTextSize="40sp" />
 
-    <!-- Spacer: RemoteViews allows FrameLayout, not a bare View. -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:minHeight="6dp" />
+    <TextView
+        android:id="@+id/widget_detail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="12sp"
+        android:textColor="@color/widget_text"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/widget_updated"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
         android:text="Open Forgenta to sync"
         android:textSize="10sp"
         android:textColor="@color/widget_muted"
