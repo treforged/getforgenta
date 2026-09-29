@@ -18,6 +18,13 @@ on:
     - cron: '0 7 * * 1'
   workflow_dispatch:
 
+# Each push supersedes the last scan. Without this, three scans from back-to-back pushes held
+# every macOS runner for 30+ minutes on 2026-09-28 and queued real simulator work behind them.
+# Only the newest commit's scan is worth finishing. Undo: delete these three lines.
+concurrency:
+  group: codeql-ios-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     runs-on: macos-latest
