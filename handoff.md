@@ -8,23 +8,16 @@ R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam
     'decode=ok debts=3'. The assert can fail. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
     first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
     (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
-R00 START HERE (09-28 23:25, PC Ada, handoff gate at 175 calls). TRE IS DICTATING ACCOUNT CHANGES (ask 58694458).
-    He said: make edits THROUGH THE APP in Claude-in-Chrome, not SQL ("we need to make sure the app functions properly").
-    Snapshot BEFORE any change: backup.tre_dictation_20260928_{accounts,rules,goals,car_funds,profile}; Tre user a72f416e.
-    Earlier SQL edits were REVERTED (rules identical to snapshot except updated_at), then redone via the app:
-    [x] Rent c8bd61fa end_date 2026-06-30 -> 2027-03-31 VIA APP (read back 03:19Z). Note appended, cut at 300 chars.
-    [?] Electricity 5b9334d3 end 2027-03-31 via app: toast "Recurring rule updated", NOT yet read back - READ IT FIRST.
-        Its note did NOT land (typing into a hidden tab was lost; notes "" before the press). Add a note via the app.
-    [ ] "Electricity (new place)" 185.86, monthly day 1, from CHASE CHECKING, start 2027-07-01, no end: use the Duplicate
-        button on the Electricity row, then edit start/end. (New rent 1635 already starts 2027-07-01.)
-    [ ] WATER LAG (Tre 23:18): water is $30 INSIDE the $2,070 Invitation Homes debit, billed 1-2 months late. Add one-off
-        $30 expenses Apr 2027 and May 2027 (ASSUMPTION: both, the conservative reading; say so). One-offs = manual
-        future-dated transactions (Transactions tab); oneTimeByMonth reads them (useForecastEngineInputs.ts:357).
-    [ ] LEASE-BREAK FEE, March 2027: AMOUNT UNKNOWN - ask Tre (Sam relays). Do not invent it.
-    [ ] SECURITY DEPOSIT $1,915 refund, minus minor damages (blinds): ask Tre for the expected amount; recommend April 2027
-        (FL 83.49: 15 days, or 30 if the landlord claims). Enter as one-off income once he gives the number.
-    [ ] ASK Tre: does "GF Half of Rent/Groceries" $1,100 (income, to 2027-08-31) continue Apr-Jun 2027 with no rent?
-    Then read the projection back (Forecast tab, Mar-Jul 2027) and show him.
+R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (ask 58694458), all via the app, all
+    read back by SQL. Snapshot: backup.tre_dictation_20260928_{accounts,rules,goals,car_funds,profile}; user a72f416e.
+    [x] Rent c8bd61fa and Electricity 5b9334d3 end 2027-03-31 (Electricity note added via app, read back).
+    [x] Rule aee8de56 "Electricity (new place)" 185.86 monthly day 1, Chase Checking, start 2027-07-01, no end.
+    [x] One-off transactions (Chase Checking): fe1c81ec lease-break -3830 2027-03-18 (Tre: 2 x 1915; DATE ASSUMED);
+        44b2997b deposit refund +1200 2027-04-30 (Tre's conservative floor); 944433e6 / 376db169 water -30 on
+        2027-04-18 / 2027-05-18 (ASSUMED both months). Undo = delete that row in the app.
+    [ ] GF $1,100 Apr-Jun 2027: STILL UNANSWERED, Sam holds it on Tre's list. Left as is (assumption).
+    PROJECTION (end cash): Feb27 3,362 | Mar27 -29 (floor breach flagged) | Apr 3,069 | May 3,107 | Jun 3,224 | Jul 4,029.
+    Sent to Sam 23:45. If Tre answers GF, edit that rule and re-read these six months.
     CHROME INSTRUMENT FACTS: the MCP tab is document.visibilityState=hidden, so screenshots time out (30s) and wheel
     animations stall - that is NOT an app freeze. Work through javascript_tool: read wheel values by layout (item under
     the column's vertical middle), set a wheel by scrollTop (rows are 32px; month idx*32 from Jan=0; year 2026=0) and
