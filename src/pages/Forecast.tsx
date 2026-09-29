@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useCallback } from 'react';
+﻿import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { Link } from 'react-router';
 import { ForecastSkeleton } from '@/components/shared/PageSkeleton';
@@ -126,6 +126,17 @@ export default function Forecast() {
   // page leads with one number). Both disclosures persist through the same idiom the rest of
   // this page's view state already uses, so a reader who opens them keeps them open.
   const [showAssumptions, setShowAssumptions] = usePersistedState('tre:forecast:showAssumptions', false);
+  // Tre, 2026-09-24: the panel "opens lower on the page, so for people with smaller phones they
+  // won't see it... It looks like nothing happened." It now renders directly under the toolbar,
+  // and a press brings it into view. Only a PRESS scrolls: a panel restored open from storage on
+  // page load must not yank the page away from the milestone the page leads with.
+  const assumptionsRef = useRef<HTMLDivElement>(null);
+  const [assumptionsPressed, setAssumptionsPressed] = useState(false);
+  useEffect(() => {
+    if (showAssumptions && assumptionsPressed) {
+      assumptionsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [showAssumptions, assumptionsPressed]);
   // PHONE ONLY (Tre, 2026-08-27: "make the top controls of forecast 'Line / Detail / Assumptions /
   // PDF / CSV' collapsable. they take up a lot of space on mobile screens"). Five full-width
   // buttons stacked one per row pushed the chart most of a screen down. Closed by default and
@@ -381,7 +392,7 @@ export default function Forecast() {
             className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             {viewMode === 'monthly' ? <List size={12} /> : <BarChart3 size={12} />} {viewMode === 'monthly' ? 'Detail' : 'Summary'}
           </button>
-          <button onClick={() => setShowAssumptions(!showAssumptions)} className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+          <button onClick={() => { setAssumptionsPressed(true); setShowAssumptions(!showAssumptions); }} aria-expanded={showAssumptions} aria-controls="forecast-assumptions" className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             <Settings2 size={12} /> Assumptions
           </button>
           {(isPremium || isDemo) ? (
@@ -448,9 +459,23 @@ export default function Forecast() {
         </div>
       </div>
 
+      {/* Directly under the button that opens it, so the press visibly does something on a small
+          phone (Tre, 2026-09-24). Closed by default, so the milestone below still leads the page. */}
+      {showAssumptions && (
+        <div ref={assumptionsRef} id="forecast-assumptions" className="scroll-mt-4">
+          <ForecastAssumptionsPanel
+            assumptions={assumptions}
+            setAssumptions={setAssumptions}
+            payConfig={payConfig}
+            annualFederalWithheldFromBudget={annualFederalWithheldFromBudget}
+            onClose={() => setShowAssumptions(false)}
+          />
+        </div>
+      )}
+
       {/* The one thing this page leads with: the next milestone month. Rendered above the
-          assumptions and the receipts because it is the story and they are the settings and
-          the proof. `emptyReason` splits "nothing entered yet" from "the projection simply
+          receipts because it is the story and they are the proof. The assumptions sit above it
+          only while the user has opened them, since a panel is read next to its button. `emptyReason` splits "nothing entered yet" from "the projection simply
           crosses no line", so a set-up user is never told to go and add data. */}
       <ForecastHero
         milestones={projections.milestones}
@@ -484,16 +509,6 @@ export default function Forecast() {
             <Link to="/auth" className="text-xs font-semibold text-primary hover:underline">Use with your own data →</Link>
           </div>
         </div>
-      )}
-
-      {showAssumptions && (
-        <ForecastAssumptionsPanel
-          assumptions={assumptions}
-          setAssumptions={setAssumptions}
-          payConfig={payConfig}
-          annualFederalWithheldFromBudget={annualFederalWithheldFromBudget}
-          onClose={() => setShowAssumptions(false)}
-        />
       )}
 
       {/* The year filter, the floor notice and the projection they govern are ONE group

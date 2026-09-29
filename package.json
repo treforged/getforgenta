@@ -15,6 +15,7 @@
     "test": "vitest run",
     "check:node": "node scripts/check-node-engine.mjs",
     "check:account": "node scripts/check-account-sections.mjs",
+    "check:forecast-assumptions": "node scripts/check-forecast-assumptions.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",
     "check:share-card": "node scripts/check-share-card.mjs",
     "check:share-button": "node scripts/check-share-button.mjs",

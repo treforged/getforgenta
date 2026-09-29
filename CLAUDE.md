@@ -206,6 +206,10 @@ section states reasoning, not measurement, and says so.
   ROLE, never by a hand-written label list. Proven red twice — both handlers setting the
   same state, and both branches resolving to the same view with aria still correct, which
   is the forged-glass dead-tab shape that throws nothing and passes every smoke test.
+- `npm run check:forecast-assumptions` - at 375x667, signed in: Forecast > Controls > Assumptions must
+  open the panel ON SCREEN. It finds the panel by its own heading, never by the id or aria-expanded the fix
+  added, so it can see the old defect: proven red on the pre-fix page (heading at top=763 on a 667px screen)
+  and green on the fix (top=99). Does NOT cover desktop widths or the panel's contents.
 - `npm run check:topright` — an INVENTORY, not a pass/fail gate, of how much of each tab's top-right
   is empty, at 390x844 and 1440x900, signed in. Answers the "big blank spaces" class of complaint by
   measurement instead of by opening whichever screen was reported.
