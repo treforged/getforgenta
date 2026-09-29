@@ -5,6 +5,11 @@ R1-NEXT (09-28 ~22:10): widget host render DONE and looked at (run 36509417430, 
     aaafa7ee CLOSED. Widget fixes ship on the NEXT dispatched iOS build (not in 1083). START HERE: item 3 glass 8a202850 -
     add ONE product caller (a NativeGlass panel behind the welcome card, no web content of its own), add a 03-glass shot
     to the sim job, look at it. Item 4 waits on Tre (496b0500). Then prove the host status assert RED once (bad fixture).
+    FACTS FOR ITEM 3 (read 09-28): GlassEffectPlugin.apply adds the UIVisualEffectView OVER the web view
+    (isUserInteractionEnabled=false), so any panel blurs the web text under it. 'No web content of its own' = the top
+    safe-area strip (content scrolling under it is the thing to see). NativeGlass has 0 product callers.
+    IDEA FOR ITEM 4 AND FOR SEEING ITEM 3: CLAUDE.md says /demo needs NO credentials. If the sim can open /demo (deep link
+    or a Start Free tap via simctl), real screens + the share sheet need no secrets - TEST THAT before waiting on 496b0500.
 R1. ef0dc559 item 2-4: ONE workflow_dispatch job on macos-latest that builds for the simulator (recipe in handoff-mac.md
     "Machine"), boots it, launches, and uploads `xcrun simctl io booted screenshot` PNGs as artifacts. Item 2 the widget
     (simctl cannot place a widget on a home screen - render ForgentaWidgetView in a debug host screen instead, and SAY
