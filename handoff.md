@@ -24,6 +24,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R-NOW4 (09-29 ~17:45Z, getforgenta-34). R-NOW3 items 0-4 WORKED. START HERE:
+    [ ] iOS run 36606388643 (workflow_dispatch, head d7ffdfdc) carries Face ID + PIN fix. Read the UPLOAD step's own
+        output for "UPLOAD SUCCEEDED" (not the run conclusion), note VERSION_CODE (= run_number + 100), then
+        ask done 3b0b7002 naming the build, and tell Sam: "iOS build N uploaded; it is Tre's to install".
+    [x] 0 SIM 7516a6a7 CLOSED: run 36604000972 control 400, sign-in 200 (user ...12a7), decode=ok debts=3 both palettes.
+        Held glass hook committed after gates (useSimGlassExperiment, 8a202850 CI-only experiment).
+    [x] 1 PIN lag d53173d9 CLOSED fdce6eb8: digits fired on onClick (finger LIFT). pointerdown->dot 110-134ms -> 6-18ms,
+        150ms dot fade removed. Probe: scripts/probe-pin-latency.mjs (gitignored; needs a probe-pin/ harness page).
+    [x] 2 Face ID 3b0b7002: NSFaceIDUsageDescription added + gate faceid-usage-key.gate.test.ts (red on pre-fix plist).
+    [!] 3 Move fund 2dcdcdde BLOCKED, NEEDS TRE (one question): does the $5,730 cover the new place's move-in costs
+        (3 x 1,910) or the $3,830 lease fee + movers? Recommendation is in the ask. Do NOT edit goal a035a97e before.
+    [x] 4 Re-measure on NOW-29c (Claude $20 + Owners $65 from Nov IN): Oct -393, Nov -811, Dec -656, Jan 0, Mar 0.
+        Sent to Sam (tre-forged-7c). client_boot_failures: 1 row, platform=web /transactions timeout, none from iOS.
 R-NOW3 (09-29 ~17:20Z, getforgenta-fc handed off at 50% context). START HERE, IN THIS ORDER (Sam's order):
     0. SIM 7516a6a7: Sam set the secret at 16:59:16Z; run 36601740962 was dispatched at 16:59:37Z and was still running
        at 17:20Z. Read ITS sign-in step lines (NOT the run conclusion; jq is not on PATH, use gh --jq or grep):
@@ -11663,7 +11676,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 12:15 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 13:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11682,14 +11695,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+9da5b22a [handoff]: R-NOW3 - boot guard shipped; sim, PIN lag, Face ID, move-fund, Nov re-measure queued
+69907309 [boot]: a load failure shows "Couldn't load Forgenta" with retry instead of a black screen
 8a93ec6b [handoff]: R-NOW2 - lease reconciled, Aug cleared, Mar27 -110, cut table with Tre, sim secret still wrong
 caa6e7eb [export]: quote forecast CSV header cells so a comma in a goal name cannot shift columns
 8c96ba5d [handoff]: R-NOW - read sim run 36589566916 sign-in step for 7516a6a7
 34b99a61 [handoff]: contrast pixel arm done
 dc2c0ecf [theme]: light bronze deepened 30% -> 26% so bronze-on-tint buttons clear AA
 785dde9b [contrast]: light-mode tab badge readable; pixel arm skips edge-cut text and needs two agreeing reads
-fd7a3bd0 [contrast]: the dark/light contrast gates also measure the pixels text is drawn on
-75d50d1f [handoff]: sample-rule marker shipped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
