@@ -1,6 +1,10 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R1-NEXT (09-28 ~22:10): widget host render DONE and looked at (run 36509417430, all text whole, 99c9fed9 closed);
+    aaafa7ee CLOSED. Widget fixes ship on the NEXT dispatched iOS build (not in 1083). START HERE: item 3 glass 8a202850 -
+    add ONE product caller (a NativeGlass panel behind the welcome card, no web content of its own), add a 03-glass shot
+    to the sim job, look at it. Item 4 waits on Tre (496b0500). Then prove the host status assert RED once (bad fixture).
 R1. ef0dc559 item 2-4: ONE workflow_dispatch job on macos-latest that builds for the simulator (recipe in handoff-mac.md
     "Machine"), boots it, launches, and uploads `xcrun simctl io booted screenshot` PNGs as artifacts. Item 2 the widget
     (simctl cannot place a widget on a home screen - render ForgentaWidgetView in a debug host screen instead, and SAY
@@ -11480,7 +11484,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 21:26 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 21:56 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11496,14 +11500,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+f76c25d9 [widget]: debts header and "no due date set" scale to fit instead of truncating
+6266fa26 [goals]: Total Saved and Total Target sit two across on a phone
+a105a3eb [widget]: small Next Debt Payments tile shows the whole card name
+c455975b [handoff]: ef0dc559 sim job steps 1-2 green (runs 36506147924, 36507002652); item 5 confirmed; R2 inventory no new waste
 0a5e953d [ci]: widget HOST RENDER in the simulator job - real view, real decoder, dark and light
 68b6fa37 [ci]: dispatch-only iOS simulator job - build, launch, assert alive at 20s, screenshot
 63a007b3 [handoff]: 2026-09-28 resume queue R1-R3; iOS 1083 uploaded; old queue superseded
 86153981 [dashboard]: This Month's Budget tiles go two across on a phone, 813px to 564px
-cc5456de [handoff]: ef0dc559 progress - App Group assert fixes, profile UUIDs, items 2-4 open
-f929a459 [ci]: App Group assert greps the decoded profile text, prints each UUID, checks both
-38cfdb22 [ci]: App Group assert used $GROUPS, a bash special variable, so it failed every run
-d8812d20 [contrast]: chart axis text follows the theme's muted-foreground, from one constant
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
