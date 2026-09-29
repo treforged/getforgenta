@@ -24,6 +24,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+R0e SIM (09-29 ~00:05, getforgenta-c7). READ RUN 36518919633 FIRST: gh run view 36518919633 --log | grep REFUSING\|sign-in
+    Chain: UA fix e21555ce REFUTED (Cloudflare 'cf-mitigated: challenge' to runner IPs whatever the UA). 494ae682 reads
+    the public URL/key from repo VARIABLES SIM_SUPABASE_URL / SIM_SUPABASE_PUBLISHABLE_KEY (set 09-29; live bundle is the
+    fallback) -> run 36518461811 got past the 403, then REFUSED: the REACH_TEST_EMAIL secret is not @forgenta.test
+    (local .env.deck-walk.local IS). Guard is now case-insensitive and prints booleans only (public logs).
+    If 36518919633 still REFUSES: Tre re-sets REACH_TEST_EMAIL to the walk address (sessions cannot gh secret set).
+    ALSO SHIPPED this session: c1ff690d notes counter (ee215a1e closed); floor-breach save-up line ("set aside $36/mo
+    from Oct 2026" on Tre's Mar 2027; March's floor is $150.40, not today's $2,256).
+    The background watchers were killed for LOW MEMORY - do not re-arm them blindly.
 R0d SIM (09-28 23:15): run 36515352164 FAILED: getforgenta.com returns 403 to curl from the GH runner (it works from
     this PC, and the sim WKWebView loads the site fine, frame 01-launch shows the welcome screen). Fix: send a browser
     User-Agent in the curl calls, or keep the values in a repo VARIABLE. The step passed locally end to end (wrong pw
@@ -11543,7 +11552,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 23:21 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 23:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11563,14 +11572,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+3569f37b [forecast]: a one-time floor breach says how much to set aside, and from when
+de60a879 [ios-sim]: email guard is case-insensitive and says why it refused
+494ae682 [ios-sim]: read the public Supabase URL and key from repo variables
+c1ff690d [budget]: rule notes show a live n/300 counter and stop at the limit
+0db3271d [handoff]: lease dictation rows entered and read back; March 2027 projects -$29
+e21555ce [ios-sim]: send a browser User-Agent when reading the live bundle
+6e71e1b9 [handoff]: Tre dictation state (rent via app done, electricity to verify), sim 403 cause
 394a010c [ios-sim]: read the Supabase URL and key from the live bundle; add the glass shot
-d8d50f50 [ci]: CodeQL (iOS) cancels the previous scan on each push
-46df53cc [handoff]: sim sign-in dispatched (36514125626)
-56303e39 [ios-sim]: red-control runs are named as expected failures
-ce122e41 [ios-sim]: sign the walk account in on the simulator, proven by a discriminating pair
-ca3ec722 [handoff]: rising at-plan interest explained (0e8104a7); next R0 (c)
-0e8104a7 [debt]: say why interest at plan is higher than this month
-dd355904 [handoff]: rising at-plan interest - same series, flat APR/12, balance rises under plan; next step recorded
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
