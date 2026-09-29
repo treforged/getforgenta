@@ -8,8 +8,10 @@ R1-NEXT (09-28 ~22:10): widget host render DONE and looked at (run 36509417430, 
     FACTS FOR ITEM 3 (read 09-28): GlassEffectPlugin.apply adds the UIVisualEffectView OVER the web view
     (isUserInteractionEnabled=false), so any panel blurs the web text under it. 'No web content of its own' = the top
     safe-area strip (content scrolling under it is the thing to see). NativeGlass has 0 product callers.
-    IDEA FOR ITEM 4 AND FOR SEEING ITEM 3: CLAUDE.md says /demo needs NO credentials. If the sim can open /demo (deep link
-    or a Start Free tap via simctl), real screens + the share sheet need no secrets - TEST THAT before waiting on 496b0500.
+    /demo IDEA REFUTED (run 36511131763): the native app is a MemoryRouter at '/auth' (src/App.tsx:524) and there is no
+    generic deep-link route, so server.url's path is ignored - the frame showed the welcome screen. Step removed. Real
+    screens need sign-in (496b0500, Tre) or an XCUITest tap. Item 3 glass is visible only over scrolling content, so it
+    waits on the same thing unless a panel is placed over welcome-screen content purely as the experiment.
 R1. ef0dc559 item 2-4: ONE workflow_dispatch job on macos-latest that builds for the simulator (recipe in handoff-mac.md
     "Machine"), boots it, launches, and uploads `xcrun simctl io booted screenshot` PNGs as artifacts. Item 2 the widget
     (simctl cannot place a widget on a home screen - render ForgentaWidgetView in a debug host screen instead, and SAY
