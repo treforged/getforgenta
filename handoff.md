@@ -1,6 +1,13 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
+    REFUSED `gh secret set` (Secret-Store Writes). Do NOT route around it; Tre runs the two `gh secret set` commands
+    himself (sent to Sam). Then add sign-in to the sim job for items 3-4. (b) Red-control run 36511767233
+    (red_control=true): it MUST fail at 'Screenshot the widget host render' with decode=failed. Read it; if it passed, the
+    assert is blind. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
+    first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
+    (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
 R1-NEXT (09-28 ~22:10): widget host render DONE and looked at (run 36509417430, all text whole, 99c9fed9 closed);
     aaafa7ee CLOSED. Widget fixes ship on the NEXT dispatched iOS build (not in 1083). START HERE: item 3 glass 8a202850 -
     add ONE product caller (a NativeGlass panel behind the welcome card, no web content of its own), add a 03-glass shot
@@ -11491,7 +11498,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 21:56 by handoff_hook. Everything below this heading is
+_Written 2026-09-28 22:14 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11507,14 +11514,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ebe010be [handoff]: /demo route refuted in the sim (MemoryRouter at /auth); items 3-4 wait on sign-in
+ff220218 [ci]: remove the /demo sim step - the native app ignores the URL path
+9a0a6936 [ci]: sim job screenshots /demo with no sign-in (copy of the app, server.url on the runner only)
+5d587f79 [handoff]: glass item 3 facts (view sits over the web view); /demo may unblock item 4 without secrets
+1011d354 [handoff]: widget host render done (run 36509417430); aaafa7ee closed; next = glass item 3
 f76c25d9 [widget]: debts header and "no due date set" scale to fit instead of truncating
 6266fa26 [goals]: Total Saved and Total Target sit two across on a phone
 a105a3eb [widget]: small Next Debt Payments tile shows the whole card name
-c455975b [handoff]: ef0dc559 sim job steps 1-2 green (runs 36506147924, 36507002652); item 5 confirmed; R2 inventory no new waste
-0a5e953d [ci]: widget HOST RENDER in the simulator job - real view, real decoder, dark and light
-68b6fa37 [ci]: dispatch-only iOS simulator job - build, launch, assert alive at 20s, screenshot
-63a007b3 [handoff]: 2026-09-28 resume queue R1-R3; iOS 1083 uploaded; old queue superseded
-86153981 [dashboard]: This Month's Budget tiles go two across on a phone, 813px to 564px
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
