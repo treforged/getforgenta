@@ -302,6 +302,15 @@ jobs:
           grep -E "FORGENTA_SIM_SESSION: injected|FORGENTA_GLASS (isSupported|applied)" "$RUNNER_TEMP/flog.txt" || true
           echo "log control (session NSLog lines): $(grep -c "FORGENTA_SIM_SESSION: injected" "$RUNNER_TEMP/flog.txt" || true)"
           echo "glass lines: $(grep -cE "FORGENTA_GLASS (isSupported|applied)" "$RUNNER_TEMP/flog.txt" || true)"
+          # BLACK-SCREEN PROBE (Tre 2026-09-29 "it black screens on open"): the signed-in frame at 30 s is
+          # solid black behind the notification prompt. A second frame at +45 s separates SLOW from STUCK,
+          # and the JS console (Capacitor mirrors it with a lightning prefix in Debug) says what the page did.
+          sleep 45
+          xcrun simctl io "$UDID" screenshot shots/05-signed-in-late.png >/dev/null 2>&1
+          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "App"' > "$RUNNER_TEMP/applog.txt" || true
+          echo "App log lines: $(wc -l < "$RUNNER_TEMP/applog.txt")"
+          grep -E "\[(log|warn|error|info)\]|Unhandled|TypeError|ReferenceError|Failed to load|ERR_" "$RUNNER_TEMP/applog.txt" | cut -c1-400 | tail -80 || true
+          # Deliberately NOT copied into the artifact: artifacts are not masked, and this repo is public.
           python3 - <<'PY'
           from PIL import Image, ImageChops, ImageStat
           a = Image.open("shots/03-session-real.png").convert("L"); b = Image.open("shots/04-glass-strip.png").convert("L")
