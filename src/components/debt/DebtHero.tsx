@@ -41,6 +41,23 @@ export const DEBT_HERO_AT_PLAN_UNCONDITIONAL =
   'at plan: no reading — a card is set to always pay in full and this month cannot cover it, '
   + 'so next month\'s interest cannot be projected. The payment is still being sent in full.';
 
+/**
+ * Shown when interest at plan is HIGHER than this month's. Interest is a flat APR/12 of the
+ * balance (credit-card-engine.ts), so it rises only when the balance does - and the balance rises
+ * only when this month's remaining payments are smaller than the interest and charges it adds.
+ * That sentence is therefore true of every cause, and it does not name one it cannot see.
+ * Measured case (2026-09-28, walk account): the card's due day had already passed, so the engine
+ * pays $0 more this month (by design, credit-card-engine.ts manualStmtDueNow) and one month of
+ * interest lands on the balance: $4,200 -> $4,266.46, interest $66.46 -> $67.52.
+ */
+export const DEBT_HERO_AT_PLAN_RISING =
+  "Higher next month: the payments left this month are smaller than the interest and charges it adds, so the balance grows first.";
+
+/** Half a cent: two figures that print the same must never read as "rising". */
+function isInterestRising(interestThisMonth: number, interestAtPlan: number | null): boolean {
+  return interestAtPlan !== null && interestAtPlan - interestThisMonth >= 0.005;
+}
+
 export default function DebtHero({ interestThisMonth, interestAtPlan, unconditionalShortfall }: Props) {
   return (
     <div className="card-forged p-4 sm:p-6">
@@ -64,6 +81,9 @@ export default function DebtHero({ interestThisMonth, interestAtPlan, unconditio
           </p>
         )}
       </div>
+      {isInterestRising(interestThisMonth, interestAtPlan) && (
+        <p className="text-xs text-muted-foreground mt-2">{DEBT_HERO_AT_PLAN_RISING}</p>
+      )}
       {interestAtPlan === null && (
         <p className="text-xs text-muted-foreground mt-2">
           {unconditionalShortfall ? DEBT_HERO_AT_PLAN_UNCONDITIONAL : DEBT_HERO_AT_PLAN_ABSENT}
