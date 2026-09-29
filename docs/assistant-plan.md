@@ -25,13 +25,61 @@ conversation) and ~1.5k output per message, before prompt caching. Caching the f
 cost is lower. **This is an estimate, not a measurement.** The first build must log
 `response.usage` and replace it with measured figures.
 
-**Recommendation: Sonnet 5.5**, premium-only, with a monthly message cap. At ~$1.10 a month against
+**Among the Claude models, Sonnet 5.5**, premium-only, with a monthly message cap. At ~$1.10 a month against
 the $9.99/mo price it is affordable. Haiku is the fallback if measured cost runs high, but only
 after an eval shows it proposes the right edits: a wrong edit to someone's budget costs more than
-the tokens saved. The model choice is Tre's call.
+the tokens saved. The model choice is the owner's call.
 
 **Hosting:** one Supabase edge function (`assistant`) holds the API key server-side and calls the
 Claude API. The key never ships in the app. There is no new infrastructure.
+
+## The free option: an open-weight model we host
+
+The owner asked for "a free llm used as the ai in my app". The model weights are free; running
+them is not. This section compares that route with the Claude API.
+
+**Quality, measured locally (2026-09-29).** A 10-case what-if eval on a SYNTHETIC plan (no real
+data): 7 single or double edits the model must express as `run_forecast` calls, plus 3 cases
+that must NOT call it (a definition, a request to delete an account, and "cover a short month"
+where it must not suggest the 401k). One run each, temperature 0, on an RTX 4070 Super.
+
+| Model | Strict score | Median latency | Notes |
+|---|---|---|---|
+| qwen3:8b (thinking off) | **8/10** | 1.8 s | Both misses were the same answer in another form: a date written `2026-11-01` instead of `2026-11`, and "amount 0" instead of "end". A server-side normaliser makes both pass. |
+| qwen3:14b (thinking on) | 7/10 | 13.8 s | 3 replies came back empty after thinking. With thinking off, this local build returned nothing at all, so that is a runtime quirk, not a score. |
+
+The eval is `scripts/assistant-whatif-eval.py` (`python scripts/assistant-whatif-eval.py qwen3:8b`).
+Not measured: the same eval on Claude (it costs money, so it needs a yes first), any multi-turn
+conversation, and the approval-flow edits of v1. **Ten cases is a smoke test, not an eval.** The
+v0 gate below still applies.
+
+**Monthly cost at 20 messages per user** (~400k input + ~30k output tokens per user; prices
+looked up 2026-09-29, estimates, not bills):
+
+| Route | 100 users | 1,000 users | 10,000 users | Where free stops being free |
+|---|---|---|---|---|
+| Claude Sonnet 5.5 API ($2 / $10 per 1M) | ~$110 | ~$1,100 | ~$11,000 | Per token, from day one |
+| Hosted open model API (Qwen3 8B, ~$0.12 / $0.46 per 1M) | ~$6 | ~$60 | ~$600 | Per token. The data goes to that host. That listing ends 2026-10-09. |
+| Serverless GPU we control (L4 24GB, ~$0.69/hr while busy) | ~$1 + setup | ~$8 | ~$80 | Only busy seconds are billed, but a cold start can add tens of seconds to the first message after idle |
+| Always-on GPU we control (L4 pod, ~$0.49/hr) | ~$360 | ~$360 | ~$720 (2 GPUs, estimate) | A fixed bill from the first day, used or not |
+| The owner's own PC | $0 | not viable | not viable | It is not a server: it sleeps, it sits on a home network, and it has no uptime |
+
+The GPU rows assume ~2 s of GPU time per message, as measured here on a consumer card. An L4 has
+not been measured, so re-measure before committing.
+
+**The costs nobody bills for.** Someone has to keep the model server updated, watch it, restart it
+and swap the model when a better one ships. Open models are also retired: the hosted Qwen3 8B
+listing above ends in October. That upkeep is the real price of "free".
+
+**Privacy upside.** On a GPU we control, prompts go to no model provider at all. There is no
+third-party retention policy to explain, and the consent screen can say "your plan never leaves
+our servers". This is the strongest argument for the route, for a finance app.
+
+**Recommendation, revised.** v0 (read-only what-if) is a good fit for the free route: a
+serverless GPU running a qwen3-8b-class model. Tool calling is adequate on this eval, the
+forecast engine produces every number, and the cost at 1,000 users is single-digit dollars.
+Keep Claude Sonnet 5.5 as the upgrade path for v1, where the model proposes edits to real data.
+Decide v1 on an eval that compares both models, not on price.
 
 ## Privacy of financial data
 
@@ -86,6 +134,6 @@ No tool can delete an account, touch credentials, move real money, or change a s
 
 ## Open questions for Tre
 
-1. Model: Sonnet 5.5 (recommended) or Haiku 4.5.
+1. Model for v0: a self-hosted open model on a serverless GPU (recommended for v0), or Claude Sonnet 5.5 from the start.
 2. Premium-only (recommended) or a small free allowance.
 3. Monthly message cap per user (suggest 50).
