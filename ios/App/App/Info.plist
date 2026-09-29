@@ -66,6 +66,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Forgenta uses Face ID to unlock the app and keep your finances private.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 
