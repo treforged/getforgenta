@@ -6,7 +6,7 @@ R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam
     himself (sent to Sam). Then add sign-in to the sim job for items 3-4. (b) [x] RED PROVEN: run 36511767233
     (red_control=true) FAILED at 'Screenshot the widget host render' with 'decode=failed debts=-1'; green runs read
     'decode=ok debts=3'. The assert can fail. (c) NEW 58694458: Tre wants to dictate account changes at localhost:8080 (prod DB); snapshot his rows
-    first, name the undo, read the projection back after each change. (d) Sam approved: /debt 'Interest this month' card
+    first, name the undo, read the projection back after each change. (d) [x] DONE by getforgenta-28, 56ba77ec + 0e8104a7 (158px -> 1px at 390). Was: Sam approved: /debt 'Interest this month' card
     (158px side waste) - your layout call, keep the explanatory text reachable, send Sam the 390px frame + measured width.
 R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (ask 58694458), all via the app, all
     read back by SQL. Snapshot: backup.tre_dictation_20260928_{accounts,rules,goals,car_funds,profile}; user a72f416e.
@@ -11611,7 +11611,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 01:31 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 02:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11630,14 +11630,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+eed3640e [handoff]: Sam's three retention follow-ups done
+317f06f6 [onboarding]: save on "See your plan", before the finish screen claims it
+b2799c20 [onboarding]: measure:first-save - screens and presses before the first save
+c2d90c56 [db]: business_user_funnel v2 counts the tables the onboarding wizard writes
+71100b1f [db]: business_user_funnel() - weekly funnel by saved rows, service_role only
+9a779029 [handoff]: retention measurement done and sent to Sam
+29bd87da [handoff]: retention measurement is next (Sam), Vite on 8080 is independent
 8aaa27b3 [handoff]: dashboard notice shipped; red-push incident recorded
-4cf7998c [dashboard]: a context without a projection shows no short-month line instead of crashing
-ab93b29c [dashboard]: one quiet line when a month ahead ends below the floor
-9289583c [handoff]: plan, prod check and What's New done; queue blocked on the sim secret
-3fa980ba [whats-new]: 2026-09-29 entry - the channel had carried nothing for 11 days
-b305b64b [docs]: assistant plan compares a self-hosted open model with Claude
-a1252ed6 [docs]: in-app assistant plan (plan only, no build)
-ee59a329 [handoff]: shortfall card shipped; assistant plan next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
