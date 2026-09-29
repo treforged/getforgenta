@@ -283,7 +283,13 @@ jobs:
           xcrun simctl io "$UDID" screenshot shots/04-glass-strip.png
           # Did the native side ATTACH the glass? A flat dark strip looks the same with or without it,
           # so the pixel number alone cannot separate "not applied" from "applied but invisible here".
-          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'eventMessage CONTAINS "FORGENTA_GLASS"' | grep FORGENTA_GLASS || echo "FORGENTA_GLASS: no plugin log line (isSupported/apply never reached native)"
+          # CONTROL: the session-injection NSLog from the SAME launch must appear, or this log read is
+          # blind and a missing glass line means nothing. Grep on "FORGENTA_x:"/"FORGENTA_GLASS " so the
+          # log tool echoing its own --predicate argument is not counted (run 36609531134 did exactly that).
+          xcrun simctl spawn "$UDID" log show --last 3m --info --style compact --predicate 'eventMessage CONTAINS "FORGENTA_"' > "$RUNNER_TEMP/flog.txt" || true
+          grep -E "FORGENTA_SIM_SESSION: injected|FORGENTA_GLASS (isSupported|applied)" "$RUNNER_TEMP/flog.txt" || true
+          echo "log control (session NSLog lines): $(grep -c "FORGENTA_SIM_SESSION: injected" "$RUNNER_TEMP/flog.txt" || true)"
+          echo "glass lines: $(grep -cE "FORGENTA_GLASS (isSupported|applied)" "$RUNNER_TEMP/flog.txt" || true)"
           python3 - <<'PY'
           from PIL import Image, ImageChops, ImageStat
           a = Image.open("shots/03-session-real.png").convert("L"); b = Image.open("shots/04-glass-strip.png").convert("L")
