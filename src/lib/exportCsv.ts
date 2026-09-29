@@ -60,7 +60,12 @@ export async function exportTransactionsCsv(rows: ExportRow[], filename = 'trans
   URL.revokeObjectURL(url);
 }
 
-export async function exportForecastCsv(rows: ForecastRow[], details: ForecastMonthDetail[] = [], filename = 'forgenta-forecast.csv'): Promise<void> {
+/**
+ * The forecast CSV as a string. Header cells go through `escapeCell` like body cells do:
+ * goal and account names are user text, and "Move fund, then emergency fund" split into two
+ * header columns and shifted every later column by one in a spreadsheet (2026-09-29).
+ */
+export function buildForecastCsv(rows: ForecastRow[], details: ForecastMonthDetail[] = []): string {
   const summaryHeaders = ['Month', 'Take-Home', 'Expenses', 'Debt Payment', 'Liquid Cash', 'Ending Cash', 'Net Worth', 'Debt Balance', 'Savings Balance'];
 
   // Goals/cards/accounts vary per user and can appear or disappear mid-projection (paid off,
@@ -126,7 +131,11 @@ export async function exportForecastCsv(rows: ForecastRow[], details: ForecastMo
     return [...summaryCells, ...detailCells].map(escapeCell).join(',');
   });
 
-  const csv = [headers.join(','), ...body].join('\r\n');
+  return [headers.map(escapeCell).join(','), ...body].join('\r\n');
+}
+
+export async function exportForecastCsv(rows: ForecastRow[], details: ForecastMonthDetail[] = [], filename = 'forgenta-forecast.csv'): Promise<void> {
+  const csv = buildForecastCsv(rows, details);
 
   if (Capacitor.isNativePlatform()) {
     const base64 = btoa(unescape(encodeURIComponent(csv)));
