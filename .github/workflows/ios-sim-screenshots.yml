@@ -16,6 +16,11 @@ name: iOS Simulator Screenshots
 
 on:
   workflow_dispatch:
+    inputs:
+      red_control:
+        description: 'Break the widget fixture on purpose; the host status assert MUST then fail the job'
+        type: boolean
+        default: false
 
 jobs:
   screenshots:
@@ -143,6 +148,12 @@ jobs:
           set -euo pipefail
           H="$RUNNER_TEMP/WidgetHost.app"
           mkdir -p "$H"
+          if [ "${{ inputs.red_control }}" = "true" ]; then
+            # RED CONTROL: a non-number monthEndCash must be REFUSED by the real decoder.
+            sed -i '' 's/"monthEndCash": 1842.5/"monthEndCash": "x"/' ios/App/ForgentaWidget/HostRender/WidgetHostRender.swift
+            grep -c '"monthEndCash": "x"' ios/App/ForgentaWidget/HostRender/WidgetHostRender.swift
+            echo "RED CONTROL ON: this run is EXPECTED to fail at the host status assert"
+          fi
           xcrun swiftc -parse-as-library \
             -target "$(uname -m)-apple-ios17.0-simulator" \
             -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
