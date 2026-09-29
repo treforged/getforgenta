@@ -29,8 +29,10 @@ R00L (09-29 ~01:30, getforgenta-c6) 'WHAT WOULD COVER THIS' - Sam approved with 
     src/lib/breach-levers.ts rankBreachLevers(inputs, run). Levers = pause a savings goal / pause a funding-account
     transfer ONLY (measured: fixed-sim convergence == full re-render for those; a card-charged expense is invisible to a
     fixed sim). Real-data test on gitignored fixtures/forecast-inputs.real.LEVERS-2026-09-29.json. NEXT = the UI line on
-    the Forecast breach row: compute LAZILY (on tap), run = i => runDebtCashConvergence(cardProjection, i).projections,
-    show top 2-3 with dollars + months cleared, and for a transfer name paysRules ('still pays Claude, QUO...').
+    the Forecast page - [x] UI DONE 39db82ee: ShortfallLevers card under ForecastHero, computes on tap, rendered at 390 on the
+    walk account (96 ms, 0 clipped). Context now exposes rawCardProjection. Reaches phones via Vercel (JS only).
+    Owners $65-from-Nov scenario sent to Sam: total short 6,574 -> 5,560, Oct-Mar still breach. NEXT = assistant PLAN
+    only (ask 7043323c, Tre: 'plan only for now'): docs/assistant-plan.md.
 R000 [x] DONE 09-29 ~00:45 (getforgenta-c6): ranked report sent to Sam (tre-forged-40). Fresh dump replayed, BASE matched
     to the dollar. Ranked: (1) deposit netted vs lease fee in Mar -> Mar exactly on floor (measured via oneTimeByMonth, NOT
     transactions: the engine reads the provider's precomputed oneTimeByMonth, so mutating fx.transactions changes nothing);
