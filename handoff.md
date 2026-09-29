@@ -24,6 +24,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
+RET START HERE (09-29 ~02:15, getforgenta-c6 handed off at the 175-call gate). SAM'S ASK, READ-ONLY, numbers go to Sam
+    (tre-forged-40): measure the last-active distribution of the ~29 REAL users (profiles minus @forgenta.test and the
+    owner a72f416e) and find WHERE the silent ones stopped. Lead: only 2 of 33 profiles have seen What's New 09-18.
+    Signals per user (aggregate only, never print emails): auth.users.last_sign_in_at, profiles.created_at,
+    onboarding_completed + furthest step, counts of accounts/rules/goals, financial_connections count + last_synced_at,
+    max(updated_at) across rules/transactions/accounts/goals. Bucket: never onboarded / onboarded no data / data no bank /
+    bank linked; last active <7d, 7-30d, >30d. Report the funnel step where most stopped.
+    localhost:8080 = Vite pid 26552 started 09-22, NOT a child of any desk tab: it survives exits. Confirm 200 at start.
+    R0e still waits on Tre re-setting REACH_TEST_EMAIL (ask 7516a6a7).
 R00L (09-29 ~01:30, getforgenta-c6) 'WHAT WOULD COVER THIS' - Sam approved with 4 conditions (engine re-runs only;
     no card-interest or third-party levers; never retirement by default; real-data pins proven red). HELPER DONE 8e57a56e:
     src/lib/breach-levers.ts rankBreachLevers(inputs, run). Levers = pause a savings goal / pause a funding-account
@@ -11591,7 +11600,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 00:22 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 01:31 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11610,14 +11619,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-7833a8cc [handoff]: R000 Sam's gap-source report queued; engine facts and offline re-run recipe
-961812ad [forecast]: never advise setting money aside from months already below the floor
-f7c18c5a [handoff]: sim chain state (vars fix works, email secret refused), save-up and notes shipped
-3569f37b [forecast]: a one-time floor breach says how much to set aside, and from when
-de60a879 [ios-sim]: email guard is case-insensitive and says why it refused
-494ae682 [ios-sim]: read the public Supabase URL and key from repo variables
-c1ff690d [budget]: rule notes show a live n/300 counter and stop at the limit
-0db3271d [handoff]: lease dictation rows entered and read back; March 2027 projects -$29
+8aaa27b3 [handoff]: dashboard notice shipped; red-push incident recorded
+4cf7998c [dashboard]: a context without a projection shows no short-month line instead of crashing
+ab93b29c [dashboard]: one quiet line when a month ahead ends below the floor
+9289583c [handoff]: plan, prod check and What's New done; queue blocked on the sim secret
+3fa980ba [whats-new]: 2026-09-29 entry - the channel had carried nothing for 11 days
+b305b64b [docs]: assistant plan compares a self-hosted open model with Claude
+a1252ed6 [docs]: in-app assistant plan (plan only, no build)
+ee59a329 [handoff]: shortfall card shipped; assistant plan next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
