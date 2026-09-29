@@ -152,15 +152,22 @@ jobs:
         env:
           WALK_EMAIL: ${{ secrets.REACH_TEST_EMAIL }}
           WALK_PASSWORD: ${{ secrets.REACH_TEST_PASSWORD }}
+          SIM_SB_URL: ${{ vars.SIM_SUPABASE_URL }}
+          SIM_SB_KEY: ${{ vars.SIM_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
           # The Supabase URL and publishable key are NOT repo secrets (run 36514125626 read them
-          # empty). They are public by design, and the simulator loads getforgenta.com, so read
-          # them from that live bundle: it is exactly the project the app under test talks to.
+          # empty). They are public by design (every browser that opens getforgenta.com gets them),
+          # so they live in two repo VARIABLES, copied from the live bundle on 2026-09-28.
+          # Why not read the live bundle here: Cloudflare answers the runner's IP with a bot
+          # CHALLENGE (run 36517445882: 403, cf-mitigated: challenge), whatever the User-Agent.
+          # The bundle read stays as the fallback when the variables are unset.
           # Exactly ONE distinct value of each, or the reader is looking at the wrong thing.
-          # Cloudflare fronts the site and answered 403 to curl's default User-Agent from a runner
-          # (run 36515352164). Send a browser UA, and print the status and cf-mitigated header on
-          # failure so a refusal names itself instead of reading as a curl error.
+          if [ -n "${SIM_SB_URL:-}" ] && [ -n "${SIM_SB_KEY:-}" ]; then
+            printf '%s' "$SIM_SB_URL" > "$RUNNER_TEMP/gf.js"; printf '\n%s' "$SIM_SB_KEY" >> "$RUNNER_TEMP/gf.js"
+            echo "source: repo variables SIM_SUPABASE_URL / SIM_SUPABASE_PUBLISHABLE_KEY"
+          else
+          echo "source: live bundle (repo variables unset)"
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
           fetch() {
             local code
@@ -175,10 +182,11 @@ jobs:
           for P in $(grep -oE '/assets/[^"]+\.js' "$RUNNER_TEMP/gf.html"); do
             fetch "https://getforgenta.com$P" "$RUNNER_TEMP/part.js"; cat "$RUNNER_TEMP/part.js" >> "$RUNNER_TEMP/gf.js"
           done
+          fi
           URLS=$(grep -aoE 'https://[a-z0-9]{20}\.supabase\.co' "$RUNNER_TEMP/gf.js" | sort -u || true)
           KEYS=$(grep -aoE 'sb_publishable_[A-Za-z0-9_-]{10,}' "$RUNNER_TEMP/gf.js" | sort -u || true)
           NU=$(printf '%s' "$URLS" | grep -c . || true); NK=$(printf '%s' "$KEYS" | grep -c . || true)
-          echo "live bundle: $NU distinct Supabase URL(s), $NK distinct publishable key(s)"
+          echo "read: $NU distinct Supabase URL(s), $NK distinct publishable key(s)"
           if [ "$NU" != "1" ] || [ "$NK" != "1" ]; then
             echo "CONTROL FAILED: expected exactly one of each"; exit 2
           fi
