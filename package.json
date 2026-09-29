@@ -46,6 +46,7 @@
     "check:onboarding-attribution": "node scripts/check-onboarding-attribution.mjs",
     "check:onboarding-stay": "node scripts/check-onboarding-stay.mjs",
     "check:onboarding-orientation": "node scripts/check-onboarding-orientation.mjs",
+    "measure:first-save": "node scripts/measure-first-save.mjs",
     "check:nav": "node scripts/check-nav-doors.mjs",
     "check:followers": "node scripts/check-followers.mjs",
     "check:debt-limits": "node scripts/check-debt-limits.mjs",
