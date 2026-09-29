@@ -243,22 +243,26 @@ public struct ForgentaWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The name gets the whole row width: sharing a line with the amount cut "Chase Freedom" to
+    /// "Chase Fr..." on the small widget (CI host render, run 36507002652). The amount sits on the
+    /// due-date line instead, still right-aligned and gold.
     private func debtRow(_ row: DebtPayment, _ s: WidgetSnapshot) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(row.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(tinted ? AnyShapeStyle(.primary) : AnyShapeStyle(palette.foreground))
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: 1) {
+            Text(row.name)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tinted ? AnyShapeStyle(.primary) : AnyShapeStyle(palette.foreground))
+                .lineLimit(1).minimumScaleFactor(0.8)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(dueText(row.dueDate))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(labelStyle)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text(row.amount.map { s.format($0) } ?? "Not modelled")
+                    .font(.system(size: row.amount == nil ? 10 : 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(row.amount == nil ? labelStyle : figureStyle(palette.gold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
             }
-            Spacer(minLength: 4)
-            Text(row.amount.map { s.format($0) } ?? "Not modelled")
-                .font(.system(size: row.amount == nil ? 11 : 17, weight: .bold, design: .rounded))
-                .foregroundStyle(row.amount == nil ? labelStyle : figureStyle(palette.gold))
-                .lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 

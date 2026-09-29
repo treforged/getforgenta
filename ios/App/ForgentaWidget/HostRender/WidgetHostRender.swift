@@ -31,7 +31,8 @@ struct HostScreen: View {
         let json = """
         {"monthEndCash": 1842.5, "netWorth": -12640, "currency": "USD", "updatedAt": "\(updatedAt)",
          "nextDebtPayments": [{"name": "Chase Freedom", "amount": 85, "dueDate": "2026-10-03"},
-                              {"name": "Discover it", "amount": null, "dueDate": "2026-10-11"}]}
+                              {"name": "Discover it", "amount": null, "dueDate": "2026-10-11"},
+                              {"name": "Capital One Venture X", "amount": 1240.5, "dueDate": null}]}
         """
         snap = WidgetSnapshot.decode(json: json, now: now)
         let args = ProcessInfo.processInfo.arguments

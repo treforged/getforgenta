@@ -183,8 +183,8 @@ jobs:
             fi
             STATUS=$(cat "$DATA/Documents/host-status.txt")
             echo "host status: $STATUS"
-            # The fixture carries 2 debt rows; anything else means the real decoder refused or dropped them.
-            if [ "$STATUS" != "palette=$P decode=ok debts=2" ]; then
+            # The fixture carries 3 debt rows (the payload max); anything else means the real decoder refused or dropped them.
+            if [ "$STATUS" != "palette=$P decode=ok debts=3" ]; then
               echo "WIDGET FIXTURE NOT DECODED AS EXPECTED for $P"
               exit 1
             fi
