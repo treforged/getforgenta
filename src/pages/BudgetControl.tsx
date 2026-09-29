@@ -353,14 +353,19 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     }
   }, [profile]);
 
-  useEffect(() => {
-    if (!rulesLoading && !isDemo && user && rules.length === 0 && !starterSeededRef.current) {
-      starterSeededRef.current = true;
-      DEFAULT_STARTER_RULES.forEach(r => {
-        addRule.mutate({ ...r, active: true, due_month: null, payment_source: null, deposit_account: null, notes: r.notes || '' });
-      });
-    }
-  }, [rulesLoading, isDemo, user, rules.length, addRule]);
+  // ⚠️ THE SAMPLE SET IS WRITTEN ONLY BY AN EXPLICIT PRESS (2026-09-29). This used to be an
+  // effect that inserted these 9 made-up rules ($1,400 rent, a $1,875 weekly paycheck, ...) into
+  // the user's REAL data whenever the page opened with 0 rules, and every forecast was then built
+  // on them. Its guard was this ref, which resets on every mount, so it re-seeded: 13 real users
+  // carried 291 such rows, 4 of them seeded more than once, and 5 had nothing else. Do NOT turn
+  // it back into an effect. `BudgetControl.noAutoSeed.test.tsx` mounts twice and asserts 0 writes.
+  const addStarterRules = () => {
+    if (isDemo || !user || starterSeededRef.current || rules.length > 0) return;
+    starterSeededRef.current = true;
+    DEFAULT_STARTER_RULES.forEach(r => {
+      addRule.mutate({ ...r, active: true, due_month: null, payment_source: null, deposit_account: null, notes: r.notes || '' });
+    });
+  };
 
   // Auto-save income/tax with debounce + auto-sync income rule
   const resolveAmt = (d: PaycheckDeduction, gross: number) =>
@@ -1504,6 +1509,19 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           inside the iOS 15 target) six segments at the shared padding need 314px in 291px, so
           one scrolled offscreen. `check:plan-bar` asserts 390/375/360/320. */}
       <div className="space-y-4">
+        {!rulesLoading && !isDemo && rules.length === 0 && (
+          <div className="card-forged p-4 space-y-2">
+            <p className="text-sm font-semibold">No bills or income yet</p>
+            <p className="text-xs text-muted-foreground">
+              Add your own with Add Income and Add Fixed below, or start from a sample set of 8
+              common bills and a paycheck. The sample amounts are placeholders: change each one to
+              yours.
+            </p>
+            <button type="button" onClick={addStarterRules} className="btn btn-md btn-secondary">
+              Start from a sample set
+            </button>
+          </div>
+        )}
         <PanelBar>
           {([
             { id: 'income', label: 'Income', icon: Banknote, count: incomeRules.length },
