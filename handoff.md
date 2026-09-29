@@ -24,7 +24,13 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     FINDING (file it): rule notes are silently cut at 300 chars (LIMITS.ruleNotes, BudgetControl.tsx:715), no counter.
-R000 START HERE (09-29 ~00:25, getforgenta-c7 handed off at the 175-call gate). SAM'S OPEN ASK, READ-ONLY REPORT, change nothing:
+R000 [x] DONE 09-29 ~00:45 (getforgenta-c6): ranked report sent to Sam (tre-forged-40). Fresh dump replayed, BASE matched
+    to the dollar. Ranked: (1) deposit netted vs lease fee in Mar -> Mar exactly on floor (measured via oneTimeByMonth, NOT
+    transactions: the engine reads the provider's precomputed oneTimeByMonth, so mutating fx.transactions changes nothing);
+    (2) pause Roth 401k ~+$350-437/mo ESTIMATE (paycheck rule is already net); (3) Owners Contribution $145 -> Mar -203,
+    payoff Jun 2029, but it funds $140.90 of business subs; (4) Move fund already backed off to $0 in every short month.
+    Nov floor is the automatic rent-driven floor (manual floor $0), not a setting. Was:
+R000 (09-29 ~00:25, getforgenta-c7 handed off at the 175-call gate). SAM'S OPEN ASK, READ-ONLY REPORT, change nothing:
     where can Tre's Mar 2027 gap ($812 to zero, $963 to its $150 floor) and the Oct 2026-Jan 2027 floor breaches come
     from WITHOUT adding card interest? Check (1) goal contributions Oct-Mar incl. the car fund (savings_goals, car_funds;
     NOTE savings_goals has no `priority` column), (2) the largest discretionary expense rules, (3) income after the lease
@@ -11568,17 +11574,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-28 23:54 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 00:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M src/components/layout/DashboardLayout.tsx
  M supabase/.temp/cli-latest
 ?? src/hooks/__tests__/useSimGlassExperiment.test.tsx
@@ -11588,14 +11593,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+7833a8cc [handoff]: R000 Sam's gap-source report queued; engine facts and offline re-run recipe
+961812ad [forecast]: never advise setting money aside from months already below the floor
+f7c18c5a [handoff]: sim chain state (vars fix works, email secret refused), save-up and notes shipped
 3569f37b [forecast]: a one-time floor breach says how much to set aside, and from when
 de60a879 [ios-sim]: email guard is case-insensitive and says why it refused
 494ae682 [ios-sim]: read the public Supabase URL and key from repo variables
 c1ff690d [budget]: rule notes show a live n/300 counter and stop at the limit
 0db3271d [handoff]: lease dictation rows entered and read back; March 2027 projects -$29
-e21555ce [ios-sim]: send a browser User-Agent when reading the live bundle
-6e71e1b9 [handoff]: Tre dictation state (rent via app done, electricity to verify), sim 403 cause
-394a010c [ios-sim]: read the Supabase URL and key from the live bundle; add the glass shot
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
