@@ -42,14 +42,19 @@ export default function AppLockScreen() {
     if (!ok) toast.error('Biometric authentication failed — use your PIN instead');
   }, [lockType, unlockWithBiometric]);
 
-  // Auto-trigger biometric on mount / when lock screen appears
+  // Auto-trigger biometric once the lock screen has PAINTED (Tre, build 1112: "the biometric page
+  // should load fully before face id"). Two animation frames put the call after the first frame of
+  // this screen is on glass; the short delay after that keeps the system sheet from racing it.
   useEffect(() => {
-    if (!isLocked) return;
-    if (lockType === 'biometric' && !showPinFallback) {
-      const t = setTimeout(triggerBio, 400);
-      return () => clearTimeout(t);
-    }
-  }, [isLocked, lockType, showPinFallback, triggerBio]);
+    if (!ready || !isLocked) return;
+    if (lockType !== 'biometric' || showPinFallback) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => { t = setTimeout(triggerBio, 250); });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); if (t) clearTimeout(t); };
+  }, [ready, isLocked, lockType, showPinFallback, triggerBio]);
 
   // The key currently lit, and the timer that clears it. The ref lets a fast repeat press
   // restart the flash instead of the first press's timer cutting the second one short.
@@ -108,7 +113,15 @@ export default function AppLockScreen() {
     navigate('/auth', { replace: true });
   };
 
-  if (!ready || !isLocked) return null;
+  // ⚠️ WHILE THE LOCK IS STILL DECIDING, COVER THE APP. The routes render underneath this overlay
+  // from the first frame, and init is async (Preferences reads + getSession), so returning null
+  // here showed a locked user's money for that whole window - and the native cover drops on
+  // "dashboard ready", which can land inside it (e34975a1). Opaque, no content, native only: web
+  // is `ready` from the first render, so it never shows this.
+  if (!ready) {
+    return <div data-testid="app-lock-pending" aria-hidden="true" className="fixed inset-0 z-9999 bg-background" />;
+  }
+  if (!isLocked) return null;
 
   return (
     <div className="fixed inset-0 z-9999 bg-background flex flex-col items-center justify-center gap-8 px-8" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>

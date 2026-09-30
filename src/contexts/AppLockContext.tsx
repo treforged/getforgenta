@@ -14,6 +14,14 @@ const P = {
 
 const LS_UNLOCKED_AT = 'forged:lock_unlocked_at';
 const LS_FAILED      = 'forged:lock_failed';
+/**
+ * '1' from the moment the lock screen goes up until it is cleared (ask e34975a1, 2026-09-29).
+ * A `bg_reload` skips the fresh-launch lock check, and AppDelegate also reloads with that flag when
+ * the native cover's deadline fires - which can happen on a COLD launch while the user is still
+ * looking at the lock. Without this marker that reload came up UNLOCKED: Tre, build 1112, "it just
+ * loads straight into the app without it sometime".
+ */
+export const LOCK_PENDING = 'forged:lock_pending';
 
 const INIT_GRACE_MS = 3_000;
 export const MAX_FAILED_ATTEMPTS = 5;
@@ -23,10 +31,15 @@ async function sha256(text: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ONE shared import. Init reads several keys in parallel, and each read used to start its own
+// dynamic import; sharing the promise costs nothing on a device and gives every read the same module.
+let preferencesPromise: Promise<typeof import('@capacitor/preferences')> | null = null;
+const preferencesModule = () => (preferencesPromise ??= import('@capacitor/preferences'));
+
 async function pGet(key: string): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
     try {
-      const { Preferences } = await import('@capacitor/preferences');
+      const { Preferences } = await preferencesModule();
       const { value } = await Preferences.get({ key });
       return value;
     } catch {
@@ -39,7 +52,7 @@ async function pGet(key: string): Promise<string | null> {
 async function pSet(key: string, value: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     try {
-      const { Preferences } = await import('@capacitor/preferences');
+      const { Preferences } = await preferencesModule();
       await Preferences.set({ key, value });
       return;
     } catch { /* fall through */ }
@@ -50,7 +63,7 @@ async function pSet(key: string, value: string): Promise<void> {
 async function pDel(key: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     try {
-      const { Preferences } = await import('@capacitor/preferences');
+      const { Preferences } = await preferencesModule();
       await Preferences.remove({ key });
       return;
     } catch { /* fall through */ }
@@ -89,6 +102,26 @@ interface AppLockContextType {
    */
   openSetupModal: () => void;
   lockNow: () => void;
+}
+
+/**
+ * `getSession` can refresh an expired token over the network, and the lock's cover (AppLockScreen)
+ * stays up until init finishes. So bound the wait, and on timeout answer "there is a session":
+ * that FAILS CLOSED (the lock screen shows, and it offers PIN and sign-in), never open.
+ */
+export const LOCK_SESSION_TIMEOUT_MS = 4_000;
+export async function hasSessionForLock(
+  getSession: () => Promise<{ data: { session: unknown } }>,
+  timeoutMs = LOCK_SESSION_TIMEOUT_MS,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(true), timeoutMs); });
+  const read = getSession().then(r => !!r.data.session, () => true);
+  try {
+    return await Promise.race([read, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 const AppLockContext = createContext<AppLockContextType>({
@@ -151,11 +184,24 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       await pDel('forged:bg_reload'); // always clear regardless of value
       if (bgReload === '1') {
         debugLog('INIT_BGRELOAD');
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await hasSessionForLock(() => supabase.auth.getSession());
         // Keep skipLockClearOnSignIn=true only if there's an active session so
         // that the SIGNED_IN session-restore event is absorbed. If no session,
         // allow a fresh sign-in to proceed normally through the handler.
         if (!session) skipLockClearOnSignIn.current = false;
+        // The reload skips the fresh-launch check, NOT the lock itself: restore the settings
+        // (this path used to leave lockEnabled false, so Settings and lockNow saw no lock), and
+        // stay locked when the reload interrupted a lock that had not been cleared yet.
+        const [bgEnabled, bgType, pending] = await Promise.all([pGet(P.enabled), pGet(P.type), pGet(LOCK_PENDING)]);
+        const bgLockOn = bgEnabled === '1';
+        setLockEnabled(bgLockOn);
+        setLockTypeState((bgType ?? 'pin') as LockType);
+        if (bgLockOn && pending === '1' && session) {
+          setIsLocked(true);
+          debugLog('INIT_BGRELOAD_STILL_LOCKED');
+        } else if (pending === '1') {
+          await pDel(LOCK_PENDING);
+        }
         const fails = parseInt((await pGet(LS_FAILED)) ?? '0', 10);
         setFailedAttempts(fails);
         try {
@@ -182,9 +228,10 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         const withinGrace = !!ts && (Date.now() - parseInt(ts)) < INIT_GRACE_MS;
         debugLog(`INIT_GRACE:${withinGrace ? 'yes' : 'no'}`);
         if (!withinGrace) {
-          const { data: { session } } = await supabase.auth.getSession();
+          const session = await hasSessionForLock(() => supabase.auth.getSession());
           debugLog(`INIT_SESSION:${session ? 'yes' : 'no'}`);
           if (!session) skipLockClearOnSignIn.current = false;
+          if (session) await pSet(LOCK_PENDING, '1');
           setIsLocked(!!session);
           debugLog(`INIT_LOCKED:${!!session}`);
         } else {
@@ -233,7 +280,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         debugLog('AUTH_SIGNED_OUT');
         skipLockClearOnSignIn.current = false;
-        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
+        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted), pDel(LOCK_PENDING)]);
         localStorage.removeItem(LS_UNLOCKED_AT);
         await pDel(LS_FAILED);
         setLockEnabled(false);
@@ -250,6 +297,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
   const markUnlocked = useCallback(async () => {
     localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
+    await pDel(LOCK_PENDING);
     await pSet(LS_FAILED, '0');
     setFailedAttempts(0);
   }, []);
@@ -331,7 +379,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   }, [markUnlocked]);
 
   const disableLock = useCallback(async (): Promise<void> => {
-    await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(LS_FAILED)]);
+    await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(LS_FAILED), pDel(LOCK_PENDING)]);
     localStorage.removeItem(LS_UNLOCKED_AT);
     setLockEnabled(false);
     setIsLocked(false);
@@ -348,7 +396,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const lockNow = useCallback(() => {
-    if (lockEnabled) setIsLocked(true);
+    if (!lockEnabled) return;
+    void pSet(LOCK_PENDING, '1');
+    setIsLocked(true);
   }, [lockEnabled]);
 
   return (
