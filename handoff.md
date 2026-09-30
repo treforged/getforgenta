@@ -43,7 +43,10 @@ R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
         acc5b80d verify-turnstile edge function now has no client (logs are 24h, so undeploy needs more than a zero).
     NEXT: section 2's premise FAILS (its matcher can never see an over-plan charge; posted bills already leave the
         floor; the buffer carries the overrun forward once linked). Sent Sam: close s.2, build a 'link this over-plan
-        charge' nudge instead. Start the nudge unless Sam objects (see the new desk ask on it).
+        charge' nudge instead. SAM AGREED (doc closed in a docs commit). FIRST grep the caller: BankActivity.tsx already
+        has a 'Link and correct' flow (test BankActivity.linkAndCorrectUndo) - check whether it already offers over-plan
+        charges before building anything. Then 57753d08: is dated-commitments the engine 2dcdcdde needs? Model the
+        lease-break fee as a dated cost; do NOT re-run the disproved 'fund it Oct-Feb' premise.
     NOTE: `npm run test:tz` failed once here with "'node' is not recognized" in npm's child shell; not reproduced later.
         `node scripts/test-timezones.mjs` is the same gate without npm.
 R-NOW15 (09-30 ~10:10Z, Ada getforgenta-90 handed off at the 212-call gate). START HERE:
