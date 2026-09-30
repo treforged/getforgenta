@@ -36,6 +36,10 @@ R-NOW14 (09-30 ~08:30Z, Ada getforgenta-90). DONE this session, all pushed:
         counted as a wizard save, flaky 1 of 2 runs). Proven red on a real double save.
     [x] 69b8d660 "Confirm your email" screen after email sign-up (the toast was the only signal). Proven red twice.
         [x] LIVE on getforgenta.com (stubbed signup: confirm screen 1, form 0).
+    [x] Full walk on HEAD, 3 runs: 367 enumerated every time (was 373 on 57e38e17, unattributable then). Run 3:
+        pressed 147, changed 147, not-found 0, PASS. Run 1's 2 not-found were /dashboard still on skeletons (cold
+        load). walk:press now prints a per-route line (commit "[walk]: ... per route"); that line is the baseline.
+        check:dark-contrast 470 elements, 0 below AA. Queue: every other Ada row waits on Tre or a date.
 R-NOW13 (09-30 ~08:00Z, Ada handed off at the 192-call gate). START HERE, IN ORDER:
     1. [x] e7d28de3 CLOSED 09-30: run 36684400350 pair garbage=0.00 real=23.58; boot_failures total 3, newest 21:38:13Z.
        Was: sim run 36684400350 on a77e25cc = SUCCESS. Still to read: (a) its "Screenshot a garbage
@@ -11870,31 +11874,34 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 03:53 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 04:52 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (3 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
+ M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
+?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+5009e08e [handoff]: R-NOW14 - funnel, signup verified, confirm-email screen live
+69b8d660 [auth]: after email sign-up, a screen says the account exists and where the link went
+c987232e [onboarding]: check:first-save counts only the wizard's own tables as a save
+ee7e8b32 [handoff]: R-NOW13 - e7d28de3 and f3c0cdf5 closed, layout sweep green
 14ea501d [handoff]: R-NOW13 - 407bcea2 engine fix, e7d28de3 close check pending
 407bcea2 [forecast]: an account-paid expense its account cannot cover is paid from checking (f3c0cdf5)
 bef8669f [handoff]: R-NOW12 - split refused on measurement, f3c0cdf5 scoped, sim run pending
 a77e25cc [handoff]: R-NOW11 - 259d24d2 processor disclosure shipped
-259d24d2 [legal]: the privacy policy names the email and push processors (5874c945)
-98f421af [handoff]: R-NOW11 - 5874c945 compliance list closed, b7f57bd5 store cancel link
-b7f57bd5 [settings]: App Store and Google Play subscribers can find cancel on the Plan card (5874c945)
-ba36e7e6 [handoff]: R-NOW10 - desktop contrast green both themes; queue waits on Tre or dates
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
