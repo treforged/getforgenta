@@ -25,6 +25,25 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW15 (09-30 ~10:10Z, Ada getforgenta-90 handed off at the 212-call gate). START HERE:
+    1. STANDING e1b0fffc slice, chosen: WIRE THE VARIABLE-BILL BUFFER (Tre 2026-09-05, verbatim in
+       docs/dynamic-cash-floor.md section 3). Built and tested but ZERO callers: sizing
+       src/lib/variable-bill-buffer.ts (a682d752, p90 of the rule's own history, >=3 obs, CV >= 0.1), and
+       plumbing getPrePaycheckNextMonthBills / getAugmentedMinSafeCash optional `bufferByRuleId` (9a1158c6,
+       proven no-op when absent). Missing: a caller that builds the map and passes it at ALL floor call sites
+       (useCardProjection.ts 1143/1651/1806/2031, forecast-engine.ts 1587, Dashboard.tsx 414/431,
+       useForecastEngineInputs.ts 115, CreditCardEngine.tsx 377, credit-card-engine.ts 3194, pay-schedule.ts 869)
+       or sim and engine will disagree. OPEN DESIGN POINT: history matching. transaction-matching.ts matches
+       by AMOUNT (1% tolerance), which can never see a $190 bill planned at $120. Check first whether any table
+       now links a transaction to a rule (my SQL for it was blocked by the gate; the doc says no rule_id on
+       transactions/synced_transactions). Verify on the DEMO fixture (runDemoCardProjection), assert the
+       no-history no-op byte-identical, test:tz. It WILL move Tre's floor and payoff dates: report the numbers
+       before/after to Sam. Also section 2 (floor rises when a bill comes in OVER plan) is still NOT BUILT.
+    2. Other orphans found by the 09-30 sweep (0 callers in src, scripts, supabase): use401kAutoUpdate.ts
+       (header claims it adds 401k contributions on load; 1a042484 pruned symbols in it), dated-commitments.ts,
+       consolidation-adapter.ts, public-pricing.ts, settings-ia.ts (test-only), PhoneAuth.tsx,
+       TurnstileWidget.tsx, ui/tabs.tsx, builds-c5-data.ts. For each: does its header claim live behaviour?
+       If yes, wire or tombstone it; say which. The sweep's control: DashboardLayout must show 1 reference.
 R-NOW14 (09-30 ~08:30Z, Ada getforgenta-90). DONE this session, all pushed:
     [x] Funnel (ask f120282d, read-only): 29 real users, onboarded 6, bank 3, budget 12, week-2 return 2. Newest real
         signup 2026-08-07, 0 since. Bottleneck = acquisition; Sam routed it to Ruby + Ellis.
@@ -11884,7 +11903,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 05:09 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 05:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11902,14 +11921,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d873993a [handoff]: R-NOW14 - badge share, new-badge row, dependabot fixed
+a1c1c2da [deps]: brace-expansion override 5.0.9 -> 5.0.12 (Dependabot #79 #80 #81)
+99f4b10a [dashboard]: a just-earned badge shows on Home with Share, and milestones are granted there again
+46f3ddee [share]: every earned badge can be shared, with a tagged link; two trophy gates fixed
+860bf822 [share]: the debt-free card carries a tappable link, tagged as a share arrival
 0065e921 [handoff]: R-NOW14 - walk 3x green, per-route baseline
 5fc0501a [walk]: walk:press prints its control count per route
 5009e08e [handoff]: R-NOW14 - funnel, signup verified, confirm-email screen live
-69b8d660 [auth]: after email sign-up, a screen says the account exists and where the link went
-c987232e [onboarding]: check:first-save counts only the wizard's own tables as a save
-ee7e8b32 [handoff]: R-NOW13 - e7d28de3 and f3c0cdf5 closed, layout sweep green
-14ea501d [handoff]: R-NOW13 - 407bcea2 engine fix, e7d28de3 close check pending
-407bcea2 [forecast]: an account-paid expense its account cannot cover is paid from checking (f3c0cdf5)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
