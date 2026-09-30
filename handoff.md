@@ -41,6 +41,9 @@ R-NOW10 (09-30 ~02:45Z, Ada). R-NOW9 RESULTS:
        [x] $40k control only flags with the paced flag on: EXPLAINED, harmless. Flag off, Jan 2027 ends -37,804 and the
        milestone is "Cash goes negative!" (it wins over the one-time label); flag on, -37,396 and "One-time expense
        caused floor breach". (e) asserts only the paced arm, where the control applies. No change.
+    [x] 3. 57e38e17: warning milestone when a planned expense is more than its account holds (e3566eab chart residue).
+       Real-data pair test (split capture fires Mar 2027, golden none), proven red, test:tz 5388 x3.
+    [ ] 4. NEXT: walk:press + contrast sweeps on the current build (proposed to Sam).
        Free-tier draft (qwen3-coder:30b) was rejected: invented goal.target/targetDate and skipped 4 of 7 steps.
 R-NOW9 (09-30 ~03:00Z, Ada getforgenta-89 handed off). DONE, see R-NOW10:
     1. iOS upload run 36659479178 (dispatched on 99a9137e, carries the cover fix 2d076430): read the UPLOAD STEP's
