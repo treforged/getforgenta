@@ -27,8 +27,8 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW11 (09-30, Ada). 5874c945 compliance list DONE and closed: unsubscribe, analytics disclosure and AI claims hold;
     b7f57bd5 adds a store-subscriber Manage/cancel link to Settings > Plan (Settings.storeCancel.test.tsx, proven red,
-    test:tz 5391 x3, Vercel success, JS-only). OPEN WITH SAM: Legal.tsx does not name Resend or APNs/FCM (policy text is
-    his call). Postal address in the newsletter = Tre's 09-16 decision, not refiled.
+    test:tz 5391 x3, Vercel success, JS-only). [x] 259d24d2: Legal.tsx section 3 names Resend + APNs + FCM (Sam approved),
+    gated by Legal.processorDisclosure.test.ts (derived from hosts in supabase/functions), test:tz 5395 x3. Postal address in the newsletter = Tre's 09-16 decision, not refiled.
 R-NOW10 (09-30 ~02:45Z, Ada). R-NOW9 RESULTS:
     [x] 1. iOS 1123 UPLOADED (run 36659479178: Upload step success + "UPLOAD SUCCEEDED with no errors"). Sam told.
        e7d28de3 closes when Tre opens 1123 with no black screen.
