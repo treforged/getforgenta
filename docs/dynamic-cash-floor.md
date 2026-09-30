@@ -35,6 +35,14 @@ which OBLIGATIONS belong in the floor, not about the 0.
 
 ## 2. Intra-month adjustment — HALF built, and the built half only moves the floor DOWN.
 
+**CLOSED 2026-09-30 as covered by section 3 (Ada; Sam agreed).** The slice below matches actuals through
+`transaction-matching`, whose 1% gate can never match an over-plan charge - `variable-bill-buffer.floor.demo.test.ts`
+asserts that $190 against a $120 plan returns null. So as written it could never fire in the direction it exists for.
+A bill that has posted already leaves the floor through `dueSynced`, because the balance carries its real cost; the
+overrun then raises every later reserve through the section 3 buffer, once the user links the charge. What remains is
+an over-plan charge the user has NOT linked, and the fix for that is a nudge to link it, not a wider matcher: feeding
+`rule-drift`'s merchant band into a money number is what that file's own header forbids. Text below kept as the record.
+
 **Down, as bills clear: BUILT.** `dueSynced` inside `getAugmentedMinSafeCash` drops a month-0
 obligation from the floor once `isCapturedInBalance` says the bank already reflects it. A paid
 bill stops being reserved.
