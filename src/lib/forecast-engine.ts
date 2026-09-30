@@ -26,10 +26,10 @@ import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
-import { buildPacedContributionSchedules, goalContributionForMonth, scheduledAfter, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
+import { buildPacedContributionSchedules, buildPacedStopSchedules, goalContributionForMonth, scheduledAfterForStop, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
-import { carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId } from '@/lib/ranked-extra-payment-targets';
+import { carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId, stopIndexOfRow } from '@/lib/ranked-extra-payment-targets';
 import {
   IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate, monthsUntilTargetDate,
 } from '@/lib/retirement-contribution-cap';
@@ -537,12 +537,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           alreadyContributed: contributedByYear.get(goalId)?.get(monthDate.getFullYear()) ?? 0,
           month: monthDate.getMonth(),
         });
-      // 585ec24a: a paced goal's stop 1 is already covered by its scheduled deposits; the reserve
-      // paces only what those leave uncovered.
-      const committed = rowId === stopRowId(goalId, 1)
-        ? scheduledAfter(pacedGoalSchedules, goalId,
-          (monthDate.getFullYear() - nowDate.getFullYear()) * 12 + (monthDate.getMonth() - nowDate.getMonth()))
-        : 0;
+      // 585ec24a: a paced stop is already covered by its OWN scheduled deposits; the reserve paces
+      // only what those leave uncovered. 66d3af19: every dated stop is paced now, not only stop 1,
+      // so each stop row is credited with its own schedule and never with another stop's.
+      const stopIndex = stopIndexOfRow(rowId, goalId);
+      const committed = stopIndex == null ? 0 : scheduledAfterForStop(pacedStopScheduleMap, goalId, stopIndex,
+        (monthDate.getFullYear() - nowDate.getFullYear()) * 12 + (monthDate.getMonth() - nowDate.getMonth()));
       const onTime = levelMonthlyToDate({
         remainingNeed: Math.max(0, remaining - committed),
         monthsUntilDate: monthsUntilTargetDate(targetDateByRowId.get(rowId), monthDate),
@@ -694,6 +694,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // 585ec24a: the same back-loaded schedule the sim draws (useCardProjection.ts builds it from
     // the same `now`), so both sides deduct the same goal dollars from the same month.
     const pacedGoalSchedules = buildPacedContributionSchedules(goals, nowDate, PROJECTION_MONTHS, accountOutflowsFrom(transactions), hasCardDebt(accounts));
+    const pacedStopScheduleMap = buildPacedStopSchedules(goals, nowDate, PROJECTION_MONTHS, accountOutflowsFrom(transactions), hasCardDebt(accounts));
 
     /**
      * The SAME scheduled payments `activeCarLoanByMonth` totals, split out per car fund.

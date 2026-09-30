@@ -29,8 +29,8 @@ import { annualFeeAmount, annualFeeMonthIndexes } from '@/lib/annual-fee';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
-import { buildPacedContributionSchedules, goalContributionForMonth, scheduledAfter, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
-import { buildRankedTargets, buildRankableLiabilities } from '@/lib/ranked-extra-payment-targets';
+import { buildPacedContributionSchedules, buildPacedStopSchedules, goalContributionForMonth, scheduledAfterForStop, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
+import { buildRankedTargets, buildRankableLiabilities, stopRowId } from '@/lib/ranked-extra-payment-targets';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { payoffOrderAsOf } from '@/lib/debt-payoff-order';
@@ -178,6 +178,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // schedule instead of its flat monthly_contribution. Built from the SAME `now` the engine
       // uses, so month i here is month i there.
       const pacedGoalSchedules = buildPacedContributionSchedules(goals, now, PROJECTION_MONTHS, accountOutflowsFrom(transactions), hasCardDebt(accounts));
+      const pacedStopScheduleMap = buildPacedStopSchedules(goals, now, PROJECTION_MONTHS, accountOutflowsFrom(transactions), hasCardDebt(accounts));
 
       // ── Plan-derived installment fields (upfront plans override manual Accounts tab fields) ──
       // Shared derivation (deriveUpfrontPlanFields) — the SAME function CreditCardEngine.tsx's
@@ -2240,8 +2241,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           includeLiabilityTargets: true,
           cardRanks,
           cardsShare: profile?.cards_surplus_share ?? null,
-          committedByGoal: Object.fromEntries(
-            Array.from(pacedGoalSchedules.keys(), id => [id, scheduledAfter(pacedGoalSchedules, id, 0)]),
+          // 66d3af19: each paced STOP is credited with its own deposits, never another stop's.
+          committedByStop: Object.fromEntries(
+            Array.from(pacedStopScheduleMap, ([goalId, byStop]) => Array.from(byStop.keys(),
+              idx => [stopRowId(goalId, idx), scheduledAfterForStop(pacedStopScheduleMap, goalId, idx, 0)])).flat(),
           ),
         }),
         cardsSortOrder,

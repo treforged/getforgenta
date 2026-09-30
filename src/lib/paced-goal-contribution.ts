@@ -71,15 +71,19 @@ export function accountOutflowsFrom(
 }
 
 /**
- * Returns a paced contribution schedule for a goal if it qualifies.
- * Returns null if the goal does not qualify.
+ * 66d3af19 - PACE EVERY DATED STOP, IN ORDER, not only the first. Measured 2026-09-30 on Tre's
+ * capture: with the move fund split into "Lease break" (3,830 by 2027-03-01) and "Deposit" (1,900
+ * by 2027-07-03), only stop 1 was paced, the Deposit stop drew $0, and the forecast showed the card
+ * payoff nine months EARLIER than the money allowed. Stop k is paced from the month after stop
+ * k-1's deadline to its own deadline. A stop with no date of its own ends the chain. Keyed by the
+ * stop's 1-based `index`, so the ranked reserve can credit each stop with its own deposits.
  */
-export function pacedContributionSchedule(
+export function pacedStopSchedules(
   goal: PacedGoal,
   asOf: Date,
   horizon: number,
   outflows: ReadonlyArray<AccountOutflow> = [],
-): number[] | null {
+): Map<number, number[]> | null {
   // Rule 1: monthly_contribution must be a finite positive number
   const monthlyContribution = Number(goal.monthly_contribution);
   if (!Number.isFinite(monthlyContribution) || monthlyContribution <= 0) {
@@ -115,59 +119,110 @@ export function pacedContributionSchedule(
   // Rule 4: first stop must exist with size > 0 and share
   const { stops } = goalStages(goal, 0);
   if (stops.length === 0 || stops[0].size <= 0 || stops[0].share === null) {
-    return null;
+    return null; // Rule 4 unchanged
   }
 
-  // Rule 5: target date must be valid and in future or same month
-  const stop = stops[0];
-  const targetDate = stop.targetDate ?? goal.target_date ?? null;
-  const months = monthsUntilTargetDate(targetDate, asOf);
-  if (months === null || months < 0) {
-    return null;
-  }
-
-  // Rule 6: need must be > 0.01
   const currentAmount = Math.max(0, Number(goal.current_amount) || 0);
-  const need = stop.threshold - currentAmount;
-  if (need <= 0.01) {
-    return null;
+  const len = Math.max(0, Math.trunc(horizon));
+  let current = currentAmount;
+  let start = 0; // month index of the first payment this stop may take
+  const result = new Map<number, number[]>();
+
+  for (let k = 0; k < stops.length; k++) {
+    const stop = stops[k];
+
+    // A later stop needs dollars and a date of its own. It needs NO split `share`: a later stop
+    // with no weight is simply not in a split (goalStages), but it is still what this goal's own
+    // contribution is saving for - leaving it out drew $0 for Tre's Deposit stop.
+    if (k > 0 && (stop.size <= 0 || !stop.targetDate)) {
+      break;
+    }
+
+    const targetDate =
+      k === 0 ? stop.targetDate ?? goal.target_date ?? null : stop.targetDate;
+
+    const months = monthsUntilTargetDate(targetDate, asOf);
+    if (months === null || months < start) {
+      if (k === 0) return null;
+      break;
+    }
+
+    const need = stop.threshold - Math.max(current, stop.floor);
+    if (need <= 0.01) {
+      // Stop already satisfied; do NOT move start
+      continue;
+    }
+
+    // ⚠️ THE MONEY MUST BE THERE BEFORE IT LEAVES, NOT ON THE DATE. Measured 2026-09-23 on Tre's
+    // fixture: the move account pays a $3,830 lease-break fee in June and the goal's date is 3 July,
+    // so a ramp ending in July left the account ~$2,250 short in June. The deadline is therefore the
+    // month BEFORE the first planned outflow from the goal's own account, when that comes first.
+    // Outflows in the current month are ignored: they are not something a schedule can still fund.
+    let deadline = Math.trunc(months);
+    const acct = goal.linked_account ?? null;
+    if (acct) {
+      for (const o of outflows) {
+        if (o.accountId !== acct) continue;
+        const m = monthsUntilTargetDate(o.date, asOf);
+        if (m == null || m < start + 1 || m > deadline) continue;
+        deadline = Math.min(deadline, m - 1);
+      }
+    }
+
+    const payments = deadline - start + 1;
+    if (payments < 1) break;
+
+    const { perMonth } = runPaceToDeadline(
+      need,
+      payments,
+      backLoadedMonthlyCeiling,
+    );
+
+    // Round to cents and adjust last payment to hit need exactly
+    const cents = perMonth.map((x) => Math.round(x * 100) / 100);
+    const total = cents.reduce((s, x) => s + x, 0);
+    if (cents.length > 0) {
+      const lastIdx = cents.length - 1;
+      cents[lastIdx] = Math.round((cents[lastIdx] + (need - total)) * 100) / 100;
+    }
+
+    const schedule = Array.from({ length: len }, () => 0);
+    for (let j = 0; j < cents.length; j++) {
+      const idx = start + j;
+      if (idx < len) schedule[idx] = cents[j];
+    }
+
+    result.set(stop.index, schedule);
+    start = deadline + 1;
+    current = Math.max(current, stop.threshold);
   }
 
-  // ⚠️ THE MONEY MUST BE THERE BEFORE IT LEAVES, NOT ON THE DATE. Measured 2026-09-23 on Tre's
-  // fixture: the move account pays a $3,830 lease-break fee in June and the goal's date is 3 July,
-  // so a ramp ending in July left the account ~$2,250 short in June. The deadline is therefore the
-  // month BEFORE the first planned outflow from the goal's own account, when that comes first.
-  // Outflows in the current month are ignored: they are not something a schedule can still fund.
-  let deadline = Math.trunc(months);
-  const acct = goal.linked_account ?? null;
-  if (acct) {
-    for (const o of outflows) {
-      if (o.accountId !== acct) continue;
-      const m = monthsUntilTargetDate(o.date, asOf);
-      if (m == null || m < 1 || m > deadline) continue;
-      deadline = Math.min(deadline, m - 1);
+  return result.size > 0 ? result : null;
+}
+
+/**
+ * Returns a paced contribution schedule for a goal if it qualifies: the per-stop schedules summed.
+ * Returns null if the goal does not qualify.
+ */
+export function pacedContributionSchedule(
+  goal: PacedGoal,
+  asOf: Date,
+  horizon: number,
+  outflows: ReadonlyArray<AccountOutflow> = [],
+): number[] | null {
+  const stopMaps = pacedStopSchedules(goal, asOf, horizon, outflows);
+  if (!stopMaps) return null;
+
+  const len = Math.max(0, Math.trunc(horizon));
+  const aggregate = new Array<number>(len).fill(0);
+
+  for (const schedule of stopMaps.values()) {
+    for (let i = 0; i < len; i++) {
+      aggregate[i] = Math.round((aggregate[i] + (schedule[i] ?? 0)) * 100) / 100;
     }
   }
-  const payments = deadline + 1;
-  const { perMonth } = runPaceToDeadline(
-    need,
-    payments,
-    backLoadedMonthlyCeiling
-  );
 
-  // Round to cents and adjust last payment
-  const cents = perMonth.map(x => Math.round(x * 100) / 100);
-  const total = cents.reduce((s, x) => s + x, 0);
-  if (cents.length > 0) {
-    const last = cents.length - 1;
-    cents[last] = Math.round((cents[last] + (need - total)) * 100) / 100;
-  }
-
-  // Truncate or pad to horizon
-  const len = Math.max(0, Math.trunc(horizon));
-  const schedule = Array.from({ length: len }, (_, i) => cents[i] ?? 0);
-
-  return schedule;
+  return aggregate;
 }
 
 /**
@@ -217,6 +272,39 @@ export function scheduledAfter(
   schedules: ReadonlyMap<string, number[]>, goalId: string | null | undefined, monthIdx: number,
 ): number {
   const schedule = goalId ? schedules.get(goalId) : undefined;
+  if (!schedule) return 0;
+  return schedule.slice(Math.max(0, monthIdx + 1)).reduce((s, x) => s + x, 0);
+}
+
+/**
+ * The same schedules as {@link buildPacedContributionSchedules}, split by stop (1-based `index`).
+ * The ranked reserve credits each stop only with ITS OWN scheduled deposits: crediting stop 1 with
+ * a later stop's money would under-fund stop 1, and giving a later stop no credit would fund it
+ * twice (schedule plus reserve). Same gating as the total, so the two can never disagree on which
+ * goals are paced.
+ */
+export function buildPacedStopSchedules(
+  goals: readonly PacedGoal[] | null | undefined,
+  asOf: Date,
+  horizon: number,
+  outflows: ReadonlyArray<AccountOutflow> = [],
+  cardDebt = true,
+): Map<string, Map<number, number[]>> {
+  const out = new Map<string, Map<number, number[]>>();
+  if (!(pacingOverride ?? PACED_CONTRIBUTIONS_ENABLED) || !goals || !cardDebt) return out;
+  for (const goal of goals) {
+    const byStop = pacedStopSchedules(goal, asOf, horizon, outflows);
+    if (byStop && goal.id) out.set(goal.id, byStop);
+  }
+  return out;
+}
+
+/** {@link scheduledAfter} for ONE stop: what that stop's own schedule still deposits after `monthIdx`. */
+export function scheduledAfterForStop(
+  stopSchedules: ReadonlyMap<string, ReadonlyMap<number, number[]>>,
+  goalId: string | null | undefined, stopIndex: number, monthIdx: number,
+): number {
+  const schedule = goalId ? stopSchedules.get(goalId)?.get(stopIndex) : undefined;
   if (!schedule) return 0;
   return schedule.slice(Math.max(0, monthIdx + 1)).reduce((s, x) => s + x, 0);
 }

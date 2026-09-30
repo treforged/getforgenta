@@ -75,6 +75,13 @@ export type BuildRankedTargetsParams = {
    */
   committedByGoal?: Readonly<Record<string, number>>;
   /**
+   * 66d3af19: stop ROW id (`stopRowId`) -> what THAT stop's own paced schedule still deposits after
+   * this month (`scheduledAfterForStop`). Every dated stop is paced now, so each stop's reserve is
+   * paced against its own need minus its own deposits. Takes precedence over `committedByGoal`,
+   * which is read only for stop 1 when a caller passes no per-stop map.
+   */
+  committedByStop?: Readonly<Record<string, number>>;
+  /**
    * Whether LOAN targets (extra principal on a vehicle loan) may draw a reserve.
    *
    * Defaults to FALSE, and the default is about the CALLER, not about the feature. A reserve is
@@ -428,6 +435,15 @@ export function stopRowId(goalId: string, index: number): string {
   return index <= 1 ? goalId : `${goalId}::stop${index}`;
 }
 
+/** The inverse of {@link stopRowId}: the 1-based stop index a row id names, or null when it is not a stop of this goal. */
+export function stopIndexOfRow(rowId: string, goalId: string): number | null {
+  if (rowId === goalId) return 1;
+  const prefix = `${goalId}::stop`;
+  if (!rowId.startsWith(prefix)) return null;
+  const n = Number(rowId.slice(prefix.length));
+  return Number.isInteger(n) && n >= 2 ? n : null;
+}
+
 /**
  * A goal's plan: its stops in order, and what the whole thing comes to.
  *
@@ -732,7 +748,7 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
     cardsSortOrder = 0, fundingAccountId = null, accountBalances = {},
     cardRanks = {}, cardsShare = null, includeLoanTargets = false,
     liabilities = [], includeLiabilityTargets = false,
-    essentialMonthlyExpenses = 0, accountTypes, committedByGoal = {},
+    essentialMonthlyExpenses = 0, accountTypes, committedByGoal = {}, committedByStop = {},
   } = p;
 
   // Built from the SAME `cards` the block is built from, so the gate that holds a staged goal at
@@ -883,9 +899,9 @@ export function buildRankedTargets(p: BuildRankedTargetsParams): RankedTarget[] 
           // Month 0's half of the pacing the forecast engine applies to months 1+.
           ...goalMonthlyCeiling({
             goal: g, stop, asOf, accountTypes,
-            remainingNeed: stop.index === 1
-              ? Math.max(0, capacity - (committedByGoal[g.id] ?? 0))
-              : capacity,
+            remainingNeed: Math.max(0, capacity - (
+              committedByStop[stopRowId(g.id, stop.index)]
+              ?? (stop.index === 1 ? committedByGoal[g.id] ?? 0 : 0))),
           }),
         };
       });
