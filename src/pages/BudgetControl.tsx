@@ -454,6 +454,13 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       const wg = payFrequency === 'biweekly' ? parsed / 2 : payFrequency === 'monthly' ? parsed * 12 / 52 : parsed;
       setWeeklyGross(wg);
       doAutoSave(wg, taxRate, paycheckDay, payFrequency, deductions);
+    } else if (weeklyGrossInput.trim() === '' || parsed === 0) {
+      // Cleared or 0 means "no salary set" ($0 since 59c3fb37); the paycheck rule is left untouched.
+      setWeeklyGrossInput('');
+      if (weeklyGross > 0) {
+        setWeeklyGross(0);
+        doAutoSave(0, taxRate, paycheckDay, payFrequency, deductions);
+      }
     } else {
       const perPaycheck = payFrequency === 'biweekly' ? weeklyGross * 2 : payFrequency === 'monthly' ? weeklyGross * 52 / 12 : weeklyGross;
       setWeeklyGrossInput(weeklyGross > 0 ? String(Math.round(perPaycheck * 100) / 100) : '');
