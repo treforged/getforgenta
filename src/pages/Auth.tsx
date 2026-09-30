@@ -13,6 +13,7 @@ import { debugLog } from '@/lib/debugLog';
 import { trackSignUp } from '@/lib/analytics';
 import { recordFunnelStep, toErrorCode } from '@/lib/signup-funnel';
 import { Eye, EyeOff } from 'lucide-react';
+import { inboxLinkFor } from '@/lib/inbox-link';
 import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
@@ -84,6 +85,12 @@ export default function Auth() {
   // for it, so a signed-in user passing through /auth on a cold start is never counted as a visitor.
   const [signedOut, setSignedOut] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Resend cooldown for the confirm-email screen (ask ee8a0b89). The clock starts at the first
+  // send, because Supabase refuses a second confirmation email for 60 s anyway.
+  const RESEND_COOLDOWN_S = 60;
+  const [lastSentAt, setLastSentAt] = useState(0);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const resendWait = Math.max(0, Math.ceil((lastSentAt + RESEND_COOLDOWN_S * 1000 - nowTick) / 1000));
 
   // Signal Swift cover that the auth page is visible — but only when the user
   // has no active session and will stay on this page. If a session exists, Auth
@@ -186,6 +193,39 @@ export default function Auth() {
     });
     return () => { mounted = false; };
   }, [navigate, searchParams]);
+
+  // Tick once a second only while a cooldown is running on the confirm screen.
+  useEffect(() => {
+    if (!signupSentTo || resendWait <= 0) return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [signupSentTo, resendWait]);
+
+  const openInbox = async (url: string) => {
+    if (Capacitor.isNativePlatform()) await Browser.open({ url });
+    else window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!signupSentTo || resendWait > 0 || loading) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: signupSentTo,
+        options: { emailRedirectTo: `${window.location.origin}/auth` },
+      });
+      if (error) throw error;
+      setLastSentAt(Date.now());
+      setNowTick(Date.now());
+      toast.success('Sent again. It can take a minute to arrive.');
+    } catch (err: unknown) {
+      recordFunnelStep('auth_error', { method: 'email', detail: `resend_${toErrorCode(err)}` });
+      toast.error(err instanceof Error ? err.message : 'Could not resend the email. Try again shortly.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Which first-launch screen is showing. Each is counted once per launch (signup-funnel.ts).
   useEffect(() => {
@@ -537,7 +577,7 @@ export default function Auth() {
         recordFunnelStep('signup_completed', { method: 'email', detail: signUpData?.session ? 'session' : 'confirm_email' });
         // With a session the auth listener signs the user straight in; without one the account
         // waits on the emailed link, and this screen says so until they leave it.
-        if (!signUpData?.session) setSignupSentTo(email.trim());
+        if (!signUpData?.session) { setSignupSentTo(email.trim()); setLastSentAt(Date.now()); setNowTick(Date.now()); }
       }
     } catch (err: unknown) {
       if (mode === 'signup') recordFunnelStep('auth_error', { method: 'email', detail: toErrorCode(err) });
@@ -939,6 +979,27 @@ export default function Auth() {
               <span className="text-foreground font-medium">{signupSentTo}</span>.
               Open it to finish signing up. If it is not in your inbox, check spam.
             </p>
+            {(() => {
+              const inbox = inboxLinkFor(signupSentTo);
+              return inbox ? (
+                <button
+                  type="button"
+                  onClick={() => { void openInbox(inbox.url); }}
+                  className="btn btn-block btn-primary"
+                >
+                  Open {inbox.provider}
+                </button>
+              ) : null;
+            })()}
+            <button
+              type="button"
+              onClick={() => { void handleResendConfirmation(); }}
+              disabled={loading || resendWait > 0}
+              className="w-full py-3 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {resendWait > 0 ? `Resend email in ${resendWait}s` : 'Resend email'}
+            </button>
             <button
               type="button"
               onClick={() => switchMode('login')}

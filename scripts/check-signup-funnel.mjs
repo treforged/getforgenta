@@ -14,7 +14,9 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
-const EMAIL = 'funnel-walk@forgenta.test';
+// A gmail-shaped address so the confirm screen offers 'Open Gmail'. Nothing is ever sent to it:
+// the sign-up and resend calls are both answered in the browser below.
+const EMAIL = 'forgenta.funnel.walk.check@gmail.com';
 const NAME = 'Funnel Walk';
 
 const browser = await chromium.launch();
@@ -35,6 +37,8 @@ ctx.on('response', async (res) => {
   try { step = JSON.parse(req.postData() || '{}').step; } catch { /* reported below */ }
   sent.push({ step, body: req.postData(), status: res.status() });
 });
+let resendCalls = 0;
+await ctx.route('**/auth/v1/resend**', (route) => { resendCalls++; return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }); });
 await ctx.route('**/auth/v1/signup**', (route) => route.fulfill({
   status: 200, contentType: 'application/json',
   body: JSON.stringify({ id: '00000000-0000-0000-0000-000000000000', email: EMAIL, aud: 'authenticated', role: '', created_at: new Date().toISOString(), identities: [{}] }),
@@ -47,6 +51,8 @@ let fail = 0;
 // CONTROL: consent is UNDECIDED in this fresh context, so the banner shows on an ordinary page.
 // Without this, a context where consent was already decided would pass the reach check below
 // for the wrong reason.
+// A controllable clock, so the 60 s resend cooldown can be crossed without a 60 s wait.
+await page.clock.install();
 await page.goto(`${BASE}/privacy`, { waitUntil: 'networkidle' });
 await wait(1200);
 const bannerOnPrivacy = await page.getByRole('region', { name: 'Cookie consent' }).count();
@@ -116,6 +122,41 @@ await createBtn.waitFor({ state: 'visible', timeout: 10000 });
 for (let i = 0; i < 20 && await createBtn.isDisabled(); i++) await wait(250);
 await page.getByRole('button', { name: 'Create Account' }).click({ force: true });
 await wait(2500);
+
+// CONFIRM SCREEN (ask ee8a0b89): an Open-inbox button for a known provider that opens that inbox,
+// and a resend that is refused during the cooldown and works after it. Each press asserts a change.
+{
+  const openBtn = page.getByRole('button', { name: 'Open Gmail' });
+  const hasOpen = await openBtn.count();
+  let openedUrl = '';
+  if (hasOpen) {
+    const pop = ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null);
+    await openBtn.click();
+    const tab = await pop;
+    if (tab) { openedUrl = tab.url(); await tab.close(); }
+  }
+  // A signed-out browser is redirected to Google sign-in, carrying the inbox as its continue= target.
+  const okOpen = hasOpen === 1 && (openedUrl.startsWith('https://mail.google.com/')
+    || /^https:\/\/accounts\.google\.com\/.*continue=https:\/\/mail\.google\.com\//.test(openedUrl));
+  if (!okOpen) fail++;
+  console.log(`${okOpen ? 'PASS' : 'FAIL'} open inbox: button=${hasOpen} opened=${openedUrl || 'nothing'}`);
+
+  const resend = page.getByRole('button', { name: /resend email/i });
+  const hasResend = await resend.count();
+  const label0 = hasResend ? (await resend.textContent()).trim() : '';
+  const disabled0 = hasResend ? await resend.isDisabled() : false;
+  await page.clock.fastForward(61_000);
+  await page.waitForTimeout(500);
+  const label1 = hasResend ? (await resend.textContent()).trim() : '';
+  const before = resendCalls;
+  if (hasResend && !(await resend.isDisabled())) await resend.click();
+  await page.waitForTimeout(1200);
+  const label2 = hasResend ? (await resend.textContent()).trim() : '';
+  const okResend = hasResend === 1 && disabled0 && /in \d+s/.test(label0) && label1 === 'Resend email'
+    && resendCalls === before + 1 && /in \d+s/.test(label2);
+  if (!okResend) fail++;
+  console.log(`${okResend ? 'PASS' : 'FAIL'} resend: "${label0}" disabled=${disabled0} -> +61s "${label1}" -> press sent ${resendCalls - before} -> "${label2}"`);
+}
 
 // TRY IT FIRST (ask 4180a9dd), in a FRESH page so the per-launch dedupe starts clean: the welcome
 // button must open the demo, and the demo must offer the way back to sign-up. Both halves: a demo
