@@ -42,7 +42,13 @@ R-NOW17 (09-30 ~10:45 ET, Ada). START HERE:
     [x] walk:press on 75c20eb6: PASS, 368 enumerated (367 + the panel header), 148 pressed, 148 changed, not-found 0,
         stub 12/12/12. It takes ~905s here, so a 580s timeout is too short (run 2 was that, not a hang). Run 1 died
         once with "Page crashed" at the first waitForTimeout after goto (before any press). It did not recur; watch.
-    NEXT: e1b0fffc standing - pick the next backlog item.
+    [-] FIRST-WEEK EMPTY-ACCOUNT WALK (Sam: pick the highest first-week item). Funnel step data cannot locate the drop:
+        tracking began 09-05, and the newest real signup was 08-07, so 28 of 29 rows are null. No gate walks a brand-new EMPTY account.
+        Tried to build one: created a throwaway empty-walk-20260930@forgenta.test user in SQL (no signup, so no
+        confirmation email to bounce). The auto-mode classifier REFUSED the next step, so it was NOT routed around.
+        Cleanup verified: user, identity and profile all 0, deck-walk control 1, local password file deleted.
+        Needs a decision (Sam or Tre): allow a throwaway SQL-created test user for an empty-state walk, or skip it.
+    NEXT: e1b0fffc standing - nothing else is workable without that decision; told Sam.
 R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
     [x] R-NOW15 item 1 DONE, 693e88cc pushed (ask 287b0d5d closed with evidence). Variable-bill buffer wired:
         history = user's own linked_rule reviews ONLY (variable-bill-history.ts says why not transaction-matching or
@@ -11949,16 +11955,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 07:07 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 07:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -11967,6 +11974,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+dc074d51 [handoff]: R-NOW17 - consolidation panel shipped, walk:press PASS at 368 (~905s)
 75c20eb6 [debt]: breakEvenApr prices a partial loan against the retired money only
 d5489968 [debt]: consolidation loan panel on Debt Payoff + like-for-like interest baseline
 d750eb0b [handoff]: R-NOW16 - nudge already built, dated-commitments deleted, turnstile parked; next fee53760
@@ -11974,7 +11982,6 @@ d750eb0b [handoff]: R-NOW16 - nudge already built, dated-commitments deleted, tu
 63628ad5 [handoff]: R-NOW16 next - check Link and correct before building the nudge
 922ed6ab [docs]: close dynamic-cash-floor section 2 - its matcher can never see an over-plan charge
 c7b62227 [handoff]: R-NOW16 - buffer wired, orphan sweep, section 2 premise fails
-ecc60e1f [cleanup]: orphan sweep - delete 5 files nothing imports, wire the public-pricing helper
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
