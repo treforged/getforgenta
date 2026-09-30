@@ -191,6 +191,13 @@ function PrivacyContent() {
           We do not sell, rent, or trade your personal information to third parties. We do not use your financial
           data to serve advertisements.
         </p>
+        <p className="text-muted-foreground leading-relaxed">
+          <span className="text-foreground font-medium">Email and notification delivery:</span> Emails from us
+          (account confirmation, invites, billing notices, and the newsletter if you subscribed) are delivered by
+          Resend, Inc., which receives your email address and the message content. If you turn on push
+          notifications, your device's push token and the notification text pass through Apple Push Notification
+          service (iOS) or Firebase Cloud Messaging by Google (Android) so the notification can reach your device.
+        </p>
       </section>
 
       <section className="space-y-3">
