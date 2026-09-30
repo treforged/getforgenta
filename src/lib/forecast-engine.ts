@@ -2797,6 +2797,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // tell a genuine entry from a floor that had simply stepped up underneath a flat balance.
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
       }
+      // e3566eab residue: the unfunded part of an account-paid expense is charged by
+      // `shortfallByMonth`, but the chart's endingCash does not carry it (the sim does not see
+      // these outflows). Say it where the user reads warnings, so the chart is not the only signal.
+      if (unfundedAccountOutflow > 0.005) {
+        milestones.push({ month: b.monthLabel, event: `⚠️ A planned expense is more than its account holds - $${Math.ceil(unfundedAccountOutflow).toLocaleString('en-US')} must come from checking` });
+      }
 
       data.push({
         month: b.monthLabel, netWorth: Math.round(netWorth), totalAssets: Math.round(totalAssets),
