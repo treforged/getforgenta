@@ -101,7 +101,9 @@ for (let i = 0; i < 25 && !pressed; i += 1) {
   const tabs = page.locator('button[role="tab"]');
   const n = await tabs.count();
   for (let k = 0; k < n; k += 1) {
-    const label = ((await tabs.nth(k).textContent()) || '').trim();
+    // The ACCESSIBLE name: aria-label first, then text. 44e28a03 made the bar icon-only, so the
+    // text is empty and a textContent-only read failed this gate on every run since (2026-09-30).
+    const label = ((await tabs.nth(k).getAttribute('aria-label')) || (await tabs.nth(k).textContent()) || '').trim();
     if (/achievements/i.test(label)) { await tabs.nth(k).click(); pressed = true; break; }
   }
 }

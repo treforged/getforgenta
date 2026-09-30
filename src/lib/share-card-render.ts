@@ -94,8 +94,20 @@ export async function renderShareCard(
  * through and an arrival from it could not be told apart from any other. The UTM tokens are the
  * ones `attributionFromSearch` (src/lib/attribution.ts) reads and onboarding stores.
  */
-export const SHARE_LINK = 'https://getforgenta.com/?utm_source=share_card&utm_medium=app&utm_campaign=debt_free_date';
+export function shareLinkFor(campaign: string): string {
+  return `https://getforgenta.com/?utm_source=share_card&utm_medium=app&utm_campaign=${encodeURIComponent(campaign)}`;
+}
+export const SHARE_LINK = shareLinkFor('debt_free_date');
 export const SHARE_TEXT = `Planned with Forgenta: ${SHARE_LINK}`;
+
+export interface ShareCardOptions {
+  /** The share sheet's title. */
+  title: string;
+  /** utm_campaign on the link, so each card's arrivals can be counted apart. */
+  campaign: string;
+}
+
+const DEBT_FREE_SHARE: ShareCardOptions = { title: 'My debt-free date', campaign: 'debt_free_date' };
 
 /**
  * Share the rendered card image.
@@ -103,8 +115,10 @@ export const SHARE_TEXT = `Planned with Forgenta: ${SHARE_LINK}`;
  */
 export async function shareCardImage(
   blob: Blob,
-  filename = 'forgenta-debt-free.png'
+  filename = 'forgenta-debt-free.png',
+  options: ShareCardOptions = DEBT_FREE_SHARE,
 ): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  const text = `Planned with Forgenta: ${shareLinkFor(options.campaign)}`;
   // Native platform handling
   if (Capacitor.isNativePlatform?.()) {
     // Convert Blob to base64 string
@@ -129,10 +143,10 @@ export async function shareCardImage(
 
     try {
       await Share.share({
-        title: 'My debt-free date',
-        text: SHARE_TEXT,
+        title: options.title,
+        text,
         url: writeResult.uri,
-        dialogTitle: 'Share your debt-free date',
+        dialogTitle: options.title,
       });
       return 'shared';
     } catch (e: unknown) {
@@ -152,8 +166,8 @@ export async function shareCardImage(
     try {
       await navigator.share({
         files: [file],
-        title: 'My debt-free date',
-        text: SHARE_TEXT,
+        title: options.title,
+        text,
       });
       return 'shared';
     } catch (e: unknown) {

@@ -10,7 +10,7 @@
  * so the card and the header it is shared from always name the same month.
  */
 
-export type ShareCardKind = 'paid' | 'date';
+export type ShareCardKind = 'paid' | 'date' | 'badge';
 
 export interface ShareCardSpec {
   kind: ShareCardKind;
@@ -86,6 +86,30 @@ export function buildDebtFreeCard(
     subline: `${monthsToGo} ${monthWord} to go`,
     footer: FOOTER,
   };
+}
+
+/**
+ * A share card for an EARNED badge (Sam 2026-09-30: invite at a moment of value). It names the
+ * badge and the month it was earned - never its description, which may explain money. Returns null
+ * for a badge with no definition (its name is a raw id) and for any name the money guard flags, so
+ * a future badge named after a figure is simply not shareable rather than leaked.
+ */
+export function buildAchievementCard(
+  badge: { name: string; known: boolean },
+  earnedAtIso: string,
+): ShareCardSpec | null {
+  if (!badge.known || !badge.name.trim()) return null;
+  const earned = new Date(earnedAtIso);
+  if (Number.isNaN(earned.getTime())) return null;
+  const spec: ShareCardSpec = {
+    kind: 'badge',
+    eyebrow: 'Badge earned',
+    headline: badge.name.trim(),
+    dateLabel: null,
+    subline: `Earned ${earned.toLocaleString('en', { month: 'long', year: 'numeric' })}`,
+    footer: FOOTER,
+  };
+  return cardLeaksMoney(spec) ? null : spec;
 }
 
 /**

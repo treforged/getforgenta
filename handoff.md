@@ -40,6 +40,11 @@ R-NOW14 (09-30 ~08:30Z, Ada getforgenta-90). DONE this session, all pushed:
         pressed 147, changed 147, not-found 0, PASS. Run 1's 2 not-found were /dashboard still on skeletons (cold
         load). walk:press now prints a per-route line (commit "[walk]: ... per route"); that line is the baseline.
         check:dark-contrast 470 elements, 0 below AA. Queue: every other Ada row waits on Tre or a date.
+    [x] Invite loop (ask 3423dd17): 860bf822 share card now carries a tagged, tappable link. Then a Share control on
+        every EARNED badge in the Trophy Case (ShareCardButton extracted; debt button is a wrapper with the same
+        test ids). Gate `npm run check:share-badge` asserts what the share sheet receives (1 PNG + link tagged
+        campaign=badge). check:trophy-case and check:achievements-layout were RED since 44e28a03 (icon-only tabs,
+        they read textContent) - fixed to read aria-label.
 R-NOW13 (09-30 ~08:00Z, Ada handed off at the 192-call gate). START HERE, IN ORDER:
     1. [x] e7d28de3 CLOSED 09-30: run 36684400350 pair garbage=0.00 real=23.58; boot_failures total 3, newest 21:38:13Z.
        Was: sim run 36684400350 on a77e25cc = SUCCESS. Still to read: (a) its "Screenshot a garbage
@@ -11874,18 +11879,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 04:52 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 05:09 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
- M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -11894,14 +11897,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+0065e921 [handoff]: R-NOW14 - walk 3x green, per-route baseline
+5fc0501a [walk]: walk:press prints its control count per route
 5009e08e [handoff]: R-NOW14 - funnel, signup verified, confirm-email screen live
 69b8d660 [auth]: after email sign-up, a screen says the account exists and where the link went
 c987232e [onboarding]: check:first-save counts only the wizard's own tables as a save
 ee7e8b32 [handoff]: R-NOW13 - e7d28de3 and f3c0cdf5 closed, layout sweep green
 14ea501d [handoff]: R-NOW13 - 407bcea2 engine fix, e7d28de3 close check pending
 407bcea2 [forecast]: an account-paid expense its account cannot cover is paid from checking (f3c0cdf5)
-bef8669f [handoff]: R-NOW12 - split refused on measurement, f3c0cdf5 scoped, sim run pending
-a77e25cc [handoff]: R-NOW11 - 259d24d2 processor disclosure shipped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

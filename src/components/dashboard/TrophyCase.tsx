@@ -1,3 +1,5 @@
+import ShareCardButton from '@/components/shared/ShareCardButton';
+import { buildAchievementCard } from '@/lib/share-card';
 import { Trophy } from 'lucide-react';
 import { useAchievements } from '@/hooks/useAchievements';
 import { iconFor } from '@/lib/achievement-icons';
@@ -104,7 +106,7 @@ export default function TrophyCase() {
                 >
                   <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">
                     {a.name}
                     {!a.known && (
@@ -115,6 +117,18 @@ export default function TrophyCase() {
                   <p className="text-[10px] text-muted-foreground leading-snug">{a.description}</p>
                   <p className="text-[10px] text-muted-foreground/70">Earned {earnedOn(a.earnedAt)}</p>
                 </div>
+                {/* A moment of value with no money in it (Sam 2026-09-30). The user starts every
+                    share after a preview; an unknown badge has no card, so it has no button. */}
+                <ShareCardButton
+                  spec={buildAchievementCard(a, a.earnedAt)}
+                  title={`Share your ${a.name} badge`}
+                  note="This is exactly what will be shared. It shows the badge name and the month, never your numbers."
+                  imageAlt={`Your ${a.name} badge card`}
+                  filename="forgenta-badge.png"
+                  share={{ title: `I earned ${a.name} on Forgenta`, campaign: 'badge' }}
+                  buttonTestId={`share-badge-${a.id}`}
+                  compact
+                />
               </li>
             );
           })}
