@@ -125,7 +125,8 @@ export const TRACKED_COMPONENTS: readonly string[] = [
   'NotificationSettings',
   'MerchantRulesSettings',
   'LeaderboardShareToggles',
-  'PhoneAuth',
+  // `PhoneAuth` was tracked here until 2026-09-30. Nothing ever mounted it, so the gate skipped it
+  // silently every run; the component is deleted (0 importers, dynamic imports included).
 ];
 
 /** The panel a given section or component is declared to live under, or null if undeclared. */

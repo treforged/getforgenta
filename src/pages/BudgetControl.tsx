@@ -377,7 +377,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       const effectiveTr = taxDedActive ? 0 : tr;
       const netPerPaycheck = (gross - preTax) * (1 - effectiveTr / 100) - postTax;
       const paychecksPerYear = pf === 'biweekly' ? 26 : pf === 'monthly' ? 12 : 52;
-      // Backward-compat: keep legacy 401k columns so Forecast + use401kAutoUpdate still work
+      // Backward-compat: keep legacy 401k columns so Forecast still works. (use401kAutoUpdate also read
+      // them; it had no caller and was deleted 2026-09-30 - useRetirementAutoUpdate replaced it.)
       const k401 = deds.find(d => d.id === '401k' || d.label.toLowerCase().includes('401(k) traditional') || d.label.toLowerCase().includes('401k'));
       // Resolve which rule is the designated paycheck rule (only that one gets synced)
       const targetRule = paycheckRuleId

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useRecordCrowdVote } from '@/hooks/useCrowdCategories';
 import { applyLinkedLoanBalances } from '@/lib/vehicle-loan-link';
 import { sanitizePayload } from '@/lib/sanitize';
+import { shouldPublishPricing } from '@/lib/public-pricing';
 import { nextAccountSortOrder } from '@/lib/account-order';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
@@ -1842,7 +1843,7 @@ export function usePublicBuild(shareToken: string | undefined) {
         // ⚠️ NOT `=== true`. Only an explicit false hides pricing, so an OLD deployed function
         // that does not send the field at all still shows prices — which is what every shared
         // link did before the flag existed. See src/lib/public-pricing.ts.
-        pricingPublic: json.pricingPublic !== false,
+        pricingPublic: shouldPublishPricing({ pricing_public: json.pricingPublic }),
       } as {
         // The flag is reported once, as `maintenancePublic` — the Edge Function
         // strips it from the build object, so the type must not claim it.

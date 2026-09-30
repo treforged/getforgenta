@@ -25,6 +25,25 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
+    [x] R-NOW15 item 1 DONE, 693e88cc pushed (ask 287b0d5d closed with evidence). Variable-bill buffer wired:
+        history = user's own linked_rule reviews ONLY (variable-bill-history.ts says why not transaction-matching or
+        rule-drift); useFloorBufferedRules stamps floor_buffer on a COPY at 4 entry points (CardProjectionContext,
+        useForecastEngineInputs, Dashboard, DebtPayoff) and getPrePaycheckNextMonthBills reads it, so all 14 floor calls
+        agree (the list above missed getMinSafeCash's 3). Gate floor-buffer-wiring.gate derives callers from source.
+        Tre (09-30 capture): Electricity +9.73, floor 3179.31 -> 3189.04 Oct26-Mar27, payoff May 2029 unchanged. Sent Sam.
+        Free tier: qwen3:14b and qwen3-coder:30b both ignored the brief (score 1); groq gpt-oss-120b wrote the module
+        (score 4) but truncates at ~190 lines, so ask it for files in pieces.
+    [~] R-NOW15 item 2, orphan sweep, instrument FIXED first: the old count missed dynamic import() (DashboardLayout control
+        read 0); new count reads it at 1. Deleted (0 importers): use401kAutoUpdate (superseded by useRetirementAutoUpdate),
+        PhoneAuth (+ dropped from settings-ia TRACKED_COMPONENTS, which skipped it silently), TurnstileWidget, ui/tabs
+        (@radix-ui/react-tabs dep now unused, left in package.json), builds-c5-data. Wired: public-pricing's
+        shouldPublishPricing now used by the public-build fetch (same semantics). Kept: settings-ia (test-only by design).
+        Filed: 57753d08 dated-commitments + consolidation are BUILT NEVER WIRED money features (tie to 2dcdcdde);
+        acc5b80d verify-turnstile edge function now has no client (logs are 24h, so undeploy needs more than a zero).
+    NEXT: docs/dynamic-cash-floor.md section 2 (floor rises when THIS month's bill lands over plan) - Sam queued it.
+    NOTE: `npm run test:tz` failed once here with "'node' is not recognized" in npm's child shell; not reproduced later.
+        `node scripts/test-timezones.mjs` is the same gate without npm.
 R-NOW15 (09-30 ~10:10Z, Ada getforgenta-90 handed off at the 212-call gate). START HERE:
     1. STANDING e1b0fffc slice, chosen: WIRE THE VARIABLE-BILL BUFFER (Tre 2026-09-05, verbatim in
        docs/dynamic-cash-floor.md section 3). Built and tested but ZERO callers: sizing
