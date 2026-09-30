@@ -45,6 +45,9 @@ R-NOW10 (09-30 ~02:45Z, Ada). R-NOW9 RESULTS:
        Real-data pair test (split capture fires Mar 2027, golden none), proven red, test:tz 5388 x3.
     [x] 4. walk:press on 57e38e17: 373 enumerated (was 370), 151 pressed, 151 changed, 0 no-change, 0 not-found,
        stub 11/11 success + 10/10 failure + 1 bg tab, PASS. check:dark-contrast: 477 strings, 0 below AA, PASS.
+       Desktop 1440 light + dark: 463 each, 0 below AA, PASS. A first run read /dashboard as 3 (exit 2, both themes);
+       re-probed with /dashboard first AND last it read 127 both times = transient cold load, not a defect.
+       QUEUE STATE: everything left waits on Tre (1123 open, 2dcdcdde split) or a date (17e959d3 10-03, b18ac1f8 10-14).
        Free-tier draft (qwen3-coder:30b) was rejected: invented goal.target/targetDate and skipped 4 of 7 steps.
 R-NOW9 (09-30 ~03:00Z, Ada getforgenta-89 handed off). DONE, see R-NOW10:
     1. iOS upload run 36659479178 (dispatched on 99a9137e, carries the cover fix 2d076430): read the UPLOAD STEP's
@@ -11823,36 +11826,31 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 22:37 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 23:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (8 file(s)):**
+- **Uncommitted (3 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
- M src/lib/__tests__/forecast-convergence.floorDeficit.test.ts
- M src/lib/__tests__/forecast-convergence.floorFlicker.test.ts
- M src/lib/__tests__/forecast-convergence.realData.test.ts
- M src/lib/__tests__/paced-goal-contribution.realData.test.ts
- M src/lib/__tests__/zz-diagnostic.robinhoodNextPayment.test.ts
  M supabase/.temp/cli-latest
+?? press-walk-frames/
 ```
 
 - **Recent commits:**
 
 ```
+d0ab2ab7 [handoff]: R-NOW10 - full walk + dark contrast green on 57e38e17
+9b19f112 [handoff]: R-NOW10 - 57e38e17 unfunded-outflow warning shipped
+57e38e17 [forecast]: warn when a planned expense is more than its account holds (e3566eab residue)
+63cc0fb3 [handoff]: R-NOW10 - golden adopted (0b33c4a4), iOS 1123 uploaded, cover fix clean in CI
+0b33c4a4 [tests]: adopt the 09-29 capture as golden; restate the paced-goal realData test (2ad1394e)
 8a658e7e [handoff]: R-NOW9 - golden adoption plan with re-pin patch, iOS upload to read
 54b340d0 [handoff]: R-NOW8 - golden re-test measured, sim run clean, iOS upload dispatched
 99a9137e [cards]: a paid-in-full card row shows the purchases the sim charged (8a90fa8a)
-bee3a485 [handoff]: R-NOW8 - golden re-test, Prime Visa $106 residual traced, sim run pending
-047630dd [handoff]: R-NOW8 - e3566eab and e7d28de3 shipped, split still Tre's call
-152a66bf [forecast]: an expense its account cannot cover no longer vanishes (e3566eab)
-2d076430 [ios]: stop the cover deadline once the page reports ready (e7d28de3)
-07484f81 [handoff]: R-NOW8 - move fund split measured and held, multi-stop pacing shipped (30ce4b04)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
