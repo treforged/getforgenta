@@ -76,11 +76,28 @@ for (const r of reach) {
   if (!ok) fail++;
   console.log(`${ok ? 'PASS' : 'FAIL'} reach "${r.n}": found=${r.found} inView=${r.inView} onTop=${r.onTop}${r.cover ? ` covered by ${r.cover}` : ''}`);
 }
+// ONE PASSWORD FIELD, AND A TOGGLE THAT SHOWS IT (ask 075107d6). The press must CHANGE the input's
+// type and the toggle's pressed state, both ways - a toggle that does nothing passes an absence check.
+{
+  const confirmCount = await page.getByLabel('Confirm password').count();
+  const pw = page.getByLabel('Password', { exact: true });
+  await pw.fill('walkpass123');
+  const t0 = await pw.getAttribute('type');
+  const toggle = page.getByRole('button', { name: /show password|hide password/i });
+  const hasToggle = await toggle.count();
+  let t1 = 'n/a'; let p1 = 'n/a'; let t2 = 'n/a';
+  if (hasToggle) {
+    await toggle.click(); t1 = await pw.getAttribute('type'); p1 = await toggle.getAttribute('aria-pressed');
+    await toggle.click(); t2 = await pw.getAttribute('type');
+  }
+  const ok = confirmCount === 0 && hasToggle === 1 && t0 === 'password' && t1 === 'text' && p1 === 'true' && t2 === 'password';
+  if (!ok) fail++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} one password field + toggle: confirm fields=${confirmCount} toggle=${hasToggle} type ${t0} -> ${t1} (pressed=${p1}) -> ${t2}`);
+}
 // A value HTML accepts and the schema refuses, so the validation branch fires.
 await page.getByLabel('Display name').fill(NAME);
 await page.getByLabel('Email').fill('a@b');
 await page.getByLabel('Password', { exact: true }).fill('walkpass123');
-await page.getByLabel('Confirm password').fill('walkpass123');
 await page.getByRole('button', { name: 'Create Account' }).click({ force: true });
 await wait(800);
 

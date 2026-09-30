@@ -11,11 +11,9 @@ export const signUpSchema = z.object({
   displayName: z.string().trim().min(2, 'Name must be at least 2 characters').max(50),
   email: z.string().email('Enter a valid email address').max(254),
   password: z.string().min(6, 'Password must be at least 6 characters').max(128),
-  confirmPassword: z.string(),
-}).refine(d => d.password === d.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
 });
+// No confirm field at sign-up (ask 075107d6, 2026-09-30): a show-password toggle catches a typo
+// with one field fewer, and "Forgot password?" covers the rest. Set-password still confirms.
 
 // ── Settings — security ───────────────────────────────────────────────────────
 

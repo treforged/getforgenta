@@ -12,6 +12,7 @@ import { AuthSession } from '@/lib/auth-session';
 import { debugLog } from '@/lib/debugLog';
 import { trackSignUp } from '@/lib/analytics';
 import { recordFunnelStep, toErrorCode } from '@/lib/signup-funnel';
+import { Eye, EyeOff } from 'lucide-react';
 import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
@@ -82,6 +83,7 @@ export default function Auth() {
   // True once getSession() has said nobody is signed in. The pre-signup counts (ask 6dbd80d8) wait
   // for it, so a signed-in user passing through /auth on a cold start is never counted as a visitor.
   const [signedOut, setSignedOut] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Signal Swift cover that the auth page is visible — but only when the user
   // has no active session and will stay on this page. If a session exists, Auth
@@ -468,7 +470,7 @@ export default function Auth() {
       if (!result.success) { toast.error(result.error.issues[0].message); return; }
     } else {
       recordFunnelStep('tap_email', { method: 'email' });
-      const result = signUpSchema.safeParse({ displayName, email, password, confirmPassword });
+      const result = signUpSchema.safeParse({ displayName, email, password });
       if (!result.success) {
         // The field name, never the value: it says WHICH field stopped them.
         recordFunnelStep('auth_error', { method: 'email', detail: `invalid_${String(result.error.issues[0].path[0] ?? 'form')}` });
@@ -1055,48 +1057,34 @@ export default function Auth() {
                   </button>
                 )}
               </div>
-              <input aria-label="Password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={6}
-                maxLength={128}
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
-                style={{ borderRadius: 'var(--radius)' }}
-              />
-            </div>
-          )}
-
-          {mode === 'signup' && (
-            <div>
-              <label className="text-xs text-muted-foreground uppercase">Confirm Password</label>
-              <input aria-label="Confirm password"
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                maxLength={128}
-                placeholder="Re-enter your password"
-                autoComplete="new-password"
-                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${
-                  confirmPassword && confirmPassword !== password
-                    ? 'border-destructive focus:ring-destructive'
-                    : 'border-border'
-                }`}
-                style={{ borderRadius: 'var(--radius)' }}
-              />
-              {confirmPassword && confirmPassword !== password && (
-                <p className="text-xs text-destructive-text mt-1">Passwords do not match</p>
-              )}
+              <div className="relative mt-1">
+                <input aria-label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  maxLength={128}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  className="w-full bg-secondary border border-border pl-3 pr-11 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
           )}
 
           <button
             type="submit"
-            disabled={loading || (mode === 'signup' && !!confirmPassword && confirmPassword !== password)}
+            disabled={loading}
             className="btn btn-block btn-primary"
           >
             {loading
