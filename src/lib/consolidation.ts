@@ -631,6 +631,9 @@ export function evaluateConsolidation(input: EvaluateInput): ConsolidationResult
  * payments forever" — it is the user paying what they already pay, which retires the cards on its
  * own schedule. Comparing a 72-month loan against a 25-month self-payoff is how consolidation gets
  * oversold, and this returns the number that makes the trade visible.
+ *
+ * Comparing a partial loan against carrying ALL card debt at the same payment is not like-for-like.
+ * The baseline now reflects only the portion of debt the loan would actually retire.
  */
 export function breakEvenApr(
   cards: readonly ConsolidationCard[],
@@ -642,10 +645,27 @@ export function breakEvenApr(
   const buckets = buildPayoffBuckets(cards, asOf);
   const principal = principalOverride ?? buckets.reduce((s, b) => s + b.balance, 0);
   if (principal <= 0) return null;
-  const sq = simulateStatusQuo(cards, comparisonMonthlyPayment, asOf);
+
+  const totalBalance = buckets.reduce((s, b) => s + b.balance, 0);
+  const usesFullSet = principal >= totalBalance - 0.005;
+
+  const retired: { bucket: PayoffBucket; amount: number }[] = [];
+  if (!usesFullSet) {
+    let remaining = principal;
+    for (const bucket of buckets) {
+      if (remaining <= 0) break;
+      const amount = Math.min(remaining, bucket.balance);
+      retired.push({ bucket, amount });
+      remaining -= amount;
+    }
+  }
+
+  const baselineCards = usesFullSet ? cards : retiredPortionAsCards(retired);
+  const sq = simulateStatusQuo(baselineCards, comparisonMonthlyPayment, asOf);
   if (sq.months === null) return null;
 
-  let lo = 0, hi = 60;
+  let lo = 0,
+    hi = 60;
   for (let i = 0; i < 80; i++) {
     const mid = (lo + hi) / 2;
     if (loanTotalInterest(principal, mid, termMonths) > sq.totalInterest) hi = mid;

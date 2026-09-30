@@ -1,5 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { buildConsolidationView, UTILIZATION_TARGET_PCT } from '../consolidation-view';
+import { breakEvenApr, amortizedPayment } from '../consolidation';
+import { consolidationCards } from '../consolidation-adapter';
 import type {
   ConsolidationAccountRow,
   ConsolidationPlanRow,
@@ -130,5 +132,14 @@ describe('buildConsolidationView', () => {
     buildConsolidationView(baseAccounts, [basePlan], defaultOffer, ASOF);
     expect(baseAccounts).toEqual(accountsCopy);
     expect([basePlan]).toEqual(plansCopy);
+  });
+
+  test('9. breakEvenApr on a partial loan is priced against the retired money only', () => {
+    // Retire exactly card A's $6,000 at 24%, paying the loan's own payment on the baseline. The
+    // baseline is then the same debt at the same rate and payment, so break-even must be 24%.
+    // Carrying ALL $7,000 (the old baseline) gives a different number.
+    const cards = consolidationCards(baseAccounts);
+    const pmt = amortizedPayment(6000, 24, 36);
+    expect(breakEvenApr(cards, 36, pmt, ASOF, 6000)!).toBeCloseTo(24, 1);
   });
 });

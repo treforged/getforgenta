@@ -284,16 +284,25 @@ describe('the interest answer and the utilization answer are reported separately
     expect(r.after.aggregatePct!).toBeCloseTo(0, 2);
   });
 
-  it('excluding the promo tranche moves the break-even from ~17% up to ~20.5%', () => {
-    // Same $13,781.20 of expensive money, but the 7.99% is left where it is.
-    const atEighteen = loanTotalInterest(13781.2, 18, 36);
-    const atTwentyTwo = loanTotalInterest(13781.2, 22, 36);
-    const carried = simulateStatusQuo(CARDS, amortizedPayment(13781.2, 18, 36), ASOF);
-    expect(atEighteen).toBeLessThan(carried.totalInterest);   // still wins at 18%
-    expect(atTwentyTwo).toBeGreaterThan(0);
-    expect(breakEvenApr(CARDS, 36, 699.79, ASOF, 13781.2)!).toBeGreaterThan(
-      breakEvenApr(CARDS, 36, 699.79, ASOF, 18818.93)!,
-    );
+  it('retiring only the expensive $13,781.20: the answer depends on the payment it is compared at', () => {
+    // CORRECTED 2026-09-30 (fee53760). This case used to say "excluding the promo tranche moves the
+    // break-even UP, and 18% still wins" - but its baseline carried ALL $18,818.93, including the
+    // 7.99% money the loan never touches. That is not like-for-like and it flatters the loan.
+    // Priced against the retired money only (breakEvenApr now does this):
+    //   at the loan's own payment ($498.22)  break-even 21.70%  -> an 18% loan still wins
+    //   at his current $699.79               break-even 14.13%  -> an 18% loan LOSES on interest
+    // and in BOTH cases retiring less money LOWERS the break-even (21.70 < 26.16, 14.13 < 15.60),
+    // because the promo money is what made carrying everything expensive.
+    const p = 13781.2;
+    const loanPay = amortizedPayment(p, 18, 36);
+    const beAtLoanPay = breakEvenApr(CARDS, 36, loanPay, ASOF, p)!;
+    const beAtCurrent = breakEvenApr(CARDS, 36, 699.79, ASOF, p)!;
+    expect(beAtLoanPay).toBeCloseTo(21.7, 0);
+    expect(beAtCurrent).toBeCloseTo(14.13, 0);
+    expect(18).toBeLessThan(beAtLoanPay);
+    expect(18).toBeGreaterThan(beAtCurrent);
+    expect(beAtLoanPay).toBeLessThan(breakEvenApr(CARDS, 36, loanPay, ASOF)!);
+    expect(beAtCurrent).toBeLessThan(breakEvenApr(CARDS, 36, 699.79, ASOF)!);
   });
 
   it('at 12% the same move is worth real money', () => {

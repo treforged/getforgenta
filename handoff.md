@@ -33,8 +33,11 @@ R-NOW17 (09-30 ~10:45 ET, Ada). START HERE:
     [x] ENGINE DEFECT FOUND AND FIXED: evaluateConsolidation compared a PARTIAL loan against carrying ALL card debt
         at the loan's smaller payment, so a 30% loan read as "saves interest". Now the baseline carries only the
         buckets the loan retires (retiredPortionAsCards); the full-payoff path is unchanged (engine tests 593 etc hold).
-        STILL OPEN, not on any screen: breakEvenApr(principalOverride) has the same partial-vs-all comparison.
-    Gates: test:tz 5422 x3 (5414 + 8), tsc 0, eslint 0 on changed files. Free tier: groq gpt-oss-120b wrote all 4
+        [x] breakEvenApr(principalOverride) fixed the same way (commit after d5489968). The 08-20 test claim "retire only
+        the expensive $13.8k: break-even rises, 18% still wins" was the flawed baseline. Like-for-like: 21.70% at the
+        loan's own $498/mo (18% wins), 14.13% at his current $699.79 (18% LOSES). The 08-20 headline (18% on ALL of it
+        costs $593 more) is unchanged, and no vault note shows the partial claim reached Tre. No action for him.
+    Gates: test:tz 5423 x3 (5414 + 9), tsc 0, eslint 0 on changed files. Free tier: groq gpt-oss-120b wrote all 4
         pieces (scored in playbook); a 197-line component came back whole.
     NEXT: e1b0fffc standing - pick the next backlog item.
 R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
