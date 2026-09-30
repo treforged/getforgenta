@@ -39,6 +39,9 @@ R-NOW17 (09-30 ~10:45 ET, Ada). START HERE:
         costs $593 more) is unchanged, and no vault note shows the partial claim reached Tre. No action for him.
     Gates: test:tz 5423 x3 (5414 + 9), tsc 0, eslint 0 on changed files. Free tier: groq gpt-oss-120b wrote all 4
         pieces (scored in playbook); a 197-line component came back whole.
+    [x] walk:press on 75c20eb6: PASS, 368 enumerated (367 + the panel header), 148 pressed, 148 changed, not-found 0,
+        stub 12/12/12. It takes ~905s here, so a 580s timeout is too short (run 2 was that, not a hang). Run 1 died
+        once with "Page crashed" at the first waitForTimeout after goto (before any press). It did not recur; watch.
     NEXT: e1b0fffc standing - pick the next backlog item.
 R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
     [x] R-NOW15 item 1 DONE, 693e88cc pushed (ask 287b0d5d closed with evidence). Variable-bill buffer wired:
@@ -11946,7 +11949,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 06:20 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 07:07 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11964,14 +11967,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+75c20eb6 [debt]: breakEvenApr prices a partial loan against the retired money only
+d5489968 [debt]: consolidation loan panel on Debt Payoff + like-for-like interest baseline
+d750eb0b [handoff]: R-NOW16 - nudge already built, dated-commitments deleted, turnstile parked; next fee53760
+40ae7058 [cleanup]: delete dated-commitments - paced-goal-contribution is the wired deadline pacer
 63628ad5 [handoff]: R-NOW16 next - check Link and correct before building the nudge
 922ed6ab [docs]: close dynamic-cash-floor section 2 - its matcher can never see an over-plan charge
 c7b62227 [handoff]: R-NOW16 - buffer wired, orphan sweep, section 2 premise fails
 ecc60e1f [cleanup]: orphan sweep - delete 5 files nothing imports, wire the public-pricing helper
-693e88cc [floor]: wire the variable-bill buffer - a bill's own linked payments size its floor reserve
-91517541 [handoff]: R-NOW15 - variable-bill buffer wiring queued, orphan sweep list
-d873993a [handoff]: R-NOW14 - badge share, new-badge row, dependabot fixed
-a1c1c2da [deps]: brace-expansion override 5.0.9 -> 5.0.12 (Dependabot #79 #80 #81)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
