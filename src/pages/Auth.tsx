@@ -65,6 +65,9 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  // The address a confirmation link was just sent to. A toast alone vanished in seconds and left
+  // the filled-in form on screen, so a new user could not tell the account existed (2026-09-30).
+  const [signupSentTo, setSignupSentTo] = useState<string | null>(null);
   const [trustPromptVisible, setTrustPromptVisible] = useState(false);
   const [pendingUserId, setPendingUserId] = useState('');
 
@@ -190,6 +193,7 @@ export default function Auth() {
     setConfirmPassword('');
     setDisplayName('');
     setResetSent(false);
+    setSignupSentTo(null);
     if (next === 'landing') setEmail('');
   };
 
@@ -496,7 +500,7 @@ export default function Auth() {
         const rawName = displayName.trim().slice(0, LIMITS.username);
         const { clean: cleanName, flagged: nameFlagged } = filterProfanity(rawName);
         if (nameFlagged) toast.warning('Display name contained inappropriate language and was cleaned.');
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -505,8 +509,10 @@ export default function Auth() {
           },
         });
         if (error) throw error;
-        toast.success('Account created! Check your email to confirm.');
         trackSignUp('email');
+        // With a session the auth listener signs the user straight in; without one the account
+        // waits on the emailed link, and this screen says so until they leave it.
+        if (!signUpData?.session) setSignupSentTo(email.trim());
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Authentication failed');
@@ -875,6 +881,38 @@ export default function Auth() {
               {loading ? 'Updating…' : 'Set New Password'}
             </button>
           </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Sign-up sent confirmation ─────────────────────────────────────────────
+  if (mode === 'signup' && signupSentTo) {
+    return (
+      <div
+        className="min-h-screen bg-background flex items-center justify-center px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+      >
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <ForgentaLogo size="sm" className="text-gold" />
+          </div>
+          <div className="card-forged p-6 space-y-4 text-center" role="status">
+            <p className="text-base font-semibold text-foreground">Confirm your email</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your account is created. We sent a confirmation link to{' '}
+              <span className="text-foreground font-medium">{signupSentTo}</span>.
+              Open it to finish signing up. If it is not in your inbox, check spam.
+            </p>
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="w-full py-3 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground transition-colors btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Back to Sign In
+            </button>
+          </div>
         </div>
       </div>
     );
