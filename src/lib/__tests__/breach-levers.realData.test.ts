@@ -53,16 +53,23 @@ describe('rankBreachLevers on the 2026-09-29 capture', () => {
 // that day), and the engine used to clamp that account at $0 so the rest was paid by NOBODY. The
 // unfunded dollars now come out of cash from their month onward, which adds Jul and Sep 2027 and
 // raises Aug from 155 to 1,785. The pre-fix pins were Aug 2027 155 and three levers.
+// RE-PINNED AGAIN 2026-09-30 (f3c0cdf5): the unfunded dollars are now paid inside the engine's cash
+// chain, so the sim pays the cards less in those months instead of shortfallByMonth charging the gap
+// again for every later month. Same months short; Jul/Aug/Sep 2027 fall from 556/1,785/1,429 to
+// 343/1,571/1,044. Proven red by removing the cash subtraction (the old figures return).
 const PINNED_MONTHS: [string, number][] = [
   ['Oct 2026', 1174], ['Nov 2026', 1698], ['Dec 2026', 1567], ['Jan 2027', 1018], ['Mar 2027', 962],
-  ['Jul 2027', 556], ['Aug 2027', 1785], ['Sep 2027', 1429],
+  ['Jul 2027', 343], ['Aug 2027', 1571], ['Sep 2027', 1044],
 ];
 // Owners reconciles with the R000 per-scenario re-render for Oct-Mar. The move fund is NO LONGER a
 // lever, and that is the fix working: the fund pays the move expenses itself, so pausing its
 // contributions only moved the bill onto the unfunded remainder - it never freed real cash (it
 // showed 1,190 "covered" before). Fidelity is a BROKERAGE account, so it is a lever; the 401k and
 // Roth IRA never are.
+// f3c0cdf5: Owners 4,423 -> 5,264 and now clears Sep 2027 as well; Fidelity ($25/mo) drops below
+// MIN_COVERED_DOLLARS. Its old 702 came from the separate unfunded charge, which let freed dollars
+// pile up in checking until Jul 2027. In the real cash chain, cash above the floor in the months
+// between goes to the cards, so those $25s never reach July.
 const PINNED_LEVERS: [string, number, string[]][] = [
-  ['Owners Contribution', 4423, ['Jul 2027']],
-  ['Fidelity', 702, []],
+  ['Owners Contribution', 5264, ['Jul 2027', 'Sep 2027']],
 ];

@@ -2,26 +2,28 @@ import { describe, it, expect } from 'vitest';
 import { shortfallByMonth } from '@/lib/breach-levers';
 import type { ForecastResult } from '@/lib/forecast-engine';
 
-// e3566eab - an account-paid expense its own account cannot cover is paid from the month's cash.
+// f3c0cdf5 - the unfunded part of an account-paid expense is paid from checking INSIDE the engine,
+// so `endingCash` already carries it. shortfallByMonth must read endingCash alone: charging the
+// `unfundedAccountOutflow` field again (the e3566eab behaviour) would count the same dollars twice.
 const result = (rows: { month: string; endingCash: number; monthMinSafe: number; unfundedAccountOutflow?: number }[]) =>
   ({ data: [{ month: 'Sep 2026', endingCash: 0, monthMinSafe: 0 }, ...rows] } as unknown as ForecastResult);
 
-describe('shortfallByMonth charges the unfunded part of an account-paid expense', () => {
-  it('a month with headroom but an unfunded 2,000 fee is short', () => {
-    const r = shortfallByMonth(result([{ month: 'Mar 2027', endingCash: 1000, monthMinSafe: 150, unfundedAccountOutflow: 2000 }]), 12);
-    expect(r).toEqual([{ month: 'Mar 2027', shortfall: 1150 }]);
+describe('shortfallByMonth does not charge an unfunded outflow twice', () => {
+  it('a month whose cash is already net of the unfunded fee is short only by its own cash', () => {
+    const r = shortfallByMonth(result([{ month: 'Mar 2027', endingCash: 100, monthMinSafe: 150, unfundedAccountOutflow: 2000 }]), 12);
+    expect(r).toEqual([{ month: 'Mar 2027', shortfall: 50 }]);
   });
 
-  it('the headroom absorbs a smaller unfunded amount (control: not every flag is a shortfall)', () => {
+  it('headroom in a month with an unfunded flag is not a shortfall (the flag alone charges nothing)', () => {
     expect(shortfallByMonth(result([{ month: 'Mar 2027', endingCash: 2433, monthMinSafe: 150, unfundedAccountOutflow: 2000 }]), 12)).toEqual([]);
   });
 
-  it('the spent cash stays spent: later months carry the unfunded dollars', () => {
+  it('later months are not charged for an earlier unfunded month (their cash carries it already)', () => {
     const r = shortfallByMonth(result([
-      { month: 'Mar 2027', endingCash: 2338, monthMinSafe: 150, unfundedAccountOutflow: 2001.33 },
+      { month: 'Mar 2027', endingCash: 338, monthMinSafe: 150, unfundedAccountOutflow: 2001.33 },
       { month: 'Apr 2027', endingCash: 1477, monthMinSafe: 1475 },
     ]), 12);
-    expect(r).toEqual([{ month: 'Apr 2027', shortfall: 1999.33 }]);
+    expect(r).toEqual([]);
   });
 
   it('a row without the field reads exactly as before', () => {

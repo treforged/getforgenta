@@ -47,6 +47,16 @@ describe('unfunded account-paid expense raises a warning milestone', () => {
     expect(classifyMilestoneTone(hit.event), 'renders as a warning, not in the calm colour').toBe('negative');
   }, 900000);
 
+  // f3c0cdf5 - THE UNFUNDED DOLLARS ARE PAID FROM CHECKING, SO THE SIM CANNOT SPEND THEM ON CARDS.
+  // Before the fix the engine never debited them, the sim paid the cards with money that did not
+  // exist, and this capture read payoff Jul 2028. Measured after: Sep 2028. (Still earlier than the
+  // golden's May 2029, honestly: the split saves less into the fund, so more reaches the cards.)
+  maybeIt('the split capture pays its unfunded fee from checking, so the payoff is not falsely early', () => {
+    const split = run(SPLIT);
+    const payoff = split.milestones.find(m => m.event.startsWith('CC Debt Free'))?.month;
+    expect(payoff, 'Jul 2028 was the false date from unpaid dollars').toBe('Sep 2028');
+  }, 900000);
+
   maybeIt('control: the golden (fee paid from checking) raises none', () => {
     const ctrl = run(CONTROL);
     expect(ctrl.data.every(r => (r.unfundedAccountOutflow ?? 0) <= 0.005)).toBe(true);

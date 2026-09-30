@@ -73,13 +73,12 @@ const sumShortfall = (ms: MonthShortfall[]) => round2(ms.reduce((s, m) => s + m.
 export function shortfallByMonth(result: ForecastResult, horizonMonths: number): MonthShortfall[] {
   const last = Math.min(horizonMonths, result.data.length - 1);
   const out: MonthShortfall[] = [];
-  // e3566eab: an account-paid expense its own account cannot cover is paid from checking, and that
-  // cash stays spent, so the unfunded dollars are charged to their month AND every month after it.
-  let unfundedSoFar = result.data[0]?.unfundedAccountOutflow ?? 0;
+  // e3566eab charged an unfunded account-paid expense HERE, because the engine's cash did not.
+  // f3c0cdf5 moved that charge into the engine's cash chain (endingCash already carries it, and so
+  // does the sim's card budget), so charging it here as well would count the same dollars twice.
   for (let i = 1; i <= last; i++) {
     const row = result.data[i];
-    unfundedSoFar += row.unfundedAccountOutflow ?? 0;
-    const shortfall = row.monthMinSafe - (row.endingCash - unfundedSoFar);
+    const shortfall = row.monthMinSafe - row.endingCash;
     if (shortfall > CENT) out.push({ month: row.month, shortfall: round2(shortfall) });
   }
   return out;

@@ -126,8 +126,14 @@ describe('floor-regime flicker — real capture', () => {
     expect(idxs[0], 'the residue starts at the shock month').toBe(shockIdx);
     idxs.forEach((v, k) => expect(v, `residue is not one unbroken run: ${breachMonths}`).toBe(shockIdx + k));
     const gaps = idxs.map(i => out.projections.data[i].rawEndingCash - out.projections.data[i].rawMonthMinSafe);
+    // f3c0cdf5: a month may deepen by NO MORE than a real new charge landing in it - the part of an
+    // account-paid expense its account cannot cover, now paid from checking. Measured: Jul 2027
+    // carries 2,503.51 unfunded (the shock starves the move fund before its deposit + movers) and
+    // deepens -2,413 -> -3,831, inside that charge. Convergence manufacturing shortfall would not.
     for (let k = 2; k < gaps.length; k++) {
-      expect(gaps[k], 'the residue deepened after it started repaying').toBeGreaterThanOrEqual(gaps[k - 1] - 0.005);
+      const newCharge = out.projections.data[idxs[k]].unfundedAccountOutflow ?? 0;
+      expect(gaps[k], 'the residue deepened after it started repaying, beyond any new charge that month')
+        .toBeGreaterThanOrEqual(gaps[k - 1] - newCharge - 0.005);
     }
     // THE RESIDUE MAY NOT AMPLIFY THE SHOCK. -$2,200 was the July capture's
     // measured worst; this one reaches -$4,808.55, and the reason is visible in

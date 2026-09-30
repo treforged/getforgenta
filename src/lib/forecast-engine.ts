@@ -110,8 +110,9 @@ export interface ForecastMonthRow {
   brokerageContrib: number; retireContrib: number; paycheckRetireContrib: number; fullMonth401kContrib: number;
   investGrowth: number; retireGrowth: number; oneTimeNet: number; ccOneTime: number;
   monthMinSafe: number; floorBreachedByOneTime: boolean; debtWasReduced: boolean;
-  /** e3566eab: dollars of account-paid expenses this month that the paying account could not cover.
-   *  Not taken out of `endingCash` (the sim does not see these outflows); `shortfallByMonth` charges it. */
+  /** Dollars of account-paid expenses this month that the paying account could not cover. Since
+   *  f3c0cdf5 they are paid from checking: already subtracted from `endingCash` and from the cash the
+   *  sim pays cards with. Kept on the row for the warning milestone and the breakdown. */
   unfundedAccountOutflow?: number;
   /** True when this month ends below its OWN floor (rawEndingCash < rawMonthMinSafe), at cent
    * resolution. The single source of truth for "below safe minimum": the milestone above the
@@ -2021,6 +2022,66 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const debtHeadroom = i > 0 && !strictSaveUpMonths.has(i)
         ? Math.max(0, plannedDebtPayment - irreducibleDebt)
         : 0;
+      // f3c0cdf5: STEPS 4a-4b-iii RUN HERE, BEFORE THE CASH CHAIN, and nothing between here and the
+      // old position reads an account balance, so moving them changes no number. They must run first
+      // because the part of an account-paid expense its account cannot cover is paid from CHECKING:
+      // `unfundedAccountOutflow` is subtracted from this month's cash just below, so the sim (which
+      // takes its card budget from this cash) never spends dollars that do not exist.
+      // 4a. Paycheck retire deductions → per-account attribution
+      if (b.paycheckRetireContrib > 0) {
+        const perCheckRetireByAcct = perCheckRetireByAcctAt(b.incomeMultiplier);
+        const totalPerCheckBasis = Array.from(perCheckRetireByAcct.values()).reduce((s, v) => s + v, 0);
+        for (const [id, baseAmt] of perCheckRetireByAcct) {
+          const a = perAcctRetire.get(id);
+          if (a) a.balance += totalPerCheckBasis > 0 ? b.paycheckRetireContrib * (baseAmt / totalPerCheckBasis) : b.paycheckRetireContrib;
+        }
+      }
+
+      // 4b. Transfer rule contributions → exact account via perAccountTransferContribs
+      for (const [acctId, amt] of b.perAccountTransferContribs) {
+        const retA = perAcctRetire.get(acctId);
+        const invA = perAcctInvest.get(acctId);
+        const savA = perAcctSavings.get(acctId);
+        if (retA) retA.balance += amt;
+        else if (invA) invA.balance += amt;
+        else if (savA) savA.balance += amt;
+      }
+
+      // 4b-ii. Non-cash transfers — debit the source account
+      for (const item of b.nonCashTransferItems) {
+        const srcSav = perAcctSavings.get(item.fromAcctId);
+        const srcInv = perAcctInvest.get(item.fromAcctId);
+        const srcRet = perAcctRetire.get(item.fromAcctId);
+        if (srcSav) srcSav.balance = Math.max(0, srcSav.balance - item.amount);
+        else if (srcInv) srcInv.balance = Math.max(0, srcInv.balance - item.amount);
+        else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
+      }
+
+      // ── 4b-iii. MONEY SPENT OUT OF AN ACCOUNT THAT IS NOT CHECKING ────────────
+      //
+      // Tre, 2026-08-27: *"that top section is a reflection of only the checking account (the debt
+      // payment account) ... make a new section that shows the change in other accounts."* Both
+      // lists are already kept OUT of this month's cash — that half was right and is unchanged —
+      // but until now they were debited from nothing, so the dollars left the plan entirely: the
+      // savings balance still carried money that had been spent and Net Worth was overstated by it
+      // for the rest of the horizon. Same shape as 4b-ii, and clamped at zero for the same reason:
+      // an account cannot be projected below empty, and a projection that goes negative there would
+      // subtract the same shortfall again every later month.
+      //
+      // e3566eab: the clamp alone let the part the account CANNOT pay vanish - paid by nobody, so
+      // the month read as fully funded. f3c0cdf5: that remainder is paid from checking. These steps
+      // run BEFORE the cash chain so the chain can subtract it; the sim takes its card budget from
+      // that cash, so engine and sim stay on the same dollars.
+      let unfundedAccountOutflow = 0;
+      for (const item of [...b.otherAccountExpenseItems, ...b.otherAccountOneTimeItems]) {
+        const src = perAcctSavings.get(item.fromAcctId)
+          ?? perAcctInvest.get(item.fromAcctId)
+          ?? perAcctRetire.get(item.fromAcctId);
+        if (!src) continue;
+        unfundedAccountOutflow += Math.max(0, item.amount - Math.max(0, src.balance));
+        src.balance = Math.max(0, src.balance - item.amount);
+      }
+
       // Ending cash if this month contributed nothing to goals. The CAR contribution is cash
       // neutral to this test — it leaves `finalLiquid` and is added straight back by
       // `cumulativeCarReserveHeld` (see rawEndingCash below), because that money has not actually
@@ -2028,7 +2089,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const endingCashWithoutGoalContrib = finalLiquid + b.netIncome - b.baseExpenses
         - carContribThisMonth - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth
         - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet
-        - plannedDebtPayment + cumulativeCarReserveHeld;
+        - plannedDebtPayment + cumulativeCarReserveHeld - unfundedAccountOutflow;
       const goalContribApplied = i === 0 ? b.monthlySavingsContrib : Math.max(0, Math.min(
         b.monthlySavingsContrib,
         endingCashWithoutGoalContrib + debtHeadroom - b.monthMinSafe,
@@ -2072,7 +2133,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // subtraction is what makes the projection honest — `finalLiquid` falls by the reserve, so
       // step 3's surplus branch feeds a correspondingly smaller revolving target back through
       // convergence and the sim stops paying down cards with money the user diverted.
-      const cashPreDebtBeforeAutoExtra = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
+      const cashPreDebtBeforeAutoExtra = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet
+        - unfundedAccountOutflow; // f3c0cdf5: paid from checking, see the note above steps 4a-4b-iii
       // A target's own monthly contribution fills the same need the reserve would, and it is
       // subtracted BEFORE this month's reserve is decided: decide the reserve against a need the
       // contribution has already met and the target ends the month over-funded by exactly one
@@ -2459,62 +2521,6 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const xferRetireAmt = b.monthTransfers > 0 ? (b.monthRetireContrib - b.paycheckRetireContrib) / b.monthTransfers * actualTransfers : 0;
       const xferBrokerageAmt = b.monthTransfers > 0 ? b.monthBrokerageContrib / b.monthTransfers * actualTransfers : 0;
 
-      // 4a. Paycheck retire deductions → per-account attribution
-      if (b.paycheckRetireContrib > 0) {
-        const perCheckRetireByAcct = perCheckRetireByAcctAt(b.incomeMultiplier);
-        const totalPerCheckBasis = Array.from(perCheckRetireByAcct.values()).reduce((s, v) => s + v, 0);
-        for (const [id, baseAmt] of perCheckRetireByAcct) {
-          const a = perAcctRetire.get(id);
-          if (a) a.balance += totalPerCheckBasis > 0 ? b.paycheckRetireContrib * (baseAmt / totalPerCheckBasis) : b.paycheckRetireContrib;
-        }
-      }
-
-      // 4b. Transfer rule contributions → exact account via perAccountTransferContribs
-      for (const [acctId, amt] of b.perAccountTransferContribs) {
-        const retA = perAcctRetire.get(acctId);
-        const invA = perAcctInvest.get(acctId);
-        const savA = perAcctSavings.get(acctId);
-        if (retA) retA.balance += amt;
-        else if (invA) invA.balance += amt;
-        else if (savA) savA.balance += amt;
-      }
-
-      // 4b-ii. Non-cash transfers — debit the source account
-      for (const item of b.nonCashTransferItems) {
-        const srcSav = perAcctSavings.get(item.fromAcctId);
-        const srcInv = perAcctInvest.get(item.fromAcctId);
-        const srcRet = perAcctRetire.get(item.fromAcctId);
-        if (srcSav) srcSav.balance = Math.max(0, srcSav.balance - item.amount);
-        else if (srcInv) srcInv.balance = Math.max(0, srcInv.balance - item.amount);
-        else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
-      }
-
-      // ── 4b-iii. MONEY SPENT OUT OF AN ACCOUNT THAT IS NOT CHECKING ────────────
-      //
-      // Tre, 2026-08-27: *"that top section is a reflection of only the checking account (the debt
-      // payment account) ... make a new section that shows the change in other accounts."* Both
-      // lists are already kept OUT of this month's cash — that half was right and is unchanged —
-      // but until now they were debited from nothing, so the dollars left the plan entirely: the
-      // savings balance still carried money that had been spent and Net Worth was overstated by it
-      // for the rest of the horizon. Same shape as 4b-ii, and clamped at zero for the same reason:
-      // an account cannot be projected below empty, and a projection that goes negative there would
-      // subtract the same shortfall again every later month.
-      //
-      // e3566eab: the clamp alone let the part the account CANNOT pay vanish - paid by nobody, so
-      // the month read as fully funded. That remainder is recorded here and `shortfallByMonth`
-      // charges it against the month's cash, which is where it has to come from. The cash chain
-      // itself is unchanged: the sim does not see these outflows, and moving cash on one side only
-      // would split the engine from the sim.
-      let unfundedAccountOutflow = 0;
-      for (const item of [...b.otherAccountExpenseItems, ...b.otherAccountOneTimeItems]) {
-        const src = perAcctSavings.get(item.fromAcctId)
-          ?? perAcctInvest.get(item.fromAcctId)
-          ?? perAcctRetire.get(item.fromAcctId);
-        if (!src) continue;
-        unfundedAccountOutflow += Math.max(0, item.amount - Math.max(0, src.balance));
-        src.balance = Math.max(0, src.balance - item.amount);
-      }
-
       // 4c. Goal monthly contributions → linked savings account or goal pool. The APPLIED items,
       // so a balance only grows by cash that actually left checking above (`savingsOut`).
       for (const item of savingsGoalItemsApplied) {
@@ -2797,9 +2803,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // tell a genuine entry from a floor that had simply stepped up underneath a flat balance.
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
       }
-      // e3566eab residue: the unfunded part of an account-paid expense is charged by
-      // `shortfallByMonth`, but the chart's endingCash does not carry it (the sim does not see
-      // these outflows). Say it where the user reads warnings, so the chart is not the only signal.
+      // The unfunded part of an account-paid expense is paid from checking (f3c0cdf5). Say so where
+      // the user reads warnings, so a savings plan that falls short is named, not just absorbed.
       if (unfundedAccountOutflow > 0.005) {
         milestones.push({ month: b.monthLabel, event: `⚠️ A planned expense is more than its account holds - $${Math.ceil(unfundedAccountOutflow).toLocaleString('en-US')} must come from checking` });
       }
