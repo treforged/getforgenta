@@ -34,6 +34,8 @@ export interface MilestoneProgress {
   threshold: number;
   progress: number;
   earned: boolean;
+  /** When the server granted it, or null while unearned. */
+  earnedAt: string | null;
 }
 
 interface MilestoneRow {
@@ -95,6 +97,7 @@ export function useMilestoneAchievements(): { data: MilestoneProgress[]; loading
         threshold: row.threshold,
         progress: row.progress,
         earned: row.earned,
+        earnedAt: row.earned_at,
       };
     }),
     loading: query.isLoading && !isDemo && !!user,

@@ -59,6 +59,7 @@ import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendation
 import { buildNextDebtPayments } from '@/lib/widget-snapshot';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
 import NextLessonRow from '@/components/dashboard/NextLessonRow';
+import NewBadgeRow from '@/components/dashboard/NewBadgeRow';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
 import { useValueMoments } from '@/hooks/useValueMoments';
 import { useAchievements } from '@/hooks/useAchievements';
@@ -1455,6 +1456,12 @@ export default function Dashboard() {
       <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} />
 
       <div className="stack-block">
+
+      {/* A just-earned badge, with Share. Not a layout widget: it shows only for a few days after
+          a badge lands, and mounting it is what grants milestones on an ordinary visit. */}
+      <ErrorBoundary variant="widget" label="New badge">
+        <NewBadgeRow />
+      </ErrorBoundary>
 
       {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
