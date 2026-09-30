@@ -25,6 +25,10 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW11 (09-30, Ada). 5874c945 compliance list DONE and closed: unsubscribe, analytics disclosure and AI claims hold;
+    b7f57bd5 adds a store-subscriber Manage/cancel link to Settings > Plan (Settings.storeCancel.test.tsx, proven red,
+    test:tz 5391 x3, Vercel success, JS-only). OPEN WITH SAM: Legal.tsx does not name Resend or APNs/FCM (policy text is
+    his call). Postal address in the newsletter = Tre's 09-16 decision, not refiled.
 R-NOW10 (09-30 ~02:45Z, Ada). R-NOW9 RESULTS:
     [x] 1. iOS 1123 UPLOADED (run 36659479178: Upload step success + "UPLOAD SUCCEEDED with no errors"). Sam told.
        e7d28de3 closes when Tre opens 1123 with no black screen.
