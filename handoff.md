@@ -28,6 +28,8 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 R-NOW10 (09-30 ~02:45Z, Ada). R-NOW9 RESULTS:
     [x] 1. iOS 1123 UPLOADED (run 36659479178: Upload step success + "UPLOAD SUCCEEDED with no errors"). Sam told.
        e7d28de3 closes when Tre opens 1123 with no black screen.
+       CI half MET: sim run 36657630376 (047630dd, which contains 2d076430) wrote 0 client_boot_failures rows;
+       table total 3, newest 21:38:13Z (SQL 09-30 ~02:50Z). Only Tre's device open is left.
     [~] 2. Golden adopted: forecast-inputs.real.json + raw-rows.real.json = CTRL-2026-09-29d (sha 137e372b / 77b5340f);
        the undo = cp the before-2026-09-29b pair back. 4 re-pins applied from the patch (its paced hunk was NOT used).
        paced-goal-contribution.realData RESTATED: the flat arm is pinned oneTime ['Mar 2027'], free ['Feb 2029']; interest
@@ -82,7 +84,7 @@ R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89):
        $8,000 residue is ONE contiguous run Apr->Sep27 shrinking -5452/-2479/-2413/-1327/-1031/-398, clear in Oct =
        carried deficit, not spread; widen the window from +3 to "contiguous from the shock" (assert contiguity and
        monotone recovery, never a bigger window). NEXT: adopt CTRL-29d as golden with those 4 re-pins, each commented.
-    4. [~] 8a90fa8a Prime Visa rows do not reconcile, residual exactly 106 (Jan/Jul/Sep/Nov 2029+) = rule 331168cb
+    4. [x] DONE 99a9137e (22 rows -> 0). 8a90fa8a Prime Visa rows do not reconcile, residual exactly 106 (Jan/Jul/Sep/Nov 2029+) = rule 331168cb
        "Supplements" $106 monthly on Prime Visa from 2026-10-01. Cycling branch credit-card-engine.ts:865-886 takes
        newPurchases from purchasesPerMonth (calendar month) but endBal from cyclingOwedByMonth (statement cycle), so a
        charge in the cycle but not the calendar month breaks the row. Fix = give the cycling row CYCLE-basis purchases
