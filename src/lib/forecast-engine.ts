@@ -110,6 +110,9 @@ export interface ForecastMonthRow {
   brokerageContrib: number; retireContrib: number; paycheckRetireContrib: number; fullMonth401kContrib: number;
   investGrowth: number; retireGrowth: number; oneTimeNet: number; ccOneTime: number;
   monthMinSafe: number; floorBreachedByOneTime: boolean; debtWasReduced: boolean;
+  /** e3566eab: dollars of account-paid expenses this month that the paying account could not cover.
+   *  Not taken out of `endingCash` (the sim does not see these outflows); `shortfallByMonth` charges it. */
+  unfundedAccountOutflow?: number;
   /** True when this month ends below its OWN floor (rawEndingCash < rawMonthMinSafe), at cent
    * resolution. The single source of truth for "below safe minimum": the milestone above the
    * table and the red row in MonthlyBreakdownTable both read this, so they cannot disagree. */
@@ -2496,13 +2499,20 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // for the rest of the horizon. Same shape as 4b-ii, and clamped at zero for the same reason:
       // an account cannot be projected below empty, and a projection that goes negative there would
       // subtract the same shortfall again every later month.
+      //
+      // e3566eab: the clamp alone let the part the account CANNOT pay vanish - paid by nobody, so
+      // the month read as fully funded. That remainder is recorded here and `shortfallByMonth`
+      // charges it against the month's cash, which is where it has to come from. The cash chain
+      // itself is unchanged: the sim does not see these outflows, and moving cash on one side only
+      // would split the engine from the sim.
+      let unfundedAccountOutflow = 0;
       for (const item of [...b.otherAccountExpenseItems, ...b.otherAccountOneTimeItems]) {
-        const srcSav = perAcctSavings.get(item.fromAcctId);
-        const srcInv = perAcctInvest.get(item.fromAcctId);
-        const srcRet = perAcctRetire.get(item.fromAcctId);
-        if (srcSav) srcSav.balance = Math.max(0, srcSav.balance - item.amount);
-        else if (srcInv) srcInv.balance = Math.max(0, srcInv.balance - item.amount);
-        else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
+        const src = perAcctSavings.get(item.fromAcctId)
+          ?? perAcctInvest.get(item.fromAcctId)
+          ?? perAcctRetire.get(item.fromAcctId);
+        if (!src) continue;
+        unfundedAccountOutflow += Math.max(0, item.amount - Math.max(0, src.balance));
+        src.balance = Math.max(0, src.balance - item.amount);
       }
 
       // 4c. Goal monthly contributions → linked savings account or goal pool. The APPLIED items,
@@ -2796,6 +2806,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         totalLiabilities: Math.round(totalLiabilityBal),
         debtBalance: Math.round(adjCCLiab + closingBalanceAt(nonCCDebtBalanceByMonth, i)),
         savingsBalance: Math.round(savingsBal), investmentBalance: Math.round(investBal),
+        unfundedAccountOutflow: Math.round(unfundedAccountOutflow * 100) / 100,
         retirementBalance: Math.round(retireBal), liquidCash: Math.round(finalLiquid),
         endingCash,
         startingCash,

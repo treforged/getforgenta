@@ -48,15 +48,21 @@ describe('rankBreachLevers on the 2026-09-29 capture', () => {
   }, 120_000);
 });
 
-// Oct-Mar match the R000 report exactly; Aug 2027 is past that report's window.
+// Oct-Mar match the R000 report exactly. RE-PINNED 2026-09-30 (e3566eab): this capture pays more
+// out of the move account than it will hold (a duplicate $3,830 fee, removed from his data later
+// that day), and the engine used to clamp that account at $0 so the rest was paid by NOBODY. The
+// unfunded dollars now come out of cash from their month onward, which adds Jul and Sep 2027 and
+// raises Aug from 155 to 1,785. The pre-fix pins were Aug 2027 155 and three levers.
 const PINNED_MONTHS: [string, number][] = [
-  ['Oct 2026', 1174], ['Nov 2026', 1698], ['Dec 2026', 1567], ['Jan 2027', 1018], ['Mar 2027', 962], ['Aug 2027', 155],
+  ['Oct 2026', 1174], ['Nov 2026', 1698], ['Dec 2026', 1567], ['Jan 2027', 1018], ['Mar 2027', 962],
+  ['Jul 2027', 556], ['Aug 2027', 1785], ['Sep 2027', 1429],
 ];
-// Owners and Move fund reconcile exactly with the full per-scenario re-renders in R000
-// (6,574 total short; 3,925 left without Owners, 5,384 left without Move fund).
-// Fidelity is a BROKERAGE account, so it is a lever; the 401k and Roth IRA never are.
+// Owners reconciles with the R000 per-scenario re-render for Oct-Mar. The move fund is NO LONGER a
+// lever, and that is the fix working: the fund pays the move expenses itself, so pausing its
+// contributions only moved the bill onto the unfunded remainder - it never freed real cash (it
+// showed 1,190 "covered" before). Fidelity is a BROKERAGE account, so it is a lever; the 401k and
+// Roth IRA never are.
 const PINNED_LEVERS: [string, number, string[]][] = [
-  ['Owners Contribution', 2649, ['Aug 2027']],
-  ['Move fund, then emergency fund', 1190, ['Aug 2027']],
-  ['Fidelity', 429, []],
+  ['Owners Contribution', 4423, ['Jul 2027']],
+  ['Fidelity', 702, []],
 ];

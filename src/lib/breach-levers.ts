@@ -73,9 +73,13 @@ const sumShortfall = (ms: MonthShortfall[]) => round2(ms.reduce((s, m) => s + m.
 export function shortfallByMonth(result: ForecastResult, horizonMonths: number): MonthShortfall[] {
   const last = Math.min(horizonMonths, result.data.length - 1);
   const out: MonthShortfall[] = [];
+  // e3566eab: an account-paid expense its own account cannot cover is paid from checking, and that
+  // cash stays spent, so the unfunded dollars are charged to their month AND every month after it.
+  let unfundedSoFar = result.data[0]?.unfundedAccountOutflow ?? 0;
   for (let i = 1; i <= last; i++) {
     const row = result.data[i];
-    const shortfall = row.monthMinSafe - row.endingCash;
+    unfundedSoFar += row.unfundedAccountOutflow ?? 0;
+    const shortfall = row.monthMinSafe - (row.endingCash - unfundedSoFar);
     if (shortfall > CENT) out.push({ month: row.month, shortfall: round2(shortfall) });
   }
   return out;
