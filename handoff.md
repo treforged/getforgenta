@@ -25,6 +25,30 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW7 (09-29 ~22:40Z, Ada getforgenta-6e handed off at the 183-call gate). START HERE, IN ORDER:
+    1. MOVE FUND 2dcdcdde - ANSWERED (Tre via Sam: "we talked about the break down of the cost of each previously.
+       check memory"). Record: claudecontext/Claude Memory/getforgenta/project_move_plan.md = $5,730 = $3,830 lease
+       break + $1,900 deposit; movers EXCLUDED, on Venture X (opens 2027-06-01). Fee date 2027-03-01 is recorded
+       (line ~197 below: paid at notice). Tre's user a72f416e. CURRENT ROWS (read 22:30Z):
+         goal a035a97e stages[0] "First target" 5730 spends=true target 2027-07-03, linked_account 36997c1c (Savings),
+           monthly_contribution 510, current_amount 106.44.
+         txn fe1c81ec lease fee 3830 2027-03-01 payment_source account:933cbc10 (Checking).
+         txn ece72e4f movers 1500 2027-07-01 payment_source account:36997c1c (Move fund = option A, CONTRADICTS him).
+       DO: snapshot goal + the 2 txns into backup.tre_movefund_20260929_*; then
+         (a) fe1c81ec payment_source -> account:36997c1c (the fund pays the fee);
+         (b) ece72e4f payment_source -> account:<Venture X id> (select id from accounts where name ilike '%venture%');
+         (c) split stage 1: {"name":"Lease break","amount":3830,"spends":true,"target_date":"2027-03-01"} then
+             {"name":"Deposit","amount":1900,"spends":true,"target_date":"2027-07-03"}, keep the two runway stops,
+             keep sort_order/auto_extra; thresholds are CUMULATIVE (GoalStopsEditor.tsx header). `spends` only feeds
+             plan progress + Savings page (goalWithdrawals callers), the TXNS move the cash - no double count.
+       Read back by SQL, re-measure Oct 2026-Aug 2027 month-end cash vs floor OFFLINE (R-NOW2 recipe), report to Sam
+       with the undo (restore from the backup rows). WATCH: $3,724 in 5 months (Oct-Feb) is ~$745/mo vs $510 today.
+    2. SHIPPED this session, JS-only (live via Vercel): e34975a1 lock bypass (1a... see git log "[applock]: close two
+       lock bypasses") and 2e42290d one-time Face ID offer. Both still need a DEVICE confirm: lock on, kill app,
+       reopen - no content before Face ID; a PIN user sees the offer after a PIN unlock. Close the asks after Tre says so.
+    3. e7d28de3: client_boot_failures has 2 native-cover rows, BOTH the walk account from CI (first_launch branch hit
+       the deadline although the dashboard rendered) - LEAD: window.__forgenta_dashboard_ready poll may miss a ready
+       page. None from Tre's own open. 8a202850 waits on Tre's look (dark pair sent to Sam).
 R-NOW6 (09-29 ~20:50Z, Ada). START HERE:
     1. GLASS 8a202850: walk account notification_prefs set {"enabled":false} (was NULL; snapshot
        backup.walk_notif_prefs_20260929; UNDO: update public.profiles set notification_prefs=null where
@@ -11724,7 +11748,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 17:45 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 18:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11740,14 +11764,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+e673e3c6 [handoff]: backlog sweep - 1 closed, 1 dropped, 3 re-tested gates, Dependabot 7 -> 0
+9a6d0929 [deps]: undici 8.10.0 -> 8.11.2 (jsdom's test-only dependency), clears 7 Dependabot alerts
 74ea2e1f [handoff]: dark glass pair measured and sent (8a202850)
 f45d544b [ci]: dark glass control reinstalls the app so the persisted flag cannot leak into it
 2dbd7366 [ci]: dark-theme glass strip frames for 8a202850, with a dark-applied check
 bf1efc82 [handoff]: retire two stale R00 lines (GF answered, notes counter shipped c1ff690d)
 e1ff3c29 [handoff]: R-NOW6 glass frame read and sent, reporter verified in production
 8e630d29 [handoff]: R-NOW6 - cover deadline reporter shipped, glass sim re-run with notifications off
-db6f10dd [ios]: report the native cover's COVER_DEADLINE to client_boot_failures (e7d28de3)
-193b73bf [handoff]: R-NOW5 - glass attaches, cover held by CI alert, black screen instrument next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
