@@ -25,7 +25,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
-R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89). START HERE:
+R-NOW9 (09-30 ~03:00Z, Ada getforgenta-89 handed off). START HERE, IN ORDER:
+    1. iOS upload run 36659479178 (dispatched on 99a9137e, carries the cover fix 2d076430): read the UPLOAD STEP's
+       own conclusion AND grep the log for 'UPLOAD SUCCEEDED' (90382 = Apple daily cap, which exits green). If it
+       uploaded, tell Sam "iOS build <run_number+100> uploaded, yours to install" for Tre; e7d28de3 closes after he
+       opens it with no black screen.
+    2. GOLDEN ADOPTION (2ad1394e). Re-pin patch for 4 of 5 tests: backups/2026-09-30_0150/golden-adoption/
+       golden-0929d-repins.patch (floorDeficit 3000->2500, floorFlicker contiguous-run rule + ABSORBED 2500,
+       realData payoff May 2029 + breach ['Oct 2026'], zz-diagnostic control re-aimed at before-2026-09-29b).
+       Adopt = cp fixtures/*.CTRL-2026-09-29d.json over forecast-inputs.real.json + raw-rows.real.json.
+       THE 5TH, paced-goal-contribution.realData, needs a RESTATEMENT, not a re-pin: on this data the floor cuts the
+       FLAT arm's 510 draws (Oct-Jan, Mar), so flat funds ~2,550 by Jun27 vs paced ~4,900 and "pays $379 less" only by
+       missing the 5,730 goal (ask bd05e063 filed then RETRACTED for exactly this). Compare (a)/(b) only when BOTH
+       arms fund the goal by its date; otherwise assert paced funds it (or more of it) and flat does not. (d)'s
+       "May >= 5730" was the June-outflow shape - now the outflow is Jul 1 movers, so the deadline is Jun.
+       Gate: test:tz 3 zones green on the new golden, and the old golden kept as before-2026-09-29b (the undo).
+R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89):
     1. [~] 2dcdcdde split APPLIED, MEASURED, REVERTED (rows equal backup.tre_movefund_20260929_{goal,txns} again).
        Same-data control (fixtures CTRL-2026-09-29d vs NOW-2026-09-29d, probe src/lib/__tests__/zz-probe-movefund.test.ts,
        untracked): Oct-Dec short +75 each, Mar27 150 -> 2,433, payoff May29 -> Aug28 = FALSE, because
