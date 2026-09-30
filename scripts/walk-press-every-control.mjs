@@ -487,6 +487,7 @@ if (sc.honestOk.outcome !== 'stub-ok-changed' || sc.honestErr.outcome !== 'stub-
 }
 
 // -- Crawl ------------------------------------------------------------------------------------------
+const perRoute = [];
 const tally = { 'already-active': 0, 'self-link': 0, enumerated: 0, pressed: 0, changed: 0, 'no-change': 0, unpressable: 0, 'not-found': 0, 'write-blocked': 0, destructive: 0, write: 0, external: 0, repeat: 0 };
 const findings = [];
 const unstable = [];
@@ -526,6 +527,7 @@ for (const route of routes) {
   const textTrusted = t1 === t2;
   if (!textTrusted) unstable.push(route);
   tally.enumerated += controls.length;
+  perRoute.push(`${route}=${controls.length}`);
   for (const c of controls) {
     const globalKey = `${c.key}#${c.nth}`;
     if (DESTRUCTIVE.test(c.name)) { tally.destructive++; continue; }
@@ -545,6 +547,9 @@ for (const route of routes) {
   }
 }
 console.log(`routes ${routes.length} . controls enumerated ${tally.enumerated} . to press ${jobs.length}`);
+// Per-route counts, so a drift in the total names the screen it came from. Before 2026-09-30 only
+// the total printed, and a stable 367 against 373 could not be traced to any route.
+console.log(`per route: ${perRoute.join(' ')}`);
 
 let next = 0;
 async function worker() {
