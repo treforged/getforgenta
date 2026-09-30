@@ -25,6 +25,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89). START HERE:
+    1. [~] 2dcdcdde split APPLIED, MEASURED, REVERTED (rows equal backup.tre_movefund_20260929_{goal,txns} again).
+       Same-data control (fixtures CTRL-2026-09-29d vs NOW-2026-09-29d, probe src/lib/__tests__/zz-probe-movefund.test.ts,
+       untracked): Oct-Dec short +75 each, Mar27 150 -> 2,433, payoff May29 -> Aug28 = FALSE, because
+       paced-goal-contribution.ts:117 paces only stops[0]: fund $1,830 by Feb vs $3,830 fee, Deposit stop gets $0,
+       Savings $2 from Jul27. [x] 66d3af19 FIXED 30ce4b04 (every dated stop paced; Deposit now 1,900 Mar-Jun).
+       [ ] STILL NOT RE-APPLIED, on purpose: the fund reaches only $1,830 by 1 Mar (Oct-Dec are under the floor, so
+       pacing is cut), and e3566eab: an account-paid expense > the account balance is clamped to 0, so ~$2,000 of
+       the fee vanishes and Mar27 checking reads 2,338 instead of 150. Fix e3566eab first (spill remainder to the
+       funding account + flag; sim parity), THEN re-apply 1a/1c and re-measure. Probe + CTRL/NOW-29d fixtures kept
+       (probe in session scratchpad 203ed076). (b) movers->Venture X NOT done: Venture X starts 2028-06-01 (Tre
+       08-27, project_robinhood_gold_decision) - asked Sam, recommend keep movers on the fund.
+    2. Then R-NOW7 items 2-3 below.
 R-NOW7 (09-29 ~22:40Z, Ada getforgenta-6e handed off at the 183-call gate). START HERE, IN ORDER:
     1. MOVE FUND 2dcdcdde - ANSWERED (Tre via Sam: "we talked about the break down of the cost of each previously.
        check memory"). Record: claudecontext/Claude Memory/getforgenta/project_move_plan.md = $5,730 = $3,830 lease
@@ -11748,7 +11761,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 18:04 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 21:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11764,14 +11777,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8ccdd1ab [handoff]: R-NOW7 - move fund plan ready to apply, Face ID + lock fixes shipped
+cfb848dc [applock]: offer Face ID once to people who already unlock with a PIN (2e42290d)
+06125537 [applock]: close two lock bypasses and draw the lock before Face ID (e34975a1)
 e673e3c6 [handoff]: backlog sweep - 1 closed, 1 dropped, 3 re-tested gates, Dependabot 7 -> 0
 9a6d0929 [deps]: undici 8.10.0 -> 8.11.2 (jsdom's test-only dependency), clears 7 Dependabot alerts
 74ea2e1f [handoff]: dark glass pair measured and sent (8a202850)
 f45d544b [ci]: dark glass control reinstalls the app so the persisted flag cannot leak into it
 2dbd7366 [ci]: dark-theme glass strip frames for 8a202850, with a dark-applied check
-bf1efc82 [handoff]: retire two stale R00 lines (GF answered, notes counter shipped c1ff690d)
-e1ff3c29 [handoff]: R-NOW6 glass frame read and sent, reporter verified in production
-8e630d29 [handoff]: R-NOW6 - cover deadline reporter shipped, glass sim re-run with notifications off
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
