@@ -876,14 +876,21 @@ export function projectCardVariable(
       const cycleInterest = cyclingInterestByMonth?.[m - 1] ?? 0;
       const trueOwedNextCycle = cyclingOwedByMonth?.[m];
       const endBal = trueOwedNextCycle !== undefined ? Math.round(trueOwedNextCycle * 100) / 100 : Math.round(newPurchases * 100) / 100;
+      // 8a90fa8a: when the End is the sim's, show the purchases the sim CHARGED. The sim bills a
+      // cycling card max(scheduled purchases, monthlyNewPurchases) (simulateVariablePayoff, the
+      // `thisMonthPurchases` line), so a month whose schedule sits below the baseline showed the
+      // lower figure beside the higher End - Tre's Prime Visa rows, residual exactly $106.
+      const cyclePurchases = trueOwedNextCycle !== undefined
+        ? Math.max(newPurchases, card.monthlyNewPurchases)
+        : newPurchases;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
       totalInterest += cycleInterest;
-      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: cycleInterest, payment, endBalance: endBal, utilization });
+      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases: cyclePurchases, interest: cycleInterest, payment, endBalance: endBal, utilization });
       // Only when BOTH ends are sim ground truth. Without cyclingOwedByMonth the row falls back
       // to echoing the payment as the start and this month's purchases as the end, which are not
       // claims about the same cycle and would cry wolf on every fallback projection.
       if (trueOwedThisCycle !== undefined && trueOwedNextCycle !== undefined) {
-        warnIfRowDoesNotReconcile(card.name, label, cycleStartBal, newPurchases, cycleInterest, payment, endBal);
+        warnIfRowDoesNotReconcile(card.name, label, cycleStartBal, cyclePurchases, cycleInterest, payment, endBal);
       }
       continue;
     }
