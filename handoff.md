@@ -46,14 +46,24 @@ R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89). START HERE:
        capturedLocalState. CTRL-2026-09-29d swapped in as golden: 4/5385 fail. manualISB breach GONE. STILL FAIL:
        floorDeficit $3,000 shock breach, floorFlicker $8,000 residue Aug+Sep27. HONEST RE-PINS: realData payoff
        Sep28 -> May29 (live sim = snapshot = 27), paced realData flat arm breaches Mar27 (fee lands on $150 floor).
-       Golden restored byte-exact after the trial.
+       Golden restored byte-exact after the trial. MEASURED 02:40Z (current code, CTRL-29d): shock sweep $500/1000/
+       2000/2500 absorb with no new breach, $3,000 leaves Apr27 $451.99 short = CAPACITY on his new numbers (the
+       test's own header: a broken chain would breach at $500) -> re-size to $2,500 with this sweep in the comment.
+       $8,000 residue is ONE contiguous run Apr->Sep27 shrinking -5452/-2479/-2413/-1327/-1031/-398, clear in Oct =
+       carried deficit, not spread; widen the window from +3 to "contiguous from the shock" (assert contiguity and
+       monotone recovery, never a bigger window). NEXT: adopt CTRL-29d as golden with those 4 re-pins, each commented.
     4. [~] 8a90fa8a Prime Visa rows do not reconcile, residual exactly 106 (Jan/Jul/Sep/Nov 2029+) = rule 331168cb
        "Supplements" $106 monthly on Prime Visa from 2026-10-01. Cycling branch credit-card-engine.ts:865-886 takes
        newPurchases from purchasesPerMonth (calendar month) but endBal from cyclingOwedByMonth (statement cycle), so a
        charge in the cycle but not the calendar month breaks the row. Fix = give the cycling row CYCLE-basis purchases
        from the sim, never back-solve purchases from End (that hides the check). Real-data warn is the red control.
-    5. [~] e7d28de3: sim run 36657630376 on HEAD 047630dd dispatched 01:59Z to prove the cover fix; read its frames
-       and client_boot_failures for a new native-cover row after it ends.
+    5. [~] e7d28de3: sim run 36657630376 SUCCESS on 047630dd: signed-in frame differs from welcome 23.59 (garbage
+       0.02), and 0 client_boot_failures rows since 21:40Z (the two prior sim runs each wrote one). iOS upload
+       36659479178 dispatched 02:3xZ on 99a9137e - READ the upload step + 'UPLOAD SUCCEEDED', then tell Sam the iOS
+       build number (run_number+100) for Tre. Close e7d28de3 after he opens it without a black screen.
+       ODD: this run's DARK glass pair read 0.00/0.00 (was 21.10 in 36632535975) - glass did not apply on dark this
+       time; 8a202850 evidence, check before quoting the dark pair again.
+    6. [x] 8a90fa8a FIXED 99a9137e (cycling row shows the purchases the sim charged; 22 -> 0 rows).
 R-NOW7 (09-29 ~22:40Z, Ada getforgenta-6e handed off at the 183-call gate). START HERE, IN ORDER:
     1. MOVE FUND 2dcdcdde - ANSWERED (Tre via Sam: "we talked about the break down of the cost of each previously.
        check memory"). Record: claudecontext/Claude Memory/getforgenta/project_move_plan.md = $5,730 = $3,830 lease
@@ -11777,7 +11787,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 21:58 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 22:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11793,6 +11803,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+bee3a485 [handoff]: R-NOW8 - golden re-test, Prime Visa $106 residual traced, sim run pending
 047630dd [handoff]: R-NOW8 - e3566eab and e7d28de3 shipped, split still Tre's call
 152a66bf [forecast]: an expense its account cannot cover no longer vanishes (e3566eab)
 2d076430 [ios]: stop the cover deadline once the page reports ready (e7d28de3)
@@ -11800,7 +11811,6 @@ M deno.lock
 30ce4b04 [goals]: pace every dated savings stop in order, not only the first (66d3af19)
 8ccdd1ab [handoff]: R-NOW7 - move fund plan ready to apply, Face ID + lock fixes shipped
 cfb848dc [applock]: offer Face ID once to people who already unlock with a PIN (2e42290d)
-06125537 [applock]: close two lock bypasses and draw the lock before Face ID (e34975a1)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
