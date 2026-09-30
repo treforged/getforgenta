@@ -46,6 +46,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
+import { StoreSubscriptionManage } from '@/components/settings/StoreSubscriptionManage';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
 
@@ -1145,6 +1146,10 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* 5874c945: a store subscription is cancelled in the store, so say where, here. */}
+              {(subscription?.purchase_provider === 'apple' || subscription?.purchase_provider === 'google') && (
+                <StoreSubscriptionManage provider={subscription.purchase_provider} />
+              )}
               {/* Actions — only shown when payment update is not open */}
               {!setupClientSecret && hasStripeCustomer && (
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
