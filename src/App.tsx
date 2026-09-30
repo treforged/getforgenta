@@ -29,6 +29,7 @@ import ResumeRecovery from "@/components/shared/ResumeRecovery";
 import { AppLockProvider } from "@/hooks/useAppLock";
 import AppLockScreen from "@/components/shared/AppLockScreen";
 import AppLockSetupModal from "@/components/shared/AppLockSetupModal";
+import BiometricOfferModal from "@/components/shared/BiometricOfferModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
 import { AI_ADVISOR_ENABLED, ERROR_TEST_ENABLED } from "@/lib/feature-flags";
@@ -561,6 +562,7 @@ const App = () => (
                   <AppRoutes />
                   <AppLockScreen />
                   <AppLockSetupModal />
+                  <BiometricOfferModal />
                 </AppLockProvider>
                 <BlackScreenDebug />
               </ViewedProfileProvider>

@@ -10,6 +10,8 @@ const P = {
   type:          'forged:lock_type',
   pinHash:       'forged:lock_pin_hash',
   setupPrompted: 'forged:lock_setup_prompted',
+  /** '1' once a PIN user has been offered biometric unlock (ask 2e42290d), whichever answer. */
+  bioOffered:    'forged:lock_bio_offered',
 } as const;
 
 const LS_UNLOCKED_AT = 'forged:lock_unlocked_at';
@@ -78,6 +80,10 @@ interface AppLockContextType {
   lockType: LockType;
   biometricAvailable: boolean;
   showSetupModal: boolean;
+  /** One-time offer of Face ID to a user who already unlocks with a PIN (ask 2e42290d). */
+  showBiometricOffer: boolean;
+  acceptBiometricOffer: () => Promise<boolean>;
+  dismissBiometricOffer: () => Promise<void>;
   failedAttempts: number;
   unlockWithPin: (pin: string) => Promise<boolean>;
   unlockWithBiometric: () => Promise<boolean>;
@@ -131,6 +137,9 @@ const AppLockContext = createContext<AppLockContextType>({
   lockType: 'pin',
   biometricAvailable: false,
   showSetupModal: false,
+  showBiometricOffer: false,
+  acceptBiometricOffer: async () => false,
+  dismissBiometricOffer: async () => {},
   failedAttempts: 0,
   unlockWithPin: async () => false,
   unlockWithBiometric: async () => false,
@@ -159,6 +168,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const [lockType, setLockTypeState] = useState<LockType>('pin');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showBiometricOffer, setShowBiometricOffer] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
   const isLockedRef            = useRef(false);
@@ -280,7 +290,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         debugLog('AUTH_SIGNED_OUT');
         skipLockClearOnSignIn.current = false;
-        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted), pDel(LOCK_PENDING)]);
+        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted), pDel(LOCK_PENDING), pDel(P.bioOffered)]);
         localStorage.removeItem(LS_UNLOCKED_AT);
         await pDel(LS_FAILED);
         setLockEnabled(false);
@@ -288,6 +298,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         setIsLocked(false);
         setFailedAttempts(0);
         setShowSetupModal(false);
+        setShowBiometricOffer(false);
         clearTimeout(setupTimer);
       }
     });
@@ -314,8 +325,13 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     }
     await markUnlocked();
     setIsLocked(false);
+    // Tre, build 1112: "people who have pin enabled already need to be prompted for face id."
+    // Right after a PIN unlock the person is present and has just used the lock: offer it once.
+    if (lockType === 'pin' && biometricAvailable && (await pGet(P.bioOffered)) !== '1') {
+      setShowBiometricOffer(true);
+    }
     return true;
-  }, [failedAttempts, markUnlocked]);
+  }, [failedAttempts, markUnlocked, lockType, biometricAvailable]);
 
   const unlockWithBiometric = useCallback(async (): Promise<boolean> => {
     if (!isNative) return false;
@@ -379,11 +395,25 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   }, [markUnlocked]);
 
   const disableLock = useCallback(async (): Promise<void> => {
-    await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(LS_FAILED), pDel(LOCK_PENDING)]);
+    await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(LS_FAILED), pDel(LOCK_PENDING), pDel(P.bioOffered)]);
     localStorage.removeItem(LS_UNLOCKED_AT);
     setLockEnabled(false);
     setIsLocked(false);
     setFailedAttempts(0);
+  }, []);
+
+  // Either answer records the offer, so it is asked exactly once. A failed Face ID confirmation
+  // also records it: the user tried, and Settings remains the way to try again.
+  const acceptBiometricOffer = useCallback(async (): Promise<boolean> => {
+    const ok = await enableBiometric();
+    await pSet(P.bioOffered, '1');
+    setShowBiometricOffer(false);
+    return ok;
+  }, [enableBiometric]);
+
+  const dismissBiometricOffer = useCallback(async (): Promise<void> => {
+    await pSet(P.bioOffered, '1');
+    setShowBiometricOffer(false);
   }, []);
 
   const dismissSetupModal = useCallback(() => {
@@ -409,6 +439,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       lockType,
       biometricAvailable,
       showSetupModal,
+      showBiometricOffer,
+      acceptBiometricOffer,
+      dismissBiometricOffer,
       failedAttempts,
       unlockWithPin,
       unlockWithBiometric,
