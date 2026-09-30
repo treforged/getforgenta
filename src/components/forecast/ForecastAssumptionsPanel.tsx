@@ -119,7 +119,12 @@ export default function ForecastAssumptionsPanel({
             className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
             <Plus size={13} /> Add Promotion
           </button>
-          {assumptions.promotions.length > 0 && (
+          {/* The engine scales pay by newSalary / currentSalary, so with no salary set a promotion
+              changes nothing. Say so rather than let it look applied. */}
+          {assumptions.promotions.length > 0 && !(payConfig.weeklyGross > 0) && (
+            <p className="text-[10px] text-destructive-text">No salary is set, so a promotion cannot change your forecast yet. Enter your pay in Budget first.</p>
+          )}
+          {assumptions.promotions.length > 0 && payConfig.weeklyGross > 0 && (
             <p className="text-[10px] text-muted-foreground">Snaps your projected salary to the new amount starting that month — raises and % bonuses continue applying to the new value afterward.</p>
           )}
         </div>
