@@ -42,6 +42,18 @@ R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89). START HERE:
        timeout 12000ms) was during the hidden-tab MCP session on localhost - likely the instrument, unproven. (b) movers->Venture X NOT done: Venture X starts 2028-06-01 (Tre
        08-27, project_robinhood_gold_decision) - asked Sam, recommend keep movers on the fund.
     2. Then R-NOW7 items 2-3 below.
+    3. [~] 5409ffbc RE-TESTED (ask 2ad1394e): its "needs a browser capture" blocker is FALSE - offline captures now carry
+       capturedLocalState. CTRL-2026-09-29d swapped in as golden: 4/5385 fail. manualISB breach GONE. STILL FAIL:
+       floorDeficit $3,000 shock breach, floorFlicker $8,000 residue Aug+Sep27. HONEST RE-PINS: realData payoff
+       Sep28 -> May29 (live sim = snapshot = 27), paced realData flat arm breaches Mar27 (fee lands on $150 floor).
+       Golden restored byte-exact after the trial.
+    4. [~] 8a90fa8a Prime Visa rows do not reconcile, residual exactly 106 (Jan/Jul/Sep/Nov 2029+) = rule 331168cb
+       "Supplements" $106 monthly on Prime Visa from 2026-10-01. Cycling branch credit-card-engine.ts:865-886 takes
+       newPurchases from purchasesPerMonth (calendar month) but endBal from cyclingOwedByMonth (statement cycle), so a
+       charge in the cycle but not the calendar month breaks the row. Fix = give the cycling row CYCLE-basis purchases
+       from the sim, never back-solve purchases from End (that hides the check). Real-data warn is the red control.
+    5. [~] e7d28de3: sim run 36657630376 on HEAD 047630dd dispatched 01:59Z to prove the cover fix; read its frames
+       and client_boot_failures for a new native-cover row after it ends.
 R-NOW7 (09-29 ~22:40Z, Ada getforgenta-6e handed off at the 183-call gate). START HERE, IN ORDER:
     1. MOVE FUND 2dcdcdde - ANSWERED (Tre via Sam: "we talked about the break down of the cost of each previously.
        check memory"). Record: claudecontext/Claude Memory/getforgenta/project_move_plan.md = $5,730 = $3,830 lease
@@ -11765,7 +11777,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 21:26 by handoff_hook. Everything below this heading is
+_Written 2026-09-29 21:58 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11781,14 +11793,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+047630dd [handoff]: R-NOW8 - e3566eab and e7d28de3 shipped, split still Tre's call
+152a66bf [forecast]: an expense its account cannot cover no longer vanishes (e3566eab)
+2d076430 [ios]: stop the cover deadline once the page reports ready (e7d28de3)
+07484f81 [handoff]: R-NOW8 - move fund split measured and held, multi-stop pacing shipped (30ce4b04)
+30ce4b04 [goals]: pace every dated savings stop in order, not only the first (66d3af19)
 8ccdd1ab [handoff]: R-NOW7 - move fund plan ready to apply, Face ID + lock fixes shipped
 cfb848dc [applock]: offer Face ID once to people who already unlock with a PIN (2e42290d)
 06125537 [applock]: close two lock bypasses and draw the lock before Face ID (e34975a1)
-e673e3c6 [handoff]: backlog sweep - 1 closed, 1 dropped, 3 re-tested gates, Dependabot 7 -> 0
-9a6d0929 [deps]: undici 8.10.0 -> 8.11.2 (jsdom's test-only dependency), clears 7 Dependabot alerts
-74ea2e1f [handoff]: dark glass pair measured and sent (8a202850)
-f45d544b [ci]: dark glass control reinstalls the app so the persisted flag cannot leak into it
-2dbd7366 [ci]: dark-theme glass strip frames for 8a202850, with a dark-applied check
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
