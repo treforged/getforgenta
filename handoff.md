@@ -48,7 +48,13 @@ R-NOW17 (09-30 ~10:45 ET, Ada). START HERE:
         confirmation email to bounce). The auto-mode classifier REFUSED the next step, so it was NOT routed around.
         Cleanup verified: user, identity and profile all 0, deck-walk control 1, local password file deleted.
         Needs a decision (Sam or Tre): allow a throwaway SQL-created test user for an empty-state walk, or skip it.
-    NEXT: e1b0fffc standing - nothing else is workable without that decision; told Sam.
+    [x] Tre allowed it ("Yes allow", ask 813d6b21). walk:empty ran on a throwaway user: 10 routes, 0 automatic findings.
+        The FRAMES found a real defect -> ask 9f385515: weekly_gross_income defaults to 1875 (DB default AND
+        buildPayConfig fallback), so an empty account's Forecast draws Net Worth rising to ~$70k under "Nothing to
+        project yet". 15 of 29 real users sit at 1875, and 11 have no income rule. User deleted, auth.users back to 33.
+    NEXT: 9f385515 - make an unset income 0/unset in all 6 fallback sites + the DB default (migration), keep the
+        auto-saving BudgetControl form from writing 1875 back, and do NOT rewrite existing rows (a deliberate 1875
+        and a default 1875 are indistinguishable). Then re-run walk:empty and look at the Forecast frame.
 R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
     [x] R-NOW15 item 1 DONE, 693e88cc pushed (ask 287b0d5d closed with evidence). Variable-bill buffer wired:
         history = user's own linked_rule reviews ONLY (variable-bill-history.ts says why not transaction-matching or

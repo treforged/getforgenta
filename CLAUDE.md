@@ -222,6 +222,12 @@ section states reasoning, not measurement, and says so.
   must change the text. Proven red by pricing before an APR (exit 1). Its only write is the shared dialog-flag
   PATCH on the walk account. Numbers are owned by
   `consolidation-view.test.ts`, whose case 6 found the engine comparing a PARTIAL loan against ALL card debt.
+- `npm run walk:empty` - what a NEW user sees: 10 main routes at 390x844, signed in as an account with NO data.
+  Needs a throwaway `@forgenta.test` user created in SQL (no signup email to bounce; Tre approved 2026-09-30,
+  ask 813d6b21) passed as EMPTY_WALK_EMAIL / EMPTY_WALK_PASSWORD, and DELETED after (prove auth.users returns).
+  Flags ErrorBoundary, NaN/undefined/Infinity/$-0/null text and blank pages; a planted "$NaN" is its control.
+  ⚠️ ITS GREEN IS WEAK: the first run passed 10/10 while the Forecast drew a phantom $97.5k salary
+  (ask 9f385515). Only the frames in test-results/empty-walk/ caught it, so LOOK AT THEM.
 - `npm run check:first-save` - at 390x844, signed in: walks onboarding twice and asserts the wizard
   saves on "See your plan" BEFORE the finish screen says "Your profile is set", that neither finish
   button saves again, and that every press works with the cookie banner up. Writes are answered
