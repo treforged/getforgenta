@@ -245,8 +245,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const { data: debts } = useDebts();
 
   // Income state
-  const [weeklyGross, setWeeklyGross] = useState(1875);
-  const [weeklyGrossInput, setWeeklyGrossInput] = useState('1875');
+  const [weeklyGross, setWeeklyGross] = useState(0);
+  const [weeklyGrossInput, setWeeklyGrossInput] = useState('');
   const [taxRate, setTaxRate] = useState(22);
   const [taxRateStr, setTaxRateStr] = useState('22');
   const [paycheckDay, setPaycheckDay] = useState(5);
@@ -304,12 +304,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   // a lazy initializer cannot cover it either.
   useEffect(() => {
     if (profile) {
-      const wg = Number(profile.weekly_gross_income) || 1875;
+      // Unset stays 0 and the field stays empty. A 1875 fallback here was written straight back by
+      // the auto-save on the next edit of any field in this form (ask 9f385515).
+      const wg = Number(profile.weekly_gross_income) || 0;
       const pf = (profile.paycheck_frequency as PayFrequency) || 'weekly';
       const perPaycheck = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setWeeklyGross(wg);
-      setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
+      setWeeklyGrossInput(wg > 0 ? String(Math.round(perPaycheck * 100) / 100) : '');
       const loadedTr = profile.tax_rate ?? 22;
       setTaxRate(loadedTr);
       setTaxRateStr(String(loadedTr));
@@ -401,7 +403,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           setAutoSaveStatus('saved');
           setTimeout(() => setAutoSaveStatus('idle'), 2000);
           // Sync ONLY the designated paycheck rule — never touch other income rules
-          if (targetRule) {
+          // With no salary entered, net is 0: syncing would overwrite the user's own paycheck rule with $0.
+          if (targetRule && wg > 0) {
             if (!paycheckRuleId) setPaycheckRuleId(targetRule.id);
             const needsUpdate = Math.round(Number(targetRule.amount) * 100) !== Math.round(netPerPaycheck * 100) ||
               targetRule.frequency !== pf ||
@@ -453,7 +456,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       doAutoSave(wg, taxRate, paycheckDay, payFrequency, deductions);
     } else {
       const perPaycheck = payFrequency === 'biweekly' ? weeklyGross * 2 : payFrequency === 'monthly' ? weeklyGross * 52 / 12 : weeklyGross;
-      setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
+      setWeeklyGrossInput(weeklyGross > 0 ? String(Math.round(perPaycheck * 100) / 100) : '');
     }
   };
   const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency, deductions); };
@@ -461,7 +464,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   const setPayFrequencyAuto = (v: PayFrequency) => {
     setPayFrequency(v);
     const perPaycheck = v === 'biweekly' ? weeklyGross * 2 : v === 'monthly' ? weeklyGross * 52 / 12 : weeklyGross;
-    setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
+    setWeeklyGrossInput(weeklyGross > 0 ? String(Math.round(perPaycheck * 100) / 100) : '');
     doAutoSave(weeklyGross, taxRate, paycheckDay, v, deductions);
   };
 

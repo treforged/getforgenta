@@ -23,6 +23,7 @@ import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeAnnualFederalWithheld } from '@/lib/income-model';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
+import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 
 /**
  * Assembles the full ForecastInputs for the pure calculateForecast engine. Extracted VERBATIM
@@ -266,17 +267,8 @@ export function useForecastEngineInputs({
       ).map((r) => r.id),
     );
 
-    const explicitPaycheckRuleId = profile?.paycheck_rule_id ?? undefined;
-    const paycheckRuleIds = new Set<string>();
-    if (explicitPaycheckRuleId) {
-      paycheckRuleIds.add(explicitPaycheckRuleId);
-    } else {
-      rules.filter((r) =>
-        r.active && r.rule_type === 'income' &&
-        ['weekly', 'biweekly', 'semi_monthly'].includes(r.frequency) &&
-        (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).forEach((r) => paycheckRuleIds.add(r.id));
-    }
+    // Shared with useCardProjection so the two cannot drift. Empty when no salary is set (ask 9f385515).
+    const paycheckRuleIds = resolvePaycheckRuleIds(rules, profile, liquidAccountIds);
 
     const ccPaymentSources = new Set<string>(
       accounts

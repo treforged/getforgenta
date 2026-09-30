@@ -113,6 +113,8 @@ export function getPaycheckNet(config: PayScheduleConfig): number {
   const gross = getPaycheckGross(config);
   const pretax = config.preTaxDeductions ?? 0;
   const posttax = config.postTaxDeductions ?? 0;
+  // No pay means no paycheck: flat deductions must not turn a missing salary into a negative one.
+  if (!(gross > 0)) return 0;
   return (gross - pretax) * (1 - config.taxRate / 100) - posttax;
 }
 
@@ -132,7 +134,7 @@ export function getPaychecksInMonth(config: PayScheduleConfig, year: number, mon
   const gross = getPaycheckGross(config);
   const pretax = config.preTaxDeductions ?? 0;
   const posttax = config.postTaxDeductions ?? 0;
-  const net = (gross - pretax) * (1 - config.taxRate / 100) - posttax;
+  const net = gross > 0 ? (gross - pretax) * (1 - config.taxRate / 100) - posttax : 0;
 
   if (config.frequency === 'monthly') {
     const day = Math.min(config.paycheckDay || 1, monthEnd.getDate());
@@ -214,7 +216,9 @@ function resolveDeductionAmt(value: number, mode: string, gross: number): number
 
 /** Build config from profile data */
 export function buildPayConfig(profile: Partial<Tables<'profiles'>> | null | undefined): PayScheduleConfig {
-  const wg = Number(profile?.weekly_gross_income) || 1875;
+  // An unset salary is $0, never a guess. This fell back to $1,875/week, so any account that had
+  // not entered one was projected a $97,500 salary from month 1 on (ask 9f385515).
+  const wg = Number(profile?.weekly_gross_income) || 0;
   const pf = (profile?.paycheck_frequency as PayFrequency) || 'weekly';
   const paycheckGross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
 

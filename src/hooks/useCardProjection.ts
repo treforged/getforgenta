@@ -49,6 +49,7 @@ import { isManualCashFloor } from '@/lib/cash-floor';
 import { settleUnconditional } from '@/lib/unconditional-payment';
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -485,17 +486,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
         ).map(r => r.id),
       );
-      const explicitPaycheckRuleId = profile?.paycheck_rule_id ?? undefined;
-      const paycheckRuleIds = new Set<string>();
-      if (explicitPaycheckRuleId) {
-        paycheckRuleIds.add(explicitPaycheckRuleId);
-      } else {
-        rules.filter(r =>
-          r.active && r.rule_type === 'income' &&
-          ['weekly', 'biweekly', 'semi_monthly'].includes(r.frequency) &&
-          (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-        ).forEach(r => paycheckRuleIds.add(r.id));
-      }
+      // Shared with useForecastEngineInputs so the two cannot drift. Empty when no salary is set (ask 9f385515).
+      const paycheckRuleIds = resolvePaycheckRuleIds(rules, profile, liquidAccountIds);
       const ccPaymentSources = new Set<string>(
         accounts.filter(a => a.active && a.account_type === 'credit_card')
           .flatMap(a => [a.id, `account:${a.id}`]),

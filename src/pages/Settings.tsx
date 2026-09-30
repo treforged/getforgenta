@@ -194,7 +194,7 @@ export default function SettingsPage() {
 
   const [displayName, setDisplayName] = useState('');
   const [currency, setCurrency] = useState('USD');
-  const [weeklyGrossIncome, setWeeklyGrossIncome] = useState('1875');
+  const [weeklyGrossIncome, setWeeklyGrossIncome] = useState('');
   const [startDay, setStartDay] = useState('1');
   const [showCents, setShowCents] = useState(true);
   const [compactMode, setCompactMode] = useState(false);
@@ -234,7 +234,7 @@ export default function SettingsPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayName(profile.display_name || '');
       setCurrency(profile.currency || 'USD');
-      setWeeklyGrossIncome(String(profile.weekly_gross_income || 1875));
+      setWeeklyGrossIncome(Number(profile.weekly_gross_income) > 0 ? String(profile.weekly_gross_income) : '');
       setStartDay(String(profile.budget_start_day || 1));
       setShowCents(profile.show_cents ?? true);
       setCompactMode(profile.compact_mode ?? false);
@@ -273,7 +273,7 @@ export default function SettingsPage() {
 
   // FIX #10: Save ALL profile fields including derived fields so they propagate everywhere
   const handleSave = () => {
-    const _wgi = parseFloat(weeklyGrossIncome); const wgi = isNaN(_wgi) ? 1875 : _wgi;
+    const _wgi = parseFloat(weeklyGrossIncome); const wgi = isNaN(_wgi) || _wgi < 0 ? 0 : _wgi;
     const _tr = parseFloat(taxRate); const tr = isNaN(_tr) ? 22 : _tr;
     const _cf = parseFloat(cashFloor); const cf = isNaN(_cf) ? 1000 : _cf;
     const pd = parseInt(paycheckDay);

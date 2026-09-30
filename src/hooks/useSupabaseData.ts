@@ -1205,13 +1205,15 @@ export function useBudgetItems() {
 // the demo recurring rules and produce correct calculations
 const DEFAULT_PROFILE: Partial<Tables<'profiles'>> = {
   display_name: '', currency: 'USD', budget_start_day: 1,
-  monthly_income_default: 6337.50, // 1875 * 4.33 * 0.78 (net)
+  // Income is 0 until the user enters one. These were $1,875/week figures, and this object is the
+  // fallback for real signed-in users while the profile loads or fails, not only the demo (ask 9f385515).
+  monthly_income_default: 0,
   show_cents: true, compact_mode: false,
   is_premium: false,
-  gross_income: 8118.75, // 1875 * 4.33
+  gross_income: 0,
   tax_rate: 22,
   cash_floor: 1500,
-  weekly_gross_income: 1875,
+  weekly_gross_income: 0,
   paycheck_frequency: 'weekly',
   paycheck_day: 5,
   default_deposit_account: null,
