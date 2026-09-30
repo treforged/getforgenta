@@ -284,9 +284,11 @@ export interface PromoExpiryWarning {
 /**
  * Whole months from `asOf` (YYYY-MM-DD) until `end`, floored at 1 so a division never explodes.
  *
- * Exported because `dated-commitments.ts` runs the same deadline arithmetic over savings goals and
- * car funds, and two definitions of "how many months do I have left" would eventually disagree by
- * one — which on a promo cliff is the difference between clearing it and not.
+ * Exported so every caller shares one definition of "how many months do I have left"; two would
+ * eventually disagree by one, which on a promo cliff is the difference between clearing it and not.
+ * (`dated-commitments.ts`, the file this was first exported for, was deleted 2026-09-30 with no importers:
+ * `paced-goal-contribution.ts` is the wired deadline pacer. Its unbuilt idea - a 'priced' deadline
+ * worth missing when the repriced rate is below the best debt rate - is in git at 693e88cc^.)
  */
 export function monthsUntil(asOf: string, end: string): number {
   const [ay, am] = asOf.split('-').map(Number);
