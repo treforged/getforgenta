@@ -64,6 +64,15 @@ const password = pick(creds, 'REACH_TEST_PASSWORD');
 if (!url || !anon || !email || !password) fail(2, 'missing Supabase URL/key or walk credentials.');
 if (!/@forgenta[.]test$/.test(email)) fail(2, 'refusing: this script only signs in @forgenta.test accounts.');
 
+// WIZARD TABLES are DERIVED from the wizard's own source, never typed here. Before 2026-09-30 any
+// non-profile write counted as a wizard save, so the dashboard's leaderboard publisher - which fires
+// on mount, after "Continue free" lands - failed this gate on timing alone (1 of 2 runs, same code).
+const WIZARD_TABLES = [...new Set([...readFileSync('src/pages/Onboarding.tsx', 'utf8')
+  .matchAll(/from\(['"]([a-z_]+)['"]\)/g)].map((m) => m[1]))].filter((t) => t !== 'profiles');
+// Positive control: the wizard's data inserts must be found, or a zero below means a broken matcher.
+if (!WIZARD_TABLES.includes('budget_items')) fail(2, `wizard table derivation found ${JSON.stringify(WIZARD_TABLES)}, expected budget_items among them.`);
+const isWizardTable = (path) => WIZARD_TABLES.includes(path.split('?')[0]);
+
 const ref = new URL(url).hostname.split('.')[0];
 const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
   method: 'POST',
@@ -125,12 +134,12 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
     const body = req.postData() || '';
     // The profile write carrying onboarding_completed=true IS the save; any insert into a data
     // table is part of it. Progress markers (onboarding_furthest_step) are not.
-    const isSave = !path.startsWith('profiles') || /"onboarding_completed":true/.test(body);
+    const isSave = isWizardTable(path) || /"onboarding_completed":true/.test(body);
     // A WIZARD save is the one that must not happen twice: a data-table insert, or the profile write
     // tagged via "wizard". A "cache_restore" write is the app reconciling a device cache with the
     // profile row - and here the row still reads false because the stubbed save never reached the
     // database. It is an artefact of THIS PROBE on a full-page reload, printed rather than hidden.
-    const isWizardSave = !path.startsWith('profiles') || /"onboarding_completed_via":"wizard"/.test(body);
+    const isWizardSave = isWizardTable(path) || /"onboarding_completed_via":"wizard"/.test(body);
     const isCacheRestore = /"onboarding_completed_via":"cache_restore"/.test(body);
     st.writes.push({ method: req.method(), path, isSave, isWizardSave, isCacheRestore, fields: path.startsWith('profiles') ? safeJsonKeys(body) : '' });
     return route.fulfill({ status: 204, body: '' });
