@@ -4,7 +4,7 @@
 // It reads nothing back itself: signup_funnel_events is INSERT-only for anon by design, so the read
 // is a SQL query the desk runs afterwards (printed at the end, with this run's start time).
 // What it asserts in the browser: every expected step produced a 2xx INSERT to
-// /rest/v1/signup_funnel_events, and NOTHING in any insert body carries the typed email or name.
+// /rest/v1/signup_funnel_events, and NOTHING in any insert body carries the typed email.
 //
 // SAFETY: the sign-up call (/auth/v1/signup) is answered in the browser with a fake "confirm your
 // email" response, so no account is created and no email is sent. The Google tap opens the
@@ -17,7 +17,6 @@ const BASE = process.env.BASE_URL || 'http://localhost:8080';
 // A gmail-shaped address so the confirm screen offers 'Open Gmail'. Nothing is ever sent to it:
 // the sign-up and resend calls are both answered in the browser below.
 const EMAIL = 'forgenta.funnel.walk.check@gmail.com';
-const NAME = 'Funnel Walk';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -28,7 +27,7 @@ const leaks = [];
 ctx.on('request', (req) => {
   if (!req.url().includes('/rest/v1/signup_funnel_events') || req.method() !== 'POST') return;
   const body = req.postData() || '';
-  if (body.includes(EMAIL) || body.includes('funnel') && body.includes('walk') || body.includes(NAME)) leaks.push(body);
+  if (body.includes(EMAIL) || body.includes('funnel.walk')) leaks.push(body);
 });
 ctx.on('response', async (res) => {
   const req = res.request();
@@ -96,12 +95,14 @@ for (const r of reach) {
     await toggle.click(); t1 = await pw.getAttribute('type'); p1 = await toggle.getAttribute('aria-pressed');
     await toggle.click(); t2 = await pw.getAttribute('type');
   }
-  const ok = confirmCount === 0 && hasToggle === 1 && t0 === 'password' && t1 === 'text' && p1 === 'true' && t2 === 'password';
+  // TWO FIELDS (ask e3166cf7): email and password. The name is asked once, in onboarding.
+  const fields = await page.locator('form input:visible').count();
+  const nameFields = await page.getByLabel('Display name').count();
+  const ok = fields === 2 && nameFields === 0 && confirmCount === 0 && hasToggle === 1 && t0 === 'password' && t1 === 'text' && p1 === 'true' && t2 === 'password';
   if (!ok) fail++;
-  console.log(`${ok ? 'PASS' : 'FAIL'} one password field + toggle: confirm fields=${confirmCount} toggle=${hasToggle} type ${t0} -> ${t1} (pressed=${p1}) -> ${t2}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'} one password field + toggle: form fields=${fields} name fields=${nameFields} confirm fields=${confirmCount} toggle=${hasToggle} type ${t0} -> ${t1} (pressed=${p1}) -> ${t2}`);
 }
 // A value HTML accepts and the schema refuses, so the validation branch fires.
-await page.getByLabel('Display name').fill(NAME);
 await page.getByLabel('Email').fill('a@b');
 await page.getByLabel('Password', { exact: true }).fill('walkpass123');
 await page.getByRole('button', { name: 'Create Account' }).click({ force: true });
@@ -194,8 +195,8 @@ for (const step of EXPECT) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${step}: ${hits.map((h) => `${h.status} ${h.body}`).join(' | ') || 'not sent'}`);
 }
 if (sent.length === 0) { console.log('FAIL nothing was sent at all - instrument or app broken'); fail++; }
-if (leaks.length) { console.log(`FAIL ${leaks.length} insert(s) carried the typed email or name:`, leaks); fail++; }
-else console.log(`PASS no insert carried the typed email or name (${sent.length} inserts checked)`);
+if (leaks.length) { console.log(`FAIL ${leaks.length} insert(s) carried the typed email:`, leaks); fail++; }
+else console.log(`PASS no insert carried the typed email (${sent.length} inserts checked)`);
 // The DATABASE clock stamps created_at, and this PC's clock ran ~45 s ahead of it on 2026-09-30,
 // so a filter built from the local start time returned ZERO rows over 8 real inserts.
 console.log(`\nRead back (DB clock; local start was ${startedAt}): select id, step, method, detail, platform, created_at from public.signup_funnel_events where created_at >= now() - interval '10 minutes' order by id;`);

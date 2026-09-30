@@ -3,7 +3,6 @@ import { Link, useSearchParams, useNavigate } from 'react-router';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
-import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -65,7 +64,6 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   // The address a confirmation link was just sent to. A toast alone vanished in seconds and left
@@ -247,7 +245,6 @@ export default function Auth() {
     setMode(next);
     setPassword('');
     setConfirmPassword('');
-    setDisplayName('');
     setResetSent(false);
     setSignupSentTo(null);
     if (next === 'landing') setEmail('');
@@ -510,7 +507,7 @@ export default function Auth() {
       if (!result.success) { toast.error(result.error.issues[0].message); return; }
     } else {
       recordFunnelStep('tap_email', { method: 'email' });
-      const result = signUpSchema.safeParse({ displayName, email, password });
+      const result = signUpSchema.safeParse({ email, password });
       if (!result.success) {
         // The field name, never the value: it says WHICH field stopped them.
         recordFunnelStep('auth_error', { method: 'email', detail: `invalid_${String(result.error.issues[0].path[0] ?? 'form')}` });
@@ -561,15 +558,11 @@ export default function Auth() {
         toast.success('Signed in successfully');
         navigate('/dashboard', { replace: true });
       } else {
-        const rawName = displayName.trim().slice(0, LIMITS.username);
-        const { clean: cleanName, flagged: nameFlagged } = filterProfanity(rawName);
-        if (nameFlagged) toast.warning('Display name contained inappropriate language and was cleaned.');
         const { data: signUpData, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth`,
-            data: { display_name: cleanName },
           },
         });
         if (error) throw error;
@@ -1082,22 +1075,9 @@ export default function Auth() {
 
         <form onSubmit={handleSubmit} className="card-forged p-4 space-y-3">
 
-          {mode === 'signup' && (
-            <div>
-              <label className="text-xs text-muted-foreground uppercase">Display Name</label>
-              <input aria-label="Display name"
-                type="text"
-                value={displayName}
-                onChange={e => setDisplayName(e.target.value)}
-                required
-                placeholder="Your name"
-                maxLength={50}
-                autoComplete="name"
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
-                style={{ borderRadius: 'var(--radius)' }}
-              />
-            </div>
-          )}
+          {/* No name field at sign-up (ask e3166cf7, 2026-09-30). Onboarding's first step asks
+              "What should we call you?", runs it through the profanity filter and falls back to the
+              email prefix, so asking here too was the same question twice before any value. */}
 
           <div>
             <label className="text-xs text-muted-foreground uppercase">Email</label>

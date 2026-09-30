@@ -8,7 +8,6 @@ export const loginSchema = z.object({
 });
 
 export const signUpSchema = z.object({
-  displayName: z.string().trim().min(2, 'Name must be at least 2 characters').max(50),
   email: z.string().email('Enter a valid email address').max(254),
   password: z.string().min(6, 'Password must be at least 6 characters').max(128),
 });

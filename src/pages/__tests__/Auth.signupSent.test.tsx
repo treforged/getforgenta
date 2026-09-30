@@ -42,8 +42,8 @@ async function submitSignUp() {
   const { default: Auth } = await import('@/pages/Auth');
   render(<MemoryRouter initialEntries={['/auth']}><Auth /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Start Free' }));
-  fireEvent.change(await screen.findByPlaceholderText('Your name'), { target: { value: 'New Person' } });
-  const email = document.querySelector('input[type=email]') as HTMLInputElement;
+  // Sign-up has no name field since 2026-09-30 (ask e3166cf7); onboarding asks for it.
+  const email = (await screen.findByLabelText('Email')) as HTMLInputElement;
   fireEvent.change(email, { target: { value: EMAIL } });
   for (const pw of Array.from(document.querySelectorAll('input[type=password]'))) {
     fireEvent.change(pw, { target: { value: 'Str0ng-pass-9!' } });
