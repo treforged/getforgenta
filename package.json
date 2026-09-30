@@ -50,6 +50,7 @@
     "check:onboarding-attribution": "node scripts/check-onboarding-attribution.mjs",
     "check:onboarding-stay": "node scripts/check-onboarding-stay.mjs",
     "check:onboarding-orientation": "node scripts/check-onboarding-orientation.mjs",
+    "check:time-bombs": "node scripts/check-time-bombs.mjs",
     "check:signup-funnel": "node scripts/check-signup-funnel.mjs",
     "check:first-save": "node scripts/measure-first-save.mjs",
     "check:nav": "node scripts/check-nav-doors.mjs",
