@@ -498,6 +498,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             DispatchQueue.main.async {
                 if (result as? Bool) == true {
                     self?.debugLog("DASHBOARD_READY flag=true")
+                    // e7d28de3: the page has answered, so the deadline's premise ("the WebView has
+                    // not answered") is false. The 15 s budget counts 200 ms gaps but not each
+                    // evaluateJavaScript round trip, so on a slow cold start the deadline could fire
+                    // DURING the paint wait below and reload a dashboard that had already rendered
+                    // (two CI rows on 2026-09-29, branch=first_launch). waitForPaintThenDismiss has
+                    // its own 1.5 s fallback, so the cover still cannot stay up.
+                    self?.cancelCoverDeadline()
                     self?.waitForPaintThenDismiss(webView)
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
