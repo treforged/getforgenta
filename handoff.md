@@ -43,7 +43,9 @@ R-NOW19 (09-30 ~15:30Z, Ada). START HERE:
     GATE: npm run check:signup-funnel (dev server up) - 15 checks, signed out at 390x844, sign-up and resend are
         answered in-browser so nothing is created or sent.
     MEASURED: 4 of 19 email sign-ups never confirmed; OAuth 0 of 16. Cause of the 8 native non-signups: UNKNOWN.
-    OPEN: ecf65fde time bomb - DateScrollPicker has no last-year option once the year turns (product?).
+    [x] ecf65fde DONE 1ad04b6b: DateScrollPicker keeps last year's dates after New Year. check:time-bombs now
+        really runs (4209d8b8's 'reproduces' was a run where vitest was never found); 3 dates x 5476 green.
+    OPEN:
           b257afd0 (16 profiles at 1875) - Sam/Tre's; NOT recorded here on purpose (classifier refused that step).
     ⚠️ Git Bash `TZ=X node` does NOT apply TZ on this PC. Use node scripts/test-timezones.mjs <files>.
 R-NOW18 (09-30 ~13:45Z, Ada getforgenta-8420). START HERE:
