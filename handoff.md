@@ -25,6 +25,27 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW19 (09-30 ~15:30Z, Ada). START HERE:
+    ITEM 1 (Sam): READ public.signup_funnel_events AFTER THE FIRST REAL INSTALLS - per-step counts and the drop
+        point. Sam's sweeps watch the table and will dispatch Ada when real rows land. Rows 1-~40 (2026-09-30,
+        platform 'web') are THIS session's test rows plus one REST probe (detail 'probe_control'); exclude them.
+        Query: select step, method, detail, platform, count(*) from public.signup_funnel_events
+               where created_at > '2026-09-30 16:00+00' group by 1,2,3,4 order by 5 desc;
+        ⚠️ Filter by the DB clock: this PC's clock ran ~45 s ahead of the DB, and a local-time filter read 0 rows.
+    SHIPPED this session (all pushed 0/0, contents verified; test:tz 5474 x3 at the end):
+      1f621d92 Budget salary can be cleared to $0 | 628bee53 promotion-without-salary warning
+      bece3341 anonymous pre-signup counts (migration 20260930b; anon INSERT-only, 120/min trigger cap)
+      869b2b76 no cookie banner on /auth (WEB ONLY - the native router never mounts it)
+      1442b6b3 one password field + show toggle | 5f8f45b4 no name field at sign-up (onboarding asks it)
+      9f194f9b "Try it first" -> demo (migration 20260930c adds try_demo) | 09ec8643 Open-inbox + 60 s resend
+      e5b6f0b6 pinned the clock in 4 engine tests that went red when Tokyo reached Oct 1
+      4209d8b8 npm run check:time-bombs (suite under a shifted clock)
+    GATE: npm run check:signup-funnel (dev server up) - 15 checks, signed out at 390x844, sign-up and resend are
+        answered in-browser so nothing is created or sent.
+    MEASURED: 4 of 19 email sign-ups never confirmed; OAuth 0 of 16. Cause of the 8 native non-signups: UNKNOWN.
+    OPEN: ecf65fde time bomb - DateScrollPicker has no last-year option once the year turns (product?).
+          b257afd0 (16 profiles at 1875) - Sam/Tre's; NOT recorded here on purpose (classifier refused that step).
+    ⚠️ Git Bash `TZ=X node` does NOT apply TZ on this PC. Use node scripts/test-timezones.mjs <files>.
 R-NOW18 (09-30 ~13:45Z, Ada getforgenta-8420). START HERE:
     [x] 9f385515 DONE, 59c3fb37 pushed (0/0, contents verified). An unset weekly_gross_income is $0 everywhere:
         buildPayConfig, DEFAULT_PROFILE (NOT demo-only: it is the loading/error fallback for real users), Settings,
@@ -11983,16 +12004,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 09:28 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 11:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -12001,14 +12023,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-75746bf5 [walk]: walk:empty - first-week screens on a data-free account; found a phantom default salary
-59fbe5d7 [handoff]: R-NOW17 - empty-account walk refused by classifier, cleaned up, waiting on a decision
-dc074d51 [handoff]: R-NOW17 - consolidation panel shipped, walk:press PASS at 368 (~905s)
-75c20eb6 [debt]: breakEvenApr prices a partial loan against the retired money only
-d5489968 [debt]: consolidation loan panel on Debt Payoff + like-for-like interest baseline
-d750eb0b [handoff]: R-NOW16 - nudge already built, dated-commitments deleted, turnstile parked; next fee53760
-40ae7058 [cleanup]: delete dated-commitments - paced-goal-contribution is the wired deadline pacer
-63628ad5 [handoff]: R-NOW16 next - check Link and correct before building the nudge
+e5b6f0b6 [test]: pin the clock in 4 engine tests that broke when the month turned (ask 6642c809)
+5f8f45b4 [auth]: sign-up asks for email and password only; onboarding asks the name (ask e3166cf7)
+09ec8643 [auth]: confirm-email screen gets "Open <provider>" and a resend with a 60 s cooldown (ask ee8a0b89)
+9f194f9b [auth]: "Try it first" on the welcome screen opens the demo (ask 4180a9dd)
+1442b6b3 [auth]: one password field at sign-up, with a show-password toggle (ask 075107d6)
+869b2b76 [auth]: hold the cookie banner off the sign-in screen so Google and Apple are tappable (ask 791b4b03)
+bece3341 [auth]: count the steps before sign-up, anonymously (ask 6dbd80d8)
+628bee53 [forecast]: warn when a promotion cannot apply because no salary is set
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
