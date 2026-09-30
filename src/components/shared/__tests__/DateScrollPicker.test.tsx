@@ -72,3 +72,27 @@ describe('DateScrollPicker', () => {
     expect(onChange).toHaveBeenCalledWith('2026-08-12');
   });
 });
+
+// ⚠️ LAST YEAR'S DATE, AFTER THE YEAR TURNS (ask ecf65fde). The year list started at the CURRENT
+// year, so from January 2027 a saved 2026 date showed no year and could not be kept. Found by
+// `npm run check:time-bombs`; pinned here so it no longer depends on what today is.
+describe('DateScrollPicker after the year turns', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('shows and keeps a date from last year, and does not rewrite it', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-01-15T12:00:00'));
+    const onChange = vi.fn();
+    const { container } = render(<DateScrollPicker value="2026-08-11" onChange={onChange} />);
+    expect(selectedLabels(container)).toEqual(['Aug', '11', '2026']);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('with no earlier date, the year list still starts at the current year', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-01-15T12:00:00'));
+    const { getByText, queryByText } = render(<DateScrollPicker value="2027-03-01" onChange={() => {}} />);
+    expect(getByText('2027')).toBeTruthy();
+    expect(queryByText('2026')).toBeNull();
+  });
+});

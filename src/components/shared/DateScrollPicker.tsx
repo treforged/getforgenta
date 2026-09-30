@@ -200,9 +200,15 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
     [maxDay]
   );
 
+  // From the EARLIER of this year and the given date's year, through 15 years ahead. The list used
+  // to start at the current year only, so from January 2027 a saved 2026 date had no year to show
+  // and could not be kept (found by check:time-bombs, ask ecf65fde).
+  const valueYear = value ? +value.slice(0, 4) : NaN;
+  const firstYear = Number.isFinite(valueYear) ? Math.min(today.getFullYear(), valueYear) : today.getFullYear();
+  const lastYear = today.getFullYear() + 15;
   const years = useMemo(
-    () => Array.from({ length: 16 }, (_, i) => ({ value: today.getFullYear() + i, label: String(today.getFullYear() + i) })),
-    [today]
+    () => Array.from({ length: lastYear - firstYear + 1 }, (_, i) => ({ value: firstYear + i, label: String(firstYear + i) })),
+    [firstYear, lastYear]
   );
 
   return (
