@@ -216,6 +216,12 @@ section states reasoning, not measurement, and says so.
   open the panel ON SCREEN. It finds the panel by its own heading, never by the id or aria-expanded the fix
   added, so it can see the old defect: proven red on the pre-fix page (heading at top=763 on a 667px screen)
   and green on the fix (top=99). Does NOT cover desktop widths or the panel's contents.
+- `npm run check:consolidation` - at 390x844, signed in: PRESSES Debt Payoff's "Would a consolidation loan
+  help?" panel. Collapsed by default; opening it must show the enter-an-APR prompt and NO Interest block (the
+  panel never invents a rate); an APR must produce separate Interest and Utilization blocks; changing the APR
+  must change the text. Proven red by pricing before an APR (exit 1). Its only write is the shared dialog-flag
+  PATCH on the walk account. Numbers are owned by
+  `consolidation-view.test.ts`, whose case 6 found the engine comparing a PARTIAL loan against ALL card debt.
 - `npm run check:first-save` - at 390x844, signed in: walks onboarding twice and asserts the wizard
   saves on "See your plan" BEFORE the finish screen says "Your profile is set", that neither finish
   button saves again, and that every press works with the cookie banner up. Writes are answered

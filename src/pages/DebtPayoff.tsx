@@ -10,6 +10,7 @@ import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulate
 import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds, usePaymentPlans } from '@/hooks/useSupabaseData';
 import FormModal from '@/components/shared/FormModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
+import ConsolidationPanel from '@/components/debt/ConsolidationPanel';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
@@ -560,6 +561,13 @@ export default function DebtPayoff() {
           simRevolvingPayoffMonth={cardProjection?.simRevolvingPayoffMonth ?? null}
           pauseSavings={pauseSavings}
         />
+        </ErrorBoundary>
+      )}
+
+      {/* fee53760: the consolidation calculator had tests and no screen. Collapsed by default. */}
+      {activeTab === 'cards' && (
+        <ErrorBoundary variant="widget" label="Consolidation Loan">
+          <ConsolidationPanel accounts={accounts ?? []} plans={paymentPlans ?? []} />
         </ErrorBoundary>
       )}
 

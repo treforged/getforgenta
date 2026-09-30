@@ -16,6 +16,7 @@
     "check:node": "node scripts/check-node-engine.mjs",
     "check:account": "node scripts/check-account-sections.mjs",
     "check:forecast-assumptions": "node scripts/check-forecast-assumptions.mjs",
+    "check:consolidation": "node scripts/check-consolidation-panel.mjs",
     "check:boot-failure": "node scripts/check-boot-failure.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",

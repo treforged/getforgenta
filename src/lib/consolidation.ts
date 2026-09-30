@@ -457,6 +457,48 @@ export function simulateStatusQuo(
   return { totalInterest, months: null };
 }
 
+/**
+ * Create synthetic cards representing only the retired portion of each payoff bucket.
+ * This provides a fair baseline when comparing a loan that retires part of a card’s
+ * debt versus carrying the entire balance; it includes the promo repricing for the
+ * retired amount, preventing an expensive loan from appearing artificially cheap.
+ *
+ * @param retired - Array of buckets with the amount to retire.
+ * @returns Synthetic ConsolidationCard objects for each positive retired amount.
+ */
+export function retiredPortionAsCards(
+  retired: readonly { bucket: PayoffBucket; amount: number }[],
+): ConsolidationCard[] {
+  return retired
+    .filter(entry => entry.amount > 0.005)
+    .map(entry => {
+      const { bucket, amount } = entry;
+      const syntheticCard: ConsolidationCard = {
+        id: `${bucket.cardId}:${bucket.trancheId}`,
+        name: `${bucket.cardName} - ${bucket.label}`,
+        balance: amount,
+        creditLimit: 0,
+        apr: bucket.aprAfterPromo ?? bucket.effectiveApr,
+      };
+
+      if (typeof bucket.promoEndDate === 'string') {
+        syntheticCard.tranches = [
+          {
+            id: bucket.trancheId,
+            label: bucket.label,
+            balance: amount,
+            apr: bucket.effectiveApr,
+            promo_end_date: bucket.promoEndDate,
+          },
+        ];
+      } else {
+        syntheticCard.tranches = [];
+      }
+
+      return syntheticCard;
+    });
+}
+
 export interface EvaluateInput {
   cards: readonly ConsolidationCard[];
   terms: LoanTerms;
@@ -481,6 +523,7 @@ export function evaluateConsolidation(input: EvaluateInput): ConsolidationResult
   // Retire buckets most-expensive-first until the money runs out.
   const buckets = buildPayoffBuckets(cards, asOf);
   const applied: ConsolidationResult['applied'] = [];
+  const retired: { bucket: PayoffBucket; amount: number }[] = [];
   const afterBalances = new Map<string, number>(cards.map(c => [c.id, c.balance]));
   let left = netProceeds;
   for (const b of buckets) {
@@ -489,6 +532,7 @@ export function evaluateConsolidation(input: EvaluateInput): ConsolidationResult
     left -= amount;
     afterBalances.set(b.cardId, (afterBalances.get(b.cardId) ?? 0) - amount);
     applied.push({ cardId: b.cardId, cardName: b.cardName, label: b.label, amount, apr: b.effectiveApr });
+    retired.push({ bucket: b, amount });
   }
   const totalOwed = buckets.reduce((s, b) => s + b.balance, 0);
   const shortfall = Math.max(0, totalOwed - netProceeds);
@@ -515,7 +559,13 @@ export function evaluateConsolidation(input: EvaluateInput): ConsolidationResult
 
   // Interest comparison. Baseline payment defaults to the loan payment so the two are like-for-like.
   const comparisonPayment = input.comparisonMonthlyPayment ?? monthlyPayment;
-  const sq = simulateStatusQuo(cards, comparisonPayment, asOf);
+  // LIKE-FOR-LIKE (fee53760, 2026-09-30): when the loan retires only PART of the card debt, the
+  // baseline carries only that part. Carrying ALL of it at the smaller loan payment made a 30% loan
+  // read as "saves interest" in the first test of the Debt Payoff panel. A full payoff keeps the
+  // original path byte-identical.
+  const sq = shortfall > 0.005
+    ? simulateStatusQuo(retiredPortionAsCards(retired), comparisonPayment, asOf)
+    : simulateStatusQuo(cards, comparisonPayment, asOf);
   const loanInterest = loanTotalInterest(terms.principal, terms.aprPct, terms.termMonths);
   const blendedCardApr = totalOwed > 0
     ? buckets.reduce((s, b) => s + b.balance * b.effectiveApr, 0) / totalOwed

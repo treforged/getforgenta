@@ -25,6 +25,18 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW17 (09-30 ~10:45 ET, Ada). START HERE:
+    [x] fee53760 SCREENED, not tombstoned: Debt Payoff > Credit Card Payoff now ends with a collapsed
+        "Would a consolidation loan help?" panel (ConsolidationPanel.tsx over consolidation-view.ts). APR starts EMPTY
+        (never an invented rate); Interest and Utilization are two separate blocks; "after" = worst point once
+        payment plans land. check:consolidation presses it (red proven: pricing before an APR -> exit 1).
+    [x] ENGINE DEFECT FOUND AND FIXED: evaluateConsolidation compared a PARTIAL loan against carrying ALL card debt
+        at the loan's smaller payment, so a 30% loan read as "saves interest". Now the baseline carries only the
+        buckets the loan retires (retiredPortionAsCards); the full-payoff path is unchanged (engine tests 593 etc hold).
+        STILL OPEN, not on any screen: breakEvenApr(principalOverride) has the same partial-vs-all comparison.
+    Gates: test:tz 5422 x3 (5414 + 8), tsc 0, eslint 0 on changed files. Free tier: groq gpt-oss-120b wrote all 4
+        pieces (scored in playbook); a 197-line component came back whole.
+    NEXT: e1b0fffc standing - pick the next backlog item.
 R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
     [x] R-NOW15 item 1 DONE, 693e88cc pushed (ask 287b0d5d closed with evidence). Variable-bill buffer wired:
         history = user's own linked_rule reviews ONLY (variable-bill-history.ts says why not transaction-matching or
