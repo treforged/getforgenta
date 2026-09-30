@@ -12,7 +12,7 @@
 //   3. THE MOVE: a buffered Rent raises the engine's pre-paycheck bills by exactly the buffer in
 //      every month, and the sim and the engine take the SAME amount out of month-0 debt capacity.
 //      Measured before the assertions were written (2026-09-30, NOW below).
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { runDemoCardProjection, demoForecastInputs } from './fixtures/demo-forecast-harness';
 import { calculateForecast } from '../forecast-engine';
 import { demoRecurringRules } from '../demo-data';
@@ -44,6 +44,18 @@ function run(rules: RuleRow[]) {
 function fingerprint({ sim, forecast }: ReturnType<typeof run>): string {
   return JSON.stringify({ sim, forecast }, (_k, v) => (v instanceof Map ? [...v] : v instanceof Set ? [...v] : v));
 }
+
+
+// ⚠️ THE ENGINE READS THE REAL CLOCK (forecast-engine.ts `nowDate = new Date()`), so a test that
+// does not pin it only passes while the real month matches the data. This file went red under
+// test:tz Asia/Tokyo the moment Tokyo reached 2026-10-01 (ask 6642c809). Pinned to NOW, the date these figures were measured at.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 describe('variable-bill buffer on the demo fixture', () => {
   it('control: the amount matcher cannot attribute a $190 charge to a $120 bill', () => {

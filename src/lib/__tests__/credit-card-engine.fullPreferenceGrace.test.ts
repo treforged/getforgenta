@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { simulateVariablePayoff, clearsStatement, type CardData } from '../credit-card-engine';
 
 /**
@@ -73,6 +73,18 @@ const hisCardToday = (over: Partial<CardData> = {}): CardData => makeCard({
   firstDueDate: '2026-10-10', dueDay: 10, statementBalancePhase: true, statementBalance: null,
   creditLimit: 5250, monthlyNewPurchases: 290,
   ...over,
+});
+
+
+// ⚠️ THE ENGINE READS THE REAL CLOCK (forecast-engine.ts `nowDate = new Date()`), so a test that
+// does not pin it only passes while the real month matches the data. This file went red under
+// test:tz Asia/Tokyo the moment Tokyo reached 2026-10-01 (ask 6642c809). Pinned to the day this data was read.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-18T12:00:00'));
+});
+afterAll(() => {
+  vi.useRealTimers();
 });
 
 describe('his CURRENT row (2026-09-18): statement preference, first payment 10 October', () => {

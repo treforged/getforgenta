@@ -15,7 +15,7 @@
  * before minimums, so it never met `minSuppressed` in the engine. Both the one-shot and the sim
  * path settle through here, which is why asserting this function covers the screen he looks at.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { unconditionalDesired, settleUnconditional } from '@/lib/unconditional-payment';
 import type { CardData } from '@/lib/credit-card-engine';
 
@@ -32,6 +32,18 @@ const HIS_ROBINHOOD = {
 } as unknown as CardData;
 
 const SEPTEMBER = new Date('2026-09-18T12:00:00');
+
+
+// ⚠️ THE ENGINE READS THE REAL CLOCK (forecast-engine.ts `nowDate = new Date()`), so a test that
+// does not pin it only passes while the real month matches the data. This file went red under
+// test:tz Asia/Tokyo the moment Tokyo reached 2026-10-01 (ask 6642c809). Pinned to SEPTEMBER, the date this file already reasons from.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(SEPTEMBER);
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 describe('Robinhood first payment, on his real row', () => {
   it('wants NOTHING in September', () => {
