@@ -41,12 +41,16 @@ R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
         shouldPublishPricing now used by the public-build fetch (same semantics). Kept: settings-ia (test-only by design).
         Filed: 57753d08 dated-commitments + consolidation are BUILT NEVER WIRED money features (tie to 2dcdcdde);
         acc5b80d verify-turnstile edge function now has no client (logs are 24h, so undeploy needs more than a zero).
-    NEXT: section 2's premise FAILS (its matcher can never see an over-plan charge; posted bills already leave the
-        floor; the buffer carries the overrun forward once linked). Sent Sam: close s.2, build a 'link this over-plan
-        charge' nudge instead. SAM AGREED (doc closed in a docs commit). FIRST grep the caller: BankActivity.tsx already
-        has a 'Link and correct' flow (test BankActivity.linkAndCorrectUndo) - check whether it already offers over-plan
-        charges before building anything. Then 57753d08: is dated-commitments the engine 2dcdcdde needs? Model the
-        lease-break fee as a dated cost; do NOT re-run the disproved 'fund it Oct-Feb' premise.
+    [x] Section 2 CLOSED in docs (Sam agreed). The link nudge was ALREADY BUILT: DecisionDeck + linkSuggestionFor offer a
+        remembered rule at >= 2 links, and linkMemoryVerdict asks on an unusual amount (76c9c431 closed, nothing written).
+    [x] 57753d08: dated-commitments deleted with a tombstone in balance-tranches.ts. paced-goal-contribution is the wired
+        deadline pacer; the lease-break fee is already a dated one-off on checking. test:tz 5414 x3 (5434 - 20 exactly).
+    [-] acc5b80d verify-turnstile: BLOCKED per Sam, "harmless while idle". The classifier refused the delete as
+        irreversible. Harm check done (no DB, no secret echoed, no rate limit, cost = invocations only).
+    NEXT: fee53760 - consolidation.ts + adapter price Tre's 2026-08-20 Discover personal-loan question and have NO SCREEN.
+        Decide first, by caller grep and a read of consolidation.ts's header: a Debt Payoff calculator that shows the
+        interest delta AND the utilization delta separately (the header forbids blending them), or a tombstone.
+        Then e1b0fffc standing: pick the next backlog item.
     NOTE: `npm run test:tz` failed once here with "'node' is not recognized" in npm's child shell; not reproduced later.
         `node scripts/test-timezones.mjs` is the same gate without npm.
 R-NOW15 (09-30 ~10:10Z, Ada getforgenta-90 handed off at the 212-call gate). START HERE:
@@ -11927,7 +11931,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 05:43 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 06:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11945,14 +11949,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+63628ad5 [handoff]: R-NOW16 next - check Link and correct before building the nudge
+922ed6ab [docs]: close dynamic-cash-floor section 2 - its matcher can never see an over-plan charge
+c7b62227 [handoff]: R-NOW16 - buffer wired, orphan sweep, section 2 premise fails
+ecc60e1f [cleanup]: orphan sweep - delete 5 files nothing imports, wire the public-pricing helper
+693e88cc [floor]: wire the variable-bill buffer - a bill's own linked payments size its floor reserve
+91517541 [handoff]: R-NOW15 - variable-bill buffer wiring queued, orphan sweep list
 d873993a [handoff]: R-NOW14 - badge share, new-badge row, dependabot fixed
 a1c1c2da [deps]: brace-expansion override 5.0.9 -> 5.0.12 (Dependabot #79 #80 #81)
-99f4b10a [dashboard]: a just-earned badge shows on Home with Share, and milestones are granted there again
-46f3ddee [share]: every earned badge can be shared, with a tagged link; two trophy gates fixed
-860bf822 [share]: the debt-free card carries a tappable link, tagged as a share arrival
-0065e921 [handoff]: R-NOW14 - walk 3x green, per-route baseline
-5fc0501a [walk]: walk:press prints its control count per route
-5009e08e [handoff]: R-NOW14 - funnel, signup verified, confirm-email screen live
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
