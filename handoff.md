@@ -25,6 +25,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW12 (09-30, Ada). START HERE:
+    1. e7d28de3: sim run 36684400350 dispatched on a77e25cc (HEAD). Read it: signed-in frame != welcome, and 0 new
+       client_boot_failures rows since 21:38:13Z (SQL). If both hold, close e7d28de3 with the run ids (Sam: the sim
+       is the instrument, do not wait for Tre's phone).
+    2. 2dcdcdde NOT APPLIED, on measurement (NOW-29d vs CTRL-29d, current code): the fund reaches 1,829 by Feb vs the
+       3,830 fee -> 2,001 unfunded Mar 2027, 18 short months to Sep 2028, payoff FALSELY earlier (Jul 2028 vs May 2029).
+       Live rows = backup.tre_movefund_20260929_* (checked). Ask re-blocked needs-tre with the one number. Sam told.
+    3. f3c0cdf5 (NEW, money engine, highest care): an unfunded account-paid outflow leaves the sim's cash untouched, so the
+       payoff date is optimistic. Proposed design: runDebtCashConvergence (src/lib/forecast-convergence.ts) feeds pass N's
+       row.unfundedAccountOutflow into pass N+1 as a checking one-time EXPENSE for that month (base oneTimeByMonth + last
+       pass's unfunded, never accumulated across passes), so the sim pays cards from the cash that really exists. Then
+       shortfallByMonth must STOP charging unfunded separately (or it double counts) - update breach-levers.unfunded tests.
+       Gate: NOW-29d payoff must move from Jul 2028 back to >= May 2029; CTRL-29d (unfunded 0) byte-identical outputs.
 R-NOW11 (09-30, Ada). 5874c945 compliance list DONE and closed: unsubscribe, analytics disclosure and AI claims hold;
     b7f57bd5 adds a store-subscriber Manage/cancel link to Settings > Plan (Settings.storeCancel.test.tsx, proven red,
     test:tz 5391 x3, Vercel success, JS-only). [x] 259d24d2: Legal.tsx section 3 names Resend + APNs + FCM (Sam approved),
