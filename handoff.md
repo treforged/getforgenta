@@ -25,6 +25,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW14 (09-30 ~08:30Z, Ada getforgenta-90). DONE this session, all pushed:
+    [x] Funnel (ask f120282d, read-only): 29 real users, onboarded 6, bank 3, budget 12, week-2 return 2. Newest real
+        signup 2026-08-07, 0 since. Bottleneck = acquisition; Sam routed it to Ruby + Ellis.
+    [x] Signup NOT broken: live probe on production (2 forgenta.test accounts, deleted, users back to 33). Signup 200 ->
+        user + profile -> confirm -> /onboarding wizard. Apple 5/5, Google 7/7, email 15/17 confirmed historically.
+        Logs are 24h only and auth.audit_log_entries is empty. 16 OAuth starts with 0 callbacks = Play pre-launch robot
+        (Google LLC ASN, OnePlus8Pro). The 58 bad-password logins are the sim's wrong-password control.
+    [x] check:first-save instrument fix (wizard tables derived from Onboarding.tsx; the leaderboard publisher was
+        counted as a wizard save, flaky 1 of 2 runs). Proven red on a real double save.
+    [x] 69b8d660 "Confirm your email" screen after email sign-up (the toast was the only signal). Proven red twice.
+        [x] LIVE on getforgenta.com (stubbed signup: confirm screen 1, form 0).
 R-NOW13 (09-30 ~08:00Z, Ada handed off at the 192-call gate). START HERE, IN ORDER:
     1. [x] e7d28de3 CLOSED 09-30: run 36684400350 pair garbage=0.00 real=23.58; boot_failures total 3, newest 21:38:13Z.
        Was: sim run 36684400350 on a77e25cc = SUCCESS. Still to read: (a) its "Screenshot a garbage
