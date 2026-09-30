@@ -25,7 +25,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
-R-NOW12 (09-30, Ada). START HERE:
+R-NOW13 (09-30 ~08:00Z, Ada handed off at the 192-call gate). START HERE, IN ORDER:
+    1. e7d28de3 CLOSE CHECK: sim run 36684400350 on a77e25cc = SUCCESS. Still to read: (a) its "Screenshot a garbage
+       session and a real one" step output - the signed-in frame must DIFFER from welcome (earlier runs printed the
+       diff, e.g. 23.59 vs garbage 0.02); (b) SQL `select count(*), max(created_at) from public.client_boot_failures`
+       must still read total 3, newest 2026-09-29 21:38:13Z. If both hold: `ask done e7d28de3 --evidence` with both
+       run ids (36657630376, 36684400350). Sam said the sim is the instrument; do not wait for Tre's phone.
+    2. [x] f3c0cdf5 FIXED 407bcea2: unfunded account-paid dollars are paid from checking inside the cash chain (steps
+       4a-4b-iii moved before it). Split capture payoff Jul 2028 (false) -> Sep 2028. Re-pins in breach-levers.realData
+       and floorFlicker, each commented. test:tz 5396 x3. Close the ask: `ask done f3c0cdf5 --evidence "407bcea2 ..."`.
+    3. [x] 2dcdcdde refused on measurement (needs-tre, one number). After 407bcea2 the split's March is paid from
+       checking; re-measure only if Tre answers.
+    4. Then STANDING e1b0fffc: pick the highest-retention item; Sam wants reports only when blocked or out of work.
+R-NOW12 (09-30, Ada). DONE, see R-NOW13:
     1. e7d28de3: sim run 36684400350 dispatched on a77e25cc (HEAD). Read it: signed-in frame != welcome, and 0 new
        client_boot_failures rows since 21:38:13Z (SQL). If both hold, close e7d28de3 with the run ids (Sam: the sim
        is the instrument, do not wait for Tre's phone).
@@ -11843,7 +11855,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-29 23:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 03:37 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -11860,14 +11872,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+bef8669f [handoff]: R-NOW12 - split refused on measurement, f3c0cdf5 scoped, sim run pending
+a77e25cc [handoff]: R-NOW11 - 259d24d2 processor disclosure shipped
+259d24d2 [legal]: the privacy policy names the email and push processors (5874c945)
+98f421af [handoff]: R-NOW11 - 5874c945 compliance list closed, b7f57bd5 store cancel link
+b7f57bd5 [settings]: App Store and Google Play subscribers can find cancel on the Plan card (5874c945)
+ba36e7e6 [handoff]: R-NOW10 - desktop contrast green both themes; queue waits on Tre or dates
 d0ab2ab7 [handoff]: R-NOW10 - full walk + dark contrast green on 57e38e17
 9b19f112 [handoff]: R-NOW10 - 57e38e17 unfunded-outflow warning shipped
-57e38e17 [forecast]: warn when a planned expense is more than its account holds (e3566eab residue)
-63cc0fb3 [handoff]: R-NOW10 - golden adopted (0b33c4a4), iOS 1123 uploaded, cover fix clean in CI
-0b33c4a4 [tests]: adopt the 09-29 capture as golden; restate the paced-goal realData test (2ad1394e)
-8a658e7e [handoff]: R-NOW9 - golden adoption plan with re-pin patch, iOS upload to read
-54b340d0 [handoff]: R-NOW8 - golden re-test measured, sim run clean, iOS upload dispatched
-99a9137e [cards]: a paid-in-full card row shows the purchases the sim charged (8a90fa8a)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
