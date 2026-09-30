@@ -117,9 +117,35 @@ for (let i = 0; i < 20 && await createBtn.isDisabled(); i++) await wait(250);
 await page.getByRole('button', { name: 'Create Account' }).click({ force: true });
 await wait(2500);
 
+// TRY IT FIRST (ask 4180a9dd), in a FRESH page so the per-launch dedupe starts clean: the welcome
+// button must open the demo, and the demo must offer the way back to sign-up. Both halves: a demo
+// with no way out is a dead end, which is worse than no demo.
+{
+  const p2 = await ctx.newPage();
+  await p2.goto(`${BASE}/auth`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(1200);
+  const tryBtn = p2.getByRole('button', { name: /try it first/i });
+  if (await tryBtn.count()) await tryBtn.click();
+  await p2.waitForURL('**/dashboard', { timeout: 15000 }).catch(() => {});
+  await p2.waitForTimeout(2500);
+  const onDemo = p2.url().endsWith('/dashboard') && await p2.getByText('Demo', { exact: true }).count() > 0;
+  const back = p2.getByRole('link', { name: /sign up free/i }).first();
+  const hasBack = await back.count();
+  let returned = false;
+  if (hasBack) {
+    await back.click();
+    await p2.waitForTimeout(2000);
+    returned = p2.url().endsWith('/auth') && await p2.getByRole('button', { name: 'Start Free' }).count() > 0;
+  }
+  const ok = onDemo && hasBack > 0 && returned;
+  if (!ok) fail++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} try it first: demo opened=${onDemo} sign-up link=${hasBack > 0} back on welcome=${returned}`);
+  await p2.close();
+}
+
 await browser.close();
 
-const EXPECT = ['app_opened', 'welcome_shown', 'signup_form_shown', 'tap_email', 'auth_error', 'tap_google', 'signup_completed', 'confirm_email_shown'];
+const EXPECT = ['app_opened', 'welcome_shown', 'signup_form_shown', 'tap_email', 'auth_error', 'tap_google', 'signup_completed', 'confirm_email_shown', 'try_demo'];
 for (const step of EXPECT) {
   const hits = sent.filter((s) => s.step === step);
   const ok = hits.some((h) => h.status >= 200 && h.status < 300);

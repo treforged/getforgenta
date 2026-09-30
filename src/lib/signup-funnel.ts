@@ -20,7 +20,8 @@ export type FunnelStep =
   | 'tap_apple'
   | 'auth_error'
   | 'confirm_email_shown'
-  | 'signup_completed';
+  | 'signup_completed'
+  | 'try_demo';
 export type FunnelMethod = '' | 'email' | 'google' | 'apple';
 
 const sentSteps = new Set<string>();

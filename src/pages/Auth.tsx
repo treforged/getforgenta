@@ -693,6 +693,15 @@ export default function Auth() {
             >
               Sign In
             </button>
+            {/* A way to SEE the app before giving an email (ask 4180a9dd). /demo was only reachable
+                from the web marketing page, so a phone had no try-first path at all. */}
+            <button
+              type="button"
+              onClick={() => { recordFunnelStep('try_demo'); navigate('/demo'); }}
+              className="auth-cta auth-cta-2 w-full py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              Try it first, no account needed
+            </button>
           </div>
           {!Capacitor.isNativePlatform() && (
             <div className="auth-trust text-center">
