@@ -41,7 +41,9 @@ R-NOW16 (09-30 ~11:00Z, Ada getforgenta-f4). START HERE:
         shouldPublishPricing now used by the public-build fetch (same semantics). Kept: settings-ia (test-only by design).
         Filed: 57753d08 dated-commitments + consolidation are BUILT NEVER WIRED money features (tie to 2dcdcdde);
         acc5b80d verify-turnstile edge function now has no client (logs are 24h, so undeploy needs more than a zero).
-    NEXT: docs/dynamic-cash-floor.md section 2 (floor rises when THIS month's bill lands over plan) - Sam queued it.
+    NEXT: section 2's premise FAILS (its matcher can never see an over-plan charge; posted bills already leave the
+        floor; the buffer carries the overrun forward once linked). Sent Sam: close s.2, build a 'link this over-plan
+        charge' nudge instead. Start the nudge unless Sam objects (see the new desk ask on it).
     NOTE: `npm run test:tz` failed once here with "'node' is not recognized" in npm's child shell; not reproduced later.
         `node scripts/test-timezones.mjs` is the same gate without npm.
 R-NOW15 (09-30 ~10:10Z, Ada getforgenta-90 handed off at the 212-call gate). START HERE:
