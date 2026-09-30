@@ -187,8 +187,14 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     // in the commit which dump it was measured on.
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month, 'payoff month regressed').toBe('Sep 2028');
-    expect(floorBreaches.map(m => m.month), 'CONVERGENCE cash-floor breaches (the ⚠️ kind)').toEqual([]);
+    // RE-PINNED 2026-09-30 to May 2029 with the golden moved to the 09-29 capture: his data moved
+    // (lease break, move costs, new rules), not the code - the live sim and the captured snapshot
+    // agree at month 27 on that capture, and the same code read Sep 2028 on the old golden.
+    expect(ccFree!.month, 'payoff month regressed').toBe('May 2029');
+    // RE-PINNED 2026-09-30: on the 09-29 capture his Oct-Dec 2026 are genuinely under the floor
+    // (393 / 811 / 656 short, the gaps Tre is choosing cuts for in ask 9fa0eb4c), and the milestone
+    // fires once, at the first. Anything beyond that one month would be convergence adding a breach.
+    expect(floorBreaches.map(m => m.month), 'CONVERGENCE cash-floor breaches (the ⚠️ kind)').toEqual(['Oct 2026']);
     // ⚠️ THE POSITIVE CONTROL THAT USED TO LIVE HERE MOVED, 2026-09-23 (585ec24a). The Sep 2026
     // one-time dip was the one floor milestone this fixture produced, and it proved these filters
     // match. Debt-aware pacing keeps ~$400 more in checking that month, so the dip is GONE on the

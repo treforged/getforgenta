@@ -115,11 +115,20 @@ describe('floor-regime flicker — real capture', () => {
     const idxOf = (m: string) => out.projections.data.findIndex(r => r.month === m);
     const shockIdx = idxOf('Apr 2027');
     expect(shockIdx).toBeGreaterThan(0);
-    const strays = breachMonths.filter(m => {
-      const i = idxOf(m);
-      return i < shockIdx || i > shockIdx + 3;
-    });
-    expect(strays, `residue surfaced away from the shock month: ${strays}`).toEqual([]);
+    // RE-STATED 2026-09-30 for the 09-29 capture: the residue now runs Apr -> Sep 2027
+    // (-5452, -2479, -2413, -1327, -1031, -398, clear in Oct), because his Jul 2027 move leaves
+    // less room to repay it. A fixed +3 window cannot tell that from spreading; the property is
+    // that every new breach month sits in ONE unbroken run starting at the shock, and the run
+    // recovers - it never gets deeper after its first repayment month.
+    const idxs = breachMonths.map(idxOf).sort((a, b) => a - b);
+    const strays = breachMonths.filter(m => idxOf(m) < shockIdx);
+    expect(strays, `residue surfaced before the shock month: ${strays}`).toEqual([]);
+    expect(idxs[0], 'the residue starts at the shock month').toBe(shockIdx);
+    idxs.forEach((v, k) => expect(v, `residue is not one unbroken run: ${breachMonths}`).toBe(shockIdx + k));
+    const gaps = idxs.map(i => out.projections.data[i].rawEndingCash - out.projections.data[i].rawMonthMinSafe);
+    for (let k = 2; k < gaps.length; k++) {
+      expect(gaps[k], 'the residue deepened after it started repaying').toBeGreaterThanOrEqual(gaps[k - 1] - 0.005);
+    }
     // THE RESIDUE MAY NOT AMPLIFY THE SHOCK. -$2,200 was the July capture's
     // measured worst; this one reaches -$4,808.55, and the reason is visible in
     // the sweep: a $3,000 April shock absorbs completely on this capture and a
@@ -131,7 +140,8 @@ describe('floor-regime flicker — real capture', () => {
     // What must never happen is the residue exceeding the shock net of what the
     // capture can absorb -- that would mean convergence is manufacturing
     // shortfall rather than passing it through.
-    const ABSORBED = 3000; // measured on the 2026-09-01 capture: 3000 absorbs, 5000 does not
+    // 09-29 capture: 2500 absorbs, 3000 leaves $451.99 (ceiling ~$2,548); worst -5452 = -(8000 - 2548).
+    const ABSORBED = 2500;
     const worst = out.projections.data.reduce((w, row) =>
       Math.min(w, row.rawEndingCash - row.rawMonthMinSafe), Infinity);
     expect(worst, 'the residue is larger than the shock net of what the capture absorbs')

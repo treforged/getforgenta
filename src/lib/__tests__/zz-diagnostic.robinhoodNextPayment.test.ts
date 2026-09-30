@@ -152,7 +152,9 @@ for (const c of CASES) {
  * the control needs re-aiming at whatever the new known-bad case is. A silently removed control
  * is how the assertion above quietly stops being evidence.
  */
-const GOLDEN = join(__dirname, 'fixtures', 'forecast-inputs.real.json');
+// RE-AIMED 2026-09-30 when the golden moved to the 09-29 capture (which reconciles cleanly after
+// 99a9137e): the known-bad case is the OLD golden, kept byte-identical under this name.
+const GOLDEN = join(__dirname, 'fixtures', 'forecast-inputs.real.before-2026-09-29b.json');
 const goldenMaybe = existsSync(GOLDEN) ? describe : describe.skip;
 
 goldenMaybe('POSITIVE CONTROL - the golden 08-31 capture DOES produce non-reconciling rows', () => {

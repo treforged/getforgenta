@@ -112,7 +112,7 @@ describe('deficit fixes — real capture', () => {
     expect(sum(out.projections.data)).toBeLessThanOrEqual(rawSavings + 0.005);
   }, 900000);
 
-  maybeIt('absorbs a $3,000 April shock without breaching the floor', () => {
+  maybeIt('absorbs a $2,500 April shock without breaching the floor', () => {
     // THE SIZE IS MEASURED, NOT CHOSEN. Swept on the 2026-09-01 capture:
     // $500, $1,000, $2,000 and $3,000 all absorb with no new breach; $5,000
     // leaves April $1,808.55 short. The $5,000 in the original test was a size
@@ -122,7 +122,11 @@ describe('deficit fixes — real capture', () => {
     // That is a capacity fact about his money, not a broken reserve chain: if
     // the chain had regressed, $500 would breach too. The guard that matters is
     // that everything under the ceiling absorbs, which is what fix 1 bought.
-    const inputs = withShock(load(), 3000);
+    // RE-SIZED 2026-09-30 for the 09-29 capture, by the same sweep: $500, $1,000, $2,000 and
+    // $2,500 absorb with no new breach; $3,000 leaves Apr 2027 $451.99 short (ceiling ~$2,548).
+    // His Oct-Dec 2026 are already under the floor and March carries the lease fee, so the
+    // ceiling fell. Still a capacity fact: $500 absorbing is what rules out a broken chain.
+    const inputs = withShock(load(), 2500);
     const out = runDebtCashConvergence(renderProjectionFromFixture(inputs), inputs);
 
     // Before the fixes this converged too — to a plan that left Apr 2027 $1,335.85 short. The
