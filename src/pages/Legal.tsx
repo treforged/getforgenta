@@ -166,7 +166,10 @@ function PrivacyContent() {
           (including Vercel Speed Insights, which measures page performance) for aggregate usage measurement,
           and only if you accept analytics cookies — they are never loaded otherwise, and never loaded at all if
           your browser sends a Global Privacy Control or Do Not Track signal. See Section 8a. Your financial
-          data is never sent to either of them.</p>
+          data is never sent to either of them. Before you have an account, the sign-in
+          screen counts which of its steps were reached (for example, that a sign-up button was tapped) with no
+          name, email or device identifier, and nothing stored on your device; it is skipped if you reject
+          analytics cookies or send a Global Privacy Control or Do Not Track signal.</p>
           <p><span className="text-foreground font-medium">Payment data:</span> On web, billing is processed by
           Stripe. On iOS, billing is processed by Apple. On Android, billing is processed by Google Play.
           Subscription state across platforms is managed by RevenueCat. We store only platform-specific customer

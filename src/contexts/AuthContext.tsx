@@ -14,6 +14,7 @@ import { startPushRetryOnResume } from '@/lib/push-retry';
 import { reportTimezone } from '@/lib/report-timezone';
 import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
+import { recordOAuthSignupIfNew } from '@/lib/signup-funnel';
 import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
 import { restorePersistedQueries, startQueryPersistence, clearPersistedQueries } from '@/lib/query-cache-persistence';
@@ -333,6 +334,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
           identifyMonitoringUser(session.user.id, session.user.email);
           maybeTrackOAuthSignUp(session.user);
+          recordOAuthSignupIfNew(session.user);
         }
         // Await reviewer reset before navigating so Dashboard's profile SELECT
         // always reads the updated founder_note_seen / onboarding_completed values.

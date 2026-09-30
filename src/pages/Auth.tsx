@@ -11,6 +11,7 @@ import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
 import { debugLog } from '@/lib/debugLog';
 import { trackSignUp } from '@/lib/analytics';
+import { recordFunnelStep, toErrorCode } from '@/lib/signup-funnel';
 import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
@@ -78,6 +79,9 @@ export default function Auth() {
   const [mfaFactorType, setMfaFactorType] = useState<string>('totp');
   const [totpCountdown, setTotpCountdown] = useState(0);
   const [mfaError, setMfaError] = useState('');
+  // True once getSession() has said nobody is signed in. The pre-signup counts (ask 6dbd80d8) wait
+  // for it, so a signed-in user passing through /auth on a cold start is never counted as a visitor.
+  const [signedOut, setSignedOut] = useState(false);
 
   // Signal Swift cover that the auth page is visible — but only when the user
   // has no active session and will stay on this page. If a session exists, Auth
@@ -89,6 +93,8 @@ export default function Auth() {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted || data.session) return;
       window.__forgenta_dashboard_ready = true;
+      recordFunnelStep('app_opened');
+      setSignedOut(true);
     });
     return () => {
       mounted = false;
@@ -179,6 +185,14 @@ export default function Auth() {
     return () => { mounted = false; };
   }, [navigate, searchParams]);
 
+  // Which first-launch screen is showing. Each is counted once per launch (signup-funnel.ts).
+  useEffect(() => {
+    if (!signedOut) return;
+    if (mode === 'landing') recordFunnelStep('welcome_shown');
+    else if (mode === 'signup' && signupSentTo) recordFunnelStep('confirm_email_shown', { method: 'email' });
+    else if (mode === 'signup') recordFunnelStep('signup_form_shown');
+  }, [signedOut, mode, signupSentTo]);
+
   // Clean up legacy auth localStorage keys
   useEffect(() => {
     localStorage.removeItem('forged:signin_passkey');
@@ -216,6 +230,7 @@ export default function Auth() {
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setLoading(true);
+    recordFunnelStep(provider === 'google' ? 'tap_google' : 'tap_apple', { method: provider, detail: mode });
     const redirectTo = Capacitor.isNativePlatform()
       ? 'com.treforged.forged://auth-callback'
       : `${window.location.origin}/auth`;
@@ -387,10 +402,12 @@ export default function Auth() {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'User cancelled' || msg === 'cancelled') {
         // User dismissed — no error toast
+        recordFunnelStep('auth_error', { method: provider, detail: 'user_cancelled' });
       } else if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('email already in use')) {
         toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
       } else {
         toast.error(msg || 'OAuth sign-in failed. Please try again.');
+        recordFunnelStep('auth_error', { method: provider, detail: toErrorCode(err) });
       }
       setLoading(false);
     }
@@ -450,8 +467,13 @@ export default function Auth() {
       const result = loginSchema.safeParse({ email, password });
       if (!result.success) { toast.error(result.error.issues[0].message); return; }
     } else {
+      recordFunnelStep('tap_email', { method: 'email' });
       const result = signUpSchema.safeParse({ displayName, email, password, confirmPassword });
-      if (!result.success) { toast.error(result.error.issues[0].message); return; }
+      if (!result.success) {
+        // The field name, never the value: it says WHICH field stopped them.
+        recordFunnelStep('auth_error', { method: 'email', detail: `invalid_${String(result.error.issues[0].path[0] ?? 'form')}` });
+        toast.error(result.error.issues[0].message); return;
+      }
     }
 
     setLoading(true);
@@ -510,11 +532,13 @@ export default function Auth() {
         });
         if (error) throw error;
         trackSignUp('email');
+        recordFunnelStep('signup_completed', { method: 'email', detail: signUpData?.session ? 'session' : 'confirm_email' });
         // With a session the auth listener signs the user straight in; without one the account
         // waits on the emailed link, and this screen says so until they leave it.
         if (!signUpData?.session) setSignupSentTo(email.trim());
       }
     } catch (err: unknown) {
+      if (mode === 'signup') recordFunnelStep('auth_error', { method: 'email', detail: toErrorCode(err) });
       toast.error(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setLoading(false);
