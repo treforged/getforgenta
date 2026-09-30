@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { X, ChevronDown, ChevronUp, Shield } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/consent-prefs';
 import { useConsentPrefs } from '@/hooks/useConsentPrefs';
@@ -171,7 +171,14 @@ export default function ConsentBanner() {
     useConsentPrefs();
   const [showPrefs, setShowPrefs] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
-  const bannerShown = status !== 'decided';
+  // ⚠️ NOT ON THE SIGN-IN SCREEN (ask 791b4b03, 2026-09-30). At 390x844 the banner sat over
+  // "Continue with Google" and "Continue with Apple" (buttons at y 732-818, banner from y 710), so
+  // the lowest-friction way to sign up was hidden until the visitor scrolled or answered it first.
+  // Holding the question is safe: nothing non-essential loads until it is answered, and it is asked
+  // on the next screen. Web only - the native router never mounts this banner.
+  const { pathname } = useLocation();
+  const heldForSignIn = pathname === '/auth';
+  const bannerShown = status !== 'decided' && !heldForSignIn;
 
   // The banner is fixed over the bottom of the screen, so on a phone it COVERED the primary
   // button of whatever page sat under it - measured 2026-09-29 at 390x844 on onboarding, where
@@ -188,8 +195,9 @@ export default function ConsentBanner() {
     return () => { ro?.disconnect(); body.style.paddingBottom = ''; };
   }, [bannerShown]);
 
-  // Don't render once the user has decided
+  // Don't render once the user has decided, or while the sign-in screen is up
   if (status === 'decided' && !showPrefs) return null;
+  if (heldForSignIn && !showPrefs) return null;
   if (status === 'decided') {
     // If preferences modal opened from outside banner (e.g. Settings), still show it
     return showPrefs ? (

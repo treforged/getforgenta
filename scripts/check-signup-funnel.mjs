@@ -42,6 +42,16 @@ await ctx.route('**/auth/v1/signup**', (route) => route.fulfill({
 
 const startedAt = new Date().toISOString();
 const wait = (ms) => page.waitForTimeout(ms);
+let fail = 0;
+
+// CONTROL: consent is UNDECIDED in this fresh context, so the banner shows on an ordinary page.
+// Without this, a context where consent was already decided would pass the reach check below
+// for the wrong reason.
+await page.goto(`${BASE}/privacy`, { waitUntil: 'networkidle' });
+await wait(1200);
+const bannerOnPrivacy = await page.getByRole('region', { name: 'Cookie consent' }).count();
+console.log(`${bannerOnPrivacy ? 'PASS' : 'FAIL'} control: cookie banner is showing on /privacy (${bannerOnPrivacy})`);
+if (!bannerOnPrivacy) fail++;
 
 await page.goto(`${BASE}/auth`, { waitUntil: 'networkidle' });
 await wait(1500);
@@ -50,6 +60,22 @@ if (await reject.count()) { /* leave the banner up: an undecided visitor is the 
 
 await page.getByRole('button', { name: 'Start Free' }).click();
 await wait(800);
+
+// REACH (ask 791b4b03): with NO scrolling, each OAuth button is inside the viewport and is the
+// top-most element at its own centre. The cookie banner used to sit over both at 390x844.
+const reach = await page.evaluate(() => ['Continue with Google', 'Continue with Apple'].map((n) => {
+  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === n);
+  if (!b) return { n, found: false };
+  const r = b.getBoundingClientRect();
+  const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return { n, found: true, inView: r.top >= 0 && r.bottom <= window.innerHeight, onTop: !!top && b.contains(top),
+    cover: top && !b.contains(top) ? (top.closest('[aria-label]')?.getAttribute('aria-label') || top.tagName) : '' };
+}));
+for (const r of reach) {
+  const ok = r.found && r.inView && r.onTop;
+  if (!ok) fail++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} reach "${r.n}": found=${r.found} inView=${r.inView} onTop=${r.onTop}${r.cover ? ` covered by ${r.cover}` : ''}`);
+}
 // A value HTML accepts and the schema refuses, so the validation branch fires.
 await page.getByLabel('Display name').fill(NAME);
 await page.getByLabel('Email').fill('a@b');
@@ -59,23 +85,24 @@ await page.getByRole('button', { name: 'Create Account' }).click({ force: true }
 await wait(800);
 
 const popupP = ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null);
-// NOT a forced click: at 390x844 the cookie banner covers this button until it is dismissed or
-// scrolled clear (measured 2026-09-30), and a forced click lands on the banner, not the button.
-const google = page.getByRole('button', { name: 'Continue with Google' });
-await page.evaluate(() => document.scrollingElement.scrollTo(0, document.scrollingElement.scrollHeight));
-await google.click({ timeout: 8000 });
+// NOT a forced click, so an element sitting over the button fails the press (see REACH above).
+await page.getByRole('button', { name: 'Continue with Google' }).click({ timeout: 8000 });
 const popup = await popupP;
 if (popup) await popup.close();
 await wait(1500);
 
 await page.getByLabel('Email').fill(EMAIL);
+// The Google tap leaves the form in "Processing…" until the popup poll (600 ms) sees it closed.
+// Pressing before that raced it and dropped the last two steps on one run in three.
+const createBtn = page.getByRole('button', { name: 'Create Account' });
+await createBtn.waitFor({ state: 'visible', timeout: 10000 });
+for (let i = 0; i < 20 && await createBtn.isDisabled(); i++) await wait(250);
 await page.getByRole('button', { name: 'Create Account' }).click({ force: true });
 await wait(2500);
 
 await browser.close();
 
 const EXPECT = ['app_opened', 'welcome_shown', 'signup_form_shown', 'tap_email', 'auth_error', 'tap_google', 'signup_completed', 'confirm_email_shown'];
-let fail = 0;
 for (const step of EXPECT) {
   const hits = sent.filter((s) => s.step === step);
   const ok = hits.some((h) => h.status >= 200 && h.status < 300);
