@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import { useFloorBufferedRules } from '@/hooks/useFloorBufferedRules';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -38,6 +39,8 @@ export default function DebtPayoff() {
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: transactions } = useTransactions();
   const { data: rules } = useRecurringRules();
+  // CreditCardEngine computes the floor, so it takes the buffered copy (useFloorBufferedRules).
+  const floorRules = useFloorBufferedRules(rules);
   const { data: profile, loading: profileLoading } = useProfile();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
@@ -530,7 +533,7 @@ export default function DebtPayoff() {
       {activeTab === 'cards' && (
         <ErrorBoundary variant="widget" label="Credit Card Engine">
         <CreditCardEngine
-          accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile}
+          accounts={accounts} transactions={transactions} rules={floorRules ?? rules} debts={debts} profile={profile}
           goals={goals ?? []} carFunds={carFunds ?? []}
           incomeGrowthEnabled={assumptions.incomeGrowthEnabled}
           incomeGrowth={assumptions.incomeGrowth}

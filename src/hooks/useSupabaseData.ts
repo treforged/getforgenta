@@ -129,6 +129,13 @@ export function useAccounts() {
 export type RuleRow = Partial<Tables<'recurring_rules'>> & {
   id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
   start_date: string | null; category: string;
+  /**
+   * NOT A COLUMN. Extra dollars the cash floor reserves for this rule, sized from the user's own
+   * linked payments (`lib/variable-bill-history.ts`). Only ever set on a COPY built for the money
+   * engines by `useFloorBufferedRules`; never on the cached query rows, because `sanitizePayload`
+   * passes unknown keys through and a write spreading a decorated row would send it to Postgres.
+   */
+  floor_buffer?: number;
 };
 
 export function useRecurringRules() {

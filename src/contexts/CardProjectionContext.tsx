@@ -12,6 +12,7 @@ import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { PROJECTION_LOCAL_KEYS } from '@/lib/projection-local-keys';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
+import { useFloorBufferedRules } from '@/hooks/useFloorBufferedRules';
 import { useForecastEngineInputs, type ForecastEngineInputsBundle } from '@/hooks/useForecastEngineInputs';
 import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
@@ -84,7 +85,11 @@ const CardProjectionContext = createContext<CardProjectionContextValue | null>(n
 export function CardProjectionProvider({ children }: { children: ReactNode }) {
   const { data: accounts } = useAccounts();
   const { data: transactions } = useTransactions();
-  const { data: rules } = useRecurringRules();
+  // The money engines read rules with each variable bill's floor buffer stamped on a copy.
+  // Every floor entry point does this, or the sim and the engine would reserve different
+  // amounts - see useFloorBufferedRules.
+  const { data: rawRules } = useRecurringRules();
+  const rules = useFloorBufferedRules(rawRules);
   const { data: debts } = useDebts();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();

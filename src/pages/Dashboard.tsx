@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import { useFloorBufferedRules } from '@/hooks/useFloorBufferedRules';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
@@ -410,9 +411,12 @@ export default function Dashboard() {
 
 
 
+  // The floor reads rules with each variable bill's buffer stamped on a copy, exactly as the sim
+  // and engine do (useFloorBufferedRules). Only the two floor calls below take them.
+  const floorRules = useFloorBufferedRules(rules);
   const prePaycheckBills = useMemo(
-    () => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId),
-    [rules, payConfig, fundingAccountId],
+    () => getPrePaycheckNextMonthBills(floorRules ?? [], payConfig, fundingAccountId),
+    [floorRules, payConfig, fundingAccountId],
   );
 
   // Forecast-equivalent cash floor for month 0: pre-paycheck bills + car loans + CC minimums.
@@ -429,7 +433,7 @@ export default function Dashboard() {
   const floorFundingAccountId = cardProjection?.debtFundingAccountId ?? fundingAccountId;
   const forecastFloor0 = useMemo(
     () => getAugmentedMinSafeCash(
-      rules, payConfig, cashFloor, floorFundingAccountId, new Date(),
+      floorRules ?? [], payConfig, cashFloor, floorFundingAccountId, new Date(),
       carFunds ?? [],
       cardProjection ? {
         simCards: cardProjection.simCards,
@@ -439,7 +443,7 @@ export default function Dashboard() {
       } : null,
       0, syncCutoffDate,
     ),
-    [rules, payConfig, cashFloor, floorFundingAccountId, carFunds, cardProjection, syncCutoffDate],
+    [floorRules, payConfig, cashFloor, floorFundingAccountId, carFunds, cardProjection, syncCutoffDate],
   );
 
   const fundingBalance = useMemo(() => {

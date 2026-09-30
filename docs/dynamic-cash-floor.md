@@ -52,7 +52,14 @@ Matching is `src/lib/transaction-matching.ts`, the same evidence path `sync-cuto
 link is computed at read time and never stored. Design around that; do not add a column for it
 in this slice.
 
-## 3. A buffer for variable items, from that item's own history — NOT BUILT.
+## 3. A buffer for variable items, from that item's own history — BUILT 2026-09-30.
+
+**Wired 2026-09-30.** History = the user's own `linked_rule` reviews only (`src/lib/variable-bill-history.ts`
+records why not `transaction-matching` or `rule-drift`). `useFloorBufferedRules` stamps `floor_buffer` on a COPY
+of the rules at the four compute entry points (CardProjectionContext, useForecastEngineInputs, Dashboard,
+DebtPayoff), and `getPrePaycheckNextMonthBills` reads it, so all fourteen floor call sites agree.
+Proof: `variable-bill-buffer.floor.demo.test.ts` (no-op byte-identical; +285 in sim and engine alike) and
+`floor-buffer-wiring.gate.test.ts` (derives every floor caller from source). Section 2 is still NOT built.
 
 This is the requirement with the money in it. The design is decided here so the build does not
 re-argue it.

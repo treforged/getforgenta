@@ -116,6 +116,13 @@ export interface DemoForecastOptions {
   now: Date;
   /** The app's own card simulation for this fixture — see `runDemoCardProjection`. */
   cardProjection?: unknown;
+  /**
+   * The rules the ENGINE reads, when a test needs them to differ from the fixture's - the
+   * variable-bill buffer proof passes the same rows with `floor_buffer` stamped on a copy. Only
+   * `ForecastInputs.rules` takes it; the scheduled events stay the fixture's, because a floor buffer
+   * never changes what a bill costs, only what the floor holds back for it.
+   */
+  rules?: RuleRow[];
 }
 
 /** The ForecastInputs the demo fixture produces at `now`. */
@@ -128,7 +135,7 @@ export function demoForecastInputs(opts: DemoForecastOptions): ForecastInputs {
     budgetItems: [],
     profile: { ...demoProfile, paycheck_deductions: [] as never },
     assumptions: DEMO_ASSUMPTIONS,
-    rules: rules(),
+    rules: opts.rules ?? rules(),
     monthlyAggregates: aggregateByMonth(generateScheduledEvents(rules(), accounts(), PROJECTION_MONTHS, now)),
     debtPaymentsByMonth: {} as ForecastInputs['debtPaymentsByMonth'],
     debtBalancesByMonth: [] as unknown as ForecastInputs['debtBalancesByMonth'],

@@ -808,7 +808,12 @@ export function getPrePaycheckNextMonthBills(
     // The planned amount, plus this rule's own variance buffer when the caller sized one.
     // A non-finite or negative buffer is ignored rather than corrected: the floor may only ever
     // be raised by this, never lowered, or a bad map entry could quietly let the plan overspend.
-    const rawBuffer = bufferByRuleId?.get(r.id) ?? 0;
+    //
+    // The map wins when a caller passes one. Otherwise the rule carries its own `floor_buffer`,
+    // stamped on a COPY by `applyFloorBuffers` at the compute entry points (useFloorBufferedRules).
+    // That is how every floor call site - fourteen of them, sim and engine alike - reads the same
+    // buffer without each one threading a map through its signature and drifting apart.
+    const rawBuffer = bufferByRuleId?.get(r.id) ?? r.floor_buffer ?? 0;
     const buffer = Number.isFinite(rawBuffer) && rawBuffer > 0 ? rawBuffer : 0;
     const amt = Number(r.amount) + buffer;
 

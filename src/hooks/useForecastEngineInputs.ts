@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useFloorBufferedRules } from '@/hooks/useFloorBufferedRules';
 import {
   useDebts, useSavingsGoals, useCarFunds, useAccounts, useBudgetItems,
   useProfile, useRecurringRules, useTransactions, usePaymentPlans, useSyncedTransactionReviews,
@@ -71,7 +72,11 @@ export function useForecastEngineInputs({
   const { data: accounts } = useAccounts();
   const { data: budgetItems } = useBudgetItems();
   const { data: profile } = useProfile();
-  const { data: rules } = useRecurringRules();
+  // The money engines read rules with each variable bill's floor buffer stamped on a copy.
+  // Every floor entry point does this, or the sim and the engine would reserve different
+  // amounts - see useFloorBufferedRules.
+  const { data: rawRules } = useRecurringRules();
+  const rules = useFloorBufferedRules(rawRules);
   const { data: transactions } = useTransactions();
   const { data: paymentPlans } = usePaymentPlans();
   // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
