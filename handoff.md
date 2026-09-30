@@ -45,6 +45,11 @@ R-NOW14 (09-30 ~08:30Z, Ada getforgenta-90). DONE this session, all pushed:
         test ids). Gate `npm run check:share-badge` asserts what the share sheet receives (1 PNG + link tagged
         campaign=badge). check:trophy-case and check:achievements-layout were RED since 44e28a03 (icon-only tabs,
         they read textContent) - fixed to read aria-label.
+    [x] 99f4b10a NewBadgeRow under the Home hero: grants milestones on an ordinary visit (the Trophy Case was the only
+        caller since 09-17) and shows "New badge: <name>" + Share + Dismiss for 7 days after earning. Live on
+        getforgenta.com (stubbed claim, no write). check:dark-contrast / page-rhythm read /dashboard at 6 elements on
+        a first run (cold load) and PASS on rerun.
+    [x] Dependabot #79-81 FIXED (brace-expansion override 5.0.9 -> 5.0.12; eslint-only path).
 R-NOW13 (09-30 ~08:00Z, Ada handed off at the 192-call gate). START HERE, IN ORDER:
     1. [x] e7d28de3 CLOSED 09-30: run 36684400350 pair garbage=0.00 real=23.58; boot_failures total 3, newest 21:38:13Z.
        Was: sim run 36684400350 on a77e25cc = SUCCESS. Still to read: (a) its "Screenshot a garbage
