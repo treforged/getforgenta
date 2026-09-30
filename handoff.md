@@ -25,6 +25,28 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW18 (09-30 ~13:45Z, Ada getforgenta-8420). START HERE:
+    [x] 9f385515 DONE, 59c3fb37 pushed (0/0, contents verified). An unset weekly_gross_income is $0 everywhere:
+        buildPayConfig, DEFAULT_PROFILE (NOT demo-only: it is the loading/error fallback for real users), Settings,
+        BudgetControl (field shows empty; auto-save no longer syncs the paycheck rule to $0 when no salary is set).
+        Migration 20260930_weekly_gross_income_default_zero applied; default read back 0.
+    [x] SECOND DEFECT FOUND WHILE TRACING: months 1+ REPLACE weekly/biweekly/semi-monthly paycheck rules with
+        profile-derived pay (forecast-engine fallbackTakeHome; the card sim mirrors it). Without the 1875 fallback a
+        user with a paycheck rule and no salary dropped to $0. resolvePaycheckRuleIds (src/lib/paycheck-rule-ids.ts,
+        now shared by useForecastEngineInputs and useCardProjection, which had two copies) returns NO paycheck rules
+        when no salary is set, so those rules flow through as ordinary income. 3 real users had wg=0 and no income
+        rule (they saw the phantom $97.5k); 3 had wg=0 WITH income rules.
+    Gates: test:tz 5436 x3 (+13), tsc 0, eslint 0 errors. Red proven: `|| 1875` restored fails 6/7, restored
+        byte-exact. Free tier: groq gpt-oss-120b wrote the helper + its test (correct first time; 2 small fixes).
+    walk:empty on a fresh throwaway (empty-walk-20260930b@forgenta.test): PASS 10/10; its profile was CREATED at 0 by
+        the new default. Forecast frame: chart axis tops at $4 (Recharts' all-zero range) vs ~$70k before. User,
+        identity, profile deleted; auth.users 33; deck-walk control 1.
+    Tre's row: 1093/wk, so his payConfig and paycheck-rule set are identical -> projection unchanged by construction.
+    ⚠️ `npm run test:tz` FAILED to start from this session: npm's cmd shell says "'node' is not recognized" (node is on
+        the bash PATH). Ran `node scripts/check-node-engine.mjs && node scripts/test-timezones.mjs` directly.
+    OPEN (Sam's call, ask b257afd0): 16 profiles still hold 1875, the old default. Not rewritten on purpose.
+    NEXT: nothing queued from this brief. Known residue: a user cannot clear the BudgetControl salary back to 0 (blur
+        with 0 reverts; pre-existing), and a promotion entered with no base salary cannot apply (divides guarded).
 R-NOW17 (09-30 ~10:45 ET, Ada). START HERE:
     [x] fee53760 SCREENED, not tombstoned: Debt Payoff > Credit Card Payoff now ends with a collapsed
         "Would a consolidation loan help?" panel (ConsolidationPanel.tsx over consolidation-view.ts). APR starts EMPTY
@@ -11961,17 +11983,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 07:59 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 09:28 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -11980,14 +12001,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+75746bf5 [walk]: walk:empty - first-week screens on a data-free account; found a phantom default salary
+59fbe5d7 [handoff]: R-NOW17 - empty-account walk refused by classifier, cleaned up, waiting on a decision
 dc074d51 [handoff]: R-NOW17 - consolidation panel shipped, walk:press PASS at 368 (~905s)
 75c20eb6 [debt]: breakEvenApr prices a partial loan against the retired money only
 d5489968 [debt]: consolidation loan panel on Debt Payoff + like-for-like interest baseline
 d750eb0b [handoff]: R-NOW16 - nudge already built, dated-commitments deleted, turnstile parked; next fee53760
 40ae7058 [cleanup]: delete dated-commitments - paced-goal-contribution is the wired deadline pacer
 63628ad5 [handoff]: R-NOW16 next - check Link and correct before building the nudge
-922ed6ab [docs]: close dynamic-cash-floor section 2 - its matcher can never see an over-plan charge
-c7b62227 [handoff]: R-NOW16 - buffer wired, orphan sweep, section 2 premise fails
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
