@@ -89,6 +89,15 @@ export async function renderShareCard(
 }
 
 /**
+ * The link that travels WITH the card. Until 2026-09-30 the image carried "getforgenta.com" only as
+ * printed text, and neither share call sent a URL, so a friend who received the card could not tap
+ * through and an arrival from it could not be told apart from any other. The UTM tokens are the
+ * ones `attributionFromSearch` (src/lib/attribution.ts) reads and onboarding stores.
+ */
+export const SHARE_LINK = 'https://getforgenta.com/?utm_source=share_card&utm_medium=app&utm_campaign=debt_free_date';
+export const SHARE_TEXT = `Planned with Forgenta: ${SHARE_LINK}`;
+
+/**
  * Share the rendered card image.
  * Returns 'shared', 'downloaded' or 'cancelled'.
  */
@@ -121,6 +130,7 @@ export async function shareCardImage(
     try {
       await Share.share({
         title: 'My debt-free date',
+        text: SHARE_TEXT,
         url: writeResult.uri,
         dialogTitle: 'Share your debt-free date',
       });
@@ -143,6 +153,7 @@ export async function shareCardImage(
       await navigator.share({
         files: [file],
         title: 'My debt-free date',
+        text: SHARE_TEXT,
       });
       return 'shared';
     } catch (e: unknown) {
