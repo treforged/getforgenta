@@ -31,11 +31,15 @@ R-NOW8 (09-30 ~01:45Z, Ada getforgenta-89). START HERE:
        untracked): Oct-Dec short +75 each, Mar27 150 -> 2,433, payoff May29 -> Aug28 = FALSE, because
        paced-goal-contribution.ts:117 paces only stops[0]: fund $1,830 by Feb vs $3,830 fee, Deposit stop gets $0,
        Savings $2 from Jul27. [x] 66d3af19 FIXED 30ce4b04 (every dated stop paced; Deposit now 1,900 Mar-Jun).
-       [ ] STILL NOT RE-APPLIED, on purpose: the fund reaches only $1,830 by 1 Mar (Oct-Dec are under the floor, so
-       pacing is cut), and e3566eab: an account-paid expense > the account balance is clamped to 0, so ~$2,000 of
-       the fee vanishes and Mar27 checking reads 2,338 instead of 150. Fix e3566eab first (spill remainder to the
-       funding account + flag; sim parity), THEN re-apply 1a/1c and re-measure. Probe + CTRL/NOW-29d fixtures kept
-       (probe in session scratchpad 203ed076). (b) movers->Venture X NOT done: Venture X starts 2028-06-01 (Tre
+       [x] e3566eab FIXED 152a66bf: engine records
+       unfundedAccountOutflow; shortfallByMonth charges it cumulatively. Split capture: 2,001.33 unfunded in Mar27,
+       control 0. RESIDUE: endingCash in charts still omits it (the sim never sees account-paid outflows).
+       [ ] Split STAYS NOT APPLIED: honestly modelled it leaves Apr-Jun 2027 ~$300-2,000 under the floor, because
+       the fund reaches only $1,830 by 1 Mar. Needs ~$745/mo from Oct (vs $510) - Tre's call, sent to Sam.
+       [x] e7d28de3 native cover: deadline cancelled once the page reports ready (ios commit 2d076430, "stop the cover
+       deadline"), gate cover-deadline-ready.gate.test.ts, iOS run 36656909910 Build IPA success (upload skipped by
+       design). CHECK: the next simulator run writes NO new native-cover row. Tre's 17:06Z web row (/transactions
+       timeout 12000ms) was during the hidden-tab MCP session on localhost - likely the instrument, unproven. (b) movers->Venture X NOT done: Venture X starts 2028-06-01 (Tre
        08-27, project_robinhood_gold_decision) - asked Sam, recommend keep movers on the fund.
     2. Then R-NOW7 items 2-3 below.
 R-NOW7 (09-29 ~22:40Z, Ada getforgenta-6e handed off at the 183-call gate). START HERE, IN ORDER:
