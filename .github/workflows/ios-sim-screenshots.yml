@@ -367,6 +367,73 @@ jobs:
           print(f"REPORTED, NOT GATED (dark): top-strip difference {top:.2f}, rest-of-screen difference {rest:.2f}")
           PY
 
+      # e34975a1: on a COLD launch with the app lock on, no frame may show the user's content before
+      # the lock. Pixels, not text: the routes render UNDER the lock overlay, so a text probe reads
+      # dashboard words even when the lock covers them correctly. Positive control first: the same
+      # burst on an UNLOCKED launch must contain content frames, or the classifier cannot say yes.
+      # Cold start only - a warm reopen needs the lock to be unlocked first, which needs taps the
+      # simulator CLI cannot make; that path is held by AppLockContext.resume.test.tsx.
+      - name: Lock - no content before the lock on a cold launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          DOM=com.treforged.forged
+          burst() {
+            local tag=$1
+            xcrun simctl terminate "$UDID" "$DOM" 2>/dev/null || true
+            SIMCTL_CHILD_FORGENTA_SIM_SESSION_KEY="$SIM_SESSION_KEY" \
+            SIMCTL_CHILD_FORGENTA_SIM_SESSION_B64="$SIM_SESSION_REAL" \
+              xcrun simctl launch "$UDID" "$DOM" >/dev/null
+            local i=0 end=$((SECONDS + 25))
+            while [ $SECONDS -lt $end ]; do
+              xcrun simctl io "$UDID" screenshot "shots/07-$tag-$(printf %03d $i).png" >/dev/null 2>&1 || true
+              i=$((i + 1))
+            done
+            echo "$tag: $i frames"
+          }
+          for K in lock_enabled lock_type lock_pin_hash lock_pending bg_reload; do
+            xcrun simctl spawn "$UDID" defaults delete "$DOM" "CapacitorStorage.forged:$K" 2>/dev/null || true
+          done
+          burst open
+          # PIN lock, so no Face ID system sheet stands in front of the frame. Hash of "123456".
+          xcrun simctl spawn "$UDID" defaults write "$DOM" "CapacitorStorage.forged:lock_enabled" -string 1
+          xcrun simctl spawn "$UDID" defaults write "$DOM" "CapacitorStorage.forged:lock_type" -string pin
+          xcrun simctl spawn "$UDID" defaults write "$DOM" "CapacitorStorage.forged:lock_pin_hash" \
+            -string 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+          burst locked
+          for K in lock_enabled lock_type lock_pin_hash lock_pending; do
+            xcrun simctl spawn "$UDID" defaults delete "$DOM" "CapacitorStorage.forged:$K" 2>/dev/null || true
+          done
+          python3 - <<'PY'
+          import glob, sys
+          from PIL import Image, ImageChops, ImageStat
+          def load(p): return Image.open(p).convert("L").resize((200, 434))
+          def d(a, b): return ImageStat.Stat(ImageChops.difference(a, b)).mean[0]
+          content = load("shots/03-session-real.png")
+          opened = sorted(glob.glob("shots/07-open-*.png")); locked = sorted(glob.glob("shots/07-locked-*.png"))
+          if len(opened) < 10 or len(locked) < 10:
+              print(f"TOO FEW FRAMES (open {len(opened)}, locked {len(locked)})"); sys.exit(2)
+          lock_ref = load(locked[-1])
+          gap = d(lock_ref, content)
+          print(f"final locked frame vs the dashboard: {gap:.2f}")
+          if gap < 10:
+              print("THE LOCKED LAUNCH DID NOT END ON A LOCK SCREEN - lock not seeded or not honoured"); sys.exit(1)
+          def is_content(f):
+              dc, dl = d(f, content), d(f, lock_ref)
+              return dc < dl / 2, dc, dl
+          ctrl = [p for p in opened if is_content(load(p))[0]]
+          print(f"CONTROL unlocked launch: {len(ctrl)} of {len(opened)} frames classified as content")
+          if not ctrl:
+              print("CONTROL FAILED - the classifier cannot recognise content, so a zero below means nothing"); sys.exit(2)
+          leaks = []
+          for p in locked:
+              c, dc, dl = is_content(load(p))
+              if c: leaks.append((p, dc, dl))
+          for p, dc, dl in leaks: print(f"CONTENT BEFORE LOCK: {p} (vs dashboard {dc:.2f}, vs lock {dl:.2f})")
+          print(f"locked launch: {len(leaks)} of {len(locked)} frames classified as content")
+          sys.exit(1 if leaks else 0)
+          PY
+
       # Item 2: the widget. A HOST RENDER, not a home screen - see HostRender/WidgetHostRender.swift.
       - name: Build the widget host render
         shell: bash
