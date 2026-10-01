@@ -34,6 +34,15 @@ R-NOW31 (10-01 ~07:45 ET, Ada getforgenta-a2). START HERE. R-NOW30 items 0 and 2
     [x] 5c34da5f (25d01fda, Ruby) payoff curves start at TODAY: hero "$6,482 today", Debt chart "Today" row. New gate
         check:payoff-today (red on old code: $2,800 / Oct 2026 / $3,543). Ruby told (tre-forged-marketing-1e).
     [x] 7fd4e750 (a232812f) app-lock fail-open race: refs now useLayoutEffect; MutationObserver test red on old code.
+    [x] 9616c730 HOTFIX of 99579472: "next month" keyed off the engine's month 0 (today), not the sync cutoff. On
+        Tre's account (cutoff 09-30, today 10-01, payday 10-02) October was reserved twice; lowest -677.42 -> -487.16.
+    IN PROGRESS: MONTH-0 DATING (told Sam). Tre reads "$0 until Oct 2" because month 0's undated reserve ($3,000.31)
+        is all reserved today. Plan: per chain component (transfers, car loan, insurance, other debt, plans, cards),
+        date its items ONLY when the items' sum equals the chain total within $1 (else keep the total undated - never
+        high, never double); a dated item on/before the cutoff goes on the day after the cutoff. Tests: payday tomorrow,
+        card due on the 15th not reserved; undated reserved. Then read Tre's drawer back.
+    f0a43bff KEYWORDS (Ruby 10-01, replaces option B's list; subtitle unchanged "Safe to Spend & Payoff Date"):
+        debt,budget,paycheck,payday,planner,forecast,cash,flow,snowball,avalanche,method,tracker,net,worth
     0. WIDGET READ e74da89c: armed as session cron bb1be414 (09:07 ET 10-01). If this session is gone, run the R-NOW24
        item 1 query by hand and send Sam count + timestamps.
     1. f9b0da16: retry discover.com/credit-cards/cash-back/cashback-calendar.html on/after 2026-10-02; add a dated
