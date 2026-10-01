@@ -25,6 +25,18 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW38 (10-01 ~13:05 ET, Ada getforgenta-0b). START HERE, IN ORDER:
+    [x] R-NOW37 0: throwaway 2b9641e6 deleted, 0 users / 0 profiles. [x] 1: wakes re-armed (13:47, 01:37, 09:17; die with me).
+    [x] Prime Visa: 7ab8a42f plan faa355fd OFF (it double-counted tranche ca09ac29); a9cb7c13 all 8 statement plans already
+        tranches, exact; snapshot backup.tre_payment_plans_20261001. baee397e SHIPPED db73b2c7 (statement importer reads plan
+        rows -> tranche proposals). Real statement text lives ONLY in the scratchpad; never commit it (classifier refused it too).
+    [x] Gates green today: walk:routes 27/27; check:safe-to-spend, payoff-today, debt-layout, card-advisor, rewards-save,
+        update-reminder, budget-tiles all PASS.
+    0. walk:press: Tre approved it "by default" (allow rule added to .claude/settings.local.json). It takes >10 min:
+       run in background with a 60 min timeout. Look at frames, fix + gate + push, file a row per real defect, tell Sam.
+    1. `npm run test:tz` fails "'node' is not recognized" in npm's script shell (cmd finds node). Run
+       `node scripts/test-timezones.mjs` directly until the PATH cause is found (told Sam).
+    2. CONTEXT GATE fires at ~175k on the FIRST tool call (injected baseline). Do not hand off on it alone.
 R-NOW37 (10-01 ~12:40 ET, Ada getforgenta-7a -> successor at the 175-call gate). START HERE, IN ORDER:
     0. DELETE THE THROWAWAY USER FIRST (blocked by my gate): SQL
        delete from auth.users where id='2b9641e6-4672-4ec9-a06c-e8006bd184da' and email='first-run-20261001b@forgenta.test';
@@ -12360,7 +12372,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 11:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 12:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12378,14 +12390,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+e9e9ac58 [handoff]: R-NOW37 - delete throwaway user, re-arm crons, continue Sam's full walk
+c341a331 [first-run]: no "Settings saved" toast for a tour or What's New the user only closed
 d556ed8a [handoff]: R-NOW36 - boot splash shipped
 9a8f7d61 [boot]: show the Forgenta mark while the app loads, not an empty page (ask 98cbf494)
 4cf22be9 [handoff]: R-NOW36 - unlock order fix shipped; timing read armed
 ac95cf43 [app-lock]: unlock timing row reports faceid->persisted (ask 98cbf494)
 b32eb7ce [app-lock]: Face ID lifts the lock before saving, and a pause mid-save stays locked (ask 98cbf494)
 6e17268c [handoff]: R-NOW36 - cover page shipped in 3 parts, install id, audit closed
-9a52b1ae [funnel]: a random per-install id on signup_funnel_events, under analytics consent only
-de9b18d8 [ios-cover]: bigger cover logo, shorter post-Face-ID hold, COVER_HIDDEN mark (ask 98cbf494)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
