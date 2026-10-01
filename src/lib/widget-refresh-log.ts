@@ -16,7 +16,7 @@ export function backgroundVia(win: Window = window, doc: Document = document): R
   return doc.visibilityState === 'hidden' ? 'hidden' : null;
 }
 
-function platformFor(via: RefreshVia): 'ios' | 'android' | 'web' | '' {
+export function platformFor(via: RefreshVia): 'ios' | 'android' | 'web' | '' {
   // The Android hidden WebView has no Capacitor bridge, so getPlatform() would say 'web' there.
   if (via === 'host') return 'android';
   const p = Capacitor.getPlatform();
@@ -24,9 +24,17 @@ function platformFor(via: RefreshVia): 'ios' | 'android' | 'web' | '' {
 }
 
 /** Best effort: a failed log must never fail or delay the widget publish it describes. */
-export async function logBackgroundRefresh(via: RefreshVia): Promise<void> {
+//
+// Native platforms only. A browser has no home-screen widget, and the table's trigger keeps at most
+// 24 rows per user per 24 hours. On 2026-10-01 desk reads on localhost wrote 24 'web' rows by 10:52Z,
+// so every iOS row from Tre's phone after that was silently dropped and the read showed 0 ios rows.
+export async function logBackgroundRefresh(
+  via: RefreshVia,
+  platform: ReturnType<typeof platformFor> = platformFor(via),
+): Promise<void> {
+  if (platform !== 'ios' && platform !== 'android') return;
   try {
-    const { error } = await supabase.from('widget_refresh_events').insert({ platform: platformFor(via), via });
+    const { error } = await supabase.from('widget_refresh_events').insert({ platform, via });
     if (error) console.warn('[widget-refresh-log] insert refused:', error.message);
   } catch (err) {
     console.warn('[widget-refresh-log] insert threw:', err);
