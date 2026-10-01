@@ -120,7 +120,7 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
 type SettingsPanel = 'account' | 'security' | 'preferences' | 'plan';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { isDemo } = useDemo();
   const location = useLocation();
   const navigate = useNavigate();
@@ -316,7 +316,7 @@ export default function SettingsPage() {
       const { error } = await tracedInvoke(supabase, 'delete-account', {});
       if (error) throw error;
       toast.success('Account permanently deleted. Goodbye.');
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete account');
       setDeleteLoading(false);
@@ -1306,7 +1306,7 @@ export default function SettingsPage() {
           )}
           <button
             type="button"
-            onClick={() => { void supabase.auth.signOut(); }}
+            onClick={() => { void signOut(); }}
             className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium w-full text-destructive-text hover:bg-destructive/10 transition-colors btn-press"
           >
             <LogOut size={16} className="shrink-0" />

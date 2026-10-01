@@ -419,8 +419,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const channel = new BroadcastChannel('forged_auth');
     channel.onmessage = (e) => {
       if (e.data === 'SIGN_OUT') {
-        // Another tab signed out — sign out this tab too
-        supabase.auth.signOut();
+        // Another tab signed out — sign out this tab too. Local: the tab that sent this already
+        // ended its own session, and nothing here may reach the user's OTHER devices.
+        supabase.auth.signOut({ scope: 'local' });
       }
     };
     return () => channel.close();
@@ -457,7 +458,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await resetReviewerAccount(user.id);
     }
     broadcastSignOut();
-    const { error } = await supabase.auth.signOut();
+    // ⚠️ LOCAL, NEVER THE DEFAULT. supabase-js defaults to `scope: 'global'`, which revokes EVERY
+    // session the user holds. On 2026-10-01 00:52Z a web tab's 10-minute idle timeout on this path
+    // signed Tre's iPhone out with it: the phone's next refresh read `refresh_token_not_found`
+    // (ask a7b1509e). A timeout or a Sign Out button ends THIS device; only Settings' "Sign out
+    // all devices" (`handleForceSignOut`) may end the others.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) {
       if (lastActivity !== null) localStorage.setItem(LAST_ACTIVITY_KEY, lastActivity);
       console.error('Sign-out was refused; this device is still signed in:', error);

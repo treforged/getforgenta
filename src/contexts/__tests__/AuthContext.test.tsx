@@ -412,8 +412,25 @@ describe('coming back from the background, which is the only signal native can t
     // forces one (`{ scope: 'local' }`) for a user the app still thinks is signed in, and by then
     // the idle path had already ended the session.
     expect(h.toast.info).toHaveBeenCalledTimes(1);
-    expect(h.signOut).not.toHaveBeenCalledWith({ scope: 'local' });
     expect(h.toast.info).toHaveBeenCalledWith('You were signed out after 7 days of inactivity.');
+  });
+});
+
+// ⚠️ ONE DEVICE'S SIGN-OUT MUST NOT END ANOTHER'S (ask a7b1509e). supabase-js defaults to
+// `scope: 'global'`; on 2026-10-01 a web tab's idle timeout used that default and signed Tre's
+// iPhone out with it. Every automatic sign-out here is this-device-only.
+describe('an idle sign-out ends only this device', () => {
+  it('never calls signOut without an explicit local scope', async () => {
+    h.native = false;
+    renderSignedIn();
+    await waitForIdleWatcher();
+
+    await idleFor(10 * MINUTE + MINUTE);
+
+    await waitFor(() => expect(h.signOut).toHaveBeenCalled());
+    for (const call of h.signOut.mock.calls) {
+      expect(call[0]).toEqual({ scope: 'local' });
+    }
   });
 });
 

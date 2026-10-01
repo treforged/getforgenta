@@ -104,12 +104,12 @@ export default function AppLockScreen() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
   const handleGoToSignIn = async () => {
     setSigningOut(true);
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     navigate('/auth', { replace: true });
   };
 
