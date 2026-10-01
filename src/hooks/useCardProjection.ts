@@ -50,6 +50,7 @@ import { settleUnconditional } from '@/lib/unconditional-payment';
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
+import { month0ProfilePaycheckIncome } from '@/lib/month0-profile-paychecks';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -526,6 +527,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         rules.filter(r => r.rule_type === 'income' && r.tax_rate != null)
           .map(r => [r.id, Number(r.tax_rate)]),
       );
+      // Ask f16b35ff - mirrors useForecastEngineInputs exactly (same helper, same cutoff), so the two
+      // month-0 incomes cannot drift: an entered salary with no income rule fills month 0.
+      const m0ProfilePay = month0ProfilePaycheckIncome({
+        profile, rules, liquidAccountIds, payConfig, now, cutoffDate: syncCutoffDate ?? todayStr,
+      });
       const forecastMonthEvents = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -537,7 +543,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         );
         const income = eventsInMonth
           .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
-          .reduce((s, e) => s + e.amount, 0);
+          .reduce((s, e) => s + e.amount, 0) + (i === 0 ? m0ProfilePay : 0);
         const nonPaycheckIncome = eventsInMonth
           .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId) && !paycheckRuleIds.has(e.ruleId))
           .reduce((s, e) => {

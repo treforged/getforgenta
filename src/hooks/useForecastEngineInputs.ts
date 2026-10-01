@@ -24,6 +24,7 @@ import { computeAnnualFederalWithheld } from '@/lib/income-model';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
+import { month0ProfilePaycheckIncome } from '@/lib/month0-profile-paychecks';
 
 /**
  * Assembles the full ForecastInputs for the pure calculateForecast engine. Extracted VERBATIM
@@ -309,6 +310,12 @@ export function useForecastEngineInputs({
       ).map((r) => r.id),
     );
 
+    // Ask f16b35ff: an ENTERED profile salary with no income rule fills month 0's paychecks, as it
+    // already fills months 1+ (fallbackTakeHome). Same helper and inputs as useCardProjection.
+    const m0ProfilePay = month0ProfilePaycheckIncome({
+      profile, rules, liquidAccountIds, payConfig, now, cutoffDate: todayStr,
+    });
+
     return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -319,7 +326,7 @@ export function useForecastEngineInputs({
 
       const income = eventsInMonth
         .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
-        .reduce((s, e) => s + e.amount, 0);
+        .reduce((s, e) => s + e.amount, 0) + (i === 0 ? m0ProfilePay : 0);
 
       const ruleTaxRateMap = new Map<string, number>(
         rules.filter((r) => r.rule_type === 'income' && r.tax_rate != null)
@@ -348,7 +355,7 @@ export function useForecastEngineInputs({
 
       return { income, nonPaycheckIncome, expenses };
     });
-  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate, forecastFundingAccountId, confirmedOccurrences]);
+  }, [accounts, rules, scheduledEvents, pauseSavings, profile, payConfig, syncCutoffDate, forecastFundingAccountId, confirmedOccurrences]);
 
   // One-time manual transactions for forecast.
   const oneTimeByMonth = useMemo(() => {
