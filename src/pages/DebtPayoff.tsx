@@ -488,7 +488,8 @@ export default function DebtPayoff() {
 
       {activeTab === 'use' && <CardAdvisorPanel />}
 
-      {activeTab === 'cards' && (
+      {/* Hidden with no open card: on an empty account it is a switch that changes nothing (walk:empty, 2026-10-01). */}
+      {activeTab === 'cards' && openCreditCards.length > 0 && (
         <div className="flex items-center justify-between p-3 bg-secondary border border-border" style={{ borderRadius: 'var(--radius)' }}>
           <div className="min-w-0">
             <p className="text-xs font-medium">Pause optional savings transfers during payoff</p>

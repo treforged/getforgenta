@@ -167,3 +167,22 @@ describe('Debt Payoff - a debt type nobody has gets no tab', () => {
     expect(tab(/Other Debts/)).toBeNull();
   });
 });
+
+// walk:empty, 2026-10-01: an empty account showed "Pause optional savings transfers" above the "No credit
+// card accounts" empty state, a switch that changes nothing there. It now shows only with an open card.
+describe('Debt Payoff - the pause-savings switch needs a card', () => {
+  const SWITCH = /Pause optional savings transfers during payoff/;
+
+  it('POSITIVE CONTROL: with an open card the switch renders', () => {
+    mocks.accounts = [CARD_ACCOUNT];
+    renderPage();
+    expect(screen.queryByRole('switch', { name: SWITCH }) ?? screen.queryByLabelText(SWITCH)).not.toBeNull();
+  });
+
+  it('with no card the switch is gone', () => {
+    renderPage();
+    expect(tab(/Credit Card Payoff/)).not.toBeNull();
+    expect(screen.queryByLabelText(SWITCH)).toBeNull();
+    expect(screen.queryByText(SWITCH)).toBeNull();
+  });
+});
