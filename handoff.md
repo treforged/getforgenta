@@ -31,10 +31,10 @@ R-NOW36 (10-01 ~11:45 ET, Ada session 29c105a2). START HERE, IN ORDER:
         0f308bf5 LoadingMark (shared indicator): lock screen shimmers during Face ID; pending cover, auth gates, AuthCallback.
         de9b18d8 SWIFT: cover logo 88->112pt, brief hold 0.3->0.15s, fade 0.5->0.3s, COVER_SHOWN/COVER_HIDDEN marks.
           iOS 1201 run 36884463924: upload step success, "UPLOAD SUCCEEDED with no errors". Tre must install 1201.
-    0. 98cbf494 NEXT: read rows `select reason,failed_at from client_boot_failures where path='unlock-timing' order by
-       created_at desc`. Need >=1 BEFORE row (pre-1201: cover_hidden n/a) -> then ship JS fix (b): in
-       AppLockContext.unlockWithBiometric call setIsLocked(false) BEFORE `await markUnlocked()` (kill mid-write re-locks =
-       safe). Then compare faceid->painted before/after, send Sam numbers, close 98cbf494 with them.
+    [x] Fix (b) SHIPPED: Face ID lifts the lock before markUnlocked's writes; a pause mid-write re-asserts
+        LOCK_PENDING (faceIdOrder test, red both ways). Row now carries faceid->persisted = the OLD order's wait.
+    0. 98cbf494 NEXT: read `select reason from client_boot_failures where path='unlock-timing'` (cron 7067b6f5 13:47).
+       Before = faceid->persisted, after = faceid->painted; native cover_hidden once Tre is on 1201. Send Sam, close.
     [x] Install id SHIPPED 9a52b1ae: consent-gated random UUID (forgenta:funnel_install_id), migration 20261001h APPLIED,
         privacy policy reworded. Needs-tre 68a6a1d9: App Store label Identifiers > Device ID declared?
     [x] aeaac54e CLOSED with evidence (prod = HEAD 9a52b1ae; goals read live balances; car payoff Jul 2030 consistent).
@@ -12346,7 +12346,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 11:07 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 11:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12364,14 +12364,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+6e17268c [handoff]: R-NOW36 - cover page shipped in 3 parts, install id, audit closed
+9a52b1ae [funnel]: a random per-install id on signup_funnel_events, under analytics consent only
+de9b18d8 [ios-cover]: bigger cover logo, shorter post-Face-ID hold, COVER_HIDDEN mark (ask 98cbf494)
+0f308bf5 [loading]: one shared loading mark, and the lock screen shimmers during Face ID (ask 98cbf494)
+f2984c0b [app-lock]: measure the wait after Face ID (ask 98cbf494)
 4ae4862a [handoff]: R-NOW35 - cover page diagnosis plan for successor
 1aebac3e [handoff]: R-NOW35 - audit findings 1-3, widget cap, cover page next
 c2db0c23 [plans]: a "Pay in 4" provider defaults the plan to every 2 weeks x 4 (ask aeaac54e)
-a5675861 [utilization]: count 0% balance tranches as utilization-only, not interest-bearing (ask aeaac54e)
-758475a5 [dti]: take each card's minimum from its account row, not the stale debts row (ask aeaac54e)
-6dbaed4c [widget-log]: log native background refreshes only, so desk reads cannot fill the cap (ask e74da89c)
-8bc6f918 [handoff]: R-NOW34 item 0 answered; 10-02 re-read armed (ask 1cea48f3)
-aa2ba791 [handoff]: R-NOW34 - Robinhood $204 check for successor; session note
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
