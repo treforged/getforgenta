@@ -25,6 +25,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW37 (10-01 ~12:40 ET, Ada getforgenta-7a -> successor at the 175-call gate). START HERE, IN ORDER:
+    0. DELETE THE THROWAWAY USER FIRST (blocked by my gate): SQL
+       delete from auth.users where id='2b9641e6-4672-4ec9-a06c-e8006bd184da' and email='first-run-20261001b@forgenta.test';
+       then prove: 0 rows for that email, 0 profiles for that user_id.
+    1. RE-ARM my session crons (they die with me), CronCreate one-shot:
+       '47 13 1 10 *' 98cbf494 unlock-timing read (R-NOW36 item 0); '37 1 2 10 *' widget e74da89c; '17 9 2 10 *' $204 1cea48f3.
+       If 13:47 has passed, run the read now.
+    2. SAM'S FULL-WALK SLICE (e1b0fffc, Sam tre-forged-37 10-01): DONE so far: walk:first-run 8/8 on the throwaway
+       (frames test-results/first-run-real); check:dark-contrast 0 below AA (487 strings, 6 routes); check:nav PASS;
+       check:account PASS. FOUND + FIXED c341a331: "Settings saved" toast on first landing (WhatsNew silent branch + AppTour
+       dismiss now use useProfile().updateQuiet). NEXT: npm run walk:press (390x844, every control, assert change) and
+       walk:routes; look at frames; fix + gate + push; file a row per real defect; report to Sam (tre-forged-37).
+    3. Open needs-tre: 68a6a1d9 App Store Device ID label; 258b51be Brokerage goal relink; 7ab8a42f; Tre install 1201.
 R-NOW36 (10-01 ~11:45 ET, Ada session 29c105a2). START HERE, IN ORDER:
     [x] 98cbf494 parts SHIPPED (all pushed 0/0, test:tz 5692 x 3):
         f2984c0b MEASUREMENT: JS:FACEID_OK + JS:UNLOCK_PAINTED -> client_boot_failures path='unlock-timing' (Vercel live).
@@ -12347,7 +12360,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 11:40 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 11:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12365,14 +12378,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d556ed8a [handoff]: R-NOW36 - boot splash shipped
+9a8f7d61 [boot]: show the Forgenta mark while the app loads, not an empty page (ask 98cbf494)
+4cf22be9 [handoff]: R-NOW36 - unlock order fix shipped; timing read armed
+ac95cf43 [app-lock]: unlock timing row reports faceid->persisted (ask 98cbf494)
+b32eb7ce [app-lock]: Face ID lifts the lock before saving, and a pause mid-save stays locked (ask 98cbf494)
 6e17268c [handoff]: R-NOW36 - cover page shipped in 3 parts, install id, audit closed
 9a52b1ae [funnel]: a random per-install id on signup_funnel_events, under analytics consent only
 de9b18d8 [ios-cover]: bigger cover logo, shorter post-Face-ID hold, COVER_HIDDEN mark (ask 98cbf494)
-0f308bf5 [loading]: one shared loading mark, and the lock screen shimmers during Face ID (ask 98cbf494)
-f2984c0b [app-lock]: measure the wait after Face ID (ask 98cbf494)
-4ae4862a [handoff]: R-NOW35 - cover page diagnosis plan for successor
-1aebac3e [handoff]: R-NOW35 - audit findings 1-3, widget cap, cover page next
-c2db0c23 [plans]: a "Pay in 4" provider defaults the plan to every 2 weeks x 4 (ask aeaac54e)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
