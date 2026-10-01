@@ -703,15 +703,42 @@ export default function Auth() {
           .auth-cta-2 { animation-delay: 0.55s; }
           .auth-trust { opacity: 0; animation: authEntrance 0.5s ease 0.85s forwards; }
         `}</style>
-        <div className="w-full max-w-xs space-y-10">
-          <div className="text-center auth-logo">
+        {/* WELCOME SCREEN, 2026-10-01 (ask 8778e58c, Ruby's draft, Sam-approved). The first screen
+            used to be a 300px logo and "Your money. Clear and honest." - it never said what the app
+            does, and 8 App Store installs in 30 days produced 0 sign-up attempts. It now states the
+            promise, PROVES it with an Example card before any email, makes the no-email demo a real
+            button, and keeps Sign In as a body-size link above the fold for returning users.
+            Native and web share this screen; native only drops the store badges below. */}
+        <div className="w-full max-w-xs space-y-7">
+          <div className="text-center auth-logo space-y-3">
             <img
               src="/logo-transparent.png"
               alt="Forgenta"
-              style={{ height: 300, width: 300, objectFit: 'contain', display: 'block', margin: '0 auto' }}
+              style={{ height: 120, width: 120, objectFit: 'contain', display: 'block', margin: '0 auto' }}
               draggable={false}
             />
-            <p className="text-sm font-medium text-foreground/80 -mt-2">Your money. Clear and honest.</p>
+            <h1 className="text-xl font-bold text-foreground leading-snug">
+              Know what's safe to pay, and the day you're debt-free.
+            </h1>
+            <p className="text-sm text-foreground/80">
+              Add your bills, paychecks and cards. Forgenta shows how much can safely go to debt this
+              month, and the month your cards hit zero.
+            </p>
+          </div>
+          {/* ⚠️ SAMPLE FIGURES, labelled as such. Read off /demo on 2026-10-01 at 390px: "SAFE TO PAY
+              $180" and "CREDIT CARDS PAID OFF Jan 2028". They are the demo profile's numbers, not the
+              visitor's, and the "Example" label must stay so nobody reads them as their own. The app's
+              own terms are used on purpose: it shows "Safe to Pay", never a "safe to spend" figure. */}
+          <div className="card-forged auth-cta auth-cta-1 p-4 space-y-2 text-left" aria-label="Example with sample data">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Example · sample data</p>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm text-foreground/80">Safe to pay toward cards this month</span>
+              <span className="text-base font-bold text-primary tabular-nums">$180</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm text-foreground/80">Credit cards paid off</span>
+              <span className="text-base font-bold text-primary tabular-nums">Jan 2028</span>
+            </div>
           </div>
           <div className="space-y-3">
             <button
@@ -720,21 +747,25 @@ export default function Auth() {
             >
               Start Free
             </button>
-            <button
-              onClick={() => switchMode('login')}
-              className="auth-cta auth-cta-2 btn btn-block btn-outline"
-            >
-              Sign In
-            </button>
-            {/* A way to SEE the app before giving an email (ask 4180a9dd). /demo was only reachable
-                from the web marketing page, so a phone had no try-first path at all. */}
+            {/* A way to SEE the app before giving an email (ask 4180a9dd). Promoted from a text link to
+                the secondary button on 2026-10-01: it is the only path that costs no email. */}
             <button
               type="button"
               onClick={() => { recordFunnelStep('try_demo'); navigate('/demo'); }}
-              className="auth-cta auth-cta-2 w-full py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+              className="auth-cta auth-cta-2 btn btn-block btn-outline"
             >
-              Try it first, no account needed
+              Try it with sample data
             </button>
+            <p className="auth-cta auth-cta-2 text-center text-sm text-foreground/80">
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                Sign in
+              </button>
+            </p>
           </div>
           {!Capacitor.isNativePlatform() && (
             <div className="auth-trust text-center">

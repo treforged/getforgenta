@@ -166,7 +166,7 @@ await wait(2500);
   const p2 = await ctx.newPage();
   await p2.goto(`${BASE}/auth`, { waitUntil: 'networkidle' });
   await p2.waitForTimeout(1200);
-  const tryBtn = p2.getByRole('button', { name: /try it first/i });
+  const tryBtn = p2.getByRole('button', { name: /try it with sample data/i });
   if (await tryBtn.count()) await tryBtn.click();
   await p2.waitForURL('**/dashboard', { timeout: 15000 }).catch(() => {});
   await p2.waitForTimeout(2500);

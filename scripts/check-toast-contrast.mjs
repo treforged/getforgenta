@@ -42,9 +42,9 @@ for (const theme of ['dark', 'light']) {
   // disabled until the form is valid - so in practice error toasts come from SERVER refusals, and
   // this is the commonest one. One auth request, for an address on the reserved test domain that
   // does not exist; nothing is created.
-  const signIn = page.getByRole('button', { name: 'Sign In', exact: true });
+  const signIn = page.getByRole('button', { name: 'Sign in', exact: true });
   try { await signIn.waitFor({ timeout: 20000 }); await signIn.click(); }
-  catch { await done(2, `${theme}: /auth never showed "Sign In"`); }
+  catch { await done(2, `${theme}: /auth never showed "Sign in"`); }
   try {
     await page.locator('form input[type="email"]').fill('toast-contrast-probe@forgenta.test', { timeout: 10000 });
     await page.locator('form input[type="password"]').first().fill('Not-a-real-password-1', { timeout: 10000 });
