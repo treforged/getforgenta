@@ -95,11 +95,17 @@ export function useSafeToSpend(args: {
             label: `${cf.vehicle_name ?? 'Car'} insurance`, amount: Number(cf.monthly_insurance),
             anchorDate: cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date ?? null,
           })),
+        // The engine's own split (useCardProjection's debtPaymentTotals / cyclingPayment): a card still
+        // revolving at the START of the month owes its contract minimum (the rest is the discretionary
+        // Safe to Pay); any other card's whole sim payment is its statement. Month 0 reads end-of-month 0,
+        // as the engine does. `monthlyMandatoryCyclingPayment` read $0 for Tre's Robinhood card while the
+        // engine reserved its $841 statement, so the items never matched the total.
         cards: cardProjection.simCards.map(c => {
-          const rev = cardProjection.monthlyRevolvingBalances.get(c.id)?.[idx] ?? 0;
-          const amount = rev > 0
+          const revs = cardProjection.monthlyRevolvingBalances.get(c.id);
+          const startRev = (idx === 0 ? revs?.[0] : revs?.[idx - 1]) ?? 0;
+          const amount = startRev > 0
             ? (cardProjection.perCardMinPayments.get(c.id)?.[idx] ?? 0)
-            : (cardProjection.monthlyMandatoryCyclingPayment.get(c.id)?.[idx] ?? 0);
+            : (cardProjection.perCardPayments.find(pc => pc.id === c.id)?.payments[idx] ?? 0);
           return { label: `${c.name} payment`, amount, dueDay: c.dueDay ?? null };
         }),
       });
