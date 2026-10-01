@@ -5,7 +5,8 @@ import MetricCard from '@/components/shared/MetricCard';
 import CalcDrawer, { type CalcDrawerLine } from '@/components/shared/CalcDrawer';
 import { formatCurrency } from '@/lib/calculations';
 import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
-import { useProfile } from '@/hooks/useSupabaseData';
+import { useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
+import { useEffectiveSalaryProfile } from '@/hooks/useEffectiveSalaryProfile';
 import { buildPayConfig, getPaycheckNet, getPaychecksInMonth } from '@/lib/pay-schedule';
 import { nextExtraMonthLabel, type BudgetRule } from '@/lib/budget-month-totals';
 
@@ -71,7 +72,11 @@ function paycheckLines(profile: Parameters<typeof buildPayConfig>[0], now: Date)
 
 export default function BudgetTotalsCard() {
   const { buckets, totals, toCurrentMonthAmount } = useBudgetMonthTotals();
-  const { data: profile } = useProfile();
+  const { data: rawProfile } = useProfile();
+  const { data: rules } = useRecurringRules();
+  const { data: accounts } = useAccounts();
+  // The legacy $1,875 default is not a salary for a never-onboarded user with no income rule.
+  const profile = useEffectiveSalaryProfile(rawProfile, rules, accounts);
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: CalcDrawerLine[] } | null>(null);
 
   const now = new Date();

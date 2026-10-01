@@ -19,6 +19,7 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency } from '@/lib/calculations';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useNetWorthSnapshots, useBudgetItems } from '@/hooks/useSupabaseData';
+import { useEffectiveSalaryProfile } from '@/hooks/useEffectiveSalaryProfile';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { substituteSettledOccurrences } from '@/lib/matched-occurrence-display';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
@@ -270,7 +271,9 @@ export default function Dashboard() {
 
   const essentialLoading = txnLoading || acctLoading || profileLoading;
 
-  const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
+  // The legacy $1,875 default is not a salary for a never-onboarded user with no income rule (months 1+).
+  const salaryProfile = useEffectiveSalaryProfile(profile, rules, accounts);
+  const payConfig = useMemo(() => buildPayConfig(salaryProfile), [salaryProfile]);
   // `paycheckNet` was here too: it was the retired Next Paycheck chip's VALUE and the income
   // drawer's first line, and Tre re-anchored the chip's DATE only. Gone with its last reader.
   const nextPayday = useMemo(() => getNextPaycheckDate(payConfig), [payConfig]);

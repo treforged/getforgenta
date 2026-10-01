@@ -27,6 +27,36 @@ export function isEnteredSalary(profile: SalaryProfile | null | undefined): bool
   return n !== LEGACY_DEFAULT_WEEKLY_GROSS;
 }
 
+/** True when an active income rule pays into a cash account (deposit_account null/'' or in liquidAccountIds): the rules then carry the user's income. */
+export function hasActiveCashIncomeRule(rules: readonly Month0RuleLike[], liquidAccountIds: ReadonlySet<string>): boolean {
+  return rules.some(rule =>
+    rule.active === true &&
+    rule.rule_type === 'income' &&
+    (rule.deposit_account === null ||
+     rule.deposit_account === undefined ||
+     rule.deposit_account === '' ||
+     liquidAccountIds.has(rule.deposit_account)),
+  );
+}
+
+/**
+ * WHY: a never-onboarded profile still holding the legacy $1,875 column default, with no income rule, was projected
+ * a $97,500 salary in months 1+ (follow-up to ask f16b35ff). Returns a copy with weekly_gross_income 0 in exactly that
+ * case; otherwise the SAME reference (memo deps). A profile with an active cash income rule is unchanged, so the
+ * starter-rule users see no difference. Never mutates the input.
+ */
+export function withEffectiveSalary<P extends SalaryProfile | null | undefined>(
+  profile: P,
+  rules: readonly Month0RuleLike[],
+  liquidAccountIds: ReadonlySet<string>,
+): P {
+  if (!profile) return profile;
+  if (!(Number(profile.weekly_gross_income) > 0)) return profile;
+  if (isEnteredSalary(profile)) return profile;
+  if (hasActiveCashIncomeRule(rules, liquidAccountIds)) return profile;
+  return { ...profile, weekly_gross_income: 0 } as P;
+}
+
 /**
  * Net paycheck income from the PROFILE salary still to land in the current month: paychecks dated strictly AFTER `cutoffDate`.
  * Returns 0 unless BOTH: isEnteredSalary(profile), AND no rule is an active income rule into a cash account
@@ -44,18 +74,7 @@ export function month0ProfilePaycheckIncome(args: {
   const { profile, rules, liquidAccountIds, payConfig, now, cutoffDate } = args;
 
   if (!isEnteredSalary(profile)) return 0;
-
-  // Check if any active income rule deposits into a liquid account
-  const hasActiveIncomeRuleIntoLiquidAccount = rules.some(rule => 
-    rule.active === true && 
-    rule.rule_type === 'income' && 
-    (rule.deposit_account === null || 
-     rule.deposit_account === undefined || 
-     rule.deposit_account === '' || 
-     liquidAccountIds.has(rule.deposit_account))
-  );
-
-  if (hasActiveIncomeRuleIntoLiquidAccount) return 0;
+  if (hasActiveCashIncomeRule(rules, liquidAccountIds)) return 0;
 
   const paychecks = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
   let total = 0;

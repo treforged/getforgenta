@@ -50,6 +50,7 @@ import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
 import ShareDebtFreeButton from './ShareDebtFreeButton';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
+import { useEffectiveSalaryProfile } from '@/hooks/useEffectiveSalaryProfile';
 import { resolveSyncCutoffDate, fallsAfterDueDate } from '@/lib/sync-cutoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 
@@ -226,7 +227,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   };
 
   // Pay config
-  const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
+  // The legacy $1,875 default is not a salary for a never-onboarded user with no income rule (months 1+).
+  const salaryProfile = useEffectiveSalaryProfile(profile, rules, accounts);
+  const payConfig = useMemo(() => buildPayConfig(salaryProfile), [salaryProfile]);
 
   // Merge real DB transactions with generated recurring transactions from rules
   // This is the SINGLE SOURCE OF TRUTH — all transaction-based helpers read from this

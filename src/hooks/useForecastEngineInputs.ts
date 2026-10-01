@@ -25,6 +25,7 @@ import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 import { month0ProfilePaycheckIncome } from '@/lib/month0-profile-paychecks';
+import { useEffectiveSalaryProfile } from '@/hooks/useEffectiveSalaryProfile';
 
 /**
  * Assembles the full ForecastInputs for the pure calculateForecast engine. Extracted VERBATIM
@@ -73,12 +74,15 @@ export function useForecastEngineInputs({
   const { data: carFunds } = useCarFunds();
   const { data: accounts } = useAccounts();
   const { data: budgetItems } = useBudgetItems();
-  const { data: profile } = useProfile();
+  const { data: rawProfile } = useProfile();
   // The money engines read rules with each variable bill's floor buffer stamped on a copy.
   // Every floor entry point does this, or the sim and the engine would reserve different
   // amounts - see useFloorBufferedRules.
   const { data: rawRules } = useRecurringRules();
   const rules = useFloorBufferedRules(rawRules);
+  // getDebtPaymentsByMonth / getDebtBalancesByMonth build their own pay schedule from this profile, so the
+  // legacy $1,875 default must be dropped here too, or months 1+ keep a salary nobody entered.
+  const profile = useEffectiveSalaryProfile(rawProfile, rules, accounts);
   const { data: transactions } = useTransactions();
   const { data: paymentPlans } = usePaymentPlans();
   // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.

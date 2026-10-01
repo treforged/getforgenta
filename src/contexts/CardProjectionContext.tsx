@@ -13,6 +13,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { PROJECTION_LOCAL_KEYS } from '@/lib/projection-local-keys';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
 import { useFloorBufferedRules } from '@/hooks/useFloorBufferedRules';
+import { useEffectiveSalaryProfile } from '@/hooks/useEffectiveSalaryProfile';
 import { useForecastEngineInputs, type ForecastEngineInputsBundle } from '@/hooks/useForecastEngineInputs';
 import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
@@ -137,7 +138,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     [updateProfile],
   );
 
-  const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
+  // The legacy $1,875 default is not a salary for a never-onboarded user with no income rule (months 1+).
+  const salaryProfile = useEffectiveSalaryProfile(profile, rules, accounts);
+  const payConfig = useMemo(() => buildPayConfig(salaryProfile), [salaryProfile]);
 
   // Automatic by default: `resolveCashFloor` returns 0, and `getMinSafeCash` then takes the
   // greater of that and the pre-paycheck bills — so the floor IS the bills. See cash-floor.ts.
@@ -264,7 +267,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     debts: debts ?? [],
     goals: goals ?? [],
     carFunds: carFunds ?? [],
-    profile,
+    profile: salaryProfile,
     debtPayoffOptions,
     payConfig,
     scheduledEvents,
