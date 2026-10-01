@@ -218,7 +218,9 @@ export function StatementImport({ card, onApply, onClose }: Props) {
                 </span>
               </div>
             ))}
-            {figures.promoRates.length > 0 && (
+            {/* Hidden once the plan tables were read: those plans ARE applied, below, so saying promos
+                are "not applied automatically" would contradict the list under it. */}
+            {figures.promoRates.length > 0 && proposal === null && (
               <p className="text-xs text-muted-foreground">
                 Also seen: {figures.promoRates.map(p => `${p.label} at ${p.aprPercent}%`).join(', ')}.
                 Promotional rates are not applied automatically.

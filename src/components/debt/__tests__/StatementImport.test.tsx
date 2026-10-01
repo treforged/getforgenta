@@ -223,6 +223,16 @@ describe('payment plans read off the statement', () => {
     });
   });
 
+  it('says promos are not applied only when no plan table was read', () => {
+    render(<StatementImport card={CARD} onApply={onApply} onClose={onClose} />);
+    paste(STATEMENT);
+    expect(screen.queryByText(/not applied automatically/)).toBeTruthy();
+    paste(`${STATEMENT}
+${PLANS}`);
+    expect(screen.getByText('Payment plans on this statement')).toBeTruthy();
+    expect(screen.queryByText(/not applied automatically/)).toBeNull();
+  });
+
   it('does not touch the tranches when every plan already matches', () => {
     render(<StatementImport card={{ ...CARD, balance_tranches: [KNOWN], payment_due_day: 7 }} onApply={onApply} onClose={onClose} />);
     paste(PLANS.split('\n')[1]);
