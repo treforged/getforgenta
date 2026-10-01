@@ -25,6 +25,24 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW39 (10-01 ~13:45 ET, Ada getforgenta-0b -> successor at the 184-call gate). START HERE, IN ORDER:
+    0. DELETE THROWAWAY 17cd4c1e-985f-4e88-baf1-4d604ba68b21 (empty-walk-20261001@forgenta.test): Tre approved it (via Sam);
+       the MCP delete asks for a confirm. `delete from auth.users where id='17cd4c1e-...' and email='empty-walk-20261001@forgenta.test'`
+       then prove 0 rows. It holds no data. Its password lived in my scratchpad only; walk:empty / check:one-banner need a new
+       throwaway (create in SQL as R-NOW38 did: auth.users + auth.identities insert with crypt()).
+    1. RE-ARM WAKES (died with me): '37 1 2 10 *' widget e74da89c; '17 9 2 10 *' $204 1cea48f3 (ask is [~], keep it taken).
+    2. 98cbf494 FIRST REAL ROWS (build 1201, Tre unlocked): faceid->painted=3ms, faceid->cover_hidden=2236ms (and one n/a),
+       active->faceid=n/a, branch=none. JS lock lifts at once; the NATIVE cover holds ~2.2s. The report only looked backward;
+       FIXED (pushed) - rows now end "| after=<branch>@<ms>". NEXT: ask Sam to have Tre do one Face ID resume, read the new
+       row, and fix the branch it names in ios/App/App/AppDelegate.swift (brief = 0.15s + 0.3s fade; bg_poll = readyState poll
+       + waitForPaintThenDismiss up to 1.5s fallback + 0.1 + 0.3 fade - likely the 2.2s). Swift needs an iOS dispatch
+       (`gh workflow run "iOS Build & Upload to App Store" --ref main`, read the UPLOAD step's own conclusion).
+    3. 68a6a1d9 (App Privacy Device ID): Tre said "used claude in chrome" - UNCONFIRMED. Check App Store Connect > App
+       Privacy in Chrome if it is signed in; otherwise close it as his claim, quoting it.
+    [x] Shipped this session (all pushed 0/0, test:tz 5720 x3): db73b2c7 statement plan importer; bf8cb5f2 promo note;
+        debugLog write queue; Debt pause switch hidden with no card; ONE BANNER AT A TIME (bank then 2FA) + new gate
+        `npm run check:one-banner` (in CLAUDE.md); unlock report after=<branch>. Prime plan faa355fd OFF (backup
+        backup.tre_payment_plans_20261001). Full walk green: press 154/154, routes 27/27, empty 10/10, contrast 0 below AA.
 R-NOW38 (10-01 ~13:05 ET, Ada getforgenta-0b). START HERE, IN ORDER:
     [x] R-NOW37 0: throwaway 2b9641e6 deleted, 0 users / 0 profiles. [x] 1: wakes re-armed (13:47, 01:37, 09:17; die with me).
     [x] Prime Visa: 7ab8a42f plan faa355fd OFF (it double-counted tranche ca09ac29); a9cb7c13 all 8 statement plans already
@@ -12378,7 +12396,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 12:46 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 19:38 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12397,14 +12415,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+99f63fc8 [handoff]: R-NOW38 - empty walk, debugLog race, throwaway delete pending
+53700513 [debt]: hide "Pause optional savings transfers" until the user has an open card
+76d5837c [app-lock]: queue debug-log writes so Face ID marks are not lost (ask 98cbf494)
+8d81427c [handoff]: R-NOW38 - full walk green (press 154/154, routes 27/27, contrast 0 below AA)
+bf8cb5f2 [statement]: drop "promos not applied automatically" once the plan tables were read
 fe82d1a0 [handoff]: R-NOW38 - Prime Visa plans reconciled, plan importer shipped, press walk running
 db73b2c7 [statement]: read payment plans off a statement and propose them as card tranches (ask baee397e)
 e9e9ac58 [handoff]: R-NOW37 - delete throwaway user, re-arm crons, continue Sam's full walk
-c341a331 [first-run]: no "Settings saved" toast for a tour or What's New the user only closed
-d556ed8a [handoff]: R-NOW36 - boot splash shipped
-9a8f7d61 [boot]: show the Forgenta mark while the app loads, not an empty page (ask 98cbf494)
-4cf22be9 [handoff]: R-NOW36 - unlock order fix shipped; timing read armed
-ac95cf43 [app-lock]: unlock timing row reports faceid->persisted (ask 98cbf494)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
