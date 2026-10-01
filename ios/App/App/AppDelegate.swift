@@ -3,6 +3,7 @@ import Capacitor
 import AuthenticationServices
 import WebKit
 import WidgetKit
+import BackgroundTasks
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -111,7 +112,46 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // applicationDidBecomeActive polls window.__forgenta_dashboard_ready and
         // drops the cover once Auth/Onboarding/Dashboard has rendered.
         DispatchQueue.main.async { [weak self] in self?.showNativeCover() }
+        // Must be registered before launch finishes, and the identifier must be in Info.plist's
+        // BGTaskSchedulerPermittedIdentifiers, or iOS terminates the app.
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: WidgetRefresh.taskId, using: nil) { [weak self] task in
+            guard let refresh = task as? BGAppRefreshTask else { task.setTaskCompleted(success: false); return }
+            self?.handleWidgetRefresh(refresh)
+        }
         return true
+    }
+
+    // MARK: - Closed-app widget refresh (ask e74da89c)
+
+    /// iOS launches (or wakes) the whole app for a BGAppRefreshTask, so the refresh reloads the app's
+    /// OWN bridge WebView: the real Dashboard computes the figures with the real engine and publishes
+    /// through WidgetBridgePlugin, exactly as on an ordinary open. One WebView, one session client.
+    /// iOS decides WHEN this runs; 6 hours is the earliest it may, not a schedule. It never runs
+    /// after the user force-quits the app.
+    private func handleWidgetRefresh(_ task: BGAppRefreshTask) {
+        WidgetRefresh.schedule()  // the next one, before anything can fail
+        var finished = false
+        var observer: NSObjectProtocol?
+        let finish: (Bool) -> Void = { success in
+            DispatchQueue.main.async {
+                guard !finished else { return }
+                finished = true
+                if let o = observer { NotificationCenter.default.removeObserver(o) }
+                self.debugLog("WIDGET_BG_REFRESH success=\(success)")
+                task.setTaskCompleted(success: success)
+            }
+        }
+        task.expirationHandler = { finish(false) }
+        guard WidgetRefresh.isEnabled else { finish(true); return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let webView = self.webViewForPolling() else { finish(false); return }
+            observer = NotificationCenter.default.addObserver(
+                forName: WidgetRefresh.published, object: nil, queue: .main) { _ in finish(true) }
+            // Same flag every background reload sets, so JS init() skips the lock check.
+            UserDefaults.standard.set("1", forKey: "CapacitorStorage.forged:bg_reload")
+            webView.reload()
+            DispatchQueue.main.asyncAfter(deadline: .now() + WidgetRefresh.timeout) { finish(false) }
+        }
     }
 
     @objc private func handleDeviceLock() {
@@ -143,6 +183,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // cold start (didFinishLaunchingWithOptions). The phoneLocked 30-second
         // reload also passes isBgReload:true so the lock is not re-triggered.
         UserDefaults.standard.set("1", forKey: "CapacitorStorage.forged:bg_reload")
+        WidgetRefresh.schedule()
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -798,7 +839,8 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "WidgetBridgePlugin"
     public let jsName = "WidgetBridge"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "updateWidget", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "updateWidget", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBackgroundRefresh", returnType: CAPPluginReturnPromise)
     ]
 
     static let appGroup = "group.com.treforged.forged"
@@ -829,8 +871,43 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         store.set(json, forKey: Self.key)
         if #available(iOS 14.0, *) { WidgetCenter.shared.reloadAllTimelines() }
+        NotificationCenter.default.post(name: WidgetRefresh.published, object: nil)
         let shared = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: Self.appGroup) != nil
         call.resolve(["shared": shared])
+    }
+
+    /// The per-user switch for the closed-app refresh (ask e74da89c), off unless the app says so.
+    @objc func setBackgroundRefresh(_ call: CAPPluginCall) {
+        let enabled = call.getBool("enabled") ?? false
+        WidgetRefresh.isEnabled = enabled
+        if enabled { WidgetRefresh.schedule() } else { WidgetRefresh.cancel() }
+        call.resolve()
+    }
+}
+
+/// Shared by AppDelegate's task handler and WidgetBridgePlugin's switch.
+enum WidgetRefresh {
+    static let taskId = "com.treforged.forged.widget-refresh"
+    static let published = Notification.Name("forgenta.widget.published")
+    static let timeout: TimeInterval = 25
+    private static let enabledKey = "forgenta.widget.bgRefresh"
+
+    static var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: enabledKey) }
+        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+
+    static func schedule() {
+        guard isEnabled else { return }
+        let request = BGAppRefreshTaskRequest(identifier: taskId)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 6 * 60 * 60)
+        do { try BGTaskScheduler.shared.submit(request) } catch {
+            NSLog("[WidgetRefresh] submit failed: \(error)")
+        }
+    }
+
+    static func cancel() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: taskId)
     }
 }
