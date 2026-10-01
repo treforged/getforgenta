@@ -25,6 +25,21 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW20 (10-01 ~01:30Z, Ada getforgenta-b5). START HERE (Sam's brief: asks a7b1509e, e74da89c, ce6412bc):
+    [x] a7b1509e DONE d79e11e6: Tre's phone was signed out by ANOTHER DEVICE. auth_logs 00:52:13Z: a localhost:8080 tab's
+        10-min web idle timeout called signOut() = supabase default scope GLOBAL -> every session revoked -> iPhone refresh
+        00:59:43Z refresh_token_not_found. All ordinary sign-outs now { scope: 'local' }; only Settings "Sign out all
+        devices" (handleForceSignOut) is global. Native 7-day idle rule was already right. Test red-proven.
+    [x] e74da89c PART 1 4eb5a5f5: useWidgetSync re-publishes on foreground (resumeTick), even with unchanged figures.
+    [~] e74da89c PART 2 = ask 7383b8cd (design decided, NOT built): app-closed refresh every 6h. Plan: on-device wake
+        re-running the app's own engine - Android WorkManager 6h periodic, iOS BGAppRefreshTask (best effort; none
+        after force-quit). Hard part: the figures are computed INSIDE Dashboard (CardProjectionContext +
+        useCardProjection), so a headless compute path is needed first; a bare WebView has no Capacitor bridge, so
+        Android needs a JavascriptInterface or the Capacitor bridge itself. Nothing native for this exists yet
+        (no UIBackgroundModes, no BGTask, no WorkManager dep). Feasibility needs a device build.
+    [~] ce6412bc 319cef20: OAuth cover slept a fixed 2.5 s before polling (server sign-in measured ~0.57 s); now polls
+        "ready AND pathname !== /auth" at once. iOS run 36800171070 (#1053 -> build 1153) dispatched; read the
+        UPLOAD STEP output for "UPLOAD SUCCEEDED" before reporting. Device timing still unmeasured.
 R-NOW19 (09-30 ~15:30Z, Ada). START HERE:
     ITEM 1 (Sam): READ public.signup_funnel_events AFTER THE FIRST REAL INSTALLS - per-step counts and the drop
         point. Sam's sweeps watch the table and will dispatch Ada when real rows land. Rows 1-~40 (2026-09-30,
