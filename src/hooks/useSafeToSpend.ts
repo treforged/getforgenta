@@ -58,46 +58,58 @@ export function useSafeToSpend(args: {
     // reuses month 0's monthly figure (no month-1 chain is exposed). Other debts and plans are dated
     // per item (66279032), with the same selection the engine uses. Card payments read the sim's month 1.
     // The month after the ENGINE's month 0 (today's month), never after the sync cutoff's.
-    const monthStart = nextMonthStart(today);
     const creditCardSources = new Set([...creditCardIds].flatMap(id => [id, `account:${id}`]));
-    const monthKey = monthStart.slice(0, 7);
-    const monthDate = new Date(Number(monthStart.slice(0, 4)), Number(monthStart.slice(5, 7)) - 1, 1);
-    const nextMonthTerms: NextMonthTerm[] = buildNextMonthTerms({
-      monthStart,
-      transferRules: rules
-        .filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'))
-        .map(r => ({ name: r.name, amount: r.amount, frequency: r.frequency, due_day: r.due_day ?? null,
-          start_date: r.start_date ?? null, end_date: r.end_date ?? null, payment_source: r.payment_source ?? null })),
-      cashSourceIds: liquidAccountIds,
-      goalContributions: m0.chain.goalContributions,
-      // The engine's own pairing: liability accounts matched to `debts` rows, car-linked loans out,
-      // and a debt paid by a same-named expense rule left to that rule (already in scheduledEvents).
-      otherDebts: nextMonthOtherDebts({
-        accounts: accounts as unknown as DebtServiceAccountInput[],
-        debts: debts as unknown as LiabilityDebtInput[],
-        rules,
-        excludedAccountIds: linkedLoanAccountIds(carFunds, accounts),
-      }),
-      planPayments: nextMonthPlanPayments(paymentPlans ?? [], monthKey, creditCardSources),
-      carLoans: getActiveCarLoanPayments(carFunds, monthDate).map(l => ({
-        label: `${l.vehicleName} loan`, amount: l.payment,
-        paymentStartDate: carFunds.find(cf => cf.id === l.carFundId)?.payment_start_date ?? null,
-      })),
-      carInsurance: carFunds
-        .filter(cf => cf.phase === 'loan' && cf.loan_start_date && Number(cf.monthly_insurance) > 0
-          && (cf.insurance_start_date ?? cf.loan_start_date!).slice(0, 7) <= monthKey)
-        .map(cf => ({
-          label: `${cf.vehicle_name ?? 'Car'} insurance`, amount: Number(cf.monthly_insurance),
-          anchorDate: cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date ?? null,
+    const transferRules = rules
+      .filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'))
+      .map(r => ({ name: r.name, amount: r.amount, frequency: r.frequency, due_day: r.due_day ?? null,
+        start_date: r.start_date ?? null, end_date: r.end_date ?? null, payment_source: r.payment_source ?? null }));
+    const liabilityParams = {
+      accounts: accounts as unknown as DebtServiceAccountInput[],
+      debts: debts as unknown as LiabilityDebtInput[],
+      rules,
+      excludedAccountIds: linkedLoanAccountIds(carFunds, accounts),
+    };
+    // Per-item terms for month `idx` (0 = the engine's month 0, today's month; 1 = the next). The same
+    // selections the engine uses: liability accounts paired with `debts` rows, car-linked loans out, a
+    // debt paid by a same-named expense rule left to that rule, plans not charged to a card.
+    const termsFor = (idx: 0 | 1): NextMonthTerm[] => {
+      const monthStart = idx === 0 ? `${today.slice(0, 7)}-01` : nextMonthStart(today);
+      const monthKey = monthStart.slice(0, 7);
+      const monthDate = new Date(Number(monthStart.slice(0, 4)), Number(monthStart.slice(5, 7)) - 1, 1);
+      return buildNextMonthTerms({
+        monthStart,
+        transferRules,
+        cashSourceIds: liquidAccountIds,
+        // Goals have no due date: month 0's stay in the undated reserve; next month's reuse month 0's figure.
+        goalContributions: idx === 0 ? 0 : m0.chain.goalContributions,
+        otherDebts: nextMonthOtherDebts(liabilityParams, idx),
+        planPayments: nextMonthPlanPayments(paymentPlans ?? [], monthKey, creditCardSources),
+        carLoans: getActiveCarLoanPayments(carFunds, monthDate).map(l => ({
+          label: `${l.vehicleName} loan`, amount: l.payment,
+          paymentStartDate: carFunds.find(cf => cf.id === l.carFundId)?.payment_start_date ?? null,
         })),
-      cards: cardProjection.simCards.map(c => {
-        const rev = cardProjection.monthlyRevolvingBalances.get(c.id)?.[1] ?? 0;
-        const amount = rev > 0
-          ? (cardProjection.perCardMinPayments.get(c.id)?.[1] ?? 0)
-          : (cardProjection.monthlyMandatoryCyclingPayment.get(c.id)?.[1] ?? 0);
-        return { label: `${c.name} payment`, amount, dueDay: c.dueDay ?? null };
-      }),
-    });
+        carInsurance: carFunds
+          .filter(cf => cf.phase === 'loan' && cf.loan_start_date && Number(cf.monthly_insurance) > 0
+            && (cf.insurance_start_date ?? cf.loan_start_date!).slice(0, 7) <= monthKey)
+          .map(cf => ({
+            label: `${cf.vehicle_name ?? 'Car'} insurance`, amount: Number(cf.monthly_insurance),
+            anchorDate: cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date ?? null,
+          })),
+        cards: cardProjection.simCards.map(c => {
+          const rev = cardProjection.monthlyRevolvingBalances.get(c.id)?.[idx] ?? 0;
+          const amount = rev > 0
+            ? (cardProjection.perCardMinPayments.get(c.id)?.[idx] ?? 0)
+            : (cardProjection.monthlyMandatoryCyclingPayment.get(c.id)?.[idx] ?? 0);
+          return { label: `${c.name} payment`, amount, dueDay: c.dueDay ?? null };
+        }),
+      });
+    };
+    const nextMonthTerms = termsFor(1);
+    // Month 0: the engine counts transfers and plan payments only AFTER the sync cutoff (earlier ones are
+    // in the balance), so drop those items here too, or their sum cannot match the engine's total.
+    const cutoffDay = cutoffDate.slice(0, 7) === today.slice(0, 7) ? Number(cutoffDate.slice(8, 10)) : 0;
+    const monthZeroTerms = termsFor(0).filter(t =>
+      !((t.kind === 'transfer' || t.kind === 'plan') && t.dueDay !== null && t.dueDay <= cutoffDay));
 
     const input = assembleSafeToSpendInput({
       month0: { ...m0.chain, cyclingPayment: m0.cyclingPayment },
@@ -115,6 +127,7 @@ export function useSafeToSpend(args: {
       floor,
       nextMonthTerms,
       monthZeroDate: today,
+      monthZeroTerms,
     });
     return { result: computeSafeToSpend(input), input };
   }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts, paymentPlans, profile, confirmed, floor]);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   nextMonthStart, nextMonthReservations, transferTerms, buildNextMonthTerms,
-  nextMonthOtherDebts, nextMonthPlanPayments,
+  nextMonthOtherDebts, nextMonthPlanPayments, datedMonthZero,
   type NextMonthTerm, type NextMonthTermSources,
 } from '@/lib/safe-to-spend-next-month';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
@@ -221,5 +221,63 @@ describe('nextMonthPlanPayments - dated by the plan schedule', () => {
       plan({ active: false }),
       plan({ total_payments: 2 }),
     ], '2026-11', new Set(['card1', 'account:card1']))).toEqual([]);
+  });
+});
+
+describe('datedMonthZero - month 0 dated (Sam 2026-10-01)', () => {
+  const card = (label: string, amount: number, dueDay: number | null) => term({ label, amount, dueDay, kind: 'card', editPath: '/accounts' });
+
+  it('dates items whose sum matches the engine total', () => {
+    const r = datedMonthZero([{ total: 300, items: [card('A', 100, 15), card('B', 200, 3)] }], '2026-10-01', '2026-09-30');
+    expect(r.undatedReserve).toBe(0);
+    expect(r.events.map(e => [e.date, e.amount])).toEqual([['2026-10-15', 100], ['2026-10-03', 200]]);
+  });
+
+  it('keeps the whole total undated when the items do not add up (never high, never double)', () => {
+    const r = datedMonthZero([{ total: 350, items: [card('A', 100, 15), card('B', 200, 3)] }], '2026-10-01', '2026-09-30');
+    expect(r).toEqual({ events: [], undatedReserve: 350 });
+  });
+
+  it('an item with no due day is reserved today', () => {
+    const r = datedMonthZero([{ total: 300, items: [card('A', 100, null), card('B', 200, 20)] }], '2026-10-10', '2026-10-09');
+    expect(r.undatedReserve).toBe(100);
+    expect(r.events.map(e => e.date)).toEqual(['2026-10-20']);
+  });
+
+  it("EDGE 2 (Sam): a due day already PASSED but still in the engine's total is reserved the day after the cutoff, not next month", () => {
+    const r = datedMonthZero([{ total: 120, items: [card('Loan', 120, 5)] }], '2026-10-12', '2026-10-11');
+    expect(r.events).toEqual([{ date: '2026-10-12', amount: 120, direction: 'out', label: 'Loan' }]);
+  });
+
+  it('no items -> the total stays undated', () => {
+    expect(datedMonthZero([{ total: 80, items: [] }], '2026-10-01', '2026-09-30')).toEqual({ events: [], undatedReserve: 80 });
+  });
+});
+
+describe("the figure with month 0 dated - Tre's shape (cutoff 30 Sept, payday 2 Oct)", () => {
+  const month0 = {
+    fundingBalance: 2513.14, carSavedEarmark: 0, goalContributions: 39.86, autoExtraReserve: 0, carReserve: 0,
+    carLoanPayment: 0, vehicleInsurance: 0, otherDebtPayment: 0, transfers: 0, planExpenses: 0, oneTimeNet: 0,
+    cyclingPayment: 0,
+  };
+  const a: SafeToSpendAssembly = {
+    month0, fundingAccountId: 'chk', liquidAccountIds: new Set(['chk']), creditCardIds: new Set(),
+    paycheckRuleIds: new Set(), cardMinimumReserve: 1150.4, rules: [], scheduledEvents: [], confirmed: new Set(),
+    pauseSavings: false, cutoffDate: '2026-09-30', profilePayday: '2026-10-02', floor: 0, monthZeroDate: '2026-10-01',
+  };
+  const terms = [
+    term({ label: 'Discover payment', amount: 150.4, dueDay: 1, kind: 'card' }),
+    term({ label: 'Prime Visa payment', amount: 1000, dueDay: 15, kind: 'card' }),
+  ];
+
+  it('EDGE 1 (Sam): a card due TODAY is reserved; one due on the 15th (after payday) is not', () => {
+    const r = computeSafeToSpend(assembleSafeToSpendInput({ ...a, monthZeroTerms: terms }));
+    // 2513.14 - 39.86 goals (undated) - 150.40 due today = 2322.88
+    expect(r.kind === 'figure' && r.amount).toBeCloseTo(2322.88, 2);
+  });
+
+  it('control: without month-0 terms everything is reserved today -> $1,322.88', () => {
+    const r = computeSafeToSpend(assembleSafeToSpendInput(a));
+    expect(r.kind === 'figure' && r.amount).toBeCloseTo(1322.88, 2);
   });
 });

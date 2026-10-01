@@ -197,11 +197,11 @@ export function buildNextMonthTerms(s: NextMonthTermSources): NextMonthTerm[] {
  * paired with `debts` rows (`listDebtServiceLiabilities`), a debt paid by a same-named expense rule
  * left to that rule (it is already a dated rule event), and a debt projected paid off by then dropped.
  */
-export function nextMonthOtherDebts(params: Parameters<typeof listDebtServiceLiabilities>[0]):
+export function nextMonthOtherDebts(params: Parameters<typeof listDebtServiceLiabilities>[0], month = 1):
   NextMonthTermSources['otherDebts'] {
   return listDebtServiceLiabilities(params)
     .filter(l => !l.paidByExpenseRule && l.payment > 0
-      && isOtherDebtPaymentOwed(l, projectLiabilityBalances(l.balance, l.apr, l.amortizingPayment, 3), 1))
+      && isOtherDebtPaymentOwed(l, projectLiabilityBalances(l.balance, l.apr, l.amortizingPayment, month + 2), month))
     .map(l => ({ label: l.name, amount: l.payment, dueDay: l.dueDay }));
 }
 
@@ -214,4 +214,56 @@ export function nextMonthPlanPayments(
     .flatMap(pl => getPaymentDates(pl.start_date, pl.frequency, pl.total_payments)
       .filter(d => d.startsWith(monthKey))
       .map(d => ({ label: pl.name, amount: Number(pl.payment_amount), date: d })));
+}
+
+/** One month-0 chain term: the engine's total, and the items that make it up where the data has them. */
+export interface MonthZeroComponent {
+  /** The engine's month-0 total for this term (`month0.chain`). The amount authority. */
+  total: number;
+  /** Per-item breakdown; may be empty when the data model has none. */
+  items: readonly NextMonthTerm[];
+}
+
+function dayAfter(date: string): string {
+  const { y, m } = ym(date);
+  const d = Number(date.slice(8, 10));
+  if (d < daysInMonth(y, m)) return `${pad(y, 4)}-${pad(m)}-${pad(d + 1)}`;
+  const n = following(y, m);
+  return `${pad(n.y, 4)}-${pad(n.m)}-01`;
+}
+
+/**
+ * MONTH 0, DATED (Sam 2026-10-01, extending 938fb5db): month 0's chain terms used to be reserved in full
+ * today, so a user paid tomorrow read "$0" whenever the month's cards, loans and goals outweighed cash.
+ *
+ * Per component, the items are dated ONLY when they add up to the engine's total within $1. Otherwise the
+ * whole total stays undated (reserved today). The engine's total already excludes what the bank shows as
+ * paid, so this can never read HIGH (an item the engine still counts is never dropped) and never double.
+ *
+ * ⚠️ A due day already PASSED this month (on or before the cutoff) is still in the engine's total, so it
+ * is still owed: it is reserved on the day after the cutoff, never moved to next month (Sam's edge case 2).
+ * An item with no due day is reserved today too.
+ */
+export function datedMonthZero(
+  components: readonly MonthZeroComponent[], monthZeroDate: string, cutoffDate: string,
+): { events: DatedCashEvent[]; undatedReserve: number } {
+  const events: DatedCashEvent[] = [];
+  let undatedReserve = 0;
+  const { y, m } = ym(monthZeroDate);
+  const last = daysInMonth(y, m);
+  const firstOpen = dayAfter(cutoffDate);
+  for (const c of components) {
+    const total = c.total > 0 && isFinite(c.total) ? c.total : 0;
+    if (total === 0) continue;
+    const items = c.items.filter(i => i.amount > 0 && isFinite(i.amount));
+    const sum = items.reduce((s, i) => s + i.amount, 0);
+    if (items.length === 0 || Math.abs(sum - total) > 1) { undatedReserve += total; continue; }
+    for (const i of items) {
+      if (i.dueDay === null) { undatedReserve += i.amount; continue; }
+      const day = Math.min(Math.max(Math.trunc(i.dueDay), 1), last);
+      const due = `${pad(y, 4)}-${pad(m)}-${pad(day)}`;
+      events.push({ date: due < firstOpen ? firstOpen : due, amount: i.amount, direction: 'out', label: i.label });
+    }
+  }
+  return { events, undatedReserve };
 }

@@ -34,7 +34,9 @@
 import { CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { ScheduledEvent } from '@/lib/scheduling';
-import { nextMonthReservations, nextMonthStart, type NextMonthTerm, type UndatedNextMonthItem } from '@/lib/safe-to-spend-next-month';
+import {
+  nextMonthReservations, nextMonthStart, datedMonthZero, type NextMonthTerm, type UndatedNextMonthItem,
+} from '@/lib/safe-to-spend-next-month';
 
 export interface DatedCashEvent {
   /** 'YYYY-MM-DD' local date. */
@@ -216,6 +218,11 @@ export interface SafeToSpendAssembly {
    * chain already holds them). Measured on Tre's account 2026-10-01. Defaults to cutoffDate.
    */
   monthZeroDate?: string;
+  /**
+   * Month 0's per-item terms, by kind ('transfer' | 'car-loan' | 'insurance' | 'other-debt' | 'plan' |
+   * 'card'). When given, each matching chain term is dated by `datedMonthZero` instead of reserved today.
+   */
+  monthZeroTerms?: readonly NextMonthTerm[];
 }
 
 /**
@@ -273,9 +280,19 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
   const next = nextMonthReservations(a.nextMonthTerms ?? [], a.monthZeroDate ?? a.cutoffDate, payday);
   events.push(...next.events);
 
-  const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve + m.carLoanPayment
-    + m.vehicleInsurance + m.otherDebtPayment + m.transfers + m.planExpenses
-    + Math.max(0, -m.oneTimeNet) + m.cyclingPayment + a.cardMinimumReserve;
+  // Month 0's terms with per-item due days are dated (Sam 2026-10-01); the rest are reserved today.
+  const byKind = (k: NextMonthTerm['kind']) => (a.monthZeroTerms ?? []).filter(t => t.kind === k);
+  const zero = datedMonthZero([
+    { total: m.transfers, items: byKind('transfer') },
+    { total: m.carLoanPayment, items: byKind('car-loan') },
+    { total: m.vehicleInsurance, items: byKind('insurance') },
+    { total: m.otherDebtPayment, items: byKind('other-debt') },
+    { total: m.planExpenses, items: byKind('plan') },
+    { total: m.cyclingPayment + a.cardMinimumReserve, items: byKind('card') },
+  ], a.monthZeroDate ?? a.cutoffDate, a.cutoffDate);
+  events.push(...zero.events);
+  const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve
+    + Math.max(0, -m.oneTimeNet) + zero.undatedReserve;
 
   return {
     cutoffDate: a.cutoffDate,

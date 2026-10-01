@@ -726,7 +726,7 @@ export default function Auth() {
             </p>
           </div>
           {/* ⚠️ SAMPLE FIGURES, labelled as such. Read off /demo on 2026-10-01 at 390px (ask 23fe1862):
-              "SAFE TO SPEND UNTIL OCT 2 $1,652" and "CREDIT CARDS PAID OFF Dec 2027". They are the demo
+              "SAFE TO SPEND UNTIL OCT 2 $1,652" and (re-read $2,229 after month 0 was dated, 2026-10-01) "CREDIT CARDS PAID OFF Dec 2027". They are the demo
               profile's numbers, not the visitor's, and the "Example" label must stay so nobody reads
               them as their own. The demo's figures move with the calendar, so re-read them when this
               copy is next touched. "Safe to spend" is now a real figure in the app (safe-to-spend.ts),
@@ -735,7 +735,7 @@ export default function Auth() {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Example · sample data</p>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-sm text-foreground/80">Safe to spend until payday</span>
-              <span className="text-base font-bold text-primary tabular-nums">$1,652</span>
+              <span className="text-base font-bold text-primary tabular-nums">$2,229</span>
             </div>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-sm text-foreground/80">Credit cards paid off</span>
