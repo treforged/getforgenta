@@ -26,8 +26,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW33 (10-01 ~08:40Z / 04:40 ET, Ada). START HERE. NOTE: R-NOW32's "08:30 ET" was really UTC.
-    0. WIDGET READ e74da89c: armed as session cron 49bc5b3f, 09:07 ET 10-01. If this session is gone, run the R-NOW24
-       item 1 query by hand after 09:07 ET and send Sam (tre-forged-ce) count + timestamps.
+    [x] WIDGET READ e74da89c done 09:07 ET: 24 rows, ALL web/hidden (desk localhost reads), 0 ios/android. Sent Sam.
+        Native refresh is in iOS 1158 (run 36802763483, UPLOAD SUCCEEDED), switch on for Tre. Ask BLOCKED on his
+        install + one app open; re-read for platform='ios' when Sam says he installed.
     [x] SAM CONDITION (1) DONE 8b9e50d0: Safe to Spend walks to month end with paychecks; takes the lower low. Tre
         $2,322.88 -> $1,408.31, low Oct 10 (spending it all would leave -$914.57). Floor 0 (automatic mode). Read on
         localhost (prod DB); prod bundle verified (Dashboard-CEfAe7-J-c2.js has the new text). Prod site not read:
