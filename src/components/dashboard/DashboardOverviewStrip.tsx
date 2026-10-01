@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/calculations';
 
@@ -23,6 +24,12 @@ import { formatCurrency } from '@/lib/calculations';
 export interface DashboardOverviewStripProps {
   /** True until every source behind these totals has resolved. Shows the skeleton. */
   loading: boolean;
+  /**
+   * True when the user has entered nothing these totals could be built from: no account, no
+   * manual asset or liability, no vehicle loan. Shows an empty state instead of eight $0 tiles,
+   * because a $0 net worth and "nothing on file" are the same pixels and different facts.
+   */
+  empty?: boolean;
   netWorth: number;
   totalAssets: number;
   totalLiabilities: number;
@@ -92,8 +99,27 @@ function StripSkeleton() {
   );
 }
 
+function StripEmpty() {
+  return (
+    <div className="card-forged p-4 sm:p-5 text-center lg:text-left">
+      <p className={LABEL}>Net Worth</p>
+      <p className="text-sm sm:text-base font-semibold mt-1">Nothing on file yet</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Add an account or connect a bank, and your net worth, cash and debt show here.
+      </p>
+      <Link
+        to="/dashboard?tab=accounts"
+        className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-primary hover:underline"
+      >
+        Add an account
+      </Link>
+    </div>
+  );
+}
+
 export default function DashboardOverviewStrip({
   loading,
+  empty = false,
   netWorth,
   totalAssets,
   totalLiabilities,
@@ -106,6 +132,7 @@ export default function DashboardOverviewStrip({
   onLiquidCashClick,
 }: DashboardOverviewStripProps) {
   if (loading) return <StripSkeleton />;
+  if (empty) return <StripEmpty />;
 
   // No limits on file means the ratio has no reading. 0.0% and "you use none of your
   // credit" are the same pixels and opposite facts.

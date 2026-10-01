@@ -12,6 +12,12 @@
  * route to test-results/empty-walk/ for a human-eye pass.
  * POSITIVE CONTROL: a planted "$NaN" string must be flagged, or the junk matcher is blind (exit 2).
  *
+ * INVENTED FIGURES (Sam 2026-10-01): on Dashboard and Forecast every money figure must trace to a row the
+ * user wrote, or be an empty state. This account wrote NO rows, so ANY visible "$<digits>" there is a
+ * finding - a confident $0 where the app means "unknown" is the same defect as the phantom $97.5k salary
+ * (ask 9f385515), which this walk once passed 10/10. Its control: a planted "$1,234" must be read.
+ * FIGURE_ALLOW lists figures that are not the user's money at all (a price), each with its reason.
+ *
  * ACCOUNT: a throwaway @forgenta.test user, created in SQL (no signup email to bounce) and DELETED
  * after the run. Credentials come from EMPTY_WALK_EMAIL / EMPTY_WALK_PASSWORD and are never stored.
  * The only write is the shared first-run PATCH (onboarding_completed + dialog flags) on that user.
@@ -90,6 +96,25 @@ const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
 const ROUTES = ['/dashboard', '/budget', '/transactions', '/transactions?tab=forecast', '/debt', '/goals',
   '/vehicles', '/accounts', '/account', '/settings'];
 const JUNK = /(\$-0(?:\.00)?\b|\bNaN\b|\bundefined\b|\bInfinity\b|\bnull\b)/g;
+const MONEY_ROUTES = new Set(['/dashboard', '/transactions?tab=forecast']);
+const FIGURE_ALLOW = [];
+const figures = () => page.evaluate(() => {
+  const out = [];
+  const re = /-?\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kKmMbB]\b)?/g;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement;
+    if (!el || el.closest('[aria-hidden="true"]')) continue;
+    const box = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    if (box.width === 0 || box.height === 0 || cs.visibility === 'hidden' || cs.opacity === '0') continue;
+    for (const m of n.textContent.match(re) ?? []) {
+      const host = el.closest('section, [class*="card"], li, tr') ?? el;
+      out.push({ fig: m.trim(), ctx: host.innerText.replace(/\s+/g, ' ').slice(0, 70) });
+    }
+  }
+  return out;
+});
 const read = () => page.evaluate((src) => {
   const re = new RegExp(src, 'g');
   const text = document.body.innerText;
@@ -102,23 +127,55 @@ await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(4000);
 await page.evaluate(() => { const d = document.createElement('div'); d.textContent = 'Total $NaN'; document.body.appendChild(d); });
 if (!(await read()).junk.includes('NaN')) await done(2, 'CONTROL FAILED: a planted "$NaN" was not flagged - the matcher is blind.');
+await page.evaluate(() => { const d = document.createElement('div'); d.textContent = 'Income $1,234'; document.body.appendChild(d); });
+if (!(await figures()).some((f) => f.fig === '$1,234')) await done(2, 'CONTROL FAILED: a planted "$1,234" was not read - the figure reader is blind.');
 
 const { mkdirSync } = await import('node:fs');
 mkdirSync('test-results/empty-walk', { recursive: true });
+// SETTLE, never a fixed sleep (2026-10-01): a 6 s wait read /dashboard as 52 characters of SKELETON
+// and reported "figures 0" - a pass from a page that had not loaded. A route is read only once no
+// .skeleton-shimmer is on screen AND two reads a second apart agree; one that never settles is
+// UNSTABLE and makes the run exit 2, because a zero from it is not a measurement.
+const settle = async () => {
+  let last = -1;
+  for (let i = 0; i < 25; i += 1) {
+    await page.waitForTimeout(1000);
+    for (let j = 0; j < 4 && (await page.locator(OVERLAY).count()); j += 1) {
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    }
+    const now = await page.evaluate(() => ({
+      text: document.body.innerText.length,
+      skeletons: document.querySelectorAll('.skeleton-shimmer').length,
+    }));
+    if (now.skeletons === 0 && now.text === last) return true;
+    last = now.skeletons === 0 ? now.text : -1;
+  }
+  return false;
+};
 let findings = 0;
+let unstable = 0;
 for (const route of ROUTES) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(6000);
-  for (let i = 0; i < 4 && (await page.locator(OVERLAY).count()); i += 1) {
-    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  if (!(await settle())) {
+    unstable += 1;
+    console.log(`UNSTABLE ${route.padEnd(26)} never settled (skeleton or text still changing after 25 s)`);
+    continue;
   }
   const r = await read();
   const landed = new URL(page.url()).pathname;
-  const bad = r.boundary || r.junk.length > 0 || r.text < 40;
+  const invented = MONEY_ROUTES.has(route)
+    ? (await figures()).filter((f) => !FIGURE_ALLOW.some((a) => a.test(f)))
+    : [];
+  const bad = r.boundary || r.junk.length > 0 || r.text < 40 || invented.length > 0;
   if (bad) findings += 1;
   console.log(`${bad ? 'FINDING' : 'ok     '} ${route.padEnd(26)} -> ${landed.padEnd(14)} text ${String(r.text).padStart(5)}`
-    + `${r.boundary ? ' ERRORBOUNDARY' : ''}${r.junk.length ? ` junk ${r.junk.join(',')}` : ''}${r.text < 40 ? ' BLANK' : ''}`);
+    + `${r.boundary ? ' ERRORBOUNDARY' : ''}${r.junk.length ? ` junk ${r.junk.join(',')}` : ''}${r.text < 40 ? ' BLANK' : ''}`
+    + `${MONEY_ROUTES.has(route) ? ` figures ${invented.length}` : ''}`);
+  for (const f of invented.slice(0, 12)) console.log(`          invented ${f.fig.padEnd(10)} in "${f.ctx}"`);
   const name = route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'root';
   await page.screenshot({ path: `test-results/empty-walk/${name}.png`, fullPage: false });
 }
-await done(findings ? 1 : 0, `${findings ? 'FINDINGS' : 'PASS'}: ${ROUTES.length} routes walked on an empty account, ${findings} with a finding.`);
+const summary = `${ROUTES.length} routes walked on an empty account, ${findings} with a finding, ${unstable} unstable.`;
+if (findings) await done(1, `FINDINGS: ${summary}`);
+if (unstable) await done(2, `COULD NOT TEST: ${summary}`);
+await done(0, `PASS: ${summary}`);

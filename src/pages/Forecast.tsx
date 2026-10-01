@@ -322,6 +322,10 @@ export default function Forecast() {
   useEscapeToClose(() => setAssumptionsTutorialSeen(true), !isDemo && !assumptionsTutorialSeen);
   if (forecastInputsLoading) return <ForecastSkeleton />;
 
+  // Nothing entered yet: no account and no rule. The hero says so and links to add some; a chart
+  // here would draw a confident $0 line (or worse, an invented one) for money nobody entered.
+  const noInputs = accounts.length === 0 && rules.length === 0;
+
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {!isDemo && !assumptionsTutorialSeen && (
@@ -492,7 +496,7 @@ export default function Forecast() {
           crosses no line", so a set-up user is never told to go and add data. */}
       <ForecastHero
         milestones={projections.milestones}
-        emptyReason={accounts.length === 0 && rules.length === 0 ? 'no-inputs' : 'no-milestones'}
+        emptyReason={noInputs ? 'no-inputs' : 'no-milestones'}
       />
 
       {!forecastInputsLoading && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
@@ -573,6 +577,7 @@ export default function Forecast() {
       {viewMode === 'monthly' ? (
         <>
           {/* Net Worth Chart */}
+          {!noInputs && (
           <ErrorBoundary variant="widget" label="Net Worth & Assets Projection">
           {/* The card arrives, then the series draw inside it. Without this the
               card snapped in fully-formed and the line animation read as a
@@ -627,6 +632,7 @@ export default function Forecast() {
             </ResponsiveContainer>
           </motion.div>
           </ErrorBoundary>
+          )}
 
           {/* Premium upgrade CTA — free users only */}
           {freePreview && (

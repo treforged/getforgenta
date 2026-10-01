@@ -226,8 +226,13 @@ section states reasoning, not measurement, and says so.
   Needs a throwaway `@forgenta.test` user created in SQL (no signup email to bounce; Tre approved 2026-09-30,
   ask 813d6b21) passed as EMPTY_WALK_EMAIL / EMPTY_WALK_PASSWORD, and DELETED after (prove auth.users returns).
   Flags ErrorBoundary, NaN/undefined/Infinity/$-0/null text and blank pages; a planted "$NaN" is its control.
-  ⚠️ ITS GREEN IS WEAK: the first run passed 10/10 while the Forecast drew a phantom $97.5k salary
-  (ask 9f385515). Only the frames in test-results/empty-walk/ caught it, so LOOK AT THEM.
+  ⚠️ ITS GREEN WAS WEAK: the first run passed 10/10 while the Forecast drew a phantom $97.5k salary
+  (ask 9f385515). Since 2026-10-01 it also fails on ANY "$<digits>" on Dashboard and Forecast (the
+  account wrote no rows, so every figure is invented or a confident $0; Sam's rule), with a planted
+  "$1,234" as control. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
+  app (19 $0 figures). Each route is read only once no `.skeleton-shimmer` shows and two reads agree:
+  a 6 s sleep read a skeleton Dashboard as "figures 0". Never-settled routes exit 2. Still LOOK AT
+  the frames: it reads figures, not meaning.
 - `npm run check:first-save` - at 390x844, signed in: walks onboarding twice and asserts the wizard
   saves on "See your plan" BEFORE the finish screen says "Your profile is set", that neither finish
   button saves again, and that every press works with the cookie banner up. Writes are answered

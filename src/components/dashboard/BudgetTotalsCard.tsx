@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { DollarSign, TrendingDown, CreditCard, ArrowLeftRight } from 'lucide-react';
 import MetricCard from '@/components/shared/MetricCard';
 import CalcDrawer, { type CalcDrawerLine } from '@/components/shared/CalcDrawer';
@@ -75,6 +76,29 @@ export default function BudgetTotalsCard() {
 
   const now = new Date();
   const { incomeRules, fixedRules, variableRules, debtRules, transferRules } = buckets;
+
+  // No rule in any bucket and no salary on the profile: every tile below would be a $0 the user
+  // never entered. Say what is missing instead, and link to where it is added.
+  const nothingEntered = Number(profile?.weekly_gross_income) <= 0
+    && [incomeRules, fixedRules, variableRules, debtRules, transferRules].every(rows => rows.length === 0);
+  if (nothingEntered) {
+    return (
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          This Month's Budget
+        </h3>
+        <div className="card-forged p-4 sm:p-5">
+          <p className="text-sm sm:text-base font-semibold">No budget yet</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Add your pay and your regular bills, and this month's income and spending add up here.
+          </p>
+          <Link to="/budget" className="inline-flex mt-3 text-xs font-medium text-primary hover:underline">
+            Add income &amp; expenses
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const rowLines = (rows: BudgetRule[]): CalcDrawerLine[] => rows
     .filter(r => r.active)

@@ -1379,6 +1379,9 @@ export default function Dashboard() {
       />
       <DashboardOverviewStrip
         loading={overviewStripLoading}
+        empty={accounts.length === 0
+          && netWorthBreakdown.assets.length === 0
+          && netWorthBreakdown.liabilities.length === 0}
         netWorth={accountSummary.netWorth}
         totalAssets={accountSummary.totalAssets}
         totalLiabilities={accountSummary.totalLiabilities}

@@ -8,6 +8,7 @@
 // never a $0.00: a real zero net worth and an unread one are the same pixels.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import DashboardOverviewStrip, { type DashboardOverviewStripProps } from '../DashboardOverviewStrip';
 
 const base: DashboardOverviewStripProps = {
@@ -94,5 +95,34 @@ describe('DashboardOverviewStrip — the drawers the chips used to open', () => 
     expect(container.querySelectorAll('button')).toHaveLength(0);
     expect(screen.getByText('$18,400')).toBeTruthy();
     expect(screen.getByText('$4,200')).toBeTruthy();
+  });
+});
+
+// Sam, 2026-10-01: every money figure on the Dashboard must trace to a row the user wrote, or be
+// an empty state. With nothing on file the strip used to paint eight confident $0 tiles.
+describe('DashboardOverviewStrip — nothing on file is an empty state, not $0', () => {
+  const renderEmpty = (over: Partial<DashboardOverviewStripProps> = {}) => render(
+    <MemoryRouter>
+      <DashboardOverviewStrip {...base} netWorth={0} totalAssets={0} totalLiabilities={0}
+        liquidCash={0} investments={0} retirement={0} ccDebt={0} ccLimit={0} {...over} />
+    </MemoryRouter>,
+  );
+
+  it('shows no money figure and links to the accounts tab when empty', () => {
+    const { container } = renderEmpty({ empty: true });
+    expect(container.textContent).not.toMatch(/\$\s?\d/);
+    expect(screen.getByText('Nothing on file yet')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Add an account' }).getAttribute('href')).toBe('/dashboard?tab=accounts');
+  });
+
+  it('still shows the figures when the same zeros are real (empty is false)', () => {
+    const { container } = renderEmpty({ empty: false });
+    expect(container.textContent).toMatch(/\$0/);
+    expect(screen.queryByText('Nothing on file yet')).toBeNull();
+  });
+
+  it('loading wins over empty, so an unread account list never claims "nothing on file"', () => {
+    renderEmpty({ empty: true, loading: true });
+    expect(screen.queryByText('Nothing on file yet')).toBeNull();
   });
 });
