@@ -251,6 +251,11 @@ section states reasoning, not measurement, and says so.
   index.html on purpose: a guard in the bundle cannot report that the bundle failed. The next good boot sends
   the record to `public.client_boot_failures` (insert-own only; the desk reads it with SQL), because
   `reportError` is off in the native app. Does NOT cover a crash AFTER mount (that is the ErrorBoundary's job).
+- `npm run check:safe-to-spend` - on /demo at 390x844 (no credentials): the "Safe to Spend until <date>" figure
+  (ask 23fe1862) renders, PRESSING it opens its calculator drawer, and the drawer agrees with the card (lowest point
+  minus floor = total = card). The maths is owned by `src/lib/__tests__/safe-to-spend.test.ts` (15 tests, each asserts
+  a number, red under three mutants). Not on the deck-walk account: its income and checking rows are inactive, so it
+  correctly shows the EMPTY state. `walk:empty` asserts an empty account shows no figure.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.

@@ -95,6 +95,7 @@ const GoalsPanel = lazy(() => import('@/pages/SavingsGoals'));
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 import { resolveCashFloor } from '@/lib/cash-floor';
+import { useSafeToSpend } from '@/hooks/useSafeToSpend';
 import { isManualCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
@@ -407,6 +408,9 @@ export default function Dashboard() {
   }, [accounts, paymentPlans, syncCutoffDate]);
 
   const cashFloor = resolveCashFloor(profile);
+  // Safe to spend until payday (ask 23fe1862) - the low point before payday minus the floor, built
+  // from the engine's dated outflows. Never from the transaction-merge helpers above (Finding §1.1).
+  const { result: safeToSpend, input: safeToSpendInput } = useSafeToSpend({ profile, confirmed: confirmedOccurrences, floor: cashFloor });
 
 
 
@@ -772,6 +776,29 @@ export default function Dashboard() {
   // The openers for the chips Tre did NOT re-anchor (income, expenses, debt payments) were
   // deleted in the same pass rather than left standing as unreachable derivations.
 
+  // Walks the safe-to-spend arithmetic as a column: start, reserved now, each dated item up to
+  // payday, the low point, the floor. Every row is a term `computeSafeToSpend` consumed.
+  const openSafeToSpendCalc = () => {
+    if (!safeToSpendInput || safeToSpend?.kind !== 'figure') return;
+    const money = (v: number) => formatCurrency(v, true);
+    const short = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dated = safeToSpendInput.events
+      .filter(e => e.date > safeToSpendInput.cutoffDate && e.date <= safeToSpend.payday && e.amount > 0)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.direction === 'out' ? -1 : 1));
+    const lines = [
+      { label: 'Cash on hand', value: money(safeToSpendInput.startBalance ?? 0) },
+      ...(safeToSpendInput.undatedReserve > 0
+        ? [{ label: 'Set aside this month (goals, car, cards, other debt)', value: money(safeToSpendInput.undatedReserve), op: '−' }]
+        : []),
+      ...dated.map(e => ({ label: `${short(e.date)} · ${e.label}`, value: money(e.amount), op: e.direction === 'out' ? '−' : '+' })),
+      { label: '', value: '' },
+      { label: `Lowest point (${safeToSpend.lowDate === safeToSpendInput.cutoffDate ? 'today' : short(safeToSpend.lowDate)})`, value: money(safeToSpend.lowPoint), op: '=' },
+      ...(safeToSpend.floor > 0 ? [{ label: 'Cash floor', value: money(safeToSpend.floor), op: '−' }] : []),
+      { label: `Safe to spend until ${short(safeToSpend.payday)}`, value: money(safeToSpend.amount), op: '=' },
+    ];
+    setCalcDrawer({ title: 'Safe to Spend until Payday', lines });
+  };
+
   const openMonthEndCalc = () => {
     const engineMinimums = debtBreakdown.totalMinimumsDue;
     const engineTotal = debtBreakdown.totalRecommended;
@@ -927,6 +954,8 @@ export default function Dashboard() {
             onPaydayClick={() => navigate('/budget')}
             monthEndCash={monthEndCash}
             onMonthEndClick={openMonthEndCalc}
+            safeToSpend={safeToSpend}
+            onSafeToSpendClick={openSafeToSpendCalc}
           />
         );
 

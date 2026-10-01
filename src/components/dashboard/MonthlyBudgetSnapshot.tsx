@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import type { Month0Snapshot, SnapshotRow, SnapshotRowTone } from '@/lib/month0-budget-snapshot';
+import { formatSafeToSpendMissing, type SafeToSpendResult } from '@/lib/safe-to-spend';
 
 /**
  * Findings §2.6/§2.3: this component used to ASSEMBLE the equation from a dozen separate props,
@@ -28,6 +29,11 @@ type Props = {
   monthEndCash?: number | null;
   /** Opens the month-end cash calculator drawer, so the sub-figure is auditable. */
   onMonthEndClick?: () => void;
+  /** Safe to spend until payday (`safe-to-spend.ts`), already computed. Absent = not shown at all;
+   * an `empty` result renders the reason it is missing, never a figure. */
+  safeToSpend?: SafeToSpendResult | null;
+  /** Opens the safe-to-spend calculator drawer, so the figure is auditable. */
+  onSafeToSpendClick?: () => void;
 };
 
 const C = {
@@ -91,6 +97,8 @@ export default function MonthlyBudgetSnapshot({
   onPaydayClick,
   monthEndCash,
   onMonthEndClick,
+  safeToSpend,
+  onSafeToSpendClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const { rows, pie, projectedRemaining, availableToDeploy } = snapshot;
@@ -114,6 +122,9 @@ export default function MonthlyBudgetSnapshot({
   // look like a reading to whoever is looking at them.
   const paydayText = nextPayday && !Number.isNaN(nextPayday.getTime()) ? paydayLabel(nextPayday) : null;
   const monthEnd = monthEndCash != null && Number.isFinite(monthEndCash) ? monthEndCash : null;
+  const sts = safeToSpend?.kind === 'figure' && Number.isFinite(safeToSpend.amount) ? safeToSpend : null;
+  const stsMissing = safeToSpend?.kind === 'empty' ? formatSafeToSpendMissing(safeToSpend.missing) : null;
+  const stsLabel = sts ? `Safe to Spend until ${new Date(sts.payday + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null;
 
   return (
     <div className="card-forged p-5">
@@ -142,6 +153,26 @@ export default function MonthlyBudgetSnapshot({
           </div>
         )}
       </div>
+      {/* Its own line, left-aligned under the title: three figures in the header row wrapped
+          unevenly at 390px, and this is the one the App Store listing names. */}
+      {sts && stsLabel && (
+        <div className="-mt-2 mb-5">
+          {onSafeToSpendClick ? (
+            <button type="button" onClick={onSafeToSpendClick} className="text-left transition-colors hover:text-primary">
+              <p className={SUB_LABEL}>{stsLabel}</p>
+              <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount, false)}</p>
+            </button>
+          ) : (
+            <div>
+              <p className={SUB_LABEL}>{stsLabel}</p>
+              <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount, false)}</p>
+            </div>
+          )}
+        </div>
+      )}
+      {stsMissing && (
+        <p className="text-xs text-muted-foreground -mt-3 mb-4" data-testid="safe-to-spend-empty">{stsMissing}</p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
         {/* Donut chart — hover shows slice details in center */}

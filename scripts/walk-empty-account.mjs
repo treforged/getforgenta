@@ -17,6 +17,7 @@
  * finding - a confident $0 where the app means "unknown" is the same defect as the phantom $97.5k salary
  * (ask 9f385515), which this walk once passed 10/10. Its control: a planted "$1,234" must be read.
  * FIGURE_ALLOW lists figures that are not the user's money at all (a price), each with its reason.
+ * SAFE TO SPEND (ask 23fe1862): /dashboard must not show the "Safe to Spend until" figure at all.
  *
  * ACCOUNT: a throwaway @forgenta.test user, created in SQL (no signup email to bounce) and DELETED
  * after the run. Credentials come from EMPTY_WALK_EMAIL / EMPTY_WALK_PASSWORD and are never stored.
@@ -166,11 +167,14 @@ for (const route of ROUTES) {
   const invented = MONEY_ROUTES.has(route)
     ? (await figures()).filter((f) => !FIGURE_ALLOW.some((a) => a.test(f)))
     : [];
-  const bad = r.boundary || r.junk.length > 0 || r.text < 40 || invented.length > 0;
+  // Ask 23fe1862 (Sam's gate): an empty account must show NO "Safe to Spend until <date>" figure.
+  // That label only renders beside a figure, so its presence alone is the finding.
+  const sts = route === '/dashboard' && (await page.evaluate(() => /safe to spend until/i.test(document.body.innerText)));
+  const bad = r.boundary || r.junk.length > 0 || r.text < 40 || invented.length > 0 || sts;
   if (bad) findings += 1;
   console.log(`${bad ? 'FINDING' : 'ok     '} ${route.padEnd(26)} -> ${landed.padEnd(14)} text ${String(r.text).padStart(5)}`
     + `${r.boundary ? ' ERRORBOUNDARY' : ''}${r.junk.length ? ` junk ${r.junk.join(',')}` : ''}${r.text < 40 ? ' BLANK' : ''}`
-    + `${MONEY_ROUTES.has(route) ? ` figures ${invented.length}` : ''}`);
+    + `${MONEY_ROUTES.has(route) ? ` figures ${invented.length}` : ''}${sts ? ' SAFE-TO-SPEND FIGURE' : ''}`);
   for (const f of invented.slice(0, 12)) console.log(`          invented ${f.fig.padEnd(10)} in "${f.ctx}"`);
   const name = route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'root';
   await page.screenshot({ path: `test-results/empty-walk/${name}.png`, fullPage: false });
