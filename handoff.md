@@ -35,6 +35,12 @@ R-NOW28 (10-01 ~05:30Z, Ada). R-NOW27 DONE except the 09:07 read.
         test:tz 5546x3, tsc 0, eslint 0 err, check:safe-to-spend PASS, walk:empty 10/10 (throwaway deleted, 33 users).
         LIMIT: walk:empty marks the account onboarded, so no walk renders the un-onboarded case; unit tests carry it.
         4e870984 (@forgenta.test, 1875, no rule) is a test account - also covered by the code.
+    [x] Tre direct (screenshot): cc0d4a65 - the "update by hand" notice links to Accounts>Balances and skips future cards
+        (asks 7852f2f7, 3c888cff closed). Gate check:update-reminder (1st-7th only), red-proven.
+    [x] Move plan (Tre "2027", via Sam): Venture X start 2027-06-01; movers ece72e4f on Venture X; Move-fund target 1900.
+        Snapshot backup.tre_move_20261001_{accounts,txn,goal}; pull $40 now -> $731 Jun 2027 (was $125 -> $2,291);
+        milestones Move fund Sep27->Feb27, debt-free Oct28->Aug28. Per-month diff NOT measured (in-page CSV capture refused).
+    [~] 1f3217bb card advisor: PLAN docs/plans/2026-10-01_card-for-purchase-advisor.md (91bef863), waiting on Sam's review.
     NEXT: R-NOW26 OPEN (b) undated next-month items before an early payday; (c) reconciliation on Tre's account.
 R-NOW27 (10-01 ~06:30Z, Ada getforgenta-54 -> successor at the handoff gate). START HERE, IN ORDER:
     1. RE-ARM the 09:07 ET widget read (e74da89c): CronCreate one-shot '7 9 1 10 *' (my cron 5a029e32 dies with
@@ -12172,7 +12178,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 00:54 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 01:10 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12190,14 +12196,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ba21e299 [handoff]: R-NOW28 - legacy salary months 1+ shipped (e4033506); widget read armed f0a27c7e
+e4033506 [engine]: drop the legacy $1,875 default salary in months 1+ for never-onboarded users with no income rule
+75b08c16 [handoff]: R-NOW27 - months-1+ legacy salary plan for successor; widget read re-arm
 8f1f25e1 [handoff]: R-NOW26 - f16b35ff shipped (ab51ce6e)
 ab51ce6e [engine]: month 0 counts the paychecks of an ENTERED profile salary when no income rule exists (ask f16b35ff)
 5d5b9a8b [handoff]: R-NOW26 - Sam's three follow-ups shipped; next f16b35ff
 dbb24779 [engine]: a cash-only user gets month 0, the snapshot and Safe to Spend (ask 536c0db1)
 34195373 [dashboard]: say how Safe to spend relates to Available to deploy
-b5d03143 [handoff]: R-NOW26 - safe-to-spend shipped (3158b24a, 3f5de2ae); widget read armed
-3f5de2ae [auth]: the welcome screen promises "safe to spend before payday", with the demo's real figure
-3158b24a [dashboard]: Safe to Spend until payday - the low point before payday minus the floor (ask 23fe1862)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
