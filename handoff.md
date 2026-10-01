@@ -35,8 +35,9 @@ R-NOW26 (10-01 ~04:45Z, Ada getforgenta-54). START HERE.
     [x] Sam's follow-ups: d93fa97c blank = donut mid-animation (closed); 43c13953 note relating Safe to spend
         to Available (34195373, check asserts note = donut centre); 536c0db1 cash-only users get month 0 (dbb24779,
         engine null only with no card AND no cash; snapshot says "Short of your cash floor" with no cards).
-    NEXT: f16b35ff month-0 income omits PROFILE-salary paychecks (onboarding writes no paycheck rule; 4 of 17
-        salaried real users). Low reading = safe direction. Fix in the engine with a number test + test:tz.
+    [x] f16b35ff ab51ce6e: month 0 counts an ENTERED profile salary's remaining paychecks when no income rule exists
+        (both builders). Legacy 1875 counts only after onboarding; any active cash income rule = no salary added.
+        RESIDUE (pre-existing, 59c3fb37): 2 real rows at 1875, never onboarded, still get that salary in months 1+.
     OPEN, not built: (a) [x] fixed by dbb24779; (b) next month's UNDATED items before an early-next-month payday are not reserved;
         (c) reconciliation on Tre's own account not run (needs a signed-in read of his dashboard).
     NOTE: `npm run <script>` cannot find node from this shell right now ('node' is not recognized); run the
