@@ -25,6 +25,23 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW21 (10-01 ~02:40Z, Ada getforgenta-b5 -> successor). START HERE. Sam's order: (1) e34975a1 lock bypass,
+    (2) 2e42290d Face ID offer for PIN users, (3) 2dcdcdde Move-fund plan reflects lease break at a different time.
+    1. READ sim run 36804677471 (ios-sim-screenshots, dispatched fb6c70b0): step "Lock - no content before the lock
+       on a cold launch". gh run view 36804677471 --log | grep -aE "frames|final locked frame|CONTROL|CONTENT BEFORE|
+       locked launch:". exit 2 = instrument (control blind / too few frames) -> fix the step, not the app.
+       exit 1 with "DID NOT END ON A LOCK SCREEN" = seeding via `defaults write CapacitorStorage.forged:*` did not
+       reach Preferences -> check the key domain. Green = cold-start proof for e34975a1.
+    2. e34975a1 ALSO SHIPPED 4429e39d: lock on Capacitor `pause`, 60 s resume grace (RESUME_GRACE_MS). ROOT CAUSE of
+       Tre's "sometime": init ran only on process start, lockNow had no caller, so a WARM reopen skipped the lock.
+       Unit-proven (AppLockContext.resume 5, red x3). JS via Vercel. If the sim step is green, close e34975a1 with
+       both commits + the run as evidence (warm path: unit only, simctl cannot type a PIN - say so).
+    3. 2e42290d: verify cfb848dc the same way (AppLockContext.bioOffer tests exist); close or build.
+    4. 2dcdcdde: read Tre's 09-29 note (ask show 2dcdcdde), check his projection (user a72f416e) reflects the lease
+       break timing; snapshot before any write, read back by SQL.
+    5. RE-ARM the 09:07 ET read of public.widget_refresh_events (my cron 2b61f7c0 died with this session):
+       select platform,via,created_at from public.widget_refresh_events where user_id='a72f416e-433a-4055-9ab0-9feae4e60edf';
+       report count + timestamps to Sam (e74da89c).
 R-NOW20 (10-01 ~01:30Z, Ada getforgenta-b5). START HERE (Sam's brief: asks a7b1509e, e74da89c, ce6412bc):
     [x] a7b1509e DONE d79e11e6: Tre's phone was signed out by ANOTHER DEVICE. auth_logs 00:52:13Z: a localhost:8080 tab's
         10-min web idle timeout called signOut() = supabase default scope GLOBAL -> every session revoked -> iPhone refresh
@@ -12034,7 +12051,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 21:43 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 22:02 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12052,14 +12069,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+907a4fa4 [handoff]: R-NOW20 - widget_refresh_events record + armed read
+c85279f8 [widgets]: record each background widget refresh so the desk can verify it from SQL (ask e74da89c)
+d10ee278 [handoff]: R-NOW20 - widget canary on for Tre, iOS 1158 uploaded; e74da89c waits on the device
+9110e0c8 [lint]: declare ccPurchasesAfterDuePerMonth in the card-sim memo's dependencies
+2defdc5e [lint]: drop an eslint-disable that suppressed nothing (no-console allows warn)
 e7d73295 [handoff]: R-NOW20 - e74da89c part 2 built as an off-by-default canary; next: enable for Tre after iOS compile
 ffb3ed14 [ios]: closed-app widget refresh via BGAppRefreshTask, off until the app turns it on (ask e74da89c, part 2d)
 301b81ab [widgets]: per-user switch for the closed-app widget refresh, off for everyone (ask e74da89c, part 2c)
-8d861d13 [android]: 6-hourly closed-app widget refresh worker, off until the app turns it on (ask e74da89c, part 2b)
-c87469a5 [widgets]: a hidden background WebView can publish widget figures and can never sign the user out (ask e74da89c, part 2a)
-8cc626f0 [handoff]: R-NOW20 - sign-out cause fixed, widget resume publish, OAuth cover sleep removed
-319cef20 [ios]: lift the cover as soon as Google/Apple sign-in lands, not after a fixed 2.5 s (ask ce6412bc)
-4eb5a5f5 [widgets]: re-publish the widget the moment the app comes back (ask e74da89c, part 1)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
