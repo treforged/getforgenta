@@ -5,6 +5,7 @@ import {
   type NextMonthTerm, type NextMonthTermSources,
 } from '@/lib/safe-to-spend-next-month';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
+import type { ScheduledEvent } from '@/lib/scheduling';
 import { assembleSafeToSpendInput, computeSafeToSpend, type SafeToSpendAssembly } from '@/lib/safe-to-spend';
 
 const term = (over: Partial<NextMonthTerm>): NextMonthTerm =>
@@ -270,10 +271,20 @@ describe("the figure with month 0 dated - Tre's shape (cutoff 30 Sept, payday 2 
     term({ label: 'Prime Visa payment', amount: 1000, dueDay: 15, kind: 'card' }),
   ];
 
-  it('EDGE 1 (Sam): a card due TODAY is reserved; one due on the 15th (after payday) is not', () => {
-    const r = computeSafeToSpend(assembleSafeToSpendInput({ ...a, monthZeroTerms: terms }));
+  it('EDGE 1 (Sam): a card due TODAY is reserved; one due on the 15th (after payday) is covered by the paycheck', () => {
+    const paid: SafeToSpendAssembly = { ...a, paycheckRuleIds: new Set(['pay']),
+      rules: [{ id: 'pay', active: true, rule_type: 'income', category: 'Salary', deposit_account: 'chk' }],
+      scheduledEvents: ['2026-10-02', '2026-10-09'].map(date =>
+        ({ ruleId: 'pay', date, amount: 816.1, type: 'income', name: 'Weekly Paycheck' }) as unknown as ScheduledEvent) };
+    // Two paychecks (1,632.20) land before the 15th, so its $1,000 never dips below today's low.
+    const r = computeSafeToSpend(assembleSafeToSpendInput({ ...paid, monthZeroTerms: terms }));
     // 2513.14 - 39.86 goals (undated) - 150.40 due today = 2322.88
     expect(r.kind === 'figure' && r.amount).toBeCloseTo(2322.88, 2);
+  });
+
+  it("Sam's condition 1: with NO paycheck, the 15th's $1,000 caps the figure -> $1,322.88", () => {
+    const r = computeSafeToSpend(assembleSafeToSpendInput({ ...a, monthZeroTerms: terms }));
+    expect(r.kind === 'figure' && [r.amount, r.lowDate, r.cappedAfterPayday]).toEqual([1322.88, '2026-10-15', true]);
   });
 
   it('control: without month-0 terms everything is reserved today -> $1,322.88', () => {

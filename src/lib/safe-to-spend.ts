@@ -64,12 +64,23 @@ export interface SafeToSpendInput {
   undatedNextMonth?: readonly UndatedNextMonthItem[];
   /** 'YYYY-MM-01' of the month those undated items are reserved in. */
   nextMonthFirst?: string;
+  /**
+   * 'YYYY-MM-DD' the walk runs to (>= payday). Defaults to payday. Past payday the events must include
+   * the paychecks themselves, or a bill after payday would be compared with no income at all.
+   */
+  horizon?: string;
 }
 
 export type SafeToSpendMissing = 'no-funding-account' | 'no-payday' | 'no-projection';
 
 export type SafeToSpendResult =
-  | { kind: 'figure'; amount: number; lowPoint: number; lowDate: string; payday: string; floor: number }
+  | {
+      kind: 'figure'; amount: number; lowPoint: number; lowDate: string; payday: string; floor: number;
+      /** The last date the walk covered. */
+      horizon: string;
+      /** True when the low point falls AFTER payday, so a later bill caps the figure. */
+      cappedAfterPayday: boolean;
+    }
   | { kind: 'empty'; missing: SafeToSpendMissing };
 
 export function computeSafeToSpend(input: SafeToSpendInput | null): SafeToSpendResult {
@@ -87,11 +98,15 @@ export function computeSafeToSpend(input: SafeToSpendInput | null): SafeToSpendR
     return { kind: 'empty', missing: 'no-payday' };
   }
 
+  // Sam's condition (1), 2026-10-01: the figure must stay safe PAST payday too. If the user spends it
+  // today, every later bill through the horizon must still be covered once the paychecks land.
+  const horizon = input.horizon && input.horizon > payday ? input.horizon : payday;
+
   // Filter events that are within the projection period
   const filteredEvents = events.filter(event => {
     return (
       cutoffDate < event.date &&
-      event.date <= payday &&
+      event.date <= horizon &&
       event.amount > 0 &&
       isFinite(event.amount)
     );
@@ -142,7 +157,9 @@ export function computeSafeToSpend(input: SafeToSpendInput | null): SafeToSpendR
     lowPoint: Math.round(lowPoint * 100) / 100,
     lowDate,
     payday,
-    floor
+    floor,
+    horizon,
+    cappedAfterPayday: lowDate > payday,
   };
 }
 
@@ -223,6 +240,19 @@ export interface SafeToSpendAssembly {
    * 'card'). When given, each matching chain term is dated by `datedMonthZero` instead of reserved today.
    */
   monthZeroTerms?: readonly NextMonthTerm[];
+  /**
+   * Net PROFILE-salary paychecks in month 0 after the cutoff, ONLY when no income rule carries the pay
+   * (`month0ProfilePaycheckIncome`'s rule). Rule paychecks come from `scheduledEvents`.
+   */
+  profilePaychecks?: readonly { date: string; net: number }[];
+}
+
+/** Last day of `date`'s month, 'YYYY-MM-DD'. */
+function monthEnd(date: string): string {
+  const y = Number(date.slice(0, 4));
+  const m = Number(date.slice(5, 7));
+  const last = new Date(y, m, 0).getDate();
+  return `${date.slice(0, 7)}-${String(last).padStart(2, '0')}`;
 }
 
 /**
@@ -294,6 +324,24 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
   const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve
     + Math.max(0, -m.oneTimeNet) + zero.undatedReserve;
 
+  // Past payday (Sam's condition 1): walk to the end of month 0, the month whose obligations the chain
+  // above holds in full, with the paychecks from payday on. A payday NEXT month keeps horizon = payday:
+  // next month's items after payday are not assembled, so walking further would read high.
+  const end = monthEnd(a.monthZeroDate ?? a.cutoffDate);
+  const horizon = payday && payday <= end ? end : payday ?? undefined;
+  if (payday && horizon && horizon > payday) {
+    for (const e of a.scheduledEvents) {
+      if (e.type !== 'income' || !e.ruleId || !paydayRuleIds.has(e.ruleId) || e.date < payday || e.date > horizon) continue;
+      const r = ruleById.get(e.ruleId);
+      if (!r || !r.active || (r.deposit_account && !a.liquidAccountIds.has(r.deposit_account))) continue;
+      const tax = Number(r.tax_rate ?? 0) || 0;
+      events.push({ date: e.date, amount: e.amount * (1 - tax / 100), direction: 'in', label: e.name });
+    }
+    for (const p of a.profilePaychecks ?? []) {
+      if (p.date >= payday && p.date <= horizon) events.push({ date: p.date, amount: p.net, direction: 'in', label: 'Paycheck' });
+    }
+  }
+
   return {
     cutoffDate: a.cutoffDate,
     payday,
@@ -305,5 +353,6 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     floor: a.floor,
     undatedNextMonth: next.undated,
     nextMonthFirst: nextMonthStart(a.monthZeroDate ?? a.cutoffDate),
+    horizon,
   };
 }

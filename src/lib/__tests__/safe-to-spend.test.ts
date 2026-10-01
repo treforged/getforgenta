@@ -14,7 +14,7 @@ describe('computeSafeToSpend - the low-point walk', () => {
       { date: '2026-10-05', amount: 800, direction: 'in', label: 'Side job' },
     ] });
     // End point would be 1300; the low point on the 3rd is 500.
-    expect(r).toEqual({ kind: 'figure', amount: 500, lowPoint: 500, lowDate: '2026-10-03', payday: '2026-10-15', floor: 0 });
+    expect(r).toEqual({ kind: 'figure', amount: 500, lowPoint: 500, lowDate: '2026-10-03', payday: '2026-10-15', floor: 0, horizon: '2026-10-15', cappedAfterPayday: false });
   });
 
   it('applies a same-day bill before same-day income', () => {
@@ -144,5 +144,95 @@ describe('assembleSafeToSpendInput - engine data to dated walk', () => {
     // No CHOSEN funding account but a cash account exists: the engine uses total liquid cash, so a figure shows.
     expect(run(assembly({ fundingAccountId: null }))).toMatchObject({ kind: 'figure', amount: 3000 });
     expect(run(assembly({ profilePayday: null }))).toEqual({ kind: 'empty', missing: 'no-payday' });
+  });
+});
+
+describe('computeSafeToSpend - past payday (Sam condition 1, 2026-10-01)', () => {
+  const at = { cutoffDate: '2026-10-01', payday: '2026-10-02', startBalance: 2000, undatedReserve: 0, floor: 0, horizon: '2026-10-31' };
+
+  it('caps the figure by a bill after payday that the paycheck does not cover', () => {
+    const r = computeSafeToSpend({ ...at, events: [
+      { date: '2026-10-02', amount: 800, direction: 'in', label: 'Paycheck' },
+      { date: '2026-10-07', amount: 2300, direction: 'out', label: 'Card' },
+    ] });
+    // Before payday the low is 2000; on the 7th it is 2000 + 800 - 2300 = 500.
+    expect(r).toEqual({ kind: 'figure', amount: 500, lowPoint: 500, lowDate: '2026-10-07', payday: '2026-10-02', floor: 0, horizon: '2026-10-31', cappedAfterPayday: true });
+  });
+
+  it('leaves the figure alone when the paychecks cover every later bill', () => {
+    const r = computeSafeToSpend({ ...at, events: [
+      { date: '2026-10-02', amount: 800, direction: 'in', label: 'Paycheck' },
+      { date: '2026-10-07', amount: 700, direction: 'out', label: 'Card' },
+    ] });
+    expect(r.kind === 'figure' && [r.amount, r.cappedAfterPayday]).toEqual([2000, false]);
+  });
+
+  it('a bill on payday clears before that paycheck lands', () => {
+    const r = computeSafeToSpend({ ...at, events: [
+      { date: '2026-10-02', amount: 900, direction: 'out', label: 'Rent' },
+      { date: '2026-10-02', amount: 800, direction: 'in', label: 'Paycheck' },
+    ] });
+    expect(r.kind === 'figure' && r.amount).toBe(1100);
+  });
+
+  it('ignores events after the horizon, and the floor still comes off the later low', () => {
+    const r = computeSafeToSpend({ ...at, floor: 300, events: [
+      { date: '2026-10-20', amount: 1500, direction: 'out', label: 'Rent' },
+      { date: '2026-11-01', amount: 5000, direction: 'out', label: 'Next month' },
+    ] });
+    expect(r.kind === 'figure' && [r.lowPoint, r.amount, r.lowDate]).toEqual([500, 200, '2026-10-20']);
+  });
+
+  it('no horizon = the old walk to payday only', () => {
+    const r = computeSafeToSpend({ ...at, horizon: undefined, events: [{ date: '2026-10-07', amount: 2300, direction: 'out', label: 'Card' }] });
+    expect(r.kind === 'figure' && [r.amount, r.horizon]).toEqual([2000, '2026-10-02']);
+  });
+});
+
+describe('assembleSafeToSpendInput - the walk past payday', () => {
+  const month0: SafeToSpendMonth0 = {
+    fundingBalance: 2000, carSavedEarmark: 0, goalContributions: 0, autoExtraReserve: 0, carReserve: 0,
+    carLoanPayment: 0, vehicleInsurance: 0, otherDebtPayment: 0, transfers: 0, planExpenses: 0, oneTimeNet: 0,
+    cyclingPayment: 0,
+  };
+  const pay: SafeToSpendRule = { id: 'pay', active: true, rule_type: 'income', category: 'Salary', deposit_account: 'chk', tax_rate: null };
+  const rent: SafeToSpendRule = { id: 'rent', active: true, rule_type: 'expense', category: 'Housing', payment_source: 'account:chk' };
+  const ev = (ruleId: string, date: string, amount: number, type: 'income' | 'expense') =>
+    ({ ruleId, date, amount, type, name: ruleId }) as unknown as ScheduledEvent;
+  const a: SafeToSpendAssembly = {
+    month0, fundingAccountId: 'chk', liquidAccountIds: new Set(['chk']), creditCardIds: new Set(),
+    paycheckRuleIds: new Set(['pay']), cardMinimumReserve: 0, rules: [pay, rent], confirmed: new Set(),
+    scheduledEvents: [
+      ev('pay', '2026-10-02', 800, 'income'), ev('pay', '2026-10-09', 800, 'income'),
+      ev('rent', '2026-10-08', 2500, 'expense'), ev('rent', '2026-11-08', 9999, 'expense'),
+    ],
+    pauseSavings: false, cutoffDate: '2026-09-30', profilePayday: '2026-10-02', floor: 0, monthZeroDate: '2026-10-01',
+  };
+
+  it('counts the paychecks from payday on, and caps by the bill on the 8th', () => {
+    const input = assembleSafeToSpendInput(a)!;
+    expect(input.horizon).toBe('2026-10-31');
+    const r = computeSafeToSpend(input);
+    // 2000 + 800 (2nd) - 2500 (8th) = 300; the 9th paycheck comes after; November is past the horizon.
+    expect(r.kind === 'figure' && [r.amount, r.lowDate, r.cappedAfterPayday]).toEqual([300, '2026-10-08', true]);
+  });
+
+  it('control: without the paycheck rule events, the 8th reads 2000 - 2500 -> 0', () => {
+    const r = computeSafeToSpend(assembleSafeToSpendInput({ ...a, scheduledEvents: a.scheduledEvents.filter(e => e.ruleId !== 'pay') })!);
+    expect(r.kind === 'figure' && r.amount).toBe(0);
+  });
+
+  it('profile-salary paychecks count when no rule carries the pay', () => {
+    const r = computeSafeToSpend(assembleSafeToSpendInput({
+      ...a, rules: [rent], paycheckRuleIds: new Set(), scheduledEvents: a.scheduledEvents.filter(e => e.ruleId !== 'pay'),
+      profilePaychecks: [{ date: '2026-09-25', net: 5000 }, { date: '2026-10-02', net: 1000 }],
+    })!);
+    // The Sept 25 paycheck is before payday and ignored: 2000 + 1000 - 2500 = 500.
+    expect(r.kind === 'figure' && r.amount).toBe(500);
+  });
+
+  it('a payday NEXT month keeps the horizon at payday (next month after payday is not assembled)', () => {
+    const input = assembleSafeToSpendInput({ ...a, cutoffDate: '2026-10-29', monthZeroDate: '2026-10-29', profilePayday: '2026-11-02' })!;
+    expect(input.horizon).toBe('2026-11-02');
   });
 });

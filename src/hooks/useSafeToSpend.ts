@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import type { ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { FUNDING_ACCOUNT_TYPES } from '@/lib/funding-account';
-import { getNextPaycheckDate } from '@/lib/pay-schedule';
+import { getNextPaycheckDate, getPaychecksInMonth } from '@/lib/pay-schedule';
+import { hasActiveCashIncomeRule } from '@/lib/month0-profile-paychecks';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
@@ -105,6 +106,15 @@ export function useSafeToSpend(args: {
     const monthZeroTerms = termsFor(0).filter(t =>
       !((t.kind === 'transfer' || t.kind === 'plan') && t.dueDay !== null && t.dueDay <= cutoffDay));
 
+    // Profile-salary paychecks for the walk past payday, only when no income rule carries the pay -
+    // the same guard `month0ProfilePaycheckIncome` uses, so pay is never counted twice.
+    const now = new Date();
+    const profilePaychecks = salaried && !hasActiveCashIncomeRule(rules, liquidAccountIds)
+      ? getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth())
+        .map(p => ({ date: toLocalDateStr(p.date), net: p.net }))
+        .filter(p => p.date > cutoffDate && Number.isFinite(p.net) && p.net > 0)
+      : [];
+
     const input = assembleSafeToSpendInput({
       month0: { ...m0.chain, cyclingPayment: m0.cyclingPayment },
       fundingAccountId: cardProjection.debtFundingAccountId ?? null,
@@ -122,6 +132,7 @@ export function useSafeToSpend(args: {
       nextMonthTerms,
       monthZeroDate: today,
       monthZeroTerms,
+      profilePaychecks,
     });
     return { result: computeSafeToSpend(input), input };
   }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts, paymentPlans, profile, confirmed, floor]);

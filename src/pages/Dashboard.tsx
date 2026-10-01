@@ -795,7 +795,7 @@ export default function Dashboard() {
     const undatedByLabel = new Map(undatedNext.map(u => [u.label, u]));
     const nextFirst = safeToSpendInput.nextMonthFirst ?? '';
     const dated = safeToSpendInput.events
-      .filter(e => e.date > safeToSpendInput.cutoffDate && e.date <= safeToSpend.payday && e.amount > 0)
+      .filter(e => e.date > safeToSpendInput.cutoffDate && e.date <= safeToSpend.horizon && e.amount > 0)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.direction === 'out' ? -1 : 1));
     const lines = [
       { label: 'Cash on hand', value: money(safeToSpendInput.startBalance ?? 0) },
@@ -818,9 +818,17 @@ export default function Dashboard() {
       ...(safeToSpend.floor > 0 ? [{ label: 'Cash floor', value: money(safeToSpend.floor), op: '−' }] : []),
       { label: `Safe to spend until ${short(safeToSpend.payday)}`, value: money(safeToSpend.amount), op: '=' },
     ];
-    const footnote = undatedNext.length > 0
+    const undatedNote = undatedNext.length > 0
       ? `${undatedNext.length} ${undatedNext.length === 1 ? 'item has' : 'items have'} no due date, so ${undatedNext.length === 1 ? 'it is' : 'they are'} reserved on ${short(nextFirst)}. Add ${undatedNext.length === 1 ? 'one' : 'them'} to make this exact - tap a row to open it.`
       : undefined;
+    // The walk runs past payday to the end of the month, with the paychecks, so spending this today
+    // still leaves every later bill covered (Sam's condition 1, 2026-10-01).
+    const horizonNote = safeToSpend.horizon > safeToSpend.payday
+      ? (safeToSpend.cappedAfterPayday
+        ? `Lower than the balance before payday: the bills on ${short(safeToSpend.lowDate)} need this money even after your paycheck lands.`
+        : `Checked through ${short(safeToSpend.horizon)}, paychecks included: every later bill stays covered if you spend this today.`)
+      : undefined;
+    const footnote = [horizonNote, undatedNote].filter(Boolean).join(' ') || undefined;
     setCalcDrawer({ title: 'Safe to Spend until Payday', lines, footnote });
   };
 
