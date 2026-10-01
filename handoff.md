@@ -25,7 +25,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
-R-NOW24 (10-01 ~04:00Z, Ada getforgenta-12). START HERE. R-NOW23 items 2 and 3 are DONE; item 1 is armed.
+R-NOW25 (10-01 ~05:00Z, Ada getforgenta-12 -> successor at the context gate). START HERE, IN ORDER:
+    1. RE-ARM the 09:07 ET widget read (my cron 6660fd3b dies with me) - CronCreate one-shot '7 9 1 10 *'; query in
+       R-NOW24 item 1. Send Sam count + timestamps (e74da89c).
+    2. BUILD ask 23fe1862 SAFE TO SPEND UNTIL PAYDAY, Sam-approved, from docs/plans/2026-10-01_safe-to-spend-until-payday.md.
+       Read the plan first: the low point before payday minus the floor, built from the ENGINE's dated outflows, NOT
+       the transaction-merge helpers (Finding 1.1, $3,487 high). Empty state when inputs are missing. Gate: helper
+       tests asserting numbers + test:tz + walk:empty shows no figure. Then switch the welcome copy (Auth.tsx) to
+       "safe to spend" with /demo figures read back, update check:welcome, send Sam before/after frames.
+R-NOW24 (10-01 ~04:00Z, Ada getforgenta-12). DONE except item 1. R-NOW23 items 2 and 3 are DONE; item 1 is armed.
     1. WIDGET READ (e74da89c): session cron 6660fd3b fires 10-01 09:07 ET. If this session is gone, re-arm or just run
        select platform,via,created_at from public.widget_refresh_events where user_id='a72f416e-433a-4055-9ab0-9feae4e60edf';
        (baseline 0 rows at 02:15Z) and send Sam the count + timestamps.
