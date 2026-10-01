@@ -30,19 +30,13 @@ R-NOW30 (10-01 ~06:30 ET, Ada session 6f608dd7). START HERE.
     63041ee6 engine: funding->other-checking transfers now credit the destination (Tre's General Operations went
     negative; 5357dfeb; test:tz 5568x3); e046e989 Debt tab rework + new gate check:debt-layout (63e11072, red 12 on
     old layout); card-catalog.ts slice 1 (f9b0da16, 11 tests, 3 mutants red; NOT wired into UI yet).
-    1. walk:press ALONE running on e046e989+ (output $TEMP/press-ada2.txt). Compare enumerated 382 (was 370; Which
-       Card? tab adds controls). Green + check:nav (PASS alone today) -> `ask done 1f3217bb`.
-    2. Sam 58706af2 (3 items): edit script ready at scratchpad sam3.py (copy below if lost): Budget OS -> Forgenta in
-       ConsentBanner.tsx:245 + consent-prefs.ts:57,65 (3 hits -> 0); cash floor shows the APPLIED value as a chip,
-       number box only in manual mode; "Set manually" checkbox -> ToggleSwitch. Gate each with a rendered frame.
-    3. scripts/check-rewards-save.mjs written (uncommitted): presses Save with the PATCH stubbed in-browser, asserts
-       card_rewards {base_pct 1.5, gas 3}. Run, prove red (drop categories in save()), add npm script, commit.
-    4. Catalog slice 2 (f9b0da16 + Sam's conditions 55e839de): product picker in RewardsEditor prefills from
-       resolveCatalogRewards; ask the condition questions; miles need a user cents-per-mile. Retry Discover's
-       calendar page on a LATER day (it said "not working" 10-01) before adding a 2026-Q4 row.
+    [x] 1f3217bb closed: walk:press ALONE 382 enumerated, 154 pressed, 154 changed, 0 not-found, stub 12/12.
+    [x] 58706af2 (Sam) 350e6ec1: applied cash floor chip, ToggleSwitch, Budget OS 3->0, Pay From truncation at 390.
+    [x] check:rewards-save + CatalogPicker mounted (db33b3ef); 55e839de closed.
+    1. f9b0da16 BLOCKED on one item: retry discover.com/credit-cards/cash-back/cashback-calendar.html on/after
+       2026-10-02 (it said "not working" 10-01); add a dated 2026-Q4 row to CARD_CATALOG's Discover entry + a test.
+    2. NEXT from R-NOW26: (b) undated next-month items before an early payday; (c) reconciliation on Tre's account.
     5. 09:07 ET widget read for e74da89c armed as session cron d0a0240f (dies with this session).
-    6. CatalogPicker.tsx + test written (4/4, 2 mutants red), NOT imported yet: mount it in CardAdvisorPanel's
-       RewardsEditor so onApply fills base/category fields (user can still edit), then render-check it.
     STANDING CHECK (Sam, 2026-10-01, closed 52b202b5): on the FIRST email to any privaterelay.appleid.com address,
     read its Resend status. A bounce reopens 52b202b5 (sources registered + SPF; relay delivery never proven).
 R-NOW29 (10-01 ~06:50Z, Ada getforgenta-23 -> successor at the 175-call gate). START HERE, IN ORDER:
