@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WidgetBridge } from '@/plugins/widget-bridge';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { buildWidgetPayload, type WidgetDebtPayment } from '@/lib/widget-snapshot';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 
 interface Params {
   /** Null when the figure is not available. NOT zero — see `buildWidgetPayload`. */
@@ -25,6 +27,36 @@ export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextD
   // that forget to gate `enabled`. A source-lock test keeps viewedUserId out of here.
   const { isPartnerView } = useViewedProfile();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [resumeTick, setResumeTick] = useState(0);
+
+  // Tre 2026-10-01 asked for the widget to update immediately when the app is opened (ask e74da89c);
+  // without this, an unchanged figure never re-sends and the widget's 'Updated ... ago' keeps aging.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') setResumeTick(t => t + 1);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // Native cannot rely on visibilitychange arriving on the way back (see ResumeRecovery), so
+    // appStateChange drives it there. addListener resolves a handle LATER, so cleanup may run first.
+    let handle: { remove: () => void } | null = null;
+    let unsubscribed = false;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) setResumeTick(t => t + 1);
+      }).then((h) => {
+        if (unsubscribed) h.remove(); else handle = h;
+      }).catch((err: unknown) => {
+        console.warn('[WidgetBridge] appStateChange subscription failed:', err);
+      });
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      unsubscribed = true;
+      handle?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled || isPartnerView) return;
@@ -50,5 +82,5 @@ export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextD
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [monthEndCash, netWorth, currency, enabled, isPartnerView, debtKey]);
+  }, [monthEndCash, netWorth, currency, enabled, isPartnerView, debtKey, resumeTick]);
 }

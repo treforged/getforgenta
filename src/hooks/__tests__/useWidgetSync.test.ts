@@ -100,4 +100,28 @@ describe('useWidgetSync', () => {
     expect(mockUpdateWidget).toHaveBeenCalledTimes(2);
     expect(mockUpdateWidget.mock.calls[1][0].monthEndCash).toBe(750);
   });
+
+  // Tre 2026-10-01 (ask e74da89c): opening the app updates the widget immediately. With no figure
+  // changed the publish effect never re-ran, so the home screen's "Updated ... ago" only aged.
+  it('re-publishes when the app returns to the foreground, even with no figure changed', async () => {
+    renderHook(() => useWidgetSync({ monthEndCash: 100, netWorth: 5000, enabled: true }));
+    await act(() => vi.runAllTimersAsync());
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await act(() => vi.runAllTimersAsync());
+
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(2);
+    expect(mockUpdateWidget.mock.calls[1][0].monthEndCash).toBe(100);
+  });
+
+  it('does not re-publish on return in partner view', async () => {
+    isPartnerView = true;
+    renderHook(() => useWidgetSync({ monthEndCash: 100, netWorth: 5000, enabled: true }));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await act(() => vi.runAllTimersAsync());
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
 });
