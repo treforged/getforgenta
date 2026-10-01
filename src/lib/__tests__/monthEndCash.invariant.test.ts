@@ -146,7 +146,6 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
     const cutoff = String(fx.syncCutoffDate ?? '');
     const scenarioReachable = injectedDate > cutoff;
     if (!scenarioReachable) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[monthEndCash] the post-cutoff month-0 one-time was NOT exercised: the capture's `
         + `cutoff ${cutoff} leaves no later day inside month 0 (${monthKey}). Month-0 equality `
