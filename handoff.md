@@ -25,6 +25,18 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW26 (10-01 ~04:45Z, Ada getforgenta-54). START HERE.
+    1. WIDGET READ e74da89c: armed as session cron 5a029e32 (09:07 ET 10-01); it dies with this session. If gone,
+       run the R-NOW24 item 1 query by hand and send Sam the count + timestamps.
+    [x] 23fe1862 SAFE TO SPEND: 3158b24a (src/lib/safe-to-spend.ts + useSafeToSpend + snapshot line + drawer;
+        15 number tests, red x3 mutants; test:tz 5533x3; check:safe-to-spend PASS on /demo $1,652 until Oct 2;
+        walk:empty 10/10 + no-figure check). 3f5de2ae welcome copy -> "safe to spend" ($1,652 / Dec 2027 off /demo),
+        check:welcome 12/12, red on old copy. Sent to Sam with frames. ask closed.
+    OPEN, not built: (a) no figure for users with NO credit cards (useCardProjection returns null) - the empty
+        state shows instead; (b) next month's UNDATED items before an early-next-month payday are not reserved;
+        (c) reconciliation on Tre's own account not run (needs a signed-in read of his dashboard).
+    NOTE: `npm run <script>` cannot find node from this shell right now ('node' is not recognized); run the
+        scripts with `node scripts/...` directly. test:tz = node scripts/check-node-engine.mjs && node scripts/test-timezones.mjs.
 R-NOW25 (10-01 ~05:00Z, Ada getforgenta-12 -> successor at the context gate). START HERE, IN ORDER:
     1. RE-ARM the 09:07 ET widget read (my cron 6660fd3b dies with me) - CronCreate one-shot '7 9 1 10 *'; query in
        R-NOW24 item 1. Send Sam count + timestamps (e74da89c).
@@ -12118,17 +12130,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 23:09 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 00:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -12137,14 +12148,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-dea974f4 [empty-state]: a new user's Dashboard and Forecast show what to add, not $0 tiles and a $0 chart
-3307c140 [handoff]: R-NOW22 - e34975a1 + 2e42290d closed on sim run 36804677471; 2dcdcdde state read back; widget read re-armed
-f9d88090 [handoff]: R-NOW21 - lock warm-reopen fix shipped, sim proof dispatched; Sam's order 1-3 + re-arm widget read
-fb6c70b0 [ci]: simulator proves no content shows before the app lock on a cold launch (ask e34975a1)
-4429e39d [applock]: the lock now engages on a warm reopen, not only after the app was killed (ask e34975a1)
-907a4fa4 [handoff]: R-NOW20 - widget_refresh_events record + armed read
-c85279f8 [widgets]: record each background widget refresh so the desk can verify it from SQL (ask e74da89c)
-d10ee278 [handoff]: R-NOW20 - widget canary on for Tre, iOS 1158 uploaded; e74da89c waits on the device
+285308c5 [handoff]: R-NOW25 - safe-to-spend design written; successor builds it
+290bbbe8 [handoff]: R-NOW24 - welcome screen live, safe-to-spend figure approved
+fff69abb [auth]: the first screen says what Forgenta does, proves it with sample figures, and promotes the demo
+cf6cdb87 [handoff]: R-NOW24 - funnel env grant fix, walk:first-run, OAuth-stall refuted, cold launch measured, per-step save dropped
+912daa22 [auth]: measure:cold-launch - a new visitor's wait for a working sign-up screen, per network
+dc8d6912 [onboarding]: walk:first-run - the wizard with REAL writes on a fresh account, read back from outside
+3e107a58 [funnel]: grant INSERT on env, so funnel rows carrying it stop being refused 401
+d026835b [handoff]: R-NOW23 - widget read re-arm, funnel env proof, Sam's first-run ask with measured drop-off
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
