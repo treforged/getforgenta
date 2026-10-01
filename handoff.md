@@ -25,6 +25,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW33 (10-01 ~08:40Z / 04:40 ET, Ada). START HERE. NOTE: R-NOW32's "08:30 ET" was really UTC.
+    0. WIDGET READ e74da89c: armed as session cron 49bc5b3f, 09:07 ET 10-01. If this session is gone, run the R-NOW24
+       item 1 query by hand after 09:07 ET and send Sam (tre-forged-ce) count + timestamps.
+    [x] SAM CONDITION (1) DONE 8b9e50d0: Safe to Spend walks to month end with paychecks; takes the lower low. Tre
+        $2,322.88 -> $1,408.31, low Oct 10 (spending it all would leave -$914.57). Floor 0 (automatic mode). Read on
+        localhost (prod DB); prod bundle verified (Dashboard-CEfAe7-J-c2.js has the new text). Prod site not read:
+        Chrome not signed in there. Casebook entry added. Sam told twice. LIMIT: a payday NEXT month keeps horizon =
+        payday (next month after payday not assembled) - extend when R-NOW26 (c) is re-checked.
+    1. f9b0da16: Discover cashback calendar retry on/after 2026-10-02 + dated 2026-Q4 row + test.
+    2. Seen in Tre's drawer, NOT investigated: month-0 Prime Visa item $773.05 vs Upcoming/Debt card $951. Check
+       whether the card split should use the $951 partial statement (cardTermsFor) - money, verify before changing.
 R-NOW32 (10-01 ~08:30 ET, Ada getforgenta-a2 -> successor at the 175-call gate). START HERE, IN ORDER:
     0. RE-ARM the 09:07 ET widget read for e74da89c (my cron bb1be414 dies with me): CronCreate one-shot '7 9 1 10 *',
        query in R-NOW24 item 1 (baseline 0 rows); SendMessage Sam (tre-forged-ce) count + timestamps. If past 09:07, run it now.
@@ -12263,7 +12274,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 02:57 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 04:12 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12281,14 +12292,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-29be5368 [handoff]: R-NOW30 - (b) scoped for Sam, widget read re-arm, handoff gate
-b7bcc9c4 [handoff]: R-NOW30 - Sam's three, catalog mounted, 1f3217bb closed
-db33b3ef [debt]: Which Card? rewards editor fills from public cards; its Save is gated (ask f9b0da16 slice 2b)
-350e6ec1 [debt]: the cash floor shows the floor that applies; a switch for "Set manually"; Forgenta in the cookie copy (ask 58706af2)
-4233a486 [debt]: CatalogPicker - fill rewards from a public card, honestly (ask f9b0da16, slice 2a; not mounted yet)
-8813d330 [handoff]: R-NOW30 - three Tre fixes shipped, catalog slice 1, Sam's three queued
-68af7081 [engine]: card-catalog - public reward rates, each sourced and dated, that never overstate (ask f9b0da16, slice 1)
-e046e989 [debt]: rework the cards tab layout - one toolbar, utilization once, controls beside the order (ask 63e11072)
+df6c23ce [handoff]: R-NOW32 - Sam's past-payday condition queued, widget re-arm
+c2708caa test(safe-to-spend): pin the card split - cardTermsFor mirrors the engine (Sam)
+f815d498 [handoff]: R-NOW31 - card split 9be90af5
+9be90af5 [safe-to-spend]: card items use the engine's own minimum/statement split, so they match its total
+944bec91 [handoff]: R-NOW31 - month-0 dating shipped 9650dbff
+9650dbff [safe-to-spend]: date month 0's terms too, so a payday tomorrow no longer reads $0 (Sam 2026-10-01)
+a0f5a6c2 [handoff]: R-NOW31 - hotfix 9616c730, month-0 dating in progress, Ruby keywords
+9616c730 [safe-to-spend]: "next month" follows the engine's month 0, not the sync cutoff (fixes 99579472)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
