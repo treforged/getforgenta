@@ -173,12 +173,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if oAuthSessionPending {
             oAuthSessionPending = false
             // ASWebAuthenticationSession does NOT trigger resign/background so
-            // the backing store is intact — no reload needed. Wait 2.5 s minimum
-            // for the code exchange, then poll until Dashboard sets the JS flag.
-            debugLog("COVER_BRANCH:oauth → wait 2.5s then poll dashboard ready")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-                self?.pollDashboardReady(maxAttempts: 30)
-            }
+            // the backing store is intact — no reload needed.
+            // ⚠️ NO FIXED WAIT (ask ce6412bc, Tre 2026-10-01: sign-in "seems to be loading slow").
+            // This used to sleep 2.5 s before polling, because /auth sets the same ready flag and is
+            // still mounted when the sheet closes. The server half of a Google sign-in measured
+            // ~0.57 s (callback 468 ms + token 100 ms, 2026-10-01 01:00Z), so the sleep was most of
+            // the wait. Polling for "ready AND not on /auth" lifts the cover the moment Dashboard or
+            // Onboarding mounts; a failed exchange still ends at the 30-attempt (6 s) fallback.
+            debugLog("COVER_BRANCH:oauth → poll ready off /auth")
+            pollDashboardReady(maxAttempts: 30, script: AppDelegate.readyOffAuthScript)
 
         } else if isFirstLaunch {
             // Fresh process start (or iOS process kill+restart after short background).
@@ -485,16 +488,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// Set by Dashboard (existing users) and Onboarding (new users) on mount.
     /// Used after OAuth to confirm the post-auth destination has rendered before
     /// lifting the cover. Falls back to hiding after maxAttempts (6 s).
-    private func pollDashboardReady(maxAttempts: Int, attempt: Int = 0) {
+    /// Ready, and not the sign-in page: /auth raises the same flag for a signed-out launch.
+    private static let readyOffAuthScript =
+        "window.__forgenta_dashboard_ready === true && window.location.pathname !== '/auth'"
+
+    private func pollDashboardReady(maxAttempts: Int, attempt: Int = 0,
+                                    script: String = "window.__forgenta_dashboard_ready === true") {
         guard nativeCover != nil else { return }
         guard attempt < maxAttempts else { hideNativeCover(); return }
         guard let webView = webViewForPolling() else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1)
+                self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1, script: script)
             }
             return
         }
-        webView.evaluateJavaScript("window.__forgenta_dashboard_ready === true") { [weak self] result, _ in
+        webView.evaluateJavaScript(script) { [weak self] result, _ in
             DispatchQueue.main.async {
                 if (result as? Bool) == true {
                     self?.debugLog("DASHBOARD_READY flag=true")
@@ -508,7 +516,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     self?.waitForPaintThenDismiss(webView)
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1)
+                        self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1, script: script)
                     }
                 }
             }

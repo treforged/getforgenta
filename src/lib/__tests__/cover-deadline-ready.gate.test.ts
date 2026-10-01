@@ -30,3 +30,29 @@ describe('cover deadline vs a ready dashboard (PROXY)', () => {
     expect(cancel).toBeLessThan(paint);
   });
 });
+
+// ce6412bc - PROXY GATE. The OAuth return used to sleep a fixed 2.5 s before polling, because /auth
+// raises the same ready flag. It must poll at once, for "ready AND not on /auth".
+describe('OAuth return lifts the cover without a fixed sleep (PROXY)', () => {
+  const start = SRC.indexOf('if oAuthSessionPending {');
+  const branch = SRC.slice(start, SRC.indexOf('} else if isFirstLaunch {', start));
+
+  it('finds the OAuth branch (positive control)', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(branch).toContain('pollDashboardReady(');
+  });
+
+  it('schedules no delayed poll and ignores the /auth flag', () => {
+    expect(branch).not.toContain('asyncAfter');
+    expect(branch).toContain('readyOffAuthScript');
+    expect(SRC).toMatch(/readyOffAuthScript =\s*"[^"]*pathname !== '\/auth'/);
+  });
+
+  it('every recursive poll keeps the script it was given', () => {
+    const poll = body('pollDashboardReady');
+    const recursions = poll.match(/pollDashboardReady\(maxAttempts: maxAttempts[^)]*\)/g) ?? [];
+    expect(recursions.length).toBe(2);
+    for (const r of recursions) expect(r).toContain('script: script');
+    expect(poll).toContain('evaluateJavaScript(script)');
+  });
+});
