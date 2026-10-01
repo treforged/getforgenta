@@ -32,10 +32,12 @@ R-NOW38 (10-01 ~13:05 ET, Ada getforgenta-0b). START HERE, IN ORDER:
         rows -> tranche proposals). Real statement text lives ONLY in the scratchpad; never commit it (classifier refused it too).
     [x] Gates green today: walk:routes 27/27; check:safe-to-spend, payoff-today, debt-layout, card-advisor, rewards-save,
         update-reminder, budget-tiles all PASS.
-    0. walk:press: Tre approved it "by default" (allow rule added to .claude/settings.local.json). It takes >10 min:
-       run in background with a 60 min timeout. Look at frames, fix + gate + push, file a row per real defect, tell Sam.
-    1. `npm run test:tz` fails "'node' is not recognized" in npm's script shell (cmd finds node). Run
-       `node scripts/test-timezones.mjs` directly until the PATH cause is found (told Sam).
+    [x] walk:press PASS 13:00: enumerated 383 (up from 370: new controls, not a drop), pressed 154, changed 154,
+        not-found 0, stub 12/12 both ways. Contrast desktop dark+light 469/0 below AA, toast PASS. The walk takes ~25 min,
+        so run it in the background with a 60 min timeout. Fix shipped: bf8cb5f2 copy note (promo line hidden
+        when plans are read).
+    [x] PATH bloat (186 entries) broke nested npm ("'node' is not recognized"). Sam fixed it machine-wide in
+        ~/.bash_profile; a fresh shell needs no workaround.
     2. CONTEXT GATE fires at ~175k on the FIRST tool call (injected baseline). Do not hand off on it alone.
 R-NOW37 (10-01 ~12:40 ET, Ada getforgenta-7a -> successor at the 175-call gate). START HERE, IN ORDER:
     0. DELETE THE THROWAWAY USER FIRST (blocked by my gate): SQL
@@ -12372,17 +12374,18 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 12:15 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 12:46 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
  M supabase/.temp/cli-latest
+?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
 ?? test-results/
 ```
@@ -12390,14 +12393,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+fe82d1a0 [handoff]: R-NOW38 - Prime Visa plans reconciled, plan importer shipped, press walk running
+db73b2c7 [statement]: read payment plans off a statement and propose them as card tranches (ask baee397e)
 e9e9ac58 [handoff]: R-NOW37 - delete throwaway user, re-arm crons, continue Sam's full walk
 c341a331 [first-run]: no "Settings saved" toast for a tour or What's New the user only closed
 d556ed8a [handoff]: R-NOW36 - boot splash shipped
 9a8f7d61 [boot]: show the Forgenta mark while the app loads, not an empty page (ask 98cbf494)
 4cf22be9 [handoff]: R-NOW36 - unlock order fix shipped; timing read armed
 ac95cf43 [app-lock]: unlock timing row reports faceid->persisted (ask 98cbf494)
-b32eb7ce [app-lock]: Face ID lifts the lock before saving, and a pause mid-save stays locked (ask 98cbf494)
-6e17268c [handoff]: R-NOW36 - cover page shipped in 3 parts, install id, audit closed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
