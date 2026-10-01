@@ -5,6 +5,12 @@ import { useWidgetSync } from '../useWidgetSync';
 
 const mockUpdateWidget = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockSetBg = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockLog = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+vi.mock('@/lib/widget-refresh-log', async (orig) => ({
+  ...(await orig<typeof import('@/lib/widget-refresh-log')>()),
+  logBackgroundRefresh: mockLog,
+}));
 
 vi.mock('@/plugins/widget-bridge', () => ({
   WidgetBridge: { updateWidget: mockUpdateWidget, setBackgroundRefresh: mockSetBg },
@@ -157,5 +163,36 @@ describe('useWidgetSync', () => {
     } finally {
       delete (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost;
     }
+  });
+
+  // ask e74da89c: a background publish leaves a record the desk can read; a visible one does not.
+  describe('background refresh record', () => {
+    const setVis = (v: DocumentVisibilityState) =>
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v });
+    afterEach(() => setVis('visible'));
+
+    it('logs "hidden" after a publish made while the page is hidden', async () => {
+      setVis('hidden');
+      renderHook(() => useWidgetSync({ monthEndCash: 1, netWorth: 1, enabled: true }));
+      await act(() => vi.runAllTimersAsync());
+      expect(mockUpdateWidget).toHaveBeenCalledOnce();
+      expect(mockLog).toHaveBeenCalledWith('hidden');
+    });
+
+    it('logs nothing for an ordinary visible publish', async () => {
+      setVis('visible');
+      renderHook(() => useWidgetSync({ monthEndCash: 1, netWorth: 1, enabled: true }));
+      await act(() => vi.runAllTimersAsync());
+      expect(mockUpdateWidget).toHaveBeenCalledOnce();
+      expect(mockLog).not.toHaveBeenCalled();
+    });
+
+    it('logs nothing when the publish itself failed', async () => {
+      setVis('hidden');
+      mockUpdateWidget.mockRejectedValueOnce(new Error('no app group'));
+      renderHook(() => useWidgetSync({ monthEndCash: 1, netWorth: 1, enabled: true }));
+      await act(() => vi.runAllTimersAsync());
+      expect(mockLog).not.toHaveBeenCalled();
+    });
   });
 });

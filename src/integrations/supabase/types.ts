@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      widget_refresh_events: {
+        Row: {
+          created_at: string
+          id: number
+          platform: string
+          user_id: string
+          via: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          platform?: string
+          user_id?: string
+          via: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          platform?: string
+          user_id?: string
+          via?: string
+        }
+        Relationships: []
+      }
       applied_actions: {
         Row: {
           created_at: string

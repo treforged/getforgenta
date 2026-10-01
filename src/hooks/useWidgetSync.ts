@@ -3,6 +3,7 @@ import { WidgetBridge } from '@/plugins/widget-bridge';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { buildWidgetPayload, type WidgetDebtPayment } from '@/lib/widget-snapshot';
 import { isWidgetHost } from '@/lib/widget-host';
+import { backgroundVia, logBackgroundRefresh } from '@/lib/widget-refresh-log';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 
@@ -88,7 +89,11 @@ export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextD
         new Date(),
       );
       if (!payload) return;
-      WidgetBridge.updateWidget(payload).catch((err: unknown) => {
+      // Read BEFORE the async call: the page can come to the foreground while it is in flight.
+      const via = backgroundVia();
+      WidgetBridge.updateWidget(payload).then(() => {
+        if (via) void logBackgroundRefresh(via);
+      }).catch((err: unknown) => {
         console.warn('[WidgetBridge] updateWidget failed:', err);
       });
     }, DEBOUNCE_MS);
