@@ -116,3 +116,34 @@ describe('previewCardPaymentImpact', () => {
     expect(preview.deltaPoints).toBeNull();
   });
 });
+
+// 2026-10-01 audit: 0% balance_tranches are utilization-only too. Tre's Prime Visa carries $7,253.63
+// of Equal Pay and Pay Over Time balances at 0%, and the panel counted all of it as interest-bearing.
+describe('0% balance tranches are utilization-only', () => {
+  const now = new Date(2026, 9, 1);
+  const prime: UtilizationCard = {
+    id: 'p', name: 'Prime Visa', balance: 8892.82, creditLimit: 14400, apr: 27.74,
+    tranches: [
+      { apr: 0, balance: 249.43, promo_end_date: '2027-02-07' },
+      { apr: 0, balance: 7004.20, promo_end_date: '2027-09-07' },
+    ],
+  };
+  it('moves live 0% tranches out of the interest-bearing balance', () => {
+    const b = breakdownCardUtilization(prime, now);
+    expect(b.utilizationOnlyBalance).toBeCloseTo(7253.63, 2);
+    expect(b.interestBearingBalance).toBeCloseTo(1639.19, 2);
+  });
+  it('counts a tranche whose promo has ended as interest-bearing', () => {
+    const b = breakdownCardUtilization(prime, new Date(2027, 1, 7));
+    expect(b.utilizationOnlyBalance).toBeCloseTo(7004.20, 2);
+  });
+  it('never counts a non-zero promo rate as utilization-only', () => {
+    const b = breakdownCardUtilization({ ...prime, tranches: [{ apr: 7.99, balance: 5037.73, promo_end_date: null }] }, now);
+    expect(b.utilizationOnlyBalance).toBe(0);
+  });
+  it('adds tranches to an upfront plan but never past the card balance', () => {
+    const b = breakdownCardUtilization({ ...prime, installmentBalance: 4471 }, now);
+    expect(b.utilizationOnlyBalance).toBeCloseTo(8892.82, 2);
+    expect(b.interestBearingBalance).toBe(0);
+  });
+});

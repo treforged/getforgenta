@@ -1,4 +1,6 @@
 import { cardStartMonthOffset } from './card-start-date';
+import { trancheAprAsOf, type BalanceTranche } from './balance-tranches';
+import { toLocalDateStr } from './scheduling';
 
 /**
  * Card shape this module needs. A subset of CardData (credit-card-engine.ts) — kept
@@ -15,6 +17,22 @@ export interface UtilizationCard {
    * accrues no interest. See payment-plan-generator.ts:deriveUpfrontPlanFields. */
   installmentBalance?: number;
   startDate?: string;
+  /** The card's standard APR. Only read to reprice a tranche whose promo has ended. */
+  apr?: number;
+  /**
+   * Sub-balances at their own rates (accounts.balance_tranches). A tranche at 0% as of `now` is
+   * utilization-only, the same as an upfront plan. Before 2026-10-01 this module read only
+   * `installmentBalance`, so Tre's Prime Visa showed $7,253.63 of 0% Equal Pay and Pay Over Time
+   * balances as interest-bearing.
+   */
+  tranches?: readonly Pick<BalanceTranche, 'apr' | 'balance' | 'promo_end_date'>[];
+}
+
+function zeroAprTrancheBalance(card: UtilizationCard, now: Date): number {
+  const asOf = toLocalDateStr(now);
+  return (card.tranches ?? [])
+    .filter(t => Number(t.balance) > 0 && trancheAprAsOf(t as BalanceTranche, card.apr ?? 0, asOf) === 0)
+    .reduce((s, t) => s + Number(t.balance), 0);
 }
 
 export interface CardUtilizationBreakdown {
@@ -34,7 +52,10 @@ export interface CardUtilizationBreakdown {
 export function breakdownCardUtilization(card: UtilizationCard, now: Date): CardUtilizationBreakdown {
   const opensInMonths = cardStartMonthOffset(card.startDate, now);
   const isOpen = opensInMonths === 0;
-  const utilizationOnlyBalance = Math.min(card.balance, Math.max(0, card.installmentBalance ?? 0));
+  const utilizationOnlyBalance = Math.min(
+    card.balance,
+    Math.max(0, card.installmentBalance ?? 0) + zeroAprTrancheBalance(card, now),
+  );
   const interestBearingBalance = Math.max(0, card.balance - utilizationOnlyBalance);
   const utilizationPct = isOpen && card.creditLimit > 0 ? (card.balance / card.creditLimit) * 100 : null;
   return {
