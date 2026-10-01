@@ -35,8 +35,12 @@ R-NOW20 (10-01 ~01:30Z, Ada getforgenta-b5). START HERE (Sam's brief: asks a7b15
         WebView never signs out / never counts as an open), Android WidgetRefreshWorker 8d861d13 (CI compiled the AAB),
         switch profiles.widget_bg_refresh (default false, 0/33 on) 301b81ab, iOS BGAppRefreshTask ffb3ed14 (reloads the
         app's OWN bridge WebView; completes on the WidgetBridge publish notification). Gate widget-bg-refresh.gate 8.
-        NEXT: iOS compile green -> set Tre's profiles.widget_bg_refresh=true (snapshot first; undo = false) -> dispatch
-        an iOS upload -> he installs -> read debugLog WIDGET_BG_REFRESH / widget 'Updated' age after 6+ h.
+        DONE 10-01 ~01:55Z: iOS compile green (ffb3ed14 Build IPA success); Tre's widget_bg_refresh = TRUE (1 of 33,
+        snapshot backup.tre_widget_bg_refresh_20261001, undo = false); iOS build 1158 UPLOAD SUCCEEDED 01:53:58Z.
+        NEXT (ask e74da89c, blocked on device): Tre installs 1158 + opens once -> after 6+ h closed, read the widget
+        'Updated' age / debugLog WIDGET_BG_REFRESH. Android: no device test yet. Then decide default-on.
+        a7b1509e residue CLOSED: supabase-js's own STORAGE-event signOut() reads storage (auth-js 2.112.3
+        __loadSession line 2504), already cleared, so it sends no /logout. Live bundle: 5 signOut({scope:`local`}).
         Old design note follows: app-closed refresh every 6h. Plan: on-device wake
         re-running the app's own engine - Android WorkManager 6h periodic, iOS BGAppRefreshTask (best effort; none
         after force-quit). Hard part: the figures are computed INSIDE Dashboard (CardProjectionContext +
@@ -12027,7 +12031,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 21:16 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 21:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12045,14 +12049,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+e7d73295 [handoff]: R-NOW20 - e74da89c part 2 built as an off-by-default canary; next: enable for Tre after iOS compile
+ffb3ed14 [ios]: closed-app widget refresh via BGAppRefreshTask, off until the app turns it on (ask e74da89c, part 2d)
+301b81ab [widgets]: per-user switch for the closed-app widget refresh, off for everyone (ask e74da89c, part 2c)
+8d861d13 [android]: 6-hourly closed-app widget refresh worker, off until the app turns it on (ask e74da89c, part 2b)
+c87469a5 [widgets]: a hidden background WebView can publish widget figures and can never sign the user out (ask e74da89c, part 2a)
 8cc626f0 [handoff]: R-NOW20 - sign-out cause fixed, widget resume publish, OAuth cover sleep removed
 319cef20 [ios]: lift the cover as soon as Google/Apple sign-in lands, not after a fixed 2.5 s (ask ce6412bc)
 4eb5a5f5 [widgets]: re-publish the widget the moment the app comes back (ask e74da89c, part 1)
-d79e11e6 [auth]: signing out on one device no longer signs you out everywhere (ask a7b1509e)
-636ef5f6 [handoff]: R-NOW19 - ecf65fde done (1ad04b6b)
-1ad04b6b [dates]: the date picker keeps last year's dates after the year turns; check:time-bombs really runs (ask ecf65fde)
-e43509f8 [handoff]: R-NOW19 - signup funnel + 5 friction fixes shipped; item 1 = read funnel rows after real installs
-4209d8b8 [test]: check:time-bombs - run the suite with the real clock moved to future dates
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
