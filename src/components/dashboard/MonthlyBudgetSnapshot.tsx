@@ -156,7 +156,7 @@ export default function MonthlyBudgetSnapshot({
       {/* Its own line, left-aligned under the title: three figures in the header row wrapped
           unevenly at 390px, and this is the one the App Store listing names. */}
       {sts && stsLabel && (
-        <div className="-mt-2 mb-5">
+        <div className="-mt-2 mb-5 space-y-1.5">
           {onSafeToSpendClick ? (
             <button type="button" onClick={onSafeToSpendClick} className="text-left transition-colors hover:text-primary">
               <p className={SUB_LABEL}>{stsLabel}</p>
@@ -168,6 +168,13 @@ export default function MonthlyBudgetSnapshot({
               <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount, false)}</p>
             </div>
           )}
+          {/* Two money headlines on one card need their relation stated (Sam, 2026-10-01): this one
+              is for SPENDING before payday, the donut's is for the CARDS this month. Not compared
+              arithmetically on purpose - they reserve different things, so neither is always larger. */}
+          <p className="text-xs text-muted-foreground" data-testid="safe-to-spend-note">
+            What you can spend before payday without missing a bill. Separate from the{' '}
+            {formatCurrency(Math.max(0, availableToDeploy), false)} available for your cards this month.
+          </p>
         </div>
       )}
       {stsMissing && (

@@ -8,7 +8,8 @@
  * It PRESSES the figure and requires the calculator drawer to open (a change, not an absence of
  * error), then reads the drawer back: the last row must equal the figure on the card, and
  * "Lowest point" minus "Cash floor" (never below 0) must equal it too. Saves the card and the
- * drawer to test-results/safe-to-spend/.
+ * drawer to test-results/safe-to-spend/. The note under the figure must show and quote the same
+ * Available figure as the donut centre (Sam 2026-10-01: two headlines need their relation stated).
  * It does NOT prove the figure is RIGHT for this account - `safe-to-spend.test.ts` owns the maths.
  * It proves the figure renders, is pressable, and the drawer's column agrees with it.
  * EXITS: 0 pass . 1 a finding . 2 could not test (no figure on the demo, which has every input, is a 1).
@@ -47,6 +48,20 @@ await button.scrollIntoViewIfNeeded();
 await page.waitForTimeout(2000); // the donut animates in
 await page.locator('.card-forged', { has: label }).first().screenshot({ path: 'test-results/safe-to-spend/card.png' });
 console.log(`card: "${(await label.first().innerText()).trim()}" = ${cardValue}`);
+// Sam 2026-10-01: the two money headlines must state their relation. The note must show and must
+// quote the SAME Available figure the donut centre prints, or it explains a number nobody sees.
+const note = page.getByTestId('safe-to-spend-note');
+if (!(await note.count())) await done(1, 'FINDING: no note relating Safe to spend to Available to deploy.');
+const noteText = await note.first().innerText();
+const centre = await page.locator('.card-forged', { has: label }).first().evaluate((el) => {
+  const t = el.innerText; const i = t.toUpperCase().indexOf('AVAILABLE\n');
+  return i < 0 ? null : (t.slice(i).match(/\$[\d,]+(?:\.\d\d)?/) || [null])[0];
+});
+const noteFig = (noteText.match(/\$[\d,]+/) || [null])[0];
+console.log(`note: "${noteText.trim()}" | donut centre ${centre}`);
+if (!centre || !noteFig || Math.round(Number(centre.replace(/[$,]/g, ''))) !== Number(noteFig.replace(/[$,]/g, ''))) {
+  await done(1, `FINDING: the note quotes ${noteFig} but the donut centre reads ${centre}.`);
+}
 
 await button.click();
 const title = page.getByText('Safe to Spend until Payday', { exact: true });
