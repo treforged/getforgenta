@@ -34,7 +34,7 @@
 import { CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { ScheduledEvent } from '@/lib/scheduling';
-import { nextMonthReservations, type NextMonthTerm, type UndatedNextMonthItem } from '@/lib/safe-to-spend-next-month';
+import { nextMonthReservations, nextMonthStart, type NextMonthTerm, type UndatedNextMonthItem } from '@/lib/safe-to-spend-next-month';
 
 export interface DatedCashEvent {
   /** 'YYYY-MM-DD' local date. */
@@ -60,6 +60,8 @@ export interface SafeToSpendInput {
   floor: number;
   /** Next month's items with no due date, reserved on its 1st because payday falls next month. For the drawer. */
   undatedNextMonth?: readonly UndatedNextMonthItem[];
+  /** 'YYYY-MM-01' of the month those undated items are reserved in. */
+  nextMonthFirst?: string;
 }
 
 export type SafeToSpendMissing = 'no-funding-account' | 'no-payday' | 'no-projection';
@@ -206,8 +208,14 @@ export interface SafeToSpendAssembly {
   profilePayday: string | null;
   /** `resolveCashFloor(profile)` - already 0 in automatic-floor mode. */
   floor: number;
-  /** The month after the cutoff's chain terms. Used only when payday falls in that month. */
+  /** The chain terms of the month after month 0. Used only when payday falls in that month. */
   nextMonthTerms?: readonly NextMonthTerm[];
+  /**
+   * 'YYYY-MM-DD' in the ENGINE's month 0 - today. ⚠️ Not the cutoff: on the 1st the sync cutoff is
+   * still last month, and keying "next month" off it reserved THIS month's terms twice (month 0's
+   * chain already holds them). Measured on Tre's account 2026-10-01. Defaults to cutoffDate.
+   */
+  monthZeroDate?: string;
 }
 
 /**
@@ -262,7 +270,7 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     }
   }
 
-  const next = nextMonthReservations(a.nextMonthTerms ?? [], a.cutoffDate, payday);
+  const next = nextMonthReservations(a.nextMonthTerms ?? [], a.monthZeroDate ?? a.cutoffDate, payday);
   events.push(...next.events);
 
   const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve + m.carLoanPayment
@@ -279,5 +287,6 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     events,
     floor: a.floor,
     undatedNextMonth: next.undated,
+    nextMonthFirst: nextMonthStart(a.monthZeroDate ?? a.cutoffDate),
   };
 }

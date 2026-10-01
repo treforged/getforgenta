@@ -97,7 +97,6 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 import { resolveCashFloor } from '@/lib/cash-floor';
 import { useSafeToSpend } from '@/hooks/useSafeToSpend';
-import { nextMonthStart } from '@/lib/safe-to-spend-next-month';
 import { isManualCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
@@ -794,7 +793,7 @@ export default function Dashboard() {
     const short = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const undatedNext = safeToSpendInput.undatedNextMonth ?? [];
     const undatedByLabel = new Map(undatedNext.map(u => [u.label, u]));
-    const nextFirst = nextMonthStart(safeToSpendInput.cutoffDate);
+    const nextFirst = safeToSpendInput.nextMonthFirst ?? '';
     const dated = safeToSpendInput.events
       .filter(e => e.date > safeToSpendInput.cutoffDate && e.date <= safeToSpend.payday && e.amount > 0)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.direction === 'out' ? -1 : 1));

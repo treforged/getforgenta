@@ -152,6 +152,18 @@ describe('assembleSafeToSpendInput + computeSafeToSpend - the figure itself', ()
     expect(input?.undatedNextMonth).toEqual([{ label: 'Other debt payments', amount: 310, kind: 'other-debt', editPath: '/debt' }]);
   });
 
+  it('on the 1st, with the sync cutoff still last month, THIS month is not reserved twice (Tre, 2026-10-01)', () => {
+    // Cutoff 30 Sept, today 1 Oct, payday 2 Oct: October is month 0, whose chain already holds these terms.
+    const terms = [term({ label: 'Discover it Card payment', amount: 150.4, dueDay: 1, kind: 'card' })];
+    const input = assembleSafeToSpendInput({
+      ...a, cutoffDate: '2026-09-30', profilePayday: '2026-10-02', monthZeroDate: '2026-10-01', nextMonthTerms: terms,
+    });
+    expect(input?.events).toEqual([]);
+    expect(input?.nextMonthFirst).toBe('2026-11-01');
+    const r = computeSafeToSpend(input);
+    expect(r.kind === 'figure' && r.amount).toBe(3000);
+  });
+
   it('without nextMonthTerms the figure is unchanged ($3,000) - the old gap, kept as the control', () => {
     const r = computeSafeToSpend(assembleSafeToSpendInput(a));
     expect(r.kind === 'figure' && r.amount).toBe(3000);

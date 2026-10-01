@@ -83,7 +83,9 @@ export function nextMonthStart(cutoffDate: string): string {
 
 /**
  * Dated outflows for next month's terms that land on or before payday, plus the undated ones to list.
- * Empty unless payday falls in EXACTLY the month after the cutoff: a payday this month needs nothing,
+ * `cutoffDate` here is any date in the ENGINE's month 0 (pass today, not the sync cutoff - see
+ * `SafeToSpendAssembly.monthZeroDate`). Empty unless payday falls in EXACTLY the following month:
+ * a payday this month needs nothing,
  * and a payday two or more months out is not handled (no pay schedule here produces one).
  */
 export function nextMonthReservations(

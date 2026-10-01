@@ -57,7 +57,8 @@ export function useSafeToSpend(args: {
     // Next month's chain terms, for a payday that falls in it (Sam's ruling 938fb5db). The goal total
     // reuses month 0's monthly figure (no month-1 chain is exposed). Other debts and plans are dated
     // per item (66279032), with the same selection the engine uses. Card payments read the sim's month 1.
-    const monthStart = nextMonthStart(cutoffDate);
+    // The month after the ENGINE's month 0 (today's month), never after the sync cutoff's.
+    const monthStart = nextMonthStart(today);
     const creditCardSources = new Set([...creditCardIds].flatMap(id => [id, `account:${id}`]));
     const monthKey = monthStart.slice(0, 7);
     const monthDate = new Date(Number(monthStart.slice(0, 4)), Number(monthStart.slice(5, 7)) - 1, 1);
@@ -113,6 +114,7 @@ export function useSafeToSpend(args: {
       profilePayday,
       floor,
       nextMonthTerms,
+      monthZeroDate: today,
     });
     return { result: computeSafeToSpend(input), input };
   }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts, paymentPlans, profile, confirmed, floor]);
