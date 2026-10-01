@@ -53,8 +53,15 @@ describe('card catalog - miles (Sam rule 2)', () => {
 });
 
 describe('card catalog - rotating quarters and staleness (Sam rule 3)', () => {
-  it('Discover Q4 2026 is UNKNOWN (the issuer calendar did not load), the 1% base still applies', () => {
+  it('Discover Q4 2026 is 5% on dining (read 2026-10-01) and names the categories it cannot rank', () => {
     const r = resolveCatalogRewards(p('discover-it-cash-back'), { today: TODAY });
+    expect(r.rewards).toEqual({ base_pct: 1, categories: { dining: 5 } });
+    expect(r.unknown).toEqual([]);
+    expect(r.notes).toContain('5% this quarter also covers Entertainment and Utilities, which Which Card? has no category for yet.');
+  });
+
+  it('Discover in a quarter nobody has read is UNKNOWN, and the 1% base still applies', () => {
+    const r = resolveCatalogRewards(p('discover-it-cash-back'), { today: new Date(2027, 0, 5) });
     expect(r.rewards).toEqual({ base_pct: 1, categories: {} });
     expect(r.unknown).toContain("This quarter's 5% categories (not yet read from the issuer)");
   });

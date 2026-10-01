@@ -32,6 +32,8 @@ export interface CatalogProduct {
     cap_spend: number;
     source_url: string;
     checked_on: string; // YYYY-MM-DD
+    // Bonus categories the app has no purchase category for, named so they are not silently dropped.
+    unranked?: string[];
   }[];
   rotating_source_url?: string;
 }
@@ -101,7 +103,19 @@ export const CARD_CATALOG: readonly CatalogProduct[] = [
       checked_on: '2026-10-01',
     },
     categories: {},
-    rotating: [],
+    rotating: [
+      {
+        // Issuer page, read 2026-10-01: "Restaurants, Entertainment and Utilities ... now to
+        // December 31, 2026, on up to $1,500 in purchases when you activate."
+        quarter: '2026-Q4',
+        categories: ['dining'],
+        pct: 5,
+        cap_spend: 1500,
+        source_url: 'https://www.discover.com/credit-cards/cash-back/cashback-calendar.html',
+        checked_on: '2026-10-01',
+        unranked: ['Entertainment', 'Utilities'],
+      },
+    ],
     rotating_source_url:
       'https://www.discover.com/credit-cards/cash-back/cashback-calendar.html',
     notes: ['5% on up to $1,500 a quarter in rotating categories, after you activate them.'],
@@ -222,6 +236,9 @@ export function resolveCatalogRewards(
     const entry = product.rotating.find(r => r.quarter === q && !isStale(r.checked_on, opts.today));
     if (entry) {
       for (const cat of entry.categories) categories[cat] = Math.max(categories[cat] ?? 0, entry.pct);
+      if (entry.unranked?.length) {
+        notes.push(`${entry.pct}% this quarter also covers ${entry.unranked.join(' and ')}, which Which Card? has no category for yet.`);
+      }
     } else {
       unknown.push("This quarter's 5% categories (not yet read from the issuer)");
     }
