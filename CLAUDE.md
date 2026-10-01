@@ -256,6 +256,10 @@ section states reasoning, not measurement, and says so.
   minus floor = total = card). The maths is owned by `src/lib/__tests__/safe-to-spend.test.ts` (15 tests, each asserts
   a number, red under three mutants). Not on the deck-walk account: its income and checking rows are inactive, so it
   correctly shows the EMPTY state. `walk:empty` asserts an empty account shows no figure.
+- `npm run check:update-reminder` - at 390x844, signed in, on the 1st-7th only (exits 2 otherwise): the start-of-month
+  "need updating by hand" notice renders, and PRESSING it switches the Dashboard to Accounts (`?tab=accounts&panel=balances`).
+  Proven red by pointing the link at `/dashboard` (exit 1). Future-dated cards are left out of the list; the unit test
+  `AccountUpdateReminder.test.tsx` owns that (Tre, 2026-10-01).
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.

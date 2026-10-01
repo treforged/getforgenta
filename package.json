@@ -22,6 +22,7 @@
     "measure:cold-launch": "node scripts/measure-cold-launch.mjs",
     "check:welcome": "node scripts/check-welcome-screen.mjs",
     "check:safe-to-spend": "node scripts/check-safe-to-spend.mjs",
+    "check:update-reminder": "node scripts/check-update-reminder.mjs",
     "check:boot-failure": "node scripts/check-boot-failure.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",

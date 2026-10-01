@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { Link } from 'react-router';
+import { AlertTriangle, ChevronRight, X } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
 import { useAccounts } from '@/hooks/useSupabaseData';
+import { isCardOpenAsOf } from '@/lib/card-start-date';
+
+/** Where the balances are typed in: the Dashboard's Accounts panel, Balances view. */
+export const UPDATE_BALANCES_HREF = '/dashboard?tab=accounts&panel=balances';
 
 /**
  * The start-of-month nudge to bring balances up to date (1st-7th).
@@ -20,6 +25,11 @@ import { useAccounts } from '@/hooks/useSupabaseData';
  *
  * `!plaid_account_id && active` is the same test `Accounts.tsx` uses for its own manual-accounts
  * list, deliberately - two definitions of "unlinked" would drift.
+ *
+ * A card with a FUTURE `card_start_date` is not open yet, so it has no balance to update and is
+ * left out (Tre, 2026-10-01: Venture X and Apple Card were listed while dated 2028).
+ * The notice body is a link to the place the balances are typed in (Tre, same day: notices
+ * "need to be clickable to take them to the page that would solve whatever is on it").
  */
 export default function AccountUpdateReminder() {
   const { isDemo } = useDemo();
@@ -50,7 +60,8 @@ export default function AccountUpdateReminder() {
     setDismissed(true);
   };
 
-  const manual = (accounts ?? []).filter(a => !a.plaid_account_id && a.active);
+  const today = new Date();
+  const manual = (accounts ?? []).filter(a => !a.plaid_account_id && a.active && isCardOpenAsOf(a, today));
   const linkedCount = (accounts ?? []).filter(a => a.plaid_account_id && a.active).length;
 
   if (!shouldShow || dismissed) return null;
@@ -66,7 +77,7 @@ export default function AccountUpdateReminder() {
       style={{ borderRadius: 'var(--radius)' }}
     >
       <AlertTriangle className="text-gold shrink-0 mt-0.5" size={20} />
-      <div className="flex-1 min-w-0">
+      <Link to={UPDATE_BALANCES_HREF} className="flex-1 min-w-0 hover:opacity-90 transition-opacity">
         <h3 className="font-semibold text-sm mb-1">
           {manual.length === 1 ? 'One account needs updating by hand' : `${manual.length} accounts need updating by hand`}
         </h3>
@@ -79,7 +90,10 @@ export default function AccountUpdateReminder() {
             {linkedCount === 1 ? 's' : ''} on {linkedCount === 1 ? 'its' : 'their'} own — leave {linkedCount === 1 ? 'it' : 'them'} alone.</>
           )}
         </p>
-      </div>
+        <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-gold">
+          Update balances <ChevronRight size={14} aria-hidden="true" />
+        </span>
+      </Link>
       <button
         onClick={handleDismiss}
         className="text-muted-foreground hover:text-foreground shrink-0"
