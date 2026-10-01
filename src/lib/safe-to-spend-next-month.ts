@@ -11,9 +11,15 @@
  * which items to give a due date. Goal contributions are reserved in full on day 1 but are not listed:
  * a goal has no due-date field, so "add one" would be advice the user cannot follow.
  *
+ * Other debts are dated by their account's `payment_due_day` and payment plans by their own payment
+ * dates (ask 66279032) - both fields already exist, so the only undated debt is one whose account has
+ * no due day set, and that one the user CAN fix on the account's edit screen.
+ *
  * Pure string arithmetic on 'YYYY-MM-DD'. No Date objects, so no time-zone drift.
  */
 import type { DatedCashEvent } from '@/lib/safe-to-spend';
+import { listDebtServiceLiabilities, projectLiabilityBalances, isOtherDebtPaymentOwed } from '@/lib/non-cc-liabilities';
+import { getPaymentDates, type PaymentPlan } from '@/lib/payment-plan-generator';
 
 export type NextMonthTermKind = 'transfer' | 'goal' | 'car-loan' | 'insurance' | 'other-debt' | 'plan' | 'card';
 
@@ -147,10 +153,12 @@ export interface NextMonthTermSources {
   transferRules: readonly NextMonthTransferRule[];
   /** Ids of cash accounts a transfer may draw from. */
   cashSourceIds: ReadonlySet<string>;
-  /** Monthly totals with no due date anywhere in the data model. */
+  /** Monthly total; goals have no due-date field. */
   goalContributions: number;
-  otherDebtPayment: number;
-  planExpenses: number;
+  /** One per non-card debt still owed that month; `dueDay` is its account's `payment_due_day`. */
+  otherDebts: readonly { label: string; amount: number; dueDay: number | null }[];
+  /** One per cash payment-plan installment that month, dated by the plan's own schedule. */
+  planPayments: readonly { label: string; amount: number; date: string }[];
   /** One per active car loan; the due day is `paymentStartDate`'s day of month. */
   carLoans: readonly { label: string; amount: number; paymentStartDate: string | null }[];
   /** One per insured car; the due day is `anchorDate`'s day of month. */
@@ -175,7 +183,33 @@ export function buildNextMonthTerms(s: NextMonthTermSources): NextMonthTerm[] {
       ({ label: c.label, amount: c.amount, dueDay: dayOf(c.anchorDate), kind: 'insurance', editPath: '/car-fund' })),
     ...s.cards.map((c): NextMonthTerm =>
       ({ label: c.label, amount: c.amount, dueDay: c.dueDay, kind: 'card', editPath: '/accounts' })),
-    { label: 'Other debt payments', amount: s.otherDebtPayment, dueDay: null, kind: 'other-debt', editPath: '/debt' },
-    { label: 'Payment plans', amount: s.planExpenses, dueDay: null, kind: 'plan', editPath: '/debt' },
+    ...s.otherDebts.map((d): NextMonthTerm =>
+      ({ label: d.label, amount: d.amount, dueDay: d.dueDay, kind: 'other-debt', editPath: '/accounts' })),
+    ...s.planPayments.map((pp): NextMonthTerm =>
+      ({ label: pp.label, amount: pp.amount, dueDay: dayOf(pp.date), kind: 'plan', editPath: '/debt' })),
   ];
+}
+
+/**
+ * Non-card debts owed in the month after month 0, with the engine's own selection: liability accounts
+ * paired with `debts` rows (`listDebtServiceLiabilities`), a debt paid by a same-named expense rule
+ * left to that rule (it is already a dated rule event), and a debt projected paid off by then dropped.
+ */
+export function nextMonthOtherDebts(params: Parameters<typeof listDebtServiceLiabilities>[0]):
+  NextMonthTermSources['otherDebts'] {
+  return listDebtServiceLiabilities(params)
+    .filter(l => !l.paidByExpenseRule && l.payment > 0
+      && isOtherDebtPaymentOwed(l, projectLiabilityBalances(l.balance, l.apr, l.amortizingPayment, 3), 1))
+    .map(l => ({ label: l.name, amount: l.payment, dueDay: l.dueDay }));
+}
+
+/** Cash payment-plan installments in `monthKey` ('YYYY-MM'). Same filter as `getMonthlyPlanCashExpenses`. */
+export function nextMonthPlanPayments(
+  plans: readonly PaymentPlan[], monthKey: string, cardSources: ReadonlySet<string>,
+): NextMonthTermSources['planPayments'] {
+  return plans
+    .filter(pl => pl.active && !(pl.payment_source && cardSources.has(pl.payment_source)))
+    .flatMap(pl => getPaymentDates(pl.start_date, pl.frequency, pl.total_payments)
+      .filter(d => d.startsWith(monthKey))
+      .map(d => ({ label: pl.name, amount: Number(pl.payment_amount), date: d })));
 }

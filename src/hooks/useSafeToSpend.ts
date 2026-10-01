@@ -6,7 +6,12 @@ import { getNextPaycheckDate } from '@/lib/pay-schedule';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
-import { buildNextMonthTerms, nextMonthStart, type NextMonthTerm } from '@/lib/safe-to-spend-next-month';
+import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import type { DebtServiceAccountInput, LiabilityDebtInput } from '@/lib/non-cc-liabilities';
+import { usePaymentPlans } from '@/hooks/useSupabaseData';
+import {
+  buildNextMonthTerms, nextMonthStart, nextMonthOtherDebts, nextMonthPlanPayments, type NextMonthTerm,
+} from '@/lib/safe-to-spend-next-month';
 import {
   assembleSafeToSpendInput, computeSafeToSpend,
   type SafeToSpendInput, type SafeToSpendResult,
@@ -26,7 +31,8 @@ export function useSafeToSpend(args: {
   confirmed: ConfirmedOccurrences;
   floor: number;
 }): { result: SafeToSpendResult | null; input: SafeToSpendInput | null } {
-  const { cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds } = useCardProjectionContext();
+  const { cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts } = useCardProjectionContext();
+  const { data: paymentPlans } = usePaymentPlans();
   const { profile, confirmed, floor } = args;
 
   return useMemo(() => {
@@ -48,10 +54,11 @@ export function useSafeToSpend(args: {
       return rev > 0 ? s + (cardProjection.perCardMinPayments.get(c.id)?.[0] ?? 0) : s;
     }, 0);
 
-    // Next month's chain terms, for a payday that falls in it (Sam's ruling 938fb5db). Goal, other-debt
-    // and plan totals reuse month 0's monthly figure: the projection exposes no month-1 chain, and these
-    // are steady monthly amounts. Card payments read the simulation's month-1 entries, like month 0's.
+    // Next month's chain terms, for a payday that falls in it (Sam's ruling 938fb5db). The goal total
+    // reuses month 0's monthly figure (no month-1 chain is exposed). Other debts and plans are dated
+    // per item (66279032), with the same selection the engine uses. Card payments read the sim's month 1.
     const monthStart = nextMonthStart(cutoffDate);
+    const creditCardSources = new Set([...creditCardIds].flatMap(id => [id, `account:${id}`]));
     const monthKey = monthStart.slice(0, 7);
     const monthDate = new Date(Number(monthStart.slice(0, 4)), Number(monthStart.slice(5, 7)) - 1, 1);
     const nextMonthTerms: NextMonthTerm[] = buildNextMonthTerms({
@@ -62,8 +69,15 @@ export function useSafeToSpend(args: {
           start_date: r.start_date ?? null, end_date: r.end_date ?? null, payment_source: r.payment_source ?? null })),
       cashSourceIds: liquidAccountIds,
       goalContributions: m0.chain.goalContributions,
-      otherDebtPayment: m0.chain.otherDebtPayment,
-      planExpenses: m0.chain.planExpenses,
+      // The engine's own pairing: liability accounts matched to `debts` rows, car-linked loans out,
+      // and a debt paid by a same-named expense rule left to that rule (already in scheduledEvents).
+      otherDebts: nextMonthOtherDebts({
+        accounts: accounts as unknown as DebtServiceAccountInput[],
+        debts: debts as unknown as LiabilityDebtInput[],
+        rules,
+        excludedAccountIds: linkedLoanAccountIds(carFunds, accounts),
+      }),
+      planPayments: nextMonthPlanPayments(paymentPlans ?? [], monthKey, creditCardSources),
       carLoans: getActiveCarLoanPayments(carFunds, monthDate).map(l => ({
         label: `${l.vehicleName} loan`, amount: l.payment,
         paymentStartDate: carFunds.find(cf => cf.id === l.carFundId)?.payment_start_date ?? null,
@@ -101,5 +115,5 @@ export function useSafeToSpend(args: {
       nextMonthTerms,
     });
     return { result: computeSafeToSpend(input), input };
-  }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, profile, confirmed, floor]);
+  }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts, paymentPlans, profile, confirmed, floor]);
 }

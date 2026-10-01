@@ -820,7 +820,7 @@ export default function Dashboard() {
       { label: `Safe to spend until ${short(safeToSpend.payday)}`, value: money(safeToSpend.amount), op: '=' },
     ];
     const footnote = undatedNext.length > 0
-      ? `${undatedNext.length} ${undatedNext.length === 1 ? 'item has' : 'items have'} no due date, so ${undatedNext.length === 1 ? 'it is' : 'they are'} reserved on ${short(nextFirst)}. Tap one to open it.`
+      ? `${undatedNext.length} ${undatedNext.length === 1 ? 'item has' : 'items have'} no due date, so ${undatedNext.length === 1 ? 'it is' : 'they are'} reserved on ${short(nextFirst)}. Add ${undatedNext.length === 1 ? 'one' : 'them'} to make this exact - tap a row to open it.`
       : undefined;
     setCalcDrawer({ title: 'Safe to Spend until Payday', lines, footnote });
   };
