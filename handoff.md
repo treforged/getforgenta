@@ -25,6 +25,28 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW23 (10-01 ~03:30Z, Ada getforgenta-47 handed off at the call budget). START HERE, IN ORDER:
+    1. RE-ARM the widget read (my cron 75c6928b dies with me): CronCreate one-shot '7 9 1 10 *' running
+       select platform,via,created_at from public.widget_refresh_events where user_id='a72f416e-433a-4055-9ab0-9feae4e60edf';
+       baseline 0 rows at 02:15Z. Send Sam count + timestamps; ask e74da89c is DEFERRED to 2026-10-01T09:07.
+    2. FINISH the funnel env proof (commit [funnel], migration 20261001c APPLIED; 694 old rows 'unknown'):
+       npm run check:signup-funnel (HUNG on my run with no output - find why first; first goto uses networkidle),
+       then SQL: select env,step,count(*) from signup_funnel_events where created_at>now()-interval '15 min' group by 1,2
+       -> every row must be env='dev'. If yes, tell Sam.
+    3. SAM'S ASK (first run is the product): (a) wizard walk DONE - check:first-save PASS 5/5 (stubbed writes,
+       deck-walk account). Reviewer reset NOT possible here: reset-reviewer-account.mjs needs SUPABASE_SERVICE_ROLE_KEY
+       (none on this PC) and setting the reviewer's password would change Apple's credential - do NOT. Use a
+       throwaway @forgenta.test user (pattern 813d6b21) for a REAL-write walk asserting onboarding_furthest_step='finish'.
+       (b) DROP-OFF, measured 10-01 on 28 REAL users (not 33: 5 are test/reviewer/example): 28 signup -> 26 signed in
+       -> 16 saved anything (rules/accounts/txns) -> 8 returned after day 1 (7 of the 16 savers = 44%; 1 of the 10
+       non-savers = 10%). LARGEST DROP: signed in but saved nothing, 10 of 26. Wizard step data cannot locate it:
+       furthest_step null for 27/28 (tracking began 09-05; last real signup 08-07). signup_funnel_events is ALL test
+       traffic so far (fixed by [funnel]). PROPOSAL for Sam: save each wizard step as it completes (income on its
+       Continue, press 4) instead of all at 'See your plan' (press 8), so a user who leaves mid-wizard still has an
+       income and a forecast when they return. The query is in my last tool call (blocked by the gate): group by
+       never-signed-in / saved-nothing / saved-gone-day-1 / saved-came-back with wizard_done, wg>0, display_name.
+    DONE this session: e34975a1 + 2e42290d closed (sim 36804677471: locked 0/49 vs control 38/40); 84bf3afa empty
+    states + walk:empty figure gate ([empty-state], live); walk:press PASS 373/152/152.
 R-NOW22 (10-01 ~02:40Z, Ada). [x] e34975a1 CLOSED: sim run 36804677471 lock step green - control 38/40 content frames,
     locked launch 0/49, final frame vs dashboard 17.19. Warm path unit-only (4429e39d, live in bundle). [x] 2e42290d CLOSED
     (bioOffer tests 15/15 x3 TZ, offer sheet in live bundle; Face ID prompt itself needs a device). [!] 2dcdcdde stays
@@ -12059,16 +12081,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 22:26 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 23:09 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -12077,14 +12100,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+dea974f4 [empty-state]: a new user's Dashboard and Forecast show what to add, not $0 tiles and a $0 chart
+3307c140 [handoff]: R-NOW22 - e34975a1 + 2e42290d closed on sim run 36804677471; 2dcdcdde state read back; widget read re-armed
 f9d88090 [handoff]: R-NOW21 - lock warm-reopen fix shipped, sim proof dispatched; Sam's order 1-3 + re-arm widget read
 fb6c70b0 [ci]: simulator proves no content shows before the app lock on a cold launch (ask e34975a1)
 4429e39d [applock]: the lock now engages on a warm reopen, not only after the app was killed (ask e34975a1)
 907a4fa4 [handoff]: R-NOW20 - widget_refresh_events record + armed read
 c85279f8 [widgets]: record each background widget refresh so the desk can verify it from SQL (ask e74da89c)
 d10ee278 [handoff]: R-NOW20 - widget canary on for Tre, iOS 1158 uploaded; e74da89c waits on the device
-9110e0c8 [lint]: declare ccPurchasesAfterDuePerMonth in the card-sim memo's dependencies
-2defdc5e [lint]: drop an eslint-disable that suppressed nothing (no-console allows warn)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
