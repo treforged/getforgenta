@@ -937,7 +937,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // to pass per-month purchase amounts to projectCardVariable.
     return { ...sim, augmentedCCPurchases, runSim };
   }, [cards, upfrontPayByMonth, fundingBalance, cashFloor, manualFloor, strategy, monthlyTakeHome,
-      monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
+      monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, ccPurchasesAfterDuePerMonth, monthEvents,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
