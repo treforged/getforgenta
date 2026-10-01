@@ -25,6 +25,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW28 (10-01 ~05:30Z, Ada). R-NOW27 DONE except the 09:07 read.
+    1. WIDGET READ e74da89c: armed as session cron f0a27c7e (09:07 ET 10-01); dies with this session. If gone,
+       run the R-NOW24 item 1 query by hand and send Sam the count + timestamps.
+    [x] Legacy $1,875 months 1+ (59c3fb37 residue): e4033506 pushed. withEffectiveSalary + useEffectiveSalaryProfile at
+        CardProjectionContext, CreditCardEngine, Dashboard, BudgetTotalsCard AND useForecastEngineInputs (R-NOW27 missed
+        it: getDebtPaymentsByMonth/BalancesByMonth build their own pay config). Before Nov/Dec/Jan $5,850/$5,850/$7,312.50,
+        after $0. Snapshot backup.legacy_salary_20261001_profiles. Starter-rule users unchanged (same reference, test).
+        test:tz 5546x3, tsc 0, eslint 0 err, check:safe-to-spend PASS, walk:empty 10/10 (throwaway deleted, 33 users).
+        LIMIT: walk:empty marks the account onboarded, so no walk renders the un-onboarded case; unit tests carry it.
+        4e870984 (@forgenta.test, 1875, no rule) is a test account - also covered by the code.
+    NEXT: R-NOW26 OPEN (b) undated next-month items before an early payday; (c) reconciliation on Tre's account.
 R-NOW27 (10-01 ~06:30Z, Ada getforgenta-54 -> successor at the handoff gate). START HERE, IN ORDER:
     1. RE-ARM the 09:07 ET widget read (e74da89c): CronCreate one-shot '7 9 1 10 *' (my cron 5a029e32 dies with
        me). Query: R-NOW24 item 1. Send Sam count + timestamps.
