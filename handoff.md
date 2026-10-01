@@ -25,6 +25,23 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW35 (10-01 ~12:30 ET, Ada getforgenta-a1). START HERE, IN ORDER:
+    0. aeaac54e Tre's audit [~]: DONE so far (all pushed 0/0, gates green 5673 x 3 zones):
+       (1) DTI used stale legacy `debts` minimums (Prime 231.15 / Discover 83 vs accounts 773.05 / 150.40): fixed.
+       (2) Debt page interest-bearing/0% split ignored balance_tranches: fixed ($12,919 / $7,254 before 2b revert).
+       (2b) DATA: Aero Kit plan cfc9e53c duplicated Equal Pay tranche (exact $980.90) -> active=false. Amazon Starter
+            Pack plan faa355fd NOT an exact match -> back ON; question for Tre filed 7ab8a42f (needs-tre).
+            Snapshot backup.tre_audit_20261001_payment_plans.
+       (3) DATA: 4 PayPal Pay in 4 plans monthly -> biweekly (snapshot backup.tre_audit_20261001_payin4); Safe to
+           Spend $1,117.31 -> $1,573.14 (low Oct 10, hand-checked). Product: Pay in 4 provider defaults biweekly x 4.
+       Part 2 figures sent to Sam. NOT DONE: deployed-site comparison (Chrome not signed in on getforgenta.com;
+       compare by bundle), goals, car-loan payoff date vs car_funds. Close aeaac54e with evidence after those.
+    1. 98cbf494 cover page after Face ID (Sam): find what holds the cover, shorten it, ONE shared loading
+       indicator on every cover/loading screen, bigger cover logo; measure on-screen time before/after; send
+       Sam a rendered frame. Then the approved anonymous install id for signup_funnel_events (check privacy
+       policy + App Store labels cover a random first-party analytics id; update wording in the same change).
+    2. e74da89c: widget cap fixed; re-read platform=ios after 05:22Z 10-02. 1cea48f3: $204 re-read 10-02 09:17 ET.
+    3. f9b0da16 on/after 10-02. b573d720 re-tested 10-01: still 0 active rows with a RevenueCat id.
 R-NOW34 (10-01 ~14:00Z / 10:00 ET, Ada getforgenta-a2 -> successor at the 175-call gate). START HERE, IN ORDER:
     [~] 0 ANSWERED to Sam 10-01 ~10:20 ET (Ada successor): not in Plaid (Chase last sync 13:00Z, before the 09:50 ET
        transfer); matcher cannot claim it for the paycheck ($8.16 tolerance on $816.10); becomes income only if
