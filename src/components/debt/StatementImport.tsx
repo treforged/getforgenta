@@ -25,6 +25,10 @@ import { FileText, X, Upload, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { parseStatement, statementPatch, isEmptyParse } from '@/lib/statement-parse';
 import { extractPdfText, PdfReadError } from '@/lib/pdf-text';
+import { parseStatementPlans } from '@/lib/statement-plans';
+import { proposePlanTranches, toTranchePayload, type PlanChange } from '@/lib/statement-plan-tranches';
+import { parseTranches } from '@/lib/balance-tranches';
+import type { TranchePayload } from '@/lib/tranche-form';
 
 interface CardLike {
   id: string;
@@ -33,12 +37,17 @@ interface CardLike {
   min_payment?: number | null;
   installment_balance?: number | null;
   installment_monthly_payment?: number | null;
+  balance_tranches?: unknown;
+  payment_due_day?: number | null;
 }
+
+/** The columns Apply writes: the summary figures, plus the plan tranches when a plan changed. */
+export type StatementApplyPatch = ReturnType<typeof statementPatch> & { balance_tranches?: TranchePayload[] };
 
 interface Props {
   card: CardLike;
   /** Applies the confirmed columns. Resolves when the write has landed. */
-  onApply: (patch: ReturnType<typeof statementPatch>) => Promise<unknown>;
+  onApply: (patch: StatementApplyPatch) => Promise<unknown>;
   onClose: () => void;
 }
 
@@ -99,13 +108,25 @@ export function StatementImport({ card, onApply, onClose }: Props) {
     }));
   }, [patch, card]);
 
-  const nothingFound = text.trim() !== '' && isEmptyParse(figures);
+  // Ask baee397e: the plan tables become the card's tranches. Only plans that would CHANGE count
+  // toward Apply; an unchanged plan is listed so the person can see it was read, and written as is.
+  const proposal = useMemo(() => {
+    const plans = parseStatementPlans(text);
+    return plans.length === 0
+      ? null
+      : proposePlanTranches(parseTranches(card.balance_tranches), plans, card.payment_due_day ?? null);
+  }, [text, card.balance_tranches, card.payment_due_day]);
+  const planEdits: PlanChange[] = proposal?.changes.filter(c => c.status !== 'unchanged') ?? [];
+  const applyCount = rows.length + planEdits.length;
+
+  const nothingFound = text.trim() !== '' && isEmptyParse(figures) && proposal === null;
 
   const apply = async () => {
-    if (rows.length === 0) return;
+    if (applyCount === 0) return;
     setSaving(true);
     try {
-      await onApply(patch);
+      // ONE write, so the figures and the plans cannot land half applied.
+      await onApply(planEdits.length > 0 && proposal ? { ...patch, balance_tranches: proposal.next.map(toTranchePayload) } : patch);
       onClose();
     } catch {
       // ⚠️ CAUGHT, AND THE DIALOG STAYS OPEN. The first version had `finally` without `catch`, so a
@@ -206,12 +227,44 @@ export function StatementImport({ card, onApply, onClose }: Props) {
           </div>
         )}
 
+        {proposal && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium">Payment plans on this statement</p>
+            {proposal.changes.map((c, i) => (
+              <div key={`${c.after.id}-${i}`}
+                className="flex items-center justify-between gap-3 bg-secondary/40 border border-border px-3 py-2"
+                style={{ borderRadius: 'var(--radius)' }}>
+                <span className="text-xs min-w-0 truncate">
+                  <span className="text-muted-foreground mr-1.5">
+                    {c.status === 'new' ? 'New' : c.status === 'update' ? 'Update' : 'Same'}
+                  </span>
+                  {c.label}
+                </span>
+                <span className="text-xs shrink-0 whitespace-nowrap">
+                  {c.status === 'update' && c.before && (
+                    <span className="text-muted-foreground line-through mr-1.5">{formatCurrency(c.before.balance)}</span>
+                  )}
+                  <span className="font-semibold">{formatCurrency(c.after.balance)}</span>
+                  <span className="text-muted-foreground"> · {formatCurrency(c.after.min_payment ?? 0)}/mo</span>
+                </span>
+              </div>
+            ))}
+            {proposal.notOnStatement.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Not on this statement, kept as they are: {proposal.notOnStatement.map(t => t.label).join(', ')}.
+              </p>
+            )}
+          </div>
+        )}
+
         <button
           onClick={() => void apply()}
-          disabled={rows.length === 0 || saving}
+          disabled={applyCount === 0 || saving}
           className="btn btn-md btn-primary w-full"
         >
-          {saving ? 'Applying…' : rows.length === 0 ? 'Nothing to apply yet' : `Apply ${rows.length} ${rows.length === 1 ? 'figure' : 'figures'}`}
+          {saving ? 'Applying…' : applyCount === 0 ? 'Nothing to apply yet' : planEdits.length === 0
+            ? `Apply ${rows.length} ${rows.length === 1 ? 'figure' : 'figures'}`
+            : `Apply ${applyCount} ${applyCount === 1 ? 'change' : 'changes'}`}
         </button>
       </div>
     </div>

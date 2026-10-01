@@ -199,3 +199,33 @@ describe('uploading a PDF is a second door into the same parser', () => {
     expect((screen.getByLabelText('Statement PDF') as HTMLInputElement).value).toBe('');
   });
 });
+
+// Ask baee397e: the plan tables become the card's tranches. Synthetic rows, invented amounts.
+describe('payment plans read off the statement', () => {
+  const PLANS = [
+    'NORTHWIND GOODS   03/04/2026   $1,200.00   12   12   $1,200.00   $12.00   $112.00',
+    'Equal Pay Promo   $500.00   $400.00   04/07/2027   ----   ----   ----   $50.00',
+  ].join('\n');
+  const KNOWN = { id: 't1', label: 'Equal Pay Promo (exp Apr 2027, orig $500.00)', balance: 400, apr: 0, promo_end_date: '2027-04-07', min_payment: 50 };
+
+  it('writes a new plan as a tranche, keeps the matched one, in the same single write', async () => {
+    render(<StatementImport card={{ ...CARD, balance_tranches: [KNOWN], payment_due_day: 7 }} onApply={onApply} onClose={onClose} />);
+    paste(PLANS);
+    expect(screen.getByText('Pay Over Time - Northwind Goods (12 mo)')).toBeTruthy();
+    fireEvent.click(screen.getByText(/^Apply 1 change$/));
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+    const patch = onApply.mock.calls[0][0];
+    expect(patch.balance_tranches).toHaveLength(2);
+    expect(patch.balance_tranches[0]).toEqual(KNOWN);
+    expect(patch.balance_tranches[1]).toMatchObject({
+      label: 'Pay Over Time - Northwind Goods (12 mo)', balance: 1200, apr: 0,
+      promo_end_date: '2027-03-07', min_payment: 112, monthly_fee: 12, fixed_term: true,
+    });
+  });
+
+  it('does not touch the tranches when every plan already matches', () => {
+    render(<StatementImport card={{ ...CARD, balance_tranches: [KNOWN], payment_due_day: 7 }} onApply={onApply} onClose={onClose} />);
+    paste(PLANS.split('\n')[1]);
+    expect(screen.getByText(/^Nothing to apply yet$/)).toBeTruthy();
+  });
+});
