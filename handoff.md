@@ -32,8 +32,12 @@ R-NOW26 (10-01 ~04:45Z, Ada getforgenta-54). START HERE.
         15 number tests, red x3 mutants; test:tz 5533x3; check:safe-to-spend PASS on /demo $1,652 until Oct 2;
         walk:empty 10/10 + no-figure check). 3f5de2ae welcome copy -> "safe to spend" ($1,652 / Dec 2027 off /demo),
         check:welcome 12/12, red on old copy. Sent to Sam with frames. ask closed.
-    OPEN, not built: (a) no figure for users with NO credit cards (useCardProjection returns null) - the empty
-        state shows instead; (b) next month's UNDATED items before an early-next-month payday are not reserved;
+    [x] Sam's follow-ups: d93fa97c blank = donut mid-animation (closed); 43c13953 note relating Safe to spend
+        to Available (34195373, check asserts note = donut centre); 536c0db1 cash-only users get month 0 (dbb24779,
+        engine null only with no card AND no cash; snapshot says "Short of your cash floor" with no cards).
+    NEXT: f16b35ff month-0 income omits PROFILE-salary paychecks (onboarding writes no paycheck rule; 4 of 17
+        salaried real users). Low reading = safe direction. Fix in the engine with a number test + test:tz.
+    OPEN, not built: (a) [x] fixed by dbb24779; (b) next month's UNDATED items before an early-next-month payday are not reserved;
         (c) reconciliation on Tre's own account not run (needs a signed-in read of his dashboard).
     NOTE: `npm run <script>` cannot find node from this shell right now ('node' is not recognized); run the
         scripts with `node scripts/...` directly. test:tz = node scripts/check-node-engine.mjs && node scripts/test-timezones.mjs.
@@ -12130,7 +12134,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 00:00 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 00:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12148,14 +12152,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+b5d03143 [handoff]: R-NOW26 - safe-to-spend shipped (3158b24a, 3f5de2ae); widget read armed
+3f5de2ae [auth]: the welcome screen promises "safe to spend before payday", with the demo's real figure
+3158b24a [dashboard]: Safe to Spend until payday - the low point before payday minus the floor (ask 23fe1862)
 285308c5 [handoff]: R-NOW25 - safe-to-spend design written; successor builds it
 290bbbe8 [handoff]: R-NOW24 - welcome screen live, safe-to-spend figure approved
 fff69abb [auth]: the first screen says what Forgenta does, proves it with sample figures, and promotes the demo
 cf6cdb87 [handoff]: R-NOW24 - funnel env grant fix, walk:first-run, OAuth-stall refuted, cold launch measured, per-step save dropped
 912daa22 [auth]: measure:cold-launch - a new visitor's wait for a working sign-up screen, per network
-dc8d6912 [onboarding]: walk:first-run - the wizard with REAL writes on a fresh account, read back from outside
-3e107a58 [funnel]: grant INSERT on env, so funnel rows carrying it stop being refused 401
-d026835b [handoff]: R-NOW23 - widget read re-arm, funnel env proof, Sam's first-run ask with measured drop-off
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
