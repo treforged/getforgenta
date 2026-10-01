@@ -216,6 +216,8 @@ export default function Dashboard() {
   const [shortMonthsDismissed, setShortMonthsDismissed] = usePersistedState('tre:dashboard:shortMonthsDismissed', '');
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: CalcDrawerLine[]; footnote?: string } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
+  // One banner at a time: the 2FA nudge waits until the free-bank notice is settled AND gone.
+  const [bankNoticeVisible, setBankNoticeVisible] = useState<boolean | null>(null);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
   const [pmfVisible, setPmfVisible] = useState(false);
   const onboardingInitRef = useRef(false);
@@ -1324,10 +1326,10 @@ export default function Dashboard() {
       {/* Free first bank link, for somebody who has never linked one. Fires on OPEN, so it
           cannot reach a dormant user - it makes a return worth something rather than causing one.
           See the component for what it reaches and what it cannot. */}
-      <FreeBankLinkNotice />
+      <FreeBankLinkNotice onVisibleChange={setBankNoticeVisible} />
       {!isDemo && <SubscriptionExpiryBanner />}
 
-      {!isDemo && showSecurityBanner && (
+      {!isDemo && showSecurityBanner && bankNoticeVisible === false && (
         /* Tokens, not raw palette classes. `text-gold` is the warning tone this codebase
            actually has — `text-warning` generates no rule at all (see BalanceTrancheEditor). */
         /* ⚠️ THE ACTION SITS UNDER THE TEXT, NOT BESIDE IT, and that is a fix rather than a

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Landmark, X } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
@@ -36,7 +36,17 @@ import { useAccounts } from '@/hooks/useSupabaseData';
 
 const DISMISSED_KEY = 'free-bank-link-notice-dismissed';
 
-export default function FreeBankLinkNotice() {
+interface Props {
+  /**
+   * Reports whether the notice is on screen: true or false once the accounts have loaded, null
+   * before then. The Dashboard uses it to show ONE banner at a time - this one first, the 2FA
+   * banner only once this one is gone (Sam, 2026-10-01; walk:empty showed both stacked, ~330px
+   * at 390 before a new user saw anything of their own).
+   */
+  onVisibleChange?: (visible: boolean | null) => void;
+}
+
+export default function FreeBankLinkNotice({ onVisibleChange }: Props = {}) {
   const { isDemo } = useDemo();
   const { data: accounts, loading } = useAccounts();
   const [dismissed, setDismissed] = useState(false);
@@ -62,6 +72,12 @@ export default function FreeBankLinkNotice() {
     }
     setDismissed(true);
   };
+
+  const linkedCount = (accounts ?? []).filter((a) => a.plaid_account_id && a.active).length;
+  const visible: boolean | null = isDemo || dismissed || everDismissed
+    ? false
+    : loading ? null : linkedCount === 0;
+  useEffect(() => { onVisibleChange?.(visible); }, [visible, onVisibleChange]);
 
   if (isDemo || dismissed || everDismissed) return null;
 

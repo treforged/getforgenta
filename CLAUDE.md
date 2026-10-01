@@ -233,6 +233,10 @@ section states reasoning, not measurement, and says so.
   app (19 $0 figures). Each route is read only once no `.skeleton-shimmer` shows and two reads agree:
   a 6 s sleep read a skeleton Dashboard as "figures 0". Never-settled routes exit 2. Still LOOK AT
   the frames: it reads figures, not meaning.
+- `npm run check:one-banner` - a new user's Dashboard shows ONE nudge at a time (Sam, 2026-10-01): at 390x844 on an empty
+  throwaway `@forgenta.test` account (EMPTY_WALK_EMAIL / EMPTY_WALK_PASSWORD, as walk:empty), the free-bank notice shows and
+  the 2FA banner does not; PRESSING the bank Dismiss must bring up 2FA; pressing that Dismiss must clear it. Frames in
+  test-results/one-banner/. Proven red with the Dashboard gate removed (both banners at once, exit 1).
 - `npm run walk:first-run` - the wizard with REAL writes on a fresh throwaway `@forgenta.test` user (create it in
   SQL, pass FIRST_RUN_EMAIL / FIRST_RUN_PASSWORD, DELETE it after and prove auth.users returns). Reads the profile
   from outside the browser right after the walk and again 10 s later: furthest_step='finish', completed=true,

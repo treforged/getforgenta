@@ -119,3 +119,31 @@ describe('FreeBankLinkNotice - what it claims', () => {
     expect(screen.getByText(/with no\s+subscription/i)).toBeTruthy();
   });
 });
+
+// One banner at a time (Sam, 2026-10-01): the Dashboard shows the 2FA nudge only once this reports false.
+describe('FreeBankLinkNotice - reports whether it is on screen', () => {
+  const renderWith = (spy: (v: boolean | null) => void) =>
+    render(<MemoryRouter><FreeBankLinkNotice onVisibleChange={spy} /></MemoryRouter>);
+
+  it('reports null while loading, so nothing else takes its place before it decides', () => {
+    state.loading = true;
+    const spy = vi.fn();
+    renderWith(spy);
+    expect(spy).toHaveBeenLastCalledWith(null);
+  });
+
+  it('reports true while shown, then false once dismissed', () => {
+    const spy = vi.fn();
+    renderWith(spy);
+    expect(spy).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+    expect(spy).toHaveBeenLastCalledWith(false);
+  });
+
+  it('reports false for a user who already linked a bank', () => {
+    state.accounts = [{ plaid_account_id: 'acc_1', active: true }];
+    const spy = vi.fn();
+    renderWith(spy);
+    expect(spy).toHaveBeenLastCalledWith(false);
+  });
+});
