@@ -7,6 +7,7 @@ import {
   PURCHASE_CATEGORIES, parseCardRewards, parseWelcomeOffer, rankCardsForPurchase,
   type CardOption, type PurchaseCategory,
 } from '@/lib/card-for-purchase';
+import { isCardOpenAsOf } from '@/lib/card-start-date';
 
 /**
  * "Which card for this purchase?" - the Debt page's Use panel (ask 1f3217bb).
@@ -90,7 +91,12 @@ export default function CardAdvisorPanel() {
   const [category, setCategory] = useState<PurchaseCategory>('other');
   const [editing, setEditing] = useState<string | null>(null);
 
-  const cards = useMemo(() => (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active), [accounts]);
+  // A card whose start date is still ahead is a PLAN, not a card in the wallet, so it is left out of the
+  // list and the answer alike (Tre, 2026-10-01). Same rule as the start-of-month update notice.
+  const cards = useMemo(() => {
+    const today = new Date();
+    return (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active && isCardOpenAsOf(a, today));
+  }, [accounts]);
   const amount = Number(amountText.replace(/[$,]/g, ''));
   const result = useMemo(() => rankCardsForPurchase({
     cards: cards.map(a => ({
