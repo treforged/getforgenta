@@ -38,6 +38,10 @@ R-NOW38 (10-01 ~13:05 ET, Ada getforgenta-0b). START HERE, IN ORDER:
         when plans are read).
     [x] PATH bloat (186 entries) broke nested npm ("'node' is not recognized"). Sam fixed it machine-wide in
         ~/.bash_profile; a fresh shell needs no workaround.
+    [ ] DELETE THROWAWAY 17cd4c1e (empty-walk-20261001@forgenta.test): the MCP delete needs a confirmation prompt that
+        expired twice ("Invalid or expired requestState"). Retry the delete with Tre present, then prove 0 rows.
+    [x] walk:empty 10/10 PASS; fixed: Debt pause-savings switch hidden with no open card (pushed, test red-proven).
+    [x] 98cbf494: 0 unlock-timing rows since f2984c0b; fixed debugLog lost-update race (queued writes). Re-read at 13:47.
     2. CONTEXT GATE fires at ~175k on the FIRST tool call (injected baseline). Do not hand off on it alone.
 R-NOW37 (10-01 ~12:40 ET, Ada getforgenta-7a -> successor at the 175-call gate). START HERE, IN ORDER:
     0. DELETE THE THROWAWAY USER FIRST (blocked by my gate): SQL
