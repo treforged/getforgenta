@@ -25,6 +25,28 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW24 (10-01 ~04:00Z, Ada getforgenta-12). START HERE. R-NOW23 items 2 and 3 are DONE; item 1 is armed.
+    1. WIDGET READ (e74da89c): session cron 6660fd3b fires 10-01 09:07 ET. If this session is gone, re-arm or just run
+       select platform,via,created_at from public.widget_refresh_events where user_id='a72f416e-433a-4055-9ab0-9feae4e60edf';
+       (baseline 0 rows at 02:15Z) and send Sam the count + timestamps.
+    [x] FUNNEL ENV: 20261001c added `env` but INSERT is granted PER COLUMN, so every row carrying env got 401. Fixed by
+        20261001d (grant insert (env) to anon, authenticated; applied + pushed). check:signup-funnel 11/11 201, exit 0;
+        SQL: every new row env='dev'. The "hang" did not reproduce (24 s run).
+    [x] walk:first-run (scripts/walk-first-run-real.mjs): REAL-write wizard on throwaway first-run-20261001@forgenta.test.
+        8/8: furthest_step='finish', completed via wizard, income 1500, same at +10 s. Non-fresh rerun exits 2. User
+        deleted, auth.users 33.
+    [x] dbb19f07 (Ruby: OAuth signup stalls) REFUTED: all app redirects allow-listed for Google+Apple (PKCE authorize +
+        auth.flow_state.referrer read back; bogus-URL control -> Site URL). PKCE since 05-08; unfinished flow_state rows
+        persist, finished ones are deleted: ZERO OAuth starts 08-08..09-01, 0 auth.users rows since 08-07. Sept iOS-
+        scheme unfinished flows = Google IP ranges (Play pre-launch robots).
+    [x] 67bd6ccb cold launch: live App Store = 6.8 build 1066 (83179596, Xcode 26.6 SDK, so no UIScene crash).
+        measure:cold-launch on prod /auth: unthrottled 1.0 s, fast 4G 1.0, slow 4G 3.1, 3G 5.8 (x2 identical); form +
+        both OAuth buttons every profile; under 6.8's 15 s cover reload.
+    [-] a5eb1e89 / 677a1588 per-step wizard save DROPPED: premise false. Unfinished users route back to /onboarding
+        (App.tsx:194) and the device draft restores answers (Onboarding.tsx:221-225), so an early save shows the same
+        wizard. Conclusion sent to Sam: the paths work; people leave without trying. Read signup_funnel_events env='prod'
+        when real rows land.
+    NEXT: e1b0fffc standing improvement queue.
 R-NOW23 (10-01 ~03:30Z, Ada getforgenta-47 handed off at the call budget). START HERE, IN ORDER:
     1. RE-ARM the widget read (my cron 75c6928b dies with me): CronCreate one-shot '7 9 1 10 *' running
        select platform,via,created_at from public.widget_refresh_events where user_id='a72f416e-433a-4055-9ab0-9feae4e60edf';
