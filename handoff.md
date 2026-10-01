@@ -26,7 +26,11 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW34 (10-01 ~14:00Z / 10:00 ET, Ada getforgenta-a2 -> successor at the 175-call gate). START HERE, IN ORDER:
-    0. SAM 10-01 (not started): Tre withdrew $204 from his agentic Robinhood account ~09:50 ET; lands in checking in
+    [~] 0 ANSWERED to Sam 10-01 ~10:20 ET (Ada successor): not in Plaid (Chase last sync 13:00Z, before the 09:50 ET
+       transfer); matcher cannot claim it for the paycheck ($8.16 tolerance on $816.10); becomes income only if
+       linked by a review (8-22 $250 was hand-linked income/Investing; 9-14 $140 unreviewed). OPEN: ask 1cea48f3,
+       re-read on 10-02 (session cron 38f948ff, 09:17 ET) - settled row, no paycheck link, Safe to Spend vs $1,408.31.
+    0. SAM 10-01 (was): Tre withdrew $204 from his agentic Robinhood account ~09:50 ET; lands in checking in
        1-3 business days. Answer Sam (tre-forged-ce): (a) is it already PENDING in synced transactions? SQL on
        transactions joined accounts for user a72f416e-433a-4055-9ab0-9feae4e60edf, date >= 2026-09-29 or description
        ilike '%robinhood%' (check the column names first - pending/type may differ); (b) will it be counted as INCOME
@@ -12297,7 +12301,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 09:09 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 09:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12315,6 +12319,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+aa2ba791 [handoff]: R-NOW34 - Robinhood $204 check for successor; session note
 e39aa9aa [handoff]: R-NOW33 - widget read done, e74da89c waits on Tre's 1158 install
 6d4af55f [handoff]: R-NOW33 - Leo sign-in option (a) decided by Sam
 5131f80d [handoff]: R-NOW33 - money-glance shipped 8fa19346 (1dc2c388)
@@ -12322,7 +12327,6 @@ e39aa9aa [handoff]: R-NOW33 - widget read done, e74da89c waits on Tre's 1158 ins
 ea9d0f29 [handoff]: R-NOW33 - next-month payday horizon shipped 3b86204f
 3b86204f [safe-to-spend]: a payday NEXT month walks to that month's end too, so bills after it are checked
 78dd7f96 [handoff]: R-NOW33 - Prime Visa gap is the minimum vs Safe to Pay, not a defect
-fab5bf2c [handoff]: R-NOW33 - Safe to Spend past payday shipped 8b9e50d0, widget re-armed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
