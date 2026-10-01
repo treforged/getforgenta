@@ -30,7 +30,7 @@ import { CURRENT_RELEASE, shouldShowWhatsNew, whatsNewFlag } from '@/lib/whats-n
 
 export function WhatsNewDialog() {
   const { isDemo } = useDemo();
-  const { data: profile, loading, update } = useProfile();
+  const { data: profile, loading, updateQuiet: flagWrite } = useProfile();
   const [dismissed, setDismissed] = useState(false);
 
   const flags = (profile?.tour_flags as Record<string, boolean> | null) ?? {};
@@ -60,7 +60,7 @@ export function WhatsNewDialog() {
   // first popup is the NEXT release rather than a catch-up about this one. A write, not a setState.
   useEffect(() => {
     if (!ready || alreadySeen || hasOnboarded) return;
-    update.mutate({ tour_flags: { ...flags, [whatsNewFlag(CURRENT_RELEASE.version)]: true } });
+    flagWrite.mutate({ tour_flags: { ...flags, [whatsNewFlag(CURRENT_RELEASE.version)]: true } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, alreadySeen, hasOnboarded]);
 
@@ -69,7 +69,7 @@ export function WhatsNewDialog() {
     // Recorded on dismissal rather than on display, so someone who closed the app mid-read is
     // shown it again. "Seen" should mean acknowledged, not merely rendered once.
     if (!alreadySeen) {
-      update.mutate({ tour_flags: { ...flags, [whatsNewFlag(CURRENT_RELEASE.version)]: true } });
+      flagWrite.mutate({ tour_flags: { ...flags, [whatsNewFlag(CURRENT_RELEASE.version)]: true } });
     }
   };
 

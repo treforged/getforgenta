@@ -48,7 +48,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
    * that. Without it, somebody who dismissed the tour months ago would see it flash on every open
    * while the profile was in flight — the tail this commit is about making that flash LONGER.
    */
-  const { data: profile, loading: profileLoading, update } = useProfile();
+  const { data: profile, loading: profileLoading, updateQuiet: flagWrite } = useProfile();
   const tourFlags = (profile?.tour_flags as Record<string, boolean> | null) ?? null;
 
   /**
@@ -97,7 +97,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
     // value already in hand. `tour_flags` is a MAP, so the spread is still required — writing only
     // this key would clear every other one-time flag on the account.
     try {
-      await update.mutateAsync({
+      await flagWrite.mutateAsync({
         tour_flags: { ...(tourFlags ?? {}), [FLAG_KEY[variant]]: true },
       });
     } catch {

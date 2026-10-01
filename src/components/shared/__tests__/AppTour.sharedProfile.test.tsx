@@ -21,13 +21,16 @@ const mocks = vi.hoisted(() => ({
   profile: null as Record<string, unknown> | null,
   loading: false,
   updateAsync: vi.fn(),
+  // The toasting mutation. Dismissing a tour is not a settings save, so it must never be used here.
+  loudUpdateAsync: vi.fn(),
 }));
 
 vi.mock('@/hooks/useSupabaseData', () => ({
   useProfile: () => ({
     data: mocks.profile,
     loading: mocks.loading,
-    update: { mutateAsync: mocks.updateAsync },
+    updateQuiet: { mutateAsync: mocks.updateAsync },
+    update: { mutateAsync: (...a: unknown[]) => mocks.loudUpdateAsync(...a) },
   }),
 }));
 
@@ -57,6 +60,7 @@ beforeEach(() => {
   mocks.profile = { tour_flags: {} };
   mocks.loading = false;
   mocks.updateAsync = vi.fn().mockResolvedValue({});
+  mocks.loudUpdateAsync = vi.fn().mockResolvedValue({});
 });
 afterEach(cleanup);
 
@@ -111,6 +115,8 @@ describe('dismissing', () => {
     finishTour();
     await waitFor(() => expect(mocks.updateAsync).toHaveBeenCalled());
     expect(mocks.updateAsync).toHaveBeenCalledWith({ tour_flags: { new_user_done: true } });
+    // First-run walk 2026-10-01: a new user saw "Settings saved" for a tour they only closed.
+    expect(mocks.loudUpdateAsync).not.toHaveBeenCalled();
   });
 
   it('⚠️ PRESERVES THE OTHER ONE-TIME FLAGS — `tour_flags` is a map, not a field', async () => {

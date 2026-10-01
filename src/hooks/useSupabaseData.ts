@@ -1272,7 +1272,19 @@ export function useProfile() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Settings saved'); },
     onError: (e: Error) => toast.error(e.message),
   });
-  return { data: query.data ?? DEFAULT_PROFILE, loading: query.isLoading, error: query.error, update };
+  // For bookkeeping the person did not ask to save - a tour or What's New marked seen. Same write,
+  // no "Settings saved" toast: a brand-new user landed on the dashboard to a toast for settings they
+  // never touched (first-run walk, 2026-10-01). Failures still reach the caller's catch / the console.
+  const updateQuiet = useMutation({
+    mutationFn: async (item: Partial<Tables<'profiles'>>) => {
+      if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
+      const { error } = await supabase.from('profiles').update(sanitizePayload(item)).eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); },
+    onError: (e: Error) => { console.warn('Profile flag write failed:', e.message); },
+  });
+  return { data: query.data ?? DEFAULT_PROFILE, loading: query.isLoading, error: query.error, update, updateQuiet };
 }
 
 // ─── Net Worth Snapshots ──────────────────────────────────
