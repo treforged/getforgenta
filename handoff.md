@@ -25,6 +25,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW29 (10-01 ~06:50Z, Ada getforgenta-23 -> successor at the 175-call gate). START HERE, IN ORDER:
+    1. RE-ARM the 09:07 ET widget read for e74da89c (my cron f0a27c7e dies with me): CronCreate one-shot '7 9 1 10 *',
+       query in R-NOW24 item 1; send Sam count + timestamps.
+    2. READ walk:press for b6874d4b: output at C:/Users/tvonh/AppData/Local/Temp/claude/C--Users-tvonh-Desktop-TRE-Forged-getforgenta/
+       76c98461-92f6-48ea-82fd-be3a64691f30/tasks/bahv7k8do.output is the nav+press chain; nav FAILED (desktop Account
+       Settings link not found) while press ran alongside. Re-run ALONE: node scripts/check-nav-doors.mjs, then
+       node scripts/walk-press-every-control.mjs. Compare enumerated/pressed with CLAUDE.md (370/148). The new
+       "Which Card?" tab adds controls, so expect enumerated to RISE; any no-change or not-found is a finding.
+    3. Report slices 2-4 to Sam (ask 1f3217bb): b6874d4b, frame test-results/card-advisor-390.png, the gates above.
+       Then `ask done 1f3217bb` only after walk:press + check:nav are green. Slice 5 (rename) DROPPED by Tre (1c2391a5).
+    4. Rewards editor SAVE is not exercised by any gate (check:card-advisor writes nothing). Add a stubbed-write press
+       (route.fulfill like walk:press's stub phase) asserting the PATCH body carries card_rewards.
+    5. NEXT: R-NOW26 OPEN (b) undated next-month items before an early payday; (c) reconciliation on Tre's account.
 R-NOW28 (10-01 ~05:30Z, Ada). R-NOW27 DONE except the 09:07 read.
     1. WIDGET READ e74da89c: armed as session cron f0a27c7e (09:07 ET 10-01); dies with this session. If gone,
        run the R-NOW24 item 1 query by hand and send Sam the count + timestamps.
