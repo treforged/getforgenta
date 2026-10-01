@@ -25,6 +25,21 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW34 (10-01 ~14:00Z / 10:00 ET, Ada getforgenta-a2 -> successor at the 175-call gate). START HERE, IN ORDER:
+    0. SAM 10-01 (not started): Tre withdrew $204 from his agentic Robinhood account ~09:50 ET; lands in checking in
+       1-3 business days. Answer Sam (tre-forged-ce): (a) is it already PENDING in synced transactions? SQL on
+       transactions joined accounts for user a72f416e-433a-4055-9ab0-9feae4e60edf, date >= 2026-09-29 or description
+       ilike '%robinhood%' (check the column names first - pending/type may differ); (b) will it be counted as INCOME
+       or mistaken for the PAYCHECK? Look at how deposits match rules (src/lib/transaction-matching.ts, paycheck rule
+       3a30b089 'Weekly Paycheck' 816.10 weekly Fri) and whether a transfer from his own Robinhood account (is it a
+       linked account? check accounts) is excluded as an internal transfer; (c) re-read his Safe to Spend drawer on
+       localhost:8080 after it posts. If the app only sees it on settlement, tell Sam so.
+    1. e74da89c BLOCKED on Tre installing iOS 1158+ and opening the app once; re-read widget_refresh_events for
+       platform='ios' when Sam says installed. Do NOT count web/hidden rows: desk localhost reads create them.
+    2. f9b0da16: Discover cashback calendar retry on/after 2026-10-02 + dated 2026-Q4 row + test.
+    Shipped this session (all pushed 0/0): 8b9e50d0 + 3b86204f Safe to Spend checks through end of payday's month
+    (Tre $1,408.31, low Oct 10); 8fa19346 money-glance for Leo (1dc2c388 closed; gate npm run check:money-glance).
+    Session note: claudecontext/sessions/2026-10-01_safe-to-spend-horizon-money-glance.md
 R-NOW33 (10-01 ~08:40Z / 04:40 ET, Ada). START HERE. NOTE: R-NOW32's "08:30 ET" was really UTC.
     [x] WIDGET READ e74da89c done 09:07 ET: 24 rows, ALL web/hidden (desk localhost reads), 0 ios/android. Sent Sam.
         Native refresh is in iOS 1158 (run 36802763483, UPLOAD SUCCEEDED), switch on for Tre. Ask BLOCKED on his
@@ -12282,7 +12297,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 06:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 09:09 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12300,14 +12315,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+e39aa9aa [handoff]: R-NOW33 - widget read done, e74da89c waits on Tre's 1158 install
+6d4af55f [handoff]: R-NOW33 - Leo sign-in option (a) decided by Sam
 5131f80d [handoff]: R-NOW33 - money-glance shipped 8fa19346 (1dc2c388)
 8fa19346 [money-glance]: publish the dashboard's Safe to Spend for Leo, read back through RLS (ask 1dc2c388)
 ea9d0f29 [handoff]: R-NOW33 - next-month payday horizon shipped 3b86204f
 3b86204f [safe-to-spend]: a payday NEXT month walks to that month's end too, so bills after it are checked
 78dd7f96 [handoff]: R-NOW33 - Prime Visa gap is the minimum vs Safe to Pay, not a defect
 fab5bf2c [handoff]: R-NOW33 - Safe to Spend past payday shipped 8b9e50d0, widget re-armed
-8b9e50d0 [safe-to-spend]: check the figure through month end, so a bill after payday caps it (Sam condition 1)
-df6c23ce [handoff]: R-NOW32 - Sam's past-payday condition queued, widget re-arm
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
