@@ -25,6 +25,32 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW27 (10-01 ~06:30Z, Ada getforgenta-54 -> successor at the handoff gate). START HERE, IN ORDER:
+    1. RE-ARM the 09:07 ET widget read (e74da89c): CronCreate one-shot '7 9 1 10 *' (my cron 5a029e32 dies with
+       me). Query: R-NOW24 item 1. Send Sam count + timestamps.
+    2. SAM-APPROVED, NOT STARTED: legacy $1,875 phantom salary in MONTHS 1+ (Sam 2026-10-01 ~06:20Z: "do it now").
+       Targets (no income rule, never onboarded, profile 1875): users 17785baa-b21c-4fc5-8f90-8d6154746e76 and
+       4d5bbf61-d1cf-49a8-bbc7-4e3260cc95f8. BOUNDARY (Sam): 7c9a2dc5, 263337cc, ed04d98b are 1875 profiles WITH a
+       weekly:1875 starter income RULE - must stay byte-identical; do not touch rules. 0abde0de onboarded = entered.
+       a) SNAPSHOT FIRST: backup.legacy_salary_20261001_profiles (user_id, weekly_gross_income, paycheck_frequency,
+          onboarding_completed, tax_rate) for the 2 targets, revoked from anon/authenticated; record their months 1-3
+          net income before (getMonthNetIncome(buildPayConfig(profile), y, m)) in the commit body.
+       b) Helper in src/lib/month0-profile-paychecks.ts: export hasActiveCashIncomeRule(rules, liquidIds) (reuse in
+          month0ProfilePaycheckIncome) and withEffectiveSalary(profile, rules, liquidIds): returns the profile with
+          weekly_gross_income 0 ONLY when !isEnteredSalary && n>0 && !hasActiveCashIncomeRule; else unchanged
+          (that keeps the 3 starter-rule users identical).
+       c) Apply where payConfig is built for projections: src/contexts/CardProjectionContext.tsx:140 (feeds the
+          forecast engine fallbackTakeHome via payConfig AND useCardProjection - pass the cleaned profile to
+          useCardProjection too), src/components/debt/CreditCardEngine.tsx:229, src/pages/Dashboard.tsx:273,
+          src/components/dashboard/BudgetTotalsCard.tsx:31. useForecastEngineInputs fetches its own profile; it
+          only uses it for resolvePaycheckRuleIds + the month-0 helper, which already agree for all 6 users.
+          Check credit-card-engine.ts:3159, debt-transaction-generator.ts (97/236/323) and
+          useRetirementAutoUpdate.ts (may WRITE from salary - read before touching; report, do not widen).
+       d) Gates: number test that an un-onboarded 1875 profile with no rule gives $0 in month 3 (Sam), and that a
+          1875 profile WITH an active income rule is unchanged; prove each red; test:tz (run
+          `node scripts/check-node-engine.mjs && node scripts/test-timezones.mjs` - npm cannot find node in this
+          shell); tsc; eslint; walk:empty on a throwaway @forgenta.test user (create in SQL, delete, prove 0 rows);
+          check:safe-to-spend. Commit with Release-Note, push, verify by contents, tell Sam before/after numbers.
 R-NOW26 (10-01 ~04:45Z, Ada getforgenta-54). START HERE.
     1. WIDGET READ e74da89c: armed as session cron 5a029e32 (09:07 ET 10-01); it dies with this session. If gone,
        run the R-NOW24 item 1 query by hand and send Sam the count + timestamps.
@@ -12135,7 +12161,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 00:27 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 00:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12153,14 +12179,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8f1f25e1 [handoff]: R-NOW26 - f16b35ff shipped (ab51ce6e)
+ab51ce6e [engine]: month 0 counts the paychecks of an ENTERED profile salary when no income rule exists (ask f16b35ff)
+5d5b9a8b [handoff]: R-NOW26 - Sam's three follow-ups shipped; next f16b35ff
+dbb24779 [engine]: a cash-only user gets month 0, the snapshot and Safe to Spend (ask 536c0db1)
+34195373 [dashboard]: say how Safe to spend relates to Available to deploy
 b5d03143 [handoff]: R-NOW26 - safe-to-spend shipped (3158b24a, 3f5de2ae); widget read armed
 3f5de2ae [auth]: the welcome screen promises "safe to spend before payday", with the demo's real figure
 3158b24a [dashboard]: Safe to Spend until payday - the low point before payday minus the floor (ask 23fe1862)
-285308c5 [handoff]: R-NOW25 - safe-to-spend design written; successor builds it
-290bbbe8 [handoff]: R-NOW24 - welcome screen live, safe-to-spend figure approved
-fff69abb [auth]: the first screen says what Forgenta does, proves it with sample figures, and promotes the demo
-cf6cdb87 [handoff]: R-NOW24 - funnel env grant fix, walk:first-run, OAuth-stall refuted, cold launch measured, per-step save dropped
-912daa22 [auth]: measure:cold-launch - a new visitor's wait for a working sign-up screen, per network
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
