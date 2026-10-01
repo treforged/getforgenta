@@ -1164,6 +1164,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       incomeMultiplier: number;
       transferBreakdown: { name: string; amount: number }[];
       nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number }[];
+      /** Cash (funding-side) transfers INTO another account this month. The cash walk already pays
+       * them out; this is the receiving half, which the per-account trackers credit. */
+      cashTransferInItems: { toAcctId: string; amount: number }[];
       floorItems: { name: string; amount: number; dueDay: number }[];
       prePaycheckBillsTotal: number;
       savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
@@ -1432,6 +1435,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const transferBreakdown: { name: string; amount: number }[] = [];
       const nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number }[] = [];
       const perAccountTransferContribs = new Map<string, number>();
+      const cashTransferInItems: { toAcctId: string; amount: number }[] = [];
       for (const tr of transferRulesAll) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > monthEnd) continue;
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
@@ -1494,6 +1498,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // Per-account attribution for precise per-account balance tracking
         if (tr.deposit_account) {
           perAccountTransferContribs.set(tr.deposit_account, (perAccountTransferContribs.get(tr.deposit_account) ?? 0) + monthAmt);
+          cashTransferInItems.push({ toAcctId: tr.deposit_account, amount: monthAmt });
         }
 
         // Categorize by destination account type
@@ -1635,7 +1640,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth, promotionNewSalary,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, incomeMultiplier, transferBreakdown, nonCashTransferItems,
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
-        otherAccountExpenseItems, otherAccountOneTimeItems,
+        otherAccountExpenseItems, otherAccountOneTimeItems, cashTransferInItems,
       });
 
     }
@@ -2751,6 +2756,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       for (const e of [...(b.otherAccountExpenseItems ?? []), ...(b.otherAccountOneTimeItems ?? [])]) {
         const acct = e.fromAcctId ? perAcctOtherLiquid.get(e.fromAcctId) : undefined;
         if (acct) acct.balance -= e.amount;
+      }
+      // ⚠️ AND THE MONEY THAT REACHES THEM FROM THE FUNDING ACCOUNT. Before 2026-10-01 only the
+      // debits above were applied, so a checking account refilled by a transfer from checking paid
+      // its bills and never got the refill: Tre's General Operations (~$60.90/mo of bills, a $65
+      // "Owners Contribution" in) fell ~$61 a month and went negative, which he flagged as
+      // impossible. The cash walk already pays these out of the funding account (monthTransfers);
+      // this is the receiving half only. Savings-sourced transfers arrive via nonCashTransferItems
+      // above and are not in this list, so nothing is credited twice.
+      for (const t of b.cashTransferInItems ?? []) {
+        const to = perAcctOtherLiquid.get(t.toAcctId);
+        if (to) to.balance += t.amount;
       }
       const otherLiquidBal = Array.from(perAcctOtherLiquid.values()).reduce((s, a) => s + a.balance, 0);
 
