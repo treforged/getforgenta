@@ -23,7 +23,9 @@ const FACEID_OK = 'JS:FACEID_OK';
 const PAINTED = 'JS:UNLOCK_PAINTED';
 const ACTIVE = 'BECOME_ACTIVE';
 const BRANCH = 'COVER_BRANCH:';
-const HIDDEN = 'COVER_HIDDEN';
+/** AppDelegate.hideNativeCover logs this exact string; unlock-timing-native.gate.test.ts pins the pair. */
+export const COVER_HIDDEN_EVENT = 'COVER_HIDDEN';
+const HIDDEN = COVER_HIDDEN_EVENT;
 const LOOKBACK_MS = 5_000;
 const LOOKAHEAD_MS = 10_000;
 

@@ -237,8 +237,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             // Brief interruption: Control Center, Face ID, call banner, etc.
             // applicationWillEnterForeground was NOT called, so this is not a
             // real background→foreground transition.
-            debugLog("COVER_BRANCH:brief → schedule 0.3s")
-            scheduleNativeCoverDismiss(after: 0.3)
+            // 0.15 s, was 0.3 (ask 98cbf494: the cover lingered after Face ID). Nothing was reclaimed
+            // in a brief interruption, so the hold only has to outlast the system sheet's own fade.
+            debugLog("COVER_BRANCH:brief → schedule 0.15s")
+            scheduleNativeCoverDismiss(after: 0.15)
 
         } else if phoneLocked {
             // Device was locked via power button. Poll normally so the cover
@@ -344,9 +346,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if let logoImage = UIImage(named: "Logo") {
             let logoView = UIImageView(image: logoImage)
             logoView.contentMode = .scaleAspectFit
-            logoView.frame = CGRect(x: 0, y: 0, width: 88, height: 88)
+            // 112 pt (was 88; Tre 10-01, ask 98cbf494: "make the logo bigger"). The corner keeps the
+            // icon's proportion (20/88). LoadingMark.tsx draws the web mark at the same 112.
+            logoView.frame = CGRect(x: 0, y: 0, width: 112, height: 112)
             logoView.center = CGPoint(x: cover.bounds.midX, y: cover.bounds.midY)
-            logoView.layer.cornerRadius = 20
+            logoView.layer.cornerRadius = 25
             logoView.layer.masksToBounds = true
             logoView.autoresizingMask = [
                 .flexibleLeftMargin, .flexibleRightMargin,
@@ -358,6 +362,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         window.addSubview(cover)
         nativeCover = cover
+        debugLog("COVER_SHOWN")
     }
 
     // MARK: - Cover logo shimmer
@@ -593,7 +598,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = nil
         cancelCoverDeadline()
-        UIView.animate(withDuration: 0.5, animations: {
+        // 0.3 s, was 0.5 (ask 98cbf494). Still a fade, never a cut: the cover must not flash off.
+        UIView.animate(withDuration: 0.3, animations: {
             cover.alpha = 0
         }, completion: { [weak self] finished in
             // finished is false when something interrupted this fade - notably showNativeCover's
@@ -604,6 +610,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             guard finished else { return }
             cover.removeFromSuperview()
             self?.nativeCover = nil
+            // unlock-timing-report.ts reads this to measure Face ID -> cover gone (ask 98cbf494).
+            self?.debugLog("COVER_HIDDEN")
         })
     }
 
