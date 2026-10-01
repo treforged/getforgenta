@@ -25,6 +25,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW30 (10-01 ~06:30 ET, Ada session 6f608dd7). START HERE.
+    SHIPPED + PUSHED (0/0, contents verified): 4304b942 Which Card? hides not-yet-open cards (bed3f84f);
+    63041ee6 engine: funding->other-checking transfers now credit the destination (Tre's General Operations went
+    negative; 5357dfeb; test:tz 5568x3); e046e989 Debt tab rework + new gate check:debt-layout (63e11072, red 12 on
+    old layout); card-catalog.ts slice 1 (f9b0da16, 11 tests, 3 mutants red; NOT wired into UI yet).
+    1. walk:press ALONE running on e046e989+ (output $TEMP/press-ada2.txt). Compare enumerated 382 (was 370; Which
+       Card? tab adds controls). Green + check:nav (PASS alone today) -> `ask done 1f3217bb`.
+    2. Sam 58706af2 (3 items): edit script ready at scratchpad sam3.py (copy below if lost): Budget OS -> Forgenta in
+       ConsentBanner.tsx:245 + consent-prefs.ts:57,65 (3 hits -> 0); cash floor shows the APPLIED value as a chip,
+       number box only in manual mode; "Set manually" checkbox -> ToggleSwitch. Gate each with a rendered frame.
+    3. scripts/check-rewards-save.mjs written (uncommitted): presses Save with the PATCH stubbed in-browser, asserts
+       card_rewards {base_pct 1.5, gas 3}. Run, prove red (drop categories in save()), add npm script, commit.
+    4. Catalog slice 2 (f9b0da16 + Sam's conditions 55e839de): product picker in RewardsEditor prefills from
+       resolveCatalogRewards; ask the condition questions; miles need a user cents-per-mile. Retry Discover's
+       calendar page on a LATER day (it said "not working" 10-01) before adding a 2026-Q4 row.
+    5. 09:07 ET widget read for e74da89c armed as session cron d0a0240f (dies with this session).
 R-NOW29 (10-01 ~06:50Z, Ada getforgenta-23 -> successor at the 175-call gate). START HERE, IN ORDER:
     1. RE-ARM the 09:07 ET widget read for e74da89c (my cron f0a27c7e dies with me): CronCreate one-shot '7 9 1 10 *',
        query in R-NOW24 item 1; send Sam count + timestamps.
@@ -12191,32 +12207,34 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 01:10 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 02:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
+?? scripts/check-rewards-save.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
-ba21e299 [handoff]: R-NOW28 - legacy salary months 1+ shipped (e4033506); widget read armed f0a27c7e
-e4033506 [engine]: drop the legacy $1,875 default salary in months 1+ for never-onboarded users with no income rule
-75b08c16 [handoff]: R-NOW27 - months-1+ legacy salary plan for successor; widget read re-arm
-8f1f25e1 [handoff]: R-NOW26 - f16b35ff shipped (ab51ce6e)
-ab51ce6e [engine]: month 0 counts the paychecks of an ENTERED profile salary when no income rule exists (ask f16b35ff)
-5d5b9a8b [handoff]: R-NOW26 - Sam's three follow-ups shipped; next f16b35ff
-dbb24779 [engine]: a cash-only user gets month 0, the snapshot and Safe to Spend (ask 536c0db1)
-34195373 [dashboard]: say how Safe to spend relates to Available to deploy
+68af7081 [engine]: card-catalog - public reward rates, each sourced and dated, that never overstate (ask f9b0da16, slice 1)
+e046e989 [debt]: rework the cards tab layout - one toolbar, utilization once, controls beside the order (ask 63e11072)
+63041ee6 [engine]: a transfer into a non-funding checking account now reaches it (ask 5357dfeb)
+4304b942 [debt]: Which Card? leaves out cards that have not opened yet (ask bed3f84f)
+6871e441 [handoff]: R-NOW29 - card advisor slices 2-4 shipped; rendered gates and widget read for successor
+b6874d4b [debt]: "Which Card?" panel - rewards rates and welcome offers per card (ask 1f3217bb, slices 2-4)
+99c9c522 [engine]: rankCardsForPurchase - which open card saves the most on a purchase (ask 1f3217bb, slice 1)
+e4b2a9de [handoff]: R-NOW28 - notice fix, move plan applied, card-advisor plan
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
