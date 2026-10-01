@@ -25,6 +25,20 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW40 (10-01 ~20:10 ET, Ada getforgenta-60). START HERE.
+    [x] R-NOW39 0: throwaway 17cd4c1e deleted (no prompt fired), read back 0 users / 0 profiles. Only deck-walk and
+        reach-rls-probe @forgenta.test remain (standing accounts).
+    [x] 1: wakes re-armed (01:37 10-02 e74da89c, 09:17 10-02 1cea48f3; die with this session).
+    [ ] 2: 98cbf494 - asked Sam (tre-forged-37) for ONE Face ID resume. Newest row is still 23:40Z, OLD format (no
+        after=). Read `select reason from client_boot_failures where path='unlock-timing' order by created_at desc limit 3`,
+        fix the branch the row names in ios/App/App/AppDelegate.swift, dispatch iOS. Do NOT guess the branch: a guess
+        spends a TestFlight upload.
+    [x] 3: 68a6a1d9 CLOSED - ASC App Privacy (app 6762540239) already declares Device ID (App Functionality + Analytics,
+        linked, no tracking). Read live in Chrome.
+    [x] f9b0da16 CLOSED - Discover 2026-Q4 row shipped (dining 5%; Entertainment + Utilities named in notes). The
+        calendar loads in a real browser; a plain fetch shows the "not working" error. Next quarter needs a new row by 2027-01.
+    NOTE: the context-gate hook fired at session start (~176k) because the system prompt alone is that big. Handing off
+        on it would loop; work on and hand off at the real limit.
 R-NOW39 (10-01 ~13:45 ET, Ada getforgenta-0b -> successor at the 184-call gate). START HERE, IN ORDER:
     0. DELETE THROWAWAY 17cd4c1e-985f-4e88-baf1-4d604ba68b21 (empty-walk-20261001@forgenta.test): Tre approved it (via Sam);
        the MCP delete asks for a confirm. `delete from auth.users where id='17cd4c1e-...' and email='empty-walk-20261001@forgenta.test'`
@@ -12396,16 +12410,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 19:38 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 19:56 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12415,14 +12430,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8ce76dd7 [handoff]: R-NOW39 - handoff at the call gate; 98cbf494 native cover is the 2.2s
+1f12a7c3 [app-lock]: unlock timing names the cover branch that FOLLOWS Face ID (ask 98cbf494)
+a3384044 [dashboard]: one nudge banner at a time for a new user - bank first, then 2FA
 99f63fc8 [handoff]: R-NOW38 - empty walk, debugLog race, throwaway delete pending
 53700513 [debt]: hide "Pause optional savings transfers" until the user has an open card
 76d5837c [app-lock]: queue debug-log writes so Face ID marks are not lost (ask 98cbf494)
 8d81427c [handoff]: R-NOW38 - full walk green (press 154/154, routes 27/27, contrast 0 below AA)
 bf8cb5f2 [statement]: drop "promos not applied automatically" once the plan tables were read
-fe82d1a0 [handoff]: R-NOW38 - Prime Visa plans reconciled, plan importer shipped, press walk running
-db73b2c7 [statement]: read payment plans off a statement and propose them as card tranches (ask baee397e)
-e9e9ac58 [handoff]: R-NOW37 - delete throwaway user, re-arm crons, continue Sam's full walk
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
