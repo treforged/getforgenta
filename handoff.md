@@ -35,8 +35,21 @@ R-NOW30 (10-01 ~06:30 ET, Ada session 6f608dd7). START HERE.
     [x] check:rewards-save + CatalogPicker mounted (db33b3ef); 55e839de closed.
     1. f9b0da16 BLOCKED on one item: retry discover.com/credit-cards/cash-back/cashback-calendar.html on/after
        2026-10-02 (it said "not working" 10-01); add a dated 2026-Q4 row to CARD_CATALOG's Discover entry + a test.
-    2. NEXT from R-NOW26: (b) undated next-month items before an early payday; (c) reconciliation on Tre's account.
-    5. 09:07 ET widget read for e74da89c armed as session cron d0a0240f (dies with this session).
+    0. RE-ARM the 09:07 ET widget read for e74da89c (my cron d0a0240f dies with me): CronCreate one-shot
+       '7 9 1 10 *'; query in R-NOW24 item 1 (baseline 0 rows); SendMessage Sam the count + timestamps.
+    2. R-NOW26 (b) undated next-month items before an early payday - SCOPED, NOT BUILT, NEEDS SAM'S CALL FIRST:
+       src/lib/safe-to-spend.ts assembleSafeToSpendInput reserves month-0 undated terms only. When payday's month >
+       cutoff's month, next month's items before payday are missing. Facts read 10-01: TRANSFERS ARE DATED
+       (useCardProjection.ts:1001 - monthly due_day, weekly dow), so they can be exact events before payday
+       (SafeToSpendRule needs amount/frequency/due_day/start/end; ScheduledEvent carries only income|expense).
+       goalContributions (useCardProjection.ts:1517) is a FULL monthly figure with no date. carLoanPayment
+       (getTotalCarLoanMonthly), vehicleInsurance, otherDebtPayment, planExpenses: monthly, dates unverified
+       (I was checking debts/car_funds date columns when the gate fired). TRADE-OFF for Sam: reserving every
+       month-1 undated item in full drives Safe to Spend toward $0 in each month's last week (car loan on the 20th
+       reserved before a payday on the 2nd); reserving none is today's gap. Recommend: transfers exact + goal
+       contributions in full (user-set, usually at month start) + any term with a real due day dated; say the rest
+       in the drawer. Then number tests (payday in next month, each term), test:tz, check:safe-to-spend.
+    3. R-NOW26 (c) reconciliation on Tre's account (needs a signed-in read of his dashboard).
     STANDING CHECK (Sam, 2026-10-01, closed 52b202b5): on the FIRST email to any privaterelay.appleid.com address,
     read its Resend status. A bounce reopens 52b202b5 (sources registered + SPF; relay delivery never proven).
 R-NOW29 (10-01 ~06:50Z, Ada getforgenta-23 -> successor at the 175-call gate). START HERE, IN ORDER:
