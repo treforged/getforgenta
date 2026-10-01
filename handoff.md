@@ -37,7 +37,10 @@ R-NOW20 (10-01 ~01:30Z, Ada getforgenta-b5). START HERE (Sam's brief: asks a7b15
         app's OWN bridge WebView; completes on the WidgetBridge publish notification). Gate widget-bg-refresh.gate 8.
         DONE 10-01 ~01:55Z: iOS compile green (ffb3ed14 Build IPA success); Tre's widget_bg_refresh = TRUE (1 of 33,
         snapshot backup.tre_widget_bg_refresh_20261001, undo = false); iOS build 1158 UPLOAD SUCCEEDED 01:53:58Z.
-        NEXT (ask e74da89c, blocked on device): Tre installs 1158 + opens once -> after 6+ h closed, read the widget
+        RECORD: public.widget_refresh_events (20261001b) gets a row per SUCCESSFUL background publish (via host|hidden).
+        Read it instead of asking Tre: select platform,via,created_at from public.widget_refresh_events where
+        user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'. One-shot read armed 10-01 09:07 ET (session cron 2b61f7c0).
+        NEXT (ask e74da89c, in progress): Tre installs 1158 + opens once -> after 6+ h closed, read the widget
         'Updated' age / debugLog WIDGET_BG_REFRESH. Android: no device test yet. Then decide default-on.
         a7b1509e residue CLOSED: supabase-js's own STORAGE-event signOut() reads storage (auth-js 2.112.3
         __loadSession line 2504), already cleared, so it sends no /logout. Live bundle: 5 signOut({scope:`local`}).
