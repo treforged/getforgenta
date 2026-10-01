@@ -638,6 +638,7 @@ export default function Dashboard() {
     currency: profile?.currency,
     enabled: !isDemo && !essentialLoading,
     nextDebtPayments: widgetDebtPayments,
+    backgroundRefresh: isDemo || !profile ? undefined : profile.widget_bg_refresh,
   });
 
   // The caller that makes the notification feature exist: policy + service + toggle all shipped

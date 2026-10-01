@@ -1737,6 +1737,7 @@ export type Database = {
           updated_at: string
           user_id: string
           weekly_gross_income: number | null
+          widget_bg_refresh: boolean
           username: string | null
           visibility: string
         }
@@ -1800,6 +1801,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           weekly_gross_income?: number | null
+          widget_bg_refresh?: boolean
           username?: string | null
           visibility?: string
         }
@@ -1863,6 +1865,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weekly_gross_income?: number | null
+          widget_bg_refresh?: boolean
           username?: string | null
           visibility?: string
         }

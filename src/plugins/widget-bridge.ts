@@ -12,6 +12,9 @@ export interface WidgetPayload {
 
 export interface WidgetBridgePlugin {
   updateWidget(payload: WidgetPayload): Promise<void>;
+  /** Android: schedule or cancel the 6-hourly closed-app refresh (ask e74da89c). Builds that
+   *  predate it reject with "not implemented", which callers treat as "not available here". */
+  setBackgroundRefresh(options: { enabled: boolean }): Promise<void>;
 }
 
 class WidgetBridgeWeb implements WidgetBridgePlugin {
@@ -20,6 +23,10 @@ class WidgetBridgeWeb implements WidgetBridgePlugin {
     // hidden background WebView that refreshes widgets with the app closed (ask e74da89c): it has
     // no Capacitor bridge, so the payload goes back through its own message channel instead.
     getWidgetHost()?.post(JSON.stringify(payload));
+  }
+
+  async setBackgroundRefresh(_options: { enabled: boolean }): Promise<void> {
+    // A browser has no home screen to refresh.
   }
 }
 

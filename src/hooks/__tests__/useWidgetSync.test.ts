@@ -4,9 +4,10 @@ import { renderHook, act } from '@testing-library/react';
 import { useWidgetSync } from '../useWidgetSync';
 
 const mockUpdateWidget = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockSetBg = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('@/plugins/widget-bridge', () => ({
-  WidgetBridge: { updateWidget: mockUpdateWidget },
+  WidgetBridge: { updateWidget: mockUpdateWidget, setBackgroundRefresh: mockSetBg },
 }));
 
 // Home-screen widgets only ever sync the OWNER's numbers (partner-linking design §5).
@@ -123,5 +124,38 @@ describe('useWidgetSync', () => {
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
     await act(() => vi.runAllTimersAsync());
     expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  // ask e74da89c: the per-user switch reaches the device, and nothing is sent before it is known.
+  it('passes the background-refresh switch to the device, and only once it is known', async () => {
+    const { rerender } = renderHook(
+      ({ bg }: { bg: boolean | undefined }) =>
+        useWidgetSync({ monthEndCash: 1, netWorth: 1, enabled: true, backgroundRefresh: bg }),
+      { initialProps: { bg: undefined as boolean | undefined } },
+    );
+    await act(() => vi.runAllTimersAsync());
+    expect(mockSetBg).not.toHaveBeenCalled();
+    rerender({ bg: true });
+    await act(() => vi.runAllTimersAsync());
+    expect(mockSetBg).toHaveBeenLastCalledWith({ enabled: true });
+    rerender({ bg: false });
+    await act(() => vi.runAllTimersAsync());
+    expect(mockSetBg).toHaveBeenLastCalledWith({ enabled: false });
+  });
+
+  it('never schedules from partner view or from inside the hidden refresh WebView', async () => {
+    isPartnerView = true;
+    renderHook(() => useWidgetSync({ monthEndCash: 1, netWorth: 1, enabled: true, backgroundRefresh: true }));
+    await act(() => vi.runAllTimersAsync());
+    expect(mockSetBg).not.toHaveBeenCalled();
+    isPartnerView = false;
+    (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost = { postMessage: () => {} };
+    try {
+      renderHook(() => useWidgetSync({ monthEndCash: 1, netWorth: 1, enabled: true, backgroundRefresh: true }));
+      await act(() => vi.runAllTimersAsync());
+      expect(mockSetBg).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost;
+    }
   });
 });

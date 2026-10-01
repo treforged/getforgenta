@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { WidgetBridge } from '@/plugins/widget-bridge';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { buildWidgetPayload, type WidgetDebtPayment } from '@/lib/widget-snapshot';
+import { isWidgetHost } from '@/lib/widget-host';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 
@@ -15,11 +16,14 @@ interface Params {
   /** `buildNextDebtPayments(debtBreakdown)`. Compared by value, so a new array each render
    *  does not re-send an unchanged payload. */
   nextDebtPayments?: WidgetDebtPayment[] | null;
+  /** `profiles.widget_bg_refresh`: the per-user switch for the closed-app 6-hourly refresh (ask
+   *  e74da89c). Undefined while the profile loads, and then nothing is sent either way. */
+  backgroundRefresh?: boolean;
 }
 
 const DEBOUNCE_MS = 500;
 
-export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextDebtPayments }: Params): void {
+export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextDebtPayments, backgroundRefresh }: Params): void {
   const debtKey = nextDebtPayments ? JSON.stringify(nextDebtPayments) : '';
   // ⚠️ HOME-SCREEN WIDGETS ONLY EVER SYNC THE OWNER'S NUMBERS (partner-linking design
   // §5). In partner view the values arriving here are computed from the PARTNER's data,
@@ -28,6 +32,16 @@ export function useWidgetSync({ monthEndCash, netWorth, currency, enabled, nextD
   const { isPartnerView } = useViewedProfile();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [resumeTick, setResumeTick] = useState(0);
+
+  // The device schedules or cancels its own closed-app refresh from the user's switch. Partner view
+  // is skipped like every other write here: the switch belongs to the person holding the phone.
+  // Inside the hidden refresh WebView itself it is skipped too, so a background run never reschedules.
+  useEffect(() => {
+    if (backgroundRefresh === undefined || isPartnerView || isWidgetHost()) return;
+    WidgetBridge.setBackgroundRefresh({ enabled: backgroundRefresh }).catch((err: unknown) => {
+      console.warn('[WidgetBridge] setBackgroundRefresh unavailable:', err);
+    });
+  }, [backgroundRefresh, isPartnerView]);
 
   // Tre 2026-10-01 asked for the widget to update immediately when the app is opened (ask e74da89c);
   // without this, an unchanged figure never re-sends and the widget's 'Updated ... ago' keeps aging.
