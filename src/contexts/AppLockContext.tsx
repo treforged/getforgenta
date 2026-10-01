@@ -352,8 +352,20 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       await BiometricAuth.authenticate({ reason: 'Unlock Forgenta' });
       // Ask 98cbf494: mark Face ID and the first unlocked frame, so the wait between them is measurable.
       void debugLog('FACEID_OK');
-      await markUnlocked();
+      // Lift the lock FIRST, then persist (98cbf494). The old order held the lock screen up for the
+      // two Preferences writes in markUnlocked. A kill mid-write leaves LOCK_PENDING set, which
+      // re-locks on the next launch: the safe direction. UNLOCK_PERSISTED records how long those
+      // writes take, which is exactly the wait the old order added.
+      isLockedRef.current = false; // synchronously, as the resume handler does, so the guard below sees only a REAL re-lock
       setIsLocked(false);
+      // ⚠️ A pause landing during these writes re-locks and sets LOCK_PENDING, which markUnlocked's
+      // late pDel would erase: locked in memory, unlocked on disk, so a background reload fails
+      // open. Re-assert the flag whenever the lock came back while the writes ran.
+      void markUnlocked()
+        .then(async () => {
+          if (isLockedRef.current) await pSet(LOCK_PENDING, '1');
+          void debugLog('UNLOCK_PERSISTED');
+        }, () => debugLog('UNLOCK_PERSIST_FAILED'));
       requestAnimationFrame(() => requestAnimationFrame(() => {
         void debugLog('UNLOCK_PAINTED').then(() => {
           // Leave the native cover time to log COVER_HIDDEN before the timing is read.
