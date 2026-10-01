@@ -25,6 +25,23 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW36 (10-01 ~11:45 ET, Ada session 29c105a2). START HERE, IN ORDER:
+    [x] 98cbf494 parts SHIPPED (all pushed 0/0, test:tz 5692 x 3):
+        f2984c0b MEASUREMENT: JS:FACEID_OK + JS:UNLOCK_PAINTED -> client_boot_failures path='unlock-timing' (Vercel live).
+        0f308bf5 LoadingMark (shared indicator): lock screen shimmers during Face ID; pending cover, auth gates, AuthCallback.
+        de9b18d8 SWIFT: cover logo 88->112pt, brief hold 0.3->0.15s, fade 0.5->0.3s, COVER_SHOWN/COVER_HIDDEN marks.
+          iOS 1201 run 36884463924: upload step success, "UPLOAD SUCCEEDED with no errors". Tre must install 1201.
+    0. 98cbf494 NEXT: read rows `select reason,failed_at from client_boot_failures where path='unlock-timing' order by
+       created_at desc`. Need >=1 BEFORE row (pre-1201: cover_hidden n/a) -> then ship JS fix (b): in
+       AppLockContext.unlockWithBiometric call setIsLocked(false) BEFORE `await markUnlocked()` (kill mid-write re-locks =
+       safe). Then compare faceid->painted before/after, send Sam numbers, close 98cbf494 with them.
+    [x] Install id SHIPPED 9a52b1ae: consent-gated random UUID (forgenta:funnel_install_id), migration 20261001h APPLIED,
+        privacy policy reworded. Needs-tre 68a6a1d9: App Store label Identifiers > Device ID declared?
+    [x] aeaac54e CLOSED with evidence (prod = HEAD 9a52b1ae; goals read live balances; car payoff Jul 2030 consistent).
+        New needs-tre 258b51be: Brokerage goal points at a deleted account. 7ab8a42f still waits on Tre.
+    1. Wakes armed IN THIS SESSION (die with it): 7ca31657 widget e74da89c 01:37 10-02; 909c13f3 $204 1cea48f3 09:17 10-02.
+       If this session is gone, re-arm both (prompts in R-NOW35 item 2 / R-NOW34 item 0).
+    2. f9b0da16 on/after 10-02. b573d720: 0 RevenueCat rows (re-test).
 R-NOW35 (10-01 ~12:30 ET, Ada getforgenta-a1). START HERE, IN ORDER:
     0. aeaac54e Tre's audit [~]: DONE so far (all pushed 0/0, gates green 5673 x 3 zones):
        (1) DTI used stale legacy `debts` minimums (Prime 231.15 / Discover 83 vs accounts 773.05 / 150.40): fixed.
@@ -12329,7 +12346,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 09:54 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 11:07 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12347,14 +12364,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+4ae4862a [handoff]: R-NOW35 - cover page diagnosis plan for successor
+1aebac3e [handoff]: R-NOW35 - audit findings 1-3, widget cap, cover page next
+c2db0c23 [plans]: a "Pay in 4" provider defaults the plan to every 2 weeks x 4 (ask aeaac54e)
+a5675861 [utilization]: count 0% balance tranches as utilization-only, not interest-bearing (ask aeaac54e)
+758475a5 [dti]: take each card's minimum from its account row, not the stale debts row (ask aeaac54e)
+6dbaed4c [widget-log]: log native background refreshes only, so desk reads cannot fill the cap (ask e74da89c)
+8bc6f918 [handoff]: R-NOW34 item 0 answered; 10-02 re-read armed (ask 1cea48f3)
 aa2ba791 [handoff]: R-NOW34 - Robinhood $204 check for successor; session note
-e39aa9aa [handoff]: R-NOW33 - widget read done, e74da89c waits on Tre's 1158 install
-6d4af55f [handoff]: R-NOW33 - Leo sign-in option (a) decided by Sam
-5131f80d [handoff]: R-NOW33 - money-glance shipped 8fa19346 (1dc2c388)
-8fa19346 [money-glance]: publish the dashboard's Safe to Spend for Leo, read back through RLS (ask 1dc2c388)
-ea9d0f29 [handoff]: R-NOW33 - next-month payday horizon shipped 3b86204f
-3b86204f [safe-to-spend]: a payday NEXT month walks to that month's end too, so bills after it are checked
-78dd7f96 [handoff]: R-NOW33 - Prime Visa gap is the minimum vs Safe to Pay, not a defect
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
