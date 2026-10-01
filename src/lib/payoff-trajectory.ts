@@ -11,7 +11,11 @@
 // payoff month off — so the curve and the date cannot come to disagree.
 
 export interface PayoffTrajectoryPoint {
-  /** 1-indexed month, month 1 = this month — the convention the engine uses everywhere. */
+  /**
+   * 1-indexed month, month 1 = this month — the convention the engine uses everywhere. Month 1's
+   * figure is the balance at the END of this month, after this month's payment. Month 0 = TODAY,
+   * present only when the caller supplied `todayBalance` (ask 25d01fda).
+   */
   month: number;
   /** Total revolving balance across the given cards in that month. Never negative. */
   balance: number;
@@ -32,6 +36,12 @@ export interface PayoffTrajectoryInput {
   cardIds: readonly string[];
   /** 1-indexed payoff month from `selectRevolvingPayoff`. */
   payoffMonth: number;
+  /**
+   * The cards' balance right now. ⚠️ Without it, `startBalance` is month 1 - the balance AFTER this
+   * month's payment - and a label reading "today" beside it contradicts the card total on the same
+   * screen ($2,800 "today" vs $6,482 on /demo, ask 25d01fda). With it, the curve starts today.
+   */
+  todayBalance?: number;
 }
 
 /**
@@ -46,6 +56,7 @@ export function buildPayoffTrajectory({
   monthlyRevolvingBalances,
   cardIds,
   payoffMonth,
+  todayBalance,
 }: PayoffTrajectoryInput): PayoffTrajectory | null {
   if (!monthlyRevolvingBalances || cardIds.length === 0) return null;
   if (!Number.isFinite(payoffMonth) || payoffMonth < 2) return null;
@@ -68,6 +79,9 @@ export function buildPayoffTrajectory({
     points.push({ month, balance: total });
   }
 
+  if (todayBalance != null && Number.isFinite(todayBalance) && todayBalance > 0) {
+    points.unshift({ month: 0, balance: todayBalance });
+  }
   const startBalance = points[0]?.balance ?? 0;
   if (startBalance <= 0) return null;
 

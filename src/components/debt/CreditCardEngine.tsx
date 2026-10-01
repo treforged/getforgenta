@@ -1209,7 +1209,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
     const now = new Date();
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
+    // Each month row is that month's END balance, after its payment. Without a "Today" row the
+    // chart's first point read as today's balance and showed ~$3.4k beside a $6,482 card total on
+    // /demo (ask 25d01fda). A card that has not opened yet gets null, as in the month rows.
+    const todayRow: Record<string, number | string | null> = { month: 'Today' };
+    for (const p of projections) {
+      const notOpen = p.card.startDate && new Date(p.card.startDate + 'T00:00:00') > now;
+      todayRow[p.card.name] = notOpen ? null : Math.round(Math.max(0, p.card.balance));
+    }
+    return [todayRow, ...Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const row: Record<string, number | string | null> = {
         month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
@@ -1238,13 +1246,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         }
       }
       return row;
-    });
+    })];
   }, [projections, monthlyRevolvingBalances, variableSim, overrideData, step3CumSurplus]);
 
   // Display-only horizon trim. The projection itself is always the full PROJECTION_MONTHS —
   // this only shortens what the chart draws, so payoff detection and ETAs are unaffected.
   const visibleChartData = useMemo(
-    () => debtChartData.slice(0, parseInt(chartYears, 10) * 12),
+    () => debtChartData.slice(0, parseInt(chartYears, 10) * 12 + 1), // +1: the Today row
     [debtChartData, chartYears],
   );
   // Keep roughly 10 x-axis ticks regardless of horizon: 5Y -> 5 (unchanged from before), 3Y -> 3, 2Y -> 2, 1Y -> 1.

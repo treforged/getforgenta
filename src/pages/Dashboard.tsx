@@ -562,6 +562,8 @@ export default function Dashboard() {
           monthlyRevolvingBalances: cardProjection?.monthlyRevolvingBalances ?? null,
           cardIds: cardProjection?.simCards.map(c => c.id) ?? [],
           payoffMonth: heroPayoff.month,
+          // Today's card balances, so "$X today" under the curve is today's figure (ask 25d01fda).
+          todayBalance: cardProjection?.simCards.reduce((s, c) => s + Math.max(0, c.balance), 0),
         })
       : null),
     [cardProjection, heroPayoff],

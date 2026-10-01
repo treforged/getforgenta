@@ -256,6 +256,11 @@ section states reasoning, not measurement, and says so.
   minus floor = total = card). The maths is owned by `src/lib/__tests__/safe-to-spend.test.ts` (15 tests, each asserts
   a number, red under three mutants). Not on the deck-walk account: its income and checking rows are inactive, so it
   correctly shows the EMPTY state. `walk:empty` asserts an empty account shows no figure.
+- `npm run check:payoff-today` - on /demo at 430x932 (ask 25d01fda): the Dashboard hero's "$X today" equals the CC Debt
+  tile, and the Debt page's trajectory chart starts at a "Today" point whose HOVERED tooltip sums to Total CC Balance.
+  Both used to draw month 0's END balance (after this month's payment) as today: "$2,800 today" beside $6,482, and the
+  chart starting at $3,543. Proven red on the pre-fix code with those exact numbers (exit 1). The recharts build here has
+  no `.recharts-xAxis` wrapper; the probe finds X ticks by excluding "$" labels. Does NOT judge the curve after Today.
 - `npm run check:update-reminder` - at 390x844, signed in, on the 1st-7th only (exits 2 otherwise): the start-of-month
   "need updating by hand" notice renders, and PRESSING it switches the Dashboard to Accounts (`?tab=accounts&panel=balances`).
   Proven red by pointing the link at `/dashboard` (exit 1). Future-dated cards are left out of the list; the unit test

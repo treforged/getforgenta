@@ -25,6 +25,29 @@ describe('buildPayoffTrajectory', () => {
     expect(t.endMonth).toBe(3);
   });
 
+  it('starts at TODAY when todayBalance is given (ask 25d01fda: /demo read $2,800 "today" beside $6,482)', () => {
+    const t = buildPayoffTrajectory({
+      monthlyRevolvingBalances: map({ cobalt: [2800, 2300, 0] }),
+      cardIds: ['cobalt'],
+      payoffMonth: 3,
+      todayBalance: 6482,
+    })!;
+    expect(t.startBalance).toBe(6482);
+    expect(t.points[0]).toEqual({ month: 0, balance: 6482 });
+    expect(t.points[1]).toEqual({ month: 1, balance: 2800 });
+    expect(t.points).toHaveLength(4);
+  });
+
+  it('ignores a zero, negative or non-finite todayBalance and keeps month 1 as the start', () => {
+    for (const todayBalance of [0, -5, NaN]) {
+      const t = buildPayoffTrajectory({
+        monthlyRevolvingBalances: map({ a: [600, 0] }), cardIds: ['a'], payoffMonth: 2, todayBalance,
+      })!;
+      expect(t.startBalance).toBe(600);
+      expect(t.points[0].month).toBe(1);
+    }
+  });
+
   it('clamps a negative balance to zero rather than drawing below the axis', () => {
     const t = buildPayoffTrajectory({
       monthlyRevolvingBalances: map({ a: [500, -20] }),
