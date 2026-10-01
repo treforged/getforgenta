@@ -11,7 +11,7 @@
  * tab alone. The page honours the param once, then strips it.
  */
 
-export const DEBT_TABS = ['cards', 'auto', 'mortgage', 'student', 'other'] as const;
+export const DEBT_TABS = ['cards', 'use', 'auto', 'mortgage', 'student', 'other'] as const;
 
 export type DebtTab = (typeof DEBT_TABS)[number];
 

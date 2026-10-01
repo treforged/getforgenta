@@ -12,7 +12,8 @@ import FormModal from '@/components/shared/FormModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import ConsolidationPanel from '@/components/debt/ConsolidationPanel';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
+import { Plus, Edit2, Trash2, CreditCard, Landmark, Car, Wallet } from 'lucide-react';
+import CardAdvisorPanel from '@/components/debt/CardAdvisorPanel';
 import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
@@ -379,7 +380,7 @@ export default function DebtPayoff() {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             to={`/accounts?new=1&type=${
-              activeTab === 'cards' ? 'credit_card'
+              activeTab === 'cards' || activeTab === 'use' ? 'credit_card'
               : activeTab === 'auto' ? 'auto_loan'
               : activeTab === 'mortgage' ? 'mortgage'
               : activeTab === 'student' ? 'student_loan'
@@ -461,6 +462,8 @@ export default function DebtPayoff() {
       <PanelBar>
         {([
           { id: 'cards' as const, Icon: CreditCard, label: 'Credit Card Payoff', count: openCreditCards.length, always: true },
+          // Which card for a purchase (ask 1f3217bb). Shown once there is a card to compare; no count badge.
+          { id: 'use' as const, Icon: Wallet, label: 'Which Card?', count: 0, always: openCreditCards.length > 0 },
           { id: 'auto' as const, Icon: Car, label: 'Auto Loans', count: activeAutoLoans.length, always: false },
           { id: 'mortgage' as const, Icon: Landmark, label: 'Mortgage', count: mortgageDebts.length, always: false },
           { id: 'student' as const, Icon: Landmark, label: 'Student Loans', count: studentDebts.length, always: false },
@@ -482,6 +485,8 @@ export default function DebtPayoff() {
             </button>
           ))}
       </PanelBar>
+
+      {activeTab === 'use' && <CardAdvisorPanel />}
 
       {activeTab === 'cards' && (
         <div className="flex items-center justify-between p-3 bg-secondary border border-border" style={{ borderRadius: 'var(--radius)' }}>

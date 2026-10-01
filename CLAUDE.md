@@ -260,6 +260,11 @@ section states reasoning, not measurement, and says so.
   "need updating by hand" notice renders, and PRESSING it switches the Dashboard to Accounts (`?tab=accounts&panel=balances`).
   Proven red by pointing the link at `/dashboard` (exit 1). Future-dated cards are left out of the list; the unit test
   `AccountUpdateReminder.test.tsx` owns that (Tre, 2026-10-01).
+- `npm run check:card-advisor` - Debt > "Which Card?" (ask 1f3217bb) at 390x844, signed in: `/debt?tab=use` opens the panel
+  (testid AND aria-selected), typing 300 turns "Enter an amount" into "Use <card>" - or the no-room line ONLY when every
+  card row says "Not enough room" - and pressing Gas sets aria-pressed. Writes nothing. Proven red by hiding the answer
+  (exit 1); its first version accepted the no-room line unconditionally and PASSED that mutant, which is why the answer is
+  now checked against the card list. Numbers: `card-for-purchase.test.ts` (13 tests, red under 7 mutants).
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.

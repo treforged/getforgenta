@@ -20,7 +20,7 @@ describe('debtTabFromSearch', () => {
   });
 
   it('knows exactly the five panels the page renders', () => {
-    expect([...DEBT_TABS]).toEqual(['cards', 'auto', 'mortgage', 'student', 'other']);
+    expect([...DEBT_TABS]).toEqual(['cards', 'use', 'auto', 'mortgage', 'student', 'other']);
     expect(isDebtTab('other')).toBe(true);
     expect(isDebtTab('nope')).toBe(false);
     expect(isDebtTab(null)).toBe(false);

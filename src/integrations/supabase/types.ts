@@ -117,6 +117,7 @@ export type Database = {
           balance: number
           balance_tranches: Json | null
           card_start_date: string | null
+          card_rewards: Json | null
           connection_id: string | null
           created_at: string
           credit_limit: number | null
@@ -145,6 +146,7 @@ export type Database = {
           surplus_sort_order: number | null
           updated_at: string
           user_id: string
+          welcome_offer: Json | null
         }
         Insert: {
           account_type?: string
@@ -158,6 +160,7 @@ export type Database = {
           balance?: number
           balance_tranches?: Json | null
           card_start_date?: string | null
+          card_rewards?: Json | null
           connection_id?: string | null
           created_at?: string
           credit_limit?: number | null
@@ -186,6 +189,7 @@ export type Database = {
           surplus_sort_order?: number | null
           updated_at?: string
           user_id: string
+          welcome_offer?: Json | null
         }
         Update: {
           account_type?: string
@@ -199,6 +203,7 @@ export type Database = {
           balance?: number
           balance_tranches?: Json | null
           card_start_date?: string | null
+          card_rewards?: Json | null
           connection_id?: string | null
           created_at?: string
           credit_limit?: number | null
@@ -227,6 +232,7 @@ export type Database = {
           surplus_sort_order?: number | null
           updated_at?: string
           user_id?: string
+          welcome_offer?: Json | null
         }
         Relationships: [
           {

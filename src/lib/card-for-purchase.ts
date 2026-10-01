@@ -5,6 +5,7 @@
  * planned cards are never suggested (ask 1f3217bb, plan docs/plans/2026-10-01_card-for-purchase-advisor.md).
  */
 import { isCardOpenAsOf } from '@/lib/card-start-date';
+import { toLocalDateStr } from '@/lib/scheduling';
 
 export type PurchaseCategory = 'groceries' | 'gas' | 'dining' | 'travel' | 'other';
 export const PURCHASE_CATEGORIES: readonly PurchaseCategory[] = ['groceries','gas','dining','travel','other'];
@@ -12,7 +13,7 @@ export interface CardRewards { base_pct: number; categories?: Partial<Record<Pur
 export interface AdvisorCard {
   id: string; name: string; account_type: string; active: boolean | null;
   balance: number | string | null; apr: number | string | null; credit_limit: number | string | null;
-  card_start_date?: string | null; rewards?: CardRewards | null;
+  card_start_date?: string | null; rewards?: CardRewards | null; welcomeOffer?: WelcomeOffer | null;
 }
 export interface CardOption {
   id: string; name: string;
@@ -20,8 +21,51 @@ export interface CardOption {
   monthlyInterest: number | null;
   utilizationAfter: number | null;
   overUtilization: boolean;
+  offerValue: number | null;     // share of an OPEN welcome bonus this purchase earns, null when none
   netValue: number;
 }
+/** A welcome bonus: spend `required_spend` by `deadline` (YYYY-MM-DD) to earn `bonus_value` dollars. */
+export interface WelcomeOffer { required_spend: number; spent: number; bonus_value: number; deadline: string }
+
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** Validates the accounts.card_rewards jsonb. Anything malformed is null: a wrong rate is worse than none. */
+export function parseCardRewards(raw: unknown): CardRewards | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  if (!isNum(r.base_pct) || r.base_pct < 0 || r.base_pct > 100) return null;
+  const categories: Partial<Record<PurchaseCategory, number>> = {};
+  if (r.categories && typeof r.categories === 'object' && !Array.isArray(r.categories)) {
+    for (const c of PURCHASE_CATEGORIES) {
+      const v = (r.categories as Record<string, unknown>)[c];
+      if (isNum(v) && v >= 0 && v <= 100) categories[c] = v;
+    }
+  }
+  return { base_pct: r.base_pct, categories };
+}
+
+/** Validates the accounts.welcome_offer jsonb. Malformed or impossible offers are null. */
+export function parseWelcomeOffer(raw: unknown): WelcomeOffer | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (!isNum(o.required_spend) || o.required_spend <= 0) return null;
+  if (!isNum(o.bonus_value) || o.bonus_value <= 0) return null;
+  const spent = isNum(o.spent) && o.spent >= 0 ? o.spent : 0;
+  if (typeof o.deadline !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.deadline)) return null;
+  return { required_spend: o.required_spend, spent, bonus_value: o.bonus_value, deadline: o.deadline };
+}
+
+/**
+ * The share of an open welcome bonus this purchase earns: each dollar toward the requirement is worth
+ * bonus / required. Null when there is no offer, it has passed its deadline, or it is already met.
+ */
+export function welcomeOfferValue(offer: WelcomeOffer | null | undefined, amount: number, today: Date): number | null {
+  if (!offer) return null;
+  const remaining = offer.required_spend - offer.spent;
+  if (remaining <= 0 || offer.deadline < toLocalDateStr(today)) return null;
+  return Math.min(amount, remaining) * offer.bonus_value / offer.required_spend;
+}
+
 export interface ExcludedCard { id: string; name: string; why: 'not-open' | 'over-limit' }
 export function rankCardsForPurchase(args: { cards: readonly AdvisorCard[]; amount: number; category: PurchaseCategory; today: Date; utilizationTarget?: number }): { ranked: CardOption[]; excluded: ExcludedCard[] } {
   const { cards, amount, category, today, utilizationTarget = 30 } = args;
@@ -64,7 +108,9 @@ export function rankCardsForPurchase(args: { cards: readonly AdvisorCard[]; amou
     // Net is built from the ROUNDED parts, so the figures a user sees always add up.
     const earned = rewardsEarned === null ? null : Math.round(rewardsEarned * 100) / 100;
     const interest = monthlyInterest === null ? null : Math.round(monthlyInterest * 100) / 100;
-    const netValue = (earned ?? 0) - (interest ?? 0);
+    const offerRaw = welcomeOfferValue(card.welcomeOffer, amount, today);
+    const offer = offerRaw === null ? null : Math.round(offerRaw * 100) / 100;
+    const netValue = (earned ?? 0) + (offer ?? 0) - (interest ?? 0);
 
     options.push({
       id: card.id,
@@ -73,6 +119,7 @@ export function rankCardsForPurchase(args: { cards: readonly AdvisorCard[]; amou
       monthlyInterest: interest,
       utilizationAfter: utilizationAfter === null ? null : Math.round(utilizationAfter * 10) / 10,
       overUtilization,
+      offerValue: offer,
       netValue: Math.round(netValue * 100) / 100
     });
   }

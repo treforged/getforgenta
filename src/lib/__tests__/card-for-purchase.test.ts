@@ -5,7 +5,7 @@
 // with no rewards entered and "never invents a rate" fails.
 
 import { describe, it, expect } from 'vitest';
-import { rankCardsForPurchase, type AdvisorCard } from '../card-for-purchase';
+import { rankCardsForPurchase, parseCardRewards, parseWelcomeOffer, welcomeOfferValue, type AdvisorCard } from '../card-for-purchase';
 
 const today = new Date(2026, 9, 1, 12);
 const card = (over: Partial<AdvisorCard> & { id: string }): AdvisorCard => ({
@@ -81,5 +81,42 @@ describe('rankCardsForPurchase', () => {
     expect(rankCardsForPurchase({ cards, amount: 10, category: 'other', today }).ranked.map(r => r.id)).toEqual(['On']);
     expect(rankCardsForPurchase({ cards, amount: 0, category: 'other', today })).toEqual({ ranked: [], excluded: [] });
     expect(rankCardsForPurchase({ cards, amount: Number.NaN, category: 'other', today }).ranked).toEqual([]);
+  });
+
+  it('an open welcome offer adds its share of the bonus: $1,500 of a $4,000-for-$750 offer is $281.25', () => {
+    const offer = { required_spend: 4000, spent: 0, bonus_value: 750, deadline: '2027-09-01' };
+    const { ranked } = rankCardsForPurchase({
+      cards: [card({ id: 'VX', rewards: { base_pct: 2 }, welcomeOffer: offer, credit_limit: 30000 }), card({ id: 'Apple', rewards: { base_pct: 3 } })],
+      amount: 1500, category: 'other', today,
+    });
+    expect(ranked.map(r => [r.id, r.offerValue, r.netValue])).toEqual([['VX', 281.25, 311.25], ['Apple', null, 45]]);
+  });
+});
+
+describe('welcomeOfferValue', () => {
+  const offer = { required_spend: 4000, spent: 3500, bonus_value: 750, deadline: '2027-09-01' };
+  it('counts only the spend still needed, and nothing once met or expired', () => {
+    expect(welcomeOfferValue(offer, 1500, today)).toBe(93.75);           // 500 left of 4000
+    expect(welcomeOfferValue({ ...offer, spent: 4000 }, 100, today)).toBeNull();
+    expect(welcomeOfferValue({ ...offer, deadline: '2026-09-30' }, 100, today)).toBeNull();
+    expect(welcomeOfferValue({ ...offer, deadline: '2026-10-01' }, 100, today)).toBe(18.75); // due today still counts
+    expect(welcomeOfferValue(null, 100, today)).toBeNull();
+  });
+});
+
+describe('parsers never let a wrong rate through', () => {
+  it('parseCardRewards keeps valid percents and drops the rest', () => {
+    expect(parseCardRewards({ base_pct: 2, categories: { dining: 4, gas: -1, travel: 'x', bogus: 9 } }))
+      .toEqual({ base_pct: 2, categories: { dining: 4 } });
+    expect(parseCardRewards({ base_pct: 150 })).toBeNull();
+    expect(parseCardRewards({ categories: { dining: 4 } })).toBeNull();
+    expect(parseCardRewards(null)).toBeNull();
+    expect(parseCardRewards([1])).toBeNull();
+  });
+  it('parseWelcomeOffer requires a positive spend, a positive bonus and a YYYY-MM-DD deadline', () => {
+    expect(parseWelcomeOffer({ required_spend: 4000, bonus_value: 750, deadline: '2027-09-01' }))
+      .toEqual({ required_spend: 4000, spent: 0, bonus_value: 750, deadline: '2027-09-01' });
+    expect(parseWelcomeOffer({ required_spend: 0, bonus_value: 750, deadline: '2027-09-01' })).toBeNull();
+    expect(parseWelcomeOffer({ required_spend: 4000, bonus_value: 750, deadline: 'Sept 1' })).toBeNull();
   });
 });
