@@ -25,6 +25,14 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW22 (10-01 ~02:40Z, Ada). [x] e34975a1 CLOSED: sim run 36804677471 lock step green - control 38/40 content frames,
+    locked launch 0/49, final frame vs dashboard 17.19. Warm path unit-only (4429e39d, live in bundle). [x] 2e42290d CLOSED
+    (bioOffer tests 15/15 x3 TZ, offer sheet in live bundle; Face ID prompt itself needs a device). [!] 2dcdcdde stays
+    needs-tre: rows read 10-01 - fee fe1c81ec 3830 Mar 1 2027 from Checking, deposit 1900 + movers 1500 Jul 1 from the
+    Move fund 36997c1c, goal a035a97e 5730 (= fee + deposit, Tre's own number) by 2027-07-03. Engine bug f3c0cdf5 that
+    skewed the 09-30 split measurement is fixed (407bcea2); the cash fact (fund 1,829 by Feb vs 3,830) is unchanged.
+    e74da89c: widget_refresh_events read 0 rows at 02:15Z (baseline); 09:07 ET re-read armed as session cron 75c6928b -
+    a successor must re-arm it if this session is gone.
 R-NOW21 (10-01 ~02:40Z, Ada getforgenta-b5 -> successor). START HERE. Sam's order: (1) e34975a1 lock bypass,
     (2) 2e42290d Face ID offer for PIN users, (3) 2dcdcdde Move-fund plan reflects lease break at a different time.
     1. READ sim run 36804677471 (ios-sim-screenshots, dispatched fb6c70b0): step "Lock - no content before the lock
@@ -12051,7 +12059,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 22:02 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 22:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12069,14 +12077,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+f9d88090 [handoff]: R-NOW21 - lock warm-reopen fix shipped, sim proof dispatched; Sam's order 1-3 + re-arm widget read
+fb6c70b0 [ci]: simulator proves no content shows before the app lock on a cold launch (ask e34975a1)
+4429e39d [applock]: the lock now engages on a warm reopen, not only after the app was killed (ask e34975a1)
 907a4fa4 [handoff]: R-NOW20 - widget_refresh_events record + armed read
 c85279f8 [widgets]: record each background widget refresh so the desk can verify it from SQL (ask e74da89c)
 d10ee278 [handoff]: R-NOW20 - widget canary on for Tre, iOS 1158 uploaded; e74da89c waits on the device
 9110e0c8 [lint]: declare ccPurchasesAfterDuePerMonth in the card-sim memo's dependencies
 2defdc5e [lint]: drop an eslint-disable that suppressed nothing (no-console allows warn)
-e7d73295 [handoff]: R-NOW20 - e74da89c part 2 built as an off-by-default canary; next: enable for Tre after iOS compile
-ffb3ed14 [ios]: closed-app widget refresh via BGAppRefreshTask, off until the app turns it on (ask e74da89c, part 2d)
-301b81ab [widgets]: per-user switch for the closed-app widget refresh, off for everyone (ask e74da89c, part 2c)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
