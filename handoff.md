@@ -25,6 +25,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW31 (10-01 ~07:45 ET, Ada getforgenta-a2). START HERE. R-NOW30 items 0 and 2 DONE; item 1 waits for 10-02.
+    SHIPPED + PUSHED (each 0/0, contents verified):
+    [x] 99579472 R-NOW26 (b) Safe to Spend: next month's items before an early payday (Sam 938fb5db). New
+        src/lib/safe-to-spend-next-month.ts: dated where a due day exists, undated -> day 1 + drawer list.
+    [x] 8c6f62d3 (66279032) debts dated by accounts.payment_due_day, plans by own dates. NO migration: my "no due-day
+        field" claim was wrong (Sam agreed). 25 tests, 8 mutants red. /demo payday is same-month, so no render covers it.
+    [x] 5c34da5f (25d01fda, Ruby) payoff curves start at TODAY: hero "$6,482 today", Debt chart "Today" row. New gate
+        check:payoff-today (red on old code: $2,800 / Oct 2026 / $3,543). Ruby told (tre-forged-marketing-1e).
+    [x] 7fd4e750 (a232812f) app-lock fail-open race: refs now useLayoutEffect; MutationObserver test red on old code.
+    0. WIDGET READ e74da89c: armed as session cron bb1be414 (09:07 ET 10-01). If this session is gone, run the R-NOW24
+       item 1 query by hand and send Sam count + timestamps.
+    1. f9b0da16: retry discover.com/credit-cards/cash-back/cashback-calendar.html on/after 2026-10-02; add a dated
+       2026-Q4 row to CARD_CATALOG's Discover entry + a test.
+    2. R-NOW26 (c) reconciliation on Tre's account (signed-in read of his dashboard) - still open.
+    FREE TIER: qwen3:14b drafted safe-to-spend-next-month.ts with 5 defects (scored in playbook). Glue edits were done
+    by the manager directly.
 R-NOW30 (10-01 ~06:30 ET, Ada session 6f608dd7). START HERE.
     SHIPPED + PUSHED (0/0, contents verified): 4304b942 Which Card? hides not-yet-open cards (bed3f84f);
     63041ee6 engine: funding->other-checking transfers now credit the destination (Tre's General Operations went
@@ -12218,34 +12234,32 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 02:27 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 02:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
-?? scripts/check-rewards-save.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+29be5368 [handoff]: R-NOW30 - (b) scoped for Sam, widget read re-arm, handoff gate
+b7bcc9c4 [handoff]: R-NOW30 - Sam's three, catalog mounted, 1f3217bb closed
+db33b3ef [debt]: Which Card? rewards editor fills from public cards; its Save is gated (ask f9b0da16 slice 2b)
+350e6ec1 [debt]: the cash floor shows the floor that applies; a switch for "Set manually"; Forgenta in the cookie copy (ask 58706af2)
+4233a486 [debt]: CatalogPicker - fill rewards from a public card, honestly (ask f9b0da16, slice 2a; not mounted yet)
+8813d330 [handoff]: R-NOW30 - three Tre fixes shipped, catalog slice 1, Sam's three queued
 68af7081 [engine]: card-catalog - public reward rates, each sourced and dated, that never overstate (ask f9b0da16, slice 1)
 e046e989 [debt]: rework the cards tab layout - one toolbar, utilization once, controls beside the order (ask 63e11072)
-63041ee6 [engine]: a transfer into a non-funding checking account now reaches it (ask 5357dfeb)
-4304b942 [debt]: Which Card? leaves out cards that have not opened yet (ask bed3f84f)
-6871e441 [handoff]: R-NOW29 - card advisor slices 2-4 shipped; rendered gates and widget read for successor
-b6874d4b [debt]: "Which Card?" panel - rewards rates and welcome offers per card (ask 1f3217bb, slices 2-4)
-99c9c522 [engine]: rankCardsForPurchase - which open card saves the most on a purchase (ask 1f3217bb, slice 1)
-e4b2a9de [handoff]: R-NOW28 - notice fix, move plan applied, card-advisor plan
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
