@@ -97,6 +97,8 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 import { resolveCashFloor } from '@/lib/cash-floor';
 import { useSafeToSpend } from '@/hooks/useSafeToSpend';
+import { usePublishSafeToSpend } from '@/hooks/usePublishSafeToSpend';
+import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { isManualCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
@@ -414,6 +416,9 @@ export default function Dashboard() {
   // Safe to spend until payday (ask 23fe1862) - the low point before payday minus the floor, built
   // from the engine's dated outflows. Never from the transaction-merge helpers above (Finding §1.1).
   const { result: safeToSpend, input: safeToSpendInput } = useSafeToSpend({ profile, confirmed: confirmedOccurrences, floor: cashFloor });
+  // Leo's money glance reads this figure (ask 1dc2c388). Never sample data, never a partner's money.
+  const { isPartnerView } = useViewedProfile();
+  usePublishSafeToSpend({ result: safeToSpend, userId: user?.id, disabled: isDemo || isPartnerView });
 
 
 

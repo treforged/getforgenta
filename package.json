@@ -22,6 +22,7 @@
     "measure:cold-launch": "node scripts/measure-cold-launch.mjs",
     "check:welcome": "node scripts/check-welcome-screen.mjs",
     "check:safe-to-spend": "node scripts/check-safe-to-spend.mjs",
+    "check:money-glance": "node scripts/check-money-glance.mjs",
     "check:payoff-today": "node scripts/check-payoff-today.mjs",
     "check:update-reminder": "node scripts/check-update-reminder.mjs",
     "check:card-advisor": "node scripts/check-card-advisor.mjs",

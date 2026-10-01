@@ -256,6 +256,12 @@ section states reasoning, not measurement, and says so.
   minus floor = total = card). The maths is owned by `src/lib/__tests__/safe-to-spend.test.ts` (15 tests, each asserts
   a number, red under three mutants). Not on the deck-walk account: its income and checking rows are inactive, so it
   correctly shows the EMPTY state. `walk:empty` asserts an empty account shows no figure.
+- `npm run check:money-glance` - calls the DEPLOYED `money-glance` function (Leo's read of Safe to Spend, ask 1dc2c388)
+  as the walk account: 401 without a token, 404 `no-snapshot` with no row, then a row planted through RLS with the
+  account's own JWT must come back as EXACTLY 7 keys (amount_cents, payday, horizon, low_point_cents, low_date,
+  floor_cents, computed_at ending in Z), and the user's own DELETE clears it. Never uses a service-role key; the
+  30/min limit is `money_glance_rate_ok()` (429 measured at call 31). The dashboard writes the row only once the figure
+  SETTLES (5 s): a 1/min throttle wrote Tre's interim $1,462.31 and blocked the $1,408.31 on screen.
 - `npm run check:payoff-today` - on /demo at 430x932 (ask 25d01fda): the Dashboard hero's "$X today" equals the CC Debt
   tile, and the Debt page's trajectory chart starts at a "Today" point whose HOVERED tooltip sums to Total CC Balance.
   Both used to draw month 0's END balance (after this month's payment) as today: "$2,800 today" beside $6,482, and the

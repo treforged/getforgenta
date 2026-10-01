@@ -2123,6 +2123,42 @@ export type Database = {
         }
         Relationships: []
       }
+      safe_to_spend_snapshot: {
+        Row: {
+          amount_cents: number
+          computed_at: string
+          floor_cents: number
+          horizon: string
+          low_date: string
+          low_point_cents: number
+          payday: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          computed_at: string
+          floor_cents?: number
+          horizon: string
+          low_date: string
+          low_point_cents: number
+          payday: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          computed_at?: string
+          floor_cents?: number
+          horizon?: string
+          low_date?: string
+          low_point_cents?: number
+          payday?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       savings_goals: {
         Row: {
           auto_end_contributions: boolean
@@ -2808,6 +2844,7 @@ export type Database = {
         Args: { p_at?: string; p_user_id: string }
         Returns: boolean
       }
+      money_glance_rate_ok: { Args: never; Returns: boolean }
       rate_limit_check: {
         Args: { p_key: string; p_max: number; p_window_ms: number }
         Returns: {
