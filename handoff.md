@@ -46,6 +46,13 @@ R-NOW24 (10-01 ~04:00Z, Ada getforgenta-12). START HERE. R-NOW23 items 2 and 3 a
         (App.tsx:194) and the device draft restores answers (Onboarding.tsx:221-225), so an early save shows the same
         wizard. Conclusion sent to Sam: the paths work; people leave without trying. Read signup_funnel_events env='prod'
         when real rows land.
+    [x] 8778e58c WELCOME SCREEN LIVE fff69abb (Ruby's draft, Sam-approved): 120px logo, promise headline, Example card
+        (sample data, /demo figures 2026-10-01: Safe to Pay $180, cards paid off Jan 2028), Start Free, "Try it with
+        sample data" button, Sign in text link. Gate `npm run check:welcome` 10/10 on prod, red 4/8 on the old screen.
+        Frames test-results/welcome/{before,after}-390.png sent to Sam for Tre's veto. The /demo figures are STATIC in
+        Auth.tsx - if the demo profile changes, re-read them.
+    [~] SAFE TO SPEND: Sam APPROVED building it (honours listing decision 69c9bdc0). Was: no "safe to spend" figure; build (cash above the
+        floor until next payday); waiting on Sam's call. Headline uses "safe to pay" meanwhile.
     NEXT: e1b0fffc standing improvement queue.
 R-NOW23 (10-01 ~03:30Z, Ada getforgenta-47 handed off at the call budget). START HERE, IN ORDER:
     1. RE-ARM the widget read (my cron 75c6928b dies with me): CronCreate one-shot '7 9 1 10 *' running
