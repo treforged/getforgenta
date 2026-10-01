@@ -267,3 +267,30 @@ export function datedMonthZero(
   }
   return { events, undatedReserve };
 }
+
+/** The projection maps the card split reads (`CardProjectionResult` fields). */
+export interface CardSplitInput {
+  simCards: readonly { id: string; name: string; dueDay?: number | null }[];
+  monthlyRevolvingBalances: ReadonlyMap<string, readonly number[]>;
+  perCardMinPayments: ReadonlyMap<string, readonly number[]>;
+  perCardPayments: readonly { id: string; payments: readonly number[] }[];
+}
+
+/**
+ * Each card's payment owed in month `idx`, split exactly as the engine splits it (useCardProjection's
+ * debtPaymentTotals / cyclingPayment): a card still revolving at the START of the month owes its contract
+ * minimum (the rest is the discretionary Safe to Pay); any other card's whole sim payment is its
+ * statement. Month 0 reads end-of-month 0, as the engine does.
+ * ⚠️ NOT `monthlyMandatoryCyclingPayment`: it read $0 for Tre's Robinhood card while the engine
+ * reserved its $841 statement (9be90af5), so the items never matched the total.
+ */
+export function cardTermsFor(p: CardSplitInput, idx: number): NextMonthTermSources['cards'] {
+  return p.simCards.map(c => {
+    const revs = p.monthlyRevolvingBalances.get(c.id);
+    const startRev = (idx === 0 ? revs?.[0] : revs?.[idx - 1]) ?? 0;
+    const amount = startRev > 0
+      ? (p.perCardMinPayments.get(c.id)?.[idx] ?? 0)
+      : (p.perCardPayments.find(pc => pc.id === c.id)?.payments[idx] ?? 0);
+    return { label: `${c.name} payment`, amount, dueDay: c.dueDay ?? null };
+  });
+}

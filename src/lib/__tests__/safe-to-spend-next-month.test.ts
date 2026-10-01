@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   nextMonthStart, nextMonthReservations, transferTerms, buildNextMonthTerms,
-  nextMonthOtherDebts, nextMonthPlanPayments, datedMonthZero,
+  nextMonthOtherDebts, nextMonthPlanPayments, datedMonthZero, cardTermsFor,
   type NextMonthTerm, type NextMonthTermSources,
 } from '@/lib/safe-to-spend-next-month';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
@@ -279,5 +279,31 @@ describe("the figure with month 0 dated - Tre's shape (cutoff 30 Sept, payday 2 
   it('control: without month-0 terms everything is reserved today -> $1,322.88', () => {
     const r = computeSafeToSpend(assembleSafeToSpendInput(a));
     expect(r.kind === 'figure' && r.amount).toBeCloseTo(1322.88, 2);
+  });
+});
+
+describe('cardTermsFor - mirrors the engine split (9be90af5, Tre’s Robinhood)', () => {
+  const p = {
+    simCards: [{ id: 'disc', name: 'Discover', dueDay: 1 }, { id: 'rh', name: 'Robinhood', dueDay: 10 }],
+    monthlyRevolvingBalances: new Map([['disc', [9000, 8500]], ['rh', [0, 0]]]),
+    perCardMinPayments: new Map([['disc', [150.4, 145]], ['rh', [0, 0]]]),
+    perCardPayments: [{ id: 'disc', payments: [900, 900] }, { id: 'rh', payments: [841, 300] }],
+  };
+
+  it('month 0: a revolving card owes its MINIMUM; a non-revolving card owes its whole sim payment (the statement)', () => {
+    expect(cardTermsFor(p, 0)).toEqual([
+      { label: 'Discover payment', amount: 150.4, dueDay: 1 },
+      { label: 'Robinhood payment', amount: 841, dueDay: 10 },
+    ]);
+  });
+
+  it('month 1 reads the START-of-month revolving balance (end of month 0), not the end of month 1', () => {
+    // Discover still revolves at the start of month 1 ($9,000) and clears by its end: it owes the $145
+    // minimum. Reading month 1's END balance would wrongly call the $900 payoff a statement.
+    const q = { ...p, monthlyRevolvingBalances: new Map([['disc', [9000, 0]], ['rh', [0, 0]]]) };
+    expect(cardTermsFor(q, 1).map(c => c.amount)).toEqual([145, 300]);
+    // And a card that cleared in month 0 owes its whole month-1 sim payment as a statement.
+    const r = { ...p, monthlyRevolvingBalances: new Map([['disc', [0, 0]], ['rh', [0, 0]]]) };
+    expect(cardTermsFor(r, 1).map(c => c.amount)).toEqual([900, 300]);
   });
 });
