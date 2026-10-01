@@ -37,8 +37,7 @@ R-NOW33 (10-01 ~08:40Z / 04:40 ET, Ada). START HERE. NOTE: R-NOW32's "08:30 ET" 
     [x] 1dc2c388 money-glance for Leo SHIPPED 8fa19346: snapshot table + RLS (20261001f/g), edge fn money-glance
         (no service role; money_glance_rate_ok definer for 30/min), Dashboard publisher (settled figure only, never
         demo/partner view). Gate: npm run check:money-glance (deployed fn). Vera has the URL + 7-key contract.
-        OPEN with Vera: Leo sign-in - magic-link template is link-only; recommended (a) paste the link text, else
-        (b) Tre adds {{ .Token }} in the Supabase dashboard (I draft it).
+        Leo sign-in DECIDED by Sam: option (a), Tre pastes the magic-link text into Leo; NO template change.
     1. f9b0da16: Discover cashback calendar retry on/after 2026-10-02 + dated 2026-Q4 row + test.
     [x] Prime Visa $773.05 vs $951: NOT a defect. accounts.min_payment = 773.05 (manual, includes the promo
         installments); statement 1,451.88, revolving, so cardTermsFor reserves the contract minimum. $951 is the
@@ -12282,7 +12281,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 04:33 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 06:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12300,14 +12299,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+5131f80d [handoff]: R-NOW33 - money-glance shipped 8fa19346 (1dc2c388)
+8fa19346 [money-glance]: publish the dashboard's Safe to Spend for Leo, read back through RLS (ask 1dc2c388)
 ea9d0f29 [handoff]: R-NOW33 - next-month payday horizon shipped 3b86204f
 3b86204f [safe-to-spend]: a payday NEXT month walks to that month's end too, so bills after it are checked
 78dd7f96 [handoff]: R-NOW33 - Prime Visa gap is the minimum vs Safe to Pay, not a defect
 fab5bf2c [handoff]: R-NOW33 - Safe to Spend past payday shipped 8b9e50d0, widget re-armed
 8b9e50d0 [safe-to-spend]: check the figure through month end, so a bill after payday caps it (Sam condition 1)
 df6c23ce [handoff]: R-NOW32 - Sam's past-payday condition queued, widget re-arm
-c2708caa test(safe-to-spend): pin the card split - cardTermsFor mirrors the engine (Sam)
-f815d498 [handoff]: R-NOW31 - card split 9be90af5
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
