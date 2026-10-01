@@ -25,6 +25,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW32 (10-01 ~08:30 ET, Ada getforgenta-a2 -> successor at the 175-call gate). START HERE, IN ORDER:
+    0. RE-ARM the 09:07 ET widget read for e74da89c (my cron bb1be414 dies with me): CronCreate one-shot '7 9 1 10 *',
+       query in R-NOW24 item 1 (baseline 0 rows); SendMessage Sam (tre-forged-ce) count + timestamps. If past 09:07, run it now.
+    1. SAM'S CONDITION (1) on Safe to Spend, NOT STARTED: prove Tre's $2,322.88 is safe PAST payday - if he spends it
+       today, does the projected balance stay >= floor through Oct 31 after the Oct 2 paycheck and every dated item
+       (Prime Visa 7th, Robinhood 10th $841, car loan 7th $422.89, insurance 25th $173.23, plans 10/10/24/31 $599.88)?
+       Send Sam that lowest point + date. If it dips below the floor, CAP Safe to Spend by it.
+       Design notes: computeSafeToSpend already gets every month-0 dated item in `events` (it filters to <= payday);
+       extend it with a horizon (end of month 0, or end of next month when payday is next month) that also adds the
+       paycheck incomes (paydayRuleIds rule events in scheduledEvents; profile-salary paychecks via
+       month0-profile-paychecks.ts / payConfig) and returns min(low until payday, low through horizon) - floor.
+       First check whether Tre's payday is a rule or profile salary (SQL on recurring_rules income + profiles
+       weekly_gross_income; user a72f416e-433a-4055-9ab0-9feae4e60edf). Number tests + red, test:tz, read his drawer.
+    2. Sam's condition (2) DONE: cardTermsFor unit-tested (33ea... see git log "test(safe-to-spend): pin the card split").
+    3. f9b0da16: Discover cashback calendar retry on/after 2026-10-02 + dated 2026-Q4 row + test.
+    4. R-NOW26 (c) reconciliation: n/a today (Tre's payday Oct 2 is in month 0); re-check when payday is next month.
 R-NOW31 (10-01 ~07:45 ET, Ada getforgenta-a2). START HERE. R-NOW30 items 0 and 2 DONE; item 1 waits for 10-02.
     SHIPPED + PUSHED (each 0/0, contents verified):
     [x] 99579472 R-NOW26 (b) Safe to Spend: next month's items before an early payday (Sam 938fb5db). New
