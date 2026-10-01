@@ -11,6 +11,7 @@ describe("findUnlockTimings", () => {
       "1200|BECOME_ACTIVE oauth=false fromBg=false firstLaunch=false wvKilled=false",
       "1201|COVER_BRANCH:brief → schedule 0.3s",
       "1450|JS:FACEID_OK",
+      "1540|JS:UNLOCK_PERSISTED",
       "2000|COVER_HIDDEN",
       "2130|JS:UNLOCK_PAINTED",
     );
@@ -18,7 +19,7 @@ describe("findUnlockTimings", () => {
     expect(rest).toHaveLength(0);
     expect(t.ts).toBe(1450);
     expect(t.at).toBe(new Date(1450).toISOString());
-    expect(t.reason).toBe("unlock timing: faceid->painted=680ms | faceid->cover_hidden=550ms | active->faceid=250ms | branch=brief");
+    expect(t.reason).toBe("unlock timing: faceid->painted=680ms | faceid->cover_hidden=550ms | active->faceid=250ms | branch=brief | faceid->persisted=90ms");
   });
 
   it("a cover that lifted BEFORE Face ID resolved reads negative, not missing", () => {
@@ -29,7 +30,7 @@ describe("findUnlockTimings", () => {
   it("older builds without COVER_HIDDEN and no activation read n/a and branch=none", () => {
     const log = lines("1500|JS:FACEID_OK", "1600|JS:UNLOCK_PAINTED");
     expect(findUnlockTimings(log, 0)[0].reason).toBe(
-      "unlock timing: faceid->painted=100ms | faceid->cover_hidden=n/a | active->faceid=n/a | branch=none",
+      "unlock timing: faceid->painted=100ms | faceid->cover_hidden=n/a | active->faceid=n/a | branch=none | faceid->persisted=n/a",
     );
   });
 

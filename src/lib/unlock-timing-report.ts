@@ -21,6 +21,8 @@ interface Entry {
 
 const FACEID_OK = 'JS:FACEID_OK';
 const PAINTED = 'JS:UNLOCK_PAINTED';
+/** Logged when markUnlocked's writes finish: the wait the pre-98cbf494 order put in front of the paint. */
+const PERSISTED = 'JS:UNLOCK_PERSISTED';
 const ACTIVE = 'BECOME_ACTIVE';
 const BRANCH = 'COVER_BRANCH:';
 /** AppDelegate.hideNativeCover logs this exact string; unlock-timing-native.gate.test.ts pins the pair. */
@@ -75,6 +77,7 @@ export function findUnlockTimings(log: string | null, afterTs: number): UnlockTi
     while (end < entries.length && entries[end].ts - entry.ts <= LOOKAHEAD_MS && entries[end].event !== FACEID_OK) end++;
 
     const painted = entries.slice(i + 1, end).find(e => e.event === PAINTED);
+    const persisted = entries.slice(i + 1, end).find(e => e.event === PERSISTED);
     // The cover can lift BEFORE Face ID resolves, so look from the activation, not from FACEID_OK.
     const hiddenFrom = activeIdx === -1 ? i + 1 : activeIdx + 1;
     const hidden = entries.slice(hiddenFrom, end).find(e => e.event.startsWith(HIDDEN));
@@ -85,9 +88,10 @@ export function findUnlockTimings(log: string | null, afterTs: number): UnlockTi
     const paintedMs = painted ? painted.ts - entry.ts : null;
     const hiddenMs = hidden ? hidden.ts - entry.ts : null;
     const activeMs = activeIdx === -1 ? null : entry.ts - entries[activeIdx].ts;
+    const persistedMs = persisted ? persisted.ts - entry.ts : null;
     timings.push({
       at: new Date(entry.ts).toISOString(),
-      reason: `unlock timing: faceid->painted=${fmt(paintedMs)} | faceid->cover_hidden=${fmt(hiddenMs)} | active->faceid=${fmt(activeMs)} | branch=${branch}`.slice(0, 200),
+      reason: `unlock timing: faceid->painted=${fmt(paintedMs)} | faceid->cover_hidden=${fmt(hiddenMs)} | active->faceid=${fmt(activeMs)} | branch=${branch} | faceid->persisted=${fmt(persistedMs)}`.slice(0, 200),
       ts: entry.ts,
     });
   });
