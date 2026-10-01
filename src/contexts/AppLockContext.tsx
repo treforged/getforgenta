@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { supabase } from '@/lib/supabase';
@@ -182,8 +182,13 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const lockEnabledRef         = useRef(false);
   const skipLockClearOnSignIn  = useRef(false);
 
-  useEffect(() => { isLockedRef.current    = isLocked;    }, [isLocked]);
-  useEffect(() => { lockEnabledRef.current = lockEnabled; }, [lockEnabled]);
+  // ⚠️ LAYOUT effects, not passive ones (a232812f). A passive effect runs AFTER the commit, so for a
+  // moment the screen read "unlocked" while isLockedRef still read locked - and a `pause` in that
+  // window returned early and left the app OPEN in the background. A layout effect runs inside the
+  // commit, so the ref and the screen can never disagree. Proven by the MutationObserver case in
+  // AppLockContext.resume.test.tsx, which fails on useEffect every time.
+  useLayoutEffect(() => { isLockedRef.current    = isLocked;    }, [isLocked]);
+  useLayoutEffect(() => { lockEnabledRef.current = lockEnabled; }, [lockEnabled]);
 
   // Lock on app kill + reopen: runs on every fresh JS load (process start).
   // Background → foreground does not re-run this effect.

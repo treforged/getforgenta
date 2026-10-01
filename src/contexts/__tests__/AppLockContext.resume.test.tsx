@@ -97,6 +97,25 @@ describe('the lock engages on a warm reopen (e34975a1)', () => {
     await waitFor(() => expect(store.get('forged:lock_pending')).toBe('1'));
   });
 
+  // a232812f: the case above flaked under full-suite load. The lock refs were synced in a PASSIVE
+  // effect, so for a moment after an unlock the screen read unlocked while isLockedRef still read
+  // locked - and a pause in that window returned early, leaving the app OPEN in the background.
+  // A MutationObserver callback runs as a microtask right after the DOM commit, before passive effects
+  // flush, so pausing there hits that window every time instead of only under load.
+  it('locks on a pause that lands the instant the unlock commits (fail-closed, a232812f)', async () => {
+    await launch();
+    const p = screen.getByTestId('s');
+    let paused = false;
+    const mo = new MutationObserver(() => {
+      if (!paused && (p.textContent ?? '').includes('locked=false')) { paused = true; handlers.pause(); }
+    });
+    mo.observe(p, { childList: true, characterData: true, subtree: true });
+    fireEvent.click(screen.getByText('pin'));
+    await waitFor(() => expect(paused).toBe(true));
+    mo.disconnect();
+    await waitFor(() => expect(state()).toContain('locked=true'));
+  });
+
   it('keeps the lock after a return past the grace', async () => {
     await launch();
     await unlock();
