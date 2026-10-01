@@ -82,14 +82,14 @@ export function nextMonthStart(cutoffDate: string): string {
 }
 
 /**
- * Dated outflows for next month's terms that land on or before payday, plus the undated ones to list.
+ * Dated outflows for next month's terms that land on or before payday (or `horizon`, when later), plus the undated ones to list.
  * `cutoffDate` here is any date in the ENGINE's month 0 (pass today, not the sync cutoff - see
  * `SafeToSpendAssembly.monthZeroDate`). Empty unless payday falls in EXACTLY the following month:
  * a payday this month needs nothing,
  * and a payday two or more months out is not handled (no pay schedule here produces one).
  */
 export function nextMonthReservations(
-  terms: readonly NextMonthTerm[], cutoffDate: string, payday: string | null,
+  terms: readonly NextMonthTerm[], cutoffDate: string, payday: string | null, horizon?: string,
 ): { events: DatedCashEvent[]; undated: UndatedNextMonthItem[] } {
   const events: DatedCashEvent[] = [];
   const undated: UndatedNextMonthItem[] = [];
@@ -104,7 +104,8 @@ export function nextMonthReservations(
     if (!(term.amount > 0) || !isFinite(term.amount)) continue;
     const day = term.dueDay === null ? 1 : Math.min(Math.max(Math.trunc(term.dueDay), 1), last);
     const date = `${pad(n.y, 4)}-${pad(n.m)}-${pad(day)}`;
-    if (date > payday) continue;
+    // Past payday up to the horizon too (the walk checks the figure stays safe after payday).
+    if (date > (horizon && horizon > payday ? horizon : payday)) continue;
     events.push({ date, amount: term.amount, direction: 'out', label: term.label });
     if (term.dueDay === null && term.kind !== 'goal') {
       undated.push({ label: term.label, amount: term.amount, kind: term.kind, editPath: term.editPath });

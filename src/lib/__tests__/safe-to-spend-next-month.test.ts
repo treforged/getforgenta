@@ -142,8 +142,11 @@ describe('assembleSafeToSpendInput + computeSafeToSpend - the figure itself', ()
     pauseSavings: false, cutoffDate: '2026-10-28', profilePayday: '2026-11-02', floor: 0,
   };
 
-  it('payday next month: $3,000 - $200 dated before payday - $310 undated = $2,490; the $450 on the 20th is not reserved', () => {
-    const input = assembleSafeToSpendInput({ ...a, nextMonthTerms: [
+  it('payday next month: $3,000 - $200 dated before payday - $310 undated = $2,490; the $450 on the 20th is covered by the paycheck', () => {
+    const paid: SafeToSpendAssembly = { ...a, paycheckRuleIds: new Set(['pay']),
+      rules: [{ id: 'pay', active: true, rule_type: 'income', category: 'Salary', deposit_account: 'chk' }],
+      scheduledEvents: [{ ruleId: 'pay', date: '2026-11-02', amount: 500, type: 'income', name: 'Paycheck' } as unknown as ScheduledEvent] };
+    const input = assembleSafeToSpendInput({ ...paid, nextMonthTerms: [
       term({ label: 'Transfer', amount: 200, dueDay: 1, kind: 'transfer' }),
       term({ label: 'Car loan', amount: 450, dueDay: 20, kind: 'car-loan' }),
       term({ label: 'Other debt payments', amount: 310 }),
@@ -151,6 +154,15 @@ describe('assembleSafeToSpendInput + computeSafeToSpend - the figure itself', ()
     const r = computeSafeToSpend(input);
     expect(r.kind === 'figure' && r.amount).toBe(2490);
     expect(input?.undatedNextMonth).toEqual([{ label: 'Other debt payments', amount: 310, kind: 'other-debt', editPath: '/debt' }]);
+  });
+
+  it("Sam's condition 1, payday next month: with NO paycheck the 20th's $450 caps it -> $2,040", () => {
+    const r = computeSafeToSpend(assembleSafeToSpendInput({ ...a, nextMonthTerms: [
+      term({ label: 'Transfer', amount: 200, dueDay: 1, kind: 'transfer' }),
+      term({ label: 'Car loan', amount: 450, dueDay: 20, kind: 'car-loan' }),
+      term({ label: 'Other debt payments', amount: 310 }),
+    ] }));
+    expect(r.kind === 'figure' && [r.amount, r.lowDate]).toEqual([2040, '2026-11-20']);
   });
 
   it('on the 1st, with the sync cutoff still last month, THIS month is not reserved twice (Tre, 2026-10-01)', () => {

@@ -241,7 +241,7 @@ export interface SafeToSpendAssembly {
    */
   monthZeroTerms?: readonly NextMonthTerm[];
   /**
-   * Net PROFILE-salary paychecks in month 0 after the cutoff, ONLY when no income rule carries the pay
+   * Net PROFILE-salary paychecks in month 0 and the next month, after the cutoff, ONLY when no income rule carries the pay
    * (`month0ProfilePaycheckIncome`'s rule). Rule paychecks come from `scheduledEvents`.
    */
   profilePaychecks?: readonly { date: string; net: number }[];
@@ -307,7 +307,15 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     }
   }
 
-  const next = nextMonthReservations(a.nextMonthTerms ?? [], a.monthZeroDate ?? a.cutoffDate, payday);
+  // Past payday (Sam's condition 1): walk to the end of PAYDAY's month - month 0, or the next month when
+  // payday falls there - with the paychecks from payday on. Both months' terms are assembled in full.
+  const end = monthEnd(a.monthZeroDate ?? a.cutoffDate);
+  const horizon = !payday ? undefined
+    : payday <= end ? end
+    : payday.slice(0, 7) === nextMonthStart(a.monthZeroDate ?? a.cutoffDate).slice(0, 7) ? monthEnd(payday)
+    : payday;
+
+  const next = nextMonthReservations(a.nextMonthTerms ?? [], a.monthZeroDate ?? a.cutoffDate, payday, horizon);
   events.push(...next.events);
 
   // Month 0's terms with per-item due days are dated (Sam 2026-10-01); the rest are reserved today.
@@ -324,11 +332,6 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
   const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve
     + Math.max(0, -m.oneTimeNet) + zero.undatedReserve;
 
-  // Past payday (Sam's condition 1): walk to the end of month 0, the month whose obligations the chain
-  // above holds in full, with the paychecks from payday on. A payday NEXT month keeps horizon = payday:
-  // next month's items after payday are not assembled, so walking further would read high.
-  const end = monthEnd(a.monthZeroDate ?? a.cutoffDate);
-  const horizon = payday && payday <= end ? end : payday ?? undefined;
   if (payday && horizon && horizon > payday) {
     for (const e of a.scheduledEvents) {
       if (e.type !== 'income' || !e.ruleId || !paydayRuleIds.has(e.ruleId) || e.date < payday || e.date > horizon) continue;

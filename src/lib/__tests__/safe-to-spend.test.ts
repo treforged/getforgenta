@@ -231,8 +231,19 @@ describe('assembleSafeToSpendInput - the walk past payday', () => {
     expect(r.kind === 'figure' && r.amount).toBe(500);
   });
 
-  it('a payday NEXT month keeps the horizon at payday (next month after payday is not assembled)', () => {
-    const input = assembleSafeToSpendInput({ ...a, cutoffDate: '2026-10-29', monthZeroDate: '2026-10-29', profilePayday: '2026-11-02' })!;
-    expect(input.horizon).toBe('2026-11-02');
+  it("a payday NEXT month walks to the end of payday's month, with that month's dated terms after payday", () => {
+    const input = assembleSafeToSpendInput({
+      ...a, month0: { ...month0, fundingBalance: 3000 },
+      cutoffDate: '2026-10-29', monthZeroDate: '2026-10-29', profilePayday: '2026-11-02',
+      scheduledEvents: [
+        ev('pay', '2026-11-02', 800, 'income'), ev('pay', '2026-11-09', 800, 'income'),
+        ev('rent', '2026-11-08', 2500, 'expense'), ev('rent', '2026-12-08', 9999, 'expense'),
+      ],
+      nextMonthTerms: [{ label: 'Card payment', amount: 300, dueDay: 5, kind: 'card', editPath: null }],
+    })!;
+    expect(input.horizon).toBe('2026-11-30');
+    const r = computeSafeToSpend(input);
+    // 3000 + 800 (2nd) - 300 card (5th) - 2500 rent (8th) = 1000; December is past the horizon.
+    expect(r.kind === 'figure' && [r.amount, r.lowDate, r.cappedAfterPayday]).toEqual([1000, '2026-11-08', true]);
   });
 });

@@ -110,7 +110,8 @@ export function useSafeToSpend(args: {
     // the same guard `month0ProfilePaycheckIncome` uses, so pay is never counted twice.
     const now = new Date();
     const profilePaychecks = salaried && !hasActiveCashIncomeRule(rules, liquidAccountIds)
-      ? getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth())
+      ? [...getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth()),
+        ...getPaychecksInMonth(payConfig, now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear(), (now.getMonth() + 1) % 12)]
         .map(p => ({ date: toLocalDateStr(p.date), net: p.net }))
         .filter(p => p.date > cutoffDate && Number.isFinite(p.net) && p.net > 0)
       : [];
