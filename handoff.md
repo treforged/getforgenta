@@ -35,6 +35,7 @@ R-NOW36 (10-01 ~11:45 ET, Ada session 29c105a2). START HERE, IN ORDER:
         LOCK_PENDING (faceIdOrder test, red both ways). Row now carries faceid->persisted = the OLD order's wait.
     0. 98cbf494 NEXT: read `select reason from client_boot_failures where path='unlock-timing'` (cron 7067b6f5 13:47).
        Before = faceid->persisted, after = faceid->painted; native cover_hidden once Tre is on 1201. Send Sam, close.
+    [x] e1b0fffc: boot splash in index.html (Forgenta mark while the bundle loads; sibling of #root; check:boot-failure 10/10).
     [x] Install id SHIPPED 9a52b1ae: consent-gated random UUID (forgenta:funnel_install_id), migration 20261001h APPLIED,
         privacy policy reworded. Needs-tre 68a6a1d9: App Store label Identifiers > Device ID declared?
     [x] aeaac54e CLOSED with evidence (prod = HEAD 9a52b1ae; goals read live balances; car payoff Jul 2030 consistent).
