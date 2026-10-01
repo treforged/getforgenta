@@ -36,7 +36,10 @@ R-NOW31 (10-01 ~07:45 ET, Ada getforgenta-a2). START HERE. R-NOW30 items 0 and 2
     [x] 7fd4e750 (a232812f) app-lock fail-open race: refs now useLayoutEffect; MutationObserver test red on old code.
     [x] 9616c730 HOTFIX of 99579472: "next month" keyed off the engine's month 0 (today), not the sync cutoff. On
         Tre's account (cutoff 09-30, today 10-01, payday 10-02) October was reserved twice; lowest -677.42 -> -487.16.
-    IN PROGRESS: MONTH-0 DATING (told Sam). Tre reads "$0 until Oct 2" because month 0's undated reserve ($3,000.31)
+    [x] 9650dbff MONTH-0 DATING (Sam approved + 2 edge cases as tests): Tre $0 -> $708.83 (car loan 7th + insurance
+        25th after Oct 2 payday). /demo $1,652 -> $2,229, welcome sample updated. NEXT: Tre's card items do not sum
+        to the engine card total (m0.cyclingPayment + cardMinimumReserve), so his cards stay reserved today - find why.
+    WAS: MONTH-0 DATING (told Sam). Tre reads "$0 until Oct 2" because month 0's undated reserve ($3,000.31)
         is all reserved today. Plan: per chain component (transfers, car loan, insurance, other debt, plans, cards),
         date its items ONLY when the items' sum equals the chain total within $1 (else keep the total undated - never
         high, never double); a dated item on/before the cutoff goes on the day after the cutoff. Tests: payday tomorrow,
