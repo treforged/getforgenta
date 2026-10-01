@@ -56,6 +56,7 @@ import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactio
 import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
+import { payInFourDefaults } from '@/lib/bnpl-defaults';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { matchesTransactionSearch } from '@/lib/transaction-search';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -1505,7 +1506,16 @@ export default function Transactions() {
                 <input aria-label="Provider / program"
                   type="text"
                   value={planForm.provider}
-                  onChange={e => setPlanForm(p => ({ ...p, provider: e.target.value }))}
+                  onChange={e => {
+                    const provider = e.target.value;
+                    setPlanForm(p => {
+                      // Pay in 4 charges every 2 weeks. Apply that only over the untouched default.
+                      const bnpl = payInFourDefaults(provider);
+                      return bnpl && p.frequency === 'monthly' && (p.total_payments === '' || p.total_payments === '4')
+                        ? { ...p, provider, ...bnpl }
+                        : { ...p, provider };
+                    });
+                  }}
                   placeholder="e.g. PayPal Pay in 4"
                   className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
                   style={{ borderRadius: 'var(--radius)' }}
