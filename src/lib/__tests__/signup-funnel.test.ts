@@ -18,7 +18,7 @@ vi.mock('@/lib/analytics', () => ({ hasTrackingOptOutSignal: optOut }));
 vi.mock('@/lib/consent-prefs', () => ({ loadConsent: loadConsentMock }));
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform } }));
 
-import { recordFunnelStep, toErrorCode, __resetFunnelForTests } from '../signup-funnel';
+import { recordFunnelStep, toErrorCode, funnelEnv, __resetFunnelForTests } from '../signup-funnel';
 
 beforeEach(() => {
   fromMock.mockClear();
@@ -40,6 +40,8 @@ describe('recordFunnelStep', () => {
       method: '',
       detail: '',
       platform: 'ios',
+      // jsdom runs on localhost, so this row is ours, not a visitor's.
+      env: 'dev',
     });
   });
 
@@ -113,5 +115,23 @@ describe('toErrorCode', () => {
 
   it('replaces illegal characters with underscores', () => {
     expect(toErrorCode({ code: 'a b-c' })).toBe('a_b_c');
+  });
+});
+
+// 2026-10-01: our own walks wrote 84 sign-ups into the production table in two days while no real
+// user signed up. Only the production host may count as a visitor.
+describe('funnelEnv', () => {
+  it('counts only the production host as a real visitor', () => {
+    expect(funnelEnv('getforgenta.com')).toBe('prod');
+    expect(funnelEnv('www.getforgenta.com')).toBe('prod');
+    expect(funnelEnv('GetForgenta.com')).toBe('prod');
+  });
+
+  it('marks localhost, a LAN address and a preview deploy as dev', () => {
+    expect(funnelEnv('localhost')).toBe('dev');
+    expect(funnelEnv('127.0.0.1')).toBe('dev');
+    expect(funnelEnv('192.168.1.20')).toBe('dev');
+    expect(funnelEnv('getforgenta-git-main-treforged.vercel.app')).toBe('dev');
+    expect(funnelEnv('getforgenta.com.evil.example')).toBe('dev');
   });
 });

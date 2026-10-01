@@ -24,6 +24,24 @@ export type FunnelStep =
   | 'try_demo';
 export type FunnelMethod = '' | 'email' | 'google' | 'apple';
 
+/** Hosts whose rows count as real visitors. The native apps load getforgenta.com too. */
+const PROD_HOSTS = new Set(['getforgenta.com', 'www.getforgenta.com']);
+
+/**
+ * Which population a row belongs to. Our own walks and checks run on localhost and write to the
+ * same production table, so without this a test burst and a real visitor were the same row
+ * (2026-10-01: 84 sign-ups in two days, zero real users). Anything that is not the production
+ * host is 'dev', a Vercel preview included.
+ */
+export function funnelEnv(hostname: string): 'prod' | 'dev' {
+  return PROD_HOSTS.has(hostname.toLowerCase()) ? 'prod' : 'dev';
+}
+
+/** '' where there is no window, so a missing host reads as 'dev' instead of throwing the row away. */
+function currentHostname(): string {
+  return typeof window !== 'undefined' && window.location ? window.location.hostname : '';
+}
+
 const sentSteps = new Set<string>();
 let authErrorCount = 0;
 
@@ -103,7 +121,7 @@ export function recordFunnelStep(
       // Not in the generated types (insert-only, nobody reads it from the client); same cast as
       // main.tsx uses for client_boot_failures.
       .from('signup_funnel_events' as never)
-      .insert({ step, method, detail, platform } as never)
+      .insert({ step, method, detail, platform, env: funnelEnv(currentHostname()) } as never)
       .then(undefined, () => {
         /* swallow rejection */
       });
