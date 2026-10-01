@@ -350,8 +350,16 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     try {
       const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
       await BiometricAuth.authenticate({ reason: 'Unlock Forgenta' });
+      // Ask 98cbf494: mark Face ID and the first unlocked frame, so the wait between them is measurable.
+      void debugLog('FACEID_OK');
       await markUnlocked();
       setIsLocked(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        void debugLog('UNLOCK_PAINTED').then(() => {
+          // Leave the native cover time to log COVER_HIDDEN before the timing is read.
+          setTimeout(() => { void import('@/lib/send-unlock-timings').then(m => m.sendUnlockTimings()); }, 3000);
+        });
+      }));
       return true;
     } catch {
       return false;

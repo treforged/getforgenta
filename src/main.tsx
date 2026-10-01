@@ -85,6 +85,8 @@ const startMonitoring = () => {
   initMonitoring();
   void reportPriorBootFailure(window.localStorage, sendBootFailure);
   void reportNativeCoverDeadlines().catch(() => { /* never block the app */ });
+  // Ask 98cbf494: unlock timings an earlier run logged but could not send.
+  void import('./lib/send-unlock-timings').then(m => m.sendUnlockTimings()).catch(() => { /* never block the app */ });
 };
 if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
   window.requestIdleCallback(startMonitoring, { timeout: 3000 });
