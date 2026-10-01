@@ -67,6 +67,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- BOOT SPLASH (ask 98cbf494, Tre: "same for other loading/cover screens"). Before the bundle
+         runs, a web cold load showed an empty page. This is the Forgenta mark at the same 112px as
+         LoadingMark, pulsing, as a SIBLING of #root: the boot guard below counts #root's children
+         to decide "mounted", so anything placed inside #root would blind it. The guard's observer
+         removes this the moment #root gets content, and fail() removes it before the error screen.
+         Its two backgrounds are index.css's .dark / .light --background, keyed on the class the head
+         script sets before first paint, so light mode does not flash dark. -->
+    <style>
+      #boot-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:hsl(222 24% 4%)}
+      html.light #boot-splash{background:hsl(0 0% 96%)}
+      #boot-splash img{width:112px;height:112px;object-fit:contain}
+      @media (prefers-reduced-motion:no-preference){#boot-splash img{animation:boot-pulse 1.6s ease-in-out infinite}}
+      @keyframes boot-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+    </style>
+    <div id="boot-splash" role="status" aria-label="Loading Forgenta"><img src="/logo-transparent.png" alt="" /></div>
     <!-- BOOT GUARD (2026-09-29, ask 76d3f608). Tre opened the iOS app to a BLACK screen: the app
          loads getforgenta.com, and if the JS never mounts, all that is left is the dark page
          background, which says nothing. This inline, dependency-free script turns that into a
@@ -88,7 +103,8 @@
         var KEY = 'forgenta.bootFailure.v1';
         var shown = false;
         function mounted() { var r = document.getElementById('root'); return !!(r && r.childElementCount > 0); }
-        function show() { var el = document.getElementById('boot-failed'); if (el) el.style.display = 'flex'; }
+        function hideSplash() { var s = document.getElementById('boot-splash'); if (s && s.parentNode) s.parentNode.removeChild(s); }
+        function show() { hideSplash(); var el = document.getElementById('boot-failed'); if (el) el.style.display = 'flex'; }
         function record(reason) {
           try { localStorage.setItem(KEY, JSON.stringify({ reason: String(reason).slice(0, 200), at: new Date().toISOString(), path: location.pathname })); } catch (e) { /* storage blocked: the screen still shows */ }
         }
@@ -107,6 +123,7 @@
         setTimeout(function () { if (!mounted()) fail('timeout ' + BOOT_TIMEOUT_MS + 'ms', false); }, BOOT_TIMEOUT_MS);
         new MutationObserver(function () {
           var r = document.getElementById('root');
+          if (mounted()) hideSplash();
           if (mounted() && r.style.display !== 'none') { var el = document.getElementById('boot-failed'); if (el) el.style.display = 'none'; shown = false; }
         }).observe(document.getElementById('root'), { childList: true });
         document.getElementById('boot-retry').addEventListener('click', function () { location.reload(); });

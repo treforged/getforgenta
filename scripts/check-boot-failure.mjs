@@ -9,6 +9,10 @@
 //   chunk     the /auth lazy chunk is aborted: one automatic reload, then the screen, root hidden
 // "Renders" means visible with a non-zero box and the heading text on screen, read from the page.
 //
+// SPLASH (ask 98cbf494): while the entry script is still loading, #boot-splash MUST show the mark
+// (visible, 112px box); it MUST be gone once the app mounts and once the failure screen shows.
+// STRIP_SPLASH=1 removes it from the served HTML; the stall arm's splash check must then go red.
+//
 // RED PROOF: STRIP_GUARD=1 removes the guard from the served HTML (what index.html was before
 // this change). Every failure arm must then go red. Exit 1 = a finding, 2 = the instrument broke.
 //
@@ -19,6 +23,7 @@ import { webkit } from 'playwright';
 const PORT = 4178;
 const BASE = `http://localhost:${PORT}`;
 const STRIP = process.env.STRIP_GUARD === '1';
+const STRIP_SPLASH = process.env.STRIP_SPLASH === '1';
 const TIMEOUT_ARM_WAIT = 15000;
 
 function startPreview() {
@@ -40,7 +45,12 @@ async function state(page) {
     const box = el ? el.getBoundingClientRect() : null;
     const visible = !!(el && getComputedStyle(el).display !== 'none' && box && box.width > 0 && box.height > 0);
     const root = document.getElementById('root');
+    const sp = document.getElementById('boot-splash');
+    const img = sp ? sp.querySelector('img') : null;
+    const ib = img ? img.getBoundingClientRect() : null;
     return {
+      splashVisible: !!(sp && getComputedStyle(sp).display !== 'none' && ib && ib.width > 0),
+      splashPx: ib ? Math.round(ib.width) : 0,
       screenVisible: visible,
       screenText: visible ? el.innerText.split('\n')[0] : '',
       mounted: !!(root && root.childElementCount > 0 && getComputedStyle(root).display !== 'none'),
@@ -54,11 +64,13 @@ async function newPage(browser) {
   const page = await ctx.newPage();
   // Offline by construction: nothing leaves localhost (no telemetry, no fonts, no Supabase).
   await ctx.route(u => u.origin !== BASE, r => r.abort());
-  if (STRIP) {
+  if (STRIP || STRIP_SPLASH) {
     await page.route(u => u.origin === BASE && (u.pathname === '/' || u.pathname === '/auth'), async route => {
       if (route.request().resourceType() !== 'document') return route.continue();
       const res = await route.fetch();
-      const html = (await res.text()).replace(/<div id="boot-failed"[\s\S]*?<\/script>/, '');
+      let html = await res.text();
+      if (STRIP) html = html.replace(/<div id="boot-failed"[\s\S]*?<\/script>/, '');
+      if (STRIP_SPLASH) html = html.replace(/<div id="boot-splash"[\s\S]*?<\/div>/, '');
       await route.fulfill({ response: res, body: html });
     });
   }
@@ -86,6 +98,7 @@ try {
     const s = await state(page);
     if (!s.mounted) { console.log('CONTROL FAILED: the unblocked app did not mount - the instrument is broken'); exit = 2; }
     check('control', s.mounted && !s.screenVisible, `mounted=${s.mounted} screen=${s.screenVisible}`);
+    check('control: splash gone once mounted', s.mounted && !s.splashVisible, `splash=${s.splashVisible}`);
     await ctx.unrouteAll({ behavior: 'ignoreErrors' }); await page.unrouteAll({ behavior: 'ignoreErrors' }); await ctx.close();
   }
 
@@ -117,8 +130,14 @@ try {
     const { ctx, page } = await newPage(browser);
     await page.route(/\/assets\/index-[^/]+\.js$/, () => { /* never fulfil */ });
     await page.goto(BASE + '/', { waitUntil: 'commit' });
-    await page.waitForTimeout(TIMEOUT_ARM_WAIT);
+    await page.waitForTimeout(1500);
+    const early = await state(page);
+    // Best effort: WebKit waits for fonts before a screenshot, and a stalled page never finishes loading.
+    if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/boot-splash-390.png`, timeout: 4000 }).catch(() => console.log('note: splash screenshot skipped (page still loading)'));
+    check('stall: splash shows the mark while loading', early.splashVisible && early.splashPx === 112 && !early.screenVisible, `splash=${early.splashVisible} px=${early.splashPx} screen=${early.screenVisible}`);
+    await page.waitForTimeout(TIMEOUT_ARM_WAIT - 1500);
     const s = await state(page);
+    check('stall: splash gone when the screen shows', s.screenVisible && !s.splashVisible, `splash=${s.splashVisible}`);
     check('stall: timeout shows the screen', s.screenVisible && /Couldn't load Forgenta/.test(s.screenText), `screen=${s.screenVisible} after ${TIMEOUT_ARM_WAIT}ms`);
     await ctx.unrouteAll({ behavior: 'ignoreErrors' }); await page.unrouteAll({ behavior: 'ignoreErrors' }); await ctx.close();
   }
@@ -147,6 +166,6 @@ try {
 }
 
 const failed = results.filter(r => !r.ok).length;
-console.log(`boot-failure: ${results.length} checks, ${failed} failed${STRIP ? ' (STRIP_GUARD=1, red proof)' : ''}`);
+console.log(`boot-failure: ${results.length} checks, ${failed} failed${STRIP ? ' (STRIP_GUARD=1, red proof)' : ''}${STRIP_SPLASH ? ' (STRIP_SPLASH=1, red proof)' : ''}`);
 if (exit === 0 && results.length === 0) exit = 2;
 process.exit(exit || (failed ? 1 : 0));

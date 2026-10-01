@@ -247,7 +247,9 @@ section states reasoning, not measurement, and says so.
   `npm run build` first; serves dist/ with `vite preview` and loads it in WEBKIT (the iOS engine) at 390x844,
   fully offline. Arms: unblocked app mounts (control); entry script aborted -> "Couldn't load Forgenta" renders
   and Retry reloads into the app; entry script stalled -> the 12s timeout shows it; /auth lazy chunk aborted ->
-  one automatic reload, then the screen. Proven red with `STRIP_GUARD=1` (5 of 7 fail). The guard is INLINE in
+  one automatic reload, then the screen. Proven red with `STRIP_GUARD=1` (7 of 10 fail). Also asserts the BOOT SPLASH
+  (ask 98cbf494): the 112px mark shows while the entry script loads and is gone on mount and on the error screen;
+  red with `STRIP_SPLASH=1`. The splash is a SIBLING of #root on purpose: the guard counts #root's children. The guard is INLINE in
   index.html on purpose: a guard in the bundle cannot report that the bundle failed. The next good boot sends
   the record to `public.client_boot_failures` (insert-own only; the desk reads it with SQL), because
   `reportError` is off in the native app. Does NOT cover a crash AFTER mount (that is the ErrorBoundary's job).
