@@ -718,26 +718,28 @@ export default function Auth() {
               draggable={false}
             />
             <h1 className="text-xl font-bold text-foreground leading-snug">
-              Know what's safe to pay, and the day you're debt-free.
+              Know what's safe to spend before payday, and the day you're <span className="whitespace-nowrap">debt-free.</span>
             </h1>
             <p className="text-sm text-foreground/80">
-              Add your bills, paychecks and cards. Forgenta shows how much can safely go to debt this
-              month, and the month your cards hit zero.
+              Add your bills, paychecks and cards. Forgenta shows what is safe to spend until your next
+              paycheck, after your bills, and the month your cards hit zero.
             </p>
           </div>
-          {/* ⚠️ SAMPLE FIGURES, labelled as such. Read off /demo on 2026-10-01 at 390px: "SAFE TO PAY
-              $180" and "CREDIT CARDS PAID OFF Jan 2028". They are the demo profile's numbers, not the
-              visitor's, and the "Example" label must stay so nobody reads them as their own. The app's
-              own terms are used on purpose: it shows "Safe to Pay", never a "safe to spend" figure. */}
+          {/* ⚠️ SAMPLE FIGURES, labelled as such. Read off /demo on 2026-10-01 at 390px (ask 23fe1862):
+              "SAFE TO SPEND UNTIL OCT 2 $1,652" and "CREDIT CARDS PAID OFF Dec 2027". They are the demo
+              profile's numbers, not the visitor's, and the "Example" label must stay so nobody reads
+              them as their own. The demo's figures move with the calendar, so re-read them when this
+              copy is next touched. "Safe to spend" is now a real figure in the app (safe-to-spend.ts),
+              matching the App Store listing Tre approved. */}
           <div className="card-forged auth-cta auth-cta-1 p-4 space-y-2 text-left" aria-label="Example with sample data">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Example · sample data</p>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-sm text-foreground/80">Safe to pay toward cards this month</span>
-              <span className="text-base font-bold text-primary tabular-nums">$180</span>
+              <span className="text-sm text-foreground/80">Safe to spend until payday</span>
+              <span className="text-base font-bold text-primary tabular-nums">$1,652</span>
             </div>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-sm text-foreground/80">Credit cards paid off</span>
-              <span className="text-base font-bold text-primary tabular-nums">Jan 2028</span>
+              <span className="text-base font-bold text-primary tabular-nums">Dec 2027</span>
             </div>
           </div>
           <div className="space-y-3">

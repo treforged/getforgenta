@@ -7,6 +7,7 @@
  * Example card of SAMPLE figures, and keeps Sign In findable. Sam's conditions are what this asserts:
  *   - Sign in is ABOVE THE FOLD and its text is no smaller than the screen's body text
  *   - the Example card is on screen and labelled as sample data
+ *   - the headline and the Example card say "safe to spend" (ask 23fe1862, the App Store listing's words)
  *   - EVERY control on the screen, pressed in a fresh page, CHANGES something:
  *       Start Free              -> an email field appears
  *       Try it with sample data -> the URL is /demo
@@ -72,6 +73,11 @@ const example = page.getByText(/Example · sample data/);
 const eBox = await example.boundingBox({ timeout: 5000 }).catch(() => null);
 check('Example card is labelled sample data and on screen', !!eBox && eBox.y + eBox.height <= VIEW.height, eBox ? `top ${Math.round(eBox.y)}` : 'not found');
 const hasHeadline = await page.getByRole('heading', { name: /debt-free/i }).isVisible();
+// Ask 23fe1862: the promise is the App Store listing's - "safe to spend" - and the Example card shows
+// that figure. Read from the screen, so reverting either half of the copy goes red.
+const exampleText = await page.getByLabel('Example with sample data').innerText().catch(() => '');
+check('Headline promises "safe to spend"', await page.getByRole('heading', { name: /safe to spend/i }).isVisible(), 'heading text');
+check('Example card shows the safe-to-spend figure', /Safe to spend until payday\s*\$[\d,]+/i.test(exampleText), JSON.stringify(exampleText.replace(/\s+/g, ' ').slice(0, 120)));
 check('headline states the promise', hasHeadline, hasHeadline ? 'h1 visible' : 'missing');
 
 // ── Every control: found by role, pressed in a fresh page ──
