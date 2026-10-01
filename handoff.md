@@ -31,8 +31,9 @@ R-NOW33 (10-01 ~08:40Z / 04:40 ET, Ada). START HERE. NOTE: R-NOW32's "08:30 ET" 
     [x] SAM CONDITION (1) DONE 8b9e50d0: Safe to Spend walks to month end with paychecks; takes the lower low. Tre
         $2,322.88 -> $1,408.31, low Oct 10 (spending it all would leave -$914.57). Floor 0 (automatic mode). Read on
         localhost (prod DB); prod bundle verified (Dashboard-CEfAe7-J-c2.js has the new text). Prod site not read:
-        Chrome not signed in there. Casebook entry added. Sam told twice. LIMIT: a payday NEXT month keeps horizon =
-        payday (next month after payday not assembled) - extend when R-NOW26 (c) is re-checked.
+        Chrome not signed in there. Casebook entry added. Sam told twice.
+    [x] 3b86204f: a payday NEXT month now walks to the end of payday's month (next-month dated terms + paychecks).
+        Red under 2 mutants; test:tz green; Tre unchanged $1,408.31. A payday 2+ months out keeps horizon = payday.
     1. f9b0da16: Discover cashback calendar retry on/after 2026-10-02 + dated 2026-Q4 row + test.
     [x] Prime Visa $773.05 vs $951: NOT a defect. accounts.min_payment = 773.05 (manual, includes the promo
         installments); statement 1,451.88, revolving, so cardTermsFor reserves the contract minimum. $951 is the
