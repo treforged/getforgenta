@@ -266,6 +266,11 @@ section states reasoning, not measurement, and says so.
   account never pays off (no Share by design), so the /demo probe carries the Share check. Proven red on the pre-change
   layout (12 failures, exit 1). Its strategy selector matches "Strategy" with or without a colon on purpose: matching the
   new label alone made the red run exit 2 instead of 1.
+- `npm run check:rewards-save` - the Which Card? rewards editor's SAVE, pressed at 390x844 signed in, with the PATCH
+  answered in-browser (route.fulfill; nothing reaches the DB, every other write aborted). Picks Apple Card from the public
+  catalog (f9b0da16), turns on Apple Pay, "Use these rates" must fill 2%, Gas 3 is typed over it, and Save must send ONE
+  PATCH with card_rewards {base_pct 2, categories {gas 3}}. Also measures the first row of rate boxes lines up (spread 0).
+  Red under: Save dropping categories, a dead "Use these rates", and the old inline-span markup (6.3px spread).
 - `npm run check:card-advisor` - Debt > "Which Card?" (ask 1f3217bb) at 390x844, signed in: `/debt?tab=use` opens the panel
   (testid AND aria-selected), typing 300 turns "Enter an amount" into "Use <card>" - or the no-room line ONLY when every
   card row says "Not enough room" - and pressing Gas sets aria-pressed. Writes nothing. Proven red by hiding the answer

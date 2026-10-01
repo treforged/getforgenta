@@ -8,6 +8,7 @@ import {
   type CardOption, type PurchaseCategory,
 } from '@/lib/card-for-purchase';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
+import CatalogPicker from './CatalogPicker';
 
 /**
  * "Which card for this purchase?" - the Debt page's Use panel (ask 1f3217bb).
@@ -57,7 +58,8 @@ function RewardsEditor({ card, onSave }: { card: AccountRow; onSave: (patch: Par
   };
 
   const pct = (label: string, value: string, set: (v: string) => void) => (
-    <label className="text-[11px] text-muted-foreground">
+    // Bottom-packed so every box in a row lines up whatever its caption does (form-control-theming rule).
+    <label className="text-[11px] text-muted-foreground flex h-full flex-col justify-end">
       {label}
       <input className={FIELD_INPUT} inputMode="decimal" value={value} onChange={e => set(e.target.value)} placeholder="%" />
     </label>
@@ -65,10 +67,16 @@ function RewardsEditor({ card, onSave }: { card: AccountRow; onSave: (patch: Par
 
   return (
     <div className="mt-2 space-y-2 border-t border-border pt-2">
+      {/* Public rates fill the fields below; every field stays editable, so the user can override any
+          of them before saving (ask f9b0da16). */}
+      <CatalogPicker onApply={r => {
+        setBase(String(r.base_pct));
+        setCats(Object.fromEntries(Object.entries(r.categories ?? {}).map(([k, v]) => [k, String(v)])));
+      }} />
       <div className="grid grid-cols-3 gap-2">
         {pct('Everything else', base, setBase)}
         {PURCHASE_CATEGORIES.filter(c => c !== 'other').map(c => (
-          <span key={c}>{pct(CATEGORY_LABEL[c], cats[c] ?? '', v => setCats(prev => ({ ...prev, [c]: v })))}</span>
+          <div key={c}>{pct(CATEGORY_LABEL[c], cats[c] ?? '', v => setCats(prev => ({ ...prev, [c]: v })))}</div>
         ))}
       </div>
       <p className="text-[11px] text-muted-foreground">Welcome offer (optional): spend this much by the date to earn the bonus.</p>
