@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { debugLog } from '@/lib/debugLog';
 import { useAuth } from '@/contexts/AuthContext';
 import { recoverSession, type ResumeOutcome } from '@/lib/app-resume';
+import { isWidgetHost } from '@/lib/widget-host';
 
 /**
  * Puts the app back together when it is brought back after being away.
@@ -31,6 +32,9 @@ export default function ResumeRecovery() {
   useEffect(() => { userRef.current = user; }, [user]);
 
   useEffect(() => {
+    // The hidden widget-refresh WebView (ask e74da89c) must never end the session it shares with
+    // the real app, so it does no resume recovery at all.
+    if (isWidgetHost()) return;
     const isNative = Capacitor.isNativePlatform();
     let awaySince: number | null = null;
     // One recovery at a time. Both signals can land together on native, and a second probe would

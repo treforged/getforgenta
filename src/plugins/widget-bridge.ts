@@ -1,4 +1,5 @@
 import { registerPlugin } from '@capacitor/core';
+import { getWidgetHost } from '@/lib/widget-host';
 
 export interface WidgetPayload {
   monthEndCash: number;
@@ -14,8 +15,11 @@ export interface WidgetBridgePlugin {
 }
 
 class WidgetBridgeWeb implements WidgetBridgePlugin {
-  async updateWidget(_payload: WidgetPayload): Promise<void> {
-    // no-op on web; native handles shared storage writes
+  async updateWidget(payload: WidgetPayload): Promise<void> {
+    // A plain browser has nowhere to put this, so it stays a no-op. The one exception is the
+    // hidden background WebView that refreshes widgets with the app closed (ask e74da89c): it has
+    // no Capacitor bridge, so the payload goes back through its own message channel instead.
+    getWidgetHost()?.post(JSON.stringify(payload));
   }
 }
 

@@ -419,6 +419,26 @@ describe('coming back from the background, which is the only signal native can t
 // ⚠️ ONE DEVICE'S SIGN-OUT MUST NOT END ANOTHER'S (ask a7b1509e). supabase-js defaults to
 // `scope: 'global'`; on 2026-10-01 a web tab's idle timeout used that default and signed Tre's
 // iPhone out with it. Every automatic sign-out here is this-device-only.
+describe('the hidden widget-refresh WebView never signs the session out (e74da89c)', () => {
+  it('runs no idle watcher, so a web leash cannot fire inside it', async () => {
+    h.native = false;
+    (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost = { postMessage: () => {} };
+    try {
+      // Seeded, because the guarded watcher never seeds it - without this the mutant (no guard)
+      // would also start its clock late and the test could not tell the two apart.
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(NOW));
+      renderSignedIn();
+      await screen.findByText('signed-in surface');
+      await idleFor(10 * MINUTE + MINUTE);
+      await idleFor(10 * MINUTE + 2 * MINUTE);
+      expect(h.signOut).not.toHaveBeenCalled();
+      expect(screen.getByText('signed-in surface')).toBeTruthy();
+    } finally {
+      delete (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost;
+    }
+  });
+});
+
 describe('an idle sign-out ends only this device', () => {
   it('never calls signOut without an explicit local scope', async () => {
     h.native = false;

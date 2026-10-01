@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { useNavigate, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
+import { isWidgetHost } from '@/lib/widget-host';
 import { App as CapApp } from '@capacitor/app';
 import { resetActivityTabForSignIn } from '@/lib/activity-tab';
 import { supabase } from '@/lib/supabase';
@@ -544,6 +545,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // signed people out after ten minutes. Mounting the lock is a separate decision; until it is
     // taken, native runs the same leash as web.
     if (!user || isDemo) return;
+    // The hidden widget-refresh WebView (ask e74da89c) shares this session. It must neither sign it
+    // out nor count as the user opening the app, so it runs no idle watcher at all.
+    if (isWidgetHost()) return;
 
     // Seed the key if not yet set so the timer starts from login
     if (!localStorage.getItem(LAST_ACTIVITY_KEY)) {

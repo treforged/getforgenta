@@ -155,6 +155,22 @@ afterEach(() => {
   cleanup();
 });
 
+describe('the hidden widget-refresh WebView (ask e74da89c)', () => {
+  it('never signs out the session it shares with the real app, even when the probe finds none', async () => {
+    (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost = { postMessage: () => {} };
+    try {
+      renderSignedInThen({ data: { session: null }, error: null });
+      await screen.findByText('signed-in surface');
+      await goAwayAndReturn(LONG_ENOUGH);
+      await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+      expect(h.getSession).toHaveBeenCalledTimes(1);
+      expect(h.signOut).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as { ForgentaWidgetHost?: unknown }).ForgentaWidgetHost;
+    }
+  });
+});
+
 describe('the web tab recovers on visibilitychange', () => {
   it('re-resolves and refreshes a token that expired while the tab was hidden', async () => {
     h.getSession.mockResolvedValue({ data: { session: expiring(-7200) }, error: null });
