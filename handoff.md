@@ -31,7 +31,13 @@ R-NOW20 (10-01 ~01:30Z, Ada getforgenta-b5). START HERE (Sam's brief: asks a7b15
         00:59:43Z refresh_token_not_found. All ordinary sign-outs now { scope: 'local' }; only Settings "Sign out all
         devices" (handleForceSignOut) is global. Native 7-day idle rule was already right. Test red-proven.
     [x] e74da89c PART 1 4eb5a5f5: useWidgetSync re-publishes on foreground (resumeTick), even with unchanged figures.
-    [~] e74da89c PART 2 = ask 7383b8cd (design decided, NOT built): app-closed refresh every 6h. Plan: on-device wake
+    [~] e74da89c PART 2 BUILT, OFF FOR EVERYONE (canary), see git log --grep e74da89c. widget-host guard (JS, hidden
+        WebView never signs out / never counts as an open), Android WidgetRefreshWorker 8d861d13 (CI compiled the AAB),
+        switch profiles.widget_bg_refresh (default false, 0/33 on) 301b81ab, iOS BGAppRefreshTask ffb3ed14 (reloads the
+        app's OWN bridge WebView; completes on the WidgetBridge publish notification). Gate widget-bg-refresh.gate 8.
+        NEXT: iOS compile green -> set Tre's profiles.widget_bg_refresh=true (snapshot first; undo = false) -> dispatch
+        an iOS upload -> he installs -> read debugLog WIDGET_BG_REFRESH / widget 'Updated' age after 6+ h.
+        Old design note follows: app-closed refresh every 6h. Plan: on-device wake
         re-running the app's own engine - Android WorkManager 6h periodic, iOS BGAppRefreshTask (best effort; none
         after force-quit). Hard part: the figures are computed INSIDE Dashboard (CardProjectionContext +
         useCardProjection), so a headless compute path is needed first; a bare WebView has no Capacitor bridge, so
@@ -12021,17 +12027,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-30 11:16 by handoff_hook. Everything below this heading is
+_Written 2026-09-30 21:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (4 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? press-walk-frames/
 ?? test-results/
@@ -12040,14 +12045,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-e5b6f0b6 [test]: pin the clock in 4 engine tests that broke when the month turned (ask 6642c809)
-5f8f45b4 [auth]: sign-up asks for email and password only; onboarding asks the name (ask e3166cf7)
-09ec8643 [auth]: confirm-email screen gets "Open <provider>" and a resend with a 60 s cooldown (ask ee8a0b89)
-9f194f9b [auth]: "Try it first" on the welcome screen opens the demo (ask 4180a9dd)
-1442b6b3 [auth]: one password field at sign-up, with a show-password toggle (ask 075107d6)
-869b2b76 [auth]: hold the cookie banner off the sign-in screen so Google and Apple are tappable (ask 791b4b03)
-bece3341 [auth]: count the steps before sign-up, anonymously (ask 6dbd80d8)
-628bee53 [forecast]: warn when a promotion cannot apply because no salary is set
+8cc626f0 [handoff]: R-NOW20 - sign-out cause fixed, widget resume publish, OAuth cover sleep removed
+319cef20 [ios]: lift the cover as soon as Google/Apple sign-in lands, not after a fixed 2.5 s (ask ce6412bc)
+4eb5a5f5 [widgets]: re-publish the widget the moment the app comes back (ask e74da89c, part 1)
+d79e11e6 [auth]: signing out on one device no longer signs you out everywhere (ask a7b1509e)
+636ef5f6 [handoff]: R-NOW19 - ecf65fde done (1ad04b6b)
+1ad04b6b [dates]: the date picker keeps last year's dates after the year turns; check:time-bombs really runs (ask ecf65fde)
+e43509f8 [handoff]: R-NOW19 - signup funnel + 5 friction fixes shipped; item 1 = read funnel rows after real installs
+4209d8b8 [test]: check:time-bombs - run the suite with the real clock moved to future dates
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
