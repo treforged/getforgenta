@@ -6,6 +6,7 @@ import android.os.Bundle;
 import androidx.activity.EdgeToEdge;
 import com.getcapacitor.BridgeActivity;
 import com.treforged.forged.widgets.WidgetBridgePlugin;
+import com.treforged.forged.widgets.WidgetRefreshWorker;
 
 public class MainActivity extends BridgeActivity {
 
@@ -25,6 +26,18 @@ public class MainActivity extends BridgeActivity {
         if (savedInstanceState == null) {
             prefs().edit().remove(BG_RELOAD).apply();
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        WidgetRefreshWorker.appInForeground = true;
+    }
+
+    @Override
+    public void onPause() {
+        WidgetRefreshWorker.appInForeground = false;
+        super.onPause();
     }
 
     @Override

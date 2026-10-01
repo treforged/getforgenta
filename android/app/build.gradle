@@ -41,6 +41,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Closed-app widget refresh (WidgetRefreshWorker, ask e74da89c).
+    implementation "androidx.work:work-runtime:2.10.1"
+    implementation "androidx.concurrent:concurrent-futures:1.2.0"
     testImplementation "junit:junit:$junitVersion"
     // The REAL org.json, so JVM unit tests exercise WidgetSnapshot.parse rather than
     // the android.jar stub, whose JSON classes throw "not mocked" by default. Without

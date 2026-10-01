@@ -29,15 +29,29 @@ public class WidgetBridgePlugin extends Plugin {
         // Persist to SharedPreferences
         WidgetSnapshot.save(context, monthEndCash, netWorth, currency, debts == null ? null : debts.toString());
 
-        // Broadcast update to every widget provider
-        triggerUpdate(context, SurplusWidgetProvider.class);
-        triggerUpdate(context, NetWorthWidgetProvider.class);
-        triggerUpdate(context, DebtsWidgetProvider.class);
+        updateAllWidgets(context);
 
         call.resolve();
     }
 
-    private void triggerUpdate(Context context, Class<?> providerClass) {
+    /**
+     * Turns the 6-hourly closed-app refresh on or off for this install (ask e74da89c). The app
+     * decides per user; it is off unless the app says otherwise.
+     */
+    @PluginMethod
+    public void setBackgroundRefresh(PluginCall call) {
+        WidgetRefreshWorker.schedule(getContext(), Boolean.TRUE.equals(call.getBoolean("enabled", false)));
+        call.resolve();
+    }
+
+    /** Broadcast an update to every widget provider. Also used by WidgetRefreshWorker. */
+    public static void updateAllWidgets(Context context) {
+        triggerUpdate(context, SurplusWidgetProvider.class);
+        triggerUpdate(context, NetWorthWidgetProvider.class);
+        triggerUpdate(context, DebtsWidgetProvider.class);
+    }
+
+    private static void triggerUpdate(Context context, Class<?> providerClass) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         int[] ids = manager.getAppWidgetIds(new ComponentName(context, providerClass));
         if (ids.length == 0) return;
