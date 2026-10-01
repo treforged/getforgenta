@@ -26,42 +26,35 @@ export default function UtilizationPanel({ cards }: Props) {
 
   if (cards.length === 0) return null;
 
+  // ⚠️ RENDERED INSIDE THE SUMMARY CARD, BELOW ITS TILES (Tre, 2026-10-01: "unecessary/duplicate
+  // info"). It used to be its own card whose first tile, "Overall Utilization", printed the same
+  // percentage as the summary's "Utilization" tile directly above it. The three figures it adds
+  // are the BREAKDOWN of that percentage, so they now sit under it as one strip.
   return (
-    <div className="card-forged p-3 sm:p-4 space-y-3 sm:space-y-4">
-      <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">
-        Utilization — a second goal alongside interest
-      </span>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-        <div>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Overall Utilization</p>
-          <p className="text-base sm:text-lg font-display font-bold mt-0.5">
-            {summary.utilizationPct != null ? `${summary.utilizationPct.toFixed(1)}%` : '—'}
-          </p>
-        </div>
+    <div className="mt-4 pt-3 border-t border-border/50 space-y-2" data-testid="utilization-breakdown">
+      <div className="grid grid-cols-3 gap-3 text-center">
         <div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Interest-Bearing</p>
-          <p className="text-base sm:text-lg font-display font-bold mt-0.5 text-destructive-text">
+          <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-destructive-text">
             {formatCurrency(summary.interestBearingBalance, false)}
           </p>
         </div>
         <div>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Utilization-Only (0%)</p>
-          <p className="text-base sm:text-lg font-display font-bold mt-0.5 text-primary">
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">On 0% Plans</p>
+          <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-primary">
             {formatCurrency(summary.utilizationOnlyBalance, false)}
           </p>
         </div>
         <div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Open Limit</p>
-          <p className="text-base sm:text-lg font-display font-bold mt-0.5">{formatCurrency(summary.totalLimit, false)}</p>
+          <p className="text-sm sm:text-base font-display font-bold mt-0.5">{formatCurrency(summary.totalLimit, false)}</p>
         </div>
       </div>
 
       {summary.utilizationOnlyBalance > 0 && (
         <p className="text-[10px] sm:text-[11px] text-muted-foreground">
-          {formatCurrency(summary.utilizationOnlyBalance, false)} of the balance above is on 0%-interest
-          installment plans — paying it down lowers utilization (and your score) but saves no interest.
-          Paying down interest-bearing balance does both.
+          0% plans lower utilization when paid down but save no interest. Paying interest-bearing
+          balance does both.
         </p>
       )}
 
@@ -69,7 +62,7 @@ export default function UtilizationPanel({ cards }: Props) {
         <div className="flex items-start gap-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
           <AlertTriangle size={12} className="shrink-0 mt-0.5 text-primary" />
           <span>
-            Not counted in the utilization above yet:{' '}
+            Not counted yet:{' '}
             {summary.futureCards.map((c, i) => (
               <span key={c.id}>
                 {i > 0 && ', '}

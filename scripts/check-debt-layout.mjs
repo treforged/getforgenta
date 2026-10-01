@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+/**
+ * check-debt-layout.mjs - the Debt Payoff (cards) tab's layout, RENDERED, signed in, at 1440x900 and 390x844.
+ *
+ * Tre, 2026-10-01 (desktop screenshot, ask 63e11072): "a lot of empty space, shared button off placement,
+ * organization, unecessary/duplicate info". Each defect he named is one assertion:
+ *   - Share sits in the page toolbar beside Reset & Recalculate, NOT inside the Payoff ETA tile;
+ *   - utilization is stated ONCE (the second card repeated the same percentage as "Overall Utilization");
+ *   - the "Targets ending cash" note and the "Cash floor always enforced" pill are gone (both repeated
+ *     what the Cash Floor control already says);
+ *   - at 1440 the controls card and the payoff-order card share ONE row (stacked, each left most of the
+ *     row empty); at 390 they stack and nothing is wider than the viewport.
+ * CONTROLS: "Total CC Balance" must render (right screen, page mounted), and an impossible label must
+ * count zero (the matcher can say no).
+ * DOES NOT COVER: colour, the Other Debts / Auto / Which Card tabs, the panels below the order list, or
+ * whether the figures are right.
+ *   The walk account's plan never pays off (no Share by design), so a /demo probe carries the Share check.
+ * USAGE: node scripts/check-debt-layout.mjs    EXITS: 0 pass . 1 a layout defect . 2 could not test
+ */
+import { readFileSync, mkdirSync } from 'node:fs';
+
+const BASE = 'http://localhost:8080';
+const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
+
+const env = readFileSync('.env.local', 'utf8');
+let creds;
+try { creds = readFileSync('.env.deck-walk.local', 'utf8'); }
+catch { fail(2, '.env.deck-walk.local is missing - see scripts/seed-walk-account.sql.'); }
+const pick = (s, k) => (s.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.trim();
+const url = pick(env, 'VITE_SUPABASE_URL');
+const anon = pick(env, 'VITE_SUPABASE_PUBLISHABLE_KEY');
+const email = pick(creds, 'REACH_TEST_EMAIL');
+const password = pick(creds, 'REACH_TEST_PASSWORD');
+if (!url || !anon || !email || !password) fail(2, 'missing supabase url/key or walk credentials.');
+if (!/@forgenta\.test$/.test(email)) fail(2, `refusing to script a sign-in for "${email}".`);
+
+const ref = new URL(url).hostname.split('.')[0];
+const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+  method: 'POST',
+  headers: { apikey: anon, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password }),
+});
+const session = await res.json().catch(() => ({}));
+if (!session.access_token) fail(2, `sign-in returned ${res.status}: ${JSON.stringify(session).slice(0, 200)}`);
+
+// Settle the first-run dialogs on the WALK account only, exactly as check:account does.
+const whatsNew = readFileSync('src/lib/whats-new.ts', 'utf8');
+const releaseVersion = (whatsNew.match(/version:\s*'([^']+)'/) || [])[1];
+if (!releaseVersion) fail(2, 'could not read the current release version out of src/lib/whats-new.ts.');
+const rest = { apikey: anon, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
+const prof = await fetch(`${url}/rest/v1/profiles?select=tour_flags&user_id=eq.${session.user.id}`, { headers: rest });
+if (!prof.ok) fail(2, `reading the walk account's profile returned ${prof.status}.`);
+const flags = (await prof.json())[0]?.tour_flags ?? {};
+const patch = await fetch(`${url}/rest/v1/profiles?user_id=eq.${session.user.id}`, {
+  method: 'PATCH',
+  headers: { ...rest, Prefer: 'return=representation' },
+  body: JSON.stringify({
+    founder_note_seen: true,
+    tour_flags: { ...flags, new_user_done: true, premium_done: true, [`whats_new_${releaseVersion}`]: true },
+  }),
+});
+const patched = await patch.json().catch(() => []);
+if (!patch.ok || !Array.isArray(patched) || patched.length === 0) {
+  fail(2, `settling the first-run dialogs matched no profile row (HTTP ${patch.status}).`);
+}
+
+let chromium;
+try { ({ chromium } = await import('@playwright/test')); }
+catch { fail(2, 'Could not load @playwright/test - run npm i.'); }
+try { await fetch(BASE, { redirect: 'manual' }); }
+catch (err) { fail(2, `${BASE} is not serving (${err.message}). Run: node scripts/dev-session.mjs up`); }
+
+mkdirSync('test-results', { recursive: true });
+const browser = await chromium.launch();
+const problems = [];
+
+async function probe(view, tag, demo = false) {
+  const ctx = await browser.newContext({ viewport: view });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
+  await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
+    version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
+  })));
+  if (demo) {
+    // Demo mode is in-memory React state, so /debt must be reached by a CLIENT-SIDE click after /demo.
+    await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+    await page.waitForURL(/\/dashboard/, { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+    const link = page.locator('a[href="/debt"]:visible').first();
+    if (!(await link.count())) { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: no visible /debt link in demo.`); }
+    await link.click();
+  } else {
+    await page.goto(`${BASE}/debt`, { waitUntil: 'domcontentloaded' });
+  }
+  try { await page.getByText('Total CC Balance').first().waitFor({ state: 'visible', timeout: 30000 }); }
+  catch { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: "Total CC Balance" never rendered on /debt.`); }
+  await page.waitForTimeout(2500);
+  for (let i = 0; i < 6 && (await page.locator('div.backdrop-blur-sm, div.modal-overlay').count()); i += 1) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+  }
+  const r = await page.evaluate(() => {
+    const leaves = [...document.querySelectorAll('p, span, div, h2, h3, label, button')]
+      .filter(el => el.children.length === 0 && el.getClientRects().length > 0);
+    const texts = leaves.map(el => (el.textContent || '').trim());
+    const count = re => texts.filter(t => re.test(t)).length;
+    const share = document.querySelector('[data-testid="share-debt-free"]');
+    const toolbar = document.querySelector('[data-testid="debt-toolbar"]');
+    const box = el => { const b = el.getBoundingClientRect(); return { top: Math.round(b.top), left: Math.round(b.left), right: Math.round(b.right) }; };
+    const head = re => [...document.querySelectorAll('h3, span')].find(el => re.test((el.textContent || '').trim()));
+    const cardOf = el => el && el.closest('.card-forged');
+    const controls = cardOf(head(/^strategy:?$/i));
+    const order = cardOf(head(/^(avalanche|snowball) order$/i));
+    return {
+      impossible: count(/^zzz-not-a-real-label$/i),
+      utilizationLabels: count(/utilization$/i),
+      targetsNote: count(/targets ending cash/i),
+      alwaysPill: count(/^cash floor always enforced$/i),
+      shareInToolbar: !!(share && toolbar && toolbar.contains(share)),
+      shareCount: document.querySelectorAll('[data-testid="share-debt-free"]').length,
+      neverPaysOff: count(/^not within \d+ years$/i) > 0,
+      controls: controls ? box(controls) : null,
+      order: order ? box(order) : null,
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  });
+  await page.screenshot({ path: `test-results/debt-layout-${tag}.png`, fullPage: true });
+  console.log(`[${tag}] ${JSON.stringify(r)}`);
+  if (r.impossible !== 0) { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: the matcher cannot say no.`); }
+  if (!r.controls || !r.order) { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: could not find the controls or the order card.`); }
+  if (r.utilizationLabels !== 1) problems.push(`[${tag}] utilization is labelled ${r.utilizationLabels} times (want 1)`);
+  if (r.targetsNote) problems.push(`[${tag}] the "Targets ending cash" note is back`);
+  if (r.alwaysPill) problems.push(`[${tag}] the "Cash floor always enforced" pill is back`);
+  // A plan that never pays off has no date to share, so no Share button is the right answer there.
+  // The DEMO account does pay off, which is what makes it the probe that can see a misplaced Share.
+  if (r.neverPaysOff && !demo) {
+    if (r.shareCount !== 0) problems.push(`[${tag}] Share renders for a plan that never pays off`);
+  } else if (r.neverPaysOff && demo) {
+    await browser.close(); fail(2, `[${tag}] CONTROL FAILED: the demo plan reads as never paying off, so Share placement cannot be checked.`);
+  } else if (r.shareCount !== 1 || !r.shareInToolbar) {
+    problems.push(`[${tag}] Share is not alone in the toolbar (count ${r.shareCount}, inToolbar ${r.shareInToolbar})`);
+  }
+  if (r.overflow > 1) problems.push(`[${tag}] the page is ${r.overflow}px wider than the viewport`);
+  if (view.width >= 1024) {
+    if (Math.abs(r.controls.top - r.order.top) > 4 || r.order.left <= r.controls.right - 4) {
+      problems.push(`[${tag}] controls (${JSON.stringify(r.controls)}) and order (${JSON.stringify(r.order)}) are not side by side`);
+    }
+  } else if (r.order.top <= r.controls.top) {
+    problems.push(`[${tag}] the order card does not stack below the controls`);
+  }
+  await ctx.close();
+}
+
+await probe({ width: 1440, height: 900 }, 'desktop');
+await probe({ width: 390, height: 844 }, 'phone');
+await probe({ width: 1440, height: 900 }, 'demo-desktop', true);
+await browser.close();
+if (problems.length) { problems.forEach(p => console.error(`FAIL: ${p}`)); process.exit(1); }
+console.log('PASS: Share in the toolbar, utilization stated once, no repeated safe-minimum notes, controls beside the order at 1440 and stacked at 390. Frames test-results/debt-layout-{desktop,phone,demo-desktop}.png');

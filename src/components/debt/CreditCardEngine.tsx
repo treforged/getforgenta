@@ -32,7 +32,7 @@ import { buildCardRecRows, buildLoanRecommendations, buildOtherDebtRecommendatio
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import type { LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
-import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X, Car, Landmark, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, ShieldCheck, CalendarDays, X, Car, Landmark, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
@@ -1403,6 +1403,24 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     );
   }
 
+  // ⚠️ NOT `p.payoffMonth ?? 0` — that turned "never pays off" into "paid at month zero" and
+  // rendered the header as "Paid". See aggregatePayoffEta.
+  // Payoff ETA = the month the interest-bearing revolving debt truly reaches $0
+  // (simRevolvingPayoffMonth), which is exactly the condition the Forecast page's CC Debt Free
+  // milestone gates on — so the two surfaces agree. Fall back to forecastRevolvingPayoffMonth
+  // (PASS 3), then the per-card sim payoff. Computed ONCE here because the Payoff ETA tile and the
+  // toolbar's Share button must name the same month.
+  const simEtaAgg = aggregatePayoffEta(projections.map(p => p.payoffMonth));
+  const headerEta = (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0)
+    ? simRevolvingPayoffMonth
+    : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0)
+      ? forecastRevolvingPayoffMonth
+      : (simEtaAgg.kind === 'month' ? simEtaAgg.month : 0);
+  // "Never" outranks a zero: no real payoff month anywhere means the debt does not clear, which
+  // must never be shown as the reassuring state - and has no date worth sharing.
+  const headerEtaNever = simEtaAgg.kind === 'never'
+    && !((simRevolvingPayoffMonth ?? 0) > 0) && !((forecastRevolvingPayoffMonth ?? 0) > 0);
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4 sm:space-y-5">
@@ -1447,14 +1465,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         )}
 
         {/* Reset & Recalculate Button */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        {/* One toolbar for the page's two page-level actions (Tre, 2026-10-01: the Share button sat
+            under the Payoff ETA figure, off on its own inside a stats tile). The "targets ending
+            cash = safe minimum" note was the third place this page printed the safe minimum; it is
+            the button's title now, and the figure stays in the Cash floor control. */}
+        <div className="flex items-center gap-2 sm:gap-3" data-testid="debt-toolbar">
           <button
             onClick={handleAutoAdjust}
+            title={`Recalculate the plan so cash ends each month near your safe minimum (${formatCurrency(recommendedSafeMinimum, false)})`}
             className="on-solid flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-[10px] sm:text-xs font-medium btn-press hover:bg-primary/20" style={{ borderRadius: 'var(--radius)' }}
           >
             <ShieldCheck size={12} /> Reset & Recalculate
           </button>
-          <span className="text-[9px] sm:text-[10px] text-muted-foreground">Targets ending cash ≈ safe minimum ({formatCurrency(recommendedSafeMinimum, false)})</span>
+          {!headerEtaNever && (
+            <div className="ml-auto"><ShareDebtFreeButton etaMonth={headerEta} /></div>
+          )}
         </div>
 
         {/* Manual-edit banner. Pins now survive reloads, so the plan on screen can be a hand-edited
@@ -1509,23 +1534,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
-                // ⚠️ NOT `p.payoffMonth ?? 0` — that turned "never pays off" into "paid at month
-                // zero" and rendered the header as "Paid". See aggregatePayoffEta.
-                const simAgg = aggregatePayoffEta(projections.map(p => p.payoffMonth));
-                const simEta = simAgg.kind === 'month' ? simAgg.month : 0;
-                // Payoff ETA = the month the interest-bearing revolving debt truly reaches $0
-                // (simRevolvingPayoffMonth), which is exactly the condition the Forecast page's CC
-                // Debt Free milestone gates on — so the two surfaces agree. Fall back to
-                // forecastRevolvingPayoffMonth (PASS 3), then the per-card sim payoff.
-                const eta = (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0)
-                  ? simRevolvingPayoffMonth
-                  : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0)
-                    ? forecastRevolvingPayoffMonth
-                    : simEta;
+                const eta = headerEta;
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
-                // "Never" outranks a zero: reaching this with no real payoff month anywhere means
-                // the debt does not clear, which must never be shown as the reassuring state.
-                if (simAgg.kind === 'never' && !((simRevolvingPayoffMonth ?? 0) > 0) && !((forecastRevolvingPayoffMonth ?? 0) > 0)) {
+                if (headerEtaNever) {
                   return (
                     <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text"
                        title={NO_PAYOFF_EXPLANATION}>
@@ -1534,12 +1545,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   );
                 }
                 if (eta <= 0) {
-                  return (
-                    <>
-                      <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>
-                      <div className="mt-1"><ShareDebtFreeButton etaMonth={0} /></div>
-                    </>
-                  );
+                  return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>;
                 }
                 // eta is 1-INDEXED (month 1 = this month) — the same convention Forecast maps to a
                 // row via `rawPayoffMonth - 1`. Printing it as "3 mo" read as three months FROM NOW
@@ -1557,21 +1563,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
                       {monthsAway === 0 ? 'this month' : `in ${monthsAway} mo`}
                     </p>
-                    {/* The same `eta` this cell prints, so the card and the header name one month. */}
-                    <div className="mt-1"><ShareDebtFreeButton etaMonth={eta} /></div>
                   </>
                 );
               })()}
             </div>
           </div>
+          <UtilizationPanel cards={cards} />
         </div>
 
-        <UtilizationPanel cards={cards} />
-
+        {/* Controls and the order they produce, side by side from lg up: full-width, each one left
+            most of a 1440px row empty (Tre, 2026-10-01). Stacked on a phone, as before. */}
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 lg:items-start">
         {/* Strategy + Controls */}
         <div className="card-forged p-3 sm:p-4 space-y-3 sm:space-y-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Strategy:</span>
+            <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Strategy</span>
             {([
               { key: 'avalanche', label: 'Avalanche', icon: TrendingDown },
               { key: 'snowball', label: 'Snowball', icon: ChevronDown },
@@ -1587,14 +1593,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <TooltipContent side="bottom" className="max-w-[260px] text-xs">{STRATEGY_TIPS[s.key]}</TooltipContent>
               </Tooltip>
             ))}
-            <span className="text-[9px] px-2 py-1 bg-success/10 text-success border border-success/20" style={{ borderRadius: 'var(--radius)' }}>
-              Cash floor always enforced
-            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Payment Mode:</span>
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Payment Mode</span>
               {([
                 { key: 'variable', label: 'Variable', icon: Zap },
                 { key: 'consistent', label: 'Consistent', icon: Target },
@@ -1614,13 +1617,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="text-[10px] text-muted-foreground uppercase">Cash Floor</label>
+                <label className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Cash Floor</label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span><Info size={11} className="text-muted-foreground cursor-help" /></span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[220px] text-xs">
-                    Never recommend payments that push liquid cash below this amount. Also reserves for early next-month bills.
+                    Always enforced: the plan never recommends a payment that pushes liquid cash below this amount. Also reserves for early next-month bills.
                   </TooltipContent>
                 </Tooltip>
                 {/* Automatic is the default. The input stays VISIBLE but disabled in that mode, still
@@ -1670,9 +1673,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               {!manualFloor && (
                 <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                   <Info size={9} className="shrink-0" />
-                  Calculated automatically each month from the bills due before your next paycheck
-                  &mdash; {formatCurrency(recommendedSafeMinimum, false)} this month. Tick
-                  &ldquo;set manually&rdquo; to hold a floor of your own on top.
+                  Set from the bills due before your next paycheck. Tick &ldquo;set
+                  manually&rdquo; to hold your own floor on top.
                 </p>
               )}
               {manualFloor && prePaycheckBills.total > cashFloor && (
@@ -1685,13 +1687,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
 
           {/* Funding Account Selector */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 border-t border-border/50">
-            <Wallet size={13} className="text-primary shrink-0" />
-            <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider shrink-0">Funding Account:</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3 border-t border-border/50">
+            <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Pay From</span>
             <select aria-label="Funding account"
               value={resolvedFundingId}
               onChange={e => setFundingAccountId(e.target.value)}
-              className="flex-1 min-w-0 bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
+              className="flex-1 min-w-0 max-w-xs bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
             >
               {liquidAccounts.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
@@ -1711,6 +1712,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           unrated={unratedCards}
           onSetApr={(cardId, apr) => updateAccount.mutate({ id: cardId, apr })}
         />
+        </div>
 
         {/* Recommendation Panel */}
         <div className="card-forged p-3 sm:p-5">

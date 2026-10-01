@@ -86,7 +86,8 @@
     "check:destructive-states": "node scripts/check-destructive-states.mjs",
     "check:landing": "node scripts/check-landing-first-screen.mjs",
     "check:landing:live": "node scripts/check-landing-first-screen.mjs --url https://getforgenta.com",
-    "install:hooks": "node scripts/install-git-hooks.mjs"
+    "install:hooks": "node scripts/install-git-hooks.mjs",
+    "check:debt-layout": "node scripts/check-debt-layout.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

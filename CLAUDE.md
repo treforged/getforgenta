@@ -260,6 +260,12 @@ section states reasoning, not measurement, and says so.
   "need updating by hand" notice renders, and PRESSING it switches the Dashboard to Accounts (`?tab=accounts&panel=balances`).
   Proven red by pointing the link at `/dashboard` (exit 1). Future-dated cards are left out of the list; the unit test
   `AccountUpdateReminder.test.tsx` owns that (Tre, 2026-10-01).
+- `npm run check:debt-layout` - the Debt Payoff cards tab's layout (ask 63e11072), rendered at 1440 and 390 signed in, plus
+  /demo at 1440: Share sits in the toolbar beside Reset (not inside the ETA tile), utilization is labelled ONCE, the repeated
+  safe-minimum notes stay gone, and the controls card sits beside the payoff order at 1440 and above it at 390. The walk
+  account never pays off (no Share by design), so the /demo probe carries the Share check. Proven red on the pre-change
+  layout (12 failures, exit 1). Its strategy selector matches "Strategy" with or without a colon on purpose: matching the
+  new label alone made the red run exit 2 instead of 1.
 - `npm run check:card-advisor` - Debt > "Which Card?" (ask 1f3217bb) at 390x844, signed in: `/debt?tab=use` opens the panel
   (testid AND aria-selected), typing 300 turns "Enter an amount" into "Use <card>" - or the no-room line ONLY when every
   card row says "Not enough room" - and pressing Gas sets aria-pressed. Writes nothing. Proven red by hiding the answer
