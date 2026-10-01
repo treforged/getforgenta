@@ -53,7 +53,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import ShortMonthsNotice from '@/components/dashboard/ShortMonthsNotice';
 import { shortfallByMonth } from '@/lib/breach-levers';
 import DashboardOverviewStrip from '@/components/dashboard/DashboardOverviewStrip';
-import CalcDrawer from '@/components/shared/CalcDrawer';
+import CalcDrawer, { type CalcDrawerLine } from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
 import { buildPayoffTrajectory, formatMonthsAway } from '@/lib/payoff-trajectory';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
@@ -97,6 +97,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 import { resolveCashFloor } from '@/lib/cash-floor';
 import { useSafeToSpend } from '@/hooks/useSafeToSpend';
+import { nextMonthStart } from '@/lib/safe-to-spend-next-month';
 import { isManualCashFloor } from '@/lib/cash-floor';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
@@ -212,7 +213,7 @@ export default function Dashboard() {
   // No projection yet (or a context without one) shows no line, never a crash of the whole page.
   const shortMonths = useMemo(() => (forecastProjections?.data ? shortfallByMonth(forecastProjections, 12) : []), [forecastProjections]);
   const [shortMonthsDismissed, setShortMonthsDismissed] = usePersistedState('tre:dashboard:shortMonthsDismissed', '');
-  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
+  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: CalcDrawerLine[]; footnote?: string } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
   const [pmfVisible, setPmfVisible] = useState(false);
@@ -789,6 +790,9 @@ export default function Dashboard() {
     if (!safeToSpendInput || safeToSpend?.kind !== 'figure') return;
     const money = (v: number) => formatCurrency(v, true);
     const short = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const undatedNext = safeToSpendInput.undatedNextMonth ?? [];
+    const undatedByLabel = new Map(undatedNext.map(u => [u.label, u]));
+    const nextFirst = nextMonthStart(safeToSpendInput.cutoffDate);
     const dated = safeToSpendInput.events
       .filter(e => e.date > safeToSpendInput.cutoffDate && e.date <= safeToSpend.payday && e.amount > 0)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.direction === 'out' ? -1 : 1));
@@ -797,13 +801,26 @@ export default function Dashboard() {
       ...(safeToSpendInput.undatedReserve > 0
         ? [{ label: 'Set aside this month (goals, car, cards, other debt)', value: money(safeToSpendInput.undatedReserve), op: '−' }]
         : []),
-      ...dated.map(e => ({ label: `${short(e.date)} · ${e.label}`, value: money(e.amount), op: e.direction === 'out' ? '−' : '+' })),
+      ...dated.map((e): CalcDrawerLine => {
+        // Next month's items with no due date sit on its 1st (Sam's ruling 938fb5db). Each opens its
+        // own screen, so the user can see what it is and, where the app has the field, date it.
+        const undated = e.direction === 'out' && e.date === nextFirst ? undatedByLabel.get(e.label) : undefined;
+        return {
+          label: `${short(e.date)} · ${e.label}${undated ? ' (no due date)' : ''}`,
+          value: money(e.amount),
+          op: e.direction === 'out' ? '−' : '+',
+          ...(undated?.editPath ? { onClick: () => { setCalcDrawer(null); navigate(undated.editPath!); } } : {}),
+        };
+      }),
       { label: '', value: '' },
       { label: `Lowest point (${safeToSpend.lowDate === safeToSpendInput.cutoffDate ? 'today' : short(safeToSpend.lowDate)})`, value: money(safeToSpend.lowPoint), op: '=' },
       ...(safeToSpend.floor > 0 ? [{ label: 'Cash floor', value: money(safeToSpend.floor), op: '−' }] : []),
       { label: `Safe to spend until ${short(safeToSpend.payday)}`, value: money(safeToSpend.amount), op: '=' },
     ];
-    setCalcDrawer({ title: 'Safe to Spend until Payday', lines });
+    const footnote = undatedNext.length > 0
+      ? `${undatedNext.length} ${undatedNext.length === 1 ? 'item has' : 'items have'} no due date, so ${undatedNext.length === 1 ? 'it is' : 'they are'} reserved on ${short(nextFirst)}. Tap one to open it.`
+      : undefined;
+    setCalcDrawer({ title: 'Safe to Spend until Payday', lines, footnote });
   };
 
   const openMonthEndCalc = () => {
@@ -1601,6 +1618,7 @@ export default function Dashboard() {
           onClose={() => setCalcDrawer(null)}
           title={calcDrawer.title}
           lines={calcDrawer.lines}
+          footnote={calcDrawer.footnote}
         />
       )}
     </div>

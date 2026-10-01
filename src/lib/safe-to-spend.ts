@@ -24,14 +24,17 @@
  * figure LOWER than the truth, never higher - the failure a "safe" figure must never have.
  * Paycheck-rule income is never counted before payday (the figure is what is safe BEFORE it lands).
  *
- * WHAT IT DOES NOT COVER: when payday falls next month, next month's UNDATED items before payday
- * (a goal contribution on the 1st, say) are not in the walk; next month's dated rule bills are.
+ * WHEN PAYDAY FALLS NEXT MONTH (R-NOW26 (b), Sam's ruling 938fb5db): next month's dated rule bills
+ * come from `scheduledEvents`; next month's chain terms (transfers, goals, car loans, card payments,
+ * other debt) come from `nextMonthTerms` via `safe-to-spend-next-month.ts` - dated where they have a
+ * due day, on day 1 where they do not, and the undated ones are listed in `undatedNextMonth`.
  * A card's discretionary extra paydown (Safe to Pay) is not reserved - the user chooses between it
  * and spending, and both figures sit side by side.
  */
 import { CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { ScheduledEvent } from '@/lib/scheduling';
+import { nextMonthReservations, type NextMonthTerm, type UndatedNextMonthItem } from '@/lib/safe-to-spend-next-month';
 
 export interface DatedCashEvent {
   /** 'YYYY-MM-DD' local date. */
@@ -55,6 +58,8 @@ export interface SafeToSpendInput {
   events: readonly DatedCashEvent[];
   /** Manual cash floor in dollars. Pass 0 in automatic-floor mode (the automatic floor IS the committed outflows, already in `events`). */
   floor: number;
+  /** Next month's items with no due date, reserved on its 1st because payday falls next month. For the drawer. */
+  undatedNextMonth?: readonly UndatedNextMonthItem[];
 }
 
 export type SafeToSpendMissing = 'no-funding-account' | 'no-payday' | 'no-projection';
@@ -201,6 +206,8 @@ export interface SafeToSpendAssembly {
   profilePayday: string | null;
   /** `resolveCashFloor(profile)` - already 0 in automatic-floor mode. */
   floor: number;
+  /** The month after the cutoff's chain terms. Used only when payday falls in that month. */
+  nextMonthTerms?: readonly NextMonthTerm[];
 }
 
 /**
@@ -255,6 +262,9 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     }
   }
 
+  const next = nextMonthReservations(a.nextMonthTerms ?? [], a.cutoffDate, payday);
+  events.push(...next.events);
+
   const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve + m.carLoanPayment
     + m.vehicleInsurance + m.otherDebtPayment + m.transfers + m.planExpenses
     + Math.max(0, -m.oneTimeNet) + m.cyclingPayment + a.cardMinimumReserve;
@@ -268,5 +278,6 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     undatedReserve,
     events,
     floor: a.floor,
+    undatedNextMonth: next.undated,
   };
 }

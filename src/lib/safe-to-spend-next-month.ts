@@ -1,0 +1,181 @@
+/**
+ * SAFE TO SPEND - NEXT MONTH'S ITEMS BEFORE AN EARLY PAYDAY (R-NOW26 (b); Sam's ruling, ask 938fb5db).
+ *
+ * When payday falls in the month after the sync cutoff, the walk in `computeSafeToSpend` must also
+ * reserve that month's obligations that land on or before payday. Month 0's chain terms are not
+ * enough: they describe THIS month only.
+ *
+ * THE RULE (Sam, 2026-10-01): date everything that has a real due day, exactly. A car loan due on
+ * the 20th is NOT reserved before a payday on the 2nd. Anything with NO due date is reserved on day 1
+ * of its month - so the residue can only read LOW, never high - and is listed so the drawer can say
+ * which items to give a due date. Goal contributions are reserved in full on day 1 but are not listed:
+ * a goal has no due-date field, so "add one" would be advice the user cannot follow.
+ *
+ * Pure string arithmetic on 'YYYY-MM-DD'. No Date objects, so no time-zone drift.
+ */
+import type { DatedCashEvent } from '@/lib/safe-to-spend';
+
+export type NextMonthTermKind = 'transfer' | 'goal' | 'car-loan' | 'insurance' | 'other-debt' | 'plan' | 'card';
+
+export interface NextMonthTerm {
+  label: string;
+  /** Dollars, positive. Non-positive or non-finite amounts are ignored. */
+  amount: number;
+  /** Day of month 1-31, or null when the item has no due date. Past the month's end clamps to the last day. */
+  dueDay: number | null;
+  kind: NextMonthTermKind;
+  /** App route to edit this item, or null. */
+  editPath: string | null;
+}
+
+export interface UndatedNextMonthItem {
+  label: string;
+  amount: number;
+  kind: NextMonthTermKind;
+  editPath: string | null;
+}
+
+export interface NextMonthTransferRule {
+  name: string;
+  amount: number | string;
+  frequency: string;
+  due_day: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  payment_source: string | null;
+}
+
+const pad = (n: number, w = 2): string => String(n).padStart(w, '0');
+
+function ym(date: string): { y: number; m: number } {
+  const [y, m] = date.split('-').map(Number);
+  return { y, m };
+}
+
+function following(y: number, m: number): { y: number; m: number } {
+  return m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 };
+}
+
+function daysInMonth(y: number, m: number): number {
+  if (m === 2) return (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28;
+  return [4, 6, 9, 11].includes(m) ? 30 : 31;
+}
+
+/** Day of week, 0 = Sunday (Sakamoto). */
+function weekday(y: number, m: number, d: number): number {
+  const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+  const yy = m < 3 ? y - 1 : y;
+  return (yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) + t[m - 1] + d) % 7;
+}
+
+/** 'YYYY-MM-01' of the calendar month after `cutoffDate`. December rolls to January. */
+export function nextMonthStart(cutoffDate: string): string {
+  const { y, m } = ym(cutoffDate);
+  const n = following(y, m);
+  return `${pad(n.y, 4)}-${pad(n.m)}-01`;
+}
+
+/**
+ * Dated outflows for next month's terms that land on or before payday, plus the undated ones to list.
+ * Empty unless payday falls in EXACTLY the month after the cutoff: a payday this month needs nothing,
+ * and a payday two or more months out is not handled (no pay schedule here produces one).
+ */
+export function nextMonthReservations(
+  terms: readonly NextMonthTerm[], cutoffDate: string, payday: string | null,
+): { events: DatedCashEvent[]; undated: UndatedNextMonthItem[] } {
+  const events: DatedCashEvent[] = [];
+  const undated: UndatedNextMonthItem[] = [];
+  if (!payday) return { events, undated };
+  const c = ym(cutoffDate);
+  const n = following(c.y, c.m);
+  const p = ym(payday);
+  if (p.y !== n.y || p.m !== n.m) return { events, undated };
+
+  const last = daysInMonth(n.y, n.m);
+  for (const term of terms) {
+    if (!(term.amount > 0) || !isFinite(term.amount)) continue;
+    const day = term.dueDay === null ? 1 : Math.min(Math.max(Math.trunc(term.dueDay), 1), last);
+    const date = `${pad(n.y, 4)}-${pad(n.m)}-${pad(day)}`;
+    if (date > payday) continue;
+    events.push({ date, amount: term.amount, direction: 'out', label: term.label });
+    if (term.dueDay === null && term.kind !== 'goal') {
+      undated.push({ label: term.label, amount: term.amount, kind: term.kind, editPath: term.editPath });
+    }
+  }
+  return { events, undated };
+}
+
+/**
+ * Transfer rules as terms for the month starting at `monthStart`. A transfer whose source is a
+ * non-cash account never touches checking, so it is skipped (mirrors the engine's month-0 loop).
+ */
+export function transferTerms(
+  rules: readonly NextMonthTransferRule[], monthStart: string, cashSourceIds: ReadonlySet<string>,
+): NextMonthTerm[] {
+  const { y, m } = ym(monthStart);
+  const last = daysInMonth(y, m);
+  const monthEnd = `${pad(y, 4)}-${pad(m)}-${pad(last)}`;
+  const terms: NextMonthTerm[] = [];
+  const term = (amount: number, dueDay: number | null, name: string): NextMonthTerm =>
+    ({ label: name, amount, dueDay, kind: 'transfer', editPath: '/budget' });
+
+  for (const r of rules) {
+    if (r.start_date && r.start_date > monthEnd) continue;
+    if (r.end_date && r.end_date < monthStart) continue;
+    if (r.payment_source && !cashSourceIds.has(r.payment_source.replace(/^account:/, ''))) continue;
+    const amount = Number(r.amount);
+    if (!(amount > 0)) continue;
+    if (r.frequency === 'monthly') {
+      terms.push(term(amount, r.due_day || 1, r.name));
+    } else if (r.frequency === 'weekly') {
+      const dow = r.due_day ?? 5;
+      for (let d = 1; d <= last; d++) if (weekday(y, m, d) === dow) terms.push(term(amount, d, r.name));
+    } else if (r.frequency === 'yearly') {
+      terms.push(term(amount / 12, null, r.name));
+    } else {
+      // biweekly and anything else: the full amount, undated (engine parity: at most once a month).
+      terms.push(term(amount, null, r.name));
+    }
+  }
+  return terms;
+}
+
+/** The raw next-month figures the hook can read, before they become terms. */
+export interface NextMonthTermSources {
+  /** 'YYYY-MM-01' of the month the terms describe. */
+  monthStart: string;
+  transferRules: readonly NextMonthTransferRule[];
+  /** Ids of cash accounts a transfer may draw from. */
+  cashSourceIds: ReadonlySet<string>;
+  /** Monthly totals with no due date anywhere in the data model. */
+  goalContributions: number;
+  otherDebtPayment: number;
+  planExpenses: number;
+  /** One per active car loan; the due day is `paymentStartDate`'s day of month. */
+  carLoans: readonly { label: string; amount: number; paymentStartDate: string | null }[];
+  /** One per insured car; the due day is `anchorDate`'s day of month. */
+  carInsurance: readonly { label: string; amount: number; anchorDate: string | null }[];
+  /** One per card: its payment due that month (contract minimum, or the statement on a card paid in full). */
+  cards: readonly { label: string; amount: number; dueDay: number | null }[];
+}
+
+const dayOf = (date: string | null): number | null => {
+  const d = date ? Number(date.slice(8, 10)) : NaN;
+  return d >= 1 && d <= 31 ? d : null;
+};
+
+/** Every next-month chain term, dated where the data carries a due day. */
+export function buildNextMonthTerms(s: NextMonthTermSources): NextMonthTerm[] {
+  return [
+    ...transferTerms(s.transferRules, s.monthStart, s.cashSourceIds),
+    { label: 'Savings goal contributions', amount: s.goalContributions, dueDay: null, kind: 'goal', editPath: '/goals' },
+    ...s.carLoans.map((c): NextMonthTerm =>
+      ({ label: c.label, amount: c.amount, dueDay: dayOf(c.paymentStartDate), kind: 'car-loan', editPath: '/car-fund' })),
+    ...s.carInsurance.map((c): NextMonthTerm =>
+      ({ label: c.label, amount: c.amount, dueDay: dayOf(c.anchorDate), kind: 'insurance', editPath: '/car-fund' })),
+    ...s.cards.map((c): NextMonthTerm =>
+      ({ label: c.label, amount: c.amount, dueDay: c.dueDay, kind: 'card', editPath: '/accounts' })),
+    { label: 'Other debt payments', amount: s.otherDebtPayment, dueDay: null, kind: 'other-debt', editPath: '/debt' },
+    { label: 'Payment plans', amount: s.planExpenses, dueDay: null, kind: 'plan', editPath: '/debt' },
+  ];
+}
