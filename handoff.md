@@ -41,6 +41,10 @@ R-NOW30 (10-01 ~06:30 ET, Ada session 6f608dd7). START HERE.
        resolveCatalogRewards; ask the condition questions; miles need a user cents-per-mile. Retry Discover's
        calendar page on a LATER day (it said "not working" 10-01) before adding a 2026-Q4 row.
     5. 09:07 ET widget read for e74da89c armed as session cron d0a0240f (dies with this session).
+    6. CatalogPicker.tsx + test written (4/4, 2 mutants red), NOT imported yet: mount it in CardAdvisorPanel's
+       RewardsEditor so onApply fills base/category fields (user can still edit), then render-check it.
+    STANDING CHECK (Sam, 2026-10-01, closed 52b202b5): on the FIRST email to any privaterelay.appleid.com address,
+    read its Resend status. A bounce reopens 52b202b5 (sources registered + SPF; relay delivery never proven).
 R-NOW29 (10-01 ~06:50Z, Ada getforgenta-23 -> successor at the 175-call gate). START HERE, IN ORDER:
     1. RE-ARM the 09:07 ET widget read for e74da89c (my cron f0a27c7e dies with me): CronCreate one-shot '7 9 1 10 *',
        query in R-NOW24 item 1; send Sam count + timestamps.
