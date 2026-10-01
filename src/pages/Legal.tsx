@@ -100,7 +100,7 @@ function CookiePreferencesInline() {
 function PrivacyContent() {
   return (
     <div className="space-y-8 text-sm">
-      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: September 2026</p>
+      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: October 2026</p>
 
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Introduction</h2>
@@ -168,8 +168,11 @@ function PrivacyContent() {
           your browser sends a Global Privacy Control or Do Not Track signal. See Section 8a. Your financial
           data is never sent to either of them. Before you have an account, the sign-in
           screen counts which of its steps were reached (for example, that a sign-up button was tapped) with no
-          name, email or device identifier, and nothing stored on your device; it is skipped if you reject
-          analytics cookies or send a Global Privacy Control or Do Not Track signal.</p>
+          name, email or account attached. If you accept analytics cookies, those counts also carry a random ID
+          created on your device and stored there, so we can tell one install from another; it is not your
+          device's advertising or hardware ID, it is never linked to your account, and it is deleted if you
+          later reject analytics cookies. All of this is skipped if you reject analytics cookies or send a
+          Global Privacy Control or Do Not Track signal.</p>
           <p><span className="text-foreground font-medium">Payment data:</span> On web, billing is processed by
           Stripe. On iOS, billing is processed by Apple. On Android, billing is processed by Google Play.
           Subscription state across platforms is managed by RevenueCat. We store only platform-specific customer

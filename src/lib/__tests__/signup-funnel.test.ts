@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Anonymous sign-in funnel counts (ask 6dbd80d8). The contract that matters: no identifier and no
 // error MESSAGE ever leaves (a message can hold an email), and a counting failure never breaks sign-in.
 import { describe, it, expect, beforeEach, vi, } from 'vitest';
@@ -18,7 +19,7 @@ vi.mock('@/lib/analytics', () => ({ hasTrackingOptOutSignal: optOut }));
 vi.mock('@/lib/consent-prefs', () => ({ loadConsent: loadConsentMock }));
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform } }));
 
-import { recordFunnelStep, toErrorCode, funnelEnv, __resetFunnelForTests } from '../signup-funnel';
+import { recordFunnelStep, toErrorCode, funnelEnv, funnelInstallId, FUNNEL_INSTALL_ID_KEY, __resetFunnelForTests } from '../signup-funnel';
 
 beforeEach(() => {
   fromMock.mockClear();
@@ -42,6 +43,8 @@ describe('recordFunnelStep', () => {
       platform: 'ios',
       // jsdom runs on localhost, so this row is ours, not a visitor's.
       env: 'dev',
+      // No analytics choice yet, so no install id.
+      install_id: null,
     });
   });
 
@@ -133,5 +136,47 @@ describe('funnelEnv', () => {
     expect(funnelEnv('192.168.1.20')).toBe('dev');
     expect(funnelEnv('getforgenta-git-main-treforged.vercel.app')).toBe('dev');
     expect(funnelEnv('getforgenta.com.evil.example')).toBe('dev');
+  });
+});
+
+// Sam approved 2026-10-01: a random per-install id, ONLY under an explicit analytics accept.
+describe('funnelInstallId', () => {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  beforeEach(() => localStorage.removeItem(FUNNEL_INSTALL_ID_KEY));
+
+  it('is null and stores nothing before the person has chosen', () => {
+    loadConsentMock.mockReturnValue(null);
+    expect(funnelInstallId()).toBeNull();
+    expect(localStorage.getItem(FUNNEL_INSTALL_ID_KEY)).toBeNull();
+  });
+
+  it('after an accept: one random v4 UUID, the same on every row of this install', () => {
+    loadConsentMock.mockReturnValue({ analytics: true });
+    const a = funnelInstallId();
+    expect(a).toMatch(UUID);
+    expect(funnelInstallId()).toBe(a);
+    recordFunnelStep('welcome_shown');
+    expect(insertMock.mock.calls[0][0]).toMatchObject({ install_id: a });
+  });
+
+  it('a rejection, or a GPC/DNT signal, deletes a stored id', () => {
+    loadConsentMock.mockReturnValue({ analytics: true });
+    expect(funnelInstallId()).not.toBeNull();
+    loadConsentMock.mockReturnValue({ analytics: false });
+    expect(funnelInstallId()).toBeNull();
+    expect(localStorage.getItem(FUNNEL_INSTALL_ID_KEY)).toBeNull();
+    loadConsentMock.mockReturnValue({ analytics: true });
+    funnelInstallId();
+    optOut.mockReturnValue(true);
+    expect(funnelInstallId()).toBeNull();
+    expect(localStorage.getItem(FUNNEL_INSTALL_ID_KEY)).toBeNull();
+  });
+
+  it('replaces a tampered stored value instead of sending it', () => {
+    loadConsentMock.mockReturnValue({ analytics: true });
+    localStorage.setItem(FUNNEL_INSTALL_ID_KEY, 'tre@example.com');
+    const id = funnelInstallId();
+    expect(id).toMatch(UUID);
+    expect(localStorage.getItem(FUNNEL_INSTALL_ID_KEY)).toBe(id);
   });
 });

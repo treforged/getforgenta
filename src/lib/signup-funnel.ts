@@ -1,6 +1,9 @@
 /**
  * Anonymous counts of sign-in screen steps.
- * No user identifiers are stored, nothing is persisted on the device.
+ * No account, name or email is ever attached. Only when analytics cookies are ACCEPTED does a row
+ * carry `install_id`: a random UUID made on this device, kept in localStorage, never derived from
+ * the device or linked to an account, and deleted the moment analytics is rejected (Sam approved
+ * 2026-10-01, so funnel rows can be counted per install rather than per event).
  * Respects GPC/DNT signals and explicit analytics rejection.
  * Inserts only into the anon-only table `signup_funnel_events`.
  * Migration: 20260930b_signup_funnel_counts.sql
@@ -40,6 +43,30 @@ export function funnelEnv(hostname: string): 'prod' | 'dev' {
 /** '' where there is no window, so a missing host reads as 'dev' instead of throwing the row away. */
 function currentHostname(): string {
   return typeof window !== 'undefined' && window.location ? window.location.hostname : '';
+}
+
+export const FUNNEL_INSTALL_ID_KEY = 'forgenta:funnel_install_id';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The per-install id, or null. Exists ONLY under an explicit analytics accept: no choice yet and a
+ * rejection both mean no id, and any stored id is deleted. Never throws.
+ */
+export function funnelInstallId(): string | null {
+  try {
+    if (hasTrackingOptOutSignal() || loadConsent()?.analytics !== true) {
+      localStorage.removeItem(FUNNEL_INSTALL_ID_KEY);
+      return null;
+    }
+    const stored = localStorage.getItem(FUNNEL_INSTALL_ID_KEY);
+    if (stored && UUID_RE.test(stored)) return stored;
+    if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') return null;
+    const id = crypto.randomUUID();
+    localStorage.setItem(FUNNEL_INSTALL_ID_KEY, id);
+    return id;
+  } catch {
+    return null;
+  }
 }
 
 const sentSteps = new Set<string>();
@@ -121,7 +148,7 @@ export function recordFunnelStep(
       // Not in the generated types (insert-only, nobody reads it from the client); same cast as
       // main.tsx uses for client_boot_failures.
       .from('signup_funnel_events' as never)
-      .insert({ step, method, detail, platform, env: funnelEnv(currentHostname()) } as never)
+      .insert({ step, method, detail, platform, env: funnelEnv(currentHostname()), install_id: funnelInstallId() } as never)
       .then(undefined, () => {
         /* swallow rejection */
       });

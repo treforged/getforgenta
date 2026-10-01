@@ -56,7 +56,7 @@ export const COOKIE_CATEGORIES: CookieCategoryDef[] = [
     description:
       'Help us understand how you use Forgenta so we can improve the experience. Data is aggregated and never sold.',
     required: false,
-    examples: ['Google Analytics', 'Vercel Speed Insights', 'page load timing', 'feature usage'],
+    examples: ['Google Analytics', 'Vercel Speed Insights', 'page load timing', 'feature usage', 'a random sign-in screen install ID'],
   },
   {
     id: 'marketing',
@@ -99,6 +99,9 @@ export function saveConsent(
     marketing: prefs.marketing,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // The sign-in funnel's install id lives only under an analytics accept (signup-funnel.ts).
+  // Literal key, not an import: signup-funnel imports this module.
+  if (!prefs.analytics) localStorage.removeItem('forgenta:funnel_install_id');
   window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_EVENT, { detail: state }));
   return state;
 }
