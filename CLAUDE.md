@@ -233,6 +233,10 @@ section states reasoning, not measurement, and says so.
   app (19 $0 figures). Each route is read only once no `.skeleton-shimmer` shows and two reads agree:
   a 6 s sleep read a skeleton Dashboard as "figures 0". Never-settled routes exit 2. Still LOOK AT
   the frames: it reads figures, not meaning.
+- `npm run walk:first-run` - the wizard with REAL writes on a fresh throwaway `@forgenta.test` user (create it in
+  SQL, pass FIRST_RUN_EMAIL / FIRST_RUN_PASSWORD, DELETE it after and prove auth.users returns). Reads the profile
+  from outside the browser right after the walk and again 10 s later: furthest_step='finish', completed=true,
+  income > 0, no write refused. First run 2026-10-01: 8/8, 15 writes all 2xx. A non-fresh account exits 2 (proven).
 - `npm run check:first-save` - at 390x844, signed in: walks onboarding twice and asserts the wizard
   saves on "See your plan" BEFORE the finish screen says "Your profile is set", that neither finish
   button saves again, and that every press works with the cookie banner up. Writes are answered

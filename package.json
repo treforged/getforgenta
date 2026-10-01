@@ -18,6 +18,7 @@
     "check:forecast-assumptions": "node scripts/check-forecast-assumptions.mjs",
     "check:consolidation": "node scripts/check-consolidation-panel.mjs",
     "walk:empty": "node scripts/walk-empty-account.mjs",
+    "walk:first-run": "node scripts/walk-first-run-real.mjs",
     "check:boot-failure": "node scripts/check-boot-failure.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",
