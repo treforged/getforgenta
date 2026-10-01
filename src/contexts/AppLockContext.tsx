@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { supabase } from '@/lib/supabase';
 import { debugLog } from '@/lib/debugLog';
 
@@ -26,6 +27,12 @@ const LS_FAILED      = 'forged:lock_failed';
 export const LOCK_PENDING = 'forged:lock_pending';
 
 const INIT_GRACE_MS = 3_000;
+/**
+ * A return within this long after the app went to the background reopens WITHOUT a prompt; a later
+ * return keeps the lock (ask e34975a1). Short app switches stay frictionless, the common
+ * "Require Face ID after 1 minute" setting in banking apps.
+ */
+export const RESUME_GRACE_MS = 60_000;
 export const MAX_FAILED_ATTEMPTS = 5;
 
 async function sha256(text: string): Promise<string> {
@@ -430,6 +437,47 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     void pSet(LOCK_PENDING, '1');
     setIsLocked(true);
   }, [lockEnabled]);
+
+  // ⚠️ LOCK ON THE WAY OUT, NOT ON THE WAY BACK (ask e34975a1, Tre build 1112: "it just loads
+  // straight into the app without it sometime"). The init above runs only on a PROCESS START, so a
+  // warm reopen - the app still in memory, even hours later - went straight to the user's money with
+  // no lock at all. That was the "sometime": killed overnight it locked, kept warm it did not.
+  // Locking on `pause` means the lock screen is already rendered behind the native cover before the
+  // app is ever shown again; locking on `resume` would race the cover coming off. A return inside
+  // RESUME_GRACE_MS lifts that provisional lock with no prompt.
+  useEffect(() => {
+    if (!isNative) return;
+    let provisionalSince: number | null = null;
+    let unsubscribed = false;
+    const handles: { remove: () => void }[] = [];
+    // Two calls rather than one helper over a union: addListener's overloads are per event name.
+    const keep = (event: string, p: Promise<{ remove: () => void }>) => {
+      p.then((h) => { if (unsubscribed) h.remove(); else handles.push(h); })
+        .catch((err) => { console.error(`App lock: subscribing to ${event} failed:`, err); });
+    };
+    keep('pause', CapApp.addListener('pause', () => {
+      if (!lockEnabledRef.current || isLockedRef.current) return;
+      provisionalSince = Date.now();
+      isLockedRef.current = true;
+      setIsLocked(true);
+      void pSet(LOCK_PENDING, '1');
+      debugLog('LOCK_ON_PAUSE');
+    }));
+    keep('resume', CapApp.addListener('resume', () => {
+      if (provisionalSince === null) return;
+      const away = Date.now() - provisionalSince;
+      provisionalSince = null;
+      if (away < RESUME_GRACE_MS) {
+        isLockedRef.current = false;
+        setIsLocked(false);
+        void pDel(LOCK_PENDING);
+        debugLog(`LOCK_RESUME_GRACE away=${away}`);
+      } else {
+        debugLog(`LOCK_RESUME_KEPT away=${away}`);
+      }
+    }));
+    return () => { unsubscribed = true; handles.forEach(h => h.remove()); };
+  }, [isNative]);
 
   return (
     <AppLockContext.Provider value={{
