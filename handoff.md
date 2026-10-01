@@ -34,8 +34,10 @@ R-NOW33 (10-01 ~08:40Z / 04:40 ET, Ada). START HERE. NOTE: R-NOW32's "08:30 ET" 
         Chrome not signed in there. Casebook entry added. Sam told twice. LIMIT: a payday NEXT month keeps horizon =
         payday (next month after payday not assembled) - extend when R-NOW26 (c) is re-checked.
     1. f9b0da16: Discover cashback calendar retry on/after 2026-10-02 + dated 2026-Q4 row + test.
-    2. Seen in Tre's drawer, NOT investigated: month-0 Prime Visa item $773.05 vs Upcoming/Debt card $951. Check
-       whether the card split should use the $951 partial statement (cardTermsFor) - money, verify before changing.
+    [x] Prime Visa $773.05 vs $951: NOT a defect. accounts.min_payment = 773.05 (manual, includes the promo
+        installments); statement 1,451.88, revolving, so cardTermsFor reserves the contract minimum. $951 is the
+        Safe to Pay partial-statement recommendation - discretionary, shown beside Safe to Spend by design.
+    3f4a78c4 (Ruby's keyword list) blocked under f0a43bff: both wait for Tre to create the next App Store version.
 R-NOW32 (10-01 ~08:30 ET, Ada getforgenta-a2 -> successor at the 175-call gate). START HERE, IN ORDER:
     0. RE-ARM the 09:07 ET widget read for e74da89c (my cron bb1be414 dies with me): CronCreate one-shot '7 9 1 10 *',
        query in R-NOW24 item 1 (baseline 0 rows); SendMessage Sam (tre-forged-ce) count + timestamps. If past 09:07, run it now.
