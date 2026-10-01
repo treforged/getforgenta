@@ -172,8 +172,10 @@ export default function MonthlyBudgetSnapshot({
               is for SPENDING before payday, the donut's is for the CARDS this month. Not compared
               arithmetically on purpose - they reserve different things, so neither is always larger. */}
           <p className="text-xs text-muted-foreground" data-testid="safe-to-spend-note">
-            What you can spend before payday without missing a bill. Separate from the{' '}
-            {formatCurrency(Math.max(0, availableToDeploy), false)} available for your cards this month.
+            What you can spend before payday without missing a bill.
+            {snapshot.hasCards && (
+              <> Separate from the {formatCurrency(Math.max(0, availableToDeploy), false)} available for your cards this month.</>
+            )}
           </p>
         </div>
       )}

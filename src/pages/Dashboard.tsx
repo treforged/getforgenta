@@ -480,7 +480,11 @@ export default function Dashboard() {
     () => cardProjection?.month0
       // ALL-IN, deliberately: `spentSoFar` drives the donut, which asks "how much of this month's
       // money is gone", not "how much did I spend". Principal leaving the account is gone.
-      ? buildMonth0Snapshot(cardProjection.month0, expenseModel.expensesAllIn + totalDebtPayments)
+      ? buildMonth0Snapshot(
+        cardProjection.month0, expenseModel.expensesAllIn + totalDebtPayments,
+        // The engine runs for a cash-only user since ask 536c0db1; their rows must not name cards.
+        cardProjection.simCards.length > 0,
+      )
       : null,
     [cardProjection, expenseModel.expensesAllIn, totalDebtPayments],
   );

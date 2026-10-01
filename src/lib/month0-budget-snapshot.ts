@@ -47,6 +47,9 @@ export interface SnapshotRow {
 
 export interface Month0Snapshot {
   rows: SnapshotRow[];
+  /** False for a cash-only user (no credit card). The engine runs for them since ask 536c0db1, so
+   *  every row that names cards must say something true without one. */
+  hasCards: boolean;
   /** Cash on hand before any revolving-debt payment — the first '=' checkpoint. */
   projectedRemaining: number;
   /** The engine's canonical answer. The final '=' checkpoint. */
@@ -121,7 +124,9 @@ function term(
  * no equivalent for (it models what is still to come). It feeds the donut only — never the rows —
  * so it cannot unbalance the equation.
  */
-export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month0Snapshot {
+/** `hasCards` is passed, not inferred from `perCardAdjusted`: fixtures model card users with an
+ *  empty per-card list, and the caller knows the user's accounts. False = a cash-only user. */
+export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0, hasCards = true): Month0Snapshot {
   const c = month0.chain;
   // Every value below is EXACT CENTS. The chain carries cents (Tre, 2026-08-06) and the renderer
   // prints two decimals, so nothing is rounded here — rounding a row would put the equation back
@@ -320,14 +325,21 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
       'Held just above your cash floor on purpose, so rounding the payment to whole dollars cannot end the month underneath it'),
     term('heldForEvent', event ? `Held for ${event.eventName}` : 'Held back this month', heldForEvent, '−', 'muted',
       event ? `Saving ahead for ${event.monthLabel}` : undefined),
-    term('surplus', 'Kept as surplus', surplus, '−', 'muted', 'More cash than the remaining card balances can absorb'),
-    term('belowFloor', 'Card minimums above floor', belowFloor, '+', 'negative',
-      'Minimum payments due this month exceed what the floor leaves — the floor is being dipped into'),
+    term('surplus', 'Kept as surplus', surplus, '−', 'muted',
+      hasCards ? 'More cash than the remaining card balances can absorb' : 'Above your cash floor, with nothing to pay down'),
+    // With no card, a negative residual cannot be card minimums: it is this month's bills leaving
+    // less than the floor. Labelling it "card minimums" told a cash-only user they owed a card.
+    hasCards
+      ? term('belowFloor', 'Card minimums above floor', belowFloor, '+', 'negative',
+        'Minimum payments due this month exceed what the floor leaves — the floor is being dipped into')
+      : term('belowFloor', 'Short of your cash floor', belowFloor, '+', 'negative',
+        "This month's bills leave less than your cash floor"),
     { key: 'availableToDeploy', label: 'Available to deploy', value: availableToDeploy, sign: '=', tone: availableToDeploy >= 0 ? 'positive' : 'negative' },
   ].filter((r): r is SnapshotRow => r !== null);
 
   return {
     rows,
+    hasCards,
     projectedRemaining,
     availableToDeploy,
     residual,

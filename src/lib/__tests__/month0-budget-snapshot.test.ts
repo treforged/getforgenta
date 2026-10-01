@@ -406,3 +406,21 @@ describe('buildMonth0Snapshot', () => {
     expect(snap.pie.shortfall).toBe(0);
   });
 });
+
+describe('buildMonth0Snapshot - a cash-only user (ask 536c0db1)', () => {
+  it('never names cards: a short month reads as short of the floor, not as card minimums', () => {
+    // $200 below the floor (cashPreDebt 6525, floor 2402 in the shared fixture), so the row that
+    // used to say "Card minimums above floor" actually renders.
+    const m = month0({ safeToPayTotal: 6525 - 2402 + 200 });
+    const withCards = buildMonth0Snapshot(m, 0, true);
+    const cashOnly = buildMonth0Snapshot(m, 0, false);
+    expect(cashOnly.hasCards).toBe(false);
+    expect(withCards.hasCards).toBe(true);
+    const labels = (x: typeof cashOnly) => x.rows.map(r => `${r.label} ${r.note ?? ''}`).join(' | ');
+    expect(labels(cashOnly)).not.toMatch(/card/i);
+    expect(cashOnly.rows.find(r => r.key === 'belowFloor')).toMatchObject({ label: 'Short of your cash floor', value: 200 });
+    expect(withCards.rows.find(r => r.key === 'belowFloor')?.label).toBe('Card minimums above floor');
+    // Same numbers either way: only the words change.
+    expect(cashOnly.rows.map(r => r.value)).toEqual(withCards.rows.map(r => r.value));
+  });
+});

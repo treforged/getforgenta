@@ -165,7 +165,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
   return useMemo(() => {
     try {
       const rawCards = buildCardData(accounts, transactions, rules, debts);
-      if (rawCards.length === 0) return null;
+      // A cash-only user (no card, but checking/cash) still gets month 0 - ask 536c0db1. It used to
+      // return null on no cards alone, which hid the month-0 snapshot and Safe to Spend from them.
+      // With no cards every card term is zero, so endCash is the cash chain itself. Null now means
+      // there is neither a card nor a cash account to model.
+      if (rawCards.length === 0 && !accounts.some(a => a.active && FUNDING_ACCOUNT_TYPES.includes(a.account_type))) return null;
 
       const now = new Date();
       const todayStr = toLocalDateStr(now);

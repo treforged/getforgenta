@@ -14,6 +14,7 @@ import MonthlyBudgetSnapshot from '../MonthlyBudgetSnapshot';
 import type { Month0Snapshot } from '@/lib/month0-budget-snapshot';
 
 const snapshot: Month0Snapshot = {
+  hasCards: true,
   rows: [
     { key: 'balance', label: 'Balance on hand', value: 6200, sign: ' ', tone: 'neutral' },
     { key: 'income', label: 'Income still coming', value: 1875, sign: '+', tone: 'positive' },
