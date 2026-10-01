@@ -242,7 +242,7 @@ export default function ConsentBanner() {
             <p className="text-[11px] text-muted-foreground leading-snug sm:leading-relaxed">
               <span className="hidden sm:inline">
                 Essential cookies are always active. We also use analytics cookies to
-                improve Budget OS. You can choose which non-essential cookies to allow.{' '}
+                improve Forgenta. You can choose which non-essential cookies to allow.{' '}
               </span>
               <span className="sm:hidden">
                 Essential ones are always active. Analytics cookies are your choice.{' '}

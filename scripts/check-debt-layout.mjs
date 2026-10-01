@@ -155,6 +155,92 @@ async function probe(view, tag, demo = false) {
 await probe({ width: 1440, height: 900 }, 'desktop');
 await probe({ width: 390, height: 844 }, 'phone');
 await probe({ width: 1440, height: 900 }, 'demo-desktop', true);
+
+// Sam, 2026-10-01 (from debt-demo-top.png): the cookie banner said "Budget OS", the cash floor showed a greyed
+// "1500" beside a "Safe Min" chip so the applied floor was ambiguous, and "Set manually" was a bare checkbox.
+// Checked on /demo at 390 with NO consent stored, so the banner is on screen. Every non-GET to the data plane is
+// aborted in this context, so pressing the switch persists nothing.
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  let aborted = 0;
+  await page.route(/\/(rest|functions)\/v1\//, r => {
+    if (['GET', 'HEAD'].includes(r.request().method())) return r.continue();
+    aborted += 1;
+    return r.abort();
+  });
+  await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL(/\/dashboard/, { timeout: 30000 }).catch(() => {});
+  const banner = page.getByText('We use cookies').first();
+  try { await banner.waitFor({ state: 'visible', timeout: 15000 }); }
+  catch { await browser.close(); fail(2, '[floor] CONTROL FAILED: the cookie banner never showed with no consent stored.'); }
+  // textContent, NOT innerText: the banner's long sentence is `hidden sm:inline`, so at 390 innerText skips the
+  // very words a desktop user reads - measured, the first red run passed "Budget OS" this way. And the two
+  // category descriptions only render inside "Manage preferences", so it is opened before reading.
+  await page.getByRole('button', { name: 'Manage preferences' }).first().click().catch(() => {});
+  await page.waitForTimeout(600);
+  const bannerText = (await page.locator('body').textContent()) ?? '';
+  if (!/analytics/i.test(bannerText)) { await browser.close(); fail(2, '[floor] CONTROL FAILED: the consent preferences did not open.'); }
+  if (/budget os/i.test(bannerText)) problems.push('[floor] the consent copy still says "Budget OS"');
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  let aborted = 0;
+  await page.route(/\/(rest|functions)\/v1\//, r => {
+    if (['GET', 'HEAD'].includes(r.request().method())) return r.continue();
+    aborted += 1;
+    return r.abort();
+  });
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
+    version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
+  })));
+  await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL(/\/dashboard/, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(2000);
+  const debtLink = page.locator('a[href="/debt"]:visible').first();
+  if (!(await debtLink.count())) { await browser.close(); fail(2, '[floor] CONTROL FAILED: no visible /debt link at 390.'); }
+  await debtLink.click();
+  try { await page.getByText('Total CC Balance').first().waitFor({ state: 'visible', timeout: 30000 }); }
+  catch { await browser.close(); fail(2, '[floor] CONTROL FAILED: /debt did not render in demo at 390.'); }
+  await page.waitForTimeout(2000);
+  const sw = page.getByRole('switch', { name: 'Set the cash floor manually' });
+  const applied = page.getByTestId('cash-floor-applied');
+  const manualBox = page.getByLabel('Manual cash floor');
+  if (!(await sw.count())) problems.push('[floor] "Set manually" is not a switch');
+  if (!(await applied.count())) problems.push('[floor] no applied-floor value is shown');
+  // The Pay From select must show the whole account name at 390: measure the selected option's text in the
+  // select's own font against the room inside it (the chevron's padding excluded).
+  const fit = await page.getByLabel('Funding account').evaluate(el => {
+    const cs = getComputedStyle(el);
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const text = el.options[el.selectedIndex]?.text ?? '';
+    const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    return { text, need: Math.ceil(c.measureText(text).width), room: Math.floor(room) };
+  });
+  console.log(`[floor] pay-from "${fit.text}" needs ${fit.need}px, has ${fit.room}px`);
+  if (!fit.text) { await browser.close(); fail(2, '[floor] CONTROL FAILED: the funding select has no selected text.'); }
+  if (fit.need > fit.room) problems.push(`[floor] the Pay From select cuts "${fit.text}" short (${fit.need}px in ${fit.room}px)`);
+  const before = (await sw.count()) ? await sw.first().getAttribute('aria-checked') : null;
+  const boxBefore = await manualBox.count();
+  if (before === 'false' && boxBefore !== 0) problems.push(`[floor] automatic mode still shows a number box (${boxBefore})`);
+  if (await sw.count()) {
+    await sw.first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: 'test-results/debt-floor-auto-390.png' });
+    await sw.first().click();
+    await page.waitForTimeout(500);
+    const after = await sw.first().getAttribute('aria-checked');
+    const boxAfter = await manualBox.count();
+    if (after === before) problems.push(`[floor] pressing the switch changed nothing (aria-checked ${before} -> ${after})`);
+    if (after === 'true' && boxAfter !== 1) problems.push(`[floor] manual mode shows ${boxAfter} number boxes, want 1`);
+    await page.screenshot({ path: 'test-results/debt-floor-manual-390.png' });
+    console.log(`[floor] switch ${before}->${after} box ${boxBefore}->${boxAfter} applied="${(await applied.first().textContent())?.trim()}" writes aborted ${aborted}`);
+  }
+  await ctx.close();
+}
 await browser.close();
 if (problems.length) { problems.forEach(p => console.error(`FAIL: ${p}`)); process.exit(1); }
 console.log('PASS: Share in the toolbar, utilization stated once, no repeated safe-minimum notes, controls beside the order at 1440 and stacked at 390. Frames test-results/debt-layout-{desktop,phone,demo-desktop}.png');

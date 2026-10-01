@@ -1626,22 +1626,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     Always enforced: the plan never recommends a payment that pushes liquid cash below this amount. Also reserves for early next-month bills.
                   </TooltipContent>
                 </Tooltip>
-                {/* Automatic is the default. The input stays VISIBLE but disabled in that mode, still
-                    showing the saved figure, so the toggle plainly reads as reversible. */}
-                <input type="number" value={manualFloorValue} onChange={e => setCashFloor(Number(e.target.value) || 0)}
-                  disabled={!manualFloor}
-                  aria-label="Manual cash floor"
-                  className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold disabled:opacity-40" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                  <input type="checkbox" checked={manualFloor} className="accent-primary"
-                    onChange={e => setManualFloorMode(e.target.checked)}
-                    aria-label="Set the cash floor manually" />
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Set manually</span>
-                </label>
+                {/* THE APPLIED FLOOR IS THE ONE FIGURE THAT READS AS CURRENT (Sam, 2026-10-01). A greyed
+                    "1500" in a box beside a "Safe Min: $2,250" chip left the user to work out which one the
+                    plan uses. In automatic mode there is no box at all: the chip IS the value. In manual
+                    mode the box holds their own floor and the chip still names what applies, which is
+                    higher whenever bills before payday exceed it. */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 text-[10px] font-medium text-primary cursor-help" style={{ borderRadius: 'var(--radius)' }}>
-                      <ShieldCheck size={10} /> Safe Min: {formatCurrency(recommendedSafeMinimum, false)}
+                    <span data-testid="cash-floor-applied" className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 text-xs font-display font-bold text-primary cursor-help" style={{ borderRadius: 'var(--radius)' }}>
+                      <ShieldCheck size={11} /> {formatCurrency(recommendedSafeMinimum, false)}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[260px] text-xs">
@@ -1659,6 +1652,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     ) : <p>No bills found before next paycheck</p>}
                   </TooltipContent>
                 </Tooltip>
+                {/* The same switch as every other on/off in the app (control-conventions rule). */}
+                <span className="flex items-center gap-1.5">
+                  <ToggleSwitch checked={manualFloor} onPress={() => setManualFloorMode(!manualFloor)} label="Set the cash floor manually" />
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Set manually</span>
+                </span>
+                {manualFloor && (
+                  <input type="number" value={manualFloorValue} onChange={e => setCashFloor(Number(e.target.value) || 0)}
+                    aria-label="Manual cash floor"
+                    className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
+                )}
               </div>
               {cashFloorWarning && (
                 <p
@@ -1673,7 +1676,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               {!manualFloor && (
                 <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                   <Info size={9} className="shrink-0" />
-                  Set from the bills due before your next paycheck. Tick &ldquo;set
+                  Set from the bills due before your next paycheck. Turn on &ldquo;set
                   manually&rdquo; to hold your own floor on top.
                 </p>
               )}
@@ -1688,7 +1691,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
           {/* Funding Account Selector */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3 border-t border-border/50">
-            <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Pay From</span>
+            {/* Label on its own line on a phone: beside a 112px label column the select cut the account
+                name short at 390 ("Northvale" for "Northvale Checking"). */}
+            <span className="w-full sm:w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Pay From</span>
             <select aria-label="Funding account"
               value={resolvedFundingId}
               onChange={e => setFundingAccountId(e.target.value)}

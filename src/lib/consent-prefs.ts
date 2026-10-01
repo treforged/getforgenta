@@ -54,7 +54,7 @@ export const COOKIE_CATEGORIES: CookieCategoryDef[] = [
     id: 'analytics',
     label: 'Analytics',
     description:
-      'Help us understand how you use Budget OS so we can improve the experience. Data is aggregated and never sold.',
+      'Help us understand how you use Forgenta so we can improve the experience. Data is aggregated and never sold.',
     required: false,
     examples: ['Google Analytics', 'Vercel Speed Insights', 'page load timing', 'feature usage'],
   },
@@ -62,7 +62,7 @@ export const COOKIE_CATEGORIES: CookieCategoryDef[] = [
     id: 'marketing',
     label: 'Marketing',
     description:
-      'TRE Forgenta Budget OS does not currently use marketing cookies. This category is listed for transparency.',
+      'Forgenta does not currently use marketing cookies. This category is listed for transparency.',
     required: false,
     examples: ['(none currently active)'],
   },
