@@ -5,6 +5,7 @@ import { useAppLock, MAX_FAILED_ATTEMPTS } from '@/hooks/useAppLock';
 import { supabase } from '@/lib/supabase';
 import { tapFeedback } from '@/lib/haptics';
 import { toast } from 'sonner';
+import LoadingMark from '@/components/shared/LoadingMark';
 
 const DIGITS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 const PIN_LENGTH = 6;
@@ -36,9 +37,12 @@ export default function AppLockScreen() {
   const activeType = showPinFallback ? 'pin' : lockType;
   const tooManyAttempts = failedAttempts >= MAX_FAILED_ATTEMPTS;
 
+  const [bioRunning, setBioRunning] = useState(false);
   const triggerBio = useCallback(async () => {
     if (lockType !== 'biometric') return;
+    setBioRunning(true);
     const ok = await unlockWithBiometric();
+    setBioRunning(false);
     if (!ok) toast.error('Biometric authentication failed — use your PIN instead');
   }, [lockType, unlockWithBiometric]);
 
@@ -119,15 +123,21 @@ export default function AppLockScreen() {
   // "dashboard ready", which can land inside it (e34975a1). Opaque, no content, native only: web
   // is `ready` from the first render, so it never shows this.
   if (!ready) {
-    return <div data-testid="app-lock-pending" aria-hidden="true" className="fixed inset-0 z-9999 bg-background" />;
+    return (
+      <div data-testid="app-lock-pending" className="fixed inset-0 z-9999 bg-background flex items-center justify-center">
+        <LoadingMark />
+      </div>
+    );
   }
   if (!isLocked) return null;
 
   return (
     <div className="fixed inset-0 z-9999 bg-background flex flex-col items-center justify-center gap-8 px-8" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Branding */}
-      <div className="text-center space-y-1">
-        <p className="font-display font-bold text-xl tracking-tight">Forgenta</p>
+      <div className="text-center space-y-1 flex flex-col items-center">
+        {/* Shimmers while Face ID is running, so the wait after it has feedback (ask 98cbf494). */}
+        {/* The mark's image carries the FORGENTA wordmark, so no separate name line. */}
+        <LoadingMark loading={bioRunning} />
         <p className="text-xs text-muted-foreground">Verify it's you to continue</p>
       </div>
 

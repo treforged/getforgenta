@@ -38,6 +38,7 @@ import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 import { useModalFocusTrap } from "@/hooks/useModalFocusTrap";
+import LoadingMark from '@/components/shared/LoadingMark';
 
 /**
  * ⚠️ LAZY ON PURPOSE, AND IT IS NOT ABOUT THE LAYOUT.
@@ -176,7 +177,7 @@ function PageLoader() {
 }
 
 function GateNotice({ label }: { label: string }) {
-  return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">{label}</span></div>;
+  return <div className="min-h-screen bg-background flex items-center justify-center"><LoadingMark label={label} /></div>;
 }
 
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {

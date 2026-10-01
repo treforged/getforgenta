@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import LoadingMark from '@/components/shared/LoadingMark';
 
 // Only the email link types we actually issue. Anything else in the URL is rejected rather
 // than passed through to Supabase, since this value comes straight from an untrusted query string.
@@ -77,18 +78,10 @@ export default function AuthCallback() {
     >
       {/* Shimmer only while genuinely loading (verifying the email link) — never on the
           settled 'idle' or 'error' states, where the logo is just page branding. */}
-      <span className={`inline-flex ${verify.status === 'verifying' ? 'logo-shimmer' : ''}`}>
-        <img
-          src="/logo-transparent.png"
-          alt="Forgenta"
-          style={{ height: 80, width: 80, objectFit: 'contain' }}
-          draggable={false}
-        />
-      </span>
-
-      {verify.status === 'verifying' && (
-        <p className="text-sm text-muted-foreground text-center">Confirming your email…</p>
-      )}
+      <LoadingMark
+        loading={verify.status === 'verifying'}
+        label={verify.status === 'verifying' ? 'Confirming your email…' : undefined}
+      />
 
       {verify.status === 'error' && (
         <>
