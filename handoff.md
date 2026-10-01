@@ -36,9 +36,20 @@ R-NOW35 (10-01 ~12:30 ET, Ada getforgenta-a1). START HERE, IN ORDER:
            Spend $1,117.31 -> $1,573.14 (low Oct 10, hand-checked). Product: Pay in 4 provider defaults biweekly x 4.
        Part 2 figures sent to Sam. NOT DONE: deployed-site comparison (Chrome not signed in on getforgenta.com;
        compare by bundle), goals, car-loan payoff date vs car_funds. Close aeaac54e with evidence after those.
-    1. 98cbf494 cover page after Face ID (Sam): find what holds the cover, shorten it, ONE shared loading
-       indicator on every cover/loading screen, bigger cover logo; measure on-screen time before/after; send
-       Sam a rendered frame. Then the approved anonymous install id for signup_funnel_events (check privacy
+    1. 98cbf494 cover page after Face ID (Sam). DIAGNOSIS SO FAR (Ada a1, read-only):
+       - No client_boot_failures native-cover rows since 1158, so the linger is under the 15 s deadline.
+       - The timing log (AppDelegate debugLog -> Preferences forged:debug_log) never leaves the phone, so
+         nothing can measure it remotely. FIRST: make it measurable - on the next boot, send a row when
+         FACEID ok -> cover removed takes > 1 s (extend cover-deadline-report.ts / main.tsx pipe; add debugLog
+         marks 'FACEID_OK' in unlockWithBiometric and 'COVER_HIDDEN' in hideNativeCover completion).
+       - Candidates on the path after Face ID: (a) AppDelegate becomeActive 'brief' branch = 0.3 s timer +
+         0.5 s fade (AppDelegate.swift ~L240, hideNativeCover ~L591); (b) unlockWithBiometric awaits
+         markUnlocked (2 Preferences writes) BEFORE setIsLocked(false) (AppLockContext.tsx ~L348) - flip the
+         order (persist after; a kill mid-write re-locks, which is the safe direction); (c) the dashboard
+         re-render behind AppLockScreen.
+       - Then: ONE shared loading indicator component used by AppLockScreen, Suspense fallbacks and the boot
+         screen; bigger cover logo in BOTH the native cover (Swift; needs iOS dispatch + upload-step check)
+         and AppLockScreen. Measure before/after, send Sam a rendered frame. Then the approved anonymous install id for signup_funnel_events (check privacy
        policy + App Store labels cover a random first-party analytics id; update wording in the same change).
     2. e74da89c: widget cap fixed; re-read platform=ios after 05:22Z 10-02. 1cea48f3: $204 re-read 10-02 09:17 ET.
     3. f9b0da16 on/after 10-02. b573d720 re-tested 10-01: still 0 active rows with a RevenueCat id.
