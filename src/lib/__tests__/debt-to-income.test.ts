@@ -87,3 +87,37 @@ describe('the rules the replacement has to keep', () => {
     expect(total).toBe(75);
   });
 });
+
+// 2026-10-01: the legacy `debts` rows held June minimums while the Accounts page held the real ones,
+// so the tile understated a live user's obligation by $609.30 a month.
+describe('a card minimum comes from its account row, the same source of truth as the engine', () => {
+  const prime = (min: number | null) =>
+    ({ name: 'Prime Visa', account_type: 'credit_card', card_start_date: null, min_payment: min });
+
+  it('takes the account minimum over a stale debts row', () => {
+    expect(monthlyDebtObligation({
+      debts: [{ name: 'Prime Visa', min_payment: 231.15 }], accounts: [prime(773.05)], carFunds: [], asOf,
+    })).toBeCloseTo(773.05, 2);
+  });
+  it('falls back to the debts row when the account stores no minimum', () => {
+    expect(monthlyDebtObligation({
+      debts: [{ name: 'Prime Visa', min_payment: 231.15 }], accounts: [prime(null)], carFunds: [], asOf,
+    })).toBeCloseTo(231.15, 2);
+  });
+  it('matches names regardless of case and spaces', () => {
+    expect(monthlyDebtObligation({
+      debts: [{ name: ' prime visa ', min_payment: 231.15 }], accounts: [prime(773.05)], carFunds: [], asOf,
+    })).toBeCloseTo(773.05, 2);
+  });
+  it('counts an open card that has no debts row', () => {
+    expect(monthlyDebtObligation({ debts: [], accounts: [{ ...card, min_payment: 40 }], carFunds: [], asOf })).toBe(40);
+  });
+  it('never adds a non-card account from the accounts list', () => {
+    expect(monthlyDebtObligation({ debts: [], accounts: [{ ...checking, min_payment: 99 }], carFunds: [], asOf })).toBe(0);
+  });
+  it('holds out an unopened card that has no debts row', () => {
+    expect(monthlyDebtObligation({
+      debts: [], accounts: [{ ...card, card_start_date: '2027-06-01', min_payment: 50 }], carFunds: [], asOf,
+    })).toBe(0);
+  });
+});

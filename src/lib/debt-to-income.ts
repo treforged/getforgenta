@@ -30,8 +30,11 @@ export interface DebtToIncomeDebt {
 export interface DebtToIncomeInput {
   /** Every row from `debts` — cards, student loans, mortgage, anything else. */
   debts: readonly DebtToIncomeDebt[];
-  /** Accounts, read ONLY to hold back a card that has not been opened yet. */
-  accounts: readonly (CardStartDateAccount & { name?: string | null })[];
+  /**
+   * Accounts: they hold back a card that has not been opened yet, and they supply every card's
+   * minimum (see `monthlyDebtObligation`).
+   */
+  accounts: readonly (CardStartDateAccount & { name?: string | null; min_payment?: number | null })[];
   carFunds: readonly CarFund[];
   /** Monthly income. Non-positive means there is nothing to divide by. */
   income: number;
@@ -58,14 +61,33 @@ export function monthlyDebtObligation(
       .filter(Boolean),
   );
 
+  // ⚠️ A CARD'S MINIMUM COMES FROM ITS ACCOUNT ROW, the same rule as `buildCardData` in
+  // credit-card-engine.ts: accounts.min_payment is the sole source of truth. The legacy `debts` row
+  // is only a fallback when the account stores nothing. On 2026-10-01 a live user's `debts` rows
+  // still held June minimums ($231.15 and $83) while the Accounts page held $773.05 and $150.40,
+  // so this tile understated his monthly obligation by $609.30. A card with no `debts` row at all
+  // counted as nothing. Only credit cards are added from accounts: vehicle loans come from
+  // `carFunds`, and adding loan accounts too would count the same payment twice.
+  const key = (name: string | null | undefined) => (name ?? '').trim().toLowerCase();
+  const accountMin = new Map(
+    input.accounts
+      .filter(a => a.min_payment !== null && a.min_payment !== undefined && key(a.name))
+      .map(a => [key(a.name), Math.max(0, Number(a.min_payment))] as const),
+  );
+  const debtNames = new Set(input.debts.map(d => key(d.name)));
+
   const fromDebts = input.debts
     .filter(d => !unopened.has(d.name.toLowerCase()))
-    .reduce((sum, d) => sum + Math.max(0, Number(d.min_payment ?? 0)), 0);
+    .reduce((sum, d) => sum + (accountMin.get(key(d.name)) ?? Math.max(0, Number(d.min_payment ?? 0))), 0);
+
+  const fromCardsWithoutDebtRow = input.accounts
+    .filter(a => a.account_type === 'credit_card' && isCardOpenAsOf(a, asOf) && !debtNames.has(key(a.name)))
+    .reduce((sum, a) => sum + Math.max(0, Number(a.min_payment ?? 0)), 0);
 
   const fromVehicles = getActiveCarLoanPayments(input.carFunds as CarFund[], asOf)
     .reduce((sum, l) => sum + Math.max(0, Number(l.payment ?? 0)), 0);
 
-  return fromDebts + fromVehicles;
+  return fromDebts + fromCardsWithoutDebtRow + fromVehicles;
 }
 
 /**
