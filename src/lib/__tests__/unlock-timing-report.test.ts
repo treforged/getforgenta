@@ -22,6 +22,22 @@ describe("findUnlockTimings", () => {
     expect(t.reason).toBe("unlock timing: faceid->painted=680ms | faceid->cover_hidden=550ms | active->faceid=250ms | branch=brief | faceid->persisted=90ms");
   });
 
+  it("RESUME: an activation that FOLLOWS Face ID is named as after=<branch>@<ms>", () => {
+    // Build 1201, 2026-10-01: the Face ID sheet resigns the app, so BECOME_ACTIVE and the branch land AFTER FACEID_OK.
+    const log = lines(
+      "1000|JS:FACEID_OK", "1003|JS:UNLOCK_PAINTED", "1800|BECOME_ACTIVE fromBg=false",
+      "1801|COVER_BRANCH:brief → schedule 0.15s", "2236|COVER_HIDDEN",
+    );
+    expect(findUnlockTimings(log, 0)[0].reason).toBe(
+      "unlock timing: faceid->painted=3ms | faceid->cover_hidden=1236ms | active->faceid=n/a | branch=none | faceid->persisted=n/a | after=brief@801ms",
+    );
+  });
+
+  it("an activation that follows with no branch line still reports when it came", () => {
+    const log = lines("1000|JS:FACEID_OK", "1003|JS:UNLOCK_PAINTED", "1500|BECOME_ACTIVE x");
+    expect(findUnlockTimings(log, 0)[0].reason).toContain("| after=none@500ms");
+  });
+
   it("a cover that lifted BEFORE Face ID resolved reads negative, not missing", () => {
     const log = lines("1000|BECOME_ACTIVE x", "1100|COVER_HIDDEN", "1500|JS:FACEID_OK", "1600|JS:UNLOCK_PAINTED");
     expect(findUnlockTimings(log, 0)[0].reason).toContain("faceid->cover_hidden=-400ms");

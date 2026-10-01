@@ -89,9 +89,20 @@ export function findUnlockTimings(log: string | null, afterTs: number): UnlockTi
     const hiddenMs = hidden ? hidden.ts - entry.ts : null;
     const activeMs = activeIdx === -1 ? null : entry.ts - entries[activeIdx].ts;
     const persistedMs = persisted ? persisted.ts - entry.ts : null;
+    // ⚠️ ON A RESUME THE ACTIVATION COMES AFTER FACE ID (measured 2026-10-01 on build 1201: a 2236ms
+    // cover with active->faceid=n/a and branch=none). The Face ID sheet resigns the app, so iOS only
+    // re-activates it once the sheet is gone - after FACEID_OK. Looking only backward named no branch
+    // for exactly the unlock Tre reported. When nothing precedes it, name the first one that follows.
+    const window = entries.slice(i + 1, end);
+    const branchAfter = branchIdx === -1 ? window.find(e => e.event.startsWith(BRANCH)) : undefined;
+    const activeAfter = activeIdx === -1 ? window.find(e => e.event.startsWith(ACTIVE)) : undefined;
+    const after = branchAfter || activeAfter
+      ? ` | after=${branchAfter ? branchAfter.event.slice(BRANCH.length).trim().split(/\s/)[0] || 'none' : 'none'}` +
+        `@${fmt((branchAfter ?? activeAfter)!.ts - entry.ts)}`
+      : '';
     timings.push({
       at: new Date(entry.ts).toISOString(),
-      reason: `unlock timing: faceid->painted=${fmt(paintedMs)} | faceid->cover_hidden=${fmt(hiddenMs)} | active->faceid=${fmt(activeMs)} | branch=${branch} | faceid->persisted=${fmt(persistedMs)}`.slice(0, 200),
+      reason: `unlock timing: faceid->painted=${fmt(paintedMs)} | faceid->cover_hidden=${fmt(hiddenMs)} | active->faceid=${fmt(activeMs)} | branch=${branch} | faceid->persisted=${fmt(persistedMs)}${after}`.slice(0, 200),
       ts: entry.ts,
     });
   });
