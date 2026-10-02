@@ -54,12 +54,33 @@ describe('CatalogPicker', () => {
     expect(onApply).toHaveBeenLastCalledWith({ base_pct: 2.5, categories: {} });
   });
 
-  it('shows the issuer source and date, and Discover lists its unread quarter as unknown', () => {
-    render(<CatalogPicker onApply={vi.fn()} />);
-    pick('discover-it-cash-back');
-    expect(screen.getByRole('link', { name: "the issuer's page" }).getAttribute('href'))
-      .toBe('https://www.discover.com/credit-cards/cash-back/it-card.html');
-    expect(screen.getByText(/checked 2026-10-01/)).toBeTruthy();
-    expect(screen.getByTestId('catalog-unknown').textContent).toMatch(/This quarter's 5% categories/);
+  // The clock is PINNED: the picker reads today's quarter, so a real-clock test flips the day a
+  // quarter is read from the issuer (it did, on 2026-10-01).
+  it('shows the issuer source and date, and Discover lists an unread quarter as unknown', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2027, 0, 5, 12));
+    try {
+      render(<CatalogPicker onApply={vi.fn()} />);
+      pick('discover-it-cash-back');
+      expect(screen.getByRole('link', { name: "the issuer's page" }).getAttribute('href'))
+        .toBe('https://www.discover.com/credit-cards/cash-back/it-card.html');
+      expect(screen.getByText(/checked 2026-10-01/)).toBeTruthy();
+      expect(screen.getByTestId('catalog-unknown').textContent).toMatch(/This quarter's 5% categories/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('in 2026-Q4 Discover has no unknown and names the categories it cannot rank', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 15, 12));
+    try {
+      render(<CatalogPicker onApply={vi.fn()} />);
+      pick('discover-it-cash-back');
+      expect(screen.queryByTestId('catalog-unknown')).toBeNull();
+      expect(screen.getByText(/also covers Entertainment and Utilities/)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
