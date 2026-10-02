@@ -37,6 +37,9 @@ R-NOW40 (10-01 ~20:10 ET, Ada getforgenta-60). START HERE.
         linked, no tracking). Read live in Chrome.
     [x] f9b0da16 CLOSED - Discover 2026-Q4 row shipped (dining 5%; Entertainment + Utilities named in notes). The
         calendar loads in a real browser; a plain fetch shows the "not working" error. Next quarter needs a new row by 2027-01.
+    [x] 258b51be: Brokerage goal 7f7e634c relinked to Robinhood individual ef74a610 ($1,293.04); snapshot
+        backup.tre_brokerage_goal_20261001. PARTIAL by design: a static sum double-counts (forecast-engine.ts:413 goal pools).
+    [ ] NEXT BUILD 4674b24a: one goal tracking several accounts (live sum). Money engine, ~20 linked_account sites.
     NOTE: the context-gate hook fired at session start (~176k) because the system prompt alone is that big. Handing off
         on it would loop; work on and hand off at the real limit.
 R-NOW39 (10-01 ~13:45 ET, Ada getforgenta-0b -> successor at the 184-call gate). START HERE, IN ORDER:
