@@ -63,6 +63,7 @@ import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
 import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
 import { detectTransferPairs, indexPairsByLeg, collapseTransferLegs, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
 import MerchantMemoryPanel from './MerchantMemoryPanel';
+import { useMerchantMemory } from '@/hooks/useMerchantMemory';
 import DecisionDeck from './DecisionDeck';
 import LinkPicker from './LinkPicker';
 import { useAllCarBuildItems } from '@/hooks/useSupabaseData';
@@ -286,7 +287,23 @@ export default function BankActivity() {
    * ⚠️ A PASSTHROUGH OVER THE SAME QUEUE. `buildDeck` attaches each charge's suggestion and changes
    * nothing about the order, so the deck asks in exactly the sequence the list shows.
    */
-  const deckCards = useMemo(() => buildDeck(queue), [queue]);
+  const { pass: merchantPass, isLoading: merchantLoading } = useMerchantMemory();
+  /**
+   * ⚠️ A CHARGE MERCHANT MEMORY IS ABOUT TO LABEL IS NOT A CARD (Tre, 2026-10-02, dc34a4c7: "it
+   * doesn't need to pop up with the like select category if they're gonna automatically be
+   * categorized"). The deck snapshots its cards when it opens, which can be before the pass lands,
+   * so those charges used to arrive as cards asking for a category the app was about to set.
+   * Charges the user UNDID are not excluded: the pass leaves them alone, so they are his to decide.
+   */
+  // Keyed on the ids as a string: `undoneChargeIds` is a fresh Set every render, and a new Set here
+  // would hand the deck a new card array every render.
+  const autoLabelKey = merchantPass.writes
+    .filter(w => !undoneChargeIds.has(w.chargeId)).map(w => w.chargeId).sort().join('|');
+  const autoLabelIds = useMemo(() => new Set(autoLabelKey ? autoLabelKey.split('|') : []), [autoLabelKey]);
+  const deckCards = useMemo(
+    () => buildDeck(queue).filter(c => !autoLabelIds.has(c.charge.id)),
+    [queue, autoLabelIds],
+  );
   /**
    * `'unopened'` means the user has not touched the deck either way, and it is the only state in
    * which the deck opens ITSELF — that is what "default surface" means. Closing it records
@@ -299,7 +316,7 @@ export default function BankActivity() {
    */
   const [deckIntent, setDeckIntent] = useState<'unopened' | 'open' | 'closed'>('unopened');
   const deckOpen = deckIntent === 'open'
-    || (deckIntent === 'unopened' && !isLoading && deckCards.length > 0);
+    || (deckIntent === 'unopened' && !isLoading && !merchantLoading && deckCards.length > 0);
 
   /**
    * §1B TRANSFER PAIRS — the movements between Tre's own accounts, derived over ALL history.

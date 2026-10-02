@@ -89,6 +89,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 // Fixed furniture above the widget list. None of it is about matching, and each owns queries or a
 // chart library that jsdom has nothing useful to do with.
 vi.mock('@/components/shared/AppTour', () => ({ default: () => null }));
+vi.mock('@/components/transactions/MerchantMemoryAutoApply', () => ({ default: () => null }));
 vi.mock('@/components/shared/AccountUpdateReminder', () => ({ default: () => null }));
 vi.mock('@/components/dashboard/SubscriptionExpiryBanner', () => ({ default: () => null }));
 vi.mock('@/components/dashboard/OnboardingChecklist', () => ({ default: () => null }));

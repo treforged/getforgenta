@@ -102,6 +102,10 @@ vi.mock('@/hooks/useAppliedActions', async () => {
 });
 vi.mock('../DecisionDeck', () => ({ default: () => null }));
 vi.mock('../MerchantMemoryPanel', () => ({ default: () => null }));
+// BankActivity reads the merchant pass to keep auto-labelled charges out of the deck (dc34a4c7).
+vi.mock('@/hooks/useMerchantMemory', () => ({
+  useMerchantMemory: () => ({ pass: { writes: [], byMerchant: [] }, isLoading: false, rules: {}, linkRules: {}, suppressed: {} }),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), message: vi.fn() } }));
 
 import BankActivity from '../BankActivity';

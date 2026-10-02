@@ -60,6 +60,7 @@ import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import { buildNextDebtPayments } from '@/lib/widget-snapshot';
 import NetWorthTrendCard from '@/components/dashboard/NetWorthTrendCard';
+import MerchantMemoryAutoApply from '@/components/transactions/MerchantMemoryAutoApply';
 import NextLessonRow from '@/components/dashboard/NextLessonRow';
 import NewBadgeRow from '@/components/dashboard/NewBadgeRow';
 import { useLearnProgress } from '@/hooks/useLearnProgress';
@@ -1318,6 +1319,8 @@ export default function Dashboard() {
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
       {pmfVisible && <PmfSurveyModal onDismiss={() => setPmfVisible(false)} />}
       {!isDemo && <AppTour variant="new-user" />}
+      {/* Categorizes remembered merchants before Transactions is opened (dc34a4c7). Renders nothing. */}
+      <MerchantMemoryAutoApply />
       {/* What changed, for someone who was already here (Tre, 2026-09-13). Deliberately AFTER the
           founder note and the tour in source order: those two are a new user's first run, and this
           one refuses to render for a new user at all, so they can never stack up on one screen. */}

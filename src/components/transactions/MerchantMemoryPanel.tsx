@@ -19,9 +19,19 @@ import { planRetroactiveUndo, type RetroPass } from '@/lib/merchant-memory';
 interface MerchantMemoryPanelProps {
   /** The parent's `setCategory` mutation — one write path for a category, however it was decided. */
   setCategory: { mutateAsync: (v: { syncedTransactionId: string; category: string | null }) => Promise<unknown> };
+  /** Apply only, render nothing — the Dashboard's runner (`MerchantMemoryAutoApply`). */
+  background?: boolean;
 }
 
-export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanelProps) {
+/**
+ * ⚠️ ONE PASS AT A TIME, ACROSS EVERY MOUNT. The Dashboard runner and the Transactions panel both
+ * auto-apply. Navigating from one to the other mid-pass would start a second pass over charges the
+ * first has not written yet: duplicate writes and a second undo record for the same work. A ref
+ * guards one mount; this guards the app.
+ */
+let passInFlight = false;
+
+export default function MerchantMemoryPanel({ setCategory, background = false }: MerchantMemoryPanelProps) {
   const { pass, isLoading } = useMerchantMemory();
   const [busy, setBusy] = useState(false);
   /** The pass that was actually applied, kept so it can be undone as one act. */
@@ -64,6 +74,8 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
    * for a write he is not watching. See supabase/migrations/20260913_applied_actions.sql.
    */
   const run = async (toWrite: readonly RetroPass['writes'][number][] = pass.writes) => {
+    if (passInFlight) return;
+    passInFlight = true;
     setBusy(true);
     // Snapshot BEFORE writing. The live `pass` recomputes as the writes land and would shrink to
     // nothing underneath the undo button, leaving the user holding an undo for zero charges.
@@ -103,6 +115,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
           toast.message('Applied, but the undo could not be saved — use Settings to change any of these.');
         }
       }
+      passInFlight = false;
       setBusy(false);
     }
   };
@@ -142,7 +155,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
 
   // The undo outlives the pass and is offered first: immediately after a bulk write, "put it back"
   // is the only thing the user might want, and it must not be behind anything.
-  if (applied) {
+  if (applied && !background) {
     return (
       <div className="card-forged p-3 flex flex-wrap items-center gap-2">
         <Tag size={13} className="text-primary shrink-0" />

@@ -144,3 +144,27 @@ describe('an undone charge stays undone', () => {
     expect(setCategory.mutateAsync).not.toHaveBeenCalled();
   });
 });
+
+describe('the Dashboard runner (dc34a4c7)', () => {
+  it('applies with no press and renders nothing, even with an undo on record', async () => {
+    mocks.latest = APPLIED;
+    const { container } = render(<MerchantMemoryPanel setCategory={setCategory} background />);
+    await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledTimes(2));
+    expect(container.textContent).toBe('');
+  });
+
+  it('runs ONE pass when two mounts auto-apply at once', async () => {
+    // Dashboard to Transactions mid-pass: the second mount must not write the same charges again
+    // or record a second undo for them.
+    let release: () => void = () => {};
+    setCategory.mutateAsync.mockImplementationOnce(() => new Promise<void>(r => { release = r; }));
+    render(<MerchantMemoryPanel setCategory={setCategory} background />);
+    render(<MerchantMemoryPanel setCategory={setCategory} />);
+    await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledTimes(1));
+    release();
+    await waitFor(() => expect(mocks.record.mutateAsync).toHaveBeenCalledTimes(1));
+    await new Promise(r => setTimeout(r, 50));
+    expect(setCategory.mutateAsync).toHaveBeenCalledTimes(2);
+    expect(mocks.record.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+});
