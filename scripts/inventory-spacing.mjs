@@ -8,7 +8,12 @@
  *     covers (text, images, svg, inputs, buttons). A band over 16px is listed with the text above and below it.
  *   CARD PADDING - each card's computed padding (top/right/bottom/left), counted as distinct values.
  *   SECTION GAPS - from each card to the next card below it that overlaps it horizontally, as distinct values.
- * POSITIVE CONTROL: a planted card with a 120px empty band must read 120 +/- 6 on every route (a text box is the glyph box, a few px inside its line), or exit 2.
+ *   RIGHT-SIDE SPACE - content is grouped into ROWS (things that overlap vertically); a row whose content
+ *     ends 100px or more before the card's inner right edge is listed with its text. This is the 2D half:
+ *     a band reads only empty HEIGHT, and a lone short line beside nothing reads as full.
+ * DEMO ARM: /demo (no credentials) for goals and the debt tabs the walk account does not carry.
+ * POSITIVE CONTROLS: a planted card with a 120px empty band must read 120 +/- 6, and a planted 100px button in
+ *   a 300px card must read 176 +/- 6 of right-side space, on every route (a text box is the glyph box), or exit 2.
  * Each route is read until two consecutive reads agree, or it prints UNSTABLE and exits 2.
  * DOES NOT COVER: desktop widths, anything behind a press, empty space OUTSIDE a card, or whether a gap is
  * deliberate. A band beside a tall element in the same row is not empty, so it is not counted.
@@ -21,6 +26,8 @@ const ROUTES = [
   '/dashboard', '/dashboard?tab=accounts', '/dashboard?tab=goals', '/budget', '/debt', '/debt?tab=use',
   '/forecast', '/net-worth', '/vehicles', '/account', '/settings',
 ];
+// The walk account has no goals and only credit-card debt; /demo carries both.
+const DEMO_ROUTES = ['/dashboard?tab=goals', '/goals', '/debt?tab=auto', '/debt?tab=student', '/vehicles'];
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 const env = readFileSync('.env.local', 'utf8');
 let creds;
@@ -81,6 +88,7 @@ const measure = () => {
   const out = { cards: [] };
   for (const card of cards) {
     if (card.parentElement?.closest('.card-forged')) continue; // outermost cards only
+    if (card.closest('[data-sonner-toaster], [data-sonner-toast]')) continue; // a toast is not page layout, and comes and goes between reads
     const cb = card.getBoundingClientRect();
     const cs = getComputedStyle(card);
     const pad = ['Top', 'Right', 'Bottom', 'Left'].map(s => Math.round(parseFloat(cs['padding' + s])));
@@ -104,7 +112,7 @@ const measure = () => {
       }
       if (!r || r.height < 1) continue;
       spans.push([Math.max(r.top, top), Math.min(r.bottom, bottom)]);
-      label.push({ top: r.top, bottom: r.bottom, text: text.slice(0, 40) });
+      label.push({ top: r.top, bottom: r.bottom, right: r.right, text: text.slice(0, 40) });
     }
     spans.sort((a, b) => a[0] - b[0]);
     const bands = [];
@@ -119,10 +127,22 @@ const measure = () => {
       c.sort((p, q) => (above ? q.bottom - p.bottom : p.top - q.top));
       return c[0]?.text ?? (above ? '(card top)' : '(card bottom)');
     };
+    // ROWS: content that overlaps vertically, and how far each row stops short of the inner right edge.
+    const innerRight = cb.right - pad[1];
+    const rows = [];
+    for (const l of [...label].sort((a, b) => a.top - b.top)) {
+      const row = rows.find(rw => l.top < rw.bottom - 1 && l.bottom > rw.top + 1);
+      if (row) { row.top = Math.min(row.top, l.top); row.bottom = Math.max(row.bottom, l.bottom); row.right = Math.max(row.right, l.right); row.text.push(l.text); }
+      else rows.push({ top: l.top, bottom: l.bottom, right: l.right, text: [l.text] });
+    }
+    const rightSpace = rows
+      .map(rw => ({ px: Math.round(innerRight - rw.right), text: rw.text.join(' ').slice(0, 50) }))
+      .filter(rw => rw.px >= 100);
     const title = (card.querySelector('h1,h2,h3,h4')?.textContent || card.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
     out.cards.push({
       title, pad, left: Math.round(cb.left), right: Math.round(cb.right), top: Math.round(cb.top + scrollY), bottom: Math.round(cb.bottom + scrollY),
       bands: bands.map(([a, b]) => ({ px: Math.round(b - a), above: near(a, true), below: near(b, false) })),
+      rightSpace,
     });
   }
   return out;
@@ -135,6 +155,12 @@ const plantControl = () => {
   // margin 0 and line-height 1, so the text box IS the line box and the band is exactly the spacer.
   d.innerHTML = '<h3 style="margin:0;line-height:1">__control</h3><div style="height:120px"></div><p style="margin:0;line-height:1">after</p>';
   document.body.appendChild(d);
+  const r = document.createElement('div');
+  r.className = 'card-forged';
+  r.id = '__right_control';
+  r.style.cssText = 'position:absolute;top:400px;left:0;width:300px;padding:12px;box-sizing:border-box';
+  r.innerHTML = '<button style="width:100px;height:24px;margin:0;padding:0;border:0" aria-label="__rcontrol"></button>';
+  document.body.appendChild(r);
 };
 
 const browser = await chromium.launch();
@@ -151,7 +177,8 @@ await page.evaluate(() => {
 await page.route(/\/rest\/v1\//, route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()));
 
 const report = {};
-for (const route of ROUTES) {
+const scanRoutes = async (page, routes, arm) => {
+for (const route of routes) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4000);
   for (let i = 0; i < 6 && (await page.locator('[role="dialog"]').count()); i += 1) {
@@ -170,8 +197,14 @@ for (const route of ROUTES) {
   }
   if (!result) await done(2, `UNSTABLE: ${route} never gave two agreeing reads.`);
   await page.evaluate(plantControl);
-  const ctl = (await page.evaluate(measure)).cards.find(c => c.title === '__control');
-  await page.evaluate(() => document.getElementById('__spacing_control')?.remove());
+  const planted = (await page.evaluate(measure)).cards;
+  const ctl = planted.find(c => c.title === '__control');
+  const rctl = planted.find(c => c.rightSpace.some(rw => rw.text.includes('__rcontrol')));
+  await page.evaluate(() => { document.getElementById('__spacing_control')?.remove(); document.getElementById('__right_control')?.remove(); });
+  const rpx = rctl?.rightSpace.find(rw => rw.text.includes('__rcontrol'))?.px;
+  if (rpx === undefined || Math.abs(rpx - 176) > 6) {
+    await done(2, `CONTROL FAILED on ${arm} ${route}: the planted right-side space (176 +/- 6) read ${rpx}.`);
+  }
   if (!ctl?.bands.some(b => Math.abs(b.px - 120) <= 6)) {
     await done(2, `CONTROL FAILED on ${route}: the planted 120px band (+/- 6: a text box is the glyph box, not the line box) read ${JSON.stringify(ctl?.bands)}.`);
   }
@@ -182,9 +215,19 @@ for (const route of ROUTES) {
     const below = cs.filter(o => o !== c && o.top >= c.bottom - 1 && o.left < c.right && o.right > c.left).sort((a, b) => a.top - b.top)[0];
     if (below) gaps.push(below.top - c.bottom);
   }
-  report[route] = { cards: cs, gaps };
+  report[arm === 'demo' ? `demo ${route}` : route] = { cards: cs, gaps };
 }
+};
+await scanRoutes(page, ROUTES, 'walk');
+
 await ctx.close();
+const demoCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const demo = await demoCtx.newPage();
+await demo.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+await demo.waitForTimeout(4000);
+await demo.route(/\/rest\/v1\//, route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()));
+await scanRoutes(demo, DEMO_ROUTES, 'demo');
+await demoCtx.close();
 
 const count = arr => Object.entries(arr.reduce((m, v) => ((m[v] = (m[v] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
 const allPads = Object.values(report).flatMap(r => r.cards.map(c => c.pad.join('/')));
@@ -197,6 +240,10 @@ console.log(`SECTION GAPS (px): ${count(allGaps).length} distinct over ${allGaps
 for (const [v, n] of count(allGaps)) console.log(`  ${v}  x${n}`);
 console.log(`EMPTY BANDS > 16px inside cards: ${allBands.length}`);
 for (const b of allBands) console.log(`  ${String(b.px).padStart(4)}px  ${b.route}  [${b.card}]  between "${b.above}" and "${b.below}"`);
+const allRight = Object.entries(report).flatMap(([route, r]) => r.cards.flatMap(c => c.rightSpace.map(rw => ({ route, card: c.title, ...rw }))));
+allRight.sort((a, b) => b.px - a.px);
+console.log(`RIGHT-SIDE SPACE >= 100px inside cards: ${allRight.length}`);
+for (const rw of allRight) console.log(`  ${String(rw.px).padStart(4)}px  ${rw.route}  [${rw.card}]  row "${rw.text}"`);
 const jsonAt = process.argv.indexOf('--json');
 if (jsonAt > 0) (await import('node:fs')).writeFileSync(process.argv[jsonAt + 1], JSON.stringify(report, null, 1));
-await done(0, `MEASURED: ${ROUTES.length} routes at 390; the planted 120px band was found on every route.`);
+await done(0, `MEASURED: ${ROUTES.length} signed-in + ${DEMO_ROUTES.length} demo routes at 390; both planted controls were found on every route.`);
