@@ -296,6 +296,9 @@ section states reasoning, not measurement, and says so.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
+- `npm run check:overview-strip` - the Command Center's Net Worth strip at 1440 and 1024, signed in: the four stat
+  labels share one top (spread <= 1px) and the Net Worth TEXT ends within 40px of the divider (a Range over its
+  characters; its box fills the column). Proven red on the pre-fix strip (Liquid Cash 10px low; 234px dead band).
 - `npm run check:topright` — an INVENTORY, not a pass/fail gate, of how much of each tab's top-right
   is empty, at 390x844 and 1440x900, signed in. Answers the "big blank spaces" class of complaint by
   measurement instead of by opening whichever screen was reported.

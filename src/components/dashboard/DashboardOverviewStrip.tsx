@@ -69,7 +69,9 @@ function SplitTile({ label, value, tone, sub, onClick }: SplitTileProps) {
 
   if (!onClick) return <div>{body}</div>;
   return (
-    <button type="button" onClick={onClick} className="w-full text-center transition-colors hover:text-primary">
+    // self-start: a stretched button centres its content in the row, so in a row made taller by
+    // CC Debt's extra line its label sat 10px below the others (Tre, 2026-10-02, 7a9319ae).
+    <button type="button" onClick={onClick} className="w-full self-start text-center transition-colors hover:text-primary">
       {body}
     </button>
   );
@@ -78,7 +80,7 @@ function SplitTile({ label, value, tone, sub, onClick }: SplitTileProps) {
 function StripSkeleton() {
   return (
     <div className="card-forged p-4 sm:p-5">
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-4 sm:gap-5">
         <div className="space-y-2 text-center lg:text-left">
           <Skeleton className="h-2.5 w-20 bg-muted/50 mx-auto lg:mx-0" />
           <Skeleton className="h-7 w-36 bg-muted/50 mx-auto lg:mx-0" />
@@ -156,7 +158,7 @@ export default function DashboardOverviewStrip({
 
   return (
     <div className="card-forged p-4 sm:p-5">
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-4 sm:gap-5">
         <div className="text-center lg:text-left">
           {onNetWorthClick ? (
             <button
@@ -172,7 +174,7 @@ export default function DashboardOverviewStrip({
         </div>
 
         <div className="border-t lg:border-t-0 lg:border-l border-border/40 pt-4 lg:pt-0 lg:pl-5 xl:pl-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 items-start gap-4 sm:gap-5 text-center">
             <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success" onClick={onLiquidCashClick} />
             <SplitTile label="Investments" value={money(investments)} tone="text-primary" />
             <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" />

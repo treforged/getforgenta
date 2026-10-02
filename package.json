@@ -36,6 +36,7 @@
     "check:placeholders:opened": "node scripts/check-placeholders-opened.mjs",
     "check:accounts-groups": "node scripts/check-accounts-groups.mjs",
     "check:topright": "node scripts/inventory-top-right-space.mjs",
+    "check:overview-strip": "node scripts/check-overview-strip.mjs",
     "check:concentricity": "node scripts/check-concentricity.mjs",
     "check:truncation": "node scripts/check-account-truncation.mjs",
     "check:glass": "node scripts/check-glass.mjs",
