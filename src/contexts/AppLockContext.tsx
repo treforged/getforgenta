@@ -367,6 +367,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
           void debugLog('UNLOCK_PERSISTED');
         }, () => debugLog('UNLOCK_PERSIST_FAILED'));
       requestAnimationFrame(() => requestAnimationFrame(() => {
+        // 98cbf494: lift the native cover now, not when iOS re-activates the app (2.3 s later on
+        // build 1201). Older builds reject "not implemented"; the cover then lifts as before.
+        if (Capacitor.getPlatform() === 'ios') {
+          void import('@/plugins/app-cover').then(m => m.AppCover.unlocked()).catch(() => undefined);
+        }
         void debugLog('UNLOCK_PAINTED').then(() => {
           // Leave the native cover time to log COVER_HIDDEN before the timing is read.
           setTimeout(() => { void import('@/lib/send-unlock-timings').then(m => m.sendUnlockTimings()); }, 3000);

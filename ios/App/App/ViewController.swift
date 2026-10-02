@@ -9,6 +9,8 @@ class ViewController: CAPBridgeViewController {
         // Was missing until 2026-09-29: an in-app plugin is NOT auto-registered, so every NativeGlass
         // call rejected "not implemented" and useSimGlassExperiment swallowed it (8a202850).
         bridge?.registerPluginInstance(GlassEffectPlugin())
+        // Ask 98cbf494: the JS lock lifts the cover once the unlocked page has painted.
+        bridge?.registerPluginInstance(AppCoverPlugin())
         bridge?.webView?.navigationDelegate = self
         #if DEBUG
         injectSimulatorSessionIfPresent()

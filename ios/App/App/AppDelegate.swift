@@ -523,6 +523,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         hideNativeCover()
     }
 
+    /// The JS lock reports that Face ID passed AND the unlocked page has painted (AppCoverPlugin).
+    ///
+    /// Ask 98cbf494, measured on build 1201 (2026-10-02 00:22Z): Face ID resolved, the page painted
+    /// 7 ms later, and iOS did not re-activate the app until 2,323 ms after Face ID. The cover only
+    /// came off at 2,773 ms, because every branch in applicationDidBecomeActive waits for that
+    /// activation. So the person had passed Face ID and stared at the cover for 2.3 s. The page under
+    /// it is already unlocked and painted, which is the exact condition every poll below waits for.
+    ///
+    /// ⚠️ NEVER in the background: the cover exists to keep balances out of the App Switcher
+    /// snapshot. A later resign puts it back (applicationWillResignActive), and the polls that the
+    /// activation starts return at once because they guard on `nativeCover != nil`.
+    func jsUnlockPainted() {
+        guard nativeCover != nil else { return }
+        guard UIApplication.shared.applicationState != .background else {
+            debugLog("JS_UNLOCK_PAINTED → ignored (background)")
+            return
+        }
+        debugLog("JS_UNLOCK_PAINTED → hide")
+        hideNativeCover()
+    }
+
     private func scheduleNativeCoverDismiss(after delay: TimeInterval) {
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
@@ -752,6 +773,25 @@ public class AuthSessionPlugin: CAPPlugin, CAPBridgedPlugin {
             self.authSession?.presentationContextProvider = self.contextProvider
             self.authSession?.prefersEphemeralWebBrowserSession = false
             self.authSession?.start()
+        }
+    }
+}
+
+/// Lets the JS app lock lift the native privacy cover the moment Face ID has passed and the
+/// unlocked page has painted (ask 98cbf494). It decides nothing: AppDelegate.jsUnlockPainted
+/// refuses while the app is in the background.
+@objc(AppCoverPlugin)
+public class AppCoverPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "AppCoverPlugin"
+    public let jsName = "AppCover"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "unlocked", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func unlocked(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            (UIApplication.shared.delegate as? AppDelegate)?.jsUnlockPainted()
+            call.resolve()
         }
     }
 }
