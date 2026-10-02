@@ -26,6 +26,8 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired at boot, weekly cap 82%). START HERE:
+    WAKES: 9bbd81a4 read 08:03 (c8b8566d lost to a CLIENT /logout x2 at 04:31:52Z; initiator unknown, see ask). 1cea48f3
+       read 09:17: Robinhood 1088.76 settled; Chase 'Robinhood' -200.43 still PENDING, re-read. Next wake 18:04 0969c905.
     HOLD (Sam, 10-02 ~03:40 ET): weekly cap 83% of 92%; keep the margin for Tre's live asks. AFTER 18:00 ET RESET, in order:
        (i) 594caf27 is NOT browser-proven at Tre's size - find a way to see one 100-charge pass refresh once (e.g. a
            Playwright run on a throwaway @forgenta.test user seeded with ~700 synced rows, one merchant x100);
@@ -12614,7 +12616,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 02:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 08:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12633,14 +12635,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+a130ea2e [handoff]: R-NOW49 - hold until 18:00 ET reset (Sam)
+43ae617e [handoff]: R-NOW49 - 594caf27 shipped at 01f75aa1; d3ba6c8b queued
+01f75aa1 [transactions]: one refresh per merchant batch, not one per charge (594caf27)
+43c9723b [handoff]: R-NOW49 - 594caf27 likely cause (103 sequential writes, refetch per write)
+2d09b1a9 [handoff]: R-NOW49 - freeze row counts (Tre 724 vs walk 14), wakes re-armed
 2351e41a [handoff]: R-NOW48 - freeze probe result, successor brief
 3b99f2b0 [handoff]: drop the stale 259f01ba next-slice line
 860a772a [handoff]: R-NOW47 - 259f01ba, c99f9ab7, 7a9319ae closed
-8159998d [dashboard]: Command Center figures on one line, Net Worth beside them (7a9319ae)
-fc395b9e [db]: gate - a migration that creates a public table must grant on it (c99f9ab7)
-8c9bd411 [layout]: card facts never split across lines, and Account's cards share one gap (259f01ba, slice 2)
-0aa23c1a [handoff]: R-NOW47 - 259f01ba padding slice, gaps next
-b7524539 [layout]: one card padding on a phone - 18px, 23px from sm up (259f01ba, first slice)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
