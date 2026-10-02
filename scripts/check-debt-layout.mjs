@@ -123,6 +123,28 @@ async function probe(view, tag, demo = false) {
       controls: controls ? box(controls) : null,
       order: order ? box(order) : null,
       overflow: document.documentElement.scrollWidth - window.innerWidth,
+      // Sam, 2026-10-02 (259f01ba): each fact on the card's rate line ("18.99% APR", "Limit $7,500",
+      // "Utilization 56.0%", "Due 22nd") must sit on ONE line. Measured with a Range over the fact's own
+      // characters, so it can see a break inside a fact whatever elements the line is built from.
+      rateFacts: (() => {
+        const line = [...document.querySelectorAll('p')].find(el => /% APR · Limit/.test(el.textContent || ''));
+        if (!line) return null;
+        const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        let text = '';
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) { nodes.push({ n, at: text.length }); text += n.textContent; }
+        const point = i => { const hit = nodes.filter(x => x.at <= i).pop(); return [hit.n, i - hit.at]; };
+        return [/[\d.]+% APR/, /Limit \$[\d,]+/, /Utilization [\d.]+%/, /Due \d+\w\w/].flatMap(re => {
+          const m = re.exec(text);
+          if (!m) return [];
+          const range = document.createRange();
+          range.setStart(...point(m.index));
+          range.setEnd(...point(m.index + m[0].length - 1));
+          range.setEnd(range.endContainer, range.endOffset + 1);
+          const tops = new Set([...range.getClientRects()].filter(b => b.width > 0).map(b => Math.round(b.top)));
+          return [{ fact: m[0], lines: tops.size }];
+        });
+      })(),
     };
   });
   await page.screenshot({ path: `test-results/debt-layout-${tag}.png`, fullPage: true });
@@ -142,6 +164,10 @@ async function probe(view, tag, demo = false) {
     problems.push(`[${tag}] Share is not alone in the toolbar (count ${r.shareCount}, inToolbar ${r.shareInToolbar})`);
   }
   if (r.overflow > 1) problems.push(`[${tag}] the page is ${r.overflow}px wider than the viewport`);
+  if (!demo) {
+    if (!r.rateFacts || r.rateFacts.length < 3) { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: the card rate line or its facts were not found (${JSON.stringify(r.rateFacts)}).`); }
+    for (const f of r.rateFacts) if (f.lines !== 1) problems.push(`[${tag}] "${f.fact}" breaks across ${f.lines} lines`);
+  }
   if (view.width >= 1024) {
     if (Math.abs(r.controls.top - r.order.top) > 4 || r.order.left <= r.controls.right - 4) {
       problems.push(`[${tag}] controls (${JSON.stringify(r.controls)}) and order (${JSON.stringify(r.order)}) are not side by side`);

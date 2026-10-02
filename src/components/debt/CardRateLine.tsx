@@ -43,9 +43,13 @@ export default function CardRateLine({ card, utilizationNow, account }: Props) {
 
   return (
     <>
+      {/* Each fact is one unbreakable unit, so a phone wraps BETWEEN facts and never inside one
+          ("Utilization" on one line, "56.0%" on the next). Sam, 2026-10-02 (259f01ba). */}
       <p className="text-[11px] sm:text-xs text-muted-foreground">
-        {card.apr}% APR · Limit {formatCurrency(card.creditLimit, false)} · Utilization {utilizationNow.toFixed(1)}%
-        {card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {ordinal(card.dueDay)}</span>}
+        <span className="whitespace-nowrap">{card.apr}% APR</span>
+        {' · '}<span className="whitespace-nowrap">Limit {formatCurrency(card.creditLimit, false)}</span>
+        {' · '}<span className="whitespace-nowrap">Utilization {utilizationNow.toFixed(1)}%</span>
+        {card.dueDay && <>{' · '}<span className="whitespace-nowrap"><CalendarDays size={10} className="inline" /> Due {ordinal(card.dueDay)}</span></>}
       </p>
       {marginal !== card.apr && (
         <span

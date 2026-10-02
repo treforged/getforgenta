@@ -134,7 +134,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="stack-section">
       <div className="card-forged p-4 sm:p-5 space-y-5">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Your profile
