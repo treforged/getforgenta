@@ -24,7 +24,7 @@ const ROUTES = [
 ];
 // Each demo debt tab must prove it rendered its own chart, or a missed tab would read as clean.
 const MUST_SHOW = { '/debt?tab=auto': 'Auto Loan Payoff Trajectory', '/debt?tab=student': 'Student Loan Payoff Trajectory', '/debt?tab=other': 'Other Debt Payoff Trajectory' };
-const DEMO_ROUTES = ['/debt?tab=auto', '/debt?tab=student', '/debt?tab=other', '/dashboard', '/budget', '/goals', '/forecast'];
+const DEMO_ROUTES = ['/debt', '/debt?tab=auto', '/debt?tab=student', '/debt?tab=other', '/dashboard', '/budget', '/goals', '/forecast'];
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 const env = readFileSync('.env.local', 'utf8');
 let creds;
