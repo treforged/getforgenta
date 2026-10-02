@@ -20,6 +20,9 @@ export type Field = {
   /** Text fields only: caps typing at this length and shows a live "n/max" counter, so a
    *  save-time slice can never cut the end off silently (rule notes lost their tail at 300). */
   maxLength?: number;
+  /** Rendered directly below this field, so a control that belongs to it sits beside it rather
+   *  than after every field (the goal form's extra accounts sat below Planned Stops). */
+  after?: ReactNode;
 };
 
 type Props = {
@@ -187,6 +190,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                 </p>
               )}
               {f.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{f.hint}</p>}
+              {f.after}
             </div>
           ))}
           {children}

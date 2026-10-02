@@ -110,6 +110,13 @@ await linked.selectOption(primary);
 try { await label.waitFor({ state: 'visible', timeout: 3000 }); }
 catch { await done(1, 'picking a linked account did not show "Also count these accounts".'); }
 const section = label.locator('xpath=..');
+// It extends the Linked Account field, so it must sit right under it, not after every field.
+const selBottom = await linked.evaluate(e => e.getBoundingClientRect().bottom);
+const labelTop = await label.evaluate(e => e.getBoundingClientRect().top);
+console.log(`gap from Linked Account select to the editor: ${(labelTop - selBottom).toFixed(1)}px`);
+if (labelTop - selBottom < 0 || labelTop - selBottom > 40) {
+  await done(1, `the editor starts ${(labelTop - selBottom).toFixed(1)}px below the Linked Account select, want 0-40px.`);
+}
 const chips = section.getByRole('button');
 const n = await chips.count();
 const primaryText = await linked.locator(`option[value="${primary}"]`).innerText();

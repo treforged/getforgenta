@@ -850,11 +850,40 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     return goalCompletionMonthLabel(months);
   }
 
+  // Ask e1b0fffc: drawn under the Linked Account field it extends, not after every field.
+  const extraAccountsEditor = form.linked_account && extraAccountOptions.length > 0 && (
+    <div className="space-y-2">
+      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Also count these accounts</label>
+      <div className="flex flex-wrap gap-2">
+        {extraAccountOptions.map(o => {
+          const active = extraAccountIds.includes(o.value);
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setExtraAccountIds(prev =>
+                active ? prev.filter(id => id !== o.value) : [...prev, o.value]
+              )}
+              className={`px-3 py-1.5 text-xs border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        The goal's saved amount is the linked account plus every account picked here.
+      </p>
+    </div>
+          );
+
   const formFields = useMemo(() => {
     const fields: Field[] = [
       { key: 'name', label: 'Goal Name', type: 'text', placeholder: 'e.g., Emergency Fund' },
       { key: 'goal_type', label: 'Goal Type', type: 'select', options: GOAL_TYPES.map(t => ({ value: t, label: t })) },
-      { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
+      { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions, after: extraAccountsEditor || undefined },
     ];
     // Tre, 2026-08-26: "in the modal the target amount and date should clear if stages are planned."
     // With stops the single target is not a thing the user sets — it is the sum of what they
@@ -873,7 +902,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     // describe one of them.
     if (!hasStops) fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
     return fields;
-  }, [form.linked_account, selectedRuleIds.length, accountOptions, hasStops]);
+  }, [form.linked_account, selectedRuleIds.length, accountOptions, hasStops, extraAccountsEditor]);
 
   // The page's subject is `goals`, but the gate used to be on `accounts` alone —
   // so between the two resolving, a signed-in user with goals was shown
@@ -1162,34 +1191,6 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
             >
               Use the emergency-runway plan: this target, then 3 months of expenses, then 3 more once your cards are clear
             </button>
-          )}
-
-          {form.linked_account && extraAccountOptions.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Also count these accounts</label>
-              <div className="flex flex-wrap gap-2">
-                {extraAccountOptions.map(o => {
-                  const active = extraAccountIds.includes(o.value);
-                  return (
-                    <button
-                      key={o.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setExtraAccountIds(prev =>
-                        active ? prev.filter(id => id !== o.value) : [...prev, o.value]
-                      )}
-                      className={`px-3 py-1.5 text-xs border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
-                      style={{ borderRadius: 'var(--radius)' }}
-                    >
-                      {o.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                The goal's saved amount is the linked account plus every account picked here.
-              </p>
-            </div>
           )}
 
           <div className="space-y-2">
