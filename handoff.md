@@ -25,6 +25,16 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW41 (10-01 ~21:25 ET, Ada getforgenta-60 -> successor at the 175-call gate). START HERE, IN ORDER:
+    0. VERIFY build 1201 is attached to iOS 6.8.1: open appstoreconnect.apple.com/apps/6762540239/distribution/ios/version/inflight,
+       read the Build section after a reload. I selected 1201, pressed Done and Save, and could NOT read it back. If it is
+       missing, Add Build -> 1201 -> Done -> Save, then reload. Tell Sam (tre-forged-77) the build number. Tre only presses Submit.
+    1. RE-ARM WAKES (died with me): '37 1 2 10 *' widget e74da89c; '17 9 2 10 *' $204 re-read 1cea48f3 (ef74a610 should drop
+       from $1,293.04 to ~$1,089).
+    2. 98cbf494: read `select reason from client_boot_failures where path='unlock-timing' order by created_at desc limit 3`;
+       a row with "after=<branch>@ms" names the AppDelegate.swift branch to fix. None yet at 21:25 (newest 23:40Z, old format).
+    3. Blocked on Tre: 44244263/56cf92ba (Supabase dashboard sign-in for the Leo template; Ada accepts the CSRF residue).
+    4. Standing e1b0fffc next slice: an in-app editor for savings_goals.also_linked_accounts (today set by SQL only).
 R-NOW40 (10-01 ~20:10 ET, Ada getforgenta-60). START HERE.
     [x] R-NOW39 0: throwaway 17cd4c1e deleted (no prompt fired), read back 0 users / 0 profiles. Only deck-walk and
         reach-rls-probe @forgenta.test remain (standing accounts).
