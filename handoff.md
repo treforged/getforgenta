@@ -47,6 +47,10 @@ R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
         seen_at against auth_logs. UNDO: select cron.unschedule('session-watch-9bbd81a4'); drop table backup.session_watch_9bbd81a4;
     [x] f9509027: check:word-breaks demo arm (auto/student/other tabs via /demo, MUST_SHOW title control). Liability
         header half of 48696588 was preventive (pre-fix passes). FYI: "Toyota RAV4 (Owned)" clipped 92px on demo auto tab.
+    [x] 93b18f92 f6d3020f: Tre's 9:16 PM frames (uploaded 00:21) PREDATE 91e8ac5c; Vercel prod READY f9509027. check:surplus-rows
+        plants Tre's shape (long goal + split child ml-4 + Share/Auto extra), bar 160px + no mid-word break;
+        red on the basis-full mutant (70px, "emergency" broken), green 194/194/176. Close on a fresh screenshot after app reopen.
+    [ ] NEXT e1b0fffc candidate: "Toyota RAV4 (Owned)" clipped 92px on the Auto tab (text-sm truncate in a 117px row).
     [ ] 4. Standing e1b0fffc.
     NOTE: the context-gate hook fires at ~177k on a FRESH session (system context alone), so it is not a handoff signal.
 R-NOW43 (10-02 ~03:05Z / 23:05 ET 10-01, Ada getforgenta-eb -> successor at the 200-call gate). START HERE, IN ORDER:
@@ -12505,18 +12509,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 23:26 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 00:21 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M scripts/check-word-breaks.mjs
- M src/pages/DebtPayoff.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12526,14 +12528,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8a1cefdd [handoff]: R-NOW44 - app logout found at 03:46Z, elicit hook v2 pending Tre
+48c5ba05 [handoff]: R-NOW44 - session watcher live, word-break demo arm
+f9509027 [gates]: check:word-breaks measures the auto / student / other debt tabs through /demo
+7ba5addf [handoff]: R-NOW44 - subtitle fix, session-loss findings
+5e2a469e [debt]: the page subtitle reads in full on a phone instead of truncating beside the actions (f6d3020f sweep)
 93ea79a0 [handoff]: R-NOW44 - template in sync, word-break gate + chart title fix
 48696588 [debt]: payoff chart titles no longer squeeze to 3 lines beside the 1Y-5Y control on a phone (ask f6d3020f)
 9f10024f [handoff]: R-NOW43 - successor brief at the 200-call gate
-91e8ac5c [surplus]: row controls wrap under the name on a phone, so goal names stop breaking per syllable (ask f6d3020f)
-bb9f3ba2 [email]: repo magic-link template carries the Leo RedirectTo branch, matching live (44244263)
-065476bd [email]: confirm-signup template title says Forgenta, not the old Forged brand (repo copy)
-2d7d7774 [handoff]: R-NOW42 - template proven, ticket drafted, extras placement
-b7abb699 [docs]: draft Supabase Disk IO support ticket for Sam's review (not sent)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
