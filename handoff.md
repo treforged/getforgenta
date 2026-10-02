@@ -40,6 +40,10 @@ R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
         sessions were DELETED (~03:25Z, phone too). Not single-session, not first MFA verify. New ask filed. Next:
         find the deleter. WATCHER LIVE: pg_cron job 28 session-watch-9bbd81a4 snapshots Tre's auth.sessions every minute
         into backup.session_watch_9bbd81a4 (locked, 3-day retention). When a session_id disappears, match its last
+        FOUND 04:20Z: 03:46:35Z localhost APP logout for Tre (4 /logout at once = signOut + cross-tab relay), after
+        auth /user 500s 03:43-03:44. Source (press vs Sam's iframe) unknown. Refresh 500 is NOT it (auth-js treats
+        500 retryable). 03:26 deletion: no logout, still unexplained. Elicitation hook v1 never matched live (log has
+        only the 19:46 offline test); v2 written to the scratchpad, install is Tre's ! command (classifier: Self-Modification).
         seen_at against auth_logs. UNDO: select cron.unschedule('session-watch-9bbd81a4'); drop table backup.session_watch_9bbd81a4;
     [x] f9509027: check:word-breaks demo arm (auto/student/other tabs via /demo, MUST_SHOW title control). Liability
         header half of 48696588 was preventive (pre-fix passes). FYI: "Toyota RAV4 (Owned)" clipped 92px on demo auto tab.
