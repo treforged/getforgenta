@@ -27,6 +27,10 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW47 (10-02 ~02:40 ET, Ada getforgenta-25). START HERE (Sam's order): f20e814d report, 259f01ba, c99f9ab7
     (Supabase GRANTs from 10-30), 7a9319ae, then 594caf27 (freeze after categorizing - needs a browser trace).
+    [x] f20e814d 2f5171ab: docs/empty-space-report-2026-10-02.md (11 areas + fixes); inventory:spacing has right-side +
+        /demo arms and skips toasts. WATCH: write-blocking probes abort the Dashboard merchant pass on the walk
+        account, so an error toast can appear on /dashboard (it made inventory:spacing UNSTABLE). If a probe
+        such as check:nav goes red on /dashboard, suspect that toast first.
     [x] dc34a4c7 first half ad16ae4b: merchant pass also runs on Dashboard (MerchantMemoryAutoApply, background, no new
         query, skipped in demo/partner); passInFlight guards one pass app-wide; deck never gets a charge the pass
         will label (BankActivity.deckSkipsAutoLabel). Freeze half split out to 594caf27.
