@@ -27,7 +27,8 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired at boot, weekly cap 82%). START HERE:
     0. WAKES re-armed in this session (die with it): 08:03 7eb551e4 (9bbd81a4), 09:17 cfb70baa (1cea48f3). Re-arm if gone.
-    1. 594caf27 FREEZE - LIKELY CAUSE FOUND (measured, not yet reproduced in a browser):
+    [x] 594caf27 FIX SHIPPED 01f75aa1 (quiet batch writes, one refetch). Ask closed. Watch for Tre reporting it again.
+        Was: FREEZE - LIKELY CAUSE FOUND (measured, not yet reproduced in a browser):
        (a) Pure code is NOT it: vitest bench, 724 synthetic rows: buildReviewQueue 4.0ms, deriveMerchantRules 0.4ms,
            planRetroactivePass 0.8ms (1500 rows: 4.3/0.8/0.7). Probe file deleted, not committed.
        (b) Tre's data: 253 merchants, p90 7 charges each, MAX 103 for one merchant (walk: 14 rows total, so it can
@@ -44,7 +45,9 @@ R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired a
        transactions 85 vs 0. The data-size hypothesis is now plausible, not proven. NEXT: localhost:8080 as Tre,
        READ-ONLY (stub every non-GET in-browser so nothing writes), pick a category, record longtasks + rAF lag;
        or time buildReviewQueue (src/lib/bank-activity-queue.ts) / planRetroactivePass at 724 rows in a vitest bench.
-    2. 52898f88 simplify Debt for a new user. 3. 8a202850 glass ON/OFF frame.
+    2. 52898f88 simplify Debt for a new user. 3. 8a202850 glass ON/OFF frame. 4. d3ba6c8b (from Sam): fix
+       .claude/hooks/context-gate.mjs - it fired ~175k at boot; measure like claudecontext/context_size.py, threshold above
+       the boot baseline.
     NOTE: the CONTEXT GATE fired on this session's FIRST tool calls (~175k claimed). The SessionStart hooks inject
        ~140KB, so a fresh successor may trip it at once. Told Sam rather than looping handoffs.
 R-NOW48 (10-02 ~03:10 ET, Ada getforgenta-25 -> successor at the 175-call gate). START HERE, IN ORDER:
