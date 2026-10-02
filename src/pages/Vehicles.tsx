@@ -167,7 +167,7 @@ export default function Vehicles() {
                   <Car size={16} className={`shrink-0 ${isLoan ? 'text-success' : 'text-primary'}`} />
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold truncate">{cf.vehicle_name}</h3>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-muted-foreground">
                       {isLoan
                         ? `Owned · ${cf.expected_apr}% APR · ${cf.loan_term_months} mo loan`
                         : `Saving · ${formatCurrency(saved, false)} of ${formatCurrency(cf.down_payment_goal, false)} down${cf.planned_purchase_date ? ` · buying ${fmtDate(cf.planned_purchase_date)}` : ''}`}
