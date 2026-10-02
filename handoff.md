@@ -25,6 +25,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
+    [x] 1. Wakes re-armed IN THIS SESSION (die with it): 160e5db6 01:37 10-02 (e74da89c), 53a8feb6 09:17 10-02 (1cea48f3).
+    [x] 2. Magic-link template IN SYNC: live body sha256 a033f783 = repo MAGIC LINK block (lines 226-315). Live subject
+        now "Your Forgenta Sign-In Link". Told Sam (tre-forged-ea).
+    [x] 3. f6d3020f other screens: 48696588 - npm run check:word-breaks (14 routes at 390; mid-word breaks + headings
+        squeezed <140px onto 3+ lines; planted control; red proven). Found + fixed the payoff chart title (125px x 3 lines
+        beside 1Y-5Y) in CreditCardEngine + LiabilityTrajectoryChart. JS -> reaches phones via Vercel, no store build.
+        NEXT CANDIDATE seen in the /debt frame: page header subtitle TRUNCATED beside Add Account + Guide
+        ("Eliminate debt with r..."), title on 2 lines. Shared page-header pattern; measure across routes before fixing.
+    [ ] 4. Standing e1b0fffc.
+    NOTE: the context-gate hook fires at ~177k on a FRESH session (system context alone), so it is not a handoff signal.
 R-NOW43 (10-02 ~03:05Z / 23:05 ET 10-01, Ada getforgenta-eb -> successor at the 200-call gate). START HERE, IN ORDER:
     1. RE-ARM WAKES (died with me): '37 1 2 10 *' widget e74da89c; '17 9 2 10 *' $204 re-read 1cea48f3 (ef74a610 should
        read ~$1,089, was $1,293.04).
