@@ -40,6 +40,12 @@ R-NOW40 (10-01 ~20:10 ET, Ada getforgenta-60). START HERE.
     [x] 258b51be: Brokerage goal 7f7e634c relinked to Robinhood individual ef74a610 ($1,293.04); snapshot
         backup.tre_brokerage_goal_20261001. PARTIAL by design: a static sum double-counts (forecast-engine.ts:413 goal pools).
     [ ] NEXT BUILD 4674b24a: one goal tracking several accounts (live sum). Money engine, ~20 linked_account sites.
+    [x] 4674b24a SHIPPED: savings_goals.also_linked_accounts + goalLinkedBalance; Brokerage = 4 accounts, $2,122 on screen.
+        No editor for extras yet (set by SQL). ef74a610 ($1,293) is the agentic Robinhood account (1293.04 - 204 = 1089.04).
+    [x] 37c89404 SHIPPED: debit cards (checking) in Which Card?. Cash floor not subtracted.
+    [x] Main was red after my Discover commit (CatalogPicker read the real clock); fixed, clock pinned.
+    [!] 44244263 BLOCKED: Leo magic-link template branch. Chrome is signed out of supabase.com; Tre must sign in once.
+        Ada accepts the login-CSRF residue. Steps are in the ask's block reason.
     NOTE: the context-gate hook fired at session start (~176k) because the system prompt alone is that big. Handing off
         on it would loop; work on and hand off at the real limit.
 R-NOW39 (10-01 ~13:45 ET, Ada getforgenta-0b -> successor at the 184-call gate). START HERE, IN ORDER:
