@@ -139,7 +139,7 @@ export default function NotificationSettings() {
   const isNative = Capacitor.isNativePlatform();
 
   return (
-    <div className="card-forged p-5 space-y-4">
+    <div className="card-forged p-4 sm:p-5 space-y-4">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}

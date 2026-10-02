@@ -187,15 +187,25 @@ for (const route of routes) {
   }
   let prev = null;
   let result = null;
+  let lastTwo = [];
   for (let read = 0; read < 8; read += 1) {
     if (await page.locator('.skeleton-shimmer').count()) { await page.waitForTimeout(1500); continue; }
     const r = await page.evaluate(measure);
     const sig = JSON.stringify(r.cards.map(c => [c.title, c.bands.map(b => b.px), c.bottom - c.top]));
     if (prev === sig && r.cards.length) { result = r; break; }
+    lastTwo = [prev, sig];
     prev = sig;
     await page.waitForTimeout(1500);
   }
-  if (!result) await done(2, `UNSTABLE: ${route} never gave two agreeing reads.`);
+  if (!result) {
+    // Name what moved, so an UNSTABLE is a finding rather than a re-run.
+    const [a = [], b = []] = lastTwo.map(x => JSON.parse(x || '[]'));
+    const diff = [];
+    for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+      if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) diff.push(`${JSON.stringify(a[i])} -> ${JSON.stringify(b[i])}`);
+    }
+    await done(2, `UNSTABLE: ${arm} ${route} never gave two agreeing reads. Last change: ${diff.slice(0, 3).join(' | ') || (lastTwo.length ? '(no cards read)' : '(still a loading skeleton on every read)')}`);
+  }
   await page.evaluate(plantControl);
   const planted = (await page.evaluate(measure)).cards;
   const ctl = planted.find(c => c.title === '__control');

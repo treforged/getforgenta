@@ -1074,7 +1074,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       )}
 
       {/* Income & Taxes — auto-saves */}
-      <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
+      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => setIncomeSectionCollapsed(!incomeSectionCollapsed)}
@@ -1322,7 +1322,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           would render them while the section reads as collapsed - a split that silently changes
           behaviour rather than only layout. */}
       {!incomeSectionCollapsed && <>
-      <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
+      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Pay Schedule</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -1368,7 +1368,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       </div>
 
       {/* WHAT EACH PAYCHECK IS WORTH — the second half of the same split. */}
-      <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
+      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Per Paycheck</h3>
         {/*
           TWO-UP ON A PHONE, not one. Tre has raised this three times, most recently 2026-09-18:
@@ -1435,7 +1435,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
 
       {/* Budget Allocation Bar — current month only, distinct colors */}
-      <div className="card-forged p-5">
+      <div className="card-forged p-4 sm:p-5">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
         {(() => {
@@ -1553,7 +1553,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         <RuleDriftPanel />
 
         {ruleTab === 'income' && (
-          <div className="card-forged p-5 space-y-2">
+          <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Income Rules</h3>
               <div className="flex items-center gap-3">
@@ -1567,7 +1567,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
 
         {ruleTab === 'fixed' && (
-          <div className="card-forged p-5 space-y-2">
+          <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
               <div className="flex items-center gap-3">
@@ -1581,7 +1581,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
 
         {ruleTab === 'subscriptions' && (
-          <div className="card-forged p-5 space-y-2">
+          <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
               <div className="flex items-center gap-3">
@@ -1595,7 +1595,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
 
         {ruleTab === 'variable' && (
-          <div className="card-forged p-5 space-y-2">
+          <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Variable Expenses</h3>
               <div className="flex items-center gap-3">
@@ -1609,7 +1609,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
 
         {ruleTab === 'debt' && (
-          <div className="card-forged p-5 space-y-2">
+          <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
               <div className="flex items-center gap-3">
@@ -1629,7 +1629,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
 
         {ruleTab === 'transfers' && (
-          <div className="card-forged p-5 space-y-2">
+          <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
               <div className="flex items-center gap-3">

@@ -135,7 +135,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
 
   return (
     <div className="space-y-5">
-      <div className="card-forged p-5 space-y-5">
+      <div className="card-forged p-4 sm:p-5 space-y-5">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Your profile
         </h2>
@@ -223,7 +223,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
         gaps is where those ten points went. Do not re-split this further without measuring
         BOTH halves of the pair.
       */}
-      <div className="card-forged p-5 space-y-5">
+      <div className="card-forged p-4 sm:p-5 space-y-5">
       <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Followers
         </h2>
@@ -472,7 +472,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
         and it already had a rule drawn across it. A border inside a card was doing the job a
         card boundary does, so the border goes now that the card is here.
       */}
-      <div className="card-forged p-5 space-y-5">
+      <div className="card-forged p-4 sm:p-5 space-y-5">
         {/*
           ⚠️ MOVED HERE FROM THE CONNECTIONS CARD (Tre, 2026-09-17: "it should only be on that
           tab"). These publish a figure to the people you are mutually followed by, so they belong

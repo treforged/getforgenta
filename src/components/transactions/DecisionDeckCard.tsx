@@ -137,7 +137,7 @@ export default function DecisionDeckCard({
       dragSnapToOrigin
       dragElastic={0.18}
       onDragEnd={onDragEnd}
-      className="card-forged p-5 space-y-5 touch-pan-y"
+      className="card-forged p-4 sm:p-5 space-y-5 touch-pan-y"
       data-testid="decision-deck-card"
     >
       <div className="space-y-1">

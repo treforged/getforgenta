@@ -69,7 +69,7 @@ export function SkeletonChart({ height = 200, bars = 8 }: { height?: number; bar
 
 export function SkeletonChartCard({ height = 200, bars = 8 }: { height?: number; bars?: number }) {
   return (
-    <div className="card-forged p-5">
+    <div className="card-forged p-4 sm:p-5">
       <Skeleton className={`h-3 w-36 mb-5 ${BAR}`} />
       <SkeletonChart height={height} bars={bars} />
     </div>
@@ -78,7 +78,7 @@ export function SkeletonChartCard({ height = 200, bars = 8 }: { height?: number;
 
 export function SkeletonListRows({ rows = 6 }: { rows?: number }) {
   return (
-    <div className="card-forged p-5 space-y-3">
+    <div className="card-forged p-4 sm:p-5 space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
           <div className="flex items-center gap-3">
@@ -254,7 +254,7 @@ export function BudgetSkeleton() {
       <SkeletonHeader />
       <SkeletonMetricGrid count={4} />
       {Array.from({ length: 3 }).map((_, i) => (
-        <Row key={i} className="card-forged p-5 space-y-3">
+        <Row key={i} className="card-forged p-4 sm:p-5 space-y-3">
           <Skeleton className={`h-3 w-32 ${BAR}`} />
           {Array.from({ length: 3 }).map((__, j) => (
             <div key={j} className="flex items-center justify-between py-1.5">
@@ -299,7 +299,7 @@ export function BuildsSkeleton() {
         <Skeleton className={`h-9 w-9 ${BAR}`} />
         <Skeleton className={`h-9 w-9 ${BAR}`} />
       </div>
-      <div className="card-forged p-5 space-y-3">
+      <div className="card-forged p-4 sm:p-5 space-y-3">
         <Skeleton className={`h-3 w-28 ${BAR}`} />
         <div className="grid grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <SkeletonStatCard key={i} />)}

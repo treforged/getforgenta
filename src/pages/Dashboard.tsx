@@ -1054,7 +1054,7 @@ export default function Dashboard() {
       case 'car_goal':
         if (!carGoalData) return null;
         return (
-          <div key="car_goal" className="card-forged p-5 card-clickable" onClick={() => navigate(carGoalData.isCarFund ? '/debt?tab=auto' : '/goals')}>
+          <div key="car_goal" className="card-forged p-4 sm:p-5 card-clickable" onClick={() => navigate(carGoalData.isCarFund ? '/debt?tab=auto' : '/goals')}>
             <div className="flex items-center gap-2 mb-4">
               <Car size={14} className="text-primary" />
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
@@ -1099,7 +1099,7 @@ export default function Dashboard() {
       case 'transactions_spending':
         return (
           <div key="transactions_spending" className="grid lg:grid-cols-2 gap-5 items-start">
-            <div className="card-forged p-5">
+            <div className="card-forged p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spending</h3>
                 {categoryData.length > 0 && (
@@ -1180,7 +1180,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="card-forged p-5">
+            <div className="card-forged p-4 sm:p-5">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Transactions</h3>
                 <Link to="/transactions" className="text-xs text-primary hover:underline font-medium">View All</Link>
@@ -1232,7 +1232,7 @@ export default function Dashboard() {
         return goalsLoading ? (
           <ChartSkeleton key="goal_progress" height={120} />
         ) : (
-          <div key="goal_progress" className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
+          <div key="goal_progress" className="card-forged p-4 sm:p-5 card-clickable" onClick={() => navigate('/goals')}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
             <div className="grid md:grid-cols-3 gap-5">
               {(() => {

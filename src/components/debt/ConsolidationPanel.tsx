@@ -58,7 +58,7 @@ export default function ConsolidationPanel({ accounts, plans }: Props) {
   const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(0)}%`);
 
   return (
-    <section className="card-forged p-3 sm:p-4 space-y-3">
+    <section className="card-forged p-4 sm:p-5 space-y-3">
       <button
         type="button"
         aria-expanded={open}

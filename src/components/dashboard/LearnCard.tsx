@@ -87,7 +87,7 @@ export default function LearnCard() {
   const visible = showAll ? rest : rest.slice(0, 4);
 
   return (
-    <div className="card-forged p-5 space-y-4">
+    <div className="card-forged p-4 sm:p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">

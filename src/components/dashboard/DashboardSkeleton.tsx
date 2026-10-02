@@ -12,7 +12,7 @@ export function MetricSkeleton() {
 
 export function ChartSkeleton({ height = 260 }: { height?: number }) {
   return (
-    <div className="card-forged p-5 space-y-4">
+    <div className="card-forged p-4 sm:p-5 space-y-4">
       <Skeleton className="h-3 w-40 bg-muted/50" />
       <Skeleton className={`w-full bg-muted/50`} style={{ height }} />
     </div>
@@ -31,7 +31,7 @@ export function ScheduleSkeleton() {
 
 export function SectionError({ label, onRetry }: { label: string; onRetry?: () => void }) {
   return (
-    <div className="card-forged p-5 flex items-center justify-between">
+    <div className="card-forged p-4 sm:p-5 flex items-center justify-between">
       <p className="text-xs text-muted-foreground">Failed to load {label}</p>
       {onRetry && (
         <button onClick={onRetry} className="text-xs text-primary hover:underline font-medium">

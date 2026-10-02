@@ -1442,7 +1442,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
         {/* Debt Payoff Trajectory Chart */}
         {debtChartData.length > 0 && (
-          <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
+          <div className="card-forged p-4 sm:p-5 min-w-0 overflow-x-hidden">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
                 <CreditCard size={12} className="shrink-0" /> <span className="leading-snug">Credit Card Debt Payoff Trajectory</span>
@@ -1583,7 +1583,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             most of a 1440px row empty (Tre, 2026-10-01). Stacked on a phone, as before. */}
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 lg:items-start">
         {/* Strategy + Controls */}
-        <div className="card-forged p-3 sm:p-4 space-y-3 sm:space-y-4">
+        <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Strategy</span>
             {([
@@ -1728,7 +1728,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         </div>
 
         {/* Recommendation Panel */}
-        <div className="card-forged p-3 sm:p-5">
+        <div className="card-forged p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
             <h3 className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Recommended This Month</h3>
             <span className="text-[9px] sm:text-[10px] px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium" style={{ borderRadius: 'var(--radius)' }}>

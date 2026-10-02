@@ -928,7 +928,7 @@ export default function Builds() {
               complete on a fully-costed build for as long as the query took. */}
           {phasesLoading || itemsLoading ? (
             <>
-              <div className="card-forged p-5 space-y-3">
+              <div className="card-forged p-4 sm:p-5 space-y-3">
                 <Skeleton className="h-4 w-40 bg-muted/50" />
                 <div className="grid grid-cols-3 gap-4">
                   {[0, 1, 2].map(i => (

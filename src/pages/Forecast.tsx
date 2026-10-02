@@ -585,7 +585,7 @@ export default function Forecast() {
               building itself. Transform-based, so reduced motion drops it via
               MotionConfig and the lines stop drawing via recharts' own `auto`. */}
           <motion.div
-            className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden"
+            className="card-forged p-4 sm:p-5 min-w-0 overflow-x-hidden"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: MOTION_DURATION.slow, ease: EASE_OUT }}
@@ -688,7 +688,7 @@ export default function Forecast() {
         </>
       ) : (
 
-        <div className="card-forged p-3 sm:p-5">
+        <div className="card-forged p-4 sm:p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4">Scheduled Events Timeline</h3>
           <div className="space-y-1">
             {detailedEvents.length === 0 && <p className="text-xs text-muted-foreground text-center py-8">No recurring rules configured yet. Add rules in Budget Control to see scheduled events.</p>}
@@ -718,7 +718,7 @@ export default function Forecast() {
 
       {/* ── Retirement & Investment Growth Projections ─────────────────── */}
       {retirementProjections.length > 0 && (
-        <div className="card-forged p-5">
+        <div className="card-forged p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={14} className="text-primary" />
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Investment Growth Projections</h3>

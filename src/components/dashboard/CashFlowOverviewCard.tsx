@@ -39,7 +39,7 @@ export default function CashFlowOverviewCard() {
   const { cashFlowData } = useMonthlyCashFlow();
 
   return (
-    <div className="card-forged p-5" data-testid="cash-flow-overview">
+    <div className="card-forged p-4 sm:p-5" data-testid="cash-flow-overview">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
       {cashFlowData.some(d => d.income > 0 || d.expenses > 0) ? (
         <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={260}>

@@ -527,7 +527,7 @@ export default function Onboarding() {
 
         {step !== 'finish' && <StepProgress step={step} steps={steps} />}
 
-        <div className="card-forged p-5 space-y-5">
+        <div className="card-forged p-4 sm:p-5 space-y-5">
 
           {/* ── Welcome ── */}
           {step === 'welcome' && (

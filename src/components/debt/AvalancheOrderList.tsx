@@ -52,7 +52,7 @@ export default function AvalancheOrderList({ entries, strategy, unrated, onSetAp
   if (entries.length === 0 && unrated.length === 0) return null;
 
   return (
-    <div className="card-forged p-3 sm:p-4 space-y-3">
+    <div className="card-forged p-4 sm:p-5 space-y-3">
       {entries.length > 0 && (
         <>
           <div>

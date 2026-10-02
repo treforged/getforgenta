@@ -252,12 +252,12 @@ export default function Account() {
         */
         <>
           {/* Username first - it is what people find you by, and what the share link is made of. */}
-          <div className="card-forged p-5 space-y-4">
+          <div className="card-forged p-4 sm:p-5 space-y-4">
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Username</h2>
             <UsernameClaim />
           </div>
 
-          <div className="card-forged p-5 space-y-5">
+          <div className="card-forged p-4 sm:p-5 space-y-5">
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
             <PartnerLink />
           </div>
@@ -273,7 +273,7 @@ export default function Account() {
           yet is clutter. Here it is the reason the section exists, so hiding it until you already
           have friends would recreate exactly the invisibility Tre reported.
         */
-        <div className="card-forged p-5 space-y-4">
+        <div className="card-forged p-4 sm:p-5 space-y-4">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Trophy size={12} className="text-primary" /> Leaderboard
           </h2>
@@ -339,7 +339,7 @@ export default function Account() {
       )}
 
       {activeSection === 'ai' && (
-        <Suspense fallback={<div className="card-forged p-5 text-sm text-muted-foreground">Loading...</div>}>
+        <Suspense fallback={<div className="card-forged p-4 sm:p-5 text-sm text-muted-foreground">Loading...</div>}>
           <AiAdvisor />
         </Suspense>
       )}

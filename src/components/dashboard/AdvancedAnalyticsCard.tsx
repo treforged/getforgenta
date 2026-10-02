@@ -57,7 +57,7 @@ export default function AdvancedAnalyticsCard() {
         'Average monthly spend trend from the last 5 months',
       ]}
     >
-      <div className="card-forged p-5 space-y-6" data-testid="advanced-analytics">
+      <div className="card-forged p-4 sm:p-5 space-y-6" data-testid="advanced-analytics">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced Analytics</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard label="Debt-to-Income" value={dti !== null ? `${dti.toFixed(1)}%` : '—'} sub={dti === null ? 'no debt data' : dti < 28 ? 'healthy' : dti < 43 ? 'caution' : 'high risk'} accent={dti === null ? 'silver' : dti < 28 ? 'success' : dti < 43 ? 'gold' : 'crimson'} icon={Percent} />

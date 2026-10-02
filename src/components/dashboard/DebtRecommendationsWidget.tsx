@@ -33,7 +33,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
   const hasOtherDebts = otherDebtRecommendations.length > 0;
 
   return (
-    <div className="card-forged p-5">
+    <div className="card-forged p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

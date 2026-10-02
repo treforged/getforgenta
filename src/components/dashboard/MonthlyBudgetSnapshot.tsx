@@ -127,7 +127,7 @@ export default function MonthlyBudgetSnapshot({
   const stsLabel = sts ? `Safe to Spend until ${new Date(sts.payday + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null;
 
   return (
-    <div className="card-forged p-5">
+    <div className="card-forged p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 mb-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Monthly Budget Snapshot

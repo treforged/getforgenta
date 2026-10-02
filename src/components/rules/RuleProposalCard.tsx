@@ -46,7 +46,7 @@ export default function RuleProposalCard({
       initial={reducedMotion ? false : { x: 64, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34, mass: 0.7 }}
-      className="card-forged p-5 space-y-5"
+      className="card-forged p-4 sm:p-5 space-y-5"
       data-testid="rule-proposal-card"
     >
       <div className="space-y-1">

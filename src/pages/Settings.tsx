@@ -508,7 +508,7 @@ export default function SettingsPage() {
       <NotificationSettings />
 
       {/* Display Preferences */}
-      <div className="card-forged p-5 space-y-4">
+      <div className="card-forged p-4 sm:p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -612,7 +612,7 @@ export default function SettingsPage() {
       {/* ── Account: who you are, how you share it, how you end it ────────────────────── */}
       {panel === 'account' && (<>
       {/* Profile */}
-      <div className="card-forged p-5 space-y-4">
+      <div className="card-forged p-4 sm:p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
         <div>
           <label className="text-xs text-muted-foreground uppercase">Email</label>
@@ -640,7 +640,7 @@ export default function SettingsPage() {
           panel that landed as a sideways scroll with the page cut off at the right edge. One
           mechanism, not two. `/settings#security` still works — it just works once. */}
       {panel === 'security' && !isDemo && (
-        <div className="card-forged p-5 space-y-5">
+        <div className="card-forged p-4 sm:p-5 space-y-5">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account Security</h2>
 
           {/* Change Email */}
@@ -853,7 +853,7 @@ export default function SettingsPage() {
 
       {/* Invite a Friend — Tre asked for this to sit with Profile (2026-08-18) */}
       {panel === 'account' && !isDemo && user && (
-        <div className="card-forged p-5 space-y-3">
+        <div className="card-forged p-4 sm:p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Share2 size={12} /> Invite a Friend
           </h2>
@@ -901,7 +901,7 @@ export default function SettingsPage() {
           be told where they went. Sharing WHAT a partner may see is still governed in Security;
           WHO you are connected to is the Account page. */}
       {panel === 'account' && !isDemo && (
-        <div className="card-forged p-5 space-y-3">
+        <div className="card-forged p-4 sm:p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
           <p className="text-xs text-muted-foreground">
             Partners and friends now live on your Account page.
@@ -914,7 +914,7 @@ export default function SettingsPage() {
 
       {/* Support */}
       {panel === 'account' && !isDemo && (
-        <div className="card-forged p-5 space-y-3">
+        <div className="card-forged p-4 sm:p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
           {isPremium ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -987,7 +987,7 @@ export default function SettingsPage() {
           predicate: the block, its confirmation steps and its provider checks are untouched, so
           the control is no easier to reach than it was. */}
       {panel === 'security' && !isDemo && (
-        <div className="card-forged p-5 space-y-4 border border-destructive/20">
+        <div className="card-forged p-4 sm:p-5 space-y-4 border border-destructive/20">
           <h2 className="text-xs font-medium text-destructive-text uppercase tracking-wider">Danger Zone</h2>
 
           {/* Tre, 2026-09-13: clearing merchant memory "should be part of a danger zone in that
@@ -1099,7 +1099,7 @@ export default function SettingsPage() {
       {/* ── Plan: the subscription ─────────────────────────────────────────────────────── */}
       {/* Subscription Management — hidden in demo mode */}
       {panel === 'plan' && !isDemo && (
-        <div className="card-forged p-5 space-y-4">
+        <div className="card-forged p-4 sm:p-5 space-y-4">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subscription</h2>
 
           {subLoading ? (
@@ -1248,7 +1248,7 @@ export default function SettingsPage() {
       {/* Developer — only visible to tre@treforged.com. Filed under Plan because it is the only
           panel a signed-in owner reaches that is not about their own data. */}
       {panel === 'plan' && isNative && user?.email === DEV_EMAIL && (
-        <div className="card-forged p-5 space-y-4">
+        <div className="card-forged p-4 sm:p-5 space-y-4">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Terminal size={12} /> Developer
           </h2>

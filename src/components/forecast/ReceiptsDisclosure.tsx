@@ -19,7 +19,7 @@ type Props = {
 
 export default function ReceiptsDisclosure({ title, summary, open, onToggle, children }: Props) {
   return (
-    <div className="card-forged p-3 sm:p-5">
+    <div className="card-forged p-4 sm:p-5">
       <button
         onClick={onToggle}
         aria-expanded={open}
