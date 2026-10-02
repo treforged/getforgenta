@@ -63,18 +63,18 @@ export default function AvalancheOrderList({ entries, strategy, unrated, onSetAp
           </div>
           <div className="space-y-1">
             {entries.map((entry, i) => (
-              <div key={entry.cardId} className="flex items-center justify-between gap-2 py-1.5 border-b border-border last:border-0">
-                <div className="min-w-0">
-                  <span className="text-xs">
-                    <span className="text-primary font-semibold mr-1.5">#{i + 1}</span>
-                    {entry.cardName}
-                  </span>
-                  <p className="text-[9px] text-muted-foreground ml-4">
-                    {entry.apr}% APR
-                    {entry.marginalApr !== entry.apr && ` · attacking ${entry.marginalApr}% tranche`}
-                  </p>
-                </div>
-                <p className="text-xs font-medium shrink-0">{formatCurrency(entry.balance, false)}</p>
+              // Names and order only (Tre, 2026-10-02, baa98925): the balances and rates sit in
+              // Recommended This Month right below, so repeating them here was duplicate information.
+              // The one exception is the tranche note, which is the only thing that explains why a
+              // lower-APR card can rank first.
+              <div key={entry.cardId} className="py-1.5 border-b border-border last:border-0">
+                <span className="text-xs">
+                  <span className="text-primary font-semibold mr-1.5">#{i + 1}</span>
+                  {entry.cardName}
+                </span>
+                {entry.marginalApr !== entry.apr && (
+                  <p className="text-[9px] text-muted-foreground ml-4">Attacking its {entry.marginalApr}% part first</p>
+                )}
               </div>
             ))}
           </div>

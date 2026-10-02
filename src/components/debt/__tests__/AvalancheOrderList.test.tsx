@@ -47,14 +47,16 @@ describe('AvalancheOrderList', () => {
       <AvalancheOrderList entries={getStrategyPayoffOrder(cards, 'avalanche', '2026-08-14')} strategy="avalanche" unrated={[]} onSetApr={() => {}} />,
     );
     expect(rowText(container)).toEqual([
-      '#1Tranche card10% APR · attacking 29.99% tranche$5,000',
-      '#2Plain card20% APR$3,000',
+      '#1Tranche cardAttacking its 29.99% part first',
+      '#2Plain card',
     ]);
   });
 
-  it('keeps the flat APR on the tranche card — the marginal rate is additional', () => {
-    render(<AvalancheOrderList entries={getStrategyPayoffOrder(cards, 'avalanche', '2026-08-14')} strategy="avalanche" unrated={[]} onSetApr={() => {}} />);
-    expect(screen.getByText(/10% APR/)).toBeTruthy();
+  it('shows names and order only - no balance and no APR (baa98925: Recommended This Month owns them)', () => {
+    const { container } = render(<AvalancheOrderList entries={getStrategyPayoffOrder(cards, 'avalanche', '2026-08-14')} strategy="avalanche" unrated={[]} onSetApr={() => {}} />);
+    const ordered = rowText(container).join(' | ');
+    expect(ordered).not.toMatch(/\$/);
+    expect(ordered).not.toMatch(/APR/);
   });
 
   it('reorders and relabels for snowball', () => {
