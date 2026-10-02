@@ -30,7 +30,11 @@ R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired a
        read 09:17: Robinhood 1088.76 settled; Chase 'Robinhood' -200.43 still PENDING, re-read. Next wake 18:04 0969c905.
     18:04 ET WAKE (meter still weekly 86%, reset not shown): 9bbd81a4 2nd loss = 6-tab /logout at 17:37Z, 12h06m after
        sign-in = the TRUSTED 12h web idle timeout (AuthContext.tsx:35/583); 03:26Z logout-less loss still open. 1cea48f3 DONE.
-       NEW 18541ba1 (top priority after reset): Tre's Safe to Spend 1573.14 -> 0, low -254.86 on payday; see ask for the rows.
+       18541ba1 FIX SHIPPED 9e730500: on payday getNextPaycheckDate returned TODAY, which failed '> cutoff', so payday fell back
+       to the largest income rule (GF $1,100 on the 29th) and the weekly paychecks 10-09/16/23 were dropped -> $0. Now
+       getFirstPaycheckAfter (pay-schedule.ts) -> payday 10-09. READ-BACK PENDING: safe_to_spend_snapshot must show payday
+       2026-10-09 after Tre opens the app (wake 20:13). Localhost was signed out (idle timeout), so not seen on screen.
+       CAP: weekly resets MONDAY 10-05 18:00 ET (Ruby measured), not today. Hold all else until then (Sam).
     HOLD (Sam, 10-02 ~03:40 ET): weekly cap 83% of 92%; keep the margin for Tre's live asks. AFTER 18:00 ET RESET, in order:
        (i) 594caf27 is NOT browser-proven at Tre's size - find a way to see one 100-charge pass refresh once (e.g. a
            Playwright run on a throwaway @forgenta.test user seeded with ~700 synced rows, one merchant x100);
