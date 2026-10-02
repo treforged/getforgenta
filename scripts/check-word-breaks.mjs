@@ -10,7 +10,8 @@
  * Each route is read until two consecutive reads agree (a fixed sleep reads an unmounted page as clean).
  * DEMO ARM: /demo (no credentials) covers the auto / student / other debt tabs the walk account lacks.
  * DESKTOP ARM: the signed-in routes again at 1440x900.
- * DOES NOT COVER: tablet widths, anything behind a press (dialogs, menus), param routes, or text that wraps
+ * DIALOG ARM: Add/Edit/New dialogs on 4 routes at 390 (found by pressing; at least 3 must open, or exit 2).
+ * DOES NOT COVER: tablet widths, menus, dialogs not opened by an Add/Edit/New button, param routes, or text that wraps
  * at word boundaries into too many lines OUTSIDE a heading (FYI only). A heading (h1-h4) squeezed under 140px onto
  * 3+ lines DOES fail: that is the chart-title shape ("Credit Card Debt Payoff Trajectory", 125px x 3, 2026-10-02).
  * Writes nothing: every non-GET REST call is aborted. The only write is settling first-run dialogs on the walk account.
@@ -179,6 +180,71 @@ for (const route of routes) {
 }
 };
 await scanRoutes(page, ROUTES, 'walk');
+// DIALOG ARM: the forms behind Add / Edit / New presses (Add Account, edit loan, edit goal). Dialogs here open
+// from state, not a DialogTrigger, so they are FOUND by pressing buttons whose name starts Add/Edit/New and
+// requiring a [role=dialog] to appear. Writes stay aborted, so a press cannot save anything.
+// /subscriptions, /transactions and /car-fund land on the same Budget / Goals forms, so they are not repeated.
+const DIALOG_ROUTES = ['/dashboard?tab=accounts', '/debt', '/goals', '/budget'];
+let dialogsOpened = 0;
+for (const route of DIALOG_ROUTES) {
+  await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(4000);
+  for (let i = 0; i < 6 && (await page.locator('[role="dialog"]').count()); i += 1) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+  }
+  // The page's data reads can stall several seconds, so poll for the buttons rather than trusting one sleep.
+  let names = [];
+  for (let t = 0; t < 10 && !names.length; t += 1) {
+    names = [...new Set((await page.getByRole('button').evaluateAll(
+      els => els.filter(e => e.getBoundingClientRect().width > 0).map(e => (e.getAttribute('aria-label') || e.textContent || '').trim()),
+    )).filter(n => /^(add|edit|new) /i.test(n)))].slice(0, 4);
+    if (!names.length) await page.waitForTimeout(1500);
+  }
+  if (process.env.WB_DEBUG) console.log('dialog candidates', route, JSON.stringify(names));
+  for (const name of names) {
+    const btn = page.getByRole('button', { name, exact: true }).first();
+    if (!(await btn.count())) continue;
+    await btn.click({ timeout: 3000 }).catch(() => {});
+    const dlg = page.locator('[role="dialog"]').last();
+    try { await dlg.waitFor({ state: 'visible', timeout: 2500 }); } catch { if (process.env.WB_DEBUG) console.log('  no dialog after', name, await page.locator('[role="dialog"]').count()); continue; }
+    await page.waitForTimeout(800);
+    // WB_RED=1 plants a squeezed word INSIDE the open dialog, to prove this arm can fail.
+    if (process.env.WB_RED) await dlg.evaluate(d => { const x = document.createElement('div'); x.style.cssText = 'width:44px;font-size:16px;word-break:break-word'; x.textContent = 'emergency'; d.appendChild(x); });
+    let prev = null;
+    let result = null;
+    for (let read = 0; read < 6; read += 1) {
+      result = await page.evaluate(scan);
+      const sig = JSON.stringify(result.broken.map(b => b.word));
+      if (prev === sig && read > 0) break;
+      prev = sig;
+      result = null;
+      await page.waitForTimeout(800);
+    }
+    if (!result) await done(2, `UNSTABLE: dialog "${name}" on ${route} never gave two agreeing reads.`);
+    dialogsOpened += 1;
+    const slug = `${route}-${name}`.replace(/[^a-z]+/gi, '-').replace(/^-|-$/g, '').slice(0, 60);
+    await page.screenshot({ path: `test-results/word-breaks-dialog-${slug}.png` });
+    console.log(`dialog ${route} "${name}": ${result.broken.length} broken word(s), ${result.narrow.length} narrow column(s)`);
+    for (const b of result.broken) {
+      console.log(`  BROKEN "${b.word}" on ${b.lines} lines, box ${b.width}px: ${b.text}`);
+      failures.push(`dialog ${route} "${name}" "${b.word}"`);
+    }
+    for (const n of result.narrow) {
+      if (n.heading) {
+        console.log(`  SQUEEZED HEADING ${n.width}px x ${n.lines} lines: ${n.text}`);
+        failures.push(`dialog ${route} "${name}" heading "${n.text}" squeezed`);
+      } else console.log(`  fyi ${n.clipped ? 'CLIPPED (ellipsis)' : 'narrow'} ${n.width}px x ${n.lines} lines: ${n.text}`);
+    }
+    for (let i = 0; i < 4 && (await page.locator('[role="dialog"]').count()); i += 1) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+    }
+  }
+}
+// A zero from a dialog arm that opened nothing is not a clean result.
+if (dialogsOpened < 3) await done(2, `CONTROL FAILED: the dialog arm opened only ${dialogsOpened} dialog(s); expected at least 3.`);
+console.log(`dialog arm: ${dialogsOpened} dialog(s) opened and scanned.`);
 // DESKTOP ARM: the same routes at 1440x900 (a different DOM: rail, multi-column cards). Same
 // signed-in storage, so it is the same session at a different width.
 await page.setViewportSize({ width: 1440, height: 900 });
@@ -194,4 +260,4 @@ await demo.route(/\/rest\/v1\//, route => (['GET', 'HEAD'].includes(route.reques
 await scanRoutes(demo, DEMO_ROUTES, 'demo');
 await demoCtx.close();
 if (failures.length) await done(1, `${failures.length} wrap defect(s) at 390: ${failures.join(' | ')}`);
-await done(0, `PASS: ${ROUTES.length} signed-in routes at 390 and 1440 + ${DEMO_ROUTES.length} demo routes at 390, no word breaks across lines and no heading is squeezed; the planted control was found on every route.`);
+await done(0, `PASS: ${ROUTES.length} signed-in routes at 390 and 1440 + ${dialogsOpened} dialogs + ${DEMO_ROUTES.length} demo routes at 390, no word breaks across lines and no heading is squeezed; the planted control was found on every route.`);
