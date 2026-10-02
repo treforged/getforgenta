@@ -17,6 +17,7 @@ export type GoalLike = {
   current_amount?: number | null;
   monthly_contribution?: number | null;
   linked_account?: string | null;
+  also_linked_accounts?: string[] | null;
   linked_rule_id?: string | null;
   linked_rule_ids?: string[] | null;
   contribution_start_date?: string | null;
@@ -37,6 +38,31 @@ const toMonthly = (amount: number, freq: string | null | undefined): number =>
   : freq === 'biweekly' ? amount * 26 / 12
   : freq === 'yearly' ? amount / 12
   : amount;
+
+/**
+ * The live balance a goal tracks: its PRIMARY `linked_account` plus every resolvable account in
+ * `also_linked_accounts` (ask 4674b24a). Null when the primary does not resolve, so callers keep
+ * falling back to `current_amount` exactly as before. An extra that does not resolve (deleted,
+ * inactive) adds nothing rather than a confident $0 claim about it, and duplicates or the primary
+ * repeated in the list are counted once.
+ */
+export function goalLinkedBalance(
+  goal: Pick<GoalLike, 'linked_account' | 'also_linked_accounts'>,
+  balanceOf: (accountId: string) => number | null | undefined,
+): number | null {
+  if (!goal.linked_account) return null;
+  const primary = balanceOf(goal.linked_account);
+  if (primary == null || !Number.isFinite(Number(primary))) return null;
+  const seen = new Set<string>([goal.linked_account]);
+  let total = Number(primary);
+  for (const id of goal.also_linked_accounts ?? []) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const b = balanceOf(id);
+    if (b != null && Number.isFinite(Number(b))) total += Number(b);
+  }
+  return total;
+}
 
 export function resolveLinkedRuleIds(goal: GoalLike): string[] {
   return (goal.linked_rule_ids ?? []).length > 0
@@ -80,7 +106,11 @@ export function computeGoalCompletionIdx(
   const monthlyContribution = linkedRules.length > 0
     ? linkedRules.reduce((s, r) => s + toMonthly(Number(r.amount), r.frequency), 0)
     : Number(goal.monthly_contribution);
-  const currentAmount = linkedAcct ? Number(linkedAcct.balance) : Number(goal.current_amount);
+  const linkedTotal = goalLinkedBalance(goal, (id) => {
+    const a = accounts.find((x) => x.id === id);
+    return a ? Number(a.balance) : null;
+  });
+  const currentAmount = linkedTotal ?? Number(goal.current_amount);
   const lumpSums = Array.isArray(goal.lump_sum_payments)
     ? (goal.lump_sum_payments as { date: string; amount: number }[]).map((ls) => ({ date: ls.date, amount: Number(ls.amount) }))
     : [];

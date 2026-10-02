@@ -25,7 +25,7 @@ import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
-import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs, goalLinkedBalance } from '@/lib/goal-linkage';
 import { buildPacedContributionSchedules, buildPacedStopSchedules, goalContributionForMonth, scheduledAfterForStop, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
@@ -1793,7 +1793,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const linkedMonthly = linkedRules.reduce((s, r) => s + toMonthly(Number(r.amount), r.frequency), 0);
       return {
         ...g,
-        current_amount: linkedAcct ? Number(linkedAcct.balance) : Number(g.current_amount),
+        current_amount: goalLinkedBalance(g, (id) => {
+          const a = goalAccountMap.get(id);
+          return a ? Number(a.balance) : null;
+        }) ?? Number(g.current_amount),
         monthly_contribution: linkedRules.length > 0 ? linkedMonthly : Number(g.monthly_contribution),
         delayMonths,
         // Carried out of this closure so the completion milestone below can price the goal the

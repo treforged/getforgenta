@@ -20,7 +20,7 @@ import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check, TrendingDown, T
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
-import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { buildGoalOwnCompletionCutoffs, goalLinkedBalance } from '@/lib/goal-linkage';
 import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { computeEssentialMonthlyExpenses } from '@/lib/essential-monthly-expenses';
 import { findContributionShortfalls, describeShortfall, describePacedContribution } from '@/lib/goal-contribution-shortfall';
@@ -531,9 +531,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       return {
         ...g,
         goal_type: g.goal_type || 'Custom',
-        current_amount: g.linked_account && accountMap[g.linked_account]
-          ? Number(accountMap[g.linked_account].balance)
-          : Number(g.current_amount),
+        current_amount: goalLinkedBalance(g, (id) => (accountMap[id] ? Number(accountMap[id].balance) : null))
+          ?? Number(g.current_amount),
         available_after_outflows: g.linked_account && accountMap[g.linked_account]
           ? getLinkedAmount(g.linked_account)
           : null,
@@ -949,6 +948,13 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           const isLinked = !!g.linked_account && accountMap[g.linked_account];
           const linkedAcct = isLinked ? accountMap[g.linked_account!] : null;
           const linkedAccountType = linkedAcct?.account_type ?? '';
+          // Ask 4674b24a: further accounts whose live balances this goal sums. Only ones that still
+          // resolve are named, matching what goalLinkedBalance actually added.
+          const extraLinked = isLinked
+            ? [...new Set((g.also_linked_accounts ?? []) as string[])]
+                .filter((id) => id !== g.linked_account && accountMap[id])
+                .map((id) => accountMap[id].name as string)
+            : [];
           const isRothIra = ['roth_ira', 'ira', '401k', 'hsa'].includes(linkedAccountType) || (g.goal_type || '').toLowerCase() === 'retirement';
           const goalLumps: GoalLumpSum[] = Array.isArray(g.lump_sum_payments) ? (g.lump_sum_payments as unknown as GoalLumpSum[]) : [];
           const shortfallNote = g.id ? shortfallByGoal[g.id as string] : undefined;
@@ -988,6 +994,15 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                     {isLinked && (
                       <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
                         <Link2 size={8} /> {linkedAcct?.name}
+                        {extraLinked.length > 0 && (
+                          <span
+                            data-testid="goal-extra-linked"
+                            aria-label={`Also tracking ${extraLinked.join(', ')}`}
+                            title={extraLinked.join(', ')}
+                          >
+                            {' '}+{extraLinked.length} more
+                          </span>
+                        )}
                       </span>
                     )}
                   </div>

@@ -13,6 +13,7 @@ import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, sumBalanceByAccountType, LIQUID_ACCOUNT_TYPES } from '@/lib/net-worth';
 import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { resolveCashFloor } from '@/lib/cash-floor';
+import { goalLinkedBalance } from '@/lib/goal-linkage';
 
 export interface CashFlowMonth {
   month: string;
@@ -176,10 +177,8 @@ export function useMonthlyCashFlow() {
     const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);
 
     const totalSaved = goals.reduce((s: number, g) => {
-      if (g.linked_account && accountMap[g.linked_account]) {
-        return s + Number(accountMap[g.linked_account].balance);
-      }
-      return s + Number(g.current_amount || 0);
+      const linked = goalLinkedBalance(g, (id) => (accountMap[id] ? Number(accountMap[id].balance) : null));
+      return s + (linked ?? Number(g.current_amount || 0));
     }, 0);
 
     const cashFlow = income - expenses - debtService;
