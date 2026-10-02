@@ -88,6 +88,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // so the cover must be shown before the sheet opens from the plugin.
     private var oAuthSessionPending = false
 
+    // True only while the Google / Apple sheet is on screen (start -> completion handler).
+    // Tre, 2026-10-02: "dont display the cover on sign in with google or apple. it creates what
+    // seems like a long load". The person is signed out on /auth, so there is nothing private to
+    // keep out of the App Switcher, and the cover read as a slow load. Cleared on EVERY completion
+    // path, so a later real background still gets its cover.
+    private var oAuthSheetOpen = false
+
     // Set by protectedDataWillBecomeUnavailableNotification, which fires ONLY
     // on a real device lock (power button), not on home-button backgrounds.
     private var phoneLocked = false
@@ -172,6 +179,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // across a background would come due the instant the app resumes and reload a WebView that
         // was about to answer perfectly well. applicationDidBecomeActive re-arms it.
         cancelCoverDeadline()
+        if oAuthSheetOpen {
+            debugLog("RESIGN → no cover (oauth sheet open, signed out)")
+            return
+        }
         showNativeCover()
     }
 
@@ -309,16 +320,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Called by AuthSessionPlugin
 
     /// Call BEFORE launching ASWebAuthenticationSession.
-    /// Shows the cover immediately so it is up during the OAuth flow and while
-    /// React processes SIGNED_IN and navigates after auth completes.
+    /// Shows NO cover (Tre, 2026-10-02): the person is signed out on /auth, and the cover over the
+    /// sheet and the sign-in exchange read as a long load. If a cover is up for another reason, the
+    /// oauth branch in applicationDidBecomeActive still lifts it once the next page is ready.
     func oAuthSessionWillStart() {
         oAuthSessionPending = true
+        oAuthSheetOpen = true
         // Auth page sets __forgenta_dashboard_ready = true. Reset it now so that
         // pollDashboardReady (called after OAuth returns) waits for Dashboard or
         // Onboarding to mount rather than firing instantly on the stale Auth flag.
         webViewForPolling()?.evaluateJavaScript(
             "window.__forgenta_dashboard_ready = false", completionHandler: nil)
-        showNativeCover()
+    }
+
+    /// Called from EVERY AuthSessionPlugin completion path. A cancelled or failed sign-in also
+    /// clears the pending flag, so the next real resume does not take the oauth branch and wait
+    /// 6 s for a page that will never leave /auth.
+    func oAuthSessionDidEnd(succeeded: Bool) {
+        oAuthSheetOpen = false
+        if !succeeded { oAuthSessionPending = false }
     }
 
     // MARK: - Native Cover
@@ -753,6 +773,10 @@ public class AuthSessionPlugin: CAPPlugin, CAPBridgedPlugin {
                 url: url,
                 callbackURLScheme: scheme
             ) { callbackURL, error in
+                let appDelegate = UIApplication.shared.delegate as? AppDelegate
+                DispatchQueue.main.async {
+                    appDelegate?.oAuthSessionDidEnd(succeeded: error == nil && callbackURL != nil)
+                }
                 if let err = error as? ASWebAuthenticationSessionError,
                    err.code == .canceledLogin {
                     call.reject("User cancelled")
