@@ -1443,7 +1443,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         {/* Debt Payoff Trajectory Chart */}
         {debtChartData.length > 0 && (
           <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
-            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
                 <CreditCard size={12} className="shrink-0" /> <span className="leading-snug">Credit Card Debt Payoff Trajectory</span>
               </h3>

@@ -66,7 +66,7 @@ export default function LiabilityTrajectoryChart({ title, debts, storageKey, ico
 
   return (
     <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
-      <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-3 sm:mb-4">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
           <Icon size={12} className="shrink-0" /> <span className="truncate">{title}</span>
         </h3>
