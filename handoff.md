@@ -25,6 +25,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired at boot, weekly cap 82%). START HERE:
+    0. WAKES re-armed in this session (die with it): 08:03 7eb551e4 (9bbd81a4), 09:17 cfb70baa (1cea48f3). Re-arm if gone.
+    1. 594caf27 FREEZE, step 1 DONE by SQL: synced_transactions Tre 724 vs walk 14 (52x); reviews 732 vs 14;
+       transactions 85 vs 0. The data-size hypothesis is now plausible, not proven. NEXT: localhost:8080 as Tre,
+       READ-ONLY (stub every non-GET in-browser so nothing writes), pick a category, record longtasks + rAF lag;
+       or time buildReviewQueue (src/lib/bank-activity-queue.ts) / planRetroactivePass at 724 rows in a vitest bench.
+    2. 52898f88 simplify Debt for a new user. 3. 8a202850 glass ON/OFF frame.
+    NOTE: the CONTEXT GATE fired on this session's FIRST tool calls (~175k claimed). The SessionStart hooks inject
+       ~140KB, so a fresh successor may trip it at once. Told Sam rather than looping handoffs.
 R-NOW48 (10-02 ~03:10 ET, Ada getforgenta-25 -> successor at the 175-call gate). START HERE, IN ORDER:
     0. WAKES died with getforgenta-25: re-arm one-shots '3 8 2 10 *' (9bbd81a4 session watcher: read
        backup.session_watch_9bbd81a4, match vanished session_id to auth_logs; UNDO in R-NOW44) and '17 9 2 10 *'
@@ -12585,7 +12594,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 01:42 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 02:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12604,14 +12613,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-1435cdcd [handoff]: R-NOW46 - 8eeff53d done, b64a094e starting points
-fb31b9bb [transactions]: an off payment plan says why, when its note carries the reason (8eeff53d)
-46c8bee7 [handoff]: R-NOW46 - cap wrap, four new Tre asks queued
-05035641 [goals]: a goal card's copy / edit / delete share the amount's row, not a line of their own (f20e814d)
-04888a42 [gates]: npm run inventory:spacing - measured empty bands, card padding and section gaps at 390 (f20e814d, 259f01ba)
-ecde4f9a [debt]: the Avalanche / Snowball order card shows names and order only (baa98925)
-4a3590b8 [ios]: no loading cover while signing in with Google or Apple (9b31cff4)
-f1aa8c03 [gates]: check:word-breaks presses Add/Edit and measures the forms they open on a phone
+2351e41a [handoff]: R-NOW48 - freeze probe result, successor brief
+3b99f2b0 [handoff]: drop the stale 259f01ba next-slice line
+860a772a [handoff]: R-NOW47 - 259f01ba, c99f9ab7, 7a9319ae closed
+8159998d [dashboard]: Command Center figures on one line, Net Worth beside them (7a9319ae)
+fc395b9e [db]: gate - a migration that creates a public table must grant on it (c99f9ab7)
+8c9bd411 [layout]: card facts never split across lines, and Account's cards share one gap (259f01ba, slice 2)
+0aa23c1a [handoff]: R-NOW47 - 259f01ba padding slice, gaps next
+b7524539 [layout]: one card padding on a phone - 18px, 23px from sm up (259f01ba, first slice)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
