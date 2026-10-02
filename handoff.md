@@ -39,7 +39,15 @@ R-NOW42 (10-02 ~01:00Z / 21:00 ET, Ada getforgenta successor). START HERE, IN OR
         template edit AND opening the observability page. Exact edit for Tre is on the ask. Do not route around it.
         Disk IO notice: project FORGENTA mdtosrbfkextcaezuclh, "about to deplete its Disk IO Budget" (baseline 5 MB/s
         after). No date shown on the banner; billing untouched. Decided d9e5961c: stay on free compute.
-    [ ] 4: standing e1b0fffc next slice: in-app editor for savings_goals.also_linked_accounts.
+    [x] 4: e1b0fffc goal extras editor SHIPPED 20378537 (chips, non-debt only; npm run check:goal-extras, red x2).
+        iOS 1218 (cover fix) UPLOAD SUCCEEDED 00:48Z; Tre installs, one Face ID resume, read the row (expect ~0.3-0.4s).
+    [x] DISK IO (Sam): Postgres measured IDLE on disk 01:03-01:10Z (WAL ~8 MB/day, 0 temp since 09-23, reads 100% hit,
+        no slots, cron flat). Sam read the chart in Settings > Infrastructure: ~0% 09-24..09-28, then 40/55/84% to 10-01.
+        So the cause is OUTSIDE Postgres (Storage/Realtime/logs/VM). Next instrument = Supabase support ticket (outward:
+        Sam/Tre). Found on the way + FIXED 424e555b: the test suite wrote signup_funnel_events to PRODUCTION every run
+        (1,355 on 10-01); test-setup.ts now refuses *.supabase.co. 19 rows unguarded -> 0 across 4 guarded runs.
+        False lead: Python sign-ins to deck-walk = 16 in 3 days.
+    [ ] NEXT (e1b0fffc standing): pick the next user-visible improvement from the roadmap.
 R-NOW41 (10-01 ~21:25 ET, Ada getforgenta-60 -> successor at the 175-call gate). START HERE, IN ORDER:
     0. VERIFY build 1201 is attached to iOS 6.8.1: open appstoreconnect.apple.com/apps/6762540239/distribution/ios/version/inflight,
        read the Build section after a reload. I selected 1201, pressed Done and Save, and could NOT read it back. If it is
