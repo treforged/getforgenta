@@ -50,7 +50,9 @@ R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
     [x] 93b18f92 f6d3020f: Tre's 9:16 PM frames (uploaded 00:21) PREDATE 91e8ac5c; Vercel prod READY f9509027. check:surplus-rows
         plants Tre's shape (long goal + split child ml-4 + Share/Auto extra), bar 160px + no mid-word break;
         red on the basis-full mutant (70px, "emergency" broken), green 194/194/176. Close on a fresh screenshot after app reopen.
-    [ ] NEXT e1b0fffc candidate: "Toyota RAV4 (Owned)" clipped 92px on the Auto tab (text-sm truncate in a 117px row).
+    [x] 79a0ac71: LoanCard header wraps (RAV4 name whole), /vehicles status line wraps (buying date shown); demo arm +/vehicles.
+    [!] Disk IO (SU-492082, Supabase AI reply 00:21 ET): next instrument = metrics endpoint node_disk_* per device
+        (nvme0n1 system+swap vs nvme1n1 data). BLOCKED: needs a Secret API key (credential). One-command plan sent to Sam.
     [ ] 4. Standing e1b0fffc.
     NOTE: the context-gate hook fires at ~177k on a FRESH session (system context alone), so it is not a handoff signal.
 R-NOW43 (10-02 ~03:05Z / 23:05 ET 10-01, Ada getforgenta-eb -> successor at the 200-call gate). START HERE, IN ORDER:
@@ -12509,16 +12511,19 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 00:21 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 00:38 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (8 file(s)):**
 
 ```
 M deno.lock
+ M scripts/check-word-breaks.mjs
+ M src/components/vehicles/LoanCard.tsx
+ M src/pages/Vehicles.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12528,14 +12533,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ba660aa3 [handoff]: R-NOW44 - f6d3020f frames predate fix, gate proven on Tre's shape
+93b18f92 [gates]: check:surplus-rows now measures Tre's exact row shape, and is proven red on it (f6d3020f)
 8a1cefdd [handoff]: R-NOW44 - app logout found at 03:46Z, elicit hook v2 pending Tre
 48c5ba05 [handoff]: R-NOW44 - session watcher live, word-break demo arm
 f9509027 [gates]: check:word-breaks measures the auto / student / other debt tabs through /demo
 7ba5addf [handoff]: R-NOW44 - subtitle fix, session-loss findings
 5e2a469e [debt]: the page subtitle reads in full on a phone instead of truncating beside the actions (f6d3020f sweep)
 93ea79a0 [handoff]: R-NOW44 - template in sync, word-break gate + chart title fix
-48696588 [debt]: payoff chart titles no longer squeeze to 3 lines beside the 1Y-5Y control on a phone (ask f6d3020f)
-9f10024f [handoff]: R-NOW43 - successor brief at the 200-call gate
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
