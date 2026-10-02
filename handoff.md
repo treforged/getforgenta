@@ -27,6 +27,12 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW47 (10-02 ~02:40 ET, Ada getforgenta-25). START HERE (Sam's order): f20e814d report, 259f01ba, c99f9ab7
     (Supabase GRANTs from 10-30), 7a9319ae, then 594caf27 (freeze after categorizing - needs a browser trace).
+    [~] 259f01ba slice 1 b7524539: card padding at 390 is p-4 sm:p-5 (18px x93 of 109 after, was x67). Left on purpose:
+        heroes p-5 sm:p-6, dialogs, Landing, compact notice/Next-lesson rows. NEXT SLICE = SECTION GAPS (16 distinct; the
+        families are 27/18/22px between sections and 13/14px inside lists - pick 2 tokens, re-measure). Then Sam's
+        Debt-row compaction (tags nowrap, controls under the text column). Report page for Tre (f20e814d):
+        https://claude.ai/artifact/SU2L8W2P1nHbEk4FfAhsP6. After a big edit, warm Vite (open /dashboard once) before
+        inventory:spacing, or it reads UNSTABLE on the skeleton.
     [x] f20e814d 2f5171ab: docs/empty-space-report-2026-10-02.md (11 areas + fixes); inventory:spacing has right-side +
         /demo arms and skips toasts. WATCH: write-blocking probes abort the Dashboard merchant pass on the walk
         account, so an error toast can appear on /dashboard (it made inventory:spacing UNSTABLE). If a probe
