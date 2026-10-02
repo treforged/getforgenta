@@ -89,3 +89,28 @@ for (const [target, key, impl] of [
     configurable: true,
   });
 }
+
+// ── NO TEST REACHES THE PRODUCTION DATABASE ─────────────────────────────────────────────────
+// Measured 2026-10-02: every `test:tz` run inserted a burst of real `signup_funnel_events` rows
+// (env 'dev', ~50 ms apart), 1,355 on 2026-10-01 alone, because tests render Auth with the real
+// Supabase client and `.env.local` points it at production. That started on 2026-09-30, the same
+// days the project's Disk IO budget climbed from ~0% to 84%.
+// supabase-js captures `fetch` when the client is created, which happens at import time in the test
+// file - after this setup file runs - so wrapping it here covers every client. A refused request
+// behaves like an offline network: callers that swallow errors (the funnel tracker) do nothing.
+// `blockedSupabaseRequests` lets a test assert that a path tried to call out.
+const realFetch = globalThis.fetch;
+const blockedHosts = /\.supabase\.(co|in)$/i;
+export const blockedSupabaseRequests: string[] = [];
+if (typeof realFetch === 'function') {
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    let host = '';
+    try { host = new URL(raw).hostname; } catch { /* relative URL: not Supabase */ }
+    if (blockedHosts.test(host)) {
+      blockedSupabaseRequests.push(`${init?.method ?? 'GET'} ${new URL(raw).pathname}`);
+      return Promise.reject(new TypeError('Network request to Supabase blocked in tests (test-setup.ts)'));
+    }
+    return realFetch(input, init);
+  }) as typeof fetch;
+}
