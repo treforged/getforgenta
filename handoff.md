@@ -39,6 +39,11 @@ R-NOW46 (10-02 ~01:50 ET, Ada getforgenta-21, at the 5h cap). START HERE, IN ORD
        259f01ba one spacing system (count before/after with inventory:spacing; fold in Sam's Debt-row
        compaction: tags nowrap, controls aligned under the text column). 52898f88 simplify Debt for a new user.
     3. 8a202850 glass ON/OFF sim frame (not started).
+    [x] 8eeff53d: off plans show "(off)" + note; Tre's 2 rows carry the reason (backup.tre_payment_plans_notes_20261002).
+    START b64a094e HERE: the "Apply to N past charges" prompt is MerchantMemoryPanel.tsx:226 (split.ask from
+       useMerchantMemory().pass / planRetroactivePass in src/lib/merchant-memory.ts). Default = apply without asking;
+       keep an undo. dc34a4c7 is the same seam (categorise before the tab opens = run the pass where synced rows
+       land, not on Transactions mount) - read DecisionDeck.tsx:182-269 and look for the freeze there.
     DONE this session (origin 0/0): elicit hook v2 PROBED (fires + accepts, no prompt; told Sam); check:word-breaks
     dialog arm (9 dialogs, red proven); 4a3590b8 no native cover on Google/Apple sign-in (9b31cff4, iOS 1229
     UPLOAD SUCCEEDED, run 36968529548 - Tre must install); baa98925 order card names+order only; inventory:spacing;
