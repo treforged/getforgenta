@@ -25,6 +25,12 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW47 (10-02 ~02:10 ET, Ada getforgenta-25). START HERE: dc34a4c7, then 7a9319ae, f20e814d, 259f01ba.
+    [x] b64a094e DONE e74aaa15: no prompt, every pending charge applies; undo kept durable; undone charges are left out
+        by applied_actions undoneChargeIds (per CHARGE, not merchant), gated on undoneUnknown. Merchant SUPPRESSION
+        was tried and DROPPED: Settings has no control to turn a merchant back on (hidden one-way switch).
+        Residue: undoneChargeIds reads the newest 50 rows only.
+    WAKES re-armed in getforgenta-25 (die with it): 08:03 8a3f4ceb (9bbd81a4), 09:17 29e5be0d (1cea48f3).
 R-NOW46 (10-02 ~01:50 ET, Ada getforgenta-21, at the 5h cap). START HERE, IN ORDER:
     0. WAKES armed in getforgenta-21 (die with it): 01:37 e74da89c (fdbcbf78), 08:03 9bbd81a4 (cedc3ae0),
        09:17 1cea48f3 (0cf1f82b). If this session is gone, re-arm the ones not yet past.
