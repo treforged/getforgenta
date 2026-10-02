@@ -25,6 +25,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW45 (10-02 ~04:50Z / 00:50 ET, Ada getforgenta-ae -> successor at the 191-call gate). START HERE, IN ORDER:
+    1. RE-ARM WAKES (died with me): '37 1 2 10 *' widget e74da89c; '3 8 2 10 *' session watcher 9bbd81a4 (read
+       backup.session_watch_9bbd81a4, match vanished session_id's last seen_at to auth_logs); '17 9 2 10 *' $204
+       1cea48f3 (ef74a610 should read ~$1,089).
+    2. ELICIT HOOK v2 PROBE for Sam: Tre installed ~/.claude/bin/supabase_elicit_accept.py v2. Run a no-op destructive
+       SQL (delete from backup.session_watch_9bbd81a4 where seen_at < '2000-01-01';), say whether the approval prompt
+       appeared, and send Sam the newest line of ~/.claude/logs/supabase_elicit_accept.log (last line 19:46 TEST = never fired).
+    3. Proposal Sam saw: check:word-breaks DIALOG arm (open Add Account / edit loan / edit goal forms at 390, scan).
+       Desktop arm DONE in f2bf78ef (14 routes at 1440 clean).
+    4. 8a202850 (taken): glass frame exists (test-results/glass-strip-run36627057575.png) but is unjudgeable - nothing
+       scrolled under the strip. Make a sim run that scrolls Net Worth under the strip, glass ON vs OFF, then ONE
+       question to Sam.
+    5. Blocked/gated: f6d3020f (needs Tre's screenshot after app reopen; gate check:surplus-rows proven on his shape,
+       93b18f92); 9bbd81a4 (watcher cron 28, UNDO in R-NOW44); Disk IO SU-492082 needs a Secret API key (Sam has the plan).
+    DONE this session (all on origin 0/0, gates green): 48696588 chart title, 5e2a469e Debt subtitle, 93b18f92 surplus
+    gate on Tre's shape, 79a0ac71 vehicles names/date, f2bf78ef payment-row names + desktop arm. Template in sync (a033f783).
 R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
     [x] 1. Wakes re-armed IN THIS SESSION (die with it): 160e5db6 01:37 10-02 (e74da89c), 53a8feb6 09:17 10-02 (1cea48f3).
     [x] 2. Magic-link template IN SYNC: live body sha256 a033f783 = repo MAGIC LINK block (lines 226-315). Live subject
