@@ -46,6 +46,10 @@ R-NOW40 (10-01 ~20:10 ET, Ada getforgenta-60). START HERE.
     [x] Main was red after my Discover commit (CatalogPicker read the real clock); fixed, clock pinned.
     [!] 44244263 BLOCKED: Leo magic-link template branch. Chrome is signed out of supabase.com; Tre must sign in once.
         Ada accepts the login-CSRF residue. Steps are in the ask's block reason.
+    [x] f0a43bff/3f4a78c4: ASC iOS version 6.8.1 CREATED (Prepare for Submission, not submitted); keywords = Ruby's 10-01
+        list and subtitle 'Safe to Spend & Payoff Date', both read back after reload. Old values are in ask 3f4a78c4.
+        Tre attaches a build and submits; then tell Ruby the go-live date.
+    [!] 56cf92ba = duplicate of 44244263 (blocked on Supabase sign-in). 1cea48f3 is blocked until wake 09:17 10-02.
     NOTE: the context-gate hook fired at session start (~176k) because the system prompt alone is that big. Handing off
         on it would loop; work on and hand off at the real limit.
 R-NOW39 (10-01 ~13:45 ET, Ada getforgenta-0b -> successor at the 184-call gate). START HERE, IN ORDER:
@@ -12419,17 +12423,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 19:56 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 20:28 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12439,14 +12442,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-8ce76dd7 [handoff]: R-NOW39 - handoff at the call gate; 98cbf494 native cover is the 2.2s
-1f12a7c3 [app-lock]: unlock timing names the cover branch that FOLLOWS Face ID (ask 98cbf494)
-a3384044 [dashboard]: one nudge banner at a time for a new user - bank first, then 2FA
-99f63fc8 [handoff]: R-NOW38 - empty walk, debugLog race, throwaway delete pending
-53700513 [debt]: hide "Pause optional savings transfers" until the user has an open card
-76d5837c [app-lock]: queue debug-log writes so Face ID marks are not lost (ask 98cbf494)
-8d81427c [handoff]: R-NOW38 - full walk green (press 154/154, routes 27/27, contrast 0 below AA)
-bf8cb5f2 [statement]: drop "promos not applied automatically" once the plan tables were read
+fb1be270 [handoff]: R-NOW40 - multi-account goal, debit cards shipped; Leo template blocked on dashboard sign-in
+66fddb47 [cards]: Which Card? offers your checking account's debit card too (ask 37c89404)
+f81d1e2e [goals]: "Available after bills" sums every tracked account too (ask 4674b24a)
+a3f78911 [goals]: one goal can track several accounts and shows their live sum (ask 4674b24a)
+84ac09a4 [cards]: pin the clock in the CatalogPicker test - main was red after the Discover Q4 row
+2299b661 [handoff]: R-NOW40 - Brokerage goal relinked (partial), multi-account goal filed 4674b24a
+0a30fe77 [handoff]: R-NOW40 - throwaway deleted, privacy label confirmed, Discover Q4 shipped; Face ID row pending
+c682560c [cards]: Discover 2026-Q4 5% calendar - dining 5%, Entertainment and Utilities named (ask f9b0da16)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
