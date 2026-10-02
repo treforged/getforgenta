@@ -25,6 +25,21 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW42 (10-02 ~01:00Z / 21:00 ET, Ada getforgenta successor). START HERE, IN ORDER:
+    [x] 0: ASC iOS 6.8.1 shows Build 1201 after a fresh load. Told Sam (tre-forged-77). Tre presses Add for Review.
+    [x] 1: wakes re-armed (01:37 10-02 e74da89c = da07a5ae, 09:17 10-02 1cea48f3 = c9f80ecb; die with this session).
+    [x] 2: 98cbf494 FIXED in 10338ec4. Row 00:22Z: painted=7ms, cover_hidden=2773ms, after=bg_poll@2323ms. bg_poll took
+        only 450ms; the 2.3s was iOS re-activating late. New AppCover plugin (jsName AppCover, method unlocked) ->
+        AppDelegate.jsUnlockPainted, called 2 frames after a passed Face ID (iOS only); refuses in background.
+        Tests: AppLockContext.coverLift (3) + app-cover-bridge.gate (5), both proven red. test:tz 5741 x3.
+        iOS dispatched: run 36947371432 (READ the Upload step conclusion + 'UPLOAD SUCCEEDED'). NEXT: after Tre installs it
+        and does one Face ID resume, read the unlock-timing row; expect cover_hidden ~300-400ms (painted + 0.3s fade).
+        Row 00:40Z (still 1201) = 2779ms baseline.
+    [!] 3: 44244263 BLOCKED AGAIN: snapshot done (live = repo doc #2, sha 206460b9). The classifier REFUSED the live
+        template edit AND opening the observability page. Exact edit for Tre is on the ask. Do not route around it.
+        Disk IO notice: project FORGENTA mdtosrbfkextcaezuclh, "about to deplete its Disk IO Budget" (baseline 5 MB/s
+        after). No date shown on the banner; billing untouched. Decided d9e5961c: stay on free compute.
+    [ ] 4: standing e1b0fffc next slice: in-app editor for savings_goals.also_linked_accounts.
 R-NOW41 (10-01 ~21:25 ET, Ada getforgenta-60 -> successor at the 175-call gate). START HERE, IN ORDER:
     0. VERIFY build 1201 is attached to iOS 6.8.1: open appstoreconnect.apple.com/apps/6762540239/distribution/ios/version/inflight,
        read the Build section after a reload. I selected 1201, pressed Done and Save, and could NOT read it back. If it is
