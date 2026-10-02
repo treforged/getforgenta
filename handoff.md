@@ -25,7 +25,11 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
-R-NOW47 (10-02 ~02:10 ET, Ada getforgenta-25). START HERE: dc34a4c7, then 7a9319ae, f20e814d, 259f01ba.
+R-NOW47 (10-02 ~02:40 ET, Ada getforgenta-25). START HERE (Sam's order): f20e814d report, 259f01ba, c99f9ab7
+    (Supabase GRANTs from 10-30), 7a9319ae, then 594caf27 (freeze after categorizing - needs a browser trace).
+    [x] dc34a4c7 first half ad16ae4b: merchant pass also runs on Dashboard (MerchantMemoryAutoApply, background, no new
+        query, skipped in demo/partner); passInFlight guards one pass app-wide; deck never gets a charge the pass
+        will label (BankActivity.deckSkipsAutoLabel). Freeze half split out to 594caf27.
     [x] b64a094e DONE e74aaa15: no prompt, every pending charge applies; undo kept durable; undone charges are left out
         by applied_actions undoneChargeIds (per CHARGE, not merchant), gated on undoneUnknown. Merchant SUPPRESSION
         was tried and DROPPED: Settings has no control to turn a merchant back on (hidden one-way switch).
