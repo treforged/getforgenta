@@ -9,7 +9,8 @@
  * POSITIVE CONTROL: on each route a planted 44px box holding "emergency" must be found broken, or exit 2.
  * Each route is read until two consecutive reads agree (a fixed sleep reads an unmounted page as clean).
  * DEMO ARM: /demo (no credentials) covers the auto / student / other debt tabs the walk account lacks.
- * DOES NOT COVER: desktop widths, anything behind a press (dialogs, menus), param routes, or text that wraps
+ * DESKTOP ARM: the signed-in routes again at 1440x900.
+ * DOES NOT COVER: tablet widths, anything behind a press (dialogs, menus), param routes, or text that wraps
  * at word boundaries into too many lines OUTSIDE a heading (FYI only). A heading (h1-h4) squeezed under 140px onto
  * 3+ lines DOES fail: that is the chart-title shape ("Credit Card Debt Payoff Trajectory", 125px x 3, 2026-10-02).
  * Writes nothing: every non-GET REST call is aborted. The only write is settling first-run dialogs on the walk account.
@@ -178,6 +179,10 @@ for (const route of routes) {
 }
 };
 await scanRoutes(page, ROUTES, 'walk');
+// DESKTOP ARM: the same routes at 1440x900 (a different DOM: rail, multi-column cards). Same
+// signed-in storage, so it is the same session at a different width.
+await page.setViewportSize({ width: 1440, height: 900 });
+await scanRoutes(page, ROUTES, 'desktop');
 await ctx.close();
 // DEMO ARM: the walk account holds only cards, so the auto / student / other payoff charts never render for it.
 // /demo needs no credentials and carries one of each, so those headers are measured here.
@@ -189,4 +194,4 @@ await demo.route(/\/rest\/v1\//, route => (['GET', 'HEAD'].includes(route.reques
 await scanRoutes(demo, DEMO_ROUTES, 'demo');
 await demoCtx.close();
 if (failures.length) await done(1, `${failures.length} wrap defect(s) at 390: ${failures.join(' | ')}`);
-await done(0, `PASS: ${ROUTES.length} signed-in + ${DEMO_ROUTES.length} demo routes at 390, no word breaks across lines and no heading is squeezed; the planted control was found on every route.`);
+await done(0, `PASS: ${ROUTES.length} signed-in routes at 390 and 1440 + ${DEMO_ROUTES.length} demo routes at 390, no word breaks across lines and no heading is squeezed; the planted control was found on every route.`);

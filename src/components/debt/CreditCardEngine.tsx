@@ -1892,7 +1892,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               const hasHoldbackCap = (month0?.holdback ?? 0) > 0 && r.maxPayment > r.payment + 0.01;
               return (
                 <div key={r.cardId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 gap-2" style={{ borderRadius: 'var(--radius)' }}>
-                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-0.5 min-w-0 flex-1">
                     <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: r.color }} />
                     <span className="text-[10px] sm:text-xs font-medium truncate min-w-0">{r.cardName}</span>
                     {r.reason === 'Autopay Full Balance' ? (
@@ -1911,7 +1911,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     ) : (
                       <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>priority</span>
                     )}
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0">{r.reason}</span>
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0 basis-full sm:basis-auto">{r.reason}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {hasHoldbackCap && month0?.holdbackEvent && (
@@ -1972,11 +1972,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             })}
             {loanRecs.map(l => (
               <div key={l.carFundId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 gap-2" style={{ borderRadius: 'var(--radius)' }}>
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-0.5 min-w-0 flex-1">
                   <Car size={13} className="text-muted-foreground shrink-0" />
                   <span className="text-[10px] sm:text-xs font-medium truncate min-w-0">{l.name}</span>
                   <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>loan</span>
-                  <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0">{l.isFinalPayment ? 'Final payment' : 'Scheduled payment'}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0 basis-full sm:basis-auto">{l.isFinalPayment ? 'Final payment' : 'Scheduled payment'}</span>
                 </div>
                 {/* No demoted "due this month" sub-line here, unlike the card rows: whether a
                     past-due-day loan payment was already made is not something this model can
@@ -2001,18 +2001,18 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 thing. */}
             {otherDebtRecs.map(o => (
               <div key={o.accountId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 gap-2" style={{ borderRadius: 'var(--radius)' }}>
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-0.5 min-w-0 flex-1">
                   <Landmark size={13} className="text-muted-foreground shrink-0" />
                   <span className="text-[10px] sm:text-xs font-medium truncate min-w-0">{o.name}</span>
                   <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
                     {o.accountType.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0">{o.isFinalPayment ? 'Final payment' : 'Scheduled payment'}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0 basis-full sm:basis-auto">{o.isFinalPayment ? 'Final payment' : 'Scheduled payment'}</span>
                   {/* Said out loud rather than hidden: the debt is real either way, and a row that
                       vanished for users who set up an expense rule would look like the app had
                       lost the loan. */}
                   {o.paidByExpenseRule && (
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0">Paid by your expense rule</span>
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate min-w-0 basis-full sm:basis-auto">Paid by your expense rule</span>
                   )}
                 </div>
                 <div className="flex flex-col items-end leading-tight shrink-0">
