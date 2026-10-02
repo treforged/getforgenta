@@ -8,6 +8,7 @@
  * mid-word break. That is the exact symptom, read from the rendered page, never from class names.
  * POSITIVE CONTROL: on each route a planted 44px box holding "emergency" must be found broken, or exit 2.
  * Each route is read until two consecutive reads agree (a fixed sleep reads an unmounted page as clean).
+ * DEMO ARM: /demo (no credentials) covers the auto / student / other debt tabs the walk account lacks.
  * DOES NOT COVER: desktop widths, anything behind a press (dialogs, menus), param routes, or text that wraps
  * at word boundaries into too many lines OUTSIDE a heading (FYI only). A heading (h1-h4) squeezed under 140px onto
  * 3+ lines DOES fail: that is the chart-title shape ("Credit Card Debt Payoff Trajectory", 125px x 3, 2026-10-02).
@@ -21,6 +22,9 @@ const ROUTES = [
   '/dashboard', '/dashboard?tab=accounts', '/dashboard?tab=goals', '/budget', '/transactions', '/debt',
   '/debt?tab=use', '/goals', '/forecast', '/net-worth', '/subscriptions', '/car-fund', '/account', '/settings',
 ];
+// Each demo debt tab must prove it rendered its own chart, or a missed tab would read as clean.
+const MUST_SHOW = { '/debt?tab=auto': 'Auto Loan Payoff Trajectory', '/debt?tab=student': 'Student Loan Payoff Trajectory', '/debt?tab=other': 'Other Debt Payoff Trajectory' };
+const DEMO_ROUTES = ['/debt?tab=auto', '/debt?tab=student', '/debt?tab=other', '/dashboard', '/budget', '/goals', '/forecast'];
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 const env = readFileSync('.env.local', 'utf8');
 let creds;
@@ -103,7 +107,8 @@ const scan = () => {
     }
     const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
     const lines = Math.round(box.height / lh);
-    if (lines >= 3 && box.width < 140) {
+    // A lone glyph (an arrow between two dates) is laid out on its own and is not a squeezed column.
+    if (lines >= 3 && box.width < 140 && el.textContent.trim().length > 2) {
       narrow.push({ width: Math.round(box.width), lines, heading: !!el.closest('h1, h2, h3, h4'), text: el.textContent.trim().slice(0, 50) });
     }
   }
@@ -124,7 +129,8 @@ await page.evaluate(() => {
 await page.route(/\/rest\/v1\//, route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()));
 
 const failures = [];
-for (const route of ROUTES) {
+const scanRoutes = async (page, routes, label) => {
+for (const route of routes) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4000);
   for (let i = 0; i < 6 && (await page.locator('[role="dialog"]').count()); i += 1) {
@@ -142,6 +148,9 @@ for (const route of ROUTES) {
     await page.waitForTimeout(1500);
   }
   if (!result) await done(2, `UNSTABLE: ${route} never gave two agreeing reads.`);
+  if (MUST_SHOW[route] && label === 'demo' && !(await page.getByText(MUST_SHOW[route]).count())) {
+    await done(2, `CONTROL FAILED: ${route} did not render "${MUST_SHOW[route]}", so its header was not measured.`);
+  }
   // Positive control: a word the instrument MUST see broken, planted after the real read.
   const control = await page.evaluate(scan => {
     const d = document.createElement('div');
@@ -154,19 +163,30 @@ for (const route of ROUTES) {
   }, scan.toString());
   if (!control) await done(2, `CONTROL FAILED on ${route}: a planted broken word was not found.`);
   const slug = route.replace(/[^a-z]+/gi, '-').replace(/^-|-$/g, '');
-  await page.screenshot({ path: `test-results/word-breaks-${slug}.png`, fullPage: true });
-  console.log(`${route}: ${result.broken.length} broken word(s), ${result.narrow.length} narrow column(s)`);
+  await page.screenshot({ path: `test-results/word-breaks-${label}-${slug}.png`, fullPage: true });
+  console.log(`${label} ${route}: ${result.broken.length} broken word(s), ${result.narrow.length} narrow column(s)`);
   for (const b of result.broken) {
     console.log(`  BROKEN "${b.word}" on ${b.lines} lines, box ${b.width}px: ${b.text}`);
-    failures.push(`${route} "${b.word}"`);
+    failures.push(`${label} ${route} "${b.word}"`);
   }
   for (const n of result.narrow) {
     if (n.heading) {
       console.log(`  SQUEEZED HEADING ${n.width}px x ${n.lines} lines: ${n.text}`);
-      failures.push(`${route} heading "${n.text}" squeezed to ${n.lines} lines`);
+      failures.push(`${label} ${route} heading "${n.text}" squeezed to ${n.lines} lines`);
     } else console.log(`  fyi ${n.clipped ? 'CLIPPED (ellipsis)' : 'narrow'} ${n.width}px x ${n.lines} lines: ${n.text}`);
   }
 }
+};
+await scanRoutes(page, ROUTES, 'walk');
 await ctx.close();
+// DEMO ARM: the walk account holds only cards, so the auto / student / other payoff charts never render for it.
+// /demo needs no credentials and carries one of each, so those headers are measured here.
+const demoCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const demo = await demoCtx.newPage();
+await demo.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+await demo.waitForTimeout(4000);
+await demo.route(/\/rest\/v1\//, route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()));
+await scanRoutes(demo, DEMO_ROUTES, 'demo');
+await demoCtx.close();
 if (failures.length) await done(1, `${failures.length} wrap defect(s) at 390: ${failures.join(' | ')}`);
-await done(0, `PASS: ${ROUTES.length} routes at 390, no word breaks across lines and no heading is squeezed; the planted control was found on every route.`);
+await done(0, `PASS: ${ROUTES.length} signed-in + ${DEMO_ROUTES.length} demo routes at 390, no word breaks across lines and no heading is squeezed; the planted control was found on every route.`);
