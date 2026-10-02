@@ -25,8 +25,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
-R-NOW47 (10-02 ~03:00 ET, Ada getforgenta-25). START HERE: 594caf27 (freeze after categorizing - trace a category pick
-    in a real browser on the walk account), then 52898f88 (simplify Debt for a new user), 8a202850 (glass ON/OFF frame).
+R-NOW48 (10-02 ~03:10 ET, Ada getforgenta-25 -> successor at the 175-call gate). START HERE, IN ORDER:
+    0. WAKES died with getforgenta-25: re-arm one-shots '3 8 2 10 *' (9bbd81a4 session watcher: read
+       backup.session_watch_9bbd81a4, match vanished session_id to auth_logs; UNDO in R-NOW44) and '17 9 2 10 *'
+       (1cea48f3: ef74a610 should read ~$1,089).
+    1. 594caf27 FREEZE: NOT reproduced on the walk account. Probe (Playwright, 390, every non-GET answered in-browser
+       with 201 '[]', PerformanceObserver longtask + rAF round-trip every 250ms for 6s after each pick): 0 long tasks,
+       max frame lag 20ms over 3 picks. Only 1 write landed (the row leaves the queue once labelled; later picks need a
+       fresh row each). Hypothesis: it scales with DATA (Tre has far more synced rows). NEXT: count synced rows walk vs Tre
+       by SQL, then measure on localhost:8080 as Tre in Chrome READ-ONLY (stub window.fetch non-GET via javascript_tool
+       so no write lands), or time buildReviewQueue/deriveMerchantRules/planRetroactivePass at Tre's row count.
+    2. 52898f88 simplify Debt for a new user. 3. 8a202850 glass ON/OFF frame.
     [x] 259f01ba closed (b7524539 + 8c9bd411; Sam dropped the paraphrased "controls under the text column").
     [x] c99f9ab7 fc395b9e: migration-grants.gate.test.ts (a public table created from 20260923 must carry a GRANT).
     [x] 7a9319ae 8159998d: Command Center labels on one line + Net Worth column auto; npm run check:overview-strip.
