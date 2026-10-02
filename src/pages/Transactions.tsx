@@ -1169,9 +1169,15 @@ export default function Transactions() {
                                 </span>
                               )}
                               {!plan.active
-                                ? <span className="text-[10px] text-muted-foreground">(inactive)</span>
+                                ? <span className="text-[10px] text-muted-foreground">(off)</span>
                                 : remaining === 0 && <span className="text-[10px] text-muted-foreground">(complete)</span>}
                             </div>
+                            {/* An off plan says WHY when a note carries it (8eeff53d, Tre 2026-10-02: two plans
+                                "showing like they're inactive" were off on purpose, because the card already
+                                carries them as Equal Pay balances; nothing on screen said so). */}
+                            {!plan.active && plan.notes && (
+                              <p className="mt-1 text-[10px] text-muted-foreground" data-testid="plan-off-note">{plan.notes}</p>
+                            )}
                             <div className="mt-2 flex items-center gap-2">
                               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
