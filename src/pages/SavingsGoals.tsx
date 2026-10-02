@@ -851,7 +851,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   }
 
   // Ask e1b0fffc: drawn under the Linked Account field it extends, not after every field.
-  const extraAccountsEditor = form.linked_account && extraAccountOptions.length > 0 && (
+  const extraAccountsEditor = useMemo(() => form.linked_account && extraAccountOptions.length > 0 && (
     <div className="space-y-2">
       <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Also count these accounts</label>
       <div className="flex flex-wrap gap-2">
@@ -877,7 +877,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         The goal's saved amount is the linked account plus every account picked here.
       </p>
     </div>
-          );
+  ), [form.linked_account, extraAccountOptions, extraAccountIds]);
 
   const formFields = useMemo(() => {
     const fields: Field[] = [
