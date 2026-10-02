@@ -38,7 +38,11 @@ R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
     [~] Sam's session-loss report: NOT reproduced on the walk account (3 runs; two instances refresh with the SAME
         token 24ms apart, both 200 inside the reuse window). Tre's logs: NO /logout anywhere 20:00-03:30Z, yet his
         sessions were DELETED (~03:25Z, phone too). Not single-session, not first MFA verify. New ask filed. Next:
-        find the deleter (auth.refresh_tokens revoked chain, Auth session settings read-only).
+        find the deleter. WATCHER LIVE: pg_cron job 28 session-watch-9bbd81a4 snapshots Tre's auth.sessions every minute
+        into backup.session_watch_9bbd81a4 (locked, 3-day retention). When a session_id disappears, match its last
+        seen_at against auth_logs. UNDO: select cron.unschedule('session-watch-9bbd81a4'); drop table backup.session_watch_9bbd81a4;
+    [x] f9509027: check:word-breaks demo arm (auto/student/other tabs via /demo, MUST_SHOW title control). Liability
+        header half of 48696588 was preventive (pre-fix passes). FYI: "Toyota RAV4 (Owned)" clipped 92px on demo auto tab.
     [ ] 4. Standing e1b0fffc.
     NOTE: the context-gate hook fires at ~177k on a FRESH session (system context alone), so it is not a handoff signal.
 R-NOW43 (10-02 ~03:05Z / 23:05 ET 10-01, Ada getforgenta-eb -> successor at the 200-call gate). START HERE, IN ORDER:
