@@ -92,7 +92,8 @@
     "install:hooks": "node scripts/install-git-hooks.mjs",
     "check:debt-layout": "node scripts/check-debt-layout.mjs",
     "check:rewards-save": "node scripts/check-rewards-save.mjs",
-    "check:goal-extras": "node scripts/check-goal-extras.mjs"
+    "check:goal-extras": "node scripts/check-goal-extras.mjs",
+    "check:surplus-rows": "node scripts/check-surplus-rows.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

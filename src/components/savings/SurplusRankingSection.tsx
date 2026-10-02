@@ -488,7 +488,7 @@ export default function SurplusRankingSection({
                 // framer's own per-frame transform writes fought over the same property and the
                 // row juddered to its new rank instead of gliding. The tween is framer's job;
                 // CSS keeps only the properties framer never touches.
-                'flex items-center gap-2.5 px-2.5 py-2 bg-secondary/40 border',
+                'flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 gap-y-1 px-2.5 py-2 bg-secondary/40 border',
                 'transition-[background-color,border-color,box-shadow,opacity] duration-150',
                 draggingId === row.id ? 'opacity-40' : '',
                 dragOverId === row.id ? 'border-primary shadow-[0_0_0_1px_hsl(var(--primary))]' : 'border-transparent',
@@ -596,6 +596,12 @@ export default function SurplusRankingSection({
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}
               </div>
 
+              {/* ⚠️ ONE GROUP, AND IT WRAPS ON A PHONE (Tre, 2026-10-01, build 1218: "we didnt fix all
+                  the text wrapping problems"). Share/Split, Always/Ranked/Auto extra and Remove are
+                  all shrink-0, so on one line at 390px they left the name about 80px and goal names
+                  broke one syllable per line ("emer / genc / y"). Below `sm` the group takes a full
+                  line under the text; from `sm` up it sits inline as before. */}
+              <div className="flex items-center justify-end gap-2 basis-full sm:basis-auto shrink-0" data-testid="surplus-row-controls">
               {/* A later stop may share a rank too, since 2026-08-27: the weight is stored on the
                   STOP (`stages[].surplus_share`) instead of on the goal's one column, so there is
                   somewhere to put it. Tre asked for exactly this arrangement — "split stage 2 of
@@ -674,6 +680,7 @@ export default function SurplusRankingSection({
                   Remove
                 </button>
               )}
+              </div>
             </motion.li>
           );
         })}
