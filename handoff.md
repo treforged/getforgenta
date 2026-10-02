@@ -25,6 +25,24 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW46 (10-02 ~01:50 ET, Ada getforgenta-21, at the 5h cap). START HERE, IN ORDER:
+    0. WAKES armed in getforgenta-21 (die with it): 01:37 e74da89c (fdbcbf78), 08:03 9bbd81a4 (cedc3ae0),
+       09:17 1cea48f3 (0cf1f82b). If this session is gone, re-arm the ones not yet past.
+    1. NEW Tre asks, in order: b64a094e merchant memory applies by DEFAULT (no prompt); dc34a4c7 transactions:
+       categorise BEFORE the tab opens (no "select category" pop-up for rows that auto-categorise) + "freezes
+       sometimes" after categorising; 7a9319ae Command Center top numbers not in a straight line, empty space
+       between the four numbers and Net Worth - redesign. DECISION fbaf48dd: on his PC also look at localhost:8080
+       as TRE's account (read-only) - memory verify-on-localhost-as-tre.
+    2. Sam's asks: f20e814d REPORT (instrument: npm run inventory:spacing, 102 bands / 6 paddings / 13 gaps;
+       it reads only the walk account - add a /demo arm for goals, and a 2D right-side check, then write the
+       report). First fix shipped: goal card actions on the amount row (-41px/card, check:goal-card-row).
+       259f01ba one spacing system (count before/after with inventory:spacing; fold in Sam's Debt-row
+       compaction: tags nowrap, controls aligned under the text column). 52898f88 simplify Debt for a new user.
+    3. 8a202850 glass ON/OFF sim frame (not started).
+    DONE this session (origin 0/0): elicit hook v2 PROBED (fires + accepts, no prompt; told Sam); check:word-breaks
+    dialog arm (9 dialogs, red proven); 4a3590b8 no native cover on Google/Apple sign-in (9b31cff4, iOS 1229
+    UPLOAD SUCCEEDED, run 36968529548 - Tre must install); baa98925 order card names+order only; inventory:spacing;
+    goal card row. f6d3020f CLOSED on Tre's 12:58 frames. test:tz 5745 x3.
 R-NOW45 (10-02 ~04:50Z / 00:50 ET, Ada getforgenta-ae -> successor at the 191-call gate). START HERE, IN ORDER:
     1. RE-ARM WAKES (died with me): '37 1 2 10 *' widget e74da89c; '3 8 2 10 *' session watcher 9bbd81a4 (read
        backup.session_watch_9bbd81a4, match vanished session_id's last seen_at to auth_logs); '17 9 2 10 *' $204
@@ -12527,7 +12545,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 00:38 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 01:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12537,9 +12555,9 @@ machine-generated and replaced each time; put durable notes above it._
 
 ```
 M deno.lock
- M scripts/check-word-breaks.mjs
- M src/components/vehicles/LoanCard.tsx
- M src/pages/Vehicles.tsx
+ M handoff.md
+ M src/components/debt/AvalancheOrderList.tsx
+ M src/components/debt/__tests__/AvalancheOrderList.test.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12549,14 +12567,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+4a3590b8 [ios]: no loading cover while signing in with Google or Apple (9b31cff4)
+f1aa8c03 [gates]: check:word-breaks presses Add/Edit and measures the forms they open on a phone
+320e3aeb [handoff]: R-NOW45 - successor brief at the 191-call gate
+f2bf78ef [debt]: payment rows keep the whole debt name on a phone, with their label on its own line; gate gains a desktop arm
+5ba7ae36 [handoff]: R-NOW44 - vehicles clip fix, Disk IO metrics blocked on key
+79a0ac71 [vehicles]: loan and vehicle names and the buying date read in full on a phone instead of being cut off
 ba660aa3 [handoff]: R-NOW44 - f6d3020f frames predate fix, gate proven on Tre's shape
 93b18f92 [gates]: check:surplus-rows now measures Tre's exact row shape, and is proven red on it (f6d3020f)
-8a1cefdd [handoff]: R-NOW44 - app logout found at 03:46Z, elicit hook v2 pending Tre
-48c5ba05 [handoff]: R-NOW44 - session watcher live, word-break demo arm
-f9509027 [gates]: check:word-breaks measures the auto / student / other debt tabs through /demo
-7ba5addf [handoff]: R-NOW44 - subtitle fix, session-loss findings
-5e2a469e [debt]: the page subtitle reads in full on a phone instead of truncating beside the actions (f6d3020f sweep)
-93ea79a0 [handoff]: R-NOW44 - template in sync, word-break gate + chart title fix
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
