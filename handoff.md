@@ -30,12 +30,9 @@ R-NOW47 (10-02 ~03:00 ET, Ada getforgenta-25). START HERE: 594caf27 (freeze afte
     [x] 259f01ba closed (b7524539 + 8c9bd411; Sam dropped the paraphrased "controls under the text column").
     [x] c99f9ab7 fc395b9e: migration-grants.gate.test.ts (a public table created from 20260923 must carry a GRANT).
     [x] 7a9319ae 8159998d: Command Center labels on one line + Net Worth column auto; npm run check:overview-strip.
-    [~] 259f01ba slice 1 b7524539: card padding at 390 is p-4 sm:p-5 (18px x93 of 109 after, was x67). Left on purpose:
-        heroes p-5 sm:p-6, dialogs, Landing, compact notice/Next-lesson rows. NEXT SLICE = SECTION GAPS (16 distinct; the
-        families are 27/18/22px between sections and 13/14px inside lists - pick 2 tokens, re-measure). Then Sam's
-        Debt-row compaction (tags nowrap, controls under the text column). Report page for Tre (f20e814d):
-        https://claude.ai/artifact/SU2L8W2P1nHbEk4FfAhsP6. After a big edit, warm Vite (open /dashboard once) before
-        inventory:spacing, or it reads UNSTABLE on the skeleton.
+    NOTES: empty-space report page for Tre (f20e814d): https://claude.ai/artifact/SU2L8W2P1nHbEk4FfAhsP6. Gaps already
+        match index.css's stack-section/block/row steps (27/18/13px). After a big edit, warm Vite (open /dashboard once)
+        before inventory:spacing, or it reads UNSTABLE on the skeleton.
     [x] f20e814d 2f5171ab: docs/empty-space-report-2026-10-02.md (11 areas + fixes); inventory:spacing has right-side +
         /demo arms and skips toasts. WATCH: write-blocking probes abort the Dashboard merchant pass on the walk
         account, so an error toast can appear on /dashboard (it made inventory:spacing UNSTABLE). If a probe
