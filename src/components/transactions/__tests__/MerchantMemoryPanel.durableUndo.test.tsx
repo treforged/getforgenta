@@ -76,9 +76,17 @@ describe('applying by default', () => {
   it('writes EVERY merchant with no press, including one labelled more than one way', async () => {
     render(<MerchantMemoryPanel setCategory={setCategory} />);
     await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledTimes(2));
-    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c1', category: 'Groceries' });
-    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c2', category: 'Shopping' });
+    expect(setCategory.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ syncedTransactionId: 'c1', category: 'Groceries' }));
+    expect(setCategory.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ syncedTransactionId: 'c2', category: 'Shopping' }));
     expect(screen.queryByRole('button', { name: /Apply to/i })).toBeNull();
+  });
+
+  // 594caf27: a refetch after EVERY write froze the page for a merchant with 103 past charges.
+  it('sends every write but the LAST as quiet, so the batch refreshes once', async () => {
+    render(<MerchantMemoryPanel setCategory={setCategory} />);
+    await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledTimes(2));
+    const quiet = setCategory.mutateAsync.mock.calls.map(c => (c[0] as { quiet?: boolean }).quiet);
+    expect(quiet).toEqual([true, false]);
   });
 
   it('records the PREVIOUS categories, newest first', async () => {
@@ -105,8 +113,8 @@ describe('undoing', () => {
 
     await waitFor(() => expect(mocks.markUndone.mutateAsync).toHaveBeenCalledWith('a1'));
     expect(setCategory.mutateAsync).toHaveBeenCalledTimes(2);
-    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c2', category: null });
-    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c1', category: null });
+    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c2', category: null, quiet: true });
+    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c1', category: null, quiet: false });
   });
 
   it('does NOT mark it reversed when the replay fails part way', async () => {
@@ -132,7 +140,7 @@ describe('an undone charge stays undone', () => {
     render(<MerchantMemoryPanel setCategory={setCategory} />);
     await waitFor(() => expect(mocks.record.mutateAsync).toHaveBeenCalledTimes(1));
     expect(setCategory.mutateAsync).toHaveBeenCalledTimes(1);
-    expect(setCategory.mutateAsync).toHaveBeenCalledWith({ syncedTransactionId: 'c3', category: 'Groceries' });
+    expect(setCategory.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ syncedTransactionId: 'c3', category: 'Groceries' }));
   });
 
   it('applies nothing while the undo record is being refetched', async () => {

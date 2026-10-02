@@ -18,7 +18,7 @@ import { planRetroactiveUndo, type RetroPass } from '@/lib/merchant-memory';
 
 interface MerchantMemoryPanelProps {
   /** The parent's `setCategory` mutation — one write path for a category, however it was decided. */
-  setCategory: { mutateAsync: (v: { syncedTransactionId: string; category: string | null }) => Promise<unknown> };
+  setCategory: { mutateAsync: (v: { syncedTransactionId: string; category: string | null; quiet?: boolean }) => Promise<unknown> };
   /** Apply only, render nothing — the Dashboard's runner (`MerchantMemoryAutoApply`). */
   background?: boolean;
 }
@@ -84,8 +84,10 @@ export default function MerchantMemoryPanel({ setCategory, background = false }:
     try {
       // Sequential and stop-at-first-failure, like every other batch on this page: `setCategory` is
       // find-then-write per charge, so parallel writes race the read half against its own writes.
-      for (const write of snapshot.writes) {
-        await setCategory.mutateAsync({ syncedTransactionId: write.chargeId, category: write.category });
+      // Every write but the last is QUIET: one refetch for the batch, not one per charge (594caf27).
+      for (const [i, write] of snapshot.writes.entries()) {
+        const quiet = i < snapshot.writes.length - 1;
+        await setCategory.mutateAsync({ syncedTransactionId: write.chargeId, category: write.category, quiet });
         // Recorded as it goes, so the undo only ever offers to reverse what actually landed.
         done.writes.push(write);
       }
@@ -135,9 +137,10 @@ export default function MerchantMemoryPanel({ setCategory, background = false }:
     const steps = stepsOf(applied);
     let undone = 0;
     try {
-      for (const step of steps) {
-        if (step.write !== 'setCategory') continue;
-        await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
+      const replay = steps.filter(step => step.write === 'setCategory');
+      for (const [i, step] of replay.entries()) {
+        const quiet = i < replay.length - 1;
+        await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category, quiet });
         undone++;
       }
       // ⚠️ MARKED ONLY AFTER THE REPLAY, and only on success. Marking first would retire the record

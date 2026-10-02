@@ -829,7 +829,7 @@ export function useSyncedTransactionReviews() {
     // rather than a caller having to remember to do both — the same reasoning that keeps the ledger
     // row and the `'imported'` decision in one act below. A caller that does not know the merchant
     // simply does not vote; nothing else changes.
-    mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null }) => {
+    mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null; quiet?: boolean }) => {
       if (isDemo || isPartnerView || !user) throw writeBlockedError({ isDemo, isPartnerView, user });
       // The lookup moved off the cached `query.data` and onto the database for the same reason the
       // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
@@ -866,7 +866,10 @@ export function useSyncedTransactionReviews() {
       if (error) throw error;
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
+      // ⚠️ `quiet` IS FOR BATCHES ONLY (594caf27). The merchant pass writes up to 103 charges in a row
+      // for one of Tre's merchants, and a refetch of every review after EACH write is what froze the
+      // page. A batch sends every write but its last as quiet; the last one, or any failure, refreshes.
+      if (!vars.quiet) qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
       // Slice 6. Fire and forget, and only ever on the user's OWN successful decision — the vote is
       // a by-product of a thing they meant to do, never a separate action they are asked about.
       // ⚠️ CLEARING a category does not retract an earlier vote. The ballot is an upsert keyed on
@@ -875,7 +878,11 @@ export function useSyncedTransactionReviews() {
       // "not that" rather than "not yet", and it does not.
       if (vars.category) void recordCrowdVote(vars.merchantKey, vars.category);
     },
-    onError: (e: Error) => toast.error(friendlyReviewWriteError(e) ?? e.message),
+    onError: (e: Error, vars) => {
+      // A batch that stops part way has quiet writes that LANDED and were never refreshed.
+      if (vars?.quiet) qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
+      toast.error(friendlyReviewWriteError(e) ?? e.message);
+    },
   });
 
   // §1B Stage 3 — THE ONLY PATH IN THIS FILE THAT TURNS A BANK CHARGE INTO MONEY.
