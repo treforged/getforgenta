@@ -98,7 +98,7 @@ const after = (await answer.textContent())?.trim() ?? '';
 console.log(`after 300: "${after}"`);
 // "No room" is only an honest answer when the card list agrees; otherwise it must name a card.
 const rows = await panel.getByRole('button', { name: /rewards & welcome offer/i }).count();
-const noRoom = await panel.getByText('Not enough room').count();
+const noRoom = await panel.getByText(/^Not enough (room|cash)$/).count();
 const expectNoRoom = rows > 0 && noRoom === rows;
 console.log(`cards ${rows}, without room ${noRoom}`);
 if (rows === 0) await done(2, 'CONTROL FAILED: the panel lists no cards.');

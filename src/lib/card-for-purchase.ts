@@ -23,6 +23,8 @@ export interface CardOption {
   overUtilization: boolean;
   offerValue: number | null;     // share of an OPEN welcome bonus this purchase earns, null when none
   netValue: number;
+  /** A checking account's debit card (ask 37c89404): no interest, no utilization, spends cash now. */
+  isDebit: boolean;
 }
 /** A welcome bonus: spend `required_spend` by `deadline` (YYYY-MM-DD) to earn `bonus_value` dollars. */
 export interface WelcomeOffer { required_spend: number; spent: number; bonus_value: number; deadline: string }
@@ -66,7 +68,10 @@ export function welcomeOfferValue(offer: WelcomeOffer | null | undefined, amount
   return Math.min(amount, remaining) * offer.bonus_value / offer.required_spend;
 }
 
-export interface ExcludedCard { id: string; name: string; why: 'not-open' | 'over-limit' }
+export interface ExcludedCard { id: string; name: string; why: 'not-open' | 'over-limit' | 'not-enough-cash' }
+
+/** Account types that carry a debit card. Savings accounts do not, so they are never offered. */
+export const DEBIT_ACCOUNT_TYPES: readonly string[] = ['checking'];
 export function rankCardsForPurchase(args: { cards: readonly AdvisorCard[]; amount: number; category: PurchaseCategory; today: Date; utilizationTarget?: number }): { ranked: CardOption[]; excluded: ExcludedCard[] } {
   const { cards, amount, category, today, utilizationTarget = 30 } = args;
   if (!(Number.isFinite(amount) && amount > 0)) {
@@ -77,7 +82,27 @@ export function rankCardsForPurchase(args: { cards: readonly AdvisorCard[]; amou
   const options: CardOption[] = [];
 
   for (const card of cards) {
-    if (card.account_type !== 'credit_card' || card.active !== true) {
+    const isDebit = DEBIT_ACCOUNT_TYPES.includes(card.account_type);
+    if ((card.account_type !== 'credit_card' && !isDebit) || card.active !== true) {
+      continue;
+    }
+
+    if (isDebit) {
+      // Tre 2026-10-01: "debit cards should also be an option". A debit purchase leaves checking
+      // today, so it can never cost interest - and it is impossible beyond the cash that is there.
+      const cash = Number(card.balance) || 0;
+      if (amount > cash) {
+        excluded.push({ id: card.id, name: card.name, why: 'not-enough-cash' });
+        continue;
+      }
+      const earned = card.rewards
+        ? Math.round(amount * (card.rewards.categories?.[category] ?? card.rewards.base_pct) / 100 * 100) / 100
+        : null;
+      options.push({
+        id: card.id, name: card.name, rewardsEarned: earned, monthlyInterest: 0,
+        utilizationAfter: null, overUtilization: false, offerValue: null,
+        netValue: earned ?? 0, isDebit: true,
+      });
       continue;
     }
 
@@ -120,7 +145,8 @@ export function rankCardsForPurchase(args: { cards: readonly AdvisorCard[]; amou
       utilizationAfter: utilizationAfter === null ? null : Math.round(utilizationAfter * 10) / 10,
       overUtilization,
       offerValue: offer,
-      netValue: Math.round(netValue * 100) / 100
+      netValue: Math.round(netValue * 100) / 100,
+      isDebit: false,
     });
   }
 

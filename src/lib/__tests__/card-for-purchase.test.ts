@@ -120,3 +120,36 @@ describe('parsers never let a wrong rate through', () => {
     expect(parseWelcomeOffer({ required_spend: 4000, bonus_value: 750, deadline: 'Sept 1' })).toBeNull();
   });
 });
+
+describe('debit cards (ask 37c89404, Tre 2026-10-01: "debit cards should also be an option")', () => {
+  const checking = (over: Partial<AdvisorCard> & { id: string }): AdvisorCard =>
+    card({ account_type: 'checking', apr: null, credit_limit: null, balance: 2000, ...over });
+
+  it('beats a card whose first month of interest outweighs its rewards, because debit costs none', () => {
+    // 1% of 300 = 3 earned; 300 * 27.74% / 12 = 6.94 interest; net -3.94 < debit's 0.
+    // (At 3% the same card nets +2.06 and correctly beats debit - the existing rewards-vs-interest rule.)
+    const prime = card({ id: 'Prime', balance: 8892.82, apr: 27.74, credit_limit: 15000, rewards: { base_pct: 1 } });
+    const { ranked } = rankCardsForPurchase({ cards: [prime, checking({ id: 'Chase' })], amount: 300, category: 'groceries', today });
+    expect(ranked.map(r => r.id)).toEqual(['Chase', 'Prime']);
+    expect(ranked[0]).toMatchObject({ isDebit: true, monthlyInterest: 0, rewardsEarned: null, netValue: 0, utilizationAfter: null });
+    expect(ranked[1].netValue).toBe(-3.94);
+  });
+
+  it('loses to a $0-balance card that earns rewards, since that card is paid in full for free', () => {
+    const vx = card({ id: 'VentureX', balance: 0, rewards: { base_pct: 2 } });
+    const { ranked } = rankCardsForPurchase({ cards: [checking({ id: 'Chase' }), vx], amount: 300, category: 'other', today });
+    expect(ranked.map(r => r.id)).toEqual(['VentureX', 'Chase']);
+    expect(ranked[0].netValue).toBe(6);
+  });
+
+  it('is left out with not-enough-cash when the purchase is more than the checking balance', () => {
+    const { ranked, excluded } = rankCardsForPurchase({ cards: [checking({ id: 'Chase', balance: 250 })], amount: 300, category: 'other', today });
+    expect(ranked).toEqual([]);
+    expect(excluded).toEqual([{ id: 'Chase', name: 'Chase', why: 'not-enough-cash' }]);
+  });
+
+  it('a savings account is never offered, and credit cards report isDebit false', () => {
+    const { ranked } = rankCardsForPurchase({ cards: [card({ id: 'Sav', account_type: 'savings' }), card({ id: 'VX' })], amount: 50, category: 'other', today });
+    expect(ranked.map(r => [r.id, r.isDebit])).toEqual([['VX', false]]);
+  });
+});

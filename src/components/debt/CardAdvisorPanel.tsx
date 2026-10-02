@@ -4,7 +4,7 @@ import { FIELD_INPUT } from '@/components/shared/field-classes';
 import { formatCurrency } from '@/lib/calculations';
 import { useAccounts, type AccountRow } from '@/hooks/useSupabaseData';
 import {
-  PURCHASE_CATEGORIES, parseCardRewards, parseWelcomeOffer, rankCardsForPurchase,
+  DEBIT_ACCOUNT_TYPES, PURCHASE_CATEGORIES, parseCardRewards, parseWelcomeOffer, rankCardsForPurchase,
   type CardOption, type PurchaseCategory,
 } from '@/lib/card-for-purchase';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
@@ -26,9 +26,10 @@ function answer(top: CardOption, runnerUp: CardOption | undefined): string {
   const parts: string[] = [];
   if (top.rewardsEarned !== null) parts.push(`you earn about ${formatCurrency(top.rewardsEarned)}`);
   if (top.offerValue !== null) parts.push(`it counts ${formatCurrency(top.offerValue)} toward its welcome bonus`);
-  parts.push(top.monthlyInterest === 0 ? 'its balance is $0, so paid in full this costs nothing'
-    : `it adds about ${formatCurrency(top.monthlyInterest ?? 0)} of interest a month`);
-  let line = `Use ${top.name}: ${parts.join(', ')}.`;
+  parts.push(top.isDebit ? 'it is your debit card, so this comes out of checking now and costs no interest'
+    : top.monthlyInterest === 0 ? 'its balance is $0, so paid in full this costs nothing'
+      : `it adds about ${formatCurrency(top.monthlyInterest ?? 0)} of interest a month`);
+  let line = `Use ${top.isDebit ? `the debit card on ${top.name}` : top.name}: ${parts.join(', ')}.`;
   if (runnerUp && runnerUp.monthlyInterest !== null && runnerUp.monthlyInterest > 0) {
     line += ` ${runnerUp.name} carries a balance, so this would cost about ${formatCurrency(runnerUp.monthlyInterest)} a month there.`;
   }
@@ -103,7 +104,10 @@ export default function CardAdvisorPanel() {
   // list and the answer alike (Tre, 2026-10-01). Same rule as the start-of-month update notice.
   const cards = useMemo(() => {
     const today = new Date();
-    return (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active && isCardOpenAsOf(a, today));
+    // Credit cards first, then checking accounts' debit cards (ask 37c89404, Tre 2026-10-01).
+    const credit = (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active && isCardOpenAsOf(a, today));
+    const debit = (accounts ?? []).filter(a => DEBIT_ACCOUNT_TYPES.includes(a.account_type) && a.active);
+    return [...credit, ...debit];
   }, [accounts]);
   const amount = Number(amountText.replace(/[$,]/g, ''));
   const result = useMemo(() => rankCardsForPurchase({
@@ -120,7 +124,7 @@ export default function CardAdvisorPanel() {
     return (
       <div className="card-forged p-4" data-testid="card-advisor">
         <p className="text-sm font-semibold">No cards yet</p>
-        <p className="text-xs text-muted-foreground mt-1">Add a credit card and this tells you which one to use for a purchase.</p>
+        <p className="text-xs text-muted-foreground mt-1">Add a credit card or a checking account and this tells you which one to use for a purchase.</p>
       </div>
     );
   }
@@ -143,7 +147,7 @@ export default function CardAdvisorPanel() {
           <p className="text-sm" data-testid="card-advisor-answer">{answer(top, runnerUp)}</p>
         ) : (
           <p className="text-xs text-muted-foreground" data-testid="card-advisor-answer">
-            {amount > 0 ? 'None of your open cards has room for this purchase.' : 'Enter an amount to compare your cards.'}
+            {amount > 0 ? 'None of your open cards has room for this purchase, and no checking account has the cash.' : 'Enter an amount to compare your cards.'}
           </p>
         )}
         {noRates && (
@@ -161,10 +165,14 @@ export default function CardAdvisorPanel() {
           return (
             <div key={a.id} className="py-2 border-b border-border last:border-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium min-w-0 truncate">{a.name}</span>
+                <span className="text-sm font-medium min-w-0 truncate">
+                  {a.name}
+                  {DEBIT_ACCOUNT_TYPES.includes(a.account_type) && <span className="text-[11px] text-muted-foreground font-normal"> · Debit</span>}
+                </span>
                 <span className="text-xs text-muted-foreground shrink-0">
                   {out?.why === 'not-open' ? `Opens ${a.card_start_date}`
                     : out?.why === 'over-limit' ? 'Not enough room'
+                      : out?.why === 'not-enough-cash' ? 'Not enough cash'
                       : opt && amount > 0 ? `Net ${formatCurrency(opt.netValue)}` : ''}
                 </span>
               </div>

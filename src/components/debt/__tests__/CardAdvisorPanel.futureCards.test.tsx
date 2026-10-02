@@ -52,3 +52,30 @@ describe('CardAdvisorPanel - cards not open yet', () => {
     expect(screen.getByText('No cards yet')).toBeTruthy();
   });
 });
+
+describe('CardAdvisorPanel - debit cards (ask 37c89404)', () => {
+  const checking = (name: string, balance: number): Row => ({
+    id: name, name, account_type: 'checking', active: true, balance, apr: null,
+    credit_limit: null, card_start_date: null, card_rewards: null, welcome_offer: null,
+  });
+
+  it('lists a checking account as Debit and recommends it over a card that would charge interest', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    mockAccounts = [card('Prime Visa', null), checking('Chase Checking', 2000)];
+    render(<CardAdvisorPanel />);
+    expect(screen.getByText(/· Debit/)).toBeTruthy();
+    const answer = screen.getByTestId('card-advisor-answer');
+    expect(answer.textContent).toMatch(/Enter an amount/);
+    fireEvent.change(screen.getByLabelText('Purchase amount'), { target: { value: '300' } });
+    expect(answer.textContent).toMatch(/^Use the debit card on Chase Checking: .*costs no interest/);
+  });
+
+  it('says Not enough cash when the purchase is more than the checking balance', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    mockAccounts = [checking('Chase Checking', 100)];
+    render(<CardAdvisorPanel />);
+    fireEvent.change(screen.getByLabelText('Purchase amount'), { target: { value: '300' } });
+    expect(screen.getByText('Not enough cash')).toBeTruthy();
+    expect(screen.getByTestId('card-advisor-answer').textContent).toMatch(/no checking account has the cash/);
+  });
+});
