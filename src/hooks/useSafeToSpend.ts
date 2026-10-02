@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import type { ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { FUNDING_ACCOUNT_TYPES } from '@/lib/funding-account';
-import { getNextPaycheckDate, getPaychecksInMonth } from '@/lib/pay-schedule';
+import { getFirstPaycheckAfter, getPaychecksInMonth } from '@/lib/pay-schedule';
 import { hasActiveCashIncomeRule } from '@/lib/month0-profile-paychecks';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 import { toLocalDateStr } from '@/lib/scheduling';
@@ -45,11 +45,12 @@ export function useSafeToSpend(args: {
     const active = accounts.filter(a => a.active);
     const liquidAccountIds = new Set(active.filter(a => FUNDING_ACCOUNT_TYPES.includes(a.account_type)).map(a => a.id));
     const creditCardIds = new Set(active.filter(a => a.account_type === 'credit_card').map(a => a.id));
-    // `getNextPaycheckDate` falls back to TODAY when the schedule yields no paycheck, so it is only
-    // a payday when a salary is set. Otherwise the assembly infers one from the income rules.
+    // A salary payday only when a salary is set; otherwise the assembly infers one from the income rules.
+    // The first paycheck AFTER the cutoff, never "next" counted from today: on payday itself that was
+    // today, failed `> cutoffDate`, and handed payday to the largest income rule (18541ba1).
     const salaried = Number(payConfig.weeklyGross) > 0;
-    const next = salaried ? toLocalDateStr(getNextPaycheckDate(payConfig)) : null;
-    const profilePayday = next && next > cutoffDate ? next : null;
+    const next = salaried ? getFirstPaycheckAfter(payConfig, cutoffDate) : null;
+    const profilePayday = next ? toLocalDateStr(next) : null;
     const cardMinimumReserve = cardProjection.simCards.reduce((s, c) => {
       const rev = cardProjection.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0;
       return rev > 0 ? s + (cardProjection.perCardMinPayments.get(c.id)?.[0] ?? 0) : s;

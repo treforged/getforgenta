@@ -275,6 +275,27 @@ export function getNextPaycheckDate(config: PayScheduleConfig): Date {
   return nextMonth[0]?.date || new Date();
 }
 
+/**
+ * The first paycheck strictly AFTER `after` ('YYYY-MM-DD'), searching this month and the next two.
+ * null when the schedule yields none. It still yields dates with no salary set, so callers gate on salary.
+ *
+ * ⚠️ STRICTLY AFTER, and that is the point (18541ba1). `getNextPaycheckDate` counts TODAY as the next
+ * paycheck on payday, so Safe to Spend read today as "not after the cutoff", dropped the salary payday
+ * and fell back to the largest income rule. For Tre that was a $1,100 rule on the 29th, so three weekly
+ * paychecks were left out and the figure read $0 on his own payday.
+ */
+export function getFirstPaycheckAfter(config: PayScheduleConfig, after: string): Date | null {
+  const y = Number(after.slice(0, 4));
+  const m = Number(after.slice(5, 7)) - 1;
+  for (let i = 0; i < 3; i++) {
+    const first = new Date(y, m + i, 1);
+    const hit = getPaychecksInMonth(config, first.getFullYear(), first.getMonth())
+      .find(p => toLocalDateStr(p.date) > after);
+    if (hit) return hit.date;
+  }
+  return null;
+}
+
 /** Get remaining paycheck income from today through a specific day in the current month */
 export function getRemainingIncomeByDay(config: PayScheduleConfig, dueDay: number = 31): number {
   const now = new Date();
