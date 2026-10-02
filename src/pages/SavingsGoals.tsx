@@ -17,6 +17,7 @@ import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check, TrendingDown, TrendingUp } from 'lucide-react';
+import { isLiabilityAccountType } from '@/lib/net-worth';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
@@ -436,6 +437,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
    *  that is every goal until the user adds one. */
   const [stops, setStops] = useState<StopDraft[]>([]);
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  // Ask e1b0fffc: accounts counted ON TOP of linked_account (savings_goals.also_linked_accounts,
+  // ask 4674b24a). Until this, the only way to set them was SQL.
+  const [extraAccountIds, setExtraAccountIds] = useState<string[]>([]);
   // 97.3 — the auto-end toggle plus the stamp map (ruleId -> end_date THIS feature wrote) for
   // the goal being edited. The map is provenance: without it we cannot tell our own end_date
   // from one the user typed, and toggling off would clear dates we never set.
@@ -641,6 +645,14 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     ...accounts.filter(a => a.active).map(a => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
   ], [accounts]);
 
+  // A debt balance must never add to a goal's saved amount, so cards and loans are not offered.
+  const extraAccountOptions = useMemo(
+    () => accounts
+      .filter(a => a.active && a.id !== form.linked_account && !isLiabilityAccountType(a.account_type))
+      .map(a => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
+    [accounts, form.linked_account],
+  );
+
   const transferRuleOptions = useMemo(() => [
     { value: '', label: 'None (manual)' },
     ...rules
@@ -651,8 +663,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   // The linked rules, the auto-end toggle and its provenance map are all part of
   // what the user filled in, so they ride the draft alongside the text fields.
   const draftValues = useMemo(
-    () => ({ form, stops, selectedRuleIds, autoEnd, stampedRules }),
-    [form, stops, selectedRuleIds, autoEnd, stampedRules],
+    () => ({ form, stops, selectedRuleIds, autoEnd, stampedRules, extraAccountIds }),
+    [form, stops, selectedRuleIds, autoEnd, stampedRules, extraAccountIds],
   );
 
   const { restored: draftRestored, discard: discardDraft } = useFormDraft({
@@ -666,6 +678,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       // A draft written before stops existed has none, and `?? []` is what keeps it restorable.
       setStops(draft.values.stops ?? []);
       setSelectedRuleIds(draft.values.selectedRuleIds);
+      // A draft written before this existed has none.
+      setExtraAccountIds(draft.values.extraAccountIds ?? []);
       setAutoEnd(draft.values.autoEnd);
       setStampedRules(draft.values.stampedRules);
       setEditId(draft.editId);
@@ -678,6 +692,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     setForm(emptyForm);
     setStops([]);
     setSelectedRuleIds([]);
+    setExtraAccountIds([]);
     setAutoEnd(false);
     setStampedRules({});
     setEditId(null);
@@ -687,6 +702,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     setForm({ ...emptyForm, goal_type: goalType });
     setStops([]);
     setSelectedRuleIds([]);
+    setExtraAccountIds([]);
     setAutoEnd(false); setStampedRules({});
     setEditId(null); setShowForm(true);
   };
@@ -704,6 +720,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       ? (g.linked_rule_ids ?? [])
       : g.linked_rule_id ? [g.linked_rule_id] : [];
     setSelectedRuleIds(ids);
+    setExtraAccountIds([...new Set((g.also_linked_accounts ?? []) as string[])]);
     setAutoEnd(!!g.auto_end_contributions);
     setStampedRules(toStampedMap(g.auto_end_stamped_rules));
     setEditId(g.id ?? null); setShowForm(true);
@@ -723,6 +740,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       ? (g.linked_rule_ids ?? [])
       : g.linked_rule_id ? [g.linked_rule_id] : [];
     setSelectedRuleIds(ids);
+    setExtraAccountIds([...new Set((g.also_linked_accounts ?? []) as string[])]);
     // A copy does not own the original's stamps: the original's rules still carry ITS end
     // dates, and inheriting the map would let the copy clear dates it never wrote.
     setAutoEnd(false); setStampedRules({});
@@ -763,6 +781,11 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         ? (stagePreview.stops[stagePreview.stops.length - 1]?.targetDate ?? null)
         : (form.target_date || null),
       linked_account: form.linked_account || null,
+      // Extras only count beside a primary (goalLinkedBalance returns null without one), so a goal
+      // with no linked account stores none rather than a list nothing reads.
+      also_linked_accounts: form.linked_account
+        ? extraAccountIds.filter(id => extraAccountOptions.some(o => o.value === id))
+        : [],
       goal_type: form.goal_type || 'Custom',
       contribution_start_date: form.contribution_start_date || null,
       linked_rule_ids: selectedRuleIds,
@@ -1139,6 +1162,34 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
             >
               Use the emergency-runway plan: this target, then 3 months of expenses, then 3 more once your cards are clear
             </button>
+          )}
+
+          {form.linked_account && extraAccountOptions.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Also count these accounts</label>
+              <div className="flex flex-wrap gap-2">
+                {extraAccountOptions.map(o => {
+                  const active = extraAccountIds.includes(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setExtraAccountIds(prev =>
+                        active ? prev.filter(id => id !== o.value) : [...prev, o.value]
+                      )}
+                      className={`px-3 py-1.5 text-xs border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+                      style={{ borderRadius: 'var(--radius)' }}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                The goal's saved amount is the linked account plus every account picked here.
+              </p>
+            </div>
           )}
 
           <div className="space-y-2">
