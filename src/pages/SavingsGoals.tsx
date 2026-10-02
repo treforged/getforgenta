@@ -533,9 +533,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         goal_type: g.goal_type || 'Custom',
         current_amount: goalLinkedBalance(g, (id) => (accountMap[id] ? Number(accountMap[id].balance) : null))
           ?? Number(g.current_amount),
-        available_after_outflows: g.linked_account && accountMap[g.linked_account]
-          ? getLinkedAmount(g.linked_account)
-          : null,
+        // Ask 4674b24a: summed over every tracked account through the same helper as the balance,
+        // so the card never shows a sum next to an "available" figure for only one of them.
+        available_after_outflows: goalLinkedBalance(g, (id) => (accountMap[id] ? getLinkedAmount(id) : null)),
         monthly_contribution: linkedRules.length > 0
           ? linkedMonthly
           : Number(g.monthly_contribution),
