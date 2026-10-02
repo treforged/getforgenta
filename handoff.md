@@ -34,6 +34,11 @@ R-NOW44 (10-02 ~03:40Z, Ada getforgenta-ae). START HERE, IN ORDER:
         beside 1Y-5Y) in CreditCardEngine + LiabilityTrajectoryChart. JS -> reaches phones via Vercel, no store build.
         NEXT CANDIDATE seen in the /debt frame: page header subtitle TRUNCATED beside Add Account + Guide
         ("Eliminate debt with r..."), title on 2 lines. Shared page-header pattern; measure across routes before fixing.
+    [x] 5e2a469e: Debt subtitle full-width on a phone (was clipped 144px); check:word-breaks lists clipped text FYI.
+    [~] Sam's session-loss report: NOT reproduced on the walk account (3 runs; two instances refresh with the SAME
+        token 24ms apart, both 200 inside the reuse window). Tre's logs: NO /logout anywhere 20:00-03:30Z, yet his
+        sessions were DELETED (~03:25Z, phone too). Not single-session, not first MFA verify. New ask filed. Next:
+        find the deleter (auth.refresh_tokens revoked chain, Auth session settings read-only).
     [ ] 4. Standing e1b0fffc.
     NOTE: the context-gate hook fires at ~177k on a FRESH session (system context alone), so it is not a handoff signal.
 R-NOW43 (10-02 ~03:05Z / 23:05 ET 10-01, Ada getforgenta-eb -> successor at the 200-call gate). START HERE, IN ORDER:
@@ -12492,17 +12497,18 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 22:56 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 23:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
+ M scripts/check-word-breaks.mjs
+ M src/pages/DebtPayoff.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12512,14 +12518,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+93ea79a0 [handoff]: R-NOW44 - template in sync, word-break gate + chart title fix
+48696588 [debt]: payoff chart titles no longer squeeze to 3 lines beside the 1Y-5Y control on a phone (ask f6d3020f)
+9f10024f [handoff]: R-NOW43 - successor brief at the 200-call gate
+91e8ac5c [surplus]: row controls wrap under the name on a phone, so goal names stop breaking per syllable (ask f6d3020f)
 bb9f3ba2 [email]: repo magic-link template carries the Leo RedirectTo branch, matching live (44244263)
 065476bd [email]: confirm-signup template title says Forgenta, not the old Forged brand (repo copy)
 2d7d7774 [handoff]: R-NOW42 - template proven, ticket drafted, extras placement
 b7abb699 [docs]: draft Supabase Disk IO support ticket for Sam's review (not sent)
-ff050be9 [goals]: memoise the extra-accounts editor node (lint: exhaustive-deps)
-2490667b [goals]: draw the extra-accounts editor under Linked Account, not after every field (ask e1b0fffc)
-1d43bb64 [handoff]: R-NOW42 - goal extras shipped, Disk IO measured outside Postgres, test leak fixed
-424e555b [tests]: refuse every Supabase request from the test suite (it was writing to production)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
