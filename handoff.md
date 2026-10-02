@@ -25,6 +25,26 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW43 (10-02 ~03:05Z / 23:05 ET 10-01, Ada getforgenta-eb -> successor at the 200-call gate). START HERE, IN ORDER:
+    1. RE-ARM WAKES (died with me): '37 1 2 10 *' widget e74da89c; '17 9 2 10 *' $204 re-read 1cea48f3 (ef74a610 should
+       read ~$1,089, was $1,293.04).
+    2. Sam asked: pull the LIVE magic-link body into supabase-email-templates.html. Repo doc #2 already carries both
+       leo-callback branches (6,815+194 chars, LF sha a033f783...). Read the live body hash in Chrome
+       (/auth/templates/magic-link-or-otp, monaco model, sha256 via crypto.subtle - raw text output is filtered) and
+       compare. If equal: tell Sam "in sync". If not: Sam's rebrand changed it; copy the diff (title/body only).
+       Dashboard EDITS are classifier-refused for Ada; reads work.
+    3. f6d3020f (Tre: "we didnt fix all the text wrapping problems"): the surplus list fixed in 91e8ac5c
+       (check:surplus-rows red 43% -> green 60%). The walk account ranks only ONE row, so goal rows were not measured
+       live. NEXT: hunt OTHER phone wrapping in the same family - controls marked shrink-0 beside a flex-1 text column
+       (grep 'shrink-0' near 'flex-1 min-w-0'); measure at 390 with a name-width check; fix the worst. Then ask Sam for
+       a fresh Tre screenshot of the Debt list on the next build to confirm.
+    4. iOS 6.8.1 SUBMITTED by Sam with build 1218, "Waiting for Review" (What's New = Ada's 8 lines).
+    5. Standing e1b0fffc continues after 3.
+    DONE this session (all on origin 0/0): 10338ec4 cover fix (98cbf494 CLOSED: 2,779ms -> 346ms on 1218);
+    20378537 + memo fix: goal extras editor; 424e555b tests refuse *.supabase.co (test runs were writing prod
+    signup_funnel_events); 44244263 CLOSED (customer link proven); 13 email templates rebranded by Sam (Tre "1. yes");
+    b7abb699 Disk IO ticket DRAFT (Postgres measured idle; cause outside Postgres; Sam/Tre send); walk:routes 27/27,
+    walk:press 377 enumerated / 152 changed / 0 no-change.
 R-NOW42 (10-02 ~01:00Z / 21:00 ET, Ada getforgenta successor). START HERE, IN ORDER:
     [x] 0: ASC iOS 6.8.1 shows Build 1201 after a fresh load. Told Sam (tre-forged-77). Tre presses Add for Review.
     [x] 1: wakes re-armed (01:37 10-02 e74da89c = da07a5ae, 09:17 10-02 1cea48f3 = c9f80ecb; die with this session).
@@ -12461,16 +12481,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 21:11 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 22:56 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12480,14 +12501,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+bb9f3ba2 [email]: repo magic-link template carries the Leo RedirectTo branch, matching live (44244263)
+065476bd [email]: confirm-signup template title says Forgenta, not the old Forged brand (repo copy)
+2d7d7774 [handoff]: R-NOW42 - template proven, ticket drafted, extras placement
+b7abb699 [docs]: draft Supabase Disk IO support ticket for Sam's review (not sent)
+ff050be9 [goals]: memoise the extra-accounts editor node (lint: exhaustive-deps)
+2490667b [goals]: draw the extra-accounts editor under Linked Account, not after every field (ask e1b0fffc)
 1d43bb64 [handoff]: R-NOW42 - goal extras shipped, Disk IO measured outside Postgres, test leak fixed
 424e555b [tests]: refuse every Supabase request from the test suite (it was writing to production)
-20378537 [goals]: in-app editor for a goal's extra accounts (ask e1b0fffc)
-77b66814 [handoff]: R-NOW42 - cover fix 10338ec4 dispatched, template edit refused by classifier
-10338ec4 [app-lock]: lift the iOS cover when the unlocked page paints, not on re-activation (ask 98cbf494)
-5fc09beb [handoff]: R-NOW41 - verify build 1201 on ASC 6.8.1, re-arm wakes, Face ID row
-f4cccc60 [handoff]: R-NOW40 - App Store 6.8.1 metadata set, awaiting Tre's submit
-fb1be270 [handoff]: R-NOW40 - multi-account goal, debit cards shipped; Leo template blocked on dashboard sign-in
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
