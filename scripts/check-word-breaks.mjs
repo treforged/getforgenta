@@ -98,6 +98,9 @@ const scan = () => {
         }
       }
     }
+    if (cs.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) {
+      narrow.push({ width: Math.round(box.width), lines: 1, clipped: true, text: el.textContent.trim().slice(0, 50) });
+    }
     const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
     const lines = Math.round(box.height / lh);
     if (lines >= 3 && box.width < 140) {
@@ -161,7 +164,7 @@ for (const route of ROUTES) {
     if (n.heading) {
       console.log(`  SQUEEZED HEADING ${n.width}px x ${n.lines} lines: ${n.text}`);
       failures.push(`${route} heading "${n.text}" squeezed to ${n.lines} lines`);
-    } else console.log(`  fyi narrow ${n.width}px x ${n.lines} lines: ${n.text}`);
+    } else console.log(`  fyi ${n.clipped ? 'CLIPPED (ellipsis)' : 'narrow'} ${n.width}px x ${n.lines} lines: ${n.text}`);
   }
 }
 await ctx.close();

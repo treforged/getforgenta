@@ -367,6 +367,7 @@ export default function DebtPayoff() {
           OPPOSITE ends — so the button read as left-aligned at exactly the widths a phone uses.
           The title takes the slack (`flex-1`) and its subtitle already truncates, so the actions
           keep their intrinsic width and stay pinned right at every width. */}
+      <div>
       <div className="flex items-start sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div className="min-w-0">
@@ -374,7 +375,7 @@ export default function DebtPayoff() {
                 title (DIRECTION.md rule 2). Still an h1 — demoting the type must not demote the
                 document outline or the screen-reader landmark. */}
             <h1 className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Debt Payoff Planner</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">Eliminate debt with realistic, due-date-aware projections</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate hidden sm:block">Eliminate debt with realistic, due-date-aware projections</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -393,6 +394,9 @@ export default function DebtPayoff() {
           </Link>
           <SurfaceGuide surface="debt" />
         </div>
+      </div>
+      {/* On a phone the actions leave the subtitle ~160px, where it truncated to "Eliminate debt with r..." (f6d3020f sweep, 2026-10-02). It sits full-width under the row there instead; display:none keeps one copy in the a11y tree. */}
+      <p className="text-xs text-muted-foreground mt-1 sm:hidden">Eliminate debt with realistic, due-date-aware projections</p>
       </div>
 
       {showDemoGuides && (
