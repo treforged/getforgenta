@@ -27,7 +27,20 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired at boot, weekly cap 82%). START HERE:
     0. WAKES re-armed in this session (die with it): 08:03 7eb551e4 (9bbd81a4), 09:17 cfb70baa (1cea48f3). Re-arm if gone.
-    1. 594caf27 FREEZE, step 1 DONE by SQL: synced_transactions Tre 724 vs walk 14 (52x); reviews 732 vs 14;
+    1. 594caf27 FREEZE - LIKELY CAUSE FOUND (measured, not yet reproduced in a browser):
+       (a) Pure code is NOT it: vitest bench, 724 synthetic rows: buildReviewQueue 4.0ms, deriveMerchantRules 0.4ms,
+           planRetroactivePass 0.8ms (1500 rows: 4.3/0.8/0.7). Probe file deleted, not committed.
+       (b) Tre's data: 253 merchants, p90 7 charges each, MAX 103 for one merchant (walk: 14 rows total, so it can
+           never reproduce). One pick on that merchant -> MerchantMemoryPanel.run (MerchantMemoryPanel.tsx:87) applies
+           every past charge SEQUENTIALLY, each setCategory = SELECT + UPDATE/INSERT, and each onSuccess
+           (useSupabaseData.ts:~870) invalidates ['synced_transaction_reviews'] = a refetch of ~732 rows. So up to 103 x
+           (2 round trips + a refetch and full re-render). That fits "freezes SOMETIMES" (only busy merchants).
+       (c) Chrome read-only route is NOT possible: supabase-js captures fetch at createClient (client.ts passes no
+           custom fetch), so a later window.fetch stub never intercepts writes. Do not try it.
+       FIX TO BUILD: let the pass skip the per-write invalidation (a vars flag on setCategory) and invalidate ONCE after
+           the loop; better, one bulk update for the exclusive rows. Gate: a unit test that a 100-write pass calls
+           invalidateQueries once; red on today's code. Then check:first-save / walk:press still green.
+       Step 1 data: synced_transactions Tre 724 vs walk 14 (52x); reviews 732 vs 14;: synced_transactions Tre 724 vs walk 14 (52x); reviews 732 vs 14;
        transactions 85 vs 0. The data-size hypothesis is now plausible, not proven. NEXT: localhost:8080 as Tre,
        READ-ONLY (stub every non-GET in-browser so nothing writes), pick a category, record longtasks + rAF lag;
        or time buildReviewQueue (src/lib/bank-activity-queue.ts) / planRetroactivePass at 724 rows in a vitest bench.
