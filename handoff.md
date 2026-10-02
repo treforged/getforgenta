@@ -25,6 +25,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW50 (10-02 ~18:40 ET, Ada, WEEKLY WRAP-UP at 87% - cap resets MONDAY 10-05 18:00 ET). START HERE MONDAY:
+    ONE THING FIRST: close 18541ba1 - SQL safe_to_spend_snapshot for Tre must read payday 2026-10-09 (or later) and
+       computed_at after 9e730500. If it still reads payday 10-29 after he has opened the app, the fix did not reach
+       him: check the Vercel deploy of 9e730500, then useSafeToSpend.ts:52.
+    THEN, in order: browser-prove 594caf27 at Tre's size (throwaway @forgenta.test user, ~700 rows, one merchant x100);
+       re-test the 12 blocked asks; 52898f88; 8a202850; d3ba6c8b (context-gate.mjs threshold above boot baseline);
+       9bbd81a4 (if no logout-less loss by 10-04, drop watcher cron 28 per R-NOW44 UNDO and close as idle timeout).
+    SHIPPED 10-02: 01f75aa1 (594caf27 one refetch per batch), 9e730500 (18541ba1 payday on payday). 1cea48f3,
+       dc34a4c7 closed. iOS 6.8.1 LIVE since 15:07 ET (public lookup).
 R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired at boot, weekly cap 82%). START HERE:
     WAKES: 9bbd81a4 read 08:03 (c8b8566d lost to a CLIENT /logout x2 at 04:31:52Z; initiator unknown, see ask). 1cea48f3
        read 09:17: Robinhood 1088.76 settled; Chase 'Robinhood' -200.43 still PENDING, re-read. Next wake 18:04 0969c905.
@@ -12623,17 +12632,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 15:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 18:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12643,14 +12651,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
+9e730500 [safe-to-spend]: on payday, payday is the NEXT paycheck, not the 29th (18541ba1)
+8866d62c [handoff]: R-NOW49 - 18:04 wake reads; 18541ba1 Safe to Spend drop filed
 1e0189f6 [handoff]: R-NOW49 - wake reads for 9bbd81a4 and 1cea48f3
 a130ea2e [handoff]: R-NOW49 - hold until 18:00 ET reset (Sam)
 43ae617e [handoff]: R-NOW49 - 594caf27 shipped at 01f75aa1; d3ba6c8b queued
 01f75aa1 [transactions]: one refresh per merchant batch, not one per charge (594caf27)
 43c9723b [handoff]: R-NOW49 - 594caf27 likely cause (103 sequential writes, refetch per write)
-2d09b1a9 [handoff]: R-NOW49 - freeze row counts (Tre 724 vs walk 14), wakes re-armed
-2351e41a [handoff]: R-NOW48 - freeze probe result, successor brief
-3b99f2b0 [handoff]: drop the stale 259f01ba next-slice line
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
