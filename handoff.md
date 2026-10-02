@@ -40,6 +40,12 @@ R-NOW46 (10-02 ~01:50 ET, Ada getforgenta-21, at the 5h cap). START HERE, IN ORD
        compaction: tags nowrap, controls aligned under the text column). 52898f88 simplify Debt for a new user.
     3. 8a202850 glass ON/OFF sim frame (not started).
     [x] 8eeff53d: off plans show "(off)" + note; Tre's 2 rows carry the reason (backup.tre_payment_plans_notes_20261002).
+    b64a094e DESIGN (Ada 10-02 ~01:55, tried and REVERTED, nothing shipped): making every write auto in
+       MerchantMemoryPanel (split = all auto) works, BUT "Undo all" then gets re-applied on the next mount, because
+       the undone charges are uncategorised again and back in the pass. Ship it only with: (a) undo ALSO suppresses
+       those merchants (useMerchantMemory().setSuppressed) - so store the merchant key in each step, (b) rewrite
+       MerchantMemoryPanel.durableUndo.test.tsx (its 'still ASKS' test encodes the old design; undo tests need
+       mocks.pass emptied so the auto-run does not add calls), (c) a test that an undone merchant is NOT re-applied.
     START b64a094e HERE: the "Apply to N past charges" prompt is MerchantMemoryPanel.tsx:226 (split.ask from
        useMerchantMemory().pass / planRetroactivePass in src/lib/merchant-memory.ts). Default = apply without asking;
        keep an undo. dc34a4c7 is the same seam (categorise before the tab opens = run the pass where synced rows
@@ -12550,19 +12556,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 01:24 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 01:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (8 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
- M src/components/debt/AvalancheOrderList.tsx
- M src/components/debt/__tests__/AvalancheOrderList.test.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12572,14 +12575,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+1435cdcd [handoff]: R-NOW46 - 8eeff53d done, b64a094e starting points
+fb31b9bb [transactions]: an off payment plan says why, when its note carries the reason (8eeff53d)
+46c8bee7 [handoff]: R-NOW46 - cap wrap, four new Tre asks queued
+05035641 [goals]: a goal card's copy / edit / delete share the amount's row, not a line of their own (f20e814d)
+04888a42 [gates]: npm run inventory:spacing - measured empty bands, card padding and section gaps at 390 (f20e814d, 259f01ba)
+ecde4f9a [debt]: the Avalanche / Snowball order card shows names and order only (baa98925)
 4a3590b8 [ios]: no loading cover while signing in with Google or Apple (9b31cff4)
 f1aa8c03 [gates]: check:word-breaks presses Add/Edit and measures the forms they open on a phone
-320e3aeb [handoff]: R-NOW45 - successor brief at the 191-call gate
-f2bf78ef [debt]: payment rows keep the whole debt name on a phone, with their label on its own line; gate gains a desktop arm
-5ba7ae36 [handoff]: R-NOW44 - vehicles clip fix, Disk IO metrics blocked on key
-79a0ac71 [vehicles]: loan and vehicle names and the buying date read in full on a phone instead of being cut off
-ba660aa3 [handoff]: R-NOW44 - f6d3020f frames predate fix, gate proven on Tre's shape
-93b18f92 [gates]: check:surplus-rows now measures Tre's exact row shape, and is proven red on it (f6d3020f)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
