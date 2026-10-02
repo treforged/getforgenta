@@ -26,6 +26,10 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW49 (10-02 ~03:05 ET, Ada getforgenta successor of -25; context gate fired at boot, weekly cap 82%). START HERE:
+    HOLD (Sam, 10-02 ~03:40 ET): weekly cap 83% of 92%; keep the margin for Tre's live asks. AFTER 18:00 ET RESET, in order:
+       (i) 594caf27 is NOT browser-proven at Tre's size - find a way to see one 100-charge pass refresh once (e.g. a
+           Playwright run on a throwaway @forgenta.test user seeded with ~700 synced rows, one merchant x100);
+       (ii) 52898f88, (iii) 8a202850, (iv) d3ba6c8b. Keep the tab open for the 08:03 / 09:17 wakes until then.
     0. WAKES re-armed in this session (die with it): 08:03 7eb551e4 (9bbd81a4), 09:17 cfb70baa (1cea48f3). Re-arm if gone.
     [x] 594caf27 FIX SHIPPED 01f75aa1 (quiet batch writes, one refetch). Ask closed. Watch for Tre reporting it again.
         Was: FREEZE - LIKELY CAUSE FOUND (measured, not yet reproduced in a browser):
