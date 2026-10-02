@@ -25,8 +25,11 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
-R-NOW47 (10-02 ~02:40 ET, Ada getforgenta-25). START HERE (Sam's order): f20e814d report, 259f01ba, c99f9ab7
-    (Supabase GRANTs from 10-30), 7a9319ae, then 594caf27 (freeze after categorizing - needs a browser trace).
+R-NOW47 (10-02 ~03:00 ET, Ada getforgenta-25). START HERE: 594caf27 (freeze after categorizing - trace a category pick
+    in a real browser on the walk account), then 52898f88 (simplify Debt for a new user), 8a202850 (glass ON/OFF frame).
+    [x] 259f01ba closed (b7524539 + 8c9bd411; Sam dropped the paraphrased "controls under the text column").
+    [x] c99f9ab7 fc395b9e: migration-grants.gate.test.ts (a public table created from 20260923 must carry a GRANT).
+    [x] 7a9319ae 8159998d: Command Center labels on one line + Net Worth column auto; npm run check:overview-strip.
     [~] 259f01ba slice 1 b7524539: card padding at 390 is p-4 sm:p-5 (18px x93 of 109 after, was x67). Left on purpose:
         heroes p-5 sm:p-6, dialogs, Landing, compact notice/Next-lesson rows. NEXT SLICE = SECTION GAPS (16 distinct; the
         families are 27/18/22px between sections and 13/14px inside lists - pick 2 tokens, re-measure). Then Sam's
