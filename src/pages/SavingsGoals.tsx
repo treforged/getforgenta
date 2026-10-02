@@ -1038,7 +1038,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   <span>{pacedNote}</span>
                 </p>
               )}
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
                     <h3 className="text-sm font-semibold wrap-break-word">{g.name}</h3>
@@ -1079,18 +1079,22 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                     </p>
                   )}
                 </div>
-                <div className="flex gap-1 shrink-0 self-end sm:self-auto">
-                  <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
-                  <button aria-label={`Edit ${g.name}`} onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                  <button aria-label={`${deleteConfirm === g.id ? 'Confirm delete' : 'Delete'} ${g.name}`} onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
-                </div>
               </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount), false)}</span>
-                <span className="text-xs text-muted-foreground">
-                  of {formatCurrency(headlineTarget, false)}
-                  {plan.staged && <span className="ml-1">· {nowStop.name}</span>}
-                </span>
+              {/* The actions share the amount's row (Tre, 2026-10-02, f20e814d): on a phone they used to sit
+                  on a line of their own between the subtitle and the amount, a band of empty card. */}
+              <div className="flex items-end justify-between gap-2">
+                <div className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
+                  <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount), false)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    of {formatCurrency(headlineTarget, false)}
+                    {plan.staged && <span className="ml-1">· {nowStop.name}</span>}
+                  </span>
+                </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
+                    <button aria-label={`Edit ${g.name}`} onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                    <button aria-label={`${deleteConfirm === g.id ? 'Confirm delete' : 'Delete'} ${g.name}`} onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
+                  </div>
               </div>
               <ProgressBar value={saved} max={headlineTarget} color={pct >= 100 ? 'success' : 'gold'} />
 
