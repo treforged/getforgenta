@@ -47,6 +47,11 @@ R-NOW42 (10-02 ~01:00Z / 21:00 ET, Ada getforgenta successor). START HERE, IN OR
         Sam/Tre). Found on the way + FIXED 424e555b: the test suite wrote signup_funnel_events to PRODUCTION every run
         (1,355 on 10-01); test-setup.ts now refuses *.supabase.co. 19 rows unguarded -> 0 across 4 guarded runs.
         False lead: Python sign-ins to deck-walk = 16 in 3 days.
+    [x] Extras editor now sits 8px under Linked Account (FormModal Field.after; gate asserts gap; red 369.9px).
+    [x] 44244263 CLOSED: Sam applied template + Redirect URL; Ada proved a customer link -> getforgenta.com/auth-callback.
+        DEFECT sent to Sam: magic-link SUBJECT says "Your Forged Sign-In Link" (old brand); dashboard-only fix.
+    [x] Disk IO ticket DRAFTED (docs/supabase-disk-io-ticket-draft-2026-10-02.md, b7abb699), Sam/Tre send it.
+    [!] 98cbf494 blocked on Tre installing iOS 1218 + one Face ID resume.
     [ ] NEXT (e1b0fffc standing): pick the next user-visible improvement from the roadmap.
 R-NOW41 (10-01 ~21:25 ET, Ada getforgenta-60 -> successor at the 175-call gate). START HERE, IN ORDER:
     0. VERIFY build 1201 is attached to iOS 6.8.1: open appstoreconnect.apple.com/apps/6762540239/distribution/ios/version/inflight,
@@ -12456,7 +12461,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-01 20:28 by handoff_hook. Everything below this heading is
+_Written 2026-10-01 21:11 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12475,14 +12480,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+1d43bb64 [handoff]: R-NOW42 - goal extras shipped, Disk IO measured outside Postgres, test leak fixed
+424e555b [tests]: refuse every Supabase request from the test suite (it was writing to production)
+20378537 [goals]: in-app editor for a goal's extra accounts (ask e1b0fffc)
+77b66814 [handoff]: R-NOW42 - cover fix 10338ec4 dispatched, template edit refused by classifier
+10338ec4 [app-lock]: lift the iOS cover when the unlocked page paints, not on re-activation (ask 98cbf494)
+5fc09beb [handoff]: R-NOW41 - verify build 1201 on ASC 6.8.1, re-arm wakes, Face ID row
+f4cccc60 [handoff]: R-NOW40 - App Store 6.8.1 metadata set, awaiting Tre's submit
 fb1be270 [handoff]: R-NOW40 - multi-account goal, debit cards shipped; Leo template blocked on dashboard sign-in
-66fddb47 [cards]: Which Card? offers your checking account's debit card too (ask 37c89404)
-f81d1e2e [goals]: "Available after bills" sums every tracked account too (ask 4674b24a)
-a3f78911 [goals]: one goal can track several accounts and shows their live sum (ask 4674b24a)
-84ac09a4 [cards]: pin the clock in the CatalogPicker test - main was red after the Discover Q4 row
-2299b661 [handoff]: R-NOW40 - Brokerage goal relinked (partial), multi-account goal filed 4674b24a
-0a30fe77 [handoff]: R-NOW40 - throwaway deleted, privacy label confirmed, Discover Q4 shipped; Face ID row pending
-c682560c [cards]: Discover 2026-Q4 5% calendar - dining 5%, Entertainment and Utilities named (ask f9b0da16)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
