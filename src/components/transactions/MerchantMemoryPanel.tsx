@@ -1,14 +1,12 @@
-// §1B Stage 7A — "You have categorized these merchants before. Apply it to the N charges that have
-// no category yet?" — with ONE undo for the whole pass.
+// §1B Stage 7A — charges with no category, from merchants the user has categorized before, get
+// that category automatically, with ONE durable undo for the whole pass.
 //
-// ⚠️ IT IS ONE TAP AND IT IS NEVER SILENT, which is the same call `detectTransferPairs`' batch made
-// and for the same reason: a bulk write nobody was shown is indistinguishable from a bug the moment
-// it is wrong, because the only evidence is rows that quietly changed. So the merchants and their
-// counts are listed, the button says how many charges it touches, and the undo stays on screen
-// afterwards.
+// ⚠️ IT APPLIES WITHOUT A PROMPT, AND IT IS STILL NEVER SILENT (Tre, 2026-10-01, b64a094e: apply by
+// default). The toast says how many charges it labelled, and the undo stays on screen afterwards,
+// survives a reload, and an undone charge is never labelled again automatically.
 //
 // ⚠️ IT WRITES NOTHING TO `public.transactions`. Like everything else on this tab except "Add to my
-// ledger", a category is an annotation: no projected number moves. The confirm copy says so, because
+// ledger", a category is an annotation: no projected number moves. The undo row says so, because
 // on a financial app a button that touches eight months of history has to state what it is NOT doing.
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -16,7 +14,6 @@ import { Tag, RotateCcw } from 'lucide-react';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
 import { useAppliedActions } from '@/hooks/useAppliedActions';
 import { describeApplied } from '@/lib/applied-actions';
-import { splitPassByConfidence } from '@/lib/auto-apply';
 import { planRetroactiveUndo, type RetroPass } from '@/lib/merchant-memory';
 
 interface MerchantMemoryPanelProps {
@@ -25,8 +22,7 @@ interface MerchantMemoryPanelProps {
 }
 
 export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanelProps) {
-  const { pass, rules: merchantRules, isLoading } = useMerchantMemory();
-  const [confirming, setConfirming] = useState(false);
+  const { pass, isLoading } = useMerchantMemory();
   const [busy, setBusy] = useState(false);
   /** The pass that was actually applied, kept so it can be undone as one act. */
   /**
@@ -35,7 +31,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
    * true only while this panel was on screen. Navigate away or reload and the promise silently
    * became false. It now comes from `public.applied_actions`, so it survives both.
    */
-  const { latest, record, markUndone, stepsOf } = useAppliedActions();
+  const { latest, record, markUndone, stepsOf, undoneChargeIds, undoneUnknown } = useAppliedActions();
   const applied = latest && latest.kind === 'merchant_retro_pass' ? latest : null;
 
   /**
@@ -46,14 +42,17 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
    * how the automatic half would end up the one without a reversal.
    */
   /**
-   * The merchants settled enough to act on without asking, and the genuinely ambiguous remainder.
+   * ⚠️ EVERY MERCHANT APPLIES BY DEFAULT NOW, with no prompt (Tre, 2026-10-01, b64a094e). The old
+   * split kept merchants labelled more than one way behind an "Apply to N past charges" button. He
+   * asked for no prompt, so the pass takes each merchant's recorded rule and the undo carries the
+   * risk: it stays on screen and survives a reload.
    *
-   * ⚠️ THE PANEL SHRINKS, IT DOES NOT VANISH. "It should auto apply" is right for a merchant he has
-   * labelled repeatedly and consistently. It is NOT right for one he has labelled two different
-   * ways — Costco is genuinely Groceries some weeks and Shopping others — and picking for him there
-   * would be a worse bug than the prompt, because he would never see it happen.
+   * ⚠️ AND A CHARGE THE USER UNDID IS LEFT OUT FOR GOOD. The undo makes those charges uncategorized
+   * again, so without this the next mount's pass would label them straight back. The record lives
+   * in `applied_actions` (durable, every device), the same guard DecisionDeck uses. The merchant
+   * itself is NOT switched off: its new charges still apply, which is what "by default" means.
    */
-  const split = splitPassByConfidence(pass.writes, merchantRules);
+  const pending = pass.writes.filter(w => !undoneChargeIds.has(w.chargeId));
 
   /**
    * ⚠️ AUTO-APPLIES ONCE PER MOUNT, guarded by a ref. `pass` recomputes as the writes land, so a
@@ -105,16 +104,17 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
         }
       }
       setBusy(false);
-      setConfirming(false);
     }
   };
 
   const autoRan = useRef(false);
   useEffect(() => {
-    if (autoRan.current || isLoading || busy || split.auto.length === 0) return;
+    // `undoneUnknown` holds it until the undo record is current: straight after an undo the cached
+    // set is the pre-undo one, and acting on it would re-apply what was just taken back.
+    if (autoRan.current || isLoading || undoneUnknown || busy || pending.length === 0) return;
     autoRan.current = true;
-    void run(split.auto);
-  }, [isLoading, busy, split.auto]);
+    void run(pending);
+  }, [isLoading, undoneUnknown, busy, pending]);
 
   const undo = async () => {
     if (!applied) return;
@@ -164,70 +164,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
     );
   }
 
-  // No badge and no panel at zero — a "0 to apply" and a panel that failed to compute look the same,
-  // and there is nothing to say either way. Loading is silence for the same reason.
-  // ⚠️ EVERY COUNT BELOW DESCRIBES `split.ask`, NOT `pass`. The settled half has already been
-  // applied automatically by the time this renders, so counting the whole pass would offer to
-  // label charges that already carry a label — a number the user could check and find wrong.
-  const askKeys = new Set(split.ask.map(w => w.key));
-  const askMerchants = pass.byMerchant.filter(m => askKeys.has(m.key));
-  if (isLoading || split.ask.length === 0) return null;
-
-  return (
-    <div className="card-forged p-3 space-y-2">
-      <div className="flex items-start gap-2">
-        <Tag size={13} className="text-primary mt-0.5 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-xs font-medium">
-            {split.ask.length} {split.ask.length === 1 ? 'charge' : 'charges'} from merchants you have labeled more than one way
-          </p>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            You picked a category for each of these merchants once. These charges never got one.
-            Applying it labels them the same way — it adds nothing to your ledger, changes no
-            projected number, and undoes in one press.
-          </p>
-        </div>
-      </div>
-      {/* Every merchant and its count, because the whole point of not doing this silently is that a
-          person can look at what would change before it does. */}
-      <div className="space-y-0.5 pl-5">
-        {askMerchants.slice(0, 12).map(m => (
-          <p key={m.key} className="text-[11px] text-muted-foreground truncate">
-            <span className="text-foreground font-medium">{m.label}</span>
-            {' → '}{m.category}
-            {' · '}{m.count} {m.count === 1 ? 'charge' : 'charges'}
-          </p>
-        ))}
-        {askMerchants.length > 12 && (
-          <p className="text-[10px] text-muted-foreground">and {askMerchants.length - 12} more merchants</p>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {confirming ? (
-          <>
-            <button
-              onClick={() => { void run(split.ask); }}
-              disabled={busy}
-              className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <Tag size={12} /> {busy ? 'Applying…' : `Confirm — label ${split.ask.length}`}
-            </button>
-            <button onClick={() => setConfirming(false)} disabled={busy} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-60">
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => setConfirming(true)}
-            className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            <Tag size={12} /> Apply to {split.ask.length} past {split.ask.length === 1 ? 'charge' : 'charges'}
-          </button>
-        )}
-        <span className="text-[10px] text-muted-foreground">Manage these in Settings → Merchant memory.</span>
-      </div>
-    </div>
-  );
+  // Nothing to show until a pass has been applied: the apply itself is automatic, and its undo
+  // is the only thing the user might want from this panel.
+  return null;
 }
