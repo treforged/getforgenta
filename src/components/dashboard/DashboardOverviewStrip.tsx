@@ -139,7 +139,7 @@ export default function DashboardOverviewStrip({
   // No limits on file means the ratio has no reading. 0.0% and "you use none of your
   // credit" are the same pixels and opposite facts.
   const utilizationSub = ccLimit > 0
-    ? `${((ccDebt / ccLimit) * 100).toFixed(1)}% of ${money(ccLimit)}`
+    ? `${((ccDebt / ccLimit) * 100).toFixed(1)}% of ${formatCurrency(ccLimit, false)}`
     : 'no credit limits on file';
 
   const headline = (

@@ -50,7 +50,7 @@ describe('DashboardOverviewStrip — nothing the Accounts tiles showed is lost',
 
   it('carries credit utilization on the debt tile it is the ratio of', () => {
     renderStrip();
-    expect(screen.getByText('67.8% of $10,290.00')).toBeTruthy();
+    expect(screen.getByText('67.8% of $10,290')).toBeTruthy();
   });
 
   it('says there are no limits on file rather than printing 0.0%', () => {
