@@ -26,6 +26,8 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW50 (10-02 ~18:40 ET, Ada, WEEKLY WRAP-UP at 87% - cap resets MONDAY 10-05 18:00 ET). START HERE MONDAY:
+    20:13 READ-BACK FAILED: 22:50:36Z publish (after the 22:13Z deploy) still payday 10-29 / $0. Likely a stale bundle
+       (salary 1093 survives withEffectiveSalary, so the fix yields 10-09); unproven. Wake 09:13 10-03 re-reads.
     ONE THING FIRST: close 18541ba1 - SQL safe_to_spend_snapshot for Tre must read payday 2026-10-09 (or later) and
        computed_at after 9e730500. If it still reads payday 10-29 after he has opened the app, the fix did not reach
        him: check the Vercel deploy of 9e730500, then useSafeToSpend.ts:52.
@@ -12632,7 +12634,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 18:13 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 18:38 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12651,6 +12653,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+1207af7a [handoff]: R-NOW50 - weekly wrap-up, Monday's first item is the 18541ba1 read-back
 c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
 9e730500 [safe-to-spend]: on payday, payday is the NEXT paycheck, not the 29th (18541ba1)
 8866d62c [handoff]: R-NOW49 - 18:04 wake reads; 18541ba1 Safe to Spend drop filed
@@ -12658,7 +12661,6 @@ c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap 
 a130ea2e [handoff]: R-NOW49 - hold until 18:00 ET reset (Sam)
 43ae617e [handoff]: R-NOW49 - 594caf27 shipped at 01f75aa1; d3ba6c8b queued
 01f75aa1 [transactions]: one refresh per merchant batch, not one per charge (594caf27)
-43c9723b [handoff]: R-NOW49 - 594caf27 likely cause (103 sequential writes, refetch per write)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
