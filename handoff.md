@@ -34,7 +34,18 @@ R-NOW52 (10-03 ~13:25 ET, Ada, weekly 90% of 98%, park at 96%). START HERE:
             (Robinhood 334.26 / Prime 1451.88 are flag-null = manual; Discover no opinion), liability_synced_at
             fresh on all three, no duplicate accounts rows (count credit_card rows = 5).
     [x] Tre answered (via Sam): Robinhood due 12, min 25 (min_payment_is_manual false), pays full STATEMENT. Done by SQL.
-    [ ] 72dca9af (BEFORE 9ecca94d): debt tab plans $927 on Robinhood this month; should plan the $334.26 statement,
+    [x] 72dca9af SHIPPED fd8015db: unconditionalDesired plans the ISB for an always-pay-statement card. Tre's /debt
+        before: RH 927 / Prime 773 / Disc 150 (Safe to Pay 1850). After: RH 334 / Prime 987 / Disc 150 (Safe to Pay
+        1490 - the old 1850 counted the $927 overdraw). [ ] RH row label reads 'Partial statement' at $334 - check
+        buildCardRecRows (month0-debt-breakdown.ts ~171) payment vs statementTarget. [ ] Send Sam before/after.
+    [ ] NEXT, URGENT (Tre's cash): Safe to Spend drawer counts (a) 'Oct 4 Discover payment $150.40' though Discover was
+        paid 10-02 ($198.17) and is due 11-01; (b) omits the +$200 estimate transaction 62bc2801 (10-05). $941->$0 cause
+        NOT confirmed. Answer sent to Sam 13:45: $987 today overdraws Chase; max Prime payment keeping Chase >= 0 through
+        10-09 = $495.59 (+200 if the withdrawal lands, +145 if Owners Contribution is held).
+    [ ] Sam's new ask (after 72dca9af, before 9ecca94d): 'Allow statement data' button for ADDITIONAL_CONSENT_REQUIRED
+        connections (Plaid Link update mode, additional_consented_products=[liabilities]), dashboard banner listing
+        them, plain Relink on every connection; press it in the proof; tell Sam when live (Amex, Alliant, Empower).
+    [-] (old line) 72dca9af (BEFORE 9ecca94d): debt tab plans $927 on Robinhood this month; should plan the $334.26 statement,
         freed ~$592 to Prime Visa ISB. Show Sam before/after per card on Tre's account. Lead: Robinhood has
         payment_unconditional=true; the unconditional pin (credit-card-engine.ts ~1737) pays bal+interest and is
         skipped only when the ISB target is set that month - find which path (sim, perCardAdjusted month-0, or
@@ -12664,16 +12675,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 12:40 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 12:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12683,6 +12695,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+abbab53b [plaid]: read statement balance and due date from /liabilities/get (ec48da25)
 d15c5e3a [handoff]: R-NOW51 - 1f00b82d shipped, e501632b planned, ec48da25 root cause found
 319069c7 [plaid]: a card's synced balance includes its pending charges (1f00b82d)
 727ff536 [handoff]: R-NOW50 - 18541ba1 closed (payday 10-09, $941.47); Monday starts at 594caf27
@@ -12690,7 +12703,6 @@ a5a51185 [handoff]: R-NOW50 - 18541ba1 read-back failed at 22:50Z, likely stale 
 1207af7a [handoff]: R-NOW50 - weekly wrap-up, Monday's first item is the 18541ba1 read-back
 c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
 9e730500 [safe-to-spend]: on payday, payday is the NEXT paycheck, not the 29th (18541ba1)
-8866d62c [handoff]: R-NOW49 - 18:04 wake reads; 18541ba1 Safe to Spend drop filed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
