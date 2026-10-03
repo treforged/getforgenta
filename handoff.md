@@ -42,7 +42,20 @@ R-NOW56 (10-03 evening, Ada getforgenta-ce; hit the 175-call HANDOFF GATE). STAR
        (b) Dashboard banner listing flagged connections; (c) pressed proof - no @forgenta.test user has a Plaid item,
        so set the flag on a throwaway SQL row or check Tre's 10 items after the nightly sync
        (`select institution_name, liabilities_consent_required from financial_connections where provider='plaid'`).
-    2. [ ] 4066ff23 leftovers: chart tooltips/axes, AiAdvisor, NetWorthTrendCard, AdvancedAnalyticsCard, RuleProposalCard;
+    2a. [~] 4066ff23: display leftovers SHIPPED ace4c410 (AiAdvisor, NetWorthTrend, AdvancedAnalytics, RuleProposal,
+       Debt + liability tooltips, vehicle Builds). Engine rows (netWorth..monthMinSafe, ccDisplayBalance, totalCCPurchases,
+       ccDebtBalance, recommendedDebtPayment) -> cents IN WORKING TREE, src/lib+hooks+contexts 4774 green incl. real
+       fixtures; popup-decimals test now rounds to cents; breach-levers Aug 2027 re-pinned 1571->1572. Commit after full
+       test:tz once the 4 layout agents finish (their half-edits break tsc in BudgetControl mid-run).
+    2b. [~] TRE 10-03 (Ada tab): empty-space doc (artifact SU2L8W2P1nHbEk4FfAhsP6, 11 items) + Debt desktop misalignment
+       screenshot. He approved delegation. 4 agents, disjoint files, NO commits by agents: Debt (CreditCardEngine/
+       DebtPayoff, opus), Dashboard (#2 #5 #7 #9), Forecast/Budget/Goals (#1 #3 #6 #8), Settings/Account (#10 #11).
+       Review each vs its brief (before/after px + frames), run full gates, commit per area.
+    3'. [x] 9ecca94d DONE (ask closed): B $500/mo -> payoff 12 vs 22 mo, ~$700 saved (~$650 net after repaying her m1
+       loan); A one-time $500 -> ~$10-20, not worth it. Sim: scratchpad gf_sim2.py (mins + $531 extra = 22-mo ETA).
+    Asks closed this session: 3248738e, 9ecca94d, 72dca9af, 1f00b82d, d3ba6c8b. Blocked: e501632b (Wes Monday amount),
+       d1f4970f (Prime min-this-month needs new per-card setting; Sam/Tre).
+    2. [ ] 4066ff23 leftovers (old line): chart tooltips/axes, AiAdvisor, NetWorthTrendCard, AdvancedAnalyticsCard, RuleProposalCard;
        engine rows netWorth/savings/contribs (forecast-engine.ts:2832-2858). Limits stay whole on purpose. Then close ask.
     3. [ ] 9ecca94d GF rent scenario (R-NOW53 item 4).
     4. [ ] Commit 'plaid: record...' body says 5848 tests; the real count was 5849. Cosmetic, no action.
