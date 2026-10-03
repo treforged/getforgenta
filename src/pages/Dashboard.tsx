@@ -15,6 +15,7 @@ import PmfSurveyModal from '@/components/shared/PmfSurveyModal';
 import { PMF_SEEN_FLAG, isEligibleForPmf } from '@/lib/pmf-survey';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
+import StatementConsentBanner from '@/components/dashboard/StatementConsentBanner';
 import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency } from '@/lib/calculations';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
@@ -219,6 +220,8 @@ export default function Dashboard() {
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   // One banner at a time: the 2FA nudge waits until the free-bank notice is settled AND gone.
   const [bankNoticeVisible, setBankNoticeVisible] = useState<boolean | null>(null);
+  // A bank waiting on statement-data consent outranks the 2FA nudge (ask 3248738e): it is missing data.
+  const [consentBannerVisible, setConsentBannerVisible] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
   const [pmfVisible, setPmfVisible] = useState(false);
   const onboardingInitRef = useRef(false);
@@ -1338,8 +1341,9 @@ export default function Dashboard() {
           See the component for what it reaches and what it cannot. */}
       <FreeBankLinkNotice onVisibleChange={setBankNoticeVisible} />
       {!isDemo && <SubscriptionExpiryBanner />}
+      {!isDemo && <StatementConsentBanner onVisibleChange={setConsentBannerVisible} />}
 
-      {!isDemo && showSecurityBanner && bankNoticeVisible === false && (
+      {!isDemo && showSecurityBanner && bankNoticeVisible === false && !consentBannerVisible && (
         /* Tokens, not raw palette classes. `text-gold` is the warning tone this codebase
            actually has — `text-warning` generates no rule at all (see BalanceTrancheEditor). */
         /* ⚠️ THE ACTION SITS UNDER THE TEXT, NOT BESIDE IT, and that is a fix rather than a

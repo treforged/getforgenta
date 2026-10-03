@@ -40,6 +40,8 @@ import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
 import type { CarFund } from '@/lib/types';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
+import { consentItemForAccount } from '@/lib/statement-consent';
+import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -161,7 +163,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { forecastInputsBundle, debtCashConverged, cardProjection: convergedCardProjection, projections: convergedProjections } = useCardProjectionContext();
   const { data: accountRows, update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
-  const { items: plaidItems } = usePlaidItems();
+  const { items: plaidItems, invalidate: invalidatePlaidItems } = usePlaidItems();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
   // §1B — occurrences a real payment has already answered: the ones the user confirmed AND the ones
@@ -2129,6 +2131,28 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {isExpanded ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
                   </div>
                 </button>
+
+                {(() => {
+                  // Plaid said this card's bank needs the user's OK before it shares statements
+                  // (ask 3248738e), so APR, minimum and due date cannot sync until they allow it.
+                  // A sibling of the header button: a button nested inside a button is invalid.
+                  const consentItem = isDemo
+                    ? undefined
+                    : consentItemForAccount(accounts.find(a => a.id === proj.card.id), plaidItems);
+                  if (!consentItem) return null;
+                  return (
+                    <div data-testid="card-statement-consent" className="mx-3 sm:mx-4 mb-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 bg-gold/10 border border-gold/20 rounded px-3 py-2">
+                      <p className="text-[11px] sm:text-xs text-muted-foreground min-w-0">
+                        Your bank needs your OK to share statements. Allow it to fill in APR, minimum and due date.
+                      </p>
+                      <PlaidLinkButton
+                        relinkItemId={consentItem.plaid_item_id}
+                        label="Allow statement data"
+                        onSuccess={() => invalidatePlaidItems()}
+                      />
+                    </div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 px-3 sm:px-4 pb-3 text-center">
                   <div>
