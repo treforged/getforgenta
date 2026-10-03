@@ -38,7 +38,18 @@ R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). S
     [ ] 4066ff23 cents for months 1+: ~20 Math.round sites in useCardProjection (1449-1514 chart rows, 1717/1863
         pass3RevTotals that feed the forecast, 1961-2012 perCardPayments, 2623-2639 month0 fields). Must prove
         forecast and sim agree to the cent (forecast-convergence). Do it as ONE slice with test:tz + golden locally.
-    [ ] then 3248738e, then 9ecca94d (see R-NOW53 items 3-4).
+    [x] 382d1dd8 closed: Tests run 37142839768 on 873f38d0 = success (37142458017 was CANCELLED by supersession).
+    [ ] Prime row $854.80 vs Tre's d1f4970f (min $773.05 only): told Sam the row is the safe MAX, his min fits inside;
+        forcing $773.05 needs a per-card "minimum only this month" setting = new scope, Sam/Tre to decide.
+    [ ] 3248738e SCOPED, NOT STARTED (did not fit before 96%). Backend half EXISTS: plaid-create-link-token already
+        sends access_token + additional_consented_products=["liabilities"] on a relink (index.ts:180-195), and
+        PlaidLinkButton takes relinkItemId. MISSING: (1) nothing persists ADDITIONAL_CONSENT_REQUIRED - add a
+        plaid_items column (e.g. liabilities_consent_required bool) and write it in _shared/providers/plaid.ts where
+        liabilityPassCounts sees that code, clear it on a passing pass; deploy plaid-sync, plaid-sync-all,
+        financial-sync, plaid-exchange-token, plaid-webhook. (2) "Allow statement data" button (PlaidLinkButton
+        relinkItemId) on the account row and the Debt tab card row; dashboard banner listing flagged connections;
+        plain Relink on every connection. (3) Proof: press it (walk account), read the column back by SQL.
+    [ ] then 9ecca94d (see R-NOW53 item 4).
 R-NOW54 (10-03 ~15:10 ET, Ada getforgenta-1d, context gate on first read). START AT ITEM 2 OF R-NOW53:
     [x] R-NOW53 item 1 DONE, read-only on Tre's /debt: Robinhood $334.26 "Statement balance" due Oct 12. Prime $1,340.94
         "Partial statement" (max $1,452) due Oct 7. Discover $150.00 NEXT due Nov 1 + "$350 due this month". Safe to Pay
@@ -12733,7 +12744,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 13:43 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 14:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12752,14 +12763,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+873f38d0 [handoff]: R-NOW55 - CI lint fix and Debt tab cash cap shipped; queue for successor
+b51a5f70 [debt]: cap card payments due before payday at until-payday cash
+16cf3cbb [ci]: shiftIsoDays uses toLocalDateStr, not a truncated toISOString
+557f2e88 [handoff]: R-NOW54 - month-0 cash-by-date root cause and fix plan
+1ba25c3b [handoff]: R-NOW54 - item 1 verified on Tre's /debt; two leads for item 2
 e48d8cc2 [handoff]: R-NOW53 - four commits shipped; resume queue for successor
 bcccc8e4 [debt]: month-0 card payments in exact cents, not whole dollars
 149c2356 [handoff]: R-NOW52 - 2a7b097d shipped, Tre's Prime-min and Amex-pause decisions applied
-2a7b097d [safe-to-spend]: a paid card minimum is not charged again; one-off income is counted on its date
-4bd45f65 [handoff]: R-NOW52 - 72dca9af shipped fd8015db; Safe to Spend defects and consent ask queued
-fd8015db [debt]: an always-pay-statement card plans its statement, not its balance (72dca9af)
-ae681a01 [handoff]: R-NOW52 - ec48da25 shipped abbab53b, read-back 10-04; 72dca9af next
-abbab53b [plaid]: read statement balance and due date from /liabilities/get (ec48da25)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
