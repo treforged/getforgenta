@@ -296,6 +296,10 @@ section states reasoning, not measurement, and says so.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
+- `npm run check:forecast-table` - at 390x844, signed in: PRESSES Forecast's "Monthly breakdown" disclosure and
+  requires every Income / Out / End Cash cell to show cents (ask 4066ff23) and to fit its cell on one line. Proven red
+  on the whole-dollar table (36 cells, "$2,910" had no cents). Positive control: >= 6 rows, >= 18 cells. Does NOT
+  cover the chips under each row, desktop widths or colour.
 - `npm run check:overview-strip` - the Command Center's Net Worth strip at 1440 and 1024, signed in: the four stat
   labels share one top (spread <= 1px) and the Net Worth TEXT ends within 40px of the divider (a Range over its
   characters; its box fills the column). Proven red on the pre-fix strip (Liquid Cash 10px low; 234px dead band).

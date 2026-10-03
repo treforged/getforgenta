@@ -333,14 +333,14 @@ export default function MonthlyBreakdownTable({
           <div key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
             <div className="grid grid-cols-[5rem_1fr_1fr_1fr] py-2">
               <div className="px-1 text-xs font-medium">{row.month}</div>
-              <div className="px-1 text-right text-success font-display font-bold text-xs">{formatCurrency(row.takeHome, false)}</div>
-              <div className="px-1 text-right text-destructive-text font-display font-bold text-xs">{formatCurrency(row.totalExpenses, false)}</div>
+              <div className="px-1 text-right text-success font-display font-bold text-xs">{formatCurrency(row.takeHome)}</div>
+              <div className="px-1 text-right text-destructive-text font-display font-bold text-xs">{formatCurrency(row.totalExpenses)}</div>
               {/* Red comes from the engine's own belowSafeMinimum flag, never from re-comparing the
                   rounded cells. Re-deriving it here is what let the summary milestone and these rows
                   disagree about the same month; the gold "within $50" band below is a display hint,
                   not a breach claim, so it stays on the rounded figures. */}
               <div className={`px-1 text-right font-display font-bold text-xs ${row.belowSafeMinimum ? 'text-destructive-text' : row.endingCash <= row.monthMinSafe + 50 ? 'text-gold' : 'text-success'}`}>
-                {formatCurrency(row.endingCash, false)}
+                {formatCurrency(row.endingCash)}
                 {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
                 {row.floorBreachedByOneTime && <div className="text-[8px] text-gold leading-tight font-normal">one-time</div>}
               </div>
@@ -359,17 +359,17 @@ export default function MonthlyBreakdownTable({
                 )}
                 {hasCC && (
                   <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive-text border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
-                    CC {formatCurrency(row.totalCCPurchases, false)}
+                    CC {formatCurrency(row.totalCCPurchases)}
                   </span>
                 )}
                 {hasOneTime && (
                   <span className={`text-[10px] sm:text-xs px-1.5 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-gold/10 text-gold border-gold/20'}`} style={{ borderRadius: 'var(--radius)' }}>
-                    1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet, false)}
+                    1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet)}
                   </span>
                 )}
                 {hasCarLump && (
                   <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
-                    +pmt {formatCurrency(row.carLoanExtraPayment, false)}
+                    +pmt {formatCurrency(row.carLoanExtraPayment)}
                   </span>
                 )}
                 {autoExtraTotal > 0 && (
@@ -378,7 +378,7 @@ export default function MonthlyBreakdownTable({
                     style={{ borderRadius: 'var(--radius)' }}
                     title={(row.autoExtraItems ?? []).filter(x => x.amount > 0).map(x => `${autoExtraFlowLabel(x)}: ${formatCurrency(x.amount, true)}`).join(' · ')}
                   >
-                    +extra {formatCurrency(autoExtraTotal, false)}
+                    +extra {formatCurrency(autoExtraTotal)}
                   </span>
                 )}
               </div>
