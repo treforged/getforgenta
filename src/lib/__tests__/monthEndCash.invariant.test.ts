@@ -67,11 +67,11 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
     const dashboard = month0!.endCash;
     const forecast = forecastRow.endingCash;
 
-    // `forecast` is the engine's DISPLAY field (rounded to whole dollars), so the user-visible
-    // equality is that the Dashboard figure rounds to the same dollar. Sub-dollar agreement is
-    // asserted against `rawEndingCash` below.
+    // `forecast` is the engine's DISPLAY field. Since ask 4066ff23 (Tre, 2026-10-03: "lets just use
+    // the decimals") it keeps cents, so the Dashboard figure must match it to the cent, not to the
+    // dollar. Agreement with the unrounded figure is still asserted against `rawEndingCash` below.
     expect(
-      Math.round(dashboard),
+      Math.round(dashboard * 100) / 100,
       `Dashboard Month-End Cash $${dashboard.toFixed(2)} vs Forecast End Cash $${forecast.toFixed(2)} — `
       + 'the two tiles print different dollars for the same fact, so the cash chains have diverged',
     ).toBe(forecast);
@@ -199,6 +199,6 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
       `sim endCash $${m0!.endCash.toFixed(2)} vs engine rawEndingCash `
       + `$${out.projections.data[0].rawEndingCash.toFixed(2)} with a month-0 one-time in play`,
     ).toBeLessThanOrEqual(0.01);
-    expect(Math.round(m0!.endCash)).toBe(out.projections.data[0].endingCash);
+    expect(Math.round(m0!.endCash * 100) / 100).toBe(out.projections.data[0].endingCash);
   });
 });

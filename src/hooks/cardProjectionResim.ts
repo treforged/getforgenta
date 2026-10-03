@@ -5,6 +5,10 @@ import type { SimResult, PaymentLedgerEntry } from '@/lib/credit-card-engine';
 import { firstRevolvingPayoffMonth } from '@/lib/revolving-payoff';
 import type { ProjectionDataRow, CardProjectionResult } from './useCardProjection';
 
+// Ask 4066ff23: card figures keep their cents, the same as useCardProjection (whole dollars made
+// the cards shown disagree with the payment the forecast deducted).
+const cents = (x: number): number => Math.round(x * 100) / 100;
+
 /**
  * Phase 2 Option C convergence, step 3 — pure rebuild of a CardProjectionResult's sim-derived
  * fields from a re-targeted simulation (simulateVariablePayoff run with the forecast engine's
@@ -89,17 +93,17 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
     for (const p of projs) {
       const m = p.months[i];
       if (m) {
-        row[p.card.name] = Math.round(m.endBalance);
+        row[p.card.name] = cents(m.endBalance);
         row.totalInterest += m.interest;
       } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
         if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
-          row[p.card.name] = Math.round(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
+          row[p.card.name] = cents(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
         } else {
           row[p.card.name] = 0;
         }
       }
     }
-    row.totalCCBalance = Math.round(Math.max(0,
+    row.totalCCBalance = cents(Math.max(0,
       cards.reduce((s, c) => s + (simT.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
     ));
     let displayBal = 0;
@@ -108,8 +112,8 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
       if (simBal > 0) displayBal += simBal;
       else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += cardPurchasesPerMonth[i]?.[card.id] ?? card.monthlyNewPurchases;
     }
-    row.displayCCBalance = Math.round(Math.max(0, displayBal));
-    row.totalInterest = Math.round(row.totalInterest);
+    row.displayCCBalance = cents(Math.max(0, displayBal));
+    row.totalInterest = cents(row.totalInterest);
     row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
     return row;
   });
@@ -148,7 +152,7 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
   const perCardPayments = cards.map(c => ({
     name: c.name, id: c.id,
     payments: Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
-      Math.round(simT.monthlyPayments.get(c.id)?.[i] ?? 0)),
+      cents(simT.monthlyPayments.get(c.id)?.[i] ?? 0)),
   }));
 
   // Revolving cards take the sim's payment DIRECTLY (no pass-3 scale, no extra); the cycling
@@ -156,7 +160,7 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
   const perCardPaymentsScaled = cards.map(c => ({
     name: c.name, id: c.id,
     payments: Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
-      const simAmt = Math.round(simT.monthlyPayments.get(c.id)?.[m] ?? 0);
+      const simAmt = cents(simT.monthlyPayments.get(c.id)?.[m] ?? 0);
       const revBal = simT.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
       if (revBal === 0 && saveUpMonths.has(m) && debtPaymentTotals[m] === 0) {
         if (c.paymentPreference === 'statement' || c.paymentPreference === 'full') return simAmt;
@@ -165,12 +169,12 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
         const totalDiscretionaryCapped = Math.max(0, allPaymentTotals[m] - (mandatoryCyclingByMonth[m] ?? 0));
         const totalCardDiscretionary = cards.reduce((s, cc) => {
           if ((simT.monthlyRevolvingBalances.get(cc.id)?.[m] ?? 0) > 0) return s;
-          const ccAmt = Math.round(simT.monthlyPayments.get(cc.id)?.[m] ?? 0);
+          const ccAmt = cents(simT.monthlyPayments.get(cc.id)?.[m] ?? 0);
           const ccMandatory = simT.monthlyMandatoryCyclingPayment.get(cc.id)?.[m] ?? 0;
           return s + Math.max(0, ccAmt - ccMandatory);
         }, 0);
         const discretionaryShare = totalCardDiscretionary > 0
-          ? Math.round(cardDiscretionary * (totalDiscretionaryCapped / totalCardDiscretionary))
+          ? cents(cardDiscretionary * (totalDiscretionaryCapped / totalCardDiscretionary))
           : 0;
         return Math.min(simAmt, cardMandatory + discretionaryShare);
       }

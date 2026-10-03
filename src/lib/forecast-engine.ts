@@ -2698,7 +2698,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       // Reserved-but-not-yet-spent vehicle savings are added back — see cumulativeCarReserveHeld.
       const rawEndingCash = finalLiquid + cumulativeCarReserveHeld;
-      const endingCash = Math.round(rawEndingCash);
+      const endingCash = Math.round(rawEndingCash * 100) / 100;
 
       // THE ONE PLACE THIS MONTH IS JUDGED AGAINST ITS FLOOR (2026-08-21).
       //
@@ -2841,11 +2841,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         endingCash,
         startingCash,
         takeHome: b.netIncome, totalExpenses: totalMonthlyOut,
-        debtPayment: Math.round(monthDebtPayment),
+        debtPayment: Math.round(monthDebtPayment * 100) / 100,
         displayDebtPayment: i === 0
           ? (cardProjectionData?.month0?.safeToPayTotal ?? (currentMonthRecommendedDebt?.safeToPayTotal ?? undefined))
           : undefined,
-        plannedDebtPayment: Math.round(monthDebtPayment),
+        plannedDebtPayment: Math.round(monthDebtPayment * 100) / 100,
 
         brokerageContrib: Math.round(xferBrokerageAmt),
         retireContrib: Math.round(b.paycheckRetireContrib + xferRetireAmt),

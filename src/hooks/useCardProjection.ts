@@ -1446,17 +1446,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         for (const p of projs) {
           const m = p.months[i];
           if (m) {
-            row[p.card.name] = Math.round(m.endBalance);
+            row[p.card.name] = cents(m.endBalance);
             row.totalInterest += m.interest;
           } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
             if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
-              row[p.card.name] = Math.round(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
+              row[p.card.name] = cents(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
             } else {
               row[p.card.name] = 0;
             }
           }
         }
-        row.totalCCBalance = Math.round(Math.max(0,
+        row.totalCCBalance = cents(Math.max(0,
           cards.reduce((s, c) => s + (sim.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
         ));
         let displayBal = 0;
@@ -1471,8 +1471,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // and it omits cards whose purchases only begin later (e.g. Venture X in an out-year).
           else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += cardPurchasesPerMonth[i]?.[card.id] ?? card.monthlyNewPurchases;
         }
-        row.displayCCBalance = Math.round(Math.max(0, displayBal));
-        row.totalInterest = Math.round(row.totalInterest);
+        row.displayCCBalance = cents(Math.max(0, displayBal));
+        row.totalInterest = cents(row.totalInterest);
         row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
         return row;
       });
@@ -1511,7 +1511,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         name: c.name, id: c.id,
         payments: Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
           const pays = sim.monthlyPayments.get(c.id);
-          return Math.round(pays?.[i] ?? 0);
+          return cents(pays?.[i] ?? 0);
         }),
       }));
 
@@ -1714,7 +1714,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           forecastRevolvingPayoffMonth = m + 1;
         }
 
-        pass3RevTotals.push(Math.round(revPay + surplus));
+        pass3RevTotals.push(cents(revPay + surplus));
       }
 
       // If pass-3 constrains month 0 below what the raw sim allocated, re-run with a
@@ -1761,7 +1761,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,
           payments: Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
-            Math.round(sim2.monthlyPayments.get(c.id)?.[i] ?? 0),
+            cents(sim2.monthlyPayments.get(c.id)?.[i] ?? 0),
           ),
         }));
         activeSim = sim2;
@@ -1774,7 +1774,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // doesn't, PASS 2 stops pinning too early and misses floor breaches — causing it to
         // never reduce cycling payments (e.g. Amex Gold statement balance) to maintain the floor.
         for (let i = 0; i < PROJECTION_MONTHS; i++) {
-          data[i].totalCCBalance = Math.round(Math.max(0,
+          data[i].totalCCBalance = cents(Math.max(0,
             cards.reduce((s, c) => s + (sim2.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
           ));
         }
@@ -1860,7 +1860,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           if (forecastRevolvingPayoffMonth === null && p3RevBal2 < REVOLVING_DUST_DOLLARS && p3RevBal0_2 > 0) {
             forecastRevolvingPayoffMonth = m + 1;
           }
-          pass3RevTotals.push(Math.round(revPay2 + surplus2));
+          pass3RevTotals.push(cents(revPay2 + surplus2));
         }
       }
 
@@ -1958,11 +1958,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const minSum = revCards.reduce((s, c) => s + c.minPayment, 0);
         const discretionaryPool = Math.max(0, target - minSum);
         const naturalExtraTotal = revCards.reduce((s, c) => {
-          const natural = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          const natural = cents(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           return s + Math.max(0, natural - c.minPayment);
         }, 0);
         for (const c of revCards) {
-          const natural = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          const natural = cents(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           const extra = Math.max(0, natural - c.minPayment);
           const extraShare = naturalExtraTotal > 0 ? discretionaryPool * (extra / naturalExtraTotal) : 0;
           protectedPerCardByMonth.get(c.id)![m] = Math.min(natural, c.minPayment + extraShare);
@@ -1972,7 +1972,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const perCardPaymentsScaled = cards.map(c => ({
         name: c.name, id: c.id,
         payments: Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
-          const simAmt = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          const simAmt = cents(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           const revBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
           if (revBal === 0) {
             // Cycling card — in save-up months with no revolving debt, preserve the mandatory
@@ -1986,12 +1986,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
               const totalDiscretionaryCapped = Math.max(0, allPaymentTotals[m] - (mandatoryCyclingByMonth[m] ?? 0));
               const totalCardDiscretionary = cards.reduce((s, cc) => {
                 if ((activeSim.monthlyRevolvingBalances.get(cc.id)?.[m] ?? 0) > 0) return s;
-                const ccAmt = Math.round(activeSim.monthlyPayments.get(cc.id)?.[m] ?? 0);
+                const ccAmt = cents(activeSim.monthlyPayments.get(cc.id)?.[m] ?? 0);
                 const ccMandatory = activeSim.monthlyMandatoryCyclingPayment.get(cc.id)?.[m] ?? 0;
                 return s + Math.max(0, ccAmt - ccMandatory);
               }, 0);
               const discretionaryShare = totalCardDiscretionary > 0
-                ? Math.round(cardDiscretionary * (totalDiscretionaryCapped / totalCardDiscretionary))
+                ? cents(cardDiscretionary * (totalDiscretionaryCapped / totalCardDiscretionary))
                 : 0;
               return Math.min(simAmt, cardMandatory + discretionaryShare);
             }
@@ -2006,10 +2006,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const scale = simRevTotal > 0 ? Math.min(1, pass3RevTotals[m] / simRevTotal) : 1;
           if (scale < 1) {
             const protectedAmt = protectedPerCardByMonth.get(c.id)?.[m];
-            if (protectedAmt != null) return Math.round(protectedAmt);
+            if (protectedAmt != null) return cents(protectedAmt);
           }
           const extra = extraPerCardByMonth.get(c.id)?.[m] ?? 0;
-          return Math.round(simAmt * scale + extra);
+          return cents(simAmt * scale + extra);
         }),
         surpluses: Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           extraPerCardByMonth.get(c.id)?.[m] ?? 0,
@@ -2620,23 +2620,23 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         withPaymentOverrides,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
-          maxCapacity: Math.round(maxCapacity),
-          holdback: Math.round(holdback),
+          maxCapacity: cents(maxCapacity),
+          holdback: cents(holdback),
           holdbackEvent,
-          cyclingPayment: Math.round(cyclingPayment),
-          revolvingPayment: Math.round(revolvingPaymentFinal),
+          cyclingPayment: cents(cyclingPayment),
+          revolvingPayment: cents(revolvingPaymentFinal),
           perCardAdjusted: perCardAdjustedFinal,
-          m0SafeFloor: Math.round(m0FloorAugmented),
-          carReserve: Math.round(carReserve),
+          m0SafeFloor: cents(m0FloorAugmented),
+          carReserve: cents(carReserve),
           carReserveEvent: carReserveEvent ? { vehicleName: carReserveEvent.vehicle_name as string } : null,
-          carReserveHeld: Math.round(carReserveHeld),
+          carReserveHeld: cents(carReserveHeld),
           // Finding §1.1 — the ONE definition of month-end cash. Mirrors forecast-engine.ts's
           // `endingCash` for i=0: finalLiquid (cashPreDebt − the month-0 payment ledger total,
           // which safeToPayTotalFinal equals by construction — see month0PaymentLedger below)
           // plus the reserved-but-unspent vehicle savings the engine adds back for display.
           endCash: m0Chain.cashPreDebt - safeToPayTotalFinal + cents(carReserveHeld),
-          vehicleInsurance: Math.round(m0VehicleInsurance),
-          otherDebtPayment: Math.round(m0OtherDebtPayment),
+          vehicleInsurance: cents(m0VehicleInsurance),
+          otherDebtPayment: cents(m0OtherDebtPayment),
           // The reserve, per target. `chain.autoExtraReserve` above only says how much cash left
           // checking; this says which goal or car fund it left FOR, so forecast-engine.ts can grow
           // that balance by the same dollars. Surfacing only the scalar is what made the money
