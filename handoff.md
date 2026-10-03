@@ -36,7 +36,20 @@ R-NOW58 (10-03 ~19:30 ET, Ada getforgenta-b4). START HERE, IN ORDER:
     3. [x] ec48da25 card-pay wiring SHIPPED 72304049 (useCardPayHistory + cardPayHint on the Debt card row; verified
        on Tre's account: Discover amber mismatch, Prime muted). Question to Tre filed ONCE: ask c013318d (Discover
        Full vs bank-minimum). Rest of ec48da25 (per-card Plaid liabilities match table) still open.
+    3b. [ ] ec48da25 REST (Plaid match table): stored rows read 10-03 19:40 ET. Robinhood MATCHES its statement
+       (334.26 / min 25 synced / due 12). Discover: statement_balance NULL, min 150.40 is MANUAL (min_payment_is_manual
+       true) and stale - bank paid min 198.17 on 10-01; liability_synced_at 13:00Z today so Plaid answered. Prime:
+       statement 1451.88 not plaid-synced, min 773.05 manual, APR synced. NEXT: call the read-only probe from SQL:
+       select net.http_post(url:='https://mdtosrbfkextcaezuclh.supabase.co/functions/v1/plaid-liabilities-probe',
+       headers:=jsonb_build_object('Content-Type','application/json','x-cron-secret',(select decrypted_secret from
+       vault.decrypted_secrets where name='CRON_SECRET')), body:=jsonb_build_object('user_id','<Tre a72f416e... uuid>'))
+       then read net._http_response; tabulate Plaid vs stored per card. Likely finding: a MANUAL minimum blocks Plaid's
+       newer one for ever (sync-handler.ts:221) - consider showing "bank says $X" beside a manual min rather than
+       overwriting it (his configured value is a decision; staleness must be visible).
     4. [ ] Monday 10-05: e501632b; d1f4970f waits on Tre (Prime min this month only?).
+    5. If the 5 fill executors died with the predecessor tab: their edits are UNCOMMITTED in the tree. `git status`,
+       review each area's diff against fill-common rules (own files only, facts kept, cents), gate (tsc, test:tz,
+       area check:* scripts), commit per area, push, rerun inventory:fill.
 R-NOW57 (10-03 ~19:00 ET, Ada getforgenta-e1, handoff gate at 194 calls). START HERE, IN ORDER:
     1. [ ] DEBT LAYOUT (Tre's desktop screenshot + empty-space #4): an opus builder edited src/components/debt/
        CreditCardEngine.tsx + UtilizationPanel.tsx (UNCOMMITTED in the tree). Its brief: summary-card stats on ONE
@@ -12838,38 +12851,36 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 18:38 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 19:29 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (10 file(s)):**
+- **Uncommitted (8 file(s)):**
 
 ```
 M deno.lock
- M src/components/debt/CreditCardEngine.tsx
- M src/components/debt/UtilizationPanel.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
+?? scripts/_tmp-budget-fill.mjs
 ?? scripts/_tmp-debt-measure.mjs
-?? scripts/_tmp-debt-peek.mjs
-?? src/components/debt/__tests__/UtilizationPanel.test.tsx
+?? scripts/_tmp-forecast-fill.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+a6d35427 [handoff]: R-NOW58 - Debt layout, budget tiles, card-pay hint shipped; 5 fill executors running
+72304049 [debt]: each card row says how the bank actually pays it
+4998a1f9 [dashboard]: budget tiles fill their boxes on one even grid
+a184fa4a [tooling]: inventory:fill ranks boxes whose content leaves them empty
+956c0f5c [debt]: one stat grid, aligned controls, themed Pay From
 7d9fae97 [handoff]: R-NOW57 - Debt layout review, box-fill briefs, card-pay wiring
 a8eaa91a [handoff]: R-NOW56 - layout 10/11 shipped, cents closed, Debt agent pending
 06295e9d [cards]: read how each card is paid from its payment history
-4a5755ae [forecast]: engine output rows keep cents
-4edb5476 [layout]: close 10 of Tre's 11 empty-space items on the phone
-c1169ca0 [handoff]: R-NOW56 - cents leftovers, 4 layout agents, 9ecca94d modelled
-ace4c410 [ui]: chart tooltips, AiAdvisor, analytics cards and Builds print cents
-2be23161 [handoff]: R-NOW56 - 3248738e closed (de36a7f7); next 4066ff23
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
