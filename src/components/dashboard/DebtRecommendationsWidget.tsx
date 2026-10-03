@@ -101,7 +101,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
           {/* Summary tiles — card-only figures. Loan money is not in Safe to Pay: the cash floor
               already holds it, so summing loans in here would double-count. */}
           {hasRecs && (
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-1.5">
               <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[9px] text-muted-foreground uppercase">Safe to Pay</p>
                 <p className="text-xs font-display font-bold text-primary">{formatCurrency(totalAvailableCash)}</p>
@@ -266,7 +266,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
 
           {/* Total — card-only, matching Safe to Pay above. */}
           {hasRecs && (
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40 text-xs">
+            <div className="flex items-center justify-between mt-1.5 pt-2 px-3 border-t border-border/40 text-xs">
               <span className="text-muted-foreground font-medium">Total recommended</span>
               <span className="font-display font-bold text-primary">{formatCurrency(totalRecommended)}</span>
             </div>

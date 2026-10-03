@@ -78,9 +78,9 @@ function SubFigure({ label, value, tone, onClick }: {
       <p className={`${SUB_VALUE} ${tone}`}>{value}</p>
     </>
   );
-  if (!onClick) return <div className="text-right">{body}</div>;
+  if (!onClick) return <div className="text-left sm:text-right">{body}</div>;
   return (
-    <button type="button" onClick={onClick} className="text-right transition-colors hover:text-primary">
+    <button type="button" onClick={onClick} className="text-left sm:text-right transition-colors hover:text-primary">
       {body}
     </button>
   );
@@ -183,9 +183,12 @@ export default function MonthlyBudgetSnapshot({
         <p className="text-xs text-muted-foreground -mt-3 mb-4" data-testid="safe-to-spend-empty">{stsMissing}</p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+      {/* gap-2 below `lg`: stacked, the donut's box and the first row were 36px apart (Tre, 2026-10-02).
+          The side-by-side layout keeps its gap-6. The donut's own
+          box is wider than its ring (82% radius), so -mb-3 pulls the rows up under the visible ring. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-6 items-center">
         {/* Donut chart — hover shows slice details in center */}
-        <div className="relative h-56 flex items-center justify-center">
+        <div className="relative h-52 sm:h-56 -mb-3 lg:mb-0 flex items-center justify-center">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -309,7 +312,7 @@ export default function MonthlyBudgetSnapshot({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border/30">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-2 border-t border-border/30">
         {[
           { label: 'Spent',           color: C.spent },
           { label: 'Bills & reserves', color: C.expected },

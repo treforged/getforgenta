@@ -7,7 +7,7 @@ import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Capacitor } from '@capacitor/core';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal, User } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal, User, ChevronRight } from 'lucide-react';
 
 const DEV_EMAIL = 'tre@treforged.com';
 const DEV_DEBUG_KEY = 'forged:dev_debug';
@@ -916,63 +916,72 @@ export default function SettingsPage() {
       {panel === 'account' && !isDemo && (
         <div className="card-forged p-4 sm:p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
-          {isPremium ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={13} className="text-primary" />
-                  <span className="text-xs font-medium">Priority Support</span>
-                  <span className="text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>Premium</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Priority support for premium members. Email us with your account issue and our team will get back to you.
-                </p>
-              </div>
+          {/* Tre, 2026-10-03: the Support rows were a left column of copy and a small button that sat
+              38px apart and ended 211-252px short of the card's right edge. Now a list, like iPhone
+              Settings: ONE full-width row per action, label left, chevron right, hairline between.
+              Each row is the link itself, so the whole row is the target. Same hrefs as before. */}
+          <div className="divide-y divide-border -my-1">
+            {isPremium ? (
               <a
-                href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Premium] Support Request — ${user?.email ?? ''}`)}&body=${encodeURIComponent(`Account: ${user?.email ?? ''}\nUser ID: ${user?.id ?? ''}\n\n`)}`}
-                className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
+                href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Premium] Support Request — ${user?.email ?? ''}`)}&body=${encodeURIComponent(`Account: ${user?.email ?? ''}
+User ID: ${user?.id ?? ''}
+
+`)}`}
+                className="flex items-center gap-3 py-2.5 hover:text-primary transition-colors"
               >
-                <Mail size={12} /> Email Support
+                <MessageCircle size={14} className="shrink-0 text-primary" />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-medium">Priority Support</span>
+                    <span className="text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>Premium</span>
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Email us with your account issue and our team will get back to you.
+                  </span>
+                </span>
+                <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </a>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={13} className="text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Priority Support</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Priority support is exclusive to premium members. Upgrade to unlock front-of-queue email support.
-                </p>
-              </div>
+            ) : (
               <Link
                 to="/premium"
-                className="shrink-0 flex items-center gap-1.5 bg-secondary border border-primary/30 text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/10 transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
+                className="flex items-center gap-3 py-2.5 hover:text-primary transition-colors"
               >
-                <Crown size={12} /> Upgrade
+                <Crown size={14} className="shrink-0 text-primary" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium">Upgrade</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Priority support is exclusive to premium members. Upgrade to unlock front-of-queue email support.
+                  </span>
+                </span>
+                <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </Link>
-            </div>
-          )}
+            )}
 
-          <div className="border-t border-border pt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Bug size={13} className="text-muted-foreground" />
-                <span className="text-xs font-medium">Report a Bug</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Found something broken? Let us know and we'll fix it fast.
-              </p>
-            </div>
             <a
-              href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Bug Report] — ${user?.email ?? ''}`)}&body=${encodeURIComponent(`Account: ${user?.email ?? ''}\nUser ID: ${user?.id ?? ''}\n\nDescribe the bug:\n\nSteps to reproduce:\n1. \n2. \n3. \n\nExpected behavior:\n\nActual behavior:\n`)}`}
-              className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
+              href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Bug Report] — ${user?.email ?? ''}`)}&body=${encodeURIComponent(`Account: ${user?.email ?? ''}
+User ID: ${user?.id ?? ''}
+
+Describe the bug:
+
+Steps to reproduce:
+1. 
+2. 
+3. 
+
+Expected behavior:
+
+Actual behavior:
+`)}`}
+              className="flex items-center gap-3 py-2.5 hover:text-primary transition-colors"
             >
-              <Bug size={12} /> Report Bug
+              <Bug size={14} className="shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium">Report a Bug</span>
+                <span className="block text-xs text-muted-foreground">
+                  Found something broken? Let us know and we'll fix it fast.
+                </span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
             </a>
           </div>
         </div>

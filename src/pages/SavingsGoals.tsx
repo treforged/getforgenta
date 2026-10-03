@@ -945,9 +945,12 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
               { label: 'Connects to Forecast', desc: 'Monthly contributions here are deducted in the Forecast before sizing debt payments — goals don\'t compete with the debt engine.' },
               { label: 'Vehicles', desc: 'Car goals have moved to the Vehicles page — save for a down payment, then track the full loan to payoff.' },
             ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
+              <div key={i} className="p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
+                {/* The arrow ends the line instead of sitting in its own column at the start: as a
+                    flex column it was a 14px strip beside a wrapped paragraph (Tre's empty-space
+                    report, 2026-10-03: 38px between each line and its arrow). Same text, same arrow. */}
+                <span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span>{' '}
+                <span className="text-primary font-bold" aria-hidden="true">→</span>
               </div>
             ))}
           </div>

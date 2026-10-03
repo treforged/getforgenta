@@ -73,6 +73,12 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
         All off until you turn them on. Friends see only a rounded band, updated weekly - never an
         amount, balance or transaction.
       </p>
+      {/* Tre, 2026-10-03: "35px between each sharing row". Each row used to be its own bordered box
+          with an 8px gap between boxes, so the text of one row sat ~35px from the next. One divided
+          list instead: each row is label left, switch right, a hairline between rows, and the box
+          padding is gone, so the space between two rows' text is 16px. The switch stays the shared
+          ToggleSwitch and still carries its own aria label. */}
+      <div className="divide-y divide-border">
       {METRICS.map((m) => {
         const on = isEnabled(m.id);
         // ⚠️ A SWITCH NOTHING CAN FILL IS NOT OFFERED. Measured 2026-09-13: Tre had all four on and
@@ -88,8 +94,7 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
             // another is drawn twice. On the row rather than on the control, so an assertion can be
             // scoped to one metric's own copy.
             data-metric={m.id}
-            className="flex items-start justify-between gap-3 bg-secondary/40 border border-border px-3 py-2.5"
-            style={{ borderRadius: 'var(--radius)' }}
+            className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"
           >
             <div className="min-w-0">
               <p className="text-xs font-medium">{m.label}</p>
@@ -125,6 +130,7 @@ export function LeaderboardShareToggles({ readOnly = false }: { readOnly?: boole
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

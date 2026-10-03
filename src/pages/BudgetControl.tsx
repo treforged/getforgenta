@@ -1383,42 +1383,50 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           These hold ONE short currency value each, which is what makes two-up safe where it
           would not be for a text card - and `wrap-break-word` is already on every value.
         */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div className="card-forged p-3 text-left">
-  <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
-    {formatCurrency(paycheckNet)}
-  </p>
-</div>
+        {/*
+          2026-10-03 (Tre's measured empty-space report, 390px): 45px of nothing under each "$0.00" and
+          the fifth tile alone on its row with its figure ending 260px short of the edge. Tiles now
+          pack tighter (p-2.5, gap-2), the headline Per Paycheck (Net) tile takes the whole first row
+          with its figure on the right so no row is left half empty, and every figure sits at the
+          BOTTOM of its tile (`mt-auto`) so a label that wraps ("Monthly Take-Home") cannot push its
+          figure out of line with its neighbour's. From `lg` up the grid is three across as before.
+        */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="card-forged p-2.5 text-left col-span-2 lg:col-span-1 flex flex-col max-lg:flex-row max-lg:items-baseline max-lg:justify-between">
+            <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
+            <p className="mt-auto max-lg:mt-0 pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+              {formatCurrency(paycheckNet)}
+            </p>
+          </div>
 
-<div className="card-forged p-3 text-left">
-  <p className="text-xs sm:text-sm text-muted-foreground">Monthly Gross</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
-    {formatCurrency(monthlyGross)}
-  </p>
-</div>
+          <div className="card-forged p-2.5 text-left flex flex-col">
+            <p className="text-xs sm:text-sm text-muted-foreground">Monthly Gross</p>
+            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
+              {formatCurrency(monthlyGross)}
+            </p>
+          </div>
 
-<div className="card-forged p-3 text-left">
-  <p className="text-xs sm:text-sm text-muted-foreground">Monthly Take-Home</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
-    {formatCurrency(monthlyTakeHome)}
-  </p>
-</div>
+          <div className="card-forged p-2.5 text-left flex flex-col">
+            <p className="text-xs sm:text-sm text-muted-foreground">Monthly Take-Home</p>
+            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+              {formatCurrency(monthlyTakeHome)}
+            </p>
+          </div>
 
-<div className="card-forged p-3 text-left">
-  <p className="text-xs sm:text-sm text-muted-foreground">Annual Gross</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
-    {formatCurrency(annualGross)}
-  </p>
-</div>
+          <div className="card-forged p-2.5 text-left flex flex-col">
+            <p className="text-xs sm:text-sm text-muted-foreground">Annual Gross</p>
+            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
+              {formatCurrency(annualGross)}
+            </p>
+          </div>
 
-<div className="card-forged p-3 text-left">
-  <p className="text-xs sm:text-sm text-muted-foreground">Annual Take-Home</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
-    {formatCurrency(annualTakeHome)}
-  </p>
-</div>
-      </div>
+          <div className="card-forged p-2.5 text-left flex flex-col">
+            <p className="text-xs sm:text-sm text-muted-foreground">Annual Take-Home</p>
+            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+              {formatCurrency(annualTakeHome)}
+            </p>
+          </div>
+        </div>
       </div>
       </>}
 

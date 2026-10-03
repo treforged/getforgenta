@@ -56,9 +56,11 @@ interface SplitTileProps {
   tone: string;
   sub?: string;
   onClick?: () => void;
+  /** Phone-only column span: the strip is a 6-column grid below `sm` (see the layout note below). */
+  className?: string;
 }
 
-function SplitTile({ label, value, tone, sub, onClick }: SplitTileProps) {
+function SplitTile({ label, value, tone, sub, onClick, className = '' }: SplitTileProps) {
   const body = (
     <>
       <p className={LABEL}>{label}</p>
@@ -67,11 +69,11 @@ function SplitTile({ label, value, tone, sub, onClick }: SplitTileProps) {
     </>
   );
 
-  if (!onClick) return <div>{body}</div>;
+  if (!onClick) return <div className={className}>{body}</div>;
   return (
     // self-start: a stretched button centres its content in the row, so in a row made taller by
     // CC Debt's extra line its label sat 10px below the others (Tre, 2026-10-02, 7a9319ae).
-    <button type="button" onClick={onClick} className="w-full self-start text-center transition-colors hover:text-primary">
+    <button type="button" onClick={onClick} className={`w-full self-start text-center transition-colors hover:text-primary ${className}`}>
       {body}
     </button>
   );
@@ -149,17 +151,24 @@ export default function DashboardOverviewStrip({
         {money(netWorth)}
       </p>
       <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-        <span className="text-success font-medium">{money(totalAssets)}</span> assets
-        <span className="mx-1.5 text-border" aria-hidden="true">|</span>
-        <span className="text-destructive-text font-medium">{money(totalLiabilities)}</span> liabilities
+        {/* One per line on a phone, where the headline shares its row with Liquid Cash and the
+            two figures together are wider than half the card. */}
+        <span className="block sm:inline"><span className="text-success font-medium">{money(totalAssets)}</span> assets</span>
+        <span className="mx-1.5 text-border hidden sm:inline" aria-hidden="true">|</span>
+        <span className="block sm:inline"><span className="text-destructive-text font-medium">{money(totalLiabilities)}</span> liabilities</span>
       </p>
     </>
   );
 
   return (
     <div className="card-forged p-4 sm:p-5">
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-4 sm:gap-5">
-        <div className="text-center lg:text-left">
+      {/* Below `sm` the strip is ONE six-column grid: Net Worth and Liquid Cash (both buttons) side by
+          side in the first row, then Investments / Retirement / CC Debt three across. The two wrappers
+          after the headline are `display: contents` there so their tiles join that grid; from `sm` up
+          they are the same block and grid as before, so the stacked and two-column layouts do not move.
+          Stacked, the two buttons sat 38px apart with the divider between them (Tre, 2026-10-02). */}
+      <div className="grid grid-cols-6 sm:grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-4 sm:gap-5">
+        <div className="col-span-4 sm:col-span-1 text-center lg:text-left">
           {onNetWorthClick ? (
             <button
               type="button"
@@ -173,12 +182,12 @@ export default function DashboardOverviewStrip({
           )}
         </div>
 
-        <div className="border-t lg:border-t-0 lg:border-l border-border/40 pt-4 lg:pt-0 lg:pl-5 xl:pl-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 items-start gap-4 sm:gap-5 text-center">
-            <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success" onClick={onLiquidCashClick} />
-            <SplitTile label="Investments" value={money(investments)} tone="text-primary" />
-            <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" />
-            <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive-text" sub={utilizationSub} />
+        <div className="contents sm:block sm:border-t lg:border-t-0 lg:border-l border-border/40 sm:pt-4 lg:pt-0 lg:pl-5 xl:pl-6">
+          <div className="contents text-center sm:grid sm:grid-cols-4 sm:items-start sm:gap-5">
+            <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success" onClick={onLiquidCashClick} className="col-span-2 sm:col-span-1" />
+            <SplitTile label="Investments" value={money(investments)} tone="text-primary" className="col-span-2 sm:col-span-1" />
+            <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" className="col-span-2 sm:col-span-1" />
+            <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive-text" sub={utilizationSub} className="col-span-2 sm:col-span-1" />
           </div>
         </div>
       </div>

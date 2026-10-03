@@ -723,10 +723,14 @@ export default function Forecast() {
             <TrendingUp size={14} className="text-primary" />
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Investment Growth Projections</h3>
           </div>
-          <div className="space-y-4">
+          {/* Tre, 2026-10-03, measured at 390px: 55px and 51px of nothing between one account's
+              figures and the next account's name. Each account is a card inside this card, so the
+              gap was tile padding + card padding + the list gap + card padding stacked. The list
+              gap and the inner padding come down so the figures read as one block. */}
+          <div className="space-y-2">
             {retirementProjections.map(({ account, apyRate, monthlyContrib, milestones }) => (
-              <div key={account.id} className="card-forged p-3">
-                <div className="flex items-center justify-between mb-2">
+              <div key={account.id} className="card-forged p-2.5">
+                <div className="flex items-center justify-between mb-1.5">
                   <div>
                     <p className="text-xs font-semibold text-foreground">{account.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -736,9 +740,11 @@ export default function Forecast() {
                   </div>
                   <span className="text-xs font-bold font-display text-foreground">{formatCurrency(Number(account.balance))}</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {([['1yr', milestones.year1], ['5yr', milestones.year5], ['10yr', milestones.year10], ['20yr', milestones.year20]] as [string, number][]).map(([label, val]) => (
-                    <div key={label} className="card-forged px-2 py-1.5 text-center">
+                    // Concentric with the account card around it: its padding (p-2.5, 10px) is inside
+                    // its 12px radius, so the tile's radius is that radius minus the gap.
+                    <div key={label} className="card-forged px-2 py-1.5 text-center" style={{ borderRadius: 'max(0px, calc(var(--radius) - 10px))' }}>
                       <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
                       <p className="text-xs font-bold font-display text-success">{formatCurrency(val)}</p>
                     </div>
@@ -750,7 +756,7 @@ export default function Forecast() {
               <div className="flex items-center justify-between pt-2 border-t border-border/30">
                 <p className="text-xs text-muted-foreground font-medium">Combined projected retirement (10yr)</p>
                 <p className="text-sm font-bold font-display text-success">
-                  {formatCurrency(retirementProjections.reduce((s, p) => s + p.milestones.year10, 0), false)}
+                  {formatCurrency(retirementProjections.reduce((s, p) => s + p.milestones.year10, 0))}
                 </p>
               </div>
             )}

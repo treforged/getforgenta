@@ -462,7 +462,7 @@ export default function SurplusRankingSection({
         </div>
       )}
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col gap-1">
         {draft.map((row, i) => {
           const isCards = row.kind === 'cards';
           const isCard = row.kind === 'card';
@@ -488,7 +488,7 @@ export default function SurplusRankingSection({
                 // framer's own per-frame transform writes fought over the same property and the
                 // row juddered to its new rank instead of gliding. The tween is framer's job;
                 // CSS keeps only the properties framer never touches.
-                'flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 gap-y-1 px-2.5 py-2 bg-secondary/40 border',
+                'flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 gap-y-1 px-2.5 py-1 bg-secondary/40 border',
                 'transition-[background-color,border-color,box-shadow,opacity] duration-150',
                 draggingId === row.id ? 'opacity-40' : '',
                 dragOverId === row.id ? 'border-primary shadow-[0_0_0_1px_hsl(var(--primary))]' : 'border-transparent',
@@ -653,7 +653,7 @@ export default function SurplusRankingSection({
                 // The whole label is the target and it carries `icon-btn`'s 44px height, because at
                 // 390px a bare 13px checkbox is the smallest thing on the row and the one most
                 // often mis-tapped.
-                <label className="flex items-center gap-2 shrink-0 cursor-pointer select-none min-h-[44px] px-1">
+                <label className="flex items-center gap-2 shrink-0 cursor-pointer select-none min-h-[44px] -my-2 px-1">
                   <input
                     type="checkbox"
                     checked={row.autoExtra}

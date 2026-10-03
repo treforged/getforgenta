@@ -1241,7 +1241,11 @@ export default function Dashboard() {
           <ChartSkeleton key="goal_progress" height={120} />
         ) : (
           <div key="goal_progress" className="card-forged p-4 sm:p-5 card-clickable" onClick={() => navigate('/goals')}>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
+            <h3 className={`text-xs font-semibold text-muted-foreground uppercase tracking-wider ${goals.length === 0 ? 'mb-2' : 'mb-5'}`}>Goal Progress</h3>
+            {goals.length === 0 ? (
+              // One line under the heading: inside the 3-column grid with py-4 it sat 40px below it.
+              <p className="text-xs text-muted-foreground">No savings goals yet.</p>
+            ) : (
             <div className="grid md:grid-cols-3 gap-5">
               {(() => {
                 // Savings goals ONLY. Vehicles are deliberately not savings goals any more — the
@@ -1275,8 +1279,8 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              {goals.length === 0 && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
             </div>
+            )}
           </div>
         );
 
