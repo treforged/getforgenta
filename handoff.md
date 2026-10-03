@@ -25,6 +25,24 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW57 (10-03 ~19:00 ET, Ada getforgenta-e1, handoff gate at 194 calls). START HERE, IN ORDER:
+    1. [ ] DEBT LAYOUT (Tre's desktop screenshot + empty-space #4): an opus builder edited src/components/debt/
+       CreditCardEngine.tsx + UtilizationPanel.tsx (UNCOMMITTED in the tree). Its brief: summary-card stats on ONE
+       grid (no orphan Payoff ETA, row-2 columns aligned with row 1, one alignment system), controls card (every
+       control same left x + height, PAY FROM select themed/normal case), card tile label-left/value-right. It was
+       told its edit FAILS src/lib/__tests__/segment-selected-state.gate.test.ts (strategy toggles must stay
+       detectable + aria-pressed). Review: `git diff src/components/debt`, render /debt at 390, 975, 1440 (walk
+       account, Playwright), run test:tz + check:debt-layout, check:consolidation, check:card-advisor,
+       check:payoff-today, check:destructive-states. Fix or revert, commit, push. Then close ask 5d53be95.
+    2. [ ] Ask 1be673ad (Tre ~18:50, "app wide... fill in their boxes more or reduce the box sizes"): launch the two
+       briefs in docs/briefs-2026-10-03-fill.md (Tre approved delegation in chat 10-03). Then fix by area from
+       inventory:fill's ranking. Memory: boxes-fit-their-content.
+    3. [ ] ec48da25: wire src/lib/card-pay-behavior.ts (shipped, unwired) into the Debt card row as a hint, AFTER item 1
+       lands. FINDING to ask Tre ONCE: Discover autopays the MINIMUM on the 1st (198.17 on 10-01) but
+       payment_preference='full'. 10-04 after 13:00Z: read-back per R-NOW52.
+    4. [ ] Monday 10-05: e501632b set Wes's amount on row 62bc2801. d1f4970f waits on Sam/Tre (Prime min this month).
+    DONE THIS SESSION: 3248738e (7aea937c, 511563df, de36a7f7), 4066ff23 (ace4c410 + engine cents), 9ecca94d (modelled),
+       layout 10/11 empty-space items 4edb5476, 72dca9af, 1f00b82d, d3ba6c8b closed.
 R-NOW56 (10-03 evening, Ada getforgenta-ce; hit the 175-call HANDOFF GATE). START HERE, IN ORDER:
     1. [x] 3248738e DONE 511563df (ask closed): Debt-row strip + Dashboard banner (StatementConsentBanner; 2FA waits while
        it shows). Pressed proof at 390 on deck-walk: planted flag+active+card plaid_item_id on seed conn 40fc2aee, both
