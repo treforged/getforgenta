@@ -181,3 +181,15 @@ export function liabilityPassCounts(ok: boolean, errorCode: string | null | unde
   if (ok) return true;
   return typeof errorCode === "string" && LIABILITY_DEFINITIVE_NO_DATA.includes(errorCode);
 }
+
+/**
+ * What one /liabilities/get pass says about the item's statement-data consent (ask 3248738e).
+ * true: Plaid answered ADDITIONAL_CONSENT_REQUIRED, so the user must allow statement data.
+ * false: the pass succeeded, so consent is in place. undefined: the pass proved neither (a timeout,
+ * a 5xx, another code), so the stored flag must be left as it is rather than cleared by a failure.
+ */
+export function liabilityConsentRequired(ok: boolean, errorCode: string | null | undefined): boolean | undefined {
+  if (ok) return false;
+  if (errorCode === "ADDITIONAL_CONSENT_REQUIRED") return true;
+  return undefined;
+}

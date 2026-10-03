@@ -111,6 +111,9 @@ export interface ProviderSyncResult {
   rotatedCredentials?: RotatedCredentials;
   /** Set when the connection can no longer be used without user re-consent. */
   status?: ConnectionStatus;
+  /** Plaid only: whether the item still needs statement-data (liabilities) consent. Absent when
+   *  this sync proved neither, so the stored flag is left unchanged (statement-sync-policy.ts). */
+  liabilitiesConsentRequired?: boolean;
 }
 
 /**

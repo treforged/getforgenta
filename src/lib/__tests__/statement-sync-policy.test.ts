@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  liabilityConsentRequired,
   dueDayFromDate,
   factsFromPlaidLiability,
   liabilityPassCounts,
@@ -126,5 +127,21 @@ describe('liabilityPassCounts (liability_synced_at)', () => {
     expect(liabilityPassCounts(false, 'INTERNAL_SERVER_ERROR')).toBe(false);
     expect(liabilityPassCounts(false, 'ADDITIONAL_CONSENT_REQUIRED')).toBe(false);
     expect(liabilityPassCounts(false, undefined)).toBe(false);
+  });
+});
+
+// Ask 3248738e: the stored "needs statement-data consent" flag. A failed pass that proves nothing
+// must leave it alone, or a timeout would clear a real consent request.
+describe('liabilityConsentRequired', () => {
+  it('says consent is needed only on ADDITIONAL_CONSENT_REQUIRED', () => {
+    expect(liabilityConsentRequired(false, 'ADDITIONAL_CONSENT_REQUIRED')).toBe(true);
+  });
+  it('clears the flag on a liabilities pass that succeeds', () => {
+    expect(liabilityConsentRequired(true, null)).toBe(false);
+  });
+  it('leaves the flag unchanged on a pass that proves neither', () => {
+    expect(liabilityConsentRequired(false, 'INTERNAL_SERVER_ERROR')).toBeUndefined();
+    expect(liabilityConsentRequired(false, undefined)).toBeUndefined();
+    expect(liabilityConsentRequired(false, 'PRODUCTS_NOT_SUPPORTED')).toBeUndefined();
   });
 });

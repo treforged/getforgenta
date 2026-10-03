@@ -13,7 +13,7 @@
 
 import { tranchesFromPlaidAprs } from "./balance-tranche-seed.ts";
 import { cardBalanceOwed } from "./card-balance.ts";
-import { factsFromPlaidLiability, liabilityPassCounts } from "./statement-sync-policy.ts";
+import { factsFromPlaidLiability, liabilityConsentRequired, liabilityPassCounts } from "./statement-sync-policy.ts";
 import {
   type AccountType,
   type FinancialConnection,
@@ -174,6 +174,7 @@ export const plaidProvider: FinancialProvider = {
       for (const card of creditCards) card.liabilityDataAvailable = true;
     };
 
+    let consentRequired: boolean | undefined;
     try {
       const liabRes = await fetch(`${base}/liabilities/get`, {
         method: "POST",
@@ -187,12 +188,14 @@ export const plaidProvider: FinancialProvider = {
           `Plaid liabilities non-OK for item ${connection.provider_item_id}:`,
           JSON.stringify(errBody),
         );
-        markPass(false, (errBody as Record<string, unknown>)?.error_code as string | undefined);
-        return { accounts };
+        const errorCode = (errBody as Record<string, unknown>)?.error_code as string | undefined;
+        markPass(false, errorCode);
+        return { accounts, liabilitiesConsentRequired: liabilityConsentRequired(false, errorCode) };
       }
 
       const liabBody = await liabRes.json();
       markPass(true, null);
+      consentRequired = liabilityConsentRequired(true, null);
       const byAccountId = new Map<string, Record<string, unknown>>();
       for (const liab of (liabBody.liabilities?.credit ?? [])) {
         byAccountId.set(liab.account_id, liab);
@@ -223,7 +226,7 @@ export const plaidProvider: FinancialProvider = {
       );
     }
 
-    return { accounts };
+    return { accounts, liabilitiesConsentRequired: consentRequired };
   },
 
   async fetchTransactions(

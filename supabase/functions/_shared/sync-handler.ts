@@ -511,6 +511,10 @@ export async function syncConnection(
         last_synced_at: now,
         updated_at: now,
         connection_status: result.status ?? "active",
+        // Ask 3248738e: recorded so the app can ask for statement data. Left untouched when this
+        // sync proved neither way (see liabilityConsentRequired).
+        ...(result.liabilitiesConsentRequired !== undefined
+          ? { liabilities_consent_required: result.liabilitiesConsentRequired } : {}),
       })
       .eq("id", connection.id);
   } catch (err) {
