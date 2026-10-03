@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { DollarSign, TrendingDown, CreditCard, ArrowLeftRight } from 'lucide-react';
-import MetricCard from '@/components/shared/MetricCard';
+import { DollarSign, TrendingDown, CreditCard, ArrowLeftRight, BarChart2, type LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import CalcDrawer, { type CalcDrawerLine } from '@/components/shared/CalcDrawer';
 import { formatCurrency } from '@/lib/calculations';
 import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
@@ -26,6 +26,75 @@ import { nextExtraMonthLabel, type BudgetRule } from '@/lib/budget-month-totals'
  * The drawers are OWNED HERE, state and all. They are the reason a tile is worth tapping, and a
  * card that shows the number without the arithmetic is a worse card than the one it replaced.
  */
+
+type BudgetTileProps = {
+  label: string;
+  value: string;
+  sub?: string;
+  accent: 'gold' | 'crimson' | 'success';
+  icon: LucideIcon;
+  onOpen: () => void;
+  figureClass: string;
+  className?: string;
+};
+
+const ACCENT_TEXT = { gold: 'text-primary', crimson: 'text-destructive-text', success: 'text-success' } as const;
+const ACCENT_GLOW = {
+  gold: 'shadow-[0_0_20px_-8px_hsl(var(--gold)/0.3)]',
+  crimson: 'shadow-[0_0_20px_-8px_hsl(var(--crimson)/0.2)]',
+  success: 'shadow-[0_0_20px_-8px_hsl(var(--success)/0.2)]',
+} as const;
+
+/**
+ * One type size for every figure in the section, stepped by the LONGEST value. Per-tile sizing
+ * (MetricCard's ladder) put "$1,125.00" and "$1,470.00" on different baselines in the same row.
+ * Phone steps by length; md+ is a fixed size because the tiles are wide enough for any
+ * realistic figure, and the gate in scripts/check-budget-tiles.mjs asserts none wraps or clips.
+ */
+export function sharedFigureClass(values: string[]): string {
+  const longest = Math.max(0, ...values.map(v => v.length));
+  const phone = longest <= 9 ? 'text-xl' : longest <= 11 ? 'text-lg' : 'text-base';
+  return `${phone} md:text-xl xl:text-2xl`;
+}
+
+/**
+ * A compact, whole-tile button. The icon sits in the label row (no separate chip, so no nested
+ * rounded box to keep concentric) and the chart glyph marks "opens the arithmetic" at the end of
+ * that same row, instead of floating in a corner of empty space.
+ */
+function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass, className }: BudgetTileProps) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${label} ${value}${sub ? `, ${sub}` : ''} — show how it adds up`}
+      className={cn(
+        'card-forged relative overflow-hidden w-full h-full text-left p-3 md:px-4 flex flex-col justify-start gap-1',
+        'hover:border-primary/20 transition-colors duration-300',
+        ACCENT_GLOW[accent],
+        className,
+      )}
+    >
+      <span className="flex items-center gap-1.5 min-w-0">
+        <Icon size={14} className={cn('shrink-0', ACCENT_TEXT[accent])} aria-hidden="true" />
+        <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wide leading-snug whitespace-nowrap min-w-0">
+          {label}
+        </span>
+        <BarChart2 size={12} className="ml-auto shrink-0 text-muted-foreground/60" aria-hidden="true" data-testid="budget-tile-glyph" />
+      </span>
+      <p className={cn('font-display font-bold tracking-tight whitespace-nowrap tabular-nums', figureClass, ACCENT_TEXT[accent])}>
+        {value}
+      </p>
+      {sub && <p className="text-[11px] md:text-xs text-muted-foreground leading-snug">{sub}</p>}
+    </button>
+  );
+}
+
+/** "3 items" - how many active rows the drawer behind a tile adds up. */
+function countLabel(rows: BudgetRule[]): string {
+  const n = rows.filter(r => r.active).length;
+  return `${n} ${n === 1 ? 'item' : 'items'}`;
+}
 
 /** The paycheck lines at the top of the Income drawer, from the profile the pay schedule lives in. */
 function paycheckLines(profile: Parameters<typeof buildPayConfig>[0], now: Date): CalcDrawerLine[] {
@@ -175,43 +244,34 @@ export default function BudgetTotalsCard() {
     lines: [...spendLines(12), { label: 'Total Annual Spend', value: formatCurrency(totals.expenses * 12), op: '=' }],
   });
 
+  const tiles: Omit<BudgetTileProps, 'figureClass'>[] = [
+    { label: 'Monthly Income', value: formatCurrency(totals.income), sub: 'recurring', accent: 'success', icon: DollarSign, onOpen: openIncomeCalc, className: 'col-span-2' },
+    { label: 'Fixed Expenses', sub: countLabel(fixedRules), value: formatCurrency(totals.fixed), accent: 'crimson', icon: TrendingDown, onOpen: openFixedCalc },
+    { label: 'Variable', sub: countLabel(variableRules), value: formatCurrency(totals.variable), accent: 'gold', icon: TrendingDown, onOpen: openVariableCalc },
+    { label: 'Debt Payments', sub: countLabel(debtRules), value: formatCurrency(totals.debt), accent: 'crimson', icon: CreditCard, onOpen: openDebtCalc },
+    { label: 'Transfers', sub: countLabel(transferRules), value: formatCurrency(totals.transfers), accent: 'gold', icon: ArrowLeftRight, onOpen: openTransferCalc },
+    // "planned" is load-bearing (§2.4 step 10): this is the sum of the budget RULES, not of
+    // anything that happened. Unlabeled it reads as an actual and gets compared to MONTHLY
+    // EXPENSES further down this same page, which is a different question entirely.
+    { label: 'Monthly Spend', sub: 'planned (from rules)', value: formatCurrency(totals.expenses), accent: 'crimson', icon: TrendingDown, onOpen: openMonthlySpendCalc },
+    { label: 'Annual Spend', sub: 'planned × 12', value: formatCurrency(totals.expenses * 12), accent: 'crimson', icon: TrendingDown, onOpen: openAnnualSpendCalc },
+  ];
+  const figureClass = sharedFigureClass(tiles.map(t => t.value));
+
   return (
     <div className="space-y-3">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         This Month's Budget
       </h3>
-      {/* Two across on a phone (Tre, 2026-09-24: "a lot of empty space ... take up a lot extra
-          space on the page"). Five full-width tiles each left a wide empty middle; income keeps a
-          full row because it is the figure the others are spent from. */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="cursor-pointer col-span-2 sm:col-span-1" onClick={openIncomeCalc}>
-          <MetricCard label="Monthly Income" value={formatCurrency(totals.income)} accent="success" icon={DollarSign} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openFixedCalc}>
-          <MetricCard label="Fixed Expenses" value={formatCurrency(totals.fixed)} accent="crimson" icon={TrendingDown} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openVariableCalc}>
-          <MetricCard label="Variable" value={formatCurrency(totals.variable)} accent="gold" icon={TrendingDown} clickHint />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="cursor-pointer" onClick={openDebtCalc}>
-          <MetricCard label="Debt Payments" value={formatCurrency(totals.debt)} accent="crimson" icon={CreditCard} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openTransferCalc}>
-          <MetricCard label="Transfers" value={formatCurrency(totals.transfers)} accent="gold" icon={ArrowLeftRight} clickHint />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
-          {/* "planned" is load-bearing (§2.4 step 10): this is the sum of the budget RULES, not of
-              anything that happened. Unlabeled it reads as an actual and gets compared to MONTHLY
-              EXPENSES further down this same page, which is a different question entirely. */}
-          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totals.expenses)} accent="crimson" icon={TrendingDown} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
-          <MetricCard label="Annual Spend" value={formatCurrency(totals.expenses * 12)} accent="crimson" icon={TrendingDown} clickHint />
-        </div>
+      {/* ONE grid, no ragged rows (Tre, 2026-10-03: "items fill their boxes more or the boxes shrink").
+          Phone: income takes a full row, then three rows of two. Desktop (md+): four across, income
+          spans two columns, so the seven tiles make exactly two full rows. Every figure in the
+          section shares ONE type size (chosen from the longest), so figures in a row sit on one
+          baseline and nothing re-fits as a number changes. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {tiles.map(t => (
+          <BudgetTile key={t.label} {...t} figureClass={figureClass} />
+        ))}
       </div>
 
       <CalcDrawer
