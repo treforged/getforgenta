@@ -57,9 +57,11 @@ describe('rankBreachLevers on the 2026-09-29 capture', () => {
 // chain, so the sim pays the cards less in those months instead of shortfallByMonth charging the gap
 // again for every later month. Same months short; Jul/Aug/Sep 2027 fall from 556/1,785/1,429 to
 // 343/1,571/1,044. Proven red by removing the cash subtraction (the old figures return).
+// RE-PINNED 2026-10-03 (4066ff23): monthMinSafe keeps cents instead of a whole-dollar round, so
+// Aug 2027 reads 1,572 (was 1,571). One dollar from rounding; every other month is unchanged.
 const PINNED_MONTHS: [string, number][] = [
   ['Oct 2026', 1174], ['Nov 2026', 1698], ['Dec 2026', 1567], ['Jan 2027', 1018], ['Mar 2027', 962],
-  ['Jul 2027', 343], ['Aug 2027', 1571], ['Sep 2027', 1044],
+  ['Jul 2027', 343], ['Aug 2027', 1572], ['Sep 2027', 1044],
 ];
 // Owners reconciles with the R000 per-scenario re-render for Oct-Mar. The move fund is NO LONGER a
 // lever, and that is the fix working: the fund pays the move expenses itself, so pausing its

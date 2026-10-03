@@ -50,7 +50,9 @@ describe('forecast popup decimals — raw balance fields agree with their rounde
       for (const [raw, display] of pairs) {
         expect(typeof r[raw], `${raw} missing on month ${i}`).toBe('number');
         expect(
-          Math.round(r[raw]),
+          // Cents since 2026-10-03 (ask 4066ff23): the display twins keep cents, so the raw value
+          // rounds to its twin at two places, not to the dollar.
+          Math.round(r[raw] * 100) / 100,
           `month ${i}: ${raw} $${r[raw]} does not round to ${display} $${r[display]} — popup and table disagree`,
         ).toBe(r[display]);
         if (!Number.isInteger(r[raw])) sawCents = true;
