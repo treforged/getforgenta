@@ -123,6 +123,21 @@ export function unconditionalDesired(card: CardData, now: Date = new Date()): nu
   const firstDueMonth = firstPaymentDueMonthOffset(card.firstDueDate, now);
   if (firstDueMonth !== null && firstDueMonth > 0) return 0;
   const base = Math.max(0, card.balance);
+  // ⚠️ "ALWAYS PAY THE STATEMENT" MEANS THE STATEMENT, NOT THE WHOLE BALANCE (ask 72dca9af).
+  // Tre, 2026-10-03: the debt tab planned $927 on Robinhood (its current balance) when autopay
+  // sends the $334.26 statement; the other $592 belongs on the Prime Visa interest-saving balance.
+  // When the user has entered the interest-saving balance (`statementBalance`), it is what this
+  // card owes this month, with the same due-month rule the multi-month sim uses
+  // (`manualStatementByCard`): due this month -> that amount; due day already passed -> that
+  // statement is paid, $0. The sim skips its own unconditional pin in exactly those months, so
+  // month 0 and the sim now agree. No ISB entered -> the balance, as before.
+  if (card.paymentPreference === 'statement' && card.statementBalance != null) {
+    const dueMonth = firstDueMonth
+      ?? (card.dueDay != null && card.dueDay >= now.getDate() ? 0 : 1);
+    if (dueMonth > 0) return 0;
+    const owed = Math.min(base, Math.max(0, card.statementBalance));
+    return owed > 0 ? owed : 0;
+  }
   const desired = card.paymentPreference === 'statement'
     ? base
     : base + (Number.isFinite(card.monthlyNewPurchases) ? card.monthlyNewPurchases : 0);
