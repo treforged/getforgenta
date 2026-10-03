@@ -26,7 +26,12 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
 R-NOW56 (10-03 evening, Ada getforgenta-ce; hit the 175-call HANDOFF GATE). START HERE, IN ORDER:
-    1. [ ] 3248738e FINISH: shipped = column financial_connections.liabilities_consent_required (+ column SELECT grant,
+    1. [x] 3248738e DONE 511563df (ask closed): Debt-row strip + Dashboard banner (StatementConsentBanner; 2FA waits while
+       it shows). Pressed proof at 390 on deck-walk: planted flag+active+card plaid_item_id on seed conn 40fc2aee, both
+       presses sent plaid-create-link-token with that item, then REVERTED (revoked/false, NULL, read back). Note: a
+       revoked connection never shows (useFinancialConnections drops revoked). Tre's 10 items: none flagged as of 13:00Z.
+       Sam's 17:02 red runs (Android Play 502, CodeQL Gradle NPE) = runner; reran 37153684925/37153684931 - check green.
+    (was) 3248738e FINISH: shipped = column financial_connections.liabilities_consent_required (+ column SELECT grant,
        migrations 20261003_liabilities_consent_required*.sql), sync writes it (statement-sync-policy
        liabilityConsentRequired; 5 functions deployed), Accounts relink strip says "Allow statement data".
        LEFT: (a) Debt-tab card row button (CreditCardEngine, PlaidLinkButton relinkItemId) for cards on a flagged item;
@@ -12779,7 +12784,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 15:12 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 17:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12798,14 +12803,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-75ac0e65 [handoff]: R-NOW55 - 4066ff23 probed, not shipped (no test pins the hook's rounding)
-a19422f6 [handoff]: R-NOW55 - Dashboard widget cash-cap residue shipped
-74601741 [dashboard]: apply the pre-payday cash cap to the debt widget
-cb8d57d5 [handoff]: R-NOW55 - 382d1dd8 closed; 3248738e scoped
-873f38d0 [handoff]: R-NOW55 - CI lint fix and Debt tab cash cap shipped; queue for successor
-b51a5f70 [debt]: cap card payments due before payday at until-payday cash
-16cf3cbb [ci]: shiftIsoDays uses toLocalDateStr, not a truncated toISOString
-557f2e88 [handoff]: R-NOW54 - month-0 cash-by-date root cause and fix plan
+3af9f7af [handoff]: R-NOW56 - 3248738e backend+Accounts shipped; queue for successor
+7aea937c [accounts]: "Allow statement data" on a bank Plaid says needs consent
+e617fd9d [plaid]: record when an item needs statement-data consent
+b4a23b88 [dashboard]: the strip's credit-limit total stays whole dollars
+e4642b92 [handoff]: R-NOW55 - 4066ff23 display batches 3-4 shipped
+72d8d57f [ui]: Budget, Debt Payoff, Transactions, Goals and the Dashboard hero print cents
+f4f29016 [ui]: vehicles, savings ranking and Accounts print cents
+5d059db0 [handoff]: R-NOW55 - 4066ff23 display sweep progress
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
