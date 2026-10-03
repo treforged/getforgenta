@@ -5,7 +5,7 @@
 // 150k-200k token band. Throttled to one reminder per 3 minutes per session.
 
 import { readFileSync, existsSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 
 // 175k, not 150k (Tre, 2026-08-09). The gate is not really at 87% of a 200k window: a fresh session
@@ -39,10 +39,37 @@ const WINDOW_LADDER = [200_000, 1_000_000, 15_000_000];
  * contains what we have already observed. Set CLAUDE_CONTEXT_WINDOW_TOKENS to
  * override, or CLAUDE_CONTEXT_GATE_THRESHOLD to pin the trigger outright.
  */
+/**
+ * The window the CONFIGURED model declares, or 0 when none says. The inference below cannot see a
+ * 1M session until it passes 190k, and a 1M session here BOOTS at ~170k (the SessionStart hook
+ * payload alone), so the gate fired before the first edit (2026-10-03). The transcript records
+ * "claude-opus-5-5" with no window suffix, but settings.json carries "opus[1m]". Most specific
+ * settings file wins, as in Claude Code: local, then project, then user.
+ */
+export function configuredWindow(files) {
+  for (const f of files) {
+    try {
+      const model = JSON.parse(readFileSync(f, "utf8"))?.model;
+      if (typeof model !== "string") continue;
+      return /\[1m\]/i.test(model) ? 1_000_000 : 0;
+    } catch {
+      // missing or unreadable: try the next, less specific file
+    }
+  }
+  return 0;
+}
+
+const SETTINGS_FILES = [
+  join(process.cwd(), ".claude", "settings.local.json"),
+  join(process.cwd(), ".claude", "settings.json"),
+  join(homedir(), ".claude", "settings.json"),
+];
+
 function windowFor(tokens) {
   const override = Number(process.env.CLAUDE_CONTEXT_WINDOW_TOKENS);
   if (Number.isFinite(override) && override > 0) return override;
-  return WINDOW_LADDER.find((w) => tokens < w * 0.95) ?? WINDOW_LADDER[WINDOW_LADDER.length - 1];
+  const inferred = WINDOW_LADDER.find((w) => tokens < w * 0.95) ?? WINDOW_LADDER[WINDOW_LADDER.length - 1];
+  return Math.max(inferred, configuredWindow(SETTINGS_FILES));
 }
 
 function thresholdFor(tokens) {
