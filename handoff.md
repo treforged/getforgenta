@@ -25,6 +25,25 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW53 (10-03 ~14:45 ET, Ada, handoff gate at 182 calls; weekly 91% of 98%, PARK AT 96%). START HERE, IN ORDER:
+    1. LOOK at Tre's /debt on localhost:8080 (signed in as Tre, read-only): after bcccc8e4 the Robinhood row must read
+       "$334.26" and "Statement balance" (not "Partial statement"); Prime and Discover rows show cents. Send Sam the
+       before/after for 72dca9af: BEFORE RH 927 / Prime 773 / Disc 150 (Safe to Pay 1850); AFTER read it fresh.
+    2. Debt tab still recommends Prime ~$1,066 and Discover "$90 due this month" (cascade) while Chase cannot fund them
+       before the 10-09 paycheck (Safe to Spend $82). Tre decided: Prime MINIMUM only on 10-07. Investigate whether
+       the month-0 plan should be capped by the until-payday low point; report to Sam before changing money logic.
+    3. Sam's ask 3248738e: "Allow statement data" for ADDITIONAL_CONSENT_REQUIRED connections (Amex, Alliant, Empower;
+       see plaid-liabilities-probe output) - Plaid Link UPDATE mode with additional_consented_products=[liabilities],
+       button on the account + Debt tab, dashboard banner listing them, plain Relink on every connection. Press it in
+       the proof. Tell Sam when live.
+    4. 9ecca94d gf-rent scenario (brief in the 9ecca94d ask row).
+    5. 10-04 after 13:00Z cron: ec48da25 read-back (see R-NOW52 line).
+    Months 1+ of the card sim are still whole dollars (useCardProjection ~1958-1986); Tre's "use the decimals" was
+    applied to month 0 only. Ask Sam whether to extend before touching it.
+    SHIPPED THIS SESSION: abbab53b (Plaid statement facts + probe), fd8015db (always-pay-statement = ISB), 2a7b097d
+    (card-side payment settles month-0 min; one-time items dated in Safe to Spend), bcccc8e4 (month-0 cents).
+    DATA: Robinhood due 12 / min 25 (backup.tre_cards_ec48da25_20261003); both Amex Owners Contribution rules
+    active=false (backup.tre_amex_transfers_20261003).
 R-NOW52 (10-03 ~13:25 ET, Ada, weekly 90% of 98%, park at 96%). START HERE:
     [x] ec48da25 SHIPPED abbab53b (on origin 0/0), deployed financial-sync, plaid-exchange-token, plaid-sync,
         plaid-sync-all, plaid-webhook + NEW plaid-liabilities-probe (read-only, x-cron-secret, user_id required; call
@@ -12681,17 +12700,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 12:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 13:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12701,14 +12719,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+149c2356 [handoff]: R-NOW52 - 2a7b097d shipped, Tre's Prime-min and Amex-pause decisions applied
+2a7b097d [safe-to-spend]: a paid card minimum is not charged again; one-off income is counted on its date
+4bd45f65 [handoff]: R-NOW52 - 72dca9af shipped fd8015db; Safe to Spend defects and consent ask queued
+fd8015db [debt]: an always-pay-statement card plans its statement, not its balance (72dca9af)
+ae681a01 [handoff]: R-NOW52 - ec48da25 shipped abbab53b, read-back 10-04; 72dca9af next
 abbab53b [plaid]: read statement balance and due date from /liabilities/get (ec48da25)
 d15c5e3a [handoff]: R-NOW51 - 1f00b82d shipped, e501632b planned, ec48da25 root cause found
 319069c7 [plaid]: a card's synced balance includes its pending charges (1f00b82d)
-727ff536 [handoff]: R-NOW50 - 18541ba1 closed (payday 10-09, $941.47); Monday starts at 594caf27
-a5a51185 [handoff]: R-NOW50 - 18541ba1 read-back failed at 22:50Z, likely stale bundle
-1207af7a [handoff]: R-NOW50 - weekly wrap-up, Monday's first item is the 18541ba1 read-back
-c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
-9e730500 [safe-to-spend]: on payday, payday is the NEXT paycheck, not the 29th (18541ba1)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
