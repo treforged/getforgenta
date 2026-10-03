@@ -494,12 +494,18 @@ export default function Forecast() {
           receipts because it is the story and they are the proof. The assumptions sit above it
           only while the user has opened them, since a panel is read next to its button. `emptyReason` splits "nothing entered yet" from "the projection simply
           crosses no line", so a set-up user is never told to go and add data. */}
-      <ForecastHero
-        milestones={projections.milestones}
-        emptyReason={noInputs ? 'no-inputs' : 'no-milestones'}
-      />
+      {/* On a wide screen the milestone and the short months that cause it sit side by side:
+          alone, each was a 1296px card with its text in the left corner (Tre, 2026-10-03, ask
+          1be673ad: "fill in their boxes more or reduce the box sizes"). A phone stacks them, and
+          with no short months the milestone keeps the full row. gap-5 is the stack-section gap. */}
+      <div className={`grid gap-5 ${!forecastInputsLoading && shortMonths.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+        <ForecastHero
+          milestones={projections.milestones}
+          emptyReason={noInputs ? 'no-inputs' : 'no-milestones'}
+        />
 
-      {!forecastInputsLoading && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
+        {!forecastInputsLoading && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
+      </div>
 
       {showDemoGuides && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
@@ -636,17 +642,22 @@ export default function Forecast() {
 
           {/* Premium upgrade CTA — free users only */}
           {freePreview && (
-            <div className="card-forged p-4 sm:p-5 overflow-hidden sm:p-6 flex flex-col items-center text-center gap-3 border border-primary/20">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Crown size={18} className="text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Unlock years 2-5</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">You have year 1 free. Upgrade to Premium to unlock all 60 months, the CC debt payoff trajectory chart, and PDF export.</p>
+            // One row on a tablet or wider (icon, copy, button), the button full width below the copy
+            // on a phone. It was a centred column with the copy capped at max-w-xs: 1296x245 at
+            // 1440 with 5% of it holding anything (ask 1be673ad).
+            <div className="card-forged p-4 sm:p-5 overflow-hidden flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 border border-primary/20">
+              <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Crown size={18} className="text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Unlock years 2-5</p>
+                  <p className="text-xs text-muted-foreground mt-1">You have year 1 free. Upgrade to Premium to unlock all 60 months, the CC debt payoff trajectory chart, and PDF export.</p>
+                </div>
               </div>
               <Link
                 to="/premium"
-                className="bg-primary text-primary-foreground px-5 py-2 text-xs font-semibold btn-press"
+                className="shrink-0 text-center bg-primary text-primary-foreground px-5 py-2 text-xs font-semibold btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 Unlock Full Forecast
@@ -729,8 +740,11 @@ export default function Forecast() {
               gap and the inner padding come down so the figures read as one block. */}
           <div className="space-y-2">
             {retirementProjections.map(({ account, apyRate, monthlyContrib, milestones }) => (
-              <div key={account.id} className="card-forged p-2.5">
-                <div className="flex items-center justify-between mb-1.5">
+              // From lg up, one row per account: who it is on the left, its four milestones beside it,
+              // so 1yr..20yr line up in columns down the list. Stacked, each account was a 1249px
+              // card with its name in one corner and four 301px tiles under it (ask 1be673ad).
+              <div key={account.id} className="card-forged p-2.5 lg:flex lg:items-center lg:gap-4">
+                <div className="flex items-center justify-between mb-1.5 lg:mb-0 lg:w-80 lg:shrink-0 lg:gap-3">
                   <div>
                     <p className="text-xs font-semibold text-foreground">{account.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -740,7 +754,7 @@ export default function Forecast() {
                   </div>
                   <span className="text-xs font-bold font-display text-foreground">{formatCurrency(Number(account.balance))}</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 lg:flex-1 lg:min-w-0">
                   {([['1yr', milestones.year1], ['5yr', milestones.year5], ['10yr', milestones.year10], ['20yr', milestones.year20]] as [string, number][]).map(([label, val]) => (
                     // Concentric with the account card around it: its padding (p-2.5, 10px) is inside
                     // its 12px radius, so the tile's radius is that radius minus the gap.

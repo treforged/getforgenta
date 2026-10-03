@@ -45,9 +45,11 @@ export default function ShortfallLevers({ shortMonths, compute }: Props) {
   };
 
   return (
-    <div className="card-forged p-4 sm:p-5">
+    // flex-col + mb-auto: on a wide screen this card sits beside the milestone and stretches to its
+    // height, so the action drops to the card's foot instead of leaving the slack under it.
+    <div className="card-forged p-4 sm:p-5 flex flex-col">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Short months ahead</p>
-      <p className="text-sm text-foreground mt-1">
+      <p className="text-sm text-foreground mt-1 mb-auto">
         {shortMonths.length} {one ? 'month' : 'months'} in the next year {one ? 'ends' : 'end'} below your cash floor, {formatCurrency(total)} short in total.
       </p>
 
@@ -55,7 +57,7 @@ export default function ShortfallLevers({ shortMonths, compute }: Props) {
         <button
           type="button"
           onClick={run}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary"
+          className="mt-3 self-start inline-flex items-center gap-1 text-xs font-semibold text-primary"
         >
           What would cover this?
           <ChevronDown size={14} />
