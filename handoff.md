@@ -32,6 +32,16 @@ R-NOW54 (10-03 ~15:10 ET, Ada getforgenta-1d, context gate on first read). START
     [ ] Item 2 now has TWO leads: Prime $1,340.94 > Chase $1,118 before 10-09 (Tre: Prime MIN only on 10-07); Discover
         "$350 due this month" although paid 10-02 and due 11-01 (cascade? cardPaymentSettledThisCycle?). Root-cause, report
         to Sam, then change.
+    [ ] Item 2 ROOT CAUSE (sent Sam 15:20; Sam APPROVED the fix, "put root cause in commit body"):
+        useCardProjection.ts ~2337-2420 sizes perCardAdjusted from revolvingPayment = whole-month cash above floor,
+        no date check. (a) Prime: settleUnconditional pays the manual ISB $1,452 off the top, unclamped -> $1,340.94
+        due 10-07 vs Chase $1,118. (b) Discover: min settled (m0MinSettled) so protectedMin 0; avalanche leftover
+        lands as $350, rendered "due this month" (CreditCardEngine.tsx:1974) though next due 11-01.
+        FIX PLAN (test first, assert numbers): cap payments due BEFORE next payday at until-payday cash from the
+        Safe to Spend chain (car $422.89 on 10-07); a settled card's leftover extra is "optional extra after
+        payday", not "due". Expected on Tre: Prime $773.05 (+<= $82 headroom), Discover $0 this month. Ledger
+        month-0 total must not move unless the cap binds. Show Sam after-numbers on his /debt.
+        THEN: 4066ff23 (cents for months 1+, useCardProjection ~1958-1986), then 3248738e.
     NOTE: the context-gate hook reads ~177k on the FIRST tool calls of a fresh session (system context alone). Each
         successor trips it immediately. Mention to Sam; do not dispatch a chain of successors for it.
 R-NOW53 (10-03 ~14:45 ET, Ada, handoff gate at 182 calls; weekly 91% of 98%, PARK AT 96%). START HERE, IN ORDER:
