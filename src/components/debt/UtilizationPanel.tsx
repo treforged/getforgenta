@@ -36,18 +36,18 @@ export default function UtilizationPanel({ cards }: Props) {
         <div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Interest-Bearing</p>
           <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-destructive-text">
-            {formatCurrency(summary.interestBearingBalance, false)}
+            {formatCurrency(summary.interestBearingBalance)}
           </p>
         </div>
         <div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">On 0% Plans</p>
           <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-primary">
-            {formatCurrency(summary.utilizationOnlyBalance, false)}
+            {formatCurrency(summary.utilizationOnlyBalance)}
           </p>
         </div>
         <div>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Open Limit</p>
-          <p className="text-sm sm:text-base font-display font-bold mt-0.5">{formatCurrency(summary.totalLimit, false)}</p>
+          <p className="text-sm sm:text-base font-display font-bold mt-0.5">{formatCurrency(summary.totalLimit)}</p>
         </div>
       </div>
 
@@ -66,7 +66,7 @@ export default function UtilizationPanel({ cards }: Props) {
             {summary.futureCards.map((c, i) => (
               <span key={c.id}>
                 {i > 0 && ', '}
-                {c.name} ({formatCurrency(c.creditLimit, false)} limit, opens in {c.opensInMonths} mo)
+                {c.name} ({formatCurrency(c.creditLimit)} limit, opens in {c.opensInMonths} mo)
               </span>
             ))}
           </span>

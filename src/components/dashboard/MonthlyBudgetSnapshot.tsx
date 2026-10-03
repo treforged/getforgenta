@@ -145,7 +145,7 @@ export default function MonthlyBudgetSnapshot({
             {monthEnd !== null && (
               <SubFigure
                 label="Month-End Cash"
-                value={formatCurrency(monthEnd, false)}
+                value={formatCurrency(monthEnd)}
                 tone={monthEnd >= 0 ? 'text-foreground' : 'text-destructive-text'}
                 onClick={onMonthEndClick}
               />
@@ -160,12 +160,12 @@ export default function MonthlyBudgetSnapshot({
           {onSafeToSpendClick ? (
             <button type="button" onClick={onSafeToSpendClick} className="text-left transition-colors hover:text-primary">
               <p className={SUB_LABEL}>{stsLabel}</p>
-              <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount, false)}</p>
+              <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount)}</p>
             </button>
           ) : (
             <div>
               <p className={SUB_LABEL}>{stsLabel}</p>
-              <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount, false)}</p>
+              <p className="text-2xl font-display font-bold mt-1 leading-none text-primary">{formatCurrency(sts.amount)}</p>
             </div>
           )}
           {/* Two money headlines on one card need their relation stated (Sam, 2026-10-01): this one
@@ -174,7 +174,7 @@ export default function MonthlyBudgetSnapshot({
           <p className="text-xs text-muted-foreground" data-testid="safe-to-spend-note">
             What you can spend before payday without missing a bill.
             {snapshot.hasCards && (
-              <> Separate from the {formatCurrency(Math.max(0, availableToDeploy), false)} available for your cards this month.</>
+              <> Separate from the {formatCurrency(Math.max(0, availableToDeploy))} available for your cards this month.</>
             )}
           </p>
         </div>

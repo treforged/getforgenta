@@ -122,7 +122,7 @@ export default function ConsolidationPanel({ accounts, plans }: Props) {
             <p className="text-muted-foreground">
               Smallest loan that keeps every card at or under {UTILIZATION_TARGET_PCT}%,
               including payment plans still landing:{' '}
-              {formatCurrency(view.suggestedPrincipal, false)}
+              {formatCurrency(view.suggestedPrincipal)}
             </p>
           )}
 
@@ -139,8 +139,8 @@ export default function ConsolidationPanel({ accounts, plans }: Props) {
                   Interest
                 </p>
                 <p className="text-muted-foreground">
-                  Loan payment {formatCurrency(view.monthlyPayment, false)}/mo. Loan interest{' '}
-                  {formatCurrency(view.interest.loanTotal, false)}.
+                  Loan payment {formatCurrency(view.monthlyPayment)}/mo. Loan interest{' '}
+                  {formatCurrency(view.interest.loanTotal)}.
                 </p>
                 <p className="text-muted-foreground">
                   {view.interest.cardsTotal === null
@@ -161,9 +161,9 @@ export default function ConsolidationPanel({ accounts, plans }: Props) {
                     }
                   >
                     {view.interest.delta < 0
-                      ? `The loan saves ${formatCurrency(-view.interest.delta, false)} in interest.`
+                      ? `The loan saves ${formatCurrency(-view.interest.delta)} in interest.`
                       : view.interest.delta > 0
-                      ? `The loan costs ${formatCurrency(view.interest.delta, false)} more in interest.`
+                      ? `The loan costs ${formatCurrency(view.interest.delta)} more in interest.`
                       : 'Same interest either way.'}
                   </p>
                 )}
@@ -181,7 +181,7 @@ export default function ConsolidationPanel({ accounts, plans }: Props) {
 
               {view.shortfall > 0.005 && (
                 <p className="text-muted-foreground">
-                  This loan leaves {formatCurrency(view.shortfall, false)} on your cards.
+                  This loan leaves {formatCurrency(view.shortfall)} on your cards.
                 </p>
               )}
             </>

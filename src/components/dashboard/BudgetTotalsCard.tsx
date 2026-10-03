@@ -47,26 +47,26 @@ function paycheckLines(profile: Parameters<typeof buildPayConfig>[0], now: Date)
 
   const lines: CalcDrawerLine[] = [
     { label: `Pay frequency: ${frequency}`, value: '' },
-    { label: 'Gross per paycheck', value: formatCurrency(paycheckGross, false) },
+    { label: 'Gross per paycheck', value: formatCurrency(paycheckGross) },
   ];
   if (preTax > 0) {
-    lines.push({ label: 'Pre-tax deductions (reduces taxable income)', value: formatCurrency(preTax, false), op: '−' });
-    lines.push({ label: 'Taxable gross per paycheck', value: formatCurrency(paycheckGross - preTax, false), op: '=' });
+    lines.push({ label: 'Pre-tax deductions (reduces taxable income)', value: formatCurrency(preTax), op: '−' });
+    lines.push({ label: 'Taxable gross per paycheck', value: formatCurrency(paycheckGross - preTax), op: '=' });
   }
   if (!taxViaDeductions) {
-    lines.push({ label: `Income tax (${payConfig.taxRate}%)`, value: formatCurrency((paycheckGross - preTax) * payConfig.taxRate / 100, false), op: '−' });
+    lines.push({ label: `Income tax (${payConfig.taxRate}%)`, value: formatCurrency((paycheckGross - preTax) * payConfig.taxRate / 100), op: '−' });
     if (preTax > 0) {
-      lines.push({ label: 'Tax saved by pre-tax deductions', value: formatCurrency(preTax * payConfig.taxRate / 100, false) });
+      lines.push({ label: 'Tax saved by pre-tax deductions', value: formatCurrency(preTax * payConfig.taxRate / 100) });
     }
     if (postTax > 0) {
-      lines.push({ label: 'Other post-tax deductions', value: formatCurrency(postTax, false), op: '−' });
+      lines.push({ label: 'Other post-tax deductions', value: formatCurrency(postTax), op: '−' });
     }
   } else {
-    lines.push({ label: 'Tax withheld via deductions (Fed Withholding / FICA / OASDI)', value: formatCurrency(postTax, false), op: '−' });
+    lines.push({ label: 'Tax withheld via deductions (Fed Withholding / FICA / OASDI)', value: formatCurrency(postTax), op: '−' });
   }
-  lines.push({ label: 'Net per paycheck', value: formatCurrency(paycheckNet, false), op: '=' });
+  lines.push({ label: 'Net per paycheck', value: formatCurrency(paycheckNet), op: '=' });
   lines.push({ label: 'Paychecks this month', value: String(paychecks.length) });
-  lines.push({ label: 'Total monthly take-home', value: formatCurrency(monthlyTakeHome, false), op: '=' });
+  lines.push({ label: 'Total monthly take-home', value: formatCurrency(monthlyTakeHome), op: '=' });
   return lines;
 }
 
@@ -107,36 +107,36 @@ export default function BudgetTotalsCard() {
 
   const rowLines = (rows: BudgetRule[]): CalcDrawerLine[] => rows
     .filter(r => r.active)
-    .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
+    .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r)) }));
 
   const openIncomeCalc = () => {
     const lines = paycheckLines(profile, now);
     incomeRules.filter(r => r.active).forEach(r =>
-      lines.push({ label: `  Rule: ${r.name}`, value: formatCurrency(toCurrentMonthAmount(r), false), op: '+' }),
+      lines.push({ label: `  Rule: ${r.name}`, value: formatCurrency(toCurrentMonthAmount(r)), op: '+' }),
     );
-    lines.push({ label: 'Total recurring income', value: formatCurrency(totals.income, false), op: '=' });
+    lines.push({ label: 'Total recurring income', value: formatCurrency(totals.income), op: '=' });
     setCalcDrawer({ title: 'Income This Month', lines });
   };
 
   const openFixedCalc = () => setCalcDrawer({
     title: 'Fixed Expenses This Month',
-    lines: [...rowLines(fixedRules), { label: 'Total Fixed Expenses', value: formatCurrency(totals.fixed, false), op: '=' }],
+    lines: [...rowLines(fixedRules), { label: 'Total Fixed Expenses', value: formatCurrency(totals.fixed), op: '=' }],
   });
 
   const openVariableCalc = () => setCalcDrawer({
     title: 'Variable Expenses This Month',
-    lines: [...rowLines(variableRules), { label: 'Total Variable Expenses', value: formatCurrency(totals.variable, false), op: '=' }],
+    lines: [...rowLines(variableRules), { label: 'Total Variable Expenses', value: formatCurrency(totals.variable), op: '=' }],
   });
 
   const openDebtCalc = () => setCalcDrawer({
     title: 'Debt Payments This Month',
-    lines: [...rowLines(debtRules), { label: 'Total Debt Payments', value: formatCurrency(totals.debt, false), op: '=' }],
+    lines: [...rowLines(debtRules), { label: 'Total Debt Payments', value: formatCurrency(totals.debt), op: '=' }],
   });
 
   const openTransferCalc = () => {
     const lines: CalcDrawerLine[] = [
       ...rowLines(transferRules),
-      { label: 'Total Transfers', value: formatCurrency(totals.transfers, false), op: '=' },
+      { label: 'Total Transfers', value: formatCurrency(totals.transfers), op: '=' },
     ];
     // ⚠️ The ranked extra is LISTED, never summed in. It is paid out of the same surplus the debt
     // recommendations are already sized from, so adding it to this total would spend the same
@@ -145,7 +145,7 @@ export default function BudgetTotalsCard() {
       .filter(r => r.active && (r.extraThisMonth ?? 0) > 0)
       .forEach(r => lines.push({
         label: `${r.name} — extra this month, from surplus`,
-        value: formatCurrency(r.extraThisMonth ?? 0, false),
+        value: formatCurrency(r.extraThisMonth ?? 0),
       }));
     // Same rule for the month that has none: name the next one instead of leaving the drawer
     // silent about a goal the forecast is going to start topping up.
@@ -153,26 +153,26 @@ export default function BudgetTotalsCard() {
       .filter(r => r.active && (r.extraThisMonth ?? 0) === 0 && r.nextExtra)
       .forEach(r => lines.push({
         label: `${r.name} — next extra from surplus, ${nextExtraMonthLabel(r.nextExtra!.monthIndex, now)}`,
-        value: formatCurrency(r.nextExtra!.amount, false),
+        value: formatCurrency(r.nextExtra!.amount),
       }));
     setCalcDrawer({ title: 'Transfers This Month', lines });
   };
 
   const spendLines = (multiplier: number): CalcDrawerLine[] => [
-    { label: 'Fixed Expenses', value: formatCurrency(totals.fixed * multiplier, false) },
-    { label: 'Variable Expenses', value: formatCurrency(totals.variable * multiplier, false), op: '+' },
-    { label: 'Debt Payments', value: formatCurrency(totals.debt * multiplier, false), op: '+' },
-    { label: 'Transfers & Investing', value: formatCurrency(totals.transfers * multiplier, false), op: '+' },
+    { label: 'Fixed Expenses', value: formatCurrency(totals.fixed * multiplier) },
+    { label: 'Variable Expenses', value: formatCurrency(totals.variable * multiplier), op: '+' },
+    { label: 'Debt Payments', value: formatCurrency(totals.debt * multiplier), op: '+' },
+    { label: 'Transfers & Investing', value: formatCurrency(totals.transfers * multiplier), op: '+' },
   ];
 
   const openMonthlySpendCalc = () => setCalcDrawer({
     title: 'Monthly Spend Breakdown (planned)',
-    lines: [...spendLines(1), { label: 'Total planned monthly spend', value: formatCurrency(totals.expenses, false), op: '=' }],
+    lines: [...spendLines(1), { label: 'Total planned monthly spend', value: formatCurrency(totals.expenses), op: '=' }],
   });
 
   const openAnnualSpendCalc = () => setCalcDrawer({
     title: 'Annual Spend Breakdown (× 12)',
-    lines: [...spendLines(12), { label: 'Total Annual Spend', value: formatCurrency(totals.expenses * 12, false), op: '=' }],
+    lines: [...spendLines(12), { label: 'Total Annual Spend', value: formatCurrency(totals.expenses * 12), op: '=' }],
   });
 
   return (
@@ -185,21 +185,21 @@ export default function BudgetTotalsCard() {
           full row because it is the figure the others are spent from. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="cursor-pointer col-span-2 sm:col-span-1" onClick={openIncomeCalc}>
-          <MetricCard label="Monthly Income" value={formatCurrency(totals.income, false)} accent="success" icon={DollarSign} clickHint />
+          <MetricCard label="Monthly Income" value={formatCurrency(totals.income)} accent="success" icon={DollarSign} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openFixedCalc}>
-          <MetricCard label="Fixed Expenses" value={formatCurrency(totals.fixed, false)} accent="crimson" icon={TrendingDown} clickHint />
+          <MetricCard label="Fixed Expenses" value={formatCurrency(totals.fixed)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openVariableCalc}>
-          <MetricCard label="Variable" value={formatCurrency(totals.variable, false)} accent="gold" icon={TrendingDown} clickHint />
+          <MetricCard label="Variable" value={formatCurrency(totals.variable)} accent="gold" icon={TrendingDown} clickHint />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="cursor-pointer" onClick={openDebtCalc}>
-          <MetricCard label="Debt Payments" value={formatCurrency(totals.debt, false)} accent="crimson" icon={CreditCard} clickHint />
+          <MetricCard label="Debt Payments" value={formatCurrency(totals.debt)} accent="crimson" icon={CreditCard} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openTransferCalc}>
-          <MetricCard label="Transfers" value={formatCurrency(totals.transfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
+          <MetricCard label="Transfers" value={formatCurrency(totals.transfers)} accent="gold" icon={ArrowLeftRight} clickHint />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -207,10 +207,10 @@ export default function BudgetTotalsCard() {
           {/* "planned" is load-bearing (§2.4 step 10): this is the sum of the budget RULES, not of
               anything that happened. Unlabeled it reads as an actual and gets compared to MONTHLY
               EXPENSES further down this same page, which is a different question entirely. */}
-          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totals.expenses, false)} accent="crimson" icon={TrendingDown} clickHint />
+          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totals.expenses)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
-          <MetricCard label="Annual Spend" value={formatCurrency(totals.expenses * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
+          <MetricCard label="Annual Spend" value={formatCurrency(totals.expenses * 12)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
       </div>
 

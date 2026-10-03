@@ -51,14 +51,14 @@ describe('MonthlyBudgetSnapshot — the two re-anchored chip figures', () => {
     expect(screen.getByText('Next Paycheck')).toBeTruthy();
     expect(screen.getByText('Fri, Sep 4')).toBeTruthy();
     expect(screen.getByText('Month-End Cash')).toBeTruthy();
-    expect(screen.getByText('$4,182')).toBeTruthy();
+    expect(screen.getByText('$4,182.00')).toBeTruthy();
     // Sub-figures, not a second headline: the donut centre keeps the card's biggest number.
-    expect(screen.getByText('$4,182').className).toContain('text-sm');
+    expect(screen.getByText('$4,182.00').className).toContain('text-sm');
   });
 
   it('colours a month ending short as a loss', () => {
     renderSnapshot({ monthEndCash: -410 });
-    expect(screen.getByText('-$410').className).toContain('text-destructive-text');
+    expect(screen.getByText('-$410.00').className).toContain('text-destructive-text');
   });
 
   it('leaves the equation and the floor tap-through alone', () => {
@@ -82,8 +82,8 @@ describe('MonthlyBudgetSnapshot — Month-End Cash stays auditable', () => {
 
   it('still prints the figure with no handler, rather than a dead button', () => {
     renderSnapshot();
-    expect(screen.getByText('$4,182').closest('button')).toBeNull();
-    expect(screen.getByText('$4,182')).toBeTruthy();
+    expect(screen.getByText('$4,182.00').closest('button')).toBeNull();
+    expect(screen.getByText('$4,182.00')).toBeTruthy();
   });
 });
 
@@ -107,7 +107,7 @@ describe('MonthlyBudgetSnapshot — absent, never fabricated', () => {
     renderSnapshot({ nextPayday: null });
     expect(screen.queryByText('Next Paycheck')).toBeNull();
     // The other sub-figure is unaffected.
-    expect(screen.getByText('$4,182')).toBeTruthy();
+    expect(screen.getByText('$4,182.00')).toBeTruthy();
   });
 
   it('omits Next Paycheck rather than printing an unusable date', () => {
