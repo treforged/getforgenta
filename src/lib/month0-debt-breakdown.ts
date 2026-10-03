@@ -358,7 +358,8 @@ export function buildMonth0DebtBreakdown({
   // shown here could disagree with the number the engine reserved — §1.1 cause C in miniature.
   const totalMinimumsDue = openCards
     .filter(c => !c.autopayFullBalance && c.balance > 0)
-    .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
+    // `m0MinSettled` also carries the card's own settled payment (cardPaymentSettledThisCycle).
+    .filter(c => !(c.m0MinSettled || m0MinDueSettled(c.dueDay, syncCutoffDate, now)))
     .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
 
   const autopayTotal = openCards

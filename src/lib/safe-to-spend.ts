@@ -200,6 +200,8 @@ export interface SafeToSpendMonth0 {
   transfers: number;
   planExpenses: number;
   oneTimeNet: number;
+  /** The month-0 one-times, each on its date. When present they are walked as dated events. */
+  oneTimeItems?: readonly { date: string; amount: number; direction: 'in' | 'out'; label: string }[];
   /** `Month0Result.cyclingPayment` - statements on cards paid in full this month. */
   cyclingPayment: number;
 }
@@ -329,8 +331,18 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     { total: m.cyclingPayment + a.cardMinimumReserve, items: byKind('card') },
   ], a.monthZeroDate ?? a.cutoffDate, a.cutoffDate);
   events.push(...zero.events);
+  // One-times on their own dates when the engine lists them (Sam, 2026-10-03: Tre's +$200 on 10-05
+  // was dropped, because a positive net was never counted). Without the list, the old conservative
+  // rule stands: reserve a net outflow today, ignore a net inflow.
+  const oneTimeDated = m.oneTimeItems != null;
+  if (m.oneTimeItems) {
+    for (const t of m.oneTimeItems) {
+      if (t.date <= a.cutoffDate || !(t.amount > 0)) continue;
+      events.push({ date: t.date, amount: t.amount, direction: t.direction, label: t.label });
+    }
+  }
   const undatedReserve = m.goalContributions + m.autoExtraReserve + m.carReserve
-    + Math.max(0, -m.oneTimeNet) + zero.undatedReserve;
+    + (oneTimeDated ? 0 : Math.max(0, -m.oneTimeNet)) + zero.undatedReserve;
 
   if (payday && horizon && horizon > payday) {
     for (const e of a.scheduledEvents) {

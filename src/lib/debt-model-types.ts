@@ -175,6 +175,12 @@ export interface Month0CashChain {
   transfers: number;
   /** Net one-time DB transactions (income − expenses); may be negative. */
   oneTimeNet: number;
+  /**
+   * The same one-times as `oneTimeNet`, one row each with its date (ask from Sam, 2026-10-03), so
+   * Safe to Spend can place each on its day. Sums to `oneTimeNet` (income − expense). Optional:
+   * older producers omit it and readers fall back to the net.
+   */
+  oneTimeItems?: { date: string; amount: number; direction: 'in' | 'out'; label: string }[];
   /** Sum of the terms above. Cash on hand before any revolving-debt payment. */
   cashPreDebt: number;
 }

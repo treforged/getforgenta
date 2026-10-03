@@ -3,7 +3,7 @@ import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { StatementImport } from './StatementImport';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
-  buildCardData, projectCard, projectCardVariable, m0MinDueSettled,
+  buildCardData, projectCard, projectCardVariable, m0MinDueSettled, cardPaymentSettledThisCycle,
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
   openCreditLimitAtMonth, getPlanInterestNextMonth,
 } from '@/lib/credit-card-engine';
@@ -35,7 +35,7 @@ import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/li
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, ShieldCheck, CalendarDays, X, Car, Landmark, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDebts, useAccounts, useProfile, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
+import { useDebts, useAccounts, useProfile, useSyncedTransactions, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
 import type { CarFund } from '@/lib/types';
@@ -318,6 +318,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return paycheckIncome + nonPaycheckIncome;
   }, [payConfig, rules]);
 
+  // The month's settled transactions - the same query (and cache entry) CardProjectionContext
+  // reads - so this tab sees the card payment credits the engine sees (cardPaymentSettledThisCycle).
+  const nowForTxns = new Date();
+  const { data: cardSyncedTxns } = useSyncedTransactions(
+    `${nowForTxns.getFullYear()}-${String(nowForTxns.getMonth() + 1).padStart(2, '0')}`,
+  );
+
   // Same plan-derived installment carve-out useCardProjection applies (shared
   // deriveUpfrontPlanFields) — without it this component's internal fallback sim treated a
   // card's full balance as APR-accruing revolving debt even when most of it is an interest-free
@@ -332,10 +339,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       ...card,
       // Q11: same due-day-settled stamp useCardProjection applies — keeps this tab's internal
       // sim and recommendations from re-forcing a minimum that already cleared this cycle.
-      m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, new Date()),
+      m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, new Date())
+        || cardPaymentSettledThisCycle(card.id, card.dueDay, card.minPayment, cardSyncedTxns, new Date()),
       ...(derived ? { installmentBalance: derived.balance, installmentMonthlyPayment: derived.monthlyPayment } : {}),
     };
-  }), [accounts, transactions, rules, debts, upfrontInstByCard, syncCutoffDate]);
+  }), [accounts, transactions, rules, debts, upfrontInstByCard, syncCutoffDate, cardSyncedTxns]);
 
   // When any revolving card is due on a day that already passed this month, the next
   // payment falls in next month. Generate those transactions so income/expense helpers
@@ -1075,7 +1083,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const totalMinimumsdue = cards
       .filter(c => !unopenedCardIds.has(c.id))
       .filter(c => !c.autopayFullBalance && c.balance > 0)
-      .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
+      .filter(c => !(c.m0MinSettled || m0MinDueSettled(c.dueDay, syncCutoffDate, now)))
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
     // ⚠️ NOT DERIVED HERE. This used to open-code `availableCash - minimumsDue < 0`, which could
     // not see an unconditional shortfall at all — measured in a browser 2026-09-13, Safe to Pay

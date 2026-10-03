@@ -480,6 +480,57 @@ export function m0MinDueSettled(
   return isCapturedInBalance(dueDateInMonth(monthKey, dueDay), syncCutoffDate);
 }
 
+/** Days before this month's due date in which a payment counts toward it. */
+export const CARD_PAYMENT_WINDOW_BEFORE_DUE = 20;
+/** Days after it in which a late payment still counts toward it (before the next cycle's due). */
+export const CARD_PAYMENT_WINDOW_AFTER_DUE = 25;
+const CARD_PAYMENT_NAME = /PAYMENT|PYMT|THANK YOU|AUTOPAY|DIRECTPAY/i;
+
+function shiftIsoDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + days));
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * POSITIVE evidence that this month's card payment has already been made (Tre's account,
+ * 2026-10-03): a SETTLED payment credit on the CARD's own transactions, dated within this cycle's
+ * window around the due date, of at least the minimum.
+ *
+ * Why it exists: `m0MinDueSettled` is date-only and applies the settlement lag, so a minimum due
+ * 10-01 read as UNPAID on a 10-03 sync, although Discover's $198.17 payment had posted on 10-01.
+ * The month-0 plan then charged it again ($150.40 on "Oct 4"), and Safe to Spend read $0.
+ *
+ * It only ever ADDS "settled"; it never removes it. That is what keeps it clear of the hazard
+ * `m0MinDueSettled`'s comment names: a matcher whose MISS reads as "not paid" would force a paid
+ * minimum again. A missing credit here just leaves the date rule in charge.
+ *
+ * Card-side, not funding-side: the card records the payment as a credit with a payment name,
+ * so no transfer linking between checking and the card is needed. Refunds and statement credits
+ * do not carry a payment name and are ignored. Amounts follow Stage A: inflow is negative.
+ */
+export function cardPaymentSettledThisCycle(
+  cardId: string,
+  dueDay: number | null | undefined,
+  minPayment: number,
+  txns: readonly { account_id: string | null; amount: number | string; date: string; pending: boolean; name?: string | null; merchant_name?: string | null }[] | null | undefined,
+  now: Date,
+): boolean {
+  if (dueDay == null || !txns || txns.length === 0) return false;
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const due = dueDateInMonth(monthKey, dueDay);
+  const from = shiftIsoDays(due, -CARD_PAYMENT_WINDOW_BEFORE_DUE);
+  const to = shiftIsoDays(due, CARD_PAYMENT_WINDOW_AFTER_DUE);
+  const need = Math.max(0, minPayment) - 0.01;
+  return txns.some(t => {
+    if (t.account_id !== cardId || t.pending) return false;
+    const amt = Number(t.amount);
+    if (!Number.isFinite(amt) || amt >= 0 || -amt < need) return false;
+    if (t.date < from || t.date > to) return false;
+    return CARD_PAYMENT_NAME.test(`${t.name ?? ''} ${t.merchant_name ?? ''}`);
+  });
+}
+
 export function getDefaultCardForExpense(category: string, accounts: AccountRow[]): string | null {
   if (!CC_DEFAULT_CATEGORIES.has(category)) return null;
   const activeCards = accounts

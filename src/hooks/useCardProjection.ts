@@ -3,7 +3,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { attachSimDebug } from '@/lib/simDebug';
 import {
   buildCardData, simulateVariablePayoff, projectCardVariable, buildPaymentLedger,
-  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue, m0MinDueSettled,
+  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue, m0MinDueSettled, cardPaymentSettledThisCycle,
 } from '@/lib/credit-card-engine';
 import { buildResimOverrides } from './cardProjectionResim';
 import type { PaymentLedgerEntry } from '@/lib/credit-card-engine';
@@ -209,7 +209,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ...card,
           // Q11: a card whose current-month due date is already inside the sync cutoff has paid
           // this cycle's minimum (the live balance reflects it) — month 0 must not force it again.
-          m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, now),
+          // ...or the card's own settled payment credit says so, before the date rule catches up.
+          m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, now)
+            || cardPaymentSettledThisCycle(card.id, card.dueDay, card.minPayment, syncedTransactions, now),
           ...(derived ? {
             installmentBalance: derived.balance,
             installmentMonthlyPayment: derived.monthlyPayment,
@@ -438,6 +440,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const otherAssetIds = assetAccountIdsOf(accounts);
       const m0OneTimeCutoff = syncCutoffDate ?? todayStr;
       const oneTimeArr: { income: number; expenses: number }[] = [];
+      // Month 0's one-times, each on its own date. Built in the loop below from the SAME filters as
+      // oneTimeArr[0], so the items always sum to the month-0 net (Safe to Spend dates them).
+      const m0OneTimeItems: { date: string; amount: number; direction: 'in' | 'out'; label: string }[] = [];
       for (let oi = 0; oi < PROJECTION_MONTHS; oi++) {
         const od = new Date(now.getFullYear(), now.getMonth() + oi, 1);
         const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
@@ -445,10 +450,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           t.date && t.date.startsWith(omk) && !t.isGenerated &&
           (oi > 0 || t.date > m0OneTimeCutoff),
         );
-        const inc = txns
-          .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
-          .reduce((s, t) => s + Number(t.amount), 0);
-        const exp = txns
+        const incTxns = txns.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment');
+        const inc = incTxns.reduce((s, t) => s + Number(t.amount), 0);
+        const expTxns = txns
           .filter(t => {
             if (t.type !== 'expense') return false;
             if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
@@ -459,9 +463,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // other is Dashboard and Forecast disagreeing about the same dollar.
             if (otherAssetSourceId(t.payment_source, resolvedDebtFundingId ?? null, otherAssetIds) != null) return false;
             return true;
-          })
-          .reduce((s, t) => s + Number(t.amount), 0);
+          });
+        const exp = expTxns.reduce((s, t) => s + Number(t.amount), 0);
         oneTimeArr[oi] = { income: inc, expenses: exp };
+        if (oi === 0) {
+          const label = (t: { note?: string | null; category?: string | null }) =>
+            (t.note || t.category || 'One-time').split('.')[0].slice(0, 40).replace(/[,;\s]+$/, '');
+          for (const t of incTxns) m0OneTimeItems.push({ date: t.date, amount: Number(t.amount), direction: 'in', label: label(t) });
+          for (const t of expTxns) m0OneTimeItems.push({ date: t.date, amount: Number(t.amount), direction: 'out', label: label(t) });
+        }
       }
 
       // ── Month 0 floor ──────────────────────────────────────────────────────────
@@ -2288,6 +2298,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         otherDebtPayment: m0OtherDebtPayment,
         transfers: m0Transfers + lumpTransferByMonth[0],
         oneTimeNet: m0OneTimeNet,
+        oneTimeItems: m0OneTimeItems,
         cashPreDebt,
       };
       const availableForRevolving = liveRevolvingBal > 0
