@@ -89,7 +89,7 @@ function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
       {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center justify-between gap-2 sm:gap-3">
           <span className="flex items-center gap-1 truncate"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />{p.name}</span>
-          <span className="font-display font-bold shrink-0">{formatCurrency(p.value, false)}</span>
+          <span className="font-display font-bold shrink-0">{formatCurrency(p.value)}</span>
         </div>
       ))}
     </div>
@@ -560,13 +560,13 @@ export default function Forecast() {
                   obligations. Saying "your $0 floor setting" reported an internal sentinel as if it
                   were something the user had chosen, which is the one thing this app must not do. */}
               {m0Floor.settingsCashFloor > 0
-                ? <>Cash floor raised to {formatCurrency(m0Floor.monthMinSafe, false)} — monthly obligations exceed your {formatCurrency(m0Floor.settingsCashFloor, false)} floor setting.</>
-                : <>Cash floor of {formatCurrency(m0Floor.monthMinSafe, false)}, calculated from this month&rsquo;s obligations.</>}
+                ? <>Cash floor raised to {formatCurrency(m0Floor.monthMinSafe)} — monthly obligations exceed your {formatCurrency(m0Floor.settingsCashFloor)} floor setting.</>
+                : <>Cash floor of {formatCurrency(m0Floor.monthMinSafe)}, calculated from this month&rsquo;s obligations.</>}
             </p>
             {m0Floor.floorItems.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
                 {m0Floor.floorItems.map((item, idx) => (
-                  <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {ordinal(item.dueDay)})</span>
+                  <span key={idx}>{item.name} — {formatCurrency(item.amount)} (due {ordinal(item.dueDay)})</span>
                 ))}
               </div>
             )}
@@ -700,7 +700,7 @@ export default function Forecast() {
                   {e.source && <span className="text-[9px] sm:text-xs text-muted-foreground hidden sm:inline">· {e.source}</span>}
                 </div>
                 <span className={`text-xs font-display font-bold shrink-0 ${e.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
-                  {e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount, false)}
+                  {e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}
                 </span>
               </div>
             ))}
@@ -731,16 +731,16 @@ export default function Forecast() {
                     <p className="text-xs font-semibold text-foreground">{account.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {account.account_type.toUpperCase().replace('_', ' ')} · {apyRate}% APY
-                      {monthlyContrib > 0 && ` · +${formatCurrency(monthlyContrib, false)}/mo contributions`}
+                      {monthlyContrib > 0 && ` · +${formatCurrency(monthlyContrib)}/mo contributions`}
                     </p>
                   </div>
-                  <span className="text-xs font-bold font-display text-foreground">{formatCurrency(Number(account.balance), false)}</span>
+                  <span className="text-xs font-bold font-display text-foreground">{formatCurrency(Number(account.balance))}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {([['1yr', milestones.year1], ['5yr', milestones.year5], ['10yr', milestones.year10], ['20yr', milestones.year20]] as [string, number][]).map(([label, val]) => (
                     <div key={label} className="card-forged px-2 py-1.5 text-center">
                       <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
-                      <p className="text-xs font-bold font-display text-success">{formatCurrency(val, false)}</p>
+                      <p className="text-xs font-bold font-display text-success">{formatCurrency(val)}</p>
                     </div>
                   ))}
                 </div>

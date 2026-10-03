@@ -140,7 +140,7 @@ describe('Dashboard, Upcoming This Week', () => {
 
     const rent = row('Rent');
     expect(within(rent).getByText('Aug 26')).toBeTruthy();   // settled, not the 28th it was due
-    expect(within(rent).getByText('$1,608')).toBeTruthy();   // what left the account, not $1,600
+    expect(within(rent).getByText('$1,608.42')).toBeTruthy();   // what left the account, to the cent (4066ff23), not $1,600
     expect(within(rent).getByText('paid')).toBeTruthy();
   });
 
@@ -156,7 +156,7 @@ describe('Dashboard, Upcoming This Week', () => {
 
     const phone = row('Phone');
     expect(within(phone).getByText('Aug 29')).toBeTruthy();
-    expect(within(phone).getByText('$45')).toBeTruthy();
+    expect(within(phone).getByText('$45.00')).toBeTruthy();
     expect(within(phone).queryByText('paid')).toBeNull();
   });
 

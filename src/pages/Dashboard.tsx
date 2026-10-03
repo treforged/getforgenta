@@ -934,20 +934,20 @@ export default function Dashboard() {
     const assetAccts = active.filter(a => !isLiabilityAccountType(a.account_type));
     const liabAccts = active.filter(a => isLiabilityAccountType(a.account_type));
     lines.push({ label: `Assets (${assetAccts.length} accounts)`, value: '' });
-    assetAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '+' }));
-    lines.push({ label: 'Total Assets', value: formatCurrency(accountSummary.totalAssets, false), op: '=' });
+    assetAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance)), op: '+' }));
+    lines.push({ label: 'Total Assets', value: formatCurrency(accountSummary.totalAssets), op: '=' });
     lines.push({ label: `Liabilities (${liabAccts.length} accounts)`, value: '' });
-    liabAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '−' }));
-    lines.push({ label: 'Total Liabilities', value: formatCurrency(accountSummary.totalLiabilities, false), op: '=' });
-    lines.push({ label: 'Net Worth', value: formatCurrency(accountSummary.netWorth, false), op: '=' });
+    liabAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance)), op: '−' }));
+    lines.push({ label: 'Total Liabilities', value: formatCurrency(accountSummary.totalLiabilities), op: '=' });
+    lines.push({ label: 'Net Worth', value: formatCurrency(accountSummary.netWorth), op: '=' });
     setCalcDrawer({ title: 'Net Worth', lines });
   };
 
   const openLiquidCashCalc = () => {
     const active = accounts.filter(a => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type));
     const lines: { label: string; value: string; op?: string }[] = [];
-    active.forEach(a => lines.push({ label: a.name, value: formatCurrency(Number(a.balance), false), op: '+' }));
-    lines.push({ label: 'Total Liquid Cash', value: formatCurrency(accountSummary.liquidCash, false), op: '=' });
+    active.forEach(a => lines.push({ label: a.name, value: formatCurrency(Number(a.balance)), op: '+' }));
+    lines.push({ label: 'Total Liquid Cash', value: formatCurrency(accountSummary.liquidCash), op: '=' });
     setCalcDrawer({ title: 'Liquid Cash', lines });
   };
 
@@ -958,7 +958,7 @@ export default function Dashboard() {
       // $0.00 row is indistinguishable from a floor the user set to zero. See the note on
       // the debt drawer above.
       ...(isManualCashFloor(profile)
-        ? [{ label: 'Settings floor', value: formatCurrency(cashFloor, false) },
+        ? [{ label: 'Settings floor', value: formatCurrency(cashFloor) },
            { label: '', value: '' }]
         : []),
       ...(floorItems.length > 0
@@ -966,14 +966,14 @@ export default function Dashboard() {
             { label: 'Fixed monthly obligations (next mo.):', value: '' },
             ...floorItems.map(it => ({
               label: `  ${it.name}${it.dueDay ? ` (day ${it.dueDay})` : ''}`,
-              value: formatCurrency(it.amount, false),
+              value: formatCurrency(it.amount),
               op: '+' as const,
             })),
-            { label: 'Obligations total', value: formatCurrency(prePaycheckBillsTotal, false), op: '=' as const },
+            { label: 'Obligations total', value: formatCurrency(prePaycheckBillsTotal), op: '=' as const },
           ]
         : [{ label: 'No fixed obligations', value: '' }]),
       { label: '', value: '' },
-      { label: 'Cash Floor (higher of above)', value: formatCurrency(monthMinSafe, false), op: '=' as const },
+      { label: 'Cash Floor (higher of above)', value: formatCurrency(monthMinSafe), op: '=' as const },
     ];
     setCalcDrawer({ title: 'Cash Floor', lines });
   };
@@ -1028,7 +1028,7 @@ export default function Dashboard() {
                         className="text-[9px] text-success bg-success/10 px-1 py-0.5 ml-2"
                         style={{ borderRadius: 'var(--radius)' }}
                         title={e.projectedAmount !== undefined
-                          ? `A settled transaction paid this. Scheduled ${formatCurrency(e.projectedAmount, false)}.`
+                          ? `A settled transaction paid this. Scheduled ${formatCurrency(e.projectedAmount)}.`
                           : 'A settled transaction paid this.'}
                       >
                         paid
@@ -1036,7 +1036,7 @@ export default function Dashboard() {
                     )}
                     {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
                   </div>
-                  <span className="font-display font-bold text-destructive-text">{formatCurrency(e.amount, false)}</span>
+                  <span className="font-display font-bold text-destructive-text">{formatCurrency(e.amount)}</span>
                 </div>
               ))}
             </div>
@@ -1067,11 +1067,11 @@ export default function Dashboard() {
             <div className={`grid gap-4 ${carGoalData.isCarFund ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Saved</p>
-                <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.saved, false)}</p>
+                <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.saved)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">{carGoalData.isCarFund ? (carGoalData.gift > 0 ? 'Your Goal' : 'Down Payment Goal') : 'Target'}</p>
-                <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target, false)}{carGoalData.gift > 0 && <span className="text-xs text-muted-foreground font-normal ml-1">+{formatCurrency(carGoalData.gift, false)} gift</span>}</p>
+                <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target)}{carGoalData.gift > 0 && <span className="text-xs text-muted-foreground font-normal ml-1">+{formatCurrency(carGoalData.gift)} gift</span>}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Progress</p>
@@ -1082,7 +1082,7 @@ export default function Dashboard() {
                   {carGoalData.monthlyNeeded > 0 ? (
                     <>
                       <p className="text-xs text-muted-foreground uppercase">Save / mo</p>
-                      <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.monthlyNeeded, false)}</p>
+                      <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.monthlyNeeded)}</p>
                     </>
                   ) : (
                     <>
@@ -1136,7 +1136,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-2.5 shrink-0 ml-2">
                           <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
-                          <span className="text-xs font-bold font-display w-16 text-right">{formatCurrency(value, false)}</span>
+                          <span className="text-xs font-bold font-display w-20 text-right">{formatCurrency(value)}</span>
                         </div>
                       </div>
                       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1223,7 +1223,7 @@ export default function Dashboard() {
                     {/* A transfer leaves the account, so it keeps its minus - but it is not a
                         loss, so it does not get the red that means one. */}
                     <span className={`text-xs font-bold font-display ${t.isTransfer ? 'text-muted-foreground' : t.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
-                      {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount), false)}
+                      {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
                     </span>
                   </div>
                 ))}
@@ -1266,8 +1266,8 @@ export default function Dashboard() {
                     </div>
                     <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} thick showLabel />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{formatCurrency(Number(g.current_amount), false)}</span>
-                      <span>{formatCurrency(Number(g.target_amount), false)}</span>
+                      <span>{formatCurrency(Number(g.current_amount))}</span>
+                      <span>{formatCurrency(Number(g.target_amount))}</span>
                     </div>
                   </div>
                 );
