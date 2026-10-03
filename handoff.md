@@ -38,7 +38,13 @@ R-NOW52 (10-03 ~13:25 ET, Ada, weekly 90% of 98%, park at 96%). START HERE:
         before: RH 927 / Prime 773 / Disc 150 (Safe to Pay 1850). After: RH 334 / Prime 987 / Disc 150 (Safe to Pay
         1490 - the old 1850 counted the $927 overdraw). [ ] RH row label reads 'Partial statement' at $334 - check
         buildCardRecRows (month0-debt-breakdown.ts ~171) payment vs statementTarget. [ ] Send Sam before/after.
-    [ ] NEXT, URGENT (Tre's cash): Safe to Spend drawer counts (a) 'Oct 4 Discover payment $150.40' though Discover was
+    [x] SHIPPED 2a7b097d: cardPaymentSettledThisCycle (card-side settled payment credit settles month-0 minimum) +
+        Safe to Spend walks month-0 one-times on their dates (chain.oneTimeItems). Tre's drawer: Discover line gone,
+        +$200 counted. Tre decided: Prime min only on 10-07; Amex transfers paused (both Owners Contribution rules
+        active=false, backup.tre_amex_transfers_20261003). Safe to Spend now $82 (low +81.75 on 10-07). Sent Sam 14:20.
+        [ ] Debt tab still recommends Prime $1,066 and Discover '$90 due this month' (cascade) while Chase cannot fund
+            it before 10-09 - month-0 plan vs until-payday cash; look at it. Also RH 'Partial statement' label at $334.
+    [x] (was) URGENT (Tre's cash): Safe to Spend drawer counts (a) 'Oct 4 Discover payment $150.40' though Discover was
         paid 10-02 ($198.17) and is due 11-01; (b) omits the +$200 estimate transaction 62bc2801 (10-05). $941->$0 cause
         NOT confirmed. Answer sent to Sam 13:45: $987 today overdraws Chase; max Prime payment keeping Chase >= 0 through
         10-09 = $495.59 (+200 if the withdrawal lands, +145 if Owners Contribution is held).
