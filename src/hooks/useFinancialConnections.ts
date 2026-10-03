@@ -32,6 +32,8 @@ export interface FinancialConnection {
   connection_status: ConnectionStatus;
   last_synced_at: string | null;
   created_at: string;
+  /** Plaid said this item needs statement-data (liabilities) consent (ask 3248738e). */
+  liabilities_consent_required: boolean;
 }
 
 async function getAuthHeader(): Promise<string> {
@@ -60,7 +62,7 @@ export function useFinancialConnections() {
       const { data, error } = await supabase
         .from('financial_connections')
         .select(
-          'id, provider, provider_item_id, institution_id, institution_name, connection_status, last_synced_at, created_at',
+          'id, provider, provider_item_id, institution_id, institution_name, connection_status, last_synced_at, created_at, liabilities_consent_required',
         )
         .eq('user_id', user.id)
         .order('created_at');

@@ -983,6 +983,7 @@ export type Database = {
           id_token_encrypted: string | null
           institution_id: string | null
           institution_name: string | null
+          liabilities_consent_required: boolean
           last_synced_at: string | null
           provider: string
           provider_item_id: string
@@ -1001,6 +1002,7 @@ export type Database = {
           id_token_encrypted?: string | null
           institution_id?: string | null
           institution_name?: string | null
+          liabilities_consent_required?: boolean
           last_synced_at?: string | null
           provider?: string
           provider_item_id: string
@@ -1019,6 +1021,7 @@ export type Database = {
           id_token_encrypted?: string | null
           institution_id?: string | null
           institution_name?: string | null
+          liabilities_consent_required?: boolean
           last_synced_at?: string | null
           provider?: string
           provider_item_id?: string
@@ -2630,6 +2633,7 @@ export type Database = {
           id: string | null
           institution_id: string | null
           institution_name: string | null
+          liabilities_consent_required: boolean | null
           last_synced_at: string | null
           plaid_item_id: string | null
           updated_at: string | null

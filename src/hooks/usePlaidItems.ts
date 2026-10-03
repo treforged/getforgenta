@@ -36,6 +36,8 @@ export interface PlaidItem {
    * WHICH kind of unhealthy a link is can now do so without a second query.
    */
   connection_status: ConnectionStatus;
+  /** Plaid needs the user to allow statement data before APR and minimums can sync. */
+  liabilities_consent_required: boolean;
 }
 
 export function usePlaidItems() {
@@ -50,6 +52,7 @@ export function usePlaidItems() {
     last_synced_at: c.last_synced_at,
     created_at: c.created_at,
     connection_status: c.connection_status,
+    liabilities_consent_required: c.liabilities_consent_required === true,
   }));
 
   return {

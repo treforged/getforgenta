@@ -1352,8 +1352,11 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                 // Re-link opens Plaid in update mode, so it only applies to
                 // Plaid connections. Akoya has no equivalent: a broken Akoya
                 // grant is fixed by connecting again from scratch.
+                // Plaid answered ADDITIONAL_CONSENT_REQUIRED on the last sync (ask 3248738e): the bank
+                // will not share statements until the user allows it in Plaid.
+                const consentRequired = item.provider === 'plaid' && item.liabilities_consent_required;
                 const needsRelink = item.provider === 'plaid'
-                  && (neverSynced || noAccounts || missingLiabilities);
+                  && (neverSynced || noAccounts || missingLiabilities || consentRequired);
                 return (
                   <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
                     <div className="flex items-center justify-between py-2 gap-2 min-w-0">
@@ -1424,12 +1427,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                           <p className="text-xs text-muted-foreground">
                             {neverSynced || noAccounts
                               ? 'Sync pulled no accounts — re-link to try again.'
-                              : 'Re-link to auto-populate APR and minimum payment from your bank.'}
+                              : consentRequired
+                                ? 'Your bank needs your OK to share statements. Allow it to fill in APR, minimum and due date.'
+                                : 'Re-link to auto-populate APR and minimum payment from your bank.'}
                           </p>
                         </div>
                         <PlaidLinkButton
                           relinkItemId={item.plaid_item_id}
-                          label="Re-link"
+                          label={consentRequired && !neverSynced && !noAccounts ? 'Allow statement data' : 'Re-link'}
                           onSuccess={(accts) => handlePlaidSuccess(accts, item.institution_name ?? undefined)}
                           onProcessing={setPlaidSyncing}
                         />
