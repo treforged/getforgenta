@@ -170,7 +170,7 @@ export default function Vehicles() {
                     <p className="text-xs text-muted-foreground">
                       {isLoan
                         ? `Owned · ${cf.expected_apr}% APR · ${cf.loan_term_months} mo loan`
-                        : `Saving · ${formatCurrency(saved, false)} of ${formatCurrency(cf.down_payment_goal, false)} down${cf.planned_purchase_date ? ` · buying ${fmtDate(cf.planned_purchase_date)}` : ''}`}
+                        : `Saving · ${formatCurrency(saved)} of ${formatCurrency(cf.down_payment_goal)} down${cf.planned_purchase_date ? ` · buying ${fmtDate(cf.planned_purchase_date)}` : ''}`}
                     </p>
                   </div>
                 </div>

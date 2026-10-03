@@ -2,7 +2,7 @@
 //
 // Budget Control's Debt tab, once the NON-CARD half of the user's debt reaches it.
 //
-// Tre, 2026-08-27: the tile read "Debt Payments $0" and the allocation donut read "Debt 0%" while a
+// Tre, 2026-08-27: the tile read "Debt Payments $0.00" and the allocation donut read "Debt 0%" while a
 // real auto loan was being paid every month. `useMonth0DebtBreakdown` had always returned
 // `loanRecommendations` and `otherDebtRecommendations`; this page mapped `recommendations` (cards)
 // alone and dropped both lists on the floor, and he has no `debt_payment` recurring rule covering
@@ -108,7 +108,7 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
 
     const loan = screen.getByText('C5 Payment').closest('div.border-b');
     expect(loan).toBeTruthy();
-    expect(loan?.textContent).toContain('$423');
+    expect(loan?.textContent).toContain('$422.89');
     expect(loan?.textContent).toContain('from payoff');
 
     expect(screen.getByText('Student Loan Payment')).toBeTruthy();
@@ -118,8 +118,8 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
     renderInAugust();
     openDebt();
 
-    // $422.89 loan + $300 student loan.
-    expect(screen.getAllByText('$723 this month').length).toBeGreaterThan(0);
+    // $422.89 loan + $300.00 student loan.
+    expect(screen.getAllByText('$722.89 this month').length).toBeGreaterThan(0);
   });
 
   it('produces NO row for a liability an expense rule already pays', () => {
@@ -129,7 +129,7 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
 
     expect(screen.queryByText('Mortgage Payment')).toBeNull();
     // The loan alone, so the mortgage is not being counted invisibly either.
-    expect(screen.getAllByText('$423 this month').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$422.89 this month').length).toBeGreaterThan(0);
   });
 
   /**
@@ -223,6 +223,6 @@ describe('Budget Control — loans and other liabilities in the Debt tab', () =>
 
     expect(screen.getAllByText('C5 Payment').length).toBe(1);
     // One payment, not two.
-    expect(screen.getAllByText('$423 this month').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$422.89 this month').length).toBeGreaterThan(0);
   });
 });

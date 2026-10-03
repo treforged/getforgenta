@@ -31,7 +31,7 @@ import { firstPaymentDueMonthOffset } from '@/lib/first-payment-due';
  * not, and Sam's ruling was explicitly that the shortfall must be a number.
  */
 export function unconditionalShortfallLabel(shortfall: number): string {
-  return `${formatCurrency(shortfall, false)} short this month`;
+  return `${formatCurrency(shortfall)} short this month`;
 }
 
 /**
@@ -46,7 +46,7 @@ export function unconditionalShortfallLabel(shortfall: number): string {
  */
 export function unconditionalShortfallWarning(shortfall: number): string {
   return `A card is set to always pay in full, and this month does not cover it by `
-    + `${formatCurrency(shortfall, false)}. The payment is not being reduced — something else `
+    + `${formatCurrency(shortfall)}. The payment is not being reduced — something else `
     + `has to give.`;
 }
 
@@ -75,13 +75,13 @@ export function cashWarningMessage(
 ): string | null {
   const short = shortfalls.reduce<number>((s, v) => s + (v && v > 0 ? v : 0), 0);
   if (short > 0) {
-    return `This plan sends ${formatCurrency(availableCash, false)} because a card is set to always `
-      + `pay in full, which is ${formatCurrency(short, false)} more than this month covers. `
+    return `This plan sends ${formatCurrency(availableCash)} because a card is set to always `
+      + `pay in full, which is ${formatCurrency(short)} more than this month covers. `
       + `The payment is not being reduced — something else has to give.`;
   }
   if (Math.ceil(availableCash - minimumsDue) < 0) {
-    return `Safe to Pay (${formatCurrency(availableCash, false)}) is less than minimum payments due `
-      + `(${formatCurrency(minimumsDue, false)}). Not all minimums can be covered. Review cash flow urgently.`;
+    return `Safe to Pay (${formatCurrency(availableCash)}) is less than minimum payments due `
+      + `(${formatCurrency(minimumsDue)}). Not all minimums can be covered. Review cash flow urgently.`;
   }
   return null;
 }

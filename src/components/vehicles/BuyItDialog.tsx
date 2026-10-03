@@ -146,13 +146,13 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
 
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt, false)}/mo)</span>
+              Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt)}/mo)</span>
             </label>
             <input aria-label="Monthly payment override"
               type="number"
               value={form.actual_monthly_payment}
               onChange={f('actual_monthly_payment')}
-              placeholder={formatCurrency(scheduledPmt, false)}
+              placeholder={formatCurrency(scheduledPmt)}
               className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
               style={{ borderRadius: 'var(--radius)' }}
             />

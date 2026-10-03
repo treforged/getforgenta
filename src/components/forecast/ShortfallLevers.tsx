@@ -48,7 +48,7 @@ export default function ShortfallLevers({ shortMonths, compute }: Props) {
     <div className="card-forged p-4 sm:p-5">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Short months ahead</p>
       <p className="text-sm text-foreground mt-1">
-        {shortMonths.length} {one ? 'month' : 'months'} in the next year {one ? 'ends' : 'end'} below your cash floor, {formatCurrency(total, false)} short in total.
+        {shortMonths.length} {one ? 'month' : 'months'} in the next year {one ? 'ends' : 'end'} below your cash floor, {formatCurrency(total)} short in total.
       </p>
 
       {state.status === 'idle' && (
@@ -84,7 +84,7 @@ export default function ShortfallLevers({ shortMonths, compute }: Props) {
                     <span className="font-semibold">
                       {l.kind === 'pause_goal' ? 'Pause saving to' : 'Pause'} {l.name}
                     </span>
-                    {' '}({formatCurrency(l.monthlyAmount, false)}/mo) covers {formatCurrency(l.coveredDollars, false)}
+                    {' '}({formatCurrency(l.monthlyAmount)}/mo) covers {formatCurrency(l.coveredDollars)}
                     {l.monthsCleared.length > 0 && <>, and clears {listNames(l.monthsCleared)}</>}.
                   </p>
                   {l.paysRules.length > 0 && (

@@ -41,7 +41,7 @@ await page.waitForURL(/\/dashboard/, { timeout: 30000 }).catch(() => {});
 // 1. Hero "today" vs the CC Debt tile. Read until two reads agree (the projection settles late).
 const readHero = () => page.evaluate(() => {
   const leaves = [...document.querySelectorAll('span, p, div')].filter(el => el.children.length === 0 && el.getClientRects().length > 0);
-  const today = leaves.map(el => (el.textContent || '').trim()).find(t => /^\$[\d,]+ today$/.test(t)) ?? null;
+  const today = leaves.map(el => (el.textContent || '').trim()).find(t => /^\$[\d,]+(\.\d\d)? today$/.test(t)) ?? null;
   const label = leaves.find(el => /^CC Debt$/i.test((el.textContent || '').trim()));
   const tile = label?.parentElement?.textContent?.match(/\$\d{1,3}(?:,\d{3})*(?:\.\d{2})?/)?.[0] ?? null;
   return { today, tile };
@@ -56,7 +56,7 @@ for (let i = 0; i < 30; i += 1) {
 if (!hero) await done(2, `CONTROL FAILED: hero "today" or CC Debt never settled (last read ${JSON.stringify(prev)}).`);
 await page.screenshot({ path: `${OUT}/dashboard-430.png` });
 console.log(`hero: "${hero.today}" | CC Debt tile ${hero.tile}`);
-const heroOk = Math.abs(dollars(hero.today) - dollars(hero.tile)) <= 1;
+const heroOk = Math.abs(dollars(hero.today) - dollars(hero.tile)) <= 0.005; // to the cent since ask 4066ff23 (both figures print cents)
 
 // 2. The Debt chart. Demo mode is in-memory state, so /debt is reached by a client-side click.
 const link = page.locator('a[href="/debt"]:visible').first();

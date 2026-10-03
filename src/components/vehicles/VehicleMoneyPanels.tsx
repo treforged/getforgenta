@@ -134,7 +134,7 @@ export default function VehicleMoneyPanels() {
     { value: '', label: 'None (manual)' },
     ...rules
       .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map(r => ({ value: r.id, label: `${r.name} - ${formatCurrency(r.amount, false)}/${r.frequency}` })),
+      .map(r => ({ value: r.id, label: `${r.name} - ${formatCurrency(r.amount)}/${r.frequency}` })),
   ], [rules]);
 
   const savingFormFields = useMemo(() => {

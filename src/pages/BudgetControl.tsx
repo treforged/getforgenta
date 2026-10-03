@@ -933,10 +933,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
   <div className="flex flex-col gap-2 sm:items-end shrink-0">
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
       <span className={`text-sm sm:text-base font-display font-bold ${color}`}>
-        {formatCurrency(Number(r.amount), false)}
+        {formatCurrency(Number(r.amount))}
       </span>
       <span className="text-xs sm:text-sm text-muted-foreground">
-        {CURRENT_MONTH_LABEL} {formatCurrency(toCurrentMonthAmount(r), false)}
+        {CURRENT_MONTH_LABEL} {formatCurrency(toCurrentMonthAmount(r))}
       </span>
       {/* The ranked automatic extra the forecast sends this target THIS month, beside the standing
           amount so the row reads "$510/mo + $1,107 extra this month" — Tre's own wording.
@@ -947,7 +947,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           className="text-xs sm:text-sm text-primary"
           title="On top of the standing transfer, the forecast diverts this much surplus to this goal in the current month."
         >
-          + {formatCurrency(r.extraThisMonth ?? 0, false)} extra this month
+          + {formatCurrency(r.extraThisMonth ?? 0)} extra this month
         </span>
       )}
       {/* No extra THIS month, but one is coming. Says which month and how much rather than going
@@ -958,7 +958,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           className="text-xs sm:text-sm text-muted-foreground"
           title="No surplus is being diverted to this goal in the current month. This is the next month the forecast sends one."
         >
-          next: {formatCurrency(r.nextExtra.amount, false)} in {nextExtraMonthLabel(r.nextExtra.monthIndex, now)}
+          next: {formatCurrency(r.nextExtra.amount)} in {nextExtraMonthLabel(r.nextExtra.monthIndex, now)}
         </span>
       )}
     </div>
@@ -1114,7 +1114,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         {/* Collapsed summary — shows key info when section is folded */}
         {incomeSectionCollapsed && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground pt-1">
-            <span>{freqLabel(payFrequency)} · Net: <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)}</span></span>
+            <span>{freqLabel(payFrequency)} · Net: <span className="font-display font-bold text-success">{formatCurrency(paycheckNet)}</span></span>
             <span>Next: <span className="font-medium text-primary">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span></span>
           </div>
         )}
@@ -1222,7 +1222,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                   {/* Resolved amount hint */}
                   {d.value > 0 && (
                     <p className="text-xs text-muted-foreground text-right">
-                      {d.mode === 'pct' ? formatCurrency(d.flatAmt, false) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
+                      {d.mode === 'pct' ? formatCurrency(d.flatAmt) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
                     </p>
                   )}
                   {/* Retirement account + goal link */}
@@ -1278,29 +1278,29 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           {/* Totals summary */}
           {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs sm:text-sm pt-1">
-              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100), false)} tax)</span></span>}
-              {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span>}
+              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100))} tax)</span></span>}
+              {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat)} post-tax</span>}
             </div>
           )}
           {/* Gross → Net breakdown */}
           {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
             <div className="flex flex-wrap items-center gap-1 text-xs sm:text-sm text-muted-foreground pt-1">
-              <span className="font-medium text-foreground">{formatCurrency(paycheckGross, false)}</span>
-              {preTaxDeductionsFlat > 0 && <><span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax</span><span>→</span><span className="font-medium text-foreground">{formatCurrency(paycheckGross - preTaxDeductionsFlat, false)} taxable</span></>}
+              <span className="font-medium text-foreground">{formatCurrency(paycheckGross)}</span>
+              {preTaxDeductionsFlat > 0 && <><span className="text-primary">−{formatCurrency(preTaxDeductionsFlat)} pre-tax</span><span>→</span><span className="font-medium text-foreground">{formatCurrency(paycheckGross - preTaxDeductionsFlat)} taxable</span></>}
               {!hasTaxDeductions && <span>× {(100 - taxRate).toFixed(0)}%</span>}
-              {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span></>}
+              {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat)} post-tax</span></>}
               <span>→</span>
-              <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)} net</span>
+              <span className="font-display font-bold text-success">{formatCurrency(paycheckNet)} net</span>
             </div>
           )}
           {/* 401k per-paycheck breakdown — used by Forecast to compute remaining contributions this month */}
           {retire401kPerCheck > 0 && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground pt-1 border-t border-border/40 mt-1">
-              <span className="font-medium text-foreground">401(k)/retirement: {formatCurrency(retire401kPerCheck, false)}/paycheck</span>
+              <span className="font-medium text-foreground">401(k)/retirement: {formatCurrency(retire401kPerCheck)}/paycheck</span>
               <span>·</span>
               <span>{remainingPaychecks.length} paycheck{remainingPaychecks.length !== 1 ? 's' : ''} left this month</span>
               <span>→</span>
-              <span className="font-medium text-foreground">{formatCurrency(retire401kPerCheck * remainingPaychecks.length, false)} remaining contribution this month</span>
+              <span className="font-medium text-foreground">{formatCurrency(retire401kPerCheck * remainingPaychecks.length)} remaining contribution this month</span>
             </div>
           )}
           </>}
@@ -1387,35 +1387,35 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
-    {formatCurrency(paycheckNet, false)}
+    {formatCurrency(paycheckNet)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Monthly Gross</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
-    {formatCurrency(monthlyGross, false)}
+    {formatCurrency(monthlyGross)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Monthly Take-Home</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
-    {formatCurrency(monthlyTakeHome, false)}
+    {formatCurrency(monthlyTakeHome)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Annual Gross</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
-    {formatCurrency(annualGross, false)}
+    {formatCurrency(annualGross)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Annual Take-Home</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
-    {formatCurrency(annualTakeHome, false)}
+    {formatCurrency(annualTakeHome)}
   </p>
 </div>
       </div>
@@ -1488,7 +1488,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                 </div>
                 {overByPct > 0 && (
                   <p className="mt-3 text-xs sm:text-sm text-destructive-text font-medium">
-                    Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining), false)} more allocated {CURRENT_MONTH_LABEL} than you take home).
+                    Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining))} more allocated {CURRENT_MONTH_LABEL} than you take home).
                   </p>
                 )}
               </div>
@@ -1557,7 +1557,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Income Rules</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome, false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>
             </div>
@@ -1599,7 +1599,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Variable Expenses</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses, false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Other')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Variable</button>
               </div>
             </div>
@@ -1613,7 +1613,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments, false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
               </div>
             </div>
@@ -1633,7 +1633,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers, false)} {CURRENT_MONTH_LABEL}</span>
+                <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('investment')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Transfer</button>
               </div>
             </div>

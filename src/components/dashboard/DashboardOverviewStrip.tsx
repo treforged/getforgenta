@@ -48,7 +48,7 @@ export interface DashboardOverviewStripProps {
 const LABEL = 'text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium';
 const SUB_FIGURE = 'text-sm sm:text-base font-display font-bold mt-0.5';
 
-const money = (v: number) => formatCurrency(v, false);
+const money = (v: number) => formatCurrency(v);
 
 interface SplitTileProps {
   label: string;

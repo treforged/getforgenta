@@ -32,7 +32,7 @@ describe('DashboardOverviewStrip — nothing the Accounts tiles showed is lost',
   it('shows all seven figures, with net worth as the headline', () => {
     renderStrip();
 
-    const headline = screen.getByText('$18,400');
+    const headline = screen.getByText('$18,400.00');
     expect(headline.className).toContain('text-2xl');
     expect(headline.className).toContain('font-display');
 
@@ -40,17 +40,17 @@ describe('DashboardOverviewStrip — nothing the Accounts tiles showed is lost',
       expect(screen.getByText(label)).toBeTruthy();
     });
     // Assets and liabilities are demoted to sub-figures, not dropped.
-    expect(screen.getByText('$26,000')).toBeTruthy();
-    expect(screen.getByText('$7,600')).toBeTruthy();
-    expect(screen.getByText('$4,200')).toBeTruthy();
-    expect(screen.getByText('$14,000')).toBeTruthy();
-    expect(screen.getByText('$50,000')).toBeTruthy();
-    expect(screen.getByText('$6,976')).toBeTruthy();
+    expect(screen.getByText('$26,000.00')).toBeTruthy();
+    expect(screen.getByText('$7,600.00')).toBeTruthy();
+    expect(screen.getByText('$4,200.00')).toBeTruthy();
+    expect(screen.getByText('$14,000.00')).toBeTruthy();
+    expect(screen.getByText('$50,000.00')).toBeTruthy();
+    expect(screen.getByText('$6,976.00')).toBeTruthy();
   });
 
   it('carries credit utilization on the debt tile it is the ratio of', () => {
     renderStrip();
-    expect(screen.getByText('67.8% of $10,290')).toBeTruthy();
+    expect(screen.getByText('67.8% of $10,290.00')).toBeTruthy();
   });
 
   it('says there are no limits on file rather than printing 0.0%', () => {
@@ -63,7 +63,7 @@ describe('DashboardOverviewStrip — nothing the Accounts tiles showed is lost',
 
   it('colours a negative net worth as a loss', () => {
     renderStrip({ netWorth: -3200 });
-    expect(screen.getByText('-$3,200').className).toContain('text-destructive-text');
+    expect(screen.getByText('-$3,200.00').className).toContain('text-destructive-text');
   });
 });
 
@@ -93,14 +93,14 @@ describe('DashboardOverviewStrip — the drawers the chips used to open', () => 
   it('renders the same figures with no handlers, rather than dead buttons', () => {
     const { container } = renderStrip();
     expect(container.querySelectorAll('button')).toHaveLength(0);
-    expect(screen.getByText('$18,400')).toBeTruthy();
-    expect(screen.getByText('$4,200')).toBeTruthy();
+    expect(screen.getByText('$18,400.00')).toBeTruthy();
+    expect(screen.getByText('$4,200.00')).toBeTruthy();
   });
 });
 
 // Sam, 2026-10-01: every money figure on the Dashboard must trace to a row the user wrote, or be
-// an empty state. With nothing on file the strip used to paint eight confident $0 tiles.
-describe('DashboardOverviewStrip — nothing on file is an empty state, not $0', () => {
+// an empty state. With nothing on file the strip used to paint eight confident $0.00 tiles.
+describe('DashboardOverviewStrip — nothing on file is an empty state, not $0.00', () => {
   const renderEmpty = (over: Partial<DashboardOverviewStripProps> = {}) => render(
     <MemoryRouter>
       <DashboardOverviewStrip {...base} netWorth={0} totalAssets={0} totalLiabilities={0}
@@ -117,7 +117,7 @@ describe('DashboardOverviewStrip — nothing on file is an empty state, not $0',
 
   it('still shows the figures when the same zeros are real (empty is false)', () => {
     const { container } = renderEmpty({ empty: false });
-    expect(container.textContent).toMatch(/\$0/);
+    expect(container.textContent).toMatch(/\$0\.00/);
     expect(screen.queryByText('Nothing on file yet')).toBeNull();
   });
 

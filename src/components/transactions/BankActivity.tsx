@@ -966,7 +966,7 @@ export default function BankActivity() {
                   })}
                   className="accent-primary"
                 />
-                <span className="font-display font-semibold whitespace-nowrap">{formatCurrency(pair.amount, false)}</span>
+                <span className="font-display font-semibold whitespace-nowrap">{formatCurrency(pair.amount)}</span>
                 <span className="text-muted-foreground truncate">
                   {describeTransfer(pair)} · {pair.out.date}
                   {pair.paidCard ? ` · pays ${pair.paidCard.name}` : ''}
@@ -1135,7 +1135,7 @@ export default function BankActivity() {
                     </div>
                   </div>
                   <span className="text-xs font-semibold font-display whitespace-nowrap text-foreground">
-                    {formatCurrency(pair.amount, false)}
+                    {formatCurrency(pair.amount)}
                   </span>
                 </div>
               ) : (
@@ -1153,7 +1153,7 @@ export default function BankActivity() {
                     </div>
                   </div>
                   <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success' : 'text-destructive-text'}`}>
-                    {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount), false)}
+                    {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount))}
                   </span>
                 </div>
               )}

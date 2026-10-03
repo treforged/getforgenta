@@ -4,7 +4,7 @@
 //
 // The selector tests pin which state is chosen; this file pins that the chosen state
 // renders the right words and, crucially, that the two states with no number render an
-// action instead of a $0 or a fabricated date. A green typecheck says the JSX compiled; it
+// action instead of a $0.00 or a fabricated date. A green typecheck says the JSX compiled; it
 // says nothing about whether the empty state is honest, so that is asserted here.
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
@@ -52,18 +52,18 @@ describe('DashboardHero — debt + data', () => {
 
   it('renders cash above the floor as the second read', () => {
     renderHero({ kind: 'payoff', payoff, cashAboveFloor: 412, hasOtherDebt: false });
-    expect(screen.getByText('$412 above your floor')).toBeTruthy();
+    expect(screen.getByText('$412.00 above your floor')).toBeTruthy();
   });
 
   it('says BELOW the floor when the floor is being dipped into', () => {
     renderHero({ kind: 'payoff', payoff, cashAboveFloor: -310, hasOtherDebt: false });
-    expect(screen.getByText('$310 below your floor')).toBeTruthy();
+    expect(screen.getByText('$310.00 below your floor')).toBeTruthy();
   });
 
-  it('omits the second read entirely when there is no floor reading — no $0', () => {
+  it('omits the second read entirely when there is no floor reading — no $0.00', () => {
     renderHero({ kind: 'payoff', payoff, cashAboveFloor: null, hasOtherDebt: false });
     expect(screen.queryByText(/your floor/)).toBeNull();
-    expect(screen.queryByText('$0 above your floor')).toBeNull();
+    expect(screen.queryByText('$0.00 above your floor')).toBeNull();
   });
 
   it('says "This month" rather than "0 months away"', () => {
@@ -77,7 +77,7 @@ describe('DashboardHero — no debt', () => {
   it('makes cash above the floor the hero, labelled "You\'re debt free"', () => {
     renderHero({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: false, hasOtherDebt: false });
     expect(screen.getByText("You're debt free")).toBeTruthy();
-    const hero = screen.getByText('$1,240');
+    const hero = screen.getByText('$1,240.00');
     expect(hero.className).toContain('text-5xl');
     expect(screen.getByText('above your cash floor')).toBeTruthy();
     expect(screen.getByText('No credit card balances')).toBeTruthy();
@@ -159,9 +159,9 @@ describe('DashboardHero — the payoff run', () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/\$6,000 today/)).toBeTruthy();
+    expect(screen.getByText(/\$6,000\.00 today/)).toBeTruthy();
     // The end anchor names the same month the hero prints — one date, twice.
-    expect(screen.getByText(/\$0 · Jul 2028/)).toBeTruthy();
+    expect(screen.getByText(/\$0\.00 · Jul 2028/)).toBeTruthy();
     expect(document.querySelector('svg polyline')).toBeTruthy();
   });
 

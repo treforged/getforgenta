@@ -10,7 +10,7 @@
 // And the totals said nothing at all: "Total Cash Out" summed settled and projected money into one
 // figure with no way to tell which half you were reading. The headline is deliberately NOT reduced
 // — the month filter reaches future months where every row is projected, and subtracting there
-// would print $0 for December, a confident zero of exactly the kind this is meant to prevent.
+// would print $0.00 for December, a confident zero of exactly the kind this is meant to prevent.
 //
 // A row the user typed into the ledger already retires its projection inside the merge itself
 // (`overridesGeneratedOccurrence`). A synced bank row never enters that stream at all, so its
@@ -156,7 +156,7 @@ describe('a projected row says so in words', () => {
     renderInAugust();
     const row = realRow('Groceries');
     expect(within(row).queryByText('Projected')).toBeNull();
-    expect(within(row).getByText('-$240')).toBeTruthy();
+    expect(within(row).getByText('-$240.00')).toBeTruthy();
   });
 
   it('drops the label once a real bank charge has answered it — that money is settled', () => {
@@ -173,12 +173,12 @@ describe('the totals stop mixing settled and projected money silently', () => {
   it('names the projected share beneath Total Cash Out', () => {
     mocks.realTransactions = [GROCERIES];
     renderInAugust();
-    // $240 typed + $1,600 projected rent = $1,840 out, of which $1,600 is not spent yet.
+    // $240.00 typed + $1,600.00 projected rent = $1,840.00 out, of which $1,600.00 is not spent yet.
     const tile = document.body.textContent ?? '';
-    expect(tile).toContain('of which $1,600 projected');
+    expect(tile).toContain('of which $1,600.00 projected');
   });
 
-  it('says nothing when every row is settled — no "of which $0 projected"', () => {
+  it('says nothing when every row is settled — no "of which $0.00 projected"', () => {
     mocks.realTransactions = [GROCERIES];
     mocks.syncedTransactions = [RENT_CHARGE];
     renderInAugust();

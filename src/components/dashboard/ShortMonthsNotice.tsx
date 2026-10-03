@@ -27,7 +27,7 @@ export default function ShortMonthsNotice({ shortMonths, currentMonth, dismissed
   return (
     <div className="card-forged px-3 py-2.5 flex items-start gap-2" role="status">
       <p className="flex-1 min-w-0 text-xs text-foreground">
-        {first.month} ends {formatCurrency(first.shortfall, false)} below your cash floor
+        {first.month} ends {formatCurrency(first.shortfall)} below your cash floor
         {more > 0 && <>, and {more} more {more === 1 ? 'month' : 'months'} in the next year</>}.{' '}
         <Link to="/transactions?tab=forecast" className="font-semibold text-primary whitespace-nowrap">
           See what would cover it

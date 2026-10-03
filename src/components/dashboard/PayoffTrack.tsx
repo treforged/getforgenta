@@ -74,8 +74,8 @@ export default function PayoffTrack({
       </svg>
       {/* The curve is decoration without these: they are what make it a reading. */}
       <div className="flex items-baseline justify-between mt-1.5 text-xs text-muted-foreground">
-        <span>{formatCurrency(startBalance, false)} today</span>
-        <span>$0 · {endLabel}</span>
+        <span>{formatCurrency(startBalance)} today</span>
+        <span>{formatCurrency(0)} · {endLabel}</span>
       </div>
     </div>
   );

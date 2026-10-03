@@ -142,8 +142,8 @@ function GoalLumpSumModal({
           </div>
           {date && proj !== null && (
             <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
-              <span>Goal balance at date: <span className="text-foreground font-medium">{formatCurrency(proj, false)}</span></span>
-              <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>
+              <span>Goal balance at date: <span className="text-foreground font-medium">{formatCurrency(proj)}</span></span>
+              <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash)}</span></span>
             </div>
           )}
         </div>
@@ -269,7 +269,7 @@ export function GoalLumpSumPanel({
                 <div className="flex justify-between text-[10px] mb-0.5">
                   <span className="text-muted-foreground">{yr} Roth IRA</span>
                   <span className={over ? 'text-destructive-text font-semibold' : warn ? 'text-gold' : 'text-muted-foreground'}>
-                    {formatCurrency(total, false)} / {formatCurrency(ROTH_IRA_LIMIT, false)}{over ? ' ⚠ over!' : ''}
+                    {formatCurrency(total)} / {formatCurrency(ROTH_IRA_LIMIT)}{over ? ' ⚠ over!' : ''}
                   </span>
                 </div>
                 <div className="w-full h-1 bg-secondary overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
@@ -293,7 +293,7 @@ export function GoalLumpSumPanel({
               <div key={ls.id} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-medium">{dateLabel}</span>
-                  <span className="text-[10px] text-primary font-semibold">{formatCurrency(ls.amount, false)}</span>
+                  <span className="text-[10px] text-primary font-semibold">{formatCurrency(ls.amount)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button aria-label="Edit contribution" onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })}
@@ -401,7 +401,7 @@ function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses, pace
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={tickInterval} />
           <YAxis tick={{ fontSize: 11, fill: AXIS_TICK_FILL }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
-          <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value) => formatCurrency(Number(value), false)} />
+          <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value) => formatCurrency(Number(value))} />
           <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
           {series.map((s, i) => <Line key={s.key} dataKey={s.key} name={s.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={chartData.length > 24 ? false : { r: 3 }} activeDot={{ r: 4 }} />)}
         </LineChart>
@@ -496,7 +496,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
   const cardsRankSubtitle = useMemo(() => {
     if (debtRecs.length === 0) return undefined;
     const n = debtRecs.length;
-    return `${n} card${n > 1 ? 's' : ''} · ${formatCurrency(debtTotalRecommended, false)} this month`;
+    return `${n} card${n > 1 ? 's' : ''} · ${formatCurrency(debtTotalRecommended)} this month`;
   }, [debtRecs.length, debtTotalRecommended]);
 
 
@@ -657,7 +657,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
     { value: '', label: 'None (manual)' },
     ...rules
       .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map(r => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
+      .map(r => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount)}/${r.frequency}` })),
   ], [rules]);
 
   // The linked rules, the auto-end toggle and its provenance map are all part of
@@ -978,8 +978,8 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       />
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved, false)}</p></div>
-        <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget, false)}</p></div>
+        <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved)}</p></div>
+        <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget)}</p></div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1062,14 +1062,14 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                     {g.is_complete
                       ? <span className="text-success">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
                       : g.linked_rules && g.linked_rules.length > 0
-                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
+                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution))}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
                       : pacedNote
                       ? 'Paced contribution · changes each month'
-                      : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
+                      : `${formatCurrency(Number(g.monthly_contribution))}/mo contribution`
                     }
                     {isLinked && ' · Auto-synced from account'}
                     {g.available_after_outflows != null && (
-                      <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency(g.available_after_outflows, false)}</span>
+                      <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency(g.available_after_outflows)}</span>
                     )}
                   </p>
                   {/* Never let the end_date this feature wrote onto a rule be invisible here. */}
@@ -1084,9 +1084,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   on a line of their own between the subtitle and the amount, a band of empty card. */}
               <div className="flex items-end justify-between gap-2">
                 <div className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
-                  <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount), false)}</span>
+                  <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount))}</span>
                   <span className="text-xs text-muted-foreground">
-                    of {formatCurrency(headlineTarget, false)}
+                    of {formatCurrency(headlineTarget)}
                     {plan.staged && <span className="ml-1">· {nowStop.name}</span>}
                   </span>
                 </div>
@@ -1121,7 +1121,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                           )}
                         </span>
                         <span className="shrink-0 font-mono text-muted-foreground">
-                          {formatCurrency(s.threshold, false)}
+                          {formatCurrency(s.threshold)}
                           {done
                             ? <span className="ml-1.5 text-success">done</span>
                             : isNow

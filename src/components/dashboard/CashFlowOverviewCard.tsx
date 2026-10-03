@@ -19,7 +19,7 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
       {payload.map((p) => (
         <div key={p.dataKey} className="flex justify-between gap-4">
           <span className="text-muted-foreground">{p.name}</span>
-          <span className="font-semibold" style={{ color: p.color }}>{formatCurrency(p.value, false)}</span>
+          <span className="font-semibold" style={{ color: p.color }}>{formatCurrency(p.value)}</span>
         </div>
       ))}
     </div>

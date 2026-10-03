@@ -64,7 +64,7 @@ export default function RuleDriftPanel() {
           <p className="text-[10px] text-muted-foreground">
             {drift.merchantLabel}
             {' · '}
-            {drift.months.map(m => `${m.month.slice(5)} ${formatCurrency(m.amount, false)}`).join('  ')}
+            {drift.months.map(m => `${m.month.slice(5)} ${formatCurrency(m.amount)}`).join('  ')}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -75,7 +75,7 @@ export default function RuleDriftPanel() {
             >
               {applying === drift.ruleId
                 ? 'Updating…'
-                : `Update ${drift.ruleName} to ${formatCurrency(drift.observedAmount, false)}`}
+                : `Update ${drift.ruleName} to ${formatCurrency(drift.observedAmount)}`}
             </button>
             <button
               onClick={() => setDismissed(d => ({ ...d, [drift.ruleId]: true }))}
@@ -84,9 +84,9 @@ export default function RuleDriftPanel() {
               <X size={11} /> Not now
             </button>
             <span className="text-[10px] text-muted-foreground">
-              was {formatCurrency(drift.ruleAmount, false)}
+              was {formatCurrency(drift.ruleAmount)}
               {' · '}
-              {drift.delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(drift.delta), false)}/mo
+              {drift.delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(drift.delta))}/mo
             </span>
           </div>
         </div>

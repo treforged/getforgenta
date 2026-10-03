@@ -1186,12 +1186,12 @@ export default function Transactions() {
                             </div>
                             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
                               <p className="text-[11px] text-muted-foreground">
-                                {formatCurrency(plan.payment_amount, false)}/{plan.frequency === 'biweekly' ? '2 wks' : plan.frequency === 'weekly' ? 'wk' : 'mo'}
+                                {formatCurrency(plan.payment_amount)}/{plan.frequency === 'biweekly' ? '2 wks' : plan.frequency === 'weekly' ? 'wk' : 'mo'}
                               </p>
                               {remaining > 0 && nextDate && (
                                 <p className="text-[11px] text-muted-foreground">Next: {nextDate}</p>
                               )}
-                              <p className="text-[11px] text-muted-foreground">Remaining: {formatCurrency(remainingAmt, false)}</p>
+                              <p className="text-[11px] text-muted-foreground">Remaining: {formatCurrency(remainingAmt)}</p>
                               <p className="text-[11px] text-muted-foreground">Ends: {endDate}</p>
                             </div>
                           </div>
@@ -1278,22 +1278,22 @@ export default function Transactions() {
       <div className="grid grid-cols-3 gap-3">
         <div className="card-forged p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Income</p>
-          <p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income, false)}</p>
+          <p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income)}</p>
           {totals.projectedIncome > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedIncome, false)} projected</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedIncome)} projected</p>
           )}
         </div>
         <div className="card-forged p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Total Cash Out</p>
-          <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(totals.expense, false)}</p>
+          <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(totals.expense)}</p>
           {totals.debtService > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.debtService, false)} debt service</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.debtService)} debt service</p>
           )}
           {totals.projectedExpense > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedExpense, false)} projected</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedExpense)} projected</p>
           )}
         </div>
-        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net, false)}</p></div>
+        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net)}</p></div>
       </div>
 
       {Object.keys(spendBySource).length > 0 && (
@@ -1303,7 +1303,7 @@ export default function Transactions() {
             {Object.entries(spendBySource).map(([src, amt]) => (
               <div key={src} className="p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-xs text-muted-foreground truncate">{src}</p>
-                <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(amt, false)}</p>
+                <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(amt)}</p>
               </div>
             ))}
           </div>
@@ -1361,7 +1361,7 @@ export default function Transactions() {
                       <span
                         className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}
                         title={t.matchedProjectedAmount !== undefined
-                          ? `A settled bank transaction paid this. Scheduled ${formatCurrency(t.matchedProjectedAmount, false)}.`
+                          ? `A settled bank transaction paid this. Scheduled ${formatCurrency(t.matchedProjectedAmount)}.`
                           : 'A settled bank transaction paid this.'}
                       >
                         real
@@ -1395,7 +1395,7 @@ export default function Transactions() {
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive-text') : t.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
-                  {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta, false) : formatCurrency(Number(t.amount), false)}
+                  {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta) : formatCurrency(Number(t.amount))}
                 </span>
                 {/* ⚠️ BOTH FIGURES ON THE BUTTON, BEFORE THE PRESS — the same rule the queue's own
                     "Link and correct" follows. A control that says "matches" and then silently
@@ -1409,7 +1409,7 @@ export default function Transactions() {
                   >
                     <Link2 size={11} />{' '}
                     {/* ⚠️ CENTS, ALWAYS, AND THE REST OF THIS LIST DELIBERATELY HIDES THEM. Every
-                        other figure on the row uses `formatCurrency(x, false)`, which is right for
+                        other figure on the row uses `formatCurrency(x)`, which is right for
                         scanning a column. It is WRONG here: the gap this button exists to close is
                         usually a few cents, so rounding renders "Bank says $8" beside a typed $8 —
                         a control that says nothing while appearing to say something. Caught by its

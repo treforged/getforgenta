@@ -118,7 +118,7 @@ describe('Activity ledger, a generated occurrence a bank charge answered', () =>
 
     const row = rentRow();
     expect(within(row).getByText(/2026-08-26/)).toBeTruthy();
-    expect(within(row).getByText('-$1,608')).toBeTruthy();
+    expect(within(row).getByText('-$1,608.42')).toBeTruthy();
     expect(within(row).getByText('real')).toBeTruthy();
     // Still one row. A substitution that added a row instead of replacing one would show the bill
     // twice, which is the defect this whole workstream started from.
@@ -130,7 +130,7 @@ describe('Activity ledger, a generated occurrence a bank charge answered', () =>
 
     const row = rentRow();
     expect(within(row).getByText(/2026-08-28/)).toBeTruthy();
-    expect(within(row).getByText('-$1,600')).toBeTruthy();
+    expect(within(row).getByText('-$1,600.00')).toBeTruthy();
     expect(within(row).queryByText('real')).toBeNull();
   });
 
@@ -146,7 +146,7 @@ describe('Activity ledger, a generated occurrence a bank charge answered', () =>
 
     const row = rentRow();
     expect(within(row).getByText(/2026-09-28/)).toBeTruthy();
-    expect(within(row).getByText('-$1,600')).toBeTruthy();
+    expect(within(row).getByText('-$1,600.00')).toBeTruthy();
     expect(within(row).queryByText('real')).toBeNull();
   });
 });

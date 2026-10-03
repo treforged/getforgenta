@@ -70,8 +70,8 @@ function HeroShell({ label, children }: { label: string; children: React.ReactNo
 function CashAboveFloorLine({ value, onFloorClick }: { value: number | null; onFloorClick?: () => void }) {
   if (value == null) return null;
   const text = value >= 0
-    ? `${formatCurrency(value, false)} above your floor`
-    : `${formatCurrency(Math.abs(value), false)} below your floor`;
+    ? `${formatCurrency(value)} above your floor`
+    : `${formatCurrency(Math.abs(value))} below your floor`;
   const tone = value >= 0 ? 'text-muted-foreground' : 'text-destructive-text';
   if (!onFloorClick) return <p className={`text-sm mt-3 ${tone}`}>{text}</p>;
   return (
@@ -128,7 +128,7 @@ export default function DashboardHero({ state, onFloorClick, trajectory }: Props
         }
       >
         <p className={`text-5xl font-display font-bold tracking-tight mt-1 ${below ? 'text-destructive-text' : 'text-foreground'}`}>
-          {formatCurrency(Math.abs(cashAboveFloor), false)}
+          {formatCurrency(Math.abs(cashAboveFloor))}
         </p>
         <p className="text-sm text-muted-foreground mt-2">
           {below ? 'below your cash floor' : 'above your cash floor'}

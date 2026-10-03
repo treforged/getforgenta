@@ -3,9 +3,9 @@
 // Budget Control's Transfers tab, once a savings goal's own `monthly_contribution` counts as the
 // standing transfer it actually is.
 //
-// Tre, 2026-08-27: his $510/mo move-fund contribution was invisible on the one page whose job is to
+// Tre, 2026-08-27: his $510.00/mo move-fund contribution was invisible on the one page whose job is to
 // say where the money goes, because this tab only ever read `recurring_rules`. The row now reads
-// "$510/mo + $1,107 extra this month" — and NEVER "$0 extra this month", which states an absence as
+// "$510.00/mo + $1,107.00 extra this month" — and NEVER "$0.00 extra this month", which states an absence as
 // a figure.
 //
 // Three things pinned here:
@@ -122,20 +122,20 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
 
     const row = screen.getByText('Move Fund Contribution').closest('div.border-b');
     expect(row).toBeTruthy();
-    expect(row?.textContent).toContain('$510');
-    expect(row?.textContent).toContain('+ $1,107 extra this month');
+    expect(row?.textContent).toContain('$510.00');
+    expect(row?.textContent).toContain('+ $1,107.00 extra this month');
     expect(row?.textContent).toContain('from goal');
   });
 
-  it('says nothing at all when there is no extra — never "$0 extra this month"', () => {
+  it('says nothing at all when there is no extra — never "$0.00 extra this month"', () => {
     autoExtraRow = {};
     renderInAugust();
     openTransfers();
 
     const row = screen.getByText('Move Fund Contribution').closest('div.border-b');
     expect(row).toBeTruthy();
-    expect(row?.textContent).toContain('$510');
-    // Not "$0 extra this month", and not the phrase at all — the row simply does not carry one.
+    expect(row?.textContent).toContain('$510.00');
+    // Not "$0.00 extra this month", and not the phrase at all — the row simply does not carry one.
     // (The tab's explanatory footnote below the list mentions it; the ROW must not.)
     expect(row?.textContent).not.toContain('extra this month');
   });
@@ -153,7 +153,7 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
 
     const row = screen.getByText('Move Fund Contribution').closest('div.border-b');
     // Rendered in August 2026, so month index 2 is October 2026.
-    expect(row?.textContent).toContain('next: $168 in Oct 2026');
+    expect(row?.textContent).toContain('next: $168.00 in Oct 2026');
     expect(row?.textContent).not.toContain('extra this month');
   });
 
@@ -166,7 +166,7 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
     openTransfers();
 
     const row = screen.getByText('Move Fund Contribution').closest('div.border-b');
-    expect(row?.textContent).toContain('+ $1,107 extra this month');
+    expect(row?.textContent).toContain('+ $1,107.00 extra this month');
     expect(row?.textContent).not.toContain('next:');
   });
 
@@ -174,8 +174,8 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
     renderInAugust();
     openTransfers();
 
-    // $200 from the real Vacation Transfer rule + $510 from the goal's own column.
-    expect(screen.getAllByText('$710 this month').length).toBeGreaterThan(0);
+    // $200.00 from the real Vacation Transfer rule + $510.00 from the goal's own column.
+    expect(screen.getAllByText('$710.00 this month').length).toBeGreaterThan(0);
   });
 
   it('does NOT duplicate a goal that a real rule already funds', () => {
@@ -185,8 +185,8 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
 
     expect(screen.getByText('Vacation Transfer')).toBeTruthy();
     expect(screen.queryByText('Vacation Contribution')).toBeNull();
-    // The rule's $200, not the goal column's stale $999 on top of it.
-    expect(screen.getAllByText('$200 this month').length).toBeGreaterThan(0);
+    // The rule's $200, not the goal column's stale $999.00 on top of it.
+    expect(screen.getAllByText('$200.00 this month').length).toBeGreaterThan(0);
   });
 
   it('zeroes a contribution whose start date has not arrived yet', () => {
@@ -198,7 +198,7 @@ describe("Budget Control — a goal's own contribution in the Transfers tab", ()
     openTransfers();
 
     expect(screen.getByText('Move Fund Contribution')).toBeTruthy();
-    // Only the real rule's $200 counts this month.
-    expect(screen.getAllByText('$200 this month').length).toBeGreaterThan(0);
+    // Only the real rule's $200.00 counts this month.
+    expect(screen.getAllByText('$200.00 this month').length).toBeGreaterThan(0);
   });
 });

@@ -27,7 +27,7 @@ describe('ShortfallLevers', () => {
   it('does not run the engine until the tap, then shows the ranked moves', async () => {
     const compute = vi.fn(() => REPORT);
     render(<ShortfallLevers shortMonths={SHORT} compute={compute} />);
-    expect(screen.getByText(/2 months in the next year end below your cash floor, \$3,265 short/)).toBeTruthy();
+    expect(screen.getByText(/2 months in the next year end below your cash floor, \$3,265\.00 short/)).toBeTruthy();
     expect(compute).not.toHaveBeenCalled();
     expect(screen.queryByRole('list', { name: /moves that would cover/i })).toBeNull();
 
@@ -36,16 +36,16 @@ describe('ShortfallLevers', () => {
     expect(compute).toHaveBeenCalledTimes(1);
     const items = list.querySelectorAll('li');
     expect(items).toHaveLength(2);
-    expect(items[0].textContent).toContain('Pause Owners Contribution ($145/mo) covers $2,649, and clears Aug 2027.');
+    expect(items[0].textContent).toContain('Pause Owners Contribution ($145.00/mo) covers $2,649.00, and clears Aug 2027.');
     expect(items[0].textContent).toContain('That account still pays Claude and QUO');
-    expect(items[1].textContent).toContain('Pause saving to Move fund ($510/mo) covers $1,190.');
+    expect(items[1].textContent).toContain('Pause saving to Move fund ($510.00/mo) covers $1,190.');
     expect(screen.queryByRole('button', { name: /what would cover this/i })).toBeNull();
     expect(screen.queryByText(/401K/)).toBeNull();
   });
 
   it('agrees its verb with a single month', () => {
     render(<ShortfallLevers shortMonths={[SHORT[0]]} compute={() => REPORT} />);
-    expect(screen.getByText(/1 month in the next year ends below your cash floor, \$1,698 short/)).toBeTruthy();
+    expect(screen.getByText(/1 month in the next year ends below your cash floor, \$1,698\.00 short/)).toBeTruthy();
   });
 
   it('says so plainly when no single move closes the gap', async () => {

@@ -92,18 +92,18 @@ export default function ForecastYearlySummary({ assumptions, payConfig, annualFe
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Year {yr.year}</p>
             <div>
               <p className="text-[9px] text-muted-foreground">Monthly Take-Home</p>
-              <p className="text-xs font-display font-bold text-foreground">{formatCurrency(yr.monthlyTakeHome, false)}</p>
+              <p className="text-xs font-display font-bold text-foreground">{formatCurrency(yr.monthlyTakeHome)}</p>
             </div>
             {yr.bonus > 0 && (
               <div>
                 <p className="text-[9px] text-muted-foreground">Bonus</p>
-                <p className="text-xs font-display font-bold text-success">{formatCurrency(yr.bonus, false)}</p>
+                <p className="text-xs font-display font-bold text-success">{formatCurrency(yr.bonus)}</p>
               </div>
             )}
             {yr.taxReturn !== 0 && (
               <div>
                 <p className="text-[9px] text-muted-foreground">{yr.taxReturn > 0 ? 'Tax Return' : 'Tax Owed'}</p>
-                <p className={`text-xs font-display font-bold ${yr.taxReturn > 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(Math.abs(yr.taxReturn), false)}</p>
+                <p className={`text-xs font-display font-bold ${yr.taxReturn > 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(Math.abs(yr.taxReturn))}</p>
               </div>
             )}
           </div>

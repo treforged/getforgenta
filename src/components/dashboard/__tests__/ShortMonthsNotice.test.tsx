@@ -20,7 +20,7 @@ describe('ShortMonthsNotice', () => {
   it('names the first short month, counts the rest, and links to the Forecast card', () => {
     render(<Harness month="2026-09" />);
     expect(screen.getByRole('status').textContent)
-      .toContain('Nov 2026 ends $1,698 below your cash floor, and 2 more months in the next year.');
+      .toContain('Nov 2026 ends $1,698.00 below your cash floor, and 2 more months in the next year.');
     expect(screen.getByRole('link', { name: 'See what would cover it' }).getAttribute('href'))
       .toBe('/transactions?tab=forecast');
   });

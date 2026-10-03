@@ -585,9 +585,9 @@ export default function DebtPayoff() {
         <>
           {nonCcDebtExplainer}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(totalBalance, false)}</p></div>
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment, false)}</p></div>
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment, false)}</p></div>
+            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(totalBalance)}</p></div>
+            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment)}</p></div>
+            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment)}</p></div>
           </div>
           <ErrorBoundary variant="widget" label="Other Debt Trajectory">
             <LiabilityTrajectoryChart
@@ -607,16 +607,16 @@ export default function DebtPayoff() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-sm font-semibold">{d.name}</h3>
-                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
+                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment))}/mo</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal, false)}</p>
+                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal)}</p>
                       <button aria-label={`Edit ${d.name}`} onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
                       <button aria-label={`${deleteConfirm === d.id ? 'Confirm delete' : 'Delete'} ${d.name}`} onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
+                    <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp)}/mo</p></div>
                     <div>
                       {/* Same inversion as the vehicle card above, and for the same reason. */}
                       <p className="text-xs text-muted-foreground">Payoff In</p>
@@ -631,7 +631,7 @@ export default function DebtPayoff() {
                         <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
                       )}
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest)}</p></div>
                   </div>
                 </div>
               );
@@ -641,7 +641,7 @@ export default function DebtPayoff() {
           {otherDebts.length > 1 && (
             <div className="grid md:grid-cols-2 gap-4">
               {([
-                { label: 'Snowball', desc: 'Smallest balance first', sim: snowballSim, order: snowballOrder, orderLabel: (d: (typeof otherDebts)[number]) => formatCurrency(Number(d.balance), false) },
+                { label: 'Snowball', desc: 'Smallest balance first', sim: snowballSim, order: snowballOrder, orderLabel: (d: (typeof otherDebts)[number]) => formatCurrency(Number(d.balance)) },
                 { label: 'Avalanche', desc: 'Highest APR first — minimizes total interest', sim: avalancheSim, order: avalancheOrder, orderLabel: (d: (typeof otherDebts)[number]) => `${Number(d.apr)}% APR` },
               ] as const).map(({ label, desc, sim, order, orderLabel }) => (
                 <div key={label} className="card-forged p-4 space-y-3">
@@ -657,7 +657,7 @@ export default function DebtPayoff() {
                     </div>
                     <div className="bg-muted/20 rounded p-2 text-center">
                       <p className="text-[9px] text-muted-foreground uppercase">Total Interest</p>
-                      <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(sim.totalInterest, false)}</p>
+                      <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(sim.totalInterest)}</p>
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -672,7 +672,7 @@ export default function DebtPayoff() {
                           {result && (
                             <div className="text-right">
                               <p className="text-xs font-medium">Month {result.paidOffMonth}</p>
-                              <p className="text-[9px] text-muted-foreground">{formatCurrency(result.totalInterest, false)} interest</p>
+                              <p className="text-[9px] text-muted-foreground">{formatCurrency(result.totalInterest)} interest</p>
                             </div>
                           )}
                         </div>
@@ -719,16 +719,16 @@ export default function DebtPayoff() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-sm font-semibold">{d.name}</h3>
-                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
+                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment))}/mo</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal, false)}</p>
+                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal)}</p>
                       <button aria-label={`Edit ${d.name}`} onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
                       <button aria-label={`${deleteConfirm === d.id ? 'Confirm delete' : 'Delete'} ${d.name}`} onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><p className="text-xs text-muted-foreground">Monthly Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
+                    <div><p className="text-xs text-muted-foreground">Monthly Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp)}/mo</p></div>
                     <div>
                       {/* Same inversion as the vehicle card above, and for the same reason. */}
                       <p className="text-xs text-muted-foreground">Payoff In</p>
@@ -743,7 +743,7 @@ export default function DebtPayoff() {
                         <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
                       )}
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest)}</p></div>
                   </div>
                 </div>
               );
@@ -792,16 +792,16 @@ export default function DebtPayoff() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-sm font-semibold">{d.name}</h3>
-                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
+                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment))}/mo</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal, false)}</p>
+                      <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(bal)}</p>
                       <button aria-label={`Edit ${d.name}`} onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
                       <button aria-label={`${deleteConfirm === d.id ? 'Confirm delete' : 'Delete'} ${d.name}`} onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive-text' : 'text-muted-foreground hover:text-destructive-text'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
+                    <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp)}/mo</p></div>
                     <div>
                       {/* Same inversion as the vehicle card above, and for the same reason. */}
                       <p className="text-xs text-muted-foreground">Payoff In</p>
@@ -816,7 +816,7 @@ export default function DebtPayoff() {
                         <p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p>
                       )}
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive-text">{interest === Infinity ? '—' : formatCurrency(interest)}</p></div>
                   </div>
                 </div>
               );

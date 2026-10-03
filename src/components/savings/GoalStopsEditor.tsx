@@ -279,7 +279,7 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
                     {s.mode === 'months' && !hasMonthly
                       ? 'We cannot read a monthly expense figure from your recurring rules yet, so there is nothing to multiply here.'
                       : at
-                        ? <>This stop adds {formatCurrency(at.size, false)} — filled at {formatCurrency(at.threshold, false)} saved.</>
+                        ? <>This stop adds {formatCurrency(at.size)} — filled at {formatCurrency(at.threshold)} saved.</>
                         : 'Enter an amount to size this stop.'}
                   </p>
                 </li>
@@ -288,9 +288,9 @@ export default function GoalStopsEditor({ stops, onChange, essentialMonthlyExpen
           </ul>
           {resolved.staged && (
             <p className="text-[11px] text-foreground">
-              Full plan: {formatCurrency(resolved.total, false)} across {resolved.stops.length} stop{resolved.stops.length === 1 ? '' : 's'}.
+              Full plan: {formatCurrency(resolved.total)} across {resolved.stops.length} stop{resolved.stops.length === 1 ? '' : 's'}.
               {hasMonthly && stops.some(s => s.mode === 'months') && (
-                <span className="text-muted-foreground"> One month of essentials is {formatCurrency(monthly, false)}.</span>
+                <span className="text-muted-foreground"> One month of essentials is {formatCurrency(monthly)}.</span>
               )}
             </p>
           )}
