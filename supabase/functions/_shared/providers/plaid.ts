@@ -12,6 +12,7 @@
  */
 
 import { tranchesFromPlaidAprs } from "./balance-tranche-seed.ts";
+import { cardBalanceOwed } from "./card-balance.ts";
 import {
   type AccountType,
   type FinancialConnection,
@@ -145,7 +146,10 @@ export const plaidProvider: FinancialProvider = {
         providerAccountId: acct.account_id as string,
         name,
         accountType,
-        balance: Math.abs(Number(balances.current ?? 0)),
+        // A card owes its pending charges too (ask 1f00b82d); see card-balance.ts.
+        balance: accountType === "credit_card"
+          ? cardBalanceOwed(balances)
+          : Math.abs(Number(balances.current ?? 0)),
         creditLimit: balances.limit != null ? Number(balances.limit) : null,
         apr: accountType === "credit_card" ? parseAprFromName(name) : null,
         minPayment: null,
