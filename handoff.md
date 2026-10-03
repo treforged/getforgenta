@@ -39,7 +39,13 @@ R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). S
         NOTE: .claude/hooks/context-gate.mjs infers a 200k window until tokens pass 190k, so on a [1m] session it
         fires at BOOT (hook payload alone ~170k). False positive on 1M; fix = read the model id or pin
         CLAUDE_CONTEXT_WINDOW_TOKENS=1000000. Not changed yet.
-    [ ] 4066ff23 cents for months 1+: ~20 Math.round sites in useCardProjection (1449-1514 chart rows, 1717/1863
+    [ ] 4066ff23 PROBED 10-03 late, NOT SHIPPED: switching all 26 Math.round sites in useCardProjection to cents()
+        (skip :52 def and :1476 utilization %) leaves tsc 0 and ALL 5844 tests green - so NO test pins these values,
+        and the convergence/golden files (5 tests) exercise the engine, not this hook. A green here is not evidence.
+        Also forecast-engine.ts has 36 Math.round sites; :2701 `endingCash = Math.round(rawEndingCash)` carries into
+        the next month, and :2832-2858 round every output row. Needed FIRST: a hook-level instrument that asserts
+        sim perCardPayments == forecast debtPayment to the cent per month on the real fixture, proven red. Reverted.
+        Original note: cents for months 1+: ~20 Math.round sites in useCardProjection (1449-1514 chart rows, 1717/1863
         pass3RevTotals that feed the forecast, 1961-2012 perCardPayments, 2623-2639 month0 fields). Must prove
         forecast and sim agree to the cent (forecast-convergence). Do it as ONE slice with test:tz + golden locally.
     [x] 382d1dd8 closed: Tests run 37142839768 on 873f38d0 = success (37142458017 was CANCELLED by supersession).
