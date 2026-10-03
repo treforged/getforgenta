@@ -45,9 +45,13 @@ R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). S
         [x] DISPLAY: cents now on /debt (CreditCardEngine 45, widget 6), Forecast drawers 8, Dashboard 20, Safe to
         Spend + Month-End Cash, BudgetTotalsCard 31, Consolidation/Utilization panels, Forecast monthly table (new
         check:forecast-table, proven red). Credit limits (CardRateLine) stay whole ON PURPOSE.
-        [ ] REMAINING ~150 whole-dollar sites: vehicles (LoanCard 11, SavingCard 9, LumpSumPanel 5, BuildCarStrip 5),
-        SurplusRankingSection 8, Accounts 4, AiAdvisor 3, chart axes; engine rows netWorth/savings/contribs still
-        Math.round. Then close ask 4066ff23. [ ] Look at it on localhost:8080 as Tre (read-only).
+        [x] Batches 3-4 shipped (vehicles, savings, Accounts, Budget, DebtPayoff, Transactions, Goals, hero, strip):
+        ~270 sites total. check:payoff-today now needs hero == tile to the cent.
+        [ ] LEFT: chart tooltips/axes (recharts formatters, e.g. Debt chart tooltip "$4,318"), AiAdvisor 3,
+        NetWorthTrendCard 2, AdvancedAnalyticsCard 3, RuleProposalCard 1; engine output rows netWorth/savings/
+        contribs still Math.round (forecast-engine.ts:2832-2858). Credit limits stay whole ON PURPOSE (also the
+        "33.1% of $19,570.00" limit total on the strip should go whole - DashboardOverviewStrip). Then close ask.
+        [ ] Look at it on localhost:8080 as Tre (read-only).
     (old) 4066ff23 PROBED 10-03 late, NOT SHIPPED: switching all 26 Math.round sites in useCardProjection to cents()
         (skip :52 def and :1476 utilization %) leaves tsc 0 and ALL 5844 tests green - so NO test pins these values,
         and the convergence/golden files (5 tests) exercise the engine, not this hook. A green here is not evidence.
