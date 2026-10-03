@@ -27,6 +27,12 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { getCorsHeaders } from "./cors.ts";
 import { resolveAprOnSync } from "./providers/apr-sync-policy.ts";
 import { shouldSeedTranches } from "./providers/balance-tranche-seed.ts";
+import {
+  dueDayFromDate,
+  resolveDueDayOnSync,
+  resolveStatementBalanceOnSync,
+  statementAmountStillDue,
+} from "./providers/statement-sync-policy.ts";
 import { chooseClaimCandidate, type ClaimableAccount } from "./account-claim.ts";
 import { isPremiumEntitled } from "./premium-entitlement.ts";
 import {
@@ -114,7 +120,12 @@ export async function persistAccount(
   account: NormalizedAccount,
   now: string,
 ): Promise<void> {
-  const COLS = "id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, name_is_manual, balance_tranches";
+  // ⚠️ statement_balance_plaid_synced arrives with migration 20261003_statement_balance_plaid_synced.
+  // Apply it BEFORE deploying: a select naming a missing column returns no row, and no row is the
+  // INSERT path - every synced card would be duplicated.
+  // One literal, not a concatenation: the typed client parses this string to type the row.
+  const COLS =
+    "id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, name_is_manual, balance_tranches, statement_balance, statement_balance_plaid_synced, payment_due_day";
 
   let { data: existing } = await db
     .from("accounts")
@@ -169,8 +180,20 @@ export async function persistAccount(
     updated_at: now,
   };
 
+  // Statement balance and due day from /liabilities/get (ask ec48da25). Server date: a due date
+  // read near midnight UTC can be a day early, which keeps a just-due statement one day longer.
+  const facts = account.statementFacts ?? null;
+  const stmtDue = facts ? statementAmountStillDue(facts, now.slice(0, 10)) : null;
+  const plaidDueDay = facts ? dueDayFromDate(facts.nextPaymentDueDate) : null;
+
   if (!existing) {
+    const seedStmt = resolveStatementBalanceOnSync(stmtDue, null, null);
+    const seedDueDay = resolveDueDayOnSync(plaidDueDay, null);
     const { error } = await db.from("accounts").insert({
+      ...(seedStmt.write && seedStmt.value != null
+        ? { statement_balance: seedStmt.value, statement_balance_plaid_synced: true }
+        : {}),
+      ...(seedDueDay != null ? { payment_due_day: seedDueDay } : {}),
       ...shared,
       user_id: userId,
       account_type: account.accountType,
@@ -239,6 +262,28 @@ export async function persistAccount(
   // column is simply not in the payload and the user's rows are not touched at all.
   if (shouldSeedTranches(existing.balance_tranches, account.balanceTranches)) {
     update.balance_tranches = account.balanceTranches;
+  }
+
+  // Only when the provider gave statement facts at all; no facts = no opinion, touch nothing.
+  if (facts) {
+    const stmt = resolveStatementBalanceOnSync(
+      stmtDue,
+      existing.statement_balance != null ? Number(existing.statement_balance) : null,
+      (existing.statement_balance_plaid_synced as boolean | null) ?? null,
+    );
+    if (stmt.write) {
+      update.statement_balance = stmt.value;
+      // Reverting to auto releases Plaid's claim; the column is empty, so nobody owns it.
+      update.statement_balance_plaid_synced = stmt.markPlaidSynced;
+    }
+    if (stmt.keptManual && stmtDue != null && stmtDue !== Number(existing.statement_balance)) {
+      console.log(
+        `Kept manual statement_balance ${existing.statement_balance} on ${account.providerAccountId}; ` +
+          `${connection.provider} says ${stmtDue} still due`,
+      );
+    }
+    const dueDay = resolveDueDayOnSync(plaidDueDay, (existing.payment_due_day as number | null) ?? null);
+    if (dueDay != null) update.payment_due_day = dueDay;
   }
 
   if (!minIsManual) {

@@ -246,3 +246,53 @@ describe('persistAccount — claim-on-first-sync', () => {
     expect(writes.updatedId).toBeUndefined();
   });
 });
+
+describe('persistAccount - statement balance and due day from Plaid (ec48da25)', () => {
+  // NOW is 2026-08-14; this statement is due 08-20 and unpaid.
+  const stmt = {
+    lastStatementBalance: 334.26, lastStatementIssueDate: '2026-07-25', nextPaymentDueDate: '2026-08-20',
+    lastPaymentDate: null, lastPaymentAmount: null,
+  };
+  const base = { id: 'row-1', min_payment_is_manual: false };
+
+  it('fills an empty statement_balance and due day, and claims it for Plaid', async () => {
+    const { db, writes } = fakeDb({ ...base, statement_balance: null, payment_due_day: null });
+    await persistAccount(db, 'user-1', connection, account({ statementFacts: stmt }), NOW);
+    expect(writes.updated).toMatchObject({
+      statement_balance: 334.26, statement_balance_plaid_synced: true, payment_due_day: 20,
+    });
+  });
+
+  it('NEVER touches a typed statement_balance or an existing due day', async () => {
+    const { db, writes } = fakeDb({
+      ...base, statement_balance: 500, statement_balance_plaid_synced: null, payment_due_day: 12,
+    });
+    await persistAccount(db, 'user-1', connection, account({ statementFacts: stmt }), NOW);
+    expect('statement_balance' in writes.updated!).toBe(false);
+    expect('statement_balance_plaid_synced' in writes.updated!).toBe(false);
+    expect('payment_due_day' in writes.updated!).toBe(false);
+  });
+
+  it('touches nothing when the provider gave no statement facts', async () => {
+    const { db, writes } = fakeDb({
+      ...base, statement_balance: 334.26, statement_balance_plaid_synced: true, payment_due_day: null,
+    });
+    await persistAccount(db, 'user-1', connection, account({}), NOW);
+    expect('statement_balance' in writes.updated!).toBe(false);
+    expect('payment_due_day' in writes.updated!).toBe(false);
+  });
+
+  it('seeds both on a brand-new row', async () => {
+    const { db, writes } = fakeDb(null);
+    await persistAccount(db, 'user-1', connection, account({ statementFacts: stmt }), NOW);
+    expect(writes.inserted).toMatchObject({
+      statement_balance: 334.26, statement_balance_plaid_synced: true, payment_due_day: 20,
+    });
+  });
+
+  it('does not stamp liability_synced_at when the pass failed', async () => {
+    const { db, writes } = fakeDb({ ...base });
+    await persistAccount(db, 'user-1', connection, account({ liabilityDataAvailable: false }), NOW);
+    expect('liability_synced_at' in writes.updated!).toBe(false);
+  });
+});

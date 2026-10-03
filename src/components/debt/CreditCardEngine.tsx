@@ -1317,7 +1317,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const handleSaveStatementBal = (card: CardData, rawValue?: string) => {
     const val = (rawValue ?? statementBalInput).trim();
     if (val === '') {
-      updateAccount.mutate({ id: card.id, statement_balance: null });
+      updateAccount.mutate({ id: card.id, statement_balance: null, statement_balance_plaid_synced: false });
       setEditingStatementBal(null);
       toast.success(`${card.name} interest-saving balance reverted to auto (current balance)`);
       return;
@@ -1327,7 +1327,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       toast.error('Enter a valid balance amount');
       return;
     }
-    updateAccount.mutate({ id: card.id, statement_balance: parsed });
+    // Typed by the user, so a Plaid sync must not overwrite it (statement_balance_plaid_synced, ec48da25).
+    updateAccount.mutate({ id: card.id, statement_balance: parsed, statement_balance_plaid_synced: false });
     setEditingStatementBal(null);
     toast.success(`Statement balance for ${card.name} set to ${formatCurrency(parsed, false)}`);
   };
@@ -2496,7 +2497,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         return (
           <StatementImport
             card={row}
-            onApply={patch => updateAccount.mutateAsync({ id: row.id, ...patch })}
+            onApply={patch => updateAccount.mutateAsync({
+              id: row.id, ...patch,
+              // A statement the user pasted is theirs; the sync must not overwrite it (ec48da25).
+              ...('statement_balance' in patch ? { statement_balance_plaid_synced: false } : {}),
+            })}
             onClose={() => setStatementImportCard(null)}
           />
         );

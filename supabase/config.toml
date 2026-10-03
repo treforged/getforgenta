@@ -195,3 +195,6 @@ verify_jwt = true
 # true on deploy rather than left alone (see the header).
 [functions.friend-link]
 verify_jwt = true
+
+[functions.plaid-liabilities-probe]
+verify_jwt = false

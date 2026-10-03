@@ -13,6 +13,7 @@
 
 import { tranchesFromPlaidAprs } from "./balance-tranche-seed.ts";
 import { cardBalanceOwed } from "./card-balance.ts";
+import { factsFromPlaidLiability, liabilityPassCounts } from "./statement-sync-policy.ts";
 import {
   type AccountType,
   type FinancialConnection,
@@ -164,10 +165,14 @@ export const plaidProvider: FinancialProvider = {
       return { accounts };
     }
 
-    // liabilityDataAvailable is set for every credit card the moment the pass
-    // runs — including when it fails — so the UI's re-link prompt clears for
-    // institutions that simply don't expose liability data.
-    for (const card of creditCards) card.liabilityDataAvailable = true;
+    // liabilityDataAvailable (-> liability_synced_at) is set only when the pass
+    // SUCCEEDS, or when Plaid answers definitively that the institution has no
+    // liability data - so the UI's re-link prompt still clears for those. A failed
+    // pass used to stamp it too, so the column proved nothing (ask ec48da25).
+    const markPass = (ok: boolean, errorCode: string | null | undefined) => {
+      if (!liabilityPassCounts(ok, errorCode)) return;
+      for (const card of creditCards) card.liabilityDataAvailable = true;
+    };
 
     try {
       const liabRes = await fetch(`${base}/liabilities/get`, {
@@ -182,10 +187,12 @@ export const plaidProvider: FinancialProvider = {
           `Plaid liabilities non-OK for item ${connection.provider_item_id}:`,
           JSON.stringify(errBody),
         );
+        markPass(false, (errBody as Record<string, unknown>)?.error_code as string | undefined);
         return { accounts };
       }
 
       const liabBody = await liabRes.json();
+      markPass(true, null);
       const byAccountId = new Map<string, Record<string, unknown>>();
       for (const liab of (liabBody.liabilities?.credit ?? [])) {
         byAccountId.set(liab.account_id, liab);
@@ -205,6 +212,9 @@ export const plaidProvider: FinancialProvider = {
         if (liab.minimum_payment_amount != null) {
           card.minPayment = Number(liab.minimum_payment_amount);
         }
+        // last_statement_balance, last_statement_issue_date, next_payment_due_date and the last
+        // payment. Only facts; persistAccount decides what may be written (statement-sync-policy.ts).
+        card.statementFacts = factsFromPlaidLiability(liab);
       }
     } catch (err) {
       console.warn(

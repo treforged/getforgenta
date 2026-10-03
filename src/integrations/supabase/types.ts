@@ -142,6 +142,7 @@ export type Database = {
           sort_order: number
           statement_balance: number | null
           statement_balance_phase: boolean
+          statement_balance_plaid_synced: boolean | null
           surplus_share: number | null
           surplus_sort_order: number | null
           updated_at: string
@@ -185,6 +186,7 @@ export type Database = {
           sort_order?: number
           statement_balance?: number | null
           statement_balance_phase?: boolean
+          statement_balance_plaid_synced?: boolean | null
           surplus_share?: number | null
           surplus_sort_order?: number | null
           updated_at?: string
@@ -228,6 +230,7 @@ export type Database = {
           sort_order?: number
           statement_balance?: number | null
           statement_balance_phase?: boolean
+          statement_balance_plaid_synced?: boolean | null
           surplus_share?: number | null
           surplus_sort_order?: number | null
           updated_at?: string

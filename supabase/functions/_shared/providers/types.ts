@@ -7,6 +7,8 @@
  * touching call sites.
  */
 
+import type { PlaidStatementFacts } from "./statement-sync-policy.ts";
+
 export type ProviderId = "plaid" | "akoya";
 
 export type ConnectionStatus = "active" | "reauth_required" | "revoked" | "error";
@@ -84,6 +86,11 @@ export interface NormalizedAccount {
    * account already has tranches, because those are the user's. See persistAccount.
    */
   balanceTranches: SeededTranche[];
+  /**
+   * The card's statement facts from /liabilities/get (ask ec48da25). Absent or null when the
+   * provider gave none. persistAccount decides, via statement-sync-policy.ts, what may be written.
+   */
+  statementFacts?: PlaidStatementFacts | null;
 }
 
 /**
