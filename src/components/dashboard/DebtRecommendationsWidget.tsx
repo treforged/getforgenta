@@ -94,7 +94,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
                   describe the same problem differently. The fallback is the OLD wording rather than
                   nothing: a breakdown built by the deprecated one-shot path carries no text, and a
                   silent banner would be worse than a slightly generic one. */}
-              <span>{cashWarningText ?? `Safe to Pay (${formatCurrency(totalAvailableCash, false)}) is less than minimums due (${formatCurrency(totalMinimumsDue, false)}). Review cash flow.`}</span>
+              <span>{cashWarningText ?? `Safe to Pay (${formatCurrency(totalAvailableCash)}) is less than minimums due (${formatCurrency(totalMinimumsDue)}). Review cash flow.`}</span>
             </div>
           )}
 
@@ -104,11 +104,11 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[9px] text-muted-foreground uppercase">Safe to Pay</p>
-                <p className="text-xs font-display font-bold text-primary">{formatCurrency(totalAvailableCash, false)}</p>
+                <p className="text-xs font-display font-bold text-primary">{formatCurrency(totalAvailableCash)}</p>
               </div>
               <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[9px] text-muted-foreground uppercase">Minimums Due</p>
-                <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(totalMinimumsDue, false)}</p>
+                <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(totalMinimumsDue)}</p>
               </div>
             </div>
           )}
@@ -175,7 +175,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
                     <span className={(r.dueThisMonth ?? r.payment) > 0
                       ? 'text-[10px] text-foreground'
                       : 'text-[9px] text-muted-foreground/70'}>
-                      {formatCurrency(r.dueThisMonth ?? r.payment, false)} due this month
+                      {formatCurrency(r.dueThisMonth ?? r.payment)} due this month
                     </span>
                   )}
                   {r.afterPayday !== undefined && r.afterPayday > 0 && (
@@ -268,7 +268,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
           {hasRecs && (
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40 text-xs">
               <span className="text-muted-foreground font-medium">Total recommended</span>
-              <span className="font-display font-bold text-primary">{formatCurrency(totalRecommended, false)}</span>
+              <span className="font-display font-bold text-primary">{formatCurrency(totalRecommended)}</span>
             </div>
           )}
         </>

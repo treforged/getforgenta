@@ -1343,7 +1343,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Typed by the user, so a Plaid sync must not overwrite it (statement_balance_plaid_synced, ec48da25).
     updateAccount.mutate({ id: card.id, statement_balance: parsed, statement_balance_plaid_synced: false });
     setEditingStatementBal(null);
-    toast.success(`Statement balance for ${card.name} set to ${formatCurrency(parsed, false)}`);
+    toast.success(`Statement balance for ${card.name} set to ${formatCurrency(parsed)}`);
   };
 
   const handleOverrideMonth = (cardId: string, monthIdx: number) => {
@@ -1389,12 +1389,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const surplus = currentEndingCash - recommendedSafeMinimum;
     
     if (surplus > 50) {
-      toast.success(`Debt payments are safe. Ending cash ${formatCurrency(currentEndingCash, false)} is above minimum ${formatCurrency(recommendedSafeMinimum, false)}.`);
+      toast.success(`Debt payments are safe. Ending cash ${formatCurrency(currentEndingCash)} is above minimum ${formatCurrency(recommendedSafeMinimum)}.`);
     } else if (surplus < -50) {
       const reduction = Math.abs(surplus);
-      toast.warning(`Reduced debt payments by ${formatCurrency(reduction, false)} to meet safe minimum of ${formatCurrency(recommendedSafeMinimum, false)}.`);
+      toast.warning(`Reduced debt payments by ${formatCurrency(reduction)} to meet safe minimum of ${formatCurrency(recommendedSafeMinimum)}.`);
     } else {
-      toast.success(`Debt payments already aligned with safe minimum of ${formatCurrency(recommendedSafeMinimum, false)}.`);
+      toast.success(`Debt payments already aligned with safe minimum of ${formatCurrency(recommendedSafeMinimum)}.`);
     }
     
     setOverrides({});
@@ -1494,7 +1494,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         <div className="flex items-center gap-2 sm:gap-3" data-testid="debt-toolbar">
           <button
             onClick={handleAutoAdjust}
-            title={`Recalculate the plan so cash ends each month near your safe minimum (${formatCurrency(recommendedSafeMinimum, false)})`}
+            title={`Recalculate the plan so cash ends each month near your safe minimum (${formatCurrency(recommendedSafeMinimum)})`}
             className="on-solid flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-[10px] sm:text-xs font-medium btn-press hover:bg-primary/20" style={{ borderRadius: 'var(--radius)' }}
           >
             <ShieldCheck size={12} /> Reset & Recalculate
@@ -1543,7 +1543,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4 text-center">
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total CC Balance</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text">{formatCurrency(totalBalance, false)}</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text">{formatCurrency(totalBalance)}</p>
             </div>
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Utilization</p>
@@ -1656,7 +1656,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span data-testid="cash-floor-applied" className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 text-xs font-display font-bold text-primary cursor-help" style={{ borderRadius: 'var(--radius)' }}>
-                      <ShieldCheck size={11} /> {formatCurrency(recommendedSafeMinimum, false)}
+                      <ShieldCheck size={11} /> {formatCurrency(recommendedSafeMinimum)}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[260px] text-xs">
@@ -1667,7 +1667,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         {prePaycheckBills.items.map((item, i) => (
                           <div key={i} className="flex justify-between gap-2">
                             <span>{item.name} (day {item.dueDay})</span>
-                            <span className="font-bold">{formatCurrency(item.amount, false)}</span>
+                            <span className="font-bold">{formatCurrency(item.amount)}</span>
                           </div>
                         ))}
                       </>
@@ -1705,7 +1705,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               {manualFloor && prePaycheckBills.total > cashFloor && (
                 <p className="text-[9px] text-primary flex items-center gap-1">
                   <Info size={9} className="shrink-0" />
-                  Floor raised to {formatCurrency(recommendedSafeMinimum, false)} — pre-paycheck bills exceed your {formatCurrency(cashFloor, false)} floor.
+                  Floor raised to {formatCurrency(recommendedSafeMinimum)} — pre-paycheck bills exceed your {formatCurrency(cashFloor)} floor.
                 </p>
               )}
             </div>
@@ -1727,7 +1727,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </select>
             {fundingAccount && (
               <span className="text-[10px] text-muted-foreground shrink-0">
-                Balance: <span className="font-display font-bold text-foreground">{formatCurrency(fundingBalance, false)}</span>
+                Balance: <span className="font-display font-bold text-foreground">{formatCurrency(fundingBalance)}</span>
               </span>
             )}
           </div>
@@ -1768,7 +1768,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Est. Liquid Cash</p>
-                  <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(estLiquidCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(estLiquidCash)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
@@ -1851,13 +1851,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe Minimum</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(recommendedSafeMinimum, false)}</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(recommendedSafeMinimum)}</p>
             </div>
             <Tooltip open={safeToPayOpen} onOpenChange={setSafeToPayOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
-                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0Recs.totalAvailableCash)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
@@ -1872,32 +1872,32 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <p className="font-semibold mb-1">Safe to Pay — how it's calculated:</p>
                 <div className="space-y-0.5">
                   {(month0?.cyclingPayment ?? 0) > 0 && (
-                    <div className="flex justify-between gap-3"><span>Cycling cards (statement/full)</span><span>{formatCurrency(month0!.cyclingPayment, false)}</span></div>
+                    <div className="flex justify-between gap-3"><span>Cycling cards (statement/full)</span><span>{formatCurrency(month0!.cyclingPayment)}</span></div>
                   )}
                   {(month0?.revolvingPayment ?? 0) > 0 && (
-                    <div className="flex justify-between gap-3"><span>Revolving debt payments</span><span>{formatCurrency(month0!.revolvingPayment, false)}</span></div>
+                    <div className="flex justify-between gap-3"><span>Revolving debt payments</span><span>{formatCurrency(month0!.revolvingPayment)}</span></div>
                   )}
                   <hr className="my-1 border-border/50" />
-                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</span></div>
+                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0Recs.totalAvailableCash)}</span></div>
                   {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
                     <div className="flex justify-between gap-3 text-primary text-[10px] mt-1">
-                      <span>Holdback: {formatCurrency(month0.holdback, false)} reserved for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
+                      <span>Holdback: {formatCurrency(month0.holdback)} reserved for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
                     </div>
                   )}
                 </div>
-                <p className="text-muted-foreground mt-2">Computed by the Forecast engine using your paycheck schedule, floor ({formatCurrency(month0?.m0SafeFloor ?? recommendedSafeMinimum, false)}), savings goals, and upcoming bills. Save-up months reserve additional cash, reducing the amount available for debt.</p>
+                <p className="text-muted-foreground mt-2">Computed by the Forecast engine using your paycheck schedule, floor ({formatCurrency(month0?.m0SafeFloor ?? recommendedSafeMinimum)}), savings goals, and upcoming bills. Save-up months reserve additional cash, reducing the amount available for debt.</p>
               </TooltipContent>
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-destructive-text">{formatCurrency(month0Recs.totalMinimumsdue, false)}</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-destructive-text">{formatCurrency(month0Recs.totalMinimumsdue)}</p>
             </div>
           </div>
 
           {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
             <div className="flex items-start gap-2 bg-primary/10 border border-primary/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span>Forecast is reserving <strong>{formatCurrency(month0.holdback, false)}</strong> for <strong>{month0.holdbackEvent.eventName}</strong> ({month0.holdbackEvent.monthLabel}). Paying the full amounts below may reduce that reserve. See the per-card caps.</span>
+              <span>Forecast is reserving <strong>{formatCurrency(month0.holdback)}</strong> for <strong>{month0.holdbackEvent.eventName}</strong> ({month0.holdbackEvent.monthLabel}). Paying the full amounts below may reduce that reserve. See the per-card caps.</span>
             </div>
           )}
 
@@ -1932,11 +1932,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5 cursor-pointer" style={{ borderRadius: 'var(--radius)' }}>
-                            max {formatCurrency(r.maxPayment, false)}
+                            max {formatCurrency(r.maxPayment)}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[260px] text-xs">
-                          Forecast reserved {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}), capping this month's payment from {formatCurrency(r.maxPayment, false)} to {formatCurrency(r.payment, false)}.
+                          Forecast reserved {formatCurrency(month0.holdback)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}), capping this month's payment from {formatCurrency(r.maxPayment)} to {formatCurrency(r.payment)}.
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -1976,7 +1976,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <span className={(r.dueThisMonth ?? r.payment) > 0
                           ? 'text-[10px] sm:text-xs text-foreground'
                           : 'text-[9px] text-muted-foreground/70'}>
-                          {formatCurrency(r.dueThisMonth ?? r.payment, false)} due this month
+                          {formatCurrency(r.dueThisMonth ?? r.payment)} due this month
                         </span>
                       )}
                       {r.afterPayday !== undefined && r.afterPayday > 0 && (
@@ -2107,7 +2107,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         account={accounts.find(a => a.id === proj.card.id)}
                       />
                       <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive-text'}`}>
-                        {formatCurrency(Math.max(0, proj.card.balance), false)}
+                        {formatCurrency(Math.max(0, proj.card.balance))}
                       </p>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
                         {proj.card.balance <= 0
@@ -2133,7 +2133,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 px-3 sm:px-4 pb-3 text-center">
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Min Payment</p>
-                    <p className="text-xs font-semibold">{formatCurrency(proj.card.minPayment, false)}</p>
+                    <p className="text-xs font-semibold">{formatCurrency(proj.card.minPayment)}</p>
                     <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
                   <div>
@@ -2141,7 +2141,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <p className="text-xs font-semibold">{proj.card.dueDay ? ordinal(proj.card.dueDay) : '—'}</p>
                     <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}</p></div>
+                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases)}</p></div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Total Interest</p>
@@ -2157,7 +2157,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       className="text-xs font-semibold text-destructive-text"
                       title={totalInterestLabel(proj.payoffMonth) ? NO_PAYOFF_EXPLANATION : undefined}
                     >
-                      {totalInterestLabel(proj.payoffMonth) ?? formatCurrency(proj.totalInterest, false)}
+                      {totalInterestLabel(proj.payoffMonth) ?? formatCurrency(proj.totalInterest)}
                     </p>
                   </div>
                 </div>
@@ -2250,11 +2250,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <div className="flex items-center gap-1.5">
                           {proj.card.statementBalance !== null ? (
                             <>
-                              <span className="text-xs font-semibold">{formatCurrency(proj.card.statementBalance, false)}</span>
+                              <span className="text-xs font-semibold">{formatCurrency(proj.card.statementBalance)}</span>
                               <span className="text-[8px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>manual</span>
                             </>
                           ) : (
-                            <span className="text-xs text-muted-foreground">Auto ({formatCurrency(Math.max(0, proj.card.balance), false)})</span>
+                            <span className="text-xs text-muted-foreground">Auto ({formatCurrency(Math.max(0, proj.card.balance))})</span>
                           )}
                           <button
                             onClick={() => { setEditingStatementBal(proj.card.id); setStatementBalInput(proj.card.statementBalance !== null ? String(proj.card.statementBalance) : ''); }}
@@ -2297,7 +2297,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.balance <= 0 && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />
-                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : proj.card.paymentPreference === 'statement' ? 'statement balance' : 'minimum'} — as cash allows.</span>
+                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : proj.card.paymentPreference === 'statement' ? 'statement balance' : 'minimum'} — as cash allows.</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
@@ -2387,7 +2387,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 ) : (
                                   <div className="flex items-center justify-end gap-1">
                                     <span className="font-semibold text-primary">
-                                      {row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}
+                                      {row.payment > 0 ? `-${formatCurrency(row.payment)}` : '—'}
                                     </span>
                                     {isOverridden && <span className="text-[8px] font-semibold text-primary-foreground bg-primary px-1 py-0.5 flex items-center gap-0.5" style={{ borderRadius: 'var(--radius)' }}><Edit2 size={7} /> edited</span>}
                                     {(isPremium || isDemo) && !proj.card.autopayFullBalance && row.startBalance > 0 && (
@@ -2401,21 +2401,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 )}
                               </div>
                               <div className="px-2 text-right font-semibold text-[10px] sm:text-[11px]">
-                                {formatCurrency(displayEnd, false)}
+                                {formatCurrency(displayEnd)}
                               </div>
                             </div>
                             {/* Detail row: constrained to first column so it never bleeds into Payment/End Bal */}
                             <div className="grid grid-cols-3 gap-x-3 pb-1.5">
                               <div className="px-2 flex flex-col gap-0.5 text-[10px] sm:text-[11px] text-muted-foreground">
-                                <span>Start: {formatCurrency(displayStart, false)}</span>
+                                <span>Start: {formatCurrency(displayStart)}</span>
                                 {pinAdjusted && (
                                   <span className="text-primary">
                                     {row.payment > (pinnedVal ?? 0)
-                                      ? `Pinned ${formatCurrency(pinnedVal ?? 0, false)} raised to this month's required payment`
-                                      : `Pinned ${formatCurrency(pinnedVal ?? 0, false)} reduced to available cash`}
+                                      ? `Pinned ${formatCurrency(pinnedVal ?? 0)} raised to this month's required payment`
+                                      : `Pinned ${formatCurrency(pinnedVal ?? 0)} reduced to available cash`}
                                   </span>
                                 )}
-                                {row.newPurchases > 0 && <span className="text-destructive-text">+{formatCurrency(row.newPurchases, false)} purchases</span>}
+                                {row.newPurchases > 0 && <span className="text-destructive-text">+{formatCurrency(row.newPurchases)} purchases</span>}
                                 {/* ⚠️ A SENTENCE STOOD HERE AND IT WAS REMOVED ON 2026-09-17,
                                     THE SAME DAY IT SHIPPED, BECAUSE ITS PREMISE WAS FALSE.
                                     It told the reader that the payment and the end balance were
@@ -2444,7 +2444,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                     non-reconciling row is tracked separately and is still open.
                                     Do not restore this line - fix the numbers. */}
                                 {row.interest > 0 && <span className="text-destructive-text">+{formatCurrency(row.interest, true)} interest</span>}
-                                {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
+                                {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt)} surplus redirect</span>}
                                 <span className={row.utilization > 30 ? 'text-destructive-text' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
                                   {row.utilization.toFixed(1)}% utilization
                                 </span>
@@ -2472,7 +2472,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 // Same divergence as the Total Interest tile, and worse here: this
                                 // is a SALES claim. "Save $19,007,108 in total interest" is not a
                                 // benefit, it is an obviously false promise attached to a paywall.
-                                interestSavingsBullet(proj.payoffMonth, formatCurrency(proj.totalInterest, false)),
+                                interestSavingsBullet(proj.payoffMonth, formatCurrency(proj.totalInterest)),
                                 'Override any month\'s payment and watch balances update live',
                               ]}
                             >
@@ -2485,8 +2485,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                   return (
                                   <div key={row.month} className="grid grid-cols-3 gap-x-3 py-1.5 border-b border-border/30">
                                     <div className="px-2 text-[10px] font-medium">{row.label}</div>
-                                    <div className="px-2 text-right text-[10px] font-semibold text-primary">{row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}</div>
-                                    <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(gEnd, false)}</div>
+                                    <div className="px-2 text-right text-[10px] font-semibold text-primary">{row.payment > 0 ? `-${formatCurrency(row.payment)}` : '—'}</div>
+                                    <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(gEnd)}</div>
                                   </div>
                                   );
                                 })}
