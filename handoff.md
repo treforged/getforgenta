@@ -25,6 +25,18 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW58 (10-03 ~19:30 ET, Ada getforgenta-b4). START HERE, IN ORDER:
+    1. [x] R-NOW57 item 1 SHIPPED 956c0f5c (Debt stat grid / aligned controls / themed Pay From); ask 5d53be95 CLOSED.
+    2. [~] 1be673ad box-fill: [x] a184fa4a inventory:fill (215 boxes, 2 runs agree except /dashboard tiles);
+       [x] 4998a1f9 Budget tiles (478->274px at 1440). [~] FIVE opus-executors running, disjoint areas, NO commits by
+       them: Budget page, Forecast, Dashboard widgets+goals (not BudgetTotalsCard), Settings/Account/Vehicles,
+       Debt+Net Worth. Shared brief: scratchpad fill-common.md (copy in this entry's spirit: own only your files,
+       report shared-component fixes, before->after per box at 390+1440, frames, gates). Review each, run test:tz,
+       commit per area, push, then rerun `npm run inventory:fill` and compare to the a184fa4a ranking.
+    3. [x] ec48da25 card-pay wiring SHIPPED 72304049 (useCardPayHistory + cardPayHint on the Debt card row; verified
+       on Tre's account: Discover amber mismatch, Prime muted). Question to Tre filed ONCE: ask c013318d (Discover
+       Full vs bank-minimum). Rest of ec48da25 (per-card Plaid liabilities match table) still open.
+    4. [ ] Monday 10-05: e501632b; d1f4970f waits on Tre (Prime min this month only?).
 R-NOW57 (10-03 ~19:00 ET, Ada getforgenta-e1, handoff gate at 194 calls). START HERE, IN ORDER:
     1. [ ] DEBT LAYOUT (Tre's desktop screenshot + empty-space #4): an opus builder edited src/components/debt/
        CreditCardEngine.tsx + UtilizationPanel.tsx (UNCOMMITTED in the tree). Its brief: summary-card stats on ONE
@@ -12826,52 +12838,38 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 18:15 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 18:38 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (24 file(s)):**
+- **Uncommitted (10 file(s)):**
 
 ```
 M deno.lock
- M src/components/dashboard/DashboardOverviewStrip.tsx
- M src/components/dashboard/DebtRecommendationsWidget.tsx
- M src/components/dashboard/MonthlyBudgetSnapshot.tsx
  M src/components/debt/CreditCardEngine.tsx
  M src/components/debt/UtilizationPanel.tsx
- M src/components/savings/SurplusRankingSection.tsx
- M src/components/settings/LeaderboardShareToggles.tsx
- M src/lib/__tests__/breach-levers.realData.test.ts
- M src/lib/__tests__/forecast-popup-decimals.test.ts
- M src/lib/forecast-engine.ts
- M src/pages/BudgetControl.tsx
- M src/pages/Dashboard.tsx
- M src/pages/Forecast.tsx
- M src/pages/SavingsGoals.tsx
- M src/pages/Settings.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
-?? scripts/_tmp-dash-shot.mjs
-?? scripts/_tmp-dash-tops.mjs
 ?? scripts/_tmp-debt-measure.mjs
-?? scripts/_tmp-measure.mjs
+?? scripts/_tmp-debt-peek.mjs
+?? src/components/debt/__tests__/UtilizationPanel.test.tsx
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+7d9fae97 [handoff]: R-NOW57 - Debt layout review, box-fill briefs, card-pay wiring
+a8eaa91a [handoff]: R-NOW56 - layout 10/11 shipped, cents closed, Debt agent pending
+06295e9d [cards]: read how each card is paid from its payment history
+4a5755ae [forecast]: engine output rows keep cents
+4edb5476 [layout]: close 10 of Tre's 11 empty-space items on the phone
 c1169ca0 [handoff]: R-NOW56 - cents leftovers, 4 layout agents, 9ecca94d modelled
 ace4c410 [ui]: chart tooltips, AiAdvisor, analytics cards and Builds print cents
 2be23161 [handoff]: R-NOW56 - 3248738e closed (de36a7f7); next 4066ff23
-de36a7f7 [accounts]: a plain Re-link on every healthy Plaid connection
-642f13f1 [handoff]: R-NOW56 - 3248738e done; next 4066ff23 leftovers
-511563df [debt]: "Allow statement data" on flagged cards, and a Dashboard banner
-3af9f7af [handoff]: R-NOW56 - 3248738e backend+Accounts shipped; queue for successor
-7aea937c [accounts]: "Allow statement data" on a bank Plaid says needs consent
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
