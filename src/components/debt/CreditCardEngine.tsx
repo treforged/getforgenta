@@ -10,6 +10,7 @@ import {
 import { getStrategyPayoffOrder, getUnratedPayoffCards, payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { cardStartMonthOffset, isSimCardOpenAsOf } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
+import { summarizeUtilization } from '@/lib/credit-utilization';
 import DebtHero from './DebtHero';
 import AvalancheOrderList from './AvalancheOrderList';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
@@ -133,6 +134,31 @@ type Props = {
    * calculations immediately, instead of only after the Cards tab unmounts/remounts. */
   pauseSavings: boolean;
 };
+
+// The summary card's type scale, shared by its four tiles so they cannot drift apart.
+const SUMMARY_LABEL = 'text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium';
+const SUMMARY_VALUE = 'text-lg sm:text-xl font-display font-bold mt-0.5 leading-tight';
+// Breakdown figures under a tile's headline: each a small label over its value, side by side
+// where the tile is wide enough and stacked where it is not (a label-beside-value row overflowed
+// a 156px phone tile by 8px). Plain spans, not a <dl>: the rendered gates (check:debt-limits,
+// check:debt-layout) count leaf p/span/div labels, and a <dt> "Open limit" would be invisible.
+const SUMMARY_SUBFACTS = 'mt-2 flex flex-wrap gap-x-4 gap-y-1.5';
+const SUMMARY_SUBFACT = 'flex flex-col text-[10px] sm:text-[11px] leading-snug whitespace-nowrap';
+
+// The controls card: one label column and one control height for every row.
+const CONTROL_ROW = 'flex flex-col gap-1.5 sm:grid sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-start sm:gap-x-3';
+const CONTROL_LABEL = 'text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider sm:h-8 sm:flex sm:items-center';
+const CONTROL_H = 'h-8';
+const CONTROL_PILL = `${CONTROL_H} inline-flex items-center gap-1.5 px-3 text-xs font-medium border btn-press`;
+// The ON classes stay INLINE in each button's `=== ? '...'` ternary on purpose: the
+// segment-selected-state gate discovers toggle buttons by that shape, and a constant hides them.
+const CONTROL_PILL_OFF = 'border-border text-muted-foreground hover:text-foreground';
+
+// A card tile's facts: a label-left / value-right row on a phone, a centred column from sm up.
+const TILE_FACT = 'flex items-baseline justify-between gap-3 sm:flex-col sm:items-center sm:justify-start sm:gap-0 sm:text-center';
+const TILE_FACT_LABEL = 'text-[9px] sm:text-[9px] text-muted-foreground uppercase tracking-wider';
+const TILE_FACT_NOTE = 'text-[8px] text-muted-foreground sm:order-3';
+const TILE_FACT_VALUE = 'text-xs font-semibold text-right sm:text-center';
 
 const STRATEGY_TIPS = {
   avalanche: 'Pays minimums on all cards, then sends extra money to the highest APR card first to reduce total interest fastest. Cash floor and bill reserves are always enforced.',
@@ -1326,6 +1352,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const totalBalance = openCardsNow.reduce((s, c) => s + c.balance, 0);
   const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
+  const utilizationSummary = useMemo(() => summarizeUtilization(cards, new Date()), [cards]);
 
 
 
@@ -1542,34 +1569,58 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               THE ONE KEPT IS THE ONE THAT EXPLAINS SOMETHING: the limit sits beside the
               utilization percentage it is the denominator of. `totalLimit` stays as a const here
               because `overallUtil` is computed from it. */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4 text-center">
-            <div>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total CC Balance</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text">{formatCurrency(totalBalance)}</p>
+          {/* ONE GRID, ONE ALIGNMENT (Tre, 2026-10-03, at ~975px: "stuff still looks misaligned and
+              poorly designed"). Payoff ETA used to be pushed to a row of its own by a
+              `sm:col-start-2` that only `lg:` undid, and the utilization breakdown was a second
+              3-column strip whose columns sat nowhere near the 4 above it, centred stats over
+              left-aligned notes. Now: four tiles (2x2 on a phone), every figure left-aligned on
+              its tile's edge, and each breakdown figure inside the tile it breaks down -
+              interest-bearing and 0%-plan balances under Total CC Balance, the open limit under
+              the Utilization it is the denominator of. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4 sm:gap-x-5" data-testid="debt-summary-grid">
+            <div className="min-w-0">
+              <p className={SUMMARY_LABEL}>Total CC Balance</p>
+              <p className={`${SUMMARY_VALUE} text-destructive-text`}>{formatCurrency(totalBalance)}</p>
+              <div className={SUMMARY_SUBFACTS}>
+                <div className={SUMMARY_SUBFACT}>
+                  <span className="text-muted-foreground">Interest-bearing</span>
+                  <span className="font-semibold text-destructive-text">{formatCurrency(utilizationSummary.interestBearingBalance)}</span>
+                </div>
+                <div className={SUMMARY_SUBFACT}>
+                  <span className="text-muted-foreground">On 0% plans</span>
+                  <span className="font-semibold text-primary">{formatCurrency(utilizationSummary.utilizationOnlyBalance)}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Utilization</p>
-              <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${overallUtil > 30 ? 'text-destructive-text' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
+            <div className="min-w-0">
+              <p className={SUMMARY_LABEL}>Utilization</p>
+              <p className={`${SUMMARY_VALUE} ${overallUtil > 30 ? 'text-destructive-text' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
+              <div className={SUMMARY_SUBFACTS}>
+                <div className={SUMMARY_SUBFACT}>
+                  <span className="text-muted-foreground">Open limit</span>
+                  <span className="font-semibold">{formatCurrency(utilizationSummary.totalLimit)}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Monthly Interest</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text">{formatCurrency(interestThisMonth, true)}</p>
+            <div className="min-w-0">
+              <p className={SUMMARY_LABEL}>Monthly Interest</p>
+              <p className={`${SUMMARY_VALUE} text-destructive-text`}>{formatCurrency(interestThisMonth, true)}</p>
             </div>
-            <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto">
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
+            <div className="min-w-0">
+              <p className={SUMMARY_LABEL}>Payoff ETA</p>
               {(() => {
                 const eta = headerEta;
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
                 if (headerEtaNever) {
                   return (
-                    <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive-text"
+                    <p className={`${SUMMARY_VALUE} text-destructive-text`}
                        title={NO_PAYOFF_EXPLANATION}>
                       Not within {Math.round(PROJECTION_MONTHS / 12)} years
                     </p>
                   );
                 }
                 if (eta <= 0) {
-                  return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>;
+                  return <p className={`${SUMMARY_VALUE} ${color}`}>Paid</p>;
                 }
                 // eta is 1-INDEXED (month 1 = this month) — the same convention Forecast maps to a
                 // row via `rawPayoffMonth - 1`. Printing it as "3 mo" read as three months FROM NOW
@@ -1581,10 +1632,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 const monthsAway = eta - 1;
                 return (
                   <>
-                    <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>
+                    <p className={`${SUMMARY_VALUE} ${color}`}>
                       {payoffDate.toLocaleString('en', { month: 'short', year: 'numeric' })}
                     </p>
-                    <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1">
                       {monthsAway === 0 ? 'this month' : `in ${monthsAway} mo`}
                     </p>
                   </>
@@ -1592,36 +1643,44 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               })()}
             </div>
           </div>
-          <UtilizationPanel cards={cards} />
+          <UtilizationPanel summary={utilizationSummary} />
         </div>
 
         {/* Controls and the order they produce, side by side from lg up: full-width, each one left
             most of a 1440px row empty (Tre, 2026-10-01). Stacked on a phone, as before. */}
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 lg:items-start">
         {/* Strategy + Controls */}
-        <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Strategy</span>
-            {([
-              { key: 'avalanche', label: 'Avalanche', icon: TrendingDown },
-              { key: 'snowball', label: 'Snowball', icon: ChevronDown },
-            ] as const).map(s => (
-              <Tooltip key={s.key}>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setStrategy(s.key)} aria-pressed={strategy === s.key}
-                    className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press ${strategy === s.key ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-                    style={{ borderRadius: 'var(--radius)' }}>
-                    <s.icon size={12} /> {s.label}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px] text-xs">{STRATEGY_TIPS[s.key]}</TooltipContent>
-              </Tooltip>
-            ))}
+        {/* ONE LABEL COLUMN, ONE CONTROL COLUMN (Tre, 2026-10-03: "stuff still looks misaligned").
+            Every row uses CONTROL_ROW, so from sm up each label sits in the same 7rem column and
+            every control starts at the same x; on a phone the label sits above its controls, so
+            the pills never wrap under the label (Snowball used to drop to the card's left edge at
+            390). Every control is CONTROL_H tall, and the notes under the cash floor sit in the
+            control column rather than at the card edge. */}
+        <div className="card-forged p-4 sm:p-5 flex flex-col gap-3 sm:gap-4">
+          <div className={CONTROL_ROW}>
+            <span className={CONTROL_LABEL}>Strategy</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {([
+                { key: 'avalanche', label: 'Avalanche', icon: TrendingDown },
+                { key: 'snowball', label: 'Snowball', icon: ChevronDown },
+              ] as const).map(s => (
+                <Tooltip key={s.key}>
+                  <TooltipTrigger asChild>
+                    <button onClick={() => setStrategy(s.key)} aria-pressed={strategy === s.key}
+                      className={`${CONTROL_PILL} ${strategy === s.key ? 'border-primary text-primary bg-primary/5' : CONTROL_PILL_OFF}`}
+                      style={{ borderRadius: 'var(--radius)' }}>
+                      <s.icon size={12} /> {s.label}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[260px] text-xs">{STRATEGY_TIPS[s.key]}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <span className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Payment Mode</span>
+          <div className={CONTROL_ROW}>
+            <span className={CONTROL_LABEL}>Payment Mode</span>
+            <div className="flex flex-wrap items-center gap-2">
               {([
                 { key: 'variable', label: 'Variable', icon: Zap },
                 { key: 'consistent', label: 'Consistent', icon: Target },
@@ -1629,7 +1688,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <Tooltip key={m.key}>
                   <TooltipTrigger asChild>
                     <button onClick={() => setPaymentMode(m.key)} aria-pressed={paymentMode === m.key}
-                      className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press ${paymentMode === m.key ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                      className={`${CONTROL_PILL} ${paymentMode === m.key ? 'border-primary text-primary bg-primary/5' : CONTROL_PILL_OFF}`}
                       style={{ borderRadius: 'var(--radius)' }}>
                       <m.icon size={12} /> {m.label}
                     </button>
@@ -1638,18 +1697,22 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 </Tooltip>
               ))}
             </div>
+          </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <label className="w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Cash Floor</label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span><Info size={11} className="text-muted-foreground cursor-help" /></span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px] text-xs">
-                    Always enforced: the plan never recommends a payment that pushes liquid cash below this amount. Also reserves for early next-month bills.
-                  </TooltipContent>
-                </Tooltip>
+          <div className={CONTROL_ROW}>
+            <div className={`${CONTROL_LABEL} flex items-center gap-1.5`}>
+              <label>Cash Floor</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span><Info size={11} className="text-muted-foreground cursor-help" /></span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-xs normal-case tracking-normal">
+                  Always enforced: the plan never recommends a payment that pushes liquid cash below this amount. Also reserves for early next-month bills.
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {/* THE APPLIED FLOOR IS THE ONE FIGURE THAT READS AS CURRENT (Sam, 2026-10-01). A greyed
                     "1500" in a box beside a "Safe Min: $2,250" chip left the user to work out which one the
                     plan uses. In automatic mode there is no box at all: the chip IS the value. In manual
@@ -1657,8 +1720,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     higher whenever bills before payday exceed it. */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span data-testid="cash-floor-applied" className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 text-xs font-display font-bold text-primary cursor-help" style={{ borderRadius: 'var(--radius)' }}>
-                      <ShieldCheck size={11} /> {formatCurrency(recommendedSafeMinimum)}
+                    <span data-testid="cash-floor-applied" className={`${CONTROL_H} inline-flex items-center gap-1.5 px-3 bg-primary/10 border border-primary/20 text-xs font-display font-bold text-primary cursor-help`} style={{ borderRadius: 'var(--radius)' }}>
+                      <ShieldCheck size={12} /> {formatCurrency(recommendedSafeMinimum)}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[260px] text-xs">
@@ -1677,61 +1740,80 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   </TooltipContent>
                 </Tooltip>
                 {/* The same switch as every other on/off in the app (control-conventions rule). */}
-                <span className="flex items-center gap-1.5">
+                <span className={`${CONTROL_H} inline-flex items-center gap-2`}>
                   <ToggleSwitch checked={manualFloor} onPress={() => setManualFloorMode(!manualFloor)} label="Set the cash floor manually" />
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Set manually</span>
+                  <span className="text-xs text-muted-foreground">Set manually</span>
                 </span>
                 {manualFloor && (
                   <input type="number" value={manualFloorValue} onChange={e => setCashFloor(Number(e.target.value) || 0)}
                     aria-label="Manual cash floor"
-                    className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
+                    className={`${CONTROL_H} w-24 sm:w-28 bg-secondary border border-border px-2.5 py-0 text-foreground font-display font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`} style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
                 )}
               </div>
               {cashFloorWarning && (
                 <p
                   role="status"
                   data-testid="cash-floor-warning"
-                  className="text-[10px] text-amber-600 dark:text-amber-500 flex items-start gap-1 mt-1"
+                  className="text-[10px] text-amber-600 dark:text-amber-500 flex items-start gap-1"
                 >
                   <AlertTriangle size={10} className="shrink-0 mt-[2px]" />
                   <span>{cashFloorWarning.message}</span>
                 </p>
               )}
               {!manualFloor && (
-                <p className="text-[9px] text-muted-foreground flex items-center gap-1">
-                  <Info size={9} className="shrink-0" />
-                  Set from the bills due before your next paycheck. Turn on &ldquo;set
-                  manually&rdquo; to hold your own floor on top.
+                <p className="text-[10px] text-muted-foreground flex items-start gap-1">
+                  <Info size={10} className="shrink-0 mt-[2px]" />
+                  <span>
+                    Set from the bills due before your next paycheck. Turn on &ldquo;set
+                    manually&rdquo; to hold your own floor on top.
+                  </span>
                 </p>
               )}
               {manualFloor && prePaycheckBills.total > cashFloor && (
-                <p className="text-[9px] text-primary flex items-center gap-1">
-                  <Info size={9} className="shrink-0" />
-                  Floor raised to {formatCurrency(recommendedSafeMinimum)} — pre-paycheck bills exceed your {formatCurrency(cashFloor)} floor.
+                <p className="text-[10px] text-primary flex items-start gap-1">
+                  <Info size={10} className="shrink-0 mt-[2px]" />
+                  <span>Floor raised to {formatCurrency(recommendedSafeMinimum)} — pre-paycheck bills exceed your {formatCurrency(cashFloor)} floor.</span>
                 </p>
               )}
             </div>
           </div>
 
           {/* Funding Account Selector */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3 border-t border-border/50">
-            {/* Label on its own line on a phone: beside a 112px label column the select cut the account
-                name short at 390 ("Northvale" for "Northvale Checking"). */}
-            <span className="w-full sm:w-28 shrink-0 text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Pay From</span>
-            <select aria-label="Funding account"
-              value={resolvedFundingId}
-              onChange={e => setFundingAccountId(e.target.value)}
-              className="flex-1 min-w-0 max-w-xs bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
-            >
-              {liquidAccounts.map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-            {fundingAccount && (
-              <span className="text-[10px] text-muted-foreground shrink-0">
-                Balance: <span className="font-display font-bold text-foreground">{formatCurrency(fundingBalance)}</span>
-              </span>
-            )}
+          <div className={`${CONTROL_ROW} pt-3 sm:pt-4 border-t border-border/50`}>
+            <span className={CONTROL_LABEL}>Pay From</span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
+              {/* ⚠️ A NATIVE <select> UNDER A FACE, NOT A STYLED <select>. index.css pins every
+                  select to `max(16px, 1rem) !important` so iOS does not zoom on focus, and an
+                  important rule in the base layer beats any utility - so the select rendered in a
+                  larger type than every other control in this card (Tre's "CHASE CHECKING"). The
+                  real select still sits on top, transparent and full-size, so a tap opens the
+                  native picker and focus, keyboard and screen readers all reach it; the face only
+                  draws its current value at the card's control size. A <select> whose value is
+                  not one of its options shows its FIRST option, and the face does the same. */}
+              <div
+                className={`relative ${CONTROL_H} basis-full sm:basis-auto flex-1 min-w-0 sm:max-w-xs flex items-center bg-secondary border border-border text-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background`}
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <span aria-hidden="true" data-testid="funding-select-face" className="pointer-events-none truncate pl-3 pr-8 text-xs font-medium">
+                  {(fundingAccount ?? liquidAccounts[0])?.name ?? 'No cash account'}
+                </span>
+                <ChevronDown aria-hidden="true" size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <select aria-label="Funding account"
+                  value={resolvedFundingId}
+                  onChange={e => setFundingAccountId(e.target.value)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                >
+                  {liquidAccounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              {fundingAccount && (
+                <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">
+                  Balance: <span className="font-display font-bold text-foreground">{formatCurrency(fundingBalance)}</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2108,6 +2190,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         utilizationNow={proj.utilizationNow}
                         account={accounts.find(a => a.id === proj.card.id)}
                       />
+                      {/* The utilization bar sits under the rate line that prints the same
+                          percentage. It used to close the card on its own, unlabelled, below the
+                          payment controls - the 42px band Tre measured at the card's bottom. */}
+                      <div className="w-full max-w-xs h-1.5 mt-1.5 bg-muted/50 overflow-hidden rounded-full" aria-hidden="true">
+                        <div className={`h-full transition-all ${proj.utilizationNow > 30 ? 'bg-destructive' : proj.utilizationNow > 10 ? 'bg-primary' : 'bg-success'}`}
+                          style={{ width: `${Math.min(100, proj.utilizationNow)}%` }} />
+                      </div>
                       <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive-text'}`}>
                         {formatCurrency(Math.max(0, proj.card.balance))}
                       </p>
@@ -2154,21 +2243,37 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   );
                 })()}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 px-3 sm:px-4 pb-3 text-center">
-                  <div>
-                    <p className="text-[9px] text-muted-foreground uppercase">Min Payment</p>
-                    <p className="text-xs font-semibold">{formatCurrency(proj.card.minPayment)}</p>
-                    <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
+                {/* ONE ROW PER FACT ON A PHONE, ONE COLUMN PER FACT FROM sm UP (Tre's measured phone
+                    report, 2026-10-03): the centred 2-column grid left "Total Interest" alone on a
+                    third row and ended labels 220-258px short of the card's right edge. On a phone
+                    each fact is now a row, label left and value right; from sm up all five share
+                    one row of even columns, so none is orphaned at 975 either (3 columns left
+                    "Total Interest" alone there too). */}
+                <div className="grid grid-cols-1 gap-y-1.5 sm:grid-cols-5 sm:gap-x-2 px-3 sm:px-4 pb-3">
+                  <div className={TILE_FACT}>
+                    <div className="min-w-0 sm:contents">
+                      <p className={TILE_FACT_LABEL}>Min Payment</p>
+                      <p className={TILE_FACT_NOTE}>Edit on Accounts</p>
+                    </div>
+                    <p className={`${TILE_FACT_VALUE} sm:order-2`}>{formatCurrency(proj.card.minPayment)}</p>
                   </div>
-                  <div>
-                    <p className="text-[9px] text-muted-foreground uppercase">Due Date</p>
-                    <p className="text-xs font-semibold">{proj.card.dueDay ? ordinal(proj.card.dueDay) : '—'}</p>
-                    <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
+                  <div className={TILE_FACT}>
+                    <div className="min-w-0 sm:contents">
+                      <p className={TILE_FACT_LABEL}>Due Date</p>
+                      <p className={TILE_FACT_NOTE}>Edit on Accounts</p>
+                    </div>
+                    <p className={`${TILE_FACT_VALUE} sm:order-2`}>{proj.card.dueDay ? ordinal(proj.card.dueDay) : '—'}</p>
                   </div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases)}</p></div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive-text">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
-                  <div>
-                    <p className="text-[9px] text-muted-foreground uppercase">Total Interest</p>
+                  <div className={TILE_FACT}>
+                    <p className={TILE_FACT_LABEL}>Purchases/Mo</p>
+                    <p className={`${TILE_FACT_VALUE} text-destructive-text`}>{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases)}</p>
+                  </div>
+                  <div className={TILE_FACT}>
+                    <p className={TILE_FACT_LABEL}>Interest/Mo</p>
+                    <p className={`${TILE_FACT_VALUE} text-destructive-text`}>{formatCurrency(proj.projectedInterestThisMonth, true)}</p>
+                  </div>
+                  <div className={TILE_FACT}>
+                    <p className={TILE_FACT_LABEL}>Total Interest</p>
                     {/* ⚠️ A CARD THAT NEVER PAYS OFF HAS NO TOTAL, AND PRINTING ONE IS A LIE THE
                         SIZE OF THE HORIZON. `projectCardVariable` runs `Math.max(months, 360)`
                         months, so when purchases outrun the payment the balance compounds for
@@ -2178,7 +2283,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         The payoff label beside this one already says N/A in exactly this state
                         (see `proj.payoffMonth` above); this tile disagreed with it. */}
                     <p
-                      className="text-xs font-semibold text-destructive-text"
+                      className={`${TILE_FACT_VALUE} text-destructive-text`}
                       title={totalInterestLabel(proj.payoffMonth) ? NO_PAYOFF_EXPLANATION : undefined}
                     >
                       {totalInterestLabel(proj.payoffMonth) ?? formatCurrency(proj.totalInterest)}
@@ -2187,30 +2292,42 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 </div>
 
                 {/* Payment preference selector */}
-                <div className="px-3 sm:px-4 pb-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Payment type</p>
-                  <div className="flex gap-2">
-                    {([
-                      ['Min Balance', null, 'Pay minimum required each month — strategy routes surplus to priority cards'],
-                      ['Statement Bal.', 'statement', 'Pay carried balance + interest only — new purchases carry to next cycle'],
-                      ['Full Balance', 'full', 'Pay entire balance + new purchases each month, as cash allows'],
-                    ] as [string, 'statement' | 'full' | null, string][]).map(([label, key, desc]) => {
-                      const active = proj.card.paymentPreference === key;
-                      return (
-                        <button
-                          key={label}
-                          onClick={() => { if (!active) updateAccount.mutate({ id: proj.card.id, payment_preference: key }); }}
-                          className={`flex-1 py-1.5 text-[10px] font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
-                          style={{ borderRadius: 'var(--radius)' }}
-                          aria-pressed={active}
-                          title={desc}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
+                <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                  {/* Label left, options right, one row (same report): the label used to sit alone
+                      on its own line, ending 258px short of the edge at 390. */}
+                  {/* `min-w-[11rem]` is what lets the options drop under the label instead of
+                      clipping "Statement" when the text is enlarged (150% root font, the size Tre
+                      uses): it is in rem, so it grows with the text and the row wraps. */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <p className="shrink-0 text-[9px] text-muted-foreground uppercase tracking-wider">Payment type</p>
+                    <div className="flex flex-1 min-w-[11rem] gap-1.5 sm:gap-2 sm:max-w-sm sm:ml-auto">
+                      {/* The short word is what fits three-across beside the label on a phone; the
+                          full label is the accessible name everywhere, and each short word is its
+                          prefix, so a spoken command still matches what is on screen. */}
+                      {([
+                        ['Min Balance', 'Min', null, 'Pay minimum required each month — strategy routes surplus to priority cards'],
+                        ['Statement Bal.', 'Statement', 'statement', 'Pay carried balance + interest only — new purchases carry to next cycle'],
+                        ['Full Balance', 'Full', 'full', 'Pay entire balance + new purchases each month, as cash allows'],
+                      ] as [string, string, 'statement' | 'full' | null, string][]).map(([label, short, key, desc]) => {
+                        const active = proj.card.paymentPreference === key;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => { if (!active) updateAccount.mutate({ id: proj.card.id, payment_preference: key }); }}
+                            className={`flex-1 min-w-0 h-8 px-1 whitespace-nowrap text-[10px] font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+                            style={{ borderRadius: 'var(--radius)' }}
+                            aria-pressed={active}
+                            aria-label={label}
+                            title={desc}
+                          >
+                            <span className="sm:hidden">{short}</span>
+                            <span className="hidden sm:inline">{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <p className="text-[9px] text-muted-foreground mt-1">
+                  <p className="text-[9px] text-muted-foreground mt-1.5">
                     {proj.card.paymentPreference === null && 'Strategy routes surplus to this card when it is the priority target'}
                     {proj.card.paymentPreference === 'statement' && 'Pay carried balance + interest — new purchases carry to next cycle'}
                     {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
@@ -2306,13 +2423,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       )}
                     </div>
                   )}
-                </div>
-
-                <div className="px-3 sm:px-4 pb-3">
-                  <div className="w-full h-2 bg-muted/50 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
-                    <div className={`h-full transition-all ${proj.utilizationNow > 30 ? 'bg-destructive' : proj.utilizationNow > 10 ? 'bg-primary' : 'bg-success'}`}
-                      style={{ width: `${Math.min(100, proj.utilizationNow)}%` }} />
-                  </div>
                 </div>
 
                 {isExpanded && (
