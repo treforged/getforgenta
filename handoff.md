@@ -25,6 +25,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW51 (10-03 ~12:45 ET, Ada, parked at the 92% weekly park line; cap resets MON 10-05 18:00 ET). START HERE MONDAY:
+    [x] 1f00b82d Robinhood card: statement_balance null -> 334.26 (Sept stmt, closed 09-18, due 10-12; undo = null).
+        Code 319069c7: cards owe
+        max(current, limit - available). 5 Plaid functions deployed 16:13Z. [ ] READ BACK: Robinhood row should read
+        961.30 (or a newer real figure) after the next sync.
+    [x] e501632b: +$200 ESTIMATE income row 62bc2801, Chase Checking, 2026-10-05. [ ] Monday: set Wes's final amount.
+    [ ] ec48da25 (Tre: "the app may struggle to pull in accurate statement values and interest saving balance through
+        plaid"). ROOT CAUSE FOUND, NOT FIXED: plaid.ts reads only aprs/credit_limit/minimum_payment_amount from
+        /liabilities/get. It NEVER reads last_statement_balance, last_statement_issue_date or next_payment_due_date, so
+        NO card's statement balance or due date can come from Plaid. Fix: map those three into persistAccount
+        (respect a manual statement_balance the same way min_payment_is_manual works), plus a test.
+        Consent per item is NOT stored anywhere (financial_connections has no products column), and
+        liability_synced_at is set even when the pass fails, so it proves nothing. Needs a guarded read-only
+        liabilities probe (or a log line) to build Sam's per-card match table against Plaid.
+        Robinhood min_payment = 0 (manual) vs statement $25: ask Tre whether he already paid before changing it.
+    [ ] 9ecca94d gf-rent / card payoff scenario: "no rush".
 R-NOW50 (10-02 ~18:40 ET, Ada, WEEKLY WRAP-UP at 87% - cap resets MONDAY 10-05 18:00 ET). START HERE MONDAY:
     20:13 READ-BACK FAILED: 22:50:36Z publish (after the 22:13Z deploy) still payday 10-29 / $0. Likely a stale bundle
        (salary 1093 survives withEffectiveSalary, so the fix yields 10-09); unproven. Wake 09:13 10-03 re-reads.
@@ -12633,16 +12649,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 20:14 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 12:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12652,6 +12669,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+727ff536 [handoff]: R-NOW50 - 18541ba1 closed (payday 10-09, $941.47); Monday starts at 594caf27
 a5a51185 [handoff]: R-NOW50 - 18541ba1 read-back failed at 22:50Z, likely stale bundle
 1207af7a [handoff]: R-NOW50 - weekly wrap-up, Monday's first item is the 18541ba1 read-back
 c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
@@ -12659,7 +12677,6 @@ c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap 
 8866d62c [handoff]: R-NOW49 - 18:04 wake reads; 18541ba1 Safe to Spend drop filed
 1e0189f6 [handoff]: R-NOW49 - wake reads for 9bbd81a4 and 1cea48f3
 a130ea2e [handoff]: R-NOW49 - hold until 18:00 ET reset (Sam)
-43ae617e [handoff]: R-NOW49 - 594caf27 shipped at 01f75aa1; d3ba6c8b queued
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
