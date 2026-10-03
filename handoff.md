@@ -41,9 +41,13 @@ R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). S
         CLAUDE_CONTEXT_WINDOW_TOKENS=1000000. Not changed yet.
     [x] 4066ff23 ENGINE HALF SHIPPED dd8df029: hook + resim + forecast debtPayment/endingCash keep cents; new gate
         forecast-convergence.cents.realData.test.ts (shown == deducted == printed, red on old code: 23 months off).
-        LOCAL ONLY - the fixture is gitignored, so CI skips it. [ ] OPEN: display half - formatCurrency(x, false)
-        still prints whole dollars on Forecast/Debt/Dashboard; and other engine rows (netWorth, savings, contribs)
-        still Math.round. [ ] Look at it on localhost:8080 as Tre (read-only).
+        LOCAL ONLY - the fixture is gitignored, so CI skips it.
+        [x] DISPLAY: cents now on /debt (CreditCardEngine 45, widget 6), Forecast drawers 8, Dashboard 20, Safe to
+        Spend + Month-End Cash, BudgetTotalsCard 31, Consolidation/Utilization panels, Forecast monthly table (new
+        check:forecast-table, proven red). Credit limits (CardRateLine) stay whole ON PURPOSE.
+        [ ] REMAINING ~150 whole-dollar sites: vehicles (LoanCard 11, SavingCard 9, LumpSumPanel 5, BuildCarStrip 5),
+        SurplusRankingSection 8, Accounts 4, AiAdvisor 3, chart axes; engine rows netWorth/savings/contribs still
+        Math.round. Then close ask 4066ff23. [ ] Look at it on localhost:8080 as Tre (read-only).
     (old) 4066ff23 PROBED 10-03 late, NOT SHIPPED: switching all 26 Math.round sites in useCardProjection to cents()
         (skip :52 def and :1476 utilization %) leaves tsc 0 and ALL 5844 tests green - so NO test pins these values,
         and the convergence/golden files (5 tests) exercise the engine, not this hook. A green here is not evidence.
