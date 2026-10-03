@@ -25,6 +25,21 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW52 (10-03 ~13:25 ET, Ada, weekly 90% of 98%, park at 96%). START HERE:
+    [x] ec48da25 SHIPPED abbab53b (on origin 0/0), deployed financial-sync, plaid-exchange-token, plaid-sync,
+        plaid-sync-all, plaid-webhook + NEW plaid-liabilities-probe (read-only, x-cron-secret, user_id required; call
+        it via net.http_post as in the admin-action-via-pg-net memory). Migration statement_balance_plaid_synced applied.
+        Table sent to Sam 13:20. Snapshot: backup.tre_cards_ec48da25_20261003.
+        [ ] READ-BACK after the 10-04 13:00Z cron: Tre's 3 linked cards. Expect statement_balance unchanged
+            (Robinhood 334.26 / Prime 1451.88 are flag-null = manual; Discover no opinion), liability_synced_at
+            fresh on all three, no duplicate accounts rows (count credit_card rows = 5).
+    [x] Tre answered (via Sam): Robinhood due 12, min 25 (min_payment_is_manual false), pays full STATEMENT. Done by SQL.
+    [ ] 72dca9af (BEFORE 9ecca94d): debt tab plans $927 on Robinhood this month; should plan the $334.26 statement,
+        freed ~$592 to Prime Visa ISB. Show Sam before/after per card on Tre's account. Lead: Robinhood has
+        payment_unconditional=true; the unconditional pin (credit-card-engine.ts ~1737) pays bal+interest and is
+        skipped only when the ISB target is set that month - find which path (sim, perCardAdjusted month-0, or
+        generateRecommendations) produces 927.
+    [ ] 9ecca94d gf-rent scenario.
 R-NOW51 (10-03 ~12:45 ET, Ada, parked at the 92% weekly park line; cap resets MON 10-05 18:00 ET). START HERE MONDAY:
     [x] 1f00b82d Robinhood card: statement_balance null -> 334.26 (Sept stmt, closed 09-18, due 10-12; undo = null).
         Code 319069c7: cards owe
@@ -12649,17 +12664,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 12:03 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 12:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12669,14 +12683,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d15c5e3a [handoff]: R-NOW51 - 1f00b82d shipped, e501632b planned, ec48da25 root cause found
+319069c7 [plaid]: a card's synced balance includes its pending charges (1f00b82d)
 727ff536 [handoff]: R-NOW50 - 18541ba1 closed (payday 10-09, $941.47); Monday starts at 594caf27
 a5a51185 [handoff]: R-NOW50 - 18541ba1 read-back failed at 22:50Z, likely stale bundle
 1207af7a [handoff]: R-NOW50 - weekly wrap-up, Monday's first item is the 18541ba1 read-back
 c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
 9e730500 [safe-to-spend]: on payday, payday is the NEXT paycheck, not the 29th (18541ba1)
 8866d62c [handoff]: R-NOW49 - 18:04 wake reads; 18541ba1 Safe to Spend drop filed
-1e0189f6 [handoff]: R-NOW49 - wake reads for 9bbd81a4 and 1cea48f3
-a130ea2e [handoff]: R-NOW49 - hold until 18:00 ET reset (Sam)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
