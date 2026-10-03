@@ -486,10 +486,10 @@ export const CARD_PAYMENT_WINDOW_BEFORE_DUE = 20;
 export const CARD_PAYMENT_WINDOW_AFTER_DUE = 25;
 const CARD_PAYMENT_NAME = /PAYMENT|PYMT|THANK YOU|AUTOPAY|DIRECTPAY/i;
 
-function shiftIsoDays(iso: string, days: number): string {
+/** Shifts a 'YYYY-MM-DD' date by whole days, in LOCAL time end to end (toLocalDateStr, never toISOString). */
+export function shiftIsoDays(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
-  const t = new Date(Date.UTC(y, m - 1, d + days));
-  return t.toISOString().slice(0, 10);
+  return toLocalDateStr(new Date(y, m - 1, d + days));
 }
 
 /**
