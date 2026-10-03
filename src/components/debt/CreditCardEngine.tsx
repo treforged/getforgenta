@@ -55,7 +55,9 @@ import { resolveSyncCutoffDate, fallsAfterDueDate } from '@/lib/sync-cutoff';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 
 import type { Tables } from '@/integrations/supabase/types';
-import { displayedManualCashFloor, isManualCashFloor } from '@/lib/cash-floor';
+import { displayedManualCashFloor, isManualCashFloor, resolveCashFloor } from '@/lib/cash-floor';
+import { useSafeToSpend } from '@/hooks/useSafeToSpend';
+import { capPrePaydayRows } from '@/lib/pre-payday-cap';
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { buildCashFloorWarning } from '@/lib/cash-floor-warning';
@@ -1065,6 +1067,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return base + savingsReserve;
   }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim, monthlySavingsAndCar]);
 
+  // Until-payday cash (the Dashboard's Safe to Spend figure) caps card payments due before the
+  // next paycheck - see pre-payday-cap.ts.
+  const { result: safeToSpend } = useSafeToSpend({ profile, confirmed: confirmedOccurrences, floor: resolveCashFloor(profile) });
   const month0Recs = useMemo(() => {
     const now = new Date();
     // Next month's per-card payment. `perCardPaymentsScaled` first for the same reason the
@@ -1093,14 +1098,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Row construction shared with the Dashboard widget (`buildCardRecRows`,
     // month0-debt-breakdown.ts) — the A.2 layout used to live inline here, and the widget had
     // its own older copy. One derivation, so the two surfaces cannot drift apart again.
-    const recs = buildCardRecRows({
+    const recs = capPrePaydayRows(buildCardRecRows({
       perCardAdjusted: month0?.perCardAdjusted ?? [], cards, strategy, nextMonthSource, now,
-    });
+    }), cards, safeToSpend?.kind === 'figure' ? { amount: safeToSpend.amount, payday: safeToSpend.payday } : null, now);
     const cashWarningText = cashWarningMessage(
       totalAvailableCash, totalMinimumsdue, recs.map(r => r.unconditionalShortfall),
     );
     return { totalAvailableCash, totalMinimumsdue, cashWarningText, strategyLabel, recs };
-  }, [month0, cards, strategy, syncCutoffDate, perCardPaymentsScaled, perCardPayments]);
+  }, [month0, cards, strategy, syncCutoffDate, perCardPaymentsScaled, perCardPayments, safeToSpend]);
 
   // Active loan-phase vehicle loans, shown under the card rows — same builder as the Dashboard
   // widget. Display-only: loans never join month0Recs' totals, because Safe to Pay already
@@ -1968,10 +1973,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         // Demoted, not deleted. A this-month amount that is still owed is the
                         // actionable number and stays legible; a $0 stays quiet, because there is
                         // nothing to act on and the row above already carries the claim.
-                        <span className={r.payment > 0
+                        <span className={(r.dueThisMonth ?? r.payment) > 0
                           ? 'text-[10px] sm:text-xs text-foreground'
                           : 'text-[9px] text-muted-foreground/70'}>
-                          {formatCurrency(r.payment, false)} due this month
+                          {formatCurrency(r.dueThisMonth ?? r.payment, false)} due this month
+                        </span>
+                      )}
+                      {r.afterPayday !== undefined && r.afterPayday > 0 && (
+                        // The part of the plan that needs the next paycheck (pre-payday-cap.ts).
+                        // Optional, and only after payday - never "due" before the money exists.
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                          +{formatCurrency(r.afterPayday)} optional after payday
                         </span>
                       )}
                     </div>

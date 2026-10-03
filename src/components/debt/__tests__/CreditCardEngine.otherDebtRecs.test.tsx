@@ -20,6 +20,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useDebts: () => ({ update: { mutate: vi.fn() }, add: { mutate: vi.fn() } }),
   useAccounts: () => ({ update: { mutate: vi.fn() } }),
   useProfile: () => ({ update: { mutate: vi.fn() } }),
+  usePaymentPlans: () => ({ data: [] }),
   useRecurringRules: () => ({ data: [] }),
   // `useMatchedOccurrences` reads these two: the month-scoped bank rows and the read-only view of
   // the reviews. Empty here, which is the no-bank-connection path — nothing in this file is about
