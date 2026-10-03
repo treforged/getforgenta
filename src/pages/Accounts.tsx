@@ -1391,6 +1391,17 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                           })()}
                         </div>
                       </div>
+                      {/* A plain Re-link on every healthy Plaid connection (ask 3248738e), for a link that
+                          looks fine but is not. A connection that already needs one shows the strip below. */}
+                      {item.provider === 'plaid' && !needsRelink && (
+                        <PlaidLinkButton
+                          relinkItemId={item.plaid_item_id}
+                          label="Re-link"
+                          variant="quiet"
+                          onSuccess={(accts) => handlePlaidSuccess(accts, item.institution_name ?? undefined)}
+                          onProcessing={setPlaidSyncing}
+                        />
+                      )}
                       <button
                         disabled={delinking}
                         onClick={async () => {

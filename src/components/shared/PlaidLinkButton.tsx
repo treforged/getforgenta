@@ -127,9 +127,11 @@ interface PlaidLinkButtonProps {
    * not ask to connect from.
    */
   autoOpen?: boolean;
+  /** 'quiet' is a small outlined row action (ask 3248738e: Re-link on every connection). */
+  variant?: 'primary' | 'quiet';
 }
 
-export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label, onInstitutionUnavailable, autoOpen }: PlaidLinkButtonProps) {
+export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label, onInstitutionUnavailable, autoOpen, variant = 'primary' }: PlaidLinkButtonProps) {
   const [loading, setLoading] = useState(false);
 
   /**
@@ -463,7 +465,9 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
       disabled={disabled || loading}
       // `shrink-0 whitespace-nowrap` added 2026-09-17: inside the narrow re-link row on the
       // banks tab this button was squeezed until "Re-link" wrapped onto two lines at 390px.
-      className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold btn-press disabled:opacity-50 shrink-0 whitespace-nowrap"
+      className={variant === 'quiet'
+        ? 'flex items-center gap-1 border border-border text-muted-foreground hover:text-foreground px-2 py-1 text-xs font-medium btn-press disabled:opacity-50 shrink-0 whitespace-nowrap'
+        : 'flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold btn-press disabled:opacity-50 shrink-0 whitespace-nowrap'}
       style={{ borderRadius: 'var(--radius)' }}
     >
       {loading ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
