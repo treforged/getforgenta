@@ -41,6 +41,9 @@ import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
 import type { CarFund } from '@/lib/types';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
+import { useCardPayHistory } from '@/hooks/useCardPayHistory';
+import { inferCardPayBehavior } from '@/lib/card-pay-behavior';
+import { cardPayHint } from '@/lib/card-pay-hint';
 import { consentItemForAccount } from '@/lib/statement-consent';
 import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -1445,6 +1448,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const pinnedCardCount = Object.keys(overrides).length;
   const pinnedMonthCount = Object.values(overrides).reduce((s, m) => s + Object.keys(m).length, 0);
 
+  // How each card is actually paid, read from its own payment history (ask ec48da25). Shown on the
+  // card row so a bank autopay that disagrees with the chosen payment type is visible, not assumed.
+  const { data: payHistoryByCard } = useCardPayHistory(projections.map(p => p.card.id));
+  const payHintByCard = useMemo(() => {
+    const today = toLocalDateStr(new Date());
+    const out: Record<string, ReturnType<typeof cardPayHint>> = {};
+    for (const p of projections) {
+      const behavior = inferCardPayBehavior(payHistoryByCard?.[p.card.id] ?? [], { minPayment: p.card.minPayment, today });
+      out[p.card.id] = cardPayHint(behavior, p.card.paymentPreference);
+    }
+    return out;
+  }, [projections, payHistoryByCard]);
+
   if (cards.length === 0) {
     return (
       <div className="card-forged p-8 text-center">
@@ -1471,6 +1487,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // must never be shown as the reassuring state - and has no date worth sharing.
   const headerEtaNever = simEtaAgg.kind === 'never'
     && !((simRevolvingPayoffMonth ?? 0) > 0) && !((forecastRevolvingPayoffMonth ?? 0) > 0);
+
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -2332,6 +2349,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.paymentPreference === 'statement' && 'Pay carried balance + interest — new purchases carry to next cycle'}
                     {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
                   </p>
+                  {payHintByCard[proj.card.id] && (
+                    <p
+                      data-testid="card-pay-hint"
+                      className={`text-[10px] mt-1 flex items-start gap-1 ${payHintByCard[proj.card.id]!.mismatch ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'}`}
+                    >
+                      {payHintByCard[proj.card.id]!.mismatch
+                        ? <AlertTriangle size={10} className="shrink-0 mt-[2px]" aria-hidden />
+                        : <Info size={10} className="shrink-0 mt-[2px]" aria-hidden />}
+                      <span>{payHintByCard[proj.card.id]!.text}</span>
+                    </p>
+                  )}
 
                   {/* ⚠️ THE WRITER FOR `accounts.payment_unconditional`. The column, the engine and
                       its tests all shipped on 2026-09-12 (cb513215, fc38deef) and NOTHING WROTE

@@ -29,6 +29,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useSyncedTransactionReviewsQuery: () => ({ data: [] }),
 }));
 vi.mock('@/hooks/usePlaidItems', () => ({ usePlaidItems: () => ({ items: [] }) }));
+vi.mock('@/hooks/useCardPayHistory', () => ({ useCardPayHistory: () => ({ data: {} }) }));
 vi.mock('@/hooks/useSubscription', () => ({ useSubscription: () => ({ isPremium: true }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: false }) }));
 vi.mock('@/contexts/CardProjectionContext', () => ({
