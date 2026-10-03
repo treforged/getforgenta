@@ -25,6 +25,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW54 (10-03 ~15:10 ET, Ada getforgenta-1d, context gate on first read). START AT ITEM 2 OF R-NOW53:
+    [x] R-NOW53 item 1 DONE, read-only on Tre's /debt: Robinhood $334.26 "Statement balance" due Oct 12. Prime $1,340.94
+        "Partial statement" (max $1,452) due Oct 7. Discover $150.00 NEXT due Nov 1 + "$350 due this month". Safe to Pay
+        $2,025, Minimums $798, Chase $1,118. Sent Sam (tre-forged-44 [9d47ec]) 15:05.
+    [ ] Item 2 now has TWO leads: Prime $1,340.94 > Chase $1,118 before 10-09 (Tre: Prime MIN only on 10-07); Discover
+        "$350 due this month" although paid 10-02 and due 11-01 (cascade? cardPaymentSettledThisCycle?). Root-cause, report
+        to Sam, then change.
+    NOTE: the context-gate hook reads ~177k on the FIRST tool calls of a fresh session (system context alone). Each
+        successor trips it immediately. Mention to Sam; do not dispatch a chain of successors for it.
 R-NOW53 (10-03 ~14:45 ET, Ada, handoff gate at 182 calls; weekly 91% of 98%, PARK AT 96%). START HERE, IN ORDER:
     1. LOOK at Tre's /debt on localhost:8080 (signed in as Tre, read-only): after bcccc8e4 the Robinhood row must read
        "$334.26" and "Statement balance" (not "Partial statement"); Prime and Discover rows show cents. Send Sam the
@@ -12700,7 +12709,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 13:22 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 13:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12719,14 +12728,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+e48d8cc2 [handoff]: R-NOW53 - four commits shipped; resume queue for successor
+bcccc8e4 [debt]: month-0 card payments in exact cents, not whole dollars
 149c2356 [handoff]: R-NOW52 - 2a7b097d shipped, Tre's Prime-min and Amex-pause decisions applied
 2a7b097d [safe-to-spend]: a paid card minimum is not charged again; one-off income is counted on its date
 4bd45f65 [handoff]: R-NOW52 - 72dca9af shipped fd8015db; Safe to Spend defects and consent ask queued
 fd8015db [debt]: an always-pay-statement card plans its statement, not its balance (72dca9af)
 ae681a01 [handoff]: R-NOW52 - ec48da25 shipped abbab53b, read-back 10-04; 72dca9af next
 abbab53b [plaid]: read statement balance and due date from /liabilities/get (ec48da25)
-d15c5e3a [handoff]: R-NOW51 - 1f00b82d shipped, e501632b planned, ec48da25 root cause found
-319069c7 [plaid]: a card's synced balance includes its pending charges (1f00b82d)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
