@@ -28,10 +28,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 R-NOW50 (10-02 ~18:40 ET, Ada, WEEKLY WRAP-UP at 87% - cap resets MONDAY 10-05 18:00 ET). START HERE MONDAY:
     20:13 READ-BACK FAILED: 22:50:36Z publish (after the 22:13Z deploy) still payday 10-29 / $0. Likely a stale bundle
        (salary 1093 survives withEffectiveSalary, so the fix yields 10-09); unproven. Wake 09:13 10-03 re-reads.
-    ONE THING FIRST: close 18541ba1 - SQL safe_to_spend_snapshot for Tre must read payday 2026-10-09 (or later) and
-       computed_at after 9e730500. If it still reads payday 10-29 after he has opened the app, the fix did not reach
-       him: check the Vercel deploy of 9e730500, then useSafeToSpend.ts:52.
-    THEN, in order: browser-prove 594caf27 at Tre's size (throwaway @forgenta.test user, ~700 rows, one merchant x100);
+    [x] 18541ba1 CLOSED 10-03 09:13 ET: snapshot 04:51Z payday 10-09, $941.47 (was $0 / 10-29). 22:50Z was a stale bundle.
+    ONE THING FIRST MONDAY 10-05 after 18:00 ET: browser-prove 594caf27 at Tre's size.
+    (594caf27: throwaway @forgenta.test user, ~700 rows, one merchant x100.) THEN, in order:
        re-test the 12 blocked asks; 52898f88; 8a202850; d3ba6c8b (context-gate.mjs threshold above boot baseline);
        9bbd81a4 (if no logout-less loss by 10-04, drop watcher cron 28 per R-NOW44 UNDO and close as idle timeout).
     SHIPPED 10-02: 01f75aa1 (594caf27 one refetch per batch), 9e730500 (18541ba1 payday on payday). 1cea48f3,
@@ -12634,7 +12633,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-02 18:38 by handoff_hook. Everything below this heading is
+_Written 2026-10-02 20:14 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12653,6 +12652,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+a5a51185 [handoff]: R-NOW50 - 18541ba1 read-back failed at 22:50Z, likely stale bundle
 1207af7a [handoff]: R-NOW50 - weekly wrap-up, Monday's first item is the 18541ba1 read-back
 c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap resets Monday
 9e730500 [safe-to-spend]: on payday, payday is the NEXT paycheck, not the 29th (18541ba1)
@@ -12660,7 +12660,6 @@ c9b8f473 [handoff]: R-NOW49 - 18541ba1 shipped 9e730500, read-back pending; cap 
 1e0189f6 [handoff]: R-NOW49 - wake reads for 9bbd81a4 and 1cea48f3
 a130ea2e [handoff]: R-NOW49 - hold until 18:00 ET reset (Sam)
 43ae617e [handoff]: R-NOW49 - 594caf27 shipped at 01f75aa1; d3ba6c8b queued
-01f75aa1 [transactions]: one refresh per merchant batch, not one per charge (594caf27)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
