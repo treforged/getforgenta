@@ -25,6 +25,20 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). START HERE, IN ORDER:
+    [x] 382d1dd8 CI lint: 16cf3cbb (shiftIsoDays -> toLocalDateStr + shiftIsoDays.test.ts, 3 zones). [ ] Close the ask
+        with the run id once Tests run 37142458017 is green (`gh run view 37142458017 --json conclusion`).
+    [x] 57831818 cash cap SHIPPED b51a5f70 (ask closed). src/lib/pre-payday-cap.ts: payments due <= payday capped at
+        min + Safe to Spend cash, the rest "+$X optional after payday"; settled card's leftover = "$0 due this month".
+        Display layer only: row.payment (ledger) unchanged. Tre's /debt read: Prime 854.80 (+486.14), Discover $0
+        (+350.28), RH 334.26, Safe to Pay 2,025. Sent Sam. Free tier (qwen3:14b) draft failed review (index-matched
+        cards, mutation, inverted rule B) - score it in the playbook.
+    [ ] RESIDUE: Dashboard widget rows (month0-debt-breakdown buildMonth0DebtBreakdown, via useMonth0DebtBreakdown)
+        do not apply capPrePaydayRows. Dashboard already has `safeToSpend` (Dashboard.tsx:421); pass it through.
+    [ ] 4066ff23 cents for months 1+: ~20 Math.round sites in useCardProjection (1449-1514 chart rows, 1717/1863
+        pass3RevTotals that feed the forecast, 1961-2012 perCardPayments, 2623-2639 month0 fields). Must prove
+        forecast and sim agree to the cent (forecast-convergence). Do it as ONE slice with test:tz + golden locally.
+    [ ] then 3248738e, then 9ecca94d (see R-NOW53 items 3-4).
 R-NOW54 (10-03 ~15:10 ET, Ada getforgenta-1d, context gate on first read). START AT ITEM 2 OF R-NOW53:
     [x] R-NOW53 item 1 DONE, read-only on Tre's /debt: Robinhood $334.26 "Statement balance" due Oct 12. Prime $1,340.94
         "Partial statement" (max $1,452) due Oct 7. Discover $150.00 NEXT due Nov 1 + "$350 due this month". Safe to Pay
