@@ -74,7 +74,7 @@ describe('DebtRecommendationsWidget — non-CC debt rows', () => {
     setup({ otherDebtRecommendations: [STUDENT_LOAN] });
     expect(screen.queryByText('No active debt recommendations this month.')).toBeNull();
     expect(screen.getByText('Student Loan')).toBeTruthy();
-    expect(screen.getByText('$300')).toBeTruthy();
+    expect(screen.getByText('$300.00')).toBeTruthy();
     // The type is on the row, so "Student Loan" beside "$300" is not mistaken for a card.
     expect(screen.getByText('student loan')).toBeTruthy();
   });

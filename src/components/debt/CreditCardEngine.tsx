@@ -1948,7 +1948,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-muted-foreground">next</span>
                         )}
                         {r.nextPayment != null ? (
-                          <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(r.nextPayment, false)}</span>
+                          <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(r.nextPayment)}</span>
                         ) : (
                           <span className="text-[10px] sm:text-xs text-muted-foreground">{NEXT_PAYMENT_UNKNOWN}</span>
                         )}
@@ -1996,7 +1996,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {l.nextPayMonth === 1 && (
                       <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-muted-foreground">next</span>
                     )}
-                    <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(l.nextPayment, false)}</span>
+                    <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(l.nextPayment)}</span>
                   </span>
                   <span className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center gap-0.5">
                     <CalendarDays size={8} /> {l.nextDueDate ? formatNextDue(l.nextDueDate) : NEXT_DUE_UNKNOWN}
@@ -2029,7 +2029,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {o.nextPayMonth === 1 && (
                       <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-muted-foreground">next</span>
                     )}
-                    <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(o.nextPayment, false)}</span>
+                    <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(o.nextPayment)}</span>
                   </span>
                   <span className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center gap-0.5">
                     <CalendarDays size={8} /> {o.nextDueDate ? formatNextDue(o.nextDueDate) : NEXT_DUE_UNKNOWN}

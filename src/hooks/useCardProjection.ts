@@ -47,6 +47,9 @@ import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionRe
 import { automaticFloorComponents } from '@/lib/auto-cash-floor';
 import { isManualCashFloor } from '@/lib/cash-floor';
 import { settleUnconditional } from '@/lib/unconditional-payment';
+
+/** Month 0's payments are in cents, never whole dollars (Tre, 2026-10-03: "lets just use the decimals"). */
+const cents = (x: number): number => Math.round(x * 100) / 100;
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
@@ -2383,13 +2386,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (uncond.byCard.has(c.id)) return s;
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
-        const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
+        const activeSimPay = cents(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
         return s + Math.max(0, activeSimPay - protectedMin(c));
       }, 0);
       const perCardAdjusted = cards.map(c => {
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         const isCycling = revBal0 === 0;
-        const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
+        const activeSimPay = cents(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
         const perCardEntry = perCardPayments.find(p => p.id === c.id);
         const cyclingPay = perCardEntry?.payments[0] ?? activeSimPay;
         const settled = uncond.byCard.get(c.id);
@@ -2398,13 +2401,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // NOT clamped to the pool, and NOT clamped to `activeSimPay` — the sim solved this month
           // against a pool that did not know about the obligation, so capping here would reintroduce
           // the reduction this block removes.
-          payment = Math.round(settled.payment);
+          // Exact cents (Tre, 2026-10-03: "lets just use the decimals"). Whole dollars sent $334
+          // against a $334.26 statement - 26 cents short, which breaks grace.
+          payment = cents(settled.payment);
         } else if (isCycling) {
           payment = cyclingPay;
         } else {
           const extra = Math.max(0, activeSimPay - protectedMin(c));
           const extraShare = naturalExtraTotal > 0 ? discretionaryPool * (extra / naturalExtraTotal) : 0;
-          payment = Math.round(Math.min(activeSimPay, protectedMin(c) + extraShare));
+          payment = cents(Math.min(activeSimPay, protectedMin(c) + extraShare));
         }
         return {
           id: c.id,
@@ -2450,7 +2455,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const revolvingPaymentFinal = perCardAdjustedFinal
         .filter(pca => (activeSim.monthlyRevolvingBalances.get(pca.id)?.[0] ?? 1) > 0)
         .reduce((s, pca) => s + pca.payment, 0);
-      const safeToPayTotalFinal = Math.round(cyclingPayment + revolvingPaymentFinal);
+      const safeToPayTotalFinal = cents(cyclingPayment + revolvingPaymentFinal);
 
       // Month-0 floor-capped ledger entry. The sim now drains month 0 to the AUGMENTED floor too
       // (m0SimFloor, set from augmentedCashFloorByMonth[0] in the refinement loop above), so the raw
@@ -2629,7 +2634,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // `endingCash` for i=0: finalLiquid (cashPreDebt − the month-0 payment ledger total,
           // which safeToPayTotalFinal equals by construction — see month0PaymentLedger below)
           // plus the reserved-but-unspent vehicle savings the engine adds back for display.
-          endCash: m0Chain.cashPreDebt - safeToPayTotalFinal + Math.round(carReserveHeld),
+          endCash: m0Chain.cashPreDebt - safeToPayTotalFinal + cents(carReserveHeld),
           vehicleInsurance: Math.round(m0VehicleInsurance),
           otherDebtPayment: Math.round(m0OtherDebtPayment),
           // The reserve, per target. `chain.autoExtraReserve` above only says how much cash left

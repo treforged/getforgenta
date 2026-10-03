@@ -107,7 +107,8 @@ describe('payment pin semantics — the demo fixture', () => {
     // sends far MORE than $400, so a $400 pin is a CUT; by month 4 it sends far LESS, so the same
     // pin is a RAISE. One pin, one fixture, both directions - that is what "replaces" means, and
     // it is stronger evidence than a cut alone.
-    expect(Math.round(unpinned[1])).toBe(1672);
+    // 1671, not 1672, since month 0 pays exact cents (Tre, 2026-10-03: "lets just use the decimals").
+    expect(Math.round(unpinned[1])).toBe(1671);
     expect(Math.round(unpinned[4])).toBe(213);
     expect(Math.round(unpinned[1])).toBeGreaterThan(400);
     expect(Math.round(unpinned[4])).toBeLessThan(400);

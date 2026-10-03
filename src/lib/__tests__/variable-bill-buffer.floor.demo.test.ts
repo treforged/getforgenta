@@ -96,8 +96,9 @@ describe('variable-bill buffer on the demo fixture', () => {
     expect(before.sim.maxDebtPaymentByMonth[0]).toBeCloseTo(4059.88, 2);
     expect(after.sim.maxDebtPaymentByMonth[0]).toBeCloseTo(3774.88, 2);
     expect(after.forecast.maxDebtPaymentByMonth[0]).toBeCloseTo(after.sim.maxDebtPaymentByMonth[0], 2);
-    expect(before.sim.month0?.safeToPayTotal).toBe(4060);
-    expect(after.sim.month0?.safeToPayTotal).toBe(3775);
+    // Exact cents since 2026-10-03 (was the whole-dollar 4060 / 3775).
+    expect(before.sim.month0?.safeToPayTotal).toBe(4059.88);
+    expect(after.sim.month0?.safeToPayTotal).toBe(3774.88);
 
     // The payoff month does not move on this fixture (Nov 2026 either way) - stated, not implied.
     expect(after.sim.simRevolvingPayoffMonth).toBe(before.sim.simRevolvingPayoffMonth);

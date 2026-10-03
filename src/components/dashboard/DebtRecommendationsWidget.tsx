@@ -141,7 +141,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                       <span className="text-[8px] uppercase tracking-wider text-muted-foreground">next</span>
                     )}
                     {r.nextPayment != null ? (
-                      <span className="text-sm font-display font-bold text-primary">{formatCurrency(r.nextPayment, false)}</span>
+                      <span className="text-sm font-display font-bold text-primary">{formatCurrency(r.nextPayment)}</span>
                     ) : (
                       <span className="text-[10px] text-muted-foreground">{NEXT_PAYMENT_UNKNOWN}</span>
                     )}
@@ -190,7 +190,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                     {l.nextPayMonth === 1 && (
                       <span className="text-[8px] uppercase tracking-wider text-muted-foreground">next</span>
                     )}
-                    <span className="text-sm font-display font-bold text-primary">{formatCurrency(l.nextPayment, false)}</span>
+                    <span className="text-sm font-display font-bold text-primary">{formatCurrency(l.nextPayment)}</span>
                   </span>
                   <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
                     <CalendarDays size={8} /> {l.nextDueDate ? formatNextDue(l.nextDueDate) : NEXT_DUE_UNKNOWN}
@@ -229,7 +229,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                     {o.nextPayMonth === 1 && (
                       <span className="text-[8px] uppercase tracking-wider text-muted-foreground">next</span>
                     )}
-                    <span className="text-sm font-display font-bold text-primary">{formatCurrency(o.nextPayment, false)}</span>
+                    <span className="text-sm font-display font-bold text-primary">{formatCurrency(o.nextPayment)}</span>
                   </span>
                   <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
                     <CalendarDays size={8} /> {o.nextDueDate ? formatNextDue(o.nextDueDate) : NEXT_DUE_UNKNOWN}
