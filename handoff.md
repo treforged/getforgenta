@@ -31,6 +31,10 @@ R-NOW56 (10-03 evening, Ada getforgenta-ce; hit the 175-call HANDOFF GATE). STAR
        presses sent plaid-create-link-token with that item, then REVERTED (revoked/false, NULL, read back). Note: a
        revoked connection never shows (useFinancialConnections drops revoked). Tre's 10 items: none flagged as of 13:00Z.
        Sam's 17:02 red runs (Android Play 502, CodeQL Gradle NPE) = runner; reran 37153684925/37153684931 - check green.
+       + de36a7f7: quiet "Re-link" on every healthy Plaid row (item 3), pressed + reverted. Ask CLOSED. RESIDUE: no real
+       flagged item exists, so "consented item then syncs" is unproven; Tre's Amex/Alliant/Empower have NO credit card,
+       so plaid.ts never calls liabilities for them (flag can't set) - told Sam no approval needed. CodeQL rerun green;
+       Android green on 511563df. Both 17:02 reds were the runner.
     (was) 3248738e FINISH: shipped = column financial_connections.liabilities_consent_required (+ column SELECT grant,
        migrations 20261003_liabilities_consent_required*.sql), sync writes it (statement-sync-policy
        liabilityConsentRequired; 5 functions deployed), Accounts relink strip says "Allow statement data".
