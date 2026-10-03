@@ -25,6 +25,18 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW56 (10-03 evening, Ada getforgenta-ce; hit the 175-call HANDOFF GATE). START HERE, IN ORDER:
+    1. [ ] 3248738e FINISH: shipped = column financial_connections.liabilities_consent_required (+ column SELECT grant,
+       migrations 20261003_liabilities_consent_required*.sql), sync writes it (statement-sync-policy
+       liabilityConsentRequired; 5 functions deployed), Accounts relink strip says "Allow statement data".
+       LEFT: (a) Debt-tab card row button (CreditCardEngine, PlaidLinkButton relinkItemId) for cards on a flagged item;
+       (b) Dashboard banner listing flagged connections; (c) pressed proof - no @forgenta.test user has a Plaid item,
+       so set the flag on a throwaway SQL row or check Tre's 10 items after the nightly sync
+       (`select institution_name, liabilities_consent_required from financial_connections where provider='plaid'`).
+    2. [ ] 4066ff23 leftovers: chart tooltips/axes, AiAdvisor, NetWorthTrendCard, AdvancedAnalyticsCard, RuleProposalCard;
+       engine rows netWorth/savings/contribs (forecast-engine.ts:2832-2858). Limits stay whole on purpose. Then close ask.
+    3. [ ] 9ecca94d GF rent scenario (R-NOW53 item 4).
+    4. [ ] Commit 'plaid: record...' body says 5848 tests; the real count was 5849. Cosmetic, no action.
 R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). START HERE, IN ORDER:
     [x] 382d1dd8 CI lint: 16cf3cbb (shiftIsoDays -> toLocalDateStr + shiftIsoDays.test.ts, 3 zones). [ ] Close the ask
         with the run id once Tests run 37142458017 is green (`gh run view 37142458017 --json conclusion`).
