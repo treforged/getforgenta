@@ -61,8 +61,8 @@ export default function BuildCarStrip({ summary }: { summary: BuildCarSummary })
 
       {summary.kind === 'loan' && (
         <div className="grid grid-cols-3 gap-4">
-          <Figure label="Still owed" value={formatCurrency(summary.remainingBalance, false)} tone="primary" />
-          <Figure label="Monthly" value={formatCurrency(summary.payment, false)} />
+          <Figure label="Still owed" value={formatCurrency(summary.remainingBalance)} tone="primary" />
+          <Figure label="Monthly" value={formatCurrency(summary.payment)} />
           <Figure label="Paid off" value={monthYear(summary.payoffDate)} />
         </div>
       )}
@@ -70,8 +70,8 @@ export default function BuildCarStrip({ summary }: { summary: BuildCarSummary })
       {summary.kind === 'saving' && (
         <>
           <div className="grid grid-cols-3 gap-4">
-            <Figure label="Saved" value={formatCurrency(summary.saved, false)} tone="primary" />
-            <Figure label="Down payment" value={formatCurrency(summary.downPaymentGoal, false)} />
+            <Figure label="Saved" value={formatCurrency(summary.saved)} tone="primary" />
+            <Figure label="Down payment" value={formatCurrency(summary.downPaymentGoal)} />
             <Figure
               label="Buying"
               value={summary.plannedPurchaseDate ? monthYear(summary.plannedPurchaseDate) : 'No date set'}
@@ -84,7 +84,7 @@ export default function BuildCarStrip({ summary }: { summary: BuildCarSummary })
             />
           </div>
           <p className="text-[11px] font-mono text-muted-foreground mt-2">
-            {Math.round(summary.pct)}% of the down payment · {formatCurrency(summary.estimatedLoan, false)} loan expected
+            {Math.round(summary.pct)}% of the down payment · {formatCurrency(summary.estimatedLoan)} loan expected
           </p>
         </>
       )}

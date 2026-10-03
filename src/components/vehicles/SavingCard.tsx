@@ -148,15 +148,15 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Down payment progress</span>
           <span className="font-medium">
-            {formatCurrency(simulatedSaved, false)} / {formatCurrency(personalGoal, false)}
-            {gift > 0 && <span className="text-muted-foreground"> · {formatCurrency(cf.down_payment_goal, false)} total</span>}
+            {formatCurrency(simulatedSaved)} / {formatCurrency(personalGoal)}
+            {gift > 0 && <span className="text-muted-foreground"> · {formatCurrency(cf.down_payment_goal)} total</span>}
           </span>
         </div>
         <ProgressBar value={pct} max={100} />
         {gift > 0 && (
           <div className="flex items-center gap-1 mt-1">
             <span className="text-[10px] px-1.5 py-0.5 bg-success/10 border border-success/20 text-success font-medium" style={{ borderRadius: 'var(--radius)' }}>
-              Gift/contribution: {formatCurrency(gift, false)} covered
+              Gift/contribution: {formatCurrency(gift)} covered
             </span>
           </div>
         )}
@@ -173,23 +173,23 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Target Price</p>
-          <p className="text-xs font-semibold">{formatCurrency(cf.target_price, false)}</p>
+          <p className="text-xs font-semibold">{formatCurrency(cf.target_price)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Est. Monthly Pmt</p>
-          <p className="text-xs font-semibold text-primary">{formatCurrency(monthlyEst, false)}</p>
+          <p className="text-xs font-semibold text-primary">{formatCurrency(monthlyEst)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Insurance/mo</p>
-          <p className="text-xs font-semibold">{formatCurrency(cf.monthly_insurance, false)}</p>
+          <p className="text-xs font-semibold">{formatCurrency(cf.monthly_insurance)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Est. Loan</p>
-          <p className="text-xs font-semibold">{formatCurrency(estLoanPrincipal, false)}</p>
+          <p className="text-xs font-semibold">{formatCurrency(estLoanPrincipal)}</p>
         </div>
         <div className="bg-secondary/40 p-2 col-span-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Est. Total Interest</p>
-          <p className="text-xs font-semibold text-destructive-text">{formatCurrency(estTotalInterest, false)}</p>
+          <p className="text-xs font-semibold text-destructive-text">{formatCurrency(estTotalInterest)}</p>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
 
       {displayMonthly > 0 && (
         <p className="text-[10px] text-primary/70 text-center">
-          {formatCurrency(displayMonthly, false)}/mo
+          {formatCurrency(displayMonthly)}/mo
           {monthly > 0
             ? (linkedAccountName ? ' · via transfer rule' : ' · contribution')
             : ' · suggested to hit goal'}

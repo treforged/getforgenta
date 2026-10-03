@@ -99,7 +99,7 @@ describe("/debt's Auto Loans tab owns the vehicle money", () => {
     renderPage(<DebtPayoff />);
     fireEvent.click(screen.getByRole('tab', { name: /Auto Loans/ }));
     expect(screen.getByText('Est. Loan')).toBeTruthy();
-    expect(screen.getByText('$24,400')).toBeTruthy();
+    expect(screen.getByText('$24,400.00')).toBeTruthy();
     expect(screen.getByText('Est. Total Interest')).toBeTruthy();
   });
 

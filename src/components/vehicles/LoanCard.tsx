@@ -208,14 +208,14 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
       {effective.isNegativeAmortization && (
         <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={12} />
-          <span>Payment is below interest-only - balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment, false)}/mo.</span>
+          <span>Payment is below interest-only - balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment)}/mo.</span>
         </div>
       )}
 
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Loan payoff progress</span>
-          <span className="font-medium">{formatCurrency(effective.remainingBalance, false)} remaining</span>
+          <span className="font-medium">{formatCurrency(effective.remainingBalance)} remaining</span>
         </div>
         <ProgressBar value={Math.min(pct, 100)} max={100} />
         <p className="text-[10px] text-muted-foreground mt-1">{Math.round(pct)}% paid · {effective.monthsElapsed} of {effective.schedule.length} payments made</p>
@@ -224,7 +224,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Monthly Payment</p>
-          <p className="text-xs font-semibold text-primary">{formatCurrency(effective.effectivePayment, false)}</p>
+          <p className="text-xs font-semibold text-primary">{formatCurrency(effective.effectivePayment)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           {/* ⚠️ THE EXTRA-AWARE DATE LEADS (Tre, 2026-08-27: "the payoff date with extra payments
@@ -243,11 +243,11 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Interest Paid</p>
-          <p className="text-xs font-semibold text-destructive-text">{formatCurrency(effective.interestPaidToDate, false)}</p>
+          <p className="text-xs font-semibold text-destructive-text">{formatCurrency(effective.interestPaidToDate)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Total Interest</p>
-          <p className="text-xs font-semibold text-muted-foreground">{formatCurrency(effective.totalInterest, false)}</p>
+          <p className="text-xs font-semibold text-muted-foreground">{formatCurrency(effective.totalInterest)}</p>
         </div>
       </div>
 
@@ -273,7 +273,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
               labelStyle={{ color: 'hsl(0,0%,100%)' }}
               itemStyle={{ color: 'hsl(0,0%,100%)' }}
               labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              formatter={(v, n) => [formatCurrency(Number(v), false), n === 'With auto extra' ? 'With auto extra' : 'Remaining']}
+              formatter={(v, n) => [formatCurrency(Number(v)), n === 'With auto extra' ? 'With auto extra' : 'Remaining']}
             />
             <Line dataKey="balance" name="Remaining" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
             {receivesAutoExtra && (
@@ -294,7 +294,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
 
       {receivesAutoExtra && (
         <p className="text-[10px] text-muted-foreground">
-          The dashed line adds {formatCurrency(nextAutoExtra, false)}/mo of extra principal, from
+          The dashed line adds {formatCurrency(nextAutoExtra)}/mo of extra principal, from
           left-over cash after the bills{autoPayoffLabel ? `, paying this loan off by ${autoPayoffLabel}` : ''}.
           You set that order under "Where the extra money goes".
         </p>
@@ -353,18 +353,18 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
                     <tr key={r.month} className={`border-t border-border/20 ${r.month === shown.monthsElapsed ? 'bg-primary/5' : ''}`}>
                       <td className="py-1 px-1 text-muted-foreground">{r.month}</td>
                       <td className="py-1 px-1 text-muted-foreground">{new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
-                      <td className="py-1 px-1 text-right">{formatCurrency(r.payment, false)}</td>
+                      <td className="py-1 px-1 text-right">{formatCurrency(r.payment)}</td>
                       {projWithExtras && (
                         // A dash, not $0: a month the waterfall did not reach and a month it sent
                         // nothing are the same thing, and printing $0 down a whole column reads as
                         // a broken feature rather than as "not this month".
                         <td className="py-1 px-1 text-right text-primary">
-                          {r.autoExtra > 0 ? formatCurrency(r.autoExtra, false) : '—'}
+                          {r.autoExtra > 0 ? formatCurrency(r.autoExtra) : '—'}
                         </td>
                       )}
-                      <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal, false)}</td>
-                      <td className="py-1 px-1 text-right text-destructive-text">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
-                      <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance, false)}</td>
+                      <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal)}</td>
+                      <td className="py-1 px-1 text-right text-destructive-text">{r.deferred ? '—' : formatCurrency(r.interest)}</td>
+                      <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -90,12 +90,12 @@ function reachabilityNote(r: Reachability, targetDate: string | null): { text: s
   switch (r.verdict) {
     case 'never':
       return {
-        text: `Will not reach it by ${by} — ${formatCurrency(r.shortfall, false)} short`,
+        text: `Will not reach it by ${by} — ${formatCurrency(r.shortfall)} short`,
         tone: 'text-destructive-text',
       };
     case 'late':
       return {
-        text: `${r.monthsLate} month${r.monthsLate === 1 ? '' : 's'} late — ${formatCurrency(r.shortfall, false)} short at ${by}`,
+        text: `${r.monthsLate} month${r.monthsLate === 1 ? '' : 's'} late — ${formatCurrency(r.shortfall)} short at ${by}`,
         tone: 'text-destructive-text',
       };
     case 'on_track':
@@ -389,13 +389,13 @@ export default function SurplusRankingSection({
         <div className="mb-3 px-3 py-2 border border-destructive/40 bg-destructive/5" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-xs font-medium text-destructive-text">
             {collision.shortfall > 0
-              ? `${formatCurrency(collision.demand, false)} wanted over the next ${collision.horizonMonths} months, ${formatCurrency(collision.capacity, false)} available — ${formatCurrency(collision.shortfall, false)} short.`
+              ? `${formatCurrency(collision.demand)} wanted over the next ${collision.horizonMonths} months, ${formatCurrency(collision.capacity)} available — ${formatCurrency(collision.shortfall)} short.`
               : `${collision.unreachable.length} ${collision.unreachable.length === 1 ? 'target does' : 'targets do'} not reach ${collision.unreachable.length === 1 ? 'its' : 'their'} own date — ${formatCurrency(collision.unreachable.reduce((s, u) => s + u.shortfall, 0), false)} short in total.`}
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {collision.shortfall > 0
               ? 'Something has to give: a target amount, a date, or the ranking below.'
-              : `There is ${formatCurrency(collision.capacity, false)} of surplus over those months — it is going somewhere higher in this list.`}
+              : `There is ${formatCurrency(collision.capacity)} of surplus over those months — it is going somewhere higher in this list.`}
           </p>
         </div>
       )}
@@ -575,22 +575,22 @@ export default function SurplusRankingSection({
                       // a debt being paid down from reading like a pot being filled. A student
                       // loan and a vehicle loan read identically here because they ARE the same
                       // thing to the user: a balance the surplus can attack.
-                      ? `${formatCurrency(row.remaining ?? 0, false)} owed · extra principal`
+                      ? `${formatCurrency(row.remaining ?? 0)} owed · extra principal`
                       : isCard
                         // A card the user has PLANNED but not opened prints the same sentence as a
                         // real card with nothing owed, and "$0 balance · minimum always paid" is the
                         // opposite news from "this does not exist yet".
                         ? row.notOpenYet
                           ? `Not open yet · opens ${row.opensLabel ?? 'later'}`
-                          : `${formatCurrency(row.remaining ?? 0, false)} balance · minimum always paid`
+                          : `${formatCurrency(row.remaining ?? 0)} balance · minimum always paid`
                         : row.remaining && row.remaining > 0
                           // A later stop is not "to go" yet: the money physically passes through
                           // the stop above it first, whatever rank either of them sits at, and
                           // printing the same phrase as an active row would say it is being funded
                           // now when it is deliberately next.
                           ? isLaterStop
-                            ? `${formatCurrency(row.remaining, false)} more, after stop ${(row.stage ?? 2) - 1}`
-                            : `${formatCurrency(row.remaining, false)} to go`
+                            ? `${formatCurrency(row.remaining)} more, after stop ${(row.stage ?? 2) - 1}`
+                            : `${formatCurrency(row.remaining)} to go`
                           : 'Fully funded'}
                 </p>
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}

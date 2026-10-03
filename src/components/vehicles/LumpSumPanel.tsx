@@ -106,8 +106,8 @@ function LumpSumModal({
           </div>
           {date && (bal !== null || liquidCash !== undefined) && (
             <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
-              {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal, false)}</span></span>}
-              {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>}
+              {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal)}</span></span>}
+              {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash)}</span></span>}
             </div>
           )}
         </div>
@@ -230,9 +230,9 @@ export default function LumpSumPanel({
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <span className="text-[10px] font-medium shrink-0">{isRange ? `${startLabel} – ${endLabel}` : startLabel}</span>
                   <span className="text-[10px] text-primary font-semibold shrink-0">
-                    {formatCurrency(g.amount, false)}{isRange ? `/mo × ${g.count}` : ''}
+                    {formatCurrency(g.amount)}{isRange ? `/mo × ${g.count}` : ''}
                   </span>
-                  {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal, false)}</span>}
+                  {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal)}</span>}
                 </div>
                 <div className="flex items-center gap-1 ml-2 shrink-0">
                   <button aria-label="Edit extra payment" onClick={() => setModal({ mode: 'edit', ids: g.ids, date: g.startDate, amount: String(g.amount), count: String(g.count) })} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
@@ -251,7 +251,7 @@ export default function LumpSumPanel({
             <span>Payoff: {new Date(withLumpsPayoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
               {monthsSaved > 0 && <span className="text-muted-foreground"> ({monthsSaved} mo earlier)</span>}
             </span>
-            {interestSaved > 0 && <span className="text-success">saves {formatCurrency(interestSaved, false)} interest</span>}
+            {interestSaved > 0 && <span className="text-success">saves {formatCurrency(interestSaved)} interest</span>}
           </div>
         </div>
       )}

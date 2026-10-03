@@ -790,7 +790,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                     <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 border-b border-border/30 last:border-0 text-xs">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{acct.name}</p>
-                        <p className="text-muted-foreground">{formatCurrency(acct.balance, false)}</p>
+                        <p className="text-muted-foreground">{formatCurrency(acct.balance)}</p>
                       </div>
                       {isCreditCard && (
                         <div className="flex flex-col gap-0.5 items-end shrink-0 text-xs font-medium">
@@ -801,7 +801,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                             Limit {acct.credit_limit != null ? formatCurrency(acct.credit_limit, false) : '—'}
                           </span>
                           <span className={acct.min_payment != null ? 'text-success' : 'text-muted-foreground'}>
-                            Min {acct.min_payment != null ? formatCurrency(acct.min_payment, false) : '—'}
+                            Min {acct.min_payment != null ? formatCurrency(acct.min_payment) : '—'}
                           </span>
                         </div>
                       )}
@@ -1132,7 +1132,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       <p className="text-sm font-semibold break-words">{a.name}</p>
                     </div>
                     <span className={`text-base font-display font-bold shrink-0 ${liability ? 'text-destructive-text' : 'text-success'}`}>
-                      {liability ? '-' : ''}{formatCurrency(Number(a.balance), false)}
+                      {liability ? '-' : ''}{formatCurrency(Number(a.balance))}
                     </span>
                   </div>
                   {/* THE META LINE AND THE ACTIONS SHARE A ROW (Tre, 2026-09-01:
@@ -1224,7 +1224,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                     {/* The fee AND the month it next lands in. An amount on its own invites the
                         question the row can already answer. */}
                     {annualFeeAmount(a) > 0
-                      ? ` · ${formatCurrency(annualFeeAmount(a), false)}/yr fee${nextAnnualFeeLabel(a, new Date()) ? ` · next ${nextAnnualFeeLabel(a, new Date())}` : ''}`
+                      ? ` · ${formatCurrency(annualFeeAmount(a))}/yr fee${nextAnnualFeeLabel(a, new Date()) ? ` · next ${nextAnnualFeeLabel(a, new Date())}` : ''}`
                       : ''}
                   </p>
                   <div className="flex items-center gap-0.5 shrink-0">
@@ -1528,7 +1528,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                 <div key={i} className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{entry.plaidAccount.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{formatCurrency(entry.plaidAccount.balance, false)}</p>
+                    <p className="text-xs text-muted-foreground truncate">{formatCurrency(entry.plaidAccount.balance)}</p>
                   </div>
                   <select aria-label={`Match ${entry.plaidAccount.name} to an account`}
                     className="bg-secondary border border-border text-xs px-2 py-1 rounded flex-1 min-w-0 truncate"

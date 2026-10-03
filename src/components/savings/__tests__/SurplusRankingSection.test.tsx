@@ -249,7 +249,7 @@ describe('SurplusRankingSection — a student loan is a ranked row, not a checkb
 
   it('says the debt is paid DOWN, not filled', () => {
     setup(WITH_LOAN);
-    expect(screen.getByText(/\$500 owed · extra principal/)).toBeTruthy();
+    expect(screen.getByText(/\$500\.00 owed · extra principal/)).toBeTruthy();
   });
 
   it('takes the liability off the list with Remove, without touching the order', () => {
@@ -379,7 +379,7 @@ describe('SurplusRankingSection — the verdict respects the contribution start 
     expect(screen.queryByText('On track for Jul 2027')).toBeNull();
     // Nothing lands before Nov 2027 (index 15), so $500 is reached at index 19 — eight months past
     // the Jul 2027 deadline, with the whole $500 still missing on the day it was wanted.
-    expect(screen.getByText('8 months late — $500 short at Jul 2027')).toBeTruthy();
+    expect(screen.getByText('8 months late — $500.00 short at Jul 2027')).toBeTruthy();
   });
 
   it('withholds only the months BEFORE the start, not the contribution itself', () => {
